@@ -1,0 +1,104 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <LangVersion>9.0</LangVersion>
+	<TargetFramework>net471</TargetFramework>
+	<ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <PropertyGroup>
+    <UnityVersion>2022.3.20f1</UnityVersion>
+    <OSInstallRootPath>C:\Program Files</OSInstallRootPath>
+  </PropertyGroup>
+  <!-- Set OS-specific Unity Editor absolute/relative folder paths -->
+  <Choose>
+    <When Condition="$([MSBuild]::IsOsPlatform(Windows))">
+      <PropertyGroup>
+        <OSInstallRootPath Condition="'$(OSInstallRootPath)'==''">C:\Program Files</OSInstallRootPath>
+        <UnityManagedDir Condition="'$(UnityManagedDir)'==''">Editor\Data\Managed</UnityManagedDir>
+        <UnityExtensionsDir Condition="'$(UnityExtensionsDir)'==''">Editor\Data\UnityExtensions\Unity</UnityExtensionsDir>
+      </PropertyGroup>
+    </When>
+    <When Condition="$([MSBuild]::IsOsPlatform(OSX))">
+      <PropertyGroup>
+        <OSInstallRootPath Condition="'$(OSInstallRootPath)'==''">/Applications</OSInstallRootPath>
+        <UnityManagedDir Condition="'$(UnityManagedDir)'==''">Unity.app\Contents\Managed</UnityManagedDir>
+        <UnityExtensionsDir Condition="'$(UnityExtensionsDir)'==''">Editor\Unity.app\Contents\UnityExtensions\Unity</UnityExtensionsDir>
+      </PropertyGroup>
+    </When>
+    <When Condition="$([MSBuild]::IsOsPlatform(Linux))">
+      <PropertyGroup>
+        <OSInstallRootPath Condition="'$(OSInstallRootPath)'==''">$([System.Environment]::GetFolderPath('System.Environment+SpecialFolder.UserProfile'))</OSInstallRootPath>
+        <UnityManagedDir Condition="'$(UnityManagedDir)'==''">Editor\Data\Managed</UnityManagedDir>
+        <UnityExtensionsDir Condition="'$(UnityExtensionsDir)'==''">Editor\Data\UnityExtensions\Unity</UnityExtensionsDir>
+      </PropertyGroup>
+    </When>
+  </Choose>
+  <!-- Unity paths -->
+  <PropertyGroup>
+    <UnityInstallRootDir Condition="'$(UnityInstallRootDir)'==''">Unity\Hub\Editor</UnityInstallRootDir>
+    <UnityInstallRootPath Condition="'$(UnityInstallRootPath)'==''">$(OSInstallRootPath)\$(UnityInstallRootDir)</UnityInstallRootPath>
+    <UnityVersionInstallPath Condition="'$(UnityVersionInstallPath)'==''">$(UnityInstallRootPath)\$(UnityVersion)</UnityVersionInstallPath>
+    <UnityManagedPath Condition="'$(UnityManagedPath)'==''">$(UnityVersionInstallPath)\$(UnityManagedDir)</UnityManagedPath>
+    <UnityEnginePath Condition="'$(UnityEnginePath)'==''">$(UnityManagedPath)\UnityEngine.dll</UnityEnginePath>
+    <UnityEditorPath Condition="'$(UnityEditorPath)'==''">$(UnityManagedPath)\UnityEditor.dll</UnityEditorPath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{48AD1F68-9AD1-495E-B6FF-FA8A27C063A7}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>FixedMathSharp.Editor</RootNamespace>
+    <AssemblyName>FixedMathSharp.Editor</AssemblyName>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;UNITY_EDITOR</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE;UNITY_EDITOR</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FixedMathSharp\FixedMathSharp.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="$(UnityEnginePath)" Private="false" />
+    <Reference Include="$(UnityEditorPath)" Private="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472">
+      <Version>1.0.3</Version>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>
