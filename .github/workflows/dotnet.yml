@@ -65,4 +65,4 @@ jobs:
       - name: Test
         run: |
           dotnet --info
-          dotnet test --framework net471 --no-restore --configuration Release --verbosity normal
+          dotnet test --framework net471 --no-build --configuration Release --verbosity normal
