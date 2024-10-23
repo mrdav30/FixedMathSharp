@@ -40,7 +40,7 @@ jobs:
       run: dotnet build src/FixedMathSharp/FixedMathSharp.csproj --no-restore --configuration Release
 
     - name: Build Editor
-      run: dotnet build src/FixedMathSharpEditor/FixedMathSharp.Editor.csproj --no-restore --configuration Release
+      run: dotnet build src/FixedMathSharp.Editor/FixedMathSharp.Editor.csproj --no-restore --configuration Release
 
     - name: Test
       run: dotnet test --no-build --verbosity normal --configuration Release
