@@ -62,12 +62,7 @@ jobs:
         with:
           name: BuildOutput
 
-      - name: Install Visual Studio Test Platform
-        run: |
-          choco install microsoft-build-tools -y
-          choco install microsoft-vstest -y
-    
       - name: Test
         run: |
           dotnet --info
-          vstest.console.exe ./tests/FixedMathSharp.Tests/bin/Release/net471/FixedMathSharp.Tests.dll
+          dotnet test --framework net471 --no-restore --configuration Release --verbosity normal
