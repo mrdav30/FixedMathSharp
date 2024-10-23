@@ -40,6 +40,8 @@ jobs:
       run: dotnet build src/FixedMathSharp/FixedMathSharp.csproj --no-restore --configuration Release
 
     - name: Build Editor
+      env:
+        OSInstallRootPath: /opt/unity
       run: dotnet build src/FixedMathSharp.Editor/FixedMathSharp.Editor.csproj --no-restore --configuration Release
 
     - name: Test
