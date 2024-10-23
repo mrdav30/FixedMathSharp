@@ -1,4 +1,8 @@
-# FixedMathSharp Library
+# FixedMathSharp
+
+<p align="center">
+  <img src=".assets/icon_128x128.png" alt="FixedMathSharp Icon" width="200"/>
+</p>
 
 **FixedMathSharp** is a high-precision, fixed-point mathematics library
 designed to enable deterministic, efficient arithmetic operations. It
