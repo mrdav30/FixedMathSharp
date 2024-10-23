@@ -35,34 +35,12 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
 
-    - name: Build (Library)
-      run: dotnet build src/FixedMathSharp/FixedMathSharp.csproj --no-restore --configuration Release
-      
-    - name: Build (Editor)
+    - name: Build Solution
       env:
         UnityManagedPath: \opt\unity\Editor\Data\Managed
-      run: dotnet build src/FixedMathSharp.Editor/FixedMathSharp.Editor.csproj --no-restore --configuration Release
-
-    - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: BuildOutput
-        path: ./src/FixedMathSharp/bin/Release
-
-  test:
-    runs-on: windows-latest
-    needs: build
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: BuildOutput
-
-      - name: Test
-        run: |
-          dotnet --info
-          dotnet test --framework net471 --no-build --configuration Release --verbosity normal
+      run: dotnet build --no-restore --configuration Release
+      
+    - name: Test
+      run: |
+        dotnet --info
+        dotnet test --framework net471 --no-build --configuration Release --verbosity normal
