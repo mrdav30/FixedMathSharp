@@ -12,6 +12,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     container:
       image: unityci/editor:ubuntu-2022.3.20f1-windows-mono-3.1.0
 
@@ -23,15 +24,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
-
-    - name: Install Mono
-      run: |
-        apt update
-        apt install -y ca-certificates gnupg
-        gpg --homedir /tmp --no-default-keyring --keyring /usr/share/keyrings/mono-official-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-        echo "deb [signed-by=/usr/share/keyrings/mono-official-archive-keyring.gpg] https://download.mono-project.com/repo/ubuntu stable-focal main" | tee /etc/apt/sources.list.d/mono-official-stable.list
-        apt update
-        apt install -y mono-complete
 
     - name: Cache NuGet packages
       uses: actions/cache@v3
@@ -45,11 +37,39 @@ jobs:
       run: dotnet restore
 
     - name: Build Solution
-      env:
-        UnityManagedPath: \opt\unity\Editor\Data\Managed
       run: dotnet build --no-restore --configuration Release
-      
-    - name: Test
-      run: |
-        dotnet --info
-        dotnet test --framework net471 --no-build --configuration Release --verbosity normal
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: BuildOutputLibrary
+        path: ./src/FixedMathSharp/bin/Release
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: BuildOutputTest
+        path: ./src/FixedMathSharp.Editor/bin/Release
+
+  test:
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: BuildOutputLibrary
+          
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: BuildOutputTest
+  
+      - name: Test
+        run: |
+          dotnet --info
+          dotnet test --framework net471 --no-build --configuration Release --verbosity normal
