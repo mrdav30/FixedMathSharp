@@ -11,7 +11,10 @@ on:
 
 jobs:
   build:
-    runs-on: unityci/editor:windows-6000.0.23f1-universal-windows-platform-3.1.0
+    runs-on: ubuntu-latest
+
+    container:
+      image: unityci/editor:windows-6000.0.23f1-universal-windows-platform-3.1.0
 
     steps:
     - name: Checkout repository
