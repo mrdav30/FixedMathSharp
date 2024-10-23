@@ -1,12 +1,13 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace FixedMathSharp
 {
     public static partial class FixedMath
     {
-        #region Properties
-                               
+        #region Fields and Constants
+
         public static readonly int[] Pow10Lookup = {
             1,           // 10^0 = 1
             10,          // 10^1 = 10
@@ -33,9 +34,9 @@ namespace FixedMathSharp
         public static readonly Fixed64 Log2Max = new Fixed64(63L * ONE_L);
         public static readonly Fixed64 Log2Min = new Fixed64(-64L * ONE_L);
 
-        internal const double DEG2RAD_D = 0.01745329251994329576;
+        internal const double DEG2RAD_D = 0.01745329251994329576;  // π / 180
         public static readonly Fixed64 Deg2Rad = new Fixed64(DEG2RAD_D);  // Degrees to radians conversion factor
-        internal const double RAD2DEG_D = 57.2957795130823208767;
+        internal const double RAD2DEG_D = 57.2957795130823208767;  // 180 / π
         public static readonly Fixed64 Rad2Deg = new Fixed64(RAD2DEG_D);  // Radians to degrees conversion factor
 
         // Asin Padé approximations
@@ -44,30 +45,32 @@ namespace FixedMathSharp
 
         #endregion
 
+        #region FixedTrigonometry Operations
+
         /// <summary>
         /// Raises the base number b to the power of exp.
         /// Uses logarithms to compute power efficiently for fixed-point values.
         /// </summary>
-        /// <exception cref="DivideByZeroException">
-        /// The base was zero, with a negative exponent
+        /// <exception cref="DivideByFixed64.ZeroException">
+        /// The base was Fixed64.Zero, with a negative expFixed64.Onent
         /// </exception>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// The base was negative, with a non-zero exponent
+        /// The base was negative, with a non-Fixed64.Zero expFixed64.Onent
         /// </exception>
         public static Fixed64 Pow(Fixed64 b, Fixed64 exp)
         {
-            if (b == One)
-                return One;
+            if (b == Fixed64.One)
+                return Fixed64.One;
 
             if (exp.RawValue == 0)
-                return One;
+                return Fixed64.One;
 
             if (b.RawValue == 0)
             {
                 if (exp.RawValue < 0)
                     throw new DivideByZeroException("Cannot raise 0 to a negative power.");
 
-                return Zero;
+                return Fixed64.Zero;
             }
 
             Fixed64 log2 = Log2(b);  // Calculate logarithm base 2
@@ -81,32 +84,32 @@ namespace FixedMathSharp
         public static Fixed64 Pow2(Fixed64 x)
         {
             if (x.RawValue == 0)
-                return One;
+                return Fixed64.One;
 
-            // Handle negative exponents by using the reciprocal
+            // Handle negative expFixed64.Onents by using the reciprocal
             bool neg = x.RawValue < 0;
             if (neg)
                 x = -x;
 
-            if (x == One)
-                return neg ? One / Double : Double;
+            if (x == Fixed64.One)
+                return neg ? Fixed64.One / Fixed64.Two : Fixed64.Two;
 
             if (x >= Log2Max)
-                return neg ? One / MaxValue : MaxValue;
+                return neg ? Fixed64.One / Fixed64.MaxValue : Fixed64.MaxValue;
 
             if (x <= Log2Min)
-                return neg ? MaxValue : Zero;
+                return neg ? Fixed64.MaxValue : Fixed64.Zero;
 
             /* 
              * Taylor series expansion for exp(x)
              * From term n, we get term n+1 by multiplying with x/n.
-             * When the sum term drops to zero, we can stop summing.
+             * When the sum term drops to Fixed64.Zero, we can stop summing.
              */
             int integerPart = (int)x.Floor();
             x = Fixed64.FromRaw(x.RawValue & MAX_SHIFTED_AMOUNT_UI);  // Fractional part
 
-            var result = One;
-            var term = One;
+            var result = Fixed64.One;
+            var term = Fixed64.One;
             int i = 1;
             while (term.RawValue != 0)
             {
@@ -117,7 +120,7 @@ namespace FixedMathSharp
 
             result = Fixed64.FromRaw(result.RawValue << integerPart);
             if (neg)
-                result = One / result;
+                result = Fixed64.One / result;
 
             return result;
         }
@@ -222,8 +225,8 @@ namespace FixedMathSharp
                     {
                         // Handle large remainders by adjusting the result
                         num -= result;
-                        num = (num << SHIFT_AMOUNT_I) - (ulong)Half.RawValue;
-                        result = (result << SHIFT_AMOUNT_I) + (ulong)Half.RawValue;
+                        num = (num << SHIFT_AMOUNT_I) - (ulong)Fixed64.Half.RawValue;
+                        result = (result << SHIFT_AMOUNT_I) + (ulong)Fixed64.Half.RawValue;
                     }
                     else
                     {
@@ -245,30 +248,40 @@ namespace FixedMathSharp
         /// <summary>
         /// Converts a value in radians to degrees.
         /// </summary>
+        /// <remarks>
+        /// Uses double precision to avoid precision loss
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 RadToDeg(Fixed64 rad)
         {
-            //return rad * Rad2Deg;
-            return new Fixed64((double)rad * 180 / PI_D);
+            return new Fixed64((double)rad * RAD2DEG_D);
         }
 
         /// <summary>
         /// Converts a value in degrees to radians.
         /// </summary>
+        /// <remarks>
+        /// Uses double precision to avoid precision loss
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 DegToRad(Fixed64 deg)
         {
-            //  return new Fixed64((double)deg * DEG_2_RAD_D);
-            //return deg * Deg2Rad;
-            return new Fixed64((double)deg * PI_D / 180);
+            return new Fixed64((double)deg * DEG2RAD_D);
         }
 
         /// <summary>
-        /// Returns the sine of a specified angle in radians using LUT-based interpolation.
+        /// Returns the sine of a specified angle in radians.
         /// </summary>
         /// <remarks>
         /// The relative error is less than 1E-10 for x in [-2PI, 2PI], and less than 1E-7 in the worst case.
         /// </remarks>
         public static Fixed64 Sin(Fixed64 x)
         {
+            // Check for special cases
+            if (x == Fixed64.Zero) return Fixed64.Zero;
+            if (x == PiOver2) return Fixed64.One;
+            if (x == -PiOver2) return -Fixed64.One;
+
             // Ensure x is in the range [-2π, 2π]
             x %= TwoPI;
             if (x < -PI)
@@ -276,22 +289,15 @@ namespace FixedMathSharp
             else if (x > PI)
                 x -= TwoPI;
 
-            // Check for special cases
-            if (x == Zero) return Zero;
-            if (x == PiOver2) return One;
-            if (x == -PiOver2) return -One;
-
             bool flip = false;
-            if (x < Zero)
+            if (x < Fixed64.Zero)
             {
                 x = -x;
                 flip = true;
             }
 
             if (x > PiOver2)
-            {
                 x = PI - x;
-            }
 
             // Use Taylor series approximation
             Fixed64 result = x;
@@ -302,7 +308,7 @@ namespace FixedMathSharp
             for (int i = 3; i < 15; i += 2)
             {
                 term *= x2 / (i * (i - 1));
-                if (term.Abs() < Epsilon)
+                if (term.Abs() < Fixed64.Epsilon)
                     break;
 
                 result += term * sign;
@@ -325,7 +331,7 @@ namespace FixedMathSharp
 
         public static Fixed64 SinToCos(Fixed64 sin)
         {
-            return Sqrt(One - sin * sin);
+            return Sqrt(Fixed64.One - sin * sin);
         }
 
         /// <summary>
@@ -335,7 +341,12 @@ namespace FixedMathSharp
         /// This function is not well-tested. It may be wildly inaccurate.
         /// </remarks>
         public static Fixed64 Tan(Fixed64 x)
-        {         
+        {
+            // Check for special cases
+            if (x == Fixed64.Zero) return Fixed64.Zero;
+            if (x == PiOver4) return Fixed64.One;
+            if (x == -PiOver4) return -Fixed64.One;
+
             // Normalize x to [-π/2, π/2]
             x %= PI;
             if (x < -PiOver2)
@@ -343,15 +354,10 @@ namespace FixedMathSharp
             else if (x > PiOver2)
                 x -= PI;
 
-            // Check for special cases
-            if (x == Zero) return Zero;
-            if (x == PiOver4) return One;
-            if (x == -PiOver4) return -One;
-
             // Use continued fraction to approximate tan(x)
             Fixed64 x2 = x * x;
             Fixed64 numerator = x;
-            Fixed64 denominator = One;
+            Fixed64 denominator = Fixed64.One;
 
             // Iterate over the continued fraction terms
             Fixed64 prevDenominator = denominator;
@@ -359,7 +365,7 @@ namespace FixedMathSharp
             for (int i = start; i >= 1; i -= 2)
             {
                 denominator = (Fixed64)i - (x2 / denominator);
-                if ((denominator - prevDenominator).Abs() < Epsilon)
+                if ((denominator - prevDenominator).Abs() < Fixed64.Precision)
                     break;
                 prevDenominator = denominator;
             }
@@ -380,32 +386,28 @@ namespace FixedMathSharp
         public static Fixed64 Asin(Fixed64 x)
         {
             // Ensure x is within the domain [-1, 1]
-            if (x < -One || x > One)
+            if (x < -Fixed64.One || x > Fixed64.One)
                 throw new ArithmeticException("Input out of domain for Asin: " + x);
 
             // Handle boundary cases for -1 and 1
-            if (x == One)
-                return PiOver2;  // asin(1) = π/2
-            if (x == -One)
-                return -PiOver2;  // asin(-1) = -π/2
+            if (x == Fixed64.One) return PiOver2;  // asin(1) = π/2
+            if (x == -Fixed64.One) return -PiOver2;  // asin(-1) = -π/2
 
             // Special case handling for asin(0.5) -> π/6 and asin(-0.5) -> -π/6
-            if (x == Half)
-                return PiOver6;
-            if (x == -Half)
-                return -PiOver6;
+            if (x == Fixed64.Half) return PiOver6;
+            if (x == -Fixed64.Half) return -PiOver6;
 
             // For values close to 0, use a Padé approximation for better precision
-            if (x.Abs() < Half)
+            if (x.Abs() < Fixed64.Half)
             {
                 // Padé approximation of asin(x) for |x| < 0.5
                 Fixed64 xSquared = x * x;
-                Fixed64 numerator = x * (One + (xSquared * (PadeA1 + (xSquared * PadeA2))));
+                Fixed64 numerator = x * (Fixed64.One + (xSquared * (PadeA1 + (xSquared * PadeA2))));
                 return numerator;
             }
 
             // For values closer to ±1, use the identity: asin(x) = π/2 - acos(x) for stability
-            return x > Zero
+            return x > Fixed64.Zero
                 ? PiOver2 - Acos(x)
                 : -PiOver2 + Acos(-x);
         }
@@ -418,19 +420,19 @@ namespace FixedMathSharp
         /// <exception cref="ArgumentOutOfRangeException">Thrown if x is outside the domain [-1, 1].</exception>
         public static Fixed64 Acos(Fixed64 x)
         {
-            if (x < -One || x > One)
+            if (x < -Fixed64.One || x > Fixed64.One)
                 throw new ArgumentOutOfRangeException(nameof(x), "Input out of domain for Acos: " + x);
 
             // For values near 1 or -1, the result is directly known.
-            if (x == One) return Zero;      // acos(1) = 0
-            if (x == -One) return PI;       // acos(-1) = π
-            if (x == Zero) return PiOver2;  // acos(0) = π/2
+            if (x == Fixed64.One) return Fixed64.Zero;      // acos(1) = 0
+            if (x == -Fixed64.One) return PI;       // acos(-1) = π
+            if (x == Fixed64.Zero) return PiOver2;  // acos(0) = π/2
 
             // Compute using the relationship acos(x) = atan(sqrt(1 - x^2) / x) + π/2 when x is negative
-            var sqrtTerm = Sqrt(One - x * x);   // sqrt(1 - x^2)
+            var sqrtTerm = Sqrt(Fixed64.One - x * x);   // sqrt(1 - x^2)
             var atanTerm = Atan(sqrtTerm / x);
 
-            return x < Zero
+            return x < Fixed64.Zero
                     ? atanTerm + PI   // acos(-x) = atan(...) + π
                     : atanTerm;               // Otherwise, return just atan(sqrt(...))
         }
@@ -441,19 +443,19 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 Atan(Fixed64 z)
         {
-            if (z == Zero) return Zero;
-            if (z == One) return PiOver4;
-            if (z == -One) return -PiOver4;
+            if (z == Fixed64.Zero) return Fixed64.Zero;
+            if (z == Fixed64.One) return PiOver4;
+            if (z == -Fixed64.One) return -PiOver4;
 
-            bool neg = z < Zero;
+            bool neg = z < Fixed64.Zero;
             if (neg) z = -z;
 
             // Adjust series for z > 0.5 using the identity.
             Fixed64 adjustedResult;
-            if (z > Half)
+            if (z > Fixed64.Half)
             {
                 // Apply the identity: atan(z) = π/4 - atan((1 - z) / (1 + z))
-                Fixed64 transformedZ = (One - z) / (One + z);
+                Fixed64 transformedZ = (Fixed64.One - z) / (Fixed64.One + z);
                 adjustedResult = PiOver4 - Atan(transformedZ);
             }
             else
@@ -469,7 +471,7 @@ namespace FixedMathSharp
                 {
                     term *= zSq;
                     Fixed64 nextTerm = term / i;
-                    if (nextTerm.Abs() < Epsilon)
+                    if (nextTerm.Abs() < Fixed64.Precision)
                         break;
 
                     result += nextTerm * sign;
@@ -495,21 +497,21 @@ namespace FixedMathSharp
         /// taking into account the quadrants of the inputs to determine the sign of the result.</returns>
         public static Fixed64 Atan2(Fixed64 y, Fixed64 x)
         {
-            if (x == Zero)
+            if (x == Fixed64.Zero)
             {
-                if (y > Zero)
+                if (y > Fixed64.Zero)
                     return PiOver2;
-                if (y == Zero)
-                    return Zero;
+                if (y == Fixed64.Zero)
+                    return Fixed64.Zero;
                 return -PiOver2;
             }
 
             Fixed64 atan = Atan(y / x);
 
             // Adjust based on the quadrant
-            if (x < Zero)
+            if (x < Fixed64.Zero)
             {
-                if (y >= Zero)
+                if (y >= Fixed64.Zero)
                 {
                     // Second quadrant
                     return atan + PI;
@@ -524,5 +526,7 @@ namespace FixedMathSharp
             // First or fourth quadrant
             return atan;
         }
+
+        #endregion
     }
 }

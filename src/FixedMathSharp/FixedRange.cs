@@ -9,37 +9,21 @@ namespace FixedMathSharp
     [Serializable]
     public struct FixedRange : IEquatable<FixedRange>
     {
+        #region Fields and Constants
+
         /// <summary>
         /// The smallest possible range.
         /// </summary>
-        private static FixedRange _minRange = new FixedRange(FixedMath.MinValue, FixedMath.MinValue);
-        public static FixedRange MinRange => _minRange;
+        public static readonly FixedRange MinRange = new FixedRange(Fixed64.MinValue, Fixed64.MinValue);
 
         /// <summary>
         /// The largest possible range.
         /// </summary>
-        private static FixedRange _maxRange = new FixedRange(FixedMath.MaxValue, FixedMath.MaxValue);
-        public static FixedRange MaxRange => _maxRange;
+        public static readonly FixedRange MaxRange = new FixedRange(Fixed64.MaxValue, Fixed64.MaxValue);
 
-        /// <summary>
-        /// Gets the minimum value of the range.
-        /// </summary>
-        public Fixed64 Min { get; private set; }
+        #endregion
 
-        /// <summary>
-        /// Gets the maximum value of the range.
-        /// </summary>
-        public Fixed64 Max { get; private set; }
-
-        /// <summary>
-        /// The length of the range, computed as Max - Min.
-        /// </summary>
-        public Fixed64 Length => Max - Min;
-
-        /// <summary>
-        /// The midpoint of the range.
-        /// </summary>
-        public Fixed64 MidPoint => (Min + Max) * FixedMath.Half;
+        #region Constructors
 
         /// <summary>
         /// Initializes a new instance of the FixedRange structure with the specified minimum and maximum values.
@@ -48,6 +32,7 @@ namespace FixedMathSharp
         /// <param name="max">The maximum value of the range.</param>
         /// <param name="enforceOrder">If true, ensures that Min is less than or equal to Max.</param>
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FixedRange(Fixed64 min, Fixed64 max, bool enforceOrder = true)
         {
             if (enforceOrder)
@@ -62,6 +47,46 @@ namespace FixedMathSharp
             }
         }
 
+        #endregion
+
+        #region Properties and Methods (Instance)
+
+        /// <summary>
+        /// Gets the minimum value of the range.
+        /// </summary>
+        public Fixed64 Min {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private set; }
+
+        /// <summary>
+        /// Gets the maximum value of the range.
+        /// </summary>
+        public Fixed64 Max {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private set; }
+
+        /// <summary>
+        /// The length of the range, computed as Max - Min.
+        /// </summary>
+        public Fixed64 Length
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Max - Min;
+        }
+
+        /// <summary>
+        /// The midpoint of the range.
+        /// </summary>
+        public Fixed64 MidPoint
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (Min + Max) * Fixed64.Half;
+        }
+
         /// <summary>
         /// Sets the minimum and maximum values for the range.
         /// </summary>
@@ -71,52 +96,6 @@ namespace FixedMathSharp
         {
             Min = min;
             Max = max;
-        }
-
-        /// <summary>
-        /// Checks whether two FixedRange instances intersect.
-        /// </summary>
-        /// <param name="f1">The first range to compare.</param>
-        /// <param name="f2">The second range to compare.</param>
-        /// <returns>True if the ranges intersect; otherwise, false.</returns>
-        public static bool Intersects(FixedRange f1, FixedRange f2)
-        {
-            FixedRange firstRange = f1.Min < f2.Min ? f1 : f2;
-            FixedRange secondRange = firstRange.GetHashCode() == f1.GetHashCode() ? f2 : f1;
-            return firstRange.Max >= secondRange.Min;
-        }
-
-        /// <summary>
-        /// Checks whether the specified value is within the range.
-        /// </summary>
-        /// <param name="x">The value to check.</param>
-        /// <returns>True if the value is within the range; otherwise, false.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool InRange(Fixed64 x)
-        {
-            return x >= Min && x < Max;
-        }
-
-        /// <summary>
-        /// Checks whether the specified integer is within the range.
-        /// </summary>
-        /// <param name="x">The integer value to check.</param>
-        /// <returns>True if the value is within the range; otherwise, false.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool InRange(int x)
-        {
-            return x >= (int)Min && x < (int)Max;
-        }
-
-        /// <summary>
-        /// Checks whether the specified floating-point number is within the range.
-        /// </summary>
-        /// <param name="x">The floating-point value to check.</param>
-        /// <returns>True if the value is within the range; otherwise, false.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool InRange(float x)
-        {
-            return (Fixed64)x >= Min && (Fixed64)x < Max;
         }
 
         /// <summary>
@@ -131,15 +110,31 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Checks whether this range overlaps with the specified range.
+        /// Determines whether the specified value is within the range, with an option to include or exclude the upper bound.
+        /// </summary>
+        /// <param name="x">The value to check.</param>
+        /// <param name="includeMax">If true, the upper bound (Max) is included in the range check; otherwise, the upper bound is exclusive. Default is false (exclusive).</param>
+        /// <returns>True if the value is within the range; otherwise, false.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool InRange(Fixed64 x, bool includeMax = false)
+        {
+            return includeMax ? x >= Min && x <= Max : x >= Min && x < Max;
+        }
+
+        /// <summary>
+        /// Checks whether this range overlaps with the specified range, ensuring no adjacent edges are considered overlaps.
         /// </summary>
         /// <param name="other">The range to compare.</param>
         /// <returns>True if the ranges overlap; otherwise, false.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Overlaps(FixedRange other)
         {
-            return Min <= other.Max && Max >= other.Min;
+            return Min < other.Max && Max > other.Min;
         }
+
+        #endregion
+
+        #region Range Operations
 
         /// <summary>
         /// Determines the direction from one range to another.
@@ -154,8 +149,8 @@ namespace FixedMathSharp
             sign = null;
             if (!range1.Overlaps(range2))
             {
-                if (range1.Max < range2.Min) sign = -FixedMath.One;
-                else sign = FixedMath.One;
+                if (range1.Max < range2.Min) sign = -Fixed64.One;
+                else sign = Fixed64.One;
                 return true;
             }
             return false;
@@ -183,7 +178,7 @@ namespace FixedMathSharp
             Fixed64 overlapStart = FixedMath.Max(rangeA.Min, rangeB.Min);
             Fixed64 overlap = overlapEnd - overlapStart;
 
-            return overlap > FixedMath.Zero ? overlap : FixedMath.Zero;
+            return overlap > Fixed64.Zero ? overlap : Fixed64.Zero;
         }
 
         /// <summary>
@@ -210,19 +205,21 @@ namespace FixedMathSharp
             return false;
         }
 
-        #region Convert
-
-        /// <summary>
-        /// Returns a string that represents the FixedRange instance, formatted as "Min - Max".
-        /// </summary>
-        public override string ToString()
-        {
-            return $"{Min.ToFormattedDouble()} - {Max.ToFormattedDouble()}";
-        }
-
         #endregion
 
         #region Operators
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static FixedRange operator +(FixedRange left, FixedRange right)
+        {
+            return new FixedRange(left.Min + right.Min, left.Max + right.Max);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static FixedRange operator -(FixedRange left, FixedRange right)
+        {
+            return new FixedRange(left.Min - right.Min, left.Max - right.Max);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator ==(FixedRange left, FixedRange right)
@@ -235,6 +232,23 @@ namespace FixedMathSharp
         {
             return !left.Equals(right);
         }
+
+        #endregion
+
+        #region Conversion
+
+        /// <summary>
+        /// Returns a string that represents the FixedRange instance, formatted as "Min - Max".
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override string ToString()
+        {
+            return $"{Min.ToFormattedDouble()} - {Max.ToFormattedDouble()}";
+        }
+
+        #endregion
+
+        #region Equality and HashCode Overrides
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(object obj)

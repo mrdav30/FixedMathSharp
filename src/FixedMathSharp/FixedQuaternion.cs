@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
@@ -8,18 +9,25 @@ namespace FixedMathSharp
     /// Quaternions are useful for representing rotations and can be used to perform smooth rotations and avoid gimbal lock.
     /// </summary>
     [Serializable]
-    public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
+    public struct FixedQuaternion : IEquatable<FixedQuaternion>
     {
+        #region Fields and Constants
+
         public Fixed64 x, y, z, w;
 
         /// <summary>
-        /// Normalized version of this quaternion.
+        /// Identity quaternion (0, 0, 0, 1).
         /// </summary>
-        public FixedQuaternion MyNormalized => Normalize(this);
+        public static readonly FixedQuaternion Identity = new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+
+        #endregion
+
+        #region Constructors
 
         /// <summary>
         /// Creates a new FixedQuaternion with the specified components.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FixedQuaternion(Fixed64 x, Fixed64 y, Fixed64 z, Fixed64 w)
         {
             this.x = x;
@@ -28,45 +36,96 @@ namespace FixedMathSharp
             this.w = w;
         }
 
+        #endregion
+
+        #region Properties and Methods (Instance)
+
         /// <summary>
-        /// Identity quaternion (0, 0, 0, 1).
+        /// Normalized version of this quaternion.
         /// </summary>
-        public static FixedQuaternion Identity => new FixedQuaternion(FixedMath.Zero, FixedMath.Zero, FixedMath.Zero, FixedMath.One);
+        public FixedQuaternion Normal
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => GetNormalized(this);
+        }
 
         /// <summary>
         /// Returns the Euler angles (in degrees) of this quaternion.
         /// </summary>
         public Vector3d EulerAngles
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => ToEulerAngles();
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set => this = FromEulerAnglesInDegrees(value.x, value.y, value.z);
         }
 
-        /// <summary>
-        /// Normalizes the quaternion to a unit quaternion.
-        /// </summary>
-        public static FixedQuaternion Normalize(FixedQuaternion q)
+        public Fixed64 this[int index]
         {
-            Fixed64 magnitudeSqr = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
-            if (magnitudeSqr <= FixedMath.Epsilon)
-                return Identity;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return index switch
+                {
+                    0 => x,
+                    1 => y,
+                    2 => z,
+                    3 => w,
+                    _ => throw new IndexOutOfRangeException("Invalid FixedQuaternion index!"),
+                };
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                switch (index)
+                {
+                    case 0:
+                        x = value;
+                        break;
+                    case 1:
+                        y = value;
+                        break;
+                    case 2:
+                        z = value;
+                        break;
+                    case 3:
+                        w = value;
+                        break;
+                    default:
+                        throw new IndexOutOfRangeException("Invalid FixedQuaternion index!");
+                }
+            }
+        }
 
-            Fixed64 invMagnitude = FixedMath.One / FixedMath.Sqrt(magnitudeSqr);
-            return new FixedQuaternion(q.x * invMagnitude, q.y * invMagnitude, q.z * invMagnitude, q.w * invMagnitude);
-
+        /// <summary>
+        /// Set x, y, z and w components of an existing Quaternion.
+        /// </summary>
+        /// <param name="newX"></param>
+        /// <param name="newY"></param>
+        /// <param name="newZ"></param>
+        /// <param name="newW"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Set(Fixed64 newX, Fixed64 newY, Fixed64 newZ, Fixed64 newW)
+        {
+            x = newX;
+            y = newY;
+            z = newZ;
+            w = newW;
         }
 
         /// <summary>
         /// Normalizes this quaternion in place.
         /// </summary>
-        public void Normalize()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public FixedQuaternion Normalize()
         {
-            this = Normalize(this);
+            return this = GetNormalized(this);
         }
 
         /// <summary>
         /// Returns the conjugate of this quaternion (inverses the rotational effect).
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FixedQuaternion Conjugate()
         {
             return new FixedQuaternion(-x, -y, -z, w);
@@ -79,11 +138,10 @@ namespace FixedMathSharp
         {
             if (this == Identity) return Identity;
             Fixed64 norm = x * x + y * y + z * z + w * w;
-            if (norm == FixedMath.Zero) return this; // Handle division by zero by returning the same quaternion
+            if (norm == Fixed64.Zero) return this; // Handle division by zero by returning the same quaternion
 
-            Fixed64 invNorm = FixedMath.One / norm;
+            Fixed64 invNorm = Fixed64.One / norm;
             return new FixedQuaternion(x * -invNorm, y * -invNorm, z * -invNorm, w * invNorm);
-
         }
 
         /// <summary>
@@ -91,83 +149,116 @@ namespace FixedMathSharp
         /// </summary>
         public Vector3d Rotate(Vector3d v)
         {
-            FixedQuaternion vQuat = new FixedQuaternion(v.x, v.y, v.z, FixedMath.Zero);
-            FixedQuaternion invQuat = Inverse();
-            FixedQuaternion rotatedVQuat = this * vQuat * invQuat;
-            return new Vector3d(rotatedVQuat.x, rotatedVQuat.y, rotatedVQuat.z);
+            FixedQuaternion normalizedQuat = Normal;
+            FixedQuaternion vQuat = new FixedQuaternion(v.x, v.y, v.z, Fixed64.Zero);
+            FixedQuaternion invQuat = normalizedQuat.Inverse();
+            FixedQuaternion rotatedVQuat = normalizedQuat * vQuat * invQuat;
+            return new Vector3d(rotatedVQuat.x, rotatedVQuat.y, rotatedVQuat.z).Normalize();
         }
 
-        public FixedQuaternion Rotated(Fixed64 sin, Fixed64 cos)
+        /// <summary>
+        /// Rotates this quaternion by a given angle around a specified axis (default: Y-axis).
+        /// </summary>
+        /// <param name="sin">Sine of the rotation angle.</param>
+        /// <param name="cos">Cosine of the rotation angle.</param>
+        /// <param name="axis">The axis to rotate around (default: Vector3d.Up).</param>
+        /// <returns>A new quaternion representing the rotated result.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public FixedQuaternion Rotated(Fixed64 sin, Fixed64 cos, Vector3d? axis = null)
         {
-            return Rotated(sin, cos, Vector3d.Up);
-        }
+            Vector3d rotateAxis = axis ?? Vector3d.Up;
 
-        public FixedQuaternion Rotated(Fixed64 sin, Fixed64 cos, Vector3d axis)
-        {
             // The rotation angle is the arc tangent of sin and cos
             Fixed64 angle = FixedMath.Atan2(sin, cos);
 
             // Construct a quaternion representing a rotation around the axis (default is y aka Vector3d.up)
-            FixedQuaternion rotationQuat = FromAxisAngle(axis, angle);
+            FixedQuaternion rotationQuat = FromAxisAngle(rotateAxis, angle);
 
             // Apply the rotation and return the result
             return rotationQuat * this;
         }
 
-        public static FixedQuaternion LookRotation(Vector3d forward)
+        #endregion
+
+        #region Quaternion Operations
+
+        /// <summary>
+        /// Normalizes the quaternion to a unit quaternion.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static FixedQuaternion GetNormalized(FixedQuaternion q)
         {
-            return LookRotation(forward, Vector3d.Up);
+            Fixed64 mag = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
+            if (mag > Fixed64.Zero && mag != Fixed64.One)
+            {
+                Fixed64 invMagnitude = Fixed64.One / FixedMath.Sqrt(mag);
+                return new FixedQuaternion(q.x * invMagnitude, q.y * invMagnitude, q.z * invMagnitude, q.w * invMagnitude);
+            }
+            return q;
         }
 
-        public static FixedQuaternion LookRotation(Vector3d forward, Vector3d upwards)
+        /// <summary>
+        /// Creates a quaternion that rotates one vector to align with another.
+        /// </summary>
+        /// <param name="forward">The forward direction vector.</param>
+        /// <param name="upwards">The upwards direction vector (optional, default: Vector3d.Up).</param>
+        /// <returns>A quaternion representing the rotation from one direction to another.</returns>
+        public static FixedQuaternion LookRotation(Vector3d forward, Vector3d? upwards = null)
         {
-            Vector3d forwardNormalized = forward.MyNormalized;
-            Vector3d right = Vector3d.Cross(upwards.MyNormalized, forwardNormalized);
-            Vector3d up = Vector3d.Cross(forwardNormalized, right);
+            Vector3d up = upwards ?? Vector3d.Up;
 
-            return FromMatrix(new FixedMatrix3x3(right.x, up.x, forwardNormalized.x,
+            Vector3d forwardNormalized = forward.Normal;
+            Vector3d right = Vector3d.Cross(up.Normal, forwardNormalized);
+            up = Vector3d.Cross(forwardNormalized, right);
+
+            return FromMatrix(new Fixed3x3(right.x, up.x, forwardNormalized.x,
                                             right.y, up.y, forwardNormalized.y,
                                             right.z, up.z, forwardNormalized.z));
         }
 
-        public static FixedQuaternion FromMatrix(FixedMatrix3x3 matrix)
+        /// <summary>
+        /// Converts a rotation matrix into a quaternion representation.
+        /// </summary>
+        /// <param name="matrix">The rotation matrix to convert.</param>
+        /// <returns>A quaternion representing the same rotation as the matrix.</returns>
+        public static FixedQuaternion FromMatrix(Fixed3x3 matrix)
         {
             Fixed64 trace = matrix.m00 + matrix.m11 + matrix.m22;
 
             Fixed64 w, x, y, z;
 
-            if (trace > FixedMath.Zero)
+            if (trace > Fixed64.Zero)
             {
-                Fixed64 s = FixedMath.Sqrt(trace + FixedMath.One);
-                w = s * FixedMath.Half;
-                s = FixedMath.Half / s;
+                Fixed64 s = FixedMath.Sqrt(trace + Fixed64.One);
+                w = s * Fixed64.Half;
+                s = Fixed64.Half / s;
                 x = (matrix.m21 - matrix.m12) * s;
                 y = (matrix.m02 - matrix.m20) * s;
                 z = (matrix.m10 - matrix.m01) * s;
             }
             else if (matrix.m00 > matrix.m11 && matrix.m00 > matrix.m22)
             {
-                Fixed64 s = FixedMath.Sqrt(FixedMath.One + matrix.m00 - matrix.m11 - matrix.m22);
-                x = s * FixedMath.Half;
-                s = FixedMath.Half / s;
+                Fixed64 s = FixedMath.Sqrt(Fixed64.One + matrix.m00 - matrix.m11 - matrix.m22);
+                x = s * Fixed64.Half;
+                s = Fixed64.Half / s;
                 y = (matrix.m10 + matrix.m01) * s;
                 z = (matrix.m02 + matrix.m20) * s;
                 w = (matrix.m21 - matrix.m12) * s;
             }
             else if (matrix.m11 > matrix.m22)
             {
-                Fixed64 s = FixedMath.Sqrt(FixedMath.One + matrix.m11 - matrix.m00 - matrix.m22);
-                y = s * FixedMath.Half;
-                s = FixedMath.Half / s;
+                Fixed64 s = FixedMath.Sqrt(Fixed64.One + matrix.m11 - matrix.m00 - matrix.m22);
+                y = s * Fixed64.Half;
+                s = Fixed64.Half / s;
                 z = (matrix.m21 + matrix.m12) * s;
                 x = (matrix.m10 + matrix.m01) * s;
                 w = (matrix.m02 - matrix.m20) * s;
             }
             else
             {
-                Fixed64 s = FixedMath.Sqrt(FixedMath.One + matrix.m22 - matrix.m00 - matrix.m11);
-                z = s * FixedMath.Half;
-                s = FixedMath.Half / s;
+                Fixed64 s = FixedMath.Sqrt(Fixed64.One + matrix.m22 - matrix.m00 - matrix.m11);
+                z = s * Fixed64.Half;
+                s = Fixed64.Half / s;
                 x = (matrix.m02 + matrix.m20) * s;
                 y = (matrix.m21 + matrix.m12) * s;
                 w = (matrix.m10 - matrix.m01) * s;
@@ -176,21 +267,41 @@ namespace FixedMathSharp
             return new FixedQuaternion(x, y, z, w);
         }
 
+        /// <summary>
+        /// Converts a rotation matrix (upper-left 3x3 part of a 4x4 matrix) into a quaternion representation.
+        /// </summary>
+        /// <param name="matrix">The 4x4 matrix containing the rotation component.</param>
+        /// <remarks>Extracts the upper-left 3x3 rotation part of the 4x4</remarks>
+        /// <returns>A quaternion representing the same rotation as the matrix.</returns>
+        public static FixedQuaternion FromMatrix(Fixed4x4 matrix)
+        {
+
+            var rotationMatrix = new Fixed3x3(
+                matrix.m00, matrix.m01, matrix.m02,
+                matrix.m10, matrix.m11, matrix.m12,
+                matrix.m20, matrix.m21, matrix.m22
+            );
+
+            return FromMatrix(rotationMatrix);
+        }
+
+        /// <summary>
+        /// Creates a quaternion representing the rotation needed to align the forward vector with the given direction.
+        /// </summary>
+        /// <param name="direction">The target direction vector.</param>
+        /// <returns>A quaternion representing the rotation to align with the direction.</returns>
         public static FixedQuaternion FromDirection(Vector3d direction)
         {
             // Compute the rotation axis as the cross product of the standard forward vector and the desired direction
             Vector3d axis = Vector3d.Cross(Vector3d.Forward, direction);
-            Fixed64 axisLength = axis.MyMagnitude;
+            Fixed64 axisLength = axis.Magnitude;
 
             // If the axis length is very close to zero, it means that the desired direction is almost equal to the standard forward vector
-            // In this case, we can return the identity quaternion as the rotation
-            if (axisLength < FixedMath.Epsilon)
-            {
-                return Identity;
-            }
+            if (axisLength.Abs() == Fixed64.Zero)
+                return Identity;  // Return the identity quaternion if no rotation is needed
 
             // Normalize the rotation axis
-            axis = (axis / axisLength).MyNormalized;
+            axis = (axis / axisLength).Normal;
 
             // Compute the angle between the standard forward vector and the desired direction
             Fixed64 angle = FixedMath.Acos(Vector3d.Dot(Vector3d.Forward, direction));
@@ -199,29 +310,31 @@ namespace FixedMathSharp
             return FromAxisAngle(axis, angle);
         }
 
+        /// <summary>
+        /// Creates a quaternion representing a rotation around a specified axis by a given angle.
+        /// </summary>
+        /// <param name="axis">The axis to rotate around (must be normalized).</param>
+        /// <param name="angle">The rotation angle in radians.</param>
+        /// <returns>A quaternion representing the rotation.</returns>
         public static FixedQuaternion FromAxisAngle(Vector3d axis, Fixed64 angle)
         {
             // Check if the axis is a unit vector
             if (!axis.IsNormalized())
-            {
-                throw new ArgumentException("Axis must be a unit vector");
-            }
+                axis = axis.Normalize();
 
             // Check if the angle is in a valid range (-pi, pi)
             if (angle < -FixedMath.PI || angle > FixedMath.PI)
-            {
                 throw new ArgumentOutOfRangeException("Angle must be in the range (-pi, pi)");
-            }
 
-            Fixed64 halfAngle = angle / FixedMath.Double;
-            Fixed64 s = FixedMath.Sin(halfAngle);
-            Fixed64 c = FixedMath.Cos(halfAngle);
+            Fixed64 halfAngle = angle / Fixed64.Two;  // Half-angle formula
+            Fixed64 sinHalfAngle = FixedMath.Sin(halfAngle);
+            Fixed64 cosHalfAngle = FixedMath.Cos(halfAngle);
 
-            return new FixedQuaternion(axis.x * s, axis.y * s, axis.z * s, c);
+            return new FixedQuaternion(axis.x * sinHalfAngle, axis.y * sinHalfAngle, axis.z * sinHalfAngle, cosHalfAngle);
         }
 
         /// <summary>
-        /// Assume the input angles are in degrees and convert them to radians before calling <see cref="FromEulerAngles"/> 
+        /// Assume the input angles are in degrees and converts them to radians before calling <see cref="FromEulerAngles"/> 
         /// </summary>
         /// <param name="pitch"></param>
         /// <param name="yaw"></param>
@@ -230,16 +343,16 @@ namespace FixedMathSharp
         public static FixedQuaternion FromEulerAnglesInDegrees(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
         {
             // Convert input angles from degrees to radians
-            pitch *= FixedMath.Deg2Rad;
-            yaw *= FixedMath.Deg2Rad;
-            roll *= FixedMath.Deg2Rad;
+            pitch = FixedMath.DegToRad(pitch); 
+            yaw = FixedMath.DegToRad(yaw);
+            roll = FixedMath.DegToRad(roll);
 
             // Call the original method that expects angles in radians
-            return FromEulerAngles(pitch, yaw, roll);
+            return FromEulerAngles(pitch, yaw, roll).Normalize();
         }
 
         /// <summary>
-        /// Converts Euler angles (pitch, yaw, roll) to a quaternion. Assumes the input angles are in radians.
+        /// Converts Euler angles (pitch, yaw, roll) to a quaternion and normalizes the result afterwards. Assumes the input angles are in radians.
         /// </summary>
         /// <remarks>
         /// The order of operations is YZX or yaw-roll-pitch, commonly used in applications such as robotics.
@@ -254,12 +367,12 @@ namespace FixedMathSharp
                 throw new ArgumentOutOfRangeException("Euler angles must be in the range (-pi, pi)");
             }
 
-            Fixed64 c1 = FixedMath.Cos(yaw / FixedMath.Double);
-            Fixed64 s1 = FixedMath.Sin(yaw / FixedMath.Double);
-            Fixed64 c2 = FixedMath.Cos(roll / FixedMath.Double);
-            Fixed64 s2 = FixedMath.Sin(roll / FixedMath.Double);
-            Fixed64 c3 = FixedMath.Cos(pitch / FixedMath.Double);
-            Fixed64 s3 = FixedMath.Sin(pitch / FixedMath.Double);
+            Fixed64 c1 = FixedMath.Cos(yaw / Fixed64.Two);
+            Fixed64 s1 = FixedMath.Sin(yaw / Fixed64.Two);
+            Fixed64 c2 = FixedMath.Cos(roll / Fixed64.Two);
+            Fixed64 s2 = FixedMath.Sin(roll / Fixed64.Two);
+            Fixed64 c3 = FixedMath.Cos(pitch / Fixed64.Two);
+            Fixed64 s3 = FixedMath.Sin(pitch / Fixed64.Two);
 
             Fixed64 c1c2 = c1 * c2;
             Fixed64 s1s2 = s1 * s2;
@@ -269,87 +382,7 @@ namespace FixedMathSharp
             Fixed64 y = s1 * c2 * c3 + c1 * s2 * s3;
             Fixed64 z = c1 * s2 * c3 - s1 * c2 * s3;
 
-            return new FixedQuaternion(x, y, z, w);
-        }
-
-        /// <summary>
-        /// Converts this FixedQuaternion to Euler angles (pitch, yaw, roll).
-        /// </summary>
-        /// <remarks>
-        /// Handles the case where the pitch angle (asin of sinp) would be out of the range -π/2 to π/2. 
-        /// This is known as the gimbal lock situation, where the pitch angle reaches ±90 degrees and we lose one degree of freedom in our rotation (we can't distinguish between yaw and roll). 
-        /// In this case, we simply set the pitch to ±90 degrees depending on the sign of sinp.
-        /// </remarks>
-        /// <returns>A Vector3d representing the Euler angles (in degrees) equivalent to this FixedQuaternion in YZX order (yaw, pitch, roll).</returns>
-        public Vector3d ToEulerAngles()
-        {
-            // roll (x-axis rotation)
-            Fixed64 sinr_cosp = 2 * (w * x + y * z);
-            Fixed64 cosr_cosp = FixedMath.One - 2 * (x * x + y * y);
-            Fixed64 roll = FixedMath.Atan2(sinr_cosp, cosr_cosp);
-
-            // pitch (y-axis rotation)
-            Fixed64 sinp = 2 * (w * y - z * x);
-            Fixed64 pitch;
-            if (sinp.Abs() >= FixedMath.One)
-                pitch = FixedMath.CopySign(FixedMath.PiOver2, sinp); // use 90 degrees if out of range
-            else
-                pitch = FixedMath.Asin(sinp);
-
-            // yaw (z-axis rotation)
-            Fixed64 siny_cosp = 2 * (w * z + x * y);
-            Fixed64 cosy_cosp = FixedMath.One - 2 * (y * y + z * z);
-            Fixed64 yaw = FixedMath.Atan2(siny_cosp, cosy_cosp);
-
-            // Convert radians to degrees
-            roll *= FixedMath.Rad2Deg;
-            pitch *= FixedMath.Rad2Deg;
-            yaw *= FixedMath.Rad2Deg;
-
-            return new Vector3d(roll, pitch, yaw);
-        }
-
-        /// <summary>
-        /// Converts this FixedQuaternion to a direction vector.
-        /// </summary>
-        /// <returns>A Vector3d representing the direction equivalent to this FixedQuaternion.</returns>
-        public Vector3d ToDirection()
-        {
-            return new Vector3d(
-                2 * (x * z - w * y),
-                2 * (y * z + w * x),
-                FixedMath.One - 2 * (x * x + y * y)
-            );
-        }
-
-        public FixedMatrix3x3 ToMatrix()
-        {
-            Fixed64 x2 = x * x;
-            Fixed64 y2 = y * y;
-            Fixed64 z2 = z * z;
-            Fixed64 xy = x * y;
-            Fixed64 xz = x * z;
-            Fixed64 yz = y * z;
-            Fixed64 xw = x * w;
-            Fixed64 yw = y * w;
-            Fixed64 zw = z * w;
-
-            FixedMatrix3x3 result = new FixedMatrix3x3();
-            Fixed64 scale = FixedMath.One * 2;
-
-            result.m00 = FixedMath.One - scale * (y2 + z2);
-            result.m01 = scale * (xy - zw);
-            result.m02 = scale * (xz + yw);
-
-            result.m10 = scale * (xy + zw);
-            result.m11 = FixedMath.One - scale * (x2 + z2);
-            result.m12 = scale * (yz - xw);
-
-            result.m20 = scale * (xz - yw);
-            result.m21 = scale * (yz + xw);
-            result.m22 = FixedMath.One - scale * (x2 + y2);
-
-            return result;
+            return GetNormalized(new FixedQuaternion(x, y, z, w));
         }
 
         /// <summary>
@@ -360,7 +393,7 @@ namespace FixedMathSharp
             t = FixedMath.Clamp01(t);
 
             FixedQuaternion result;
-            Fixed64 oneMinusT = FixedMath.One - t;
+            Fixed64 oneMinusT = Fixed64.One - t;
             result.x = a.x * oneMinusT + b.x * t;
             result.y = a.y * oneMinusT + b.y * t;
             result.z = a.z * oneMinusT + b.z * t;
@@ -382,7 +415,7 @@ namespace FixedMathSharp
 
             // If the dot product is negative, negate one of the input quaternions.
             // This ensures that the interpolation takes the shortest path around the sphere.
-            if (cosOmega < FixedMath.Zero)
+            if (cosOmega < Fixed64.Zero)
             {
                 b.x = -b.x;
                 b.y = -b.y;
@@ -394,18 +427,18 @@ namespace FixedMathSharp
             Fixed64 k0, k1;
 
             // If the quaternions are close, use linear interpolation
-            if (cosOmega > FixedMath.One - FixedMath.Epsilon)
+            if (cosOmega > Fixed64.One - Fixed64.Precision)
             {
-                k0 = FixedMath.One - t;
+                k0 = Fixed64.One - t;
                 k1 = t;
             }
             else
             {
                 // Otherwise, use spherical linear interpolation
-                Fixed64 sinOmega = FixedMath.Sqrt(FixedMath.One - cosOmega * cosOmega);
+                Fixed64 sinOmega = FixedMath.Sqrt(Fixed64.One - cosOmega * cosOmega);
                 Fixed64 omega = FixedMath.Atan2(sinOmega, cosOmega);
 
-                k0 = FixedMath.Sin((FixedMath.One - t) * omega) / sinOmega;
+                k0 = FixedMath.Sin((Fixed64.One - t) * omega) / sinOmega;
                 k1 = FixedMath.Sin(t * omega) / sinOmega;
             }
 
@@ -430,28 +463,34 @@ namespace FixedMathSharp
             Fixed64 dot = Dot(a, b);
 
             // Ensure the dot product is in the range of [-1, 1] to avoid floating-point inaccuracies
-            dot = FixedMath.Clamp(dot, -FixedMath.One, FixedMath.One);
+            dot = FixedMath.Clamp(dot, -Fixed64.One, Fixed64.One);
 
             // Calculate the angle between the two quaternions using the inverse cosine (arccos)
             // arccos(dot(a, b)) gives us the angle in radians, so we convert it to degrees
             Fixed64 angleInRadians = FixedMath.Acos(dot);
 
             // Convert the angle from radians to degrees
-            Fixed64 angleInDegrees = angleInRadians * FixedMath.Rad2Deg;
+            Fixed64 angleInDegrees = FixedMath.RadToDeg(angleInRadians);
 
             return angleInDegrees;
         }
 
+        /// <summary>
+        /// Creates a quaternion from an angle and axis.
+        /// </summary>
+        /// <param name="angle">The angle in degrees.</param>
+        /// <param name="axis">The axis to rotate around (must be normalized).</param>
+        /// <returns>A quaternion representing the rotation.</returns>
         public static FixedQuaternion AngleAxis(Fixed64 angle, Vector3d axis)
         {
             // Convert the angle to radians
             angle = angle.ToRadians();
 
             // Normalize the axis
-            axis = axis.MyNormalized;
+            axis = axis.Normal;
 
             // Use the half-angle formula (sin(theta / 2), cos(theta / 2))
-            Fixed64 halfAngle = angle / FixedMath.Double;
+            Fixed64 halfAngle = angle / Fixed64.Two;
             Fixed64 sinHalfAngle = FixedMath.Sin(halfAngle);
             Fixed64 cosHalfAngle = FixedMath.Cos(halfAngle);
 
@@ -474,6 +513,8 @@ namespace FixedMathSharp
         {
             return a.w * b.w + a.x * b.x + a.y * b.y + a.z * b.z;
         }
+
+        #endregion
 
         #region Operators
 
@@ -530,6 +571,99 @@ namespace FixedMathSharp
             return !left.Equals(right);
         }
 
+        #endregion
+
+        #region Conversion
+
+        /// <summary>
+        /// Converts this FixedQuaternion to Euler angles (pitch, yaw, roll).
+        /// </summary>
+        /// <remarks>
+        /// Handles the case where the pitch angle (asin of sinp) would be out of the range -π/2 to π/2. 
+        /// This is known as the gimbal lock situation, where the pitch angle reaches ±90 degrees and we lose one degree of freedom in our rotation (we can't distinguish between yaw and roll). 
+        /// In this case, we simply set the pitch to ±90 degrees depending on the sign of sinp.
+        /// </remarks>
+        /// <returns>A Vector3d representing the Euler angles (in degrees) equivalent to this FixedQuaternion in YZX order (yaw, pitch, roll).</returns>
+        public Vector3d ToEulerAngles()
+        {
+            // roll (x-axis rotation)
+            Fixed64 sinr_cosp = 2 * (w * x + y * z);
+            Fixed64 cosr_cosp = Fixed64.One - 2 * (x * x + y * y);
+            Fixed64 roll = FixedMath.Atan2(sinr_cosp, cosr_cosp);
+
+            // pitch (y-axis rotation)
+            Fixed64 sinp = 2 * (w * y - z * x);
+            Fixed64 pitch;
+            if (sinp.Abs() >= Fixed64.One)
+                pitch = FixedMath.CopySign(FixedMath.PiOver2, sinp); // use 90 degrees if out of range
+            else
+                pitch = FixedMath.Asin(sinp);
+
+            // yaw (z-axis rotation)
+            Fixed64 siny_cosp = 2 * (w * z + x * y);
+            Fixed64 cosy_cosp = Fixed64.One - 2 * (y * y + z * z);
+            Fixed64 yaw = FixedMath.Atan2(siny_cosp, cosy_cosp);
+
+            // Convert radians to degrees
+            roll = FixedMath.RadToDeg(roll);
+            pitch = FixedMath.RadToDeg(pitch);
+            yaw = FixedMath.RadToDeg(yaw);
+
+            return new Vector3d(roll, pitch, yaw);
+        }
+
+        /// <summary>
+        /// Converts this FixedQuaternion to a direction vector.
+        /// </summary>
+        /// <returns>A Vector3d representing the direction equivalent to this FixedQuaternion.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3d ToDirection()
+        {
+            return new Vector3d(
+                2 * (x * z - w * y),
+                2 * (y * z + w * x),
+                Fixed64.One - 2 * (x * x + y * y)
+            );
+        }
+
+        /// <summary>
+        /// Converts the quaternion into a 3x3 rotation matrix.
+        /// </summary>
+        /// <returns>A FixedMatrix3x3 representing the same rotation as the quaternion.</returns>
+        public Fixed3x3 ToMatrix3x3()
+        {
+            Fixed64 x2 = x * x;
+            Fixed64 y2 = y * y;
+            Fixed64 z2 = z * z;
+            Fixed64 xy = x * y;
+            Fixed64 xz = x * z;
+            Fixed64 yz = y * z;
+            Fixed64 xw = x * w;
+            Fixed64 yw = y * w;
+            Fixed64 zw = z * w;
+
+            Fixed3x3 result = new Fixed3x3();
+            Fixed64 scale = Fixed64.One * 2;
+
+            result.m00 = Fixed64.One - scale * (y2 + z2);
+            result.m01 = scale * (xy - zw);
+            result.m02 = scale * (xz + yw);
+
+            result.m10 = scale * (xy + zw);
+            result.m11 = Fixed64.One - scale * (x2 + z2);
+            result.m12 = scale * (yz - xw);
+
+            result.m20 = scale * (xz - yw);
+            result.m21 = scale * (yz + xw);
+            result.m22 = Fixed64.One - scale * (x2 + y2);
+
+            return result;
+        }
+
+        #endregion
+
+        #region Equality and HashCode Overrides
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(object obj)
         {
@@ -546,6 +680,15 @@ namespace FixedMathSharp
         public override int GetHashCode()
         {
             return x.GetHashCode() ^ y.GetHashCode() << 2 ^ z.GetHashCode() >> 2 ^ w.GetHashCode();
+        }
+
+        /// <summary>
+        /// Returns a formatted string for this quaternion.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override string ToString()
+        {
+            return $"({x}, {y}, {z}, {w})";
         }
 
         #endregion

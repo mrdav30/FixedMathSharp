@@ -71,11 +71,6 @@ namespace FixedMathSharp.Unity
         {
             return new Vector4(vec.x.ToPreciseFloat(), vec.y.ToPreciseFloat(), vec.z.ToPreciseFloat(), w);
         }
-
-        public static Vector3d ToRadians(this Vector3 degrees)
-        {
-            return degrees.ToVector3d().ToRadians();
-        }
     }
 }
 #endif

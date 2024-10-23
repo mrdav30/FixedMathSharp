@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 using Xunit;
 
 namespace FixedMathSharp.Tests
@@ -47,7 +49,7 @@ namespace FixedMathSharp.Tests
         public void Divide_ByZero_ThrowsException()
         {
             var a = new Fixed64(6);
-            Assert.Throws<DivideByZeroException>(() => { var result = a / FixedMath.Zero; });
+            Assert.Throws<DivideByZeroException>(() => { var result = a / Fixed64.Zero; });
         }
 
         #endregion
@@ -112,6 +114,24 @@ namespace FixedMathSharp.Tests
             Assert.Equal(5.5, result);
         }
 
+        [Fact]
+        public void Fixed64_Serialization_RoundTripMaintainsData()
+        {
+            var originalValue = FixedMath.PI;
+
+            // Serialize the Fixed64 object
+            var formatter = new BinaryFormatter();
+            using var stream = new MemoryStream();
+            formatter.Serialize(stream, originalValue);
+
+            // Reset stream position and deserialize
+            stream.Seek(0, SeekOrigin.Begin);
+            var deserializedValue = (Fixed64)formatter.Deserialize(stream);
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalValue, deserializedValue);
+        }
+
         #endregion
 
         #region Test: Fraction Method
@@ -130,19 +150,19 @@ namespace FixedMathSharp.Tests
         [Fact]
         public void Add_OverflowProtection_ReturnsMaxValue()
         {
-            var a = FixedMath.MaxValue;
+            var a = Fixed64.MaxValue;
             var b = new Fixed64(1);
             var result = a + b;
-            Assert.Equal(FixedMath.MaxValue, result);
+            Assert.Equal(Fixed64.MaxValue, result);
         }
 
         [Fact]
         public void Subtract_OverflowProtection_ReturnsMinValue()
         {
-            var a = FixedMath.MinValue;
+            var a = Fixed64.MinValue;
             var b = new Fixed64(1);
             var result = a - b;
-            Assert.Equal(FixedMath.MinValue, result);
+            Assert.Equal(Fixed64.MinValue, result);
         }
 
         #endregion

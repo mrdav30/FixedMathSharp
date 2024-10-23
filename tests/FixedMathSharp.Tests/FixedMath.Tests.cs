@@ -29,14 +29,14 @@ namespace FixedMathSharp.Tests
         public void Clamp01_ValueLessThanZero_ReturnsZero()
         {
             var result = FixedMath.Clamp01(new Fixed64(-1));
-            Assert.Equal(FixedMath.Zero, result);
+            Assert.Equal(Fixed64.Zero, result);
         }
 
         [Fact]
         public void Clamp01_ValueGreaterThanOne_ReturnsOne()
         {
             var result = FixedMath.Clamp01(new Fixed64(2));
-            Assert.Equal(FixedMath.One, result);
+            Assert.Equal(Fixed64.One, result);
         }
 
         [Fact]
@@ -165,21 +165,21 @@ namespace FixedMathSharp.Tests
         [Fact]
         public void Round_WithDecimalPlaces_RoundsToTwoDecimalPlaces()
         {
-            var result = FixedMath.Round(new Fixed64(2.556f), 2, MidpointRounding.AwayFromZero);
+            var result = FixedMath.RoundToPrecision(new Fixed64(2.556f), 2, MidpointRounding.AwayFromZero);
             Assert.Equal(2.56f, result.ToFormattedFloat());
         }
 
         [Fact]
         public void Round_WithDecimalPlaces_RoundsToZeroDecimalPlaces_ToEven()
         {
-            var result = FixedMath.Round(new Fixed64(2.5), 0);
+            var result = FixedMath.RoundToPrecision(new Fixed64(2.5), 0);
             Assert.Equal(new Fixed64(2), result);
         }
 
         [Fact]
         public void Round_WithDecimalPlaces_RoundsToZeroDecimalPlaces_AwayFromZero()
         {
-            var result = FixedMath.Round(new Fixed64(2.5), 0, MidpointRounding.AwayFromZero);
+            var result = FixedMath.RoundToPrecision(new Fixed64(2.5), 0, MidpointRounding.AwayFromZero);
             Assert.Equal(new Fixed64(3), result);
         }
 
@@ -273,7 +273,7 @@ namespace FixedMathSharp.Tests
             var a = new Fixed64(0);
             var b = new Fixed64(3);
             var result = FixedMath.FastMul(a, b);
-            Assert.Equal(FixedMath.Zero, result);
+            Assert.Equal(Fixed64.Zero, result);
         }
 
         #endregion
@@ -381,7 +381,7 @@ namespace FixedMathSharp.Tests
         [Fact]
         public void FastMod_ZeroDivisor_ThrowsException()
         {
-            Assert.Throws<DivideByZeroException>(() => FixedMath.FastMod(new Fixed64(10), FixedMath.Zero));
+            Assert.Throws<DivideByZeroException>(() => FixedMath.FastMod(new Fixed64(10), Fixed64.Zero));
         }
 
         #endregion

@@ -1,85 +1,211 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
 {
+    /// <summary>
+    /// Represents a 2D vector with fixed-point precision, offering a range of mathematical operations
+    /// and transformations such as rotation, scaling, reflection, and interpolation.
+    /// </summary>
+    /// <remarks>
+    /// The Vector2d struct is designed for applications that require precise numerical operations, 
+    /// such as games, simulations, or physics engines. It provides methods for common vector operations
+    /// like addition, subtraction, dot product, cross product, distance calculations, and rotation.
+    /// 
+    /// Use Cases:
+    /// - Modeling 2D positions, directions, and velocities in fixed-point math environments.
+    /// - Performing vector transformations, including rotations and reflections.
+    /// - Handling interpolation and distance calculations in physics or simulation systems.
+    /// - Useful for fixed-point math scenarios where floating-point precision is insufficient or not desired.
+    /// </remarks>
     [Serializable]
-    public partial struct Vector2d : IEquatable<Vector2d>
+    public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IEqualityComparer<Vector2d>
     {
+        #region Fields and Constants
+
         public Fixed64 x, y;
 
-        #region Properties
+        /// <summary>
+        /// (1, 0)
+        /// </summary>
+        public static readonly Vector2d DefaultRotation = new Vector2d(1, 0);
 
         /// <summary>
-        /// Rotates the vector to the right (90 degrees clockwise).
+        /// (0, 1)
         /// </summary>
-        public Vector2d RotatedRight => new Vector2d(y, -x);
+        public static readonly Vector2d Forward = new Vector2d(0, 1);
 
         /// <summary>
-        /// Rotates the vector to the left (90 degrees counterclockwise).
+        /// (1, 0)
         /// </summary>
-        public Vector2d RotatedLeft => new Vector2d(-y, x);
+        public static readonly Vector2d Right = new Vector2d(1, 0);
 
         /// <summary>
-        /// Gets the right-hand (counter-clockwise) normal vector.
+        /// (0, -1)
         /// </summary>
-        public Vector2d RightHandNormal => new Vector2d(-y, x);
+        public static readonly Vector2d Down = new Vector2d(0, -1);
 
         /// <summary>
-        /// Gets the left-hand (clockwise) normal vector.
+        /// (-1, 0)
         /// </summary>
-        public Vector2d LeftHandNormal => new Vector2d(y, -x);
-
-        public Vector2d MyNormalized => Normalize(this);
-        public Fixed64 MyMagnitude => Magnitude(this);
+        public static readonly Vector2d Left = new Vector2d(-1, 0);
 
         /// <summary>
-        /// Returns the square magnitude of the vector (avoids calculating the square root).
+        /// (1, 1)
         /// </summary>
-        public Fixed64 SqrMagnitude => x * x + y * y;
+        public static readonly Vector2d One = new Vector2d(1, 1);
 
         /// <summary>
-        /// Returns a long hash of the vector based on its x and y values.
+        /// (-1, -1)
         /// </summary>
-        public long LongStateHash => x.RawValue * 31 + y.RawValue * 7;
+        public static readonly Vector2d Negative = new Vector2d(-1, -1);
 
         /// <summary>
-        /// Returns a hash of the vector based on its state.
+        /// (0, 0)
         /// </summary>
-        public int StateHash => (int)(LongStateHash % int.MaxValue);
+        public static readonly Vector2d Zero = new Vector2d(0, 0);
 
         #endregion
 
         #region Constructors
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector2d(int xInt, int yInt) : this((Fixed64)xInt, (Fixed64)yInt) { }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector2d(float xFloat, float yFloat) : this((Fixed64)xFloat, (Fixed64)yFloat) { }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector2d(double xDoub, double yDoub) : this((Fixed64)xDoub, (Fixed64)yDoub) { }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector2d(Fixed64 xFixed, Fixed64 yFixed)
         {
             x = xFixed;
             y = yFixed;
         }
 
-        public Vector2d(int xInt, int yInt)
-        {
-            x = (Fixed64)xInt;
-            y = (Fixed64)yInt;
-        }
-
-        public Vector2d(float xFloat, float yFloat)
-        {
-            x = (Fixed64)xFloat;
-            y = (Fixed64)yFloat;
-        }
-
-        public Vector2d(double xDoub, double yDoub)
-        {
-            x = (Fixed64)xDoub;
-            y = (Fixed64)yDoub;
-        }
-
         #endregion
 
-        #region Local Math
+        #region Properties and Methods (Instance)
 
+        /// <summary>
+        /// Rotates the vector to the right (90 degrees clockwise).
+        /// </summary>
+        public Vector2d RotatedRight
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Vector2d(y, -x);
+        }
+
+        /// <summary>
+        /// Rotates the vector to the left (90 degrees counterclockwise).
+        /// </summary>
+        public Vector2d RotatedLeft
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Vector2d(-y, x);
+        }
+
+        /// <summary>
+        /// Gets the right-hand (counter-clockwise) normal vector.
+        /// </summary>
+        public Vector2d RightHandNormal
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Vector2d(-y, x);
+        }
+
+        /// <summary>
+        /// Gets the left-hand (clockwise) normal vector.
+        /// </summary>
+        public Vector2d LeftHandNormal
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Vector2d(y, -x);
+        }
+
+        public Vector2d Normal
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => GetNormalized(this);
+        }
+        
+        public Fixed64 Magnitude
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => GetMagnitude(this);
+        }
+
+        /// <summary>
+        /// Returns the square magnitude of the vector (avoids calculating the square root).
+        /// </summary>
+        public Fixed64 SqrMagnitude
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => x * x + y * y;
+        }
+
+        /// <summary>
+        /// Returns a long hash of the vector based on its x and y values.
+        /// </summary>
+        public long LongStateHash
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => x.RawValue * 31 + y.RawValue * 7;
+        }
+
+        /// <summary>
+        /// Returns a hash of the vector based on its state.
+        /// </summary>
+        public int StateHash
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (int)(LongStateHash % int.MaxValue);
+        }
+
+        public Fixed64 this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return index switch
+                {
+                    0 => x,
+                    1 => y,
+                    _ => throw new IndexOutOfRangeException("Invalid Vector2d index!"),
+                };
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                switch (index)
+                {
+                    case 0:
+                        x = value;
+                        break;
+                    case 1:
+                        y = value;
+                        break;
+                    default:
+                        throw new IndexOutOfRangeException("Invalid Vector2d index!");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Set x, y and z components of an existing Vector3.
+        /// </summary>
+        /// <param name="newX"></param>
+        /// <param name="newY"></param>
+        /// <param name="newZ"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Set(Fixed64 newX, Fixed64 newY)
+        {
+            x = newX;
+            y = newY;
+        }
 
         /// <summary>
         /// Adds the specified values to the components of the vector in place and returns the modified vector.
@@ -143,7 +269,7 @@ namespace FixedMathSharp
         /// Subtracts the specified vector from the components of the vector in place and returns the modified vector.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector2d Subtract(Vector2d other)
+        public Vector2d SubtractInPlace(Vector2d other)
         {
             SubtractInPlace(other.x, other.y);
             return this;
@@ -182,15 +308,9 @@ namespace FixedMathSharp
         /// </remarks>
         /// <returns>The normalized vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector2d NormalizeInPlace()
+        public Vector2d Normalize()
         {
-            Fixed64 mag = MyMagnitude;
-            if (mag > FixedMath.Epsilon && mag != FixedMath.One)
-            {
-                x /= mag;
-                y /= mag;
-            }
-            return this;
+            return this = GetNormalized(this);
         }
 
         /// <summary>
@@ -201,10 +321,10 @@ namespace FixedMathSharp
         /// If the vector is zero-length or already normalized, no operation is performed, but the original magnitude will still be output.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector2d NormalizeInPlace(out Fixed64 mag)
+        public Vector2d Normalize(out Fixed64 mag)
         {
-            mag = MyMagnitude;
-            if (mag > FixedMath.Epsilon && mag != FixedMath.One)
+            mag = Magnitude;
+            if (mag > Fixed64.Zero && mag != Fixed64.One)
             {
                 x /= mag;
                 y /= mag;
@@ -228,15 +348,15 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector2d LerpInPlace(Fixed64 targetx, Fixed64 targety, Fixed64 amount)
         {
-            if (amount >= FixedMath.One)
+            if (amount >= Fixed64.One)
             {
                 x = targetx;
                 y = targety;
             }
-            else if (amount > FixedMath.Zero)
+            else if (amount > Fixed64.Zero)
             {
-                x = targetx * amount + x * (FixedMath.One - amount);
-                y = targety * amount + y * (FixedMath.One - amount);
+                x = targetx * amount + x * (Fixed64.One - amount);
+                y = targety * amount + y * (Fixed64.One - amount);
             }
             return this;
         }
@@ -262,12 +382,12 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Rotates this vector by the specified cosine and sine values.
+        /// Rotates this vector by the specified cosine and sine values (counter-clockwise).
         /// </summary>
         public Vector2d RotateInPlace(Fixed64 cos, Fixed64 sin)
         {
-            Fixed64 temp1 = x * cos + y * sin;
-            y = x * -sin + y * cos;
+            Fixed64 temp1 = x * cos - y * sin;
+            y = x * sin + y * cos;
             x = temp1;
             return this;
         }
@@ -287,7 +407,6 @@ namespace FixedMathSharp
         /// </summary>
         /// <param name="rotation">The vector containing the cosine and sine values for rotation.</param>
         /// <returns>A new vector representing the result of the rotation.</returns>
-
         public Vector2d Rotated(Vector2d rotation)
         {
             return Rotated(rotation.x, rotation.y);
@@ -302,7 +421,6 @@ namespace FixedMathSharp
         {
             RotateInPlace(cos, -sin);
         }
-
 
         /// <summary>
         /// Rotates this vector 90 degrees to the right (clockwise).
@@ -327,16 +445,20 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Reflects this vector across the specified axis.
+        /// Reflects this vector across the specified axis vector.
+        /// </summary>
+        public Vector2d ReflectInPlace(Vector2d axis)
+        {
+            return ReflectInPlace(axis.x, axis.y);
+        }
+
+        /// <summary>
+        /// Reflects this vector across the specified x & y axis.
         /// </summary>
         public Vector2d ReflectInPlace(Fixed64 axisX, Fixed64 axisY)
         {
-            Fixed64 temp3 = Dot(axisX, axisY);
-            Fixed64 temp1 = axisX * temp3;
-            Fixed64 temp2 = axisY * temp3;
-            x = temp1 + temp1 - x;
-            y = temp2 + temp2 - y;
-            return this;
+            Fixed64 projection = Dot(axisX, axisY);
+            return ReflectInPlace(axisX, axisY, projection);
         }
 
         /// <summary>
@@ -355,7 +477,7 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Reflects this vector across the specified axis.
+        /// Reflects this vector across the specified x & y axis.
         /// </summary>
         /// <returns>A new vector representing the result of the reflection.</returns>
         public Vector2d Reflected(Fixed64 axisX, Fixed64 axisY)
@@ -363,6 +485,15 @@ namespace FixedMathSharp
             Vector2d vec = this;
             vec.ReflectInPlace(axisX, axisY);
             return vec;
+        }
+
+        /// <summary>
+        /// Reflects this vector across the specified axis vector.
+        /// </summary>
+        /// <returns>A new vector representing the result of the reflection.</returns>
+        public Vector2d Reflected(Vector2d axis)
+        {
+            return Reflected(axis.x, axis.y);
         }
 
         /// <summary>
@@ -383,22 +514,16 @@ namespace FixedMathSharp
             return Dot(other.x, other.y);
         }
 
-        /// <summary>
-        /// Returns the cross product of this vector with another vector specified by its components.
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Fixed64 Cross(Fixed64 otherX, Fixed64 otherY)
+        public Fixed64 CrossProduct(Fixed64 otherX, Fixed64 otherY)
         {
             return x * otherY - y * otherX;
         }
 
-        /// <summary>
-        /// Returns the cross product of this vector with another 2D vector.
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Fixed64 Cross(Vector2d vec)
+        public Fixed64 CrossProduct(Vector2d other)
         {
-            return Cross(vec.x, vec.y);
+            return CrossProduct(other.x, other.y);
         }
 
         /// <summary>
@@ -424,8 +549,9 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Returns the squared distance between this vector and another vector (avoids calculating the square root).
+        /// Calculates the squared distance between two vectors, avoiding the need for a square root operation.
         /// </summary>
+        /// <returns>The squared distance between the two vectors.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Fixed64 SqrDistance(Fixed64 otherX, Fixed64 otherY)
         {
@@ -437,74 +563,18 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Returns the squared distance between this vector and another vector.
+        /// Calculates the squared distance between two vectors, avoiding the need for a square root operation.
         /// </summary>
+        /// <returns>The squared distance between the two vectors.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Fixed64 SqrDistance(Vector2d other)
         {
             return SqrDistance(other.x, other.y);
         }
 
-        /// <summary>
-        /// Checks whether the vector equals zero.
-        /// </summary>
-        public bool EqualsZero()
-        {
-            return x == FixedMath.Zero && y == FixedMath.Zero;
-        }
-
-        /// <summary>
-        /// Checks if the vector is non-zero.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool NotZero()
-        {
-            return x.MoreThanEpsilon() || y.MoreThanEpsilon();
-        }
-
         #endregion
 
-        #region Static Math
-
-        /// <summary>
-        /// (1, 0)
-        /// </summary>
-        public static readonly Vector2d DefaultRotation = new Vector2d(1, 0);
-
-        /// <summary>
-        /// (0, 1)
-        /// </summary>
-        public static readonly Vector2d Forward = new Vector2d(0, 1);
-
-        /// <summary>
-        /// (1, 0)
-        /// </summary>
-        public static readonly Vector2d Right = new Vector2d(1, 0);
-
-        /// <summary>
-        /// (0, -1)
-        /// </summary>
-        public static readonly Vector2d Down = new Vector2d(0, -1);
-
-        /// <summary>
-        /// (-1, 0)
-        /// </summary>
-        public static readonly Vector2d Left = new Vector2d(-1, 0);
-
-        /// <summary>
-        /// (1, 1)
-        /// </summary>
-        public static readonly Vector2d One = new Vector2d(1, 1);
-
-        /// <summary>
-        /// (-1, -1)
-        /// </summary>
-        public static readonly Vector2d Negative = new Vector2d(-1, -1);
-
-        /// <summary>
-        /// (0, 0)
-        /// </summary>
-        public static readonly Vector2d Zero = new Vector2d(0, 0);
+        #region Vector2d Operations
 
         /// <summary>
         /// Normalizes the given vector, returning a unit vector with the same direction.
@@ -512,11 +582,15 @@ namespace FixedMathSharp
         /// <param name="value">The vector to normalize.</param>
         /// <returns>A normalized (unit) vector with the same direction.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector2d Normalize(Vector2d value)
+        public static Vector2d GetNormalized(Vector2d value)
         {
-            Fixed64 mag = Magnitude(value);
-            if (mag > FixedMath.Epsilon && mag != FixedMath.One)
-                return value / mag;
+            Fixed64 mag = GetMagnitude(value);
+            if (mag > Fixed64.Zero && mag != Fixed64.One)
+            {
+                Fixed64 xM = value.x / mag;
+                Fixed64 yM = value.y / mag;
+                return new Vector2d(xM, yM);
+            }
             return value;
         }
 
@@ -526,13 +600,10 @@ namespace FixedMathSharp
         /// <param name="vector">The vector to compute the magnitude of.</param>
         /// <returns>The magnitude (length) of the vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Magnitude(Vector2d vector)
+        public static Fixed64 GetMagnitude(Vector2d vector)
         {
-            Fixed64 temp1 = vector.x * vector.x + vector.y * vector.y;
-            if (temp1 == FixedMath.Zero)
-                return FixedMath.Zero;
-
-            return FixedMath.Sqrt(temp1);
+            Fixed64 temp1 = (vector.x * vector.x) + (vector.y * vector.y);
+            return temp1.Abs() > Fixed64.Zero ? FixedMath.Sqrt(temp1) : Fixed64.Zero;
         }
 
         /// <summary>
@@ -552,25 +623,120 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 Distance(Vector2d start, Vector2d end)
         {
-            Fixed64 tX = end.x - start.x;
-            tX *= tX;
-            Fixed64 tY = end.y - start.y;
-            tY *= tY;
-            return FixedMath.Sqrt(tX + tY);
+            return start.Distance(end);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 SqrDistance(Vector2d start, Vector2d end)
+        {
+            return start.SqrDistance(end);
+        }
+
+        /// <summary>
+        /// Calculates the forward direction vector in 2D based on a yaw (angle).
+        /// </summary>
+        /// <param name="angle">The angle in radians representing the rotation in 2D space.</param>
+        /// <returns>A unit vector representing the forward direction.</returns>
+        public static Vector2d ForwardDirection(Fixed64 angle)
+        {
+            Fixed64 x = FixedMath.Cos(angle); // Forward in the x-direction
+            Fixed64 y = FixedMath.Sin(angle); // Forward in the y-direction
+            return new Vector2d(x, y);
+        }
+
+        /// <summary>
+        /// Dot Product of two vectors.
+        /// </summary>
+        /// <param name="lhs"></param>
+        /// <param name="rhs"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 Dot(Vector2d lhs, Vector2d rhs)
+        {
+            return lhs.Dot(rhs.x, rhs.y);
+        }
+
+        /// <summary>
+        /// Multiplies two vectors component-wise.
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        public static Vector2d Scale(Vector2d a, Vector2d b)
+        {
+            return new Vector2d(a.x * b.x, a.y * b.y);
+        }
+
+        /// <summary>
+        /// Cross Product of two vectors.
+        /// </summary>
+        /// <param name="lhs"></param>
+        /// <param name="rhs"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 CrossProduct(Vector2d lhs, Vector2d rhs)
+        {
+            return lhs.CrossProduct(rhs);
+        }
+
+        /// <summary>
+        /// Rotates this vector by the specified angle (in radians).
+        /// </summary>
+        /// <param name="vec">The vector to rotate.</param>
+        /// <param name="angleInRadians">The angle in radians.</param>
+        /// <returns>The rotated vector.</returns>
+        public static Vector2d Rotate(Vector2d vec, Fixed64 angleInRadians)
+        {
+            Fixed64 cos = FixedMath.Cos(angleInRadians);
+            Fixed64 sin = FixedMath.Sin(angleInRadians);
+            return new Vector2d(
+                vec.x * cos - vec.y * sin,
+                vec.x * sin + vec.y * cos
+            );
         }
 
         #endregion
 
-        #region Convert
+        #region Conversion
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override string ToString()
         {
             return $"({Math.Round((double)x, 2)}, {Math.Round((double)y, 2)})";
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3d ToVector3d(Fixed64 z)
         {
             return new Vector3d(x, z, y);
+        }
+
+        /// <summary>
+        /// Converts each component of the vector from radians to degrees.
+        /// </summary>
+        /// <param name="radians">The vector with components in radians.</param>
+        /// <returns>A new vector with components converted to degrees.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d ToDegrees(Vector2d radians)
+        {
+            return new Vector2d(
+                FixedMath.RadToDeg(radians.x),
+                FixedMath.RadToDeg(radians.y)
+            );
+        }
+
+        /// <summary>
+        /// Converts each component of the vector from degrees to radians.
+        /// </summary>
+        /// <param name="degrees">The vector with components in degrees.</param>
+        /// <returns>A new vector with components converted to radians.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d ToRadians(Vector2d degrees)
+        {
+            return new Vector2d(
+                FixedMath.DegToRad(degrees.x),
+                FixedMath.DegToRad(degrees.y)
+            );
         }
 
         #endregion
@@ -604,7 +770,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2d operator -(Vector2d v1)
         {
-            return new Vector2d(v1.x * -FixedMath.One, v1.y * -FixedMath.One);
+            return new Vector2d(v1.x * -Fixed64.One, v1.y * -Fixed64.One);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -637,6 +803,26 @@ namespace FixedMathSharp
             return !left.Equals(right);
         }
 
+        #endregion
+
+        #region Equality, HashCode, and Comparable Overrides
+
+        /// <summary>
+        /// Are all components of this vector equal to zero?
+        /// </summary>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool EqualsZero()
+        {
+            return this.Equals(Zero);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool NotZero()
+        {
+            return !EqualsZero();
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(object obj)
         {
@@ -649,10 +835,25 @@ namespace FixedMathSharp
             return other.x == x && other.y == y;
         }
 
+        public bool Equals(Vector2d x, Vector2d y)
+        {
+            return x.Equals(y);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int GetHashCode()
         {
             return StateHash;
+        }
+
+        public int GetHashCode(Vector2d obj)
+        {
+            return obj.GetHashCode();
+        }
+
+        public int CompareTo(Vector2d other)
+        {
+            return SqrMagnitude.CompareTo(other.SqrMagnitude);
         }
 
         #endregion

@@ -4,44 +4,68 @@ using System.Runtime.CompilerServices;
 namespace FixedMathSharp
 {
     /// <summary>
-    /// Represents a bounding sphere in 3D space with a center and radius.
-    /// Useful for collision detection or proximity checking.
+    /// Represents a spherical bounding volume with fixed-point precision, optimized for fast, rotationally invariant spatial checks in 3D space.
     /// </summary>
+    /// <remarks>
+    /// The BoundingSphere provides a simple yet effective way to represent the spatial extent of objects, especially when rotational invariance is required. 
+    /// Compared to BoundingBox, it offers faster intersection checks but is less precise in tightly fitting non-spherical objects.
+    /// 
+    /// Use Cases:
+    /// - Ideal for broad-phase collision detection, proximity checks, and culling in physics engines and rendering pipelines.
+    /// - Useful when fast, rotationally invariant checks are needed, such as detecting overlaps or distances between moving objects.
+    /// - Suitable for encapsulating objects with roughly spherical shapes or objects that rotate frequently, where the bounding box may need constant updates.
+    /// </remarks>
     public struct BoundingSphere : IBound, IEquatable<BoundingSphere>
     {
+        #region Fields
+
         /// <summary>
         /// The center point of the sphere.
         /// </summary>
-        public Vector3d Center { get; private set; }
+        public Vector3d Center;
 
         /// <summary>
         /// The radius of the sphere.
         /// </summary>
-        public Fixed64 Radius { get; private set; }
+        public Fixed64 Radius;
+
+        #endregion
+
+        #region Constructors
 
         /// <summary>
         /// Initializes a new instance of the BoundingSphere struct with the specified center and radius.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public BoundingSphere(Vector3d center, Fixed64 radius)
         {
             Center = center;
             Radius = radius;
         }
 
-        /// <summary>
-        /// Repositions the sphere to a new center position.
-        /// </summary>
-        public void SetPosition(Vector3d position)
+        #endregion
+
+        #region Properties and Methods (Instance)
+
+        public Vector3d Min
         {
-            Center = position;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Center - new Vector3d(Radius, Radius, Radius);
+        }
+
+        public Vector3d Max
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Center + new Vector3d(Radius, Radius, Radius);
         }
 
         /// <summary>
-        /// Resizes the sphere to a new radius.
+        /// The squared radius of the sphere.
         /// </summary>
-        public void SetRadius(Fixed64 radius)
+        public Fixed64 SqrRadius
         {
-            Radius = radius;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Radius * Radius;
         }
 
         /// <summary>
@@ -51,45 +75,43 @@ namespace FixedMathSharp
         /// <returns>True if the point is inside the sphere, otherwise false.</returns>
         public bool Contains(Vector3d point)
         {
-            return Vector3d.SqrDistance(Center, point) <= Radius * Radius;
+            return Vector3d.SqrDistance(Center, point) <= SqrRadius;
         }
 
+        /// <summary>
+        /// Checks if this sphere intersects with another IBound.
+        /// </summary>
+        /// <param name="other">The other IBound to check for intersection.</param>
+        /// <returns>True if the IBounds intersect, otherwise false.</returns>
         public bool Intersects(IBound other)
         {
-            if (other is BoundingSphere otherSphere)
+            switch (other)
             {
-                return Intersects(otherSphere);
-            }
+                case BoundingBox or BoundingArea:
+                        // Find the closest point on the BoundingArea to the sphere's center
+                        // Check if the closest point is within the sphere's radius
+                        return Vector3d.SqrDistance(Center, other.ProjectPointWithinBounds(Center)) <= SqrRadius;
+                case BoundingSphere otherSphere:
+                    {
+                        Fixed64 distanceSquared = Vector3d.SqrDistance(Center, otherSphere.Center);
+                        Fixed64 combinedRadius = Radius + otherSphere.Radius;
+                        return distanceSquared <= combinedRadius * combinedRadius;
+                    }
 
-            if (other is BoundingBox otherBox)
-            {
-                return Intersects(otherBox);
-            }
-
-            return false;
+                default: return false; // Default case for unknown or unsupported types
+            };
         }
 
         /// <summary>
-        /// Checks if this sphere intersects with another sphere.
+        /// Projects a point onto the bounding sphere. If the point is outside the sphere, it returns the closest point on the surface.
         /// </summary>
-        /// <param name="other">The other sphere to check for intersection.</param>
-        /// <returns>True if the spheres intersect, otherwise false.</returns>
-        public bool Intersects(BoundingSphere other)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3d ProjectPoint(Vector3d point)
         {
-            Fixed64 distanceSquared = Vector3d.SqrDistance(Center, other.Center);
-            Fixed64 combinedRadius = Radius + other.Radius;
-            return distanceSquared <= combinedRadius * combinedRadius;
-        }
+            var direction = point - Center;
+            if (direction.IsZero) return Center; // If the point is the center, return the center itself
 
-        /// <summary>
-        /// Checks if this sphere intersects with a box.
-        /// </summary>
-        public bool Intersects(BoundingBox box)
-        {
-            // Project the center of the sphere onto the box to find the closest point.
-            Vector3d closestPoint = box.ProjectPoint(Center);
-            // If the distance from the closest point to the sphere's center is less than or equal to the radius, they intersect.
-            return Vector3d.SqrDistance(Center, closestPoint) <= Radius * Radius;
+            return Center + direction.Normalize() * Radius;
         }
 
         /// <summary>
@@ -102,29 +124,25 @@ namespace FixedMathSharp
             return Vector3d.Distance(Center, point) - Radius;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator ==(BoundingSphere left, BoundingSphere right)
-        {
-            return left.Equals(right);
-        }
+        #endregion
+
+        #region Operators
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator !=(BoundingSphere left, BoundingSphere right)
-        {
-            return !left.Equals(right);
-        }
+        public static bool operator ==(BoundingSphere left, BoundingSphere right) => left.Equals(right);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(object obj)
-        {
-            return obj is BoundingSphere other && Equals(other);
-        }
+        public static bool operator !=(BoundingSphere left, BoundingSphere right) => !left.Equals(right);
+
+        #endregion
+
+        #region Equality and HashCode Overrides
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Equals(BoundingSphere other)
-        {
-            return Center.Equals(other.Center) && Radius.Equals(other.Radius);
-        }
+        public override bool Equals(object obj) => obj is BoundingSphere other && Equals(other);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Equals(BoundingSphere other) => Center.Equals(other.Center) && Radius.Equals(other.Radius);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int GetHashCode()
@@ -137,5 +155,7 @@ namespace FixedMathSharp
                 return hash;
             }
         }
+
+        #endregion
     }
 }

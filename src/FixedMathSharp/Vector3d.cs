@@ -1,14 +1,95 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
 {
+    /// <summary>
+    /// Represents a 3D vector with fixed-point precision, supporting a wide range of vector operations such as rotation, scaling, interpolation, and projection.
+    /// </summary>
+    /// <remarks>
+    /// The Vector3d struct is designed for high-precision applications in 3D space, including games, simulations, and physics engines. 
+    /// It offers essential operations like addition, subtraction, dot product, cross product, distance calculation, and normalization.
+    /// 
+    /// Use Cases:
+    /// - Modeling 3D positions, directions, and velocities with fixed-point precision.
+    /// - Performing vector transformations, including rotations using quaternions.
+    /// - Calculating distances, angles, projections, and interpolation between vectors.
+    /// - Essential for fixed-point math scenarios where floating-point precision isn't suitable.
+    /// </remarks>
     [Serializable]
-    public partial struct Vector3d : IEquatable<Vector3d>
+    public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IEqualityComparer<Vector3d>
     {
-        #region Properties
+        #region Fields and Constants
 
         public Fixed64 x, y, z;
+
+        /// <summary>
+        /// The upward direction vector (0, 1, 0).
+        /// </summary>
+        public static readonly Vector3d Up = new Vector3d(0, 1, 0);
+
+        /// <summary>
+        /// (1, 0, 0)
+        /// </summary>
+        public static readonly Vector3d Right = new Vector3d(1, 0, 0);
+
+        /// <summary>
+        /// (0, -1, 0)
+        /// </summary>
+        public static readonly Vector3d Down = new Vector3d(0, -1, 0);
+
+        /// <summary>
+        /// (-1, 0, 0)
+        /// </summary>
+        public static readonly Vector3d Left = new Vector3d(-1, 0, 0);
+
+        /// <summary>
+        /// The forward direction vector (0, 0, 1).
+        /// </summary>
+        public static readonly Vector3d Forward = new Vector3d(0, 0, 1);
+
+        /// <summary>
+        /// (0, 0, -1)
+        /// </summary>
+        public static readonly Vector3d Backward = new Vector3d(0, 0, -1);
+
+        /// <summary>
+        /// (1, 1, 1)
+        /// </summary>
+        public static readonly Vector3d One = new Vector3d(1, 1, 1);
+
+        /// <summary>
+        /// (-1, -1, -1)
+        /// </summary>
+        public static readonly Vector3d Negative = new Vector3d(-1, -1, -1);
+
+        /// <summary>
+        /// (0, 0, 0)
+        /// </summary>
+        public static readonly Vector3d Zero = new Vector3d(0, 0, 0);
+
+        #endregion
+
+        #region Constructors
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3d(int xInt, int yInt, int zInt) : this((Fixed64)xInt, (Fixed64)yInt, (Fixed64)zInt) { }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3d(double xDoub, double yDoub, double zDoub) : this((Fixed64)xDoub, (Fixed64)yDoub, (Fixed64)zDoub) { }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3d(Fixed64 xLong, Fixed64 yLong, Fixed64 zLong)
+        {
+            x = xLong;
+            y = yLong;
+            z = zLong;
+        }
+
+        #endregion
+
+        #region Properties and Methods (Instance)
 
         /// <summary>
         ///  Provides a rotated version of the current vector, where rotation is a 90 degrees rotation around the Y axis in the counter-clockwise direction.
@@ -18,19 +99,44 @@ namespace FixedMathSharp
         /// Note that the positive direction of rotation is defined by the right-hand rule:
         /// If your right hand's thumb points in the positive Y direction, then your fingers curl in the positive direction of rotation.
         /// </remarks>
-        public Vector3d RightHandNormal => new Vector3d(z, y, -x);
+        public Vector3d RightHandNormal
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Vector3d(z, y, -x);
+        }
 
         /// <summary>
         /// Provides a rotated version of the current vector, where rotation is a 90 degrees rotation around the Y axis in the clockwise direction.
         /// </summary>
-        public Vector3d LeftHandNormal => new Vector3d(-z, y, x);
+        public Vector3d LeftHandNormal
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Vector3d(-z, y, x);
+        }
 
-        public Vector3d MyNormalized => Normalize(this);
+        public Vector3d Normal
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => GetNormalized(this);
+        }
 
-        // Returns the actual length of this vector (RO).
-        public Fixed64 MyMagnitude => Magnitude(this);
+        /// <summary>
+        /// Returns the actual length of this vector (RO).
+        /// </summary>
+        public Fixed64 Magnitude
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => GetMagnitude(this);
+        }
 
-        public Vector3d MyForward
+        /// <summary>
+        /// Calculates the forward direction vector based on the yaw (x) and pitch (y) angles.
+        /// </summary>
+        /// <remarks>
+        /// This is commonly used to determine the direction an object is facing in 3D space,
+        /// where 'x' represents the yaw (horizontal rotation) and 'y' represents the pitch (vertical rotation).
+        /// </remarks>
+        public Vector3d Direction
         {
             get
             {
@@ -42,51 +148,85 @@ namespace FixedMathSharp
         }
 
         /// <summary>
+        /// Are all components of this vector equal to zero?
+        /// </summary>
+        /// <returns></returns>
+        public bool IsZero
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => this.Equals(Zero);
+        }
+
+        /// <summary>
         /// This vector's square magnitude.
         /// If you're doing distance checks, use SqrMagnitude and square the distance you're checking against
         /// If you need to know the actual distance, use MyMagnitude
         /// </summary>
         /// <returns>The magnitude.</returns>
-        public Fixed64 SqrMagnitude => (x * x) + (y * y) + (z * z);
-
-        public long LongStateHash => (x.RawValue * 31) + (y.RawValue * 7) + (z.RawValue * 11);
-        public int StateHash => (int)(LongStateHash % int.MaxValue);
-
-        #endregion
-
-        #region constructors
-
-        public Vector3d(int xInt, int yInt, int zInt)
+        public Fixed64 SqrMagnitude
         {
-            x = (Fixed64)xInt;
-            y = (Fixed64)yInt;
-            z = (Fixed64)zInt;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (x * x) + (y * y) + (z * z);
         }
 
-        public Vector3d(Fixed64 xLong, Fixed64 yLong, Fixed64 zLong)
+        public long LongStateHash
         {
-            x = xLong;
-            y = yLong;
-            z = zLong;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (x.RawValue * 31) + (y.RawValue * 7) + (z.RawValue * 11);
+        }
+        public int StateHash
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (int)(LongStateHash % int.MaxValue);
         }
 
-        public Vector3d(float xDoub, float yDoub, float zDoub)
+        public Fixed64 this[int index]
         {
-            x = (Fixed64)xDoub;
-            y = (Fixed64)yDoub;
-            z = (Fixed64)zDoub;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return index switch
+                {
+                    0 => x,
+                    1 => y,
+                    2 => z,
+                    _ => throw new IndexOutOfRangeException("Invalid Vector3d index!"),
+                };
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                switch (index)
+                {
+                    case 0:
+                        x = value;
+                        break;
+                    case 1:
+                        y = value;
+                        break;
+                    case 2:
+                        z = value;
+                        break;
+                    default:
+                        throw new IndexOutOfRangeException("Invalid Vector3d index!");
+                }
+            }
         }
 
-        public Vector3d(double xDoub, double yDoub, double zDoub)
+        /// <summary>
+        /// Set x, y and z components of an existing Vector3.
+        /// </summary>
+        /// <param name="newX"></param>
+        /// <param name="newY"></param>
+        /// <param name="newZ"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3d Set(Fixed64 newX, Fixed64 newY, Fixed64 newZ)
         {
-            x = (Fixed64)xDoub;
-            y = (Fixed64)yDoub;
-            z = (Fixed64)zDoub;
+            x = newX;
+            y = newY;
+            z = newZ;
+            return this;
         }
-
-        #endregion
-
-        #region Local Math
 
         /// <summary>
         /// Adds the specified values to the components of the vector in place and returns the modified vector.
@@ -117,6 +257,10 @@ namespace FixedMathSharp
             return this;
         }
 
+        /// <summary>
+        /// Adds the specified vector components to the corresponding components of the in place vector and returns the modified vector.
+        /// </summary>
+        /// <param name="other">The other vector to add the components.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3d AddInPlace(Vector3d other)
         {
@@ -197,16 +341,9 @@ namespace FixedMathSharp
         /// </remarks>
         /// <returns>The normalized vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector3d NormalizeInPlace()
+        public Vector3d Normalize()
         {
-            Fixed64 mag = MyMagnitude;
-            if (mag > FixedMath.Zero && mag != FixedMath.One)
-            {
-                x /= mag;
-                y /= mag;
-                z /= mag;
-            }
-            return this;
+            return this = GetNormalized(this);
         }
 
         /// <summary>
@@ -217,21 +354,27 @@ namespace FixedMathSharp
         /// If the vector is zero-length or already normalized, no operation is performed, but the original magnitude will still be output.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector3d NormalizeInPlace(out Fixed64 mag)
+        public Vector3d Normalize(out Fixed64? m)
         {
-            mag = MyMagnitude;
-            if (mag > FixedMath.Zero && mag != FixedMath.One)
+            Fixed64 mag = Magnitude;
+            if (mag > Fixed64.Zero && mag != Fixed64.One)
             {
                 x /= mag;
                 y /= mag;
                 z /= mag;
             }
+
+            m = mag;
+
             return this;
         }
 
+        /// <summary>
+        /// Checks if this vector has been normalized by checking if the magnitude is close to 1.
+        /// </summary>
         public bool IsNormalized()
         {
-            return MyMagnitude.Round() - FixedMath.One == FixedMath.Zero;
+            return Magnitude.Round() - Fixed64.One == Fixed64.Zero;
         }
 
         /// <summary>
@@ -253,16 +396,10 @@ namespace FixedMathSharp
             return FixedMath.Sqrt(temp1 + temp2 + temp3);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Fixed64 Distance(Vector3d other)
-        {
-            return Distance(other.x, other.y, other.z);
-        }
-
         /// <summary>
-        /// Does not normalize the calculations to fixed-point numbers. Can be used for distance comparisons but scales quadratically.
+        /// Calculates the squared distance between two vectors, avoiding the need for a square root operation.
         /// </summary>
-        /// <returns>The FastDistance.</returns>
+        /// <returns>The squared distance between the two vectors.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Fixed64 SqrDistance(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ)
         {
@@ -273,35 +410,6 @@ namespace FixedMathSharp
             Fixed64 temp3 = z - otherZ;
             temp3 *= temp3;
             return temp1 + temp2 + temp3;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Fixed64 SqrDistance(Vector3d other)
-        {
-            return SqrDistance(other.x, other.y, other.z);
-        }
-
-        /// <summary>
-        /// Are all components of this vector equal to zero?
-        /// </summary>
-        /// <returns></returns>
-        public bool EqualsZero()
-        {
-            return x == FixedMath.Zero && y == FixedMath.Zero && z == FixedMath.Zero;
-        }
-
-        public bool GreaterThanTolerance(Fixed64 tolerance)
-        {
-            return x > tolerance && y > tolerance && z > tolerance;
-        }
-
-        /// <summary>
-        /// Used for rotation vectors that aren't exact
-        /// </summary>
-        /// <returns></returns>
-        public bool NotZero()
-        {
-            return x.MoreThanEpsilon() || y.MoreThanEpsilon() || z.MoreThanEpsilon();
         }
 
         /// <summary>
@@ -318,85 +426,28 @@ namespace FixedMathSharp
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Fixed64 Dot(Vector3d other)
-        {
-            return Dot(other.x, other.y, other.z);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Fixed64 Cross(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ)
+        public Fixed64 CrossProduct(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ)
         {
             return (y * otherZ - z * otherY) + (z * otherX - x * otherZ) + (x * otherY - y * otherX);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Fixed64 Cross(Vector3d other)
-        {
-            return Cross(other.x, other.y, other.z);
-        }
-
         /// <summary>
-        /// Returns the cross product of this vector with another vector.
+        /// Returns the cross vector of this vector with another vector.
         /// </summary>
         /// <param name="rhs">The right-hand side vector to compute the cross product with.</param>
         /// <returns>A new vector representing the cross product.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector3d CrossProduct(Vector3d rhs)
+        public Vector3d Cross(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ)
         {
             return new Vector3d(
-                y * rhs.z - z * rhs.y,
-                z * rhs.x - x * rhs.z,
-                x * rhs.y - y * rhs.x);
+                y * otherZ - z * otherY,
+                z * otherX - x * otherZ,
+                x * otherY - y * otherX);
         }
 
         #endregion
 
-        #region Static Math
-
-        /// <summary>
-        /// The upward direction vector (0, 1, 0).
-        /// </summary>
-        public static readonly Vector3d Up = new Vector3d(0, 1, 0);
-
-        /// <summary>
-        /// (1, 0, 0)
-        /// </summary>
-        public static readonly Vector3d Right = new Vector3d(1, 0, 0);
-
-        /// <summary>
-        /// (0, -1, 0)
-        /// </summary>
-        public static readonly Vector3d Down = new Vector3d(0, -1, 0);
-
-        /// <summary>
-        /// (-1, 0, 0)
-        /// </summary>
-        public static readonly Vector3d Left = new Vector3d(-1, 0, 0);
-
-        /// <summary>
-        /// The forward direction vector (0, 0, 1).
-        /// </summary>
-        public static readonly Vector3d Forward = new Vector3d(0, 0, 1);
-
-        /// <summary>
-        /// (0, 0, -1)
-        /// </summary>
-        public static readonly Vector3d Backward = new Vector3d(0, 0, -1);
-
-        /// <summary>
-        /// (1, 1, 1)
-        /// </summary>
-        public static readonly Vector3d One = new Vector3d(1, 1, 1);
-
-        /// <summary>
-        /// (-1, -1, -1)
-        /// </summary>
-        public static readonly Vector3d Negative = new Vector3d(-1, -1, -1);
-
-        /// <summary>
-        /// (0, 0, 0)
-        /// </summary>
-        public static readonly Vector3d Zero = new Vector3d(0, 0, 0);
+        #region Vector3d Operations
 
         /// <summary>
         /// Linearly interpolates between two points.
@@ -440,10 +491,10 @@ namespace FixedMathSharp
         {
             Vector3d v = b - a;
             Fixed64 dv = speed * dt;
-            if (dv > v.MyMagnitude)
+            if (dv > v.Magnitude)
                 return b;
             else
-                return a + v.MyNormalized * dv;
+                return a + v.Normal * dv;
         }
 
         /// <summary>
@@ -464,30 +515,33 @@ namespace FixedMathSharp
             // Clamp it to be in the range of Acos()
             // This may be unnecessary, but floating point
             // precision can be a fickle mistress.
-            FixedMath.Clamp(dot, -FixedMath.One, FixedMath.One);
+            FixedMath.Clamp(dot, -Fixed64.One, Fixed64.One);
             // Acos(dot) returns the angle between start and end,
             // And multiplying that by percent returns the angle between
             // start and the final result.
             Fixed64 theta = FixedMath.Acos(dot) * percent;
             Vector3d RelativeVec = end - start * dot;
-            RelativeVec.NormalizeInPlace();
+            RelativeVec.Normalize();
             // Orthonormal basis
             // The final result.
             return (start * FixedMath.Cos(theta)) + (RelativeVec * FixedMath.Sin(theta));
         }
 
-        public static Vector3d Normalize(Vector3d value)
+        /// <summary>
+        /// Normalizes the given vector, returning a unit vector with the same direction.
+        /// </summary>
+        /// <param name="value">The vector to normalize.</param>
+        /// <returns>A normalized (unit) vector with the same direction.</returns>
+        public static Vector3d GetNormalized(Vector3d value)
         {
-            Fixed64 mag = Magnitude(value);
-            if (mag > FixedMath.Epsilon && mag != FixedMath.One)
+            Fixed64 mag = GetMagnitude(value);
+            if (mag > Fixed64.Zero && mag != Fixed64.One)
             {
-                Fixed64 temp1 = (value.x / mag);
-                Fixed64 temp2 = (value.y / mag);
-                Fixed64 temp3 = (value.z / mag);
-
-                return new Vector3d(temp1, temp2, temp3);
+                Fixed64 xM = value.x / mag;
+                Fixed64 yM = value.y / mag;
+                Fixed64 zM = value.z / mag;
+                return new Vector3d(xM, yM, zM);
             }
-
             return value;
         }
 
@@ -497,17 +551,19 @@ namespace FixedMathSharp
         /// <param name="vector">The vector whose magnitude is being calculated.</param>
         /// <returns>The magnitude of the vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Magnitude(Vector3d vector)
+        public static Fixed64 GetMagnitude(Vector3d vector)
         {
             Fixed64 temp1 = (vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z);
-            return temp1 > FixedMath.Epsilon ? FixedMath.Sqrt(temp1) : FixedMath.Zero;
+            return temp1 != Fixed64.Zero ? FixedMath.Sqrt(temp1) : Fixed64.Zero;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d Abs(Vector3d value)
         {
             return new Vector3d(value.x.Abs(), value.y.Abs(), value.z.Abs());
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d Clamp(Vector3d value, Vector3d min, Vector3d max)
         {
             return new Vector3d(
@@ -519,7 +575,7 @@ namespace FixedMathSharp
 
         public static bool AreParallel(Vector3d v1, Vector3d v2)
         {
-            return Cross(v1, v2).SqrMagnitude.Abs() < FixedMath.Epsilon;
+            return Cross(v1, v2).SqrMagnitude == Fixed64.Zero;
         }
 
         public static bool AreAlmostParallel(Vector3d v1, Vector3d v2, Fixed64 cosThreshold)
@@ -531,39 +587,24 @@ namespace FixedMathSharp
             return dot >= cosThreshold;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d Midpoint(Vector3d v1, Vector3d v2)
         {
-            return new Vector3d((v1.x + v2.x) * FixedMath.Half, (v1.y + v2.y) * FixedMath.Half, (v1.z + v2.z) * FixedMath.Half);
+            return new Vector3d((v1.x + v2.x) * Fixed64.Half, (v1.y + v2.y) * Fixed64.Half, (v1.z + v2.z) * Fixed64.Half);
         }
 
-        /// <summary>
-        /// Computes the distance between two vectors using the Euclidean distance formula.
-        /// </summary>
-        /// <param name="start">The starting vector.</param>
-        /// <param name="end">The ending vector.</param>
-        /// <returns>The Euclidean distance between the two vectors.</returns>
+        /// <inheritdoc cref="Distance(Fixed64, Fixed64, Fixed64)" />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 Distance(Vector3d start, Vector3d end)
         {
-            Fixed64 tX = end.x - start.x;
-            tX *= tX;
-            Fixed64 tY = end.y - start.y;
-            tY *= tY;
-            Fixed64 tZ = end.z - start.z;
-            tZ *= tZ;
-            return FixedMath.Sqrt(tX + tY + tZ);
+            return start.Distance(end.x, end.y, end.z);
         }
 
+        /// <inheritdoc cref="SqrDistance(Fixed64, Fixed64, Fixed64)" />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 SqrDistance(Vector3d start, Vector3d end)
         {
-            Fixed64 tX = end.x - start.x;
-            tX *= tX;
-            Fixed64 tY = end.y - start.y;
-            tY *= tY;
-            Fixed64 tZ = end.z - start.z;
-            tZ *= tZ;
-            return tX + tY + tZ;
+            return start.SqrDistance(end.x, end.y, end.z);
         }
 
         /// <summary>
@@ -596,10 +637,10 @@ namespace FixedMathSharp
             Fixed64 sc, tc;
 
             // compute the line parameters of the two closest points
-            if (D < FixedMath.Epsilon)
+            if (D < Fixed64.Epsilon)
             {
                 // the lines are almost parallel
-                sc = FixedMath.Zero;
+                sc = Fixed64.Zero;
                 tc = (b > c ? d / b : e / c); // use the largest denominator
             }
             else
@@ -609,27 +650,27 @@ namespace FixedMathSharp
             }
 
             // recompute sc if it is outside [0,1]
-            if (sc < FixedMath.Zero)
+            if (sc < Fixed64.Zero)
             {
-                sc = FixedMath.Zero;
-                tc = (e < FixedMath.Zero ? FixedMath.Zero : (e > c ? FixedMath.One : e / c));
+                sc = Fixed64.Zero;
+                tc = (e < Fixed64.Zero ? Fixed64.Zero : (e > c ? Fixed64.One : e / c));
             }
-            else if (sc > FixedMath.One)
+            else if (sc > Fixed64.One)
             {
-                sc = FixedMath.One;
-                tc = (e + b < FixedMath.Zero ? FixedMath.Zero : (e + b > c ? FixedMath.One : (e + b) / c));
+                sc = Fixed64.One;
+                tc = (e + b < Fixed64.Zero ? Fixed64.Zero : (e + b > c ? Fixed64.One : (e + b) / c));
             }
 
             // recompute tc if it is outside [0,1]
-            if (tc < FixedMath.Zero)
+            if (tc < Fixed64.Zero)
             {
-                tc = FixedMath.Zero;
-                sc = (-d < FixedMath.Zero ? FixedMath.Zero : (-d > a ? FixedMath.One : -d / a));
+                tc = Fixed64.Zero;
+                sc = (-d < Fixed64.Zero ? Fixed64.Zero : (-d > a ? Fixed64.One : -d / a));
             }
-            else if (tc > FixedMath.One)
+            else if (tc > Fixed64.One)
             {
-                tc = FixedMath.One;
-                sc = ((-d + b) < FixedMath.Zero ? FixedMath.Zero : ((-d + b) > a ? FixedMath.One : (-d + b) / a));
+                tc = Fixed64.One;
+                sc = ((-d + b) < Fixed64.Zero ? Fixed64.Zero : ((-d + b) > a ? Fixed64.One : (-d + b) / a));
             }
 
             // get the difference of the two closest points
@@ -643,7 +684,7 @@ namespace FixedMathSharp
         {
             Vector3d ab = b - a;
             Fixed64 t = Dot(p - a, ab) / Dot(ab, ab);
-            t = FixedMath.Max(FixedMath.Zero, FixedMath.Min(FixedMath.One, t));
+            t = FixedMath.Max(Fixed64.Zero, FixedMath.Min(Fixed64.One, t));
             return a + ab * t;
         }
 
@@ -656,7 +697,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 Dot(Vector3d lhs, Vector3d rhs)
         {
-            return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
+            return lhs.Dot(rhs.x, rhs.y, rhs.z);
         }
 
         /// <summary>
@@ -679,10 +720,13 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d Cross(Vector3d lhs, Vector3d rhs)
         {
-            return new Vector3d(
-                lhs.y * rhs.z - lhs.z * rhs.y,
-                lhs.z * rhs.x - lhs.x * rhs.z,
-                lhs.x * rhs.y - lhs.y * rhs.x);
+            return lhs.Cross(rhs.x, rhs.y, rhs.z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 CrossProduct(Vector3d lhs, Vector3d rhs)
+        {
+            return lhs.CrossProduct(rhs.x, rhs.y, rhs.z);
         }
 
         /// <summary>
@@ -694,7 +738,7 @@ namespace FixedMathSharp
         public static Vector3d Project(Vector3d vector, Vector3d onNormal)
         {
             Fixed64 sqrMag = Dot(onNormal, onNormal);
-            if (sqrMag < FixedMath.Epsilon)
+            if (sqrMag < Fixed64.Epsilon)
                 return Zero;
             else
             {
@@ -714,7 +758,7 @@ namespace FixedMathSharp
         public static Vector3d ProjectOnPlane(Vector3d vector, Vector3d planeNormal)
         {
             Fixed64 sqrMag = Dot(planeNormal, planeNormal);
-            if (sqrMag < FixedMath.Epsilon)
+            if (sqrMag < Fixed64.Epsilon)
                 return vector;
             else
             {
@@ -739,12 +783,12 @@ namespace FixedMathSharp
         {
             Fixed64 denominator = FixedMath.Sqrt(from.SqrMagnitude * to.SqrMagnitude);
 
-            if (denominator.Abs() < FixedMath.Epsilon)
-                return FixedMath.Zero;
+            if (denominator.Abs() < Fixed64.Epsilon)
+                return Fixed64.Zero;
 
-            Fixed64 dot = FixedMath.Clamp(Dot(from, to) / denominator, -FixedMath.One, FixedMath.One);
+            Fixed64 dot = FixedMath.Clamp(Dot(from, to) / denominator, -Fixed64.One, Fixed64.One);
 
-            return FixedMath.Acos(dot) * FixedMath.Rad2Deg;
+            return FixedMath.RadToDeg(FixedMath.Acos(dot));
         }
 
         /// <summary>
@@ -753,6 +797,7 @@ namespace FixedMathSharp
         /// <param name="value1">The first vector.</param>
         /// <param name="value2">The second vector.</param>
         /// <returns>The maximized vector.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d Max(Vector3d value1, Vector3d value2)
         {
             return new Vector3d((value1.x > value2.x) ? value1.x : value2.x, (value1.y > value2.y) ? value1.y : value2.y, (value1.z > value2.z) ? value1.z : value2.z);
@@ -764,23 +809,41 @@ namespace FixedMathSharp
         /// <param name="value1">The first vector.</param>
         /// <param name="value2">The second vector.</param>
         /// <returns>The minimized vector.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d Min(Vector3d value1, Vector3d value2)
         {
             return new Vector3d((value1.x < value2.x) ? value1.x : value2.x, (value1.y < value2.y) ? value1.y : value2.y, (value1.z < value2.z) ? value1.z : value2.z);
         }
 
-        #endregion
-
-        #region Convert
-
-        public override string ToString()
+        /// <summary>
+        /// Rotates the vector around a given position using a specified quaternion rotation.
+        /// </summary>
+        /// <param name="source">The vector to rotate.</param>
+        /// <param name="position">The position around which the vector is rotated.</param>
+        /// <param name="rotation">The quaternion representing the rotation.</param>
+        /// <returns>The rotated vector.</returns>
+        public static Vector3d Rotate(Vector3d source, Vector3d position, FixedQuaternion rotation)
         {
-            return string.Format("({0}, {1}, {2})", x.ToFormattedDouble(), y.ToFormattedDouble(), z.ToFormattedDouble());
+            source -= position; // Translate the vector by the position
+            var normalizedRotation = rotation.Normal;
+            return (normalizedRotation * source) + position;
         }
 
-        public Vector2d ToVector2d()
+        /// <summary>
+        /// Applies the inverse of a specified quaternion rotation to the vector around a given position.
+        /// </summary>
+        /// <param name="source">The vector to rotate.</param>
+        /// <param name="position">The position around which the vector is rotated.</param>
+        /// <param name="rotation">The quaternion representing the inverse rotation.</param>
+        /// <returns>The rotated vector.</returns>
+        public static Vector3d InverseRotate(Vector3d source, Vector3d position, FixedQuaternion rotation)
         {
-            return new Vector2d(x, z);
+            source -= position; // Translate the vector by the position
+            var normalizedRotation = rotation.Normal;
+            // Undo the rotation
+            source = normalizedRotation.Inverse() * source;
+            // Add the original position back
+            return source + position;
         }
 
         #endregion
@@ -814,7 +877,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d operator -(Vector3d v1)
         {
-            return new Vector3d(v1.x * -FixedMath.One, v1.y * -FixedMath.One, v1.z * -FixedMath.One);
+            return new Vector3d(v1.x * -Fixed64.One, v1.y * -Fixed64.One, v1.z * -Fixed64.One);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -842,7 +905,7 @@ namespace FixedMathSharp
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3d operator *(FixedMatrix3x3 matrix, Vector3d vector)
+        public static Vector3d operator *(Fixed3x3 matrix, Vector3d vector)
         {
             return new Vector3d(
                 matrix.m00 * vector.x + matrix.m01 * vector.y + matrix.m02 * vector.z,
@@ -852,13 +915,13 @@ namespace FixedMathSharp
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3d operator *(Vector3d vector, FixedMatrix3x3 matrix)
+        public static Vector3d operator *(Vector3d vector, Fixed3x3 matrix)
         {
             return matrix * vector;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3d operator *(FixedMatrix4x4 matrix, Vector3d vector)
+        public static Vector3d operator *(Fixed4x4 matrix, Vector3d vector)
         {
             return new Vector3d(
                 matrix.m00 * vector.x + matrix.m01 * vector.y + matrix.m02 * vector.z + matrix.m03,
@@ -867,7 +930,7 @@ namespace FixedMathSharp
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3d operator *(Vector3d vector, FixedMatrix4x4 matrix)
+        public static Vector3d operator *(Vector3d vector, Fixed4x4 matrix)
         {
             return matrix * vector;
         }
@@ -881,16 +944,16 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d operator /(Vector3d v1, Fixed64 div)
         {
-            return div == FixedMath.Zero ? Zero : new Vector3d(v1.x / div, v1.y / div, v1.z / div);
+            return div == Fixed64.Zero ? Zero : new Vector3d(v1.x / div, v1.y / div, v1.z / div);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d operator /(Vector3d v1, Vector3d v2)
         {
             return new Vector3d(
-                v2.x == FixedMath.Zero ? FixedMath.Zero : v1.x / v2.x,
-                v2.y == FixedMath.Zero ? FixedMath.Zero : v1.y / v2.y,
-                v2.z == FixedMath.Zero ? FixedMath.Zero : v1.z / v2.z);
+                v2.x == Fixed64.Zero ? Fixed64.Zero : v1.x / v2.x,
+                v2.y == Fixed64.Zero ? Fixed64.Zero : v1.y / v2.y,
+                v2.z == Fixed64.Zero ? Fixed64.Zero : v1.z / v2.z);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -927,9 +990,9 @@ namespace FixedMathSharp
             Fixed64 num11 = rotation.w * num2;
             Fixed64 num12 = rotation.w * num3;
             Vector3d vector3 = new Vector3d(
-                (FixedMath.One - (num5 + num6)) * point.x + (num7 - num12) * point.y + (num8 + num11) * point.z,
-                (num7 + num12) * point.x + (FixedMath.One - (num4 + num6)) * point.y + (num9 - num10) * point.z,
-                (num8 - num11) * point.x + (num9 + num10) * point.y + (FixedMath.One - (num4 + num5)) * point.z
+                (Fixed64.One - (num5 + num6)) * point.x + (num7 - num12) * point.y + (num8 + num11) * point.z,
+                (num7 + num12) * point.x + (Fixed64.One - (num4 + num6)) * point.y + (num9 - num10) * point.z,
+                (num8 - num11) * point.x + (num9 + num10) * point.y + (Fixed64.One - (num4 + num5)) * point.z
             );
             return vector3;
         }
@@ -946,6 +1009,54 @@ namespace FixedMathSharp
             return !left.Equals(right);
         }
 
+        #endregion
+
+        #region Conversion
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override string ToString()
+        {
+            return string.Format("({0}, {1}, {2})", x.ToFormattedDouble(), y.ToFormattedDouble(), z.ToFormattedDouble());
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector2d ToVector2d()
+        {
+            return new Vector2d(x, z);
+        }
+
+        /// <summary>
+        /// Converts each component of the vector from radians to degrees.
+        /// </summary>
+        /// <param name="radians">The vector with components in radians.</param>
+        /// <returns>A new vector with components converted to degrees.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d ToDegrees(Vector3d radians)
+        {
+            return new Vector3d(
+                FixedMath.RadToDeg(radians.x),
+                FixedMath.RadToDeg(radians.y),
+                FixedMath.RadToDeg(radians.z));
+        }
+
+        /// <summary>
+        /// Converts each component of the vector from degrees to radians.
+        /// </summary>
+        /// <param name="degrees">The vector with components in degrees.</param>
+        /// <returns>A new vector with components converted to radians.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d ToRadians(Vector3d degrees)
+        {
+            return new Vector3d(
+                FixedMath.DegToRad(degrees.x),
+                FixedMath.DegToRad(degrees.y),
+                FixedMath.DegToRad(degrees.z));
+        }
+
+        #endregion
+
+        #region Equality and HashCode Overrides
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(object obj)
         {
@@ -958,10 +1069,25 @@ namespace FixedMathSharp
             return other.x == x && other.y == y && other.z == z;
         }
 
+        public bool Equals(Vector3d x, Vector3d y)
+        {
+            return x.Equals(y);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int GetHashCode()
         {
             return StateHash;
+        }
+
+        public int GetHashCode(Vector3d obj)
+        {
+            return obj.GetHashCode();
+        }
+
+        public int CompareTo(Vector3d other)
+        {
+            return SqrMagnitude.CompareTo(other.SqrMagnitude);
         }
 
         #endregion

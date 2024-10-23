@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
 {
@@ -8,8 +9,9 @@ namespace FixedMathSharp
     /// </summary>
     public static partial class FixedMath
     {
-        #region Properties
+        #region Fields and Constants
 
+        public const int NUM_BITS = 64;
         public const int SHIFT_AMOUNT_I = 32;
         public const uint MAX_SHIFTED_AMOUNT_UI = (uint)((1L << SHIFT_AMOUNT_I) - 1);
         public const ulong MASK_UL = (ulong)(ulong.MaxValue << SHIFT_AMOUNT_I);
@@ -19,38 +21,44 @@ namespace FixedMathSharp
 
         public const long ONE_L = 1L << SHIFT_AMOUNT_I;
 
-        // Constant values for Fixed64 representation
-        public static readonly Fixed64 MaxValue = new Fixed64(MAX_VALUE_L);
-        public static readonly Fixed64 MinValue = new Fixed64(MIN_VALUE_L);
-
         // Precomputed scale factors
-        public static readonly float FloatScaleFactor = 1.0f / ONE_L;
-        public static readonly double DoubleScaleFactor = 1.0 / ONE_L;
-        public static readonly decimal DecimalScaleFactor = 1.0m / ONE_L;
+        public const float SCALE_FACTOR_F = 1.0f / ONE_L;
+        public const double SCALE_FACTOR_D = 1.0 / ONE_L;
+        public const decimal SCALE_FACTOR_M = 1.0m / ONE_L;
 
         /// <summary>
         /// Represents the smallest possible value that can be represented by the Fixed64 format.
+        /// </summary>
+        /// <remarks>
         /// Precision of this type is 2^-SHIFT_AMOUNT, 
         /// i.e. 1 / (2^SHIFT_AMOUNT) where SHIFT_AMOUNT defines the fractional bits.
-        /// </summary>
-        public static readonly Fixed64 Epsilon = new Fixed64(1L);
+        /// </remarks>
+        public const long PRECISION_L = 1L;
 
-        public static readonly Fixed64 One = new Fixed64(ONE_L);
-        public static readonly Fixed64 Double = One * 2;
-        public static readonly Fixed64 Triple = One * 3;
-        public static readonly Fixed64 Half = One / 2;
-        public static readonly Fixed64 Quarter = One / 4;
-        public static readonly Fixed64 Eighth = One / 8;
-        public static readonly Fixed64 Zero = new Fixed64(0);
+        /// <summary>
+        ///  The smallest value that a Fixed64 can have different from zero.
+        /// </summary>
+        /// <remarks>
+        /// With the following rules:
+        ///      anyValue + Epsilon = anyValue
+        ///      anyValue - Epsilon = anyValue
+        ///      0 + Epsilon = Epsilon
+        ///      0 - Epsilon = -Epsilon
+        ///  A value Between any number and Epsilon will result in an arbitrary number due to truncating errors.
+        /// </remarks>
+        public const long EPSILON_L = 1L << (SHIFT_AMOUNT_I - 20); //~1E-06f
 
         #endregion
+
+        #region FixedMath Operations
 
         /// <summary>
         /// Produces a value with the magnitude of the first argument and the sign of the second argument.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 CopySign(Fixed64 x, Fixed64 y)
         {
-            return y >= Zero ? x.Abs() : -x.Abs();
+            return y >= Fixed64.Zero ? x.Abs() : -x.Abs();
         }
 
         /// <summary>
@@ -58,15 +66,31 @@ namespace FixedMathSharp
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 Clamp01(Fixed64 value)
         {
-            if (value < Zero)
-                return Zero;
+            return value < Fixed64.Zero ? Fixed64.Zero : value > Fixed64.One ? Fixed64.One : value;
+        }
 
-            if (value > One)
-                return One;
+        /// <summary>
+        /// Clamps a fixed-point value between the given minimum and maximum values (defaults to Fixed64.Max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 Clamp(Fixed64 f1, Fixed64 min, Fixed64? max = null)
+        {
+            Fixed64 m = max ?? Fixed64.MaxValue;
+            return f1 < min ? min : f1 > m ? m : f1;
+        }
 
-            return value;
+        /// <summary>
+        /// Clamps the value between -1 and 1 inclusive.
+        /// </summary>
+        /// <param name="f1">The Fixed64 value to clamp.</param>
+        /// <returns>Returns a value clamped between -1 and 1.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 ClampOne(Fixed64 f1)
+        {
+            return f1 > Fixed64.One ? Fixed64.One : f1 < -Fixed64.One ? -Fixed64.One : f1;
         }
 
         /// <summary>
@@ -76,7 +100,7 @@ namespace FixedMathSharp
         {
             // For the minimum value, return the max to avoid overflow
             if (value.RawValue == MIN_VALUE_L)
-                return MaxValue;
+                return Fixed64.MaxValue;
 
             // Use branchless absolute value calculation
             long mask = value.RawValue >> 63; // If negative, mask will be all 1s; if positive, all 0s
@@ -86,15 +110,27 @@ namespace FixedMathSharp
         /// <summary>
         /// Returns the smallest integral value that is greater than or equal to the specified number.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 Ceiling(Fixed64 value)
         {
             bool hasFractionalPart = (value.RawValue & MAX_SHIFTED_AMOUNT_UI) != 0;
-            return hasFractionalPart ? value.Floor() + One : value;
+            return hasFractionalPart ? value.Floor() + Fixed64.One : value;
+        }
+
+        /// <summary>
+        /// Returns the largest integer less than or equal to the specified number (floor function).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 Floor(Fixed64 value)
+        {
+            // Efficiently zeroes out the fractional part
+            return Fixed64.FromRaw((long)((ulong)value.RawValue & FixedMath.MASK_UL));
         }
 
         /// <summary>
         /// Returns the larger of two fixed-point values.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 Max(Fixed64 f1, Fixed64 f2)
         {
             return f1 >= f2 ? f1 : f2;
@@ -103,6 +139,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Returns the smaller of two fixed-point values.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 Min(Fixed64 a, Fixed64 b)
         {
             return (a < b) ? a : b;
@@ -115,24 +152,24 @@ namespace FixedMathSharp
         {
             long fractionalPart = value.RawValue & MAX_SHIFTED_AMOUNT_UI;
             Fixed64 integralPart = value.Floor();
-            if (fractionalPart < Half.RawValue)
+            if (fractionalPart < Fixed64.Half.RawValue)
                 return integralPart;
 
-            if (fractionalPart > Half.RawValue)
-                return integralPart + One;
+            if (fractionalPart > Fixed64.Half.RawValue)
+                return integralPart + Fixed64.One;
 
-            // When value is exactly halfway between two numbers
+            // When value is exactly Fixed64.Halfway between two numbers
             return mode switch
             {
-                MidpointRounding.AwayFromZero => value.RawValue > 0 ? integralPart + One : integralPart - One,// If it's exactly halfway, round away from zero
-                _ => (integralPart.RawValue & ONE_L) == 0 ? integralPart : integralPart + One,// Rounds to the nearest even number (default behavior)
+                MidpointRounding.AwayFromZero => value.RawValue > 0 ? integralPart + Fixed64.One : integralPart - Fixed64.One,// If it's exactly Fixed64.Halfway, round away from Fixed64.Zero
+                _ => (integralPart.RawValue & ONE_L) == 0 ? integralPart : integralPart + Fixed64.One,// Rounds to the nearest even number (default behavior)
             };
         }
 
         /// <summary>
         /// Rounds a fixed-point number to a specific number of decimal places.
         /// </summary>
-        public static Fixed64 Round(Fixed64 value, int decimalPlaces, MidpointRounding mode = MidpointRounding.ToEven)
+        public static Fixed64 RoundToPrecision(Fixed64 value, int decimalPlaces, MidpointRounding mode = MidpointRounding.ToEven)
         {
             if (decimalPlaces < 0 || decimalPlaces >= Pow10Lookup.Length)
                 throw new ArgumentOutOfRangeException(nameof(decimalPlaces), "Decimal places out of range.");
@@ -144,8 +181,20 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Adds two fixed-point numbers without performing overflow checking.
+        /// Squares the Fixed64 value.
         /// </summary>
+        /// <param name="value">The Fixed64 value to square.</param>
+        /// <returns>The squared value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 Squared(Fixed64 value)
+        {
+            return value * value;
+        }
+
+        /// <summary>
+        /// Adds two fixed-point numbers without performing overflow checking.
+        /// </summary>  
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 FastAdd(Fixed64 x, Fixed64 y)
         {
             return Fixed64.FromRaw(x.RawValue + y.RawValue);
@@ -154,6 +203,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Subtracts two fixed-point numbers without performing overflow checking.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 FastSub(Fixed64 x, Fixed64 y)
         {
             return Fixed64.FromRaw(x.RawValue - y.RawValue);
@@ -192,6 +242,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Fast modulus without the checks performed by the '%' operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 FastMod(Fixed64 x, Fixed64 y)
         {
             return Fixed64.FromRaw(x.RawValue % y.RawValue);
@@ -207,25 +258,7 @@ namespace FixedMathSharp
             if (t.RawValue <= 0)
                 return from;
 
-            return (to * t) + (from * (One - t));
-        }
-
-        /// <summary>
-        /// Clamps a fixed-point value between the given minimum and Fixed64.MaxValue.
-        /// </summary>
-        public static Fixed64 Clamp(Fixed64 f1, Fixed64 min)
-        {
-            return Clamp(f1, min, MaxValue);
-        }
-
-        /// <summary>
-        /// Clamps a fixed-point value between the given minimum and maximum values.
-        /// </summary>
-        public static Fixed64 Clamp(Fixed64 f1, Fixed64 min, Fixed64 max)
-        {
-            if (f1 < min) return min;
-            if (f1 > max) return max;
-            return f1;
+            return (to * t) + (from * (Fixed64.One - t));
         }
 
         /// <summary>
@@ -263,7 +296,7 @@ namespace FixedMathSharp
         /// <returns>The sum of <paramref name="x"/> and <paramref name="y"/>.</returns>
         /// <remarks>
         /// Overflow is detected by checking for a change in the sign bit that indicates a wrap-around.
-        /// Additionally, a special check is performed for adding <see cref="long.MinValue"/> and -1, 
+        /// Additionally, a special check is performed for adding <see cref="long.Fixed64.MinValue"/> and -1, 
         /// as this is a known edge case for overflow.
         /// </remarks>
         public static long AddOverflowHelper(long x, long y, ref bool overflow)
@@ -271,13 +304,12 @@ namespace FixedMathSharp
             long sum = x + y;
             // Check for overflow using sign bit changes
             overflow |= ((x ^ y ^ sum) & MIN_VALUE_L) != 0;
-
-            // Special check for the case when x is long.MinValue and y is negative
+            // Special check for the case when x is long.Fixed64.MinValue and y is negative
             if (x == long.MinValue && y == -1)
                 overflow = true;
-
             return sum;
         }
 
+        #endregion
     }
 }

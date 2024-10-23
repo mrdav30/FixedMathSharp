@@ -25,7 +25,7 @@ namespace FixedMathSharp.Unity.Editor
         public static Fixed64 FixedNumberField(Rect position, Fixed64 value, Fixed64 max)
         {
             Fixed64 result = (Fixed64)EditorGUI.DoubleField(position, Math.Round((double)value, 2, MidpointRounding.AwayFromZero));
-            return max == FixedMath.Zero || result <= max ? result : max;
+            return max == Fixed64.Zero || result <= max ? result : max;
         }
 
         public static Fixed64 FixedNumberField(Rect position, Fixed64 value)
