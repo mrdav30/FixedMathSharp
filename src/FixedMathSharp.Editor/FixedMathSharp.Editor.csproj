@@ -94,7 +94,7 @@
     <Reference Include="UnityEngine">
 	  <HintPath>$(UnityEnginePath)</HintPath>
 	</Reference>
-    <Reference Include="UnityEditorPath">
+    <Reference Include="UnityEditor">
       <HintPath>$(UnityEditorPath)</HintPath>
 	</Reference>
   </ItemGroup>
