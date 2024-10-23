@@ -23,7 +23,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 4.7.2
 
     - name: Cache NuGet packages
       uses: actions/cache@v3
@@ -47,4 +47,4 @@ jobs:
     - name: Test
       run: |
         dotnet --info
-        dotnet test --no-restore --verbosity diagnostic --configuration Release
+        dotnet test --no-restore --verbosity normal --configuration Release
