@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     container:
       image: unityci/editor:ubuntu-2022.3.20f1-windows-mono-3.1.0
