@@ -45,4 +45,6 @@ jobs:
       run: dotnet build src/FixedMathSharp.Editor/FixedMathSharp.Editor.csproj --no-restore --configuration Release
 
     - name: Test
-      run: dotnet test --no-build --verbosity normal --configuration Release
+      run: |
+        dotnet --info
+        dotnet test --no-restore --verbosity diagnostic --configuration Release
