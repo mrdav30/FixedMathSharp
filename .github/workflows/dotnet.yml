@@ -6,13 +6,18 @@ name: .NET CI
 on:
   # Run the workflow on all branch pushes and pull requests
   push:
-    branches: ["*"]
+    branches-ignore:
+      - 'dependabot/**' #avoid duplicates: only run the PR, not the push
+      - 'gh-pages' #github pages do not trigger all tests
+    tags-ignore:
+      - 'v*' #avoid rerun existing commit on release
   pull_request:
-    branches: ["*"]
+    branches:
+      - 'main'
 
 jobs:
   build:
-    if: github.event_name != 'push' || github.event.pull_request.merged == false
+    if: (github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork) || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || startsWith(github.head_ref, 'dependabot/')))
     # Use an Ubuntu-based container to build the project
     runs-on: ubuntu-latest
 
