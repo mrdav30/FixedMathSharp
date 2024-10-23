@@ -79,4 +79,4 @@ jobs:
       - name: Test
         run: |
           dotnet --info
-          dotnet test ${{ github.workspace }}\tests\FixedMathSharp.Tests\bin\Release\FixedMathSharp.Tests.dll --verbosity normal
+          dotnet test ${{ github.workspace }}\tests\FixedMathSharp.Tests\bin\Release\net471\FixedMathSharp.Tests.dll --verbosity normal
