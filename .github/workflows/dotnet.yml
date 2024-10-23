@@ -41,11 +41,11 @@ jobs:
         UnityManagedPath: \opt\unity\Editor\Data\Managed
       run: dotnet build --configuration Release --no-restore
 
-    - name: Upload Library Artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: BuildOutputLibrary
-        path: ./src/FixedMathSharp/bin/Release
+    #- name: Upload Library Artifacts
+    #  uses: actions/upload-artifact@v3
+    #  with:
+    #    name: BuildOutputLibrary
+    #    path: ./src/FixedMathSharp/bin/Release
 
     - name: Upload Test Artifacts
       uses: actions/upload-artifact@v3
@@ -61,19 +61,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Library Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: BuildOutputLibrary
-          path: ./src/FixedMathSharp/bin/Release
+      #- name: Download Library Artifacts
+      #  uses: actions/download-artifact@v3
+      #  with:
+       #   name: BuildOutputLibrary
+      #    path: ./src/FixedMathSharp/bin/Release
           
       - name: Download Test Artifacts
         uses: actions/download-artifact@v3
         with:
           name: BuildOutputTest
           path: ./tests/FixedMathSharp.Tests/bin/Release
+
+      - name: List Downloaded Files
+        run: dir ./tests/FixedMathSharp.Tests/bin/Release
   
       - name: Test
         run: |
           dotnet --info
-          dotnet test ${{ github.workspace }}\tests\FixedMathSharp.Tests\bin\Release\FixedMathSharp.Tests.dll --framework net471 --configuration Release --no-build --verbosity normal
+          dotnet test ${{ github.workspace }}\tests\FixedMathSharp.Tests\bin\Release\FixedMathSharp.Tests.dll --verbosity normal
