@@ -41,17 +41,17 @@ jobs:
         UnityManagedPath: \opt\unity\Editor\Data\Managed
       run: dotnet build --no-restore --configuration Release
 
-    - name: Upload Build Artifacts
+    - name: Upload Library Artifacts
       uses: actions/upload-artifact@v3
       with:
         name: BuildOutputLibrary
         path: ./src/FixedMathSharp/bin/Release
 
-    - name: Upload Build Artifacts
+    - name: Upload Test Artifacts
       uses: actions/upload-artifact@v3
       with:
         name: BuildOutputTest
-        path: ./src/FixedMathSharp.Editor/bin/Release
+        path: ./tests/FixedMathSharp.Tests/bin/Release
 
   test:
     runs-on: windows-latest
@@ -61,12 +61,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Build Artifacts
+      - name: Download Library Artifacts
         uses: actions/download-artifact@v3
         with:
           name: BuildOutputLibrary
           
-      - name: Download Build Artifacts
+      - name: Download Test Artifacts
         uses: actions/download-artifact@v3
         with:
           name: BuildOutputTest
