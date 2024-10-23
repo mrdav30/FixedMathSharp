@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: unityci/editor:windows-6000.0.23f1-universal-windows-platform-3.1.0
+      image: unityci/editor:ubuntu-2021.3.45f1-windows-mono-3.1
 
     steps:
     - name: Checkout repository
