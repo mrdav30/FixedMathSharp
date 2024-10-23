@@ -37,6 +37,8 @@ jobs:
       run: dotnet restore
 
     - name: Build Solution
+      env:
+        UnityManagedPath: \opt\unity\Editor\Data\Managed
       run: dotnet build --no-restore --configuration Release
 
     - name: Upload Build Artifacts
