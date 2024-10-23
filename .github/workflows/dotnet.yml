@@ -11,8 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
-
+    runs-on: ubuntu-latest
     container:
       image: unityci/editor:ubuntu-2022.3.20f1-windows-mono-3.1.0
 
@@ -23,7 +22,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 4.7.2
+        dotnet-version: 8.0.x
 
     - name: Cache NuGet packages
       uses: actions/cache@v3
@@ -38,13 +37,18 @@ jobs:
 
     - name: Build Library
       run: dotnet build src/FixedMathSharp/FixedMathSharp.csproj --no-restore --configuration Release
-
+      
     - name: Build Editor
       env:
         UnityManagedPath: \opt\unity\Editor\Data\Managed
       run: dotnet build src/FixedMathSharp.Editor/FixedMathSharp.Editor.csproj --no-restore --configuration Release
 
+    - name: Setup .NET Framework
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: 4.7.2
+
     - name: Test
       run: |
         dotnet --info
-        dotnet test --no-restore --verbosity normal --configuration Release
+        vstest.console.exe ./tests/FixedMathSharp.Tests/bin/Release/net471/FixedMathSharp.Tests.dll
