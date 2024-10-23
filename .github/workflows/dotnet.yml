@@ -39,7 +39,7 @@ jobs:
     - name: Build Solution
       env:
         UnityManagedPath: \opt\unity\Editor\Data\Managed
-      run: dotnet build --no-restore --configuration Release
+      run: dotnet build --configuration Release --no-restore
 
     - name: Upload Library Artifacts
       uses: actions/upload-artifact@v3
@@ -76,4 +76,4 @@ jobs:
       - name: Test
         run: |
           dotnet --info
-          dotnet test ${{ github.workspace }}\tests\FixedMathSharp.Tests\bin\Release\FixedMathSharp.Tests.dll --framework net471 --no-build --verbosity normal
+          dotnet test ${{ github.workspace }}\tests\FixedMathSharp.Tests\bin\Release\FixedMathSharp.Tests.dll --framework net471 --configuration Release --no-build --verbosity normal
