@@ -65,13 +65,15 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: BuildOutputLibrary
+          path: ./src/FixedMathSharp/bin/Release
           
       - name: Download Test Artifacts
         uses: actions/download-artifact@v3
         with:
           name: BuildOutputTest
+          path: ./tests/FixedMathSharp.Tests/bin/Release
   
       - name: Test
         run: |
           dotnet --info
-          dotnet test --framework net471 --no-build --configuration Release --verbosity normal
+          dotnet test ./tests/FixedMathSharp.Tests/bin/Release/FixedMathSharp.Tests.dll --framework net471 --no-build --verbosity normal
