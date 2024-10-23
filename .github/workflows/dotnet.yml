@@ -35,20 +35,39 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
 
-    - name: Build Library
+    - name: Build (Library)
       run: dotnet build src/FixedMathSharp/FixedMathSharp.csproj --no-restore --configuration Release
       
-    - name: Build Editor
+    - name: Build (Editor)
       env:
         UnityManagedPath: \opt\unity\Editor\Data\Managed
       run: dotnet build src/FixedMathSharp.Editor/FixedMathSharp.Editor.csproj --no-restore --configuration Release
 
-    - name: Setup .NET Framework
-      uses: actions/setup-dotnet@v2
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
       with:
-        dotnet-version: 4.7.2
+        name: BuildOutput
+        path: ./src/FixedMathSharp/bin/Release
 
-    - name: Test
-      run: |
-        dotnet --info
-        vstest.console.exe ./tests/FixedMathSharp.Tests/bin/Release/net471/FixedMathSharp.Tests.dll
+  test:
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: BuildOutput
+
+      - name: Install Visual Studio Test Platform
+        run: |
+          choco install microsoft-build-tools -y
+          choco install microsoft-vstest -y
+    
+      - name: Test
+        run: |
+          dotnet --info
+          vstest.console.exe ./tests/FixedMathSharp.Tests/bin/Release/net471/FixedMathSharp.Tests.dll
