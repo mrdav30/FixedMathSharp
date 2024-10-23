@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: unityci/editor:windows-6000.0.23f1-universal-windows-platform-3.1.0
 
     steps:
     - name: Checkout repository
@@ -33,8 +33,11 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
 
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
+    - name: Build Library
+      run: dotnet build src/FixedMathSharp/FixedMathSharp.csproj --no-restore --configuration Release
+
+    - name: Build Editor
+      run: dotnet build src/FixedMathSharpEditor/FixedMathSharp.Editor.csproj --no-restore --configuration Release
 
     - name: Test
       run: dotnet test --no-build --verbosity normal --configuration Release
