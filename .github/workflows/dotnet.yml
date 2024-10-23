@@ -24,6 +24,11 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
+    - name: Install Mono
+      run: |
+        sudo apt update
+        sudo apt install -y mono-complete
+
     - name: Cache NuGet packages
       uses: actions/cache@v3
       with:
