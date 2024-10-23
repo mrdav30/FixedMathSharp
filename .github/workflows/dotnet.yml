@@ -4,13 +4,16 @@
 name: .NET CI
 
 on:
+  # Run the workflow on all branch pushes and pull requests
   push:
-    branches: ["*"]  # Run on all branch pushes
+    branches: ["*"]
   pull_request:
-    branches: ["*"]  # Run on all PRs
+    branches: ["*"]
 
 jobs:
   build:
+    if: github.event_name != 'push' || github.event.pull_request.merged == false
+    # Use an Ubuntu-based container to build the project
     runs-on: ubuntu-latest
 
     container:
@@ -41,12 +44,6 @@ jobs:
         UnityManagedPath: \opt\unity\Editor\Data\Managed
       run: dotnet build --configuration Release --no-restore
 
-    #- name: Upload Library Artifacts
-    #  uses: actions/upload-artifact@v3
-    #  with:
-    #    name: BuildOutputLibrary
-    #    path: ./src/FixedMathSharp/bin/Release
-
     - name: Upload Test Artifacts
       uses: actions/upload-artifact@v3
       with:
@@ -54,6 +51,7 @@ jobs:
         path: ./tests/FixedMathSharp.Tests/bin/Release
 
   test:
+    # Use a Windows runner to execute the .NET Framework tests
     runs-on: windows-latest
     needs: build
 
@@ -61,21 +59,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      #- name: Download Library Artifacts
-      #  uses: actions/download-artifact@v3
-      #  with:
-       #   name: BuildOutputLibrary
-      #    path: ./src/FixedMathSharp/bin/Release
-          
       - name: Download Test Artifacts
         uses: actions/download-artifact@v3
         with:
           name: BuildOutputTest
           path: ./tests/FixedMathSharp.Tests/bin/Release
 
-      - name: List Downloaded Files
-        run: dir ./tests/FixedMathSharp.Tests/bin/Release
-  
       - name: Test
         run: |
           dotnet --info
