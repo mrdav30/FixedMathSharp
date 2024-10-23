@@ -76,4 +76,4 @@ jobs:
       - name: Test
         run: |
           dotnet --info
-          dotnet test ./tests/FixedMathSharp.Tests/bin/Release/FixedMathSharp.Tests.dll --framework net471 --no-build --verbosity normal
+          dotnet test \tests\FixedMathSharp.Tests\bin\Release\FixedMathSharp.Tests.dll --framework net471 --no-build --verbosity normal
