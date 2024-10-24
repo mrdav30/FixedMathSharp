@@ -51,7 +51,7 @@ namespace FixedMathSharp
         /// Raises the base number b to the power of exp.
         /// Uses logarithms to compute power efficiently for fixed-point values.
         /// </summary>
-        /// <exception cref="DivideByFixed64.ZeroException">
+        /// <exception cref="DivideByZeroException">
         /// The base was Fixed64.Zero, with a negative expFixed64.Onent
         /// </exception>
         /// <exception cref="ArgumentOutOfRangeException">

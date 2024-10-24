@@ -30,7 +30,7 @@ namespace FixedMathSharp
             return FixedMath.Round(value, mode);
         }
 
-        /// <inheritdoc cref="FixedMath.Abs(Fixed64, int, MidpointRounding)" />
+        /// <inheritdoc cref="FixedMath.RoundToPrecision(Fixed64, int, MidpointRounding)" />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 RoundToPrecision(this Fixed64 value, int places, MidpointRounding mode = MidpointRounding.ToEven)
         {

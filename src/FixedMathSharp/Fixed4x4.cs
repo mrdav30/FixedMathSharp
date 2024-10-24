@@ -109,6 +109,7 @@ namespace FixedMathSharp
             return this = ResetScaleToIdentity(this);
         }
 
+        /// <summary>
         /// Sets the translation, scale, and rotation components onto the matrix.
         /// </summary>
         /// <param name="translation">The translation vector.</param>
@@ -182,6 +183,7 @@ namespace FixedMathSharp
             );
         }
 
+        /// <summary>
         /// Creates a matrix from the provided translation, scale, and rotation components.
         /// </summary>
         /// <param name="translation">The translation vector.</param>
@@ -451,7 +453,7 @@ namespace FixedMathSharp
         /// by dividing the desired global scale by the current global scale. 
         /// The new local scale is then applied to the matrix.
         /// </remarks>
-        public static Fixed4x4 SetGlobalScale(Fixed4x4 matrix, Vector3d globalScale, bool precise = false)
+        public static Fixed4x4 SetGlobalScale(Fixed4x4 matrix, Vector3d globalScale)
         {
             // normalize the matrix to avoid drift in the rotation component
             matrix = NormalizeRotationMatrix(matrix);
