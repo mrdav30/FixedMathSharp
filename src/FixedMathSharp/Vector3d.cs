@@ -349,7 +349,6 @@ namespace FixedMathSharp
         /// <summary>
         /// Normalizes this vector in place and outputs its original magnitude.
         /// </summary>
-        /// <param name="mag">The original magnitude of the vector before normalization.</param>
         /// <remarks>
         /// If the vector is zero-length or already normalized, no operation is performed, but the original magnitude will still be output.
         /// </remarks>
@@ -434,7 +433,6 @@ namespace FixedMathSharp
         /// <summary>
         /// Returns the cross vector of this vector with another vector.
         /// </summary>
-        /// <param name="rhs">The right-hand side vector to compute the cross product with.</param>
         /// <returns>A new vector representing the cross product.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3d Cross(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ)

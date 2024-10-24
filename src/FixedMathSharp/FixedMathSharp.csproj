@@ -6,8 +6,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <PropertyGroup>
-    <PackageIcon>../../../.assets/icon_256x256.png</PackageIcon>
+    <PackageIcon>icon_256x256.png</PackageIcon>
     <PackageIconUrl>https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/.assets/icon_256x256.png</PackageIconUrl>
+  </PropertyGroup>
+  <PropertyGroup>
+	<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	<NoWarn>1591</NoWarn> <!-- Optional: Suppress warnings about missing XML comments -->
+	<DocumentationFile>bin\$(Configuration)\$(TargetFramework)\FixedMathSharp.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -34,8 +39,6 @@
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -46,6 +49,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -55,7 +59,27 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Description>FixedMathSharp: A high-precision, deterministic fixed-point math library for .NET. Ideal for simulations, games, and physics engines requiring reliable arithmetic without floating-point inaccuracies. </Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/mrdav30/FixedMathSharp</RepositoryUrl>
+    <PackageTags>fixed-point;math;precision;deterministic;arithmetic;fixed-point-arithmetic;math-library;trigonometry;dotnet;unity;simulations;physics-engine;game-development;high-precision;nuget</PackageTags>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="..\..\LICENSE.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+	<None Include="..\..\.assets\icon_256x256.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472">
       <Version>1.0.3</Version>

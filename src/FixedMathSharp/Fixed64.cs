@@ -457,7 +457,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Bitwise left shift operator.
         /// </summary>
-        /// <param name="x">Operand to shift.</param>
+        /// <param name="a">Operand to shift.</param>
         /// <param name="shift">Number of bits to shift.</param>
         /// <returns>The shifted value.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -469,7 +469,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Bitwise right shift operator.
         /// </summary>
-        /// <param name="x">Operand to shift.</param>
+        /// <param name="a">Operand to shift.</param>
         /// <param name="shift">Number of bits to shift.</param>
         /// <returns>The shifted value.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <PropertyGroup>
-    <PackageIcon>../../../.assets/icon_256x256.png</PackageIcon>
+    <PackageIcon>icon_256x256.png</PackageIcon>
     <PackageIconUrl>https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/.assets/icon_256x256.png</PackageIconUrl>
   </PropertyGroup>
   <PropertyGroup>
@@ -77,6 +77,7 @@
     <DefineConstants>DEBUG;TRACE;UNITY_EDITOR</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -86,9 +87,15 @@
     <DefineConstants>TRACE;UNITY_EDITOR</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Description>FixedMathSharp.Editor: Extensions and utilities for integrating FixedMathSharp with Unity. Includes struct extensions for Fixed64 and Vector2d(3d) to interoperate smoothly with Unity’s native types, along with custom property drawers for enhanced inspector support.</Description>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/mrdav30/FixedMathSharp</RepositoryUrl>
+    <PackageTags>fixed-point;math;precision;deterministic;arithmetic;fixed-point-arithmetic;math-library;trigonometry;dotnet;unity;simulations;physics-engine;game-development;high-precision;nuget</PackageTags>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\FixedMathSharp\FixedMathSharp.csproj" />
+    <ProjectReference Include="..\FixedMathSharp\FixedMathSharp.csproj" Private="false" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">
@@ -97,6 +104,20 @@
     <Reference Include="UnityEditor">
       <HintPath>$(UnityEditorPath)</HintPath>
 	</Reference>
+  </ItemGroup>
+    <ItemGroup>
+    <None Include="..\..\LICENSE.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+	<None Include="..\..\.assets\icon_256x256.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472">

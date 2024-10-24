@@ -9,7 +9,7 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj" />
+    <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj" Private="true" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.1" />

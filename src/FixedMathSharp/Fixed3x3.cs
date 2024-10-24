@@ -105,7 +105,7 @@ namespace FixedMathSharp
         ///  bear in mind that having a zero on the inertia tensor's diagonal isn't generally valid for real,
         ///  3-dimensional objects (unless they are "infinitely thin" along one axis),
         ///  so if you end up with such a tensor, it's a sign that something else might be wrong in your setup.        
-        /// </returns>
+        /// </remarks>
         public Fixed3x3 InvertDiagonal()
         {
             if (m11 == Fixed64.Zero)
@@ -252,6 +252,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Applies the provided local scale to the matrix by modifying the diagonal elements.
         /// </summary>
+        /// <param name="matrix">The matrix to set the scale against.</param>
         /// <param name="localScale">A Vector3d representing the local scale to apply.</param>
         public static Fixed3x3 SetScale(Fixed3x3 matrix, Vector3d localScale)
         {
