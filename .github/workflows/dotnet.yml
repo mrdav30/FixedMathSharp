@@ -1,0 +1,76 @@
+# This workflow builds and tests the FixedMathSharp .NET project.
+# Documentation: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+
+name: .NET CI
+
+on:
+  # Run the workflow on all branch pushes and pull requests
+  push:
+    branches-ignore:
+      - 'dependabot/**' #avoid duplicates: only run the PR, not the push
+      - 'gh-pages' #github pages do not trigger all tests
+    tags-ignore:
+      - 'v*' #avoid rerun existing commit on release
+  pull_request:
+    branches:
+      - 'main'
+
+jobs:
+  build:
+    if: (github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork) || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || startsWith(github.head_ref, 'dependabot/')))
+    # Use an Ubuntu-based container to build the project
+    runs-on: ubuntu-latest
+
+    container:
+      image: unityci/editor:ubuntu-2022.3.20f1-windows-mono-3.1.0
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build Solution
+      env:
+        UnityManagedPath: \opt\unity\Editor\Data\Managed
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Upload Test Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: BuildOutputTest
+        path: ./tests/FixedMathSharp.Tests/bin/Release
+
+  test:
+    # Use a Windows runner to execute the .NET Framework tests
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Test Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: BuildOutputTest
+          path: ./tests/FixedMathSharp.Tests/bin/Release
+
+      - name: Test
+        run: |
+          dotnet --info
+          dotnet test ${{ github.workspace }}\tests\FixedMathSharp.Tests\bin\Release\net471\FixedMathSharp.Tests.dll --verbosity normal
