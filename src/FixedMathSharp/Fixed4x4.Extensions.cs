@@ -35,10 +35,10 @@ namespace FixedMathSharp
             return Fixed4x4.ExtractRotation(matrix);
         }
 
-        /// <inheritdoc cref="Fixed4x4.SetGlobalScale(Fixed4x4, Vector3d, bool)" />
-        public static Fixed4x4 SetGlobalScale(this ref Fixed4x4 matrix, Vector3d globalScale, bool precise = false)
+        /// <inheritdoc cref="Fixed4x4.SetGlobalScale(Fixed4x4, Vector3d)" />
+        public static Fixed4x4 SetGlobalScale(this ref Fixed4x4 matrix, Vector3d globalScale)
         {
-            return matrix = Fixed4x4.SetGlobalScale(matrix, globalScale, precise);
+            return matrix = Fixed4x4.SetGlobalScale(matrix, globalScale);
         }
 
         #endregion

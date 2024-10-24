@@ -199,7 +199,6 @@ namespace FixedMathSharp
         /// </summary>
         /// <param name="newX"></param>
         /// <param name="newY"></param>
-        /// <param name="newZ"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Set(Fixed64 newX, Fixed64 newY)
         {
@@ -453,7 +452,7 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Reflects this vector across the specified x & y axis.
+        /// Reflects this vector across the specified x and y axis.
         /// </summary>
         public Vector2d ReflectInPlace(Fixed64 axisX, Fixed64 axisY)
         {
@@ -477,7 +476,7 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Reflects this vector across the specified x & y axis.
+        /// Reflects this vector across the specified x and y axis.
         /// </summary>
         /// <returns>A new vector representing the result of the reflection.</returns>
         public Vector2d Reflected(Fixed64 axisX, Fixed64 axisY)

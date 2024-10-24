@@ -249,7 +249,7 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Performs linear interpolation between two fixed-point values based on the interpolant t (0 <= t <= 1).
+        /// Performs linear interpolation between two fixed-point values based on the interpolant t (0 greater or equal to `t` and less than or equal to 1).
         /// </summary>
         public static Fixed64 LinearInterpolate(Fixed64 from, Fixed64 to, Fixed64 t)
         {
@@ -296,7 +296,7 @@ namespace FixedMathSharp
         /// <returns>The sum of <paramref name="x"/> and <paramref name="y"/>.</returns>
         /// <remarks>
         /// Overflow is detected by checking for a change in the sign bit that indicates a wrap-around.
-        /// Additionally, a special check is performed for adding <see cref="long.Fixed64.MinValue"/> and -1, 
+        /// Additionally, a special check is performed for adding <see cref="Fixed64.MinValue"/> and -1, 
         /// as this is a known edge case for overflow.
         /// </remarks>
         public static long AddOverflowHelper(long x, long y, ref bool overflow)

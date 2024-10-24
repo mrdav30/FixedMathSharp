@@ -13,14 +13,14 @@ namespace FixedMathSharp
             return Fixed3x3.ExtractScale(matrix);
         }
 
-        /// <inheritdoc cref="Fixed3x3.SetScale(ref Fixed3x3, Vector3d)" />
+        /// <inheritdoc cref="Fixed3x3.SetScale(Fixed3x3, Vector3d)" />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed3x3 SetScale(this ref Fixed3x3 matrix, Vector3d localScale)
         {
             return matrix = Fixed3x3.SetScale(matrix, localScale);
         }
 
-        /// <inheritdoc cref="Fixed3x3.SetGlobalScale(ref Fixed3x3, Vector3d)" />
+        /// <inheritdoc cref="Fixed3x3.SetGlobalScale(Fixed3x3, Vector3d)" />
         public static Fixed3x3 SetGlobalScale(this ref Fixed3x3 matrix, Vector3d globalScale)
         {
             return matrix = Fixed3x3.SetGlobalScale(matrix, globalScale);
@@ -33,8 +33,8 @@ namespace FixedMathSharp
         /// <summary>
         /// Compares two Fixed3x3 for approximate equality, allowing a fixed absolute difference between components.
         /// </summary>
-        /// <param name="q1">The current Fixed3x3.</param>
-        /// <param name="q2">The Fixed3x3 to compare against.</param>
+        /// <param name="f1">The current Fixed3x3.</param>
+        /// <param name="f2">The Fixed3x3 to compare against.</param>
         /// <param name="allowedDifference">The allowed absolute difference between each component.</param>
         /// <returns>True if the components are within the allowed difference, false otherwise.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -54,22 +54,22 @@ namespace FixedMathSharp
         /// <summary>
         /// Compares two Fixed3x3 for approximate equality, allowing a fractional percentage (defaults to ~1%) difference between components.
         /// </summary>
-        /// <param name="q1">The current Fixed3x3.</param>
-        /// <param name="q2">The Fixed3x3 to compare against.</param>
+        /// <param name="f1">The current Fixed3x3.</param>
+        /// <param name="f2">The Fixed3x3 to compare against.</param>
         /// <param name="percentage">The allowed fractional difference (percentage) for each component.</param>
         /// <returns>True if the components are within the allowed percentage difference, false otherwise.</returns>
-        public static bool FuzzyEqual(this Fixed3x3 f1, Fixed3x3 q2, Fixed64? percentage = null)
+        public static bool FuzzyEqual(this Fixed3x3 f1, Fixed3x3 f2, Fixed64? percentage = null)
         {
             Fixed64 p = percentage ?? Fixed64.Epsilon;
-            return f1.m00.FuzzyComponentEqual(q2.m00, p) &&
-                   f1.m01.FuzzyComponentEqual(q2.m01, p) &&
-                   f1.m02.FuzzyComponentEqual(q2.m02, p) &&
-                   f1.m10.FuzzyComponentEqual(q2.m10, p) &&
-                   f1.m11.FuzzyComponentEqual(q2.m11, p) &&
-                   f1.m12.FuzzyComponentEqual(q2.m12, p) &&
-                   f1.m20.FuzzyComponentEqual(q2.m20, p) &&
-                   f1.m21.FuzzyComponentEqual(q2.m21, p) &&
-                   f1.m22.FuzzyComponentEqual(q2.m22, p);
+            return f1.m00.FuzzyComponentEqual(f2.m00, p) &&
+                   f1.m01.FuzzyComponentEqual(f2.m01, p) &&
+                   f1.m02.FuzzyComponentEqual(f2.m02, p) &&
+                   f1.m10.FuzzyComponentEqual(f2.m10, p) &&
+                   f1.m11.FuzzyComponentEqual(f2.m11, p) &&
+                   f1.m12.FuzzyComponentEqual(f2.m12, p) &&
+                   f1.m20.FuzzyComponentEqual(f2.m20, p) &&
+                   f1.m21.FuzzyComponentEqual(f2.m21, p) &&
+                   f1.m22.FuzzyComponentEqual(f2.m22, p);
         }
 
         #endregion
