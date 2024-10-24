@@ -11,7 +11,6 @@
   </PropertyGroup>
   <PropertyGroup>
     <UnityVersion>2022.3.20f1</UnityVersion>
-    <OSInstallRootPath>C:\Program Files</OSInstallRootPath>
   </PropertyGroup>
   <!-- Set OS-specific Unity Editor absolute/relative folder paths -->
   <Choose>
@@ -19,21 +18,18 @@
       <PropertyGroup>
         <OSInstallRootPath Condition="'$(OSInstallRootPath)'==''">C:\Program Files</OSInstallRootPath>
         <UnityManagedDir Condition="'$(UnityManagedDir)'==''">Editor\Data\Managed</UnityManagedDir>
-        <UnityExtensionsDir Condition="'$(UnityExtensionsDir)'==''">Editor\Data\UnityExtensions\Unity</UnityExtensionsDir>
       </PropertyGroup>
     </When>
     <When Condition="$([MSBuild]::IsOsPlatform(OSX))">
       <PropertyGroup>
         <OSInstallRootPath Condition="'$(OSInstallRootPath)'==''">/Applications</OSInstallRootPath>
         <UnityManagedDir Condition="'$(UnityManagedDir)'==''">Unity.app\Contents\Managed</UnityManagedDir>
-        <UnityExtensionsDir Condition="'$(UnityExtensionsDir)'==''">Editor\Unity.app\Contents\UnityExtensions\Unity</UnityExtensionsDir>
       </PropertyGroup>
     </When>
     <When Condition="$([MSBuild]::IsOsPlatform(Linux))">
       <PropertyGroup>
         <OSInstallRootPath Condition="'$(OSInstallRootPath)'==''">$([System.Environment]::GetFolderPath('System.Environment+SpecialFolder.UserProfile'))</OSInstallRootPath>
         <UnityManagedDir Condition="'$(UnityManagedDir)'==''">Editor\Data\Managed</UnityManagedDir>
-        <UnityExtensionsDir Condition="'$(UnityExtensionsDir)'==''">Editor\Data\UnityExtensions\Unity</UnityExtensionsDir>
       </PropertyGroup>
     </When>
   </Choose>
@@ -95,8 +91,12 @@
     <ProjectReference Include="..\FixedMathSharp\FixedMathSharp.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="$(UnityEnginePath)" Private="false" />
-    <Reference Include="$(UnityEditorPath)" Private="false" />
+    <Reference Include="UnityEngine">
+	  <HintPath>$(UnityEnginePath)</HintPath>
+	</Reference>
+    <Reference Include="UnityEditor">
+      <HintPath>$(UnityEditorPath)</HintPath>
+	</Reference>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472">
