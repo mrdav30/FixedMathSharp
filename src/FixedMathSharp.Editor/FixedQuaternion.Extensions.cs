@@ -1,7 +1,6 @@
-﻿#if UNITY_EDITOR || UNITY_5_3_OR_NEWER
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace FixedMathSharp.Unity
+namespace FixedMathSharp
 {
     /// <summary>
     /// Provides extension methods for converting between Unity Quaternions and FixedMathSharp FixedQuaternions.
@@ -39,4 +38,3 @@ namespace FixedMathSharp.Unity
         }
     }
 }
-#endif

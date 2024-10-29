@@ -2,9 +2,9 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace FixedMathSharp.Unity.Editor
+namespace FixedMathSharp.Editor
 {
-	[CustomPropertyDrawer(typeof(FixedNumberAngleAttribute))]
+    [CustomPropertyDrawer(typeof(FixedNumberAngleAttribute))]
 	public class FixedNumberAngleDrawer : PropertyDrawer
 	{
 		public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
@@ -22,7 +22,7 @@ namespace FixedMathSharp.Unity.Editor
 			if (max > Fixed64.Zero && angle > max)
 				angle = max;
 
-			property.longValue = FixedMath.Sin(FixedMath.DegToRad(angle)).RawValue;
+			property.longValue = FixedMath.Sin(FixedMath.DegToRad(angle)).m_rawValue;
 		}
 	}
 }

@@ -16,7 +16,10 @@ namespace FixedMathSharp
     {
         #region Fields and Constants
 
-        private long m_rawValue;
+        /// <summary>
+        /// The underlying raw long value representing the fixed-point number.
+        /// </summary>
+        public long m_rawValue;
 
         public static readonly Fixed64 MaxValue = new Fixed64(FixedMath.MAX_VALUE_L);
         public static readonly Fixed64 MinValue = new Fixed64(FixedMath.MIN_VALUE_L);
@@ -67,17 +70,6 @@ namespace FixedMathSharp
         #region Properties and Methods (Instance)
 
         /// <summary>
-        /// The underlying raw long value representing the fixed-point number.
-        /// </summary>
-        public long RawValue
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => m_rawValue;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private set => m_rawValue = value;
-        }
-
-        /// <summary>
         /// Offsets the current Fixed64 by an integer value.
         /// </summary>
         /// <param name="x">The integer value to add.</param>
@@ -93,7 +85,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string RawToString()
         {
-            return RawValue.ToString();
+            return m_rawValue.ToString();
         }
 
         #endregion
@@ -119,7 +111,7 @@ namespace FixedMathSharp
         public static Fixed64 PostIncrement(ref Fixed64 a)
         {
             Fixed64 originalValue = a;
-            a.m_rawValue += One.RawValue;
+            a.m_rawValue += One.m_rawValue;
             return originalValue;
         }
 
@@ -130,7 +122,7 @@ namespace FixedMathSharp
         public static Fixed64 PostDecrement(ref Fixed64 a)
         {
             Fixed64 originalValue = a;
-            a.m_rawValue -= One.RawValue;
+            a.m_rawValue -= One.m_rawValue;
             return originalValue;
         }
 
@@ -156,12 +148,18 @@ namespace FixedMathSharp
         public static int Sign(Fixed64 value)
         {
             // Return the sign of the value, optimizing for branchless comparison
-            return value.RawValue < 0 ? -1 : (value.RawValue > 0 ? 1 : 0);
+            return value.m_rawValue < 0 ? -1 : (value.m_rawValue > 0 ? 1 : 0);
         }
 
         #endregion
 
         #region Explicit and Implicit Conversions
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static explicit operator Fixed64(long value)
+        {
+            return FromRaw(value << FixedMath.SHIFT_AMOUNT_I);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator long(Fixed64 value)
@@ -226,8 +224,8 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 operator +(Fixed64 x, Fixed64 y)
         {
-            long xl = x.RawValue;
-            long yl = y.RawValue;
+            long xl = x.m_rawValue;
+            long yl = y.m_rawValue;
             long sum = xl + yl;
             // Check for overflow, if signs of operands are equal and signs of sum and x are different
             if (((~(xl ^ yl) & (xl ^ sum)) & FixedMath.MIN_VALUE_L) != 0)
@@ -241,7 +239,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 operator +(Fixed64 x, int y)
         {
-            return new Fixed64((x.RawValue * FixedMath.SCALE_FACTOR_D) + y);
+            return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) + y);
         }
 
         /// <summary>
@@ -249,8 +247,8 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 operator -(Fixed64 x, Fixed64 y)
         {
-            long xl = x.RawValue;
-            long yl = y.RawValue;
+            long xl = x.m_rawValue;
+            long yl = y.m_rawValue;
             long diff = xl - yl;
             // Check for overflow, if signs of operands are different and signs of sum and x are different
             if ((((xl ^ yl) & (xl ^ diff)) & FixedMath.MIN_VALUE_L) != 0)
@@ -264,7 +262,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 operator -(Fixed64 x, int y)
         {
-            return new Fixed64((x.RawValue * FixedMath.SCALE_FACTOR_D) - y);
+            return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) - y);
         }
 
         /// <summary>
@@ -339,7 +337,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 operator *(Fixed64 x, int y)
         {
-            return new Fixed64((x.RawValue * FixedMath.SCALE_FACTOR_D) * y);
+            return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) * y);
         }
 
         /// <summary>
@@ -355,8 +353,8 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 operator /(Fixed64 x, Fixed64 y)
         {
-            long xl = x.RawValue;
-            long yl = y.RawValue;
+            long xl = x.m_rawValue;
+            long yl = y.m_rawValue;
 
             if (yl == 0)
                 throw new DivideByZeroException($"Attempted to divide {x} by zero.");
@@ -411,7 +409,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 operator /(Fixed64 x, int y)
         {
-            return new Fixed64((x.RawValue * FixedMath.SCALE_FACTOR_D) / y);
+            return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) / y);
         }
 
         /// <summary>
@@ -440,7 +438,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 operator ++(Fixed64 a)
         {
-            a.m_rawValue += One.RawValue;
+            a.m_rawValue += One.m_rawValue;
             return a;
         }
 
@@ -450,7 +448,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 operator --(Fixed64 a)
         {
-            a.m_rawValue -= One.RawValue;
+            a.m_rawValue -= One.m_rawValue;
             return a;
         }
 
@@ -628,6 +626,16 @@ namespace FixedMathSharp
         public static Fixed64 FromRaw(long rawValue)
         {
             return new Fixed64(rawValue);
+        }
+
+        /// <summary>
+        /// Converts a Fixed64s RawValue (Int64) into a double
+        /// </summary>
+        /// <param name="f1"></param>
+        /// <returns></returns>
+        public static double ToDouble(long f1)
+        {
+            return f1 * FixedMath.SCALE_FACTOR_D;
         }
 
         #endregion

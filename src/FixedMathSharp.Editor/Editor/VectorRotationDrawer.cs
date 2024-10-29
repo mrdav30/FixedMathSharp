@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace FixedMathSharp.Unity.Editor
+namespace FixedMathSharp.Editor
 {
     [CustomPropertyDrawer(typeof(VectorRotationAttribute))]
     public class VectorRotationDrawer : PropertyDrawer

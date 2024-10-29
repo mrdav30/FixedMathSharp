@@ -49,6 +49,7 @@ namespace FixedMathSharp
 
         #endregion
 
+
         #region Properties and Methods (Instance)
 
         /// <summary>
@@ -119,6 +120,13 @@ namespace FixedMathSharp
         public bool InRange(Fixed64 x, bool includeMax = false)
         {
             return includeMax ? x >= Min && x <= Max : x >= Min && x < Max;
+        }
+
+        /// <inheritdoc cref="InRange(Fixed64, bool)" />
+        public bool InRange(double x, bool includeMax = false)
+        {
+            long xL = (long)Math.Round((double)x * FixedMath.ONE_L);
+            return includeMax ? xL >= Min.m_rawValue && xL <= Max.m_rawValue : xL >= Min.m_rawValue && xL < Max.m_rawValue;
         }
 
         /// <summary>

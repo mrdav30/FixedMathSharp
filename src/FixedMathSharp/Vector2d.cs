@@ -153,7 +153,7 @@ namespace FixedMathSharp
         public long LongStateHash
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => x.RawValue * 31 + y.RawValue * 7;
+            get => x.m_rawValue * 31 + y.m_rawValue * 7;
         }
 
         /// <summary>
@@ -603,6 +603,12 @@ namespace FixedMathSharp
         {
             Fixed64 temp1 = (vector.x * vector.x) + (vector.y * vector.y);
             return temp1.Abs() > Fixed64.Zero ? FixedMath.Sqrt(temp1) : Fixed64.Zero;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d Abs(Vector2d value)
+        {
+            return new Vector2d(value.x.Abs(), value.y.Abs());
         }
 
         /// <summary>

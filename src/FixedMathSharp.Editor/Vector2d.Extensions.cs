@@ -1,7 +1,6 @@
-﻿#if UNITY_EDITOR || UNITY_5_3_OR_NEWER
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace FixedMathSharp.Unity
+namespace FixedMathSharp
 {
     public static class Vector2dExtensions
     {
@@ -47,4 +46,3 @@ namespace FixedMathSharp.Unity
         }
     }
 }
-#endif

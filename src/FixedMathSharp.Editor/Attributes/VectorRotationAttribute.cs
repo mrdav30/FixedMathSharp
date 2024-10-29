@@ -1,7 +1,6 @@
-﻿#if UNITY_EDITOR
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace FixedMathSharp.Unity
+namespace FixedMathSharp
 {
     /// <summary>
     /// Attribute to represent a fixed number angle in degrees. 
@@ -17,4 +16,3 @@ namespace FixedMathSharp.Unity
         }
     }
 }
-#endif

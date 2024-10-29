@@ -64,6 +64,13 @@ namespace FixedMathSharp
             return Vector3d.ToRadians(degrees);
         }
 
+        /// <inheritdoc cref="Vector3d.Abs(Vector3d)" />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d Abs(this Vector3d value)
+        {
+            return Vector3d.Abs(value);
+        }
+
         #endregion
 
         #region Equality
