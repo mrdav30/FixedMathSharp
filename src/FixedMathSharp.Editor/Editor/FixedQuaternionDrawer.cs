@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace FixedMathSharp.Unity.Editor
+namespace FixedMathSharp.Editor
 {
     [CustomPropertyDrawer(typeof(FixedQuaternion)), CanEditMultipleObjects]
     public class FixedQuaternionDrawer : PropertyDrawer
@@ -30,13 +30,13 @@ namespace FixedMathSharp.Unity.Editor
                 if (EditorGUI.EndChangeCheck() && !Application.isPlaying)
                 {
                     SerializedProperty x = property.FindPropertyRelative("x").FindPropertyRelative("m_rawValue");
-                    x.longValue = newQuaternion.x.RawValue;
+                    x.longValue = newQuaternion.x.m_rawValue;
                     SerializedProperty y = property.FindPropertyRelative("y").FindPropertyRelative("m_rawValue");
-                    y.longValue = newQuaternion.y.RawValue;
+                    y.longValue = newQuaternion.y.m_rawValue;
                     SerializedProperty z = property.FindPropertyRelative("z").FindPropertyRelative("m_rawValue");
-                    z.longValue = newQuaternion.z.RawValue;
+                    z.longValue = newQuaternion.z.m_rawValue;
                     SerializedProperty w = property.FindPropertyRelative("w").FindPropertyRelative("m_rawValue");
-                    w.longValue = newQuaternion.w.RawValue;
+                    w.longValue = newQuaternion.w.m_rawValue;
                 }
             }
             else

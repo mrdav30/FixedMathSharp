@@ -1,7 +1,6 @@
-﻿#if UNITY_EDITOR || UNITY_5_3_OR_NEWER
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace FixedMathSharp.Unity
+namespace FixedMathSharp
 {
     /// <summary>
     /// Provides extension methods for converting between Unity Vector types and FixedMathSharp Vector3d types.
@@ -73,4 +72,3 @@ namespace FixedMathSharp.Unity
         }
     }
 }
-#endif

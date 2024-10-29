@@ -62,12 +62,12 @@ namespace FixedMathSharp
             if (b == Fixed64.One)
                 return Fixed64.One;
 
-            if (exp.RawValue == 0)
+            if (exp.m_rawValue == 0)
                 return Fixed64.One;
 
-            if (b.RawValue == 0)
+            if (b.m_rawValue == 0)
             {
-                if (exp.RawValue < 0)
+                if (exp.m_rawValue < 0)
                     throw new DivideByZeroException("Cannot raise 0 to a negative power.");
 
                 return Fixed64.Zero;
@@ -83,11 +83,11 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 Pow2(Fixed64 x)
         {
-            if (x.RawValue == 0)
+            if (x.m_rawValue == 0)
                 return Fixed64.One;
 
             // Handle negative expFixed64.Onents by using the reciprocal
-            bool neg = x.RawValue < 0;
+            bool neg = x.m_rawValue < 0;
             if (neg)
                 x = -x;
 
@@ -106,19 +106,19 @@ namespace FixedMathSharp
              * When the sum term drops to Fixed64.Zero, we can stop summing.
              */
             int integerPart = (int)x.Floor();
-            x = Fixed64.FromRaw(x.RawValue & MAX_SHIFTED_AMOUNT_UI);  // Fractional part
+            x = Fixed64.FromRaw(x.m_rawValue & MAX_SHIFTED_AMOUNT_UI);  // Fractional part
 
             var result = Fixed64.One;
             var term = Fixed64.One;
             int i = 1;
-            while (term.RawValue != 0)
+            while (term.m_rawValue != 0)
             {
                 term = FastMul(FastMul(x, term), Ln2) / (Fixed64)i;
                 result += term;
                 i++;
             }
 
-            result = Fixed64.FromRaw(result.RawValue << integerPart);
+            result = Fixed64.FromRaw(result.m_rawValue << integerPart);
             if (neg)
                 result = Fixed64.One / result;
 
@@ -135,12 +135,12 @@ namespace FixedMathSharp
         /// </remarks>
         public static Fixed64 Log2(Fixed64 x)
         {
-            if (x.RawValue <= 0)
+            if (x.m_rawValue <= 0)
                 throw new ArgumentOutOfRangeException("Cannot compute logarithm of non-positive number.");
 
             long b = 1U << (SHIFT_AMOUNT_I - 1);  // Initial value for binary logarithm
             long y = 0;  // Result accumulator
-            long rawX = x.RawValue;
+            long rawX = x.m_rawValue;
 
             // Adjust rawX to the correct range [1, 2)
             while (rawX < ONE_L)
@@ -160,9 +160,9 @@ namespace FixedMathSharp
             for (int i = 0; i < SHIFT_AMOUNT_I; i++)
             {
                 z = FastMul(z, z);
-                if (z.RawValue >= (ONE_L << 1))
+                if (z.m_rawValue >= (ONE_L << 1))
                 {
-                    z = Fixed64.FromRaw(z.RawValue >> 1);
+                    z = Fixed64.FromRaw(z.m_rawValue >> 1);
                     y += b;
                 }
                 b >>= 1;
@@ -177,7 +177,7 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 Ln(Fixed64 x)
         {
-            if (x.RawValue <= 0)
+            if (x.m_rawValue <= 0)
                 throw new ArgumentOutOfRangeException("Cannot compute logarithm of non-positive number.");
 
             return FastMul(Log2(x), Ln2).Round();
@@ -188,10 +188,10 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 Sqrt(Fixed64 x)
         {
-            if (x.RawValue < 0)
+            if (x.m_rawValue < 0)
                 throw new ArgumentOutOfRangeException("Cannot compute square root of a negative number.");
 
-            ulong num = (ulong)x.RawValue;
+            ulong num = (ulong)x.m_rawValue;
             ulong result = 0UL;
             ulong bit = 1UL << (sizeof(long) * 8) - 2; // second-to-top bit of a 64-bit integer
 
@@ -225,8 +225,8 @@ namespace FixedMathSharp
                     {
                         // Handle large remainders by adjusting the result
                         num -= result;
-                        num = (num << SHIFT_AMOUNT_I) - (ulong)Fixed64.Half.RawValue;
-                        result = (result << SHIFT_AMOUNT_I) + (ulong)Fixed64.Half.RawValue;
+                        num = (num << SHIFT_AMOUNT_I) - (ulong)Fixed64.Half.m_rawValue;
+                        result = (result << SHIFT_AMOUNT_I) + (ulong)Fixed64.Half.m_rawValue;
                     }
                     else
                     {
@@ -324,8 +324,8 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 Cos(Fixed64 x)
         {
-            long xl = x.RawValue;
-            long rawAngle = xl + (xl > 0 ? -PI.RawValue - PiOver2.RawValue : PiOver2.RawValue);
+            long xl = x.m_rawValue;
+            long rawAngle = xl + (xl > 0 ? -PI.m_rawValue - PiOver2.m_rawValue : PiOver2.m_rawValue);
             return Sin(Fixed64.FromRaw(rawAngle));
         }
 

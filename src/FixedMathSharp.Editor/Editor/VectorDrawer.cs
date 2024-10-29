@@ -2,12 +2,12 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace FixedMathSharp.Unity.Editor
+namespace FixedMathSharp.Editor
 {
     /// <summary>
     /// A custom property drawer for vectors type structures.
     /// </summary>
-    /// <see also cref="PropertyDrawer" />\
+    /// <see cref="PropertyDrawer" />
     [CustomPropertyDrawer(typeof(Vector2d))]
     [CustomPropertyDrawer(typeof(Vector3))]
     [CustomPropertyDrawer(typeof(Vector3d))]
@@ -60,7 +60,7 @@ namespace FixedMathSharp.Unity.Editor
                                         hideLabels ? GUIContent.none : new GUIContent(displayName),
                                         property.longValue);
                         if (EditorGUI.EndChangeCheck())
-                            property.longValue = newVal.RawValue;
+                            property.longValue = newVal.m_rawValue;
                     }
 
                 }

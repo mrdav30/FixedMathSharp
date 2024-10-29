@@ -39,6 +39,13 @@ namespace FixedMathSharp
             return Vector2d.Rotate(vec, angleInRadians);
         }
 
+        /// <inheritdoc cref="Vector2d.Abs(Vector2d)" />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d Abs(this Vector2d value)
+        {
+            return Vector2d.Abs(value);
+        }
+
         #endregion
 
         #region Conversion

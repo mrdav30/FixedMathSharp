@@ -172,7 +172,7 @@ namespace FixedMathSharp
         public long LongStateHash
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (x.RawValue * 31) + (y.RawValue * 7) + (z.RawValue * 11);
+            get => (x.m_rawValue * 31) + (y.m_rawValue * 7) + (z.m_rawValue * 11);
         }
         public int StateHash
         {
@@ -353,7 +353,7 @@ namespace FixedMathSharp
         /// If the vector is zero-length or already normalized, no operation is performed, but the original magnitude will still be output.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector3d Normalize(out Fixed64? m)
+        public Vector3d Normalize(out Fixed64 m)
         {
             Fixed64 mag = Magnitude;
             if (mag > Fixed64.Zero && mag != Fixed64.One)

@@ -27,11 +27,19 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: false  # Ensure credentials aren't retained
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
+        
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v3.0.0
+      with:
+        versionSpec: '6.x'
 
     - name: Cache NuGet packages
       uses: actions/cache@v3
@@ -41,13 +49,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-nuget-
 
+    - name: Determine Version
+      run: |
+        chown -R $(whoami) $(pwd)
+        dotnet-gitversion /output json
+
     - name: Restore dependencies
       run: dotnet restore
 
     - name: Build Solution
       env:
         UnityManagedPath: \opt\unity\Editor\Data\Managed
-      run: dotnet build --configuration Release --no-restore
+      run: |
+        echo "Version:${{ env.GitVersion_FullSemVer }}\nAssembley Version:${{ env.GitVersion_AssemblySemFileVer }}"
+        dotnet build --configuration Release --no-restore
 
     - name: Upload Test Artifacts
       uses: actions/upload-artifact@v3
@@ -73,4 +88,4 @@ jobs:
       - name: Test
         run: |
           dotnet --info
-          dotnet test ${{ github.workspace }}\tests\FixedMathSharp.Tests\bin\Release\net471\FixedMathSharp.Tests.dll --verbosity normal
+          dotnet test ${{ github.workspace }}\tests\FixedMathSharp.Tests\bin\Release\net48\FixedMathSharp.Tests.dll --verbosity normal

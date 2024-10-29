@@ -1,16 +1,68 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Global Properties: General Configuration Settings -->
   <PropertyGroup>
     <LangVersion>9.0</LangVersion>
-	<TargetFramework>net471</TargetFramework>
-	<ImplicitUsings>disable</ImplicitUsings>
+    <TargetFramework>net48</TargetFramework>
+    <!-- Versioning and Build Configuration -->
+    <!-- Set SemVer to GitVersion_FullSemVer if available, otherwise fallback to 0.0.0 -->
+    <SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
+    <SemVer Condition="'$(SemVer)' == ''">0.0.0</SemVer>
+    <!-- Informational version fallback -->
+    <InfoVer Condition="'$(GitVersion_InformationalVersion)' != ''">$(GitVersion_InformationalVersion)</InfoVer>
+    <InfoVer Condition="'$(InfoVer)' == ''">$(SemVer)</InfoVer>
+    <!-- Set Assembly and File Versions -->
+    <AssemblySemVer Condition="'$(GitVersion_AssemblySemVer)' != ''">$(GitVersion_AssemblySemVer)</AssemblySemVer>
+    <AssemblySemVer Condition="'$(AssemblySemVer)' == ''">$(SemVer).0</AssemblySemVer>  
+    <AssemblySemFileVer Condition="'$(GitVersion_AssemblySemFileVer)' != ''">$(GitVersion_AssemblySemFileVer)</AssemblySemFileVer>
+    <AssemblySemFileVer Condition="'$(AssemblySemFileVer)' == ''">$(AssemblySemVer)</AssemblySemFileVer>
+    <!-- Set final versions for the project -->
+    <InformationalVersion>$(InfoVer)</InformationalVersion>
+    <Version>$(SemVer)</Version>
+    <AssemblyVersion>$(AssemblySemVer)</AssemblyVersion>
+    <FileVersion>$(AssemblySemFileVer)</FileVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IncludeSymbols>true</IncludeSymbols>
+    <DebugType>portable</DebugType>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>1591</NoWarn>
+    <!-- Optional: Suppress warnings about missing XML comments -->
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\FixedMathSharp.Editor.xml</DocumentationFile>
+    <!-- Configuration to ensure deterministic builds -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
+  <!-- Debug and Release-specific Properties -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  <!-- NuGet Packaging Metadata -->
   <PropertyGroup>
+    <PackageId>FixedMathSharp.Editor</PackageId>
+    <Authors>mrdav30</Authors>
+    <Description>FixedMathSharp.Editor: Extensions and utilities for integrating FixedMathSharp with Unity. Includes struct extensions for Fixed64 and Vector2d(3d) to interoperate smoothly with Unity’s native types, along with custom property drawers for enhanced inspector support.</Description>
+    <PackageTags>fixed-point;math;precision;deterministic;arithmetic;fixed-point-arithmetic;math-library;trigonometry;dotnet;unity;simulations;physics-engine;game-development;high-precision;nuget</PackageTags>
+    <RepositoryUrl>https://github.com/mrdav30/FixedMathSharp</RepositoryUrl>
     <PackageIcon>icon.png</PackageIcon>
     <PackageIconUrl>https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/icon.png</PackageIconUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+  <!-- Output Settings -->
   <PropertyGroup>
-    <UnityVersion>2022.3.20f1</UnityVersion>
+    <AssemblyName>FixedMathSharp.Editor</AssemblyName>
+    <RootNamespace>FixedMathSharp.Editor</RootNamespace>
+    <ProjectGuid>{48AD1F68-9AD1-495E-B6FF-FA8A27C063A7}</ProjectGuid>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
   </PropertyGroup>
   <!-- Set OS-specific Unity Editor absolute/relative folder paths -->
   <Choose>
@@ -33,8 +85,10 @@
       </PropertyGroup>
     </When>
   </Choose>
-  <!-- Unity paths -->
+  <!-- Unity Configuration -->
   <PropertyGroup>
+    <UnityVersion Condition="'$(UnityVersion)'==''">2022.3.20f1</UnityVersion>
+    <!-- Target Version of Unity -->
     <UnityInstallRootDir Condition="'$(UnityInstallRootDir)'==''">Unity\Hub\Editor</UnityInstallRootDir>
     <UnityInstallRootPath Condition="'$(UnityInstallRootPath)'==''">$(OSInstallRootPath)\$(UnityInstallRootDir)</UnityInstallRootPath>
     <UnityVersionInstallPath Condition="'$(UnityVersionInstallPath)'==''">$(UnityInstallRootPath)\$(UnityVersion)</UnityVersionInstallPath>
@@ -42,88 +96,35 @@
     <UnityEnginePath Condition="'$(UnityEnginePath)'==''">$(UnityManagedPath)\UnityEngine.dll</UnityEnginePath>
     <UnityEditorPath Condition="'$(UnityEditorPath)'==''">$(UnityManagedPath)\UnityEditor.dll</UnityEditorPath>
   </PropertyGroup>
-  <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{48AD1F68-9AD1-495E-B6FF-FA8A27C063A7}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>FixedMathSharp.Editor</RootNamespace>
-    <AssemblyName>FixedMathSharp.Editor</AssemblyName>
-    <FileAlignment>512</FileAlignment>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <Deterministic>true</Deterministic>
-    <PublishUrl>publish\</PublishUrl>
-    <Install>true</Install>
-    <InstallFrom>Disk</InstallFrom>
-    <UpdateEnabled>false</UpdateEnabled>
-    <UpdateMode>Foreground</UpdateMode>
-    <UpdateInterval>7</UpdateInterval>
-    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
-    <UpdatePeriodically>false</UpdatePeriodically>
-    <UpdateRequired>false</UpdateRequired>
-    <MapFileExtensions>true</MapFileExtensions>
-    <ApplicationRevision>0</ApplicationRevision>
-    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <IsWebBootstrapper>false</IsWebBootstrapper>
-    <UseApplicationTrust>false</UseApplicationTrust>
-    <BootstrapperEnabled>true</BootstrapperEnabled>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;UNITY_EDITOR</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;UNITY_EDITOR</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Description>FixedMathSharp.Editor: Extensions and utilities for integrating FixedMathSharp with Unity. Includes struct extensions for Fixed64 and Vector2d(3d) to interoperate smoothly with Unity’s native types, along with custom property drawers for enhanced inspector support.</Description>
-	<PackageReadmeFile>README.md</PackageReadmeFile>
-    <RepositoryUrl>https://github.com/mrdav30/FixedMathSharp</RepositoryUrl>
-    <PackageTags>fixed-point;math;precision;deterministic;arithmetic;fixed-point-arithmetic;math-library;trigonometry;dotnet;unity;simulations;physics-engine;game-development;high-precision;nuget</PackageTags>
-    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
-  </PropertyGroup>
+  <!-- Dependencies and Package References -->
   <ItemGroup>
-    <ProjectReference Include="..\FixedMathSharp\FixedMathSharp.csproj" Private="false" />
-  </ItemGroup>
-  <ItemGroup>
+	<ProjectReference Include="..\FixedMathSharp\FixedMathSharp.csproj">
+	  <Private>true</Private>
+	  <IncludeAssets>compile; build</IncludeAssets>
+	  <PrivateAssets>all</PrivateAssets>
+	</ProjectReference>
     <Reference Include="UnityEngine">
-	  <HintPath>$(UnityEnginePath)</HintPath>
-	</Reference>
+      <HintPath>$(UnityEnginePath)</HintPath>
+	  <Private>false</Private>
+	  <PrivateAssets>all</PrivateAssets>
+    </Reference>
     <Reference Include="UnityEditor">
       <HintPath>$(UnityEditorPath)</HintPath>
-	</Reference>
-  </ItemGroup>
-    <ItemGroup>
-    <None Include="..\..\LICENSE.md">
-      <Pack>True</Pack>
-      <PackagePath>\</PackagePath>
-    </None>
-    <None Include="..\..\README.md">
-      <Pack>True</Pack>
-      <PackagePath>\</PackagePath>
-    </None>
-	<None Include="..\..\icon.png">
-      <Pack>True</Pack>
-      <PackagePath>\</PackagePath>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472">
-      <Version>1.0.3</Version>
+	  <Private>false</Private>
+	  <PrivateAssets>all</PrivateAssets>
+    </Reference>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Ensure LICENSE, README, & icon files are included in the NuGet package -->
+    <None Include="..\..\LICENSE.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
+    <!-- Exclude Editor folder from being embedded as resources -->
+    <EmbeddedResource Remove="Editor\**" />
+	<None Remove=".gitignore" />
   </ItemGroup>
 </Project>
