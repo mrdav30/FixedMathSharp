@@ -11,13 +11,11 @@ Set-Location (Split-Path $MyInvocation.MyCommand.Path)
 $solutionDir = Get-SolutionDirectory
 Set-Location $solutionDir
 
-$packageName = "FixedMathSharp.$env:GitVersion_FullSemVer.unitypackage"
-$packagePath = "$solutionDir\$OutputPath\$packageName"
-
 $fixedMathSharpPluginsPath = "$solutionDir\src\FixedMathSharp.Editor\bin\Release\net48"
 $unityProjectPath = "$solutionDir\FMS_UnityProject"
 $unityAssetsPath = "$unityProjectPath\Assets\FixedMathSharp"
 $unityPluginsPath = "$unityAssetsPath\Plugins"
+$packagePath = "$solutionDir\$OutputPath"
 
 # Ensure a fresh Unity project by deleting the directory if it exists
 if (Test-Path $unityProjectPath) {
@@ -42,15 +40,16 @@ Copy-Item "$fixedMathSharpPluginsPath\*" $unityPluginsPath -Recurse -ErrorAction
 # Copy Unity editor-specific scripts to the Assets folder
 Copy-Item "$solutionDir\src\FixedMathSharp.Editor\Editor" $unityAssetsPath -Recurse -ErrorAction SilentlyContinue
 
+$packageName = "FixedMathSharp.$env:GitVersion_FullSemVer.unitypackage"
 $unityExePath = "C:\Program Files\Unity\Hub\Editor\$env:UnityVersion\Editor\Unity.exe"
 $unityArgs = @(
     "-quit",               # Quit after the operation completes
     "-batchmode",           # Run in batch mode (no UI)
     "-projectPath", "$unityProjectPath",  # Path to the Unity project
-    "-exportPackage", "Assets", "$packagePath"
+    "-exportPackage", "Assets", "$packagePath\$packageName"
 )
 
-Write-Host "Packing to $packagePath..."
+Write-Host "Packing to $packagePath\$packageName..."
 
 # Run Unity to create the package
 Start-Process $unityExePath -ArgumentList $unityArgs -Wait -NoNewWindow
