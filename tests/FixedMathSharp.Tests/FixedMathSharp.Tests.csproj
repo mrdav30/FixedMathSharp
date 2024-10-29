@@ -1,17 +1,18 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <LangVersion>9.0</LangVersion>
-    <TargetFramework>net471</TargetFramework>
+    <TargetFramework>net48</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
-
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj" Private="true" />
-  </ItemGroup>
-  <ItemGroup>
+    <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj">
+	  <Private>True</Private>
+	  <IncludeAssets>compile; build</IncludeAssets>
+	  <PrivateAssets>all</PrivateAssets>
+	</ProjectReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.1" />
     <PackageReference Include="xunit" Version="2.4.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
@@ -22,5 +23,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove=".gitignore" />
   </ItemGroup>
 </Project>

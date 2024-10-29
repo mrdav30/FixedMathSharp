@@ -1,7 +1,3 @@
 .vs/
-src/FixedMathSharp.Editor/bin/
-src/FixedMathSharp.Editor/obj/
-src/FixedMathSharp/bin/
-src/FixedMathSharp/obj/
-tests/FixedMathSharp.Tests/bin/
-tests/FixedMathSharp.Tests/obj/
+UnityPackages/
+FMS_UnityProject/
