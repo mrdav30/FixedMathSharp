@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading;
 
-namespace FixedMathSharp.Utilities
+namespace FixedMathSharp.Utility
 {
     /// <summary>
     /// Provides thread-safe, deterministic random number generation for use in simulations, games, 

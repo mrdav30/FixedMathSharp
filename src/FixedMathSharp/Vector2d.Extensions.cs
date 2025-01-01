@@ -2,7 +2,7 @@
 
 namespace FixedMathSharp
 {
-    public static class Vector2dExtensions
+    public static partial class Vector2dExtensions
     {
         #region Vector2d Operations
 

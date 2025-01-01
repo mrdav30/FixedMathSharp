@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿#if UNITY_EDITOR
+using UnityEngine;
 
 namespace FixedMathSharp
 {
@@ -31,3 +32,4 @@ namespace FixedMathSharp
         }
     }
 }
+#endif

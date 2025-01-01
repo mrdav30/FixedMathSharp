@@ -11,9 +11,9 @@ Set-Location (Split-Path $MyInvocation.MyCommand.Path)
 $solutionDir = Get-SolutionDirectory
 Set-Location $solutionDir
 
-$fixedMathSharpPluginsPath = "$solutionDir\src\FixedMathSharp.Editor\bin\Release\net48"
+$fixedMathSharpPluginsPath = "$solutionDir\src\FixedMathSharp\bin\ReleaseUnity\net48"
 $unityProjectPath = "$solutionDir\FMS_UnityProject"
-$unityAssetsPath = "$unityProjectPath\Assets\FixedMathSharp"
+$unityAssetsPath = "$unityProjectPath\Assets\Integration\FixedMathSharp"
 $unityPluginsPath = "$unityAssetsPath\Plugins"
 $packagePath = "$solutionDir\$OutputPath"
 
@@ -32,13 +32,13 @@ if (Test-Path $unityProjectPath) {
 Ensure-GitVersion-Environment $UnityVersion
 
 # Build the project with the version information applied
-Build-Project -Configuration "Release"
+Build-Project -Configuration "ReleaseUnity"
 
 # Copy DLLs (including PDB and XML) to Unity Plugins folder
 Copy-Item "$fixedMathSharpPluginsPath\*" $unityPluginsPath -Recurse -ErrorAction SilentlyContinue
 
 # Copy Unity editor-specific scripts to the Assets folder
-Copy-Item "$solutionDir\src\FixedMathSharp.Editor\Editor" $unityAssetsPath -Recurse -ErrorAction SilentlyContinue
+Copy-Item "$solutionDir\src\FixedMathSharp\Integration\Unity\*" $unityAssetsPath -Recurse -ErrorAction SilentlyContinue
 
 $packageName = "FixedMathSharp.$env:GitVersion_FullSemVer.unitypackage"
 $unityExePath = "C:\Program Files\Unity\Hub\Editor\$env:UnityVersion\Editor\Unity.exe"

@@ -22,7 +22,11 @@ namespace FixedMathSharp
     {
         #region Fields and Constants
 
-        public Fixed64 x, y, z;
+        public Fixed64 x;
+
+        public Fixed64 y;
+
+        public Fixed64 z;
 
         /// <summary>
         /// The upward direction vector (0, 1, 0).

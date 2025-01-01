@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
 {
-    public static class FixedQuaternionExtensions
+    public static partial class FixedQuaternionExtensions
     {
         #region Equality
 
