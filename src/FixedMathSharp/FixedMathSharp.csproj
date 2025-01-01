@@ -32,6 +32,8 @@
     <!-- Configuration to ensure deterministic builds -->
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <Configurations>Debug;Release;DebugUnity;ReleaseUnity</Configurations>
+	<UnityBuild>false</UnityBuild>
   </PropertyGroup>
   <!-- Debug and Release-specific Properties -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -40,9 +42,21 @@
     <Optimize>false</Optimize>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugUnity|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE;UNITY_EDITOR</DefineConstants>
+    <UnityBuild>true</UnityBuild>
+  </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Optimize>true</Optimize>
     <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUnity|AnyCPU'">
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE;UNITY_EDITOR</DefineConstants>
+	<UnityBuild>true</UnityBuild>
   </PropertyGroup>
   <!-- NuGet Packaging Metadata -->
   <PropertyGroup>
@@ -65,8 +79,50 @@
     <ProjectGuid>{61834921-141D-4BD5-9E75-31188DF32E93}</ProjectGuid>
     <OutputPath>bin\$(Configuration)\</OutputPath>
   </PropertyGroup>
+  <!-- Set OS-specific Unity Editor absolute/relative folder paths -->
+  <Choose>
+    <When Condition="$(UnityBuild)And$([MSBuild]::IsOsPlatform(Windows))">
+      <PropertyGroup>
+        <OSInstallRootPath Condition="'$(OSInstallRootPath)'==''">C:\Program Files</OSInstallRootPath>
+        <UnityManagedDir Condition="'$(UnityManagedDir)'==''">Editor\Data\Managed</UnityManagedDir>
+      </PropertyGroup>
+    </When>
+    <When Condition="$(UnityBuild)And$([MSBuild]::IsOsPlatform(OSX))">
+      <PropertyGroup>
+        <OSInstallRootPath Condition="'$(OSInstallRootPath)'==''">/Applications</OSInstallRootPath>
+        <UnityManagedDir Condition="'$(UnityManagedDir)'==''">Unity.app\Contents\Managed</UnityManagedDir>
+      </PropertyGroup>
+    </When>
+    <When Condition="$(UnityBuild)And$([MSBuild]::IsOsPlatform(Linux))">
+      <PropertyGroup>
+        <OSInstallRootPath Condition="'$(OSInstallRootPath)'==''">$([System.Environment]::GetFolderPath('System.Environment+SpecialFolder.UserProfile'))</OSInstallRootPath>
+        <UnityManagedDir Condition="'$(UnityManagedDir)'==''">Editor\Data\Managed</UnityManagedDir>
+      </PropertyGroup>
+    </When>
+  </Choose>
+  <!-- Unity Configuration -->
+  <PropertyGroup Condition="$(UnityBuild)">
+    <UnityVersion Condition="'$(UnityVersion)'==''">2022.3.20f1</UnityVersion>
+    <!-- Target Version of Unity -->
+    <UnityInstallRootDir Condition="'$(UnityInstallRootDir)'==''">Unity\Hub\Editor</UnityInstallRootDir>
+    <UnityInstallRootPath Condition="'$(UnityInstallRootPath)'==''">$(OSInstallRootPath)\$(UnityInstallRootDir)</UnityInstallRootPath>
+    <UnityVersionInstallPath Condition="'$(UnityVersionInstallPath)'==''">$(UnityInstallRootPath)\$(UnityVersion)</UnityVersionInstallPath>
+    <UnityManagedPath Condition="'$(UnityManagedPath)'==''">$(UnityVersionInstallPath)\$(UnityManagedDir)</UnityManagedPath>
+    <UnityEnginePath Condition="'$(UnityEnginePath)'==''">$(UnityManagedPath)\UnityEngine.dll</UnityEnginePath>
+    <UnityEditorPath Condition="'$(UnityEditorPath)'==''">$(UnityManagedPath)\UnityEditor.dll</UnityEditorPath>
+  </PropertyGroup>
   <!-- Dependencies and Package References -->
   <ItemGroup>
+	<Reference Condition="$(UnityBuild)" Include="UnityEngine">
+      <HintPath>$(UnityEnginePath)</HintPath>
+	  <Private>false</Private>
+	  <PrivateAssets>all</PrivateAssets>
+    </Reference>
+    <Reference Condition="$(UnityBuild)" Include="UnityEditor">
+      <HintPath>$(UnityEditorPath)</HintPath>
+	  <Private>false</Private>
+	  <PrivateAssets>all</PrivateAssets>
+    </Reference>
 	<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -79,4 +135,9 @@
     <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
 	<None Remove=".gitignore" />
   </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUnity|AnyCPU'">
+	<Compile Remove="Integration\**" />
+	<Content Include="Integration\**" />
+  </ItemGroup>
+
 </Project>

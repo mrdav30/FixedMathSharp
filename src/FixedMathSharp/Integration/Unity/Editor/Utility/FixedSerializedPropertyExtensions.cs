@@ -1,7 +1,5 @@
 ﻿#if UNITY_EDITOR
-using System;
 using System.Collections;
-using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using UnityEditor;
@@ -9,47 +7,27 @@ using UnityEngine;
 
 namespace FixedMathSharp.Editor
 {
+    // Union type representing either a property name or array element index.  The element
+    // index is valid only if propertyName is null.
+    internal struct FixedPropertyPathComponent
+    {
+        public string propertyName;
+        public int elementIndex;
+    }
+
     /// <summary>
     /// Provide simple value get/set methods for SerializedProperty.
     /// </summary>
-    public static class SerializedPropertyExtensions
+    internal static class FixedSerializedPropertyExtensions
     {
         private static readonly Regex arrayElementRegex = new(@"\GArray\.data\[(\d+)\]", RegexOptions.Compiled);
 
-        public static object? GetParent(SerializedProperty prop)
-        {
-            return GetTargetObjectOfProperty(prop, out _, true);
-        }
-
-        public static object? GetValue(this SerializedProperty property)
+        internal static object GetFixedPropertyValue(this SerializedProperty property)
         {
             return GetTargetObjectOfProperty(property, out _);
         }
 
-        public static object? GetValue(object? source, string name)
-        {
-            if (source == null) return null;
-
-            var type = source.GetType();
-            var field = type.GetField(name, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-            if (field != null) return field.GetValue(source);
-
-            var property = type.GetProperty(name, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-            return property?.GetValue(source);
-        }
-
-        public static object? GetValue(object? source, string name, int index)
-        {
-            if (source == null) return null;
-
-            if (GetValue(source, name) is IEnumerable enumerable)
-            {
-                return enumerable.Cast<object?>().ElementAtOrDefault(index);
-            }
-            return null;
-        }
-
-        public static void SetValue(this SerializedProperty property, object value)
+        internal static void SetFixedPropertyValue(this SerializedProperty property, object value)
         {
             Undo.RecordObject(property.serializedObject.targetObject, $"Set {property.name}");
             SetValueNoRecord(property, value);
@@ -57,7 +35,7 @@ namespace FixedMathSharp.Editor
             property.serializedObject.ApplyModifiedProperties();
         }
 
-        public static void SetValueNoRecord(this SerializedProperty property, object value)
+        private static void SetValueNoRecord(this SerializedProperty property, object value)
         {
             var container = GetTargetObjectOfProperty(property, out var deferredToken);
             if (container == null)
@@ -71,20 +49,9 @@ namespace FixedMathSharp.Editor
             SetPathComponentValue(container, deferredToken, value);
         }
 
-        public static Type? GetPropertyType(this SerializedProperty property)
+        private static bool NextPathComponent(string propertyPath, ref int index, out FixedPropertyPathComponent component)
         {
-            var propertyTarget = property.GetPropertyTarget();
-            return propertyTarget?.GetType();
-        }
-
-        public static object? GetPropertyTarget(this SerializedProperty prop)
-        {
-            return GetTargetObjectOfProperty(prop, out _);
-        }
-
-        private static bool NextPathComponent(string propertyPath, ref int index, out PropertyPathComponent component)
-        {
-            component = new PropertyPathComponent();
+            component = new FixedPropertyPathComponent();
 
             if (index >= propertyPath.Length) return false;
 
@@ -111,7 +78,7 @@ namespace FixedMathSharp.Editor
             return true;
         }
 
-        private static object? GetPathComponentValue(object? container, PropertyPathComponent component)
+        private static object GetPathComponentValue(object container, FixedPropertyPathComponent component)
         {
             if (container == null) return null;
 
@@ -121,7 +88,7 @@ namespace FixedMathSharp.Editor
                 return GetMemberValue(container, component.propertyName);
         }
 
-        private static void SetPathComponentValue(object? container, PropertyPathComponent component, object value)
+        private static void SetPathComponentValue(object container, FixedPropertyPathComponent component, object value)
         {
             if (container == null) return;
 
@@ -131,7 +98,7 @@ namespace FixedMathSharp.Editor
                 SetMemberValue(container, component.propertyName, value);
         }
 
-        private static object? GetMemberValue(object? container, string name)
+        private static object GetMemberValue(object container, string name)
         {
             if (container == null) return null;
             var type = container.GetType();
@@ -146,7 +113,7 @@ namespace FixedMathSharp.Editor
             return null;
         }
 
-        private static void SetMemberValue(object? container, string name, object value)
+        private static void SetMemberValue(object container, string name, object value)
         {
             if (container == null) return;
 
@@ -168,13 +135,13 @@ namespace FixedMathSharp.Editor
             Debug.Assert(false, $"Failed to set member {container}.{name} via reflection");
         }
 
-        private static object? GetTargetObjectOfProperty(SerializedProperty prop, out PropertyPathComponent lastComponent, bool stopBeforeLast = false)
+        private static object GetTargetObjectOfProperty(SerializedProperty prop, out FixedPropertyPathComponent lastComponent, bool stopBeforeLast = false)
         {
-            object? obj = prop.serializedObject.targetObject;
+            object obj = prop.serializedObject.targetObject;
             var path = prop.propertyPath.Replace(".Array.data[", "[");
             var elements = path.Split('.');
 
-            lastComponent = new PropertyPathComponent();
+            lastComponent = new FixedPropertyPathComponent();
             for (int i = 0; i < elements.Length - (stopBeforeLast ? 1 : 0); i++)
             {
                 if (NextPathComponent(elements[i], ref i, out var component))

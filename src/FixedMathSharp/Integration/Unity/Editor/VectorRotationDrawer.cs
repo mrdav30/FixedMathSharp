@@ -25,7 +25,7 @@ namespace FixedMathSharp.Editor
 
             SerializedProperty x = property.FindPropertyRelative("x");
             SerializedProperty y = property.FindPropertyRelative("y");
-            if(x.GetValue() is Fixed64 FixedX && y.GetValue() is Fixed64 FixedY)
+            if(x.GetFixedPropertyValue() is Fixed64 FixedX && y.GetFixedPropertyValue() is Fixed64 FixedY)
             {
                 // Calculate the angle in radians and degrees
                 Fixed64 angleInRadians = FixedMath.Atan2(FixedY, FixedX);
@@ -47,7 +47,7 @@ namespace FixedMathSharp.Editor
                     Fixed64 sin = FixedMath.Sin(newAngleInRadians);
 
                     // Update the vector components based on the new angle
-                    property.SetValue(new Vector2d(cos, sin));
+                    property.SetFixedPropertyValue(new Vector2d(cos, sin));
                 }
 
                 // Apply changes only if something has been modified

@@ -24,7 +24,9 @@ namespace FixedMathSharp
     {
         #region Fields and Constants
 
-        public Fixed64 x, y;
+        public Fixed64 x;
+        
+        public Fixed64 y;
 
         /// <summary>
         /// (1, 0)
@@ -131,7 +133,7 @@ namespace FixedMathSharp
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => GetNormalized(this);
         }
-        
+
         public Fixed64 Magnitude
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

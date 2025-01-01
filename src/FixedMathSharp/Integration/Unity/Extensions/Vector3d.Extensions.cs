@@ -1,11 +1,12 @@
-﻿using UnityEngine;
+﻿#if UNITY_EDITOR
+using UnityEngine;
 
 namespace FixedMathSharp
 {
     /// <summary>
     /// Provides extension methods for converting between Unity Vector types and FixedMathSharp Vector3d types.
     /// </summary>
-    public static class Vector3dExtensions
+    public static partial class Vector3dExtensions
     {
         /// <summary>
         /// Converts a Unity Vector2 to a FixedMathSharp Vector3d, using the x and y components from Vector2, 
@@ -72,3 +73,4 @@ namespace FixedMathSharp
         }
     }
 }
+#endif

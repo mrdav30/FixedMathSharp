@@ -15,7 +15,7 @@ namespace FixedMathSharp.Editor
             Rect contentPosition = EditorGUI.PrefixLabel(position, label);
 
             // Get the FixedQuaternion instance from the serialized property
-            if (property.GetValue() is FixedQuaternion quaternion)
+            if (property.GetFixedPropertyValue() is FixedQuaternion quaternion)
             {
                 // Convert the quaternion to euler angles (in degrees)
                 Vector3d eulerAngles = quaternion.EulerAngles;
