@@ -33,6 +33,7 @@
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 	<UnityBuild>false</UnityBuild>
+	<Configurations>Debug;Release;DebugUnity;ReleaseUnity</Configurations>
   </PropertyGroup>
   <!-- Debug and Release-specific Properties -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -138,5 +139,4 @@
 	<Compile Remove="Integration\**" />
 	<Content Include="Integration\**" />
   </ItemGroup>
-
 </Project>
