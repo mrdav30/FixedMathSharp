@@ -1,8 +1,9 @@
-﻿using UnityEngine;
+﻿#if UNITY_EDITOR
+using UnityEngine;
 
 namespace FixedMathSharp
 {
-    public static class Vector2dExtensions
+    public static partial class Vector2dExtensions
     {
         /// <summary>
         /// Converts a Unity Vector2 to a FixedMathSharp Vector2d.
@@ -46,3 +47,4 @@ namespace FixedMathSharp
         }
     }
 }
+#endif

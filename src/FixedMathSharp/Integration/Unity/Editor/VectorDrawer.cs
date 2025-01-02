@@ -8,6 +8,7 @@ namespace FixedMathSharp.Editor
     /// A custom property drawer for vectors type structures.
     /// </summary>
     /// <see cref="PropertyDrawer" />
+    [CustomPropertyDrawer(typeof(Vector2))]
     [CustomPropertyDrawer(typeof(Vector2d))]
     [CustomPropertyDrawer(typeof(Vector3))]
     [CustomPropertyDrawer(typeof(Vector3d))]
@@ -38,8 +39,9 @@ namespace FixedMathSharp.Editor
                 EditorGUI.BeginProperty(contentPosition, label, property);
                 {
                     EditorGUI.BeginChangeCheck();
+
                     // for vector3
-                    if (property.propertyType == SerializedPropertyType.Float)
+                    if (property.type == "float")
                     {
                         float newVal = EditorGUI.FloatField(
                             contentPosition,
@@ -48,10 +50,10 @@ namespace FixedMathSharp.Editor
                         if (EditorGUI.EndChangeCheck())
                             property.floatValue = newVal;
                     }
-                    else if (property.GetType() == typeof(Fixed64))
+                    else if (property.type == "Fixed64")
                     {
                         string displayName = property.displayName;
-                        // move to next property to get Fixed64.RawValue
+                        // move to next property to get Fixed64.m_rawValue
                         if (!property.NextVisible(true))
                             break;
 

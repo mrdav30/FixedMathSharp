@@ -24,23 +24,42 @@ Ideal for simulations, games, and physics engines requiring reliable arithmetic 
 
 ## 🚀 Installation
 
-### Via NuGet:
-```bash
-dotnet add package FixedMathSharp
-```
 
-### Testing Locally:
-1. Build the package:
-   ```bash
-   dotnet pack --configuration Release
-   ```
-2. Create a local NuGet source and test it:
-   ```bash
-   mkdir ./LocalNuGet
-   cp ./bin/Release/*.nupkg ./LocalNuGet/
-   dotnet nuget add source ./LocalNuGet --name LocalNuGet
-   dotnet add package FixedMathSharp --source ./LocalNuGet
-   ```
+Clone the repository and add it to your project:
+
+### Non-Unity Projects
+
+1. **Install via NuGet**:
+   - Add FixedMathSharp to your project using the following command:
+   
+     ```bash
+     dotnet add package FixedMathSharp
+     ```
+
+2. **Or Download/Clone**:
+   - Clone the repository or download the source code.
+   
+     ```bash
+     git clone https://github.com/mrdav30/FixedMathSharp.git
+     ```
+
+3. **Add to Project**:
+
+   - Include the FixedMathSharp project or its DLLs in your build process.
+
+### Unity
+
+To integrate **FixedMathSharp** into your Unity project:
+
+1. **Download the Package**:
+   - Obtain the latest `FixedMathSharp{{VERSION}}.unitypackage` from the [Releases](https://github.com/mrdav30/FixedMathSharp/releases) section of the repository.
+
+2. **Import into Unity**:
+   - In Unity, navigate to **Assets > Import Package > Custom Package...**.
+   - Select the downloaded `FixedMathSharp{{VERSION}}.unitypackage` file.
+
+3. **Verify the Integration**:
+   - After importing, confirm that the `FixedMathSharp` namespace is accessible in your scripts.
 
 ---
 

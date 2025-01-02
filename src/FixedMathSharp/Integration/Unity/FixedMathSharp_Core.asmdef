@@ -1,11 +1,5 @@
 {
-    "name": "FixedMathSharp_Editor",
-    "references": [
-        "FixedMathSharp"
-    ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "name": "FixedMathSharp_Core",
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

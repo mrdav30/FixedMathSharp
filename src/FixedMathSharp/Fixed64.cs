@@ -166,49 +166,49 @@ namespace FixedMathSharp
         {
             return value.m_rawValue >> FixedMath.SHIFT_AMOUNT_I;
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator Fixed64(int value)
         {
             return new Fixed64(value);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator int(Fixed64 value)
         {
             return (int)(value.m_rawValue >> FixedMath.SHIFT_AMOUNT_I);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator Fixed64(float value)
         {
             return new Fixed64((double)value);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator float(Fixed64 value)
         {
             return value.m_rawValue * FixedMath.SCALE_FACTOR_F;
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator Fixed64(double value)
         {
             return new Fixed64(value);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator double(Fixed64 value)
         {
             return value.m_rawValue * FixedMath.SCALE_FACTOR_D;
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator Fixed64(decimal value)
         {
             return new Fixed64((double)value);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator decimal(Fixed64 value)
         {
@@ -328,7 +328,7 @@ namespace FixedMathSharp
                     return MinValue;
             }
 
-            return new Fixed64(sum);          
+            return new Fixed64(sum);
         }
 
         /// <summary>
