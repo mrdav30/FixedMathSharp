@@ -6,7 +6,6 @@ using System.Runtime.Serialization.Formatters.Binary;
 #if NET8_0_OR_GREATER
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
 #endif
 
 using Xunit;
