@@ -65,7 +65,7 @@ jobs:
         dotnet build --configuration Release --no-restore
 
     - name: Upload Test Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: BuildOutputTest
         path: ./tests/FixedMathSharp.Tests/bin/Release
@@ -80,7 +80,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download Test Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: BuildOutputTest
           path: ./tests/FixedMathSharp.Tests/bin/Release
