@@ -1,5 +1,14 @@
-﻿using System.IO;
+﻿#if NET48_OR_GREATER
+using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
+#endif
+
+#if NET8_0_OR_GREATER
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+#endif
+
 using Xunit;
 
 namespace FixedMathSharp.Tests
@@ -217,6 +226,7 @@ namespace FixedMathSharp.Tests
             var original3x3 = Fixed3x3.CreateRotationX(FixedMath.PiOver2); // 90 degrees
 
             // Serialize the Fixed3x3 object
+#if NET48_OR_GREATER
             var formatter = new BinaryFormatter();
             using var stream = new MemoryStream();
             formatter.Serialize(stream, original3x3);
@@ -224,6 +234,19 @@ namespace FixedMathSharp.Tests
             // Reset stream position and deserialize
             stream.Seek(0, SeekOrigin.Begin);
             var deserialized3x3 = (Fixed3x3)formatter.Deserialize(stream);
+#endif
+
+#if NET8_0_OR_GREATER
+            var jsonOptions = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                IncludeFields = true,
+                IgnoreReadOnlyProperties = true
+            };
+            var json = JsonSerializer.SerializeToUtf8Bytes(original3x3, jsonOptions);
+            var deserialized3x3 = JsonSerializer.Deserialize<Fixed3x3>(json, jsonOptions);
+#endif
 
             // Check that deserialized values match the original
             Assert.Equal(original3x3, deserialized3x3);

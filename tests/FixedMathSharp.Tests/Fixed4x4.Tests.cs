@@ -1,11 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+﻿#if NET48_OR_GREATER
 using System.IO;
-using System.Linq;
-using System.Numerics;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
-using System.Threading.Tasks;
+#endif
+
+#if NET8_0_OR_GREATER
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+#endif
+
 using Xunit;
 
 namespace FixedMathSharp.Tests
@@ -213,7 +216,6 @@ namespace FixedMathSharp.Tests
             var scale = new Vector3d(1, 1, 1);
 
             var trsMatrix = Fixed4x4.TRS(translation, rotation, scale);
-            Assert.True(trsMatrix != null);
 
             // Verify translation
             Assert.Equal(new Fixed64(1), trsMatrix.m03);
@@ -278,6 +280,7 @@ namespace FixedMathSharp.Tests
             var original4x4 = Fixed4x4.TRS(translation, rotation, scale);
 
             // Serialize the Fixed4x4 object
+#if NET48_OR_GREATER
             var formatter = new BinaryFormatter();
             using var stream = new MemoryStream();
             formatter.Serialize(stream, original4x4);
@@ -285,6 +288,18 @@ namespace FixedMathSharp.Tests
             // Reset stream position and deserialize
             stream.Seek(0, SeekOrigin.Begin);
             var deserialized4x4 = (Fixed4x4)formatter.Deserialize(stream);
+#endif
+
+#if NET8_0_OR_GREATER
+            var jsonOptions = new JsonSerializerOptions {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                IncludeFields = true,
+                IgnoreReadOnlyProperties = true
+            };
+            var json = JsonSerializer.SerializeToUtf8Bytes(original4x4, jsonOptions);
+            var deserialized4x4 = JsonSerializer.Deserialize<Fixed4x4>(json, jsonOptions);
+#endif
 
             // Check that deserialized values match the original
             Assert.Equal(original4x4, deserialized4x4);
