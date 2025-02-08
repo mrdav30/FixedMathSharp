@@ -1,10 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+﻿#if NET48_OR_GREATER
 using System.IO;
-using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
-using System.Threading.Tasks;
+#endif
+
+#if NET8_0_OR_GREATER
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+#endif
+
 using Xunit;
 
 namespace FixedMathSharp.Tests
@@ -203,6 +207,7 @@ namespace FixedMathSharp.Tests
             var originalRotation = quaternion.Rotated(sin, cos);
 
             // Serialize the FixedQuaternion object
+#if NET48_OR_GREATER
             var formatter = new BinaryFormatter();
             using var stream = new MemoryStream();
             formatter.Serialize(stream, originalRotation);
@@ -210,12 +215,25 @@ namespace FixedMathSharp.Tests
             // Reset stream position and deserialize
             stream.Seek(0, SeekOrigin.Begin);
             var deserializedRotation = (FixedQuaternion)formatter.Deserialize(stream);
+#endif
+
+#if NET8_0_OR_GREATER
+            var jsonOptions = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                IncludeFields = true,
+                IgnoreReadOnlyProperties = true
+            };
+            var json = JsonSerializer.SerializeToUtf8Bytes(originalRotation, jsonOptions);
+            var deserializedRotation = JsonSerializer.Deserialize<FixedQuaternion>(json, jsonOptions);
+#endif
 
             // Check that deserialized values match the original
             Assert.Equal(originalRotation, deserializedRotation);
         }
 
-        #endregion
+#endregion
 
         #region Test: Lerp and Slerp
 

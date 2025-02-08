@@ -6,7 +6,13 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-	<Configurations>Debug;Release;DebugUnity;ReleaseUnity</Configurations>
+	<Configurations>Debug;Release;DebugUnity;ReleaseUnity;DebugNet8;ReleaseNet8</Configurations>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugNet8|AnyCPU'">
+    <TargetFramework>net8</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseNet8|AnyCPU'">
+    <TargetFramework>net8</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj">

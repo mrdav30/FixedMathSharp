@@ -33,7 +33,7 @@
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 	<UnityBuild>false</UnityBuild>
-	<Configurations>Debug;Release;DebugUnity;ReleaseUnity</Configurations>
+	<Configurations>Debug;Release;DebugUnity;ReleaseUnity;DebugNet8;ReleaseNet8</Configurations>
   </PropertyGroup>
   <!-- Debug and Release-specific Properties -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -49,6 +49,14 @@
     <DefineConstants>DEBUG;TRACE;UNITY_EDITOR</DefineConstants>
     <UnityBuild>true</UnityBuild>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugNet8|AnyCPU'">
+    <TargetFramework>net8</TargetFramework>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <UnityBuild>true</UnityBuild>
+  </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Optimize>true</Optimize>
     <DefineConstants>TRACE</DefineConstants>
@@ -56,6 +64,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUnity|AnyCPU'">
     <Optimize>true</Optimize>
     <DefineConstants>TRACE;UNITY_EDITOR</DefineConstants>
+	<UnityBuild>true</UnityBuild>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseNet8|AnyCPU'">
+    <TargetFramework>net8</TargetFramework>
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
 	<UnityBuild>true</UnityBuild>
   </PropertyGroup>
   <!-- NuGet Packaging Metadata -->

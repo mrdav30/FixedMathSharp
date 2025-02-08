@@ -34,7 +34,7 @@ function Ensure-GitVersion-Environment {
     }
 
     # Extract key version properties
-    $semVer = $gitVersionOutput.FullSemVer
+    $semVer = $gitVersionOutput.MajorMinorPatch
     $assemblySemVer = $gitVersionOutput.AssemblySemVer
     $assemblySemFileVer = $gitVersionOutput.AssemblySemFileVer
     $infoVersion = $gitVersionOutput.InformationalVersion

@@ -9,7 +9,7 @@ namespace FixedMathSharp
     [Serializable]
     public struct FixedRange : IEquatable<FixedRange>
     {
-        #region Fields and Constants
+        #region Constants
 
         /// <summary>
         /// The smallest possible range.
@@ -20,6 +20,20 @@ namespace FixedMathSharp
         /// The largest possible range.
         /// </summary>
         public static readonly FixedRange MaxRange = new FixedRange(Fixed64.MaxValue, Fixed64.MaxValue);
+
+        #endregion
+
+        #region Fields
+
+        /// <summary>
+        /// Gets the minimum value of the range.
+        /// </summary>
+        public Fixed64 Min;
+
+        /// <summary>
+        /// Gets the maximum value of the range.
+        /// </summary>
+        public Fixed64 Max;
 
         #endregion
 
@@ -51,24 +65,6 @@ namespace FixedMathSharp
 
 
         #region Properties and Methods (Instance)
-
-        /// <summary>
-        /// Gets the minimum value of the range.
-        /// </summary>
-        public Fixed64 Min {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private set; }
-
-        /// <summary>
-        /// Gets the maximum value of the range.
-        /// </summary>
-        public Fixed64 Max {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private set; }
 
         /// <summary>
         /// The length of the range, computed as Max - Min.
