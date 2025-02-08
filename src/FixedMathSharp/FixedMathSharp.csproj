@@ -3,7 +3,7 @@
   <PropertyGroup>
     <!-- Define the target framework and compatibility -->
     <LangVersion>9.0</LangVersion>
-    <TargetFramework>net48</TargetFramework>
+    <TargetFrameworks>net48;net8</TargetFrameworks>
     <!-- Versioning and Build Configuration -->
     <!-- Set SemVer to GitVersion_FullSemVer if available, otherwise fallback to 0.0.0 -->
     <SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
@@ -28,11 +28,12 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>1591</NoWarn>
     <!-- Optional: Suppress warnings about missing XML comments -->
+	<DocumentationFile>bin\$(Configuration)\$(TargetFramework)\FixedMathSharp.xml</DocumentationFile>
     <!-- Configuration to ensure deterministic builds -->
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 	<UnityBuild>false</UnityBuild>
-	<Configurations>Debug;Release;DebugUnity;ReleaseUnity;DebugNet8;ReleaseNet8</Configurations>
+	<Configurations>Debug;Release;DebugUnity;ReleaseUnity</Configurations>
   </PropertyGroup>
   <!-- Debug and Release-specific Properties -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -48,13 +49,6 @@
     <DefineConstants>DEBUG;TRACE;UNITY_EDITOR</DefineConstants>
     <UnityBuild>true</UnityBuild>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugNet8|AnyCPU'">
-    <TargetFramework>net8</TargetFramework>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-  </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Optimize>true</Optimize>
     <DefineConstants>TRACE</DefineConstants>
@@ -63,14 +57,6 @@
     <Optimize>true</Optimize>
     <DefineConstants>TRACE;UNITY_EDITOR</DefineConstants>
 	<UnityBuild>true</UnityBuild>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseNet8|AnyCPU'">
-    <TargetFramework>net8</TargetFramework>
-    <Optimize>true</Optimize>
-    <DefineConstants>TRACE</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup>
-      <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\FixedMathSharp.xml</DocumentationFile>
   </PropertyGroup>
   <!-- NuGet Packaging Metadata -->
   <PropertyGroup>
@@ -137,7 +123,7 @@
 	  <Private>false</Private>
 	  <PrivateAssets>all</PrivateAssets>
     </Reference>
-	<PackageReference Condition="'$(TargetFramework)' == 'net48'" Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3">
+	<PackageReference Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'" Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
