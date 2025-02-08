@@ -28,7 +28,6 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>1591</NoWarn>
     <!-- Optional: Suppress warnings about missing XML comments -->
-    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\FixedMathSharp.xml</DocumentationFile>
     <!-- Configuration to ensure deterministic builds -->
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
@@ -55,7 +54,6 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <UnityBuild>true</UnityBuild>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Optimize>true</Optimize>
@@ -70,7 +68,9 @@
     <TargetFramework>net8</TargetFramework>
     <Optimize>true</Optimize>
     <DefineConstants>TRACE</DefineConstants>
-	<UnityBuild>true</UnityBuild>
+  </PropertyGroup>
+  <PropertyGroup>
+      <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\FixedMathSharp.xml</DocumentationFile>
   </PropertyGroup>
   <!-- NuGet Packaging Metadata -->
   <PropertyGroup>
@@ -137,7 +137,7 @@
 	  <Private>false</Private>
 	  <PrivateAssets>all</PrivateAssets>
     </Reference>
-	<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3">
+	<PackageReference Condition="'$(TargetFramework)' == 'net48'" Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
