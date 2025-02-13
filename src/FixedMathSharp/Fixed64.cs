@@ -150,6 +150,16 @@ namespace FixedMathSharp
             // Return the sign of the value, optimizing for branchless comparison
             return value.m_rawValue < 0 ? -1 : (value.m_rawValue > 0 ? 1 : 0);
         }
+        
+        /// <summary>
+        /// Returns true if the number has no decimal part (i.e., if the number is equivalent to an integer) and False otherwise. 
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsInteger(Fixed64 value)
+        {
+            return (value.m_rawValue & (long)uint.MaxValue) == 0;
+        }
+
 
         #endregion
 
