@@ -157,9 +157,8 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsInteger(Fixed64 value)
         {
-            return (value.m_rawValue & (long)uint.MaxValue) == 0;
+            return ((ulong)value.m_rawValue & FixedMath.MAX_SHIFTED_AMOUNT_UI) == 0;
         }
-
 
         #endregion
 
