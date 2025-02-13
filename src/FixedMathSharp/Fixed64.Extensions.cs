@@ -16,6 +16,13 @@ namespace FixedMathSharp
             return Fixed64.Sign(value);
         }
 
+        /// <inheritdoc cref="Fixed64.IsInteger(Fixed64)" />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsInteger(this Fixed64 value)
+        {
+            return Fixed64.IsInteger(value);
+        }
+        
         /// <inheritdoc cref="FixedMath.Squared(Fixed64)" />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 Squared(this Fixed64 value)
