@@ -243,12 +243,21 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Adds an int to a 
+        /// Adds an int to x 
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 operator +(Fixed64 x, int y)
         {
             return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) + y);
+        }
+
+        /// <summary>
+        /// Adds an int to y 
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 operator +(int x, Fixed64 y)
+        {
+            return y + x;
         }
 
         /// <summary>
@@ -266,12 +275,21 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Subtracts an int from a 
+        /// Subtracts an int from x 
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 operator -(Fixed64 x, int y)
         {
             return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) - y);
+        }
+
+        /// <summary>
+        /// Subtracts an int from y 
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 operator -(int x, Fixed64 y)
+        {
+            return y - x;
         }
 
         /// <summary>

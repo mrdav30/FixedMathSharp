@@ -71,6 +71,13 @@ namespace FixedMathSharp
             return Vector3d.Abs(value);
         }
 
+        /// <inheritdoc cref="Vector3d.Sign(Vector3d)" />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d Sign(Vector3d value)
+        {
+            return Vector3d.Sign(value);
+        }
+
         #endregion
 
         #region Equality

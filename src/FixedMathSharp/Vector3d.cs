@@ -22,10 +22,19 @@ namespace FixedMathSharp
     {
         #region Fields and Constants
 
+        /// <summary>
+        /// The X component of the vector.
+        /// </summary>
         public Fixed64 x;
 
+        /// <summary>
+        /// The Y component of the vector.
+        /// </summary>
         public Fixed64 y;
 
+        /// <summary>
+        /// The Z component of the vector.
+        /// </summary>
         public Fixed64 z;
 
         /// <summary>
@@ -118,6 +127,7 @@ namespace FixedMathSharp
             get => new Vector3d(-z, y, x);
         }
 
+        /// <inheritdoc cref="GetNormalized(Vector3d)"/>
         public Vector3d Normal
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -173,11 +183,18 @@ namespace FixedMathSharp
             get => (x * x) + (y * y) + (z * z);
         }
 
+        /// <summary>
+        /// Returns a long hash of the vector based on its x, y, and z values.
+        /// </summary>
         public long LongStateHash
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (x.m_rawValue * 31) + (y.m_rawValue * 7) + (z.m_rawValue * 11);
         }
+
+        /// <summary>
+        /// Returns a hash of the vector based on its state.
+        /// </summary>
         public int StateHash
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -428,6 +445,13 @@ namespace FixedMathSharp
             return x * otherX + y * otherY + z * otherZ;
         }
 
+        /// <summary>
+        /// Computes the cross product magnitude of this vector with another vector.
+        /// </summary>
+        /// <param name="otherX">The X component of the other vector.</param>
+        /// <param name="otherY">The Y component of the other vector.</param>
+        /// <param name="otherZ">The Z component of the other vector.</param>
+        /// <returns>The cross product magnitude.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Fixed64 CrossProduct(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ)
         {
@@ -559,12 +583,35 @@ namespace FixedMathSharp
             return temp1 != Fixed64.Zero ? FixedMath.Sqrt(temp1) : Fixed64.Zero;
         }
 
+        /// <summary>
+        /// Returns a new <see cref="Vector3d"/> where each component is the absolute value of the corresponding input component.
+        /// </summary>
+        /// <param name="value">The input vector.</param>
+        /// <returns>A vector with absolute values for each component.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d Abs(Vector3d value)
         {
             return new Vector3d(value.x.Abs(), value.y.Abs(), value.z.Abs());
         }
 
+        /// <summary>
+        /// Returns a new <see cref="Vector3d"/> where each component is the sign of the corresponding input component.
+        /// </summary>
+        /// <param name="value">The input vector.</param>
+        /// <returns>A vector where each component is -1, 0, or 1 based on the sign of the input.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d Sign(Vector3d value)
+        {
+            return new Vector3d(value.x.Sign(), value.y.Sign(), value.z.Sign());
+        }
+
+        /// <summary>
+        /// Clamps each component of the given <see cref="Vector3d"/> within the specified min and max bounds.
+        /// </summary>
+        /// <param name="value">The vector to clamp.</param>
+        /// <param name="min">The minimum bounds.</param>
+        /// <param name="max">The maximum bounds.</param>
+        /// <returns>A vector with each component clamped between min and max.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d Clamp(Vector3d value, Vector3d min, Vector3d max)
         {
@@ -575,11 +622,24 @@ namespace FixedMathSharp
             );
         }
 
+        /// <summary>
+        /// Determines if two vectors are exactly parallel by checking if their cross product is zero.
+        /// </summary>
+        /// <param name="v1">The first vector.</param>
+        /// <param name="v2">The second vector.</param>
+        /// <returns>True if the vectors are exactly parallel, false otherwise.</returns>
         public static bool AreParallel(Vector3d v1, Vector3d v2)
         {
             return Cross(v1, v2).SqrMagnitude == Fixed64.Zero;
         }
 
+        /// <summary>
+        /// Determines if two vectors are approximately parallel based on a cosine similarity threshold.
+        /// </summary>
+        /// <param name="v1">The first normalized vector.</param>
+        /// <param name="v2">The second normalized vector.</param>
+        /// <param name="cosThreshold">The cosine similarity threshold for near-parallel vectors.</param>
+        /// <returns>True if the vectors are nearly parallel, false otherwise.</returns>
         public static bool AreAlmostParallel(Vector3d v1, Vector3d v2, Fixed64 cosThreshold)
         {
             // Assuming v1 and v2 are already normalized
@@ -589,6 +649,12 @@ namespace FixedMathSharp
             return dot >= cosThreshold;
         }
 
+        /// <summary>
+        /// Computes the midpoint between two vectors.
+        /// </summary>
+        /// <param name="v1">The first vector.</param>
+        /// <param name="v2">The second vector.</param>
+        /// <returns>The midpoint vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d Midpoint(Vector3d v1, Vector3d v2)
         {
@@ -682,6 +748,13 @@ namespace FixedMathSharp
             return (pointOnLine1, pointOnLine2);
         }
 
+        /// <summary>
+        /// Finds the closest point on a line segment between points A and B to a given point P.
+        /// </summary>
+        /// <param name="a">The start of the line segment.</param>
+        /// <param name="b">The end of the line segment.</param>
+        /// <param name="p">The point to project onto the segment.</param>
+        /// <returns>The closest point on the line segment to P.</returns>
         public static Vector3d ClosestPointOnLineSegment(Vector3d a, Vector3d b, Vector3d p)
         {
             Vector3d ab = b - a;
@@ -725,6 +798,7 @@ namespace FixedMathSharp
             return lhs.Cross(rhs.x, rhs.y, rhs.z);
         }
 
+        /// <inheritdoc cref="CrossProduct(Fixed64, Fixed64, Fixed64)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 CrossProduct(Vector3d lhs, Vector3d rhs)
         {
@@ -1011,6 +1085,38 @@ namespace FixedMathSharp
             return !left.Equals(right);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator >(Vector3d left, Vector3d right)
+        {
+            return left.x > right.x
+                && left.y > right.y
+                && left.z > right.z;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator <(Vector3d left, Vector3d right)
+        {
+            return left.x < right.x
+                && left.y < right.y
+                && left.z < right.z;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator >=(Vector3d left, Vector3d right)
+        {
+            return left.x >= right.x
+                && left.y >= right.y
+                && left.z >= right.z;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator <=(Vector3d left, Vector3d right)
+        {
+            return left.x <= right.x
+                && left.y <= right.y
+                && left.z <= right.z;
+        }
+
         #endregion
 
         #region Conversion
@@ -1021,6 +1127,14 @@ namespace FixedMathSharp
             return string.Format("({0}, {1}, {2})", x.ToFormattedDouble(), y.ToFormattedDouble(), z.ToFormattedDouble());
         }
 
+        /// <summary>
+        /// Converts this <see cref="Vector3d"/> to a <see cref="Vector2d"/>, 
+        /// dropping the Y component (height) of this vector in the resulting vector.
+        /// </summary>
+        /// <returns>
+        /// A new <see cref="Vector2d"/> where (X, Z) from this <see cref="Vector3d"/> 
+        /// become (X, Y) in the resulting vector.
+        /// </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector2d ToVector2d()
         {
