@@ -14,8 +14,6 @@ function Get-SolutionDirectory {
 }
 
 function Ensure-GitVersion-Environment {
-    param ([string]$UnityVersion = "2022.3.20f1")
-
 	# Ensure GitVersion is installed and available
 	if (-not (Get-Command "dotnet-gitversion" -ErrorAction SilentlyContinue)) {
 		Write-Host "GitVersion is not installed. Install it with:"
@@ -44,14 +42,12 @@ function Ensure-GitVersion-Environment {
     [System.Environment]::SetEnvironmentVariable('GitVersion_AssemblySemVer', $assemblySemVer, 'Process')
     [System.Environment]::SetEnvironmentVariable('GitVersion_AssemblySemFileVer', $assemblySemFileVer, 'Process')
     [System.Environment]::SetEnvironmentVariable('GitVersion_InformationalVersion', $infoVersion, 'Process')
-    [System.Environment]::SetEnvironmentVariable('UnityVersion', $UnityVersion, 'Process')
 
     Write-Host "Environment variables set:"
     Write-Host "  GitVersion_FullSemVer = $semVer"
     Write-Host "  GitVersion_AssemblySemVer = $assemblySemVer"
     Write-Host "  GitVersion_AssemblySemFileVer = $assemblySemFileVer"
     Write-Host "  GitVersion_InformationalVersion = $infoVersion"
-    Write-Host "  UnityVersion = $UnityVersion"
 }
 
 function Build-Project {

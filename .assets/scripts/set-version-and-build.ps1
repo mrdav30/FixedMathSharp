@@ -1,6 +1,5 @@
 param (
-    [string]$BuildType = "Release",
-	[string]$UnityVersion = "2022.3.20f1"
+    [string]$BuildType = "Release"
 )
 
 # Import shared functions
@@ -12,7 +11,7 @@ $solutionDir = Get-SolutionDirectory
 Set-Location $solutionDir
 
 # Ensure GitVersion environment variables are set
-Ensure-GitVersion-Environment $UnityVersion 
+Ensure-GitVersion-Environment
 
 # Build the project with the version information applied
 Build-Project -Configuration $BuildType
