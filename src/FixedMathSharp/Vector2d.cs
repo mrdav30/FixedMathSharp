@@ -24,8 +24,14 @@ namespace FixedMathSharp
     {
         #region Fields and Constants
 
+        /// <summary>
+        /// The X component of the vector.
+        /// </summary>
         public Fixed64 x;
-        
+
+        /// <summary>
+        /// The Y component of the vector.
+        /// </summary>
         public Fixed64 y;
 
         /// <summary>
@@ -128,12 +134,16 @@ namespace FixedMathSharp
             get => new Vector2d(y, -x);
         }
 
+        /// <inheritdoc cref="GetNormalized(Vector2d)"/>
         public Vector2d Normal
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => GetNormalized(this);
         }
 
+        /// <summary>
+        /// Returns the actual length of this vector (RO).
+        /// </summary>
         public Fixed64 Magnitude
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -234,6 +244,7 @@ namespace FixedMathSharp
             return this;
         }
 
+        /// <inheritdoc cref="AddInPlace(Fixed64, Fixed64)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector2d AddInPlace(Vector2d other)
         {
@@ -515,12 +526,19 @@ namespace FixedMathSharp
             return Dot(other.x, other.y);
         }
 
+        /// <summary>
+        /// Computes the cross product magnitude of this vector with another vector.
+        /// </summary>
+        /// <param name="otherX">The X component of the other vector.</param>
+        /// <param name="otherY">The Y component of the other vector.</param>
+        /// <returns>The cross product magnitude.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Fixed64 CrossProduct(Fixed64 otherX, Fixed64 otherY)
         {
             return x * otherY - y * otherX;
         }
 
+        /// <inheritdoc cref="CrossProduct(Fixed64, Fixed64)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Fixed64 CrossProduct(Vector2d other)
         {
@@ -607,10 +625,26 @@ namespace FixedMathSharp
             return temp1.Abs() > Fixed64.Zero ? FixedMath.Sqrt(temp1) : Fixed64.Zero;
         }
 
+        /// <summary>
+        /// Returns a new <see cref="Vector2d"/> where each component is the absolute value of the corresponding input component.
+        /// </summary>
+        /// <param name="value">The input vector.</param>
+        /// <returns>A vector with absolute values for each component.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2d Abs(Vector2d value)
         {
             return new Vector2d(value.x.Abs(), value.y.Abs());
+        }
+
+        /// <summary>
+        /// Returns a new <see cref="Vector2d"/> where each component is the sign of the corresponding input component.
+        /// </summary>
+        /// <param name="value">The input vector.</param>
+        /// <returns>A vector where each component is -1, 0, or 1 based on the sign of the input.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d Sign(Vector2d value)
+        {
+            return new Vector2d(value.x.Sign(), value.y.Sign());
         }
 
         /// <summary>
@@ -633,6 +667,10 @@ namespace FixedMathSharp
             return start.Distance(end);
         }
 
+        /// <summary>
+        /// Calculates the squared distance between two vectors, avoiding the need for a square root operation.
+        /// </summary>
+        /// <returns>The squared distance between the two vectors.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 SqrDistance(Vector2d start, Vector2d end)
         {
@@ -712,6 +750,15 @@ namespace FixedMathSharp
             return $"({Math.Round((double)x, 2)}, {Math.Round((double)y, 2)})";
         }
 
+        /// <summary>
+        /// Converts this <see cref="Vector2d"/> to a <see cref="Vector3d"/>, 
+        /// mapping the Y component of this vector to the Z axis in the resulting vector.
+        /// </summary>
+        /// <param name="z">The value to assign to the Y axis of the resulting <see cref="Vector3d"/>.</param>
+        /// <returns>
+        /// A new <see cref="Vector3d"/> where (X, Y) from this <see cref="Vector2d"/> 
+        /// become (X, Z) in the resulting vector, with the provided Z parameter assigned to Y.
+        /// </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3d ToVector3d(Fixed64 z)
         {

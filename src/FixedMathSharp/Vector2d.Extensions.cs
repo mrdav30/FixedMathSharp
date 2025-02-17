@@ -46,6 +46,13 @@ namespace FixedMathSharp
             return Vector2d.Abs(value);
         }
 
+        /// <inheritdoc cref="Vector2d.Sign(Vector2d)" />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d Sign(this Vector2d value)
+        {
+            return Vector2d.Sign(value);
+        }
+
         #endregion
 
         #region Conversion
