@@ -32,7 +32,6 @@
     <!-- Configuration to ensure deterministic builds -->
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-	<UnityBuild>false</UnityBuild>
 	<Configurations>Debug;Release</Configurations>
   </PropertyGroup>
   <!-- Debug and Release-specific Properties -->
