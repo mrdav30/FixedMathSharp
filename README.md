@@ -10,15 +10,14 @@ Ideal for simulations, games, and physics engines requiring reliable arithmetic 
 
 ## 🛠️ Key Features
 
-- **Deterministic Calculations:** Perfect for simulations, multiplayer games, and physics engines.
+- **Deterministic Calculations:** Ensures consistent results across different platforms. 
 - **High Precision Arithmetic:** Uses fixed-point math to eliminate floating-point inaccuracies.
 - **Comprehensive Vector Support:** Includes 2D and 3D vector operations (`Vector2d`, `Vector3d`).
 - **Quaternion Rotations:** Leverage `FixedQuaternion` for smooth rotations without gimbal lock.
 - **Matrix Operations:** Supports transformations with `Fixed4x4` and `Fixed3x3` matrices.
 - **Bounding Shapes:** Includes `IBound` structs `BoundingBox`, `BoundingSphere`, and `BoundingArea` for lightweight spatial calculations.
 - **Advanced Math Functions:** Includes trigonometry and common math utilities.
-- **Unity Integration:** Seamless interoperability with Unity using `FixedMathSharp.Editor`.
-
+- **Framework Agnostic:** Works with **.NET, Unity, and other game engines**.
 
 ---
 
@@ -47,19 +46,11 @@ Clone the repository and add it to your project:
 
    - Include the FixedMathSharp project or its DLLs in your build process.
 
-### Unity
+### Unity Integration
 
-To integrate **FixedMathSharp** into your Unity project:
+FixedMathSharp is now maintained as a separate Unity package.For Unity-specific implementations, refer to:
 
-1. **Download the Package**:
-   - Obtain the latest `FixedMathSharp{{VERSION}}.unitypackage` from the [Releases](https://github.com/mrdav30/FixedMathSharp/releases) section of the repository.
-
-2. **Import into Unity**:
-   - In Unity, navigate to **Assets > Import Package > Custom Package...**.
-   - Select the downloaded `FixedMathSharp{{VERSION}}.unitypackage` file.
-
-3. **Verify the Integration**:
-   - After importing, confirm that the `FixedMathSharp` namespace is accessible in your scripts.
+🔗 [FixedMathSharp-Unity Repository](https://github.com/mrdav30/FixedMathSharp-Unity).
 
 ---
 
@@ -137,10 +128,10 @@ configurable `SHIFT_AMOUNT`.
 
 ## ⚡ Performance Considerations
 
-This library leverages **inline methods** and **fixed-point arithmetic** 
-to ensure high precision without the pitfalls of floating-point numbers. 
-It is optimized for **deterministic behavior**, making it ideal for physics 
-engines, multiplayer simulations, and other time-sensitive applications.
+FixedMathSharp is optimized for high-performance deterministic calculations:
+- **Inline methods and bit-shifting optimizations** ensure minimal overhead.
+- **Eliminates floating-point drift**, making it ideal for lockstep simulations.
+- **Supports fuzzy equality comparisons** for handling minor precision deviations.
 
 ---
 
@@ -159,9 +150,10 @@ dotnet test --configuration Release
 
 ## 🛠️ Compatibility
 
-- **.NET Framework:** 4.7.1+
-- **Unity3D:** Fully compatible with Unity using the `FixedMathSharp.Editor` extension.
-- **Platforms:** Windows, Linux, macOS
+- **.NET Framework** 4.7.2+
+- **.NET Core / .NET** 6+
+- **Unity 2020+** (via [FixedMathSharp-Unity](https://github.com/mrdav30/FixedMathSharp-Unity))
+- **Cross-Platform Support** (Windows, Linux, macOS)
 
 ---
 
