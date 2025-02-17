@@ -190,5 +190,44 @@ namespace FixedMathSharp.Tests
         }
 
         #endregion
+        
+        #region Test: Operations
+
+        [Fact]
+        public void IsInteger_PositiveInteger_ReturnsTrue()
+        {
+            var a = new Fixed64(42);
+            Assert.True(a.IsInteger());
+        }
+
+        [Fact]
+        public void IsInteger_NegativeInteger_ReturnsTrue()
+        {
+            var a = new Fixed64(-42);
+            Assert.True(a.IsInteger());
+        }
+
+        [Fact]
+        public void IsInteger_WhenZero_ReturnsTrue()
+        {
+            var a = Fixed64.Zero;
+            Assert.True(a.IsInteger());
+        }
+
+        [Fact]
+        public void IsInteger_PositiveDecimal_ReturnsFalse()
+        {
+            var a = new Fixed64(4.2);
+            Assert.False(a.IsInteger());
+        }
+
+        [Fact]
+        public void IsInteger_NegativeDecimal_ReturnsFalse()
+        {
+            var a = new Fixed64(-4.2);
+            Assert.False(a.IsInteger());
+        }
+
+        #endregion
     }
 }
