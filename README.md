@@ -3,6 +3,8 @@ FixedMathSharp
 
 ![FixedMathSharp Icon](https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/icon.png)
 
+[![.NET CI](https://github.com/mrdav30/FixedMathSharp/actions/workflows/dotnet.yml/badge.svg)](https://github.com/mrdav30/FixedMathSharp/actions/workflows/dotnet.yml)
+
 **A high-precision, deterministic fixed-point math library for .NET.**  
 Ideal for simulations, games, and physics engines requiring reliable arithmetic without floating-point inaccuracies.
 
