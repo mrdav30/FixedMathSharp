@@ -665,6 +665,26 @@ namespace FixedMathSharp
             return f1 * FixedMath.SCALE_FACTOR_D;
         }
 
+        /// <summary>
+        /// Converts a Fixed64s RawValue (Int64) into a float
+        /// </summary>
+        /// <param name="f1"></param>
+        /// <returns></returns>
+        public static float ToFloat(long f1)
+        {
+            return f1 * FixedMath.SCALE_FACTOR_F;
+        }
+
+        /// <summary>
+        /// Converts a Fixed64s RawValue (Int64) into a decimal
+        /// </summary>
+        /// <param name="f1"></param>
+        /// <returns></returns>
+        public static decimal ToDecimal(long f1)
+        {
+            return f1 * FixedMath.SCALE_FACTOR_M;
+        }
+
         #endregion
 
         #region Equality, HashCode, Comparable Overrides

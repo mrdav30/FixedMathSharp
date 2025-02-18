@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-	<Configurations>Debug;Release;DebugUnity;ReleaseUnity</Configurations>
+	<Configurations>Debug;Release</Configurations>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj">
@@ -14,9 +14,17 @@
 	  <IncludeAssets>compile; build</IncludeAssets>
 	  <PrivateAssets>all</PrivateAssets>
 	</ProjectReference>
+	<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3">
+	  <PrivateAssets>all</PrivateAssets>
+	  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	</PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.1" />
-    <PackageReference Include="xunit" Version="2.4.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.console" Version="2.9.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
