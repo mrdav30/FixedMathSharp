@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-	<Configurations>Debug;Release;DebugUnity;ReleaseUnity</Configurations>
+	<Configurations>Debug;Release</Configurations>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj">
