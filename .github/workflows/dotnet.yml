@@ -16,13 +16,12 @@ on:
       - 'main'
 
 jobs:
-  build:
-    if: (github.event_name != 'pull_request' && ! github.event.pull_request.head.repo.fork) || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || startsWith(github.head_ref, 'dependabot/')))
-    # Use an Ubuntu-based container to build the project
+  build-and-test-linux:
+    if: |
+      (github.event_name != 'pull_request' && !github.event.pull_request.head.repo.fork) 
+      || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork 
+      || startsWith(github.head_ref, 'dependabot/')))
     runs-on: ubuntu-latest
-
-    container:
-      image: unityci/editor:ubuntu-2022.3.20f1-windows-mono-3.1.0
 
     steps:
     - name: Checkout repository
@@ -35,7 +34,12 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
-        
+    
+    - name: Install Mono (required for .NET Framework tests on Linux)
+      run: |
+        sudo apt update
+        sudo apt install -y mono-complete   
+    
     - name: Install GitVersion
       uses: gittools/actions/gitversion/setup@v3.1.1
       with:
@@ -50,42 +54,81 @@ jobs:
           ${{ runner.os }}-nuget-
 
     - name: Determine Version
+      id: version_step
       run: |
         chown -R $(whoami) $(pwd)
-        dotnet-gitversion /output json
+        dotnet-gitversion /output json > version.json
+        echo "FULL_SEM_VER=$(grep -oP '"FullSemVer":\s*"\K[^"]+' version.json)" >> $GITHUB_ENV
+        echo "ASSEMBLY_VERSION=$(grep -oP '"AssemblySemFileVer":\s*"\K[^"]+' version.json)" >> $GITHUB_ENV
 
     - name: Restore dependencies
       run: dotnet restore
 
     - name: Build Solution
-      env:
-        UnityManagedPath: \opt\unity\Editor\Data\Managed
       run: |
-        echo "Version:${{ env.GitVersion_FullSemVer }}\nAssembley Version:${{ env.GitVersion_AssemblySemFileVer }}"
-        dotnet build --configuration Release --no-restore
+        echo "Version: ${{ env.FULL_SEM_VER }}"
+        echo "Assembly Version: ${{ env.ASSEMBLY_VERSION }}"
+        dotnet build --configuration Debug --no-restore
 
-    - name: Upload Test Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: BuildOutputTest
-        path: ./tests/FixedMathSharp.Tests/bin/Release
+    - name: Test .NET48
+      run: |
+        mono ~/.nuget/packages/xunit.runner.console/2.9.3/tools/net48/xunit.console.exe ${{github.workspace}}/tests/FixedMathSharp.Tests/bin/Debug/net48/FixedMathSharp.Tests.dll
+        
+    - name: Test .NET8
+      run: |
+        dotnet test -f net8.0 --verbosity normal
 
-  test:
-    # Use a Windows runner to execute the .NET Framework tests
+  build-and-test-windows:
+    if: |
+      (github.event_name != 'pull_request' && !github.event.pull_request.head.repo.fork) 
+      || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork 
+      || startsWith(github.head_ref, 'dependabot/')))
     runs-on: windows-latest
-    needs: build
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Download Test Artifacts
-        uses: actions/download-artifact@v4
         with:
-          name: BuildOutputTest
-          path: ./tests/FixedMathSharp.Tests/bin/Release
-
-      - name: Test
+          fetch-depth: 0
+          persist-credentials: false
+          
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v3.1.1
+        with:
+          versionSpec: 6.0.x
+          
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: '${{ runner.os }}-nuget-${{ hashFiles(''**/*.csproj'', ''**/*.sln'') }}'
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+            
+      - name: Determine Version
+        id: version_step
+        shell: pwsh
+        run: |
+          chown -R $env:USERNAME $(Get-Location)
+          dotnet-gitversion /output json | Out-File -FilePath version.json
+          $json = Get-Content version.json | ConvertFrom-Json
+          echo "FULL_SEM_VER=$($json.FullSemVer)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "ASSEMBLY_VERSION=$($json.AssemblySemFileVer)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          
+      - name: Restore dependencies
+        run: dotnet restore
+        
+      - name: Build Solution
+        run: |
+          echo "Version: ${{ env.FULL_SEM_VER }}"
+          echo "Assembly Version: ${{ env.ASSEMBLY_VERSION }}"
+          dotnet build --configuration Debug --no-restore
+          
+      - name: Test .NET48 & .NET8
         run: |
           dotnet --info
-          dotnet test ${{ github.workspace }}\tests\FixedMathSharp.Tests\bin\Release\net48\FixedMathSharp.Tests.dll --verbosity normal
+          dotnet test --verbosity normal
