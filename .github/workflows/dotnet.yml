@@ -76,7 +76,7 @@ jobs:
         
     - name: Test .NET8
       run: |
-        dotnet test -f net8.0 --verbosity normal
+        dotnet test -f net8 --verbosity normal
 
   build-and-test-windows:
     if: |
