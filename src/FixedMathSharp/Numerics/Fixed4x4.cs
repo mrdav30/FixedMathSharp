@@ -68,21 +68,11 @@ namespace FixedMathSharp
         /// <returns>
         /// The translation component of the current instance.
         /// </returns>
-        public Vector3d Translation
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return new Vector3d(m30, m31, m32);
-            }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                m30 = value.x;
-                m31 = value.y;
-                m32 = value.z;
-            }
-        }
+        public Vector3d Translation => this.ExtractTranslation();
+
+        public Vector3d Scale => this.ExtractScale();
+
+        public FixedQuaternion Rotation => this.ExtractRotation();
 
         /// <summary>
         /// Calculates the determinant of a 4x4 matrix.
@@ -115,9 +105,9 @@ namespace FixedMathSharp
         /// <param name="translation">The translation vector.</param>
         /// <param name="scale">The scale vector.</param>
         /// <param name="rotation">The rotation quaternion.</param>
-        public void SetTransform(Vector3d translation, Vector3d scale, FixedQuaternion rotation)
+        public void SetTransform(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
         {
-            this = CreateTransform(translation, scale, rotation);
+            this = CreateTransform(translation, rotation, scale);
         }
 
         #endregion
@@ -184,12 +174,21 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Creates a matrix from the provided translation, scale, and rotation components.
+        /// Constructs a transformation matrix from translation, scale, and rotation.
+        /// This method ensures that the rotation is properly normalized, applies the scale to the
+        /// rotational basis, and sets the translation component separately.
         /// </summary>
+        /// <remarks>
+        /// - Uses a normalized rotation matrix to maintain numerical stability.
+        /// - Applies non-uniform scaling to the rotation before setting translation.
+        /// - Preferred when ensuring transformations remain mathematically correct.
+        /// - If the rotation is already normalized and combined transformations are needed, consider using <see cref="SRT"/>.
+        /// </remarks>
         /// <param name="translation">The translation vector.</param>
         /// <param name="scale">The scale vector.</param>
         /// <param name="rotation">The rotation quaternion.</param>
-        public static Fixed4x4 CreateTransform(Vector3d translation, Vector3d scale, FixedQuaternion rotation)
+        /// <returns>A transformation matrix incorporating translation, rotation, and scale.</returns>
+        public static Fixed4x4 CreateTransform(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
         {
             // Create the rotation matrix and normalize it
             Fixed4x4 rotationMatrix = CreateRotation(rotation);
@@ -205,49 +204,52 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Creates a 4x4 transformation matrix from translation, rotation, and scale.
+        /// Constructs a transformation matrix from translation, rotation, and scale by multiplying
+        /// separate matrices in the order: Scale * Rotation * Translation.
         /// </summary>
-        /// <param name="translation">Translation vector.</param>
-        /// <param name="rotation">Rotation as a quaternion.</param>
-        /// <param name="scale">Scale vector.</param>
-        /// <returns>A combined transformation matrix.</returns>
+        /// <remarks>
+        /// - This method directly multiplies the scale, rotation, and translation matrices.
+        /// - Ensures that scale is applied first to preserve correct axis scaling.
+        /// - Then rotation is applied so that rotation is not affected by non-uniform scaling.
+        /// - Finally, translation moves the object to its correct world position.
+        /// </remarks>
+        public static Fixed4x4 SRT(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
+        {
+            // Create translation matrix
+            Fixed4x4 translationMatrix = CreateTranslation(translation);
+
+            // Create rotation matrix using the quaternion
+            Fixed4x4 rotationMatrix = CreateRotation(rotation);
+
+            // Create scaling matrix
+            Fixed4x4 scalingMatrix = CreateScale(scale);
+
+            // Combine all transformations
+            return (scalingMatrix * rotationMatrix) * translationMatrix;
+        }
+
+        /// <summary>
+        /// Constructs a transformation matrix from translation, rotation, and scale by multiplying
+        /// matrices in the order: Translation * Rotation * Scale (T * R * S).
+        /// </summary>
+        /// <remarks>
+        /// - Use this method when transformations need to be applied **relative to an object's local origin**.
+        /// - Example use cases include **animation systems**, **hierarchical transformations**, and **UI transformations**.
+        /// - If you need to apply world-space transformations, use <see cref="CreateTransform"/> instead.
+        /// </remarks>
         public static Fixed4x4 TRS(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
         {
             // Create translation matrix
-            Fixed4x4 translationMatrix = new Fixed4x4(
-                Fixed64.One, Fixed64.Zero, Fixed64.Zero, translation.x,
-                Fixed64.Zero, Fixed64.One, Fixed64.Zero, translation.y,
-                Fixed64.Zero, Fixed64.Zero, Fixed64.One, translation.z,
-                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+            Fixed4x4 translationMatrix = CreateTranslation(translation);
 
             // Create rotation matrix using the quaternion
-            Fixed64 xx = rotation.x * rotation.x;
-            Fixed64 xy = rotation.x * rotation.y;
-            Fixed64 xz = rotation.x * rotation.z;
-            Fixed64 xw = rotation.x * rotation.w;
-
-            Fixed64 yy = rotation.y * rotation.y;
-            Fixed64 yz = rotation.y * rotation.z;
-            Fixed64 yw = rotation.y * rotation.w;
-
-            Fixed64 zz = rotation.z * rotation.z;
-            Fixed64 zw = rotation.z * rotation.w;
-
-            Fixed4x4 rotationMatrix = new Fixed4x4(
-                Fixed64.One - 2 * (yy + zz), 2 * (xy - zw), 2 * (xz + yw), Fixed64.Zero,
-                2 * (xy + zw), Fixed64.One - 2 * (xx + zz), 2 * (yz - xw), Fixed64.Zero,
-                2 * (xz - yw), 2 * (yz + xw), Fixed64.One - 2 * (xx + yy), Fixed64.Zero,
-                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+            Fixed4x4 rotationMatrix = CreateRotation(rotation);
 
             // Create scaling matrix
-            Fixed4x4 scalingMatrix = new Fixed4x4(
-                scale.x, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
-                Fixed64.Zero, scale.y, Fixed64.Zero, Fixed64.Zero,
-                Fixed64.Zero, Fixed64.Zero, scale.z, Fixed64.Zero,
-                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+            Fixed4x4 scalingMatrix = CreateScale(scale);
 
             // Combine all transformations
-            return translationMatrix * rotationMatrix * scalingMatrix;
+            return (translationMatrix * rotationMatrix) * scalingMatrix;
         }
 
         #endregion
@@ -322,33 +324,27 @@ namespace FixedMathSharp
             out FixedQuaternion rotation,
             out Vector3d translation)
         {
-            // Extract translation
-            translation = ExtractTranslation(matrix);
-
             // Extract scale by calculating the magnitudes of the basis vectors
             scale = ExtractScale(matrix);
 
-            // Adjust the basis vectors by dividing by their scale (normalization)
-            Fixed4x4 normalizedMatrix = new Fixed4x4(
-                matrix.m00 / scale.x, matrix.m01 / scale.y, matrix.m02 / scale.z, Fixed64.Zero,
-                matrix.m10 / scale.x, matrix.m11 / scale.y, matrix.m12 / scale.z, Fixed64.Zero,
-                matrix.m20 / scale.x, matrix.m21 / scale.y, matrix.m22 / scale.z, Fixed64.Zero,
-                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
-            );
+            // Extract translation
+            Fixed4x4 normalizedMatrix = ApplyScaleToRotation(matrix, new Vector3d(Fixed64.One / scale.x, Fixed64.One / scale.y, Fixed64.One / scale.z));
+            translation = ExtractTranslation(normalizedMatrix);
 
-            // Normalize the basis vectors and handle possible precision issues
-            Vector3d basisX = new Vector3d(normalizedMatrix.m00, normalizedMatrix.m01, normalizedMatrix.m02).Normalize();
-            Vector3d basisY = new Vector3d(normalizedMatrix.m10, normalizedMatrix.m11, normalizedMatrix.m12).Normalize();
-            Vector3d basisZ = new Vector3d(normalizedMatrix.m20, normalizedMatrix.m21, normalizedMatrix.m22).Normalize();
+            // Extract scale from the basis vectors
+            Vector3d basisX = new Vector3d(matrix.m00, matrix.m01, matrix.m02);
+            Vector3d basisY = new Vector3d(matrix.m10, matrix.m11, matrix.m12);
+            Vector3d basisZ = new Vector3d(matrix.m20, matrix.m21, matrix.m22);
 
-            // Handle near-zero scale components by setting default axes
-            Fixed64 epsilon = (Fixed64)0.0001;
-            if (scale.x < epsilon) basisX = new Vector3d(Fixed64.One, Fixed64.Zero, Fixed64.Zero);
-            if (scale.y < epsilon) basisY = Vector3d.Cross(basisZ, basisX).Normalize();
-            if (scale.z < epsilon) basisZ = Vector3d.Cross(basisX, basisY).Normalize();
+            scale = new Vector3d(basisX.Magnitude, basisY.Magnitude, basisZ.Magnitude);
 
-            // Recompute the matrix with corrected orthogonal basis vectors
-            normalizedMatrix = new Fixed4x4(
+            // Normalize the basis vectors to isolate rotation
+            if (scale.x > Fixed64.Zero) basisX /= scale.x;
+            if (scale.y > Fixed64.Zero) basisY /= scale.y;
+            if (scale.z > Fixed64.Zero) basisZ /= scale.z;
+
+            // Construct the normalized rotation matrix
+            Fixed4x4 normalizedRotationMatrix = new Fixed4x4(
                 basisX.x, basisX.y, basisX.z, Fixed64.Zero,
                 basisY.x, basisY.y, basisY.z, Fixed64.Zero,
                 basisZ.x, basisZ.y, basisZ.z, Fixed64.Zero,
@@ -356,18 +352,18 @@ namespace FixedMathSharp
             );
 
             // Check the determinant to ensure correct handedness
-            Fixed64 determinant = normalizedMatrix.GetDeterminant();
+            Fixed64 determinant = normalizedRotationMatrix.GetDeterminant();
             if (determinant < Fixed64.Zero)
             {
                 // Adjust for left-handed coordinate system by flipping one of the axes
                 scale.x = -scale.x;
-                normalizedMatrix.m00 = -normalizedMatrix.m00;
-                normalizedMatrix.m01 = -normalizedMatrix.m01;
-                normalizedMatrix.m02 = -normalizedMatrix.m02;
+                normalizedRotationMatrix.m00 = -normalizedRotationMatrix.m00;
+                normalizedRotationMatrix.m01 = -normalizedRotationMatrix.m01;
+                normalizedRotationMatrix.m02 = -normalizedRotationMatrix.m02;
             }
 
             // Extract the rotation component from the orthogonalized matrix
-            rotation = FixedQuaternion.FromMatrix(normalizedMatrix);
+            rotation = FixedQuaternion.FromMatrix(normalizedRotationMatrix);
 
             return true;
         }
@@ -528,7 +524,7 @@ namespace FixedMathSharp
 
         #endregion
 
-        #region Matrix Operators
+        #region Static Matrix Operators
 
         /// <summary>
         /// Inverts the matrix if it is invertible (i.e., if the determinant is not zero).
@@ -599,6 +595,42 @@ namespace FixedMathSharp
             return true;
         }
 
+        /// <summary>
+        /// Transforms a point from local space to world space using this transformation matrix.
+        /// </summary>
+        /// <param name="matrix">The transformation matrix.</param>
+        /// <param name="point">The local-space point.</param>
+        /// <returns>The transformed point in world space.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d TransformPoint(Fixed4x4 matrix, Vector3d point)
+        {
+            return new Vector3d(
+                matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m03,
+                matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m13,
+                matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m23
+            );
+        }
+
+        /// <summary>
+        /// Transforms a point from world space into the local space of the matrix.
+        /// </summary>
+        /// <param name="matrix">The transformation matrix.</param>
+        /// <param name="point">The world-space point.</param>
+        /// <returns>The local-space point relative to the transformation matrix.</returns>
+        public static Vector3d InverseTransformPoint(Fixed4x4 matrix, Vector3d point)
+        {
+            // Invert the transformation matrix
+            if (!Invert(matrix, out Fixed4x4? inverseMatrix) || !inverseMatrix.HasValue)
+                throw new InvalidOperationException("Matrix is not invertible.");
+
+            // Apply the inverse matrix to the point (homogeneous coordinates)
+            return new Vector3d(
+                inverseMatrix.Value.m00 * point.x + inverseMatrix.Value.m01 * point.y + inverseMatrix.Value.m02 * point.z + inverseMatrix.Value.m03,
+                inverseMatrix.Value.m10 * point.x + inverseMatrix.Value.m11 * point.y + inverseMatrix.Value.m12 * point.z + inverseMatrix.Value.m13,
+                inverseMatrix.Value.m20 * point.x + inverseMatrix.Value.m21 * point.y + inverseMatrix.Value.m22 * point.z + inverseMatrix.Value.m23
+            );
+        }
+
         #endregion
 
         #region Operators
@@ -656,24 +688,31 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Multiplies two matrices using matrix multiplication rules.
+        /// Multiplies two 4x4 matrices using standard matrix multiplication.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed4x4 operator *(Fixed4x4 lhs, Fixed4x4 rhs)
         {
             return new Fixed4x4(
+                // First row
                 lhs.m00 * rhs.m00 + lhs.m01 * rhs.m10 + lhs.m02 * rhs.m20 + lhs.m03 * rhs.m30,
                 lhs.m00 * rhs.m01 + lhs.m01 * rhs.m11 + lhs.m02 * rhs.m21 + lhs.m03 * rhs.m31,
                 lhs.m00 * rhs.m02 + lhs.m01 * rhs.m12 + lhs.m02 * rhs.m22 + lhs.m03 * rhs.m32,
                 lhs.m00 * rhs.m03 + lhs.m01 * rhs.m13 + lhs.m02 * rhs.m23 + lhs.m03 * rhs.m33,
+
+                // Second row
                 lhs.m10 * rhs.m00 + lhs.m11 * rhs.m10 + lhs.m12 * rhs.m20 + lhs.m13 * rhs.m30,
                 lhs.m10 * rhs.m01 + lhs.m11 * rhs.m11 + lhs.m12 * rhs.m21 + lhs.m13 * rhs.m31,
                 lhs.m10 * rhs.m02 + lhs.m11 * rhs.m12 + lhs.m12 * rhs.m22 + lhs.m13 * rhs.m32,
                 lhs.m10 * rhs.m03 + lhs.m11 * rhs.m13 + lhs.m12 * rhs.m23 + lhs.m13 * rhs.m33,
+
+                // Third row
                 lhs.m20 * rhs.m00 + lhs.m21 * rhs.m10 + lhs.m22 * rhs.m20 + lhs.m23 * rhs.m30,
                 lhs.m20 * rhs.m01 + lhs.m21 * rhs.m11 + lhs.m22 * rhs.m21 + lhs.m23 * rhs.m31,
                 lhs.m20 * rhs.m02 + lhs.m21 * rhs.m12 + lhs.m22 * rhs.m22 + lhs.m23 * rhs.m32,
                 lhs.m20 * rhs.m03 + lhs.m21 * rhs.m13 + lhs.m22 * rhs.m23 + lhs.m23 * rhs.m33,
+
+                // Fourth row (Translation component)
                 lhs.m30 * rhs.m00 + lhs.m31 * rhs.m10 + lhs.m32 * rhs.m20 + lhs.m33 * rhs.m30,
                 lhs.m30 * rhs.m01 + lhs.m31 * rhs.m11 + lhs.m32 * rhs.m21 + lhs.m33 * rhs.m31,
                 lhs.m30 * rhs.m02 + lhs.m31 * rhs.m12 + lhs.m32 * rhs.m22 + lhs.m33 * rhs.m32,

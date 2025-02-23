@@ -63,7 +63,6 @@ namespace FixedMathSharp
 
         #endregion
 
-
         #region Properties and Methods (Instance)
 
         /// <summary>
