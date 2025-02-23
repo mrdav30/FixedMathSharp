@@ -249,6 +249,45 @@ namespace FixedMathSharp
         }
 
         /// <summary>
+        /// Performs a smooth step interpolation between two values.
+        /// </summary>
+        /// <remarks>
+        /// The interpolation follows a cubic Hermite curve where the function starts at `a`,
+        /// accelerates, and then decelerates towards `b`, ensuring smooth transitions.
+        /// </remarks>
+        /// <param name="a">The starting value.</param>
+        /// <param name="b">The ending value.</param>
+        /// <param name="t">A value between 0 and 1 that represents the interpolation factor.</param>
+        /// <returns>The interpolated value between `a` and `b`.</returns>
+        public static Fixed64 SmoothStep(Fixed64 a, Fixed64 b, Fixed64 t)
+        {
+            t = t * t * (Fixed64.Three - Fixed64.Two * t);
+            return LinearInterpolate(a, b, t);
+        }
+
+        /// <summary>
+        /// Performs a cubic Hermite interpolation between two points, using specified tangents.
+        /// </summary>
+        /// <remarks>
+        /// This method interpolates smoothly between `p0` and `p1` while considering the tangents `m0` and `m1`.
+        /// It is useful for animation curves and smooth motion transitions.
+        /// </remarks>
+        /// <param name="p0">The first point.</param>
+        /// <param name="p1">The second point.</param>
+        /// <param name="m0">The tangent (slope) at `p0`.</param>
+        /// <param name="m1">The tangent (slope) at `p1`.</param>
+        /// <param name="t">A value between 0 and 1 that represents the interpolation factor.</param>
+        /// <returns>The interpolated value between `p0` and `p1`.</returns>
+        public static Fixed64 CubicInterpolate(Fixed64 p0, Fixed64 p1, Fixed64 m0, Fixed64 m1, Fixed64 t)
+        {
+            Fixed64 t2 = t * t;
+            Fixed64 t3 = t2 * t;
+            return (Fixed64.Two * p0 - Fixed64.Two * p1 + m0 + m1) * t3
+                 + (-Fixed64.Three * p0 + Fixed64.Three * p1 - Fixed64.Two * m0 - m1) * t2
+                 + m0 * t + p0;
+        }
+
+        /// <summary>
         /// Performs linear interpolation between two fixed-point values based on the interpolant t (0 greater or equal to `t` and less than or equal to 1).
         /// </summary>
         public static Fixed64 LinearInterpolate(Fixed64 from, Fixed64 to, Fixed64 t)
