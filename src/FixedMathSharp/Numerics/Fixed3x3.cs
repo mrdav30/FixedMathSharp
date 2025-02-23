@@ -193,6 +193,32 @@ namespace FixedMathSharp
         }
 
         /// <summary>
+        /// Creates a scaling matrix that applies a uniform or non-uniform scale transformation.
+        /// </summary>
+        /// <param name="scale">The scale factors along the X, Y, and Z axes.</param>
+        /// <returns>A 3x3 scaling matrix.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed3x3 CreateScale(Vector3d scale)
+        {
+            return new Fixed3x3(
+                scale.x, Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, scale.y, Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, scale.z
+            );
+        }
+
+        /// <summary>
+        /// Creates a uniform scaling matrix with the same scale factor on all axes.
+        /// </summary>
+        /// <param name="scaleFactor">The uniform scale factor.</param>
+        /// <returns>A 3x3 scaling matrix with uniform scaling.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed3x3 CreateScale(Fixed64 scaleFactor)
+        {
+            return CreateScale(new Vector3d(scaleFactor, scaleFactor, scaleFactor));
+        }
+
+        /// <summary>
         /// Normalizes the basis vectors of a 3x3 matrix to ensure they are orthogonal and unit length.
         /// </summary>
         /// <remarks>
@@ -317,7 +343,7 @@ namespace FixedMathSharp
 
         #endregion
 
-        #region Matrix Operations
+        #region Static Matrix Operations
 
         /// <summary>
         /// Linearly interpolates between two matrices.
@@ -380,10 +406,45 @@ namespace FixedMathSharp
             return true;
         }
 
+        /// <summary>
+        /// Transforms a direction vector from local space to world space using this transformation matrix.
+        /// Ignores translation.
+        /// </summary>
+        /// <param name="matrix">The transformation matrix.</param>
+        /// <param name="direction">The local-space direction vector.</param>
+        /// <returns>The transformed direction in world space.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d TransformDirection(Fixed3x3 matrix, Vector3d direction)
+        {
+            return new Vector3d(
+                matrix.m00 * direction.x + matrix.m01 * direction.y + matrix.m02 * direction.z,
+                matrix.m10 * direction.x + matrix.m11 * direction.y + matrix.m12 * direction.z,
+                matrix.m20 * direction.x + matrix.m21 * direction.y + matrix.m22 * direction.z
+            );
+        }
+
+        /// <summary>
+        /// Transforms a direction from world space into the local space of the matrix.
+        /// Ignores translation.
+        /// </summary>
+        /// <param name="matrix">The transformation matrix.</param>
+        /// <param name="direction">The world-space direction.</param>
+        /// <returns>The transformed local-space direction.</returns>
+        public static Vector3d InverseTransformDirection(Fixed3x3 matrix, Vector3d direction)
+        {
+            if (!Invert(matrix, out Fixed3x3? inverseMatrix) || !inverseMatrix.HasValue)
+                throw new InvalidOperationException("Matrix is not invertible.");
+
+            return new Vector3d(
+                inverseMatrix.Value.m00 * direction.x + inverseMatrix.Value.m01 * direction.y + inverseMatrix.Value.m02 * direction.z,
+                inverseMatrix.Value.m10 * direction.x + inverseMatrix.Value.m11 * direction.y + inverseMatrix.Value.m12 * direction.z,
+                inverseMatrix.Value.m20 * direction.x + inverseMatrix.Value.m21 * direction.y + inverseMatrix.Value.m22 * direction.z
+            );
+        }
+
         #endregion
 
         #region Operators
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed3x3 operator -(Fixed3x3 a, Fixed3x3 b)

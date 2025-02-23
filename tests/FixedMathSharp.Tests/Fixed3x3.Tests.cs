@@ -1,4 +1,5 @@
 ﻿#if NET48_OR_GREATER
+using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 #endif
@@ -154,7 +155,7 @@ namespace FixedMathSharp.Tests
                 Fixed64.Zero, Fixed64.Zero, Fixed64.One
             );
 
-            var success = Fixed3x3.Invert(matrix, out var result);
+            var success = Fixed3x3.Invert(matrix, out var _);
             Assert.False(success);
         }
 
@@ -217,6 +218,107 @@ namespace FixedMathSharp.Tests
             Assert.Equal(Fixed64.One, xAxis.Magnitude);
             Assert.Equal(Fixed64.One, yAxis.Magnitude);
             Assert.Equal(Fixed64.One, zAxis.Magnitude);
+        }
+
+        [Fact]
+        public void TransformDirection_IdentityMatrix_ReturnsSameVector()
+        {
+            var matrix = Fixed3x3.Identity;
+            var direction = new Vector3d(1, 2, 3);
+
+            var transformed = Fixed3x3.TransformDirection(matrix, direction);
+
+            Assert.Equal(direction, transformed);
+        }
+
+        [Fact]
+        public void TransformDirection_90DegreeRotationX_WorksCorrectly()
+        {
+            var matrix = Fixed3x3.CreateRotationX(FixedMath.PiOver2); // 90-degree rotation around X-axis
+            var direction = new Vector3d(0, 1, 0); // Pointing along Y-axis
+
+            var transformed = Fixed3x3.TransformDirection(matrix, direction);
+
+            // Expecting the direction to be rotated into the Z-axis
+            var expected = new Vector3d(0, 0, 1);
+            Assert.Equal(expected, transformed);
+        }
+
+        [Fact]
+        public void TransformDirection_90DegreeRotationY_WorksCorrectly()
+        {
+            var matrix = Fixed3x3.CreateRotationY(FixedMath.PiOver2); // 90-degree rotation around Y-axis
+            var direction = new Vector3d(1, 0, 0); // Pointing along X-axis
+
+            var transformed = Fixed3x3.TransformDirection(matrix, direction);
+
+            // Expecting the direction to be rotated into the negative Z-axis
+            var expected = new Vector3d(0, 0, -1);
+            Assert.Equal(expected, transformed);
+        }
+
+        [Fact]
+        public void TransformDirection_90DegreeRotationZ_WorksCorrectly()
+        {
+            var matrix = Fixed3x3.CreateRotationZ(FixedMath.PiOver2); // 90-degree rotation around Z-axis
+            var direction = new Vector3d(1, 0, 0); // Pointing along X-axis
+
+            var transformed = Fixed3x3.TransformDirection(matrix, direction);
+
+            // Expecting the direction to be rotated into the Y-axis
+            var expected = new Vector3d(0, 1, 0);
+            Assert.Equal(expected, transformed);
+        }
+
+        [Fact]
+        public void TransformDirection_WithScaling_DirectionRemainsNormalized()
+        {
+            var matrix = Fixed3x3.CreateScale(new Vector3d(2, 3, 4));
+            var direction = new Vector3d(1, 1, 1).Normal;
+
+            var transformed = Fixed3x3.TransformDirection(matrix, direction).Normal;
+
+            // Direction should still be normalized (scaling affects positions, not directions)
+            Assert.Equal(Fixed64.One, transformed.Magnitude, new Fixed64(0.0001));
+        }
+
+        [Fact]
+        public void InverseTransformDirection_IdentityMatrix_ReturnsSameVector()
+        {
+            var matrix = Fixed3x3.Identity;
+            var direction = new Vector3d(1, 2, 3);
+
+            var inverseTransformed = Fixed3x3.InverseTransformDirection(matrix, direction);
+
+            Assert.Equal(direction, inverseTransformed);
+        }
+
+        [Fact]
+        public void InverseTransformDirection_InvertsTransformDirection()
+        {
+            var matrix = Fixed3x3.CreateRotationY(FixedMath.PiOver2); // 90-degree Y-axis rotation
+            var direction = new Vector3d(1, 0, 0);
+
+            var transformed = Fixed3x3.TransformDirection(matrix, direction);
+            var inverseTransformed = Fixed3x3.InverseTransformDirection(matrix, transformed);
+
+            // The inverse should return the original direction
+            Assert.Equal(direction, inverseTransformed);
+        }
+
+        [Fact]
+        public void InverseTransformDirection_NonInvertibleMatrix_ThrowsException()
+        {
+            var singularMatrix = new Fixed3x3(
+                Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, // Singular row
+                Fixed64.Zero, Fixed64.Zero, Fixed64.One
+            );
+
+            var direction = new Vector3d(1, 1, 1);
+
+            Assert.Throws<System.InvalidOperationException>(() =>
+                Fixed3x3.InverseTransformDirection(singularMatrix, direction));
         }
 
         [Fact]

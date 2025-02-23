@@ -278,7 +278,7 @@ namespace FixedMathSharp.Tests
 
         #endregion
 
-        #region Test: LinearInterpolate Method
+        #region Test: Interpolation Methods
 
         [Fact]
         public void LinearInterpolate_TAtZero_ReturnsFromValue()
@@ -299,6 +299,48 @@ namespace FixedMathSharp.Tests
         {
             var result = FixedMath.LinearInterpolate(new Fixed64(3), new Fixed64(5), new Fixed64(0.5));
             Assert.Equal(new Fixed64(4), result);  // Midpoint should be 4
+        }
+
+        [Fact]
+        public void SmoothStep_TAtZero_ReturnsFromValue()
+        {
+            var result = FixedMath.SmoothStep(new Fixed64(3), new Fixed64(5), new Fixed64(0));
+            Assert.Equal(new Fixed64(3), result);
+        }
+
+        [Fact]
+        public void SmoothStep_TAtOne_ReturnsToValue()
+        {
+            var result = FixedMath.SmoothStep(new Fixed64(3), new Fixed64(5), new Fixed64(1));
+            Assert.Equal(new Fixed64(5), result);
+        }
+
+        [Fact]
+        public void SmoothStep_TAtHalf_ReturnsSmoothedMidpoint()
+        {
+            var result = FixedMath.SmoothStep(new Fixed64(0), new Fixed64(10), new Fixed64(0.5));
+            Assert.Equal(new Fixed64(5), result); // Should be near 5 with smoothing effect
+        }
+
+        [Fact]
+        public void CubicInterpolate_TAtZero_ReturnsP0()
+        {
+            var result = FixedMath.CubicInterpolate(new Fixed64(3), new Fixed64(5), new Fixed64(1), new Fixed64(1), new Fixed64(0));
+            Assert.Equal(new Fixed64(3), result);
+        }
+
+        [Fact]
+        public void CubicInterpolate_TAtOne_ReturnsP1()
+        {
+            var result = FixedMath.CubicInterpolate(new Fixed64(3), new Fixed64(5), new Fixed64(1), new Fixed64(1), new Fixed64(1));
+            Assert.Equal(new Fixed64(5), result);
+        }
+
+        [Fact]
+        public void CubicInterpolate_TAtHalf_ReturnsSmoothCurveValue()
+        {
+            var result = FixedMath.CubicInterpolate(new Fixed64(0), new Fixed64(10), new Fixed64(2), new Fixed64(2), new Fixed64(0.5));
+            Assert.Equal(new Fixed64(5), result); // Expected to be near midpoint but with cubic smoothing
         }
 
         #endregion
