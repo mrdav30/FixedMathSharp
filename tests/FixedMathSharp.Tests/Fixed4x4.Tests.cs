@@ -6,7 +6,6 @@ using System.Runtime.Serialization.Formatters.Binary;
 #if NET8_0_OR_GREATER
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
 #endif
 
 using Xunit;
@@ -82,7 +81,7 @@ namespace FixedMathSharp.Tests
             var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2); // 90 degrees around Y-axis
 
             var matrix = Fixed4x4.Identity;
-            matrix.SetTransform(translation, scale, rotation);
+            matrix.SetTransform(translation, rotation, scale);
 
             // Extract and validate translation, scale, and rotation
             var extractedTranslation = matrix.ExtractTranslation();
@@ -100,7 +99,7 @@ namespace FixedMathSharp.Tests
         {
             var scale = new Vector3d(2, 2, 2);
             var matrix = Fixed4x4.Identity;
-            matrix.SetTransform(new Vector3d(0, 0, 0), scale, FixedQuaternion.Identity);
+            matrix.SetTransform(new Vector3d(0, 0, 0), FixedQuaternion.Identity, scale);
 
             var extractedLossyScale = matrix.ExtractLossyScale();
 
@@ -112,7 +111,7 @@ namespace FixedMathSharp.Tests
         {
             var scale = new Vector3d(2, 3, 4);
             var matrix = Fixed4x4.Identity;
-            matrix.SetTransform(new Vector3d(0, 0, 0), scale, FixedQuaternion.Identity);
+            matrix.SetTransform(new Vector3d(0, 0, 0), FixedQuaternion.Identity, scale);
 
             var extractedLossyScale = matrix.ExtractLossyScale();
 
@@ -211,16 +210,19 @@ namespace FixedMathSharp.Tests
         [Fact]
         public void FixedMatrix4x4_TRS_CreatesCorrectTransformationMatrix()
         {
-            var translation = new Vector3d(1, 2, 3);
-            var rotation = FixedQuaternion.FromEulerAnglesInDegrees(Fixed64.Zero, FixedMath.PiOver2, Fixed64.Zero);
-            var scale = new Vector3d(1, 1, 1);
+            var translation = new Vector3d(3, -2, 5);
+            var rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)30, (Fixed64)45, (Fixed64)60);
+            var scale = new Vector3d(2, 3, 4);
 
-            var trsMatrix = Fixed4x4.TRS(translation, rotation, scale);
+            var trsMatrix = Fixed4x4.SRT(translation, rotation, scale);
 
-            // Verify translation
-            Assert.Equal(new Fixed64(1), trsMatrix.m03);
-            Assert.Equal(new Fixed64(2), trsMatrix.m13);
-            Assert.Equal(new Fixed64(3), trsMatrix.m23);
+            // Instead of direct equality, compare the decomposed components
+            Assert.True(Fixed4x4.Decompose(trsMatrix, out var decomposedScale, out var decomposedRotation, out var decomposedTranslation));
+
+            Assert.True(translation.FuzzyEqual(decomposedTranslation, new Fixed64(0.0001)));
+            Assert.True(scale.FuzzyEqual(decomposedScale, new Fixed64(0.0001)));
+            Assert.True(decomposedRotation.FuzzyEqual(rotation, new Fixed64(0.0001)),
+                $"Expected {rotation} but got {decomposedRotation}");
         }
 
         [Fact]
@@ -240,7 +242,7 @@ namespace FixedMathSharp.Tests
             var globalScale = new Vector3d(4, 4, 4);
 
             var matrix = Fixed4x4.Identity;
-            matrix.SetTransform(Vector3d.Zero, initialScale, FixedQuaternion.Identity);
+            matrix.SetTransform(Vector3d.Zero, FixedQuaternion.Identity, initialScale);
 
             // Apply global scaling
             matrix.SetGlobalScale(globalScale);
@@ -259,7 +261,7 @@ namespace FixedMathSharp.Tests
             var globalScale = new Vector3d(4, 4, 4);
 
             var matrix = Fixed4x4.Identity;
-            matrix.SetTransform(Vector3d.Zero, initialScale, rotation);
+            matrix.SetTransform(Vector3d.Zero, rotation, initialScale);
 
             // Apply global scaling
             matrix.SetGlobalScale(globalScale);
@@ -271,13 +273,64 @@ namespace FixedMathSharp.Tests
         }
 
         [Fact]
+        public void TransformPoint_WorldToLocal_ReturnsCorrectResult()
+        {
+            var translation = new Vector3d(7, 12, -5);
+            var rotation = FixedQuaternion.FromEulerAnglesInDegrees(-(Fixed64)20, (Fixed64)35, (Fixed64)50);
+            var scale = new Vector3d(1, 2, 1.5);
+
+            var transformMatrix = Fixed4x4.SRT(translation, rotation, scale);
+
+            var worldPoint = new Vector3d(10, 15, -2);
+            var localPoint = Fixed4x4.InverseTransformPoint(transformMatrix, worldPoint);
+            var transformedBack = Fixed4x4.TransformPoint(transformMatrix, localPoint);
+
+            Assert.True(worldPoint.FuzzyEqual(transformedBack, new Fixed64(0.01)),
+                $"Expected {worldPoint} but got {transformedBack}");
+        }
+
+        [Fact]
+        public void InverseTransformPoint_LocalToWorld_ReturnsCorrectResult()
+        {
+            var translation = new Vector3d(-4, 1, 2.5);
+            var rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)45, -(Fixed64)30, (Fixed64)90);
+            var scale = new Vector3d(1.2, 0.8, 1.5);
+
+            var transformMatrix = Fixed4x4.SRT(translation, rotation, scale);
+
+            var localPoint = new Vector3d(2, 3, -1);
+            var worldPoint = Fixed4x4.TransformPoint(transformMatrix, localPoint);
+            var inverseTransformedPoint = Fixed4x4.InverseTransformPoint(transformMatrix, worldPoint);
+
+            Assert.True(localPoint.FuzzyEqual(inverseTransformedPoint, new Fixed64(0.0001)),
+                $"Expected {localPoint} but got {inverseTransformedPoint}");
+        }
+
+        [Fact]
+        public void TransformPoint_InverseTransformPoint_RoundTripConsistency()
+        {
+            var translation = new Vector3d(2, -4, 8);
+            var rotation = FixedQuaternion.FromEulerAnglesInDegrees(-(Fixed64)45, (Fixed64)30, (Fixed64)90);
+            var scale = new Vector3d(1.5, 2.5, 3.0);
+
+            var transformMatrix = Fixed4x4.SRT(translation, rotation, scale);
+
+            var originalPoint = new Vector3d(3, 5, 7);
+            var transformedPoint = Fixed4x4.TransformPoint(transformMatrix, originalPoint);
+            var inverseTransformedPoint = Fixed4x4.InverseTransformPoint(transformMatrix, transformedPoint);
+
+            Assert.True(originalPoint.FuzzyEqual(inverseTransformedPoint, new Fixed64(0.0001)),
+                $"Expected {originalPoint} but got {inverseTransformedPoint}");
+        }
+
+        [Fact]
         public void Fixed4x4_Serialization_RoundTripMaintainsData()
         {
             var translation = new Vector3d(1, 2, 3);
             var rotation = FixedQuaternion.FromEulerAnglesInDegrees(Fixed64.Zero, FixedMath.PiOver2, Fixed64.Zero);
             var scale = new Vector3d(1, 1, 1);
 
-            var original4x4 = Fixed4x4.TRS(translation, rotation, scale);
+            var original4x4 = Fixed4x4.SRT(translation, rotation, scale);
 
             // Serialize the Fixed4x4 object
 #if NET48_OR_GREATER
