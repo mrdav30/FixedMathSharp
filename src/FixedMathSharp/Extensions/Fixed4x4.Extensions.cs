@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
 {
@@ -39,6 +38,18 @@ namespace FixedMathSharp
         public static Fixed4x4 SetGlobalScale(this ref Fixed4x4 matrix, Vector3d globalScale)
         {
             return matrix = Fixed4x4.SetGlobalScale(matrix, globalScale);
+        }
+
+        /// <inheritdoc cref="Fixed4x4.TransformPoint(Fixed4x4, Vector3d)" />
+        public static Vector3d TransformPoint(this Fixed4x4 matrix, Vector3d point)
+        {
+            return Fixed4x4.TransformPoint(matrix, point);
+        }
+
+        /// <inheritdoc cref="Fixed4x4.InverseTransformPoint(Fixed4x4, Vector3d)" />
+        public static Vector3d InverseTransformPoint(this Fixed4x4 matrix, Vector3d point)
+        {
+            return Fixed4x4.InverseTransformPoint(matrix, point);
         }
 
         #endregion

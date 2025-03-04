@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
@@ -62,23 +61,33 @@ namespace FixedMathSharp
 
         #region Properties and Methods (Instance)
 
+        public readonly bool IsAffine => (m33 == Fixed64.One) && (m03 == Fixed64.Zero && m13 == Fixed64.Zero && m23 == Fixed64.Zero);
+
         /// <summary>
         /// Gets or sets the translation component of this matrix.
         /// </summary>
         /// <returns>
         /// The translation component of the current instance.
         /// </returns>
-        public Vector3d Translation => this.ExtractTranslation();
+        public readonly Vector3d Translation => this.ExtractTranslation();
 
-        public Vector3d Scale => this.ExtractScale();
+        public readonly Vector3d Scale => this.ExtractScale();
 
-        public FixedQuaternion Rotation => this.ExtractRotation();
+        public readonly FixedQuaternion Rotation => this.ExtractRotation();
 
         /// <summary>
         /// Calculates the determinant of a 4x4 matrix.
         /// </summary>
         public Fixed64 GetDeterminant()
         {
+            if (IsAffine)
+            {
+                return m00 * (m11 * m22 - m12 * m21)
+                     - m01 * (m10 * m22 - m12 * m20)
+                     + m02 * (m10 * m21 - m11 * m20);
+            }
+
+            // Process as full 4x4 matrix
             Fixed64 minor0 = m22 * m33 - m23 * m32;
             Fixed64 minor1 = m21 * m33 - m23 * m31;
             Fixed64 minor2 = m21 * m32 - m22 * m31;
@@ -89,7 +98,6 @@ namespace FixedMathSharp
                 - m01 * (m10 * minor0 - m12 * cofactor0 + m13 * cofactor1)
                 + m02 * (m10 * minor1 - m11 * cofactor0 + m13 * cofactor2)
                 - m03 * (m10 * minor2 - m11 * cofactor1 + m12 * cofactor2);
-
         }
 
         /// <inheritdoc cref="Fixed4x4.ResetScaleToIdentity(Fixed4x4)" />
@@ -182,7 +190,7 @@ namespace FixedMathSharp
         /// - Uses a normalized rotation matrix to maintain numerical stability.
         /// - Applies non-uniform scaling to the rotation before setting translation.
         /// - Preferred when ensuring transformations remain mathematically correct.
-        /// - If the rotation is already normalized and combined transformations are needed, consider using <see cref="SRT"/>.
+        /// - If the rotation is already normalized and combined transformations are needed, consider using <see cref="ScaleRotateTranslate"/>.
         /// </remarks>
         /// <param name="translation">The translation vector.</param>
         /// <param name="scale">The scale vector.</param>
@@ -213,7 +221,7 @@ namespace FixedMathSharp
         /// - Then rotation is applied so that rotation is not affected by non-uniform scaling.
         /// - Finally, translation moves the object to its correct world position.
         /// </remarks>
-        public static Fixed4x4 SRT(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
+        public static Fixed4x4 ScaleRotateTranslate(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
         {
             // Create translation matrix
             Fixed4x4 translationMatrix = CreateTranslation(translation);
@@ -237,7 +245,7 @@ namespace FixedMathSharp
         /// - Example use cases include **animation systems**, **hierarchical transformations**, and **UI transformations**.
         /// - If you need to apply world-space transformations, use <see cref="CreateTransform"/> instead.
         /// </remarks>
-        public static Fixed4x4 TRS(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
+        public static Fixed4x4 TranslateRotateScale(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
         {
             // Create translation matrix
             Fixed4x4 translationMatrix = CreateTranslation(translation);
@@ -300,10 +308,15 @@ namespace FixedMathSharp
         {
             Vector3d scale = ExtractScale(matrix);
 
+            // prevent divide by zero exception
+            Fixed64 scaleX = scale.x == Fixed64.Zero ? Fixed64.One : scale.x;
+            Fixed64 scaleY = scale.y == Fixed64.Zero ? Fixed64.One : scale.y;
+            Fixed64 scaleZ = scale.z == Fixed64.Zero ? Fixed64.One : scale.z;
+
             Fixed4x4 normalizedMatrix = new Fixed4x4(
-                matrix.m00 / scale.x, matrix.m01 / scale.y, matrix.m02 / scale.z, Fixed64.Zero,
-                matrix.m10 / scale.x, matrix.m11 / scale.y, matrix.m12 / scale.z, Fixed64.Zero,
-                matrix.m20 / scale.x, matrix.m21 / scale.y, matrix.m22 / scale.z, Fixed64.Zero,
+                matrix.m00 / scaleX, matrix.m01 / scaleY, matrix.m02 / scaleZ, Fixed64.Zero,
+                matrix.m10 / scaleX, matrix.m11 / scaleY, matrix.m12 / scaleZ, Fixed64.Zero,
+                matrix.m20 / scaleX, matrix.m21 / scaleY, matrix.m22 / scaleZ, Fixed64.Zero,
                 Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
             );
 
@@ -327,43 +340,31 @@ namespace FixedMathSharp
             // Extract scale by calculating the magnitudes of the basis vectors
             scale = ExtractScale(matrix);
 
+            // prevent divide by zero exception
+            scale = new Vector3d(
+                 scale.x == Fixed64.Zero ? Fixed64.One : scale.x,
+                 scale.y == Fixed64.Zero ? Fixed64.One : scale.y,
+                 scale.z == Fixed64.Zero ? Fixed64.One : scale.z);
+
+            // normalize rotation and scaling
+            Fixed4x4 normalizedMatrix = ApplyScaleToRotation(matrix, Vector3d.One / scale);
+
             // Extract translation
-            Fixed4x4 normalizedMatrix = ApplyScaleToRotation(matrix, new Vector3d(Fixed64.One / scale.x, Fixed64.One / scale.y, Fixed64.One / scale.z));
-            translation = ExtractTranslation(normalizedMatrix);
-
-            // Extract scale from the basis vectors
-            Vector3d basisX = new Vector3d(matrix.m00, matrix.m01, matrix.m02);
-            Vector3d basisY = new Vector3d(matrix.m10, matrix.m11, matrix.m12);
-            Vector3d basisZ = new Vector3d(matrix.m20, matrix.m21, matrix.m22);
-
-            scale = new Vector3d(basisX.Magnitude, basisY.Magnitude, basisZ.Magnitude);
-
-            // Normalize the basis vectors to isolate rotation
-            if (scale.x > Fixed64.Zero) basisX /= scale.x;
-            if (scale.y > Fixed64.Zero) basisY /= scale.y;
-            if (scale.z > Fixed64.Zero) basisZ /= scale.z;
-
-            // Construct the normalized rotation matrix
-            Fixed4x4 normalizedRotationMatrix = new Fixed4x4(
-                basisX.x, basisX.y, basisX.z, Fixed64.Zero,
-                basisY.x, basisY.y, basisY.z, Fixed64.Zero,
-                basisZ.x, basisZ.y, basisZ.z, Fixed64.Zero,
-                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
-            );
+            translation = new Vector3d(normalizedMatrix.m30, normalizedMatrix.m31, normalizedMatrix.m32);
 
             // Check the determinant to ensure correct handedness
-            Fixed64 determinant = normalizedRotationMatrix.GetDeterminant();
+            Fixed64 determinant = normalizedMatrix.GetDeterminant();
             if (determinant < Fixed64.Zero)
             {
                 // Adjust for left-handed coordinate system by flipping one of the axes
                 scale.x = -scale.x;
-                normalizedRotationMatrix.m00 = -normalizedRotationMatrix.m00;
-                normalizedRotationMatrix.m01 = -normalizedRotationMatrix.m01;
-                normalizedRotationMatrix.m02 = -normalizedRotationMatrix.m02;
+                normalizedMatrix.m00 = -normalizedMatrix.m00;
+                normalizedMatrix.m01 = -normalizedMatrix.m01;
+                normalizedMatrix.m02 = -normalizedMatrix.m02;
             }
 
             // Extract the rotation component from the orthogonalized matrix
-            rotation = FixedQuaternion.FromMatrix(normalizedRotationMatrix);
+            rotation = FixedQuaternion.FromMatrix(normalizedMatrix);
 
             return true;
         }
@@ -480,18 +481,21 @@ namespace FixedMathSharp
         {
             Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();
 
+            Vector3d scale = ExtractScale(matrix);
+
             // Apply rotation to the upper-left 3x3 matrix
-            matrix.m00 = rotationMatrix.m00;
-            matrix.m01 = rotationMatrix.m01;
-            matrix.m02 = rotationMatrix.m02;
 
-            matrix.m10 = rotationMatrix.m10;
-            matrix.m11 = rotationMatrix.m11;
-            matrix.m12 = rotationMatrix.m12;
+            matrix.m00 = rotationMatrix.m00 * scale.x;
+            matrix.m01 = rotationMatrix.m01 * scale.x;
+            matrix.m02 = rotationMatrix.m02 * scale.x;
 
-            matrix.m20 = rotationMatrix.m20;
-            matrix.m21 = rotationMatrix.m21;
-            matrix.m22 = rotationMatrix.m22;
+            matrix.m10 = rotationMatrix.m10 * scale.y;
+            matrix.m11 = rotationMatrix.m11 * scale.y;
+            matrix.m12 = rotationMatrix.m12 * scale.y;
+
+            matrix.m20 = rotationMatrix.m20 * scale.z;
+            matrix.m21 = rotationMatrix.m21 * scale.z;
+            matrix.m22 = rotationMatrix.m22 * scale.z;
 
             return matrix;
         }
@@ -536,13 +540,63 @@ namespace FixedMathSharp
         /// multiplied by a sign based on the element's position. 
         /// After computing all cofactors, the result is transposed to get the inverse matrix.
         /// </remarks>
-        public static bool Invert(Fixed4x4 matrix, out Fixed4x4? result)
+        public static bool Invert(Fixed4x4 matrix, out Fixed4x4 result)
+        {
+            if (!matrix.IsAffine)
+                return FullInvert(matrix, out result);
+
+            Fixed64 det = matrix.GetDeterminant();
+
+            if (det == Fixed64.Zero)
+            {
+                result = Identity;
+                return false;
+            }
+
+            Fixed64 invDet = Fixed64.One / det;
+
+            // Invert the 3×3 upper-left rotation/scale matrix
+            result = new Fixed4x4(
+                (matrix.m11 * matrix.m22 - matrix.m12 * matrix.m21) * invDet,
+                (matrix.m02 * matrix.m21 - matrix.m01 * matrix.m22) * invDet,
+                (matrix.m01 * matrix.m12 - matrix.m02 * matrix.m11) * invDet, Fixed64.Zero,
+
+                (matrix.m12 * matrix.m20 - matrix.m10 * matrix.m22) * invDet,
+                (matrix.m00 * matrix.m22 - matrix.m02 * matrix.m20) * invDet,
+                (matrix.m02 * matrix.m10 - matrix.m00 * matrix.m12) * invDet, Fixed64.Zero,
+
+                (matrix.m10 * matrix.m21 - matrix.m11 * matrix.m20) * invDet,
+                (matrix.m01 * matrix.m20 - matrix.m00 * matrix.m21) * invDet,
+                (matrix.m00 * matrix.m11 - matrix.m01 * matrix.m10) * invDet, Fixed64.Zero,
+
+                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One  // Ensure homogeneous coordinate stays valid
+            );
+
+            Fixed3x3 rotationScaleInverse = new Fixed3x3(
+                result.m00, result.m01, result.m02,
+                result.m10, result.m11, result.m12,
+                result.m20, result.m21, result.m22
+            );
+
+            // Correct translation component
+            Vector3d transformedTranslation = new Vector3d(matrix.m30, matrix.m31, matrix.m32);
+            transformedTranslation = -Fixed3x3.TransformDirection(rotationScaleInverse, transformedTranslation);
+
+            result.m30 = transformedTranslation.x;
+            result.m31 = transformedTranslation.y;
+            result.m32 = transformedTranslation.z;
+            result.m33 = Fixed64.One;
+
+            return true;
+        }
+
+        private static bool FullInvert(Fixed4x4 matrix, out Fixed4x4 result)
         {
             Fixed64 det = matrix.GetDeterminant();
 
             if (det == Fixed64.Zero)
             {
-                result = null;
+                result = Fixed4x4.Identity;
                 return false;
             }
 
@@ -598,16 +652,37 @@ namespace FixedMathSharp
         /// <summary>
         /// Transforms a point from local space to world space using this transformation matrix.
         /// </summary>
+        /// <remarks>
+        /// This is the same as doing `<see cref="Fixed4x4"/> a * <see cref="Vector3d"/> b`
+        /// </remarks>
         /// <param name="matrix">The transformation matrix.</param>
         /// <param name="point">The local-space point.</param>
         /// <returns>The transformed point in world space.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d TransformPoint(Fixed4x4 matrix, Vector3d point)
         {
+            if (matrix.IsAffine)
+            {
+                return new Vector3d(
+                    matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m30,
+                    matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m31,
+                    matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m32
+                );
+            }
+
+            return FullTransformPoint(matrix, point);
+        }
+
+        private static Vector3d FullTransformPoint(Fixed4x4 matrix, Vector3d point)
+        {
+            // Full 4×4 transformation (needed for perspective projections)
+            Fixed64 w = matrix.m03 * point.x + matrix.m13 * point.y + matrix.m23 * point.z + matrix.m33;
+            if (w == Fixed64.Zero) w = Fixed64.One;  // Prevent divide-by-zero
+
             return new Vector3d(
-                matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m03,
-                matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m13,
-                matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m23
+                (matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m30) / w,
+                (matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m31) / w,
+                (matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m32) / w
             );
         }
 
@@ -620,14 +695,31 @@ namespace FixedMathSharp
         public static Vector3d InverseTransformPoint(Fixed4x4 matrix, Vector3d point)
         {
             // Invert the transformation matrix
-            if (!Invert(matrix, out Fixed4x4? inverseMatrix) || !inverseMatrix.HasValue)
+            if (!Invert(matrix, out Fixed4x4 inverseMatrix))
                 throw new InvalidOperationException("Matrix is not invertible.");
 
-            // Apply the inverse matrix to the point (homogeneous coordinates)
+            if (inverseMatrix.IsAffine)
+            {
+                return new Vector3d(
+                    inverseMatrix.m00 * point.x + inverseMatrix.m01 * point.y + inverseMatrix.m02 * point.z + inverseMatrix.m30,
+                    inverseMatrix.m10 * point.x + inverseMatrix.m11 * point.y + inverseMatrix.m12 * point.z + inverseMatrix.m31,
+                    inverseMatrix.m20 * point.x + inverseMatrix.m21 * point.y + inverseMatrix.m22 * point.z + inverseMatrix.m32
+                );
+            }
+
+            return FullInverseTransformPoint(inverseMatrix, point);
+        }
+
+        private static Vector3d FullInverseTransformPoint(Fixed4x4 matrix, Vector3d point)
+        {
+            // Full 4×4 transformation (needed for perspective projections)
+            Fixed64 w = matrix.m03 * point.x + matrix.m13 * point.y + matrix.m23 * point.z + matrix.m33;
+            if (w == Fixed64.Zero) w = Fixed64.One;  // Prevent divide-by-zero
+
             return new Vector3d(
-                inverseMatrix.Value.m00 * point.x + inverseMatrix.Value.m01 * point.y + inverseMatrix.Value.m02 * point.z + inverseMatrix.Value.m03,
-                inverseMatrix.Value.m10 * point.x + inverseMatrix.Value.m11 * point.y + inverseMatrix.Value.m12 * point.z + inverseMatrix.Value.m13,
-                inverseMatrix.Value.m20 * point.x + inverseMatrix.Value.m21 * point.y + inverseMatrix.Value.m22 * point.z + inverseMatrix.Value.m23
+                (matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m30) / w,
+                (matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m31) / w,
+                (matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m32) / w
             );
         }
 
@@ -693,30 +785,56 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed4x4 operator *(Fixed4x4 lhs, Fixed4x4 rhs)
         {
+            if (lhs.IsAffine && rhs.IsAffine)
+            {
+                // Optimized affine multiplication (skips full 4×4 multiplication)
+                return new Fixed4x4(
+                    lhs.m00 * rhs.m00 + lhs.m01 * rhs.m10 + lhs.m02 * rhs.m20,
+                    lhs.m00 * rhs.m01 + lhs.m01 * rhs.m11 + lhs.m02 * rhs.m21,
+                    lhs.m00 * rhs.m02 + lhs.m01 * rhs.m12 + lhs.m02 * rhs.m22,
+                    Fixed64.Zero,
+
+                    lhs.m10 * rhs.m00 + lhs.m11 * rhs.m10 + lhs.m12 * rhs.m20,
+                    lhs.m10 * rhs.m01 + lhs.m11 * rhs.m11 + lhs.m12 * rhs.m21,
+                    lhs.m10 * rhs.m02 + lhs.m11 * rhs.m12 + lhs.m12 * rhs.m22,
+                    Fixed64.Zero,
+
+                    lhs.m20 * rhs.m00 + lhs.m21 * rhs.m10 + lhs.m22 * rhs.m20,
+                    lhs.m20 * rhs.m01 + lhs.m21 * rhs.m11 + lhs.m22 * rhs.m21,
+                    lhs.m20 * rhs.m02 + lhs.m21 * rhs.m12 + lhs.m22 * rhs.m22,
+                    Fixed64.Zero,
+
+                    lhs.m30 * rhs.m00 + lhs.m31 * rhs.m10 + lhs.m32 * rhs.m20 + rhs.m30,
+                    lhs.m30 * rhs.m01 + lhs.m31 * rhs.m11 + lhs.m32 * rhs.m21 + rhs.m31,
+                    lhs.m30 * rhs.m02 + lhs.m31 * rhs.m12 + lhs.m32 * rhs.m22 + rhs.m32,
+                    Fixed64.One
+                );
+            }
+
+            // Full 4×4 multiplication (fallback for perspective matrices)
             return new Fixed4x4(
-                // First row
+                // Upper-left 3×3 matrix multiplication (rotation & scale)
                 lhs.m00 * rhs.m00 + lhs.m01 * rhs.m10 + lhs.m02 * rhs.m20 + lhs.m03 * rhs.m30,
                 lhs.m00 * rhs.m01 + lhs.m01 * rhs.m11 + lhs.m02 * rhs.m21 + lhs.m03 * rhs.m31,
                 lhs.m00 * rhs.m02 + lhs.m01 * rhs.m12 + lhs.m02 * rhs.m22 + lhs.m03 * rhs.m32,
                 lhs.m00 * rhs.m03 + lhs.m01 * rhs.m13 + lhs.m02 * rhs.m23 + lhs.m03 * rhs.m33,
 
-                // Second row
                 lhs.m10 * rhs.m00 + lhs.m11 * rhs.m10 + lhs.m12 * rhs.m20 + lhs.m13 * rhs.m30,
                 lhs.m10 * rhs.m01 + lhs.m11 * rhs.m11 + lhs.m12 * rhs.m21 + lhs.m13 * rhs.m31,
                 lhs.m10 * rhs.m02 + lhs.m11 * rhs.m12 + lhs.m12 * rhs.m22 + lhs.m13 * rhs.m32,
                 lhs.m10 * rhs.m03 + lhs.m11 * rhs.m13 + lhs.m12 * rhs.m23 + lhs.m13 * rhs.m33,
 
-                // Third row
                 lhs.m20 * rhs.m00 + lhs.m21 * rhs.m10 + lhs.m22 * rhs.m20 + lhs.m23 * rhs.m30,
                 lhs.m20 * rhs.m01 + lhs.m21 * rhs.m11 + lhs.m22 * rhs.m21 + lhs.m23 * rhs.m31,
                 lhs.m20 * rhs.m02 + lhs.m21 * rhs.m12 + lhs.m22 * rhs.m22 + lhs.m23 * rhs.m32,
                 lhs.m20 * rhs.m03 + lhs.m21 * rhs.m13 + lhs.m22 * rhs.m23 + lhs.m23 * rhs.m33,
 
-                // Fourth row (Translation component)
+                // Compute new translation
                 lhs.m30 * rhs.m00 + lhs.m31 * rhs.m10 + lhs.m32 * rhs.m20 + lhs.m33 * rhs.m30,
                 lhs.m30 * rhs.m01 + lhs.m31 * rhs.m11 + lhs.m32 * rhs.m21 + lhs.m33 * rhs.m31,
                 lhs.m30 * rhs.m02 + lhs.m31 * rhs.m12 + lhs.m32 * rhs.m22 + lhs.m33 * rhs.m32,
-                lhs.m30 * rhs.m03 + lhs.m31 * rhs.m13 + lhs.m32 * rhs.m23 + lhs.m33 * rhs.m33);
+                lhs.m30 * rhs.m03 + lhs.m31 * rhs.m13 + lhs.m32 * rhs.m23 + lhs.m33 * rhs.m33
+            );
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -736,7 +854,7 @@ namespace FixedMathSharp
         #region Equality and HashCode Overrides
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Fixed4x4 x && Equals(x);
         }

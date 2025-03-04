@@ -1,10 +1,18 @@
-﻿using FixedMathSharp;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
 {
     public static partial class FixedQuaternionExtensions
     {
+        /// <inheritdoc cref="FixedQuaternion.ToAngularVelocity" />
+        public static Vector3d ToAngularVelocity(
+            this FixedQuaternion currentRotation,
+            FixedQuaternion previousRotation,
+            Fixed64 deltaTime)
+        {
+            return FixedQuaternion.ToAngularVelocity(currentRotation, previousRotation, deltaTime);
+        }
+
         #region Equality
 
         /// <summary>

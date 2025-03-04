@@ -386,6 +386,63 @@ namespace FixedMathSharp
         }
 
         /// <summary>
+        /// Computes the logarithm of a quaternion, which represents the rotational displacement.
+        /// This is useful for interpolation and angular velocity calculations.
+        /// </summary>
+        /// <param name="q">The quaternion to compute the logarithm of.</param>
+        /// <returns>A Vector3d representing the logarithm of the quaternion (axis-angle representation).</returns>
+        /// <remarks>
+        /// The logarithm of a unit quaternion is given by:
+        /// log(q) = (θ * v̂), where:
+        /// - θ = 2 * acos(w) is the rotation angle.
+        /// - v̂ = (x, y, z) / ||(x, y, z)|| is the unit vector representing the axis of rotation.
+        /// If the quaternion is close to identity, the function returns a zero vector to avoid numerical instability.
+        /// </remarks>
+        public static Vector3d QuaternionLog(FixedQuaternion q)
+        {
+            // Ensure the quaternion is normalized
+            q = q.Normal;
+
+            // Extract vector part
+            Vector3d v = new Vector3d(q.x, q.y, q.z);
+            Fixed64 vLength = v.Magnitude;
+
+            // If rotation is very small, avoid division by zero
+            if (vLength < Fixed64.FromRaw(0x00001000L)) // Small epsilon
+                return Vector3d.Zero;
+
+            // Compute angle (theta = 2 * acos(w))
+            Fixed64 theta = Fixed64.Two * FixedMath.Acos(q.w);
+
+            // Convert to angular velocity
+            return (v / vLength) * theta;
+        }
+
+        /// <summary>
+        /// Computes the angular velocity required to move from `previousRotation` to `currentRotation` over a given time step.
+        /// </summary>
+        /// <param name="currentRotation">The current orientation as a quaternion.</param>
+        /// <param name="previousRotation">The previous orientation as a quaternion.</param>
+        /// <param name="deltaTime">The time step over which the rotation occurs.</param>
+        /// <returns>A Vector3d representing the angular velocity (in radians per second).</returns>
+        /// <remarks>
+        /// This function calculates the change in rotation over `deltaTime` and converts it into angular velocity.
+        /// - First, it computes the relative rotation: `rotationDelta = currentRotation * previousRotation.Inverse()`.
+        /// - Then, it applies `QuaternionLog(rotationDelta)` to extract the axis-angle representation.
+        /// - Finally, it divides by `deltaTime` to compute the angular velocity.
+        /// </remarks>
+        public static Vector3d ToAngularVelocity(
+            FixedQuaternion currentRotation, 
+            FixedQuaternion previousRotation, 
+            Fixed64 deltaTime)
+        {
+            FixedQuaternion rotationDelta = currentRotation * previousRotation.Inverse();
+            Vector3d angularDisplacement = QuaternionLog(rotationDelta);
+
+            return angularDisplacement / deltaTime; // Convert to angular velocity
+        }
+
+        /// <summary>
         /// Performs a simple linear interpolation between the components of the input quaternions
         /// </summary>
         public static FixedQuaternion Lerp(FixedQuaternion a, FixedQuaternion b, Fixed64 t)
