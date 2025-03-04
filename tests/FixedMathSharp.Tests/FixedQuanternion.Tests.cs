@@ -6,7 +6,6 @@ using System.Runtime.Serialization.Formatters.Binary;
 #if NET8_0_OR_GREATER
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
 #endif
 
 using Xunit;
@@ -198,6 +197,33 @@ namespace FixedMathSharp.Tests
         }
 
         [Fact]
+        public void FixedQuaternion_ToAngularVelocity_WorksCorrectly()
+        {
+            var prevRotation = FixedQuaternion.Identity;
+            var currentRotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver4); // Rotated 45 degrees around Y-axis
+            var deltaTime = new Fixed64(2); // Assume 2 seconds elapsed
+
+            var angularVelocity = FixedQuaternion.ToAngularVelocity(currentRotation, prevRotation, deltaTime);
+
+            var expected = new Vector3d(Fixed64.Zero, FixedMath.PiOver4 / deltaTime, Fixed64.Zero); // Expect ω = θ / dt
+            Assert.True(angularVelocity.FuzzyEqual(expected, new Fixed64(0.0001)),
+                $"ToAngularVelocity returned {angularVelocity}, expected {expected}");
+        }
+
+        [Fact]
+        public void FixedQuaternion_ToAngularVelocity_ZeroForNoRotation()
+        {
+            var prevRotation = FixedQuaternion.Identity;
+            var currentRotation = FixedQuaternion.Identity;
+            var deltaTime = Fixed64.One;
+
+            var angularVelocity = FixedQuaternion.ToAngularVelocity(currentRotation, prevRotation, deltaTime);
+
+            Assert.True(angularVelocity.FuzzyEqual(Vector3d.Zero),
+                $"ToAngularVelocity should return zero for no rotation, but got {angularVelocity}");
+        }
+
+        [Fact]
         public void FixedQuanternion_Serialization_RoundTripMaintainsData()
         {
             var quaternion = FixedQuaternion.Identity;
@@ -334,6 +360,27 @@ namespace FixedMathSharp.Tests
             var expected = FixedQuaternion.Identity;  // No rotation needed along Z-axis
 
             Assert.True(result.FuzzyEqual(expected), $"Look rotation returned {result}, expected {expected}.");
+        }
+
+        [Fact]
+        public void FixedQuaternion_QuaternionLog_WorksCorrectly()
+        {
+            var quaternion = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver4); // 45-degree rotation around Y-axis
+            var logResult = FixedQuaternion.QuaternionLog(quaternion);
+
+            var expected = new Vector3d(Fixed64.Zero, FixedMath.PiOver4, Fixed64.Zero); // Expect log(q) = θ * axis
+            Assert.True(logResult.FuzzyEqual(expected, new Fixed64(0.0001)),
+                $"QuaternionLog returned {logResult}, expected {expected}");
+        }
+
+        [Fact]
+        public void FixedQuaternion_QuaternionLog_ReturnsZeroForIdentity()
+        {
+            var identity = FixedQuaternion.Identity;
+            var logResult = FixedQuaternion.QuaternionLog(identity);
+
+            Assert.True(logResult.FuzzyEqual(Vector3d.Zero),
+                $"QuaternionLog of Identity should be (0,0,0), but got {logResult}");
         }
 
         #endregion

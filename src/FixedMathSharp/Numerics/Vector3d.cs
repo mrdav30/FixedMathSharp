@@ -997,12 +997,26 @@ namespace FixedMathSharp
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3d operator *(Fixed4x4 matrix, Vector3d vector)
+        public static Vector3d operator *(Fixed4x4 matrix, Vector3d point)
         {
+            if(matrix.IsAffine)
+            {
+                return new Vector3d(
+                    matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m03 + matrix.m30,
+                    matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m13 + matrix.m31,
+                    matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m23 + matrix.m32
+                );
+            }
+
+            // Full 4×4 transformation
+            Fixed64 w = matrix.m03 * point.x + matrix.m13 * point.y + matrix.m23 * point.z + matrix.m33;
+            if (w == Fixed64.Zero) w = Fixed64.One;  // Prevent divide-by-zero
+
             return new Vector3d(
-                matrix.m00 * vector.x + matrix.m01 * vector.y + matrix.m02 * vector.z + matrix.m03,
-                matrix.m10 * vector.x + matrix.m11 * vector.y + matrix.m12 * vector.z + matrix.m13,
-                matrix.m20 * vector.x + matrix.m21 * vector.y + matrix.m22 * vector.z + matrix.m23);
+                (matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m03 + matrix.m30) / w,
+                (matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m13 + matrix.m31) / w,
+                (matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m23 + matrix.m32) / w
+            );
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
