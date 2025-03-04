@@ -214,7 +214,7 @@ namespace FixedMathSharp.Tests
             var rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)30, (Fixed64)45, (Fixed64)60);
             var scale = new Vector3d(2, 3, 4);
 
-            var trsMatrix = Fixed4x4.SRT(translation, rotation, scale);
+            var trsMatrix = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
 
             // Instead of direct equality, compare the decomposed components
             Assert.True(Fixed4x4.Decompose(trsMatrix, out var decomposedScale, out var decomposedRotation, out var decomposedTranslation));
@@ -279,7 +279,7 @@ namespace FixedMathSharp.Tests
             var rotation = FixedQuaternion.FromEulerAnglesInDegrees(-(Fixed64)20, (Fixed64)35, (Fixed64)50);
             var scale = new Vector3d(1, 2, 1.5);
 
-            var transformMatrix = Fixed4x4.SRT(translation, rotation, scale);
+            var transformMatrix = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
 
             var worldPoint = new Vector3d(10, 15, -2);
             var localPoint = Fixed4x4.InverseTransformPoint(transformMatrix, worldPoint);
@@ -296,7 +296,7 @@ namespace FixedMathSharp.Tests
             var rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)45, -(Fixed64)30, (Fixed64)90);
             var scale = new Vector3d(1.2, 0.8, 1.5);
 
-            var transformMatrix = Fixed4x4.SRT(translation, rotation, scale);
+            var transformMatrix = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
 
             var localPoint = new Vector3d(2, 3, -1);
             var worldPoint = Fixed4x4.TransformPoint(transformMatrix, localPoint);
@@ -313,7 +313,7 @@ namespace FixedMathSharp.Tests
             var rotation = FixedQuaternion.FromEulerAnglesInDegrees(-(Fixed64)45, (Fixed64)30, (Fixed64)90);
             var scale = new Vector3d(1.5, 2.5, 3.0);
 
-            var transformMatrix = Fixed4x4.SRT(translation, rotation, scale);
+            var transformMatrix = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
 
             var originalPoint = new Vector3d(3, 5, 7);
             var transformedPoint = Fixed4x4.TransformPoint(transformMatrix, originalPoint);
@@ -330,7 +330,7 @@ namespace FixedMathSharp.Tests
             var rotation = FixedQuaternion.FromEulerAnglesInDegrees(Fixed64.Zero, FixedMath.PiOver2, Fixed64.Zero);
             var scale = new Vector3d(1, 1, 1);
 
-            var original4x4 = Fixed4x4.SRT(translation, rotation, scale);
+            var original4x4 = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
 
             // Serialize the Fixed4x4 object
 #if NET48_OR_GREATER
