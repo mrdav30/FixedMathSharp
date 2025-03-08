@@ -38,9 +38,7 @@ namespace FixedMathSharp.Tests
             var matrix = Fixed4x4.CreateTranslation(translation);
 
             // Extract the translation to verify
-            var extractedTranslation = matrix.ExtractTranslation();
-
-            Assert.Equal(translation, extractedTranslation);
+            Assert.Equal(translation, matrix.Translation);
         }
 
         [Fact]
@@ -50,9 +48,7 @@ namespace FixedMathSharp.Tests
             var matrix = Fixed4x4.CreateScale(scale);
 
             // Extract the scale to verify
-            var extractedScale = matrix.ExtractScale();
-
-            Assert.Equal(scale, extractedScale);
+            Assert.Equal(scale, matrix.Scale);
         }
 
         [Fact]
@@ -84,14 +80,10 @@ namespace FixedMathSharp.Tests
             matrix.SetTransform(translation, rotation, scale);
 
             // Extract and validate translation, scale, and rotation
-            var extractedTranslation = matrix.ExtractTranslation();
-            var extractedScale = matrix.ExtractScale();
-            var extractedRotation = matrix.ExtractRotation();
-
-            Assert.Equal(translation, extractedTranslation);
-            Assert.Equal(scale, extractedScale);
-            Assert.True(extractedRotation.FuzzyEqual(rotation, new Fixed64(0.0001)),
-                $"Extracted rotation {extractedRotation} does not match expected {rotation}.");
+            Assert.Equal(translation, matrix.Translation);
+            Assert.Equal(scale, matrix.Scale);
+            Assert.True(matrix.Rotation.FuzzyEqual(rotation, new Fixed64(0.0001)),
+                $"Extracted rotation {matrix.Rotation} does not match expected {rotation}.");
         }
 
         [Fact]
@@ -248,9 +240,7 @@ namespace FixedMathSharp.Tests
             matrix.SetGlobalScale(globalScale);
 
             // Extract the final scale
-            var extractedScale = matrix.ExtractScale();
-
-            Assert.Equal(globalScale, extractedScale);
+            Assert.Equal(globalScale, matrix.Scale);
         }
 
         [Fact]
