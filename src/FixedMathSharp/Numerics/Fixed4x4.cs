@@ -63,17 +63,16 @@ namespace FixedMathSharp
 
         public readonly bool IsAffine => (m33 == Fixed64.One) && (m03 == Fixed64.Zero && m13 == Fixed64.Zero && m23 == Fixed64.Zero);
 
-        /// <summary>
-        /// Gets or sets the translation component of this matrix.
-        /// </summary>
-        /// <returns>
-        /// The translation component of the current instance.
-        /// </returns>
-        public readonly Vector3d Translation => this.ExtractTranslation();
+        /// <inheritdoc cref="ExtractTranslation(Fixed4x4)" />
+        public readonly Vector3d Translation => ExtractTranslation(this);
 
-        public readonly Vector3d Scale => this.ExtractScale();
+        public readonly Vector3d Up => ExtractUp(this);
 
-        public readonly FixedQuaternion Rotation => this.ExtractRotation();
+        /// <inheritdoc cref="ExtractScale(Fixed4x4)" />
+        public readonly Vector3d Scale => ExtractScale(this);
+
+        /// <inheritdoc cref="ExtractRotation(Fixed4x4)" />
+        public readonly FixedQuaternion Rotation => ExtractRotation(this);
 
         /// <summary>
         /// Calculates the determinant of a 4x4 matrix.
@@ -273,6 +272,19 @@ namespace FixedMathSharp
         public static Vector3d ExtractTranslation(Fixed4x4 matrix)
         {
             return new Vector3d(matrix.m30, matrix.m31, matrix.m32);
+        }
+
+        /// <summary>
+        /// Extracts the up direction from the 4x4 matrix.
+        /// </summary>
+        /// <remarks>
+        /// This is the surface normal if the matrix represents ground orientation.
+        /// </remarks>
+        /// <param name="matrix"></param>
+        /// <returns>A <see cref="Vector3d"/> representing the up direction.</returns>
+        public static Vector3d ExtractUp(Fixed4x4 matrix)
+        {
+            return new Vector3d(matrix.m10, matrix.m11, matrix.m12).Normalize();
         }
 
         /// <summary>
