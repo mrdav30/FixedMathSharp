@@ -20,6 +20,11 @@ namespace FixedMathSharp
             return v;
         }
 
+        public static Vector3d ClampMagnitude(this Vector3d value, Fixed64 maxMagnitude)
+        {
+            return Vector3d.ClampMagnitude(value, maxMagnitude);
+        }
+
         /// <summary>
         /// Checks if the distance between two vectors is less than or equal to a specified factor.
         /// </summary>

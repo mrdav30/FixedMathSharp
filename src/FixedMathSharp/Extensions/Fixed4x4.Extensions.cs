@@ -6,13 +6,6 @@ namespace FixedMathSharp
     {
         #region Extraction, and Setters
 
-        /// <inheritdoc cref="Fixed4x4.ExtractScale(Fixed4x4)" />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3d ExtractScale(this Fixed4x4 matrix)
-        {
-            return Fixed4x4.ExtractScale(matrix);
-        }
-
         /// <inheritdoc cref="Fixed4x4.ExtractLossyScale(Fixed4x4)" />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d ExtractLossyScale(this Fixed4x4 matrix)
@@ -20,24 +13,22 @@ namespace FixedMathSharp
             return Fixed4x4.ExtractLossyScale(matrix);
         }
 
-        /// <inheritdoc cref="Fixed4x4.ExtractTranslation(Fixed4x4)" />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3d ExtractTranslation(this Fixed4x4 matrix)
-        {
-            return Fixed4x4.ExtractTranslation(matrix);
-        }
-
-        /// <inheritdoc cref="Fixed4x4.ExtractRotation(Fixed4x4)" />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static FixedQuaternion ExtractRotation(this Fixed4x4 matrix)
-        {
-            return Fixed4x4.ExtractRotation(matrix);
-        }
-
         /// <inheritdoc cref="Fixed4x4.SetGlobalScale(Fixed4x4, Vector3d)" />
         public static Fixed4x4 SetGlobalScale(this ref Fixed4x4 matrix, Vector3d globalScale)
         {
             return matrix = Fixed4x4.SetGlobalScale(matrix, globalScale);
+        }
+
+        /// <inheritdoc cref="Fixed4x4.SetTranslation(Fixed4x4, Vector3d)" />
+        public static Fixed4x4 SetTranslation(this ref Fixed4x4 matrix, Vector3d position)
+        {
+            return matrix = Fixed4x4.SetTranslation(matrix, position);
+        }
+
+        /// <inheritdoc cref="Fixed4x4.SetRotation(Fixed4x4, FixedQuaternion)" />
+        public static Fixed4x4 SetRotation(this ref Fixed4x4 matrix, FixedQuaternion rotation)
+        {
+            return matrix = Fixed4x4.SetRotation(matrix, rotation);
         }
 
         /// <inheritdoc cref="Fixed4x4.TransformPoint(Fixed4x4, Vector3d)" />
