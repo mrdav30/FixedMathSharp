@@ -174,19 +174,19 @@ namespace FixedMathSharp.Tests
         [Fact]
         public void Add_OverflowProtection_ReturnsMaxValue()
         {
-            var a = Fixed64.MaxValue;
+            var a = Fixed64.MAX_VALUE;
             var b = new Fixed64(1);
             var result = a + b;
-            Assert.Equal(Fixed64.MaxValue, result);
+            Assert.Equal(Fixed64.MAX_VALUE, result);
         }
 
         [Fact]
         public void Subtract_OverflowProtection_ReturnsMinValue()
         {
-            var a = Fixed64.MinValue;
+            var a = Fixed64.MIN_VALUE;
             var b = new Fixed64(1);
             var result = a - b;
-            Assert.Equal(Fixed64.MinValue, result);
+            Assert.Equal(Fixed64.MIN_VALUE, result);
         }
 
         #endregion

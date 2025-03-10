@@ -21,21 +21,21 @@ namespace FixedMathSharp
         /// </summary>
         public long m_rawValue;
 
-        public static readonly Fixed64 MaxValue = new Fixed64(FixedMath.MAX_VALUE_L);
-        public static readonly Fixed64 MinValue = new Fixed64(FixedMath.MIN_VALUE_L);
+        public static readonly Fixed64 MAX_VALUE = (Fixed64)FixedMath.MAX_VALUE_L;
+        public static readonly Fixed64 MIN_VALUE = (Fixed64)FixedMath.MIN_VALUE_L;
 
-        public static readonly Fixed64 One = new Fixed64(FixedMath.ONE_L);
+        public static readonly Fixed64 One = (Fixed64)FixedMath.ONE_L;
         public static readonly Fixed64 Two = One * 2;
         public static readonly Fixed64 Three = One * 3;
         public static readonly Fixed64 Half = One / 2;
         public static readonly Fixed64 Quarter = One / 4;
         public static readonly Fixed64 Eighth = One / 8;
-        public static readonly Fixed64 Zero = new Fixed64(0);
+        public static readonly Fixed64 Zero = (Fixed64)0;
 
         /// <inheritdoc cref="FixedMath.EPSILON_L" />
-        public static readonly Fixed64 Epsilon = new Fixed64(FixedMath.EPSILON_L);
+        public static readonly Fixed64 Epsilon = (Fixed64)FixedMath.EPSILON_L;
         /// <inheritdoc cref="FixedMath.PRECISION_L" />
-        public static readonly Fixed64 Precision = new Fixed64(FixedMath.PRECISION_L);
+        public static readonly Fixed64 Precision = (Fixed64)FixedMath.PRECISION_L;
 
         #endregion
 
@@ -332,18 +332,18 @@ namespace FixedMathSharp
             if (opSignsEqual)
             {
                 if (sum < 0 || (overflow && xl > 0))
-                    return MaxValue;
+                    return MAX_VALUE;
             }
             else
             {
                 if (sum > 0)
-                    return MinValue;
+                    return MIN_VALUE;
             }
 
             // Final overflow check: if the high 32 bits are non-zero or non-sign-extended, it's an overflow
             long topCarry = hihi >> FixedMath.SHIFT_AMOUNT_I;
             if (topCarry != 0 && topCarry != -1)
-                return opSignsEqual ? MaxValue : MinValue;
+                return opSignsEqual ? MAX_VALUE : MIN_VALUE;
 
             // Negative overflow check
             if (!opSignsEqual)
@@ -352,7 +352,7 @@ namespace FixedMathSharp
                 long negOp = xl < yl ? xl : yl;
 
                 if (sum > negOp && negOp < -FixedMath.ONE_L && posOp > FixedMath.ONE_L)
-                    return MinValue;
+                    return MIN_VALUE;
             }
 
             return new Fixed64(sum);
@@ -413,7 +413,7 @@ namespace FixedMathSharp
 
                 // Detect overflow
                 if ((div & ~(0xFFFFFFFFFFFFFFFF >> bitPos)) != 0)
-                    return ((xl ^ yl) & FixedMath.MIN_VALUE_L) == 0 ? MaxValue : MinValue;
+                    return ((xl ^ yl) & FixedMath.MIN_VALUE_L) == 0 ? MAX_VALUE : MIN_VALUE;
 
                 remainder <<= 1;
                 --bitPos;
@@ -456,7 +456,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 operator -(Fixed64 x)
         {
-            return x.m_rawValue == FixedMath.MIN_VALUE_L ? MaxValue : new Fixed64(-x.m_rawValue);
+            return x.m_rawValue == FixedMath.MIN_VALUE_L ? MAX_VALUE : new Fixed64(-x.m_rawValue);
         }
 
         /// <summary>

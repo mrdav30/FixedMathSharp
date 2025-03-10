@@ -22,25 +22,26 @@ namespace FixedMathSharp
 
         // Trigonometric and logarithmic constants
         internal const double PI_D = 3.14159265358979323846;
-        public static readonly Fixed64 PI = new Fixed64(PI_D);
+        public static readonly Fixed64 PI = (Fixed64)PI_D;
         public static readonly Fixed64 TwoPI = PI * 2;
         public static readonly Fixed64 PiOver2 = PI / 2;
         public static readonly Fixed64 PiOver3 = PI / 3;
         public static readonly Fixed64 PiOver4 = PI / 4;
         public static readonly Fixed64 PiOver6 = PI / 6;
-        public static readonly Fixed64 Ln2 = new Fixed64(0.6931471805599453);  // Natural logarithm of 2
+        public static readonly Fixed64 Ln2 = (Fixed64)0.6931471805599453;  // Natural logarithm of 2
 
-        public static readonly Fixed64 Log2Max = new Fixed64(63L * ONE_L);
-        public static readonly Fixed64 Log2Min = new Fixed64(-64L * ONE_L);
+        public static readonly Fixed64 LOG_2_MAX = new Fixed64(63L * ONE_L);
+        public static readonly Fixed64 LOG_2_MIN = new Fixed64(-64L * ONE_L);
 
         internal const double DEG2RAD_D = 0.01745329251994329576;  // π / 180
-        public static readonly Fixed64 Deg2Rad = new Fixed64(DEG2RAD_D);  // Degrees to radians conversion factor
+        public static readonly Fixed64 Deg2Rad = (Fixed64)DEG2RAD_D;  // Degrees to radians conversion factor
         internal const double RAD2DEG_D = 57.2957795130823208767;  // 180 / π
-        public static readonly Fixed64 Rad2Deg = new Fixed64(RAD2DEG_D);  // Radians to degrees conversion factor
+        public static readonly Fixed64 Rad2Deg = (Fixed64)RAD2DEG_D;  // Radians to degrees conversion factor
 
         // Asin Padé approximations
-        private static readonly Fixed64 PadeA1 = new Fixed64(0.183320102);
-        private static readonly Fixed64 PadeA2 = new Fixed64(0.0218804099);
+        private static readonly Fixed64 PADE_A1 = (Fixed64)0.183320102;
+        private static readonly Fixed64 PADE_A2 = (Fixed64)0.0218804099;
+
         // Carefully optimized polynomial coefficients for sin(x), ensuring maximum precision in Fixed64 math.
         private static readonly Fixed64 SIN_COEFF_3 = (Fixed64)0.16666667605750262737274169921875d; // 1/3!
         private static readonly Fixed64 SIN_COEFF_5 = (Fixed64)0.0083328341133892536163330078125d; // 1/5!
@@ -97,11 +98,11 @@ namespace FixedMathSharp
             if (x == Fixed64.One)
                 return neg ? Fixed64.One / Fixed64.Two : Fixed64.Two;
 
-            if (x >= Log2Max)
-                return neg ? Fixed64.One / Fixed64.MaxValue : Fixed64.MaxValue;
+            if (x >= LOG_2_MAX)
+                return neg ? Fixed64.One / Fixed64.MAX_VALUE : Fixed64.MAX_VALUE;
 
-            if (x <= Log2Min)
-                return neg ? Fixed64.MaxValue : Fixed64.Zero;
+            if (x <= LOG_2_MIN)
+                return neg ? Fixed64.MAX_VALUE : Fixed64.Zero;
 
             /* 
              * Taylor series expansion for exp(x)
@@ -418,7 +419,7 @@ namespace FixedMathSharp
             {
                 // Padé approximation of asin(x) for |x| < 0.5
                 Fixed64 xSquared = x * x;
-                Fixed64 numerator = x * (Fixed64.One + (xSquared * (PadeA1 + (xSquared * PadeA2))));
+                Fixed64 numerator = x * (Fixed64.One + (xSquared * (PADE_A1 + (xSquared * PADE_A2))));
                 return numerator;
             }
 
