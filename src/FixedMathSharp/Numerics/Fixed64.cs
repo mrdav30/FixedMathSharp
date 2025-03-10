@@ -21,21 +21,21 @@ namespace FixedMathSharp
         /// </summary>
         public long m_rawValue;
 
-        public static readonly Fixed64 MAX_VALUE = (Fixed64)FixedMath.MAX_VALUE_L;
-        public static readonly Fixed64 MIN_VALUE = (Fixed64)FixedMath.MIN_VALUE_L;
+        public static readonly Fixed64 MAX_VALUE = new Fixed64(FixedMath.MAX_VALUE_L);
+        public static readonly Fixed64 MIN_VALUE = new Fixed64(FixedMath.MIN_VALUE_L);
 
-        public static readonly Fixed64 One = (Fixed64)FixedMath.ONE_L;
+        public static readonly Fixed64 One = new Fixed64(FixedMath.ONE_L);
         public static readonly Fixed64 Two = One * 2;
         public static readonly Fixed64 Three = One * 3;
         public static readonly Fixed64 Half = One / 2;
         public static readonly Fixed64 Quarter = One / 4;
         public static readonly Fixed64 Eighth = One / 8;
-        public static readonly Fixed64 Zero = (Fixed64)0;
+        public static readonly Fixed64 Zero = new Fixed64(0);
 
         /// <inheritdoc cref="FixedMath.EPSILON_L" />
-        public static readonly Fixed64 Epsilon = (Fixed64)FixedMath.EPSILON_L;
+        public static readonly Fixed64 Epsilon = new Fixed64(FixedMath.EPSILON_L);
         /// <inheritdoc cref="FixedMath.PRECISION_L" />
-        public static readonly Fixed64 Precision = (Fixed64)FixedMath.PRECISION_L;
+        public static readonly Fixed64 Precision = new Fixed64(FixedMath.PRECISION_L);
 
         #endregion
 
