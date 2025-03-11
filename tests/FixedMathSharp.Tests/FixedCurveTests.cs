@@ -124,11 +124,11 @@ namespace FixedMathSharp.Tests
         public void Evaluate_ExtremeValues_ShouldHandleCorrectly()
         {
             FixedCurve curve = new FixedCurve(FixedCurveMode.Linear,
-                new FixedCurveKey(Fixed64.MinValue, -(Fixed64)10000),
-                new FixedCurveKey(Fixed64.MaxValue, (Fixed64)10000));
+                new FixedCurveKey(Fixed64.MIN_VALUE, -(Fixed64)10000),
+                new FixedCurveKey(Fixed64.MAX_VALUE, (Fixed64)10000));
 
-            Assert.Equal((Fixed64)(-10000), curve.Evaluate(Fixed64.MinValue));
-            Assert.Equal((Fixed64)(10000), curve.Evaluate(Fixed64.MaxValue));
+            Assert.Equal((Fixed64)(-10000), curve.Evaluate(Fixed64.MIN_VALUE));
+            Assert.Equal((Fixed64)(10000), curve.Evaluate(Fixed64.MAX_VALUE));
         }
 
         [Fact]

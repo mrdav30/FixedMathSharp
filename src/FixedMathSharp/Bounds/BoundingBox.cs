@@ -350,7 +350,7 @@ namespace FixedMathSharp
         public static Vector3d FindClosestPointsBetweenBoxes(BoundingBox a, BoundingBox b)
         {
             Vector3d closestPoint = Vector3d.Zero;
-            Fixed64 minDistance = Fixed64.MaxValue;
+            Fixed64 minDistance = Fixed64.MAX_VALUE;
             for (int i = 0; i < b.Vertices.Length; i++)
             {
                 Vector3d point = a.ClosestPointOnSurface(b.Vertices[i]);

@@ -14,12 +14,12 @@ namespace FixedMathSharp
         /// <summary>
         /// The smallest possible range.
         /// </summary>
-        public static readonly FixedRange MinRange = new FixedRange(Fixed64.MinValue, Fixed64.MinValue);
+        public static readonly FixedRange MinRange = new FixedRange(Fixed64.MIN_VALUE, Fixed64.MIN_VALUE);
 
         /// <summary>
         /// The largest possible range.
         /// </summary>
-        public static readonly FixedRange MaxRange = new FixedRange(Fixed64.MaxValue, Fixed64.MaxValue);
+        public static readonly FixedRange MaxRange = new FixedRange(Fixed64.MAX_VALUE, Fixed64.MAX_VALUE);
 
         #endregion
 
