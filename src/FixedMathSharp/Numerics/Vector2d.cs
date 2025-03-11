@@ -335,12 +335,23 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector2d Normalize(out Fixed64 mag)
         {
-            mag = Magnitude;
-            if (mag > Fixed64.Zero && mag != Fixed64.One)
+            mag = GetMagnitude(this);
+
+            // If magnitude is zero, return a zero vector to avoid divide-by-zero errors
+            if (mag == Fixed64.Zero)
             {
-                x /= mag;
-                y /= mag;
+                x = Fixed64.Zero;
+                y = Fixed64.Zero;
+                return this;
             }
+
+            // If already normalized, return as-is
+            if (mag == Fixed64.One)
+                return this;
+
+            x /= mag;
+            y /= mag;
+
             return this;
         }
 
@@ -604,13 +615,19 @@ namespace FixedMathSharp
         public static Vector2d GetNormalized(Vector2d value)
         {
             Fixed64 mag = GetMagnitude(value);
-            if (mag > Fixed64.Zero && mag != Fixed64.One)
-            {
-                Fixed64 xM = value.x / mag;
-                Fixed64 yM = value.y / mag;
-                return new Vector2d(xM, yM);
-            }
-            return value;
+
+            if (mag == Fixed64.Zero)
+                return new Vector2d(Fixed64.Zero, Fixed64.Zero);
+
+            // If already normalized, return as-is
+            if (mag == Fixed64.One)
+                return value;
+
+            // Normalize it exactly
+            return new Vector2d(
+                value.x / mag,
+                value.y / mag
+            );
         }
 
         /// <summary>
@@ -621,8 +638,13 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 GetMagnitude(Vector2d vector)
         {
-            Fixed64 temp1 = (vector.x * vector.x) + (vector.y * vector.y);
-            return temp1.Abs() > Fixed64.Zero ? FixedMath.Sqrt(temp1) : Fixed64.Zero;
+            Fixed64 mag = (vector.x * vector.x) + (vector.y * vector.y);
+
+            // If rounding error pushed magnitude slightly above 1, clamp it
+            if (mag > Fixed64.One && mag <= Fixed64.One + Fixed64.Epsilon)
+                return Fixed64.One;
+
+            return mag.Abs() > Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
         }
 
         /// <summary>
