@@ -183,18 +183,47 @@ namespace FixedMathSharp
         #region Quaternion Operations
 
         /// <summary>
+        /// Checks if this vector has been normalized by checking if the magnitude is close to 1.
+        /// </summary>
+        public bool IsNormalized()
+        {
+            Fixed64 mag = GetMagnitude(this);
+            return FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon;
+        }
+
+        public static Fixed64 GetMagnitude(FixedQuaternion q)
+        {
+            Fixed64 mag = (q.x * q.x) + (q.y * q.y) + (q.z * q.z) + (q.w * q.w);
+            // If rounding error caused the final magnitude to be slightly above 1, clamp it
+            if (mag > Fixed64.One && mag <= Fixed64.One + Fixed64.Epsilon)
+                return Fixed64.One;
+
+            return mag != Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
+        }
+
+        /// <summary>
         /// Normalizes the quaternion to a unit quaternion.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static FixedQuaternion GetNormalized(FixedQuaternion q)
         {
-            Fixed64 mag = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
-            if (mag > Fixed64.Zero && mag != Fixed64.One)
-            {
-                Fixed64 invMagnitude = Fixed64.One / FixedMath.Sqrt(mag);
-                return new FixedQuaternion(q.x * invMagnitude, q.y * invMagnitude, q.z * invMagnitude, q.w * invMagnitude);
-            }
-            return q;
+            Fixed64 mag = GetMagnitude(q);
+
+            // If magnitude is zero, return identity quaternion (to avoid divide by zero)
+            if (mag == Fixed64.Zero)
+                return new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+
+            // If already normalized, return as-is
+            if (mag == Fixed64.One)
+                return q;
+
+            // Normalize it exactly
+            return new FixedQuaternion(
+                q.x / mag,
+                q.y / mag,
+                q.z / mag,
+                q.w / mag
+            );
         }
 
         /// <summary>
@@ -343,7 +372,7 @@ namespace FixedMathSharp
         public static FixedQuaternion FromEulerAnglesInDegrees(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
         {
             // Convert input angles from degrees to radians
-            pitch = FixedMath.DegToRad(pitch); 
+            pitch = FixedMath.DegToRad(pitch);
             yaw = FixedMath.DegToRad(yaw);
             roll = FixedMath.DegToRad(roll);
 
@@ -432,8 +461,8 @@ namespace FixedMathSharp
         /// - Finally, it divides by `deltaTime` to compute the angular velocity.
         /// </remarks>
         public static Vector3d ToAngularVelocity(
-            FixedQuaternion currentRotation, 
-            FixedQuaternion previousRotation, 
+            FixedQuaternion currentRotation,
+            FixedQuaternion previousRotation,
             Fixed64 deltaTime)
         {
             FixedQuaternion rotationDelta = currentRotation * previousRotation.Inverse();

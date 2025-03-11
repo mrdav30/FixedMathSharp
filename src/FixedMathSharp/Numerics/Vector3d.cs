@@ -374,17 +374,26 @@ namespace FixedMathSharp
         /// If the vector is zero-length or already normalized, no operation is performed, but the original magnitude will still be output.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector3d Normalize(out Fixed64 m)
+        public Vector3d Normalize(out Fixed64 mag)
         {
-            Fixed64 mag = Magnitude;
-            if (mag > Fixed64.Zero && mag != Fixed64.One)
+            mag = GetMagnitude(this);
+
+            // If magnitude is zero, return a zero vector to avoid divide-by-zero errors
+            if (mag == Fixed64.Zero)
             {
-                x /= mag;
-                y /= mag;
-                z /= mag;
+                x = Fixed64.Zero;
+                y = Fixed64.Zero;
+                z = Fixed64.Zero;
+                return this;
             }
 
-            m = mag;
+            // If already normalized, return as-is
+            if (mag == Fixed64.One)
+                return this;
+
+            x /= mag;
+            y /= mag;
+            z /= mag;
 
             return this;
         }
@@ -394,7 +403,7 @@ namespace FixedMathSharp
         /// </summary>
         public bool IsNormalized()
         {
-            return Magnitude.Round() - Fixed64.One == Fixed64.Zero;
+            return FixedMath.Abs(Magnitude - Fixed64.One) <= Fixed64.Epsilon;
         }
 
         /// <summary>
@@ -561,14 +570,21 @@ namespace FixedMathSharp
         public static Vector3d GetNormalized(Vector3d value)
         {
             Fixed64 mag = GetMagnitude(value);
-            if (mag > Fixed64.Zero && mag != Fixed64.One)
-            {
-                Fixed64 xM = value.x / mag;
-                Fixed64 yM = value.y / mag;
-                Fixed64 zM = value.z / mag;
-                return new Vector3d(xM, yM, zM);
-            }
-            return value;
+
+            // If magnitude is zero, return a zero vector to avoid divide-by-zero errors
+            if (mag == Fixed64.Zero)
+                return new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
+
+            // If already normalized, return as-is
+            if (mag == Fixed64.One)
+                return value;
+
+            // Normalize it exactly           
+            return new Vector3d(
+                value.x / mag,
+                value.y / mag,
+                value.z / mag
+            );
         }
 
         /// <summary>
@@ -579,8 +595,13 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 GetMagnitude(Vector3d vector)
         {
-            Fixed64 temp1 = (vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z);
-            return temp1 != Fixed64.Zero ? FixedMath.Sqrt(temp1) : Fixed64.Zero;
+            Fixed64 mag = (vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z);
+
+            // If rounding error pushed magnitude slightly above 1, clamp it
+            if (mag > Fixed64.One && mag <= Fixed64.One + Fixed64.Epsilon)
+                return Fixed64.One;
+
+            return mag != Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
         }
 
         /// <summary>
@@ -1010,7 +1031,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3d operator *(Fixed4x4 matrix, Vector3d point)
         {
-            if(matrix.IsAffine)
+            if (matrix.IsAffine)
             {
                 return new Vector3d(
                     matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m03 + matrix.m30,
