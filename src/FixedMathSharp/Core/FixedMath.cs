@@ -78,7 +78,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 Clamp(Fixed64 f1, Fixed64 min, Fixed64? max = null)
         {
-            Fixed64 m = max ?? Fixed64.MaxValue;
+            Fixed64 m = max ?? Fixed64.MAX_VALUE;
             return f1 < min ? min : f1 > m ? m : f1;
         }
 
@@ -100,7 +100,7 @@ namespace FixedMathSharp
         {
             // For the minimum value, return the max to avoid overflow
             if (value.m_rawValue == MIN_VALUE_L)
-                return Fixed64.MaxValue;
+                return Fixed64.MAX_VALUE;
 
             // Use branchless absolute value calculation
             long mask = value.m_rawValue >> 63; // If negative, mask will be all 1s; if positive, all 0s
@@ -335,7 +335,7 @@ namespace FixedMathSharp
         /// <returns>The sum of <paramref name="x"/> and <paramref name="y"/>.</returns>
         /// <remarks>
         /// Overflow is detected by checking for a change in the sign bit that indicates a wrap-around.
-        /// Additionally, a special check is performed for adding <see cref="Fixed64.MinValue"/> and -1, 
+        /// Additionally, a special check is performed for adding <see cref="Fixed64.MIN_VALUE"/> and -1, 
         /// as this is a known edge case for overflow.
         /// </remarks>
         public static long AddOverflowHelper(long x, long y, ref bool overflow)
