@@ -37,6 +37,62 @@ namespace FixedMathSharp
         /// </summary>
         public static readonly Fixed3x3 Zero = new Fixed3x3(new Vector3d(0f, 0f, 0f), new Vector3d(0f, 0f, 0f), new Vector3d(0f, 0f, 0f));
 
+        public Fixed64 this[int index]
+        {
+            get
+            {
+                return index switch
+                {
+                    0 => m00,
+                    1 => m10,
+                    2 => m20,
+                    4 => m01,
+                    5 => m11,
+                    6 => m21,
+                    8 => m02,
+                    9 => m12,
+                    10 => m22,
+                    _ => throw new IndexOutOfRangeException("Invalid matrix index!"),
+                };
+            }
+            set
+            {
+                switch (index)
+                {
+                    case 0:
+                        m00 = value;
+                        break;
+                    case 1:
+                        m10 = value;
+                        break;
+                    case 2:
+                        m20 = value;
+                        break;
+                    case 4:
+                        m01 = value;
+                        break;
+                    case 5:
+                        m11 = value;
+                        break;
+                    case 6:
+                        m21 = value;
+                        break;
+                    case 8:
+                        m02 = value;
+                        break;
+                    case 9:
+                        m12 = value;
+                        break;
+                    case 10:
+                        m22 = value;
+                        break;
+                    default:
+                        throw new IndexOutOfRangeException("Invalid matrix index!");
+                }
+            }
+        }
+
+
         #endregion
 
         #region Constructors
