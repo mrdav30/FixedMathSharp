@@ -113,8 +113,7 @@ Console.WriteLine(sinValue); // Output: ~0.707
 - **`Vector2d` and `Vector3d` Structs:** Handle 2D and 3D vector operations.
 - **`FixedQuaternion` Struct:** Provides rotation handling without gimbal lock, enabling smooth rotations and quaternion-based transformations.
 - **`IBound` Interface:** Standard interface for bounding shapes `BoundingBox`, `BoundingArea`, and `BoundingSphere`, each offering intersection, containment, and projection logic.
-- **`FixedMath` Static Class:** Provides common math functions.
-- **`FixedTrigonometry` Class:** Offers trigonometric functions using fixed-point math.
+- **`FixedMath` Static Class:** Provides common math and trigonometric functions using fixed-point math.
 - **`Fixed4x4` and `Fixed3x3`:** Support matrix operations for transformations.
 - **`FixedMathSharp.Editor`:** Extensions for seamless integration with Unity, including property drawers and type conversions.
 
