@@ -643,14 +643,17 @@ namespace FixedMathSharp
             );
         }
 
+        /// <summary>
+        /// Clamps the given Vector3d within the specified magnitude.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="maxMagnitude"></param>
+        /// <returns></returns>
         public static Vector3d ClampMagnitude(Vector3d value, Fixed64 maxMagnitude)
         {
-            Fixed64 magnitudeSqr = value.SqrMagnitude;
-            if (magnitudeSqr > maxMagnitude * maxMagnitude)
-            {
-                Fixed64 magnitude = FixedMath.Sqrt(magnitudeSqr); // Get actual magnitude
-                return (value / magnitude) * maxMagnitude; // Scale vector to max magnitude
-            }
+            if (value.SqrMagnitude > maxMagnitude * maxMagnitude)
+                return value.Normal * maxMagnitude; // Scale vector to max magnitude
+
             return value;
         }
 
