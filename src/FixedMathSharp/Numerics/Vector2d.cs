@@ -782,9 +782,23 @@ namespace FixedMathSharp
         /// become (X, Z) in the resulting vector, with the provided Z parameter assigned to Y.
         /// </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector3d ToVector3d(Fixed64 z)
+        public readonly Vector3d ToVector3d(Fixed64 z)
         {
             return new Vector3d(x, z, y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly void Deconstruct(out float x, out float y)
+        {
+            x = this.x.ToPreciseFloat();
+            y = this.y.ToPreciseFloat();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly void Deconstruct(out int x, out int y)
+        {
+            x = this.x.RoundToInt();
+            y = this.y.RoundToInt();
         }
 
         /// <summary>
@@ -832,6 +846,36 @@ namespace FixedMathSharp
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d operator +(Fixed64 mag, Vector2d v1)
+        {
+            return v1 + mag;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d operator +(Vector2d v1, (int x, int y) v2)
+        {
+            return new Vector2d(v1.x + v2.x, v1.y + v2.y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d operator +((int x, int y) v2, Vector2d v1)
+        {
+            return v1 + v2;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d operator +(Vector2d v1, (float x, float y) v2)
+        {
+            return new Vector2d(v1.x + v2.x, v1.y + v2.y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d operator +((float x, float y) v1, Vector2d v2)
+        {
+            return v2 + v1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2d operator -(Vector2d v1, Vector2d v2)
         {
             return new Vector2d(v1.x - v2.x, v1.y - v2.y);
@@ -841,6 +885,36 @@ namespace FixedMathSharp
         public static Vector2d operator -(Vector2d v1, Fixed64 mag)
         {
             return new Vector2d(v1.x - mag, v1.y - mag);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d operator -(Fixed64 mag, Vector2d v1)
+        {
+            return new Vector2d(mag - v1.x, mag - v1.y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d operator -(Vector2d v1, (int x, int y) v2)
+        {
+            return new Vector2d(v1.x - v2.x, v1.y - v2.y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d operator -((int x, int y) v1, Vector2d v2)
+        {
+            return new Vector2d(v1.x - v2.x, v1.y - v2.y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d operator -(Vector2d v1, (float x, float y) v2)
+        {
+            return new Vector2d(v1.x - v2.x, v1.y - v2.y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2d operator -((float x, float y) v1, Vector2d v2)
+        {
+            return new Vector2d(v1.x - v2.x, v1.y - v2.y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -900,7 +974,7 @@ namespace FixedMathSharp
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Vector2d other && Equals(other);
         }
