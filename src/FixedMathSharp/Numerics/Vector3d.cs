@@ -643,14 +643,17 @@ namespace FixedMathSharp
             );
         }
 
+        /// <summary>
+        /// Clamps the given Vector3d within the specified magnitude.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="maxMagnitude"></param>
+        /// <returns></returns>
         public static Vector3d ClampMagnitude(Vector3d value, Fixed64 maxMagnitude)
         {
-            Fixed64 magnitudeSqr = value.SqrMagnitude;
-            if (magnitudeSqr > maxMagnitude * maxMagnitude)
-            {
-                Fixed64 magnitude = FixedMath.Sqrt(magnitudeSqr); // Get actual magnitude
-                return (value / magnitude) * maxMagnitude; // Scale vector to max magnitude
-            }
+            if (value.SqrMagnitude > maxMagnitude * maxMagnitude)
+                return value.Normal * maxMagnitude; // Scale vector to max magnitude
+
             return value;
         }
 
@@ -965,9 +968,39 @@ namespace FixedMathSharp
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3d operator +(Vector3d v1, Fixed64 add)
+        public static Vector3d operator +(Vector3d v1, Fixed64 mag)
         {
-            return new Vector3d(v1.x + add, v1.y + add, v1.z + add);
+            return new Vector3d(v1.x + mag, v1.y + mag, v1.z + mag);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d operator +(Fixed64 mag, Vector3d v1)
+        {
+            return v1 + mag;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d operator +(Vector3d v1, (int x, int y, int z) v2)
+        {
+            return new Vector3d(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d operator +((int x, int y, int z) v2, Vector3d v1)
+        {
+            return v1 + v2;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d operator +(Vector3d v1, (float x, float y, float z) v2)
+        {
+            return new Vector3d(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d operator +((float x, float y, float z) v1, Vector3d v2)
+        {
+            return v2 + v1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -977,9 +1010,39 @@ namespace FixedMathSharp
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3d operator -(Vector3d v1, Fixed64 sub)
+        public static Vector3d operator -(Vector3d v1, Fixed64 mag)
         {
-            return new Vector3d(v1.x - sub, v1.y - sub, v1.z - sub);
+            return new Vector3d(v1.x - mag, v1.y - mag, v1.z - mag);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d operator -(Fixed64 mag, Vector3d v1)
+        {
+            return new Vector3d(mag - v1.x, mag - v1.y, mag - v1.z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d operator -(Vector3d v1, (int x, int y, int z) v2)
+        {
+            return new Vector3d(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d operator -((int x, int y, int z) v1, Vector3d v2)
+        {
+            return new Vector3d(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d operator -(Vector3d v1, (float x, float y, float z) v2)
+        {
+            return new Vector3d(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3d operator -((float x, float y, float z) v1, Vector3d v2)
+        {
+            return new Vector3d(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1187,6 +1250,22 @@ namespace FixedMathSharp
             return new Vector2d(x, z);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly void Deconstruct(out float x, out float y, out float z)
+        {
+            x = this.x.ToPreciseFloat();
+            y = this.y.ToPreciseFloat();
+            z = this.z.ToPreciseFloat();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly void Deconstruct(out int x, out int y, out int z)
+        {
+            x = this.x.RoundToInt();
+            y = this.y.RoundToInt();
+            z = this.z.RoundToInt();
+        }
+
         /// <summary>
         /// Converts each component of the vector from radians to degrees.
         /// </summary>
@@ -1220,7 +1299,7 @@ namespace FixedMathSharp
         #region Equality and HashCode Overrides
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Vector3d other && Equals(other);
         }

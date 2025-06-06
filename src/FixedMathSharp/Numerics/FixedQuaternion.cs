@@ -20,6 +20,11 @@ namespace FixedMathSharp
         /// </summary>
         public static readonly FixedQuaternion Identity = new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
 
+        /// <summary>
+        /// Empty quaternion (0, 0, 0, 0).
+        /// </summary>
+        public static readonly FixedQuaternion Zero = new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
+
         #endregion
 
         #region Constructors
