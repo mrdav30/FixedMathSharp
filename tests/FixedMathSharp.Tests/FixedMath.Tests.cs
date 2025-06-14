@@ -352,7 +352,7 @@ namespace FixedMathSharp.Tests
         {
             var value = new Fixed64(5);
             var min = new Fixed64(3);
-            var result = FixedMath.Clamp(value, min);
+            var result = FixedMath.Clamp(value, min, Fixed64.MAX_VALUE);
             Assert.Equal(new Fixed64(5), result);
         }
 
