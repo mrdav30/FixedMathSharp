@@ -73,13 +73,28 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Clamps a fixed-point value between the given minimum and maximum values (defaults to Fixed64.Max).
+        /// Clamps a fixed-point value between the given minimum and maximum values.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Clamp(Fixed64 f1, Fixed64 min, Fixed64? max = null)
+        public static Fixed64 Clamp(Fixed64 f1, Fixed64 min, Fixed64 max)
         {
-            Fixed64 m = max ?? Fixed64.MAX_VALUE;
-            return f1 < min ? min : f1 > m ? m : f1;
+            return f1 < min ? min : f1 > max ? max : f1;
+        }
+
+        /// <summary>
+        /// Clamps a value to the inclusive range [min, max].
+        /// </summary>
+        /// <typeparam name="T">The type of the value, must implement IComparable&lt;T&gt;.</typeparam>
+        /// <param name="value">The value to clamp.</param>
+        /// <param name="min">The minimum allowed value.</param>
+        /// <param name="max">The maximum allowed value.</param>
+        /// <returns>The clamped value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T Clamp<T>(T value, T min, T max) where T : IComparable<T>
+        {
+            if (value.CompareTo(max) > 0) return max;
+            if (value.CompareTo(min) < 0) return min;
+            return value;
         }
 
         /// <summary>
