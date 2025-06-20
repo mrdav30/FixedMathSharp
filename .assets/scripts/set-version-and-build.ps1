@@ -11,13 +11,15 @@ $solutionDir = Get-SolutionDirectory
 Set-Location $solutionDir
 
 # Ensure GitVersion environment variables are set
-Ensure-GitVersion-Environment
+Ensure-GitVersion-Environment 
 
 # Build the project with the version information applied
 Build-Project -Configuration $BuildType
 
+$solutionName = Split-Path $solutionDir -Leaf
+
 # Output directory
-$releaseDir = Join-Path $solutionDir "src\$solutionDir\bin\Release"
+$releaseDir = Join-Path $solutionDir "src\$solutionName\bin\Release"
 
 # Ensure release directory exists
 if (Test-Path $releaseDir) {
@@ -26,7 +28,7 @@ if (Test-Path $releaseDir) {
         $frameworkName = $_.Name
 
         # Construct final archive name
-        $zipFileName = "${solutionDir}-v${GitVersion_FullSemVer}-${frameworkName}-release.zip"
+        $zipFileName = "${solutionName}-v$($Env:GitVersion_FullSemVer)-${frameworkName}-release.zip"
         $zipPath = Join-Path $releaseDir $zipFileName
 
         Write-Host "Creating archive: $zipPath"
@@ -38,11 +40,11 @@ if (Test-Path $releaseDir) {
         Compress-Archive -Path "$targetDir\*" -DestinationPath $zipPath -Force
 
         if (Test-Path $zipPath) {
-            Write-Host "✔ Archive created for $frameworkName"
+            Write-Host "Archive created for $frameworkName"
         } else {
-            Write-Warning "⚠ Failed to create archive for $frameworkName"
+            Write-Warning "Failed to create archive for $frameworkName"
         }
     }
 } else {
-    Write-Warning "⚠ Release directory not found: $releaseDir"
+    Write-Warning "Release directory not found: $releaseDir"
 }
