@@ -1,4 +1,6 @@
-﻿#if NET48_OR_GREATER
+﻿using MessagePack;
+
+#if NET48_OR_GREATER
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 #endif
@@ -6,7 +8,6 @@ using System.Runtime.Serialization.Formatters.Binary;
 #if NET8_0_OR_GREATER
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
 #endif
 
 using Xunit;
@@ -312,8 +313,10 @@ namespace FixedMathSharp.Tests
             Assert.True(result.FuzzyEqual(new Vector2d(0, 1), new Fixed64(0.0001))); // Should rotate to (0, 1)
         }
 
+        #region Test: Serialization
+
         [Fact]
-        public void Vector2d_Serialization_RoundTripMaintainsData()
+        public void Vector2d_NetSerialization_RoundTripMaintainsData()
         {
             var originalValue = new Vector2d(FixedMath.PI, FixedMath.PiOver2);
 
@@ -343,5 +346,19 @@ namespace FixedMathSharp.Tests
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);
         }
+
+        [Fact]
+        public void Vector2d_MsgPackSerialization_RoundTripMaintainsData()
+        {
+            Vector2d originalValue = new Vector2d(FixedMath.PI, FixedMath.PiOver2);
+
+            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
+            Vector2d deserializedValue = MessagePackSerializer.Deserialize<Vector2d>(bytes);
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalValue, deserializedValue);
+        }
+
+        #endregion
     }
 }

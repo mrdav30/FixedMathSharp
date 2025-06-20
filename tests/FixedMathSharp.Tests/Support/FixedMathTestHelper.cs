@@ -13,7 +13,11 @@ namespace FixedMathSharp.Tests
         /// <param name="actual">The actual value.</param>
         /// <param name="tolerance">The relative tolerance to apply.</param>
         /// <param name="message">Optional message for assertion failures.</param>
-        public static void AssertWithinRelativeTolerance(Fixed64 expected, Fixed64 actual, Fixed64 tolerance = default, string message = "")
+        public static void AssertWithinRelativeTolerance(
+            Fixed64 expected, 
+            Fixed64 actual, 
+            Fixed64 tolerance = default, 
+            string message = "")
         {
             if (tolerance == default)
                 tolerance = RelativeTolerance;
@@ -37,7 +41,11 @@ namespace FixedMathSharp.Tests
         /// <param name="message">
         /// An optional message to display if the assertion fails.
         /// </param>
-        public static void AssertWithinRange(Fixed64 value, Fixed64 min, Fixed64 max, string message = "")
+        public static void AssertWithinRange(
+            Fixed64 value, 
+            Fixed64 min, 
+            Fixed64 max, 
+            string message = "")
         {
             Assert.True(value >= min && value <= max,
                 string.IsNullOrWhiteSpace(message)

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
@@ -7,6 +8,7 @@ namespace FixedMathSharp
     /// Represents a range of values with fixed precision.
     /// </summary>
     [Serializable]
+    [MessagePackObject]
     public struct FixedRange : IEquatable<FixedRange>
     {
         #region Constants
@@ -28,11 +30,13 @@ namespace FixedMathSharp
         /// <summary>
         /// Gets the minimum value of the range.
         /// </summary>
+        [Key(0)]
         public Fixed64 Min;
 
         /// <summary>
         /// Gets the maximum value of the range.
         /// </summary>
+        [Key(1)]
         public Fixed64 Max;
 
         #endregion
@@ -68,6 +72,7 @@ namespace FixedMathSharp
         /// <summary>
         /// The length of the range, computed as Max - Min.
         /// </summary>
+        [IgnoreMember]
         public Fixed64 Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -77,6 +82,7 @@ namespace FixedMathSharp
         /// <summary>
         /// The midpoint of the range.
         /// </summary>
+        [IgnoreMember]
         public Fixed64 MidPoint
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -254,7 +260,7 @@ namespace FixedMathSharp
         #region Equality and HashCode Overrides
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is FixedRange other && Equals(other);
         }

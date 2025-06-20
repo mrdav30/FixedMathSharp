@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 using System.Drawing.Drawing2D;
 using System.Runtime.CompilerServices;
 
@@ -19,24 +20,76 @@ namespace FixedMathSharp
     /// - Useful when optimizing transformations, as it omits the overhead of translation and perspective.
     /// </remarks>
     [Serializable]
+    [MessagePackObject]
     public struct Fixed3x3 : IEquatable<Fixed3x3>
     {
         #region Fields and Constants
 
-        public Fixed64 m00, m01, m02;
-        public Fixed64 m10, m11, m12;
-        public Fixed64 m20, m21, m22;
+        [Key(0)]
+        public Fixed64 m00;
+        [Key(1)]
+        public Fixed64 m01;
+        [Key(2)]
+        public Fixed64 m02;
+
+        [Key(3)]
+        public Fixed64 m10;
+        [Key(4)]
+        public Fixed64 m11;
+        [Key(5)]
+        public Fixed64 m12;
+
+        [Key(6)]
+        public Fixed64 m20;
+        [Key(7)]
+        public Fixed64 m21;
+        [Key(8)]
+        public Fixed64 m22;
 
         /// <summary>
         /// Returns the identity matrix (no scaling, rotation, or translation).
         /// </summary>
-        public static readonly Fixed3x3 Identity = new Fixed3x3(new Vector3d(1f, 0f, 0f), new Vector3d(0f, 1f, 0f), new Vector3d(0f, 0f, 1f));      
+        public static readonly Fixed3x3 Identity = new(new Vector3d(1f, 0f, 0f), new Vector3d(0f, 1f, 0f), new Vector3d(0f, 0f, 1f));      
 
         /// <summary>
         /// Returns a matrix with all elements set to zero.
         /// </summary>
-        public static readonly Fixed3x3 Zero = new Fixed3x3(new Vector3d(0f, 0f, 0f), new Vector3d(0f, 0f, 0f), new Vector3d(0f, 0f, 0f));
+        public static readonly Fixed3x3 Zero = new(new Vector3d(0f, 0f, 0f), new Vector3d(0f, 0f, 0f), new Vector3d(0f, 0f, 0f));
 
+        #endregion
+
+        #region Constructors
+
+        /// <summary>
+        /// Initializes a new FixedMatrix3x3 with the specified elements.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Fixed3x3(
+            Fixed64 m00, Fixed64 m01, Fixed64 m02,
+            Fixed64 m10, Fixed64 m11, Fixed64 m12,
+            Fixed64 m20, Fixed64 m21, Fixed64 m22
+        )
+        {
+            this.m00 = m00; this.m01 = m01; this.m02 = m02;
+            this.m10 = m10; this.m11 = m11; this.m12 = m12;
+            this.m20 = m20; this.m21 = m21; this.m22 = m22;
+        }
+
+        /// <summary>
+        /// Initializes a new FixedMatrix3x3 using three Vector3d values representing the rows.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Fixed3x3(
+            Vector3d m00_m01_m02,
+            Vector3d m10_m11_m12,
+            Vector3d m20_m21_m22
+        ) : this(m00_m01_m02.x, m00_m01_m02.y, m00_m01_m02.z, m10_m11_m12.x, m10_m11_m12.y, m10_m11_m12.z, m20_m21_m22.x, m20_m21_m22.y, m20_m21_m22.z) { }
+
+        #endregion
+
+        #region Properties and Methods (Instance)
+
+        [IgnoreMember]
         public Fixed64 this[int index]
         {
             get
@@ -91,40 +144,6 @@ namespace FixedMathSharp
                 }
             }
         }
-
-
-        #endregion
-
-        #region Constructors
-
-        /// <summary>
-        /// Initializes a new FixedMatrix3x3 with the specified elements.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Fixed3x3(
-            Fixed64 m00, Fixed64 m01, Fixed64 m02,
-            Fixed64 m10, Fixed64 m11, Fixed64 m12,
-            Fixed64 m20, Fixed64 m21, Fixed64 m22
-        )
-        {
-            this.m00 = m00; this.m01 = m01; this.m02 = m02;
-            this.m10 = m10; this.m11 = m11; this.m12 = m12;
-            this.m20 = m20; this.m21 = m21; this.m22 = m22;
-        }
-
-        /// <summary>
-        /// Initializes a new FixedMatrix3x3 using three Vector3d values representing the rows.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Fixed3x3(
-            Vector3d m00_m01_m02,
-            Vector3d m10_m11_m12,
-            Vector3d m20_m21_m22
-        ) : this(m00_m01_m02.x, m00_m01_m02.y, m00_m01_m02.z, m10_m11_m12.x, m10_m11_m12.y, m10_m11_m12.z, m20_m21_m22.x, m20_m21_m22.y, m20_m21_m22.z) { }
-
-        #endregion
-
-        #region Properties and Methods (Instance)
 
         /// <inheritdoc cref="Normalize(Fixed3x3)" />
         public Fixed3x3 Normalize()
@@ -612,7 +631,7 @@ namespace FixedMathSharp
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Fixed3x3 other && Equals(other);
         }

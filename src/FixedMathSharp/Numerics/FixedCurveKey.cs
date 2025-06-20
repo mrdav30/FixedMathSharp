@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 
 #if NET8_0_OR_GREATER
 using System.Text.Json.Serialization;
@@ -10,18 +11,23 @@ namespace FixedMathSharp
     /// Represents a keyframe in a <see cref="FixedCurve"/>, defining a value at a specific time.
     /// </summary>
     [Serializable]
+    [MessagePackObject]
     public struct FixedCurveKey : IEquatable<FixedCurveKey>
     {
         /// <summary>The time at which this keyframe occurs.</summary>
+        [Key(0)]
         public Fixed64 Time;
 
         /// <summary>The value of the curve at this keyframe.</summary>
+        [Key(1)]
         public Fixed64 Value;
 
         /// <summary>The incoming tangent for cubic interpolation.</summary>
+        [Key(2)]
         public Fixed64 InTangent;
 
         /// <summary>The outgoing tangent for cubic interpolation.</summary>
+        [Key(3)]
         public Fixed64 OutTangent;
 
         /// <summary>
@@ -64,7 +70,7 @@ namespace FixedMathSharp
                    OutTangent == other.OutTangent;
         }
 
-        public override bool Equals(object obj) => obj is FixedCurveKey other && Equals(other);
+        public override bool Equals(object? obj) => obj is FixedCurveKey other && Equals(other);
 
         public override int GetHashCode()
         {

@@ -1,5 +1,12 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
+
+
+#if NET8_0_OR_GREATER
+using System.Text.Json.Serialization;
+#endif
 
 namespace FixedMathSharp
 {
@@ -15,36 +22,47 @@ namespace FixedMathSharp
     /// - Used in physics engines, rendering pipelines, and 3D simulations to represent object boundaries.
     /// - Supports more precise intersection tests than BoundingArea, making it ideal for detailed spatial queries.
     /// </remarks>
-
-    public struct BoundingBox : IBound, IEquatable<BoundingBox>
+    [Serializable]
+    [MessagePackObject(AllowPrivate = true)]
+    public struct BoundingBox : IBound, IEquatable<BoundingBox>, IDeserializationCallback
     {
         #region Fields
 
         /// <summary>
         /// The center of the bounding box.
         /// </summary>
+        [IgnoreMember]
         private Vector3d _center;
+
+        [IgnoreMember]
+        private Vector3d _size;
 
         /// <summary>
         /// The range (half-size) of the bounding box in all directions. Always half of the total size.
         /// </summary>
+        [IgnoreMember]
         private Vector3d _scope;
 
         /// <summary>
         /// The minimum corner of the bounding box.
         /// </summary>
+        [IgnoreMember]
         private Vector3d _min;
 
         /// <summary>
         /// The maximum corner of the bounding box.
         /// </summary>
+        [IgnoreMember]
         private Vector3d _max;
 
+        [IgnoreMember]
         private bool _isDirty;
+
         /// <summary>
         /// Vertices of the bounding box.
         /// </summary>
-        private readonly Vector3d[] _vertices;
+        [IgnoreMember]
+        private Vector3d[] _vertices;
 
         #endregion
 
@@ -53,14 +71,19 @@ namespace FixedMathSharp
         /// <summary>
         /// Initializes a new instance of the BoundingBox struct with the specified center and size.
         /// </summary>
+
         public BoundingBox(Vector3d center, Vector3d size)
         {
-            _center = center;
-            _scope = size * Fixed64.Half;  // Half of the size represents the scope.
-            _min = _center - _scope;
-            _max = _center + _scope;
             _vertices = new Vector3d[8];
+
+            _center = center;
+            _size = size;
+            _scope = default;
+            _min = default;
+            _max = default;
             _isDirty = true;
+
+            Recalculate();
         }
 
         #endregion
@@ -68,34 +91,41 @@ namespace FixedMathSharp
         #region Properties and Methods (Instance)
 
         /// <inheritdoc cref="_center" />
+        [Key(0)]
         public Vector3d Center
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _center;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                _center = value;
+                Recalculate();
+            }
         }
 
         /// <inheritdoc cref="_scope" />
+        [IgnoreMember]
         public Vector3d Scope
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _scope;
         }
 
         /// <inheritdoc cref="_min" />
+        [IgnoreMember]
         public Vector3d Min
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _min;
         }
 
         /// <inheritdoc cref="_max" />
+        [IgnoreMember]
         public Vector3d Max
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _max;
         }
 
         /// <inheritdoc cref="_vertices" />
+        [IgnoreMember]
         public Vector3d[] Vertices
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -105,10 +135,16 @@ namespace FixedMathSharp
         /// <summary>
         /// The total size of the box (Width, Height, Depth). This is always twice the scope.
         /// </summary>
-        public Vector3d Size
+        [Key(1)]
+        public Vector3d Proportions
         {
+            get => _size;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Scope * 2;
+            set
+            {
+                _size = value;
+                Recalculate();
+            }
         }
 
         /// <summary>
@@ -142,10 +178,10 @@ namespace FixedMathSharp
         /// </summary>
         public void SetBoundingBox(Vector3d center, Vector3d scope)
         {
-            _center = center;
+            this._center = center;
             _scope = scope;
-            _min = _center - Scope;
-            _max = _center + Scope;
+            _min = this._center - Scope;
+            _max = this._center + Scope;
             _isDirty = true;
         }
 
@@ -371,7 +407,7 @@ namespace FixedMathSharp
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator ==(BoundingBox left, BoundingBox right) => left.Equals(right);
- 
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator !=(BoundingBox left, BoundingBox right) => !left.Equals(right);
 
@@ -380,7 +416,7 @@ namespace FixedMathSharp
         #region Equality and HashCode Overrides
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(object obj) => obj is BoundingBox other && Equals(other);
+        public override bool Equals(object? obj) => obj is BoundingBox other && Equals(other);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(BoundingBox other) => _center.Equals(other._center) && Scope.Equals(other.Scope);
@@ -396,6 +432,37 @@ namespace FixedMathSharp
                 return hash;
             }
         }
+
+        #endregion
+
+        #region Recalc helper
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void Recalculate()
+        {
+            _vertices ??= new Vector3d[8];
+
+            // half-extent
+            _scope = _size * Fixed64.Half;
+            _min = _center - _scope;
+            _max = _center + _scope;
+            _isDirty = true;
+        }
+        
+        #endregion
+
+        #region Serialization callbacks
+
+        // BinaryFormatter (and many serializers) will call this after fields are restored:
+        void IDeserializationCallback.OnDeserialization(object? sender)
+            => Recalculate();
+
+#if NET8_0_OR_GREATER
+        // System.Text.Json in .NET 8 will honor this:
+        [OnDeserialized]
+        private void OnJsonDeserialized(StreamingContext _)
+            => Recalculate();
+#endif
 
         #endregion
     }

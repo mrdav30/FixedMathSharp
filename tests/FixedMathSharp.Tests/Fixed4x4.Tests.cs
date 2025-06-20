@@ -1,4 +1,6 @@
-﻿#if NET48_OR_GREATER
+﻿using MessagePack;
+
+#if NET48_OR_GREATER
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 #endif
@@ -313,8 +315,10 @@ namespace FixedMathSharp.Tests
                 $"Expected {originalPoint} but got {inverseTransformedPoint}");
         }
 
+        #region Test: Serialization
+
         [Fact]
-        public void Fixed4x4_Serialization_RoundTripMaintainsData()
+        public void Fixed4x4_NetSerialization_RoundTripMaintainsData()
         {
             var translation = new Vector3d(1, 2, 3);
             var rotation = FixedQuaternion.FromEulerAnglesInDegrees(Fixed64.Zero, FixedMath.PiOver2, Fixed64.Zero);
@@ -347,5 +351,23 @@ namespace FixedMathSharp.Tests
             // Check that deserialized values match the original
             Assert.Equal(original4x4, deserialized4x4);
         }
+
+        [Fact]
+        public void Fixed4x4_MsgPackSerialization_RoundTripMaintainsData()
+        {
+            var translation = new Vector3d(1, 2, 3);
+            var rotation = FixedQuaternion.FromEulerAnglesInDegrees(Fixed64.Zero, FixedMath.PiOver2, Fixed64.Zero);
+            var scale = new Vector3d(1, 1, 1);
+
+            Fixed4x4 originalValue = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
+
+            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
+            Fixed4x4 deserializedValue = MessagePackSerializer.Deserialize<Fixed4x4>(bytes);
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalValue, deserializedValue);
+        }
+
+        #endregion
     }
 }

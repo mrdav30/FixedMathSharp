@@ -1,4 +1,6 @@
-﻿#if NET48_OR_GREATER
+﻿using MessagePack;
+
+#if NET48_OR_GREATER
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 #endif
@@ -6,7 +8,6 @@ using System.Runtime.Serialization.Formatters.Binary;
 #if NET8_0_OR_GREATER
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
 #endif
 
 using Xunit;
@@ -126,39 +127,6 @@ namespace FixedMathSharp.Tests
         }
 
         [Fact]
-        public void FixedRange_Serialization_RoundTripMaintainsData()
-        {
-            var originalRange = new FixedRange(new Fixed64(-10), new Fixed64(10));
-
-            // Serialize the FixedRange object
-#if NET48_OR_GREATER
-            var formatter = new BinaryFormatter();
-            using var stream = new MemoryStream();
-            formatter.Serialize(stream, originalRange);
-
-            // Reset stream position and deserialize
-            stream.Seek(0, SeekOrigin.Begin);
-            var deserializedRange = (FixedRange)formatter.Deserialize(stream);
-#endif
-
-#if NET8_0_OR_GREATER
-            var jsonOptions = new JsonSerializerOptions
-            {
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                ReferenceHandler = ReferenceHandler.IgnoreCycles,
-                IncludeFields = true,
-                IgnoreReadOnlyProperties = true
-            };
-            var json = JsonSerializer.SerializeToUtf8Bytes(originalRange, jsonOptions);
-            var deserializedRange = JsonSerializer.Deserialize<FixedRange>(json, jsonOptions);
-#endif
-
-            // Check that deserialized values match the original
-            Assert.Equal(originalRange.Min, deserializedRange.Min);
-            Assert.Equal(originalRange.Max, deserializedRange.Max);
-        }
-
-        [Fact]
         public void FixedRange_EqualMinMax_DoesNotOverlapWithAnyOtherRange()
         {
             var pointRange = new FixedRange(new Fixed64(5), new Fixed64(5)); // Zero-length range at 5
@@ -195,5 +163,55 @@ namespace FixedMathSharp.Tests
 
             Assert.True(largeRange1.Overlaps(largeRange2));
         }
+
+        #region Test: Serialization
+
+
+        [Fact]
+        public void FixedRange_NetSerialization_RoundTripMaintainsData()
+        {
+            var originalRange = new FixedRange(new Fixed64(-10), new Fixed64(10));
+
+            // Serialize the FixedRange object
+#if NET48_OR_GREATER
+            var formatter = new BinaryFormatter();
+            using var stream = new MemoryStream();
+            formatter.Serialize(stream, originalRange);
+
+            // Reset stream position and deserialize
+            stream.Seek(0, SeekOrigin.Begin);
+            var deserializedRange = (FixedRange)formatter.Deserialize(stream);
+#endif
+
+#if NET8_0_OR_GREATER
+            var jsonOptions = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                IncludeFields = true,
+                IgnoreReadOnlyProperties = true
+            };
+            var json = JsonSerializer.SerializeToUtf8Bytes(originalRange, jsonOptions);
+            var deserializedRange = JsonSerializer.Deserialize<FixedRange>(json, jsonOptions);
+#endif
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalRange.Min, deserializedRange.Min);
+            Assert.Equal(originalRange.Max, deserializedRange.Max);
+        }
+
+        [Fact]
+        public void FixedRange_MsgPackSerialization_RoundTripMaintainsData()
+        {
+            FixedRange originalValue = new FixedRange(new Fixed64(-10), new Fixed64(10));
+
+            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
+            FixedRange deserializedValue = MessagePackSerializer.Deserialize<FixedRange>(bytes);
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalValue, deserializedValue);
+        }
+
+        #endregion
     }
 }

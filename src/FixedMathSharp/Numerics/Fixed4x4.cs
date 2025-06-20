@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
@@ -18,14 +19,46 @@ namespace FixedMathSharp
     /// - Useful in animation, physics engines, and 3D rendering for full transformation control.
     /// </remarks>
     [Serializable]
+    [MessagePackObject]
     public struct Fixed4x4 : IEquatable<Fixed4x4>
     {
         #region Fields and Constants
 
-        public Fixed64 m00, m01, m02, m03;
-        public Fixed64 m10, m11, m12, m13;
-        public Fixed64 m20, m21, m22, m23;
-        public Fixed64 m30, m31, m32, m33;
+        [Key(0)]
+        public Fixed64 m00;
+        [Key(1)]
+        public Fixed64 m01;
+        [Key(2)]
+        public Fixed64 m02;
+        [Key(3)]
+        public Fixed64 m03;
+
+        [Key(4)]
+        public Fixed64 m10;
+        [Key(5)]
+        public Fixed64 m11;
+        [Key(6)]
+        public Fixed64 m12;
+        [Key(7)]
+        public Fixed64 m13;
+
+        [Key(8)]
+        public Fixed64 m20;
+        [Key(9)]
+        public Fixed64 m21;
+        [Key(10)]
+        public Fixed64 m22;
+        [Key(11)]
+        public Fixed64 m23;
+
+        [Key(12)]
+        public Fixed64 m30;
+        [Key(13)]
+        public Fixed64 m31;
+        [Key(14)]
+        public Fixed64 m32;
+        [Key(15)]
+        public Fixed64 m33;
 
         /// <summary>
         /// Returns the identity matrix (diagonal elements set to 1).
@@ -44,7 +77,51 @@ namespace FixedMathSharp
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
+       
+        #endregion
 
+        #region Constructors
+
+        /// <summary>
+        /// Initializes a new FixedMatrix4x4 with individual elements.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Fixed4x4(
+            Fixed64 m00, Fixed64 m01, Fixed64 m02, Fixed64 m03,
+            Fixed64 m10, Fixed64 m11, Fixed64 m12, Fixed64 m13,
+            Fixed64 m20, Fixed64 m21, Fixed64 m22, Fixed64 m23,
+            Fixed64 m30, Fixed64 m31, Fixed64 m32, Fixed64 m33
+        )
+        {
+            this.m00 = m00; this.m01 = m01; this.m02 = m02; this.m03 = m03;
+            this.m10 = m10; this.m11 = m11; this.m12 = m12; this.m13 = m13;
+            this.m20 = m20; this.m21 = m21; this.m22 = m22; this.m23 = m23;
+            this.m30 = m30; this.m31 = m31; this.m32 = m32; this.m33 = m33;
+        }
+
+        #endregion
+
+        #region Properties and Methods (Instance)
+
+        [IgnoreMember]
+        public readonly bool IsAffine => (m33 == Fixed64.One) && (m03 == Fixed64.Zero && m13 == Fixed64.Zero && m23 == Fixed64.Zero);
+
+        /// <inheritdoc cref="ExtractTranslation(Fixed4x4)" />
+        [IgnoreMember]
+        public readonly Vector3d Translation => ExtractTranslation(this);
+
+        [IgnoreMember]
+        public readonly Vector3d Up => ExtractUp(this);
+
+        /// <inheritdoc cref="ExtractScale(Fixed4x4)" />
+        [IgnoreMember]
+        public readonly Vector3d Scale => ExtractScale(this);
+
+        /// <inheritdoc cref="ExtractRotation(Fixed4x4)" />
+        [IgnoreMember]
+        public readonly FixedQuaternion Rotation => ExtractRotation(this);
+
+        [IgnoreMember]
         public Fixed64 this[int index]
         {
             get
@@ -127,44 +204,6 @@ namespace FixedMathSharp
                 }
             }
         }
-
-        #endregion
-
-        #region Constructors
-
-        /// <summary>
-        /// Initializes a new FixedMatrix4x4 with individual elements.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Fixed4x4(
-            Fixed64 m00, Fixed64 m01, Fixed64 m02, Fixed64 m03,
-            Fixed64 m10, Fixed64 m11, Fixed64 m12, Fixed64 m13,
-            Fixed64 m20, Fixed64 m21, Fixed64 m22, Fixed64 m23,
-            Fixed64 m30, Fixed64 m31, Fixed64 m32, Fixed64 m33
-        )
-        {
-            this.m00 = m00; this.m01 = m01; this.m02 = m02; this.m03 = m03;
-            this.m10 = m10; this.m11 = m11; this.m12 = m12; this.m13 = m13;
-            this.m20 = m20; this.m21 = m21; this.m22 = m22; this.m23 = m23;
-            this.m30 = m30; this.m31 = m31; this.m32 = m32; this.m33 = m33;
-        }
-
-        #endregion
-
-        #region Properties and Methods (Instance)
-
-        public readonly bool IsAffine => (m33 == Fixed64.One) && (m03 == Fixed64.Zero && m13 == Fixed64.Zero && m23 == Fixed64.Zero);
-
-        /// <inheritdoc cref="ExtractTranslation(Fixed4x4)" />
-        public readonly Vector3d Translation => ExtractTranslation(this);
-
-        public readonly Vector3d Up => ExtractUp(this);
-
-        /// <inheritdoc cref="ExtractScale(Fixed4x4)" />
-        public readonly Vector3d Scale => ExtractScale(this);
-
-        /// <inheritdoc cref="ExtractRotation(Fixed4x4)" />
-        public readonly FixedQuaternion Rotation => ExtractRotation(this);
 
         /// <summary>
         /// Calculates the determinant of a 4x4 matrix.

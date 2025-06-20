@@ -1,3 +1,4 @@
+using MessagePack;
 using System;
 
 #if NET48_OR_GREATER
@@ -123,38 +124,6 @@ namespace FixedMathSharp.Tests
             Assert.Equal(5.5, result);
         }
 
-        [Fact]
-        public void Fixed64_Serialization_RoundTripMaintainsData()
-        {
-            var originalValue = FixedMath.PI;
-
-            // Serialize the Fixed64 object
-#if NET48_OR_GREATER
-            var formatter = new BinaryFormatter();
-            using var stream = new MemoryStream();
-            formatter.Serialize(stream, originalValue);
-
-            // Reset stream position and deserialize
-            stream.Seek(0, SeekOrigin.Begin);
-            var deserializedValue = (Fixed64)formatter.Deserialize(stream);
-#endif
-
-#if NET8_0_OR_GREATER
-            var jsonOptions = new JsonSerializerOptions
-            {
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                ReferenceHandler = ReferenceHandler.IgnoreCycles,
-                IncludeFields = true,
-                IgnoreReadOnlyProperties = true
-            };
-            var json = JsonSerializer.SerializeToUtf8Bytes(originalValue, jsonOptions);
-            var deserializedValue = JsonSerializer.Deserialize<Fixed64>(json, jsonOptions);
-#endif
-
-            // Check that deserialized values match the original
-            Assert.Equal(originalValue, deserializedValue);
-        }
-
 #endregion
 
         #region Test: Fraction Method
@@ -225,6 +194,54 @@ namespace FixedMathSharp.Tests
         {
             var a = new Fixed64(-4.2);
             Assert.False(a.IsInteger());
+        }
+
+        #endregion
+
+        #region Test: Serialization
+
+        [Fact]
+        public void Fixed64_NetSerialization_RoundTripMaintainsData()
+        {
+            var originalValue = FixedMath.PI;
+
+            // Serialize the Fixed64 object
+#if NET48_OR_GREATER
+            var formatter = new BinaryFormatter();
+            using var stream = new MemoryStream();
+            formatter.Serialize(stream, originalValue);
+
+            // Reset stream position and deserialize
+            stream.Seek(0, SeekOrigin.Begin);
+            var deserializedValue = (Fixed64)formatter.Deserialize(stream);
+#endif
+
+#if NET8_0_OR_GREATER
+            var jsonOptions = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                IncludeFields = true,
+                IgnoreReadOnlyProperties = true
+            };
+            var json = JsonSerializer.SerializeToUtf8Bytes(originalValue, jsonOptions);
+            var deserializedValue = JsonSerializer.Deserialize<Fixed64>(json, jsonOptions);
+#endif
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalValue, deserializedValue);
+        }
+
+        [Fact]
+        public void Fixed64_MsgPackSerialization_RoundTripMaintainsData()
+        {
+            Fixed64 originalValue = FixedMath.PI;
+
+            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
+            Fixed64 deserializedValue = MessagePackSerializer.Deserialize<Fixed64>(bytes);
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalValue, deserializedValue);
         }
 
         #endregion

@@ -1,4 +1,8 @@
-﻿#if NET48_OR_GREATER
+﻿using MessagePack;
+using System.Drawing;
+
+
+#if NET48_OR_GREATER
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 #endif
@@ -233,38 +237,6 @@ namespace FixedMathSharp.Tests
             var v1 = new Vector3d(1, 2, 3);
             var v2 = new Vector3d(3, 2, 1);
             Assert.True(v1 != v2);
-        }
-
-        [Fact]
-        public void Vector3d_Serialization_RoundTripMaintainsData()
-        {
-            var originalValue = new Vector3d(FixedMath.PI, FixedMath.PiOver2, FixedMath.TwoPI);
-
-            // Serialize the Vector3d object
-#if NET48_OR_GREATER
-            var formatter = new BinaryFormatter();
-            using var stream = new MemoryStream();
-            formatter.Serialize(stream, originalValue);
-
-            // Reset stream position and deserialize
-            stream.Seek(0, SeekOrigin.Begin);
-            var deserializedValue = (Vector3d)formatter.Deserialize(stream);
-#endif
-
-#if NET8_0_OR_GREATER
-            var jsonOptions = new JsonSerializerOptions
-            {
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                ReferenceHandler = ReferenceHandler.IgnoreCycles,
-                IncludeFields = true,
-                IgnoreReadOnlyProperties = true
-            };
-            var json = JsonSerializer.SerializeToUtf8Bytes(originalValue, jsonOptions);
-            var deserializedValue = JsonSerializer.Deserialize<Vector3d>(json, jsonOptions);
-#endif
-
-            // Check that deserialized values match the original
-            Assert.Equal(originalValue, deserializedValue);
         }
 
 #endregion
@@ -615,6 +587,55 @@ namespace FixedMathSharp.Tests
 
             var result = vector.InverseRotate(position, quaternion);
             Assert.True(result.FuzzyEqual(new Vector3d(1, 0, 0), new Fixed64(0.0001))); // Allow small error tolerance
+        }
+
+        #endregion
+
+        #region Test: Serialization
+
+
+        [Fact]
+        public void Vector3d_NetSerialization_RoundTripMaintainsData()
+        {
+            var originalValue = new Vector3d(FixedMath.PI, FixedMath.PiOver2, FixedMath.TwoPI);
+
+            // Serialize the Vector3d object
+#if NET48_OR_GREATER
+            var formatter = new BinaryFormatter();
+            using var stream = new MemoryStream();
+            formatter.Serialize(stream, originalValue);
+
+            // Reset stream position and deserialize
+            stream.Seek(0, SeekOrigin.Begin);
+            var deserializedValue = (Vector3d)formatter.Deserialize(stream);
+#endif
+
+#if NET8_0_OR_GREATER
+            var jsonOptions = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                IncludeFields = true,
+                IgnoreReadOnlyProperties = true
+            };
+            var json = JsonSerializer.SerializeToUtf8Bytes(originalValue, jsonOptions);
+            var deserializedValue = JsonSerializer.Deserialize<Vector3d>(json, jsonOptions);
+#endif
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalValue, deserializedValue);
+        }
+
+        [Fact]
+        public void Vector3d_MsgPackSerialization_RoundTripMaintainsData()
+        {
+            Vector3d originalValue = new Vector3d(FixedMath.PI, FixedMath.PiOver2, FixedMath.TwoPI);
+
+            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
+            Vector3d deserializedValue = MessagePackSerializer.Deserialize<Vector3d>(bytes);
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalValue, deserializedValue);
         }
 
         #endregion

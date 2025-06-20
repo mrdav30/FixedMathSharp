@@ -1,4 +1,6 @@
-﻿#if NET48_OR_GREATER
+﻿using MessagePack;
+
+#if NET48_OR_GREATER
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 #endif
@@ -223,42 +225,6 @@ namespace FixedMathSharp.Tests
                 $"ToAngularVelocity should return zero for no rotation, but got {angularVelocity}");
         }
 
-        [Fact]
-        public void FixedQuanternion_Serialization_RoundTripMaintainsData()
-        {
-            var quaternion = FixedQuaternion.Identity;
-            var sin = FixedMath.Sin(FixedMath.PiOver4);  // 45° rotation
-            var cos = FixedMath.Cos(FixedMath.PiOver4);
-
-            var originalRotation = quaternion.Rotated(sin, cos);
-
-            // Serialize the FixedQuaternion object
-#if NET48_OR_GREATER
-            var formatter = new BinaryFormatter();
-            using var stream = new MemoryStream();
-            formatter.Serialize(stream, originalRotation);
-
-            // Reset stream position and deserialize
-            stream.Seek(0, SeekOrigin.Begin);
-            var deserializedRotation = (FixedQuaternion)formatter.Deserialize(stream);
-#endif
-
-#if NET8_0_OR_GREATER
-            var jsonOptions = new JsonSerializerOptions
-            {
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                ReferenceHandler = ReferenceHandler.IgnoreCycles,
-                IncludeFields = true,
-                IgnoreReadOnlyProperties = true
-            };
-            var json = JsonSerializer.SerializeToUtf8Bytes(originalRotation, jsonOptions);
-            var deserializedRotation = JsonSerializer.Deserialize<FixedQuaternion>(json, jsonOptions);
-#endif
-
-            // Check that deserialized values match the original
-            Assert.Equal(originalRotation, deserializedRotation);
-        }
-
 #endregion
 
         #region Test: Lerp and Slerp
@@ -397,6 +363,63 @@ namespace FixedMathSharp.Tests
             var expected = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(90), new Fixed64(0), new Fixed64(90));
 
             Assert.True(result.FuzzyEqual(expected, new Fixed64(0.0001)));
+        }
+
+        #endregion
+
+        #region Test: Serialization
+
+
+        [Fact]
+        public void FixedQuanternion_NetSerialization_RoundTripMaintainsData()
+        {
+            var quaternion = FixedQuaternion.Identity;
+            var sin = FixedMath.Sin(FixedMath.PiOver4);  // 45° rotation
+            var cos = FixedMath.Cos(FixedMath.PiOver4);
+
+            var originalRotation = quaternion.Rotated(sin, cos);
+
+            // Serialize the FixedQuaternion object
+#if NET48_OR_GREATER
+            var formatter = new BinaryFormatter();
+            using var stream = new MemoryStream();
+            formatter.Serialize(stream, originalRotation);
+
+            // Reset stream position and deserialize
+            stream.Seek(0, SeekOrigin.Begin);
+            var deserializedRotation = (FixedQuaternion)formatter.Deserialize(stream);
+#endif
+
+#if NET8_0_OR_GREATER
+            var jsonOptions = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                IncludeFields = true,
+                IgnoreReadOnlyProperties = true
+            };
+            var json = JsonSerializer.SerializeToUtf8Bytes(originalRotation, jsonOptions);
+            var deserializedRotation = JsonSerializer.Deserialize<FixedQuaternion>(json, jsonOptions);
+#endif
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalRotation, deserializedRotation);
+        }
+
+        [Fact]
+        public void FixedQuanternion_MsgPackSerialization_RoundTripMaintainsData()
+        {
+            var quaternion = FixedQuaternion.Identity;
+            var sin = FixedMath.Sin(FixedMath.PiOver4);  // 45° rotation
+            var cos = FixedMath.Cos(FixedMath.PiOver4);
+
+            FixedQuaternion originalValue = quaternion.Rotated(sin, cos);
+
+            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
+            FixedQuaternion deserializedValue = MessagePackSerializer.Deserialize<FixedQuaternion>(bytes);
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalValue, deserializedValue);
         }
 
         #endregion

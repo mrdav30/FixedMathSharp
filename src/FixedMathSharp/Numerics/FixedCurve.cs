@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 using System.Linq;
 
 #if NET8_0_OR_GREATER
@@ -30,11 +31,14 @@ namespace FixedMathSharp
     /// Used for animations, physics calculations, and procedural data.
     /// </summary>
     [Serializable]
+    [MessagePackObject]
     public class FixedCurve : IEquatable<FixedCurve>
     {
-        public FixedCurveKey[] Keyframes { get; private set; }
-
+        [Key(0)]
         public FixedCurveMode Mode { get; private set; }
+
+        [Key(1)]
+        public FixedCurveKey[] Keyframes { get; private set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FixedCurve"/> with a default linear interpolation mode.
@@ -51,6 +55,7 @@ namespace FixedMathSharp
 #if NET8_0_OR_GREATER
         [JsonConstructor]
 #endif
+        [SerializationConstructor]
         public FixedCurve(FixedCurveMode mode, params FixedCurveKey[] keyframes)
         {
             Keyframes = keyframes.OrderBy(k => k.Time).ToArray();
@@ -94,14 +99,14 @@ namespace FixedMathSharp
             return Fixed64.One; // Fallback (should never be hit)
         }
 
-        public bool Equals(FixedCurve other)
+        public bool Equals(FixedCurve? other)
         {
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
             return Mode == other.Mode && Keyframes.SequenceEqual(other.Keyframes);
         }
 
-        public override bool Equals(object obj) => obj is FixedCurve other && Equals(other);
+        public override bool Equals(object? obj) => obj is FixedCurve other && Equals(other);
 
         public override int GetHashCode()
         {

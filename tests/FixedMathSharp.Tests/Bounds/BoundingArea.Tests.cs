@@ -1,4 +1,16 @@
-﻿using Xunit;
+﻿using MessagePack;
+
+#if NET48_OR_GREATER
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
+#endif
+
+#if NET8_0_OR_GREATER
+using System.Text.Json;
+using System.Text.Json.Serialization;
+#endif
+
+using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds
 {
@@ -156,6 +168,60 @@ namespace FixedMathSharp.Tests.Bounds
             var area2 = new BoundingArea(new Vector3d(2, 2, 2), new Vector3d(3, 3, 3));
 
             Assert.False(area1.Intersects(area2));
+        }
+
+        #endregion
+
+        #region Test: Serialization
+
+        [Fact]
+        public void BoundingArea_NetSerialization_RoundTripMaintainsData()
+        {
+            BoundingArea originalValue = new(
+                new Vector3d(1, 2, 3),
+                new Vector3d(4, 5, 6)
+            );
+
+            // Serialize the BoundingArea object
+#if NET48_OR_GREATER
+            var formatter = new BinaryFormatter();
+            using var stream = new MemoryStream();
+            formatter.Serialize(stream, originalValue);
+
+            // Reset stream position and deserialize
+            stream.Seek(0, SeekOrigin.Begin);
+            var deserializedValue = (BoundingArea)formatter.Deserialize(stream);
+#endif
+
+#if NET8_0_OR_GREATER
+            var jsonOptions = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                IncludeFields = true,
+                IgnoreReadOnlyProperties = true
+            };
+            var json = JsonSerializer.SerializeToUtf8Bytes(originalValue, jsonOptions);
+            var deserializedValue = JsonSerializer.Deserialize<BoundingArea>(json, jsonOptions);
+#endif
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalValue, deserializedValue);
+        }
+
+        [Fact]
+        public void BoundingArea_MsgPackSerialization_RoundTripMaintainsData()
+        {
+            BoundingArea originalValue = new(
+                new Vector3d(1, 2, 3),
+                new Vector3d(4, 5, 6)
+            );
+
+            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
+            BoundingArea deserializedValue = MessagePackSerializer.Deserialize<BoundingArea>(bytes);
+
+            // Check that deserialized values match the original
+            Assert.Equal(originalValue, deserializedValue);
         }
 
         #endregion

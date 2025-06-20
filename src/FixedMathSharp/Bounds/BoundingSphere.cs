@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
@@ -15,6 +16,8 @@ namespace FixedMathSharp
     /// - Useful when fast, rotationally invariant checks are needed, such as detecting overlaps or distances between moving objects.
     /// - Suitable for encapsulating objects with roughly spherical shapes or objects that rotate frequently, where the bounding box may need constant updates.
     /// </remarks>
+    [Serializable]
+    [MessagePackObject]
     public struct BoundingSphere : IBound, IEquatable<BoundingSphere>
     {
         #region Fields
@@ -22,11 +25,13 @@ namespace FixedMathSharp
         /// <summary>
         /// The center point of the sphere.
         /// </summary>
+        [Key(0)]
         public Vector3d Center;
 
         /// <summary>
         /// The radius of the sphere.
         /// </summary>
+        [Key(1)]
         public Fixed64 Radius;
 
         #endregion
@@ -47,12 +52,14 @@ namespace FixedMathSharp
 
         #region Properties and Methods (Instance)
 
+        [IgnoreMember]
         public Vector3d Min
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Center - new Vector3d(Radius, Radius, Radius);
         }
 
+        [IgnoreMember]
         public Vector3d Max
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,6 +69,7 @@ namespace FixedMathSharp
         /// <summary>
         /// The squared radius of the sphere.
         /// </summary>
+        [IgnoreMember]
         public Fixed64 SqrRadius
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -139,7 +147,7 @@ namespace FixedMathSharp
         #region Equality and HashCode Overrides
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(object obj) => obj is BoundingSphere other && Equals(other);
+        public override bool Equals(object? obj) => obj is BoundingSphere other && Equals(other);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(BoundingSphere other) => Center.Equals(other.Center) && Radius.Equals(other.Radius);
