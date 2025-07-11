@@ -74,6 +74,10 @@ namespace FixedMathSharp.Tests.Bounds
             var box2 = new BoundingBox(new Vector3d(1, 1, 1), new Vector3d(4, 4, 4));
 
             Assert.True(box1.Intersects(box2));
+
+            var area3 = new BoundingBox(new Vector3d(-2, -2, 0), new Vector3d(2, 2, 0));
+            var area4 = new BoundingBox(new Vector3d(-1, -1, 0), new Vector3d(3, 3, 0));
+            Assert.False(area3.Intersects(area4));
         }
 
         [Fact]

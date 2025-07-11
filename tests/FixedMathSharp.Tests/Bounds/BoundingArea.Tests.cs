@@ -88,6 +88,10 @@ namespace FixedMathSharp.Tests.Bounds
             var area2 = new BoundingArea(new Vector3d(3, 3, 3), new Vector3d(6, 6, 6));
 
             Assert.True(area1.Intersects(area2));
+
+            var area3 = new BoundingArea(new Vector3d(-2, -2, 0), new Vector3d(2, 2, 0));
+            var area4 = new BoundingArea(new Vector3d(-1, -1, 0), new Vector3d(3, 3, 0));
+            Assert.True(area3.Intersects(area4));
         }
 
         [Fact]

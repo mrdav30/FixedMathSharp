@@ -183,10 +183,24 @@ namespace FixedMathSharp
                         if (Contains(other.Min) && Contains(other.Max))
                             return true;  // Full containment
 
-                        // General intersection logic (allowing for overlap)
-                        return !(Max.x <= other.Min.x || Min.x >= other.Max.x ||
-                                 Max.y <= other.Min.y || Min.y >= other.Max.y ||
-                                 Max.z <= other.Min.z || Min.z >= other.Max.z);
+                        // Determine which axis is "flat" (thickness zero)
+                        bool flatX = Min.x == Max.x && other.Min.x == other.Max.x;
+                        bool flatY = Min.y == Max.y && other.Min.y == other.Max.y;
+                        bool flatZ = Min.z == Max.z && other.Min.z == other.Max.z;
+
+                        if (flatZ) // Rectangle in XY
+                            return !(Max.x < other.Min.x || Min.x > other.Max.x ||
+                                     Max.y < other.Min.y || Min.y > other.Max.y);
+                        else if (flatY) // Rectangle in XZ
+                            return !(Max.x < other.Min.x || Min.x > other.Max.x ||
+                                     Max.z < other.Min.z || Min.z > other.Max.z);
+                        else if (flatX) // Rectangle in YZ
+                            return !(Max.y < other.Min.y || Min.y > other.Max.y ||
+                                     Max.z < other.Min.z || Min.z > other.Max.z);
+                        else // fallback to 3D volume logic
+                            return !(Max.x < other.Min.x || Min.x > other.Max.x ||
+                                     Max.y < other.Min.y || Min.y > other.Max.y ||
+                                     Max.z < other.Min.z || Min.z > other.Max.z);
                     }
                 case BoundingSphere sphere:
                     // Find the closest point on the area to the sphere's center
