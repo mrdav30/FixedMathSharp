@@ -106,6 +106,34 @@ Fixed64 sinValue = FixedTrigonometry.Sin(angle);
 Console.WriteLine(sinValue); // Output: ~0.707
 ```
 
+### Deterministic Random Generation
+
+Use `DeterministicRandom` when you need reproducible random values across runs, worlds, or features.  
+Streams are derived from a seed and remain deterministic regardless of threading or platform.
+
+```csharp
+// Simple constructor-based stream:
+var rng = new DeterministicRandom(42UL);
+
+// Deterministic integer:
+int value = rng.Next(1, 10); // [1,10)
+
+// Deterministic Fixed64 in [0,1):
+Fixed64 ratio = rng.NextFixed6401();
+
+// One stream per “feature” that’s stable for the same worldSeed + key:
+var rngOre = DeterministicRandom.FromWorldFeature(worldSeed: 123456789UL, featureKey: 0xORE);
+var rngRivers = DeterministicRandom.FromWorldFeature(123456789UL, 0xRIV, index: 0);
+
+// Deterministic Fixed64 draws:
+Fixed64 h = rngOre.NextFixed64(Fixed64.One);                      // [0, 1)
+Fixed64 size = rngOre.NextFixed64(Fixed64.Zero, 5 * Fixed64.One); // [0, 5)
+Fixed64 posX = rngRivers.NextFixed64(-Fixed64.One, Fixed64.One);  // [-1, 1)
+
+// Deterministic integers:
+int loot = rngOre.Next(1, 5); // [1,5)
+```
+
 ---
 
 ## 📦 Library Structure
@@ -116,6 +144,7 @@ Console.WriteLine(sinValue); // Output: ~0.707
 - **`IBound` Interface:** Standard interface for bounding shapes `BoundingBox`, `BoundingArea`, and `BoundingSphere`, each offering intersection, containment, and projection logic.
 - **`FixedMath` Static Class:** Provides common math and trigonometric functions using fixed-point math.
 - **`Fixed4x4` and `Fixed3x3`:** Support matrix operations for transformations.
+- **`DeterministicRandom` Struct:** Seedable, allocation-free RNG for repeatable procedural generation.  
 
 ### Fixed64 Struct
 
