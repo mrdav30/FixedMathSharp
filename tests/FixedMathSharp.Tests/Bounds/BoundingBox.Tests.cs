@@ -63,6 +63,13 @@ namespace FixedMathSharp.Tests.Bounds
             Assert.True(box.Contains(point));
         }
 
+        [Fact]
+        public void Constructor_WithNegativeSize_StillContainsCenter()
+        {
+            var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(-4, -4, -4));
+            Assert.True(box.Contains(new Vector3d(0, 0, 0)));
+        }
+
         #endregion
 
         #region Test: Intersection
@@ -105,6 +112,15 @@ namespace FixedMathSharp.Tests.Bounds
             var sphere = new BoundingSphere(new Vector3d(1, 1, 1), Fixed64.One);
 
             Assert.True(box.Intersects(sphere));
+        }
+
+        [Fact]
+        public void Intersects_TouchingEdges_ReturnsFalse()
+        {
+            var a = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+            var b = new BoundingBox(new Vector3d(2, 0, 0), new Vector3d(2, 2, 2));
+
+            Assert.False(a.Intersects(b));
         }
 
         #endregion
@@ -161,6 +177,17 @@ namespace FixedMathSharp.Tests.Bounds
             Assert.Equal(box1.GetHashCode(), box2.GetHashCode());
         }
 
+        [Fact]
+        public void SetBoundingBox_KeepsSizeAndScopeInSync()
+        {
+            var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+
+            var newScope = new Vector3d(3, 3, 3);
+            box.SetBoundingBox(new Vector3d(1, 1, 1), newScope);
+
+            Assert.Equal(newScope * Fixed64.Two, box.Proportions);
+        }
+
         #endregion
 
         #region Test: Edge Cases
@@ -181,6 +208,47 @@ namespace FixedMathSharp.Tests.Bounds
             var box2 = new BoundingBox(new Vector3d(1, 1, 1), new Vector3d(2, 2, 2));
 
             Assert.False(box1.Intersects(box2));
+        }
+
+        #endregion
+
+        #region Test: Mutation Invariance
+
+        [Fact]
+        public void Resize_PreservesCenter()
+        {
+            var box = new BoundingBox(new Vector3d(5, 5, 5), new Vector3d(4, 4, 4));
+
+            box.Resize(new Vector3d(2, 2, 2));
+
+            Assert.Equal(new Vector3d(5, 5, 5), box.Center);
+        }
+
+        [Fact]
+        public void SetMinMax_SetsCorrectCenterAndSize()
+        {
+            var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+
+            box.SetMinMax(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+
+            Assert.Equal(new Vector3d(2, 2, 2), box.Center);
+            Assert.Equal(new Vector3d(4, 4, 4), box.Proportions);
+        }
+
+        #endregion
+
+        #region Test: Vertex Cache Safety
+
+        [Fact]
+        public void Vertices_UpdateAfterMutation()
+        {
+            var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+            var original = box.Vertices[0];
+
+            box.Resize(new Vector3d(4, 4, 4));
+            var updated = box.Vertices[0];
+
+            Assert.NotEqual(original, updated);
         }
 
         #endregion
@@ -229,6 +297,19 @@ namespace FixedMathSharp.Tests.Bounds
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);
+        }
+
+        [Fact]
+        public void MsgPack_SerializedBox_RemainsMutable()
+        {
+            var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+
+            var bytes = MessagePackSerializer.Serialize(box);
+            var deserialized = MessagePackSerializer.Deserialize<BoundingBox>(bytes);
+
+            deserialized.Resize(new Vector3d(2, 2, 2));
+
+            Assert.Equal(new Vector3d(2, 2, 2), deserialized.Proportions);
         }
 
         #endregion
