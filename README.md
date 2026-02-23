@@ -200,8 +200,14 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 
 ---
 
-## 📧 Contact
+## 💬 Community & Support
 
-For questions or support, reach out to **mrdav30** via GitHub or open an issue in the repository.
+For questions, discussions, or general support, join the official Discord community:
+
+👉 **[Join the Discord Server](https://discord.gg/mhwK2QFNBA)**
+
+For bug reports or feature requests, please open an issue in this repository.
+
+We welcome feedback, contributors, and community discussion across all projects.
 
 ---
