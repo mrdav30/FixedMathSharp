@@ -2,8 +2,8 @@
   <!-- Global Properties: General Configuration Settings -->
   <PropertyGroup>
     <!-- Define the target framework and compatibility -->
-    <LangVersion>9.0</LangVersion>
-    <TargetFrameworks>net48;net8</TargetFrameworks>
+    <LangVersion>11.0</LangVersion>
+    <TargetFrameworks>netstandard2.1;net8</TargetFrameworks>
     <!-- Versioning and Build Configuration -->
     <!-- Set SemVer to GitVersion_FullSemVer if available, otherwise fallback to 0.0.0 -->
     <SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
