@@ -20,7 +20,7 @@ Ideal for simulations, games, and physics engines requiring reliable arithmetic 
 - **Bounding Shapes:** Includes `IBound` structs `BoundingBox`, `BoundingSphere`, and `BoundingArea` for lightweight spatial calculations.
 - **Advanced Math Functions:** Includes trigonometry and common math utilities.
 - **Framework Agnostic:** Works with **.NET, Unity, and other game engines**.
-- **Full Serialization Support:** Out-of-the-box round-trip serialization via BinaryFormatter (for .NET Framework 4.8+), System.Text.Json (for .NET 8+), and MessagePack across all serializable structs.
+- **Full Serialization Support:** Out-of-the-box round-trip serialization via `MemoryPack` across all serializable structs, with `System.Text.Json` constructor support on .NET 8+.
 
 ---
 
@@ -176,8 +176,8 @@ dotnet test --configuration debug
 
 ## 🛠️ Compatibility
 
-- **.NET Framework** 4.7.2+
-- **.NET Core / .NET** 6+
+- **.NET Standard** 2.1
+- **.NET** 8
 - **Unity 2020+** (via [FixedMathSharp-Unity](https://github.com/mrdav30/FixedMathSharp-Unity))
 - **Cross-Platform Support** (Windows, Linux, macOS)
 
