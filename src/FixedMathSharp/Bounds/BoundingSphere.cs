@@ -1,4 +1,4 @@
-﻿using MessagePack;
+﻿using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -17,21 +17,21 @@ namespace FixedMathSharp
     /// - Suitable for encapsulating objects with roughly spherical shapes or objects that rotate frequently, where the bounding box may need constant updates.
     /// </remarks>
     [Serializable]
-    [MessagePackObject]
-    public struct BoundingSphere : IBound, IEquatable<BoundingSphere>
+    [MemoryPackable]
+    public partial struct BoundingSphere : IBound, IEquatable<BoundingSphere>
     {
         #region Fields
 
         /// <summary>
         /// The center point of the sphere.
         /// </summary>
-        [Key(0)]
+        [MemoryPackOrder(0)]
         public Vector3d Center;
 
         /// <summary>
         /// The radius of the sphere.
         /// </summary>
-        [Key(1)]
+        [MemoryPackOrder(1)]
         public Fixed64 Radius;
 
         #endregion
@@ -52,14 +52,14 @@ namespace FixedMathSharp
 
         #region Properties and Methods (Instance)
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d Min
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Center - new Vector3d(Radius, Radius, Radius);
         }
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d Max
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -69,7 +69,7 @@ namespace FixedMathSharp
         /// <summary>
         /// The squared radius of the sphere.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 SqrRadius
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -96,9 +96,9 @@ namespace FixedMathSharp
             switch (other)
             {
                 case BoundingBox or BoundingArea:
-                        // Find the closest point on the BoundingArea to the sphere's center
-                        // Check if the closest point is within the sphere's radius
-                        return Vector3d.SqrDistance(Center, other.ProjectPointWithinBounds(Center)) <= SqrRadius;
+                    // Find the closest point on the BoundingArea to the sphere's center
+                    // Check if the closest point is within the sphere's radius
+                    return Vector3d.SqrDistance(Center, other.ProjectPointWithinBounds(Center)) <= SqrRadius;
                 case BoundingSphere otherSphere:
                     {
                         Fixed64 distanceSquared = Vector3d.SqrDistance(Center, otherSphere.Center);
@@ -107,7 +107,8 @@ namespace FixedMathSharp
                     }
 
                 default: return false; // Default case for unknown or unsupported types
-            };
+            }
+            ;
         }
 
         /// <summary>

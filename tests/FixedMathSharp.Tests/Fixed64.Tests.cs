@@ -1,16 +1,7 @@
-using MessagePack;
+using MemoryPack;
 using System;
-
-#if NET48_OR_GREATER
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-#endif
-
-#if NET8_0_OR_GREATER
 using System.Text.Json;
 using System.Text.Json.Serialization;
-#endif
-
 using Xunit;
 
 namespace FixedMathSharp.Tests
@@ -124,7 +115,7 @@ namespace FixedMathSharp.Tests
             Assert.Equal(5.5, result);
         }
 
-#endregion
+        #endregion
 
         #region Test: Fraction Method
 
@@ -158,7 +149,7 @@ namespace FixedMathSharp.Tests
         }
 
         #endregion
-        
+
         #region Test: Operations
 
         [Fact]
@@ -205,18 +196,6 @@ namespace FixedMathSharp.Tests
         {
             var originalValue = FixedMath.PI;
 
-            // Serialize the Fixed64 object
-#if NET48_OR_GREATER
-            var formatter = new BinaryFormatter();
-            using var stream = new MemoryStream();
-            formatter.Serialize(stream, originalValue);
-
-            // Reset stream position and deserialize
-            stream.Seek(0, SeekOrigin.Begin);
-            var deserializedValue = (Fixed64)formatter.Deserialize(stream);
-#endif
-
-#if NET8_0_OR_GREATER
             var jsonOptions = new JsonSerializerOptions
             {
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -226,7 +205,6 @@ namespace FixedMathSharp.Tests
             };
             var json = JsonSerializer.SerializeToUtf8Bytes(originalValue, jsonOptions);
             var deserializedValue = JsonSerializer.Deserialize<Fixed64>(json, jsonOptions);
-#endif
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);
@@ -237,8 +215,8 @@ namespace FixedMathSharp.Tests
         {
             Fixed64 originalValue = FixedMath.PI;
 
-            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
-            Fixed64 deserializedValue = MessagePackSerializer.Deserialize<Fixed64>(bytes);
+            byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
+            Fixed64 deserializedValue = MemoryPackSerializer.Deserialize<Fixed64>(bytes);
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);

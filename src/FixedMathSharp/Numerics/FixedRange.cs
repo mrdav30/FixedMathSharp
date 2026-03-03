@@ -1,4 +1,4 @@
-﻿using MessagePack;
+﻿using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -8,8 +8,8 @@ namespace FixedMathSharp
     /// Represents a range of values with fixed precision.
     /// </summary>
     [Serializable]
-    [MessagePackObject]
-    public struct FixedRange : IEquatable<FixedRange>
+    [MemoryPackable]
+    public partial struct FixedRange : IEquatable<FixedRange>
     {
         #region Constants
 
@@ -30,13 +30,13 @@ namespace FixedMathSharp
         /// <summary>
         /// Gets the minimum value of the range.
         /// </summary>
-        [Key(0)]
+        [MemoryPackOrder(0)]
         public Fixed64 Min;
 
         /// <summary>
         /// Gets the maximum value of the range.
         /// </summary>
-        [Key(1)]
+        [MemoryPackOrder(1)]
         public Fixed64 Max;
 
         #endregion
@@ -72,7 +72,7 @@ namespace FixedMathSharp
         /// <summary>
         /// The length of the range, computed as Max - Min.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -82,7 +82,7 @@ namespace FixedMathSharp
         /// <summary>
         /// The midpoint of the range.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 MidPoint
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

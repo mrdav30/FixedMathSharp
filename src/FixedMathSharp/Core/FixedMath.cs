@@ -15,7 +15,7 @@ namespace FixedMathSharp
         public const int SHIFT_AMOUNT_I = 32;
         public const uint MAX_SHIFTED_AMOUNT_UI = (uint)((1L << SHIFT_AMOUNT_I) - 1);
         public const ulong MASK_UL = (ulong)(ulong.MaxValue << SHIFT_AMOUNT_I);
-        
+
         public const long MAX_VALUE_L = long.MaxValue; // Max possible value for Fixed64
         public const long MIN_VALUE_L = long.MinValue; // Min possible value for Fixed64
 

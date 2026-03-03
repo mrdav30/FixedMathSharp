@@ -1,6 +1,5 @@
-﻿using MessagePack;
+﻿using MemoryPack;
 using System;
-using System.Drawing.Drawing2D;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp
@@ -20,36 +19,36 @@ namespace FixedMathSharp
     /// - Useful when optimizing transformations, as it omits the overhead of translation and perspective.
     /// </remarks>
     [Serializable]
-    [MessagePackObject]
-    public struct Fixed3x3 : IEquatable<Fixed3x3>
+    [MemoryPackable]
+    public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     {
         #region Fields and Constants
 
-        [Key(0)]
+        [MemoryPackOrder(0)]
         public Fixed64 m00;
-        [Key(1)]
+        [MemoryPackOrder(1)]
         public Fixed64 m01;
-        [Key(2)]
+        [MemoryPackOrder(2)]
         public Fixed64 m02;
 
-        [Key(3)]
+        [MemoryPackOrder(3)]
         public Fixed64 m10;
-        [Key(4)]
+        [MemoryPackOrder(4)]
         public Fixed64 m11;
-        [Key(5)]
+        [MemoryPackOrder(5)]
         public Fixed64 m12;
 
-        [Key(6)]
+        [MemoryPackOrder(6)]
         public Fixed64 m20;
-        [Key(7)]
+        [MemoryPackOrder(7)]
         public Fixed64 m21;
-        [Key(8)]
+        [MemoryPackOrder(8)]
         public Fixed64 m22;
 
         /// <summary>
         /// Returns the identity matrix (no scaling, rotation, or translation).
         /// </summary>
-        public static readonly Fixed3x3 Identity = new(new Vector3d(1f, 0f, 0f), new Vector3d(0f, 1f, 0f), new Vector3d(0f, 0f, 1f));      
+        public static readonly Fixed3x3 Identity = new(new Vector3d(1f, 0f, 0f), new Vector3d(0f, 1f, 0f), new Vector3d(0f, 0f, 1f));
 
         /// <summary>
         /// Returns a matrix with all elements set to zero.
@@ -89,7 +88,7 @@ namespace FixedMathSharp
 
         #region Properties and Methods (Instance)
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 this[int index]
         {
             get

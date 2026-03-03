@@ -1,16 +1,6 @@
-﻿using MessagePack;
-
-#if NET48_OR_GREATER
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Security.Cryptography;
-#endif
-
-#if NET8_0_OR_GREATER
+﻿using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-#endif
-
 using Xunit;
 
 namespace FixedMathSharp.Tests
@@ -142,18 +132,6 @@ namespace FixedMathSharp.Tests
                 new FixedCurveKey(0, 0),
                 new FixedCurveKey(10, 100));
 
-            // Serialize the Fixed3x3 object
-#if NET48_OR_GREATER
-            var formatter = new BinaryFormatter();
-            using var stream = new MemoryStream();
-            formatter.Serialize(stream, originalCurve);
-
-            // Reset stream position and deserialize
-            stream.Seek(0, SeekOrigin.Begin);
-            var deserializedCurve = (FixedCurve)formatter.Deserialize(stream);
-#endif
-
-#if NET8_0_OR_GREATER
             var jsonOptions = new JsonSerializerOptions
             {
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -163,7 +141,6 @@ namespace FixedMathSharp.Tests
             };
             var json = JsonSerializer.SerializeToUtf8Bytes(originalCurve, jsonOptions);
             var deserializedCurve = JsonSerializer.Deserialize<FixedCurve>(json, jsonOptions);
-#endif
 
             // Check that deserialized values match the original
             Assert.Equal(originalCurve, deserializedCurve);
@@ -177,8 +154,8 @@ namespace FixedMathSharp.Tests
                 new FixedCurveKey(0, 0),
                 new FixedCurveKey(10, 100));
 
-            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
-            FixedCurve deserializedValue = MessagePackSerializer.Deserialize<FixedCurve>(bytes);
+            byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
+            FixedCurve deserializedValue = MemoryPackSerializer.Deserialize<FixedCurve>(bytes)!;
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);

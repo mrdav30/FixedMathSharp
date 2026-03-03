@@ -1,15 +1,6 @@
-﻿using MessagePack;
-
-#if NET48_OR_GREATER
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-#endif
-
-#if NET8_0_OR_GREATER
+﻿using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-#endif
-
 using Xunit;
 
 namespace FixedMathSharp.Tests
@@ -156,7 +147,7 @@ namespace FixedMathSharp.Tests
 
             Assert.True(result.FuzzyEqual(expected), $"FromAxisAngle returned {result}, expected {expected}.");
 
-            axis = Vector3d.Forward;  
+            axis = Vector3d.Forward;
 
             result = FixedQuaternion.FromAxisAngle(axis, angle);
             expected = new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, FixedMath.Sin(FixedMath.PiOver4), FixedMath.Cos(FixedMath.PiOver4));
@@ -225,7 +216,7 @@ namespace FixedMathSharp.Tests
                 $"ToAngularVelocity should return zero for no rotation, but got {angularVelocity}");
         }
 
-#endregion
+        #endregion
 
         #region Test: Lerp and Slerp
 
@@ -379,18 +370,6 @@ namespace FixedMathSharp.Tests
 
             var originalRotation = quaternion.Rotated(sin, cos);
 
-            // Serialize the FixedQuaternion object
-#if NET48_OR_GREATER
-            var formatter = new BinaryFormatter();
-            using var stream = new MemoryStream();
-            formatter.Serialize(stream, originalRotation);
-
-            // Reset stream position and deserialize
-            stream.Seek(0, SeekOrigin.Begin);
-            var deserializedRotation = (FixedQuaternion)formatter.Deserialize(stream);
-#endif
-
-#if NET8_0_OR_GREATER
             var jsonOptions = new JsonSerializerOptions
             {
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -400,7 +379,6 @@ namespace FixedMathSharp.Tests
             };
             var json = JsonSerializer.SerializeToUtf8Bytes(originalRotation, jsonOptions);
             var deserializedRotation = JsonSerializer.Deserialize<FixedQuaternion>(json, jsonOptions);
-#endif
 
             // Check that deserialized values match the original
             Assert.Equal(originalRotation, deserializedRotation);
@@ -415,8 +393,8 @@ namespace FixedMathSharp.Tests
 
             FixedQuaternion originalValue = quaternion.Rotated(sin, cos);
 
-            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
-            FixedQuaternion deserializedValue = MessagePackSerializer.Deserialize<FixedQuaternion>(bytes);
+            byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
+            FixedQuaternion deserializedValue = MemoryPackSerializer.Deserialize<FixedQuaternion>(bytes);
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);

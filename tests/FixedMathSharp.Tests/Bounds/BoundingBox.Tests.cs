@@ -1,15 +1,6 @@
-﻿using MessagePack;
-
-#if NET48_OR_GREATER
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-#endif
-
-#if NET8_0_OR_GREATER
+﻿using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-#endif
-
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds
@@ -260,18 +251,6 @@ namespace FixedMathSharp.Tests.Bounds
         {
             BoundingBox originalValue = new(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
-            // Serialize the BoundingArea object
-#if NET48_OR_GREATER
-            var formatter = new BinaryFormatter();
-            using var stream = new MemoryStream();
-            formatter.Serialize(stream, originalValue);
-
-            // Reset stream position and deserialize
-            stream.Seek(0, SeekOrigin.Begin);
-            var deserializedValue = (BoundingBox)formatter.Deserialize(stream);
-#endif
-
-#if NET8_0_OR_GREATER
             var jsonOptions = new JsonSerializerOptions
             {
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -281,7 +260,6 @@ namespace FixedMathSharp.Tests.Bounds
             };
             var json = JsonSerializer.SerializeToUtf8Bytes(originalValue, jsonOptions);
             var deserializedValue = JsonSerializer.Deserialize<BoundingBox>(json, jsonOptions);
-#endif
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);
@@ -292,8 +270,8 @@ namespace FixedMathSharp.Tests.Bounds
         {
             BoundingBox originalValue = new(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
-            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
-            BoundingBox deserializedValue = MessagePackSerializer.Deserialize<BoundingBox>(bytes);
+            byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
+            BoundingBox deserializedValue = MemoryPackSerializer.Deserialize<BoundingBox>(bytes);
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);
@@ -304,8 +282,8 @@ namespace FixedMathSharp.Tests.Bounds
         {
             var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
-            var bytes = MessagePackSerializer.Serialize(box);
-            var deserialized = MessagePackSerializer.Deserialize<BoundingBox>(bytes);
+            var bytes = MemoryPackSerializer.Serialize(box);
+            var deserialized = MemoryPackSerializer.Deserialize<BoundingBox>(bytes);
 
             deserialized.Resize(new Vector3d(2, 2, 2));
 

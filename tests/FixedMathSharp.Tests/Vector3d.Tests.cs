@@ -1,16 +1,6 @@
-﻿using MessagePack;
-using System.Drawing;
-
-
-#if NET48_OR_GREATER
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-#endif
-
-#if NET8_0_OR_GREATER
+﻿using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-#endif
 
 using Xunit;
 
@@ -239,7 +229,7 @@ namespace FixedMathSharp.Tests
             Assert.True(v1 != v2);
         }
 
-#endregion
+        #endregion
 
         #region Test: Static Math
 
@@ -593,24 +583,11 @@ namespace FixedMathSharp.Tests
 
         #region Test: Serialization
 
-
         [Fact]
         public void Vector3d_NetSerialization_RoundTripMaintainsData()
         {
             var originalValue = new Vector3d(FixedMath.PI, FixedMath.PiOver2, FixedMath.TwoPI);
 
-            // Serialize the Vector3d object
-#if NET48_OR_GREATER
-            var formatter = new BinaryFormatter();
-            using var stream = new MemoryStream();
-            formatter.Serialize(stream, originalValue);
-
-            // Reset stream position and deserialize
-            stream.Seek(0, SeekOrigin.Begin);
-            var deserializedValue = (Vector3d)formatter.Deserialize(stream);
-#endif
-
-#if NET8_0_OR_GREATER
             var jsonOptions = new JsonSerializerOptions
             {
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -620,7 +597,6 @@ namespace FixedMathSharp.Tests
             };
             var json = JsonSerializer.SerializeToUtf8Bytes(originalValue, jsonOptions);
             var deserializedValue = JsonSerializer.Deserialize<Vector3d>(json, jsonOptions);
-#endif
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);
@@ -631,8 +607,8 @@ namespace FixedMathSharp.Tests
         {
             Vector3d originalValue = new Vector3d(FixedMath.PI, FixedMath.PiOver2, FixedMath.TwoPI);
 
-            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
-            Vector3d deserializedValue = MessagePackSerializer.Deserialize<Vector3d>(bytes);
+            byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
+            Vector3d deserializedValue = MemoryPackSerializer.Deserialize<Vector3d>(bytes);
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);

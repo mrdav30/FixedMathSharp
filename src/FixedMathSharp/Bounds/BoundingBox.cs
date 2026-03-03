@@ -1,7 +1,6 @@
-﻿using MessagePack;
+﻿using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
 
 #if NET8_0_OR_GREATER
 using System.Text.Json.Serialization;
@@ -22,7 +21,7 @@ namespace FixedMathSharp
     /// - Supports more precise intersection tests than BoundingArea, making it ideal for detailed spatial queries.
     /// </remarks>
     [Serializable]
-    [MessagePackObject(AllowPrivate = true)]
+    [MemoryPackable]
     public partial struct BoundingBox : IBound, IEquatable<BoundingBox>
     {
         #region Fields
@@ -30,25 +29,28 @@ namespace FixedMathSharp
         /// <summary>
         /// The minimum corner of the bounding box.
         /// </summary>
-        [Key(0)]
-        private Vector3d _min;
+        [MemoryPackOrder(0)]
+        public Vector3d Min { get; private set; }
 
         /// <summary>
         /// The maximum corner of the bounding box.
         /// </summary>
-        [Key(1)]
-        private Vector3d _max;
+        [MemoryPackOrder(1)]
+        public Vector3d Max { get; private set; }
 
-        [IgnoreMember]
+        /// <summary>
+        /// 
+        /// </summary>
+        [MemoryPackOrder(2)]
+        public byte Version { get; private set; }
+
+        [MemoryPackIgnore]
         private bool _isDirty;
-
-        [Key(2)]
-        private byte _version;
 
         /// <summary>
         /// Vertices of the bounding box.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         private Vector3d[] _vertices;
 
         #endregion
@@ -63,22 +65,25 @@ namespace FixedMathSharp
         {
             Vector3d half = Vector3d.Abs(size) * Fixed64.Half;
 
-            _min = center - half;
-            _max = center + half;
+            Min = center - half;
+            Max = center + half;
 
             _vertices = new Vector3d[8];
             _isDirty = true;
-            _version = 1;
+            Version = 1;
         }
 
-        [SerializationConstructor]
+#if NET8_0_OR_GREATER
+        [JsonConstructor]
+#endif
+        [MemoryPackConstructor]
         public BoundingBox(Vector3d min, Vector3d max, byte version)
         {
-            _min = min;
-            _max = max;
+            this.Min = min;
+            this.Max = max;
             _vertices = new Vector3d[8];
             _isDirty = true;
-            _version = version;
+            this.Version = version;
         }
 
         #endregion
@@ -88,18 +93,18 @@ namespace FixedMathSharp
         /// <summary>
         /// The center of the bounding box.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d Center
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (_min + _max) * Fixed64.Half;
+            get => (Min + Max) * Fixed64.Half;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                Vector3d half = (_max - _min) * Fixed64.Half;
-                _min = value - half;
-                _max = value + half;
+                Vector3d half = (Max - Min) * Fixed64.Half;
+                Min = value - half;
+                Max = value + half;
                 _isDirty = true;
             }
         }
@@ -107,19 +112,19 @@ namespace FixedMathSharp
         /// <summary>
         /// The total size of the box (Width, Height, Depth). This is always twice the scope.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d Proportions
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _max - _min;
+            get => Max - Min;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 Vector3d half = value * Fixed64.Half;
-                Vector3d center = (_min + _max) * Fixed64.Half;
-                _min = center - half;
-                _max = center + half;
+                Vector3d center = (Min + Max) * Fixed64.Half;
+                Min = center - half;
+                Max = center + half;
                 _isDirty = true;
             }
         }
@@ -127,23 +132,15 @@ namespace FixedMathSharp
         /// <summary>
         /// The range (half-size) of the bounding box in all directions. Always half of the total size.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d Scope
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (_max - _min) * Fixed64.Half;
+            get => (Max - Min) * Fixed64.Half;
         }
 
-        /// <inheritdoc cref="_min" />
-        [IgnoreMember]
-        public Vector3d Min => _min;
-
-        /// <inheritdoc cref="_max" />
-        [IgnoreMember]
-        public Vector3d Max => _max;
-
         /// <inheritdoc cref="_vertices" />
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d[] Vertices
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -161,10 +158,10 @@ namespace FixedMathSharp
         {
             Vector3d half = size.HasValue
                 ? size.Value * Fixed64.Half
-                : (_max - _min) * Fixed64.Half;
+                : (Max - Min) * Fixed64.Half;
 
-            _min = center - half;
-            _max = center + half;
+            Min = center - half;
+            Max = center + half;
             _isDirty = true;
         }
 
@@ -174,10 +171,10 @@ namespace FixedMathSharp
         public void Resize(Vector3d size)
         {
             Vector3d half = size * Fixed64.Half;
-            Vector3d center = (_min + _max) * Fixed64.Half;
+            Vector3d center = (Min + Max) * Fixed64.Half;
 
-            _min = center - half;
-            _max = center + half;
+            Min = center - half;
+            Max = center + half;
             _isDirty = true;
         }
 
@@ -186,8 +183,8 @@ namespace FixedMathSharp
         /// </summary>
         public void SetMinMax(Vector3d min, Vector3d max)
         {
-            _min = min;
-            _max = max;
+            Min = min;
+            Max = max;
             _isDirty = true;
         }
 
@@ -196,8 +193,8 @@ namespace FixedMathSharp
         /// </summary>
         public void SetBoundingBox(Vector3d center, Vector3d scope)
         {
-            _min = center - scope;
-            _max = center + scope;
+            Min = center - scope;
+            Max = center + scope;
             _isDirty = true;
         }
 
@@ -207,9 +204,9 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(Vector3d point)
         {
-            return point.x >= _min.x && point.x <= _max.x
-                && point.y >= _min.y && point.y <= _max.y
-                && point.z >= _min.z && point.z <= _max.z;
+            return point.x >= Min.x && point.x <= Max.x
+                && point.y >= Min.y && point.y <= Max.y
+                && point.z >= Min.z && point.z <= Max.z;
         }
 
         /// <summary>
@@ -229,18 +226,19 @@ namespace FixedMathSharp
                             return true;  // Full containment
 
                         // General intersection logic (allowing for overlap)
-                        return !(_max.x <= other.Min.x || _min.x >= other.Max.x ||
-                                 _max.y <= other.Min.y || _min.y >= other.Max.y ||
-                                 _max.z <= other.Min.z || _min.z >= other.Max.z);
+                        return !(Max.x <= other.Min.x || Min.x >= other.Max.x ||
+                                 Max.y <= other.Min.y || Min.y >= other.Max.y ||
+                                 Max.z <= other.Min.z || Min.z >= other.Max.z);
                     }
                 case BoundingSphere sphere:
                     // project the sphere’s center onto the 3D volume and checks the distance to the surface.
                     // If the distance from the closest point to the center is less than or equal to the sphere’s radius, they intersect.
                     return Vector3d.SqrDistance(sphere.Center, this.ProjectPointWithinBounds(sphere.Center)) <= sphere.SqrRadius;
 
-                default: 
+                default:
                     return false; // Default case for unknown or unsupported types
-            };
+            }
+            ;
         }
 
         /// <summary>
@@ -267,10 +265,10 @@ namespace FixedMathSharp
         public Fixed64 DistanceToSurface(Vector3d point)
         {
             // Clamp the point to the nearest point on the box's surface
-            Vector3d clampedPoint = new Vector3d(
-                FixedMath.Clamp(point.x, _min.x, _max.x),
-                FixedMath.Clamp(point.y, _min.y, _max.y),
-                FixedMath.Clamp(point.z, _min.z, _max.z)
+            Vector3d clampedPoint = new(
+                FixedMath.Clamp(point.x, Min.x, Max.x),
+                FixedMath.Clamp(point.y, Min.y, Max.y),
+                FixedMath.Clamp(point.z, Min.z, Max.z)
             );
 
             // If the point is inside the box, return 0
@@ -295,12 +293,12 @@ namespace FixedMathSharp
             if (Contains(point))
             {
                 // Calculate distances to each face and return the closest face.
-                Fixed64 distToMinX = point.x - _min.x;
-                Fixed64 distToMaxX = _max.x - point.x;
-                Fixed64 distToMinY = point.y - _min.y;
-                Fixed64 distToMaxY = _max.y - point.y;
-                Fixed64 distToMinZ = point.z - _min.z;
-                Fixed64 distToMaxZ = _max.z - point.z;
+                Fixed64 distToMinX = point.x - Min.x;
+                Fixed64 distToMaxX = Max.x - point.x;
+                Fixed64 distToMinY = point.y - Min.y;
+                Fixed64 distToMaxY = Max.y - point.y;
+                Fixed64 distToMinZ = point.z - Min.z;
+                Fixed64 distToMaxZ = Max.z - point.z;
 
                 Fixed64 minDistToFace = FixedMath.Min(distToMinX,
                     FixedMath.Min(distToMaxX,
@@ -309,23 +307,23 @@ namespace FixedMathSharp
                     FixedMath.Min(distToMinZ, distToMaxZ)))));
 
                 // Adjust the closest point based on the face.
-                if (minDistToFace == distToMinX) point.x = _min.x;
-                else if (minDistToFace == distToMaxX) point.x = _max.x;
+                if (minDistToFace == distToMinX) point.x = Min.x;
+                else if (minDistToFace == distToMaxX) point.x = Max.x;
 
-                if (minDistToFace == distToMinY) point.y = _min.y;
-                else if (minDistToFace == distToMaxY) point.y = _max.y;
+                if (minDistToFace == distToMinY) point.y = Min.y;
+                else if (minDistToFace == distToMaxY) point.y = Max.y;
 
-                if (minDistToFace == distToMinZ) point.z = _min.z;
-                else if (minDistToFace == distToMaxZ) point.z = _max.z;
+                if (minDistToFace == distToMinZ) point.z = Min.z;
+                else if (minDistToFace == distToMaxZ) point.z = Max.z;
 
                 return point;
             }
 
             // If the point is outside the box, clamp to the nearest surface.
             return new Vector3d(
-                FixedMath.Clamp(point.x, _min.x, _max.x),
-                FixedMath.Clamp(point.y, _min.y, _max.y),
-                FixedMath.Clamp(point.z, _min.z, _max.z)
+                FixedMath.Clamp(point.x, Min.x, Max.x),
+                FixedMath.Clamp(point.y, Min.y, Max.y),
+                FixedMath.Clamp(point.z, Min.z, Max.z)
             );
         }
 
@@ -364,8 +362,8 @@ namespace FixedMathSharp
 
             if (_isDirty)
             {
-                Vector3d min = _min;
-                Vector3d max = _max;
+                Vector3d min = Min;
+                Vector3d max = Max;
 
                 _vertices[0] = new(min.x, min.y, min.z);
                 _vertices[1] = new(max.x, min.y, min.z);
@@ -393,8 +391,8 @@ namespace FixedMathSharp
         {
             return new BoundingBox
             {
-                _min = Vector3d.Min(a._min, b._min),
-                _max = Vector3d.Max(a._max, b._max),
+                Min = Vector3d.Min(a.Min, b.Min),
+                Max = Vector3d.Max(a.Max, b.Max),
                 _isDirty = true
             };
         }
@@ -435,17 +433,11 @@ namespace FixedMathSharp
         public override bool Equals(object? obj) => obj is BoundingBox other && Equals(other);
 
         public bool Equals(BoundingBox other)
-            => _min.Equals(other._min) && _max.Equals(other._max);
+            => Min.Equals(other.Min) && Max.Equals(other.Max);
 
         public override int GetHashCode()
         {
-            unchecked
-            {
-                int hash = 17;
-                hash = hash * 23 + _min.GetHashCode();
-                hash = hash * 23 + _max.GetHashCode();
-                return hash;
-            }
+            return HashCode.Combine(Min, Max);
         }
 
         #endregion

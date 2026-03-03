@@ -1,4 +1,4 @@
-﻿using MessagePack;
+﻿using MemoryPack;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -13,7 +13,7 @@ namespace FixedMathSharp
     /// The precision is determined by SHIFT_AMOUNT, which defines the resolution of fractional values.
     /// </summary>
     [Serializable]
-    [MessagePackObject]
+    [MemoryPackable]
     public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqualityComparer<Fixed64>
     {
         #region Fields and Constants
@@ -21,7 +21,7 @@ namespace FixedMathSharp
         /// <summary>
         /// The underlying raw long value representing the fixed-point number.
         /// </summary>
-        [Key(0)]
+        [MemoryPackOrder(0)]
         public long m_rawValue;
 
         public static readonly Fixed64 MAX_VALUE = new Fixed64(FixedMath.MAX_VALUE_L);
@@ -153,7 +153,7 @@ namespace FixedMathSharp
             // Return the sign of the value, optimizing for branchless comparison
             return value.m_rawValue < 0 ? -1 : (value.m_rawValue > 0 ? 1 : 0);
         }
-        
+
         /// <summary>
         /// Returns true if the number has no decimal part (i.e., if the number is equivalent to an integer) and False otherwise. 
         /// </summary>

@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace FixedMathSharp
 {
@@ -22,7 +20,7 @@ namespace FixedMathSharp
         {
             return Fixed64.IsInteger(value);
         }
-        
+
         /// <inheritdoc cref="FixedMath.Squared(Fixed64)" />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 Squared(this Fixed64 value)

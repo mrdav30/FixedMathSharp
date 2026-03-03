@@ -1,4 +1,4 @@
-﻿using MessagePack;
+﻿using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -18,21 +18,21 @@ namespace FixedMathSharp
     /// </remarks>
 
     [Serializable]
-    [MessagePackObject]
-    public struct BoundingArea : IBound, IEquatable<BoundingArea>
+    [MemoryPackable]
+    public partial struct BoundingArea : IBound, IEquatable<BoundingArea>
     {
         #region Fields
 
         /// <summary>
         /// One of the corner points of the bounding area.
         /// </summary>
-        [Key(0)]
+        [MemoryPackOrder(0)]
         public Vector3d Corner1;
 
         /// <summary>
         /// The opposite corner point of the bounding area.
         /// </summary>
-        [Key(1)]
+        [MemoryPackOrder(1)]
         public Vector3d Corner2;
 
         #endregion
@@ -68,7 +68,7 @@ namespace FixedMathSharp
         /// <summary>
         /// The minimum corner of the bounding box.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d Min
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -78,49 +78,49 @@ namespace FixedMathSharp
         /// <summary>
         /// The maximum corner of the bounding box.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d Max
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => new(MaxX, MaxY, MaxZ);
         }
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 MinX
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Corner1.x < Corner2.x ? Corner1.x : Corner2.x;
         }
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 MaxX
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Corner1.x > Corner2.x ? Corner1.x : Corner2.x;
         }
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 MinY
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Corner1.y < Corner2.y ? Corner1.y : Corner2.y;
         }
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 MaxY
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Corner1.y > Corner2.y ? Corner1.y : Corner2.y;
         }
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 MinZ
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Corner1.z < Corner2.z ? Corner1.z : Corner2.z;
         }
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 MaxZ
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -130,7 +130,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Calculates the width (X-axis) of the bounding area.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 Width
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -140,7 +140,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Calculates the height (Y-axis) of the bounding area.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 Height
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -150,7 +150,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Calculates the depth (Z-axis) of the bounding area.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 Depth
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -163,8 +163,8 @@ namespace FixedMathSharp
         public bool Contains(Vector3d point)
         {
             // Check if the point is within the bounds of the area (including boundaries)
-            return point.x >= MinX && point.x <= MaxX 
-                && point.y >= MinY && point.y <= MaxY 
+            return point.x >= MinX && point.x <= MaxX
+                && point.y >= MinY && point.y <= MaxY
                 && point.z >= MinZ && point.z <= MaxZ;
         }
 
@@ -208,7 +208,8 @@ namespace FixedMathSharp
                     return Vector3d.SqrDistance(sphere.Center, this.ProjectPointWithinBounds(sphere.Center)) <= sphere.SqrRadius;
 
                 default: return false; // Default case for unknown or unsupported types
-            };
+            }
+            ;
         }
 
         /// <summary>

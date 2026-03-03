@@ -1,14 +1,6 @@
-﻿using MessagePack;
-
-#if NET48_OR_GREATER
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-#endif
-
-#if NET8_0_OR_GREATER
+﻿using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-#endif
 
 using Xunit;
 
@@ -320,18 +312,6 @@ namespace FixedMathSharp.Tests
         {
             var originalValue = new Vector2d(FixedMath.PI, FixedMath.PiOver2);
 
-            // Serialize the Vector3d object
-#if NET48_OR_GREATER
-            var formatter = new BinaryFormatter();
-            using var stream = new MemoryStream();
-            formatter.Serialize(stream, originalValue);
-
-            // Reset stream position and deserialize
-            stream.Seek(0, SeekOrigin.Begin);
-            var deserializedValue = (Vector2d)formatter.Deserialize(stream);
-#endif
-
-#if NET8_0_OR_GREATER
             var jsonOptions = new JsonSerializerOptions
             {
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -341,7 +321,6 @@ namespace FixedMathSharp.Tests
             };
             var json = JsonSerializer.SerializeToUtf8Bytes(originalValue, jsonOptions);
             var deserializedValue = JsonSerializer.Deserialize<Vector2d>(json, jsonOptions);
-#endif
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);
@@ -352,8 +331,8 @@ namespace FixedMathSharp.Tests
         {
             Vector2d originalValue = new Vector2d(FixedMath.PI, FixedMath.PiOver2);
 
-            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
-            Vector2d deserializedValue = MessagePackSerializer.Deserialize<Vector2d>(bytes);
+            byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
+            Vector2d deserializedValue = MemoryPackSerializer.Deserialize<Vector2d>(bytes);
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);
