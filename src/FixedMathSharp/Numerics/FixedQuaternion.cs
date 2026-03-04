@@ -1,4 +1,4 @@
-﻿using MessagePack;
+﻿using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -9,21 +9,21 @@ namespace FixedMathSharp
     /// Quaternions are useful for representing rotations and can be used to perform smooth rotations and avoid gimbal lock.
     /// </summary>
     [Serializable]
-    [MessagePackObject]
-    public struct FixedQuaternion : IEquatable<FixedQuaternion>
+    [MemoryPackable]
+    public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     {
         #region Fields and Constants
 
-        [Key(0)]
+        [MemoryPackOrder(0)]
         public Fixed64 x;
 
-        [Key(1)]
+        [MemoryPackOrder(1)]
         public Fixed64 y;
 
-        [Key(2)]
+        [MemoryPackOrder(2)]
         public Fixed64 z;
 
-        [Key(3)]
+        [MemoryPackOrder(3)]
         public Fixed64 w;
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Normalized version of this quaternion.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public FixedQuaternion Normal
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -69,7 +69,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Returns the Euler angles (in degrees) of this quaternion.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d EulerAngles
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -78,7 +78,7 @@ namespace FixedMathSharp
             set => this = FromEulerAnglesInDegrees(value.x, value.y, value.z);
         }
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -372,7 +372,7 @@ namespace FixedMathSharp
 
             // Check if the angle is in a valid range (-pi, pi)
             if (angle < -FixedMath.PI || angle > FixedMath.PI)
-                throw new ArgumentOutOfRangeException("Angle must be in the range (-pi, pi)");
+                throw new ArgumentOutOfRangeException(nameof(angle), angle, $"Angle must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but was {angle}");
 
             Fixed64 halfAngle = angle / Fixed64.Two;  // Half-angle formula
             Fixed64 sinHalfAngle = FixedMath.Sin(halfAngle);
@@ -408,12 +408,12 @@ namespace FixedMathSharp
         public static FixedQuaternion FromEulerAngles(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
         {
             // Check if the angles are in a valid range (-pi, pi)
-            if (pitch < -FixedMath.PI || pitch > FixedMath.PI ||
-                yaw < -FixedMath.PI || yaw > FixedMath.PI ||
-                roll < -FixedMath.PI || roll > FixedMath.PI)
-            {
-                throw new ArgumentOutOfRangeException("Euler angles must be in the range (-pi, pi)");
-            }
+            if (pitch < -FixedMath.PI || pitch > FixedMath.PI)
+                throw new ArgumentOutOfRangeException(nameof(pitch), pitch, $"Pitch must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but was {pitch}");
+            if (yaw < -FixedMath.PI || yaw > FixedMath.PI)
+                throw new ArgumentOutOfRangeException(nameof(yaw), yaw, $"Yaw must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but was {yaw}");
+            if (roll < -FixedMath.PI || roll > FixedMath.PI)
+                throw new ArgumentOutOfRangeException(nameof(roll), roll, $"Roll must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but was {roll}");
 
             Fixed64 c1 = FixedMath.Cos(yaw / Fixed64.Two);
             Fixed64 s1 = FixedMath.Sin(yaw / Fixed64.Two);
@@ -770,7 +770,7 @@ namespace FixedMathSharp
         #region Equality and HashCode Overrides
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is FixedQuaternion other && Equals(other);
         }

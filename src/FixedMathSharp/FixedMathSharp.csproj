@@ -2,8 +2,8 @@
   <!-- Global Properties: General Configuration Settings -->
   <PropertyGroup>
     <!-- Define the target framework and compatibility -->
-    <LangVersion>9.0</LangVersion>
-    <TargetFrameworks>net48;net8</TargetFrameworks>
+    <LangVersion>11.0</LangVersion>
+    <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
     <!-- Versioning and Build Configuration -->
     <!-- Set SemVer to GitVersion_FullSemVer if available, otherwise fallback to 0.0.0 -->
     <SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
@@ -67,11 +67,7 @@
   </PropertyGroup>
   <!-- Dependencies and Package References -->
   <ItemGroup>
-	<PackageReference Include="MessagePack" Version="3.1.4" />
-	<PackageReference Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'" Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
+	<PackageReference Include="MemoryPack" Version="1.21.4" />
   </ItemGroup>
   <!-- Ensure LICENSE, README, & icon files are included in the NuGet package -->
   <ItemGroup>

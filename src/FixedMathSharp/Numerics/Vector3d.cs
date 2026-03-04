@@ -1,4 +1,4 @@
-﻿using MessagePack;
+﻿using MemoryPack;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -19,7 +19,7 @@ namespace FixedMathSharp
     /// - Essential for fixed-point math scenarios where floating-point precision isn't suitable.
     /// </remarks>
     [Serializable]
-    [MessagePackObject]
+    [MemoryPackable]
     public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IEqualityComparer<Vector3d>
     {
         #region Fields and Constants
@@ -27,19 +27,19 @@ namespace FixedMathSharp
         /// <summary>
         /// The X component of the vector.
         /// </summary>
-        [Key(0)]
+        [MemoryPackOrder(0)]
         public Fixed64 x;
 
         /// <summary>
         /// The Y component of the vector.
         /// </summary>
-        [Key(1)]
+        [MemoryPackOrder(1)]
         public Fixed64 y;
 
         /// <summary>
         /// The Z component of the vector.
         /// </summary>
-        [Key(2)]
+        [MemoryPackOrder(2)]
         public Fixed64 z;
 
         /// <summary>
@@ -117,7 +117,7 @@ namespace FixedMathSharp
         /// Note that the positive direction of rotation is defined by the right-hand rule:
         /// If your right hand's thumb points in the positive Y direction, then your fingers curl in the positive direction of rotation.
         /// </remarks>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d RightHandNormal
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -127,7 +127,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Provides a rotated version of the current vector, where rotation is a 90 degrees rotation around the Y axis in the clockwise direction.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d LeftHandNormal
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -135,7 +135,7 @@ namespace FixedMathSharp
         }
 
         /// <inheritdoc cref="GetNormalized(Vector3d)"/>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d Normal
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -145,7 +145,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Returns the actual length of this vector (RO).
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 Magnitude
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -159,7 +159,7 @@ namespace FixedMathSharp
         /// This is commonly used to determine the direction an object is facing in 3D space,
         /// where 'x' represents the yaw (horizontal rotation) and 'y' represents the pitch (vertical rotation).
         /// </remarks>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Vector3d Direction
         {
             get
@@ -175,7 +175,7 @@ namespace FixedMathSharp
         /// Are all components of this vector equal to zero?
         /// </summary>
         /// <returns></returns>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public bool IsZero
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -188,7 +188,7 @@ namespace FixedMathSharp
         /// If you need to know the actual distance, use MyMagnitude
         /// </summary>
         /// <returns>The magnitude.</returns>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 SqrMagnitude
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -198,7 +198,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Returns a long hash of the vector based on its x, y, and z values.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public long LongStateHash
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -208,14 +208,14 @@ namespace FixedMathSharp
         /// <summary>
         /// Returns a hash of the vector based on its state.
         /// </summary>
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public int StateHash
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (int)(LongStateHash % int.MaxValue);
         }
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

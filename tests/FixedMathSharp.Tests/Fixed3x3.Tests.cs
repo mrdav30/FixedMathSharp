@@ -1,15 +1,6 @@
-﻿using MessagePack;
-
-#if NET48_OR_GREATER
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-#endif
-
-#if NET8_0_OR_GREATER
+﻿using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-#endif
-
 using Xunit;
 
 namespace FixedMathSharp.Tests
@@ -329,18 +320,6 @@ namespace FixedMathSharp.Tests
         {
             var original3x3 = Fixed3x3.CreateRotationX(FixedMath.PiOver2); // 90 degrees
 
-            // Serialize the Fixed3x3 object
-#if NET48_OR_GREATER
-            var formatter = new BinaryFormatter();
-            using var stream = new MemoryStream();
-            formatter.Serialize(stream, original3x3);
-
-            // Reset stream position and deserialize
-            stream.Seek(0, SeekOrigin.Begin);
-            var deserialized3x3 = (Fixed3x3)formatter.Deserialize(stream);
-#endif
-
-#if NET8_0_OR_GREATER
             var jsonOptions = new JsonSerializerOptions
             {
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -350,19 +329,18 @@ namespace FixedMathSharp.Tests
             };
             var json = JsonSerializer.SerializeToUtf8Bytes(original3x3, jsonOptions);
             var deserialized3x3 = JsonSerializer.Deserialize<Fixed3x3>(json, jsonOptions);
-#endif
 
             // Check that deserialized values match the original
             Assert.Equal(original3x3, deserialized3x3);
         }
 
         [Fact]
-        public void Fixed3x3_MsgPackSerialization_RoundTripMaintainsData()
+        public void Fixed3x3_MemoryPackSerialization_RoundTripMaintainsData()
         {
             Fixed3x3 originalValue = Fixed3x3.CreateRotationX(FixedMath.PiOver2); // 90 degrees
 
-            byte[] bytes = MessagePackSerializer.Serialize(originalValue);
-            Fixed3x3 deserializedValue = MessagePackSerializer.Deserialize<Fixed3x3>(bytes);
+            byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
+            Fixed3x3 deserializedValue = MemoryPackSerializer.Deserialize<Fixed3x3>(bytes);
 
             // Check that deserialized values match the original
             Assert.Equal(originalValue, deserializedValue);

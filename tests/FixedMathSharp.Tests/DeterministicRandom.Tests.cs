@@ -1,7 +1,6 @@
-﻿using System;
+﻿using FixedMathSharp.Utility;
+using System;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using FixedMathSharp.Utility;
 using Xunit;
 
 namespace FixedMathSharp.Tests

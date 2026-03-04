@@ -1,4 +1,4 @@
-﻿using MessagePack;
+﻿using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -19,45 +19,45 @@ namespace FixedMathSharp
     /// - Useful in animation, physics engines, and 3D rendering for full transformation control.
     /// </remarks>
     [Serializable]
-    [MessagePackObject]
-    public struct Fixed4x4 : IEquatable<Fixed4x4>
+    [MemoryPackable]
+    public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     {
         #region Fields and Constants
 
-        [Key(0)]
+        [MemoryPackOrder(0)]
         public Fixed64 m00;
-        [Key(1)]
+        [MemoryPackOrder(1)]
         public Fixed64 m01;
-        [Key(2)]
+        [MemoryPackOrder(2)]
         public Fixed64 m02;
-        [Key(3)]
+        [MemoryPackOrder(3)]
         public Fixed64 m03;
 
-        [Key(4)]
+        [MemoryPackOrder(4)]
         public Fixed64 m10;
-        [Key(5)]
+        [MemoryPackOrder(5)]
         public Fixed64 m11;
-        [Key(6)]
+        [MemoryPackOrder(6)]
         public Fixed64 m12;
-        [Key(7)]
+        [MemoryPackOrder(7)]
         public Fixed64 m13;
 
-        [Key(8)]
+        [MemoryPackOrder(8)]
         public Fixed64 m20;
-        [Key(9)]
+        [MemoryPackOrder(9)]
         public Fixed64 m21;
-        [Key(10)]
+        [MemoryPackOrder(10)]
         public Fixed64 m22;
-        [Key(11)]
+        [MemoryPackOrder(11)]
         public Fixed64 m23;
 
-        [Key(12)]
+        [MemoryPackOrder(12)]
         public Fixed64 m30;
-        [Key(13)]
+        [MemoryPackOrder(13)]
         public Fixed64 m31;
-        [Key(14)]
+        [MemoryPackOrder(14)]
         public Fixed64 m32;
-        [Key(15)]
+        [MemoryPackOrder(15)]
         public Fixed64 m33;
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace FixedMathSharp
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
-       
+
         #endregion
 
         #region Constructors
@@ -103,25 +103,25 @@ namespace FixedMathSharp
 
         #region Properties and Methods (Instance)
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public readonly bool IsAffine => (m33 == Fixed64.One) && (m03 == Fixed64.Zero && m13 == Fixed64.Zero && m23 == Fixed64.Zero);
 
         /// <inheritdoc cref="ExtractTranslation(Fixed4x4)" />
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public readonly Vector3d Translation => ExtractTranslation(this);
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public readonly Vector3d Up => ExtractUp(this);
 
         /// <inheritdoc cref="ExtractScale(Fixed4x4)" />
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public readonly Vector3d Scale => ExtractScale(this);
 
         /// <inheritdoc cref="ExtractRotation(Fixed4x4)" />
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public readonly FixedQuaternion Rotation => ExtractRotation(this);
 
-        [IgnoreMember]
+        [MemoryPackIgnore]
         public Fixed64 this[int index]
         {
             get

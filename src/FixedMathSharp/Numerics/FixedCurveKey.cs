@@ -1,4 +1,4 @@
-﻿using MessagePack;
+﻿using MemoryPack;
 using System;
 
 #if NET8_0_OR_GREATER
@@ -11,23 +11,23 @@ namespace FixedMathSharp
     /// Represents a keyframe in a <see cref="FixedCurve"/>, defining a value at a specific time.
     /// </summary>
     [Serializable]
-    [MessagePackObject]
-    public struct FixedCurveKey : IEquatable<FixedCurveKey>
+    [MemoryPackable]
+    public partial struct FixedCurveKey : IEquatable<FixedCurveKey>
     {
         /// <summary>The time at which this keyframe occurs.</summary>
-        [Key(0)]
+        [MemoryPackOrder(0)]
         public Fixed64 Time;
 
         /// <summary>The value of the curve at this keyframe.</summary>
-        [Key(1)]
+        [MemoryPackOrder(1)]
         public Fixed64 Value;
 
         /// <summary>The incoming tangent for cubic interpolation.</summary>
-        [Key(2)]
+        [MemoryPackOrder(2)]
         public Fixed64 InTangent;
 
         /// <summary>The outgoing tangent for cubic interpolation.</summary>
-        [Key(3)]
+        [MemoryPackOrder(3)]
         public Fixed64 OutTangent;
 
         /// <summary>
@@ -74,14 +74,7 @@ namespace FixedMathSharp
 
         public override int GetHashCode()
         {
-            unchecked
-            {
-                int hash = Time.GetHashCode();
-                hash = (hash * 31) ^ Value.GetHashCode();
-                hash = (hash * 31) ^ InTangent.GetHashCode();
-                hash = (hash * 31) ^ OutTangent.GetHashCode();
-                return hash;
-            }
+            return HashCode.Combine(Time, Value, InTangent, OutTangent);
         }
 
         public static bool operator ==(FixedCurveKey left, FixedCurveKey right) => left.Equals(right);

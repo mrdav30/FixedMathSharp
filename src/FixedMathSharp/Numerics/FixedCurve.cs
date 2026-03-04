@@ -1,4 +1,4 @@
-﻿using MessagePack;
+﻿using MemoryPack;
 using System;
 using System.Linq;
 
@@ -31,13 +31,13 @@ namespace FixedMathSharp
     /// Used for animations, physics calculations, and procedural data.
     /// </summary>
     [Serializable]
-    [MessagePackObject]
-    public class FixedCurve : IEquatable<FixedCurve>
+    [MemoryPackable]
+    public partial class FixedCurve : IEquatable<FixedCurve>
     {
-        [Key(0)]
+        [MemoryPackOrder(0)]
         public FixedCurveMode Mode { get; private set; }
 
-        [Key(1)]
+        [MemoryPackOrder(1)]
         public FixedCurveKey[] Keyframes { get; private set; }
 
         /// <summary>
@@ -55,7 +55,7 @@ namespace FixedMathSharp
 #if NET8_0_OR_GREATER
         [JsonConstructor]
 #endif
-        [SerializationConstructor]
+        [MemoryPackConstructor]
         public FixedCurve(FixedCurveMode mode, params FixedCurveKey[] keyframes)
         {
             Keyframes = keyframes.OrderBy(k => k.Time).ToArray();
@@ -73,7 +73,7 @@ namespace FixedMathSharp
 
             // Clamp input within the keyframe range
             if (time <= Keyframes[0].Time) return Keyframes[0].Value;
-            if (time >= Keyframes[Keyframes.Length - 1].Time) return Keyframes[Keyframes.Length - 1].Value;
+            if (time >= Keyframes[^1].Time) return Keyframes[^1].Value;
 
             // Find the surrounding keyframes
             for (int i = 0; i < Keyframes.Length - 1; i++)

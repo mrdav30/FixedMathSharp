@@ -74,8 +74,8 @@ namespace FixedMathSharp.Utility
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Next(int maxExclusive)
         {
-            return maxExclusive <= 0 
-                ? throw new ArgumentOutOfRangeException(nameof(maxExclusive)) 
+            return maxExclusive <= 0
+                ? throw new ArgumentOutOfRangeException(nameof(maxExclusive))
                 : (int)NextBounded((uint)maxExclusive);
         }
 
@@ -85,7 +85,7 @@ namespace FixedMathSharp.Utility
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Next(int minInclusive, int maxExclusive)
         {
-            if (minInclusive >= maxExclusive) 
+            if (minInclusive >= maxExclusive)
                 throw new ArgumentException("min >= max");
             uint range = (uint)(maxExclusive - minInclusive);
             return minInclusive + (int)NextBounded(range);

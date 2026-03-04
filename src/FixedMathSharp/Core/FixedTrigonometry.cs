@@ -340,7 +340,7 @@ namespace FixedMathSharp
         /// - The function automatically normalizes input values to the range [-π, π] for stability.
         /// </remarks>
         public static Fixed64 Cos(Fixed64 x)
-        {           
+        {
             long xl = x.m_rawValue;
             long rawAngle = xl + (xl > 0 ? -PI.m_rawValue - PiOver2.m_rawValue : PiOver2.m_rawValue);
             return Sin(Fixed64.FromRaw(rawAngle));
