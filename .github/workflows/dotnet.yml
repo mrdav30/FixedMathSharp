@@ -13,10 +13,6 @@ on:
 
 jobs:
   build-and-test:
-    if: |
-      (github.event_name != 'pull_request' && !github.event.pull_request.head.repo.fork) 
-      || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork 
-      || startsWith(github.head_ref, 'dependabot/')))
     runs-on: ${{ matrix.os }}
 
     strategy:

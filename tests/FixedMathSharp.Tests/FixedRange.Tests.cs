@@ -180,7 +180,7 @@ namespace FixedMathSharp.Tests
         }
 
         [Fact]
-        public void FixedRange_MsgPackSerialization_RoundTripMaintainsData()
+        public void FixedRange_MemoryPackSerialization_RoundTripMaintainsData()
         {
             FixedRange originalValue = new FixedRange(new Fixed64(-10), new Fixed64(10));
 

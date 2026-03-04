@@ -603,7 +603,7 @@ namespace FixedMathSharp.Tests
         }
 
         [Fact]
-        public void Vector3d_MsgPackSerialization_RoundTripMaintainsData()
+        public void Vector3d_MemoryPackSerialization_RoundTripMaintainsData()
         {
             Vector3d originalValue = new Vector3d(FixedMath.PI, FixedMath.PiOver2, FixedMath.TwoPI);
 

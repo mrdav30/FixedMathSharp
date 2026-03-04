@@ -332,7 +332,7 @@ namespace FixedMathSharp.Tests
         }
 
         [Fact]
-        public void Fixed4x4_MsgPackSerialization_RoundTripMaintainsData()
+        public void Fixed4x4_MemoryPackSerialization_RoundTripMaintainsData()
         {
             var translation = new Vector3d(1, 2, 3);
             var rotation = FixedQuaternion.FromEulerAnglesInDegrees(Fixed64.Zero, FixedMath.PiOver2, Fixed64.Zero);

@@ -385,7 +385,7 @@ namespace FixedMathSharp.Tests
         }
 
         [Fact]
-        public void FixedQuanternion_MsgPackSerialization_RoundTripMaintainsData()
+        public void FixedQuanternion_MemoryPackSerialization_RoundTripMaintainsData()
         {
             var quaternion = FixedQuaternion.Identity;
             var sin = FixedMath.Sin(FixedMath.PiOver4);  // 45° rotation

@@ -192,7 +192,7 @@ namespace FixedMathSharp.Tests.Bounds
         }
 
         [Fact]
-        public void BoundingArea_MsgPackSerialization_RoundTripMaintainsData()
+        public void BoundingArea_MemoryPackSerialization_RoundTripMaintainsData()
         {
             BoundingArea originalValue = new(
                 new Vector3d(1, 2, 3),

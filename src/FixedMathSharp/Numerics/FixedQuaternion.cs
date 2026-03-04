@@ -408,12 +408,12 @@ namespace FixedMathSharp
         public static FixedQuaternion FromEulerAngles(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
         {
             // Check if the angles are in a valid range (-pi, pi)
-            if (pitch < -FixedMath.PI || pitch > FixedMath.PI ||
-                yaw < -FixedMath.PI || yaw > FixedMath.PI ||
-                roll < -FixedMath.PI || roll > FixedMath.PI)
-            {
-                throw new ArgumentOutOfRangeException(nameof(pitch), $"Euler angles must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but were ({pitch}, {yaw}, {roll})");
-            }
+            if (pitch < -FixedMath.PI || pitch > FixedMath.PI)
+                throw new ArgumentOutOfRangeException(nameof(pitch), pitch, $"Pitch must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but was {pitch}");
+            if (yaw < -FixedMath.PI || yaw > FixedMath.PI)
+                throw new ArgumentOutOfRangeException(nameof(yaw), yaw, $"Yaw must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but was {yaw}");
+            if (roll < -FixedMath.PI || roll > FixedMath.PI)
+                throw new ArgumentOutOfRangeException(nameof(roll), roll, $"Roll must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but was {roll}");
 
             Fixed64 c1 = FixedMath.Cos(yaw / Fixed64.Two);
             Fixed64 s1 = FixedMath.Sin(yaw / Fixed64.Two);

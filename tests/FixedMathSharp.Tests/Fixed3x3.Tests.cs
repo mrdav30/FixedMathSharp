@@ -335,7 +335,7 @@ namespace FixedMathSharp.Tests
         }
 
         [Fact]
-        public void Fixed3x3_MsgPackSerialization_RoundTripMaintainsData()
+        public void Fixed3x3_MemoryPackSerialization_RoundTripMaintainsData()
         {
             Fixed3x3 originalValue = Fixed3x3.CreateRotationX(FixedMath.PiOver2); // 90 degrees
 
