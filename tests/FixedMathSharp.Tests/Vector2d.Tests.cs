@@ -327,7 +327,7 @@ namespace FixedMathSharp.Tests
         }
 
         [Fact]
-        public void Vector2d_MsgPackSerialization_RoundTripMaintainsData()
+        public void Vector2d_MemoryPackSerialization_RoundTripMaintainsData()
         {
             Vector2d originalValue = new Vector2d(FixedMath.PI, FixedMath.PiOver2);
 

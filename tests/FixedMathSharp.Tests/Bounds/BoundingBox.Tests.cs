@@ -266,7 +266,7 @@ namespace FixedMathSharp.Tests.Bounds
         }
 
         [Fact]
-        public void BoundingBox_MsgPackSerialization_RoundTripMaintainsData()
+        public void BoundingBox_MemoryPackSerialization_RoundTripMaintainsData()
         {
             BoundingBox originalValue = new(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
@@ -278,7 +278,7 @@ namespace FixedMathSharp.Tests.Bounds
         }
 
         [Fact]
-        public void MsgPack_SerializedBox_RemainsMutable()
+        public void MemoryPack_SerializedBox_RemainsMutable()
         {
             var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 

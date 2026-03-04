@@ -211,7 +211,7 @@ namespace FixedMathSharp.Tests
         }
 
         [Fact]
-        public void Fixed64_MsgPackSerialization_RoundTripMaintainsData()
+        public void Fixed64_MemoryPackSerialization_RoundTripMaintainsData()
         {
             Fixed64 originalValue = FixedMath.PI;
 

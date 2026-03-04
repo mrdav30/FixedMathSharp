@@ -392,6 +392,7 @@ namespace FixedMathSharp
             {
                 Min = Vector3d.Min(a.Min, b.Min),
                 Max = Vector3d.Max(a.Max, b.Max),
+                Version = (byte)Math.Max(a.Version, b.Version),
                 _isDirty = true
             };
         }

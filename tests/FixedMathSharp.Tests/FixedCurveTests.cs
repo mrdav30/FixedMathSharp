@@ -141,13 +141,14 @@ namespace FixedMathSharp.Tests
             };
             var json = JsonSerializer.SerializeToUtf8Bytes(originalCurve, jsonOptions);
             var deserializedCurve = JsonSerializer.Deserialize<FixedCurve>(json, jsonOptions);
+            Assert.NotNull(deserializedCurve);
 
             // Check that deserialized values match the original
             Assert.Equal(originalCurve, deserializedCurve);
         }
 
         [Fact]
-        public void FixedCurve_MsgPackSerialization_RoundTripMaintainsData()
+        public void FixedCurve_MemoryPackSerialization_RoundTripMaintainsData()
         {
             FixedCurve originalValue = new FixedCurve(
                 new FixedCurveKey(-10, -100),
