@@ -8,23 +8,23 @@
 
 ## Build and test workflows
 - Solution: `FixedMathSharp.sln` with library project and test project.
-- Target frameworks are multi-targeted in both projects: `net48;net8`.
+- Target frameworks are configured in the respective `.csproj` files; `net8.0` is the primary TFM.
 - Typical local workflow:
   - `dotnet restore`
   - `dotnet build --configuration Debug --no-restore`
   - `dotnet test --configuration Debug`
 - CI detail from `.github/workflows/dotnet.yml`:
-  - Linux runs `net48` tests via Mono + `xunit.console.exe` and `net8` via `dotnet test -f net8`.
-  - Windows runs `dotnet test` for both TFMs.
+  - Linux and Windows both run `dotnet test` against the supported TFMs (with `net8.0` as the primary test target).
+  - Refer to the workflow file for the exact matrix of OS/TFM combinations.
 - Packaging/versioning comes from `src/FixedMathSharp/FixedMathSharp.csproj`: GitVersion variables are consumed when present, otherwise version falls back to `0.0.0`.
 
 ## Code conventions specific to this repo
 - Prefer `Fixed64` constants (`Fixed64.Zero`, `Fixed64.One`, `FixedMath.PI`) over primitive literals in math-heavy code.
 - Preserve saturating/guarded semantics in operators and math helpers (for example `Fixed64` add/sub overflow behavior).
 - When touching bounds logic, maintain cross-type dispatch shape in `Intersects(IBound)` and shared clamping projection via `IBoundExtensions.ProjectPointWithinBounds`.
-- Serialization compatibility is intentional:
-  - MessagePack attributes on serializable structs (`[MessagePackObject]`, `[Key]`) across TFMs.
-  - Conditional serializers in tests (`BinaryFormatter` for `NET48`, `System.Text.Json` for `NET8`).
+- Serialization compatibility is intentional and now uses MemoryPack:
+  - MemoryPack attributes on serializable structs (for example `[MemoryPackable]`, `[MemoryPackInclude]`) are the source of truth for serialized layouts.
+  - Tests use MemoryPack-based roundtrips (and `System.Text.Json` where appropriate) instead of legacy `MessagePack`/`BinaryFormatter` serializers.
 - `ThreadLocalRandom` is marked `[Obsolete]`; new deterministic RNG work should prefer `DeterministicRandom` and `DeterministicRandom.FromWorldFeature(...)` in `src/FixedMathSharp/Utility/DeterministicRandom.cs`.
 
 ## Testing patterns to mirror

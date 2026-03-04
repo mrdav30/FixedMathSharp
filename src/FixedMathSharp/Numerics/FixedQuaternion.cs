@@ -372,7 +372,7 @@ namespace FixedMathSharp
 
             // Check if the angle is in a valid range (-pi, pi)
             if (angle < -FixedMath.PI || angle > FixedMath.PI)
-                throw new ArgumentOutOfRangeException($"Angle must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but was {angle}");
+                throw new ArgumentOutOfRangeException(nameof(angle), angle, $"Angle must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but was {angle}");
 
             Fixed64 halfAngle = angle / Fixed64.Two;  // Half-angle formula
             Fixed64 sinHalfAngle = FixedMath.Sin(halfAngle);
@@ -412,7 +412,7 @@ namespace FixedMathSharp
                 yaw < -FixedMath.PI || yaw > FixedMath.PI ||
                 roll < -FixedMath.PI || roll > FixedMath.PI)
             {
-                throw new ArgumentOutOfRangeException($"Euler angles must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but were ({pitch}, {yaw}, {roll})");
+                throw new ArgumentOutOfRangeException(nameof(pitch), $"Euler angles must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but were ({pitch}, {yaw}, {roll})");
             }
 
             Fixed64 c1 = FixedMath.Cos(yaw / Fixed64.Two);
