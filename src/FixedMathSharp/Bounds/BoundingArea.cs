@@ -209,7 +209,6 @@ namespace FixedMathSharp
 
                 default: return false; // Default case for unknown or unsupported types
             }
-            ;
         }
 
         /// <summary>

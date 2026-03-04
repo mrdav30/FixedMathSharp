@@ -39,7 +39,7 @@ namespace FixedMathSharp
         public Vector3d Max { get; private set; }
 
         /// <summary>
-        /// 
+        /// Serialization/compatibility version of this <see cref="BoundingBox"/> instance.
         /// </summary>
         [MemoryPackOrder(2)]
         public byte Version { get; private set; }
@@ -238,7 +238,6 @@ namespace FixedMathSharp
                 default:
                     return false; // Default case for unknown or unsupported types
             }
-            ;
         }
 
         /// <summary>
