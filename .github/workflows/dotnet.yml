@@ -13,6 +13,10 @@ on:
 
 jobs:
   build-and-test:
+    if: |
+      (github.event_name != 'pull_request' && !github.event.pull_request.head.repo.fork) 
+      || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork 
+      || startsWith(github.head_ref, 'dependabot/')))
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -31,10 +35,14 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    - name: Install GitVersion
+    - name: Setup GitVersion
       uses: gittools/actions/gitversion/setup@v3.1.1
       with:
         versionSpec: '6.0.x'
+
+    - name: Execute GitVersion
+      id: gitversion
+      uses: gittools/actions/gitversion/execute@v3.1.1
 
     - name: Cache NuGet packages
       uses: actions/cache@v3
@@ -44,23 +52,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-nuget-
 
-    - name: Determine Version
-      shell: bash
-      run: |
-        dotnet-gitversion /output json > version.json
-        FULL_SEM_VER=$(jq -r .FullSemVer version.json)
-        ASSEMBLY_VERSION=$(jq -r .AssemblySemFileVer version.json)
-        echo "FULL_SEM_VER=$FULL_SEM_VER" >> $GITHUB_ENV
-        echo "ASSEMBLY_VERSION=$ASSEMBLY_VERSION" >> $GITHUB_ENV
-
     - name: Restore dependencies
       run: dotnet restore
 
     - name: Build Solution
       run: |
-        echo "Version: ${{ env.FULL_SEM_VER }}"
-        echo "Assembly Version: ${{ env.ASSEMBLY_VERSION }}"
+        echo "Version: ${{ steps.gitversion.outputs.fullSemVer }}"
+        echo "Assembly Version: ${{ steps.gitversion.outputs.assemblySemFileVer }}"
         dotnet build --configuration Debug --no-restore
 
-    - name: Run Tests (net8.0)
+    - name: Run Tests
       run: dotnet test --configuration Debug --no-build --verbosity normal
