@@ -2,6 +2,13 @@
 using System;
 using System.Runtime.CompilerServices;
 
+#if NET8_0_OR_GREATER
+using System.Text.Json.Serialization;
+#endif
+#if !NET8_0_OR_GREATER
+using System.Text.Json.Serialization.Shim;
+#endif
+
 namespace FixedMathSharp
 {
     /// <summary>
@@ -25,12 +32,14 @@ namespace FixedMathSharp
         /// <summary>
         /// The center point of the sphere.
         /// </summary>
+        [JsonInclude]
         [MemoryPackOrder(0)]
         public Vector3d Center;
 
         /// <summary>
         /// The radius of the sphere.
         /// </summary>
+        [JsonInclude]
         [MemoryPackOrder(1)]
         public Fixed64 Radius;
 
@@ -41,7 +50,7 @@ namespace FixedMathSharp
         /// <summary>
         /// Initializes a new instance of the BoundingSphere struct with the specified center and radius.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [JsonConstructor]
         public BoundingSphere(Vector3d center, Fixed64 radius)
         {
             Center = center;
@@ -50,8 +59,9 @@ namespace FixedMathSharp
 
         #endregion
 
-        #region Properties and Methods (Instance)
+        #region Properties
 
+        [JsonIgnore]
         [MemoryPackIgnore]
         public Vector3d Min
         {
@@ -59,6 +69,7 @@ namespace FixedMathSharp
             get => Center - new Vector3d(Radius, Radius, Radius);
         }
 
+        [JsonIgnore]
         [MemoryPackIgnore]
         public Vector3d Max
         {
@@ -69,12 +80,17 @@ namespace FixedMathSharp
         /// <summary>
         /// The squared radius of the sphere.
         /// </summary>
+        [JsonIgnore]
         [MemoryPackIgnore]
         public Fixed64 SqrRadius
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Radius * Radius;
         }
+
+        #endregion
+
+        #region Methods (Instance)
 
         /// <summary>
         /// Checks if a point is inside the sphere.
