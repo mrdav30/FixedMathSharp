@@ -13,7 +13,7 @@
     <InfoVer Condition="'$(InfoVer)' == ''">$(SemVer)</InfoVer>
     <!-- Set Assembly and File Versions -->
     <AssemblySemVer Condition="'$(GitVersion_AssemblySemVer)' != ''">$(GitVersion_AssemblySemVer)</AssemblySemVer>
-    <AssemblySemVer Condition="'$(AssemblySemVer)' == ''">$(SemVer).0</AssemblySemVer>  
+    <AssemblySemVer Condition="'$(AssemblySemVer)' == ''">$(SemVer).0</AssemblySemVer>
     <AssemblySemFileVer Condition="'$(GitVersion_AssemblySemFileVer)' != ''">$(GitVersion_AssemblySemFileVer)</AssemblySemFileVer>
     <AssemblySemFileVer Condition="'$(AssemblySemFileVer)' == ''">$(AssemblySemVer)</AssemblySemFileVer>
     <!-- Set final versions for the project -->
@@ -28,11 +28,15 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>1591</NoWarn>
     <!-- Optional: Suppress warnings about missing XML comments -->
-	<DocumentationFile>bin\$(Configuration)\$(TargetFramework)\FixedMathSharp.xml</DocumentationFile>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\FixedMathSharp.xml</DocumentationFile>
     <!-- Configuration to ensure deterministic builds -->
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-	<Configurations>Debug;Release</Configurations>
+    <Configurations>Debug;Release</Configurations>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	<IncludeTransitiveProjectReferences>false</IncludeTransitiveProjectReferences>
   </PropertyGroup>
   <!-- Debug and Release-specific Properties -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -67,14 +71,14 @@
   </PropertyGroup>
   <!-- Dependencies and Package References -->
   <ItemGroup>
-	<PackageReference Include="MemoryPack" Version="1.21.4" />
+    <PackageReference Include="MemoryPack" Version="1.21.4" />
   </ItemGroup>
   <!-- Ensure LICENSE, README, & icon files are included in the NuGet package -->
   <ItemGroup>
     <None Include="..\..\LICENSE.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
-	<None Remove=".gitignore" />
+    <None Remove=".gitignore" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Serialization\" />
