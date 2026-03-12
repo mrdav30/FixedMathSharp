@@ -36,7 +36,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-	<IncludeTransitiveProjectReferences>false</IncludeTransitiveProjectReferences>
+    <IncludeTransitiveProjectReferences>false</IncludeTransitiveProjectReferences>
   </PropertyGroup>
   <!-- Debug and Release-specific Properties -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -58,7 +58,7 @@
     <PackageIcon>icon.png</PackageIcon>
     <PackageIconUrl>https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/icon.png</PackageIconUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
@@ -75,7 +75,9 @@
   </ItemGroup>
   <!-- Ensure LICENSE, README, & icon files are included in the NuGet package -->
   <ItemGroup>
-    <None Include="..\..\LICENSE.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\COPYRIGHT" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\NOTICE" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
     <None Remove=".gitignore" />
