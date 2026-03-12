@@ -1,4 +1,5 @@
-FixedMathSharp
+# FixedMathSharp
+
 ==============
 
 ![FixedMathSharp Icon](https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/icon.png)
@@ -12,7 +13,7 @@ Ideal for simulations, games, and physics engines requiring reliable arithmetic 
 
 ## 🛠️ Key Features
 
-- **Deterministic Calculations:** Ensures consistent results across different platforms. 
+- **Deterministic Calculations:** Ensures consistent results across different platforms.
 - **High Precision Arithmetic:** Uses fixed-point math to eliminate floating-point inaccuracies.
 - **Comprehensive Vector Support:** Includes 2D and 3D vector operations (`Vector2d`, `Vector3d`).
 - **Quaternion Rotations:** Leverage `FixedQuaternion` for smooth rotations without gimbal lock.
@@ -26,21 +27,20 @@ Ideal for simulations, games, and physics engines requiring reliable arithmetic 
 
 ## 🚀 Installation
 
-
 Clone the repository and add it to your project:
 
 ### Non-Unity Projects
 
 1. **Install via NuGet**:
    - Add FixedMathSharp to your project using the following command:
-   
+
      ```bash
      dotnet add package FixedMathSharp
      ```
 
 2. **Or Download/Clone**:
    - Clone the repository or download the source code.
-   
+
      ```bash
      git clone https://github.com/mrdav30/FixedMathSharp.git
      ```
@@ -59,7 +59,8 @@ FixedMathSharp is now maintained as a separate Unity package.For Unity-specific 
 
 ## 📖 Usage Examples
 
-### Basic Arithmetic with `Fixed64`:
+### Basic Arithmetic with `Fixed64`
+
 ```csharp
 Fixed64 a = new Fixed64(1.5);
 Fixed64 b = new Fixed64(2.5);
@@ -67,7 +68,8 @@ Fixed64 result = a + b;
 Console.WriteLine(result); // Output: 4.0
 ```
 
-### Vector Operations:
+### Vector Operations
+
 ```csharp
 Vector3d v1 = new Vector3d(1, 2, 3);
 Vector3d v2 = new Vector3d(4, 5, 6);
@@ -75,7 +77,8 @@ Fixed64 dotProduct = Vector3d.Dot(v1, v2);
 Console.WriteLine(dotProduct); // Output: 32
 ```
 
-### Quaternion Rotation:
+### Quaternion Rotation
+
 ```csharp
 FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2); // 90 degrees around Y-axis
 Vector3d point = new Vector3d(1, 0, 0);
@@ -83,7 +86,8 @@ Vector3d rotatedPoint = rotation.Rotate(point);
 Console.WriteLine(rotatedPoint); // Output: (0, 0, -1)
 ```
 
-### Matrix Transformations:
+### Matrix Transformations
+
 ```csharp
 Fixed4x4 matrix = Fixed4x4.Identity;
 Vector3d position = new Vector3d(1, 2, 3);
@@ -92,6 +96,7 @@ Console.WriteLine(matrix);
 ```
 
 ### Bounding Shapes and Intersection
+
 ```csharp
 BoundingBox box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(5, 5, 5));
 BoundingSphere sphere = new BoundingSphere(new Vector3d(3, 3, 3), new Fixed64(1));
@@ -99,7 +104,8 @@ bool intersects = box.Intersects(sphere);
 Console.WriteLine(intersects); // Output: True
 ```
 
-### Trigonometry Example:
+### Trigonometry Example
+
 ```csharp
 Fixed64 angle = FixedMath.PiOver4; // 45 degrees
 Fixed64 sinValue = FixedTrigonometry.Sin(angle);
@@ -148,7 +154,7 @@ int loot = rngOre.Next(1, 5); // [1,5)
 
 ### Fixed64 Struct
 
-**Fixed64** is the core data type representing fixed-point numbers. It provides various mathematical operations, including addition, subtraction, multiplication, division, and more. 
+**Fixed64** is the core data type representing fixed-point numbers. It provides various mathematical operations, including addition, subtraction, multiplication, division, and more.
 The struct guarantees deterministic behavior by using integer-based arithmetic with a configurable `SHIFT_AMOUNT`.
 
 ---
@@ -156,6 +162,7 @@ The struct guarantees deterministic behavior by using integer-based arithmetic w
 ## ⚡ Performance Considerations
 
 FixedMathSharp is optimized for high-performance deterministic calculations:
+
 - **Inline methods and bit-shifting optimizations** ensure minimal overhead.
 - **Eliminates floating-point drift**, making it ideal for lockstep simulations.
 - **Supports fuzzy equality comparisons** for handling minor precision deviations.
@@ -164,10 +171,11 @@ FixedMathSharp is optimized for high-performance deterministic calculations:
 
 ## 🧪 Testing and Validation
 
-Unit tests are used extensively to validate the correctness of mathematical operations. 
+Unit tests are used extensively to validate the correctness of mathematical operations.
 Special **fuzzy comparisons** are employed where small precision discrepancies might occur, mimicking floating-point behavior.
 
 To run the tests:
+
 ```bash
 dotnet test --configuration debug
 ```
@@ -186,10 +194,6 @@ dotnet test --configuration debug
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [CONTRIBUTING](https://github.com/mrdav30/FixedMathSharp/blob/main/CONTRIBUTING.md) guide for details on how to propose changes, report issues, and interact with the community.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/mrdav30/FixedMathSharp/blob/main/LICENSE.md) for details.
 
 ---
 
@@ -211,3 +215,13 @@ For bug reports or feature requests, please open an issue in this repository.
 We welcome feedback, contributors, and community discussion across all projects.
 
 ---
+
+## License
+
+This project is licensed under the MIT License.
+
+See the following files for details:
+
+- LICENSE – standard MIT license
+- NOTICE – additional terms regarding project branding and redistribution
+- COPYRIGHT – authorship information

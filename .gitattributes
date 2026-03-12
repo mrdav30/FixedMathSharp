@@ -4,7 +4,7 @@
 # Declare files that will always have LF line endings on checkout.
 *.sh text eol=lf
 
-# Don't check these into the repo as LF to work around TeamCity bug
+# Don't check these into the repo as LF normalization will mess with them.
 *.xml     -text
 *.targets -text
 
