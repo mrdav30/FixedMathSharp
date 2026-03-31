@@ -73,6 +73,9 @@
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.21.4" />
   </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <PackageReference Include="System.Text.Json" Version="10.0.5" />
+  </ItemGroup>
   <!-- Ensure LICENSE, README, & icon files are included in the NuGet package -->
   <ItemGroup>
     <None Include="..\..\COPYRIGHT" Pack="true" PackagePath="\" Visible="false" />
@@ -81,8 +84,5 @@
     <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
     <None Remove=".gitignore" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Serialization\" />
   </ItemGroup>
 </Project>
