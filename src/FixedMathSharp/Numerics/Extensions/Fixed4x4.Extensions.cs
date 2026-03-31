@@ -31,6 +31,13 @@ namespace FixedMathSharp
             return matrix = Fixed4x4.SetRotation(matrix, rotation);
         }
 
+        /// <inheritdoc cref="Fixed4x4.NormalizeRotationMatrix(Fixed4x4)" />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed4x4 NormalizeRotationMatrix(this ref Fixed4x4 matrix)
+        {
+            return matrix = Fixed4x4.NormalizeRotationMatrix(matrix);
+        }
+
         /// <inheritdoc cref="Fixed4x4.TransformPoint(Fixed4x4, Vector3d)" />
         public static Vector3d TransformPoint(this Fixed4x4 matrix, Vector3d point)
         {

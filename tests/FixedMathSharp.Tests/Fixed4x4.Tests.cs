@@ -256,6 +256,29 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_NormalizeRotationMatrixExtension_NormalizesAxesInPlace()
+    {
+        var matrix = new Fixed4x4(
+            new Fixed64(2), Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, new Fixed64(3), Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, new Fixed64(4), Fixed64.Zero,
+            new Fixed64(5), new Fixed64(6), new Fixed64(7), Fixed64.One
+        );
+
+        matrix.NormalizeRotationMatrix();
+
+        var xAxis = new Vector3d(matrix.m00, matrix.m01, matrix.m02);
+        var yAxis = new Vector3d(matrix.m10, matrix.m11, matrix.m12);
+        var zAxis = new Vector3d(matrix.m20, matrix.m21, matrix.m22);
+
+        Assert.Equal(Fixed64.One, xAxis.Magnitude);
+        Assert.Equal(Fixed64.One, yAxis.Magnitude);
+        Assert.Equal(Fixed64.One, zAxis.Magnitude);
+        Assert.Equal(Vector3d.Zero, matrix.Translation);
+        Assert.Equal(Fixed64.One, matrix.m33);
+    }
+
+    [Fact]
     public void TransformPoint_WorldToLocal_ReturnsCorrectResult()
     {
         var translation = new Vector3d(7, 12, -5);
