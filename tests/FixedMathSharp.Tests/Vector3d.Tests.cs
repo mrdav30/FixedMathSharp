@@ -88,6 +88,28 @@ public class Vector3dTests
         Assert.False(zeroVector.IsNormalized());
     }
 
+    [Fact]
+    public void AllComponentsGreaterThanEpsilon_ReturnsTrue_WhenAllComponentsExceedEpsilon()
+    {
+        var vector = new Vector3d(
+            Fixed64.Epsilon + Fixed64.One,
+            Fixed64.Epsilon + Fixed64.One,
+            Fixed64.Epsilon + Fixed64.One);
+
+        Assert.True(vector.AllComponentsGreaterThanEpsilon());
+    }
+
+    [Fact]
+    public void AllComponentsGreaterThanEpsilon_ReturnsFalse_WhenAComponentIsAtOrBelowEpsilon()
+    {
+        var vector = new Vector3d(
+            Fixed64.Epsilon + Fixed64.One,
+            Fixed64.Epsilon,
+            Fixed64.Epsilon + Fixed64.One);
+
+        Assert.False(vector.AllComponentsGreaterThanEpsilon());
+    }
+
     #endregion
 
     #region Test: Arithmetic 

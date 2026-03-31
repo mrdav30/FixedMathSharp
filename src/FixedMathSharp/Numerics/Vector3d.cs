@@ -444,6 +444,15 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     }
 
     /// <summary>
+    /// Checks whether all components are strictly greater than <see cref="Fixed64.Epsilon"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool AllComponentsGreaterThanEpsilon()
+    {
+        return x > Fixed64.Epsilon && y > Fixed64.Epsilon && z > Fixed64.Epsilon;
+    }
+
+    /// <summary>
     /// Computes the distance between this vector and another vector.
     /// </summary>
     /// <param name="otherX">The x component of the other vector.</param>

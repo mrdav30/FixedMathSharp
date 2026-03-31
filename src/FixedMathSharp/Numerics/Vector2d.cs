@@ -1005,6 +1005,15 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
         return !EqualsZero();
     }
 
+    /// <summary>
+    /// Checks whether all components are strictly greater than <see cref="Fixed64.Epsilon"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool AllComponentsGreaterThanEpsilon()
+    {
+        return x > Fixed64.Epsilon && y > Fixed64.Epsilon;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj)
     {
