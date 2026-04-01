@@ -193,39 +193,12 @@ public partial struct BoundingArea : IBound, IEquatable<BoundingArea>
     /// </remarks>
     public bool Intersects(IBound other)
     {
-        switch (other)
+        return other switch
         {
-            case BoundingBox or BoundingArea:
-                {
-                    if (Contains(other.Min) && Contains(other.Max))
-                        return true;  // Full containment
-
-                    // Determine which axis is "flat" (thickness zero)
-                    bool flatX = Min.x == Max.x && other.Min.x == other.Max.x;
-                    bool flatY = Min.y == Max.y && other.Min.y == other.Max.y;
-                    bool flatZ = Min.z == Max.z && other.Min.z == other.Max.z;
-
-                    if (flatZ) // Rectangle in XY
-                        return !(Max.x < other.Min.x || Min.x > other.Max.x ||
-                                 Max.y < other.Min.y || Min.y > other.Max.y);
-                    else if (flatY) // Rectangle in XZ
-                        return !(Max.x < other.Min.x || Min.x > other.Max.x ||
-                                 Max.z < other.Min.z || Min.z > other.Max.z);
-                    else if (flatX) // Rectangle in YZ
-                        return !(Max.y < other.Min.y || Min.y > other.Max.y ||
-                                 Max.z < other.Min.z || Min.z > other.Max.z);
-                    else // fallback to 3D volume logic
-                        return !(Max.x < other.Min.x || Min.x > other.Max.x ||
-                                 Max.y < other.Min.y || Min.y > other.Max.y ||
-                                 Max.z < other.Min.z || Min.z > other.Max.z);
-                }
-            case BoundingSphere sphere:
-                // Find the closest point on the area to the sphere's center
-                // Intersection occurs if the distance from the closest point to the sphere’s center is within the radius.
-                return Vector3d.SqrDistance(sphere.Center, this.ProjectPointWithinBounds(sphere.Center)) <= sphere.SqrRadius;
-
-            default: return false; // Default case for unknown or unsupported types
-        }
+            BoundingBox or BoundingArea => IntersectsBoxLike(other.Min, other.Max),
+            BoundingSphere sphere => IntersectsSphere(sphere),
+            _ => false
+        };
     }
 
     /// <summary>
@@ -235,6 +208,82 @@ public partial struct BoundingArea : IBound, IEquatable<BoundingArea>
     public Vector3d ProjectPoint(Vector3d point)
     {
         return this.ProjectPointWithinBounds(point);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IntersectsBoxLike(Vector3d otherMin, Vector3d otherMax)
+    {
+        Vector3d min = Min;
+        Vector3d max = Max;
+
+        if (ContainsPoint(otherMin, min, max) && ContainsPoint(otherMax, min, max))
+            return true;
+
+        if (IsFlatAlongZ(min, max, otherMin, otherMax))
+            return OverlapsOnXY(min, max, otherMin, otherMax);
+
+        if (IsFlatAlongY(min, max, otherMin, otherMax))
+            return OverlapsOnXZ(min, max, otherMin, otherMax);
+
+        if (IsFlatAlongX(min, max, otherMin, otherMax))
+            return OverlapsOnYZ(min, max, otherMin, otherMax);
+
+        return OverlapsOnAllAxes(min, max, otherMin, otherMax);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IntersectsSphere(BoundingSphere sphere)
+    {
+        return Vector3d.SqrDistance(sphere.Center, this.ProjectPointWithinBounds(sphere.Center)) <= sphere.SqrRadius;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool ContainsPoint(Vector3d point, Vector3d min, Vector3d max)
+    {
+        return point.x >= min.x && point.x <= max.x
+            && point.y >= min.y && point.y <= max.y
+            && point.z >= min.z && point.z <= max.z;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsFlatAlongX(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
+        => min.x == max.x && otherMin.x == otherMax.x;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsFlatAlongY(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
+        => min.y == max.y && otherMin.y == otherMax.y;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsFlatAlongZ(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
+        => min.z == max.z && otherMin.z == otherMax.z;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool OverlapsOnXY(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
+    {
+        return !(max.x < otherMin.x || min.x > otherMax.x ||
+                 max.y < otherMin.y || min.y > otherMax.y);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool OverlapsOnXZ(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
+    {
+        return !(max.x < otherMin.x || min.x > otherMax.x ||
+                 max.z < otherMin.z || min.z > otherMax.z);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool OverlapsOnYZ(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
+    {
+        return !(max.y < otherMin.y || min.y > otherMax.y ||
+                 max.z < otherMin.z || min.z > otherMax.z);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool OverlapsOnAllAxes(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
+    {
+        return !(max.x < otherMin.x || min.x > otherMax.x ||
+                 max.y < otherMin.y || min.y > otherMax.y ||
+                 max.z < otherMin.z || min.z > otherMax.z);
     }
 
     #endregion

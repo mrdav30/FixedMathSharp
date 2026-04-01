@@ -246,26 +246,12 @@ public partial struct BoundingBox : IBound, IEquatable<BoundingBox>
     /// </remarks>
     public bool Intersects(IBound other)
     {
-        switch (other)
+        return other switch
         {
-            case BoundingBox or BoundingArea:
-                {
-                    if (Contains(other.Min) && Contains(other.Max))
-                        return true;  // Full containment
-
-                    // General intersection logic (allowing for overlap)
-                    return !(Max.x <= other.Min.x || Min.x >= other.Max.x ||
-                             Max.y <= other.Min.y || Min.y >= other.Max.y ||
-                             Max.z <= other.Min.z || Min.z >= other.Max.z);
-                }
-            case BoundingSphere sphere:
-                // project the sphere’s center onto the 3D volume and checks the distance to the surface.
-                // If the distance from the closest point to the center is less than or equal to the sphere’s radius, they intersect.
-                return Vector3d.SqrDistance(sphere.Center, this.ProjectPointWithinBounds(sphere.Center)) <= sphere.SqrRadius;
-
-            default:
-                return false; // Default case for unknown or unsupported types
-        }
+            BoundingBox or BoundingArea => IntersectsBoxLike(other.Min, other.Max),
+            BoundingSphere sphere => IntersectsSphere(sphere),
+            _ => false
+        };
     }
 
     /// <summary>
@@ -274,6 +260,27 @@ public partial struct BoundingBox : IBound, IEquatable<BoundingBox>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d ProjectPoint(Vector3d point)
         => this.ProjectPointWithinBounds(point);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IntersectsBoxLike(Vector3d otherMin, Vector3d otherMax)
+    {
+        return Contains(otherMin) && Contains(otherMax)
+            || HasStrictAxisOverlap(otherMin, otherMax);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IntersectsSphere(BoundingSphere sphere)
+    {
+        return Vector3d.SqrDistance(sphere.Center, this.ProjectPointWithinBounds(sphere.Center)) <= sphere.SqrRadius;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool HasStrictAxisOverlap(Vector3d otherMin, Vector3d otherMax)
+    {
+        return !(Max.x <= otherMin.x || Min.x >= otherMax.x ||
+                 Max.y <= otherMin.y || Min.y >= otherMax.y ||
+                 Max.z <= otherMin.z || Min.z >= otherMax.z);
+    }
 
     /// <summary>
     /// Calculates the shortest distance from a given point to the surface of the bounding box.
