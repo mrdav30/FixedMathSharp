@@ -783,43 +783,30 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         Fixed64 e = Dot(v, w);
         Fixed64 D = a * c - b * b;
 
-        Fixed64 sc, tc;
-
-        // compute the line parameters of the two closest points
-        if (D < Fixed64.Epsilon)
-        {
-            // the lines are almost parallel
-            sc = Fixed64.Zero;
-            tc = (b > c ? d / b : e / c); // use the largest denominator
-        }
-        else
-        {
-            sc = (b * e - c * d) / D;
-            tc = (a * e - b * d) / D;
-        }
+        (Fixed64 sc, Fixed64 tc) = SolveClosestLineParameters(a, b, c, d, e, D);
 
         // recompute sc if it is outside [0,1]
         if (sc < Fixed64.Zero)
         {
             sc = Fixed64.Zero;
-            tc = (e < Fixed64.Zero ? Fixed64.Zero : (e > c ? Fixed64.One : e / c));
+            tc = ClampSegmentParameter(e, c);
         }
         else if (sc > Fixed64.One)
         {
             sc = Fixed64.One;
-            tc = (e + b < Fixed64.Zero ? Fixed64.Zero : (e + b > c ? Fixed64.One : (e + b) / c));
+            tc = ClampSegmentParameter(e + b, c);
         }
 
         // recompute tc if it is outside [0,1]
         if (tc < Fixed64.Zero)
         {
             tc = Fixed64.Zero;
-            sc = (-d < Fixed64.Zero ? Fixed64.Zero : (-d > a ? Fixed64.One : -d / a));
+            sc = ClampSegmentParameter(-d, a);
         }
         else if (tc > Fixed64.One)
         {
             tc = Fixed64.One;
-            sc = ((-d + b) < Fixed64.Zero ? Fixed64.Zero : ((-d + b) > a ? Fixed64.One : (-d + b) / a));
+            sc = ClampSegmentParameter(-d + b, a);
         }
 
         // get the difference of the two closest points
@@ -827,6 +814,27 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         Vector3d pointOnLine2 = line2Start + tc * v;
 
         return (pointOnLine1, pointOnLine2);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static (Fixed64 sc, Fixed64 tc) SolveClosestLineParameters(Fixed64 a, Fixed64 b, Fixed64 c, Fixed64 d, Fixed64 e, Fixed64 determinant)
+    {
+        if (determinant < Fixed64.Epsilon)
+            return (Fixed64.Zero, b > c ? d / b : e / c);
+
+        return ((b * e - c * d) / determinant, (a * e - b * d) / determinant);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Fixed64 ClampSegmentParameter(Fixed64 numerator, Fixed64 denominator)
+    {
+        if (numerator < Fixed64.Zero)
+            return Fixed64.Zero;
+
+        if (numerator > denominator)
+            return Fixed64.One;
+
+        return numerator / denominator;
     }
 
     /// <summary>

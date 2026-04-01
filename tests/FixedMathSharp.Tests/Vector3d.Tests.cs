@@ -442,6 +442,17 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void Slerp_ClampsDotProductBeforeAcos()
+    {
+        var start = Vector3d.Right;
+        var end = new Vector3d(Fixed64.FromRaw(Fixed64.One.m_rawValue + 1), Fixed64.Zero, Fixed64.Zero);
+
+        var result = Vector3d.Slerp(start, end, Fixed64.Half);
+
+        Assert.Equal(start, result);
+    }
+
+    [Fact]
     public void StaticMagnitude_CalculatesCorrectly()
     {
         var vector = new Vector3d(3, 4, 0); // 3-4-5 triangle
