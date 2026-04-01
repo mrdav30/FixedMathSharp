@@ -176,7 +176,7 @@ namespace FixedMathSharp
             // When value is exactly Fixed64.Halfway between two numbers
             return mode switch
             {
-                MidpointRounding.AwayFromZero => value.m_rawValue > 0 ? integralPart + Fixed64.One : integralPart - Fixed64.One,// If it's exactly Fixed64.Halfway, round away from Fixed64.Zero
+                MidpointRounding.AwayFromZero => value.m_rawValue > 0 ? integralPart + Fixed64.One : integralPart,// For negative midpoints, Floor() is already away from zero
                 _ => (integralPart.m_rawValue & ONE_L) == 0 ? integralPart : integralPart + Fixed64.One,// Rounds to the nearest even number (default behavior)
             };
         }
