@@ -49,7 +49,9 @@ public partial class FixedCurve : IEquatable<FixedCurve>
     [MemoryPackConstructor]
     public FixedCurve(FixedCurveMode mode, params FixedCurveKey[] keyframes)
     {
-        Keyframes = keyframes.OrderBy(k => k.Time).ToArray();
+        Keyframes = keyframes?.Length > 1
+            ? keyframes.OrderBy(k => k.Time).ToArray()
+            : keyframes?.Clone() as FixedCurveKey[] ?? Array.Empty<FixedCurveKey>();
         Mode = mode;
     }
 
@@ -130,9 +132,9 @@ public partial class FixedCurve : IEquatable<FixedCurve>
         }
     }
 
-    public static bool operator ==(FixedCurve left, FixedCurve right) => left?.Equals(right) ?? right is null;
+    public static bool operator ==(FixedCurve? left, FixedCurve? right) => left?.Equals(right) ?? right is null;
 
-    public static bool operator !=(FixedCurve left, FixedCurve right) => !(left == right);
+    public static bool operator !=(FixedCurve? left, FixedCurve? right) => !(left == right);
 
     #endregion
 }
