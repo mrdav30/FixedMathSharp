@@ -166,7 +166,7 @@ public partial struct BoundingBox : IBound, IEquatable<BoundingBox>
     {
         get => new(Min, Max);
 
-       
+
         internal set
         {
             Min = value.Min;
