@@ -7,6 +7,24 @@ namespace FixedMathSharp.Tests.Bounds;
 
 public class BoundingSphereTests
 {
+    private readonly struct UnsupportedBound : IBound
+    {
+        public Vector3d Min { get; }
+        public Vector3d Max { get; }
+
+        public UnsupportedBound(Vector3d min, Vector3d max)
+        {
+            Min = min;
+            Max = max;
+        }
+
+        public bool Contains(Vector3d point) => false;
+
+        public bool Intersects(IBound other) => false;
+
+        public Vector3d ProjectPoint(Vector3d point) => point;
+    }
+
     #region Test: Constructor and Property
 
     [Fact]
@@ -94,9 +112,34 @@ public class BoundingSphereTests
         Assert.True(sphere.Intersects(area));
     }
 
+    [Fact]
+    public void Intersects_WithUnsupportedBound_ReturnsFalse()
+    {
+        var sphere = new BoundingSphere(new Vector3d(0, 0, 0), new Fixed64(2));
+        var unsupported = new UnsupportedBound(new Vector3d(10, 10, 10), new Vector3d(12, 12, 12));
+
+        Assert.False(sphere.Intersects(unsupported));
+    }
+
     #endregion
 
     #region Test: Distance to Surface
+
+    [Fact]
+    public void ProjectPoint_ReturnsCenter_WhenPointIsCenter()
+    {
+        var sphere = new BoundingSphere(new Vector3d(1, 2, 3), new Fixed64(5));
+
+        Assert.Equal(sphere.Center, sphere.ProjectPoint(sphere.Center));
+    }
+
+    [Fact]
+    public void ProjectPoint_ReturnsPointOnSurface_WhenPointIsAwayFromCenter()
+    {
+        var sphere = new BoundingSphere(new Vector3d(1, 2, 3), new Fixed64(5));
+
+        Assert.Equal(new Vector3d(6, 2, 3), sphere.ProjectPoint(new Vector3d(20, 2, 3)));
+    }
 
     [Fact]
     public void DistanceToSurface_PointOutside_ReturnsPositiveDistance()
@@ -154,6 +197,16 @@ public class BoundingSphereTests
         var sphere2 = new BoundingSphere(new Vector3d(0, 0, 0), new Fixed64(5));
 
         Assert.Equal(sphere1.GetHashCode(), sphere2.GetHashCode());
+    }
+
+    [Fact]
+    public void Inequality_AndObjectEqualityBehaveCorrectly()
+    {
+        var sphere1 = new BoundingSphere(new Vector3d(0, 0, 0), new Fixed64(5));
+        var sphere2 = new BoundingSphere(new Vector3d(0, 0, 1), new Fixed64(5));
+
+        Assert.True(sphere1 != sphere2);
+        Assert.False(sphere1.Equals("not-a-sphere"));
     }
 
     #endregion

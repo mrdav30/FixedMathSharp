@@ -1,4 +1,5 @@
-﻿using MemoryPack;
+﻿using System;
+using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -148,6 +149,107 @@ public class Vector3dTests
         Assert.Equal(new Vector3d(1, -2, 3), result);
     }
 
+    [Fact]
+    public void Indexer_GetAndSet_RoundTripsComponents()
+    {
+        var vector = new Vector3d(1, 2, 3);
+
+        Assert.Equal(Fixed64.One, vector[0]);
+        Assert.Equal(new Fixed64(2), vector[1]);
+        Assert.Equal(new Fixed64(3), vector[2]);
+
+        vector[0] = new Fixed64(4);
+        vector[1] = new Fixed64(5);
+        vector[2] = new Fixed64(6);
+
+        Assert.Equal(new Vector3d(4, 5, 6), vector);
+    }
+
+    [Fact]
+    public void Indexer_InvalidIndex_Throws()
+    {
+        var vector = new Vector3d(1, 2, 3);
+
+        Assert.Throws<IndexOutOfRangeException>(() => _ = vector[-1]);
+        Assert.Throws<IndexOutOfRangeException>(() => _ = vector[3]);
+        Assert.Throws<IndexOutOfRangeException>(() => vector[-1] = Fixed64.One);
+        Assert.Throws<IndexOutOfRangeException>(() => vector[3] = Fixed64.One);
+    }
+
+    [Fact]
+    public void Set_UpdatesComponents()
+    {
+        var vector = new Vector3d(1, 2, 3);
+
+        var result = vector.Set(new Fixed64(7), new Fixed64(8), new Fixed64(9));
+
+        Assert.Equal(new Vector3d(7, 8, 9), result);
+        Assert.Equal(result, vector);
+    }
+
+    [Fact]
+    public void AddInPlace_Overloads_ModifyVectorCorrectly()
+    {
+        var vector = new Vector3d(1, 2, 3);
+
+        Assert.Equal(new Vector3d(4, 5, 6), vector.AddInPlace(new Fixed64(3)));
+        Assert.Equal(new Vector3d(5, 7, 9), vector.AddInPlace(Fixed64.One, new Fixed64(2), new Fixed64(3)));
+        Assert.Equal(new Vector3d(7, 10, 13), vector.AddInPlace(new Vector3d(2, 3, 4)));
+    }
+
+    [Fact]
+    public void SubtractInPlace_Overloads_ModifyVectorCorrectly()
+    {
+        var vector = new Vector3d(10, 12, 14);
+
+        Assert.Equal(new Vector3d(9, 11, 13), vector.SubtractInPlace(Fixed64.One));
+        Assert.Equal(new Vector3d(7, 8, 9), vector.SubtractInPlace(new Fixed64(2), new Fixed64(3), new Fixed64(4)));
+        Assert.Equal(new Vector3d(6, 6, 6), vector.SubtractInPlace(new Vector3d(1, 2, 3)));
+    }
+
+    [Fact]
+    public void ScaleInPlace_Overloads_ModifyVectorCorrectly()
+    {
+        var vector = new Vector3d(2, 3, 4);
+
+        Assert.Equal(new Vector3d(4, 6, 8), vector.ScaleInPlace(new Fixed64(2)));
+        Assert.Equal(new Vector3d(8, 18, 32), vector.ScaleInPlace(new Vector3d(2, 3, 4)));
+    }
+
+    [Fact]
+    public void NormalizeOut_ReturnsOriginalMagnitudeAndNormalizedVector()
+    {
+        var vector = new Vector3d(0, 3, 4);
+
+        var normalized = vector.Normalize(out var magnitude);
+
+        Assert.Equal(new Fixed64(5), magnitude);
+        Assert.Equal(vector, normalized);
+        Assert.True(vector.FuzzyEqual(new Vector3d(Fixed64.Zero, new Fixed64(0.6), new Fixed64(0.8)), new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void NormalizeOut_ZeroVector_ReturnsZeroMagnitude()
+    {
+        var vector = Vector3d.Zero;
+
+        var normalized = vector.Normalize(out var magnitude);
+
+        Assert.Equal(Fixed64.Zero, magnitude);
+        Assert.Equal(Vector3d.Zero, normalized);
+    }
+
+    [Fact]
+    public void NormalizeOut_UnitVector_LeavesVectorUnchanged()
+    {
+        var vector = Vector3d.Right;
+
+        var normalized = vector.Normalize(out var magnitude);
+
+        Assert.Equal(Fixed64.One, magnitude);
+        Assert.Equal(Vector3d.Right, normalized);
+    }
+
     #endregion
 
     #region Test: Dot and Cross Product
@@ -229,6 +331,14 @@ public class Vector3dTests
         var vector = new Vector3d(1, 0, 0);
         var result = vector.LeftHandNormal;
         Assert.Equal(new Vector3d(0, 0, 1), result);
+    }
+
+    [Fact]
+    public void Direction_ZeroAngles_ReturnsForward()
+    {
+        var angles = new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
+
+        Assert.Equal(Vector3d.Forward, angles.Direction);
     }
 
     #endregion
@@ -465,6 +575,34 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void ClosestPointsOnTwoLines_ClampsToFirstSegmentEnd_WhenIntersectionFallsBeyondSegment()
+    {
+        var line1Start = new Vector3d(0, 0, 0);
+        var line1End = new Vector3d(1, 0, 0);
+        var line2Start = new Vector3d(2, -1, 0);
+        var line2End = new Vector3d(2, 1, 0);
+
+        var (pointOnLine1, pointOnLine2) = Vector3d.ClosestPointsOnTwoLines(line1Start, line1End, line2Start, line2End);
+
+        Assert.Equal(new Vector3d(1, 0, 0), pointOnLine1);
+        Assert.Equal(new Vector3d(2, 0, 0), pointOnLine2);
+    }
+
+    [Fact]
+    public void ClosestPointsOnTwoLines_ClampsToFirstSegmentStart_WhenIntersectionFallsBeforeSegment()
+    {
+        var line1Start = new Vector3d(0, 0, 0);
+        var line1End = new Vector3d(1, 0, 0);
+        var line2Start = new Vector3d(-1, -1, 0);
+        var line2End = new Vector3d(-1, 1, 0);
+
+        var (pointOnLine1, pointOnLine2) = Vector3d.ClosestPointsOnTwoLines(line1Start, line1End, line2Start, line2End);
+
+        Assert.Equal(new Vector3d(0, 0, 0), pointOnLine1);
+        Assert.Equal(new Vector3d(-1, 0, 0), pointOnLine2);
+    }
+
+    [Fact]
     public void ClosestPointOnLineSegment_InsideSegment()
     {
         var a = new Vector3d(0, 0, 0);
@@ -502,6 +640,97 @@ public class Vector3dTests
         Assert.Equal(new Vector3d(1, 4, 3), result);
     }
 
+    [Fact]
+    public void MatrixMultiplication_WithFixed3x3_TransformsVectorFromBothSides()
+    {
+        var matrix = new Fixed3x3(
+            new Fixed64(2), Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, new Fixed64(3), Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, new Fixed64(4)
+        );
+        var vector = new Vector3d(1, 2, 3);
+        var expected = new Vector3d(2, 6, 12);
+
+        Assert.Equal(expected, matrix * vector);
+        Assert.Equal(expected, vector * matrix);
+    }
+
+    [Fact]
+    public void MatrixMultiplication_WithAffineFixed4x4_TransformsPointFromBothSides()
+    {
+        var matrix = Fixed4x4.Identity;
+        matrix.m00 = new Fixed64(2);
+        matrix.m11 = new Fixed64(3);
+        matrix.m22 = new Fixed64(4);
+        matrix.m30 = new Fixed64(5);
+        matrix.m31 = new Fixed64(6);
+        matrix.m32 = new Fixed64(7);
+
+        var vector = new Vector3d(1, 2, 3);
+        var expected = new Vector3d(7, 12, 19);
+
+        Assert.Equal(expected, matrix * vector);
+        Assert.Equal(expected, vector * matrix);
+    }
+
+    [Fact]
+    public void MatrixMultiplication_WithNonAffineFixed4x4_UsesPerspectiveDivision()
+    {
+        var matrix = new Fixed4x4(
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
+        );
+        var vector = new Vector3d(1, 2, 3);
+        var expected = new Vector3d(Fixed64.One, Fixed64.One, new Fixed64(1.5));
+
+        Assert.Equal(expected, matrix * vector);
+        Assert.Equal(expected, vector * matrix);
+    }
+
+    [Fact]
+    public void MatrixMultiplication_WithNonAffineFixed4x4_ZeroWFallsBackToOne()
+    {
+        var matrix = new Fixed4x4(
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, -Fixed64.One
+        );
+        var vector = new Vector3d(1, 2, 3);
+        var expected = new Vector3d(2, 2, 3);
+
+        Assert.Equal(expected, matrix * vector);
+        Assert.Equal(expected, vector * matrix);
+    }
+
+    [Fact]
+    public void OperatorOverloads_WithScalarsTuplesFloatsAndComponentArithmetic_WorkCorrectly()
+    {
+        var vector = new Vector3d(1, 2, 3);
+
+        Assert.Equal(new Vector3d(2, 3, 4), vector + Fixed64.One);
+        Assert.Equal(new Vector3d(2, 3, 4), Fixed64.One + vector);
+        Assert.Equal(new Vector3d(4, 6, 8), vector + (3, 4, 5));
+        Assert.Equal(new Vector3d(4, 6, 8), (3, 4, 5) + vector);
+        Assert.Equal(new Vector3d(new Fixed64(1.5), new Fixed64(3.5), new Fixed64(5.5)), vector + (0.5f, 1.5f, 2.5f));
+        Assert.Equal(new Vector3d(new Fixed64(1.5), new Fixed64(3.5), new Fixed64(5.5)), (0.5f, 1.5f, 2.5f) + vector);
+        Assert.Equal(new Vector3d(-2, -2, -2), vector - (3, 4, 5));
+        Assert.Equal(new Vector3d(2, 2, 2), (3, 4, 5) - vector);
+        Assert.Equal(new Vector3d(new Fixed64(0.5), new Fixed64(0.5), new Fixed64(0.5)), vector - (0.5f, 1.5f, 2.5f));
+        Assert.Equal(new Vector3d(new Fixed64(-0.5), new Fixed64(-0.5), new Fixed64(-0.5)), (0.5f, 1.5f, 2.5f) - vector);
+        Assert.Equal(new Vector3d(-1, -2, -3), -vector);
+        Assert.Equal(new Vector3d(2, 4, 6), vector * new Fixed64(2));
+        Assert.Equal(new Vector3d(2, 4, 6), new Fixed64(2) * vector);
+        Assert.Equal(new Vector3d(3, 6, 9), 3 * vector);
+        Assert.Equal(new Vector3d(2, 6, 12), vector * new Vector3d(2, 3, 4));
+        Assert.Equal(new Vector3d(new Fixed64(0.5), Fixed64.One, new Fixed64(1.5)), vector / new Fixed64(2));
+        Assert.Equal(Vector3d.Zero, vector / Fixed64.Zero);
+        Assert.Equal(new Vector3d(new Fixed64(0.5), Fixed64.One, new Fixed64(1.5)), vector / 2);
+        Assert.Equal(new Vector3d(Fixed64.Zero, new Fixed64(2), Fixed64.Zero), new Vector3d(4, 4, 4) / new Vector3d(0, 2, 0));
+    }
+
     #endregion
 
     #region Test: Extensions
@@ -513,6 +742,16 @@ public class Vector3dTests
         var result = vector.ClampOneInPlace();
 
         Assert.Equal(new Vector3d(1, -1, 0.5), result); // Clamps x and y, z stays the same
+    }
+
+    [Fact]
+    public void V3ClampMagnitude_AbsAndSign_ExtensionsReturnExpectedResults()
+    {
+        var vector = new Vector3d(6, 8, 0);
+
+        Assert.True(vector.ClampMagnitude(new Fixed64(5)).FuzzyEqual(new Vector3d(3, 4, 0), new Fixed64(0.0001)));
+        Assert.Equal(new Vector3d(1, 2, 3), new Vector3d(-1, -2, -3).Abs());
+        Assert.Equal(new Vector3d(-1, 1, 0), Vector3dExtensions.Sign(new Vector3d(-2, 4, 0)));
     }
 
     [Fact]
@@ -599,6 +838,87 @@ public class Vector3dTests
 
         var result = vector.InverseRotate(position, quaternion);
         Assert.True(result.FuzzyEqual(new Vector3d(1, 0, 0), new Fixed64(0.0001))); // Allow small error tolerance
+    }
+
+    [Fact]
+    public void Vector3d_StaticHelpersAndProperties_CoverRemainingBranches()
+    {
+        var vector = new Vector3d(3, 4, 0);
+
+        Assert.True(Vector3d.Zero.IsZero);
+        Assert.False(vector.IsZero);
+        Assert.Equal(Fixed64.Zero, new Vector3d(1, 2, 3).CrossProduct(new Fixed64(4), new Fixed64(5), new Fixed64(6)));
+        Assert.Equal(new Vector3d(2, 2, 2), Vector3d.SpeedLerp(Vector3d.Zero, new Vector3d(2, 2, 2), new Fixed64(10), Fixed64.One));
+        Assert.Equal(vector, Vector3d.ClampMagnitude(vector, new Fixed64(10)));
+        Assert.True(Vector3d.AreParallel(new Vector3d(1, 0, 0), new Vector3d(2, 0, 0)));
+        Assert.False(Vector3d.AreParallel(new Vector3d(1, 0, 0), new Vector3d(0, 1, 0)));
+        Assert.False(Vector3d.AreAlmostParallel(Vector3d.Right, Vector3d.Up, new Fixed64(0.5)));
+        Assert.Equal(Vector3d.Zero, Vector3d.Project(new Vector3d(1, 2, 3), Vector3d.Zero));
+        Assert.Equal(new Vector3d(1, 2, 3), Vector3d.ProjectOnPlane(new Vector3d(1, 2, 3), Vector3d.Zero));
+        Assert.Equal(Fixed64.Zero, Vector3d.Angle(Vector3d.Zero, Vector3d.Right));
+        Assert.Equal(new Vector3d(2, 3, 4), Vector3d.Scale(new Vector3d(1, 1, 1), new Vector3d(2, 3, 4)));
+        Assert.Equal(new Vector3d(0, 0, 1), Vector3d.Cross(Vector3d.Right, Vector3d.Up));
+        Assert.Equal(new Fixed64(1), Vector3d.CrossProduct(Vector3d.Right, Vector3d.Up));
+        Assert.Equal(new Vector3d(2, 5, 4), Vector3d.Max(new Vector3d(2, 1, 4), new Vector3d(1, 5, 0)));
+        Assert.Equal(new Vector3d(1, 1, 0), Vector3d.Min(new Vector3d(2, 1, 4), new Vector3d(1, 5, 0)));
+    }
+
+    [Fact]
+    public void Vector3d_ClosestPointsOnTwoLines_ClampSecondSegmentEndpoints()
+    {
+        var line1Start = new Vector3d(0, 0, 0);
+        var line1End = new Vector3d(10, 0, 0);
+
+        var (pointOnLine1StartClamp, pointOnLine2StartClamp) = Vector3d.ClosestPointsOnTwoLines(
+            line1Start,
+            line1End,
+            new Vector3d(0, 2, 0),
+            new Vector3d(0, 3, 0));
+
+        var (pointOnLine1EndClamp, pointOnLine2EndClamp) = Vector3d.ClosestPointsOnTwoLines(
+            line1Start,
+            line1End,
+            new Vector3d(0, -3, 0),
+            new Vector3d(0, -2, 0));
+
+        Assert.Equal(Vector3d.Zero, pointOnLine1StartClamp);
+        Assert.Equal(new Vector3d(0, 2, 0), pointOnLine2StartClamp);
+        Assert.Equal(Vector3d.Zero, pointOnLine1EndClamp);
+        Assert.Equal(new Vector3d(0, -2, 0), pointOnLine2EndClamp);
+    }
+
+    [Fact]
+    public void Vector3d_OperatorsConversionsAndComparers_WorkCorrectly()
+    {
+        var vector = new Vector3d(new Fixed64(1.25), new Fixed64(2.5), new Fixed64(3.75));
+        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
+
+        Assert.Equal(
+            new Vector3d(new Fixed64(1.25) / vector.x, new Fixed64(1.25) / vector.y, new Fixed64(1.25) / vector.z),
+            new Fixed64(1.25) / vector);
+        Assert.True((Vector3d.Right * rotation).FuzzyEqual(rotation * Vector3d.Right, new Fixed64(0.0001)));
+        Assert.True(new Vector3d(2, 2, 2) > Vector3d.One);
+        Assert.True(Vector3d.One < new Vector3d(2, 2, 2));
+        Assert.True(new Vector3d(2, 2, 2) >= new Vector3d(2, 1, 2));
+        Assert.True(Vector3d.One <= new Vector3d(1, 2, 3));
+        Assert.Equal("(1.25, 2.5, 3.75)", vector.ToString());
+        Assert.Equal(new Vector2d(new Fixed64(1.25), new Fixed64(3.75)), vector.ToVector2d());
+
+        vector.Deconstruct(out float fx, out float fy, out float fz);
+        vector.Deconstruct(out int ix, out int iy, out int iz);
+
+        Assert.Equal(1.25f, fx);
+        Assert.Equal(2.5f, fy);
+        Assert.Equal(3.75f, fz);
+        Assert.Equal(1, ix);
+        Assert.Equal(2, iy);
+        Assert.Equal(4, iz);
+
+        Assert.False(vector.Equals("not-a-vector"));
+        Assert.True(vector.Equals(vector, new Vector3d(new Fixed64(1.25), new Fixed64(2.5), new Fixed64(3.75))));
+        Assert.False(vector.Equals(vector, Vector3d.Zero));
+        Assert.Equal(vector.GetHashCode(), vector.GetHashCode(vector));
+        Assert.True(vector.CompareTo(Vector3d.One) > 0);
     }
 
     #endregion

@@ -1,12 +1,21 @@
-﻿using MemoryPack;
+﻿using System;
+using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
 
-public class FixedQuanternionTests
+public class FixedQuaternionTests
 {
+    private static void AssertRepresentsSameRotation(FixedQuaternion actual, FixedQuaternion expected, Fixed64? tolerance = null)
+    {
+        Fixed64 limit = tolerance ?? new Fixed64(0.0001);
+        Assert.True(
+            actual.FuzzyEqual(expected, limit) || actual.FuzzyEqual(expected * -Fixed64.One, limit),
+            $"Expected {actual} to represent the same rotation as {expected}.");
+    }
+
     #region Test: Initialization and Identity
 
     [Fact]
@@ -27,6 +36,39 @@ public class FixedQuanternionTests
         Assert.Equal(Fixed64.Zero, identity.y);
         Assert.Equal(Fixed64.Zero, identity.z);
         Assert.Equal(Fixed64.One, identity.w);
+    }
+
+    [Fact]
+    public void FixedQuaternion_Indexer_GetSetAndInvalidIndexBehaveCorrectly()
+    {
+        var quaternion = new FixedQuaternion(Fixed64.One, Fixed64.Zero, new Fixed64(2), new Fixed64(3));
+
+        Assert.Equal(Fixed64.One, quaternion[0]);
+        Assert.Equal(Fixed64.Zero, quaternion[1]);
+        Assert.Equal(new Fixed64(2), quaternion[2]);
+        Assert.Equal(new Fixed64(3), quaternion[3]);
+
+        quaternion[0] = new Fixed64(7);
+        quaternion[1] = new Fixed64(8);
+        quaternion[2] = new Fixed64(9);
+        quaternion[3] = new Fixed64(10);
+
+        Assert.Equal(new Fixed64(7), quaternion.x);
+        Assert.Equal(new Fixed64(8), quaternion.y);
+        Assert.Equal(new Fixed64(9), quaternion.z);
+        Assert.Equal(new Fixed64(10), quaternion.w);
+        Assert.Throws<IndexOutOfRangeException>(() => _ = quaternion[4]);
+        Assert.Throws<IndexOutOfRangeException>(() => quaternion[-1] = Fixed64.Zero);
+    }
+
+    [Fact]
+    public void FixedQuaternion_Set_UpdatesAllComponents()
+    {
+        var quaternion = FixedQuaternion.Zero;
+
+        quaternion.Set(new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4));
+
+        Assert.Equal(new FixedQuaternion(new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4)), quaternion);
     }
 
     #endregion
@@ -53,6 +95,34 @@ public class FixedQuanternionTests
         Assert.Equal(Fixed64.One, magnitudeSqr, new Fixed64(0.0001));
     }
 
+    [Fact]
+    public void FixedQuaternion_NormalProperty_ReturnsNormalizedCopyWithoutMutatingSource()
+    {
+        var quaternion = new FixedQuaternion(new Fixed64(2), Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
+
+        var normal = quaternion.Normal;
+
+        Assert.True(normal.IsNormalized());
+        Assert.Equal(new Fixed64(2), quaternion.x);
+        Assert.Equal(Fixed64.Zero, quaternion.y);
+        Assert.Equal(Fixed64.Zero, quaternion.z);
+        Assert.Equal(Fixed64.Zero, quaternion.w);
+    }
+
+    [Fact]
+    public void FixedQuaternion_IsNormalized_DetectsUnitAndNonUnitQuaternions()
+    {
+        Assert.True(FixedQuaternion.Identity.IsNormalized());
+        Assert.False(new FixedQuaternion(new Fixed64(2), Fixed64.Zero, Fixed64.Zero, Fixed64.Zero).IsNormalized());
+    }
+
+    [Fact]
+    public void FixedQuaternion_GetMagnitude_And_GetNormalized_HandleZeroQuaternion()
+    {
+        Assert.Equal(Fixed64.Zero, FixedQuaternion.GetMagnitude(FixedQuaternion.Zero));
+        Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.GetNormalized(FixedQuaternion.Zero));
+    }
+
     #endregion
 
     #region Test: Conjugate and Inverse
@@ -77,6 +147,13 @@ public class FixedQuanternionTests
 
         var multiplied = quaternion * inverse;
         Assert.True(multiplied.FuzzyEqual(FixedQuaternion.Identity)); // quaternion * inverse = identity
+    }
+
+    [Fact]
+    public void FixedQuaternion_Inverse_HandlesIdentityAndZero()
+    {
+        Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.Identity.Inverse());
+        Assert.Equal(FixedQuaternion.Zero, FixedQuaternion.Zero.Inverse());
     }
 
     #endregion
@@ -112,6 +189,16 @@ public class FixedQuanternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_EulerAngles_SetterUpdatesQuaternion()
+    {
+        var quaternion = FixedQuaternion.Identity;
+
+        quaternion.EulerAngles = new Vector3d(0, 90, 0);
+
+        Assert.True(quaternion.FuzzyEqual(FixedQuaternion.FromEulerAnglesInDegrees(Fixed64.Zero, new Fixed64(90), Fixed64.Zero), new Fixed64(0.0001)));
+    }
+
+    [Fact]
     public void FixedQuaternion_FromMatrix_WorksCorrectly()
     {
         var matrix = new Fixed3x3(
@@ -125,6 +212,35 @@ public class FixedQuanternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_FromMatrix4x4_WorksCorrectly()
+    {
+        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
+        var matrix = Fixed4x4.CreateTransform(Vector3d.Zero, rotation, Vector3d.One);
+
+        var result = FixedQuaternion.FromMatrix(matrix);
+
+        Assert.True(result.FuzzyEqual(rotation, new Fixed64(0.0001)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void FixedQuaternion_FromMatrix_HandlesNegativeTraceBranches(int branch)
+    {
+        FixedQuaternion expected = branch switch
+        {
+            0 => FixedQuaternion.FromAxisAngle(Vector3d.Right, FixedMath.PI),
+            1 => FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PI),
+            _ => FixedQuaternion.FromAxisAngle(Vector3d.Forward, FixedMath.PI),
+        };
+
+        FixedQuaternion result = FixedQuaternion.FromMatrix(expected.ToMatrix3x3());
+
+        AssertRepresentsSameRotation(result, expected);
+    }
+
+    [Fact]
     public void FixedQuaternion_FromDirection_WorksCorrectly()
     {
         var direction = Vector3d.Right; // X-axis direction
@@ -134,6 +250,12 @@ public class FixedQuanternionTests
         var expected = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
 
         Assert.True(result.FuzzyEqual(expected), $"FromDirection returned {result}, expected {expected}.");
+    }
+
+    [Fact]
+    public void FixedQuaternion_FromDirection_ForwardReturnsIdentity()
+    {
+        Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.FromDirection(Vector3d.Forward));
     }
 
     [Fact]
@@ -164,6 +286,32 @@ public class FixedQuanternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_FromAxisAngle_NormalizesAxisInput()
+    {
+        var result = FixedQuaternion.FromAxisAngle(new Vector3d(0, 2, 0), FixedMath.PiOver2);
+        var expected = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
+
+        Assert.True(result.FuzzyEqual(expected, new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void FixedQuaternion_FromAxisAngle_ThrowsWhenAngleIsOutOfRange()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PI + Fixed64.One));
+    }
+
+    [Theory]
+    [InlineData("pitch", 4, 0, 0)]
+    [InlineData("yaw", 0, 4, 0)]
+    [InlineData("roll", 0, 0, 4)]
+    public void FixedQuaternion_FromEulerAngles_ThrowsWhenComponentIsOutOfRange(string parameterName, int pitch, int yaw, int roll)
+    {
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(new Fixed64(pitch), new Fixed64(yaw), new Fixed64(roll)));
+
+        Assert.Equal(parameterName, exception.ParamName);
+    }
+
+    [Fact]
     public void FixedQuaternion_ToDirection_WorksCorrectly()
     {
         var quaternion = FixedQuaternion.Identity;
@@ -187,6 +335,15 @@ public class FixedQuanternionTests
         );
 
         Assert.True(result == expected, $"ToMatrix returned {result}, expected Identity matrix.");
+    }
+
+    [Fact]
+    public void FixedQuaternion_ToEulerAngles_HandlesGimbalLockPitch()
+    {
+        var quaternion = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
+        var eulerAngles = quaternion.ToEulerAngles();
+
+        Assert.True(eulerAngles.FuzzyEqual(new Vector3d(0, 90, 0), new Fixed64(0.0001)));
     }
 
     [Fact]
@@ -233,6 +390,17 @@ public class FixedQuanternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_Lerp_ClampsInterpolationFactor()
+    {
+        var q1 = FixedQuaternion.Identity;
+        var q2 = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(90), new Fixed64(0), new Fixed64(0));
+
+        var result = FixedQuaternion.Lerp(q1, q2, new Fixed64(2));
+
+        Assert.True(result.FuzzyEqual(q2, new Fixed64(0.0001)));
+    }
+
+    [Fact]
     public void FixedQuaternion_Slerp_WorksCorrectly()
     {
         var q1 = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(0), new Fixed64(0), new Fixed64(0));
@@ -242,6 +410,14 @@ public class FixedQuanternionTests
         var expected = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(45), new Fixed64(0), new Fixed64(0));
 
         Assert.True(result.FuzzyEqual(expected, new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void FixedQuaternion_Slerp_UsesShortestPathForNegatedQuaternion()
+    {
+        var result = FixedQuaternion.Slerp(FixedQuaternion.Identity, FixedQuaternion.Identity * -Fixed64.One, Fixed64.Half);
+
+        Assert.True(result.FuzzyEqual(FixedQuaternion.Identity, new Fixed64(0.0001)));
     }
 
 
@@ -309,6 +485,18 @@ public class FixedQuanternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_Rotated_UsesCustomAxis()
+    {
+        var quaternion = FixedQuaternion.Identity;
+        var sin = FixedMath.Sin(FixedMath.PiOver4);
+        var cos = FixedMath.Cos(FixedMath.PiOver4);
+
+        var result = quaternion.Rotated(sin, cos, Vector3d.Right);
+
+        Assert.True(result.FuzzyEqual(FixedQuaternion.FromAxisAngle(Vector3d.Right, FixedMath.PiOver4), new Fixed64(0.0001)));
+    }
+
+    [Fact]
     public void FixedQuaternion_LookRotation_WorksCorrectly()
     {
         var forward = new Vector3d(0, 0, 1);
@@ -317,6 +505,14 @@ public class FixedQuanternionTests
         var expected = FixedQuaternion.Identity;  // No rotation needed along Z-axis
 
         Assert.True(result.FuzzyEqual(expected), $"Look rotation returned {result}, expected {expected}.");
+    }
+
+    [Fact]
+    public void FixedQuaternion_LookRotation_WithCustomUpVector_WorksCorrectly()
+    {
+        var result = FixedQuaternion.LookRotation(Vector3d.Right, Vector3d.Up);
+
+        Assert.True(result.FuzzyEqual(FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2), new Fixed64(0.0001)));
     }
 
     [Fact]
@@ -340,6 +536,14 @@ public class FixedQuanternionTests
             $"QuaternionLog of Identity should be (0,0,0), but got {logResult}");
     }
 
+    [Fact]
+    public void FixedQuaternion_QuaternionLog_ReturnsZeroForVerySmallRotation()
+    {
+        var tinyRotation = new FixedQuaternion(Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.Zero, Fixed64.One).Normalize();
+
+        Assert.True(FixedQuaternion.QuaternionLog(tinyRotation).FuzzyEqual(Vector3d.Zero));
+    }
+
     #endregion
 
     #region Test: Operators
@@ -354,6 +558,40 @@ public class FixedQuanternionTests
         var expected = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(90), new Fixed64(0), new Fixed64(90));
 
         Assert.True(result.FuzzyEqual(expected, new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void FixedQuaternion_ScalarArithmeticEqualityAndFormatting_WorkCorrectly()
+    {
+        var quaternion = new FixedQuaternion(new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4));
+        var same = new FixedQuaternion(new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4));
+
+        Assert.Equal(new FixedQuaternion(new Fixed64(2), new Fixed64(4), new Fixed64(6), new Fixed64(8)), quaternion * new Fixed64(2));
+        Assert.Equal(new FixedQuaternion(new Fixed64(2), new Fixed64(4), new Fixed64(6), new Fixed64(8)), new Fixed64(2) * quaternion);
+        Assert.Equal(new FixedQuaternion(new Fixed64(0.5), Fixed64.One, new Fixed64(1.5), new Fixed64(2)), quaternion / new Fixed64(2));
+        Assert.Equal(new FixedQuaternion(new Fixed64(0.5), Fixed64.One, new Fixed64(1.5), new Fixed64(2)), new Fixed64(2) / quaternion);
+        Assert.Equal(new FixedQuaternion(new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(5)), quaternion + FixedQuaternion.Identity);
+        Assert.True(quaternion == same);
+        Assert.False(quaternion != same);
+        Assert.False(quaternion.Equals("not-a-quaternion"));
+        Assert.Equal(quaternion.GetHashCode(), same.GetHashCode());
+        Assert.Equal("(1, 2, 3, 4)", quaternion.ToString());
+    }
+
+    [Fact]
+    public void FixedQuaternion_ExtensionMethods_DelegateAndCompareCorrectly()
+    {
+        var currentRotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver4);
+        var previousRotation = FixedQuaternion.Identity;
+        var nearRotation = new FixedQuaternion(Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+
+        var angularVelocity = currentRotation.ToAngularVelocity(previousRotation, new Fixed64(2));
+
+        Assert.True(angularVelocity.FuzzyEqual(FixedQuaternion.ToAngularVelocity(currentRotation, previousRotation, new Fixed64(2)), new Fixed64(0.0001)));
+        Assert.True(FixedQuaternion.Identity.FuzzyEqualAbsolute(nearRotation, Fixed64.FromRaw(1)));
+        Assert.True(FixedQuaternion.Identity.FuzzyEqual(nearRotation, new Fixed64(0.01)));
+        Assert.False(FixedQuaternion.Identity.FuzzyEqualAbsolute(FixedQuaternion.Zero, new Fixed64(0.1)));
+        Assert.False(FixedQuaternion.Identity.FuzzyEqual(FixedQuaternion.Zero, new Fixed64(0.1)));
     }
 
     #endregion

@@ -1,4 +1,5 @@
-﻿using MemoryPack;
+﻿using System;
+using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -63,6 +64,20 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_Decompose_LeftHandedMatrix_PreservesNegativeScale()
+    {
+        var translation = new Vector3d(1, 2, 3);
+        var scale = new Vector3d(-2, 3, 4);
+        var matrix = Fixed4x4.CreateTransform(translation, FixedQuaternion.Identity, scale);
+
+        Assert.True(Fixed4x4.Decompose(matrix, out var decomposedScale, out var rotation, out var decomposedTranslation));
+
+        Assert.Equal(scale, decomposedScale);
+        Assert.Equal(translation, decomposedTranslation);
+        Assert.True(rotation.FuzzyEqual(FixedQuaternion.Identity, new Fixed64(0.0001)));
+    }
+
+    [Fact]
     public void FixedMatrix4x4_SetTransform_WorksCorrectly()
     {
         var translation = new Vector3d(1, 2, 3);
@@ -77,6 +92,46 @@ public class Fixed4x4Tests
         Assert.Equal(scale, matrix.Scale);
         Assert.True(matrix.Rotation.FuzzyEqual(rotation, new Fixed64(0.0001)),
             $"Extracted rotation {matrix.Rotation} does not match expected {rotation}.");
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_Indexer_GetAndSet_UsesExpectedMapping()
+    {
+        var matrix = Fixed4x4.Zero;
+
+        for (int i = 0; i < 16; i++)
+            matrix[i] = new Fixed64(i + 1);
+
+        Assert.Equal(new Fixed64(1), matrix.m00);
+        Assert.Equal(new Fixed64(2), matrix.m10);
+        Assert.Equal(new Fixed64(3), matrix.m20);
+        Assert.Equal(new Fixed64(4), matrix.m30);
+        Assert.Equal(new Fixed64(5), matrix.m01);
+        Assert.Equal(new Fixed64(6), matrix.m11);
+        Assert.Equal(new Fixed64(7), matrix.m21);
+        Assert.Equal(new Fixed64(8), matrix.m31);
+        Assert.Equal(new Fixed64(9), matrix.m02);
+        Assert.Equal(new Fixed64(10), matrix.m12);
+        Assert.Equal(new Fixed64(11), matrix.m22);
+        Assert.Equal(new Fixed64(12), matrix.m32);
+        Assert.Equal(new Fixed64(13), matrix.m03);
+        Assert.Equal(new Fixed64(14), matrix.m13);
+        Assert.Equal(new Fixed64(15), matrix.m23);
+        Assert.Equal(new Fixed64(16), matrix.m33);
+
+        for (int i = 0; i < 16; i++)
+            Assert.Equal(new Fixed64(i + 1), matrix[i]);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_Indexer_InvalidIndex_Throws()
+    {
+        var matrix = Fixed4x4.Identity;
+
+        Assert.Throws<IndexOutOfRangeException>(() => _ = matrix[-1]);
+        Assert.Throws<IndexOutOfRangeException>(() => _ = matrix[16]);
+        Assert.Throws<IndexOutOfRangeException>(() => matrix[-1] = Fixed64.One);
+        Assert.Throws<IndexOutOfRangeException>(() => matrix[16] = Fixed64.One);
     }
 
     [Fact]
@@ -256,6 +311,36 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_SetRotation_PreservesTranslationAndScale()
+    {
+        var translation = new Vector3d(5, 6, 7);
+        var scale = new Vector3d(2, 2, 2);
+        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Forward, FixedMath.PiOver2);
+
+        var matrix = Fixed4x4.CreateTransform(translation, FixedQuaternion.Identity, scale);
+        var updated = Fixed4x4.SetRotation(matrix, rotation);
+
+        Assert.Equal(translation, updated.Translation);
+        Assert.Equal(scale, updated.Scale);
+        Assert.True(updated.Rotation.FuzzyEqual(rotation, new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_SetTranslationAndRotationExtensions_UpdateMatrixInPlace()
+    {
+        var matrix = Fixed4x4.CreateTransform(new Vector3d(1, 1, 1), FixedQuaternion.Identity, new Vector3d(2, 2, 2));
+        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
+
+        matrix.SetTranslation(new Vector3d(7, 8, 9));
+        var updated = matrix.SetRotation(rotation);
+
+        Assert.Equal(new Vector3d(7, 8, 9), matrix.Translation);
+        Assert.Equal(matrix, updated);
+        Assert.Equal(new Vector3d(2, 2, 2), matrix.Scale);
+        Assert.True(matrix.Rotation.FuzzyEqual(rotation, new Fixed64(0.0001)));
+    }
+
+    [Fact]
     public void FixedMatrix4x4_NormalizeRotationMatrixExtension_NormalizesAxesInPlace()
     {
         var matrix = new Fixed4x4(
@@ -276,6 +361,183 @@ public class Fixed4x4Tests
         Assert.Equal(Fixed64.One, zAxis.Magnitude);
         Assert.Equal(Vector3d.Zero, matrix.Translation);
         Assert.Equal(Fixed64.One, matrix.m33);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_Invert_NonAffineMatrix_WorksCorrectly()
+    {
+        var matrix = new Fixed4x4(
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
+        );
+
+        Assert.True(Fixed4x4.Invert(matrix, out var inverted));
+        Assert.Equal(
+            new Fixed4x4(
+                Fixed64.One, Fixed64.Zero, Fixed64.Zero, -Fixed64.One,
+                Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One),
+            inverted);
+        Assert.Equal(Fixed4x4.Identity, matrix * inverted);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_Invert_SingularNonAffineMatrix_ReturnsFalse()
+    {
+        var matrix = new Fixed4x4(
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
+        );
+
+        Assert.False(Fixed4x4.Invert(matrix, out var inverted));
+        Assert.Equal(Fixed4x4.Identity, inverted);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_TransformPoint_NonAffineMatrix_UsesPerspectiveDivision()
+    {
+        var matrix = new Fixed4x4(
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
+        );
+        var point = new Vector3d(1, 2, 3);
+
+        var transformed = Fixed4x4.TransformPoint(matrix, point);
+
+        Assert.Equal(new Vector3d(new Fixed64(0.5), Fixed64.One, new Fixed64(1.5)), transformed);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_TransformPoint_NonAffineMatrix_ZeroWFallsBackToOne()
+    {
+        var matrix = new Fixed4x4(
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, -Fixed64.One
+        );
+
+        var transformed = Fixed4x4.TransformPoint(matrix, new Vector3d(1, 2, 3));
+
+        Assert.Equal(new Vector3d(2, 2, 3), transformed);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_InverseTransformPoint_NonAffineMatrix_WorksCorrectly()
+    {
+        var matrix = new Fixed4x4(
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
+        );
+        var originalPoint = new Vector3d(1, 2, 3);
+        var transformed = Fixed4x4.TransformPoint(matrix, originalPoint);
+
+        var restored = Fixed4x4.InverseTransformPoint(matrix, transformed);
+
+        Assert.True(originalPoint.FuzzyEqual(restored, new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_InverseTransformPoint_NonAffineMatrix_ZeroWFallsBackToOne()
+    {
+        var matrix = new Fixed4x4(
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
+        );
+
+        var restored = Fixed4x4.InverseTransformPoint(matrix, new Vector3d(1, 2, 3));
+
+        Assert.Equal(new Vector3d(1, 2, 3), restored);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_InverseTransformPoint_NonInvertibleMatrix_Throws()
+    {
+        var matrix = new Fixed4x4(
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
+        );
+
+        Assert.Throws<InvalidOperationException>(() => Fixed4x4.InverseTransformPoint(matrix, Vector3d.Zero));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_TransformPointExtensions_UseStaticImplementations()
+    {
+        var matrix = new Fixed4x4(
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
+        );
+        var point = new Vector3d(1, 2, 3);
+
+        var transformed = matrix.TransformPoint(point);
+        var restored = matrix.InverseTransformPoint(transformed);
+
+        Assert.Equal(Fixed4x4.TransformPoint(matrix, point), transformed);
+        Assert.True(point.FuzzyEqual(restored, new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_OperatorsAndHashCode_WorkCorrectly()
+    {
+        var a = new Fixed4x4(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4),
+            new Fixed64(5), new Fixed64(6), new Fixed64(7), new Fixed64(8),
+            new Fixed64(9), new Fixed64(10), new Fixed64(11), new Fixed64(12),
+            new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(16));
+        var b = Fixed4x4.Identity;
+
+        Assert.Equal(
+            new Fixed4x4(
+                new Fixed64(2), new Fixed64(2), new Fixed64(3), new Fixed64(4),
+                new Fixed64(5), new Fixed64(7), new Fixed64(7), new Fixed64(8),
+                new Fixed64(9), new Fixed64(10), new Fixed64(12), new Fixed64(12),
+                new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(17)),
+            a + b);
+        Assert.Equal(
+            new Fixed4x4(
+                Fixed64.Zero, new Fixed64(2), new Fixed64(3), new Fixed64(4),
+                new Fixed64(5), new Fixed64(5), new Fixed64(7), new Fixed64(8),
+                new Fixed64(9), new Fixed64(10), new Fixed64(10), new Fixed64(12),
+                new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(15)),
+            a - b);
+        Assert.Equal(
+            new Fixed4x4(
+                new Fixed64(-1), new Fixed64(-2), new Fixed64(-3), new Fixed64(-4),
+                new Fixed64(-5), new Fixed64(-6), new Fixed64(-7), new Fixed64(-8),
+                new Fixed64(-9), new Fixed64(-10), new Fixed64(-11), new Fixed64(-12),
+                new Fixed64(-13), new Fixed64(-14), new Fixed64(-15), new Fixed64(-16)),
+            -a);
+
+        var hash = a.GetHashCode();
+        Assert.Equal(hash, new Fixed4x4(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4),
+            new Fixed64(5), new Fixed64(6), new Fixed64(7), new Fixed64(8),
+            new Fixed64(9), new Fixed64(10), new Fixed64(11), new Fixed64(12),
+            new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(16)).GetHashCode());
+
+        var changedM03 = a;
+        changedM03.m03 = new Fixed64(40);
+        var changedM13 = a;
+        changedM13.m13 = new Fixed64(80);
+
+        Assert.NotEqual(hash, changedM03.GetHashCode());
+        Assert.NotEqual(hash, changedM13.GetHashCode());
     }
 
     [Fact]

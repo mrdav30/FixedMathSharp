@@ -122,6 +122,82 @@ public class FixedCurveTests
         Assert.Equal((Fixed64)(10000), curve.Evaluate(Fixed64.MAX_VALUE));
     }
 
+    [Fact]
+    public void Constructor_SortsKeyframesAndClonesInputArray()
+    {
+        FixedCurveKey[] keyframes =
+        {
+            new FixedCurveKey(10, 100),
+            new FixedCurveKey(0, 0)
+        };
+
+        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear, keyframes);
+        keyframes[0] = new FixedCurveKey(20, 200);
+
+        Assert.Equal(Fixed64.Zero, curve.Keyframes[0].Time);
+        Assert.Equal(new Fixed64(10), curve.Keyframes[1].Time);
+    }
+
+    [Fact]
+    public void Constructor_WithNullKeyframes_UsesEmptyArray()
+    {
+        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear, null!);
+
+        Assert.Empty(curve.Keyframes);
+    }
+
+    [Fact]
+    public void Evaluate_NoKeyframes_ReturnsOne()
+    {
+        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear, System.Array.Empty<FixedCurveKey>());
+
+        Assert.Equal(Fixed64.One, curve.Evaluate(Fixed64.Zero));
+    }
+
+    [Fact]
+    public void FixedCurve_EqualityOperatorsAndHashCode_WorkCorrectly()
+    {
+        FixedCurve curve = new FixedCurve(
+            new FixedCurveKey(0, 0),
+            new FixedCurveKey(10, 10));
+        FixedCurve same = new FixedCurve(
+            new FixedCurveKey(0, 0),
+            new FixedCurveKey(10, 10));
+        FixedCurve other = new FixedCurve(
+            new FixedCurveKey(0, 0),
+            new FixedCurveKey(10, 5));
+        FixedCurve? nullCurve = null;
+
+        Assert.True(curve == same);
+        Assert.False(curve != same);
+        Assert.True(curve != other);
+        Assert.True(curve.Equals((object)same));
+        Assert.False(curve.Equals(new object()));
+        Assert.False(curve == nullCurve);
+        Assert.True(nullCurve == null);
+        Assert.Equal(curve.GetHashCode(), same.GetHashCode());
+    }
+
+    [Fact]
+    public void FixedCurveKey_ConstructorsEqualityAndHashCode_WorkCorrectly()
+    {
+        FixedCurveKey fromDouble = new FixedCurveKey(1.5, 2.5, 3.5, 4.5);
+        FixedCurveKey same = new FixedCurveKey(new Fixed64(1.5), new Fixed64(2.5), new Fixed64(3.5), new Fixed64(4.5));
+        FixedCurveKey simple = new FixedCurveKey(1.5, 2.5);
+
+        Assert.Equal(new Fixed64(1.5), fromDouble.Time);
+        Assert.Equal(new Fixed64(2.5), fromDouble.Value);
+        Assert.Equal(new Fixed64(3.5), fromDouble.InTangent);
+        Assert.Equal(new Fixed64(4.5), fromDouble.OutTangent);
+        Assert.Equal(Fixed64.Zero, simple.InTangent);
+        Assert.Equal(Fixed64.Zero, simple.OutTangent);
+        Assert.True(fromDouble == same);
+        Assert.False(fromDouble != same);
+        Assert.True(fromDouble.Equals((object)same));
+        Assert.False(fromDouble.Equals(new object()));
+        Assert.Equal(fromDouble.GetHashCode(), same.GetHashCode());
+    }
+
     #region Test: Serialization
 
     [Fact]

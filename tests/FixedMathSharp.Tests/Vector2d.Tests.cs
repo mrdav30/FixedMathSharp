@@ -1,4 +1,5 @@
-﻿using MemoryPack;
+﻿using System;
+using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -205,6 +206,103 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void Indexer_GetAndSet_RoundTripsComponents()
+    {
+        var vector = new Vector2d(1, 2);
+
+        Assert.Equal(Fixed64.One, vector[0]);
+        Assert.Equal(new Fixed64(2), vector[1]);
+
+        vector[0] = new Fixed64(3);
+        vector[1] = new Fixed64(4);
+
+        Assert.Equal(new Vector2d(3, 4), vector);
+    }
+
+    [Fact]
+    public void Indexer_InvalidIndex_Throws()
+    {
+        var vector = new Vector2d(1, 2);
+
+        Assert.Throws<IndexOutOfRangeException>(() => _ = vector[-1]);
+        Assert.Throws<IndexOutOfRangeException>(() => _ = vector[2]);
+        Assert.Throws<IndexOutOfRangeException>(() => vector[-1] = Fixed64.One);
+        Assert.Throws<IndexOutOfRangeException>(() => vector[2] = Fixed64.One);
+    }
+
+    [Fact]
+    public void Set_UpdatesComponents()
+    {
+        var vector = new Vector2d(1, 2);
+
+        vector.Set(new Fixed64(5), new Fixed64(6));
+
+        Assert.Equal(new Vector2d(5, 6), vector);
+    }
+
+    [Fact]
+    public void AddInPlace_Overloads_ModifyVectorCorrectly()
+    {
+        var vector = new Vector2d(1, 2);
+
+        Assert.Equal(new Vector2d(4, 5), vector.AddInPlace(new Fixed64(3)));
+        Assert.Equal(new Vector2d(5, 7), vector.AddInPlace(Fixed64.One, new Fixed64(2)));
+        Assert.Equal(new Vector2d(7, 10), vector.AddInPlace(new Vector2d(2, 3)));
+    }
+
+    [Fact]
+    public void SubtractInPlace_Overloads_ModifyVectorCorrectly()
+    {
+        var vector = new Vector2d(10, 12);
+
+        Assert.Equal(new Vector2d(9, 11), vector.SubtractInPlace(Fixed64.One));
+        Assert.Equal(new Vector2d(7, 8), vector.SubtractInPlace(new Fixed64(2), new Fixed64(3)));
+        Assert.Equal(new Vector2d(6, 6), vector.SubtractInPlace(new Vector2d(1, 2)));
+    }
+
+    [Fact]
+    public void ScaleInPlace_VectorOverload_ScalesPerComponent()
+    {
+        var vector = new Vector2d(2, 3);
+
+        Assert.Equal(new Vector2d(4, 12), vector.ScaleInPlace(new Vector2d(2, 4)));
+    }
+
+    [Fact]
+    public void NormalizeOut_ReturnsOriginalMagnitudeAndNormalizedVector()
+    {
+        var vector = new Vector2d(3, 4);
+
+        var normalized = vector.Normalize(out var magnitude);
+
+        Assert.Equal(new Fixed64(5), magnitude);
+        Assert.Equal(vector, normalized);
+        Assert.True(vector.FuzzyEqual(new Vector2d(new Fixed64(0.6), new Fixed64(0.8)), new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void NormalizeOut_ZeroVector_ReturnsZeroMagnitude()
+    {
+        var vector = Vector2d.Zero;
+
+        var normalized = vector.Normalize(out var magnitude);
+
+        Assert.Equal(Fixed64.Zero, magnitude);
+        Assert.Equal(Vector2d.Zero, normalized);
+    }
+
+    [Fact]
+    public void NormalizeOut_UnitVector_LeavesVectorUnchanged()
+    {
+        var vector = Vector2d.Right;
+
+        var normalized = vector.Normalize(out var magnitude);
+
+        Assert.Equal(Fixed64.One, magnitude);
+        Assert.Equal(Vector2d.Right, normalized);
+    }
+
+    [Fact]
     public void NormalizeInPlace_DoesNothingForZeroVector()
     {
         var vector = new Vector2d(0, 0);
@@ -236,6 +334,15 @@ public class Vector2dTests
         var result = vector.ClampOneInPlace();
 
         Assert.Equal(new Vector2d(1, -1), result); // Clamps x and y to [-1, 1]
+    }
+
+    [Fact]
+    public void V2AbsAndSign_ExtensionsReturnComponentWiseResults()
+    {
+        var vector = new Vector2d(-2, 0.5);
+
+        Assert.Equal(new Vector2d(2, 0.5), vector.Abs());
+        Assert.Equal(new Vector2d(-1, 1), vector.Sign());
     }
 
     [Fact]
@@ -318,6 +425,163 @@ public class Vector2dTests
         var result = vector.Rotate(angle);
 
         Assert.True(result.FuzzyEqual(new Vector2d(0, 1), new Fixed64(0.0001))); // Should rotate to (0, 1)
+    }
+
+    [Fact]
+    public void Lerped_ReturnsInterpolatedCopyWithoutMutatingOriginal()
+    {
+        var start = new Vector2d(0, 0);
+
+        var result = start.Lerped(new Vector2d(10, 20), new Fixed64(0.25));
+
+        Assert.Equal(new Vector2d(new Fixed64(2.5), new Fixed64(5)), result);
+        Assert.Equal(Vector2d.Zero, start);
+    }
+
+    [Fact]
+    public void Rotated_Overloads_ReturnRotatedCopiesWithoutMutatingOriginal()
+    {
+        var vector = new Vector2d(1, 0);
+        var rotation = Vector2d.CreateRotation(FixedMath.PiOver2);
+
+        var rotatedByComponents = vector.Rotated(rotation.x, rotation.y);
+        var rotatedByVector = vector.Rotated(rotation);
+
+        Assert.True(rotatedByComponents.FuzzyEqual(Vector2d.Forward, new Fixed64(0.0001)));
+        Assert.True(rotatedByVector.FuzzyEqual(Vector2d.Forward, new Fixed64(0.0001)));
+        Assert.Equal(Vector2d.Right, vector);
+    }
+
+    [Fact]
+    public void Reflected_Overloads_ReturnReflectedCopiesWithoutMutatingOriginal()
+    {
+        var vector = new Vector2d(1, 1);
+        var axis = Vector2d.Forward;
+
+        var reflectedByComponents = vector.Reflected(axis.x, axis.y);
+        var reflectedByVector = vector.Reflected(axis);
+
+        Assert.Equal(new Vector2d(-1, 1), reflectedByComponents);
+        Assert.Equal(new Vector2d(-1, 1), reflectedByVector);
+        Assert.Equal(new Vector2d(1, 1), vector);
+    }
+
+    [Fact]
+    public void ReflectInPlace_WithPrecomputedProjection_ReflectsCorrectly()
+    {
+        var vector = new Vector2d(1, 1);
+        var axis = Vector2d.Forward;
+        var projection = vector.Dot(axis);
+
+        var reflected = vector.ReflectInPlace(axis.x, axis.y, projection);
+
+        Assert.Equal(new Vector2d(-1, 1), reflected);
+    }
+
+    [Fact]
+    public void ForwardDirection_ReturnsExpectedUnitVector()
+    {
+        var result = Vector2d.ForwardDirection(FixedMath.PiOver2);
+
+        Assert.True(result.FuzzyEqual(Vector2d.Forward, new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void Vector2d_PropertiesAndHashes_ReturnExpectedValues()
+    {
+        var vector = new Vector2d(new Fixed64(3), new Fixed64(4));
+
+        Assert.Equal(new Vector2d(new Fixed64(0.6), new Fixed64(0.8)), vector.Normal);
+        Assert.Equal(new Fixed64(5), vector.Magnitude);
+        Assert.Equal(new Fixed64(25), vector.SqrMagnitude);
+        Assert.Equal(vector.x.m_rawValue * 31 + vector.y.m_rawValue * 7, vector.LongStateHash);
+        Assert.Equal((int)(vector.LongStateHash % int.MaxValue), vector.StateHash);
+        Assert.Equal(vector.StateHash, vector.GetHashCode());
+    }
+
+    [Fact]
+    public void Vector2d_LerpHelpers_CoverClampAndCopyBranches()
+    {
+        var vector = new Vector2d(1, 2);
+
+        Assert.Equal(new Vector2d(10, 20), vector.LerpInPlace(new Vector2d(10, 20), new Fixed64(2)));
+        Assert.Equal(Vector2d.Zero, Vector2d.Lerp(Vector2d.Zero, new Vector2d(10, 20), -Fixed64.One));
+        Assert.Equal(new Vector2d(10, 20), Vector2d.Lerp(Vector2d.Zero, new Vector2d(10, 20), new Fixed64(2)));
+    }
+
+    [Fact]
+    public void Vector2d_ReflectionAndMagnitudeHelpers_CoverOverloadsAndNormalizationBranches()
+    {
+        var vector = new Vector2d(1, 1);
+
+        Assert.Equal(new Vector2d(-1, 1), vector.ReflectInPlace(Vector2d.Forward));
+        Assert.Equal(Vector2d.Right, Vector2d.GetNormalized(Vector2d.Right));
+
+        var slightlyAboveUnit = new Vector2d(Fixed64.One, Fixed64.FromRaw(65536));
+        Assert.Equal(Fixed64.One, Vector2d.GetMagnitude(slightlyAboveUnit));
+    }
+
+    [Fact]
+    public void Vector2d_StaticHelpersAndConversions_WorkCorrectly()
+    {
+        var vector = new Vector2d(new Fixed64(1.25), new Fixed64(-2.5));
+
+        Assert.Equal(new Fixed64(25), Vector2d.SqrDistance(Vector2d.Zero, new Vector2d(3, 4)));
+        Assert.Equal(new Fixed64(11), Vector2d.Dot(new Vector2d(1, 2), new Vector2d(3, 4)));
+        Assert.Equal(new Vector2d(8, 15), Vector2d.Scale(new Vector2d(2, 3), new Vector2d(4, 5)));
+        Assert.Equal("(1.25, -2.5)", vector.ToString());
+        Assert.Equal(new Vector3d(new Fixed64(1.25), new Fixed64(7), new Fixed64(-2.5)), vector.ToVector3d(new Fixed64(7)));
+
+        vector.Deconstruct(out float fx, out float fy);
+        vector.Deconstruct(out int ix, out int iy);
+
+        Assert.Equal(1.25f, fx);
+        Assert.Equal(-2.5f, fy);
+        Assert.Equal(1, ix);
+        Assert.Equal(-2, iy);
+    }
+
+    [Fact]
+    public void Vector2d_EqualityAndComparisonHelpers_WorkCorrectly()
+    {
+        var a = new Vector2d(1, 2);
+        var b = new Vector2d(1, 2);
+        var c = new Vector2d(2, 3);
+
+        Assert.Equal(new Vector2d(3, 5), a + c);
+        Assert.Equal(new Vector2d(1, 1), c - a);
+        Assert.Equal(new Vector2d(0, 1), a - Fixed64.One);
+        Assert.Equal(new Vector2d(0, -1), Fixed64.One - a);
+        Assert.True(a == b);
+        Assert.False(a != b);
+        Assert.True(Vector2d.Zero.EqualsZero());
+        Assert.True(a.NotZero());
+        Assert.True(a.Equals(a, b));
+        Assert.False(a.Equals(a, c));
+        Assert.False(a.Equals("not-a-vector"));
+        Assert.True(c.CompareTo(a) > 0);
+        Assert.Equal(a.GetHashCode(), a.GetHashCode(a));
+    }
+
+    [Fact]
+    public void OperatorOverloads_WithTuplesFloatsAndUnaryMinus_WorkCorrectly()
+    {
+        var vector = new Vector2d(1, 2);
+
+        Assert.Equal(new Vector2d(2, 3), vector + Fixed64.One);
+        Assert.Equal(new Vector2d(2, 3), Fixed64.One + vector);
+        Assert.Equal(new Vector2d(4, 6), vector + (3, 4));
+        Assert.Equal(new Vector2d(4, 6), (3, 4) + vector);
+        Assert.Equal(new Vector2d(new Fixed64(1.5), new Fixed64(3.5)), vector + (0.5f, 1.5f));
+        Assert.Equal(new Vector2d(new Fixed64(1.5), new Fixed64(3.5)), (0.5f, 1.5f) + vector);
+        Assert.Equal(new Vector2d(-2, -2), vector - (3, 4));
+        Assert.Equal(new Vector2d(2, 2), (3, 4) - vector);
+        Assert.Equal(new Vector2d(new Fixed64(0.5), new Fixed64(0.5)), vector - (0.5f, 1.5f));
+        Assert.Equal(new Vector2d(new Fixed64(-0.5), new Fixed64(-0.5)), (0.5f, 1.5f) - vector);
+        Assert.Equal(new Vector2d(-1, -2), -vector);
+        Assert.Equal(new Vector2d(2, 4), vector * new Fixed64(2));
+        Assert.Equal(new Vector2d(2, 6), vector * new Vector2d(2, 3));
+        Assert.Equal(new Vector2d(new Fixed64(0.5), Fixed64.One), vector / new Fixed64(2));
     }
 
     #region Test: Serialization

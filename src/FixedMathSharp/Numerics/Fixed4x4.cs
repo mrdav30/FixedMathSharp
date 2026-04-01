@@ -1050,9 +1050,11 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
             hash = hash * 23 + m00.GetHashCode();
             hash = hash * 23 + m01.GetHashCode();
             hash = hash * 23 + m02.GetHashCode();
+            hash = hash * 23 + m03.GetHashCode();
             hash = hash * 23 + m10.GetHashCode();
             hash = hash * 23 + m11.GetHashCode();
             hash = hash * 23 + m12.GetHashCode();
+            hash = hash * 23 + m13.GetHashCode();
             hash = hash * 23 + m20.GetHashCode();
             hash = hash * 23 + m21.GetHashCode();
             hash = hash * 23 + m22.GetHashCode();

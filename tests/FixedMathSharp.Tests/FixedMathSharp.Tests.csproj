@@ -8,6 +8,7 @@
     <IsTestProject>true</IsTestProject>
 	<Configurations>Debug;Release</Configurations>
 	<OutputType>Exe</OutputType>
+    <RunSettingsFilePath>..\..\coverlet.runsettings</RunSettingsFilePath>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj">

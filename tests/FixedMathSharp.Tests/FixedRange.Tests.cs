@@ -118,6 +118,98 @@ public class FixedRangeTests
     }
 
     [Fact]
+    public void FixedRange_Constructor_WithEnforceOrderFalse_PreservesInputOrder()
+    {
+        var range = new FixedRange(new Fixed64(10), new Fixed64(-10), enforceOrder: false);
+
+        Assert.Equal(new Fixed64(10), range.Min);
+        Assert.Equal(new Fixed64(-10), range.Max);
+    }
+
+    [Fact]
+    public void FixedRange_SetMinMax_UpdatesEndpointsWithoutReordering()
+    {
+        var range = new FixedRange(new Fixed64(0), new Fixed64(10));
+
+        range.SetMinMax(new Fixed64(8), new Fixed64(-2));
+
+        Assert.Equal(new Fixed64(8), range.Min);
+        Assert.Equal(new Fixed64(-2), range.Max);
+    }
+
+    [Fact]
+    public void FixedRange_InRange_DoubleValue_RespectsUpperBoundMode()
+    {
+        var range = new FixedRange(new Fixed64(0), new Fixed64(10));
+
+        Assert.True(range.InRange(9.5));
+        Assert.False(range.InRange(10.0));
+        Assert.True(range.InRange(10.0, includeMax: true));
+    }
+
+    [Fact]
+    public void FixedRange_GetDirection_ReturnsFalseAndNull_WhenRangesOverlap()
+    {
+        var range1 = new FixedRange(new Fixed64(0), new Fixed64(10));
+        var range2 = new FixedRange(new Fixed64(5), new Fixed64(15));
+
+        var result = FixedRange.GetDirection(range1, range2, out Fixed64? sign);
+
+        Assert.False(result);
+        Assert.Null(sign);
+    }
+
+    [Fact]
+    public void FixedRange_CheckOverlap_ReturnsVectorAndDepth_WhenOverlapIsBelowLimit()
+    {
+        var range1 = new FixedRange(new Fixed64(0), new Fixed64(10));
+        var range2 = new FixedRange(new Fixed64(8), new Fixed64(12));
+
+        var result = FixedRange.CheckOverlap(Vector3d.Right, range1, range2, new Fixed64(5), -Fixed64.One, out var output);
+
+        Assert.True(result);
+        Assert.NotNull(output);
+        Assert.Equal(new Fixed64(2), output!.Value.Depth);
+        Assert.Equal(new Vector3d(-2, 0, 0), output.Value.Vector);
+    }
+
+    [Fact]
+    public void FixedRange_CheckOverlap_ReturnsFalse_WhenOverlapIsNotBelowLimit()
+    {
+        var range1 = new FixedRange(new Fixed64(0), new Fixed64(10));
+        var range2 = new FixedRange(new Fixed64(8), new Fixed64(12));
+
+        var result = FixedRange.CheckOverlap(Vector3d.Up, range1, range2, new Fixed64(2), Fixed64.One, out var output);
+
+        Assert.False(result);
+        Assert.Null(output);
+    }
+
+    [Fact]
+    public void FixedRange_OperatorsAndEquality_WorkCorrectly()
+    {
+        var left = new FixedRange(new Fixed64(3), new Fixed64(5));
+        var right = new FixedRange(new Fixed64(1), new Fixed64(2));
+        var same = new FixedRange(new Fixed64(3), new Fixed64(5));
+
+        Assert.Equal(new FixedRange(new Fixed64(4), new Fixed64(7)), left + right);
+        Assert.Equal(new FixedRange(new Fixed64(2), new Fixed64(3)), left - right);
+        Assert.True(left == same);
+        Assert.False(left != same);
+        Assert.True(left.Equals((object)same));
+        Assert.False(left.Equals("not-a-range"));
+        Assert.Equal(left.GetHashCode(), same.GetHashCode());
+    }
+
+    [Fact]
+    public void FixedRange_ToString_FormatsMinAndMax()
+    {
+        var range = new FixedRange(new Fixed64(-1.25), new Fixed64(2.5));
+
+        Assert.Equal("-1.25 - 2.5", range.ToString());
+    }
+
+    [Fact]
     public void FixedRange_EqualMinMax_DoesNotOverlapWithAnyOtherRange()
     {
         var pointRange = new FixedRange(new Fixed64(5), new Fixed64(5)); // Zero-length range at 5

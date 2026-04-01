@@ -7,6 +7,24 @@ namespace FixedMathSharp.Tests.Bounds;
 
 public class BoundingBoxTests
 {
+    private readonly struct UnsupportedBound : IBound
+    {
+        public Vector3d Min { get; }
+        public Vector3d Max { get; }
+
+        public UnsupportedBound(Vector3d min, Vector3d max)
+        {
+            Min = min;
+            Max = max;
+        }
+
+        public bool Contains(Vector3d point) => false;
+
+        public bool Intersects(IBound other) => false;
+
+        public Vector3d ProjectPoint(Vector3d point) => point;
+    }
+
     #region Test: Constructor and Property
 
     [Fact]
@@ -128,6 +146,14 @@ public class BoundingBoxTests
     }
 
     [Fact]
+    public void DistanceToSurface_InsidePoint_ReturnsZero()
+    {
+        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+
+        Assert.Equal(Fixed64.Zero, box.DistanceToSurface(new Vector3d(1, 1, 1)));
+    }
+
+    [Fact]
     public void ClosestPointOnSurface_ReturnsCorrectPoint()
     {
         var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
@@ -135,6 +161,36 @@ public class BoundingBoxTests
 
         var closestPoint = box.ClosestPointOnSurface(point);
         Assert.Equal(new Vector3d(2, 2, 2), closestPoint);
+    }
+
+    [Fact]
+    public void ClosestPointOnSurface_InsidePoint_UsesNearestFace()
+    {
+        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+
+        Assert.Equal(new Vector3d(-2, 0.5, 0.25), box.ClosestPointOnSurface(new Vector3d(-1.75, 0.5, 0.25)));
+        Assert.Equal(new Vector3d(0.25, 2, -0.75), box.ClosestPointOnSurface(new Vector3d(0.25, 1.9, -0.75)));
+        Assert.Equal(new Vector3d(-0.25, 0.5, -2), box.ClosestPointOnSurface(new Vector3d(-0.25, 0.5, -1.8)));
+    }
+
+    [Fact]
+    public void ProjectPoint_ClampsToBounds()
+    {
+        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+
+        var projected = box.ProjectPoint(new Vector3d(5, -3, 1));
+
+        Assert.Equal(new Vector3d(2, -2, 1), projected);
+    }
+
+    [Fact]
+    public void GetPointOnSurfaceTowardsObject_UsesProjectedPoint()
+    {
+        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+
+        var point = box.GetPointOnSurfaceTowardsObject(new Vector3d(5, 1, 0));
+
+        Assert.Equal(new Vector3d(2, 1, 0), point);
     }
 
     #endregion
@@ -177,6 +233,23 @@ public class BoundingBoxTests
         box.SetBoundingBox(new Vector3d(1, 1, 1), newScope);
 
         Assert.Equal(newScope * Fixed64.Two, box.Proportions);
+    }
+
+    [Fact]
+    public void Inequality_DifferentBox_ReturnsTrue()
+    {
+        var box1 = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box2 = new BoundingBox(new Vector3d(1, 1, 1), new Vector3d(4, 4, 4));
+
+        Assert.True(box1 != box2);
+    }
+
+    [Fact]
+    public void Equals_WithDifferentObjectType_ReturnsFalse()
+    {
+        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+
+        Assert.False(box.Equals("not-a-box"));
     }
 
     #endregion
@@ -226,6 +299,55 @@ public class BoundingBoxTests
         Assert.Equal(new Vector3d(4, 4, 4), box.Proportions);
     }
 
+    [Fact]
+    public void Center_Setter_RepositionsBoundsWithoutChangingSize()
+    {
+        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 6, 8));
+
+        box.Center = new Vector3d(5, -1, 3);
+
+        Assert.Equal(new Vector3d(5, -1, 3), box.Center);
+        Assert.Equal(new Vector3d(4, 6, 8), box.Proportions);
+        Assert.Equal(new Vector3d(3, -4, -1), box.Min);
+        Assert.Equal(new Vector3d(7, 2, 7), box.Max);
+    }
+
+    [Fact]
+    public void Proportions_Setter_ResizesBoundsWithoutChangingCenter()
+    {
+        var box = new BoundingBox(new Vector3d(1, 2, 3), new Vector3d(4, 4, 4));
+
+        box.Proportions = new Vector3d(6, 8, 10);
+
+        Assert.Equal(new Vector3d(1, 2, 3), box.Center);
+        Assert.Equal(new Vector3d(-2, -2, -2), box.Min);
+        Assert.Equal(new Vector3d(4, 6, 8), box.Max);
+    }
+
+    [Fact]
+    public void Orient_WithNullSize_PreservesCurrentProportions()
+    {
+        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 6, 8));
+
+        box.Orient(new Vector3d(10, 20, 30), null);
+
+        Assert.Equal(new Vector3d(10, 20, 30), box.Center);
+        Assert.Equal(new Vector3d(4, 6, 8), box.Proportions);
+    }
+
+    [Fact]
+    public void Orient_WithExplicitSize_UsesProvidedDimensions()
+    {
+        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+
+        box.Orient(new Vector3d(1, 2, 3), new Vector3d(2, 4, 6));
+
+        Assert.Equal(new Vector3d(1, 2, 3), box.Center);
+        Assert.Equal(new Vector3d(2, 4, 6), box.Proportions);
+        Assert.Equal(new Vector3d(0, 0, 0), box.Min);
+        Assert.Equal(new Vector3d(2, 4, 6), box.Max);
+    }
+
     #endregion
 
     #region Test: Vertex Cache Safety
@@ -240,6 +362,38 @@ public class BoundingBoxTests
         var updated = box.Vertices[0];
 
         Assert.NotEqual(original, updated);
+    }
+
+    [Fact]
+    public void Union_EnclosesBothBoxes()
+    {
+        var a = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+        var b = new BoundingBox(new Vector3d(4, 0, 0), new Vector3d(4, 4, 4));
+
+        var union = BoundingBox.Union(a, b);
+
+        Assert.Equal(new Vector3d(-1, -2, -2), union.Min);
+        Assert.Equal(new Vector3d(6, 2, 2), union.Max);
+    }
+
+    [Fact]
+    public void FindClosestPointsBetweenBoxes_ReturnsClosestPointOnFirstBoxSurface()
+    {
+        var a = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+        var b = new BoundingBox(new Vector3d(5, 0, 0), new Vector3d(2, 2, 2));
+
+        var closestPoint = BoundingBox.FindClosestPointsBetweenBoxes(a, b);
+
+        Assert.Equal(new Vector3d(1, -1, -1), closestPoint);
+    }
+
+    [Fact]
+    public void Intersects_WithUnsupportedBound_ReturnsFalse()
+    {
+        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var unsupported = new UnsupportedBound(new Vector3d(10, 10, 10), new Vector3d(12, 12, 12));
+
+        Assert.False(box.Intersects(unsupported));
     }
 
     #endregion

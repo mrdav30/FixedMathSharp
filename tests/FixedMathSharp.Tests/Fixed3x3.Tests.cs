@@ -1,4 +1,5 @@
-﻿using MemoryPack;
+﻿using System;
+using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -152,6 +153,80 @@ public class Fixed3x3Tests
     }
 
     [Fact]
+    public void Fixed3x3_Indexer_GetAndSet_UsesExpectedMapping()
+    {
+        var matrix = Fixed3x3.Zero;
+
+        matrix[0] = new Fixed64(1);
+        matrix[1] = new Fixed64(2);
+        matrix[2] = new Fixed64(3);
+        matrix[4] = new Fixed64(4);
+        matrix[5] = new Fixed64(5);
+        matrix[6] = new Fixed64(6);
+        matrix[8] = new Fixed64(7);
+        matrix[9] = new Fixed64(8);
+        matrix[10] = new Fixed64(9);
+
+        Assert.Equal(new Fixed64(1), matrix.m00);
+        Assert.Equal(new Fixed64(2), matrix.m10);
+        Assert.Equal(new Fixed64(3), matrix.m20);
+        Assert.Equal(new Fixed64(4), matrix.m01);
+        Assert.Equal(new Fixed64(5), matrix.m11);
+        Assert.Equal(new Fixed64(6), matrix.m21);
+        Assert.Equal(new Fixed64(7), matrix.m02);
+        Assert.Equal(new Fixed64(8), matrix.m12);
+        Assert.Equal(new Fixed64(9), matrix.m22);
+
+        Assert.Equal(new Fixed64(1), matrix[0]);
+        Assert.Equal(new Fixed64(2), matrix[1]);
+        Assert.Equal(new Fixed64(3), matrix[2]);
+        Assert.Equal(new Fixed64(4), matrix[4]);
+        Assert.Equal(new Fixed64(5), matrix[5]);
+        Assert.Equal(new Fixed64(6), matrix[6]);
+        Assert.Equal(new Fixed64(7), matrix[8]);
+        Assert.Equal(new Fixed64(8), matrix[9]);
+        Assert.Equal(new Fixed64(9), matrix[10]);
+    }
+
+    [Fact]
+    public void Fixed3x3_Indexer_InvalidIndex_Throws()
+    {
+        var matrix = Fixed3x3.Identity;
+
+        Assert.Throws<IndexOutOfRangeException>(() => _ = matrix[-1]);
+        Assert.Throws<IndexOutOfRangeException>(() => _ = matrix[3]);
+        Assert.Throws<IndexOutOfRangeException>(() => _ = matrix[7]);
+        Assert.Throws<IndexOutOfRangeException>(() => _ = matrix[11]);
+        Assert.Throws<IndexOutOfRangeException>(() => matrix[-1] = Fixed64.One);
+        Assert.Throws<IndexOutOfRangeException>(() => matrix[3] = Fixed64.One);
+        Assert.Throws<IndexOutOfRangeException>(() => matrix[7] = Fixed64.One);
+        Assert.Throws<IndexOutOfRangeException>(() => matrix[11] = Fixed64.One);
+    }
+
+    [Fact]
+    public void Fixed3x3_SetLossyScale_Overloads_CreateExpectedMatrix()
+    {
+        var expected = new Fixed3x3(
+            new Fixed64(2), Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, new Fixed64(3), Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, new Fixed64(4));
+
+        Assert.Equal(expected, Fixed3x3.SetLossyScale(new Vector3d(2, 3, 4)));
+        Assert.Equal(expected, Fixed3x3.SetLossyScale(new Fixed64(2), new Fixed64(3), new Fixed64(4)));
+    }
+
+    [Fact]
+    public void InvertDiagonal_ZeroMiddleAxis_ReturnsOriginalMatrix()
+    {
+        var matrix = new Fixed3x3(
+            new Fixed64(2), Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, new Fixed64(4));
+
+        Assert.Equal(matrix, matrix.InvertDiagonal());
+    }
+
+    [Fact]
     public void Fixed3x3_SetGlobalScale_WorksWithoutRotation()
     {
         var initialScale = new Vector3d(2, 2, 2);
@@ -190,6 +265,33 @@ public class Fixed3x3Tests
             extractedScale.FuzzyEqual(globalScale, new Fixed64(0.01)),
             $"Extracted scale {extractedScale} does not match expected {globalScale}."
         );
+    }
+
+    [Fact]
+    public void Fixed3x3_ExtractScaleExtension_MatchesStaticImplementation()
+    {
+        var matrix = Fixed3x3.CreateScale(new Vector3d(2, 3, 4));
+
+        Assert.Equal(Fixed3x3.ExtractScale(matrix), matrix.ExtractScale());
+    }
+
+    [Fact]
+    public void Fixed3x3_FuzzyEqualExtensions_CoverTrueAndFalseBranches()
+    {
+        var baseline = new Fixed3x3(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3),
+            new Fixed64(4), new Fixed64(5), new Fixed64(6),
+            new Fixed64(7), new Fixed64(8), new Fixed64(9));
+        var same = baseline;
+        var changed = new Fixed3x3(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3),
+            new Fixed64(4), new Fixed64(5), new Fixed64(6),
+            new Fixed64(7), new Fixed64(8), new Fixed64(10));
+
+        Assert.True(baseline.FuzzyEqualAbsolute(same, Fixed64.Zero));
+        Assert.False(baseline.FuzzyEqualAbsolute(changed, new Fixed64(0.5)));
+        Assert.True(baseline.FuzzyEqual(same));
+        Assert.False(baseline.FuzzyEqual(changed, new Fixed64(0.01)));
     }
 
     [Fact]
@@ -311,6 +413,69 @@ public class Fixed3x3Tests
 
         Assert.Throws<System.InvalidOperationException>(() =>
             Fixed3x3.InverseTransformDirection(singularMatrix, direction));
+    }
+
+    [Fact]
+    public void Fixed3x3_OperatorsAndHashCode_WorkCorrectly()
+    {
+        var a = Fixed3x3.CreateScale(new Vector3d(2, 3, 4));
+        var b = Fixed3x3.CreateScale(new Vector3d(5, 6, 7));
+
+        Assert.Equal(
+            new Fixed3x3(
+                new Fixed64(7), Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, new Fixed64(9), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, new Fixed64(11)),
+            a + b);
+        Assert.Equal(
+            new Fixed3x3(
+                new Fixed64(-3), Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, new Fixed64(-3), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, new Fixed64(-3)),
+            a - b);
+        Assert.Equal(
+            new Fixed3x3(
+                new Fixed64(-2), Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, new Fixed64(-3), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, new Fixed64(-4)),
+            -a);
+        Assert.Equal(
+            new Fixed3x3(
+                new Fixed64(10), Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, new Fixed64(18), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, new Fixed64(28)),
+            a * b);
+        Assert.Equal(
+            new Fixed3x3(
+                new Fixed64(4), Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, new Fixed64(6), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, new Fixed64(8)),
+            a * new Fixed64(2));
+        Assert.Equal(
+            new Fixed3x3(
+                new Fixed64(4), Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, new Fixed64(6), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, new Fixed64(8)),
+            new Fixed64(2) * a);
+        Assert.Equal(
+            new Fixed3x3(
+                Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, new Fixed64(1.5), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, new Fixed64(2)),
+            a / 2);
+        Assert.Equal(
+            new Fixed3x3(
+                Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, new Fixed64(1.5), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, new Fixed64(2)),
+            2 / a);
+
+        var hash = a.GetHashCode();
+        Assert.Equal(hash, Fixed3x3.CreateScale(new Vector3d(2, 3, 4)).GetHashCode());
+
+        var changed = a;
+        changed.m01 = Fixed64.One;
+        Assert.NotEqual(hash, changed.GetHashCode());
     }
 
     #region Test: Serialization
