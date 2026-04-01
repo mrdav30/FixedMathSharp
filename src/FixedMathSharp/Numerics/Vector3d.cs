@@ -596,7 +596,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         // Clamp it to be in the range of Acos()
         // This may be unnecessary, but floating point
         // precision can be a fickle mistress.
-        FixedMath.Clamp(dot, -Fixed64.One, Fixed64.One);
+        dot = FixedMath.Clamp(dot, -Fixed64.One, Fixed64.One);
         // Acos(dot) returns the angle between start and end,
         // And multiplying that by percent returns the angle between
         // start and the final result.
