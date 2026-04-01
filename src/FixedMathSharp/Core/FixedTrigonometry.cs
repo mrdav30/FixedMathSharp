@@ -101,9 +101,6 @@ namespace FixedMathSharp
             if (x >= LOG_2_MAX)
                 return neg ? Fixed64.One / Fixed64.MAX_VALUE : Fixed64.MAX_VALUE;
 
-            if (x <= LOG_2_MIN)
-                return neg ? Fixed64.MAX_VALUE : Fixed64.Zero;
-
             /* 
              * Taylor series expansion for exp(x)
              * From term n, we get term n+1 by multiplying with x/n.
