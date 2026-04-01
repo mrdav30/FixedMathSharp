@@ -1,0 +1,98 @@
+name: Coverage
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: coverage-pages
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build tests
+      run: dotnet build tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore
+
+    - name: Run tests with coverage
+      run: dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-build --collect:"XPlat Code Coverage" --results-directory artifacts/coverage
+
+    - name: Install ReportGenerator
+      run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+    - name: Add ReportGenerator to PATH
+      run: echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+    - name: Generate coverage report
+      run: |
+        reportgenerator \
+          "-reports:artifacts/coverage/**/coverage.cobertura.xml" \
+          "-targetdir:artifacts/coverage-report" \
+          "-reporttypes:Html;MarkdownSummaryGithub;Badges;JsonSummary"
+
+    - name: Add coverage summary to job
+      run: cat artifacts/coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload coverage artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: artifacts/coverage-report
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: coverage
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Configure Pages
+      uses: actions/configure-pages@v5
+
+    - name: Download coverage artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: coverage-report
+        path: artifacts/coverage-report
+
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: artifacts/coverage-report
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

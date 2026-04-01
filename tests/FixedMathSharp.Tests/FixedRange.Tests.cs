@@ -56,6 +56,18 @@ public class FixedRangeTests
     }
 
     [Fact]
+    public void FixedRange_InRange_Fixed64Value_CoversLowerBoundAndOutsideCases()
+    {
+        var range = new FixedRange(new Fixed64(0), new Fixed64(10));
+
+        Assert.True(range.InRange(Fixed64.Zero));
+        Assert.False(range.InRange(new Fixed64(-1)));
+        Assert.False(range.InRange(new Fixed64(-1), includeMax: true));
+        Assert.True(range.InRange(new Fixed64(10), includeMax: true));
+        Assert.False(range.InRange(new Fixed64(11), includeMax: true));
+    }
+
+    [Fact]
     public void FixedRange_InRange_IntValue_ReturnsTrue()
     {
         var range = new FixedRange(new Fixed64(0), new Fixed64(10));
@@ -148,6 +160,16 @@ public class FixedRangeTests
     }
 
     [Fact]
+    public void FixedRange_InRange_DoubleValue_ReturnsFalseBelowMin()
+    {
+        var range = new FixedRange(new Fixed64(0), new Fixed64(10));
+
+        Assert.False(range.InRange(-0.5));
+        Assert.False(range.InRange(-0.5, includeMax: true));
+        Assert.False(range.InRange(10.5, includeMax: true));
+    }
+
+    [Fact]
     public void FixedRange_GetDirection_ReturnsFalseAndNull_WhenRangesOverlap()
     {
         var range1 = new FixedRange(new Fixed64(0), new Fixed64(10));
@@ -157,6 +179,45 @@ public class FixedRangeTests
 
         Assert.False(result);
         Assert.Null(sign);
+    }
+
+    [Fact]
+    public void FixedRange_GetDirection_ReturnsPositiveDirection_WhenFirstRangeIsRightOfSecond()
+    {
+        var leftRange = new FixedRange(new Fixed64(0), new Fixed64(5));
+        var rightRange = new FixedRange(new Fixed64(10), new Fixed64(15));
+
+        var result = FixedRange.GetDirection(rightRange, leftRange, out Fixed64? sign);
+
+        Assert.True(result);
+        Assert.Equal(Fixed64.One, sign);
+    }
+
+    [Fact]
+    public void FixedRange_ComputeOverlapDepth_WhenRangeAIsInsideB_UsesContainedBranch()
+    {
+        var rangeA = new FixedRange(new Fixed64(3), new Fixed64(7));
+        var rangeB = new FixedRange(new Fixed64(0), new Fixed64(10));
+
+        Assert.Equal(new Fixed64(7), FixedRange.ComputeOverlapDepth(rangeA, rangeB));
+    }
+
+    [Fact]
+    public void FixedRange_ComputeOverlapDepth_WhenRangeBIsInsideA_UsesContainedBranch()
+    {
+        var rangeA = new FixedRange(new Fixed64(0), new Fixed64(10));
+        var rangeB = new FixedRange(new Fixed64(3), new Fixed64(7));
+
+        Assert.Equal(new Fixed64(7), FixedRange.ComputeOverlapDepth(rangeA, rangeB));
+    }
+
+    [Fact]
+    public void FixedRange_ComputeOverlapDepth_WhenRangesDoNotOverlap_ReturnsZero()
+    {
+        var rangeA = new FixedRange(new Fixed64(0), new Fixed64(3));
+        var rangeB = new FixedRange(new Fixed64(5), new Fixed64(8));
+
+        Assert.Equal(Fixed64.Zero, FixedRange.ComputeOverlapDepth(rangeA, rangeB));
     }
 
     [Fact]
@@ -199,6 +260,24 @@ public class FixedRangeTests
         Assert.True(left.Equals((object)same));
         Assert.False(left.Equals("not-a-range"));
         Assert.Equal(left.GetHashCode(), same.GetHashCode());
+    }
+
+    [Fact]
+    public void FixedRange_EqualsTyped_ReturnsFalseForDifferentRange()
+    {
+        var left = new FixedRange(new Fixed64(1), new Fixed64(2));
+        var right = new FixedRange(new Fixed64(1), new Fixed64(3));
+
+        Assert.False(left.Equals(right));
+    }
+
+    [Fact]
+    public void FixedRange_EqualsTyped_ReturnsFalseWhenMinDiffers()
+    {
+        var left = new FixedRange(new Fixed64(1), new Fixed64(2));
+        var right = new FixedRange(new Fixed64(0), new Fixed64(2));
+
+        Assert.False(left.Equals(right));
     }
 
     [Fact]

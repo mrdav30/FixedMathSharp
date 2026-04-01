@@ -46,6 +46,14 @@ public class FixedMathTests
         Assert.Equal(new Fixed64(0.5f), result);
     }
 
+    [Fact]
+    public void ClampOne_ClampsToNegativeOneOneRange()
+    {
+        Assert.Equal(-Fixed64.One, FixedMath.ClampOne(new Fixed64(-2)));
+        Assert.Equal(new Fixed64(0.5), FixedMath.ClampOne(new Fixed64(0.5)));
+        Assert.Equal(Fixed64.One, FixedMath.ClampOne(new Fixed64(2)));
+    }
+
     #endregion
 
     #region Test: FastAbs Method
@@ -62,6 +70,12 @@ public class FixedMathTests
     {
         var result = FixedMath.Abs(new Fixed64(-10));
         Assert.Equal(new Fixed64(10), result);
+    }
+
+    [Fact]
+    public void FastAbs_MinValue_ReturnsMaxValue()
+    {
+        Assert.Equal(Fixed64.MAX_VALUE, FixedMath.Abs(Fixed64.MIN_VALUE));
     }
 
     #endregion
@@ -158,6 +172,13 @@ public class FixedMathTests
         Assert.Equal(new Fixed64(-2), result);
     }
 
+    [Fact]
+    public void Round_AwayFromZero_NegativeHalf_RoundsDown()
+    {
+        var result = FixedMath.Round(new Fixed64(-2.5), MidpointRounding.AwayFromZero);
+        Assert.Equal(new Fixed64(-3), result);
+    }
+
     #endregion
 
     #region Test: Round Method (With Decimal Places)
@@ -181,6 +202,13 @@ public class FixedMathTests
     {
         var result = FixedMath.RoundToPrecision(new Fixed64(2.5), 0, MidpointRounding.AwayFromZero);
         Assert.Equal(new Fixed64(3), result);
+    }
+
+    [Fact]
+    public void Round_WithDecimalPlaces_ThrowsWhenPrecisionIsOutOfRange()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.RoundToPrecision(new Fixed64(1.23), -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.RoundToPrecision(new Fixed64(1.23), FixedMath.Pow10Lookup.Length));
     }
 
     #endregion
@@ -377,6 +405,14 @@ public class FixedMathTests
         Assert.Equal(new Fixed64(5), result);
     }
 
+    [Fact]
+    public void Clamp_GenericComparable_ClampsAtBothEndsAndPassesThrough()
+    {
+        Assert.Equal(5, FixedMath.Clamp(9, 1, 5));
+        Assert.Equal(1, FixedMath.Clamp(-3, 1, 5));
+        Assert.Equal(3, FixedMath.Clamp(3, 1, 5));
+    }
+
     #endregion
 
     #region Test: MoveTowards Method
@@ -400,6 +436,13 @@ public class FixedMathTests
     {
         var result = FixedMath.MoveTowards(new Fixed64(3), new Fixed64(5), new Fixed64(3));
         Assert.Equal(new Fixed64(5), result);  // It overshoots, so it should return 5
+    }
+
+    [Fact]
+    public void MoveTowards_ValueMovesDownWithOvershoot_ReturnsTarget()
+    {
+        var result = FixedMath.MoveTowards(new Fixed64(5), new Fixed64(3), new Fixed64(3));
+        Assert.Equal(new Fixed64(3), result);
     }
 
     #endregion

@@ -3,6 +3,7 @@
 ![FixedMathSharp Icon](https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/icon.png)
 
 [![.NET CI](https://github.com/mrdav30/FixedMathSharp/actions/workflows/dotnet.yml/badge.svg)](https://github.com/mrdav30/FixedMathSharp/actions/workflows/dotnet.yml)
+[![Coverage](https://mrdav30.github.io/FixedMathSharp/badge_linecoverage.svg)](https://mrdav30.github.io/FixedMathSharp/)
 [![NuGet](https://img.shields.io/nuget/v/FixedMathSharp.svg)](https://www.nuget.org/packages/FixedMathSharp)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/FixedMathSharp.svg)](https://www.nuget.org/packages/FixedMathSharp)
 [![License](https://img.shields.io/github/license/mrdav30/FixedMathSharp.svg)](https://github.com/mrdav30/FixedMathSharp/blob/main/LICENSE)

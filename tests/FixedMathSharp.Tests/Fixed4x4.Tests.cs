@@ -266,6 +266,19 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_TranslateRotateScale_MatchesExplicitMultiplicationOrder()
+    {
+        var translation = new Vector3d(3, -2, 5);
+        var rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)30, (Fixed64)45, (Fixed64)60);
+        var scale = new Vector3d(2, 3, 4);
+
+        var expected = Fixed4x4.CreateTranslation(translation) * Fixed4x4.CreateRotation(rotation) * Fixed4x4.CreateScale(scale);
+        var result = Fixed4x4.TranslateRotateScale(translation, rotation, scale);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
     public void FixedMatrix4x4_Equality_WorksCorrectly()
     {
         var matrixA = Fixed4x4.Identity;
@@ -311,6 +324,19 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_SetScale_UpdatesDiagonalComponents()
+    {
+        var matrix = Fixed4x4.CreateTranslation(new Vector3d(5, 6, 7));
+
+        var updated = Fixed4x4.SetScale(matrix, new Vector3d(2, 3, 4));
+
+        Assert.Equal(new Fixed64(2), updated.m00);
+        Assert.Equal(new Fixed64(3), updated.m11);
+        Assert.Equal(new Fixed64(4), updated.m22);
+        Assert.Equal(new Vector3d(5, 6, 7), updated.Translation);
+    }
+
+    [Fact]
     public void FixedMatrix4x4_SetRotation_PreservesTranslationAndScale()
     {
         var translation = new Vector3d(5, 6, 7);
@@ -338,6 +364,28 @@ public class Fixed4x4Tests
         Assert.Equal(matrix, updated);
         Assert.Equal(new Vector3d(2, 2, 2), matrix.Scale);
         Assert.True(matrix.Rotation.FuzzyEqual(rotation, new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_ExtractRotation_HandlesZeroScaleWithoutThrowing()
+    {
+        var matrix = Fixed4x4.CreateScale(Vector3d.Zero);
+
+        var exception = Record.Exception(() => Fixed4x4.ExtractRotation(matrix));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_Decompose_ZeroScaleMatrix_ReplacesZeroScaleToAvoidDivisionByZero()
+    {
+        var matrix = Fixed4x4.CreateScale(Vector3d.Zero);
+
+        Assert.True(Fixed4x4.Decompose(matrix, out var scale, out var rotation, out var translation));
+
+        Assert.Equal(Vector3d.One, scale);
+        Assert.Equal(Vector3d.Zero, translation);
+        Assert.Equal(rotation, rotation);
     }
 
     [Fact]
@@ -393,6 +441,15 @@ public class Fixed4x4Tests
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
         );
+
+        Assert.False(Fixed4x4.Invert(matrix, out var inverted));
+        Assert.Equal(Fixed4x4.Identity, inverted);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_Invert_SingularAffineMatrix_ReturnsFalse()
+    {
+        var matrix = Fixed4x4.CreateScale(new Vector3d(0, 1, 1));
 
         Assert.False(Fixed4x4.Invert(matrix, out var inverted));
         Assert.Equal(Fixed4x4.Identity, inverted);
@@ -538,6 +595,12 @@ public class Fixed4x4Tests
 
         Assert.NotEqual(hash, changedM03.GetHashCode());
         Assert.NotEqual(hash, changedM13.GetHashCode());
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_EqualsObject_ReturnsFalseForDifferentType()
+    {
+        Assert.False(Fixed4x4.Identity.Equals("not-a-matrix"));
     }
 
     [Fact]

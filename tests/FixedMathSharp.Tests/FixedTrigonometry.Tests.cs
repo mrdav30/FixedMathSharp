@@ -128,6 +128,16 @@ public class FixedTrigonometryTests
         FixedMathTestHelper.AssertWithinRelativeTolerance(expected, result);
     }
 
+    [Fact]
+    public void Sqrt_LargeRawValue_UsesLargeRemainderPath()
+    {
+        var value = Fixed64.FromRaw(7610643186905657857L);
+        var result = FixedMath.Sqrt(value);
+        var expected = new Fixed64(Math.Sqrt((double)value));
+
+        FixedMathTestHelper.AssertWithinRelativeTolerance(expected, result, new Fixed64(0.001));
+    }
+
     #endregion
 
     #region Test: Log2 and Ln Methods
@@ -267,6 +277,45 @@ public class FixedTrigonometryTests
         FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.One, FixedMath.Tan(-3 * FixedMath.PiOver4));
     }
 
+    [Fact]
+    public void Tan_TinyRawValue_RemainsNearIdentity()
+    {
+        var value = Fixed64.FromRaw(1);
+        var result = FixedMath.Tan(value);
+
+        Assert.Equal(value, result);
+    }
+
+    [Fact]
+    public void Tan_NearestConvergenceCandidate_StillDiffersByOneRawUnit()
+    {
+        var value = Fixed64.FromRaw(6262398315L);
+        var x = value % FixedMath.PI;
+        var x2 = x * x;
+        var denominator = Fixed64.One;
+        var prevDenominator = denominator;
+        var minGap = Fixed64.MAX_VALUE;
+        var minGapIteration = 0;
+        var start = x.Abs() > FixedMath.PiOver6 ? 19 : 13;
+
+        for (var i = start; i >= 1; i -= 2)
+        {
+            denominator = (Fixed64)i - (x2 / denominator);
+            var gap = (denominator - prevDenominator).Abs();
+
+            if (gap < minGap)
+            {
+                minGap = gap;
+                minGapIteration = i;
+            }
+
+            prevDenominator = denominator;
+        }
+
+        Assert.Equal(Fixed64.Precision, minGap);
+        Assert.Equal(17, minGapIteration);
+    }
+
     #endregion
 
     #region Test: Asin Method
@@ -309,6 +358,13 @@ public class FixedTrigonometryTests
     public void Asin_ThrowsForOutOfDomain()
     {
         var value = new Fixed64(2); // Value greater than 1
+        Assert.Throws<ArithmeticException>(() => FixedMath.Asin(value));
+    }
+
+    [Fact]
+    public void Asin_ThrowsForLessThanNegativeOne()
+    {
+        var value = new Fixed64(-2);
         Assert.Throws<ArithmeticException>(() => FixedMath.Asin(value));
     }
 
