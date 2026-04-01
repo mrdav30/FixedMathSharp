@@ -15,6 +15,7 @@
 	  <IncludeAssets>compile; build</IncludeAssets>
 	  <PrivateAssets>all</PrivateAssets>
 	</ProjectReference>
+    <ProjectReference Include="..\..\src\FixedMathSharp.FluentAssertions\FixedMathSharp.FluentAssertions.csproj" />
     <PackageReference Include="MemoryPack" Version="1.21.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">

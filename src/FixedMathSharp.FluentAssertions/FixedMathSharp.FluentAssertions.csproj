@@ -1,0 +1,51 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <LangVersion>11.0</LangVersion>
+    <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
+    <SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
+    <SemVer Condition="'$(SemVer)' == ''">0.0.0</SemVer>
+    <InfoVer Condition="'$(GitVersion_InformationalVersion)' != ''">$(GitVersion_InformationalVersion)</InfoVer>
+    <InfoVer Condition="'$(InfoVer)' == ''">$(SemVer)</InfoVer>
+    <AssemblySemVer Condition="'$(GitVersion_AssemblySemVer)' != ''">$(GitVersion_AssemblySemVer)</AssemblySemVer>
+    <AssemblySemVer Condition="'$(AssemblySemVer)' == ''">$(SemVer).0</AssemblySemVer>
+    <AssemblySemFileVer Condition="'$(GitVersion_AssemblySemFileVer)' != ''">$(GitVersion_AssemblySemFileVer)</AssemblySemFileVer>
+    <AssemblySemFileVer Condition="'$(AssemblySemFileVer)' == ''">$(AssemblySemVer)</AssemblySemFileVer>
+    <InformationalVersion>$(InfoVer)</InformationalVersion>
+    <Version>$(SemVer)</Version>
+    <AssemblyVersion>$(AssemblySemVer)</AssemblyVersion>
+    <FileVersion>$(AssemblySemFileVer)</FileVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IncludeSymbols>true</IncludeSymbols>
+    <DebugType>portable</DebugType>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <Configurations>Debug;Release</Configurations>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <AssemblyName>FixedMathSharp.FluentAssertions</AssemblyName>
+    <RootNamespace>FixedMathSharp.Assertions</RootNamespace>
+    <PackageId>FixedMathSharp.FluentAssertions</PackageId>
+    <Authors>mrdav30</Authors>
+    <Description>FluentAssertions extensions for FixedMathSharp types, including Fixed64, vectors, quaternions, and matrices.</Description>
+    <PackageTags>fixed-point;math;precision;deterministic;assertions;fluentassertions;testing;dotnet;game-development</PackageTags>
+    <RepositoryUrl>https://github.com/mrdav30/FixedMathSharp</RepositoryUrl>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <NoWarn>1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FixedMathSharp\FixedMathSharp.csproj" />
+    <PackageReference Include="FluentAssertions" Version="8.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\NOTICE" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\COPYRIGHT" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+</Project>
