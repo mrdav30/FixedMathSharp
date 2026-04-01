@@ -1,10 +1,12 @@
 # FixedMathSharp
 
-==============
-
 ![FixedMathSharp Icon](https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/icon.png)
 
 [![.NET CI](https://github.com/mrdav30/FixedMathSharp/actions/workflows/dotnet.yml/badge.svg)](https://github.com/mrdav30/FixedMathSharp/actions/workflows/dotnet.yml)
+[![NuGet](https://img.shields.io/nuget/v/FixedMathSharp.svg)](https://www.nuget.org/packages/FixedMathSharp)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/FixedMathSharp.svg)](https://www.nuget.org/packages/FixedMathSharp)
+[![License](https://img.shields.io/github/license/mrdav30/FixedMathSharp.svg)](https://github.com/mrdav30/FixedMathSharp/blob/main/LICENSE)
+[![Frameworks](https://img.shields.io/badge/frameworks-netstandard2.1%20%7C%20net8.0-512BD4.svg)](https://github.com/mrdav30/FixedMathSharp)
 
 **A high-precision, deterministic fixed-point math library for .NET.**  
 Ideal for simulations, games, and physics engines requiring reliable arithmetic without floating-point inaccuracies.
@@ -37,6 +39,9 @@ Clone the repository and add it to your project:
      ```bash
      dotnet add package FixedMathSharp
      ```
+
+   - If you're using `FluentAssertions` in your test project, the companion assertions package is available here:
+     [FixedMathSharp.FluentAssertions](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions)
 
 2. **Or Download/Clone**:
    - Clone the repository or download the source code.

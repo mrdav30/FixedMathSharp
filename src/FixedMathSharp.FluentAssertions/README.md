@@ -2,6 +2,9 @@
 
 `FixedMathSharp.FluentAssertions` adds custom FluentAssertions helpers for `FixedMathSharp` types.
 
+Main library:
+[FixedMathSharp on GitHub](https://github.com/mrdav30/FixedMathSharp)
+
 It includes assertions for:
 
 - `Fixed64`
