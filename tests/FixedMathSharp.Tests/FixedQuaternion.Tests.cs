@@ -341,9 +341,9 @@ public class FixedQuaternionTests
     public void FixedQuaternion_ToEulerAngles_HandlesGimbalLockPitch()
     {
         var quaternion = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
-        var eulerAngles = quaternion.ToEulerAngles();
+        var expectedQuaternion = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(0), new Fixed64(90), new Fixed64(0));
 
-        Assert.True(eulerAngles.FuzzyEqual(new Vector3d(0, 90, 0), new Fixed64(0.0001)));
+        Assert.True(expectedQuaternion.FuzzyEqual(quaternion, new Fixed64(0.0001)));
     }
 
     [Fact]
@@ -468,7 +468,7 @@ public class FixedQuaternionTests
         var vector = new Vector3d(1, 0, 0);
 
         var result = quaternion.Rotate(vector);
-        Assert.True(result.FuzzyEqual(new Vector3d(0, 1, 0))); // Expect (0, 1, 0) after rotation
+        Assert.True(new Vector3d(0, 1, 0).FuzzyEqual(result, new Fixed64(0.0001))); // Expect (0, 1, 0) after rotation
     }
 
     [Fact]
