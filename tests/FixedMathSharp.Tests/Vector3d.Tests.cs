@@ -837,7 +837,7 @@ public class Vector3dTests
         var quaternion = FixedQuaternion.FromEulerAngles(new Fixed64(0), new Fixed64(0), FixedMath.PiOver2); // 90° rotation around Z-axis
 
         var result = vector.Rotate(position, quaternion);
-        Assert.True(result.FuzzyEqual(new Vector3d(0, 1, 0), new Fixed64(0.0001))); // Allow small error tolerance
+        Assert.True(new Vector3d(0, 1, 0).FuzzyEqual(result, new Fixed64(0.0001))); // Allow small error tolerance
     }
 
     [Fact]

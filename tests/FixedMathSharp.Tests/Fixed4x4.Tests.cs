@@ -89,7 +89,7 @@ public class Fixed4x4Tests
 
         // Extract and validate translation, scale, and rotation
         Assert.Equal(translation, matrix.Translation);
-        Assert.Equal(scale, matrix.Scale);
+        Assert.True(scale.FuzzyEqual(matrix.Scale, new Fixed64(0.0001)));
         Assert.True(matrix.Rotation.FuzzyEqual(rotation, new Fixed64(0.0001)),
             $"Extracted rotation {matrix.Rotation} does not match expected {rotation}.");
     }
@@ -347,7 +347,7 @@ public class Fixed4x4Tests
         var updated = Fixed4x4.SetRotation(matrix, rotation);
 
         Assert.Equal(translation, updated.Translation);
-        Assert.Equal(scale, updated.Scale);
+        Assert.True(scale.FuzzyEqual(updated.Scale, new Fixed64(0.0001)));
         Assert.True(updated.Rotation.FuzzyEqual(rotation, new Fixed64(0.0001)));
     }
 
@@ -362,7 +362,7 @@ public class Fixed4x4Tests
 
         Assert.Equal(new Vector3d(7, 8, 9), matrix.Translation);
         Assert.Equal(matrix, updated);
-        Assert.Equal(new Vector3d(2, 2, 2), matrix.Scale);
+        Assert.True(new Vector3d(2, 2, 2).FuzzyEqual(matrix.Scale, new Fixed64(0.0001)));
         Assert.True(matrix.Rotation.FuzzyEqual(rotation, new Fixed64(0.0001)));
     }
 

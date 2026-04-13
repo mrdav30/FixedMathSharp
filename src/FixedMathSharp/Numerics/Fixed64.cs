@@ -251,7 +251,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator +(Fixed64 x, int y)
     {
-        return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) + y);
+        return x + (Fixed64)y;
     }
 
     /// <summary>
@@ -260,7 +260,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator +(int x, Fixed64 y)
     {
-        return y + x;
+        return (Fixed64)x + y;
     }
 
     /// <summary>
@@ -268,7 +268,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     /// </summary>
     public static Fixed64 operator +(Fixed64 x, float y)
     {
-        return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) + y);
+        return x + (Fixed64)y;
     }
 
     /// <summary>
@@ -276,7 +276,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     /// </summary>
     public static Fixed64 operator +(float x, Fixed64 y)
     {
-        return y + x;
+        return (Fixed64)x + y;
     }
 
     /// <summary>
@@ -299,7 +299,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator -(Fixed64 x, int y)
     {
-        return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) - y);
+        return x - (Fixed64)y;
     }
 
     /// <summary>
@@ -308,7 +308,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator -(int x, Fixed64 y)
     {
-        return new Fixed64(x - (y.m_rawValue * FixedMath.SCALE_FACTOR_D));
+        return (Fixed64)x - y;
     }
 
     /// <summary>
@@ -317,7 +317,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator -(Fixed64 x, float y)
     {
-        return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) - y);
+        return x - (Fixed64)y;
     }
 
     /// <summary>
@@ -326,7 +326,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator -(float x, Fixed64 y)
     {
-        return new Fixed64(x - (y.m_rawValue * FixedMath.SCALE_FACTOR_D));
+        return (Fixed64)x - y;
     }
 
     /// <summary>
@@ -401,7 +401,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator *(Fixed64 x, int y)
     {
-        return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) * y);
+        return x * (Fixed64)y;
     }
 
     /// <summary>
@@ -409,7 +409,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     /// </summary>
     public static Fixed64 operator *(int x, Fixed64 y)
     {
-        return y * x;
+        return (Fixed64)x * y;
     }
 
     /// <summary>
@@ -473,7 +473,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator /(Fixed64 x, int y)
     {
-        return new Fixed64((x.m_rawValue * FixedMath.SCALE_FACTOR_D) / y);
+        return x / (Fixed64)y;
     }
 
     /// <summary>
