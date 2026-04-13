@@ -222,7 +222,7 @@ We welcome feedback, contributors, and community discussion across all projects.
 
 ---
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License.
 
