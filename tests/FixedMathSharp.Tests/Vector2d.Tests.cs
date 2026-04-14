@@ -572,12 +572,8 @@ public class Vector2dTests
         Assert.Equal(new Vector2d(2, 3), Fixed64.One + vector);
         Assert.Equal(new Vector2d(4, 6), vector + (3, 4));
         Assert.Equal(new Vector2d(4, 6), (3, 4) + vector);
-        Assert.Equal(new Vector2d(new Fixed64(1.5), new Fixed64(3.5)), vector + (0.5f, 1.5f));
-        Assert.Equal(new Vector2d(new Fixed64(1.5), new Fixed64(3.5)), (0.5f, 1.5f) + vector);
         Assert.Equal(new Vector2d(-2, -2), vector - (3, 4));
         Assert.Equal(new Vector2d(2, 2), (3, 4) - vector);
-        Assert.Equal(new Vector2d(new Fixed64(0.5), new Fixed64(0.5)), vector - (0.5f, 1.5f));
-        Assert.Equal(new Vector2d(new Fixed64(-0.5), new Fixed64(-0.5)), (0.5f, 1.5f) - vector);
         Assert.Equal(new Vector2d(-1, -2), -vector);
         Assert.Equal(new Vector2d(2, 4), vector * new Fixed64(2));
         Assert.Equal(new Vector2d(2, 6), vector * new Vector2d(2, 3));

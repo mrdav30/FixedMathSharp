@@ -751,12 +751,8 @@ public class Vector3dTests
         Assert.Equal(new Vector3d(2, 3, 4), Fixed64.One + vector);
         Assert.Equal(new Vector3d(4, 6, 8), vector + (3, 4, 5));
         Assert.Equal(new Vector3d(4, 6, 8), (3, 4, 5) + vector);
-        Assert.Equal(new Vector3d(new Fixed64(1.5), new Fixed64(3.5), new Fixed64(5.5)), vector + (0.5f, 1.5f, 2.5f));
-        Assert.Equal(new Vector3d(new Fixed64(1.5), new Fixed64(3.5), new Fixed64(5.5)), (0.5f, 1.5f, 2.5f) + vector);
         Assert.Equal(new Vector3d(-2, -2, -2), vector - (3, 4, 5));
         Assert.Equal(new Vector3d(2, 2, 2), (3, 4, 5) - vector);
-        Assert.Equal(new Vector3d(new Fixed64(0.5), new Fixed64(0.5), new Fixed64(0.5)), vector - (0.5f, 1.5f, 2.5f));
-        Assert.Equal(new Vector3d(new Fixed64(-0.5), new Fixed64(-0.5), new Fixed64(-0.5)), (0.5f, 1.5f, 2.5f) - vector);
         Assert.Equal(new Vector3d(-1, -2, -3), -vector);
         Assert.Equal(new Vector3d(2, 4, 6), vector * new Fixed64(2));
         Assert.Equal(new Vector3d(2, 4, 6), new Fixed64(2) * vector);

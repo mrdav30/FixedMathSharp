@@ -1075,18 +1075,6 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d operator +(Vector3d v1, (float x, float y, float z) v2)
-    {
-        return new Vector3d(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d operator +((float x, float y, float z) v1, Vector3d v2)
-    {
-        return v2 + v1;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator -(Vector3d v1, Vector3d v2)
     {
         return new Vector3d(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
@@ -1112,18 +1100,6 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator -((int x, int y, int z) v1, Vector3d v2)
-    {
-        return new Vector3d(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d operator -(Vector3d v1, (float x, float y, float z) v2)
-    {
-        return new Vector3d(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d operator -((float x, float y, float z) v1, Vector3d v2)
     {
         return new Vector3d(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
     }

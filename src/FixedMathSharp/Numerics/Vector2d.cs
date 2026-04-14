@@ -91,8 +91,6 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
 
     public Vector2d(int xInt, int yInt) : this((Fixed64)xInt, (Fixed64)yInt) { }
 
-    public Vector2d(float xFloat, float yFloat) : this((Fixed64)xFloat, (Fixed64)yFloat) { }
-
     public Vector2d(double xDoub, double yDoub) : this((Fixed64)xDoub, (Fixed64)yDoub) { }
 
     [JsonConstructor]
@@ -896,18 +894,6 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector2d operator +(Vector2d v1, (float x, float y) v2)
-    {
-        return new Vector2d(v1.x + v2.x, v1.y + v2.y);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector2d operator +((float x, float y) v1, Vector2d v2)
-    {
-        return v2 + v1;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator -(Vector2d v1, Vector2d v2)
     {
         return new Vector2d(v1.x - v2.x, v1.y - v2.y);
@@ -933,18 +919,6 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator -((int x, int y) v1, Vector2d v2)
-    {
-        return new Vector2d(v1.x - v2.x, v1.y - v2.y);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector2d operator -(Vector2d v1, (float x, float y) v2)
-    {
-        return new Vector2d(v1.x - v2.x, v1.y - v2.y);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector2d operator -((float x, float y) v1, Vector2d v2)
     {
         return new Vector2d(v1.x - v2.x, v1.y - v2.y);
     }
