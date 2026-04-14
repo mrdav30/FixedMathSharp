@@ -166,7 +166,7 @@ public class FixedQuaternionTests
         var quaternion = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(90), new Fixed64(0), new Fixed64(0));
         var eulerAngles = quaternion.EulerAngles;
 
-        Assert.True(eulerAngles.FuzzyEqual(new Vector3d(90, 0, 0), new Fixed64(0.0001))); // Expected result: (90, 0, 0) degrees
+        Assert.True(eulerAngles.FuzzyEqual(new Vector3d(90, 0, 0), new Fixed64(0.0001)));
     }
 
     [Fact]
@@ -341,9 +341,20 @@ public class FixedQuaternionTests
     public void FixedQuaternion_ToEulerAngles_HandlesGimbalLockPitch()
     {
         var quaternion = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
+        var eulerAngles = quaternion.ToEulerAngles();
+
+        Assert.True(eulerAngles.FuzzyEqual(new Vector3d(0, 90, 0)));
+    }
+
+    [Fact]
+    public void FixedQuaternion_FromAxisAngle_Equals_FromEulerAngles()
+    {
+        var quaternion = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
         var expectedQuaternion = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(0), new Fixed64(90), new Fixed64(0));
 
-        Assert.True(expectedQuaternion.FuzzyEqual(quaternion, new Fixed64(0.0001)));
+        Assert.Equal(FixedMath.PiOver2, FixedMath.DegToRad(new Fixed64(90)));
+
+        Assert.True(quaternion.Equals(expectedQuaternion));
     }
 
     [Fact]
@@ -468,7 +479,7 @@ public class FixedQuaternionTests
         var vector = new Vector3d(1, 0, 0);
 
         var result = quaternion.Rotate(vector);
-        Assert.True(new Vector3d(0, 1, 0).FuzzyEqual(result, new Fixed64(0.0001))); // Expect (0, 1, 0) after rotation
+        Assert.True(result.FuzzyEqual(new Vector3d(0, 1, 0))); // Expect (0, 1, 0) after rotation
     }
 
     [Fact]
@@ -554,7 +565,7 @@ public class FixedQuaternionTests
         var q1 = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(0), new Fixed64(0), new Fixed64(90));
         var q2 = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(90), new Fixed64(0), new Fixed64(0));
 
-        var result = q1 * q2;
+        var result = q2 * q1; // quaternion multiplication is non-commutative
         var expected = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(90), new Fixed64(0), new Fixed64(90));
 
         Assert.True(result.FuzzyEqual(expected, new Fixed64(0.0001)));

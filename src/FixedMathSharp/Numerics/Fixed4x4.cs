@@ -487,9 +487,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Fixed64 scaleZ = scale.z == Fixed64.Zero ? Fixed64.One : scale.z;
 
         Fixed4x4 normalizedMatrix = new Fixed4x4(
-            matrix.m00 / scaleX, matrix.m01 / scaleY, matrix.m02 / scaleZ, Fixed64.Zero,
-            matrix.m10 / scaleX, matrix.m11 / scaleY, matrix.m12 / scaleZ, Fixed64.Zero,
-            matrix.m20 / scaleX, matrix.m21 / scaleY, matrix.m22 / scaleZ, Fixed64.Zero,
+            matrix.m00 / scaleX, matrix.m01 / scaleX, matrix.m02 / scaleX, Fixed64.Zero,
+            matrix.m10 / scaleY, matrix.m11 / scaleY, matrix.m12 / scaleY, Fixed64.Zero,
+            matrix.m20 / scaleZ, matrix.m21 / scaleZ, matrix.m22 / scaleZ, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
         );
 

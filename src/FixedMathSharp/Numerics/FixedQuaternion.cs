@@ -185,9 +185,9 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     {
         FixedQuaternion normalizedQuat = Normal;
         FixedQuaternion vQuat = new FixedQuaternion(v.x, v.y, v.z, Fixed64.Zero);
-        FixedQuaternion invQuat = normalizedQuat.Inverse();
-        FixedQuaternion rotatedVQuat = normalizedQuat * vQuat * invQuat;
-        return new Vector3d(rotatedVQuat.x, rotatedVQuat.y, rotatedVQuat.z).Normalize();
+        FixedQuaternion invQuat = normalizedQuat.Conjugate();
+        FixedQuaternion rotatedVQuat = (normalizedQuat * vQuat) * invQuat;
+        return new Vector3d(rotatedVQuat.x, rotatedVQuat.y, rotatedVQuat.z);
     }
 
     /// <summary>
@@ -248,7 +248,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
             return new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
 
         // If already normalized, return as-is
-        if (mag == Fixed64.One)
+        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return q;
 
         // Normalize it exactly
@@ -393,7 +393,11 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         Fixed64 sinHalfAngle = FixedMath.Sin(halfAngle);
         Fixed64 cosHalfAngle = FixedMath.Cos(halfAngle);
 
-        return new FixedQuaternion(axis.x * sinHalfAngle, axis.y * sinHalfAngle, axis.z * sinHalfAngle, cosHalfAngle);
+        return GetNormalized(new FixedQuaternion(
+            axis.x * sinHalfAngle,
+            axis.y * sinHalfAngle,
+            axis.z * sinHalfAngle,
+            cosHalfAngle));
     }
 
     /// <summary>
@@ -411,14 +415,15 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         roll = FixedMath.DegToRad(roll);
 
         // Call the original method that expects angles in radians
-        return FromEulerAngles(pitch, yaw, roll).Normalize();
+        return FromEulerAngles(pitch, yaw, roll);
     }
 
     /// <summary>
-    /// Converts Euler angles (pitch, yaw, roll) to a quaternion and normalizes the result afterwards. Assumes the input angles are in radians.
+    /// Converts Euler angles (pitch, yaw, roll) to a quaternion and normalizes the result afterwards. 
+    /// Assumes the input angles are in radians.
     /// </summary>
     /// <remarks>
-    /// The order of operations is YZX or yaw-roll-pitch, commonly used in applications such as robotics.
+    /// The order of operations is YXZ or yaw-pitch-roll
     /// </remarks>
     public static FixedQuaternion FromEulerAngles(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
     {
@@ -430,20 +435,22 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         if (roll < -FixedMath.PI || roll > FixedMath.PI)
             throw new ArgumentOutOfRangeException(nameof(roll), roll, $"Roll must be in the range ({-FixedMath.PI}, {FixedMath.PI}), but was {roll}");
 
-        Fixed64 c1 = FixedMath.Cos(yaw / Fixed64.Two);
-        Fixed64 s1 = FixedMath.Sin(yaw / Fixed64.Two);
-        Fixed64 c2 = FixedMath.Cos(roll / Fixed64.Two);
-        Fixed64 s2 = FixedMath.Sin(roll / Fixed64.Two);
-        Fixed64 c3 = FixedMath.Cos(pitch / Fixed64.Two);
-        Fixed64 s3 = FixedMath.Sin(pitch / Fixed64.Two);
+        Fixed64 halfPitch = pitch / Fixed64.Two;
+        Fixed64 halfYaw = yaw / Fixed64.Two;
+        Fixed64 halfRoll = roll / Fixed64.Two;
 
-        Fixed64 c1c2 = c1 * c2;
-        Fixed64 s1s2 = s1 * s2;
+        Fixed64 sx = FixedMath.Sin(halfPitch);
+        Fixed64 cx = FixedMath.Cos(halfPitch);
+        Fixed64 sy = FixedMath.Sin(halfYaw);
+        Fixed64 cy = FixedMath.Cos(halfYaw);
+        Fixed64 sz = FixedMath.Sin(halfRoll);
+        Fixed64 cz = FixedMath.Cos(halfRoll);
 
-        Fixed64 w = c1c2 * c3 - s1s2 * s3;
-        Fixed64 x = c1c2 * s3 + s1s2 * c3;
-        Fixed64 y = s1 * c2 * c3 + c1 * s2 * s3;
-        Fixed64 z = c1 * s2 * c3 - s1 * c2 * s3;
+        // q = qy * qx * qz
+        Fixed64 x = (cx * sy * sz) + (cy * cz * sx);
+        Fixed64 y = (cx * cz * sy) - (cy * sx * sz);
+        Fixed64 z = (cx * cy * sz) - (cz * sx * sy);
+        Fixed64 w = (cx * cy * cz) + (sx * sy * sz);
 
         return GetNormalized(new FixedQuaternion(x, y, z, w));
     }
@@ -547,7 +554,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         Fixed64 k0, k1;
 
         // If the quaternions are close, use linear interpolation
-        if (cosOmega > Fixed64.One - Fixed64.Precision)
+        if (cosOmega > Fixed64.One - Fixed64.Epsilon)
         {
             k0 = Fixed64.One - t;
             k1 = t;
@@ -642,10 +649,10 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     public static FixedQuaternion operator *(FixedQuaternion a, FixedQuaternion b)
     {
         return new FixedQuaternion(
-            a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
-            a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
-            a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
-            a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z
+            (a.w * b.x) + (a.x * b.w) + (a.y * b.z) - (a.z * b.y),
+            (a.w * b.y) - (a.x * b.z) + (a.y * b.w) + (a.z * b.x),
+            (a.w * b.z) + (a.x * b.y) - (a.y * b.x) + (a.z * b.w),
+            (a.w * b.w) - (a.x * b.x) - (a.y * b.y) - (a.z * b.z)
         );
     }
 
@@ -696,40 +703,52 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     #region Conversion
 
     /// <summary>
-    /// Converts this FixedQuaternion to Euler angles (pitch, yaw, roll).
+    /// Converts this quaternion to Euler angles in degrees.
+    /// Returns angles as (pitch, yaw, roll), where:
+    /// pitch = rotation around X
+    /// yaw   = rotation around Y
+    /// roll  = rotation around Z
+    /// 
+    /// The extraction matches FromEulerAngles(), which composes rotations in YXZ order:
+    /// q = qy * qx * qz
     /// </summary>
-    /// <remarks>
-    /// Handles the case where the pitch angle (asin of sinp) would be out of the range -π/2 to π/2. 
-    /// This is known as the gimbal lock situation, where the pitch angle reaches ±90 degrees and we lose one degree of freedom in our rotation (we can't distinguish between yaw and roll). 
-    /// In this case, we simply set the pitch to ±90 degrees depending on the sign of sinp.
-    /// </remarks>
-    /// <returns>A Vector3d representing the Euler angles (in degrees) equivalent to this FixedQuaternion in YZX order (yaw, pitch, roll).</returns>
     public Vector3d ToEulerAngles()
     {
-        // roll (x-axis rotation)
-        Fixed64 sinr_cosp = 2 * (w * x + y * z);
-        Fixed64 cosr_cosp = Fixed64.One - 2 * (x * x + y * y);
-        Fixed64 roll = FixedMath.Atan2(sinr_cosp, cosr_cosp);
+        Fixed3x3 m = ToMatrix3x3();
 
-        // pitch (y-axis rotation)
-        Fixed64 sinp = 2 * (w * y - z * x);
         Fixed64 pitch;
-        if (sinp.Abs() >= Fixed64.One)
-            pitch = FixedMath.CopySign(FixedMath.PiOver2, sinp); // use 90 degrees if out of range
+        Fixed64 yaw;
+        Fixed64 roll;
+
+        // For YXZ:
+        // m12 = -sin(pitch)
+        // m02 =  sin(yaw) * cos(pitch)
+        // m22 =  cos(yaw) * cos(pitch)
+        // m10 =  sin(roll) * cos(pitch)
+        // m11 =  cos(roll) * cos(pitch)
+
+        Fixed64 sinPitch = -m.m12;
+
+        if (sinPitch.Abs() >= Fixed64.One)
+        {
+            // Gimbal lock: pitch is ±90°, yaw/roll are coupled.
+            pitch = FixedMath.CopySign(FixedMath.PiOver2, sinPitch);
+
+            // Choose roll = 0 and solve remaining yaw from matrix.
+            roll = Fixed64.Zero;
+            yaw = FixedMath.Atan2(-m.m20, m.m00);
+        }
         else
-            pitch = FixedMath.Asin(sinp);
+        {
+            pitch = FixedMath.Asin(sinPitch);
+            yaw = FixedMath.Atan2(m.m02, m.m22);
+            roll = FixedMath.Atan2(m.m10, m.m11);
+        }
 
-        // yaw (z-axis rotation)
-        Fixed64 siny_cosp = 2 * (w * z + x * y);
-        Fixed64 cosy_cosp = Fixed64.One - 2 * (y * y + z * z);
-        Fixed64 yaw = FixedMath.Atan2(siny_cosp, cosy_cosp);
-
-        // Convert radians to degrees
-        roll = FixedMath.RadToDeg(roll);
-        pitch = FixedMath.RadToDeg(pitch);
-        yaw = FixedMath.RadToDeg(yaw);
-
-        return new Vector3d(roll, pitch, yaw);
+        return new Vector3d(
+            FixedMath.RadToDeg(pitch),
+            FixedMath.RadToDeg(yaw),
+            FixedMath.RadToDeg(roll));
     }
 
     /// <summary>
@@ -793,7 +812,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(FixedQuaternion other)
     {
-        return other.x == x && other.y == y && other.z == z && other.w == w;
+        return x == other.x && y == other.y && z == other.z && w == other.w;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
