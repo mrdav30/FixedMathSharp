@@ -652,7 +652,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
             return new Vector2d(Fixed64.Zero, Fixed64.Zero);
 
         // If already normalized, return as-is
-        if (mag == Fixed64.One)
+        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return value;
 
         // Normalize it exactly
@@ -1011,7 +1011,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool AllComponentsGreaterThanEpsilon()
     {
-        return x > Fixed64.Epsilon && y > Fixed64.Epsilon;
+        return x.Abs() > Fixed64.Epsilon && y.Abs() > Fixed64.Epsilon;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

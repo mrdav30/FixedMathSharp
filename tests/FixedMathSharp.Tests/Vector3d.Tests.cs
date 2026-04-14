@@ -111,6 +111,32 @@ public class Vector3dTests
         Assert.False(vector.AllComponentsGreaterThanEpsilon());
     }
 
+    [Fact]
+    public void SnapSmallComponentsToZero_UsesDefaultEpsilonThreshold()
+    {
+        var halfEpsilon = Fixed64.FromRaw(Fixed64.Epsilon.m_rawValue / 2);
+        var vector = new Vector3d(halfEpsilon, -halfEpsilon, Fixed64.Epsilon);
+
+        var result = vector.SnapSmallComponentsToZero();
+
+        Assert.Equal(Fixed64.Zero, result.x);
+        Assert.Equal(Fixed64.Zero, result.y);
+        Assert.Equal(Fixed64.Epsilon, result.z); // Boundary: abs(z) == threshold is retained
+    }
+
+    [Fact]
+    public void SnapSmallComponentsToZero_UsesCustomThreshold_AndKeepsBoundaryValues()
+    {
+        var threshold = new Fixed64(0.1);
+        var vector = new Vector3d(new Fixed64(0.05), new Fixed64(-0.1), new Fixed64(0.2));
+
+        var result = vector.SnapSmallComponentsToZero(threshold);
+
+        Assert.Equal(Fixed64.Zero, result.x);      // abs(x) < threshold -> snapped
+        Assert.Equal(new Fixed64(-0.1), result.y); // abs(y) == threshold -> retained
+        Assert.Equal(new Fixed64(0.2), result.z);  // abs(z) > threshold -> retained
+    }
+
     #endregion
 
     #region Test: Arithmetic 

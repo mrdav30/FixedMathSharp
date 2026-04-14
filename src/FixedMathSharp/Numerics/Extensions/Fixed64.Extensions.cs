@@ -236,7 +236,7 @@ namespace FixedMathSharp
             var allowedErr = a.Abs() * percentage;
             // Compare directly to percentage if a is zero
             // Otherwise, use percentage of a's magnitude
-            return a == Fixed64.Zero ? diff <= percentage : diff <= allowedErr;
+            return a.LessThanEpsilon() ? diff <= percentage : diff <= allowedErr;
         }
 
         #endregion

@@ -449,7 +449,30 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool AllComponentsGreaterThanEpsilon()
     {
-        return x > Fixed64.Epsilon && y > Fixed64.Epsilon && z > Fixed64.Epsilon;
+        return x.Abs() > Fixed64.Epsilon && y.Abs() > Fixed64.Epsilon && z.Abs() > Fixed64.Epsilon;
+    }
+
+    /// <summary>
+    /// Returns a new vector with components whose absolute values are less than the specified threshold set to zero.
+    /// </summary>
+    /// <remarks>
+    /// This method is useful for eliminating insignificant floating-point errors by zeroing out very small vector components. 
+    /// The default threshold is suitable for most cases where near-zero values are considered noise.
+    /// </remarks>
+    /// <param name="threshold">
+    /// The minimum absolute value a component must have to be retained. 
+    /// If null, a default epsilon value is used.
+    /// </param>
+    /// <returns>A new Vector3d instance with small components snapped to zero based on the specified threshold.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector3d SnapSmallComponentsToZero(Fixed64? threshold = null)
+    {
+        Fixed64 effectiveThreshold = threshold ?? Fixed64.Epsilon;
+        return new Vector3d(
+            x.Abs() < effectiveThreshold ? Fixed64.Zero : x,
+            y.Abs() < effectiveThreshold ? Fixed64.Zero : y,
+            z.Abs() < effectiveThreshold ? Fixed64.Zero : z
+        );
     }
 
     /// <summary>
@@ -622,7 +645,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
             return new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
 
         // If already normalized, return as-is
-        if (mag == Fixed64.One)
+        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return value;
 
         // Normalize it exactly           
@@ -643,8 +666,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     {
         Fixed64 mag = (vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z);
 
-        // If rounding error pushed magnitude slightly above 1, clamp it
-        if (mag > Fixed64.One && mag <= Fixed64.One + Fixed64.Epsilon)
+        // Clamp tiny drift around 1 in either direction.
+        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return Fixed64.One;
 
         return mag != Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
@@ -817,9 +840,15 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static (Fixed64 sc, Fixed64 tc) SolveClosestLineParameters(Fixed64 a, Fixed64 b, Fixed64 c, Fixed64 d, Fixed64 e, Fixed64 determinant)
+    private static (Fixed64 sc, Fixed64 tc) SolveClosestLineParameters(
+        Fixed64 a,
+        Fixed64 b,
+        Fixed64 c,
+        Fixed64 d,
+        Fixed64 e,
+        Fixed64 determinant)
     {
-        if (determinant < Fixed64.Epsilon)
+        if (determinant.Abs() < Fixed64.Epsilon)
             return (Fixed64.Zero, b > c ? d / b : e / c);
 
         return ((b * e - c * d) / determinant, (a * e - b * d) / determinant);
@@ -903,7 +932,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     public static Vector3d Project(Vector3d vector, Vector3d onNormal)
     {
         Fixed64 sqrMag = Dot(onNormal, onNormal);
-        if (sqrMag < Fixed64.Epsilon)
+        if (sqrMag.Abs() < Fixed64.Epsilon)
             return Zero;
         else
         {
@@ -923,7 +952,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     public static Vector3d ProjectOnPlane(Vector3d vector, Vector3d planeNormal)
     {
         Fixed64 sqrMag = Dot(planeNormal, planeNormal);
-        if (sqrMag < Fixed64.Epsilon)
+        if (sqrMag.Abs() < Fixed64.Epsilon)
             return vector;
         else
         {
