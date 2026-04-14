@@ -21,32 +21,22 @@ namespace FixedMathSharp
 
         public const long ONE_L = 1L << SHIFT_AMOUNT_I;
 
-        // Precomputed scale factors
+        // Precomputed scale factors only for performance-critical scenarios to avoid division at runtime
         public const float SCALE_FACTOR_F = 1.0f / ONE_L;
         public const double SCALE_FACTOR_D = 1.0 / ONE_L;
         public const decimal SCALE_FACTOR_M = 1.0m / ONE_L;
 
         /// <summary>
-        /// Represents the smallest possible value that can be represented by the Fixed64 format.
+        /// The smallest non-zero raw increment representable by Fixed64.
         /// </summary>
-        /// <remarks>
-        /// Precision of this type is 2^-SHIFT_AMOUNT, 
-        /// i.e. 1 / (2^SHIFT_AMOUNT) where SHIFT_AMOUNT defines the fractional bits.
-        /// </remarks>
-        public const long PRECISION_L = 1L;
+        public const long MIN_INCREMENT_L = 1L;
 
         /// <summary>
-        ///  The smallest value that a Fixed64 can have different from zero.
+        /// Default tolerance for fuzzy comparisons.
+        /// Approximately 2^-24 (~5.96e-8) in value space.
         /// </summary>
-        /// <remarks>
-        /// With the following rules:
-        ///      anyValue + Epsilon = anyValue
-        ///      anyValue - Epsilon = anyValue
-        ///      0 + Epsilon = Epsilon
-        ///      0 - Epsilon = -Epsilon
-        ///  A value Between any number and Epsilon will result in an arbitrary number due to truncating errors.
-        /// </remarks>
-        public const long EPSILON_L = 1L << (SHIFT_AMOUNT_I - 20); //~1E-06f
+        public const long DEFAULT_TOLERANCE_L = 1L << (SHIFT_AMOUNT_I - 24);
+
 
         #endregion
 

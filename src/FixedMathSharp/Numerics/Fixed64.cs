@@ -30,10 +30,12 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     public static readonly Fixed64 Eighth = One / 8;
     public static readonly Fixed64 Zero = new Fixed64(0);
 
-    /// <inheritdoc cref="FixedMath.EPSILON_L" />
-    public static readonly Fixed64 Epsilon = new Fixed64(FixedMath.EPSILON_L);
-    /// <inheritdoc cref="FixedMath.PRECISION_L" />
-    public static readonly Fixed64 Precision = new Fixed64(FixedMath.PRECISION_L);
+
+    /// <inheritdoc cref="FixedMath.MIN_INCREMENT_L" />
+    public static readonly Fixed64 MinIncrement = new Fixed64(FixedMath.MIN_INCREMENT_L);
+
+    /// <inheritdoc cref="FixedMath.DEFAULT_TOLERANCE_L" />
+    public static readonly Fixed64 Epsilon = new Fixed64(FixedMath.DEFAULT_TOLERANCE_L);
 
     #endregion
 
@@ -65,6 +67,10 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     /// <summary>
     /// Constructs a Fixed64 from a double-precision floating-point value.
     /// </summary>
+    /// <remarks>
+    /// The value is multiplied by the scaling factor (2^SHIFT_AMOUNT) and 
+    /// rounded to the nearest integer to fit into the fixed-point representation.
+    /// </remarks>
     /// <param name="value">Double value to convert to </param>
     public Fixed64(double value) : this((long)Math.Round((double)value * FixedMath.ONE_L)) { }
 

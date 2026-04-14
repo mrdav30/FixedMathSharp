@@ -312,7 +312,7 @@ public class FixedTrigonometryTests
             prevDenominator = denominator;
         }
 
-        Assert.Equal(Fixed64.Precision, minGap);
+        Assert.Equal(Fixed64.MinIncrement, minGap);
         Assert.Equal(17, minGapIteration);
     }
 
