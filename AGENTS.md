@@ -28,7 +28,6 @@
 - Serialization compatibility is intentional and now uses MemoryPack:
   - MemoryPack attributes on serializable structs (for example `[MemoryPackable]`, `[MemoryPackInclude]`) are the source of truth for serialized layouts.
   - Tests use MemoryPack-based roundtrips (and `System.Text.Json` where appropriate) instead of legacy `MessagePack`/`BinaryFormatter` serializers.
-- `ThreadLocalRandom` is marked `[Obsolete]`; new deterministic RNG work should prefer `DeterministicRandom` and `DeterministicRandom.FromWorldFeature(...)` in `src/FixedMathSharp/Utility/DeterministicRandom.cs`.
 
 ## Testing patterns to mirror
 

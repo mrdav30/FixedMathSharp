@@ -21,22 +21,29 @@ namespace FixedMathSharp
         };
 
         // Trigonometric and logarithmic constants
-        internal const double PI_D = 3.14159265358979323846;
-        public static readonly Fixed64 PI = (Fixed64)PI_D;
-        public static readonly Fixed64 TwoPI = PI * 2;
-        public static readonly Fixed64 PiOver2 = PI / 2;
-        public static readonly Fixed64 PiOver3 = PI / 3;
-        public static readonly Fixed64 PiOver4 = PI / 4;
-        public static readonly Fixed64 PiOver6 = PI / 6;
-        public static readonly Fixed64 Ln2 = (Fixed64)0.6931471805599453;  // Natural logarithm of 2
+        public static readonly Fixed64 PI = (Fixed64)3.14159265358979323846;
 
+        public static readonly Fixed64 TwoPI = PI * Fixed64.Two;
+        public static readonly Fixed64 PiOver2 = PI / new Fixed64(2);
+        public static readonly Fixed64 PiOver3 = PI / new Fixed64(3);
+        public static readonly Fixed64 PiOver4 = PI / new Fixed64(4);
+        public static readonly Fixed64 PiOver6 = PI / new Fixed64(6);
+        public static readonly Fixed64 InvertedPI = Fixed64.One / PI;
+
+        public static readonly Fixed64 OneEighty = new Fixed64(180);
+
+        /// <summary>
+        /// Degrees to radians conversion factor (π / 180)
+        /// </summary>
+        public static readonly Fixed64 Deg2Rad = PI / OneEighty;
+        /// <summary>
+        /// Radians to degrees conversion factor (180 / π)
+        /// </summary>
+        public static readonly Fixed64 Rad2Deg = OneEighty / PI;
+
+        public static readonly Fixed64 Ln2 = new Fixed64(0.6931471805599453);  // Natural logarithm of 2
         public static readonly Fixed64 LOG_2_MAX = new Fixed64(63L * ONE_L);
         public static readonly Fixed64 LOG_2_MIN = new Fixed64(-64L * ONE_L);
-
-        internal const double DEG2RAD_D = 0.01745329251994329576;  // π / 180
-        public static readonly Fixed64 Deg2Rad = (Fixed64)DEG2RAD_D;  // Degrees to radians conversion factor
-        internal const double RAD2DEG_D = 57.2957795130823208767;  // 180 / π
-        public static readonly Fixed64 Rad2Deg = (Fixed64)RAD2DEG_D;  // Radians to degrees conversion factor
 
         // Asin Padé approximations
         private static readonly Fixed64 PADE_A1 = (Fixed64)0.183320102;
@@ -249,25 +256,19 @@ namespace FixedMathSharp
         /// <summary>
         /// Converts a value in radians to degrees.
         /// </summary>
-        /// <remarks>
-        /// Uses double precision to avoid precision loss
-        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 RadToDeg(Fixed64 rad)
         {
-            return new Fixed64((double)rad * RAD2DEG_D);
+            return (rad * OneEighty) / PI;
         }
 
         /// <summary>
         /// Converts a value in degrees to radians.
         /// </summary>
-        /// <remarks>
-        /// Uses double precision to avoid precision loss
-        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 DegToRad(Fixed64 deg)
         {
-            return new Fixed64((double)deg * DEG2RAD_D);
+            return (deg * PI) / OneEighty;
         }
 
         /// <summary>
@@ -379,7 +380,7 @@ namespace FixedMathSharp
             for (int i = start; i >= 1; i -= 2)
             {
                 denominator = (Fixed64)i - (x2 / denominator);
-                if ((denominator - prevDenominator).Abs() < Fixed64.Precision)
+                if ((denominator - prevDenominator).Abs() < Fixed64.Epsilon)
                     break;
                 prevDenominator = denominator;
             }
@@ -485,7 +486,7 @@ namespace FixedMathSharp
                 {
                     term *= zSq;
                     Fixed64 nextTerm = term / i;
-                    if (nextTerm.Abs() < Fixed64.Precision)
+                    if (nextTerm.Abs() < Fixed64.Epsilon)
                         break;
 
                     result += nextTerm * sign;
