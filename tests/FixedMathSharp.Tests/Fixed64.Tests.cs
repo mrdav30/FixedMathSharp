@@ -269,17 +269,14 @@ public class Fixed64Tests
 
         Assert.Equal(new Fixed64(3.5), value + 2);
         Assert.Equal(new Fixed64(3.5), 2 + value);
-        Assert.Equal(new Fixed64(1.75), value + 0.25f);
-        Assert.Equal(new Fixed64(1.75), 0.25f + value);
 
         Assert.Equal(new Fixed64(0.5), value - 1);
         Assert.Equal(new Fixed64(0.5), 2 - value);
-        Assert.Equal(new Fixed64(1.25), value - 0.25f);
-        Assert.Equal(new Fixed64(0.5), 2.0f - value);
 
         Assert.Equal(new Fixed64(3), value * 2);
         Assert.Equal(new Fixed64(3), 2 * value);
         Assert.Equal(new Fixed64(0.75), value / 2);
+        Assert.Equal(new Fixed64(1.3333333333), 2 / value);
     }
 
     [Fact]
@@ -292,14 +289,14 @@ public class Fixed64Tests
     [Fact]
     public void DivideOverflowProtection_ReturnsSaturatedBounds()
     {
-        Assert.Equal(Fixed64.MAX_VALUE, Fixed64.MAX_VALUE / Fixed64.FromRaw(1));
-        Assert.Equal(Fixed64.MIN_VALUE, new Fixed64(-1) * Fixed64.MAX_VALUE / Fixed64.FromRaw(1));
+        Assert.Equal(Fixed64.MAX_VALUE, Fixed64.MAX_VALUE / Fixed64.Epsilon);
+        Assert.Equal(Fixed64.MIN_VALUE, new Fixed64(-1) * Fixed64.MAX_VALUE / Fixed64.Epsilon);
     }
 
     [Fact]
     public void EdgeOperators_HandleSpecialCases()
     {
-        Assert.Equal(Fixed64.Zero, Fixed64.MIN_VALUE % Fixed64.FromRaw(-1));
+        Assert.Equal(Fixed64.Zero, Fixed64.MIN_VALUE % (-Fixed64.Epsilon));
         Assert.Equal(Fixed64.MAX_VALUE, -Fixed64.MIN_VALUE);
         Assert.Equal(new Fixed64(2), Fixed64.One << 1);
         Assert.Equal(new Fixed64(2), new Fixed64(4) >> 1);

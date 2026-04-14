@@ -257,7 +257,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator +(Fixed64 x, int y)
     {
-        return x + (Fixed64)y;
+        return x + new Fixed64((long)y << FixedMath.SHIFT_AMOUNT_I);
     }
 
     /// <summary>
@@ -266,23 +266,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator +(int x, Fixed64 y)
     {
-        return (Fixed64)x + y;
-    }
-
-    /// <summary>
-    /// Adds a float to x 
-    /// </summary>
-    public static Fixed64 operator +(Fixed64 x, float y)
-    {
-        return x + (Fixed64)y;
-    }
-
-    /// <summary>
-    /// Adds a Fixed64 to x 
-    /// </summary>
-    public static Fixed64 operator +(float x, Fixed64 y)
-    {
-        return (Fixed64)x + y;
+        return y + x;
     }
 
     /// <summary>
@@ -305,7 +289,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator -(Fixed64 x, int y)
     {
-        return x - (Fixed64)y;
+        return x - new Fixed64((long)y << FixedMath.SHIFT_AMOUNT_I);
     }
 
     /// <summary>
@@ -314,91 +298,143 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator -(int x, Fixed64 y)
     {
-        return (Fixed64)x - y;
-    }
-
-    /// <summary>
-    /// Subtracts a float from x 
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator -(Fixed64 x, float y)
-    {
-        return x - (Fixed64)y;
-    }
-
-    /// <summary>
-    /// Subtracts a Fixed64 from x 
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator -(float x, Fixed64 y)
-    {
-        return (Fixed64)x - y;
+        return new Fixed64((long)x << FixedMath.SHIFT_AMOUNT_I) - y;
     }
 
     /// <summary>
     /// Multiplies two Fixed64 numbers, handling overflow and rounding.
+    /// </summary>
+    /// <summary>
+    /// Multiplies two Fixed64 numbers using full-width 128-bit intermediate precision
+    /// and round-half-to-even semantics on the discarded fractional bits.
     /// </summary>
     public static Fixed64 operator *(Fixed64 x, Fixed64 y)
     {
         long xl = x.m_rawValue;
         long yl = y.m_rawValue;
 
-        // Split both numbers into high and low parts
-        ulong xlo = (ulong)(xl & FixedMath.MAX_SHIFTED_AMOUNT_UI);
-        long xhi = xl >> FixedMath.SHIFT_AMOUNT_I;
-        ulong ylo = (ulong)(yl & FixedMath.MAX_SHIFTED_AMOUNT_UI);
-        long yhi = yl >> FixedMath.SHIFT_AMOUNT_I;
+        int shift = FixedMath.SHIFT_AMOUNT_I;
 
-        // Perform partial products
-        ulong lolo = xlo * ylo;          // low bits * low bits
-        long lohi = (long)xlo * yhi;     // low bits * high bits
-        long hilo = xhi * (long)ylo;     // high bits * low bits
-        long hihi = xhi * yhi;           // high bits * high bits
+        if (shift <= 0 || shift >= 64)
+            throw new InvalidOperationException($"SHIFT_AMOUNT_I must be in the range 1..63, but was {shift}.");
 
-        // Combine results, starting with the low part
-        ulong loResult = lolo >> FixedMath.SHIFT_AMOUNT_I;
-        long hiResult = hihi << FixedMath.SHIFT_AMOUNT_I;
+        // Determine sign of the final result.
+        bool negative = ((xl ^ yl) < 0);
 
-        // Adjust rounding for the fractional part of the lolo term
-        if ((lolo & (1UL << (FixedMath.SHIFT_AMOUNT_I - 1))) != 0)
-            loResult++; // Apply rounding up if the dropped bit is 1 (round half-up)
+        // Convert to unsigned magnitudes safely, including long.MinValue.
+        ulong ax = AbsToUInt64(xl);
+        ulong ay = AbsToUInt64(yl);
 
-        bool overflow = false;
-        long sum = FixedMath.AddOverflowHelper((long)loResult, lohi, ref overflow);
-        sum = FixedMath.AddOverflowHelper(sum, hilo, ref overflow);
-        sum = FixedMath.AddOverflowHelper(sum, hiResult, ref overflow);
+        // Compute exact 128-bit unsigned product: (hi << 64) | lo
+        Multiply64To128(ax, ay, out ulong hi, out ulong lo);
 
-        // Overflow handling
-        bool opSignsEqual = ((xl ^ yl) & FixedMath.MIN_VALUE_L) == 0;
+        // Shift-right with round-half-to-even using the FULL discarded remainder.
+        ulong magnitude = ShiftRightRoundedToEven(hi, lo, shift, out bool roundedOverflow);
 
-        // Positive overflow check
-        if (opSignsEqual)
+        // If rounding overflowed the shifted magnitude, carry it into saturation handling.
+        if (!negative)
         {
-            if (sum < 0 || (overflow && xl > 0))
+            if (roundedOverflow || magnitude > long.MaxValue)
                 return MAX_VALUE;
+
+            return new Fixed64((long)magnitude);
         }
         else
         {
-            if (sum > 0)
+            // For negative results, magnitude may be exactly 2^63, which maps to long.MinValue.
+            const ulong minValueMagnitude = 0x8000000000000000UL;
+
+            if (roundedOverflow || magnitude > minValueMagnitude)
                 return MIN_VALUE;
+
+            if (magnitude == minValueMagnitude)
+                return MIN_VALUE;
+
+            return new Fixed64(-(long)magnitude);
         }
+    }
 
-        // Final overflow check: if the high 32 bits are non-zero or non-sign-extended, it's an overflow
-        long topCarry = hihi >> FixedMath.SHIFT_AMOUNT_I;
-        if (topCarry != 0 && topCarry != -1)
-            return opSignsEqual ? MAX_VALUE : MIN_VALUE;
+    /// <summary>
+    /// Returns the absolute value of a signed 64-bit integer as an unsigned 64-bit magnitude,
+    /// safely handling long.MinValue.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong AbsToUInt64(long value)
+    {
+        return value < 0
+            ? unchecked((ulong)(~value + 1))
+            : (ulong)value;
+    }
 
-        // Negative overflow check
-        if (!opSignsEqual)
+    /// <summary>
+    /// Computes the exact unsigned 128-bit product of two 64-bit unsigned integers.
+    /// The result is returned as hi:lo, where product = (hi &lt;&lt; 64) | lo.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void Multiply64To128(ulong a, ulong b, out ulong hi, out ulong lo)
+    {
+        ulong aLo = (uint)a;
+        ulong aHi = a >> 32;
+        ulong bLo = (uint)b;
+        ulong bHi = b >> 32;
+
+        ulong p0 = aLo * bLo;
+        ulong p1 = aLo * bHi;
+        ulong p2 = aHi * bLo;
+        ulong p3 = aHi * bHi;
+
+        ulong middle = (p0 >> 32) + (uint)p1 + (uint)p2;
+
+        lo = (p0 & 0xFFFFFFFFUL) | (middle << 32);
+        hi = p3 + (p1 >> 32) + (p2 >> 32) + (middle >> 32);
+    }
+
+    /// <summary>
+    /// Shifts the unsigned 128-bit value (hi:lo) right by <paramref name="shift"/> bits,
+    /// applying round-half-to-even to the discarded bits.
+    /// </summary>
+    /// <param name="hi">Upper 64 bits of the 128-bit value.</param>
+    /// <param name="lo">Lower 64 bits of the 128-bit value.</param>
+    /// <param name="shift">Number of bits to shift right. Must be in the range 1..63.</param>
+    /// <param name="overflowed">
+    /// True if rounding caused the 64-bit shifted result to overflow.
+    /// </param>
+    /// <returns>
+    /// The rounded 64-bit result of ((hi:lo) >> shift).
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong ShiftRightRoundedToEven(ulong hi, ulong lo, int shift, out bool overflowed)
+    {
+        // Preconditions: 1 <= shift <= 63
+
+        // Integer part after shifting right by 'shift':
+        // result = ((hi << (64 - shift)) | (lo >> shift))
+        ulong result = (hi << (64 - shift)) | (lo >> shift);
+
+        // Discarded remainder bits are the low 'shift' bits of lo.
+        ulong remainderMask = (1UL << shift) - 1UL;
+        ulong remainder = lo & remainderMask;
+
+        // Halfway value among the discarded bits.
+        ulong half = 1UL << (shift - 1);
+
+        // Round-half-to-even:
+        // - round up if remainder > half
+        // - if exactly half, round so final result is even
+        bool shouldRoundUp =
+            remainder > half ||
+            (remainder == half && (result & 1UL) != 0);
+
+        overflowed = false;
+
+        if (shouldRoundUp)
         {
-            long posOp = xl > yl ? xl : yl;
-            long negOp = xl < yl ? xl : yl;
-
-            if (sum > negOp && negOp < -FixedMath.ONE_L && posOp > FixedMath.ONE_L)
-                return MIN_VALUE;
+            ulong incremented = result + 1UL;
+            overflowed = incremented < result;
+            result = incremented;
         }
 
-        return new Fixed64(sum);
+        return result;
     }
 
     /// <summary>
@@ -407,15 +443,15 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator *(Fixed64 x, int y)
     {
-        return x * (Fixed64)y;
+        return x * new Fixed64((long)y << FixedMath.SHIFT_AMOUNT_I);
     }
 
     /// <summary>
-    /// Multiplies an integer by a 
+    /// Multiplies an integer by a Fixed64.
     /// </summary>
     public static Fixed64 operator *(int x, Fixed64 y)
     {
-        return (Fixed64)x * y;
+        return y * x;
     }
 
     /// <summary>
@@ -479,7 +515,16 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator /(Fixed64 x, int y)
     {
-        return x / (Fixed64)y;
+        return x / new Fixed64((long)y << FixedMath.SHIFT_AMOUNT_I);
+    }
+
+    /// <summary>
+    /// Divides an integer by a Fixed64
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 operator /(int y, Fixed64 x)
+    {
+        return new Fixed64((long)y << FixedMath.SHIFT_AMOUNT_I) / x;
     }
 
     /// <summary>
