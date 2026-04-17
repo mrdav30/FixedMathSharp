@@ -11,6 +11,9 @@
 
 - Solution: `FixedMathSharp.slnx` with library project and test project.
 - Target frameworks are configured in the respective `.csproj` files; `net8.0` is the primary TFM.
+- There are two release build configurations:
+  - `Release` — standard release build with MemoryPack support.
+  - `ReleaseNoMemoryPack` — release build with MemoryPack excluded.
 - Typical local workflow:
   - `dotnet restore`
   - `dotnet build --configuration Debug --no-restore`

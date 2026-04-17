@@ -12,4 +12,3 @@ dotnet_diagnostic.IDE0251.severity = silent
 # Enable XML documentation warnings only for source code
 [src/**/*.cs]
 dotnet_diagnostic.CS1591.severity = warning
-

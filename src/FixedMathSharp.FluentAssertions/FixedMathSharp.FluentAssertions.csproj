@@ -20,7 +20,7 @@
     <DebugType>portable</DebugType>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-    <Configurations>Debug;Release</Configurations>
+    <Configurations>Debug;Release;ReleaseNoMemoryPack</Configurations>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <AssemblyName>FixedMathSharp.FluentAssertions</AssemblyName>
