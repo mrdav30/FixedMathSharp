@@ -9,7 +9,7 @@
 
 ## Build and test workflows
 
-- Solution: `FixedMathSharp.sln` with library project and test project.
+- Solution: `FixedMathSharp.slnx` with library project and test project.
 - Target frameworks are configured in the respective `.csproj` files; `net8.0` is the primary TFM.
 - Typical local workflow:
   - `dotnet restore`

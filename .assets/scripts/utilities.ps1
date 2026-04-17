@@ -1,7 +1,7 @@
 function Get-SolutionDirectory {
     param (
 		[string]$StartPath = $(Get-Location),
-		[string]$SolutionPath = "FixedMathSharp.sln"
+		[string]$SolutionPath = "FixedMathSharp.slnx"
 	)
 
     $currentPath = $StartPath
@@ -55,7 +55,7 @@ function Ensure-GitVersion-Environment {
 
 function Build-Project {
     param (
-        [string]$SolutionPath = "FixedMathSharp.sln",
+        [string]$SolutionPath = "FixedMathSharp.slnx",
         [string]$Configuration = "Release"
     )
 

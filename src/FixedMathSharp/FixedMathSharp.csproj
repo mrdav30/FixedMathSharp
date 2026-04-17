@@ -1,88 +1,115 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <!-- Global Properties: General Configuration Settings -->
-  <PropertyGroup>
-    <!-- Define the target framework and compatibility -->
-    <LangVersion>11.0</LangVersion>
-    <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
-    <!-- Versioning and Build Configuration -->
-    <!-- Set SemVer to GitVersion_FullSemVer if available, otherwise fallback to 0.0.0 -->
-    <SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
-    <SemVer Condition="'$(SemVer)' == ''">0.0.0</SemVer>
-    <!-- Informational version fallback -->
-    <InfoVer Condition="'$(GitVersion_InformationalVersion)' != ''">$(GitVersion_InformationalVersion)</InfoVer>
-    <InfoVer Condition="'$(InfoVer)' == ''">$(SemVer)</InfoVer>
-    <!-- Set Assembly and File Versions -->
-    <AssemblySemVer Condition="'$(GitVersion_AssemblySemVer)' != ''">$(GitVersion_AssemblySemVer)</AssemblySemVer>
-    <AssemblySemVer Condition="'$(AssemblySemVer)' == ''">$(SemVer).0</AssemblySemVer>
-    <AssemblySemFileVer Condition="'$(GitVersion_AssemblySemFileVer)' != ''">$(GitVersion_AssemblySemFileVer)</AssemblySemFileVer>
-    <AssemblySemFileVer Condition="'$(AssemblySemFileVer)' == ''">$(AssemblySemVer)</AssemblySemFileVer>
-    <!-- Set final versions for the project -->
-    <InformationalVersion>$(InfoVer)</InformationalVersion>
-    <Version>$(SemVer)</Version>
-    <AssemblyVersion>$(AssemblySemVer)</AssemblyVersion>
-    <FileVersion>$(AssemblySemFileVer)</FileVersion>
-    <ImplicitUsings>disable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IncludeSymbols>true</IncludeSymbols>
-    <DebugType>portable</DebugType>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>1591</NoWarn>
-    <!-- Optional: Suppress warnings about missing XML comments -->
-    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\FixedMathSharp.xml</DocumentationFile>
-    <!-- Configuration to ensure deterministic builds -->
-    <Deterministic>true</Deterministic>
-    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-    <Configurations>Debug;Release</Configurations>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <IncludeTransitiveProjectReferences>false</IncludeTransitiveProjectReferences>
-  </PropertyGroup>
-  <!-- Debug and Release-specific Properties -->
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <Optimize>false</Optimize>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <Optimize>true</Optimize>
-    <DefineConstants>TRACE</DefineConstants>
-  </PropertyGroup>
-  <!-- NuGet Packaging Metadata -->
-  <PropertyGroup>
-    <PackageId>FixedMathSharp</PackageId>
-    <Authors>mrdav30</Authors>
-    <Description>FixedMathSharp: A high-precision, deterministic fixed-point math library for .NET. Ideal for simulations, games, and physics engines requiring reliable arithmetic without floating-point inaccuracies. </Description>
-    <PackageTags>fixed-point;math;precision;deterministic;arithmetic;fixed-point-arithmetic;math-library;trigonometry;dotnet;unity;simulations;physics-engine;game-development;high-precision;nuget</PackageTags>
-    <RepositoryUrl>https://github.com/mrdav30/FixedMathSharp</RepositoryUrl>
-    <PackageIcon>icon.png</PackageIcon>
-    <PackageIconUrl>https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/icon.png</PackageIconUrl>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-  </PropertyGroup>
-  <!-- Output Settings -->
-  <PropertyGroup>
-    <AssemblyName>FixedMathSharp</AssemblyName>
-    <RootNamespace>FixedMathSharp</RootNamespace>
-    <ProjectGuid>{61834921-141D-4BD5-9E75-31188DF32E93}</ProjectGuid>
-    <OutputPath>bin\$(Configuration)\</OutputPath>
-  </PropertyGroup>
-  <!-- Dependencies and Package References -->
-  <ItemGroup>
-    <PackageReference Include="MemoryPack" Version="1.21.4" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
-    <PackageReference Include="System.Text.Json" Version="10.0.5" />
-  </ItemGroup>
-  <!-- Ensure LICENSE, README, & icon files are included in the NuGet package -->
-  <ItemGroup>
-    <None Include="..\..\COPYRIGHT" Pack="true" PackagePath="\" Visible="false" />
-    <None Include="..\..\NOTICE" Pack="true" PackagePath="\" Visible="false" />
-    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" Visible="false" />
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
-    <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
-    <None Remove=".gitignore" />
-  </ItemGroup>
+	
+	<!-- General Properties -->
+	<PropertyGroup>
+		<LangVersion>11.0</LangVersion>
+		<TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
+		<Configurations>Debug;Release;ReleaseNoMemoryPack</Configurations>
+		<DisableMemoryPack Condition="'$(DisableMemoryPack)' == ''">false</DisableMemoryPack>
+		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+		<Deterministic>true</Deterministic>
+	</PropertyGroup>
+	
+	<!-- Git Versioning -->
+	<PropertyGroup>
+		<SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
+		<SemVer Condition="'$(SemVer)' == ''">0.0.0</SemVer>
+		<InfoVer Condition="'$(GitVersion_InformationalVersion)' != ''">$(GitVersion_InformationalVersion)</InfoVer>
+		<InfoVer Condition="'$(InfoVer)' == ''">$(SemVer)</InfoVer>
+		<AssemblySemVer Condition="'$(GitVersion_AssemblySemVer)' != ''">$(GitVersion_AssemblySemVer)</AssemblySemVer>
+		<AssemblySemVer Condition="'$(AssemblySemVer)' == ''">$(SemVer).0</AssemblySemVer>
+		<AssemblySemFileVer Condition="'$(GitVersion_AssemblySemFileVer)' != ''">$(GitVersion_AssemblySemFileVer)</AssemblySemFileVer>
+		<AssemblySemFileVer Condition="'$(AssemblySemFileVer)' == ''">$(AssemblySemVer)</AssemblySemFileVer>
+		<InformationalVersion>$(InfoVer)</InformationalVersion>
+		<Version>$(SemVer)</Version>
+		<AssemblyVersion>$(AssemblySemVer)</AssemblyVersion>
+		<FileVersion>$(AssemblySemFileVer)</FileVersion>
+	</PropertyGroup>
+
+	<!-- Code Analysis and Documentation -->
+	<PropertyGroup>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IncludeSymbols>true</IncludeSymbols>
+		<DebugType>portable</DebugType>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<DocumentationFile>bin\$(Configuration)\$(TargetFramework)\FixedMathSharp.xml</DocumentationFile>
+	</PropertyGroup>
+
+	<!-- Output Settings -->
+	<PropertyGroup>
+		<AssemblyName>FixedMathSharp</AssemblyName>
+		<RootNamespace>FixedMathSharp</RootNamespace>
+		<ProjectGuid>{61834921-141D-4BD5-9E75-31188DF32E93}</ProjectGuid>
+		<OutputPath>bin\$(Configuration)</OutputPath>
+	</PropertyGroup>
+
+	<!-- NuGet Packaging Metadata -->
+	<PropertyGroup>
+		<Authors>mrdav30</Authors>
+		<Description>FixedMathSharp: A high-precision, deterministic fixed-point math library for .NET. Ideal for simulations, games, and physics engines requiring reliable arithmetic without floating-point inaccuracies. </Description>
+		<PackageTags>fixed-point;math;precision;deterministic;arithmetic;fixed-point-arithmetic;math-library;trigonometry;dotnet;unity;simulations;physics-engine;game-development;high-precision;nuget</PackageTags>
+		<RepositoryUrl>https://github.com/mrdav30/FixedMathSharp</RepositoryUrl>
+		<PackageIcon>icon.png</PackageIcon>
+		<PackageIconUrl>https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/icon.png</PackageIconUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageLicenseFile>LICENSE</PackageLicenseFile>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+	</PropertyGroup>
+
+	<!-- Configurations Properties -->
+
+	<PropertyGroup Condition="'$(Configuration)' == 'ReleaseNoMemoryPack'">
+		<DisableMemoryPack>true</DisableMemoryPack>
+	</PropertyGroup>
+	
+	<PropertyGroup Condition="'$(DisableMemoryPack)' == 'true'">
+		<DefineConstants>$(DefineConstants);FIXEDMATHSHARP_DISABLE_MEMORYPACK</DefineConstants>
+		<PackageId>FixedMathSharp.NoMemoryPack</PackageId>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(DisableMemoryPack)' != 'true'">
+		<PackageId>FixedMathSharp</PackageId>
+	</PropertyGroup>
+	
+	<PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<IncludeTransitiveProjectReferences>false</IncludeTransitiveProjectReferences>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+		<DebugSymbols>true</DebugSymbols>
+		<Optimize>false</Optimize>
+		<DefineConstants>DEBUG;TRACE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)' == 'Release' Or '$(Configuration)' == 'ReleaseNoMemoryPack'">
+		<Optimize>true</Optimize>
+		<DefineConstants>$(DefineConstants);TRACE</DefineConstants>
+	</PropertyGroup>
+
+	<!-- Dependencies and Package References -->
+	<ItemGroup Condition="'$(DisableMemoryPack)' != 'true'">
+		<PackageReference Include="MemoryPack" Version="1.21.4" />
+	</ItemGroup>
+	
+	<ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+		<PackageReference Include="System.Text.Json" Version="10.0.5" />
+	</ItemGroup>
+	
+	<!-- Ensure LICENSE, README, & icon files are included in the NuGet package -->
+	<ItemGroup>
+		<None Include="..\..\COPYRIGHT" Pack="true" PackagePath="\" Visible="false" />
+		<None Include="..\..\NOTICE" Pack="true" PackagePath="\" Visible="false" />
+		<None Include="..\..\LICENSE" Pack="true" PackagePath="\" Visible="false" />
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
+		<None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
+		<None Remove=".gitignore" />
+	</ItemGroup>
+
+	<!-- Ensure MemoryPack files are excluded when disabled -->
+	<ItemGroup Condition="'$(DisableMemoryPack)' == 'true'">
+		<Compile Remove="**\*.MemoryPack.cs" />
+	</ItemGroup>
 </Project>
