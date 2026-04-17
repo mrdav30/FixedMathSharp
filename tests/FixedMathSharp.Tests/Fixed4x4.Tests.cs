@@ -1,5 +1,5 @@
-﻿using System;
-using MemoryPack;
+﻿using MemoryPack;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;

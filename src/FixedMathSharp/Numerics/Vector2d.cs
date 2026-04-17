@@ -30,42 +30,42 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// <summary>
     /// (1, 0)
     /// </summary>
-    public static readonly Vector2d DefaultRotation = new Vector2d(1, 0);
+    public static readonly Vector2d DefaultRotation = new(1, 0);
 
     /// <summary>
     /// (0, 1)
     /// </summary>
-    public static readonly Vector2d Forward = new Vector2d(0, 1);
+    public static readonly Vector2d Forward = new(0, 1);
 
     /// <summary>
     /// (1, 0)
     /// </summary>
-    public static readonly Vector2d Right = new Vector2d(1, 0);
+    public static readonly Vector2d Right = new(1, 0);
 
     /// <summary>
     /// (0, -1)
     /// </summary>
-    public static readonly Vector2d Down = new Vector2d(0, -1);
+    public static readonly Vector2d Down = new(0, -1);
 
     /// <summary>
     /// (-1, 0)
     /// </summary>
-    public static readonly Vector2d Left = new Vector2d(-1, 0);
+    public static readonly Vector2d Left = new(-1, 0);
 
     /// <summary>
     /// (1, 1)
     /// </summary>
-    public static readonly Vector2d One = new Vector2d(1, 1);
+    public static readonly Vector2d One = new(1, 1);
 
     /// <summary>
     /// (-1, -1)
     /// </summary>
-    public static readonly Vector2d Negative = new Vector2d(-1, -1);
+    public static readonly Vector2d Negative = new(-1, -1);
 
     /// <summary>
     /// (0, 0)
     /// </summary>
-    public static readonly Vector2d Zero = new Vector2d(0, 0);
+    public static readonly Vector2d Zero = new(0, 0);
 
     #endregion
 
@@ -89,10 +89,26 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
 
     #region Constructors
 
+    /// <summary>
+    /// Initializes a new instance of the Vector2d structure using integer values for the X and Y components.
+    /// </summary>
+    /// <param name="xInt">The X component of the vector, specified as an integer.</param>
+    /// <param name="yInt">The Y component of the vector, specified as an integer.</param>
     public Vector2d(int xInt, int yInt) : this((Fixed64)xInt, (Fixed64)yInt) { }
 
+    /// <summary>
+    /// Initializes a new instance of the Vector2d structure using the specified X and Y coordinates as double-precision
+    /// floating-point values.
+    /// </summary>
+    /// <param name="xDoub">The X coordinate of the vector, specified as a double-precision floating-point value.</param>
+    /// <param name="yDoub">The Y coordinate of the vector, specified as a double-precision floating-point value.</param>
     public Vector2d(double xDoub, double yDoub) : this((Fixed64)xDoub, (Fixed64)yDoub) { }
 
+    /// <summary>
+    /// Initializes a new instance of the Vector2d structure with the specified X and Y components.
+    /// </summary>
+    /// <param name="x">The value to assign to the X component of the vector.</param>
+    /// <param name="y">The value to assign to the Y component of the vector.</param>
     [JsonConstructor]
     public Vector2d(Fixed64 x, Fixed64 y)
     {
@@ -112,7 +128,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     public Vector2d RotatedRight
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => new Vector2d(y, -x);
+        get => new(y, -x);
     }
 
     /// <summary>
@@ -123,7 +139,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     public Vector2d RotatedLeft
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => new Vector2d(-y, x);
+        get => new(-y, x);
     }
 
     /// <summary>
@@ -134,7 +150,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     public Vector2d RightHandNormal
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => new Vector2d(-y, x);
+        get => new(-y, x);
     }
 
     /// <summary>
@@ -145,7 +161,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     public Vector2d LeftHandNormal
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => new Vector2d(y, -x);
+        get => new(y, -x);
     }
 
     /// <inheritdoc cref="GetNormalized(Vector2d)"/>
@@ -201,6 +217,16 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
         get => (int)(LongStateHash % int.MaxValue);
     }
 
+    /// <summary>
+    /// Gets or sets the vector component at the specified index.
+    /// </summary>
+    /// <remarks>
+    /// This indexer provides array-like access to the vector's components. 
+    /// Index 0 corresponds to the X component, and index 1 corresponds to the Y component.
+    /// </remarks>
+    /// <param name="index">The zero-based index of the component to access. Use 0 for the X component and 1 for the Y component.</param>
+    /// <returns>The vector component at the specified index.</returns>
+    /// <exception cref="IndexOutOfRangeException">Thrown when the index is less than 0 or greater than 1.</exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 this[int index]
@@ -796,6 +822,10 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
 
     #region Conversion
 
+    /// <summary>
+    /// Returns a string that represents the current object, displaying the x and y values rounded to two decimal places.
+    /// </summary>
+    /// <returns>A string in the format "(x, y)", where x and y are the values of the object rounded to two decimal places.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override string ToString()
     {
@@ -817,6 +847,15 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
         return new Vector3d(x, z, y);
     }
 
+    /// <summary>
+    /// Deconstructs the current instance into its X and Y coordinate values as single-precision floating-point numbers.
+    /// </summary>
+    /// <remarks>
+    /// This method enables deconstruction syntax, allowing the instance to be unpacked into separate
+    /// X and Y values using tuple deconstruction in client code.
+    /// </remarks>
+    /// <param name="x">When this method returns, contains the X coordinate value as a single-precision floating-point number.</param>
+    /// <param name="y">When this method returns, contains the Y coordinate value as a single-precision floating-point number.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly void Deconstruct(out float x, out float y)
     {
@@ -824,6 +863,15 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
         y = this.y.ToPreciseFloat();
     }
 
+    /// <summary>
+    /// Deconstructs the current instance into its X and Y components, rounding each value to the nearest integer.
+    /// </summary>
+    /// <remarks>
+    /// This method enables deconstruction syntax, allowing the instance to be unpacked into two
+    /// integer variables representing the rounded X and Y values.
+    /// </remarks>
+    /// <param name="x">When this method returns, contains the X component of the instance, rounded to the nearest integer.</param>
+    /// <param name="y">When this method returns, contains the Y component of the instance, rounded to the nearest integer.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly void Deconstruct(out int x, out int y)
     {
@@ -863,101 +911,179 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
 
     #region Operators
 
+    /// <summary>
+    /// Adds two Vector2d instances component-wise.
+    /// </summary>
+    /// <param name="v1">The first vector to add.</param>
+    /// <param name="v2">The second vector to add.</param>
+    /// <returns>A new Vector2d whose components are the sums of the corresponding components of v1 and v2.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator +(Vector2d v1, Vector2d v2)
     {
         return new Vector2d(v1.x + v2.x, v1.y + v2.y);
     }
 
+    /// <summary>
+    /// Adds a scalar value to each component of the specified vector and returns the resulting vector.
+    /// </summary>
+    /// <param name="v1">The vector to which the scalar value will be added.</param>
+    /// <param name="mag">The scalar value to add to each component of the vector.</param>
+    /// <returns>A new Vector2d whose components are the sum of the corresponding components of the input vector and the scalar value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator +(Vector2d v1, Fixed64 mag)
     {
         return new Vector2d(v1.x + mag, v1.y + mag);
     }
 
+    /// <inheritdoc cref="operator +(Vector2d, Fixed64)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator +(Fixed64 mag, Vector2d v1)
     {
         return v1 + mag;
     }
 
+    /// <summary>
+    /// Adds a Vector2d instance and a tuple representing X and Y components, returning a new Vector2d with the summed
+    /// values.
+    /// </summary>
+    /// <param name="v1">The first vector to add.</param>
+    /// <param name="v2">A tuple containing the X and Y values to add to the vector.</param>
+    /// <returns>A new Vector2d whose X and Y components are the sums of the corresponding components of the input vector and tuple.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator +(Vector2d v1, (int x, int y) v2)
     {
         return new Vector2d(v1.x + v2.x, v1.y + v2.y);
     }
 
+    /// <summary>
+    /// Adds a tuple representing X and Y components and a Vector2d instance, returning a new Vector2d with the summed
+    /// values.
+    /// </summary>
+    /// <param name="v2">A tuple containing the X and Y values to add to the vector.</param>
+    /// <param name="v1">The vector to add.</param>
+    /// <returns>A new Vector2d whose X and Y components are the sums of the corresponding components of the tuple and input vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator +((int x, int y) v2, Vector2d v1)
     {
         return v1 + v2;
     }
 
+    /// <summary>
+    /// Subtracts the components of one Vector2d from another and returns the resulting vector.
+    /// </summary>
+    /// <param name="v1">The vector to subtract from.</param>
+    /// <param name="v2">The vector to subtract.</param>
+    /// <returns>A Vector2d whose components are the result of subtracting the corresponding components of v2 from v1.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator -(Vector2d v1, Vector2d v2)
     {
         return new Vector2d(v1.x - v2.x, v1.y - v2.y);
     }
 
+    /// <summary>
+    /// Subtracts the specified scalar value from both components of the given vector and returns the resulting vector.
+    /// </summary>
+    /// <param name="v1">The vector from which to subtract the scalar value.</param>
+    /// <param name="mag">The scalar value to subtract from each component of the vector.</param>
+    /// <returns>A new Vector2d whose components are the result of subtracting the scalar value from the corresponding components
+    /// of the input vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator -(Vector2d v1, Fixed64 mag)
     {
         return new Vector2d(v1.x - mag, v1.y - mag);
     }
 
+    /// <inheritdoc cref="operator -(Vector2d, Fixed64)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator -(Fixed64 mag, Vector2d v1)
     {
         return new Vector2d(mag - v1.x, mag - v1.y);
     }
 
+    /// <summary>
+    /// Subtracts the specified tuple from the given vector and returns the resulting vector.
+    /// </summary>
+    /// <param name="v1">The vector from which to subtract the tuple values.</param>
+    /// <param name="v2">A tuple containing the x and y values to subtract from the vector.</param>
+    /// <returns>A new Vector2d representing the result of subtracting the tuple values from the original vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator -(Vector2d v1, (int x, int y) v2)
     {
         return new Vector2d(v1.x - v2.x, v1.y - v2.y);
     }
 
+    /// <summary>
+    /// Subtracts the specified Vector2d from the given integer tuple and returns the resulting vector.
+    /// </summary>
+    /// <param name="v1">A tuple containing the x and y components to subtract from.</param>
+    /// <param name="v2">The vector whose components are subtracted from the tuple.</param>
+    /// <returns>A Vector2d representing the result of subtracting the components of v2 from v1.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator -((int x, int y) v1, Vector2d v2)
     {
         return new Vector2d(v1.x - v2.x, v1.y - v2.y);
     }
 
+    /// <summary>
+    /// Negates the specified vector by reversing the sign of each of its components.
+    /// </summary>
+    /// <param name="v1">The vector to negate.</param>
+    /// <returns>A new Vector2d whose components are the negated values of the input vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator -(Vector2d v1)
     {
         return new Vector2d(v1.x * -Fixed64.One, v1.y * -Fixed64.One);
     }
 
+    /// <summary>
+    /// Scales the specified vector by the given scalar value.
+    /// </summary>
+    /// <param name="v1">The vector to be scaled.</param>
+    /// <param name="mag">The scalar value by which to multiply each component of the vector.</param>
+    /// <returns>A new Vector2d whose components are the components of v1 multiplied by mag.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator *(Vector2d v1, Fixed64 mag)
     {
         return new Vector2d(v1.x * mag, v1.y * mag);
     }
 
+    /// <summary>
+    /// Multiplies two vectors element-wise and returns the resulting vector.
+    /// </summary>
+    /// <remarks>Element-wise multiplication multiplies each component of the first vector by the
+    /// corresponding component of the second vector. This operation is not a dot product or cross product.</remarks>
+    /// <param name="v1">The first vector to multiply.</param>
+    /// <param name="v2">The second vector to multiply.</param>
+    /// <returns>A new Vector2d whose components are the products of the corresponding components of the input vectors.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator *(Vector2d v1, Vector2d v2)
     {
         return new Vector2d(v1.x * v2.x, v1.y * v2.y);
     }
 
+    /// <summary>
+    /// Divides each component of a specified vector by a scalar value.
+    /// </summary>
+    /// <param name="v1">The vector whose components are to be divided.</param>
+    /// <param name="div">The scalar value by which to divide each component of the vector.</param>
+    /// <returns>A new Vector2d whose components are the result of dividing the corresponding components of v1 by div.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator /(Vector2d v1, Fixed64 div)
     {
         return new Vector2d(v1.x / div, v1.y / div);
     }
 
+    /// <summary>
+    /// Determines whether two Vector2d instances are equal.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator ==(Vector2d left, Vector2d right)
-    {
-        return left.Equals(right);
-    }
+    public static bool operator ==(Vector2d left, Vector2d right) => left.Equals(right);
 
+    /// <summary>
+    /// Determines whether two Vector2d instances are not equal.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator !=(Vector2d left, Vector2d right)
-    {
-        return !left.Equals(right);
-    }
+    public static bool operator !=(Vector2d left, Vector2d right) => !left.Equals(right);
 
     #endregion
 
@@ -968,16 +1094,14 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// </summary>
     /// <returns></returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool EqualsZero()
-    {
-        return this.Equals(Zero);
-    }
+    public bool EqualsZero() => this.Equals(Zero);
 
+    /// <summary>
+    /// Determines whether the current value is not equal to zero.
+    /// </summary>
+    /// <returns>true if the value is not zero; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool NotZero()
-    {
-        return !EqualsZero();
-    }
+    public bool NotZero() => !EqualsZero();
 
     /// <summary>
     /// Checks whether all components are strictly greater than <see cref="Fixed64.Epsilon"/>.
@@ -988,38 +1112,41 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
         return x.Abs() > Fixed64.Epsilon && y.Abs() > Fixed64.Epsilon;
     }
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override bool Equals(object? obj)
-    {
-        return obj is Vector2d other && Equals(other);
-    }
+    public override bool Equals(object? obj) => obj is Vector2d other && Equals(other);
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Equals(Vector2d other)
-    {
-        return other.x == x && other.y == y;
-    }
+    public bool Equals(Vector2d other) => other.x == x && other.y == y;
 
-    public bool Equals(Vector2d x, Vector2d y)
-    {
-        return x.Equals(y);
-    }
+    /// <inheritdoc/>
+    public bool Equals(Vector2d x, Vector2d y) => x.Equals(y);
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override int GetHashCode()
-    {
-        return StateHash;
-    }
+    public override int GetHashCode() => StateHash;
 
+    /// <inheritdoc/>
     public int GetHashCode(Vector2d obj)
     {
         return obj.GetHashCode();
     }
 
-    public int CompareTo(Vector2d other)
-    {
-        return SqrMagnitude.CompareTo(other.SqrMagnitude);
-    }
+    /// <summary>
+    /// Compares the current Vector2d instance with another Vector2d based on their squared magnitudes.
+    /// </summary>
+    /// <remarks>
+    /// This comparison uses the squared magnitude of each vector, which avoids the computational
+    /// cost of calculating the actual magnitude. 
+    /// Use this method when only relative vector lengths are
+    /// important.
+    /// </remarks>
+    /// <param name="other">The Vector2d instance to compare with the current instance.</param>
+    /// <returns>A value less than zero if this instance is less than <paramref name="other"/>; zero if this instance is equal to
+    /// <paramref name="other"/>; or a value greater than zero if this instance is greater than <paramref
+    /// name="other"/>, as determined by their squared magnitudes.</returns>
+    public int CompareTo(Vector2d other) => SqrMagnitude.CompareTo(other.SqrMagnitude);
 
     #endregion
 }

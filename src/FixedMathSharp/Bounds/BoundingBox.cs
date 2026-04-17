@@ -23,18 +23,31 @@ public partial struct BoundingBox : IBound, IEquatable<BoundingBox>
 {
     #region Nested Types
 
+    /// <summary>
+    /// Represents the state of a three-dimensional axis-aligned bounding box using its minimum and maximum coordinates.
+    /// </summary>
+    /// <remarks>
+    /// The bounding box is defined by two points: the minimum and maximum corners in 3D space. This
+    /// structure is immutable and can be used to describe spatial boundaries for geometric computations, collision
+    /// detection, or spatial queries.
+    /// </remarks>
     [Serializable]
     [MemoryPackable]
     public readonly partial struct BoundingBoxState
     {
+        /// <inheritdoc cref="BoundingBox.Min"/>
         [JsonInclude]
         [MemoryPackInclude]
         public readonly Vector3d Min;
 
+        /// <inheritdoc cref="BoundingBox.Max"/>
         [JsonInclude]
         [MemoryPackInclude]
         public readonly Vector3d Max;
 
+        /// <summary>
+        /// Initializes a new instance of the BoundingBoxState class with the specified minimum and maximum coordinates.
+        /// </summary>
         [JsonConstructor]
         public BoundingBoxState(Vector3d min, Vector3d max)
         {
@@ -73,6 +86,10 @@ public partial struct BoundingBox : IBound, IEquatable<BoundingBox>
         _isDirty = true;
     }
 
+    /// <summary>
+    /// Initializes a new instance of the BoundingBox class with the specified bounding box state.
+    /// </summary>
+    /// <param name="state">The state that defines the position, size, and orientation of the bounding box.</param>
     [JsonConstructor]
     [MemoryPackConstructor]
     public BoundingBox(BoundingBoxState state)
@@ -160,6 +177,9 @@ public partial struct BoundingBox : IBound, IEquatable<BoundingBox>
         get => GetOrGenerateVertices();
     }
 
+    /// <summary>
+    /// Gets or sets the current bounding box state, including its minimum and maximum coordinates.
+    /// </summary>
     [JsonInclude]
     [MemoryPackInclude]
     public BoundingBoxState State
@@ -457,18 +477,28 @@ public partial struct BoundingBox : IBound, IEquatable<BoundingBox>
 
     #region Equality
 
+    /// <summary>
+    /// Determines whether two BoundingBox instances are equal.
+    /// </summary>
     public static bool operator ==(BoundingBox left, BoundingBox right) => left.Equals(right);
+
+    /// <summary>
+    /// Determines whether two BoundingBox instances are not equal.
+    /// </summary>
     public static bool operator !=(BoundingBox left, BoundingBox right) => !left.Equals(right);
 
     #endregion
 
     #region Equality and HashCode Overrides
 
+    /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is BoundingBox other && Equals(other);
 
+    /// <inheritdoc/>
     public bool Equals(BoundingBox other)
         => Min.Equals(other.Min) && Max.Equals(other.Max);
 
+    /// <inheritdoc/>
     public override int GetHashCode()
     {
         return HashCode.Combine(Min, Max);

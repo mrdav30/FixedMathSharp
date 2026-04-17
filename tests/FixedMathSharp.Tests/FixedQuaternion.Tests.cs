@@ -1,5 +1,5 @@
-﻿using System;
-using MemoryPack;
+﻿using MemoryPack;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -580,7 +580,6 @@ public class FixedQuaternionTests
         Assert.Equal(new FixedQuaternion(new Fixed64(2), new Fixed64(4), new Fixed64(6), new Fixed64(8)), quaternion * new Fixed64(2));
         Assert.Equal(new FixedQuaternion(new Fixed64(2), new Fixed64(4), new Fixed64(6), new Fixed64(8)), new Fixed64(2) * quaternion);
         Assert.Equal(new FixedQuaternion(new Fixed64(0.5), Fixed64.One, new Fixed64(1.5), new Fixed64(2)), quaternion / new Fixed64(2));
-        Assert.Equal(new FixedQuaternion(new Fixed64(0.5), Fixed64.One, new Fixed64(1.5), new Fixed64(2)), new Fixed64(2) / quaternion);
         Assert.Equal(new FixedQuaternion(new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(5)), quaternion + FixedQuaternion.Identity);
         Assert.True(quaternion == same);
         Assert.False(quaternion != same);

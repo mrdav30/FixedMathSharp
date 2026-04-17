@@ -29,47 +29,47 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// The upward direction vector (0, 1, 0).
     /// </summary>
-    public static readonly Vector3d Up = new Vector3d(0, 1, 0);
+    public static readonly Vector3d Up = new(0, 1, 0);
 
     /// <summary>
     /// (1, 0, 0)
     /// </summary>
-    public static readonly Vector3d Right = new Vector3d(1, 0, 0);
+    public static readonly Vector3d Right = new(1, 0, 0);
 
     /// <summary>
     /// (0, -1, 0)
     /// </summary>
-    public static readonly Vector3d Down = new Vector3d(0, -1, 0);
+    public static readonly Vector3d Down = new(0, -1, 0);
 
     /// <summary>
     /// (-1, 0, 0)
     /// </summary>
-    public static readonly Vector3d Left = new Vector3d(-1, 0, 0);
+    public static readonly Vector3d Left = new(-1, 0, 0);
 
     /// <summary>
     /// The forward direction vector (0, 0, 1).
     /// </summary>
-    public static readonly Vector3d Forward = new Vector3d(0, 0, 1);
+    public static readonly Vector3d Forward = new(0, 0, 1);
 
     /// <summary>
     /// (0, 0, -1)
     /// </summary>
-    public static readonly Vector3d Backward = new Vector3d(0, 0, -1);
+    public static readonly Vector3d Backward = new(0, 0, -1);
 
     /// <summary>
     /// (1, 1, 1)
     /// </summary>
-    public static readonly Vector3d One = new Vector3d(1, 1, 1);
+    public static readonly Vector3d One = new(1, 1, 1);
 
     /// <summary>
     /// (-1, -1, -1)
     /// </summary>
-    public static readonly Vector3d Negative = new Vector3d(-1, -1, -1);
+    public static readonly Vector3d Negative = new(-1, -1, -1);
 
     /// <summary>
     /// (0, 0, 0)
     /// </summary>
-    public static readonly Vector3d Zero = new Vector3d(0, 0, 0);
+    public static readonly Vector3d Zero = new(0, 0, 0);
 
 
     #endregion
@@ -101,10 +101,31 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
 
     #region Constructors
 
+    /// <summary>
+    /// Initializes a new instance of the Vector3d structure using integer values for the X, Y, and Z components.
+    /// </summary>
+    /// <param name="xInt">The value of the X component as an integer.</param>
+    /// <param name="yInt">The value of the Y component as an integer.</param>
+    /// <param name="zInt">The value of the Z component as an integer.</param>
     public Vector3d(int xInt, int yInt, int zInt) : this((Fixed64)xInt, (Fixed64)yInt, (Fixed64)zInt) { }
 
+    /// <summary>
+    /// Initializes a new instance of the Vector3d structure using the specified X, Y, and Z coordinates as
+    /// double-precision floating-point values.
+    /// </summary>
+    /// <remarks>This constructor allows for convenient creation of a Vector3d from double values, which are
+    /// internally converted to the Fixed64 representation used by the structure.</remarks>
+    /// <param name="xDoub">The X coordinate of the vector, specified as a double-precision floating-point value.</param>
+    /// <param name="yDoub">The Y coordinate of the vector, specified as a double-precision floating-point value.</param>
+    /// <param name="zDoub">The Z coordinate of the vector, specified as a double-precision floating-point value.</param>
     public Vector3d(double xDoub, double yDoub, double zDoub) : this((Fixed64)xDoub, (Fixed64)yDoub, (Fixed64)zDoub) { }
 
+    /// <summary>
+    /// Initializes a new instance of the Vector3d structure with the specified X, Y, and Z components.
+    /// </summary>
+    /// <param name="x">The value of the X component of the vector.</param>
+    /// <param name="y">The value of the Y component of the vector.</param>
+    /// <param name="z">The value of the Z component of the vector.</param>
     [JsonConstructor]
     public Vector3d(Fixed64 x, Fixed64 y, Fixed64 z)
     {
@@ -130,7 +151,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     public Vector3d RightHandNormal
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => new Vector3d(z, y, -x);
+        get => new(z, y, -x);
     }
 
     /// <summary>
@@ -141,7 +162,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     public Vector3d LeftHandNormal
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => new Vector3d(-z, y, x);
+        get => new(-z, y, x);
     }
 
     /// <inheritdoc cref="GetNormalized(Vector3d)"/>
@@ -232,6 +253,16 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         get => (int)(LongStateHash % int.MaxValue);
     }
 
+    /// <summary>
+    /// Gets or sets the component value at the specified index.
+    /// </summary>
+    /// <remarks>
+    /// Use this indexer to access or modify the x, y, or z components of the vector by index. 
+    /// Index 0 corresponds to x, 1 to y, and 2 to z.
+    /// </remarks>
+    /// <param name="index">The zero-based index of the component to access. Valid values are 0 (x), 1 (y), or 2 (z).</param>
+    /// <returns>The value of the component at the specified index.</returns>
+    /// <exception cref="IndexOutOfRangeException">Thrown if index is less than 0 or greater than 2.</exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 this[int index]
@@ -1044,96 +1075,176 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
 
     #region Operators
 
+    /// <summary>
+    /// Adds two Vector3d instances component-wise.
+    /// </summary>
+    /// <param name="v1">The first vector to add.</param>
+    /// <param name="v2">The second vector to add.</param>
+    /// <returns>A new Vector3d whose components are the sum of the corresponding components of v1 and v2.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator +(Vector3d v1, Vector3d v2)
     {
         return new Vector3d(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
     }
 
+    /// <summary>
+    /// Adds a scalar value to each component of the specified vector and returns the resulting vector.
+    /// </summary>
+    /// <param name="v1">The vector to which the scalar value will be added.</param>
+    /// <param name="mag">The scalar value to add to each component of the vector.</param>
+    /// <returns>A new Vector3d whose components are the sum of the corresponding components of the input vector and the scalar
+    /// value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator +(Vector3d v1, Fixed64 mag)
     {
         return new Vector3d(v1.x + mag, v1.y + mag, v1.z + mag);
     }
 
+    /// <inheritdoc cref="operator +(Vector3d, Fixed64)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator +(Fixed64 mag, Vector3d v1)
     {
         return v1 + mag;
     }
 
+    /// <summary>
+    /// Adds a Vector3d instance to a tuple representing x, y, and z components and returns the resulting vector.
+    /// </summary>
+    /// <param name="v1">The first vector to add.</param>
+    /// <param name="v2">A tuple containing the x, y, and z values to add to the vector.</param>
+    /// <returns>A new Vector3d that is the sum of the original vector and the specified tuple components.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator +(Vector3d v1, (int x, int y, int z) v2)
     {
         return new Vector3d(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
     }
 
+    /// <summary>
+    /// Adds a 3-tuple of integers to a Vector3d instance, returning the resulting vector.
+    /// </summary>
+    /// <param name="v2">A tuple containing the X, Y, and Z components to add to the vector.</param>
+    /// <param name="v1">The Vector3d instance to which the tuple components are added.</param>
+    /// <returns>A new Vector3d representing the sum of the original vector and the specified tuple components.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator +((int x, int y, int z) v2, Vector3d v1)
     {
         return v1 + v2;
     }
 
+    /// <summary>
+    /// Subtracts the components of one Vector3d from another and returns the resulting vector.
+    /// </summary>
+    /// <param name="v1">The vector to subtract from.</param>
+    /// <param name="v2">The vector to subtract.</param>
+    /// <returns>A Vector3d whose components are the result of subtracting the corresponding components of v2 from v1.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator -(Vector3d v1, Vector3d v2)
     {
         return new Vector3d(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
     }
 
+    /// <summary>
+    /// Subtracts the specified scalar value from each component of the given vector.
+    /// </summary>
+    /// <param name="v1">The vector from which to subtract the scalar value from each component.</param>
+    /// <param name="mag">The scalar value to subtract from each component of the vector.</param>
+    /// <returns>A new Vector3d whose components are the result of subtracting the scalar value from the corresponding components
+    /// of the input vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator -(Vector3d v1, Fixed64 mag)
     {
         return new Vector3d(v1.x - mag, v1.y - mag, v1.z - mag);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d operator -(Fixed64 mag, Vector3d v1)
-    {
-        return new Vector3d(mag - v1.x, mag - v1.y, mag - v1.z);
-    }
-
+    /// <summary>
+    /// Subtracts the specified tuple from the given vector and returns the resulting vector.
+    /// </summary>
+    /// <param name="v1">The vector from which to subtract the tuple values.</param>
+    /// <param name="v2">A tuple containing the x, y, and z values to subtract from the vector.</param>
+    /// <returns>A new Vector3d representing the result of subtracting the tuple values from the original vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator -(Vector3d v1, (int x, int y, int z) v2)
     {
         return new Vector3d(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
     }
 
+    /// <summary>
+    /// Subtracts the components of a specified Vector3d from the corresponding components of a 3-tuple of integers and
+    /// returns the resulting Vector3d.
+    /// </summary>
+    /// <remarks>This operator enables direct subtraction between a tuple of three integers and a Vector3d,
+    /// returning a new Vector3d instance.</remarks>
+    /// <param name="v1">A tuple containing the x, y, and z components to subtract from.</param>
+    /// <param name="v2">The Vector3d whose components are subtracted from the corresponding components of the tuple.</param>
+    /// <returns>A Vector3d whose components are the result of subtracting the components of v2 from the corresponding components
+    /// of v1.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator -((int x, int y, int z) v1, Vector3d v2)
     {
         return new Vector3d(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
     }
 
+    /// <summary>
+    /// Negates each component of the specified vector.
+    /// </summary>
+    /// <param name="v1">The vector whose components are to be negated.</param>
+    /// <returns>A new vector whose components are the negated values of the input vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator -(Vector3d v1)
     {
         return new Vector3d(v1.x * -Fixed64.One, v1.y * -Fixed64.One, v1.z * -Fixed64.One);
     }
 
+    /// <summary>
+    /// Multiplies the specified vector by a scalar value.
+    /// </summary>
+    /// <param name="v1">The vector to be scaled.</param>
+    /// <param name="mag">The scalar value by which to multiply each component of the vector.</param>
+    /// <returns>A new vector whose components are the products of the corresponding components of the input vector and the
+    /// scalar value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Vector3d v1, Fixed64 mag)
     {
         return new Vector3d(v1.x * mag, v1.y * mag, v1.z * mag);
     }
 
+    /// <inheritdoc cref="operator *(Vector3d, Fixed64)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Fixed64 mag, Vector3d v1)
     {
         return new Vector3d(v1.x * mag, v1.y * mag, v1.z * mag);
     }
 
+    /// <summary>
+    /// Multiplies each component of the specified vector by the given scalar value.
+    /// </summary>
+    /// <param name="v1">The vector whose components are to be multiplied.</param>
+    /// <param name="mag">The scalar value by which to multiply each component of the vector.</param>
+    /// <returns>A new Vector3d whose components are the products of the corresponding components of the input vector and the
+    /// scalar value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Vector3d v1, int mag)
     {
         return new Vector3d(v1.x * mag, v1.y * mag, v1.z * mag);
     }
 
+    /// <inheritdoc cref="operator *(Vector3d, int)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(int mag, Vector3d v1)
     {
         return new Vector3d(v1.x * mag, v1.y * mag, v1.z * mag);
     }
 
+    /// <summary>
+    /// Multiplies a 3x3 matrix by a 3-dimensional vector and returns the resulting vector.
+    /// </summary>
+    /// <remarks>
+    /// This operation applies the linear transformation represented by the matrix to the vector. 
+    /// The multiplication is performed using standard matrix-vector multiplication rules.
+    /// </remarks>
+    /// <param name="matrix">The 3x3 matrix to multiply.</param>
+    /// <param name="vector">The 3-dimensional vector to be transformed by the matrix.</param>
+    /// <returns>A new Vector3d that is the result of multiplying the specified matrix by the specified vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Fixed3x3 matrix, Vector3d vector)
     {
@@ -1144,12 +1255,25 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         );
     }
 
+    /// <inheritdoc cref="operator *(Fixed3x3, Vector3d)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Vector3d vector, Fixed3x3 matrix)
     {
         return matrix * vector;
     }
 
+    /// <summary>
+    /// Transforms the specified 3D vector by the given 4x4 matrix using homogeneous coordinates.
+    /// </summary>
+    /// <remarks>
+    /// If the matrix is affine, the transformation is performed without perspective division. 
+    /// For non-affine matrices, the result is divided by the computed w component to account for perspective
+    /// transformations. 
+    /// If the computed w component is zero, it is treated as one to avoid division by zero.
+    /// </remarks>
+    /// <param name="matrix">The 4x4 matrix to apply to the vector. Must represent a valid transformation.</param>
+    /// <param name="point">The 3D vector to be transformed.</param>
+    /// <returns>A new Vector3d representing the transformed vector after applying the matrix.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Fixed4x4 matrix, Vector3d point)
     {
@@ -1173,24 +1297,58 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         );
     }
 
+    /// <inheritdoc cref="operator *(Fixed4x4, Vector3d)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Vector3d vector, Fixed4x4 matrix)
     {
         return matrix * vector;
     }
 
+    /// <summary>
+    /// Multiplies the corresponding components of two vectors and returns the resulting vector.
+    /// </summary>
+    /// <remarks>
+    /// This operation performs component-wise multiplication, not a dot or cross product. 
+    /// Each component of the result is calculated as the product of the corresponding components of the input
+    /// vectors.
+    /// </remarks>
+    /// <param name="v1">The first vector to multiply.</param>
+    /// <param name="v2">The second vector to multiply.</param>
+    /// <returns>A new Vector3d whose components are the products of the corresponding components of the input vectors.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Vector3d v1, Vector3d v2)
     {
         return new Vector3d(v1.x * v2.x, v1.y * v2.y, v1.z * v2.z);
     }
 
+    /// <summary>
+    /// Divides each component of a vector by a specified scalar value.
+    /// </summary>
+    /// <remarks>If the scalar value is zero, the result is a zero vector to avoid division by zero.</remarks>
+    /// <param name="v1">The vector whose components are to be divided.</param>
+    /// <param name="div">The scalar value by which to divide each component of the vector.</param>
+    /// <returns>
+    /// A new vector whose components are the result of dividing the corresponding components of the input vector by the
+    /// specified scalar. 
+    /// Returns a zero vector if the scalar is zero.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator /(Vector3d v1, Fixed64 div)
     {
         return div == Fixed64.Zero ? Zero : new Vector3d(v1.x / div, v1.y / div, v1.z / div);
     }
 
+    /// <summary>
+    /// Divides each component of one vector by the corresponding component of another vector.
+    /// </summary>
+    /// <remarks>Division by zero for any component in v2 results in a zero value for the corresponding
+    /// component in the result vector.</remarks>
+    /// <param name="v1">The vector whose components are to be divided (the dividend).</param>
+    /// <param name="v2">The vector whose components are used as divisors.</param>
+    /// <returns>
+    /// A new Vector3d whose components are the result of dividing the corresponding components of v1 by v2. 
+    /// If a component of v2 is zero, the corresponding result component is set to zero.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator /(Vector3d v1, Vector3d v2)
     {
@@ -1200,24 +1358,37 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
             v2.z == Fixed64.Zero ? Fixed64.Zero : v1.z / v2.z);
     }
 
+    /// <summary>
+    /// Divides each component of a vector by the specified integer value.
+    /// </summary>
+    /// <param name="v1">The vector whose components are to be divided.</param>
+    /// <param name="div">The integer divisor. If zero, the result is a zero vector.</param>
+    /// <returns>
+    /// A new vector whose components are the result of dividing each component of the input vector by the specified
+    /// divisor. 
+    /// Returns a zero vector if the divisor is zero.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator /(Vector3d v1, int div)
     {
         return div == 0 ? Zero : new Vector3d(v1.x / div, v1.y / div, v1.z / div);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d operator /(Fixed64 div, Vector3d v1)
-    {
-        return new Vector3d(div / v1.x, div / v1.y, div / v1.z);
-    }
-
+    /// <summary>
+    /// Rotates the specified 3D point by the given quaternion.
+    /// </summary>
+    /// <remarks>
+    /// This operator applies the rotation to the point as if performing a geometric transformation in 3D space.</remarks>
+    /// <param name="point">The 3D point to be rotated.</param>
+    /// <param name="rotation">The quaternion representing the rotation to apply.</param>
+    /// <returns>A new Vector3d representing the rotated point.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Vector3d point, FixedQuaternion rotation)
     {
         return rotation * point;
     }
 
+    /// <inheritdoc cref="operator *(Vector3d, FixedQuaternion)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(FixedQuaternion rotation, Vector3d point)
     {
@@ -1233,7 +1404,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         Fixed64 num10 = rotation.w * num1;
         Fixed64 num11 = rotation.w * num2;
         Fixed64 num12 = rotation.w * num3;
-        Vector3d vector3 = new Vector3d(
+        Vector3d vector3 = new(
             (Fixed64.One - (num5 + num6)) * point.x + (num7 - num12) * point.y + (num8 + num11) * point.z,
             (num7 + num12) * point.x + (Fixed64.One - (num4 + num6)) * point.y + (num9 - num10) * point.z,
             (num8 - num11) * point.x + (num9 + num10) * point.y + (Fixed64.One - (num4 + num5)) * point.z
@@ -1241,18 +1412,25 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         return vector3;
     }
 
+    /// <summary>
+    /// Determines whether two Vector3d instances are equal.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator ==(Vector3d left, Vector3d right)
-    {
-        return left.Equals(right);
-    }
+    public static bool operator ==(Vector3d left, Vector3d right) => left.Equals(right);
 
+    /// <summary>
+    /// Determines whether two Vector3d instances are not equal.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator !=(Vector3d left, Vector3d right)
-    {
-        return !left.Equals(right);
-    }
+    public static bool operator !=(Vector3d left, Vector3d right) => !left.Equals(right);
 
+    /// <summary>
+    /// Determines whether each component of the left vector is greater than the corresponding component of the right
+    /// vector.
+    /// </summary>
+    /// <param name="left">The first vector to compare.</param>
+    /// <param name="right">The second vector to compare.</param>
+    /// <returns>true if the x, y, and z components of left are all greater than those of right; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator >(Vector3d left, Vector3d right)
     {
@@ -1261,6 +1439,16 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
             && left.z > right.z;
     }
 
+    /// <summary>
+    /// Determines whether each component of the first Vector3d is less than the corresponding component of the second
+    /// Vector3d.
+    /// </summary>
+    /// <remarks>
+    /// This operator performs a component-wise comparison. 
+    /// All components of left must be less than the corresponding components of right for the result to be true.</remarks>
+    /// <param name="left">The first Vector3d to compare.</param>
+    /// <param name="right">The second Vector3d to compare.</param>
+    /// <returns>true if the x, y, and z components of left are all less than those of right; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator <(Vector3d left, Vector3d right)
     {
@@ -1269,6 +1457,13 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
             && left.z < right.z;
     }
 
+    /// <summary>
+    /// Determines whether each component of the left Vector3d is greater than or equal to the corresponding component
+    /// of the right Vector3d.
+    /// </summary>
+    /// <param name="left">The first Vector3d to compare.</param>
+    /// <param name="right">The second Vector3d to compare.</param>
+    /// <returns>true if the x, y, and z components of left are each greater than or equal to those of right; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator >=(Vector3d left, Vector3d right)
     {
@@ -1277,6 +1472,14 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
             && left.z >= right.z;
     }
 
+    /// <summary>
+    /// Determines whether each component of the first Vector3d is less than or equal to the corresponding component of
+    /// the second Vector3d.
+    /// </summary>
+    /// <param name="left">The first Vector3d to compare.</param>
+    /// <param name="right">The second Vector3d to compare.</param>
+    /// <returns>true if the x, y, and z components of left are each less than or equal to the corresponding components of right;
+    /// otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator <=(Vector3d left, Vector3d right)
     {
@@ -1289,6 +1492,10 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
 
     #region Conversion
 
+    /// <summary>
+    /// Returns a string that represents the current object in the format "(x, y, z)".
+    /// </summary>
+    /// <returns>A string representation of the object, displaying the x, y, and z values in a formatted tuple.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override string ToString()
     {
@@ -1309,6 +1516,12 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         return new Vector2d(x, z);
     }
 
+    /// <summary>
+    /// Deconstructs the vector into its X, Y, and Z components as single-precision floating-point values.
+    /// </summary>
+    /// <param name="x">When this method returns, contains the X component of the vector as a single-precision floating-point value.</param>
+    /// <param name="y">When this method returns, contains the Y component of the vector as a single-precision floating-point value.</param>
+    /// <param name="z">When this method returns, contains the Z component of the vector as a single-precision floating-point value.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly void Deconstruct(out float x, out float y, out float z)
     {
@@ -1317,6 +1530,14 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         z = this.z.ToPreciseFloat();
     }
 
+    /// <summary>
+    /// Deconstructs the current instance into its component integer values.
+    /// </summary>
+    /// <remarks>This method enables deconstruction syntax, allowing the instance to be unpacked into three
+    /// integer variables representing its components.</remarks>
+    /// <param name="x">When this method returns, contains the rounded integer value of the X component.</param>
+    /// <param name="y">When this method returns, contains the rounded integer value of the Y component.</param>
+    /// <param name="z">When this method returns, contains the rounded integer value of the Z component.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly void Deconstruct(out int x, out int y, out int z)
     {
@@ -1357,38 +1578,42 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
 
     #region Equality and HashCode Overrides
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override bool Equals(object? obj)
-    {
-        return obj is Vector3d other && Equals(other);
-    }
+    public override bool Equals(object? obj) => obj is Vector3d other && Equals(other);
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(Vector3d other)
     {
         return other.x == x && other.y == y && other.z == z;
     }
 
-    public bool Equals(Vector3d x, Vector3d y)
-    {
-        return x.Equals(y);
-    }
+    /// <inheritdoc/>
+    public bool Equals(Vector3d x, Vector3d y) => x.Equals(y);
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override int GetHashCode()
-    {
-        return StateHash;
-    }
+    public override int GetHashCode() => StateHash;
 
-    public int GetHashCode(Vector3d obj)
-    {
-        return obj.GetHashCode();
-    }
+    /// <inheritdoc/>
+    public int GetHashCode(Vector3d obj) => obj.GetHashCode();
 
-    public int CompareTo(Vector3d other)
-    {
-        return SqrMagnitude.CompareTo(other.SqrMagnitude);
-    }
+
+    /// <summary>
+    /// Compares the current Vector3d instance with another Vector3d based on their squared magnitudes.
+    /// </summary>
+    /// <remarks>
+    /// This comparison uses the squared magnitude of each vector, which avoids the computational
+    /// cost of calculating the actual magnitude. 
+    /// Use this method when only relative vector lengths are
+    /// important.
+    /// </remarks>
+    /// <param name="other">The Vector3d instance to compare with the current instance.</param>
+    /// <returns>A value less than zero if this instance is less than <paramref name="other"/>; zero if this instance is equal to
+    /// <paramref name="other"/>; or a value greater than zero if this instance is greater than <paramref
+    /// name="other"/>, as determined by their squared magnitudes.</returns>
+    public int CompareTo(Vector3d other) => SqrMagnitude.CompareTo(other.SqrMagnitude);
 
     #endregion
 }

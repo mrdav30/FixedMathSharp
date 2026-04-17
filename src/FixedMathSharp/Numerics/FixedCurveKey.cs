@@ -71,6 +71,7 @@ public partial struct FixedCurveKey : IEquatable<FixedCurveKey>
 
     #region Equality
 
+    /// <inheritdoc/>
     public bool Equals(FixedCurveKey other)
     {
         return Time == other.Time &&
@@ -79,15 +80,23 @@ public partial struct FixedCurveKey : IEquatable<FixedCurveKey>
                OutTangent == other.OutTangent;
     }
 
+    /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is FixedCurveKey other && Equals(other);
 
+    /// <inheritdoc/>
     public override int GetHashCode()
     {
         return HashCode.Combine(Time, Value, InTangent, OutTangent);
     }
 
+    /// <summary>
+    /// Determines whether two FixedCurveKey instances are equal.
+    /// </summary>
     public static bool operator ==(FixedCurveKey left, FixedCurveKey right) => left.Equals(right);
 
+    /// <summary>
+    /// Determines whether two FixedCurveKey instances are not equal.
+    /// </summary>
     public static bool operator !=(FixedCurveKey left, FixedCurveKey right) => !(left == right);
 
     #endregion

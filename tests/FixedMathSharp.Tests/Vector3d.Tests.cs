@@ -1,8 +1,7 @@
-﻿using System;
-using MemoryPack;
+﻿using MemoryPack;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -926,9 +925,6 @@ public class Vector3dTests
         var vector = new Vector3d(new Fixed64(1.25), new Fixed64(2.5), new Fixed64(3.75));
         var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
 
-        Assert.Equal(
-            new Vector3d(new Fixed64(1.25) / vector.x, new Fixed64(1.25) / vector.y, new Fixed64(1.25) / vector.z),
-            new Fixed64(1.25) / vector);
         Assert.True((Vector3d.Right * rotation).FuzzyEqual(rotation * Vector3d.Right, new Fixed64(0.0001)));
         Assert.True(new Vector3d(2, 2, 2) > Vector3d.One);
         Assert.True(Vector3d.One < new Vector3d(2, 2, 2));
@@ -978,7 +974,7 @@ public class Vector3dTests
     [Fact]
     public void Vector3d_MemoryPackSerialization_RoundTripMaintainsData()
     {
-        Vector3d originalValue = new Vector3d(FixedMath.PI, FixedMath.PiOver2, FixedMath.TwoPI);
+        Vector3d originalValue = new(FixedMath.PI, FixedMath.PiOver2, FixedMath.TwoPI);
 
         byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
         Vector3d deserializedValue = MemoryPackSerializer.Deserialize<Vector3d>(bytes);

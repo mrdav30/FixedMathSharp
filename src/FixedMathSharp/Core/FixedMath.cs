@@ -11,19 +11,74 @@ namespace FixedMathSharp
     {
         #region Fields and Constants
 
-        public const int NUM_BITS = 64;
+        /// <summary>
+        /// Represents the number of bits to shift for fixed-point representation.
+        /// </summary>
         public const int SHIFT_AMOUNT_I = 32;
+        /// <summary>
+        /// Represents the maximum value that can be produced by left-shifting 1 by SHIFT_AMOUNT_I bits and subtracting 1.
+        /// </summary>
+        /// <remarks>
+        /// This constant is typically used as a bitmask to extract or limit values to the range
+        /// defined by SHIFT_AMOUNT_I. 
+        /// The value is always non-negative and fits within a 32-bit unsigned
+        /// integer.
+        /// </remarks>
         public const uint MAX_SHIFTED_AMOUNT_UI = (uint)((1L << SHIFT_AMOUNT_I) - 1);
+        /// <summary>
+        /// Represents a bitmask with all bits set except for the lowest SHIFT_AMOUNT_I bits.
+        /// </summary>
+        /// <remarks>
+        /// This constant is typically used to isolate or clear the lower SHIFT_AMOUNT_I bits of
+        /// an unsigned 64-bit value. 
+        /// The value of SHIFT_AMOUNT_I determines how many least significant bits are masked out.
+        /// </remarks>
         public const ulong MASK_UL = (ulong)(ulong.MaxValue << SHIFT_AMOUNT_I);
 
-        public const long MAX_VALUE_L = long.MaxValue; // Max possible value for Fixed64
-        public const long MIN_VALUE_L = long.MinValue; // Min possible value for Fixed64
+        /// <summary>
+        /// Represents the largest possible value for a 64-bit fixed-point number.
+        /// </summary>
+        /// <remarks>
+        /// Use this constant to perform comparisons or to initialize variables that require the
+        /// maximum representable value for a 64-bit fixed-point type.
+        /// </remarks>
+        public const long MAX_VALUE_L = long.MaxValue;
+        /// <summary>
+        /// Represents the smallest possible value for a 64-bit fixed-point number.
+        /// </summary>
+        /// <remarks>
+        /// Use this constant to check for underflow conditions or to initialize variables that
+        /// require the minimum representable value for a 64-bit fixed-point type.
+        /// </remarks>
+        public const long MIN_VALUE_L = long.MinValue;
 
+        /// <summary>
+        /// Represents the value 1 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
+        /// </summary>
         public const long ONE_L = 1L << SHIFT_AMOUNT_I;
 
         // Precomputed scale factors only for performance-critical scenarios to avoid division at runtime
+
+        /// <summary>
+        /// Represents the precomputed scale factor used for floating-point calculations.
+        /// </summary>
+        /// <remarks>
+        /// This constant is intended only for converting fixed-point values to floating-point representations in performance-critical scenarios.
+        /// </remarks>
         public const float SCALE_FACTOR_F = 1.0f / ONE_L;
+        /// <summary>
+        /// Represents the precomputed scale factor used for double-precision calculations.
+        /// </summary>
+        /// <remarks>
+        /// This constant is intended only for converting fixed-point values to double-precision representations in performance-critical scenarios.
+        /// </remarks>
         public const double SCALE_FACTOR_D = 1.0 / ONE_L;
+        /// <summary>
+        /// Represents the precomputed scale factor used for decimal calculations.
+        /// </summary>
+        /// <remarks>
+        /// This constant is intended only for converting fixed-point values to decimal representations in performance-critical scenarios.
+        /// </remarks>
         public const decimal SCALE_FACTOR_M = 1.0m / ONE_L;
 
         /// <summary>

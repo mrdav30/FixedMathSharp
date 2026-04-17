@@ -19,23 +19,44 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
 {
     #region Static Readonly Fields
 
-    public static readonly Fixed64 MAX_VALUE = new Fixed64(FixedMath.MAX_VALUE_L);
-    public static readonly Fixed64 MIN_VALUE = new Fixed64(FixedMath.MIN_VALUE_L);
+    /// <inheritdoc cref="FixedMath.MAX_VALUE_L" />
+    public static readonly Fixed64 MAX_VALUE = new(FixedMath.MAX_VALUE_L);
+    /// <inheritdoc cref="FixedMath.MIN_VALUE_L" />
+    public static readonly Fixed64 MIN_VALUE = new(FixedMath.MIN_VALUE_L);
 
-    public static readonly Fixed64 One = new Fixed64(FixedMath.ONE_L);
+    /// <inheritdoc cref="FixedMath.ONE_L" />
+    public static readonly Fixed64 One = new(FixedMath.ONE_L);
+    /// <summary>
+    /// Represents the value 2 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
+    /// </summary>
     public static readonly Fixed64 Two = One * 2;
+    /// <summary>
+    /// Represents the value 3 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
+    /// </summary>
     public static readonly Fixed64 Three = One * 3;
+    /// <summary>
+    /// Represents the value 0.5 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
+    /// </summary>
     public static readonly Fixed64 Half = One / 2;
+    /// <summary>
+    /// Represents the value 0.25 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
+    /// </summary>
     public static readonly Fixed64 Quarter = One / 4;
+    /// <summary>
+    /// Represents the value 0.125 shifted left by the number of bits specified by SHIFT_AMOUNT_I.
+    /// </summary>
     public static readonly Fixed64 Eighth = One / 8;
-    public static readonly Fixed64 Zero = new Fixed64(0);
+    /// <summary>
+    /// Represents the value 0 as a fixed-point number.
+    /// </summary>
+    public static readonly Fixed64 Zero = new(0);
 
 
     /// <inheritdoc cref="FixedMath.MIN_INCREMENT_L" />
-    public static readonly Fixed64 MinIncrement = new Fixed64(FixedMath.MIN_INCREMENT_L);
+    public static readonly Fixed64 MinIncrement = new(FixedMath.MIN_INCREMENT_L);
 
     /// <inheritdoc cref="FixedMath.DEFAULT_TOLERANCE_L" />
-    public static readonly Fixed64 Epsilon = new Fixed64(FixedMath.DEFAULT_TOLERANCE_L);
+    public static readonly Fixed64 Epsilon = new(FixedMath.DEFAULT_TOLERANCE_L);
 
     #endregion
 
@@ -173,60 +194,124 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
 
     #region Explicit and Implicit Conversions
 
+    /// <summary>
+    /// Converts a 64-bit signed integer to a Fixed64 value using explicit casting.
+    /// </summary>
+    /// <remarks>
+    /// The conversion interprets the input value as the integer part of the fixed-point number. 
+    /// Use this operator when an explicit conversion from long to Fixed64 is required.
+    /// </remarks>
+    /// <param name="value">The 64-bit signed integer to convert to a Fixed64 value.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator Fixed64(long value)
     {
         return FromRaw(value << FixedMath.SHIFT_AMOUNT_I);
     }
 
+    /// <summary>
+    /// Converts a Fixed64 value to a 64-bit signed integer by discarding the fractional part.
+    /// </summary>
+    /// <remarks>
+    /// The conversion truncates any fractional component. 
+    /// The result represents the integer portion of the Fixed64 value.</remarks>
+    /// <param name="value">The Fixed64 value to convert to a long integer.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator long(Fixed64 value)
     {
         return value.m_rawValue >> FixedMath.SHIFT_AMOUNT_I;
     }
 
+    /// <summary>
+    /// Defines an explicit conversion from a 32-bit signed integer to a Fixed64 value.
+    /// </summary>
+    /// <param name="value">The 32-bit signed integer to convert to a Fixed64 value.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator Fixed64(int value)
     {
         return new Fixed64(value);
     }
 
+    /// <summary>
+    /// Converts a Fixed64 value to a 32-bit signed integer by discarding the fractional part.
+    /// </summary>
+    /// <remarks>
+    /// The conversion truncates any fractional component. 
+    /// The result is equivalent to rounding toward zero.
+    /// </remarks>
+    /// <param name="value">The Fixed64 value to convert to an integer.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator int(Fixed64 value)
     {
         return (int)(value.m_rawValue >> FixedMath.SHIFT_AMOUNT_I);
     }
 
+    /// <summary>
+    /// Defines an explicit conversion from a single-precision floating-point value to a Fixed64 instance.
+    /// </summary>
+    /// <param name="value">The single-precision floating-point value to convert to Fixed64.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator Fixed64(float value)
     {
         return new Fixed64((double)value);
     }
 
+    /// <summary>
+    /// Converts a Fixed64 value to its equivalent single-precision floating-point representation.
+    /// </summary>
+    /// <remarks>
+    /// This conversion may result in a loss of precision if the Fixed64 value cannot be exactly  represented as a float.
+    /// </remarks>
+    /// <param name="value">The Fixed64 value to convert to a float.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator float(Fixed64 value)
     {
         return value.m_rawValue * FixedMath.SCALE_FACTOR_F;
     }
 
+    /// <summary>
+    /// Defines an explicit conversion from a double-precision floating-point number to a Fixed64 value.
+    /// </summary>
+    /// <remarks>
+    /// This conversion may result in loss of precision if the double value cannot be exactly represented as a Fixed64.
+    /// </remarks>
+    /// <param name="value">The double-precision floating-point number to convert to a Fixed64 value.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator Fixed64(double value)
     {
         return new Fixed64(value);
     }
 
+    /// <summary>
+    /// Converts a Fixed64 value to its equivalent double-precision floating-point representation.
+    /// </summary>
+    /// <remarks>
+    /// This conversion may result in a loss of precision if the Fixed64 value cannot be exactly represented as a double.
+    /// </remarks>
+    /// <param name="value">The Fixed64 value to convert to a double.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator double(Fixed64 value)
     {
         return value.m_rawValue * FixedMath.SCALE_FACTOR_D;
     }
 
+    /// <summary>
+    /// Defines an explicit conversion from a decimal value to a Fixed64 instance.
+    /// </summary>
+    /// <param name="value">The decimal value to convert to a Fixed64 instance.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator Fixed64(decimal value)
     {
         return new Fixed64((double)value);
     }
 
+    /// <summary>
+    /// Converts a Fixed64 value to its decimal representation.
+    /// </summary>
+    /// <remarks>
+    /// This operator provides an explicit conversion from Fixed64 to decimal, preserving the numeric value as closely as possible. 
+    /// Use this conversion when precise decimal arithmetic is required.
+    /// </remarks>
+    /// <param name="value">The Fixed64 value to convert to decimal.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator decimal(Fixed64 value)
     {
@@ -786,30 +871,28 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
         return obj is Fixed64 other && Equals(other);
     }
 
-    /// <summary>
-    /// Determines whether this instance equals another 
-    /// </summary>
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(Fixed64 other)
     {
         return m_rawValue == other.m_rawValue;
     }
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(Fixed64 x, Fixed64 y)
     {
         return x.Equals(y);
     }
 
-    /// <summary>
-    /// Returns the hash code for this Fixed64 instance.
-    /// </summary>
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode()
     {
         return m_rawValue.GetHashCode();
     }
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetHashCode(Fixed64 obj)
     {

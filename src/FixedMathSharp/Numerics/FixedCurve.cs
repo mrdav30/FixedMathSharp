@@ -59,10 +59,16 @@ public partial class FixedCurve : IEquatable<FixedCurve>
 
     #region Properties 
 
+    /// <summary>
+    /// Gets the mode used for the fixed curve calculation.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(0)]
     public FixedCurveMode Mode { get; private set; }
 
+    /// <summary>
+    /// Gets the collection of keyframes that define the curve.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(1)]
     public FixedCurveKey[] Keyframes { get; private set; }
@@ -112,6 +118,7 @@ public partial class FixedCurve : IEquatable<FixedCurve>
 
     #region Equality
 
+    /// <inheritdoc/>
     public bool Equals(FixedCurve? other)
     {
         if (other is null) return false;
@@ -119,8 +126,10 @@ public partial class FixedCurve : IEquatable<FixedCurve>
         return Mode == other.Mode && Keyframes.SequenceEqual(other.Keyframes);
     }
 
+    /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is FixedCurve other && Equals(other);
 
+    /// <inheritdoc/>
     public override int GetHashCode()
     {
         unchecked
@@ -132,8 +141,14 @@ public partial class FixedCurve : IEquatable<FixedCurve>
         }
     }
 
+    /// <summary>
+    /// Determines whether two FixedCurve instances are equal.
+    /// </summary>
     public static bool operator ==(FixedCurve? left, FixedCurve? right) => left?.Equals(right) ?? right is null;
 
+    /// <summary>
+    /// Determines whether two FixedCurve instances are not equal.
+    /// </summary>
     public static bool operator !=(FixedCurve? left, FixedCurve? right) => !(left == right);
 
     #endregion

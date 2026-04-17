@@ -350,7 +350,7 @@ public class FixedRangeTests
     [Fact]
     public void FixedRange_MemoryPackSerialization_RoundTripMaintainsData()
     {
-        FixedRange originalValue = new FixedRange(new Fixed64(-10), new Fixed64(10));
+        FixedRange originalValue = new(new Fixed64(-10), new Fixed64(10));
 
         byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
         FixedRange deserializedValue = MemoryPackSerializer.Deserialize<FixedRange>(bytes);

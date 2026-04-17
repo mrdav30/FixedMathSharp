@@ -1,5 +1,5 @@
-using System;
 using FixedMathSharp.Assertions;
+using System;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -19,8 +19,8 @@ public class FixedAssertionsTests
     [Fact]
     public void Fixed64Assertions_SupportApproximateEqualityAndRawValueChecks()
     {
-        Fixed64 value = new Fixed64(1.25);
-        Fixed64 farValue = new Fixed64(2);
+        Fixed64 value = new(1.25);
+        Fixed64 farValue = new(2);
 
         AssertAssertionPasses(() =>
         {
@@ -35,7 +35,7 @@ public class FixedAssertionsTests
     [Fact]
     public void Fixed64Assertions_FailForApproximateAndRawValueMismatches()
     {
-        Fixed64 value = new Fixed64(1.25);
+        Fixed64 value = new(1.25);
 
         AssertAssertionFails(() => value.Should().Be(new Fixed64(2)));
         AssertAssertionFails(() => value.Should().NotBe(value));
@@ -47,8 +47,8 @@ public class FixedAssertionsTests
     [Fact]
     public void Vector2dAssertions_SupportApproximateMagnitudeAndNormalizationChecks()
     {
-        Vector2d actual = new Vector2d(2.001, 3.001);
-        Vector2d expected = new Vector2d(2, 3);
+        Vector2d actual = new(2.001, 3.001);
+        Vector2d expected = new(2, 3);
         Vector2d normalized = new Vector2d(3, 4).Normalize();
 
         AssertAssertionPasses(() =>
@@ -66,7 +66,7 @@ public class FixedAssertionsTests
     [Fact]
     public void Vector2dAssertions_FailWhenExpectedValuesDoNotMatch()
     {
-        Vector2d actual = new Vector2d(2, 3);
+        Vector2d actual = new(2, 3);
 
         AssertAssertionFails(() => actual.Should().Be(new Vector2d(2, 4)));
         AssertAssertionFails(() => actual.Should().NotBe(actual));
@@ -80,8 +80,8 @@ public class FixedAssertionsTests
     [Fact]
     public void Vector3dAssertions_SupportApproximateMagnitudeAndNormalizationChecks()
     {
-        Vector3d actual = new Vector3d(1.001, 2.001, 3.001);
-        Vector3d expected = new Vector3d(1, 2, 3);
+        Vector3d actual = new(1.001, 2.001, 3.001);
+        Vector3d expected = new(1, 2, 3);
         Vector3d normalized = new Vector3d(3, 4, 0).Normalize();
 
         AssertAssertionPasses(() =>
@@ -99,7 +99,7 @@ public class FixedAssertionsTests
     [Fact]
     public void Vector3dAssertions_FailWhenExpectedValuesDoNotMatch()
     {
-        Vector3d actual = new Vector3d(1, 2, 3);
+        Vector3d actual = new(1, 2, 3);
 
         AssertAssertionFails(() => actual.Should().Be(new Vector3d(1, 2, 4)));
         AssertAssertionFails(() => actual.Should().NotBe(actual));
@@ -115,7 +115,7 @@ public class FixedAssertionsTests
     {
         FixedQuaternion actual = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
         FixedQuaternion negated = actual * -Fixed64.One;
-        FixedQuaternion wOffset = new FixedQuaternion(actual.x, actual.y, actual.z, actual.w + new Fixed64(0.2));
+        FixedQuaternion wOffset = new(actual.x, actual.y, actual.z, actual.w + new Fixed64(0.2));
 
         AssertAssertionPasses(() =>
         {
@@ -136,7 +136,7 @@ public class FixedAssertionsTests
         FixedQuaternion actual = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
         FixedQuaternion differentRotation = FixedQuaternion.FromAxisAngle(Vector3d.Right, FixedMath.PiOver2);
         FixedQuaternion scaled = actual * new Fixed64(2);
-        FixedQuaternion wOffset = new FixedQuaternion(actual.x, actual.y, actual.z, actual.w + new Fixed64(0.2));
+        FixedQuaternion wOffset = new(actual.x, actual.y, actual.z, actual.w + new Fixed64(0.2));
 
         AssertAssertionFails(() => actual.Should().Be(FixedQuaternion.Identity));
         AssertAssertionFails(() => FixedQuaternion.Identity.Should().NotBe(FixedQuaternion.Identity));
@@ -150,10 +150,10 @@ public class FixedAssertionsTests
     [Fact]
     public void Fixed3x3Assertions_SupportIdentityScaleAndAxisAssertions()
     {
-        Vector3d scale = new Vector3d(2, 3, 4);
+        Vector3d scale = new(2, 3, 4);
         Fixed3x3 rotation = Fixed3x3.CreateRotationY(FixedMath.PiOver2);
         Fixed3x3 scaleMatrix = Fixed3x3.CreateScale(scale);
-        Fixed3x3 mismatch = new Fixed3x3(
+        Fixed3x3 mismatch = new(
             rotation.m00, rotation.m01, rotation.m02,
             rotation.m10, rotation.m11, rotation.m12,
             rotation.m20, rotation.m21, rotation.m22 + new Fixed64(0.2));
@@ -173,7 +173,7 @@ public class FixedAssertionsTests
     public void Fixed3x3Assertions_FailForIdentityScaleAndAxisMismatches()
     {
         Fixed3x3 rotation = Fixed3x3.CreateRotationY(FixedMath.PiOver2);
-        Fixed3x3 mismatch = new Fixed3x3(
+        Fixed3x3 mismatch = new(
             rotation.m00, rotation.m01, rotation.m02,
             rotation.m10, rotation.m11, rotation.m12,
             rotation.m20, rotation.m21, rotation.m22 + new Fixed64(0.2));
@@ -189,12 +189,12 @@ public class FixedAssertionsTests
     [Fact]
     public void Fixed4x4Assertions_SupportIdentityAffineAndTransformAssertions()
     {
-        Vector3d translation = new Vector3d(1, 2, 3);
+        Vector3d translation = new(1, 2, 3);
         FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
-        Vector3d scale = new Vector3d(2, 2, 2);
+        Vector3d scale = new(2, 2, 2);
         Fixed4x4 transform = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
         Fixed4x4 rotationOnly = Fixed4x4.CreateRotation(rotation);
-        Fixed4x4 mismatch = new Fixed4x4(
+        Fixed4x4 mismatch = new(
             transform.m00, transform.m01, transform.m02, transform.m03,
             transform.m10, transform.m11, transform.m12, transform.m13,
             transform.m20, transform.m21, transform.m22, transform.m23,
@@ -217,12 +217,12 @@ public class FixedAssertionsTests
     [Fact]
     public void Fixed4x4Assertions_FailForIdentityAffineAndTransformMismatches()
     {
-        Vector3d translation = new Vector3d(1, 2, 3);
+        Vector3d translation = new(1, 2, 3);
         FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
         FixedQuaternion differentRotation = FixedQuaternion.FromAxisAngle(Vector3d.Right, FixedMath.PiOver2);
-        Vector3d scale = new Vector3d(2, 2, 2);
+        Vector3d scale = new(2, 2, 2);
         Fixed4x4 transform = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
-        Fixed4x4 mismatch = new Fixed4x4(
+        Fixed4x4 mismatch = new(
             transform.m00, transform.m01, transform.m02, transform.m03,
             transform.m10, transform.m11, transform.m12, transform.m13,
             transform.m20, transform.m21, transform.m22, transform.m23,

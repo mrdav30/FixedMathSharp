@@ -10,7 +10,7 @@ public class FixedCurveTests
     [Fact]
     public void Evaluate_LinearInterpolation_ShouldInterpolateCorrectly()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear,
+        FixedCurve curve = new(FixedCurveMode.Linear,
             new FixedCurveKey(0, 0),
             new FixedCurveKey(10, 100));
 
@@ -22,7 +22,7 @@ public class FixedCurveTests
     [Fact]
     public void Evaluate_StepInterpolation_ShouldJumpToNearestKeyframe()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Step,
+        FixedCurve curve = new(FixedCurveMode.Step,
             new FixedCurveKey(0, 10),
             new FixedCurveKey(5, 50),
             new FixedCurveKey(10, 100));
@@ -37,7 +37,7 @@ public class FixedCurveTests
     [Fact]
     public void Evaluate_SmoothInterpolation_ShouldSmoothlyTransition()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Smooth,
+        FixedCurve curve = new(FixedCurveMode.Smooth,
             new FixedCurveKey(0, 0),
             new FixedCurveKey(10, 100));
 
@@ -48,7 +48,7 @@ public class FixedCurveTests
     [Fact]
     public void Evaluate_CubicInterpolation_ShouldUseTangentsCorrectly()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Cubic,
+        FixedCurve curve = new(FixedCurveMode.Cubic,
             new FixedCurveKey(0, 0, 10, 10),
             new FixedCurveKey(10, 100, -10, -10));
 
@@ -59,7 +59,7 @@ public class FixedCurveTests
     [Fact]
     public void Evaluate_TimeBeforeFirstKeyframe_ShouldReturnFirstValue()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear,
+        FixedCurve curve = new(FixedCurveMode.Linear,
             new FixedCurveKey(5, 50),
             new FixedCurveKey(10, 100));
 
@@ -69,7 +69,7 @@ public class FixedCurveTests
     [Fact]
     public void Evaluate_TimeAfterLastKeyframe_ShouldReturnLastValue()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear,
+        FixedCurve curve = new(FixedCurveMode.Linear,
             new FixedCurveKey(5, 50),
             new FixedCurveKey(10, 100));
 
@@ -79,7 +79,7 @@ public class FixedCurveTests
     [Fact]
     public void Evaluate_SingleKeyframe_ShouldAlwaysReturnSameValue()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear,
+        FixedCurve curve = new(FixedCurveMode.Linear,
             new FixedCurveKey(5, 50));
 
         Assert.Equal((Fixed64)50, curve.Evaluate(Fixed64.Zero));
@@ -89,7 +89,7 @@ public class FixedCurveTests
     [Fact]
     public void Evaluate_DuplicateKeyframes_ShouldHandleGracefully()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear,
+        FixedCurve curve = new(FixedCurveMode.Linear,
             new FixedCurveKey(5, 50),
             new FixedCurveKey(5, 50), // Duplicate
             new FixedCurveKey(10, 100));
@@ -101,7 +101,7 @@ public class FixedCurveTests
     [Fact]
     public void Evaluate_NegativeValues_ShouldInterpolateCorrectly()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear,
+        FixedCurve curve = new(FixedCurveMode.Linear,
             new FixedCurveKey(-10, -100),
             new FixedCurveKey(0, 0),
             new FixedCurveKey(10, 100));
@@ -114,7 +114,7 @@ public class FixedCurveTests
     [Fact]
     public void Evaluate_ExtremeValues_ShouldHandleCorrectly()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear,
+        FixedCurve curve = new(FixedCurveMode.Linear,
             new FixedCurveKey(Fixed64.MIN_VALUE, -(Fixed64)10000),
             new FixedCurveKey(Fixed64.MAX_VALUE, (Fixed64)10000));
 
@@ -127,11 +127,11 @@ public class FixedCurveTests
     {
         FixedCurveKey[] keyframes =
         {
-            new FixedCurveKey(10, 100),
-            new FixedCurveKey(0, 0)
+            new(10, 100),
+            new(0, 0)
         };
 
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear, keyframes);
+        FixedCurve curve = new(FixedCurveMode.Linear, keyframes);
         keyframes[0] = new FixedCurveKey(20, 200);
 
         Assert.Equal(Fixed64.Zero, curve.Keyframes[0].Time);
@@ -141,7 +141,7 @@ public class FixedCurveTests
     [Fact]
     public void Constructor_WithNullKeyframes_UsesEmptyArray()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear, null!);
+        FixedCurve curve = new(FixedCurveMode.Linear, null!);
 
         Assert.Empty(curve.Keyframes);
     }
@@ -149,7 +149,7 @@ public class FixedCurveTests
     [Fact]
     public void Evaluate_NoKeyframes_ReturnsOne()
     {
-        FixedCurve curve = new FixedCurve(FixedCurveMode.Linear, System.Array.Empty<FixedCurveKey>());
+        FixedCurve curve = new(FixedCurveMode.Linear, System.Array.Empty<FixedCurveKey>());
 
         Assert.Equal(Fixed64.One, curve.Evaluate(Fixed64.Zero));
     }
@@ -157,13 +157,13 @@ public class FixedCurveTests
     [Fact]
     public void FixedCurve_EqualityOperatorsAndHashCode_WorkCorrectly()
     {
-        FixedCurve curve = new FixedCurve(
+        FixedCurve curve = new(
             new FixedCurveKey(0, 0),
             new FixedCurveKey(10, 10));
-        FixedCurve same = new FixedCurve(
+        FixedCurve same = new(
             new FixedCurveKey(0, 0),
             new FixedCurveKey(10, 10));
-        FixedCurve other = new FixedCurve(
+        FixedCurve other = new(
             new FixedCurveKey(0, 0),
             new FixedCurveKey(10, 5));
         FixedCurve? nullCurve = null;
@@ -181,9 +181,9 @@ public class FixedCurveTests
     [Fact]
     public void FixedCurveKey_ConstructorsEqualityAndHashCode_WorkCorrectly()
     {
-        FixedCurveKey fromDouble = new FixedCurveKey(1.5, 2.5, 3.5, 4.5);
-        FixedCurveKey same = new FixedCurveKey(new Fixed64(1.5), new Fixed64(2.5), new Fixed64(3.5), new Fixed64(4.5));
-        FixedCurveKey simple = new FixedCurveKey(1.5, 2.5);
+        FixedCurveKey fromDouble = new(1.5, 2.5, 3.5, 4.5);
+        FixedCurveKey same = new(new Fixed64(1.5), new Fixed64(2.5), new Fixed64(3.5), new Fixed64(4.5));
+        FixedCurveKey simple = new(1.5, 2.5);
 
         Assert.Equal(new Fixed64(1.5), fromDouble.Time);
         Assert.Equal(new Fixed64(2.5), fromDouble.Value);
@@ -224,7 +224,7 @@ public class FixedCurveTests
     [Fact]
     public void FixedCurve_MemoryPackSerialization_RoundTripMaintainsData()
     {
-        FixedCurve originalValue = new FixedCurve(
+        FixedCurve originalValue = new(
             new FixedCurveKey(-10, -100),
             new FixedCurveKey(0, 0),
             new FixedCurveKey(10, 100));

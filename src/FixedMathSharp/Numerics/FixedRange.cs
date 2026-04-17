@@ -17,12 +17,12 @@ public partial struct FixedRange : IEquatable<FixedRange>
     /// <summary>
     /// The smallest possible range.
     /// </summary>
-    public static readonly FixedRange MinRange = new FixedRange(Fixed64.MIN_VALUE, Fixed64.MIN_VALUE);
+    public static readonly FixedRange MinRange = new(Fixed64.MIN_VALUE, Fixed64.MIN_VALUE);
 
     /// <summary>
     /// The largest possible range.
     /// </summary>
-    public static readonly FixedRange MaxRange = new FixedRange(Fixed64.MAX_VALUE, Fixed64.MAX_VALUE);
+    public static readonly FixedRange MaxRange = new(Fixed64.MAX_VALUE, Fixed64.MAX_VALUE);
 
     #endregion
 
@@ -225,29 +225,42 @@ public partial struct FixedRange : IEquatable<FixedRange>
 
     #region Operators
 
+    /// <summary>
+    /// Adds two FixedRange instances by summing their minimum and maximum values.
+    /// </summary>
+    /// <param name="left">The first FixedRange to add.</param>
+    /// <param name="right">The second FixedRange to add.</param>
+    /// <returns>A new FixedRange whose Min is the sum of the Min values and whose Max is the sum of the Max values of the
+    /// specified ranges.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedRange operator +(FixedRange left, FixedRange right)
     {
         return new FixedRange(left.Min + right.Min, left.Max + right.Max);
     }
 
+    /// <summary>
+    /// Subtracts the minimum and maximum values of one FixedRange from another and returns the resulting FixedRange.
+    /// </summary>
+    /// <param name="left">The FixedRange instance to subtract from.</param>
+    /// <param name="right">The FixedRange instance whose values are subtracted.</param>
+    /// <returns>A FixedRange whose Min and Max values are the result of subtracting the corresponding values of right from left.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedRange operator -(FixedRange left, FixedRange right)
     {
         return new FixedRange(left.Min - right.Min, left.Max - right.Max);
     }
 
+    /// <summary>
+    /// Determines whether two FixedRange instances are equal.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator ==(FixedRange left, FixedRange right)
-    {
-        return left.Equals(right);
-    }
+    public static bool operator ==(FixedRange left, FixedRange right) => left.Equals(right);
 
+    /// <summary>
+    /// Determines whether two FixedRange instances are not equal.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator !=(FixedRange left, FixedRange right)
-    {
-        return !left.Equals(right);
-    }
+    public static bool operator !=(FixedRange left, FixedRange right) => !left.Equals(right);
 
     #endregion
 
@@ -266,12 +279,14 @@ public partial struct FixedRange : IEquatable<FixedRange>
 
     #region Equality and HashCode Overrides
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj)
     {
         return obj is FixedRange other && Equals(other);
     }
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(FixedRange other)
     {

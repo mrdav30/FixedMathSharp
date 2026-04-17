@@ -1,5 +1,5 @@
-﻿using System;
-using MemoryPack;
+﻿using MemoryPack;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -602,7 +602,7 @@ public class Vector2dTests
     [Fact]
     public void Vector2d_MemoryPackSerialization_RoundTripMaintainsData()
     {
-        Vector2d originalValue = new Vector2d(FixedMath.PI, FixedMath.PiOver2);
+        Vector2d originalValue = new(FixedMath.PI, FixedMath.PiOver2);
 
         byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
         Vector2d deserializedValue = MemoryPackSerializer.Deserialize<Vector2d>(bytes);

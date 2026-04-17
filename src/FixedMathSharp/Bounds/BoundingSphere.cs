@@ -55,6 +55,13 @@ namespace FixedMathSharp
 
         #region Properties
 
+        /// <summary>
+        /// Gets the coordinates of the minimum corner of the bounding box that contains the sphere.
+        /// </summary>
+        /// <remarks>
+        /// The minimum corner is calculated by subtracting the radius from each component of the sphere's center. 
+        /// This property is useful for spatial queries and bounding box calculations.
+        /// </remarks>
         [JsonIgnore]
         [MemoryPackIgnore]
         public Vector3d Min
@@ -63,6 +70,13 @@ namespace FixedMathSharp
             get => Center - new Vector3d(Radius, Radius, Radius);
         }
 
+        /// <summary>
+        /// Gets the coordinates of the maximum corner of the bounding box that contains the sphere.
+        /// </summary>
+        /// <remarks>
+        /// The maximum corner is calculated as the center of the sphere plus the radius in each dimension. 
+        /// This property is useful for spatial queries and bounding volume calculations.
+        /// </remarks>
         [JsonIgnore]
         [MemoryPackIgnore]
         public Vector3d Max
@@ -146,9 +160,15 @@ namespace FixedMathSharp
 
         #region Operators
 
+        /// <summary>
+        /// Determines whether two BoundingSphere instances are equal.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator ==(BoundingSphere left, BoundingSphere right) => left.Equals(right);
 
+        /// <summary>
+        /// Determines whether two BoundingSphere instances are not equal.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator !=(BoundingSphere left, BoundingSphere right) => !left.Equals(right);
 
@@ -156,12 +176,15 @@ namespace FixedMathSharp
 
         #region Equality and HashCode Overrides
 
+        /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(object? obj) => obj is BoundingSphere other && Equals(other);
 
+        /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(BoundingSphere other) => Center.Equals(other.Center) && Radius.Equals(other.Radius);
 
+        /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int GetHashCode()
         {

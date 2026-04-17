@@ -89,6 +89,9 @@ public partial struct BoundingArea : IBound, IEquatable<BoundingArea>
         get => new(MaxX, MaxY, MaxZ);
     }
 
+    /// <summary>
+    /// The minimum X coordinate of the bounding area.
+    /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 MinX
@@ -97,6 +100,9 @@ public partial struct BoundingArea : IBound, IEquatable<BoundingArea>
         get => Corner1.x < Corner2.x ? Corner1.x : Corner2.x;
     }
 
+    /// <summary>
+    /// Gets the greater X-coordinate value of the two corners that define the bounding area.
+    /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 MaxX
@@ -105,6 +111,9 @@ public partial struct BoundingArea : IBound, IEquatable<BoundingArea>
         get => Corner1.x > Corner2.x ? Corner1.x : Corner2.x;
     }
 
+    /// <summary>
+    /// Gets the minimum Y-coordinate value of the bounding area defined by Corner1 and Corner2.
+    /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 MinY
@@ -113,6 +122,9 @@ public partial struct BoundingArea : IBound, IEquatable<BoundingArea>
         get => Corner1.y < Corner2.y ? Corner1.y : Corner2.y;
     }
 
+    /// <summary>
+    /// Gets the maximum Y-coordinate value of the bounding area defined by the two corners.
+    /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 MaxY
@@ -121,6 +133,9 @@ public partial struct BoundingArea : IBound, IEquatable<BoundingArea>
         get => Corner1.y > Corner2.y ? Corner1.y : Corner2.y;
     }
 
+    /// <summary>
+    /// Gets the minimum Z coordinate value of the bounding volume.
+    /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 MinZ
@@ -129,6 +144,9 @@ public partial struct BoundingArea : IBound, IEquatable<BoundingArea>
         get => Corner1.z < Corner2.z ? Corner1.z : Corner2.z;
     }
 
+    /// <summary>
+    /// Gets the maximum Z coordinate value between the two corners of the bounding box.
+    /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 MaxZ
@@ -290,9 +308,21 @@ public partial struct BoundingArea : IBound, IEquatable<BoundingArea>
 
     #region Operators
 
+    /// <summary>
+    /// Determines whether two BoundingArea instances are equal.
+    /// </summary>
+    /// <param name="left">The first BoundingArea to compare.</param>
+    /// <param name="right">The second BoundingArea to compare.</param>
+    /// <returns>true if the specified BoundingArea instances are equal; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(BoundingArea left, BoundingArea right) => left.Equals(right);
 
+    /// <summary>
+    /// Determines whether two BoundingArea instances are not equal.
+    /// </summary>
+    /// <param name="left">The first BoundingArea to compare.</param>
+    /// <param name="right">The second BoundingArea to compare.</param>
+    /// <returns>true if the specified BoundingArea instances are not equal; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(BoundingArea left, BoundingArea right) => !left.Equals(right);
 
@@ -300,12 +330,15 @@ public partial struct BoundingArea : IBound, IEquatable<BoundingArea>
 
     #region Equality and HashCode Overrides
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj) => obj is BoundingArea other && Equals(other);
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(BoundingArea other) => Corner1.Equals(other.Corner1) && Corner2.Equals(other.Corner2);
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode()
     {

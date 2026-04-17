@@ -39,32 +39,65 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
 
     #region Fields
 
+    // First row
+
+    /// <summary>
+    /// Represents the element in the first row and first column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(0)]
     public Fixed64 m00;
+    /// <summary>
+    /// Represents the element in the first row and second column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(1)]
     public Fixed64 m01;
+    /// <summary>
+    /// Represents the element in the first row and third column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(2)]
     public Fixed64 m02;
 
+    // Second Row
+
+    /// <summary>
+    /// Represents the element in the second row and first column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(3)]
     public Fixed64 m10;
+    /// <summary>
+    /// Represents the element in the second row and second column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(4)]
     public Fixed64 m11;
+    /// <summary>
+    /// Represents the element in the second row and third column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(5)]
     public Fixed64 m12;
 
+    // Third Row
+
+    /// <summary>
+    /// Represents the element in the third row and first column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(6)]
     public Fixed64 m20;
+    /// <summary>
+    /// Represents the element in the third row and second column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(7)]
     public Fixed64 m21;
+    /// <summary>
+    /// Represents the element in the third row and third column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(8)]
     public Fixed64 m22;
@@ -100,6 +133,16 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
 
     #region Properties
 
+    /// <summary>
+    /// Gets or sets the matrix element at the specified index.
+    /// </summary>
+    /// <remarks>
+    /// The mapping between indices and matrix elements is non-sequential. 
+    /// Ensure that the index corresponds to a valid matrix element.
+    /// </remarks>
+    /// <param name="index">The zero-based index of the matrix element to get or set. Valid values are 0, 1, 2, 4, 5, 6, 8, 9, and 10.</param>
+    /// <returns>The matrix element at the specified index.</returns>
+    /// <exception cref="IndexOutOfRangeException">Thrown when the specified index is not one of the valid matrix element indices.</exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 this[int index]
@@ -400,7 +443,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         matrix.ResetScaleToIdentity();
 
         // Compute the new local scale by dividing the desired global scale by the current global scale
-        Vector3d newLocalScale = new Vector3d(
+        Vector3d newLocalScale = new(
             globalScale.x / Fixed64.One,
             globalScale.y / Fixed64.One,
             globalScale.z / Fixed64.One
@@ -537,6 +580,14 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
 
     #region Operators
 
+    /// <summary>
+    /// Subtracts each corresponding element of one Fixed3x3 matrix from another.
+    /// </summary>
+    /// <param name="a">The first Fixed3x3 matrix (the minuend).</param>
+    /// <param name="b">The second Fixed3x3 matrix (the subtrahend).</param>
+    /// <returns>
+    /// A Fixed3x3 matrix whose elements are the result of subtracting each element of parameter b from the corresponding element of parameter a.
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed3x3 operator -(Fixed3x3 a, Fixed3x3 b)
     {
@@ -548,6 +599,12 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         );
     }
 
+    /// <summary>
+    /// Adds two Fixed3x3 matrices element-wise.
+    /// </summary>
+    /// <param name="a">The first matrix to add.</param>
+    /// <param name="b">The second matrix to add.</param>
+    /// <returns>A Fixed3x3 matrix whose elements are the sums of the corresponding elements of the input matrices.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed3x3 operator +(Fixed3x3 a, Fixed3x3 b)
     {
@@ -571,6 +628,14 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
             -a.m20, -a.m21, -a.m22
         );
     }
+
+    /// <summary>
+    /// Performs matrix multiplication on two 3x3 matrices.
+    /// </summary>
+    /// <remarks>Matrix multiplication is not commutative; the order of operands affects the result.</remarks>
+    /// <param name="a">The first matrix to multiply.</param>
+    /// <param name="b">The second matrix to multiply.</param>
+    /// <returns>A new Fixed3x3 instance that is the product of the two input matrices.</returns>
     public static Fixed3x3 operator *(Fixed3x3 a, Fixed3x3 b)
     {
         // Perform matrix multiplication
@@ -589,6 +654,14 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         );
     }
 
+    /// <summary>
+    /// Multiplies each element of the specified matrix by the given scalar value.
+    /// </summary>
+    /// <param name="a">The matrix whose elements are to be multiplied.</param>
+    /// <param name="scalar">The scalar value by which to multiply each element of the matrix.</param>
+    /// <returns>
+    /// A new Fixed3x3 matrix whose elements are the result of multiplying each element of the input matrix by the scalar value.
+    /// </returns>
     public static Fixed3x3 operator *(Fixed3x3 a, Fixed64 scalar)
     {
         // Perform matrix multiplication by scalar
@@ -599,12 +672,25 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         );
     }
 
+    /// <inheritdoc cref="operator *(Fixed3x3, Fixed64)"/>
     public static Fixed3x3 operator *(Fixed64 scalar, Fixed3x3 a)
     {
         // Perform matrix multiplication by scalar
         return a * scalar;
     }
 
+    /// <summary>
+    /// Divides each element of the specified matrix by the given scalar value.
+    /// </summary>
+    /// <remarks>
+    /// Division is performed element-wise. 
+    /// The result may lose precision if the divisor does not evenly divide the matrix elements.
+    /// </remarks>
+    /// <param name="a">The matrix whose elements are to be divided.</param>
+    /// <param name="divisor">The scalar value by which to divide each element of the matrix.</param>
+    /// <returns>
+    /// A new Fixed3x3 matrix whose elements are the result of dividing the corresponding elements of the input matrix by the specified scalar.
+    /// </returns>
     public static Fixed3x3 operator /(Fixed3x3 a, int divisor)
     {
         // Perform matrix multiplication by scalar
@@ -615,17 +701,24 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         );
     }
 
-    public static Fixed3x3 operator /(int divisor, Fixed3x3 a)
-    {
-        return a / divisor;
-    }
-
+    /// <summary>
+    /// Determines whether two Fixed3x3 instances are equal.
+    /// </summary>
+    /// <param name="left">The first Fixed3x3 instance to compare.</param>
+    /// <param name="right">The second Fixed3x3 instance to compare.</param>
+    /// <returns>true if the specified Fixed3x3 instances are equal; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(Fixed3x3 left, Fixed3x3 right)
     {
         return left.Equals(right);
     }
 
+    /// <summary>
+    /// Determines whether two Fixed3x3 instances are not equal.
+    /// </summary>
+    /// <param name="left">The first Fixed3x3 instance to compare.</param>
+    /// <param name="right">The second Fixed3x3 instance to compare.</param>
+    /// <returns>true if the specified Fixed3x3 instances are not equal; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(Fixed3x3 left, Fixed3x3 right)
     {
@@ -636,6 +729,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
 
     #region Equality and HashCode Overrides
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(Fixed3x3 other)
     {
@@ -646,12 +740,14 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
             m20 == other.m20 && m21 == other.m21 && m22 == other.m22;
     }
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj)
     {
         return obj is Fixed3x3 other && Equals(other);
     }
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode()
     {
@@ -675,6 +771,14 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
 
     #region Conversion
 
+    /// <summary>
+    /// Returns a string that represents the current matrix in a readable format.
+    /// </summary>
+    /// <remarks>
+    /// This method is useful for debugging or logging the contents of the matrix. 
+    /// The returned string lists the matrix elements in row-major order.
+    /// </remarks>
+    /// <returns>A string containing the matrix elements formatted as "[m00, m01, m02; m10, m11, m12; m20, m21, m22]".</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override string ToString()
     {

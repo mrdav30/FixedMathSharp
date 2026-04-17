@@ -7,6 +7,14 @@ namespace FixedMathSharp
     {
         #region Fields and Constants
 
+        /// <summary>
+        /// Provides a lookup table of integer powers of 10 from 10^0 to 10^9.
+        /// </summary>
+        /// <remarks>
+        /// This array can be used to efficiently retrieve the value of 10 raised to an integer
+        /// exponent within the supported range, avoiding repeated calculations. 
+        /// The index corresponds to the exponent.
+        /// </remarks>
         public static readonly int[] Pow10Lookup = {
             1,           // 10^0 = 1
             10,          // 10^1 = 10
@@ -21,16 +29,44 @@ namespace FixedMathSharp
         };
 
         // Trigonometric and logarithmic constants
+
+        /// <summary>
+        /// Represents the mathematical constant π (pi).
+        /// </summary>
+        /// <remarks>The value is approximately 3.14159265358979323846.</remarks>
         public static readonly Fixed64 PI = (Fixed64)3.14159265358979323846;
 
+        /// <summary>
+        /// Represents the mathematical constant 2π as a fixed-point value.
+        /// </summary>
+        /// <remarks>This value is commonly used to represent a full rotation in radians.</remarks>
         public static readonly Fixed64 TwoPI = PI * Fixed64.Two;
+        /// <summary>
+        /// Represents the mathematical constant π divided by 2 as a fixed-point value.
+        /// </summary>
+        /// <remarks>This value is used where π/2 is required.</remarks>
         public static readonly Fixed64 PiOver2 = PI / new Fixed64(2);
+        /// <summary>
+        /// Represents the mathematical constant π divided by 3 as a fixed-point value.
+        /// </summary>
         public static readonly Fixed64 PiOver3 = PI / new Fixed64(3);
+        /// <summary>
+        /// Represents the mathematical constant π divided by 4 as a fixed-point value.
+        /// </summary>
         public static readonly Fixed64 PiOver4 = PI / new Fixed64(4);
+        /// <summary>
+        /// Represents the mathematical constant π divided by 6 as a fixed-point value.
+        /// </summary>
         public static readonly Fixed64 PiOver6 = PI / new Fixed64(6);
+        /// <summary>
+        /// Represents the multiplicative inverse of the mathematical constant π (pi) as a fixed-point value.
+        /// </summary>
         public static readonly Fixed64 InvertedPI = Fixed64.One / PI;
 
-        public static readonly Fixed64 OneEighty = new Fixed64(180);
+        /// <summary>
+        /// Represents the fixed-point value for 180.
+        /// </summary>
+        public static readonly Fixed64 OneEighty = new(180);
 
         /// <summary>
         /// Degrees to radians conversion factor (π / 180)
@@ -41,9 +77,26 @@ namespace FixedMathSharp
         /// </summary>
         public static readonly Fixed64 Rad2Deg = OneEighty / PI;
 
-        public static readonly Fixed64 Ln2 = new Fixed64(0.6931471805599453);  // Natural logarithm of 2
-        public static readonly Fixed64 LOG_2_MAX = new Fixed64(63L * ONE_L);
-        public static readonly Fixed64 LOG_2_MIN = new Fixed64(-64L * ONE_L);
+        /// <summary>
+        /// Represents the natural logarithm of 2 as a fixed-point value.
+        /// </summary>
+        public static readonly Fixed64 Ln2 = new(0.6931471805599453);
+        /// <summary>
+        /// Represents the maximum value for the base-2 logarithm that can be represented by a Fixed64 instance.
+        /// </summary>
+        /// <remarks>
+        /// This constant is useful when performing logarithmic calculations to ensure results 
+        /// do not exceed the representable range of the Fixed64 type.
+        /// </remarks>
+        public static readonly Fixed64 LOG_2_MAX = new(63L * ONE_L);
+        /// <summary>
+        /// Represents the minimum base-2 logarithm value supported by the Fixed64 type.
+        /// </summary>
+        /// <remarks>
+        /// This constant can be used as a lower bound when performing logarithmic calculations
+        /// with Fixed64 values to prevent underflow or invalid results.
+        /// </remarks>
+        public static readonly Fixed64 LOG_2_MIN = new(-64L * ONE_L);
 
         // Asin Padé approximations
         private static readonly Fixed64 PADE_A1 = (Fixed64)0.183320102;
@@ -144,7 +197,7 @@ namespace FixedMathSharp
         public static Fixed64 Log2(Fixed64 x)
         {
             if (x.m_rawValue <= 0)
-                throw new ArgumentOutOfRangeException("Cannot compute logarithm of non-positive number.");
+                throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute logarithm of non-positive number.");
 
             long b = 1U << (SHIFT_AMOUNT_I - 1);  // Initial value for binary logarithm
             long y = 0;  // Result accumulator
@@ -186,7 +239,7 @@ namespace FixedMathSharp
         public static Fixed64 Ln(Fixed64 x)
         {
             if (x.m_rawValue <= 0)
-                throw new ArgumentOutOfRangeException("Cannot compute logarithm of non-positive number.");
+                throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute logarithm of non-positive number.");
 
             return FastMul(Log2(x), Ln2).Round();
         }
@@ -197,7 +250,7 @@ namespace FixedMathSharp
         public static Fixed64 Sqrt(Fixed64 x)
         {
             if (x.m_rawValue < 0)
-                throw new ArgumentOutOfRangeException("Cannot compute square root of a negative number.");
+                throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute square root of a negative number.");
 
             ulong num = (ulong)x.m_rawValue;
             ulong result = 0UL;
@@ -344,6 +397,16 @@ namespace FixedMathSharp
             return Sin(Fixed64.FromRaw(rawAngle));
         }
 
+        /// <summary>
+        /// Calculates the cosine value corresponding to a given sine value, assuming the angle is in the first or
+        /// second quadrant.
+        /// </summary>
+        /// <remarks>
+        /// This method returns the principal (non-negative) value of the cosine. 
+        /// If the input is outside the valid range for sine values, the result may not be meaningful.
+        /// </remarks>
+        /// <param name="sin">The sine of the angle. Must be in the range [-1, 1].</param>
+        /// <returns>The cosine of the angle, computed as the positive square root of (1 - sin²).</returns>
         public static Fixed64 SinToCos(Fixed64 sin)
         {
             return Sqrt(Fixed64.One - sin * sin);

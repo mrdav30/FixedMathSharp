@@ -4,7 +4,7 @@ namespace FixedMathSharp.Tests;
 
 internal static class FixedMathTestHelper
 {
-    private static readonly Fixed64 RelativeTolerance = new Fixed64(0.0001); // 0.01%
+    private static readonly Fixed64 RelativeTolerance = new(0.0001); // 0.01%
 
     /// <summary>
     /// Asserts that the difference between the expected and actual values is within the specified relative tolerance.

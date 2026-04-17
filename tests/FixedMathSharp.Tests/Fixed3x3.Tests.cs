@@ -1,5 +1,5 @@
-﻿using System;
-using MemoryPack;
+﻿using MemoryPack;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -463,12 +463,6 @@ public class Fixed3x3Tests
                 Fixed64.Zero, new Fixed64(1.5), Fixed64.Zero,
                 Fixed64.Zero, Fixed64.Zero, new Fixed64(2)),
             a / 2);
-        Assert.Equal(
-            new Fixed3x3(
-                Fixed64.One, Fixed64.Zero, Fixed64.Zero,
-                Fixed64.Zero, new Fixed64(1.5), Fixed64.Zero,
-                Fixed64.Zero, Fixed64.Zero, new Fixed64(2)),
-            2 / a);
 
         var hash = a.GetHashCode();
         Assert.Equal(hash, Fixed3x3.CreateScale(new Vector3d(2, 3, 4)).GetHashCode());

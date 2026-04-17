@@ -28,7 +28,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// <summary>
     /// Returns the identity matrix (diagonal elements set to 1).
     /// </summary>
-    public static readonly Fixed4x4 Identity = new Fixed4x4(
+    public static readonly Fixed4x4 Identity = new(
         Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
         Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
         Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
@@ -37,7 +37,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// <summary>
     /// Returns a matrix with all elements set to zero.
     /// </summary>
-    public static readonly Fixed4x4 Zero = new Fixed4x4(
+    public static readonly Fixed4x4 Zero = new(
         Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
         Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
         Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
@@ -47,54 +47,110 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
 
     #region Fields and Constants
 
+    // First row
+
+    /// <summary>
+    /// Represents the element in the first row and first column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(0)]
     public Fixed64 m00;
+    /// <summary>
+    /// Represents the element in the first row and second column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(1)]
     public Fixed64 m01;
+    /// <summary>
+    /// Represents the element in the first row and third column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(2)]
     public Fixed64 m02;
+    /// <summary>
+    /// Represents the element in the first row and fourth column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(3)]
     public Fixed64 m03;
 
+    // Second row
+
+    /// <summary>
+    /// Represents the element in the second row and first column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(4)]
     public Fixed64 m10;
+    /// <summary>
+    /// Represents the element in the second row and second column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(5)]
     public Fixed64 m11;
+    /// <summary>
+    /// Represents the element in the second row and third column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(6)]
     public Fixed64 m12;
+    /// <summary>
+    /// Represents the element in the second row and fourth column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(7)]
     public Fixed64 m13;
 
+    // Third row
+
+    /// <summary>
+    /// Represents the element in the third row and first column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(8)]
     public Fixed64 m20;
+    /// <summary>
+    /// Represents the element in the third row and second column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(9)]
     public Fixed64 m21;
+    /// <summary>
+    /// Represents the element in the third row and third column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(10)]
     public Fixed64 m22;
+    /// <summary>
+    /// Represents the element in the third row and fourth column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(11)]
     public Fixed64 m23;
 
+    // Fourth row
+
+    /// <summary>
+    /// Represents the element in the fourth row and first column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(12)]
     public Fixed64 m30;
+    /// <summary>
+    /// Represents the element in the fourth row and second column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(13)]
     public Fixed64 m31;
+    /// <summary>
+    /// Represents the element in the fourth row and third column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(14)]
     public Fixed64 m32;
+    /// <summary>
+    /// Represents the element in the fourth row and fourth column of the matrix.
+    /// </summary>
     [JsonInclude]
     [MemoryPackOrder(15)]
     public Fixed64 m33;
@@ -123,6 +179,13 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
 
     #region Properties
 
+    /// <summary>
+    /// Gets a value indicating whether the matrix represents an affine transformation.
+    /// </summary>
+    /// <remarks>
+    /// An affine transformation is one where the bottom row is (0, 0, 0, 1), 
+    /// allowing for efficient operations such as translation, scaling, rotation, and shearing without perspective distortion.
+    /// </remarks>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly bool IsAffine => (m33 == Fixed64.One) && (m03 == Fixed64.Zero && m13 == Fixed64.Zero && m23 == Fixed64.Zero);
@@ -132,6 +195,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     [MemoryPackIgnore]
     public readonly Vector3d Translation => ExtractTranslation(this);
 
+    /// <summary>
+    /// Gets the upward direction vector for this instance.
+    /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly Vector3d Up => ExtractUp(this);
@@ -146,6 +212,13 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     [MemoryPackIgnore]
     public readonly FixedQuaternion Rotation => ExtractRotation(this);
 
+    /// <summary>
+    /// Gets or sets the matrix element at the specified linear index.
+    /// </summary>
+    /// <remarks>Matrix elements are indexed in row-major order from 0 to 15.</remarks>
+    /// <param name="index">The zero-based linear index of the matrix element to get or set. Must be in the range 0 to 15.</param>
+    /// <returns>The matrix element at the specified index.</returns>
+    /// <exception cref="IndexOutOfRangeException">Thrown when the specified index is less than 0 or greater than 15.</exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 this[int index]
@@ -486,7 +559,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Fixed64 scaleY = scale.y == Fixed64.Zero ? Fixed64.One : scale.y;
         Fixed64 scaleZ = scale.z == Fixed64.Zero ? Fixed64.One : scale.z;
 
-        Fixed4x4 normalizedMatrix = new Fixed4x4(
+        Fixed4x4 normalizedMatrix = new(
             matrix.m00 / scaleX, matrix.m01 / scaleX, matrix.m02 / scaleX, Fixed64.Zero,
             matrix.m10 / scaleY, matrix.m11 / scaleY, matrix.m12 / scaleY, Fixed64.Zero,
             matrix.m20 / scaleZ, matrix.m21 / scaleZ, matrix.m22 / scaleZ, Fixed64.Zero,
@@ -632,7 +705,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         matrix.ResetScaleToIdentity();
 
         // Compute the new local scale by dividing the desired global scale by the current scale (which was reset to (1, 1, 1))
-        Vector3d newLocalScale = new Vector3d(
+        Vector3d newLocalScale = new(
            globalScale.x / Fixed64.One,
            globalScale.y / Fixed64.One,
            globalScale.z / Fixed64.One
@@ -745,14 +818,14 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One  // Ensure homogeneous coordinate stays valid
         );
 
-        Fixed3x3 rotationScaleInverse = new Fixed3x3(
+        Fixed3x3 rotationScaleInverse = new(
             result.m00, result.m01, result.m02,
             result.m10, result.m11, result.m12,
             result.m20, result.m21, result.m22
         );
 
         // Correct translation component
-        Vector3d transformedTranslation = new Vector3d(matrix.m30, matrix.m31, matrix.m32);
+        Vector3d transformedTranslation = new(matrix.m30, matrix.m31, matrix.m32);
         transformedTranslation = -Fixed3x3.TransformDirection(rotationScaleInverse, transformedTranslation);
 
         result.m30 = transformedTranslation.x;
@@ -1010,12 +1083,24 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         );
     }
 
+    /// <summary>
+    /// Determines whether two Fixed4x4 instances are equal.
+    /// </summary>
+    /// <param name="left">The first Fixed4x4 instance to compare.</param>
+    /// <param name="right">The second Fixed4x4 instance to compare.</param>
+    /// <returns>true if the specified Fixed4x4 instances are equal; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(Fixed4x4 left, Fixed4x4 right)
     {
         return left.Equals(right);
     }
 
+    /// <summary>
+    /// Determines whether two Fixed4x4 instances are not equal.
+    /// </summary>
+    /// <param name="left">The first Fixed4x4 instance to compare.</param>
+    /// <param name="right">The second Fixed4x4 instance to compare.</param>
+    /// <returns>true if the specified Fixed4x4 instances are not equal; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(Fixed4x4 left, Fixed4x4 right)
     {
@@ -1026,12 +1111,14 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
 
     #region Equality and HashCode Overrides
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj)
     {
         return obj is Fixed4x4 x && Equals(x);
     }
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(Fixed4x4 other)
     {
@@ -1041,6 +1128,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
                m30 == other.m30 && m31 == other.m31 && m32 == other.m32 && m33 == other.m33;
     }
 
+    /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode()
     {
