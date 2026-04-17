@@ -1,0 +1,4 @@
+is_global = true
+
+# Suppress CS1591 (missing XML comments) for all files
+dotnet_diagnostic.CS1591.severity = none

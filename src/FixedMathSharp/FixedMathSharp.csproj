@@ -112,4 +112,5 @@
 	<ItemGroup Condition="'$(DisableMemoryPack)' == 'true'">
 		<Compile Remove="**\*.MemoryPack.cs" />
 	</ItemGroup>
+	
 </Project>
