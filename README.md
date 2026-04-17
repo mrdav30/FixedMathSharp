@@ -24,7 +24,7 @@ Ideal for simulations, games, and physics engines requiring reliable arithmetic 
 - **Bounding Shapes:** Includes `IBound` structs `BoundingBox`, `BoundingSphere`, and `BoundingArea` for lightweight spatial calculations.
 - **Advanced Math Functions:** Includes trigonometry and common math utilities.
 - **Framework Agnostic:** Works with **.NET, Unity, and other game engines**.
-- **Full Serialization Support:** Out-of-the-box round-trip serialization via `MemoryPack` across all serializable structs, with `System.Text.Json` constructor support on .NET 8+.
+- **Flexible Serialization Options:** The default build includes out-of-the-box `MemoryPack` support across serializable structs, and a `NoMemoryPack` variant is available for projects that need to avoid the MemoryPack dependency.
 
 ---
 
@@ -34,32 +34,62 @@ Clone the repository and add it to your project:
 
 ### Non-Unity Projects
 
-1. **Install via NuGet**:
-   - Add FixedMathSharp to your project using the following command:
+1. **Choose the package that fits your runtime**:
+   - Use `FixedMathSharp` if you want the standard package with built-in `MemoryPack` support.
+   - Use `FixedMathSharp.NoMemoryPack` if you want the same math library without the `MemoryPack` dependency, such as when integrating with toolchains that do better without MemoryPack-generated code.
+
+2. **Install via NuGet**:
+   - Standard package:
 
      ```bash
      dotnet add package FixedMathSharp
      ```
 
+   - No-MemoryPack package:
+
+     ```bash
+     dotnet add package FixedMathSharp.NoMemoryPack
+     ```
+
    - If you're using `FluentAssertions` in your test project, the companion assertions package is available here:
      [FixedMathSharp.FluentAssertions](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions)
 
-2. **Or Download/Clone**:
+3. **Or Download/Clone**:
    - Clone the repository or download the source code.
 
      ```bash
      git clone https://github.com/mrdav30/FixedMathSharp.git
      ```
 
-3. **Add to Project**:
+4. **Add to Project**:
 
    - Include the FixedMathSharp project or its DLLs in your build process.
 
+### Package Variants
+
+FixedMathSharp is published in two build variants so you can choose between convenience and maximum compatibility:
+
+- `FixedMathSharp`
+  Includes `MemoryPack` and its generated serialization support. This is the best default choice for most .NET applications.
+- `FixedMathSharp.NoMemoryPack`
+  Excludes the `MemoryPack` package and uses internal shim attributes so the same source can compile without the dependency. Choose this when you do not need built-in MemoryPack serialization, when you prefer to use a different serializer, or when your target environment is sensitive to MemoryPack-generated code paths.
+
+Both variants expose the same core fixed-point math API. The main difference is whether `MemoryPack` is part of the package and serialization surface.
+
+If you build from source, the repository also provides matching release configurations:
+
+- `Release` builds the standard `FixedMathSharp` package and archives.
+- `ReleaseNoMemoryPack` builds the `FixedMathSharp.NoMemoryPack` package and archives.
+
+If you use Unity Burst AOT, prefer the `NoMemoryPack` build. `MemoryPack`'s Unity support is centered on IL2CPP via its .NET Source Generator path, so the no-MemoryPack variant is the safer choice for Burst AOT scenarios.
+
 ### Unity Integration
 
-FixedMathSharp is now maintained as a separate Unity package.For Unity-specific implementations, refer to:
+FixedMathSharp is now maintained as a separate Unity package. For Unity-specific implementations, refer to:
 
 🔗 [FixedMathSharp-Unity Repository](https://github.com/mrdav30/FixedMathSharp-Unity).
+
+If you are evaluating the .NET package directly for Unity-adjacent tooling, the `NoMemoryPack` variant is the safer starting point when you want to avoid the MemoryPack dependency entirely. In particular, if you use Burst AOT, prefer `FixedMathSharp.NoMemoryPack`.
 
 ---
 
