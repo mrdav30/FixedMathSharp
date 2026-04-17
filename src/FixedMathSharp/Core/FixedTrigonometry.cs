@@ -159,7 +159,7 @@ namespace FixedMathSharp
                 return neg ? Fixed64.One / Fixed64.Two : Fixed64.Two;
 
             if (x >= LOG_2_MAX)
-                return neg ? Fixed64.One / Fixed64.MAX_VALUE : Fixed64.MAX_VALUE;
+                return neg ? Fixed64.One / new Fixed64(MAX_VALUE_L) : new Fixed64(MAX_VALUE_L);
 
             /* 
              * Taylor series expansion for exp(x)

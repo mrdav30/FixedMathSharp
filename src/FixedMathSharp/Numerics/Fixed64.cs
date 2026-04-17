@@ -420,7 +420,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
         if (!negative)
         {
             if (roundedOverflow || magnitude > long.MaxValue)
-                return MAX_VALUE;
+                return new Fixed64(FixedMath.MAX_VALUE_L);
 
             return new Fixed64((long)magnitude);
         }
@@ -430,10 +430,10 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
             const ulong minValueMagnitude = 0x8000000000000000UL;
 
             if (roundedOverflow || magnitude > minValueMagnitude)
-                return MIN_VALUE;
+                return new Fixed64(FixedMath.MIN_VALUE_L);
 
             if (magnitude == minValueMagnitude)
-                return MIN_VALUE;
+                return new Fixed64(FixedMath.MIN_VALUE_L);
 
             return new Fixed64(-(long)magnitude);
         }
@@ -577,7 +577,9 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
 
             // Detect overflow
             if ((div & ~(0xFFFFFFFFFFFFFFFF >> bitPos)) != 0)
-                return ((xl ^ yl) & FixedMath.MIN_VALUE_L) == 0 ? MAX_VALUE : MIN_VALUE;
+                return ((xl ^ yl) & FixedMath.MIN_VALUE_L) == 0 
+                    ? new Fixed64(FixedMath.MAX_VALUE_L) 
+                    : new Fixed64(FixedMath.MIN_VALUE_L);
 
             remainder <<= 1;
             --bitPos;
@@ -629,7 +631,9 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator -(Fixed64 x)
     {
-        return x.m_rawValue == FixedMath.MIN_VALUE_L ? MAX_VALUE : new Fixed64(-x.m_rawValue);
+        return x.m_rawValue == FixedMath.MIN_VALUE_L 
+            ? new Fixed64(FixedMath.MAX_VALUE_L) 
+            : new Fixed64(-x.m_rawValue);
     }
 
     /// <summary>

@@ -160,7 +160,7 @@ namespace FixedMathSharp
         {
             // For the minimum value, return the max to avoid overflow
             if (value.m_rawValue == MIN_VALUE_L)
-                return Fixed64.MAX_VALUE;
+                return new Fixed64(MAX_VALUE_L);
 
             // Use branchless absolute value calculation
             long mask = value.m_rawValue >> 63; // If negative, mask will be all 1s; if positive, all 0s
