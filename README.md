@@ -9,87 +9,73 @@
 [![License](https://img.shields.io/github/license/mrdav30/FixedMathSharp.svg)](https://github.com/mrdav30/FixedMathSharp/blob/main/LICENSE)
 [![Frameworks](https://img.shields.io/badge/frameworks-netstandard2.1%20%7C%20net8.0-512BD4.svg)](https://github.com/mrdav30/FixedMathSharp)
 
-**A high-precision, deterministic fixed-point math library for .NET.**  
-Ideal for simulations, games, and physics engines requiring reliable arithmetic without floating-point inaccuracies.
+**A deterministic fixed-point math library for .NET.**  
+Built for simulations, games, and physics-heavy code that needs reliable results without floating-point drift.
 
 ---
 
 ## 🛠️ Key Features
 
-- **Deterministic Calculations:** Ensures consistent results across different platforms.
-- **High Precision Arithmetic:** Uses fixed-point math to eliminate floating-point inaccuracies.
-- **Comprehensive Vector Support:** Includes 2D and 3D vector operations (`Vector2d`, `Vector3d`).
-- **Quaternion Rotations:** Leverage `FixedQuaternion` for smooth rotations without gimbal lock.
-- **Matrix Operations:** Supports transformations with `Fixed4x4` and `Fixed3x3` matrices.
-- **Bounding Shapes:** Includes `IBound` structs `BoundingBox`, `BoundingSphere`, and `BoundingArea` for lightweight spatial calculations.
-- **Advanced Math Functions:** Includes trigonometry and common math utilities.
-- **Framework Agnostic:** Works with **.NET, Unity, and other game engines**.
-- **Flexible Serialization Options:** The default build includes out-of-the-box `MemoryPack` support across serializable structs, and a `NoMemoryPack` variant is available for projects that need to avoid the MemoryPack dependency.
+- **Deterministic fixed-point arithmetic:** Consistent results across platforms with `Fixed64`.
+- **Core math types included:** `Vector2d`, `Vector3d`, `FixedQuaternion`, `Fixed3x3`, and `Fixed4x4`.
+- **Spatial helpers:** `BoundingBox`, `BoundingSphere`, and `BoundingArea` for lightweight bounds checks.
+- **Shared math utilities:** Common math and trigonometry helpers via `FixedMath` and `FixedTrigonometry`.
+- **Deterministic RNG:** `DeterministicRandom` for repeatable procedural generation and simulations.
+- **Flexible packaging:** Use the default package with `MemoryPack`, or the `NoMemoryPack` package when you want the same API without that dependency.
+- **Broad .NET compatibility:** Targets modern .NET while remaining friendly to engine and tooling workflows.
 
 ---
 
 ## 🚀 Installation
 
-Clone the repository and add it to your project:
+For most .NET projects, start with the standard package:
+
+```bash
+dotnet add package FixedMathSharp
+```
 
 ### Non-Unity Projects
 
-1. **Choose the package that fits your runtime**:
-   - Use `FixedMathSharp` if you want the standard package with built-in `MemoryPack` support.
-   - Use `FixedMathSharp.NoMemoryPack` if you want the same math library without the `MemoryPack` dependency, such as when integrating with toolchains that do better without MemoryPack-generated code.
+Choose the package that fits your runtime:
 
-2. **Install via NuGet**:
-   - Standard package:
+| Package | Best for | Install |
+| --- | --- | --- |
+| `FixedMathSharp` | Most .NET applications. Includes built-in `MemoryPack` support. | `dotnet add package FixedMathSharp` |
+| `FixedMathSharp.NoMemoryPack` | Projects that want the same math API without a `MemoryPack` dependency, including custom serializer setups and Burst AOT-sensitive workflows. | `dotnet add package FixedMathSharp.NoMemoryPack` |
 
-     ```bash
-     dotnet add package FixedMathSharp
-     ```
+If you're using `FluentAssertions` in your test project, the companion assertions package is available here:
+[FixedMathSharp.FluentAssertions](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions)
 
-   - No-MemoryPack package:
+### Build From Source
 
-     ```bash
-     dotnet add package FixedMathSharp.NoMemoryPack
-     ```
+Clone the repository and build locally:
 
-   - If you're using `FluentAssertions` in your test project, the companion assertions package is available here:
-     [FixedMathSharp.FluentAssertions](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions)
+```bash
+git clone https://github.com/mrdav30/FixedMathSharp.git
+dotnet restore
+dotnet build --configuration Debug --no-restore
+```
 
-3. **Or Download/Clone**:
-   - Clone the repository or download the source code.
-
-     ```bash
-     git clone https://github.com/mrdav30/FixedMathSharp.git
-     ```
-
-4. **Add to Project**:
-
-   - Include the FixedMathSharp project or its DLLs in your build process.
+You can also reference the project directly or consume the generated package artifacts in your own build process.
 
 ### Package Variants
 
-FixedMathSharp is published in two build variants so you can choose between convenience and maximum compatibility:
-
-- `FixedMathSharp`
-  Includes `MemoryPack` and its generated serialization support. This is the best default choice for most .NET applications.
-- `FixedMathSharp.NoMemoryPack`
-  Excludes the `MemoryPack` package and uses internal shim attributes so the same source can compile without the dependency. Choose this when you do not need built-in MemoryPack serialization, when you prefer to use a different serializer, or when your target environment is sensitive to MemoryPack-generated code paths.
-
-Both variants expose the same core fixed-point math API. The main difference is whether `MemoryPack` is part of the package and serialization surface.
+The published NuGet packages map directly to the source-build configurations below.
 
 If you build from source, the repository also provides matching release configurations:
 
 - `Release` builds the standard `FixedMathSharp` package and archives.
 - `ReleaseNoMemoryPack` builds the `FixedMathSharp.NoMemoryPack` package and archives.
 
-If you use Unity Burst AOT, prefer the `NoMemoryPack` build. `MemoryPack`'s Unity support is centered on IL2CPP via its .NET Source Generator path, so the no-MemoryPack variant is the safer choice for Burst AOT scenarios.
+If you use Unity Burst AOT, prefer the `NoMemoryPack` variant.
 
 ### Unity Integration
 
-FixedMathSharp is now maintained as a separate Unity package. For Unity-specific implementations, refer to:
+FixedMathSharp is maintained as a separate Unity package. For Unity-specific implementations, refer to:
 
 🔗 [FixedMathSharp-Unity Repository](https://github.com/mrdav30/FixedMathSharp-Unity).
 
-If you are evaluating the .NET package directly for Unity-adjacent tooling, the `NoMemoryPack` variant is the safer starting point when you want to avoid the MemoryPack dependency entirely. In particular, if you use Burst AOT, prefer `FixedMathSharp.NoMemoryPack`.
+If you are evaluating this .NET package for Unity-adjacent tooling using Burst AOT, prefer `FixedMathSharp.NoMemoryPack`.
 
 ---
 
@@ -180,18 +166,17 @@ int loot = rngOre.Next(1, 5); // [1,5)
 
 ## 📦 Library Structure
 
-- **`Fixed64` Struct:** Represents fixed-point numbers for precise arithmetic.
-- **`Vector2d` and `Vector3d` Structs:** Handle 2D and 3D vector operations.
-- **`FixedQuaternion` Struct:** Provides rotation handling without gimbal lock, enabling smooth rotations and quaternion-based transformations.
-- **`IBound` Interface:** Standard interface for bounding shapes `BoundingBox`, `BoundingArea`, and `BoundingSphere`, each offering intersection, containment, and projection logic.
-- **`FixedMath` Static Class:** Provides common math and trigonometric functions using fixed-point math.
-- **`Fixed4x4` and `Fixed3x3`:** Support matrix operations for transformations.
-- **`DeterministicRandom` Struct:** Seedable, allocation-free RNG for repeatable procedural generation.  
+- **`Fixed64` Struct:** Core Q32.32 fixed-point scalar type.
+- **`Vector2d` and `Vector3d` Structs:** 2D and 3D vector math.
+- **`FixedQuaternion` Struct:** Deterministic quaternion rotations.
+- **`Fixed4x4` and `Fixed3x3`:** Matrix math for transforms and orientation.
+- **`IBound` Interface and bounds types:** `BoundingBox`, `BoundingArea`, and `BoundingSphere` for intersection, containment, and projection queries.
+- **`FixedMath` and `FixedTrigonometry`:** Shared numeric and trigonometric helpers.
+- **`DeterministicRandom` Struct:** Seedable, allocation-free RNG for repeatable procedural generation.
 
 ### Fixed64 Struct
 
-**Fixed64** is the core data type representing fixed-point numbers. It provides various mathematical operations, including addition, subtraction, multiplication, division, and more.
-The struct guarantees deterministic behavior by using integer-based arithmetic with a configurable `SHIFT_AMOUNT`.
+`Fixed64` is the center of the library: a deterministic fixed-point number type backed by integer arithmetic. It is the type used throughout the vector, matrix, quaternion, bounds, and helper APIs.
 
 ---
 
@@ -199,21 +184,20 @@ The struct guarantees deterministic behavior by using integer-based arithmetic w
 
 FixedMathSharp is optimized for high-performance deterministic calculations:
 
-- **Inline methods and bit-shifting optimizations** ensure minimal overhead.
-- **Eliminates floating-point drift**, making it ideal for lockstep simulations.
-- **Supports fuzzy equality comparisons** for handling minor precision deviations.
+- **Inline methods and bit-shifting optimizations** keep hot paths lightweight.
+- **Deterministic arithmetic** avoids floating-point drift in lockstep or replay-driven systems.
+- **Fuzzy equality helpers** are available where precision tolerances are useful.
 
 ---
 
 ## 🧪 Testing and Validation
 
-Unit tests are used extensively to validate the correctness of mathematical operations.
-Special **fuzzy comparisons** are employed where small precision discrepancies might occur, mimicking floating-point behavior.
+The library is covered by xUnit tests for core arithmetic, vectors, bounds, serialization, and deterministic random behavior. Fuzzy comparisons are used where a tolerance-based check is more appropriate than exact equality.
 
 To run the tests:
 
 ```bash
-dotnet test --configuration debug
+dotnet test --configuration Debug
 ```
 
 ---

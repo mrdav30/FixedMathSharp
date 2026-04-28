@@ -1,7 +1,3 @@
-param (
-    [string]$BuildType = "Release"
-)
-
 # Import shared functions
 Set-Location (Split-Path $MyInvocation.MyCommand.Path)
 . .\utilities.ps1
@@ -28,30 +24,31 @@ foreach ($config in $configurations) {
     # Determine archive label suffix (lowercase, hyphen-separated)
     $configLabel = $config.ToLower() -replace "release", "release" # keeps "release" / "releasenomemorypack"
 
-    if (Test-Path $releaseDir) {
-        Get-ChildItem -Path $releaseDir -Directory | ForEach-Object {
-            $targetDir = $_.FullName
-            $frameworkName = $_.Name
+	if (-not (Test-Path $releaseDir)) {
+		Write-Warning "Release directory not found for configuration '$config': $releaseDir"
+		continue
+	}
 
-            # Construct final archive name
-            $zipFileName = "${solutionName}-v$($Env:GitVersion_FullSemVer)-${frameworkName}-${configLabel}.zip"
-            $zipPath = Join-Path $releaseDir $zipFileName
+	Get-ChildItem -Path $releaseDir -Directory | ForEach-Object {
+		$targetDir = $_.FullName
+		$frameworkName = $_.Name
 
-            Write-Host "Creating archive: $zipPath"
+		# Construct final archive name
+		$zipFileName = "${solutionName}-v$($Env:GitVersion_FullSemVer)-${frameworkName}-${configLabel}.zip"
+		$zipPath = Join-Path $releaseDir $zipFileName
 
-            if (Test-Path $zipPath) {
-                Remove-Item $zipPath -Force
-            }
+		Write-Host "Creating archive: $zipPath"
 
-            Compress-Archive -Path "$targetDir\*" -DestinationPath $zipPath -Force
+		if (Test-Path $zipPath) {
+			Remove-Item $zipPath -Force
+		}
 
-            if (Test-Path $zipPath) {
-                Write-Host "Archive created for $frameworkName ($config)"
-            } else {
-                Write-Warning "Failed to create archive for $frameworkName ($config)"
-            }
-        }
-    } else {
-        Write-Warning "Release directory not found for configuration '$config': $releaseDir"
-    }
+		Compress-Archive -Path "$targetDir\*" -DestinationPath $zipPath -Force
+
+		if (Test-Path $zipPath) {
+			Write-Host "Archive created for $frameworkName ($config)"
+		} else {
+			Write-Warning "Failed to create archive for $frameworkName ($config)"
+		}
+	}
 }
