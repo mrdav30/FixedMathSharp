@@ -77,6 +77,44 @@ public class BoundingFrustumTests
     }
 
     [Fact]
+    public void Contains_BoundingFrustum_ReturnsContainsForSameOrNestedFrustum()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var nestedMatrix = Fixed4x4.Identity;
+        nestedMatrix.m00 = new Fixed64(2);
+        nestedMatrix.m11 = new Fixed64(2);
+        var nested = new BoundingFrustum(nestedMatrix);
+
+        Assert.Equal(ContainmentType.Contains, frustum.Contains(frustum));
+        Assert.Equal(ContainmentType.Contains, frustum.Contains(nested));
+        Assert.True(frustum.Intersects(nested));
+    }
+
+    [Fact]
+    public void Contains_BoundingFrustum_ReturnsIntersectsForOverlappingFrustum()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var overlappingMatrix = Fixed4x4.Identity;
+        overlappingMatrix.m30 = Fixed64.One;
+        var overlapping = new BoundingFrustum(overlappingMatrix);
+
+        Assert.Equal(ContainmentType.Intersects, frustum.Contains(overlapping));
+        Assert.True(frustum.Intersects(overlapping));
+    }
+
+    [Fact]
+    public void Contains_BoundingFrustum_ReturnsDisjointForSeparatedFrustum()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var separatedMatrix = Fixed4x4.Identity;
+        separatedMatrix.m30 = new Fixed64(3);
+        var separated = new BoundingFrustum(separatedMatrix);
+
+        Assert.Equal(ContainmentType.Disjoint, frustum.Contains(separated));
+        Assert.False(frustum.Intersects(separated));
+    }
+
+    [Fact]
     public void Matrix_Setter_RebuildsPlanesCornersAndBounds()
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);

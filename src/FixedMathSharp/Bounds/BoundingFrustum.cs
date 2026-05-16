@@ -28,6 +28,13 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     private readonly Vector3d[] _corners;
     private readonly FixedPlane[] _planes;
 
+    private static readonly (int Start, int End)[] Edges =
+    {
+        (0, 1), (1, 2), (2, 3), (3, 0),
+        (4, 5), (5, 6), (6, 7), (7, 4),
+        (0, 4), (1, 5), (2, 6), (3, 7)
+    };
+
     #endregion
 
     #region Constructors
@@ -211,6 +218,35 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     }
 
     /// <summary>
+    /// Tests another frustum against this frustum.
+    /// </summary>
+    public ContainmentType Contains(BoundingFrustum frustum)
+    {
+        if (frustum == null)
+            throw new ArgumentNullException(nameof(frustum));
+
+        if (Equals(frustum))
+            return ContainmentType.Contains;
+
+        bool containsAllCorners = true;
+        for (int i = 0; i < CornerCount; i++)
+        {
+            if (Contains(frustum._corners[i]) == ContainmentType.Disjoint)
+            {
+                containsAllCorners = false;
+                break;
+            }
+        }
+
+        if (containsAllCorners)
+            return ContainmentType.Contains;
+
+        return IntersectsFrustum(frustum)
+            ? ContainmentType.Intersects
+            : ContainmentType.Disjoint;
+    }
+
+    /// <summary>
     /// Checks whether a bounding box intersects this frustum.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -227,6 +263,12 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(BoundingSphere sphere) => Contains(sphere) != ContainmentType.Disjoint;
+
+    /// <summary>
+    /// Checks whether another frustum intersects this frustum.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Intersects(BoundingFrustum frustum) => Contains(frustum) != ContainmentType.Disjoint;
 
     /// <summary>
     /// Finds the first forward intersection between the specified ray and this frustum.
@@ -358,6 +400,60 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
         Vector3d v3 = Vector3d.Cross(a.Normal, b.Normal) * c.D;
 
         return -(v1 + v2 + v3) / denominator;
+    }
+
+    private bool IntersectsFrustum(BoundingFrustum other)
+    {
+        for (int i = 0; i < PlaneCount; i++)
+        {
+            if (Separates(_planes[i].Normal, _corners, other._corners))
+                return false;
+
+            if (Separates(other._planes[i].Normal, _corners, other._corners))
+                return false;
+        }
+
+        for (int i = 0; i < Edges.Length; i++)
+        {
+            Vector3d edgeA = _corners[Edges[i].End] - _corners[Edges[i].Start];
+
+            for (int j = 0; j < Edges.Length; j++)
+            {
+                Vector3d edgeB = other._corners[Edges[j].End] - other._corners[Edges[j].Start];
+                Vector3d axis = Vector3d.Cross(edgeA, edgeB);
+
+                if (axis.SqrMagnitude <= Fixed64.Epsilon)
+                    continue;
+
+                if (Separates(axis, _corners, other._corners))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool Separates(Vector3d axis, Vector3d[] a, Vector3d[] b)
+    {
+        Project(axis, a, out Fixed64 minA, out Fixed64 maxA);
+        Project(axis, b, out Fixed64 minB, out Fixed64 maxB);
+
+        return maxA < minB || maxB < minA;
+    }
+
+    private static void Project(Vector3d axis, Vector3d[] corners, out Fixed64 min, out Fixed64 max)
+    {
+        min = Vector3d.Dot(axis, corners[0]);
+        max = min;
+
+        for (int i = 1; i < CornerCount; i++)
+        {
+            Fixed64 projected = Vector3d.Dot(axis, corners[i]);
+            if (projected < min)
+                min = projected;
+            else if (projected > max)
+                max = projected;
+        }
     }
 
     #endregion
