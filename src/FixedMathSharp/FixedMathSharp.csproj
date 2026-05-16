@@ -48,7 +48,7 @@
 	<PropertyGroup>
 		<Authors>mrdav30</Authors>
 		<Description>FixedMathSharp: A high-precision, deterministic fixed-point math library for .NET. Ideal for simulations, games, and physics engines requiring reliable arithmetic without floating-point inaccuracies. </Description>
-		<PackageTags>fixed-point;math;precision;deterministic;arithmetic;fixed-point-arithmetic;math-library;trigonometry;dotnet;unity;simulations;physics-engine;game-development;high-precision;nuget</PackageTags>
+		<PackageTags>fixed-point;fixed-point-arithmetic;deterministic;lockstep;csharp;dotnet;math-library;trigonometry;vector-math;game-development;simulation;high-precision;procedural-generation</PackageTags>
 		<RepositoryUrl>https://github.com/mrdav30/FixedMathSharp</RepositoryUrl>
 		<PackageIcon>icon.png</PackageIcon>
 		<PackageIconUrl>https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/icon.png</PackageIconUrl>
