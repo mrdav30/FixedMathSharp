@@ -18,7 +18,7 @@
   - `dotnet restore`
   - `dotnet build --configuration Debug --no-restore`
   - `dotnet test --configuration Debug`
-- CI detail from `.github/workflows/dotnet.yml`:
+- CI detail from `.github/workflows/build-and-test.yml`:
   - Linux and Windows both run `dotnet test` against the supported TFMs (with `net8.0` as the primary test target).
   - Refer to the workflow file for the exact matrix of OS/TFM combinations.
 - Packaging/versioning comes from `src/FixedMathSharp/FixedMathSharp.csproj`: GitVersion variables are consumed when present, otherwise version falls back to `0.0.0`.

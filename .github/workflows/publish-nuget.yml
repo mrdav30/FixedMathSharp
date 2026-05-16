@@ -1,0 +1,196 @@
+name: Publish NuGet Packages
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-nuget-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  NUGET_OUTPUT: ${{ github.workspace }}/artifacts/nuget
+  NUGET_SOURCE: https://api.nuget.org/v3/index.json
+
+jobs:
+  publish:
+    name: Build, validate, and publish NuGet packages
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: Setup .NET
+      id: setup-dotnet
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 10.0.x
+        dotnet-quality: ga
+
+    - name: Pin workflow .NET SDK
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if [[ ! -f global.json ]]; then
+          printf '{"sdk":{"version":"%s","rollForward":"latestFeature"}}\n' '${{ steps.setup-dotnet.outputs.dotnet-version }}' > global.json
+        fi
+
+    - name: Setup GitVersion
+      uses: gittools/actions/gitversion/setup@v4
+      with:
+        versionSpec: '6.4.x'
+
+    - name: Execute GitVersion
+      id: gitversion
+      uses: gittools/actions/gitversion/execute@v4.5.0
+
+    - name: Validate release tag version
+      shell: bash
+      env:
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
+        PACKAGE_VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
+      run: |
+        set -euo pipefail
+
+        release_version="${RELEASE_TAG#v}"
+        release_version="${release_version#V}"
+
+        if [[ "$release_version" != "$PACKAGE_VERSION" ]]; then
+          echo "::error::Release tag '$RELEASE_TAG' resolves to '$release_version', but GitVersion produced package version '$PACKAGE_VERSION'."
+          exit 1
+        fi
+
+        echo "Release version validated: $release_version"
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v5
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    - name: Prepare package output
+      shell: bash
+      run: |
+        set -euo pipefail
+        rm -rf "$NUGET_OUTPUT"
+        mkdir -p "$NUGET_OUTPUT"
+
+    - name: Build Release packages
+      shell: bash
+      env:
+        PACKAGE_VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
+        ASSEMBLY_VERSION: ${{ steps.gitversion.outputs.assemblySemVer }}
+        FILE_VERSION: ${{ steps.gitversion.outputs.assemblySemFileVer }}
+        INFORMATIONAL_VERSION: ${{ steps.gitversion.outputs.informationalVersion }}
+      run: |
+        set -euo pipefail
+
+        echo "Package Version: $PACKAGE_VERSION"
+        echo "Assembly Version: $ASSEMBLY_VERSION"
+
+        dotnet build FixedMathSharp.slnx \
+          --configuration Release \
+          -p:GitVersion_FullSemVer="$PACKAGE_VERSION" \
+          -p:GitVersion_AssemblySemVer="$ASSEMBLY_VERSION" \
+          -p:GitVersion_AssemblySemFileVer="$FILE_VERSION" \
+          -p:GitVersion_InformationalVersion="$INFORMATIONAL_VERSION" \
+          -p:PackageOutputPath="$NUGET_OUTPUT"
+
+    - name: Run Release tests
+      run: dotnet test FixedMathSharp.slnx --configuration Release --no-build --verbosity normal
+
+    - name: Build ReleaseLean packages
+      shell: bash
+      env:
+        PACKAGE_VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
+        ASSEMBLY_VERSION: ${{ steps.gitversion.outputs.assemblySemVer }}
+        FILE_VERSION: ${{ steps.gitversion.outputs.assemblySemFileVer }}
+        INFORMATIONAL_VERSION: ${{ steps.gitversion.outputs.informationalVersion }}
+      run: |
+        set -euo pipefail
+
+        dotnet build FixedMathSharp.slnx \
+          --configuration ReleaseLean \
+          -p:GitVersion_FullSemVer="$PACKAGE_VERSION" \
+          -p:GitVersion_AssemblySemVer="$ASSEMBLY_VERSION" \
+          -p:GitVersion_AssemblySemFileVer="$FILE_VERSION" \
+          -p:GitVersion_InformationalVersion="$INFORMATIONAL_VERSION" \
+          -p:PackageOutputPath="$NUGET_OUTPUT"
+
+    - name: Validate package artifacts
+      shell: bash
+      env:
+        PACKAGE_VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
+      run: |
+        set -euo pipefail
+
+        expected_ids=(
+          "FixedMathSharp"
+          "FixedMathSharp.NoMemoryPack"
+        )
+
+        for package_id in "${expected_ids[@]}"; do
+          for extension in nupkg snupkg; do
+            package_path="$NUGET_OUTPUT/${package_id}.${PACKAGE_VERSION}.${extension}"
+
+            if [[ ! -f "$package_path" ]]; then
+              echo "::error::Expected package artifact was not produced: $package_path"
+              exit 1
+            fi
+          done
+        done
+
+        mapfile -t packages < <(find "$NUGET_OUTPUT" -maxdepth 1 -type f \( -name "*.nupkg" -o -name "*.snupkg" \) -printf "%f\n" | sort)
+
+        if [[ "${#packages[@]}" -ne 4 ]]; then
+          echo "::error::Expected 4 NuGet package artifacts, but found ${#packages[@]}."
+          printf '%s\n' "${packages[@]}"
+          exit 1
+        fi
+
+        for package_file in "${packages[@]}"; do
+          if [[ "$package_file" != *".${PACKAGE_VERSION}.nupkg" && "$package_file" != *".${PACKAGE_VERSION}.snupkg" ]]; then
+            echo "::error::Package artifact '$package_file' does not match release version '$PACKAGE_VERSION'."
+            exit 1
+          fi
+        done
+
+        printf 'Validated package artifacts:\n'
+        printf '  %s\n' "${packages[@]}"
+
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: nuget-packages-${{ steps.gitversion.outputs.majorMinorPatch }}
+        path: ${{ env.NUGET_OUTPUT }}/*
+        if-no-files-found: error
+
+    - name: Publish packages to NuGet
+      shell: bash
+      env:
+        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "$NUGET_API_KEY" ]]; then
+          echo "::error::NUGET_API_KEY secret is not configured."
+          exit 1
+        fi
+
+        cd "$NUGET_OUTPUT"
+
+        dotnet nuget push "*.nupkg" \
+          --api-key "$NUGET_API_KEY" \
+          --source "$NUGET_SOURCE" \
+          --skip-duplicate

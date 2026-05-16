@@ -4,7 +4,11 @@
     <DataCollectors>
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
-          <ExcludeByFile>**/MemoryPack.Generator/**/*.cs,**/*MemoryPackFormatter.g.cs,**/*MemoryPackFormatterProvider.g.cs</ExcludeByFile>
+          <Format>cobertura</Format>
+          <Include>[FixedMathSharp]*</Include>
+          <ExcludeByFile>**/bin/**,**/obj/**,**/*.g.cs,**/MemoryPack.Generator/**/*.cs</ExcludeByFile>
+          <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+          <IncludeTestAssembly>false</IncludeTestAssembly>
         </Configuration>
       </DataCollector>
     </DataCollectors>

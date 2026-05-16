@@ -1,4 +1,4 @@
-name: .NET CI
+name: build-and-test
 
 on:
   push:
@@ -10,14 +10,17 @@ on:
   pull_request:
     branches:
       - 'main'
+      - 'develop'
 
 jobs:
-  build-and-test:
+  validate-dotnet:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        configuration: [Release, ReleaseLean]
 
     steps:
     - name: Checkout repository
@@ -44,18 +47,19 @@ jobs:
       uses: actions/cache@v5
       with:
         path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+        key: ${{ runner.os }}-${{ matrix.configuration }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
         restore-keys: |
+          ${{ runner.os }}-${{ matrix.configuration }}-nuget-
           ${{ runner.os }}-nuget-
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore FixedMathSharp.slnx --property:Configuration=${{ matrix.configuration }}
 
     - name: Build Solution
       run: |
         echo "Version: ${{ steps.gitversion.outputs.fullSemVer }}"
         echo "Assembly Version: ${{ steps.gitversion.outputs.assemblySemFileVer }}"
-        dotnet build --configuration Debug --no-restore
+        dotnet build FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-restore
 
     - name: Run Tests
-      run: dotnet test --configuration Debug --no-build --verbosity normal
+      run: dotnet test FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-build --verbosity normal
