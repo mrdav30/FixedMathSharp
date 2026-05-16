@@ -1,7 +1,7 @@
 ﻿namespace FixedMathSharp;
 
 /// <summary>
-/// Defines an axis-aligned bounding volume in three-dimensional space and provides methods for containment,
+/// Defines a bounding volume in three-dimensional space and provides methods for containment,
 /// intersection, and projection operations.
 /// </summary>
 /// <remarks>
