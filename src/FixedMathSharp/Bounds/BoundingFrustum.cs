@@ -229,6 +229,46 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     public bool Intersects(BoundingSphere sphere) => Contains(sphere) != ContainmentType.Disjoint;
 
     /// <summary>
+    /// Finds the first forward intersection between the specified ray and this frustum.
+    /// </summary>
+    public Fixed64? Intersects(FixedRay ray)
+    {
+        Fixed64 tEnter = Fixed64.Zero;
+        Fixed64 tExit = Fixed64.MAX_VALUE;
+
+        for (int i = 0; i < PlaneCount; i++)
+        {
+            FixedPlane plane = _planes[i];
+            Fixed64 distance = plane.DotCoordinate(ray.Position);
+            Fixed64 denominator = plane.DotNormal(ray.Direction);
+
+            if (FixedRay.IsNearlyZero(denominator))
+            {
+                if (distance > Fixed64.Zero)
+                    return null;
+
+                continue;
+            }
+
+            Fixed64 t = -distance / denominator;
+            if (denominator < Fixed64.Zero)
+            {
+                if (t > tEnter)
+                    tEnter = t;
+            }
+            else if (t < tExit)
+            {
+                tExit = t;
+            }
+
+            if (tEnter > tExit)
+                return null;
+        }
+
+        return tExit < Fixed64.Zero ? null : tEnter;
+    }
+
+    /// <summary>
     /// Classifies this frustum relative to a plane.
     /// </summary>
     public FixedPlaneIntersectionType Intersects(FixedPlane plane)
