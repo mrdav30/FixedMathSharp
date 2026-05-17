@@ -46,6 +46,238 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_DirectionProperties_ReturnNormalizedAxes()
+    {
+        var matrix = Fixed4x4.CreateScale(new Vector3d(2, 3, 4));
+
+        Assert.Equal(Vector3d.Right, matrix.Right);
+        Assert.Equal(Vector3d.Left, matrix.Left);
+        Assert.Equal(Vector3d.Up, matrix.Up);
+        Assert.Equal(Vector3d.Down, matrix.Down);
+        Assert.Equal(Vector3d.Forward, matrix.Forward);
+        Assert.Equal(Vector3d.Backward, matrix.Backward);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreateRotationAxisFactories_RotateAroundExpectedAxes()
+    {
+        var tolerance = new Fixed64(0.0001);
+
+        Assert.True(Fixed4x4.TransformPoint(Fixed4x4.CreateRotationX(FixedMath.PiOver2), Vector3d.Up)
+            .FuzzyEqual(Vector3d.Forward, tolerance));
+        Assert.True(Fixed4x4.TransformPoint(Fixed4x4.CreateRotationY(FixedMath.PiOver2), Vector3d.Forward)
+            .FuzzyEqual(Vector3d.Right, tolerance));
+        Assert.True(Fixed4x4.TransformPoint(Fixed4x4.CreateRotationZ(FixedMath.PiOver2), Vector3d.Right)
+            .FuzzyEqual(Vector3d.Up, tolerance));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreateFromAxisAngleAndEulerAngles_MatchQuaternionFactories()
+    {
+        Assert.Equal(
+            Fixed4x4.CreateRotation(FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2)),
+            Fixed4x4.CreateFromAxisAngle(Vector3d.Up, FixedMath.PiOver2));
+
+        Assert.Equal(
+            Fixed4x4.CreateRotation(FixedQuaternion.FromEulerAngles(FixedMath.PiOver4, FixedMath.PiOver4, FixedMath.PiOver4)),
+            Fixed4x4.CreateFromEulerAngles(FixedMath.PiOver4, FixedMath.PiOver4, FixedMath.PiOver4));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreateLookAt_DefaultForwardViewIsIdentity()
+    {
+        Fixed4x4 view = Fixed4x4.CreateLookAt(Vector3d.Zero, Vector3d.Forward, Vector3d.Up);
+
+        Assert.Equal(Fixed4x4.Identity, view);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreateLookAt_TransformsWorldPointIntoCameraSpace()
+    {
+        Fixed4x4 view = Fixed4x4.CreateLookAt(new Vector3d(10, 0, 0), new Vector3d(10, 0, 1), Vector3d.Up);
+
+        Vector3d result = Fixed4x4.TransformPoint(view, new Vector3d(10, 2, 3));
+
+        Assert.Equal(new Vector3d(0, 2, 3), result);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreateWorld_DefaultBasisPreservesPositionAndAxes()
+    {
+        Fixed4x4 world = Fixed4x4.CreateWorld(new Vector3d(1, 2, 3), Vector3d.Forward, Vector3d.Up);
+
+        Assert.Equal(new Vector3d(1, 2, 3), world.Translation);
+        Assert.Equal(Vector3d.Right, world.Right);
+        Assert.Equal(Vector3d.Up, world.Up);
+        Assert.Equal(Vector3d.Forward, world.Forward);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreateOrthographic_MatchesIdentityFrustumForDefaultUnitVolume()
+    {
+        Fixed4x4 matrix = Fixed4x4.CreateOrthographic(new Fixed64(2), new Fixed64(2), Fixed64.Zero, Fixed64.One);
+
+        Assert.Equal(Fixed4x4.Identity, matrix);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreateOrthographicOffCenter_ProducesExpectedFrustum()
+    {
+        Fixed4x4 matrix = Fixed4x4.CreateOrthographicOffCenter(
+            Fixed64.Zero,
+            new Fixed64(2),
+            -Fixed64.One,
+            new Fixed64(3),
+            Fixed64.One,
+            new Fixed64(5));
+        var frustum = new BoundingFrustum(matrix);
+
+        Vector3d[] corners = frustum.GetCorners();
+
+        Assert.True(corners[0].FuzzyEqual(new Vector3d(0, 3, 1), new Fixed64(0.0001)));
+        Assert.True(corners[2].FuzzyEqual(new Vector3d(2, -1, 1), new Fixed64(0.0001)));
+        Assert.True(corners[6].FuzzyEqual(new Vector3d(2, -1, 5), new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreatePerspective_MatchesFieldOfViewForEquivalentVolume()
+    {
+        Fixed4x4 perspective = Fixed4x4.CreatePerspective(new Fixed64(2), new Fixed64(2), Fixed64.One, new Fixed64(10));
+        Fixed4x4 fieldOfView = Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PiOver2, Fixed64.One, Fixed64.One, new Fixed64(10));
+
+        Assert.True(new BoundingFrustum(perspective).GetCorners()[6]
+            .FuzzyEqual(new BoundingFrustum(fieldOfView).GetCorners()[6], new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreatePerspectiveFieldOfView_ProducesExpectedPositiveZFrustum()
+    {
+        Fixed4x4 matrix = Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PiOver2, Fixed64.One, Fixed64.One, new Fixed64(10));
+        var frustum = new BoundingFrustum(matrix);
+
+        Vector3d[] corners = frustum.GetCorners();
+
+        Assert.True(corners[0].FuzzyEqual(new Vector3d(-1, 1, 1), new Fixed64(0.0001)));
+        Assert.True(corners[6].FuzzyEqual(new Vector3d(10, -10, 10), new Fixed64(0.0001)));
+        Assert.Equal(ContainmentType.Contains, frustum.Contains(new Vector3d(0, 0, 5)));
+        Assert.Equal(ContainmentType.Disjoint, frustum.Contains(new Vector3d(0, 0, -1)));
+        Assert.Equal(ContainmentType.Disjoint, frustum.Contains(new Vector3d(0, 0, 11)));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreatePerspectiveOffCenter_ProducesExpectedFrustum()
+    {
+        Fixed4x4 matrix = Fixed4x4.CreatePerspectiveOffCenter(
+            Fixed64.Zero,
+            new Fixed64(2),
+            -Fixed64.One,
+            new Fixed64(3),
+            Fixed64.One,
+            new Fixed64(5));
+        var frustum = new BoundingFrustum(matrix);
+
+        Vector3d[] corners = frustum.GetCorners();
+
+        Assert.True(corners[0].FuzzyEqual(new Vector3d(0, 3, 1), new Fixed64(0.0001)));
+        Assert.True(corners[2].FuzzyEqual(new Vector3d(2, -1, 1), new Fixed64(0.0001)));
+        Assert.True(corners[6].FuzzyEqual(new Vector3d(10, -5, 5), new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreatePerspectiveFieldOfView_InvalidArgumentsThrow()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.Zero, Fixed64.One, Fixed64.One, new Fixed64(10)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PI, Fixed64.One, Fixed64.One, new Fixed64(10)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PiOver2, Fixed64.Zero, Fixed64.One, new Fixed64(10)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PiOver2, Fixed64.One, Fixed64.Zero, new Fixed64(10)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PiOver2, Fixed64.One, new Fixed64(10), Fixed64.One));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_TransposeLerpAndScalarOperators_WorkComponentWise()
+    {
+        var matrix = new Fixed4x4(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4),
+            new Fixed64(5), new Fixed64(6), new Fixed64(7), new Fixed64(8),
+            new Fixed64(9), new Fixed64(10), new Fixed64(11), new Fixed64(12),
+            new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(16));
+
+        Assert.Equal(
+            new Fixed4x4(
+                new Fixed64(1), new Fixed64(5), new Fixed64(9), new Fixed64(13),
+                new Fixed64(2), new Fixed64(6), new Fixed64(10), new Fixed64(14),
+                new Fixed64(3), new Fixed64(7), new Fixed64(11), new Fixed64(15),
+                new Fixed64(4), new Fixed64(8), new Fixed64(12), new Fixed64(16)),
+            Fixed4x4.Transpose(matrix));
+
+        Assert.Equal(matrix / Fixed64.Two, Fixed4x4.Lerp(Fixed4x4.Zero, matrix, Fixed64.Half));
+        Assert.Equal(matrix + matrix, matrix * Fixed64.Two);
+        Assert.Equal(matrix + matrix, Fixed64.Two * matrix);
+        Assert.Equal(matrix, (matrix * Fixed64.Two) / Fixed64.Two);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_ComponentDivide_DividesComponents()
+    {
+        var dividend = new Fixed4x4(
+            new Fixed64(2), new Fixed64(6), new Fixed64(12), new Fixed64(20),
+            new Fixed64(30), new Fixed64(42), new Fixed64(56), new Fixed64(72),
+            new Fixed64(90), new Fixed64(110), new Fixed64(132), new Fixed64(156),
+            new Fixed64(182), new Fixed64(210), new Fixed64(240), new Fixed64(272));
+        var divisor = new Fixed4x4(
+            new Fixed64(2), new Fixed64(3), new Fixed64(4), new Fixed64(5),
+            new Fixed64(6), new Fixed64(7), new Fixed64(8), new Fixed64(9),
+            new Fixed64(10), new Fixed64(11), new Fixed64(12), new Fixed64(13),
+            new Fixed64(14), new Fixed64(15), new Fixed64(16), new Fixed64(17));
+        var expected = new Fixed4x4(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4),
+            new Fixed64(5), new Fixed64(6), new Fixed64(7), new Fixed64(8),
+            new Fixed64(9), new Fixed64(10), new Fixed64(11), new Fixed64(12),
+            new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(16));
+
+        Assert.Equal(expected, Fixed4x4.ComponentDivide(dividend, divisor));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_ComponentDivide_ByZeroThrows()
+    {
+        var dividend = new Fixed4x4(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4),
+            new Fixed64(5), new Fixed64(6), new Fixed64(7), new Fixed64(8),
+            new Fixed64(9), new Fixed64(10), new Fixed64(11), new Fixed64(12),
+            new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(16));
+        var divisor = new Fixed4x4(
+            Fixed64.One, Fixed64.One, Fixed64.One, Fixed64.One,
+            Fixed64.One, Fixed64.One, Fixed64.One, Fixed64.One,
+            Fixed64.One, Fixed64.One, Fixed64.Zero, Fixed64.One,
+            Fixed64.One, Fixed64.One, Fixed64.One, Fixed64.One);
+
+        Assert.Throws<DivideByZeroException>(() => Fixed4x4.ComponentDivide(dividend, divisor));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_Divide_MultipliesByInverseDivisor()
+    {
+        var dividend = Fixed4x4.CreateScale(new Vector3d(8, 12, 24));
+        var divisor = Fixed4x4.CreateScale(new Vector3d(2, 4, 8));
+
+        var result = Fixed4x4.Divide(dividend, divisor);
+
+        Assert.Equal(Fixed4x4.CreateScale(new Vector3d(4, 3, 3)), result);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_Divide_NonInvertibleDivisorThrows()
+    {
+        Assert.Throws<InvalidOperationException>(() => Fixed4x4.Divide(Fixed4x4.Identity, Fixed4x4.Zero));
+    }
+
+    [Fact]
     public void FixedMatrix4x4_Decompose_WorksCorrectly()
     {
         var matrix = Fixed4x4.Identity;

@@ -644,7 +644,7 @@ public class Vector3dTests
         var a = new Vector3d(0, 0, 0);
         var b = new Vector3d(2, 0, 0);
         var p = new Vector3d(1, 0, 1); // Above the midpoint
-        var result = Vector3d.ClosestPointOnLineSegment(a, b, p);
+        var result = Vector3d.ClosestPointOnLineSegment(p, a, b);
         Assert.Equal(new Vector3d(1, 0, 0), result); // Should project to (1, 0, 0)
     }
 
@@ -654,7 +654,7 @@ public class Vector3dTests
         var a = new Vector3d(0, 0, 0);
         var b = new Vector3d(2, 0, 0);
         var p = new Vector3d(3, 0, 0); // Outside segment
-        var result = Vector3d.ClosestPointOnLineSegment(a, b, p);
+        var result = Vector3d.ClosestPointOnLineSegment(p, a, b);
         Assert.Equal(b, result); // Should clamp to the endpoint b
     }
 

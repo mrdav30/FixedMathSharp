@@ -188,7 +188,10 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </remarks>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public readonly bool IsAffine => (m33 == Fixed64.One) && (m03 == Fixed64.Zero && m13 == Fixed64.Zero && m23 == Fixed64.Zero);
+    public readonly bool IsAffine => m33 == Fixed64.One 
+        && m03 == Fixed64.Zero 
+        && m13 == Fixed64.Zero 
+        && m23 == Fixed64.Zero;
 
     /// <inheritdoc cref="ExtractTranslation(Fixed4x4)" />
     [JsonIgnore]
@@ -196,11 +199,46 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     public readonly Vector3d Translation => ExtractTranslation(this);
 
     /// <summary>
+    /// Gets the right direction vector for this instance.
+    /// </summary>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public readonly Vector3d Right => ExtractRight(this);
+
+    /// <summary>
+    /// Gets the left direction vector for this instance.
+    /// </summary>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public readonly Vector3d Left => -ExtractRight(this);
+
+    /// <summary>
     /// Gets the upward direction vector for this instance.
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly Vector3d Up => ExtractUp(this);
+
+    /// <summary>
+    /// Gets the downward direction vector for this instance.
+    /// </summary>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public readonly Vector3d Down => -ExtractUp(this);
+
+    /// <summary>
+    /// Gets the forward direction vector for this instance.
+    /// </summary>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public readonly Vector3d Forward => ExtractForward(this);
+
+    /// <summary>
+    /// Gets the backward direction vector for this instance.
+    /// </summary>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public readonly Vector3d Backward => -ExtractForward(this);
 
     /// <inheritdoc cref="ExtractScale(Fixed4x4)" />
     [JsonIgnore]
@@ -383,6 +421,15 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     }
 
     /// <summary>
+    /// Creates a translation matrix from the specified coordinates.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 CreateTranslation(Fixed64 x, Fixed64 y, Fixed64 z)
+    {
+        return CreateTranslation(new Vector3d(x, y, z));
+    }
+
+    /// <summary>
     /// Creates a rotation matrix from a quaternion.
     /// </summary>
     /// <param name="rotation">The quaternion representing the rotation.</param>
@@ -400,6 +447,46 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     }
 
     /// <summary>
+    /// Creates a rotation matrix around the X axis.
+    /// </summary>
+    public static Fixed4x4 CreateRotationX(Fixed64 angle)
+    {
+        return FromRotationMatrix(Fixed3x3.CreateRotationX(angle));
+    }
+
+    /// <summary>
+    /// Creates a rotation matrix around the Y axis.
+    /// </summary>
+    public static Fixed4x4 CreateRotationY(Fixed64 angle)
+    {
+        return FromRotationMatrix(Fixed3x3.CreateRotationY(angle));
+    }
+
+    /// <summary>
+    /// Creates a rotation matrix around the Z axis.
+    /// </summary>
+    public static Fixed4x4 CreateRotationZ(Fixed64 angle)
+    {
+        return FromRotationMatrix(Fixed3x3.CreateRotationZ(angle));
+    }
+
+    /// <summary>
+    /// Creates a rotation matrix from an axis and angle.
+    /// </summary>
+    public static Fixed4x4 CreateFromAxisAngle(Vector3d axis, Fixed64 angle)
+    {
+        return CreateRotation(FixedQuaternion.FromAxisAngle(axis, angle));
+    }
+
+    /// <summary>
+    /// Creates a rotation matrix from pitch, yaw, and roll angles in radians.
+    /// </summary>
+    public static Fixed4x4 CreateFromEulerAngles(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
+    {
+        return CreateRotation(FixedQuaternion.FromEulerAngles(pitch, yaw, roll));
+    }
+
+    /// <summary>
     /// Creates a scale matrix from a 3-dimensional vector.
     /// </summary>
     /// <param name="scale">The vector representing the scale along each axis.</param>
@@ -412,6 +499,203 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
             Fixed64.Zero, Fixed64.Zero, scale.z, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
         );
+    }
+
+    /// <summary>
+    /// Creates a uniform scale matrix.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 CreateScale(Fixed64 scale)
+    {
+        return CreateScale(new Vector3d(scale, scale, scale));
+    }
+
+    /// <summary>
+    /// Creates a non-uniform scale matrix from individual scale components.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 CreateScale(Fixed64 x, Fixed64 y, Fixed64 z)
+    {
+        return CreateScale(new Vector3d(x, y, z));
+    }
+
+    /// <summary>
+    /// Creates a view matrix looking from a camera position toward a target.
+    /// </summary>
+    public static Fixed4x4 CreateLookAt(Vector3d cameraPosition, Vector3d cameraTarget, Vector3d cameraUpVector)
+    {
+        Vector3d forward = cameraTarget - cameraPosition;
+        if (forward.SqrMagnitude == Fixed64.Zero)
+            throw new ArgumentException("Camera position and target must be different.", nameof(cameraTarget));
+
+        forward = forward.Normalize();
+        Vector3d right = Vector3d.Cross(cameraUpVector, forward);
+        if (right.SqrMagnitude == Fixed64.Zero)
+            throw new ArgumentException("Camera up vector must not be parallel to the view direction.", nameof(cameraUpVector));
+
+        right = right.Normalize();
+        Vector3d up = Vector3d.Cross(forward, right).Normalize();
+
+        return new Fixed4x4(
+            right.x, right.y, right.z, Fixed64.Zero,
+            up.x, up.y, up.z, Fixed64.Zero,
+            forward.x, forward.y, forward.z, Fixed64.Zero,
+            -Vector3d.Dot(right, cameraPosition),
+            -Vector3d.Dot(up, cameraPosition),
+            -Vector3d.Dot(forward, cameraPosition),
+            Fixed64.One);
+    }
+
+    /// <summary>
+    /// Creates an orthographic projection matrix centered on the origin.
+    /// </summary>
+    public static Fixed4x4 CreateOrthographic(Fixed64 width, Fixed64 height, Fixed64 zNearPlane, Fixed64 zFarPlane)
+    {
+        if (width <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(width), width, "Width must be greater than zero.");
+        if (height <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(height), height, "Height must be greater than zero.");
+
+        Fixed64 halfWidth = width * Fixed64.Half;
+        Fixed64 halfHeight = height * Fixed64.Half;
+        return CreateOrthographicOffCenter(-halfWidth, halfWidth, -halfHeight, halfHeight, zNearPlane, zFarPlane);
+    }
+
+    /// <summary>
+    /// Creates an off-center orthographic projection matrix.
+    /// </summary>
+    public static Fixed4x4 CreateOrthographicOffCenter(
+        Fixed64 left,
+        Fixed64 right,
+        Fixed64 bottom,
+        Fixed64 top,
+        Fixed64 zNearPlane,
+        Fixed64 zFarPlane)
+    {
+        if (left == right)
+            throw new ArgumentOutOfRangeException(nameof(right), right, "Right must be different from left.");
+        if (bottom == top)
+            throw new ArgumentOutOfRangeException(nameof(top), top, "Top must be different from bottom.");
+        ValidateDepthRange(zNearPlane, zFarPlane);
+
+        Fixed64 width = right - left;
+        Fixed64 height = top - bottom;
+        Fixed64 depth = zFarPlane - zNearPlane;
+
+        return new Fixed4x4(
+            Fixed64.Two / width, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Two / height, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One / depth, Fixed64.Zero,
+            (left + right) / (left - right),
+            (top + bottom) / (bottom - top),
+            -zNearPlane / depth,
+            Fixed64.One);
+    }
+
+    /// <summary>
+    /// Creates a perspective projection matrix centered on the near plane.
+    /// </summary>
+    public static Fixed4x4 CreatePerspective(
+        Fixed64 width,
+        Fixed64 height,
+        Fixed64 nearPlaneDistance,
+        Fixed64 farPlaneDistance)
+    {
+        if (width <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(width), width, "Width must be greater than zero.");
+        if (height <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(height), height, "Height must be greater than zero.");
+        ValidatePerspectiveDepthRange(nearPlaneDistance, farPlaneDistance);
+
+        Fixed64 depth = farPlaneDistance - nearPlaneDistance;
+        Fixed64 twoNear = Fixed64.Two * nearPlaneDistance;
+
+        return new Fixed4x4(
+            twoNear / width, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, twoNear / height, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, farPlaneDistance / depth, Fixed64.One,
+            Fixed64.Zero, Fixed64.Zero, -(nearPlaneDistance * farPlaneDistance) / depth, Fixed64.Zero);
+    }
+
+    /// <summary>
+    /// Creates a perspective projection matrix from a vertical field of view.
+    /// </summary>
+    public static Fixed4x4 CreatePerspectiveFieldOfView(
+        Fixed64 fieldOfView,
+        Fixed64 aspectRatio,
+        Fixed64 nearPlaneDistance,
+        Fixed64 farPlaneDistance)
+    {
+        if (fieldOfView <= Fixed64.Zero || fieldOfView >= FixedMath.PI)
+            throw new ArgumentOutOfRangeException(nameof(fieldOfView), fieldOfView, "Field of view must be greater than zero and less than PI.");
+        if (aspectRatio <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(aspectRatio), aspectRatio, "Aspect ratio must be greater than zero.");
+        ValidatePerspectiveDepthRange(nearPlaneDistance, farPlaneDistance);
+
+        Fixed64 yScale = Fixed64.One / FixedMath.Tan(fieldOfView * Fixed64.Half);
+        Fixed64 xScale = yScale / aspectRatio;
+        Fixed64 depth = farPlaneDistance - nearPlaneDistance;
+
+        return new Fixed4x4(
+            xScale, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, yScale, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, farPlaneDistance / depth, Fixed64.One,
+            Fixed64.Zero, Fixed64.Zero, -(nearPlaneDistance * farPlaneDistance) / depth, Fixed64.Zero);
+    }
+
+    /// <summary>
+    /// Creates an off-center perspective projection matrix.
+    /// </summary>
+    public static Fixed4x4 CreatePerspectiveOffCenter(
+        Fixed64 left,
+        Fixed64 right,
+        Fixed64 bottom,
+        Fixed64 top,
+        Fixed64 nearPlaneDistance,
+        Fixed64 farPlaneDistance)
+    {
+        if (left == right)
+            throw new ArgumentOutOfRangeException(nameof(right), right, "Right must be different from left.");
+        if (bottom == top)
+            throw new ArgumentOutOfRangeException(nameof(top), top, "Top must be different from bottom.");
+        ValidatePerspectiveDepthRange(nearPlaneDistance, farPlaneDistance);
+
+        Fixed64 width = right - left;
+        Fixed64 height = top - bottom;
+        Fixed64 depth = farPlaneDistance - nearPlaneDistance;
+        Fixed64 twoNear = Fixed64.Two * nearPlaneDistance;
+
+        return new Fixed4x4(
+            twoNear / width, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, twoNear / height, Fixed64.Zero, Fixed64.Zero,
+            (left + right) / (left - right),
+            (top + bottom) / (bottom - top),
+            farPlaneDistance / depth,
+            Fixed64.One,
+            Fixed64.Zero, Fixed64.Zero, -(nearPlaneDistance * farPlaneDistance) / depth, Fixed64.Zero);
+    }
+
+    /// <summary>
+    /// Creates a world matrix from a position and orientation basis.
+    /// </summary>
+    public static Fixed4x4 CreateWorld(Vector3d position, Vector3d forward, Vector3d up)
+    {
+        if (forward.SqrMagnitude == Fixed64.Zero)
+            throw new ArgumentException("Forward vector must be non-zero.", nameof(forward));
+
+        forward = forward.Normalize();
+        Vector3d right = Vector3d.Cross(up, forward);
+        if (right.SqrMagnitude == Fixed64.Zero)
+            throw new ArgumentException("Up vector must not be parallel to forward.", nameof(up));
+
+        right = right.Normalize();
+        up = Vector3d.Cross(forward, right).Normalize();
+
+        return new Fixed4x4(
+            right.x, right.y, right.z, Fixed64.Zero,
+            up.x, up.y, up.z, Fixed64.Zero,
+            forward.x, forward.y, forward.z, Fixed64.Zero,
+            position.x, position.y, position.z, Fixed64.One);
     }
 
     /// <summary>
@@ -509,6 +793,14 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     }
 
     /// <summary>
+    /// Extracts the right direction from the 4x4 matrix.
+    /// </summary>
+    public static Vector3d ExtractRight(Fixed4x4 matrix)
+    {
+        return new Vector3d(matrix.m00, matrix.m01, matrix.m02).Normalize();
+    }
+
+    /// <summary>
     /// Extracts the up direction from the 4x4 matrix.
     /// </summary>
     /// <remarks>
@@ -519,6 +811,14 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     public static Vector3d ExtractUp(Fixed4x4 matrix)
     {
         return new Vector3d(matrix.m10, matrix.m11, matrix.m12).Normalize();
+    }
+
+    /// <summary>
+    /// Extracts the forward direction from the 4x4 matrix.
+    /// </summary>
+    public static Vector3d ExtractForward(Fixed4x4 matrix)
+    {
+        return new Vector3d(matrix.m20, matrix.m21, matrix.m22).Normalize();
     }
 
     /// <summary>
@@ -775,6 +1075,90 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     #endregion
 
     #region Static Matrix Operators
+
+    /// <summary>
+    /// Linearly interpolates between two matrices component-wise.
+    /// </summary>
+    public static Fixed4x4 Lerp(Fixed4x4 a, Fixed4x4 b, Fixed64 t)
+    {
+        return new Fixed4x4(
+            FixedMath.LinearInterpolate(a.m00, b.m00, t),
+            FixedMath.LinearInterpolate(a.m01, b.m01, t),
+            FixedMath.LinearInterpolate(a.m02, b.m02, t),
+            FixedMath.LinearInterpolate(a.m03, b.m03, t),
+            FixedMath.LinearInterpolate(a.m10, b.m10, t),
+            FixedMath.LinearInterpolate(a.m11, b.m11, t),
+            FixedMath.LinearInterpolate(a.m12, b.m12, t),
+            FixedMath.LinearInterpolate(a.m13, b.m13, t),
+            FixedMath.LinearInterpolate(a.m20, b.m20, t),
+            FixedMath.LinearInterpolate(a.m21, b.m21, t),
+            FixedMath.LinearInterpolate(a.m22, b.m22, t),
+            FixedMath.LinearInterpolate(a.m23, b.m23, t),
+            FixedMath.LinearInterpolate(a.m30, b.m30, t),
+            FixedMath.LinearInterpolate(a.m31, b.m31, t),
+            FixedMath.LinearInterpolate(a.m32, b.m32, t),
+            FixedMath.LinearInterpolate(a.m33, b.m33, t));
+    }
+
+    /// <summary>
+    /// Transposes the matrix by swapping rows and columns.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 Transpose(Fixed4x4 matrix)
+    {
+        return new Fixed4x4(
+            matrix.m00, matrix.m10, matrix.m20, matrix.m30,
+            matrix.m01, matrix.m11, matrix.m21, matrix.m31,
+            matrix.m02, matrix.m12, matrix.m22, matrix.m32,
+            matrix.m03, matrix.m13, matrix.m23, matrix.m33);
+    }
+
+    /// <summary>
+    /// Divides each component of one matrix by the corresponding component of another matrix.
+    /// </summary>
+    /// <exception cref="DivideByZeroException">
+    /// Thrown when any divisor component is zero.
+    /// </exception>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 ComponentDivide(Fixed4x4 dividend, Fixed4x4 divisor)
+    {
+        return new Fixed4x4(
+            dividend.m00 / divisor.m00,
+            dividend.m01 / divisor.m01,
+            dividend.m02 / divisor.m02,
+            dividend.m03 / divisor.m03,
+            dividend.m10 / divisor.m10,
+            dividend.m11 / divisor.m11,
+            dividend.m12 / divisor.m12,
+            dividend.m13 / divisor.m13,
+            dividend.m20 / divisor.m20,
+            dividend.m21 / divisor.m21,
+            dividend.m22 / divisor.m22,
+            dividend.m23 / divisor.m23,
+            dividend.m30 / divisor.m30,
+            dividend.m31 / divisor.m31,
+            dividend.m32 / divisor.m32,
+            dividend.m33 / divisor.m33);
+    }
+
+    /// <summary>
+    /// Divides one matrix by another using inverse matrix division.
+    /// </summary>
+    /// <remarks>
+    /// This is equivalent to <c>dividend * Invert(divisor)</c>. Use <see cref="ComponentDivide"/>
+    /// when each matrix component should be divided by the corresponding component of another matrix.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <paramref name="divisor"/> is not invertible.
+    /// </exception>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 Divide(Fixed4x4 dividend, Fixed4x4 divisor)
+    {
+        if (!Invert(divisor, out Fixed4x4 inverseDivisor))
+            throw new InvalidOperationException("Matrix divisor is not invertible.");
+
+        return dividend * inverseDivisor;
+    }
 
     /// <summary>
     /// Inverts the matrix if it is invertible (i.e., if the determinant is not zero).
@@ -1084,6 +1468,38 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     }
 
     /// <summary>
+    /// Multiplies every matrix component by a scalar.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 operator *(Fixed4x4 matrix, Fixed64 scalar)
+    {
+        return new Fixed4x4(
+            matrix.m00 * scalar, matrix.m01 * scalar, matrix.m02 * scalar, matrix.m03 * scalar,
+            matrix.m10 * scalar, matrix.m11 * scalar, matrix.m12 * scalar, matrix.m13 * scalar,
+            matrix.m20 * scalar, matrix.m21 * scalar, matrix.m22 * scalar, matrix.m23 * scalar,
+            matrix.m30 * scalar, matrix.m31 * scalar, matrix.m32 * scalar, matrix.m33 * scalar);
+    }
+
+    /// <summary>
+    /// Multiplies every matrix component by a scalar.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 operator *(Fixed64 scalar, Fixed4x4 matrix)
+    {
+        return matrix * scalar;
+    }
+
+    /// <summary>
+    /// Divides every matrix component by a scalar.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 operator /(Fixed4x4 matrix, Fixed64 scalar)
+    {
+        Fixed64 inverse = Fixed64.One / scalar;
+        return matrix * inverse;
+    }
+
+    /// <summary>
     /// Determines whether two Fixed4x4 instances are equal.
     /// </summary>
     /// <param name="left">The first Fixed4x4 instance to compare.</param>
@@ -1156,4 +1572,35 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     }
 
     #endregion    
+
+    #region Private Helpers
+
+    private static Fixed4x4 FromRotationMatrix(Fixed3x3 matrix)
+    {
+        return new Fixed4x4(
+            matrix.m00, matrix.m01, matrix.m02, Fixed64.Zero,
+            matrix.m10, matrix.m11, matrix.m12, Fixed64.Zero,
+            matrix.m20, matrix.m21, matrix.m22, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+    }
+
+    private static void ValidateDepthRange(Fixed64 nearPlaneDistance, Fixed64 farPlaneDistance)
+    {
+        if (nearPlaneDistance < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(nearPlaneDistance), nearPlaneDistance, "Near plane distance must be greater than or equal to zero.");
+
+        if (farPlaneDistance <= nearPlaneDistance)
+            throw new ArgumentOutOfRangeException(nameof(farPlaneDistance), farPlaneDistance, "Far plane distance must be greater than near plane distance.");
+    }
+
+    private static void ValidatePerspectiveDepthRange(Fixed64 nearPlaneDistance, Fixed64 farPlaneDistance)
+    {
+        if (nearPlaneDistance <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(nearPlaneDistance), nearPlaneDistance, "Near plane distance must be greater than zero.");
+
+        if (farPlaneDistance <= nearPlaneDistance)
+            throw new ArgumentOutOfRangeException(nameof(farPlaneDistance), farPlaneDistance, "Far plane distance must be greater than near plane distance.");
+    }
+
+    #endregion
 }
