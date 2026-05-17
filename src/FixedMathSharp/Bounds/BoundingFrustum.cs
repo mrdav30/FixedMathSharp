@@ -327,6 +327,36 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     }
 
     /// <summary>
+    /// Clamps a point to this frustum, returning the point unchanged when it is already inside.
+    /// </summary>
+    public Vector3d ClampPoint(Vector3d point)
+    {
+        if (Contains(point) != ContainmentType.Disjoint)
+            return point;
+
+        Vector3d best = _corners[0];
+        Fixed64 bestDistance = Vector3d.SqrDistance(point, best);
+
+        for (int i = 1; i < CornerCount; i++)
+            UpdateNearestCandidate(point, _corners[i], ref best, ref bestDistance);
+
+        for (int i = 0; i < PlaneCount; i++)
+        {
+            Vector3d candidate = Vector3d.ProjectOnPlane(point, _planes[i]);
+            if (IsInside(candidate))
+                UpdateNearestCandidate(point, candidate, ref best, ref bestDistance);
+        }
+
+        for (int i = 0; i < Edges.Length; i++)
+        {
+            Vector3d candidate = Vector3d.ClosestPointOnLineSegment(point, _corners[Edges[i].Start], _corners[Edges[i].End]);
+            UpdateNearestCandidate(point, candidate, ref best, ref bestDistance);
+        }
+
+        return best;
+    }
+
+    /// <summary>
     /// Returns a copy of the frustum corner array.
     /// </summary>
     public Vector3d[] GetCorners()
@@ -400,6 +430,31 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
         Vector3d v3 = Vector3d.Cross(a.Normal, b.Normal) * c.D;
 
         return -(v1 + v2 + v3) / denominator;
+    }
+
+    private bool IsInside(Vector3d point)
+    {
+        for (int i = 0; i < PlaneCount; i++)
+        {
+            if (_planes[i].DotCoordinate(point) > Fixed64.Zero)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static void UpdateNearestCandidate(
+        Vector3d point,
+        Vector3d candidate,
+        ref Vector3d best,
+        ref Fixed64 bestDistance)
+    {
+        Fixed64 candidateDistance = Vector3d.SqrDistance(point, candidate);
+        if (candidateDistance >= bestDistance)
+            return;
+
+        best = candidate;
+        bestDistance = candidateDistance;
     }
 
     private bool IntersectsFrustum(BoundingFrustum other)

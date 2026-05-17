@@ -47,6 +47,42 @@ public class BoundingFrustumTests
     }
 
     [Fact]
+    public void ClampPoint_ReturnsPointUnchangedWhenAlreadyInside()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var point = new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Half);
+
+        Assert.Equal(point, frustum.ClampPoint(point));
+    }
+
+    [Fact]
+    public void ClampPoint_ClampsToFaceEdgeOrCorner()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+
+        Assert.Equal(new Vector3d(1, 0, 0.5), frustum.ClampPoint(new Vector3d(2, 0, 0.5)));
+        Assert.Equal(new Vector3d(1, 1, 0.5), frustum.ClampPoint(new Vector3d(2, 2, 0.5)));
+        Assert.Equal(new Vector3d(1, 1, 1), frustum.ClampPoint(new Vector3d(2, 2, 2)));
+    }
+
+    [Fact]
+    public void ClampPoint_UsesFrustumPlanesInsteadOfAabb()
+    {
+        var matrix = Fixed4x4.Identity;
+        matrix.m20 = Fixed64.One;
+        var frustum = new BoundingFrustum(matrix);
+        var point = new Vector3d(1, 0, 1);
+
+        Vector3d clamped = frustum.ClampPoint(point);
+
+        Assert.NotEqual(point, clamped);
+        Assert.Equal(ContainmentType.Contains, frustum.Contains(clamped));
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.Half, clamped.x);
+        Assert.Equal(Fixed64.Zero, clamped.y);
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.Half, clamped.z);
+    }
+
+    [Fact]
     public void Intersects_BoundingBox_ReturnsFalseOnlyWhenFullyOutsidePlane()
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);

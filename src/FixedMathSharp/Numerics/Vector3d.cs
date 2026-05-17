@@ -898,18 +898,24 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     }
 
     /// <summary>
-    /// Finds the closest point on a line segment between points A and B to a given point P.
+    /// Calculates the closest point on a line segment defined by start and end points to a given point in space.
     /// </summary>
-    /// <param name="a">The start of the line segment.</param>
-    /// <param name="b">The end of the line segment.</param>
-    /// <param name="p">The point to project onto the segment.</param>
-    /// <returns>The closest point on the line segment to P.</returns>
-    public static Vector3d ClosestPointOnLineSegment(Vector3d a, Vector3d b, Vector3d p)
+    /// <param name="point">The point to project onto the segment.</param>
+    /// <param name="start">The start of the line segment.</param>
+    /// <param name="end">The end of the line segment.</param>
+    /// <returns>The closest point on the line segment to the given point.</returns>
+    public static Vector3d ClosestPointOnLineSegment(Vector3d point, Vector3d start, Vector3d end)
     {
-        Vector3d ab = b - a;
-        Fixed64 t = Dot(p - a, ab) / Dot(ab, ab);
-        t = FixedMath.Max(Fixed64.Zero, FixedMath.Min(Fixed64.One, t));
-        return a + ab * t;
+        Vector3d segment = end - start;
+        Fixed64 lengthSquared = segment.SqrMagnitude;
+
+        if (lengthSquared == Fixed64.Zero)
+            return start;
+
+        Fixed64 t = Dot(point - start, segment) / lengthSquared;
+        t = FixedMath.Clamp(t, Fixed64.Zero, Fixed64.One);
+
+        return start + segment * t;
     }
 
     /// <summary>
@@ -992,6 +998,22 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
                 vector.y - planeNormal.y * dot / sqrMag,
                 vector.z - planeNormal.z * dot / sqrMag);
         }
+    }
+
+    /// <summary>
+    /// Projects a point onto a plane defined by a normal and a distance from the origin.
+    /// </summary>
+    /// <param name="point">The point to project.</param>
+    /// <param name="plane">The plane onto which the point is projected.</param>
+    /// <returns>The projected point.</returns>
+    public static Vector3d ProjectOnPlane(Vector3d point, FixedPlane plane)
+    {
+        Fixed64 normalLengthSquared = plane.Normal.SqrMagnitude;
+        if (normalLengthSquared == Fixed64.Zero)
+            return point;
+
+        Fixed64 distance = plane.DotCoordinate(point);
+        return point - plane.Normal * (distance / normalLengthSquared);
     }
 
     /// <summary>
