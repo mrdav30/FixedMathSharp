@@ -1,4 +1,5 @@
 ﻿using MemoryPack;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -72,6 +73,60 @@ public class BoundingSphereTests
         Assert.True(sphere.Contains(point));
     }
 
+    [Fact]
+    public void Contains_BoundingSphere_ReturnsContainmentClassification()
+    {
+        var sphere = new BoundingSphere(Vector3d.Zero, new Fixed64(5));
+        var contained = new BoundingSphere(new Vector3d(1, 0, 0), new Fixed64(2));
+        var largerSameCenter = new BoundingSphere(Vector3d.Zero, new Fixed64(6));
+        var crossing = new BoundingSphere(new Vector3d(4, 0, 0), new Fixed64(2));
+        var disjoint = new BoundingSphere(new Vector3d(8, 0, 0), Fixed64.One);
+
+        Assert.Equal(ContainmentType.Contains, sphere.Contains(contained));
+        Assert.Equal(ContainmentType.Intersects, sphere.Contains(largerSameCenter));
+        Assert.Equal(ContainmentType.Intersects, sphere.Contains(crossing));
+        Assert.Equal(ContainmentType.Disjoint, sphere.Contains(disjoint));
+    }
+
+    [Fact]
+    public void Contains_BoundingBox_ReturnsContainmentClassification()
+    {
+        var sphere = new BoundingSphere(Vector3d.Zero, new Fixed64(5));
+        var contained = new BoundingBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var crossing = new BoundingBox(new Vector3d(5, 0, 0), new Vector3d(2, 2, 2));
+        var disjoint = new BoundingBox(new Vector3d(8, 0, 0), new Vector3d(1, 1, 1));
+
+        Assert.Equal(ContainmentType.Contains, sphere.Contains(contained));
+        Assert.Equal(ContainmentType.Intersects, sphere.Contains(crossing));
+        Assert.Equal(ContainmentType.Disjoint, sphere.Contains(disjoint));
+    }
+
+    [Fact]
+    public void Contains_BoundingArea_ReturnsContainmentClassification()
+    {
+        var sphere = new BoundingSphere(Vector3d.Zero, new Fixed64(5));
+        var contained = new BoundingArea(new Vector3d(-1, -1, 0), new Vector3d(1, 1, 0));
+        var crossing = new BoundingArea(new Vector3d(4, -1, 0), new Vector3d(6, 1, 0));
+        var disjoint = new BoundingArea(new Vector3d(8, -1, 0), new Vector3d(9, 1, 0));
+
+        Assert.Equal(ContainmentType.Contains, sphere.Contains(contained));
+        Assert.Equal(ContainmentType.Intersects, sphere.Contains(crossing));
+        Assert.Equal(ContainmentType.Disjoint, sphere.Contains(disjoint));
+    }
+
+    [Fact]
+    public void Contains_BoundingFrustum_ReturnsContainmentClassification()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var containing = new BoundingSphere(new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half), new Fixed64(2));
+        var crossing = new BoundingSphere(new Vector3d(Fixed64.One, Fixed64.Zero, Fixed64.Half), Fixed64.Half);
+        var disjoint = new BoundingSphere(new Vector3d(new Fixed64(4), Fixed64.Zero, Fixed64.Half), Fixed64.Half);
+
+        Assert.Equal(ContainmentType.Contains, containing.Contains(frustum));
+        Assert.Equal(ContainmentType.Intersects, crossing.Contains(frustum));
+        Assert.Equal(ContainmentType.Disjoint, disjoint.Contains(frustum));
+    }
+
     #endregion
 
     #region Test: Intersection
@@ -119,6 +174,95 @@ public class BoundingSphereTests
         var unsupported = new UnsupportedBound(new Vector3d(10, 10, 10), new Vector3d(12, 12, 12));
 
         Assert.False(sphere.Intersects(unsupported));
+    }
+
+    [Fact]
+    public void Intersects_TypedBounds_UseSphereGeometry()
+    {
+        var sphere = new BoundingSphere(Vector3d.Zero, new Fixed64(2));
+        var box = new BoundingBox(new Vector3d(3, 0, 0), new Vector3d(2, 2, 2));
+        var area = new BoundingArea(new Vector3d(2, -1, 0), new Vector3d(4, 1, 0));
+        var otherSphere = new BoundingSphere(new Vector3d(4, 0, 0), new Fixed64(2));
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+
+        Assert.True(sphere.Intersects(box));
+        Assert.True(sphere.Intersects(area));
+        Assert.True(sphere.Intersects(otherSphere));
+        Assert.True(sphere.Intersects(frustum));
+    }
+
+    [Fact]
+    public void Intersects_FixedPlaneAndRay_ReturnPrototypeStyleResults()
+    {
+        var sphere = new BoundingSphere(Vector3d.Zero, new Fixed64(2));
+        var plane = new FixedPlane(Vector3d.Right, new Fixed64(-1));
+        var ray = new FixedRay(new Vector3d(-5, 0, 0), Vector3d.Right);
+
+        Assert.Equal(FixedPlaneIntersectionType.Intersecting, sphere.Intersects(plane));
+        Assert.Equal(new Fixed64(3), sphere.Intersects(ray));
+    }
+
+    #endregion
+
+    #region Test: Creation
+
+    [Fact]
+    public void CreateFromBoundingBox_UsesBoxCenterAndFarthestCorner()
+    {
+        var box = new BoundingBox(new Vector3d(1, 2, 3), new Vector3d(2, 4, 6));
+
+        BoundingSphere sphere = BoundingSphere.CreateFromBoundingBox(box);
+
+        Assert.Equal(box.Center, sphere.Center);
+        Assert.Equal(Vector3d.Distance(box.Center, box.Max), sphere.Radius);
+    }
+
+    [Fact]
+    public void CreateFromFrustum_ContainsEveryCorner()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+
+        BoundingSphere sphere = BoundingSphere.CreateFromFrustum(frustum);
+
+        foreach (Vector3d corner in frustum.GetCorners())
+            Assert.True(sphere.Contains(corner));
+    }
+
+    [Fact]
+    public void CreateFromPoints_ContainsEveryPoint()
+    {
+        Vector3d[] points =
+        {
+            new(-1, 0, 0),
+            new(1, 0, 0),
+            new(0, 2, 0),
+            new(0, 0, -3)
+        };
+
+        BoundingSphere sphere = BoundingSphere.CreateFromPoints(points);
+
+        foreach (Vector3d point in points)
+            Assert.True(sphere.Contains(point));
+    }
+
+    [Fact]
+    public void CreateFromPoints_RejectsEmptyInput()
+    {
+        Assert.Throws<ArgumentException>(() => BoundingSphere.CreateFromPoints(Array.Empty<Vector3d>()));
+    }
+
+    [Fact]
+    public void CreateMerged_ReturnsMinimalSphereContainingInputs()
+    {
+        var left = new BoundingSphere(Vector3d.Zero, Fixed64.One);
+        var right = new BoundingSphere(new Vector3d(4, 0, 0), Fixed64.One);
+        var contained = new BoundingSphere(new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Zero), Fixed64.Half);
+
+        BoundingSphere merged = BoundingSphere.CreateMerged(left, right);
+
+        Assert.Equal(new Vector3d(2, 0, 0), merged.Center);
+        Assert.Equal(new Fixed64(3), merged.Radius);
+        Assert.Equal(left, BoundingSphere.CreateMerged(left, contained));
     }
 
     #endregion
@@ -230,6 +374,25 @@ public class BoundingSphereTests
         var point = new Vector3d(3, 0, 0);
 
         Assert.Equal(new Fixed64(3), sphere.DistanceToSurface(point));
+    }
+
+    #endregion
+
+    #region Test: Transform
+
+    [Fact]
+    public void Transform_TransformsCenterAndUsesLargestBasisScaleForRadius()
+    {
+        var sphere = new BoundingSphere(new Vector3d(1, 1, 1), new Fixed64(2));
+        Fixed4x4 matrix = Fixed4x4.CreateTransform(
+            new Vector3d(10, 20, 30),
+            FixedQuaternion.Identity,
+            new Vector3d(2, 3, 4));
+
+        BoundingSphere transformed = sphere.Transform(matrix);
+
+        Assert.Equal(new Vector3d(12, 23, 34), transformed.Center);
+        Assert.Equal(new Fixed64(8), transformed.Radius);
     }
 
     #endregion
