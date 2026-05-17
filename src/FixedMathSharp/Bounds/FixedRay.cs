@@ -116,20 +116,6 @@ public partial struct FixedRay : IEquatable<FixedRay>
         return frustum.Intersects(this);
     }
 
-    /// <summary>
-    /// Finds the first forward intersection with a supported bound.
-    /// </summary>
-    public Fixed64? Intersects(IBound bound)
-    {
-        return bound switch
-        {
-            BoundingBox box => Intersects(box),
-            BoundingArea area => Intersects(area),
-            BoundingSphere sphere => Intersects(sphere),
-            _ => null
-        };
-    }
-
     private Fixed64? IntersectsBoxLike(Vector3d min, Vector3d max)
     {
         Fixed64 tMin = Fixed64.Zero;

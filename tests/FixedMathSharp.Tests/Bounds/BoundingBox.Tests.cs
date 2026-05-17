@@ -7,24 +7,6 @@ namespace FixedMathSharp.Tests.Bounds;
 
 public class BoundingBoxTests
 {
-    private readonly struct UnsupportedBound : IBound
-    {
-        public Vector3d Min { get; }
-        public Vector3d Max { get; }
-
-        public UnsupportedBound(Vector3d min, Vector3d max)
-        {
-            Min = min;
-            Max = max;
-        }
-
-        public bool Contains(Vector3d point) => false;
-
-        public bool Intersects(IBound other) => false;
-
-        public Vector3d ProjectPoint(Vector3d point) => point;
-    }
-
     #region Test: Constructor and Property
 
     [Fact]
@@ -124,6 +106,40 @@ public class BoundingBoxTests
     }
 
     [Fact]
+    public void Intersects_WithBoundingFrustum_ReturnsTrueOnlyWhenOverlapping()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var overlapping = new BoundingBox(new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half), new Vector3d(2, 2, 2));
+        var disjoint = new BoundingBox(new Vector3d(new Fixed64(4), Fixed64.Zero, Fixed64.Half), new Vector3d(1, 1, 1));
+
+        Assert.True(overlapping.Intersects(frustum));
+        Assert.False(disjoint.Intersects(frustum));
+    }
+
+    [Fact]
+    public void Contains_TypedBounds_ReturnsContainmentClassification()
+    {
+        var box = new BoundingBox(Vector3d.Zero, new Vector3d(4, 4, 4));
+        var containedBox = new BoundingBox(Vector3d.Zero, new Vector3d(1, 1, 1));
+        var crossingArea = new BoundingArea(new Vector3d(1, 1, 0), new Vector3d(3, 3, 0));
+        var containedSphere = new BoundingSphere(Vector3d.Zero, Fixed64.One);
+        var crossingSphere = new BoundingSphere(new Vector3d(2, 0, 0), Fixed64.One);
+        var disjointSphere = new BoundingSphere(new Vector3d(5, 0, 0), Fixed64.One);
+        var containedFrustum = new BoundingFrustum(Fixed4x4.Identity);
+        var crossingFrustumMatrix = Fixed4x4.Identity;
+        crossingFrustumMatrix.m30 = Fixed64.Two;
+        var crossingFrustum = new BoundingFrustum(crossingFrustumMatrix);
+
+        Assert.Equal(ContainmentType.Contains, box.Contains(containedBox));
+        Assert.Equal(ContainmentType.Intersects, box.Contains(crossingArea));
+        Assert.Equal(ContainmentType.Contains, box.Contains(containedSphere));
+        Assert.Equal(ContainmentType.Intersects, box.Contains(crossingSphere));
+        Assert.Equal(ContainmentType.Disjoint, box.Contains(disjointSphere));
+        Assert.Equal(ContainmentType.Contains, box.Contains(containedFrustum));
+        Assert.Equal(ContainmentType.Intersects, box.Contains(crossingFrustum));
+    }
+
+    [Fact]
     public void Intersects_TouchingEdges_ReturnsFalse()
     {
         var a = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
@@ -181,6 +197,16 @@ public class BoundingBoxTests
         var projected = box.ProjectPoint(new Vector3d(5, -3, 1));
 
         Assert.Equal(new Vector3d(2, -2, 1), projected);
+    }
+
+    [Fact]
+    public void ClampPoint_ClampsToBounds()
+    {
+        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+
+        var clamped = box.ClampPoint(new Vector3d(5, -3, 1));
+
+        Assert.Equal(new Vector3d(2, -2, 1), clamped);
     }
 
     [Fact]
@@ -385,15 +411,6 @@ public class BoundingBoxTests
         var closestPoint = BoundingBox.FindClosestPointsBetweenBoxes(a, b);
 
         Assert.Equal(new Vector3d(1, -1, -1), closestPoint);
-    }
-
-    [Fact]
-    public void Intersects_WithUnsupportedBound_ReturnsFalse()
-    {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
-        var unsupported = new UnsupportedBound(new Vector3d(10, 10, 10), new Vector3d(12, 12, 12));
-
-        Assert.False(box.Intersects(unsupported));
     }
 
     #endregion

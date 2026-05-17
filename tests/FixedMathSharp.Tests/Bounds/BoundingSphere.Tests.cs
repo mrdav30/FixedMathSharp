@@ -8,24 +8,6 @@ namespace FixedMathSharp.Tests.Bounds;
 
 public class BoundingSphereTests
 {
-    private readonly struct UnsupportedBound : IBound
-    {
-        public Vector3d Min { get; }
-        public Vector3d Max { get; }
-
-        public UnsupportedBound(Vector3d min, Vector3d max)
-        {
-            Min = min;
-            Max = max;
-        }
-
-        public bool Contains(Vector3d point) => false;
-
-        public bool Intersects(IBound other) => false;
-
-        public Vector3d ProjectPoint(Vector3d point) => point;
-    }
-
     #region Test: Constructor and Property
 
     [Fact]
@@ -168,15 +150,6 @@ public class BoundingSphereTests
     }
 
     [Fact]
-    public void Intersects_WithUnsupportedBound_ReturnsFalse()
-    {
-        var sphere = new BoundingSphere(new Vector3d(0, 0, 0), new Fixed64(2));
-        var unsupported = new UnsupportedBound(new Vector3d(10, 10, 10), new Vector3d(12, 12, 12));
-
-        Assert.False(sphere.Intersects(unsupported));
-    }
-
-    [Fact]
     public void Intersects_TypedBounds_UseSphereGeometry()
     {
         var sphere = new BoundingSphere(Vector3d.Zero, new Fixed64(2));
@@ -283,6 +256,16 @@ public class BoundingSphereTests
         var sphere = new BoundingSphere(new Vector3d(1, 2, 3), new Fixed64(5));
 
         Assert.Equal(new Vector3d(6, 2, 3), sphere.ProjectPoint(new Vector3d(20, 2, 3)));
+    }
+
+    [Fact]
+    public void ClampPoint_ReturnsOriginalInsideAndSurfacePointOutside()
+    {
+        var sphere = new BoundingSphere(new Vector3d(1, 2, 3), new Fixed64(5));
+
+        Assert.Equal(new Vector3d(3, 2, 3), sphere.ClampPoint(new Vector3d(3, 2, 3)));
+        Assert.Equal(new Vector3d(6, 2, 3), sphere.ClampPoint(new Vector3d(20, 2, 3)));
+        Assert.Equal(sphere.Center, sphere.ClampPoint(sphere.Center));
     }
 
     [Fact]

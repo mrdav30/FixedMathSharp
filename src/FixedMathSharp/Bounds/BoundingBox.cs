@@ -19,7 +19,7 @@ namespace FixedMathSharp;
 /// </remarks>
 [Serializable]
 [MemoryPackable]
-public partial struct BoundingBox : IBound, IEquatable<BoundingBox>
+public partial struct BoundingBox : IEquatable<BoundingBox>
 {
     #region Nested Types
 
@@ -258,28 +258,103 @@ public partial struct BoundingBox : IBound, IEquatable<BoundingBox>
     }
 
     /// <summary>
-    /// Checks if another IBound intersects with this bounding box.
-    /// Ensures overlap, not just touching boundaries.
+    /// Tests another bounding box against this bounding box.
     /// </summary>
-    /// <remarks>
-    /// It checks for overlap on all axes. If there is no overlap on any axis, they do not intersect.
-    /// </remarks>
-    public bool Intersects(IBound other)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ContainmentType Contains(BoundingBox box) => ContainsBoxLike(box.Min, box.Max);
+
+    /// <summary>
+    /// Tests a bounding area against this bounding box.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ContainmentType Contains(BoundingArea area) => ContainsBoxLike(area.Min, area.Max);
+
+    /// <summary>
+    /// Tests a bounding sphere against this bounding box.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ContainmentType Contains(BoundingSphere sphere)
     {
-        return other switch
-        {
-            BoundingBox or BoundingArea => IntersectsBoxLike(other.Min, other.Max),
-            BoundingSphere sphere => IntersectsSphere(sphere),
-            _ => false
-        };
+        if (Contains(sphere.Min) && Contains(sphere.Max))
+            return ContainmentType.Contains;
+
+        return Intersects(sphere) ? ContainmentType.Intersects : ContainmentType.Disjoint;
     }
 
     /// <summary>
-    /// Projects a point onto the bounding box. If the point is outside the box, it returns the closest point on the surface.
+    /// Tests a bounding frustum against this bounding box.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ContainmentType Contains(BoundingFrustum frustum)
+    {
+        if (frustum == null)
+            throw new ArgumentNullException(nameof(frustum));
+
+        if (Contains(frustum.Min) && Contains(frustum.Max))
+            return ContainmentType.Contains;
+
+        return Intersects(frustum) ? ContainmentType.Intersects : ContainmentType.Disjoint;
+    }
+
+    /// <summary>
+    /// Checks whether another bounding box intersects this bounding box.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Intersects(BoundingBox box) => IntersectsBoxLike(box.Min, box.Max);
+
+    /// <summary>
+    /// Checks whether a bounding area intersects this bounding box.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Intersects(BoundingArea area) => IntersectsBoxLike(area.Min, area.Max);
+
+    /// <summary>
+    /// Checks whether a bounding sphere intersects this bounding box.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Intersects(BoundingSphere sphere) => IntersectsSphere(sphere);
+
+    /// <summary>
+    /// Checks whether a bounding frustum intersects this bounding box.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Intersects(BoundingFrustum frustum)
+    {
+        if (frustum == null)
+            throw new ArgumentNullException(nameof(frustum));
+
+        return frustum.Intersects(this);
+    }
+
+    /// <summary>
+    /// Projects a point into the bounding box by clamping it to the box extents.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d ProjectPoint(Vector3d point)
-        => this.ProjectPointWithinBounds(point);
+        => ClampPoint(point);
+
+    /// <summary>
+    /// Clamps a point to this bounding box, returning the point unchanged when it is already inside.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector3d ClampPoint(Vector3d point)
+    {
+        return new Vector3d(
+            FixedMath.Clamp(point.x, Min.x, Max.x),
+            FixedMath.Clamp(point.y, Min.y, Max.y),
+            FixedMath.Clamp(point.z, Min.z, Max.z));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ContainmentType ContainsBoxLike(Vector3d otherMin, Vector3d otherMax)
+    {
+        if (Contains(otherMin) && Contains(otherMax))
+            return ContainmentType.Contains;
+
+        return IntersectsBoxLike(otherMin, otherMax)
+            ? ContainmentType.Intersects
+            : ContainmentType.Disjoint;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IntersectsBoxLike(Vector3d otherMin, Vector3d otherMax)
@@ -291,7 +366,7 @@ public partial struct BoundingBox : IBound, IEquatable<BoundingBox>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IntersectsSphere(BoundingSphere sphere)
     {
-        return Vector3d.SqrDistance(sphere.Center, this.ProjectPointWithinBounds(sphere.Center)) <= sphere.SqrRadius;
+        return Vector3d.SqrDistance(sphere.Center, ClampPoint(sphere.Center)) <= sphere.SqrRadius;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

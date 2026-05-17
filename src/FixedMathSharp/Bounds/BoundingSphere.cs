@@ -20,7 +20,7 @@ namespace FixedMathSharp
     /// </remarks>
     [Serializable]
     [MemoryPackable]
-    public partial struct BoundingSphere : IBound, IEquatable<BoundingSphere>
+    public partial struct BoundingSphere : IEquatable<BoundingSphere>
     {
         #region Fields
 
@@ -330,23 +330,6 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Checks if this sphere intersects with another IBound.
-        /// </summary>
-        /// <param name="other">The other IBound to check for intersection.</param>
-        /// <returns>True if the IBounds intersect, otherwise false.</returns>
-        public bool Intersects(IBound other)
-        {
-            switch (other)
-            {
-                case BoundingBox box: return Intersects(box);
-                case BoundingArea area: return Intersects(area);
-                case BoundingSphere sphere: return Intersects(sphere);
-
-                default: return false; // Default case for unknown or unsupported types
-            }
-        }
-
-        /// <summary>
         /// Checks whether a bounding box intersects this sphere.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -398,6 +381,18 @@ namespace FixedMathSharp
             if (direction.IsZero) return Center; // If the point is the center, return the center itself
 
             return Center + direction.Normalize() * Radius;
+        }
+
+        /// <summary>
+        /// Clamps a point to this sphere, returning the point unchanged when it is already inside the sphere.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector3d ClampPoint(Vector3d point)
+        {
+            if (Contains(point))
+                return point;
+
+            return ProjectPoint(point);
         }
 
         /// <summary>
