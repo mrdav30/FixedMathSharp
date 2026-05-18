@@ -482,7 +482,7 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     /// <param name="lo">Lower 64 bits of the 128-bit value.</param>
     /// <param name="shift">Number of bits to shift right. Must be in the range 1..63.</param>
     /// <param name="overflowed">
-    /// True if rounding caused the 64-bit shifted result to overflow.
+    /// True if the shifted or rounded result exceeded 64 bits.
     /// </param>
     /// <returns>
     /// The rounded 64-bit result of ((hi:lo) >> shift).
@@ -491,6 +491,10 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     private static ulong ShiftRightRoundedToEven(ulong hi, ulong lo, int shift, out bool overflowed)
     {
         // Preconditions: 1 <= shift <= 63
+
+        // Bits above the low 64 result bits must be preserved as saturation state
+        // before the lower projection can wrap back into range.
+        overflowed = (hi >> shift) != 0UL;
 
         // Integer part after shifting right by 'shift':
         // result = ((hi << (64 - shift)) | (lo >> shift))
@@ -510,12 +514,10 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
             remainder > half ||
             (remainder == half && (result & 1UL) != 0);
 
-        overflowed = false;
-
         if (shouldRoundUp)
         {
             ulong incremented = result + 1UL;
-            overflowed = incremented < result;
+            overflowed |= incremented < result;
             result = incremented;
         }
 
