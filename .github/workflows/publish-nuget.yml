@@ -137,8 +137,8 @@ jobs:
 
         expected_ids=(
           "FixedMathSharp"
-          "FixedMathSharp.Lean",
-          "FixedMathSharp.FluentAssertions",
+          "FixedMathSharp.Lean"
+          "FixedMathSharp.FluentAssertions"
           "FixedMathSharp.FluentAssertions.Lean"
         )
 
