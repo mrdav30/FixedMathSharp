@@ -88,6 +88,28 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     }
 
     /// <summary>
+    /// Gets the magnitude of this quaternion.
+    /// </summary>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public Fixed64 Magnitude
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => GetMagnitude(this);
+    }
+
+    /// <summary>
+    /// Gets the squared magnitude of this quaternion.
+    /// </summary>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public Fixed64 SqrMagnitude
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => x * x + y * y + z * z + w * w;
+    }
+
+    /// <summary>
     /// Returns the Euler angles (in degrees) of this quaternion.
     /// </summary>
     [JsonIgnore]
@@ -190,7 +212,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     public FixedQuaternion Inverse()
     {
         if (this == Identity) return Identity;
-        Fixed64 norm = x * x + y * y + z * z + w * w;
+        Fixed64 norm = SqrMagnitude;
         if (norm == Fixed64.Zero) return this; // Handle division by zero by returning the same quaternion
 
         Fixed64 invNorm = Fixed64.One / norm;
@@ -285,6 +307,32 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
             q.z / mag,
             q.w / mag
         );
+    }
+
+    /// <summary>
+    /// Divides one quaternion by another using inverse quaternion multiplication.
+    /// </summary>
+    /// <remarks>
+    /// This is equivalent to <c>dividend * Inverse(divisor)</c>.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <paramref name="divisor"/> is not invertible.
+    /// </exception>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedQuaternion Divide(FixedQuaternion dividend, FixedQuaternion divisor)
+    {
+        Fixed64 divisorSqrMagnitude = divisor.SqrMagnitude;
+        if (divisorSqrMagnitude == Fixed64.Zero)
+            throw new InvalidOperationException("Quaternion divisor is not invertible.");
+
+        Fixed64 invNorm = Fixed64.One / divisorSqrMagnitude;
+        FixedQuaternion inverseDivisor = new(
+            -divisor.x * invNorm,
+            -divisor.y * invNorm,
+            -divisor.z * invNorm,
+            divisor.w * invNorm);
+
+        return dividend * inverseDivisor;
     }
 
     /// <summary>
@@ -546,6 +594,9 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     {
         t = FixedMath.Clamp01(t);
 
+        if (Dot(a, b) < Fixed64.Zero)
+            b = -b;
+
         FixedQuaternion result;
         Fixed64 oneMinusT = Fixed64.One - t;
         result.x = a.x * oneMinusT + b.x * t;
@@ -743,6 +794,27 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     }
 
     /// <summary>
+    /// Subtracts two quaternions component-wise and returns the resulting quaternion.
+    /// </summary>
+    /// <remarks>
+    /// This operation performs component-wise subtraction.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedQuaternion operator -(FixedQuaternion q1, FixedQuaternion q2)
+    {
+        return new FixedQuaternion(q1.x - q2.x, q1.y - q2.y, q1.z - q2.z, q1.w - q2.w);
+    }
+
+    /// <summary>
+    /// Negates each component of the specified quaternion.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedQuaternion operator -(FixedQuaternion q)
+    {
+        return new FixedQuaternion(-q.x, -q.y, -q.z, -q.w);
+    }
+
+    /// <summary>
     /// Determines whether two FixedQuaternion instances are equal.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -859,6 +931,18 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         result.m22 = Fixed64.One - scale * (x2 + y2);
 
         return result;
+    }
+
+    /// <summary>
+    /// Deconstructs the quaternion into its four components.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Deconstruct(out Fixed64 x, out Fixed64 y, out Fixed64 z, out Fixed64 w)
+    {
+        x = this.x;
+        y = this.y;
+        z = this.z;
+        w = this.w;
     }
 
     #endregion

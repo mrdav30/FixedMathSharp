@@ -123,6 +123,16 @@ public class FixedQuaternionTests
         Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.GetNormalized(FixedQuaternion.Zero));
     }
 
+    [Fact]
+    public void FixedQuaternion_MagnitudeProperties_ReturnExpectedValues()
+    {
+        var quaternion = new FixedQuaternion(Fixed64.One, new Fixed64(2), new Fixed64(2), new Fixed64(4));
+
+        Assert.Equal(new Fixed64(25), quaternion.SqrMagnitude);
+        Assert.Equal(new Fixed64(5), quaternion.Magnitude);
+        Assert.Equal(FixedQuaternion.GetMagnitude(quaternion), quaternion.Magnitude);
+    }
+
     #endregion
 
     #region Test: Conjugate and Inverse
@@ -154,6 +164,23 @@ public class FixedQuaternionTests
     {
         Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.Identity.Inverse());
         Assert.Equal(FixedQuaternion.Zero, FixedQuaternion.Zero.Inverse());
+    }
+
+    [Fact]
+    public void FixedQuaternion_Divide_MultipliesByInverseDivisor()
+    {
+        var dividend = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
+        var divisor = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver4);
+
+        var result = FixedQuaternion.Divide(dividend, divisor);
+
+        AssertRepresentsSameRotation(result, FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver4));
+    }
+
+    [Fact]
+    public void FixedQuaternion_Divide_ZeroDivisorThrows()
+    {
+        Assert.Throws<InvalidOperationException>(() => FixedQuaternion.Divide(FixedQuaternion.Identity, FixedQuaternion.Zero));
     }
 
     #endregion
@@ -412,6 +439,17 @@ public class FixedQuaternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_Lerp_UsesShortestPathForNegatedQuaternion()
+    {
+        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Right, FixedMath.PiOver2);
+        var negatedRotation = rotation * -Fixed64.One;
+
+        var result = FixedQuaternion.Lerp(rotation, negatedRotation, Fixed64.Half);
+
+        AssertRepresentsSameRotation(result, rotation);
+    }
+
+    [Fact]
     public void FixedQuaternion_Slerp_WorksCorrectly()
     {
         var q1 = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(0), new Fixed64(0), new Fixed64(0));
@@ -586,6 +624,23 @@ public class FixedQuaternionTests
         Assert.False(quaternion.Equals("not-a-quaternion"));
         Assert.Equal(quaternion.GetHashCode(), same.GetHashCode());
         Assert.Equal("(1, 2, 3, 4)", quaternion.ToString());
+    }
+
+    [Fact]
+    public void FixedQuaternion_SubtractionNegationAndDeconstruction_WorkCorrectly()
+    {
+        var quaternion = new FixedQuaternion(new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4));
+        var other = new FixedQuaternion(Fixed64.One, Fixed64.One, Fixed64.One, Fixed64.One);
+
+        Assert.Equal(new FixedQuaternion(Fixed64.Zero, Fixed64.One, new Fixed64(2), new Fixed64(3)), quaternion - other);
+        Assert.Equal(new FixedQuaternion(new Fixed64(-1), new Fixed64(-2), new Fixed64(-3), new Fixed64(-4)), -quaternion);
+
+        quaternion.Deconstruct(out Fixed64 x, out Fixed64 y, out Fixed64 z, out Fixed64 w);
+
+        Assert.Equal(new Fixed64(1), x);
+        Assert.Equal(new Fixed64(2), y);
+        Assert.Equal(new Fixed64(3), z);
+        Assert.Equal(new Fixed64(4), w);
     }
 
     [Fact]
