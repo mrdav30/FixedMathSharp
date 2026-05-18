@@ -491,6 +491,7 @@ public class Fixed3x3Tests
         Assert.Equal(original3x3, deserialized3x3);
     }
 
+#if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
     [Fact]
     public void Fixed3x3_MemoryPackSerialization_RoundTripMaintainsData()
     {
@@ -502,6 +503,7 @@ public class Fixed3x3Tests
         // Check that deserialized values match the original
         Assert.Equal(originalValue, deserializedValue);
     }
+#endif
 
     #endregion
 }

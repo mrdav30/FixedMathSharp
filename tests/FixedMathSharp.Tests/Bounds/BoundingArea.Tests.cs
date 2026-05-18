@@ -341,6 +341,7 @@ public class BoundingAreaTests
         Assert.Equal(originalValue, deserializedValue);
     }
 
+#if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
     [Fact]
     public void BoundingArea_MemoryPackSerialization_RoundTripMaintainsData()
     {
@@ -355,6 +356,7 @@ public class BoundingAreaTests
         // Check that deserialized values match the original
         Assert.Equal(originalValue, deserializedValue);
     }
+#endif
 
     #endregion
 }

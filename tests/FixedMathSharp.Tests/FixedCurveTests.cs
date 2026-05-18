@@ -221,6 +221,7 @@ public class FixedCurveTests
         Assert.Equal(originalCurve, deserializedCurve);
     }
 
+#if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
     [Fact]
     public void FixedCurve_MemoryPackSerialization_RoundTripMaintainsData()
     {
@@ -235,6 +236,7 @@ public class FixedCurveTests
         // Check that deserialized values match the original
         Assert.Equal(originalValue, deserializedValue);
     }
+#endif
 
     #endregion
 }

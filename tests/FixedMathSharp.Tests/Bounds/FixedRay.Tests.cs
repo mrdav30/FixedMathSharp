@@ -175,6 +175,7 @@ public class FixedRayTests
         Assert.NotEqual(ray, different);
     }
 
+#if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
     [Fact]
     public void Serialization_RoundTripsState()
     {
@@ -189,4 +190,5 @@ public class FixedRayTests
         Assert.Equal(ray, jsonRoundTrip);
         Assert.Equal(ray, memoryPackRoundTrip);
     }
+#endif
 }

@@ -685,6 +685,7 @@ public class FixedQuaternionTests
         Assert.Equal(originalRotation, deserializedRotation);
     }
 
+#if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
     [Fact]
     public void FixedQuanternion_MemoryPackSerialization_RoundTripMaintainsData()
     {
@@ -700,6 +701,7 @@ public class FixedQuaternionTests
         // Check that deserialized values match the original
         Assert.Equal(originalValue, deserializedValue);
     }
+#endif
 
     #endregion
 }

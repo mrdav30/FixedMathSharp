@@ -224,6 +224,7 @@ public class Vector4dTests
         Assert.Equal(originalValue, deserializedValue);
     }
 
+#if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
     [Fact]
     public void Vector4d_MemoryPackSerialization_RoundTripMaintainsData()
     {
@@ -234,4 +235,5 @@ public class Vector4dTests
 
         Assert.Equal(originalValue, deserializedValue);
     }
+#endif
 }

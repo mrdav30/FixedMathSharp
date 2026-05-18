@@ -347,6 +347,7 @@ public class FixedRangeTests
         Assert.Equal(originalRange.Max, deserializedRange.Max);
     }
 
+#if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
     [Fact]
     public void FixedRange_MemoryPackSerialization_RoundTripMaintainsData()
     {
@@ -358,6 +359,7 @@ public class FixedRangeTests
         // Check that deserialized values match the original
         Assert.Equal(originalValue, deserializedValue);
     }
+#endif
 
     #endregion
 }

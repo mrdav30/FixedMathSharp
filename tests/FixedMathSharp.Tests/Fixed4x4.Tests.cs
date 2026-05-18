@@ -978,6 +978,7 @@ public class Fixed4x4Tests
         Assert.Equal(original4x4, deserialized4x4);
     }
 
+#if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
     [Fact]
     public void Fixed4x4_MemoryPackSerialization_RoundTripMaintainsData()
     {
@@ -993,6 +994,7 @@ public class Fixed4x4Tests
         // Check that deserialized values match the original
         Assert.Equal(originalValue, deserializedValue);
     }
+#endif
 
     #endregion
 }

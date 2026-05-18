@@ -432,6 +432,7 @@ public class Fixed64Tests
         Assert.Equal(originalValue, deserializedValue);
     }
 
+#if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
     [Fact]
     public void Fixed64_MemoryPackSerialization_RoundTripMaintainsData()
     {
@@ -443,6 +444,7 @@ public class Fixed64Tests
         // Check that deserialized values match the original
         Assert.Equal(originalValue, deserializedValue);
     }
+#endif
 
     #endregion
 }

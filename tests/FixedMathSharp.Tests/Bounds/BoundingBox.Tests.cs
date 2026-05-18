@@ -434,6 +434,7 @@ public class BoundingBoxTests
         Assert.Equal(originalValue, deserializedValue);
     }
 
+#if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
     [Fact]
     public void BoundingBox_MemoryPackSerialization_RoundTripMaintainsData()
     {
@@ -458,6 +459,7 @@ public class BoundingBoxTests
 
         Assert.Equal(new Vector3d(2, 2, 2), deserialized.Proportions);
     }
+#endif
 
     #endregion
 }

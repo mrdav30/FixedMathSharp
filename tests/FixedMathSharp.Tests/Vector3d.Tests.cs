@@ -971,6 +971,7 @@ public class Vector3dTests
         Assert.Equal(originalValue, deserializedValue);
     }
 
+#if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
     [Fact]
     public void Vector3d_MemoryPackSerialization_RoundTripMaintainsData()
     {
@@ -982,6 +983,7 @@ public class Vector3dTests
         // Check that deserialized values match the original
         Assert.Equal(originalValue, deserializedValue);
     }
+#endif
 
     #endregion
 }
