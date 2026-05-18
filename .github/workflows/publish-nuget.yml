@@ -3,12 +3,18 @@ name: Publish NuGet Packages
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Release tag to publish, e.g. v4.0.0
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: publish-nuget-${{ github.event.release.tag_name }}
+  group: publish-nuget-${{ github.event.release.tag_name || github.event.inputs.tag_name }}
   cancel-in-progress: false
 
 env:
@@ -22,9 +28,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Resolve release tag
+      id: release
+      shell: bash
+      env:
+        RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.tag_name }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "$RELEASE_TAG" ]]; then
+          echo "::error::Release tag could not be resolved."
+          exit 1
+        fi
+
+        if [[ ! "$RELEASE_TAG" =~ ^[vV][0-9]+(\.[0-9]+){2}([-.+][0-9A-Za-z.-]+)?$ ]]; then
+          echo "::error::Release tag '$RELEASE_TAG' must look like v4.0.0."
+          exit 1
+        fi
+
+        echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+        echo "Publishing release tag: $RELEASE_TAG"
+
     - name: Checkout repository
       uses: actions/checkout@v6
       with:
+        ref: ${{ steps.release.outputs.tag }}
         fetch-depth: 0
         persist-credentials: false
 
@@ -56,7 +84,7 @@ jobs:
     - name: Validate release tag version
       shell: bash
       env:
-        RELEASE_TAG: ${{ github.event.release.tag_name }}
+        RELEASE_TAG: ${{ steps.release.outputs.tag }}
         PACKAGE_VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
       run: |
         set -euo pipefail
@@ -154,9 +182,10 @@ jobs:
         done
 
         mapfile -t packages < <(find "$NUGET_OUTPUT" -maxdepth 1 -type f \( -name "*.nupkg" -o -name "*.snupkg" \) -printf "%f\n" | sort)
+        expected_artifact_count=$(( ${#expected_ids[@]} * 2 ))
 
-        if [[ "${#packages[@]}" -ne 4 ]]; then
-          echo "::error::Expected 4 NuGet package artifacts, but found ${#packages[@]}."
+        if [[ "${#packages[@]}" -ne "$expected_artifact_count" ]]; then
+          echo "::error::Expected $expected_artifact_count NuGet package artifacts, but found ${#packages[@]}."
           printf '%s\n' "${packages[@]}"
           exit 1
         fi
