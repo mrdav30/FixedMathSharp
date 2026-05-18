@@ -4,6 +4,8 @@ obj/
 TestResults/
 .codex
 *.lscache
+
+# Local build, release, and CI artifact output
 artifacts/
 .vs/
 .vscode/*

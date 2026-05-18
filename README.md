@@ -9,241 +9,197 @@
 [![License](https://img.shields.io/github/license/mrdav30/FixedMathSharp.svg)](https://github.com/mrdav30/FixedMathSharp/blob/main/LICENSE)
 [![Frameworks](https://img.shields.io/badge/frameworks-netstandard2.1%20%7C%20net8.0-512BD4.svg)](https://github.com/mrdav30/FixedMathSharp)
 
-**A deterministic fixed-point math library for .NET.**  
-Built for simulations, games, and physics-heavy code that needs reliable results without floating-point drift.
+**Deterministic fixed-point math for .NET simulations, games, tools, and procedural systems.**
+
+FixedMathSharp gives you a practical Q32.32 fixed-point numeric stack: scalar math, vectors, matrices, quaternions, bounds, curves, and deterministic random generation. It is built for code where the same inputs should produce the same results across machines, runs, replays, and networked clients.
 
 ---
 
-## 🛠️ Key Features
+## Why Fixed-Point?
 
-- **Deterministic fixed-point arithmetic:** Consistent results across platforms with `Fixed64`.
-- **Core math types included:** `Vector2d`, `Vector3d`, `FixedQuaternion`, `Fixed3x3`, and `Fixed4x4`.
-- **Spatial helpers:** `BoundingBox`, `BoundingSphere`, and `BoundingArea` for lightweight bounds checks.
-- **Shared math utilities:** Common math and trigonometry helpers via `FixedMath` and `FixedTrigonometry`.
-- **Deterministic RNG:** `DeterministicRandom` for repeatable procedural generation and simulations.
-- **Flexible packaging:** Use the default package with `MemoryPack`, or the `Lean` package when you want the same API without that dependency.
-- **Broad .NET compatibility:** Targets modern .NET while remaining friendly to engine and tooling workflows.
+Floating-point math is fast, hardware-accelerated, and the right choice for rendering, visual effects, and many everyday calculations. It is also allowed to vary in small ways across runtimes, processors, compiler settings, instruction sets, and evaluation order.
+
+Fixed-point math stores numbers as scaled integers. In FixedMathSharp, `Fixed64` uses a Q32.32 layout: 32 bits for the whole-number side and 32 bits for the fractional side. That trade gives you deterministic arithmetic with predictable rounding behavior, at the cost of less dynamic range than `double` and less raw throughput than native floating point.
+
+Use FixedMathSharp when you need:
+
+- Lockstep multiplayer, replay systems, rollback, or deterministic simulation.
+- Procedural generation that must be reproducible from the same seed.
+- Gameplay, physics-adjacent, or tooling logic where drift and platform differences are painful.
+- Serializable math values with stable behavior across .NET targets.
+
+Use floating point when you need:
+
+- Maximum numeric range or hardware throughput.
+- Rendering, shader, animation, and visual-only calculations.
+- Interop with engines or APIs that already own their float-based math pipeline.
 
 ---
 
-## 🚀 Installation
+## Features
 
-For most .NET projects, start with the standard package:
+- **`Fixed64` scalar arithmetic** with deterministic Q32.32 representation, guarded overflow behavior, parsing, formatting, and common math helpers.
+- **2D, 3D, and 4D vectors** via `Vector2d`, `Vector3d`, and `Vector4d`, including dot products, distances, normalization, transforms, fuzzy equality, and component operations.
+- **Rotations and matrices** with `FixedQuaternion`, `Fixed3x3`, and `Fixed4x4` for deterministic transforms and orientation math.
+- **Geometry and bounds** with `BoundingBox`, `BoundingSphere`, `BoundingArea`, `BoundingFrustum`, `FixedPlane`, and `FixedRay`.
+- **Curves and ranges** with `FixedCurve`, `FixedCurveKey`, and `FixedRange`.
+- **Deterministic RNG** with `DeterministicRandom` streams derived from seeds, feature keys, and indices.
+- **Serialization-friendly structs** with MemoryPack support in the standard package and a Lean package when you do not want that dependency.
+- **Testing helpers** through the companion FluentAssertions package.
+
+---
+
+## Installation
+
+For most .NET projects:
 
 ```bash
 dotnet add package FixedMathSharp
 ```
 
-### Non-Unity Projects
-
 Choose the package that fits your runtime:
 
-| Package | Best for | Install |
+| Package | Best For | Install |
 | --- | --- | --- |
-| `FixedMathSharp` | Most .NET applications. Includes built-in `MemoryPack` support. | `dotnet add package FixedMathSharp` |
-| `FixedMathSharp.Lean` | Projects that want the same math API without a `MemoryPack` dependency, including custom serializer setups and Burst AOT-sensitive workflows. | `dotnet add package FixedMathSharp.Lean` |
+| `FixedMathSharp` | Most .NET applications. Includes MemoryPack support. | `dotnet add package FixedMathSharp` |
+| `FixedMathSharp.Lean` | Projects that want the same math API without a MemoryPack dependency, including custom serializers and Burst AOT-sensitive workflows. | `dotnet add package FixedMathSharp.Lean` |
+| `FixedMathSharp.FluentAssertions` | Tests that use FluentAssertions with `Fixed64`, vectors, quaternions, and matrices. | `dotnet add package FixedMathSharp.FluentAssertions` |
+| `FixedMathSharp.FluentAssertions.Lean` | FluentAssertions helpers paired with the Lean package. | `dotnet add package FixedMathSharp.FluentAssertions.Lean` |
 
-If you're using `FluentAssertions` in your test project, the companion assertions package is available here:
-[FixedMathSharp.FluentAssertions](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions)
+### Unity
 
-### Build From Source
+FixedMathSharp is maintained separately for Unity-specific packaging and workflows:
+[FixedMathSharp-Unity](https://github.com/mrdav30/FixedMathSharp-Unity).
 
-Clone the repository and build locally:
+If you are evaluating this .NET package for Unity-adjacent tooling or Burst AOT-sensitive code, prefer `FixedMathSharp.Lean`.
+
+---
+
+## Quick Start
+
+```csharp
+using FixedMathSharp;
+
+Fixed64 speed = new Fixed64(3.5);
+Fixed64 deltaTime = Fixed64.Fraction(1, 60);
+Fixed64 step = speed * deltaTime;
+
+Vector3d position = new Vector3d(0, 0, 0);
+Vector3d velocity = new Vector3d(step, Fixed64.Zero, Fixed64.One);
+
+FixedQuaternion turn = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
+Vector3d rotated = turn.Rotate(velocity);
+
+BoundingSphere sensor = new BoundingSphere(position, new Fixed64(5));
+bool inRange = sensor.Contains(rotated);
+
+Console.WriteLine($"{rotated} in range: {inRange}");
+```
+
+### Deterministic Random Streams
+
+```csharp
+ulong worldSeed = 123456789UL;
+
+var oreRng = DeterministicRandom.FromWorldFeature(worldSeed, featureKey: 0xC0FFEEUL);
+var riverRng = DeterministicRandom.FromWorldFeature(worldSeed, featureKey: 0xBADC0DEUL, index: 3);
+
+Fixed64 oreRichness = oreRng.NextFixed64(Fixed64.Zero, new Fixed64(10));
+Fixed64 riverBend = riverRng.NextFixed64(-Fixed64.One, Fixed64.One);
+int lootCount = oreRng.Next(1, 5); // [1, 5)
+```
+
+### Bounds and Geometry
+
+```csharp
+BoundingBox room = new BoundingBox(Vector3d.Zero, new Vector3d(10, 4, 10));
+FixedRay ray = new FixedRay(new Vector3d(-20, 0, 0), Vector3d.Right);
+
+Fixed64? hitDistance = ray.Intersects(room);
+
+if (hitDistance.HasValue)
+{
+    Vector3d hitPoint = ray.Position + (ray.Direction * hitDistance.Value);
+    Console.WriteLine(hitPoint);
+}
+```
+
+### Matrices and Transforms
+
+```csharp
+FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver4);
+Fixed4x4 transform = Fixed4x4.CreateTranslation(new Vector3d(10, 0, 0)) *
+                     Fixed4x4.CreateRotation(rotation);
+
+Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0));
+```
+
+---
+
+## Library Map
+
+- `Fixed64`: deterministic scalar type backed by a signed 64-bit raw value.
+- `FixedMath`: constants, rounding, interpolation, trigonometry, powers, square roots, and utility math.
+- `Vector2d`, `Vector3d`, `Vector4d`: deterministic vector math and transform helpers.
+- `FixedQuaternion`, `Fixed3x3`, `Fixed4x4`: rotations, orientations, matrices, and transform operations.
+- `BoundingBox`, `BoundingSphere`, `BoundingArea`, `BoundingFrustum`: containment, intersection, clamping, and projection queries.
+- `FixedPlane`, `FixedRay`: geometric primitives for plane classification and ray intersections.
+- `FixedCurve`, `FixedCurveKey`, `FixedRange`: interpolation and range helpers.
+- `DeterministicRandom`: repeatable random streams for simulations and procedural generation.
+- `FixedMathSharp.FluentAssertions`: expressive test assertions for FixedMathSharp types.
+
+---
+
+## Build From Source
 
 ```bash
 git clone https://github.com/mrdav30/FixedMathSharp.git
+cd FixedMathSharp
 dotnet restore
 dotnet build --configuration Debug --no-restore
+dotnet test --configuration Debug --no-build
 ```
 
-You can also reference the project directly or consume the generated package artifacts in your own build process.
+Release build configurations:
 
-### Package Variants
+- `Release` builds the standard package.
+- `ReleaseLean` builds the Lean package with MemoryPack excluded.
 
-The published NuGet packages map directly to the source-build configurations below.
-
-If you build from source, the repository also provides matching release configurations:
-
-- `Release` builds the standard `FixedMathSharp` package and archives.
-- `ReleaseLean` builds the `FixedMathSharp.Lean` package and archives.
-
-If you use Unity Burst AOT, prefer the `Lean` variant.
-
-### Unity Integration
-
-FixedMathSharp is maintained as a separate Unity package. For Unity-specific implementations, refer to:
-
-🔗 [FixedMathSharp-Unity Repository](https://github.com/mrdav30/FixedMathSharp-Unity).
-
-If you are evaluating this .NET package for Unity-adjacent tooling using Burst AOT, prefer `FixedMathSharp.Lean`.
+The helper script `.assets/scripts/set-version-and-build.ps1` builds both release configurations and writes release archives to `artifacts/releases/`.
 
 ---
 
-## 📖 Usage Examples
+## Compatibility
 
-### Basic Arithmetic with `Fixed64`
-
-```csharp
-Fixed64 a = new Fixed64(1.5);
-Fixed64 b = new Fixed64(2.5);
-Fixed64 result = a + b;
-Console.WriteLine(result); // Output: 4.0
-```
-
-### Vector Operations
-
-```csharp
-Vector3d v1 = new Vector3d(1, 2, 3);
-Vector3d v2 = new Vector3d(4, 5, 6);
-Fixed64 dotProduct = Vector3d.Dot(v1, v2);
-Console.WriteLine(dotProduct); // Output: 32
-```
-
-### Quaternion Rotation
-
-```csharp
-FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2); // 90 degrees around Y-axis
-Vector3d point = new Vector3d(1, 0, 0);
-Vector3d rotatedPoint = rotation.Rotate(point);
-Console.WriteLine(rotatedPoint); // Output: (0, 0, -1)
-```
-
-### Matrix Transformations
-
-```csharp
-Fixed4x4 matrix = Fixed4x4.Identity;
-Vector3d position = new Vector3d(1, 2, 3);
-matrix.SetTransform(position, Vector3d.One, FixedQuaternion.Identity);
-Console.WriteLine(matrix);
-```
-
-### Bounding Shapes and Intersection
-
-```csharp
-BoundingBox box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(5, 5, 5));
-BoundingSphere sphere = new BoundingSphere(new Vector3d(3, 3, 3), new Fixed64(1));
-bool intersects = box.Intersects(sphere);
-Console.WriteLine(intersects); // Output: True
-```
-
-### Trigonometry Example
-
-```csharp
-Fixed64 angle = FixedMath.PiOver4; // 45 degrees
-Fixed64 sinValue = FixedTrigonometry.Sin(angle);
-Console.WriteLine(sinValue); // Output: ~0.707
-```
-
-### Deterministic Random Generation
-
-Use `DeterministicRandom` when you need reproducible random values across runs, worlds, or features.  
-Streams are derived from a seed and remain deterministic regardless of threading or platform.
-
-```csharp
-// Simple constructor-based stream:
-var rng = new DeterministicRandom(42UL);
-
-// Deterministic integer:
-int value = rng.Next(1, 10); // [1,10)
-
-// Deterministic Fixed64 in [0,1):
-Fixed64 ratio = rng.NextFixed6401();
-
-// One stream per “feature” that’s stable for the same worldSeed + key:
-var rngOre = DeterministicRandom.FromWorldFeature(worldSeed: 123456789UL, featureKey: 0xORE);
-var rngRivers = DeterministicRandom.FromWorldFeature(123456789UL, 0xRIV, index: 0);
-
-// Deterministic Fixed64 draws:
-Fixed64 h = rngOre.NextFixed64(Fixed64.One);                      // [0, 1)
-Fixed64 size = rngOre.NextFixed64(Fixed64.Zero, 5 * Fixed64.One); // [0, 5)
-Fixed64 posX = rngRivers.NextFixed64(-Fixed64.One, Fixed64.One);  // [-1, 1)
-
-// Deterministic integers:
-int loot = rngOre.Next(1, 5); // [1,5)
-```
+- .NET Standard 2.1
+- .NET 8
+- Windows, Linux, and macOS
 
 ---
 
-## 📦 Library Structure
+## Quality Notes
 
-- **`Fixed64` Struct:** Core Q32.32 fixed-point scalar type.
-- **`Vector2d` and `Vector3d` Structs:** 2D and 3D vector math.
-- **`FixedQuaternion` Struct:** Deterministic quaternion rotations.
-- **`Fixed4x4` and `Fixed3x3`:** Matrix math for transforms and orientation.
-- **`IBound` Interface and bounds types:** `BoundingBox`, `BoundingArea`, and `BoundingSphere` for intersection, containment, and projection queries.
-- **`FixedMath` and `FixedTrigonometry`:** Shared numeric and trigonometric helpers.
-- **`DeterministicRandom` Struct:** Seedable, allocation-free RNG for repeatable procedural generation.
-
-### Fixed64 Struct
-
-`Fixed64` is the center of the library: a deterministic fixed-point number type backed by integer arithmetic. It is the type used throughout the vector, matrix, quaternion, bounds, and helper APIs.
-
----
-
-## ⚡ Performance Considerations
-
-FixedMathSharp is optimized for high-performance deterministic calculations:
-
-- **Inline methods and bit-shifting optimizations** keep hot paths lightweight.
-- **Deterministic arithmetic** avoids floating-point drift in lockstep or replay-driven systems.
-- **Fuzzy equality helpers** are available where precision tolerances are useful.
-
----
-
-## 🧪 Testing and Validation
-
-The library is covered by xUnit tests for core arithmetic, vectors, bounds, serialization, and deterministic random behavior. Fuzzy comparisons are used where a tolerance-based check is more appropriate than exact equality.
+The library is covered by xUnit tests for arithmetic, vectors, matrices, quaternions, bounds, curves, serialization, deterministic random behavior, and FluentAssertions helpers.
 
 Cyclomatic complexity exceptions are tracked in [`docs/complexity-exceptions.md`](docs/complexity-exceptions.md). The register explains why specific hot-path or fixed-shape methods exceed the review threshold and what should trigger revisiting them.
 
-To run the tests:
+---
 
-```bash
-dotnet test --configuration Debug
-```
+## Contributing
+
+Contributions, bug reports, feature requests, and real-world determinism stories are welcome. Please read the [CONTRIBUTING](https://github.com/mrdav30/FixedMathSharp/blob/main/CONTRIBUTING.md) guide before opening a pull request.
+
+For questions and discussion, join the official Discord community:
+[Join the Discord Server](https://discord.gg/mhwK2QFNBA)
 
 ---
 
-## 🛠️ Compatibility
+## License
 
-- **.NET Standard** 2.1
-- **.NET** 8
-- **Unity 2020+** (via [FixedMathSharp-Unity](https://github.com/mrdav30/FixedMathSharp-Unity))
-- **Cross-Platform Support** (Windows, Linux, macOS)
+FixedMathSharp is licensed under the MIT License.
 
----
+See these repository files for details:
 
-## 🤝 Contributing
-
-We welcome contributions! Please see our [CONTRIBUTING](https://github.com/mrdav30/FixedMathSharp/blob/main/CONTRIBUTING.md) guide for details on how to propose changes, report issues, and interact with the community.
-
----
-
-## 👥 Contributors
-
-- **mrdav30** - Lead Developer
-- Contributions are welcome! Feel free to submit pull requests or report issues.
-
----
-
-## 💬 Community & Support
-
-For questions, discussions, or general support, join the official Discord community:
-
-👉 **[Join the Discord Server](https://discord.gg/mhwK2QFNBA)**
-
-For bug reports or feature requests, please open an issue in this repository.
-
-We welcome feedback, contributors, and community discussion across all projects.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-See the following files for details:
-
-- LICENSE – standard MIT license
-- NOTICE – additional terms regarding project branding and redistribution
-- COPYRIGHT – authorship information
+- `LICENSE` - standard MIT license.
+- `NOTICE` - additional terms regarding project branding and redistribution.
+- `COPYRIGHT` - authorship information.
