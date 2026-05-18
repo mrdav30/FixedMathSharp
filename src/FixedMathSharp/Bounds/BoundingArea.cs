@@ -188,6 +188,17 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
         get => MaxZ - MinZ;
     }
 
+    /// <summary>
+    /// The center point of the bounding area.
+    /// </summary>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public Vector3d Center
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (Min + Max) * Fixed64.Half;
+    }
+
     #endregion
 
     #region Methods (Instance)
@@ -296,6 +307,16 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
             FixedMath.Clamp(point.z, min.z, max.z));
     }
 
+    /// <summary>
+    /// Deconstructs the bounding area into its stored corner points.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Deconstruct(out Vector3d corner1, out Vector3d corner2)
+    {
+        corner1 = Corner1;
+        corner2 = Corner2;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ContainmentType ContainsBoxLike(Vector3d otherMin, Vector3d otherMax)
     {
@@ -384,6 +405,19 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
         return !(max.x < otherMin.x || min.x > otherMax.x ||
                  max.y < otherMin.y || min.y > otherMax.y ||
                  max.z < otherMin.z || min.z > otherMax.z);
+    }
+
+    #endregion
+
+    #region Static Ops
+
+    /// <summary>
+    /// Creates a new bounding area that encloses both specified bounding areas.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static BoundingArea Union(BoundingArea a, BoundingArea b)
+    {
+        return new BoundingArea(Vector3d.Min(a.Min, b.Min), Vector3d.Max(a.Max, b.Max));
     }
 
     #endregion

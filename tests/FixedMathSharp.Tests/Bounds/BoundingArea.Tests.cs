@@ -61,6 +61,29 @@ public class BoundingAreaTests
         Assert.Equal(new Fixed64(3), area.Depth);
     }
 
+    [Fact]
+    public void Center_ReturnsMidpointOfNormalizedBounds()
+    {
+        var area = new BoundingArea(
+            new Vector3d(5, 1, 6),
+            new Vector3d(1, 5, 2));
+
+        Assert.Equal(new Vector3d(3, 3, 4), area.Center);
+    }
+
+    [Fact]
+    public void Deconstruct_ReturnsStoredCorners()
+    {
+        var corner1 = new Vector3d(5, 1, 6);
+        var corner2 = new Vector3d(1, 5, 2);
+        var area = new BoundingArea(corner1, corner2);
+
+        area.Deconstruct(out Vector3d actualCorner1, out Vector3d actualCorner2);
+
+        Assert.Equal(corner1, actualCorner1);
+        Assert.Equal(corner2, actualCorner2);
+    }
+
     #endregion
 
     #region Test: Containment
@@ -215,6 +238,20 @@ public class BoundingAreaTests
         var clamped = area.ClampPoint(new Vector3d(10, 1, 5));
 
         Assert.Equal(new Vector3d(4, 2, 5), clamped);
+    }
+
+    [Fact]
+    public void Union_EnclosesBothAreasUsingNormalizedBounds()
+    {
+        var area1 = new BoundingArea(new Vector3d(4, 0, 2), new Vector3d(1, 3, 5));
+        var area2 = new BoundingArea(new Vector3d(-2, 2, -1), new Vector3d(2, 6, 1));
+
+        var union = BoundingArea.Union(area1, area2);
+
+        Assert.Equal(new Vector3d(-2, 0, -1), union.Min);
+        Assert.Equal(new Vector3d(4, 6, 5), union.Max);
+        Assert.Equal(ContainmentType.Contains, union.Contains(area1));
+        Assert.Equal(ContainmentType.Contains, union.Contains(area2));
     }
 
     #endregion
