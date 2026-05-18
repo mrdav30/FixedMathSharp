@@ -1,9 +1,17 @@
+using System;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
 
 public class BoundingFrustumTests
 {
+    private static readonly FixedPlane CustomNear = new(Vector3d.Backward, Fixed64.One);
+    private static readonly FixedPlane CustomFar = new(Vector3d.Forward, new Fixed64(-5));
+    private static readonly FixedPlane CustomLeft = new(Vector3d.Left, new Fixed64(-2));
+    private static readonly FixedPlane CustomRight = new(Vector3d.Right, new Fixed64(-2));
+    private static readonly FixedPlane CustomTop = new(Vector3d.Up, new Fixed64(-3));
+    private static readonly FixedPlane CustomBottom = new(Vector3d.Down, new Fixed64(-3));
+
     [Fact]
     public void Constructor_IdentityMatrix_CreatesExpectedClipSpaceBounds()
     {
@@ -165,5 +173,94 @@ public class BoundingFrustumTests
         Assert.Equal(ContainmentType.Disjoint, frustum.Contains(point));
         Assert.Equal(new Vector3d(-Fixed64.Half, new Fixed64(-1), Fixed64.Zero), frustum.Min);
         Assert.Equal(new Vector3d(Fixed64.Half, Fixed64.One, Fixed64.One), frustum.Max);
+    }
+
+    [Fact]
+    public void Constructor_Planes_CreatesExpectedFrustum()
+    {
+        var frustum = new BoundingFrustum(CustomNear, CustomFar, CustomLeft, CustomRight, CustomTop, CustomBottom);
+
+        Assert.False(frustum.HasMatrix);
+        Assert.Throws<InvalidOperationException>(() => frustum.Matrix);
+        Assert.Equal(new Vector3d(-2, -3, 1), frustum.Min);
+        Assert.Equal(new Vector3d(2, 3, 5), frustum.Max);
+        Assert.Equal(ContainmentType.Contains, frustum.Contains(new Vector3d(0, 0, 3)));
+        Assert.Equal(ContainmentType.Disjoint, frustum.Contains(new Vector3d(0, 0, 6)));
+
+        Vector3d[] corners = frustum.GetCorners();
+
+        Assert.Equal(new Vector3d(-2, 3, 1), corners[0]);
+        Assert.Equal(new Vector3d(2, 3, 1), corners[1]);
+        Assert.Equal(new Vector3d(2, -3, 1), corners[2]);
+        Assert.Equal(new Vector3d(-2, -3, 1), corners[3]);
+        Assert.Equal(new Vector3d(-2, 3, 5), corners[4]);
+        Assert.Equal(new Vector3d(2, 3, 5), corners[5]);
+        Assert.Equal(new Vector3d(2, -3, 5), corners[6]);
+        Assert.Equal(new Vector3d(-2, -3, 5), corners[7]);
+    }
+
+    [Fact]
+    public void Constructor_PlaneArray_ValidatesLengthAndCopiesPlanes()
+    {
+        FixedPlane[] planes =
+        {
+            CustomNear,
+            CustomFar,
+            CustomLeft,
+            CustomRight,
+            CustomTop,
+            CustomBottom
+        };
+
+        var frustum = new BoundingFrustum(planes);
+        planes[0] = new FixedPlane(Vector3d.Forward, Fixed64.Zero);
+
+        Assert.Equal(CustomNear, frustum.Near);
+        Assert.Throws<ArgumentNullException>(() => new BoundingFrustum(null!));
+        Assert.Throws<ArgumentException>(() => new BoundingFrustum(new FixedPlane[BoundingFrustum.PlaneCount - 1]));
+    }
+
+    [Fact]
+    public void GetPlanes_ReturnsCopyInStableOrder()
+    {
+        var frustum = new BoundingFrustum(CustomNear, CustomFar, CustomLeft, CustomRight, CustomTop, CustomBottom);
+
+        FixedPlane[] planes = frustum.GetPlanes();
+
+        Assert.Equal(CustomNear, planes[0]);
+        Assert.Equal(CustomFar, planes[1]);
+        Assert.Equal(CustomLeft, planes[2]);
+        Assert.Equal(CustomRight, planes[3]);
+        Assert.Equal(CustomTop, planes[4]);
+        Assert.Equal(CustomBottom, planes[5]);
+
+        planes[0] = new FixedPlane(Vector3d.Forward, Fixed64.Zero);
+
+        Assert.Equal(CustomNear, frustum.GetPlanes()[0]);
+
+        var copied = new FixedPlane[BoundingFrustum.PlaneCount];
+        frustum.GetPlanes(copied);
+
+        Assert.Equal(CustomNear, copied[0]);
+        Assert.Throws<ArgumentNullException>(() => frustum.GetPlanes(null!));
+        Assert.Throws<ArgumentOutOfRangeException>(() => frustum.GetPlanes(new FixedPlane[BoundingFrustum.PlaneCount - 1]));
+    }
+
+    [Fact]
+    public void Equality_ComparesFrustumShapeRatherThanMatrixSource()
+    {
+        var matrixFrustum = new BoundingFrustum(Fixed4x4.Identity);
+        var planeFrustum = new BoundingFrustum(
+            matrixFrustum.Near,
+            matrixFrustum.Far,
+            matrixFrustum.Left,
+            matrixFrustum.Right,
+            matrixFrustum.Top,
+            matrixFrustum.Bottom);
+
+        Assert.True(matrixFrustum.HasMatrix);
+        Assert.Equal(Fixed4x4.Identity, matrixFrustum.Matrix);
+        Assert.Equal(matrixFrustum, planeFrustum);
+        Assert.Equal(matrixFrustum.GetHashCode(), planeFrustum.GetHashCode());
     }
 }

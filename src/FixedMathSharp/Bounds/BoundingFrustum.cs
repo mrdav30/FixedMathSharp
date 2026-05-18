@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace FixedMathSharp;
 
 /// <summary>
-/// Represents a viewing frustum extracted from a combined view-projection matrix.
+/// Represents a frustum bounded by six clipping planes.
 /// </summary>
 public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
 {
@@ -24,7 +24,7 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
 
     #region Fields
 
-    private Fixed4x4 _matrix;
+    private Fixed4x4? _matrix;
     private readonly Vector3d[] _corners;
     private readonly FixedPlane[] _planes;
 
@@ -46,7 +46,39 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     {
         _corners = new Vector3d[CornerCount];
         _planes = new FixedPlane[PlaneCount];
-        Matrix = matrix;
+        SetMatrix(matrix);
+    }
+
+    /// <summary>
+    /// Initializes a new frustum from six clipping planes.
+    /// </summary>
+    public BoundingFrustum(
+        FixedPlane near,
+        FixedPlane far,
+        FixedPlane left,
+        FixedPlane right,
+        FixedPlane top,
+        FixedPlane bottom)
+    {
+        _corners = new Vector3d[CornerCount];
+        _planes = new FixedPlane[PlaneCount];
+        SetPlanes(near, far, left, right, top, bottom);
+    }
+
+    /// <summary>
+    /// Initializes a new frustum from six clipping planes in near, far, left, right, top, bottom order.
+    /// </summary>
+    public BoundingFrustum(FixedPlane[] planes)
+    {
+        if (planes == null)
+            throw new ArgumentNullException(nameof(planes));
+
+        if (planes.Length != PlaneCount)
+            throw new ArgumentException($"A frustum must be defined by exactly {PlaneCount} planes.", nameof(planes));
+
+        _corners = new Vector3d[CornerCount];
+        _planes = new FixedPlane[PlaneCount];
+        SetPlanes(planes);
     }
 
     #endregion
@@ -54,19 +86,25 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     #region Properties
 
     /// <summary>
-    /// Gets or sets the matrix used to define this frustum.
+    /// Gets a value indicating whether this frustum was created from a matrix source.
     /// </summary>
+    public bool HasMatrix
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _matrix.HasValue;
+    }
+
+    /// <summary>
+    /// Gets or sets the matrix source used to define this frustum.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when reading the matrix from a frustum that was created from planes.
+    /// </exception>
     public Fixed4x4 Matrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _matrix;
-        set
-        {
-            _matrix = value;
-            CreatePlanes();
-            CreateCorners();
-            UpdateBounds();
-        }
+        get => _matrix ?? throw new InvalidOperationException("This frustum was not created from a matrix.");
+        set => SetMatrix(value);
     }
 
     /// <summary>
@@ -380,14 +418,76 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
         Array.Copy(_corners, corners, CornerCount);
     }
 
-    private void CreatePlanes()
+    /// <summary>
+    /// Returns a copy of the frustum plane array in near, far, left, right, top, bottom order.
+    /// </summary>
+    public FixedPlane[] GetPlanes()
     {
-        _planes[0] = FixedPlane.Normalize(new FixedPlane(-_matrix.m02, -_matrix.m12, -_matrix.m22, -_matrix.m32));
-        _planes[1] = FixedPlane.Normalize(new FixedPlane(_matrix.m02 - _matrix.m03, _matrix.m12 - _matrix.m13, _matrix.m22 - _matrix.m23, _matrix.m32 - _matrix.m33));
-        _planes[2] = FixedPlane.Normalize(new FixedPlane(-_matrix.m03 - _matrix.m00, -_matrix.m13 - _matrix.m10, -_matrix.m23 - _matrix.m20, -_matrix.m33 - _matrix.m30));
-        _planes[3] = FixedPlane.Normalize(new FixedPlane(_matrix.m00 - _matrix.m03, _matrix.m10 - _matrix.m13, _matrix.m20 - _matrix.m23, _matrix.m30 - _matrix.m33));
-        _planes[4] = FixedPlane.Normalize(new FixedPlane(_matrix.m01 - _matrix.m03, _matrix.m11 - _matrix.m13, _matrix.m21 - _matrix.m23, _matrix.m31 - _matrix.m33));
-        _planes[5] = FixedPlane.Normalize(new FixedPlane(-_matrix.m03 - _matrix.m01, -_matrix.m13 - _matrix.m11, -_matrix.m23 - _matrix.m21, -_matrix.m33 - _matrix.m31));
+        var planes = new FixedPlane[PlaneCount];
+        Array.Copy(_planes, planes, PlaneCount);
+        return planes;
+    }
+
+    /// <summary>
+    /// Copies this frustum's planes into the specified array in near, far, left, right, top, bottom order.
+    /// </summary>
+    public void GetPlanes(FixedPlane[] planes)
+    {
+        if (planes == null)
+            throw new ArgumentNullException(nameof(planes));
+
+        if (planes.Length < PlaneCount)
+            throw new ArgumentOutOfRangeException(nameof(planes));
+
+        Array.Copy(_planes, planes, PlaneCount);
+    }
+
+    private void SetMatrix(Fixed4x4 matrix)
+    {
+        _matrix = matrix;
+        CreatePlanes(matrix);
+        CreateCorners();
+        UpdateBounds();
+    }
+
+    private void SetPlanes(FixedPlane[] planes)
+    {
+        for (int i = 0; i < PlaneCount; i++)
+            _planes[i] = FixedPlane.Normalize(planes[i]);
+
+        _matrix = null;
+        CreateCorners();
+        UpdateBounds();
+    }
+
+    private void SetPlanes(
+        FixedPlane near,
+        FixedPlane far,
+        FixedPlane left,
+        FixedPlane right,
+        FixedPlane top,
+        FixedPlane bottom)
+    {
+        _planes[0] = FixedPlane.Normalize(near);
+        _planes[1] = FixedPlane.Normalize(far);
+        _planes[2] = FixedPlane.Normalize(left);
+        _planes[3] = FixedPlane.Normalize(right);
+        _planes[4] = FixedPlane.Normalize(top);
+        _planes[5] = FixedPlane.Normalize(bottom);
+
+        _matrix = null;
+        CreateCorners();
+        UpdateBounds();
+    }
+
+    private void CreatePlanes(Fixed4x4 matrix)
+    {
+        _planes[0] = FixedPlane.Normalize(new FixedPlane(-matrix.m02, -matrix.m12, -matrix.m22, -matrix.m32));
+        _planes[1] = FixedPlane.Normalize(new FixedPlane(matrix.m02 - matrix.m03, matrix.m12 - matrix.m13, matrix.m22 - matrix.m23, matrix.m32 - matrix.m33));
+        _planes[2] = FixedPlane.Normalize(new FixedPlane(-matrix.m03 - matrix.m00, -matrix.m13 - matrix.m10, -matrix.m23 - matrix.m20, -matrix.m33 - matrix.m30));
+        _planes[3] = FixedPlane.Normalize(new FixedPlane(matrix.m00 - matrix.m03, matrix.m10 - matrix.m13, matrix.m20 - matrix.m23, matrix.m30 - matrix.m33));
+        _planes[4] = FixedPlane.Normalize(new FixedPlane(matrix.m01 - matrix.m03, matrix.m11 - matrix.m13, matrix.m21 - matrix.m23, matrix.m31 - matrix.m33));
+        _planes[5] = FixedPlane.Normalize(new FixedPlane(-matrix.m03 - matrix.m01, -matrix.m13 - matrix.m11, -matrix.m23 - matrix.m21, -matrix.m33 - matrix.m31));
     }
 
     private void CreateCorners()
@@ -518,14 +618,26 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     /// <inheritdoc/>
     public bool Equals(BoundingFrustum? other)
     {
-        return other != null && _matrix.Equals(other._matrix);
+        if (other == null)
+            return false;
+
+        for (int i = 0; i < PlaneCount; i++)
+        {
+            if (_planes[i] != other._planes[i])
+                return false;
+        }
+
+        return true;
     }
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is BoundingFrustum other && Equals(other);
 
     /// <inheritdoc/>
-    public override int GetHashCode() => _matrix.GetHashCode();
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(_planes[0], _planes[1], _planes[2], _planes[3], _planes[4], _planes[5]);
+    }
 
     #endregion
 }
