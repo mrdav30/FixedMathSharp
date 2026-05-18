@@ -2,6 +2,7 @@
   <PropertyGroup>
     <LangVersion>11.0</LangVersion>
     <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
+    <DisableMemoryPack Condition="'$(DisableMemoryPack)' == ''">false</DisableMemoryPack>
     <SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
     <SemVer Condition="'$(SemVer)' == ''">0.0.0</SemVer>
     <InfoVer Condition="'$(GitVersion_InformationalVersion)' != ''">$(GitVersion_InformationalVersion)</InfoVer>
@@ -20,12 +21,11 @@
     <DebugType>portable</DebugType>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-    <Configurations>Debug;Release;ReleaseNoMemoryPack</Configurations>
+    <Configurations>Debug;Release;ReleaseLean</Configurations>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <AssemblyName>FixedMathSharp.FluentAssertions</AssemblyName>
     <RootNamespace>FixedMathSharp.Assertions</RootNamespace>
-    <PackageId>FixedMathSharp.FluentAssertions</PackageId>
     <Authors>mrdav30</Authors>
     <Description>FluentAssertions extensions for FixedMathSharp types, including Fixed64, vectors, quaternions, and matrices.</Description>
     <PackageTags>fixed-point;math;precision;deterministic;assertions;fluentassertions;testing;dotnet;game-development</PackageTags>
@@ -34,6 +34,18 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <NoWarn>1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'ReleaseLean'">
+    <DisableMemoryPack>true</DisableMemoryPack>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(DisableMemoryPack)' == 'true'">
+    <PackageId>FixedMathSharp.FluentAssertions.Lean</PackageId>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(DisableMemoryPack)' != 'true'">
+    <PackageId>FixedMathSharp.FluentAssertions</PackageId>
   </PropertyGroup>
 
   <ItemGroup>

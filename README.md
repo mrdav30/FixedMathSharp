@@ -21,7 +21,7 @@ Built for simulations, games, and physics-heavy code that needs reliable results
 - **Spatial helpers:** `BoundingBox`, `BoundingSphere`, and `BoundingArea` for lightweight bounds checks.
 - **Shared math utilities:** Common math and trigonometry helpers via `FixedMath` and `FixedTrigonometry`.
 - **Deterministic RNG:** `DeterministicRandom` for repeatable procedural generation and simulations.
-- **Flexible packaging:** Use the default package with `MemoryPack`, or the `NoMemoryPack` package when you want the same API without that dependency.
+- **Flexible packaging:** Use the default package with `MemoryPack`, or the `Lean` package when you want the same API without that dependency.
 - **Broad .NET compatibility:** Targets modern .NET while remaining friendly to engine and tooling workflows.
 
 ---
@@ -41,7 +41,7 @@ Choose the package that fits your runtime:
 | Package | Best for | Install |
 | --- | --- | --- |
 | `FixedMathSharp` | Most .NET applications. Includes built-in `MemoryPack` support. | `dotnet add package FixedMathSharp` |
-| `FixedMathSharp.NoMemoryPack` | Projects that want the same math API without a `MemoryPack` dependency, including custom serializer setups and Burst AOT-sensitive workflows. | `dotnet add package FixedMathSharp.NoMemoryPack` |
+| `FixedMathSharp.Lean` | Projects that want the same math API without a `MemoryPack` dependency, including custom serializer setups and Burst AOT-sensitive workflows. | `dotnet add package FixedMathSharp.Lean` |
 
 If you're using `FluentAssertions` in your test project, the companion assertions package is available here:
 [FixedMathSharp.FluentAssertions](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions)
@@ -65,9 +65,9 @@ The published NuGet packages map directly to the source-build configurations bel
 If you build from source, the repository also provides matching release configurations:
 
 - `Release` builds the standard `FixedMathSharp` package and archives.
-- `ReleaseNoMemoryPack` builds the `FixedMathSharp.NoMemoryPack` package and archives.
+- `ReleaseLean` builds the `FixedMathSharp.Lean` package and archives.
 
-If you use Unity Burst AOT, prefer the `NoMemoryPack` variant.
+If you use Unity Burst AOT, prefer the `Lean` variant.
 
 ### Unity Integration
 
@@ -75,7 +75,7 @@ FixedMathSharp is maintained as a separate Unity package. For Unity-specific imp
 
 🔗 [FixedMathSharp-Unity Repository](https://github.com/mrdav30/FixedMathSharp-Unity).
 
-If you are evaluating this .NET package for Unity-adjacent tooling using Burst AOT, prefer `FixedMathSharp.NoMemoryPack`.
+If you are evaluating this .NET package for Unity-adjacent tooling using Burst AOT, prefer `FixedMathSharp.Lean`.
 
 ---
 

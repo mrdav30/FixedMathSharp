@@ -12,7 +12,7 @@ Ensure-GitVersion-Environment
 $solutionName = Split-Path $solutionDir -Leaf
 
 # Build and package for each release configuration
-$configurations = @("Release", "ReleaseNoMemoryPack")
+$configurations = @("Release", "ReleaseLean")
 
 foreach ($config in $configurations) {
     # Build the project with the current configuration
@@ -22,7 +22,7 @@ foreach ($config in $configurations) {
     $releaseDir = Join-Path $solutionDir "src\$solutionName\bin\$config"
 
     # Determine archive label suffix (lowercase, hyphen-separated)
-    $configLabel = $config.ToLower() -replace "release", "release" # keeps "release" / "releasenomemorypack"
+    $configLabel = $config.ToLower() -replace "release", "release" # keeps "release" / "releaselean"
 
 	if (-not (Test-Path $releaseDir)) {
 		Write-Warning "Release directory not found for configuration '$config': $releaseDir"

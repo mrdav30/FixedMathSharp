@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-	<Configurations>Debug;Release;ReleaseNoMemoryPack</Configurations>
+	<Configurations>Debug;Release;ReleaseLean</Configurations>
 	<OutputType>Exe</OutputType>
 	<RunSettingsFilePath>$(MSBuildThisFileDirectory)coverlet.runsettings</RunSettingsFilePath>
   </PropertyGroup>

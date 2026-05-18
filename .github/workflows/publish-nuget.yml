@@ -137,7 +137,9 @@ jobs:
 
         expected_ids=(
           "FixedMathSharp"
-          "FixedMathSharp.NoMemoryPack"
+          "FixedMathSharp.Lean",
+          "FixedMathSharp.FluentAssertions",
+          "FixedMathSharp.FluentAssertions.Lean"
         )
 
         for package_id in "${expected_ids[@]}"; do

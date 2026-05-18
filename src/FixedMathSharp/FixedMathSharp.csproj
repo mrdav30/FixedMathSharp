@@ -4,7 +4,7 @@
 	<PropertyGroup>
 		<LangVersion>11.0</LangVersion>
 		<TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
-		<Configurations>Debug;Release;ReleaseNoMemoryPack</Configurations>
+		<Configurations>Debug;Release;ReleaseLean</Configurations>
 		<DisableMemoryPack Condition="'$(DisableMemoryPack)' == ''">false</DisableMemoryPack>
 		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 		<Deterministic>true</Deterministic>
@@ -60,13 +60,13 @@
 
 	<!-- Configurations Properties -->
 
-	<PropertyGroup Condition="'$(Configuration)' == 'ReleaseNoMemoryPack'">
+	<PropertyGroup Condition="'$(Configuration)' == 'ReleaseLean'">
 		<DisableMemoryPack>true</DisableMemoryPack>
 	</PropertyGroup>
 	
 	<PropertyGroup Condition="'$(DisableMemoryPack)' == 'true'">
 		<DefineConstants>$(DefineConstants);FIXEDMATHSHARP_DISABLE_MEMORYPACK</DefineConstants>
-		<PackageId>FixedMathSharp.NoMemoryPack</PackageId>
+		<PackageId>FixedMathSharp.Lean</PackageId>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(DisableMemoryPack)' != 'true'">
@@ -84,7 +84,7 @@
 		<DefineConstants>DEBUG;TRACE</DefineConstants>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="'$(Configuration)' == 'Release' Or '$(Configuration)' == 'ReleaseNoMemoryPack'">
+	<PropertyGroup Condition="'$(Configuration)' == 'Release' Or '$(Configuration)' == 'ReleaseLean'">
 		<Optimize>true</Optimize>
 		<DefineConstants>$(DefineConstants);TRACE</DefineConstants>
 	</PropertyGroup>

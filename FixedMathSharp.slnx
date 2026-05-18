@@ -2,7 +2,7 @@
   <Configurations>
     <BuildType Name="Debug" />
     <BuildType Name="Release" />
-    <BuildType Name="ReleaseNoMemoryPack" />
+    <BuildType Name="ReleaseLean" />
   </Configurations>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
