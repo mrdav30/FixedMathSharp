@@ -37,6 +37,7 @@
 - Tests are xUnit (`tests/FixedMathSharp.Tests`). Keep one feature area per test file (e.g., `Vector3d.Tests.cs`, `Bounds/BoundingBox.Tests.cs`).
 - Use helper assertions from `tests/FixedMathSharp.Tests/Support/FixedMathTestHelper.cs` for tolerance/range checks rather than ad-hoc epsilon logic.
 - For deterministic RNG changes, validate same-seed reproducibility and bounds/argument exceptions like in `DeterministicRandom.Tests.cs`.
+- Cyclomatic complexity exceptions are documented in `docs/complexity-exceptions.md`; update that register when touching methods above the review threshold instead of refactoring hot deterministic paths just to lower a metric.
 
 ## Agent editing guidance
 

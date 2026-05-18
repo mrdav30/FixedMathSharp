@@ -563,6 +563,18 @@ public class Vector2dTests
         Assert.Equal(a.GetHashCode(), a.GetHashCode(a));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Vector2d_FuzzyEqualAbsolute_ReturnsFalse_WhenAnyComponentExceedsTolerance(int componentIndex)
+    {
+        var actual = new Vector2d(1, 2);
+        var expected = actual;
+        expected[componentIndex] += new Fixed64(0.2);
+
+        Assert.False(actual.FuzzyEqualAbsolute(expected, new Fixed64(0.1)));
+    }
+
     [Fact]
     public void OperatorOverloads_WithTuplesFloatsAndUnaryMinus_WorkCorrectly()
     {

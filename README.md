@@ -194,6 +194,8 @@ FixedMathSharp is optimized for high-performance deterministic calculations:
 
 The library is covered by xUnit tests for core arithmetic, vectors, bounds, serialization, and deterministic random behavior. Fuzzy comparisons are used where a tolerance-based check is more appropriate than exact equality.
 
+Cyclomatic complexity exceptions are tracked in [`docs/complexity-exceptions.md`](docs/complexity-exceptions.md). The register explains why specific hot-path or fixed-shape methods exceed the review threshold and what should trigger revisiting them.
+
 To run the tests:
 
 ```bash

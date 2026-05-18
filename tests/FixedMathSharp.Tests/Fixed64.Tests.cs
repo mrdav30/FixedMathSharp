@@ -141,12 +141,46 @@ public class Fixed64Tests
     }
 
     [Fact]
+    public void Add_NegativeOverflowProtection_ReturnsMinValue()
+    {
+        var result = Fixed64.MIN_VALUE + -Fixed64.One;
+
+        Assert.Equal(Fixed64.MIN_VALUE, result);
+    }
+
+    [Fact]
     public void Subtract_OverflowProtection_ReturnsMinValue()
     {
         var a = Fixed64.MIN_VALUE;
         var b = new Fixed64(1);
         var result = a - b;
         Assert.Equal(Fixed64.MIN_VALUE, result);
+    }
+
+    [Fact]
+    public void Subtract_PositiveOverflowProtection_ReturnsMaxValue()
+    {
+        var result = Fixed64.MAX_VALUE - -Fixed64.One;
+
+        Assert.Equal(Fixed64.MAX_VALUE, result);
+    }
+
+    [Fact]
+    public void Multiply_PositiveOverflowProtection_ReturnsMaxValue()
+    {
+        Assert.Equal(Fixed64.MAX_VALUE, Fixed64.MAX_VALUE * Fixed64.Two);
+    }
+
+    [Fact]
+    public void Multiply_NegativeOverflowProtection_ReturnsMinValue()
+    {
+        Assert.Equal(Fixed64.MIN_VALUE, Fixed64.MIN_VALUE * Fixed64.Two);
+    }
+
+    [Fact]
+    public void Modulus_MinRawByNegativeOne_ReturnsZero()
+    {
+        Assert.Equal(Fixed64.Zero, Fixed64.FromRaw(long.MinValue) % Fixed64.FromRaw(-1));
     }
 
     #endregion
@@ -196,6 +230,7 @@ public class Fixed64Tests
 
         Assert.Equal(new Fixed64(4.5), value);
         Assert.Equal(value.m_rawValue.ToString(), value.RawToString());
+        Assert.False(value.Equals((object)"not-fixed64"));
     }
 
     [Fact]
@@ -284,6 +319,8 @@ public class Fixed64Tests
     {
         Assert.Equal(Fixed64.MAX_VALUE, Fixed64.MAX_VALUE * new Fixed64(2));
         Assert.Equal(Fixed64.MIN_VALUE, Fixed64.MAX_VALUE * new Fixed64(-2));
+        Assert.Equal(Fixed64.MAX_VALUE, Fixed64.MIN_VALUE * -Fixed64.One);
+        Assert.Equal(Fixed64.MIN_VALUE, Fixed64.MIN_VALUE * Fixed64.One);
     }
 
     [Fact]

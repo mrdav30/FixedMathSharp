@@ -241,4 +241,246 @@ public class FixedAssertionsTests
         AssertAssertionFails(() => transform.Should().HaveRotationApproximately(differentRotation, new Fixed64(0.0001)));
         AssertAssertionFails(() => unnormalizedBasis.Should().HaveNormalizedRotationBasis(Fixed64.Epsilon));
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Vector2dAssertions_ComponentApproximationFailsForEachComponent(int componentIndex)
+    {
+        var expected = new Vector2d(10, 10);
+        var actual = expected;
+        actual[componentIndex] += new Fixed64(0.2);
+
+        AssertAssertionFails(() => actual.Should().HaveComponentApproximately(expected, new Fixed64(0.1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Vector3dAssertions_ComponentApproximationFailsForEachComponent(int componentIndex)
+    {
+        var expected = new Vector3d(10, 10, 10);
+        var actual = expected;
+        actual[componentIndex] += new Fixed64(0.2);
+
+        AssertAssertionFails(() => actual.Should().HaveComponentApproximately(expected, new Fixed64(0.1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void FixedQuaternionAssertions_ComponentApproximationFailsForEachComponent(int componentIndex)
+    {
+        var expected = new FixedQuaternion(new Fixed64(10), new Fixed64(10), new Fixed64(10), new Fixed64(10));
+        var actual = OffsetQuaternionComponent(expected, componentIndex, new Fixed64(0.2));
+
+        AssertAssertionFails(() => actual.Should().BeApproximately(expected, new Fixed64(0.1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    public void Fixed3x3Assertions_ComponentApproximationFailsForEachComponent(int componentIndex)
+    {
+        var expected = CreateSequentialMatrix3x3();
+        var actual = OffsetMatrixComponent(expected, componentIndex, new Fixed64(0.2));
+
+        AssertAssertionFails(() => actual.Should().BeApproximately(expected, new Fixed64(0.1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    [InlineData(10)]
+    [InlineData(11)]
+    [InlineData(12)]
+    [InlineData(13)]
+    [InlineData(14)]
+    [InlineData(15)]
+    public void Fixed4x4Assertions_ComponentApproximationFailsForEachComponent(int componentIndex)
+    {
+        var expected = CreateSequentialMatrix4x4();
+        var actual = OffsetMatrixComponent(expected, componentIndex, new Fixed64(0.2));
+
+        AssertAssertionFails(() => actual.Should().BeApproximately(expected, new Fixed64(0.1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Fixed3x3Assertions_NormalizedAxesFailWhenEarlyAxisIsNotUnitLength(int axisIndex)
+    {
+        Vector3d scale = axisIndex == 0
+            ? new Vector3d(2, 1, 1)
+            : new Vector3d(1, 2, 1);
+
+        AssertAssertionFails(() => Fixed3x3.CreateScale(scale).Should().HaveNormalizedAxes(Fixed64.Epsilon));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Fixed4x4Assertions_NormalizedRotationBasisFailsWhenEarlyAxisIsNotUnitLength(int axisIndex)
+    {
+        Vector3d scale = axisIndex == 0
+            ? new Vector3d(2, 1, 1)
+            : new Vector3d(1, 2, 1);
+
+        AssertAssertionFails(() => Fixed4x4.CreateScale(scale).Should().HaveNormalizedRotationBasis(Fixed64.Epsilon));
+    }
+
+    private static FixedQuaternion OffsetQuaternionComponent(FixedQuaternion quaternion, int componentIndex, Fixed64 offset)
+    {
+        switch (componentIndex)
+        {
+            case 0:
+                quaternion.x += offset;
+                break;
+            case 1:
+                quaternion.y += offset;
+                break;
+            case 2:
+                quaternion.z += offset;
+                break;
+            case 3:
+                quaternion.w += offset;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(componentIndex));
+        }
+
+        return quaternion;
+    }
+
+    private static Fixed3x3 CreateSequentialMatrix3x3()
+    {
+        return new Fixed3x3(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3),
+            new Fixed64(4), new Fixed64(5), new Fixed64(6),
+            new Fixed64(7), new Fixed64(8), new Fixed64(9));
+    }
+
+    private static Fixed3x3 OffsetMatrixComponent(Fixed3x3 matrix, int componentIndex, Fixed64 offset)
+    {
+        switch (componentIndex)
+        {
+            case 0:
+                matrix.m00 += offset;
+                break;
+            case 1:
+                matrix.m01 += offset;
+                break;
+            case 2:
+                matrix.m02 += offset;
+                break;
+            case 3:
+                matrix.m10 += offset;
+                break;
+            case 4:
+                matrix.m11 += offset;
+                break;
+            case 5:
+                matrix.m12 += offset;
+                break;
+            case 6:
+                matrix.m20 += offset;
+                break;
+            case 7:
+                matrix.m21 += offset;
+                break;
+            case 8:
+                matrix.m22 += offset;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(componentIndex));
+        }
+
+        return matrix;
+    }
+
+    private static Fixed4x4 CreateSequentialMatrix4x4()
+    {
+        return new Fixed4x4(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4),
+            new Fixed64(5), new Fixed64(6), new Fixed64(7), new Fixed64(8),
+            new Fixed64(9), new Fixed64(10), new Fixed64(11), new Fixed64(12),
+            new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(16));
+    }
+
+    private static Fixed4x4 OffsetMatrixComponent(Fixed4x4 matrix, int componentIndex, Fixed64 offset)
+    {
+        switch (componentIndex)
+        {
+            case 0:
+                matrix.m00 += offset;
+                break;
+            case 1:
+                matrix.m01 += offset;
+                break;
+            case 2:
+                matrix.m02 += offset;
+                break;
+            case 3:
+                matrix.m03 += offset;
+                break;
+            case 4:
+                matrix.m10 += offset;
+                break;
+            case 5:
+                matrix.m11 += offset;
+                break;
+            case 6:
+                matrix.m12 += offset;
+                break;
+            case 7:
+                matrix.m13 += offset;
+                break;
+            case 8:
+                matrix.m20 += offset;
+                break;
+            case 9:
+                matrix.m21 += offset;
+                break;
+            case 10:
+                matrix.m22 += offset;
+                break;
+            case 11:
+                matrix.m23 += offset;
+                break;
+            case 12:
+                matrix.m30 += offset;
+                break;
+            case 13:
+                matrix.m31 += offset;
+                break;
+            case 14:
+                matrix.m32 += offset;
+                break;
+            case 15:
+                matrix.m33 += offset;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(componentIndex));
+        }
+
+        return matrix;
+    }
 }

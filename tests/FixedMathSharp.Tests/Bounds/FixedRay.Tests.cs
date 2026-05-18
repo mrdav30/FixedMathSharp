@@ -1,4 +1,5 @@
 using MemoryPack;
+using System;
 using System.Text.Json;
 using Xunit;
 
@@ -52,6 +53,17 @@ public class FixedRayTests
     }
 
     [Fact]
+    public void Intersects_BoundingBox_HandlesNegativeDirectionAndSwappedSlabDistances()
+    {
+        var box = new BoundingBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var ray = new FixedRay(new Vector3d(5, 0, 0), Vector3d.Left);
+
+        Fixed64? hit = ray.Intersects(box);
+
+        Assert.Equal(new Fixed64(4), hit);
+    }
+
+    [Fact]
     public void Intersects_BoundingBox_ReturnsZeroWhenRayStartsInside()
     {
         var box = new BoundingBox(Vector3d.Zero, new Vector3d(2, 2, 2));
@@ -67,10 +79,14 @@ public class FixedRayTests
     {
         var box = new BoundingBox(Vector3d.Zero, new Vector3d(2, 2, 2));
         var parallelOutside = new FixedRay(new Vector3d(-5, 2, 0), Vector3d.Right);
+        var parallelOutsideZ = new FixedRay(new Vector3d(0, 0, 3), Vector3d.Right);
         var behind = new FixedRay(new Vector3d(5, 0, 0), Vector3d.Right);
+        var behindOnZ = new FixedRay(new Vector3d(0, 0, 5), Vector3d.Forward);
 
         Assert.Null(parallelOutside.Intersects(box));
+        Assert.Null(parallelOutsideZ.Intersects(box));
         Assert.Null(behind.Intersects(box));
+        Assert.Null(behindOnZ.Intersects(box));
     }
 
     [Fact]
@@ -118,6 +134,17 @@ public class FixedRayTests
     }
 
     [Fact]
+    public void Intersects_BoundingSphere_ZeroDirectionReturnsZeroOnlyWhenOriginIsInside()
+    {
+        var sphere = new BoundingSphere(Vector3d.Zero, Fixed64.One);
+        var inside = new FixedRay(Vector3d.Zero, Vector3d.Zero);
+        var outside = new FixedRay(new Vector3d(2, 0, 0), Vector3d.Zero);
+
+        Assert.Equal(Fixed64.Zero, inside.Intersects(sphere));
+        Assert.Null(outside.Intersects(sphere));
+    }
+
+    [Fact]
     public void Intersects_BoundingFrustum_ReturnsNearestForwardHit()
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
@@ -127,6 +154,14 @@ public class FixedRayTests
 
         Assert.Equal(new Fixed64(5), hit);
         Assert.Equal(hit, frustum.Intersects(ray));
+    }
+
+    [Fact]
+    public void Intersects_BoundingFrustum_NullFrustum_Throws()
+    {
+        var ray = new FixedRay(Vector3d.Zero, Vector3d.Forward);
+
+        Assert.Throws<ArgumentNullException>(() => ray.Intersects((BoundingFrustum)null!));
     }
 
     [Fact]
@@ -173,6 +208,22 @@ public class FixedRayTests
         Assert.False(ray != same);
         Assert.False(ray == different);
         Assert.NotEqual(ray, different);
+        Assert.False(ray.Equals(different));
+    }
+
+    [Fact]
+    public void DeconstructHashCodeAndObjectEquality_UsePositionAndDirection()
+    {
+        var ray = new FixedRay(new Vector3d(1, 2, 3), Vector3d.Forward);
+        var same = new FixedRay(new Vector3d(1, 2, 3), Vector3d.Forward);
+
+        ray.Deconstruct(out var position, out var direction);
+
+        Assert.Equal(new Vector3d(1, 2, 3), position);
+        Assert.Equal(Vector3d.Forward, direction);
+        Assert.Equal(ray.GetHashCode(), same.GetHashCode());
+        Assert.True(ray.Equals((object)same));
+        Assert.False(ray.Equals((object)new object()));
     }
 
 #if !FIXEDMATHSHARP_DISABLE_MEMORYPACK

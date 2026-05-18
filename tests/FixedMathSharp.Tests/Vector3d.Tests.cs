@@ -950,6 +950,102 @@ public class Vector3dTests
         Assert.True(vector.CompareTo(Vector3d.One) > 0);
     }
 
+    [Fact]
+    public void SnapSmallComponentsToZero_CustomThreshold_CoversRetainAndSnapBranches()
+    {
+        var threshold = new Fixed64(0.1);
+        var vector = new Vector3d(new Fixed64(0.2), new Fixed64(-0.05), new Fixed64(0.05));
+
+        var result = vector.SnapSmallComponentsToZero(threshold);
+
+        Assert.Equal(new Fixed64(0.2), result.x);
+        Assert.Equal(Fixed64.Zero, result.y);
+        Assert.Equal(Fixed64.Zero, result.z);
+    }
+
+    [Fact]
+    public void Vector3d_DivisionOperators_ReturnZeroForZeroDivisors()
+    {
+        var vector = new Vector3d(4, 6, 8);
+
+        Assert.Equal(Vector3d.Zero, vector / 0);
+        Assert.Equal(new Vector3d(2, 0, 4), vector / new Vector3d(2, 0, 2));
+    }
+
+    [Fact]
+    public void Vector3d_ClosestPointOnLineSegment_ReturnsStartForZeroLengthSegment()
+    {
+        var start = new Vector3d(1, 2, 3);
+
+        Assert.Equal(start, Vector3d.ClosestPointOnLineSegment(new Vector3d(5, 5, 5), start, start));
+    }
+
+    [Fact]
+    public void Vector3d_ProjectOnPlane_WithFixedPlaneUsesPlaneNormal()
+    {
+        var plane = new FixedPlane(Vector3d.Up, Fixed64.Zero);
+
+        Assert.Equal(new Vector3d(1, 0, 3), Vector3d.ProjectOnPlane(new Vector3d(1, 2, 3), plane));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Vector3d_FuzzyEqualAbsolute_ReturnsFalse_WhenAnyComponentExceedsTolerance(int componentIndex)
+    {
+        var actual = new Vector3d(1, 2, 3);
+        var expected = actual;
+        expected[componentIndex] += new Fixed64(0.2);
+
+        Assert.False(actual.FuzzyEqualAbsolute(expected, new Fixed64(0.1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Vector3d_FuzzyEqual_ReturnsFalse_WhenAnyComponentExceedsPercentage(int componentIndex)
+    {
+        var actual = new Vector3d(100, 100, 100);
+        var expected = actual;
+        expected[componentIndex] = new Fixed64(150);
+
+        Assert.False(actual.FuzzyEqual(expected, new Fixed64(0.01)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Vector3d_GreaterThanOperators_ReturnFalse_WhenAnyComponentFails(int componentIndex)
+    {
+        var left = new Vector3d(5, 5, 5);
+        var strictRight = new Vector3d(1, 1, 1);
+        strictRight[componentIndex] = new Fixed64(5);
+        var inclusiveRight = new Vector3d(1, 1, 1);
+        inclusiveRight[componentIndex] = new Fixed64(6);
+
+        Assert.False(left > strictRight);
+        Assert.False(left >= inclusiveRight);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Vector3d_LessThanOperators_ReturnFalse_WhenAnyComponentFails(int componentIndex)
+    {
+        var left = new Vector3d(1, 1, 1);
+        var strictRight = new Vector3d(5, 5, 5);
+        strictRight[componentIndex] = Fixed64.One;
+        var inclusiveRight = new Vector3d(5, 5, 5);
+        inclusiveRight[componentIndex] = Fixed64.Zero;
+
+        Assert.False(left < strictRight);
+        Assert.False(left <= inclusiveRight);
+    }
+
     #endregion
 
     #region Test: Serialization

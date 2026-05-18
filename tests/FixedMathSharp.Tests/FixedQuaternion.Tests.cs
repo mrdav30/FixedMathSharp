@@ -659,6 +659,48 @@ public class FixedQuaternionTests
         Assert.False(FixedQuaternion.Identity.FuzzyEqual(FixedQuaternion.Zero, new Fixed64(0.1)));
     }
 
+    [Fact]
+    public void FixedQuaternion_FromAxisAngleAndEulerAngles_RejectAnglesOutsidePiRange()
+    {
+        Fixed64 tooHigh = FixedMath.PI + Fixed64.Epsilon;
+        Fixed64 tooLow = -FixedMath.PI - Fixed64.Epsilon;
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromAxisAngle(Vector3d.Up, tooHigh));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromAxisAngle(Vector3d.Up, tooLow));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(tooHigh, Fixed64.Zero, Fixed64.Zero));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(tooLow, Fixed64.Zero, Fixed64.Zero));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(Fixed64.Zero, tooHigh, Fixed64.Zero));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(Fixed64.Zero, tooLow, Fixed64.Zero));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(Fixed64.Zero, Fixed64.Zero, tooHigh));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(Fixed64.Zero, Fixed64.Zero, tooLow));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void FixedQuaternion_FuzzyEqualAbsolute_ReturnsFalse_WhenAnyComponentExceedsTolerance(int componentIndex)
+    {
+        var baseline = new FixedQuaternion(new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4));
+        var changed = OffsetQuaternionComponent(baseline, componentIndex, new Fixed64(0.2));
+
+        Assert.False(baseline.FuzzyEqualAbsolute(changed, new Fixed64(0.1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void FixedQuaternion_FuzzyEqual_ReturnsFalse_WhenAnyComponentExceedsPercentage(int componentIndex)
+    {
+        var baseline = new FixedQuaternion(new Fixed64(100), new Fixed64(100), new Fixed64(100), new Fixed64(100));
+        var changed = OffsetQuaternionComponent(baseline, componentIndex, new Fixed64(50));
+
+        Assert.False(baseline.FuzzyEqual(changed, new Fixed64(0.01)));
+    }
+
     #endregion
 
     #region Test: Serialization
@@ -704,4 +746,27 @@ public class FixedQuaternionTests
 #endif
 
     #endregion
+
+    private static FixedQuaternion OffsetQuaternionComponent(FixedQuaternion quaternion, int componentIndex, Fixed64 offset)
+    {
+        switch (componentIndex)
+        {
+            case 0:
+                quaternion.x += offset;
+                break;
+            case 1:
+                quaternion.y += offset;
+                break;
+            case 2:
+                quaternion.z += offset;
+                break;
+            case 3:
+                quaternion.w += offset;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(componentIndex));
+        }
+
+        return quaternion;
+    }
 }

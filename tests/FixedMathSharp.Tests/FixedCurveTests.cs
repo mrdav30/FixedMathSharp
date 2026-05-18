@@ -112,6 +112,17 @@ public class FixedCurveTests
     }
 
     [Fact]
+    public void Evaluate_TimeWithinSecondSegment_SkipsEarlierSegment()
+    {
+        FixedCurve curve = new(FixedCurveMode.Linear,
+            new FixedCurveKey(0, 0),
+            new FixedCurveKey(10, 100),
+            new FixedCurveKey(20, 200));
+
+        Assert.Equal(new Fixed64(150), curve.Evaluate(new Fixed64(15)));
+    }
+
+    [Fact]
     public void Evaluate_ExtremeValues_ShouldHandleCorrectly()
     {
         FixedCurve curve = new(FixedCurveMode.Linear,
@@ -171,8 +182,14 @@ public class FixedCurveTests
         Assert.True(curve == same);
         Assert.False(curve != same);
         Assert.True(curve != other);
+        Assert.True(curve.Equals(curve));
+        Assert.False(curve.Equals((FixedCurve?)null));
         Assert.True(curve.Equals((object)same));
         Assert.False(curve.Equals(new object()));
+        Assert.False(curve.Equals(new FixedCurve(
+            FixedCurveMode.Step,
+            new FixedCurveKey(0, 0),
+            new FixedCurveKey(10, 10))));
         Assert.False(curve == nullCurve);
         Assert.True(nullCurve == null);
         Assert.Equal(curve.GetHashCode(), same.GetHashCode());

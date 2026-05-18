@@ -255,6 +255,76 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_CreateLookAt_InvalidArgumentsThrow()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Fixed4x4.CreateLookAt(Vector3d.Zero, Vector3d.Zero, Vector3d.Up));
+        Assert.Throws<ArgumentException>(() =>
+            Fixed4x4.CreateLookAt(Vector3d.Zero, Vector3d.Forward, Vector3d.Forward));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreateWorld_InvalidArgumentsThrow()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Fixed4x4.CreateWorld(Vector3d.Zero, Vector3d.Zero, Vector3d.Up));
+        Assert.Throws<ArgumentException>(() =>
+            Fixed4x4.CreateWorld(Vector3d.Zero, Vector3d.Forward, Vector3d.Forward));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreateOrthographic_InvalidArgumentsThrow()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreateOrthographic(Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.One));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreateOrthographic(Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreateOrthographic(Fixed64.One, Fixed64.One, new Fixed64(-1), Fixed64.One));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreateOrthographic(Fixed64.One, Fixed64.One, Fixed64.One, Fixed64.One));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreateOrthographicOffCenter_InvalidArgumentsThrow()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreateOrthographicOffCenter(Fixed64.One, Fixed64.One, Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.One));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreateOrthographicOffCenter(Fixed64.Zero, Fixed64.One, Fixed64.One, Fixed64.One, Fixed64.Zero, Fixed64.One));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreateOrthographicOffCenter(Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.One, new Fixed64(-1), Fixed64.One));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreateOrthographicOffCenter(Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.One, Fixed64.One, Fixed64.One));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreatePerspective_InvalidArgumentsThrow()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspective(Fixed64.Zero, Fixed64.One, Fixed64.One, new Fixed64(10)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspective(Fixed64.One, Fixed64.Zero, Fixed64.One, new Fixed64(10)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspective(Fixed64.One, Fixed64.One, Fixed64.Zero, new Fixed64(10)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspective(Fixed64.One, Fixed64.One, new Fixed64(10), new Fixed64(10)));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_CreatePerspectiveOffCenter_InvalidArgumentsThrow()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspectiveOffCenter(Fixed64.One, Fixed64.One, Fixed64.Zero, Fixed64.One, Fixed64.One, new Fixed64(10)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspectiveOffCenter(Fixed64.Zero, Fixed64.One, Fixed64.One, Fixed64.One, Fixed64.One, new Fixed64(10)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspectiveOffCenter(Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.One, Fixed64.Zero, new Fixed64(10)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Fixed4x4.CreatePerspectiveOffCenter(Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.One, new Fixed64(10), new Fixed64(10)));
+    }
+
+    [Fact]
     public void FixedMatrix4x4_TransposeLerpAndScalarOperators_WorkComponentWise()
     {
         var matrix = new Fixed4x4(

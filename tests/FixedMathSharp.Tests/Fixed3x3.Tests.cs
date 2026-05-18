@@ -294,6 +294,42 @@ public class Fixed3x3Tests
         Assert.False(baseline.FuzzyEqual(changed, new Fixed64(0.01)));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    public void Fixed3x3_FuzzyEqualAbsolute_ReturnsFalse_WhenAnyComponentExceedsTolerance(int componentIndex)
+    {
+        var baseline = CreateSequentialMatrix3x3();
+        var changed = OffsetMatrixComponent(baseline, componentIndex, new Fixed64(0.2));
+
+        Assert.False(baseline.FuzzyEqualAbsolute(changed, new Fixed64(0.1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    public void Fixed3x3_FuzzyEqual_ReturnsFalse_WhenAnyComponentExceedsPercentage(int componentIndex)
+    {
+        var baseline = CreateSequentialMatrix3x3();
+        var changed = OffsetMatrixComponent(baseline, componentIndex, new Fixed64(10));
+
+        Assert.False(baseline.FuzzyEqual(changed, new Fixed64(0.01)));
+    }
+
     [Fact]
     public void Fixed3x3_Normalize_WorksCorrectly()
     {
@@ -312,6 +348,22 @@ public class Fixed3x3Tests
         Assert.Equal(Fixed64.One, xAxis.Magnitude);
         Assert.Equal(Fixed64.One, yAxis.Magnitude);
         Assert.Equal(Fixed64.One, zAxis.Magnitude);
+    }
+
+    [Fact]
+    public void Fixed3x3_InvertDiagonal_LeavesZeroOuterDiagonalEntriesAtZero()
+    {
+        var matrix = new Fixed3x3(
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, new Fixed64(2), Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
+
+        Assert.Equal(
+            new Fixed3x3(
+                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Half, Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero),
+            matrix.InvertDiagonal());
     }
 
     [Fact]
@@ -470,6 +522,7 @@ public class Fixed3x3Tests
         var changed = a;
         changed.m01 = Fixed64.One;
         Assert.NotEqual(hash, changed.GetHashCode());
+        Assert.False(a.Equals((object)"not-a-matrix"));
     }
 
     #region Test: Serialization
@@ -506,4 +559,50 @@ public class Fixed3x3Tests
 #endif
 
     #endregion
+
+    private static Fixed3x3 CreateSequentialMatrix3x3()
+    {
+        return new Fixed3x3(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3),
+            new Fixed64(4), new Fixed64(5), new Fixed64(6),
+            new Fixed64(7), new Fixed64(8), new Fixed64(9));
+    }
+
+    private static Fixed3x3 OffsetMatrixComponent(Fixed3x3 matrix, int componentIndex, Fixed64 offset)
+    {
+        switch (componentIndex)
+        {
+            case 0:
+                matrix.m00 += offset;
+                break;
+            case 1:
+                matrix.m01 += offset;
+                break;
+            case 2:
+                matrix.m02 += offset;
+                break;
+            case 3:
+                matrix.m10 += offset;
+                break;
+            case 4:
+                matrix.m11 += offset;
+                break;
+            case 5:
+                matrix.m12 += offset;
+                break;
+            case 6:
+                matrix.m20 += offset;
+                break;
+            case 7:
+                matrix.m21 += offset;
+                break;
+            case 8:
+                matrix.m22 += offset;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(componentIndex));
+        }
+
+        return matrix;
+    }
 }

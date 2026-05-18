@@ -1,5 +1,6 @@
 ﻿using MemoryPack;
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -106,7 +107,11 @@ public class Vector4dTests
         Assert.Equal(new Vector4d(7, 9, 11, 13), vector.AddInPlace(Vector4d.One));
         Assert.Equal(new Vector4d(6, 8, 10, 12), vector.SubtractInPlace(Fixed64.One));
         Assert.Equal(new Vector4d(4, 5, 6, 7), vector.SubtractInPlace(new Fixed64(2), new Fixed64(3), new Fixed64(4), new Fixed64(5)));
-        Assert.Equal(new Vector4d(8, 15, 24, 35), vector.ScaleInPlace(new Vector4d(2, 3, 4, 5)));
+        Assert.Equal(Vector4d.One, vector.SubtractInPlace(new Vector4d(3, 4, 5, 6)));
+        Assert.Equal(new Vector4d(3, 3, 3, 3), vector.ScaleInPlace(new Fixed64(3)));
+        Assert.Equal(new Vector4d(6, 9, 12, 15), vector.ScaleInPlace(new Vector4d(2, 3, 4, 5)));
+
+        Assert.Equal(new Vector4d(9, 8, 7, 6), vector.Set(new Fixed64(9), new Fixed64(8), new Fixed64(7), new Fixed64(6)));
     }
 
     [Fact]
@@ -119,9 +124,16 @@ public class Vector4dTests
         Assert.Equal(new Vector4d(-3, -2, -1, 0), Vector4d.UnclampedLerp(a, b, -Fixed64.One));
         Assert.Equal(new Fixed64(70), Vector4d.Dot(a, b));
         Assert.Equal(new Fixed64(8), Vector4d.SqrDistance(a, new Vector4d(3, 4, 3, 4)));
+        Assert.Equal(new Fixed64(4), Vector4d.Distance(a, new Vector4d(3, 4, 5, 6)));
+        Assert.Equal(new Fixed64(4), a.Distance(new Vector4d(3, 4, 5, 6)));
+        Assert.Equal(new Fixed64(4), a.Distance(new Fixed64(3), new Fixed64(4), new Fixed64(5), new Fixed64(6)));
+        Assert.Equal(new Fixed64(8), a.SqrDistance(new Vector4d(3, 4, 3, 4)));
+        Assert.Equal(new Fixed64(70), a.Dot(b));
         Assert.Equal(new Vector4d(5, 12, 21, 32), Vector4d.Scale(a, b));
         Assert.Equal(new Vector4d(1, 2, 3, 4), Vector4d.Min(a, b));
         Assert.Equal(new Vector4d(5, 6, 7, 8), Vector4d.Max(a, b));
+        Assert.Equal(new Vector4d(3, 4, 5, 6), Vector4d.Midpoint(a, b));
+        Assert.Equal(new Vector4d(1, 2, 3, 4), Vector4d.Abs(new Vector4d(-1, -2, -3, -4)));
         Assert.Equal(new Vector4d(1, -1, 1, -1), Vector4d.Sign(new Vector4d(2, -3, 4, -5)));
         Assert.Equal(new Vector4d(1, 2, 7, 4), Vector4d.Clamp(new Vector4d(-1, 2, 9, 4), a, b));
     }
@@ -137,11 +149,235 @@ public class Vector4dTests
         Assert.Equal(new Vector4d(-1, -2, -3, -4), -a);
         Assert.Equal(new Vector4d(2, 4, 6, 8), a * new Fixed64(2));
         Assert.Equal(new Vector4d(2, 4, 6, 8), new Fixed64(2) * a);
+        Assert.Equal(new Vector4d(3, 6, 9, 12), a * 3);
+        Assert.Equal(new Vector4d(3, 6, 9, 12), 3 * a);
         Assert.Equal(new Vector4d(5, 12, 21, 32), a * b);
         Assert.Equal(new Vector4d(Fixed64.Half, Fixed64.One, new Fixed64(1.5), new Fixed64(2)), a / new Fixed64(2));
+        Assert.Equal(new Vector4d(Fixed64.Half, Fixed64.One, new Fixed64(1.5), new Fixed64(2)), a / 2);
         Assert.Equal(new Vector4d(new Fixed64(5), new Fixed64(3), new Fixed64(7) / new Fixed64(3), new Fixed64(2)), b / a);
+        Assert.Equal(new Vector4d(2, 3, 4, 5), a + Fixed64.One);
+        Assert.Equal(new Vector4d(2, 3, 4, 5), Fixed64.One + a);
+        Assert.Equal(new Vector4d(4, 6, 8, 10), a + (3, 4, 5, 6));
+        Assert.Equal(new Vector4d(4, 6, 8, 10), (3, 4, 5, 6) + a);
+        Assert.Equal(new Vector4d(0, 1, 2, 3), a - Fixed64.One);
+        Assert.Equal(new Vector4d(9, 8, 7, 6), new Fixed64(10) - a);
+        Assert.Equal(new Vector4d(-2, -2, -2, -2), a - (3, 4, 5, 6));
+        Assert.Equal(new Vector4d(2, 2, 2, 2), (3, 4, 5, 6) - a);
         Assert.True(a == new Vector4d(1, 2, 3, 4));
         Assert.True(a != b);
+    }
+
+    [Fact]
+    public void MatrixOperator_FromVectorSide_DelegatesToMatrixTransform()
+    {
+        var matrix = Fixed4x4.CreateScale(new Vector3d(2, 3, 4));
+        var vector = new Vector4d(1, 2, 3, 1);
+
+        Assert.Equal(matrix * vector, vector * matrix);
+    }
+
+    [Fact]
+    public void PropertiesFormattingEqualityHashingAndComparison_WorkCorrectly()
+    {
+        var vector = new Vector4d(1, 2, 3, 4);
+        var same = new Vector4d(1, 2, 3, 4);
+        var larger = new Vector4d(2, 3, 4, 5);
+        IEqualityComparer<Vector4d> comparer = vector;
+
+        Assert.False(vector.IsZero);
+        Assert.True(Vector4d.Zero.IsZero);
+        Assert.Equal(vector.LongStateHash, same.LongStateHash);
+        Assert.Equal(vector.StateHash, same.StateHash);
+        Assert.Equal(vector.GetHashCode(), comparer.GetHashCode(same));
+        Assert.True(comparer.Equals(vector, same));
+        Assert.True(vector.Equals((object)same));
+        Assert.False(vector.Equals((object)new object()));
+        Assert.True(vector.CompareTo(larger) < 0);
+        Assert.StartsWith("(", vector.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NormalizeOut_CoversZeroUnitAndNonUnitVectors()
+    {
+        var vector = new Vector4d(1, 2, 2, 4);
+
+        var normalized = vector.Normalize(out var magnitude);
+
+        Assert.Equal(new Fixed64(5), magnitude);
+        Assert.Equal(vector, normalized);
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.One, vector.Magnitude);
+
+        var zero = Vector4d.Zero;
+        Assert.Equal(Vector4d.Zero, zero.Normalize(out magnitude));
+        Assert.Equal(Fixed64.Zero, magnitude);
+
+        var unit = Vector4d.UnitX;
+        Assert.Equal(Vector4d.UnitX, unit.Normalize(out magnitude));
+        Assert.Equal(Fixed64.One, magnitude);
+        Assert.Equal(Vector4d.UnitX, Vector4d.GetNormalized(Vector4d.UnitX));
+    }
+
+    [Fact]
+    public void IsNormalized_ReturnsExpectedValues()
+    {
+        Assert.True(Vector4d.UnitX.IsNormalized());
+        Assert.False(Vector4d.Zero.IsNormalized());
+        Assert.False(new Vector4d(2, 0, 0, 0).IsNormalized());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void AllComponentsGreaterThanEpsilon_ReturnsFalse_WhenAnyComponentIsTooSmall(int componentIndex)
+    {
+        var vector = new Vector4d(
+            Fixed64.Epsilon + Fixed64.One,
+            Fixed64.Epsilon + Fixed64.One,
+            Fixed64.Epsilon + Fixed64.One,
+            Fixed64.Epsilon + Fixed64.One);
+        vector[componentIndex] = Fixed64.Epsilon;
+
+        Assert.False(vector.AllComponentsGreaterThanEpsilon());
+    }
+
+    [Fact]
+    public void AllComponentsGreaterThanEpsilon_ReturnsTrue_WhenAllComponentsExceedEpsilon()
+    {
+        var vector = new Vector4d(
+            Fixed64.Epsilon + Fixed64.One,
+            Fixed64.Epsilon + Fixed64.One,
+            Fixed64.Epsilon + Fixed64.One,
+            Fixed64.Epsilon + Fixed64.One);
+
+        Assert.True(vector.AllComponentsGreaterThanEpsilon());
+    }
+
+    [Fact]
+    public void SnapSmallComponentsToZero_CoversDefaultCustomBoundaryAndEachComponentDecision()
+    {
+        var halfEpsilon = Fixed64.FromRaw(Fixed64.Epsilon.m_rawValue / 2);
+        var defaultResult = new Vector4d(halfEpsilon, -halfEpsilon, Fixed64.Epsilon, -Fixed64.Epsilon)
+            .SnapSmallComponentsToZero();
+
+        Assert.Equal(Vector4d.Zero, new Vector4d(defaultResult.x, defaultResult.y, Fixed64.Zero, Fixed64.Zero));
+        Assert.Equal(Fixed64.Epsilon, defaultResult.z);
+        Assert.Equal(-Fixed64.Epsilon, defaultResult.w);
+
+        var threshold = new Fixed64(0.1);
+        var customResult = new Vector4d(new Fixed64(0.2), new Fixed64(-0.05), new Fixed64(-0.1), new Fixed64(0.15))
+            .SnapSmallComponentsToZero(threshold);
+
+        Assert.Equal(new Fixed64(0.2), customResult.x);
+        Assert.Equal(Fixed64.Zero, customResult.y);
+        Assert.Equal(new Fixed64(-0.1), customResult.z);
+        Assert.Equal(new Fixed64(0.15), customResult.w);
+
+        var complement = new Vector4d(new Fixed64(-0.05), new Fixed64(0.2), new Fixed64(0.05), new Fixed64(-0.05))
+            .SnapSmallComponentsToZero(threshold);
+
+        Assert.Equal(Fixed64.Zero, complement.x);
+        Assert.Equal(new Fixed64(0.2), complement.y);
+        Assert.Equal(Fixed64.Zero, complement.z);
+        Assert.Equal(Fixed64.Zero, complement.w);
+    }
+
+    [Fact]
+    public void ExtensionHelpers_ReturnExpectedValues()
+    {
+        var vector = new Vector4d(2, -3, 0.5, -0.25);
+
+        Assert.Equal(new Vector4d(1, -1, 0.5, -0.25), vector.ClampOneInPlace());
+        Assert.Equal(new Vector4d(2, 3, 0.5, 0.25), vector.Abs());
+        Assert.Equal(new Vector4d(1, -1, 1, -1), Vector4dExtensions.Sign(vector));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void FuzzyEqualAbsolute_ReturnsFalse_WhenAnyComponentExceedsTolerance(int componentIndex)
+    {
+        var actual = new Vector4d(1, 2, 3, 4);
+        var expected = actual;
+        expected[componentIndex] += new Fixed64(0.2);
+
+        Assert.False(actual.FuzzyEqualAbsolute(expected, new Fixed64(0.1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void FuzzyEqual_ReturnsFalse_WhenAnyComponentExceedsPercentage(int componentIndex)
+    {
+        var actual = new Vector4d(100, 100, 100, 100);
+        var expected = actual;
+        expected[componentIndex] = new Fixed64(150);
+
+        Assert.False(actual.FuzzyEqual(expected, new Fixed64(0.01)));
+    }
+
+    [Fact]
+    public void FuzzyEqual_WithExplicitPercentage_ReturnsTrueForCloseComponents()
+    {
+        var actual = new Vector4d(100, 100, 100, 100);
+        var expected = new Vector4d(101, 99, 100.5, 99.5);
+
+        Assert.True(actual.FuzzyEqualAbsolute(expected, new Fixed64(1)));
+        Assert.True(actual.FuzzyEqual(expected, new Fixed64(0.02)));
+    }
+
+    [Fact]
+    public void ComparisonOperators_ReturnTrueWhenAllComponentsSatisfyComparison()
+    {
+        var lower = new Vector4d(1, 2, 3, 4);
+        var higher = new Vector4d(5, 6, 7, 8);
+        var sameAsLower = new Vector4d(1, 2, 3, 4);
+
+        Assert.True(higher > lower);
+        Assert.True(lower < higher);
+        Assert.True(higher >= lower);
+        Assert.True(lower <= higher);
+        Assert.True(lower >= sameAsLower);
+        Assert.True(lower <= sameAsLower);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void GreaterThanOperators_ReturnFalse_WhenAnyComponentFails(int componentIndex)
+    {
+        var left = new Vector4d(5, 5, 5, 5);
+        var strictRight = new Vector4d(1, 1, 1, 1);
+        strictRight[componentIndex] = new Fixed64(5);
+        var inclusiveRight = new Vector4d(1, 1, 1, 1);
+        inclusiveRight[componentIndex] = new Fixed64(6);
+
+        Assert.False(left > strictRight);
+        Assert.False(left >= inclusiveRight);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void LessThanOperators_ReturnFalse_WhenAnyComponentFails(int componentIndex)
+    {
+        var left = new Vector4d(1, 1, 1, 1);
+        var strictRight = new Vector4d(5, 5, 5, 5);
+        strictRight[componentIndex] = Fixed64.One;
+        var inclusiveRight = new Vector4d(5, 5, 5, 5);
+        inclusiveRight[componentIndex] = Fixed64.Zero;
+
+        Assert.False(left < strictRight);
+        Assert.False(left <= inclusiveRight);
     }
 
     [Fact]

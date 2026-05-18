@@ -121,6 +121,19 @@ public class BoundingFrustumTests
     }
 
     [Fact]
+    public void Intersects_FixedPlane_ClassifiesAllCorners()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var frontPlane = new FixedPlane(Vector3d.Right, new Fixed64(2));
+        var backPlane = new FixedPlane(Vector3d.Right, new Fixed64(-2));
+        var crossingPlane = new FixedPlane(Vector3d.Right, Fixed64.Zero);
+
+        Assert.Equal(FixedPlaneIntersectionType.Front, frustum.Intersects(frontPlane));
+        Assert.Equal(FixedPlaneIntersectionType.Back, frustum.Intersects(backPlane));
+        Assert.Equal(FixedPlaneIntersectionType.Intersecting, frustum.Intersects(crossingPlane));
+    }
+
+    [Fact]
     public void Contains_BoundingFrustum_ReturnsContainsForSameOrNestedFrustum()
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
@@ -132,6 +145,14 @@ public class BoundingFrustumTests
         Assert.Equal(ContainmentType.Contains, frustum.Contains(frustum));
         Assert.Equal(ContainmentType.Contains, frustum.Contains(nested));
         Assert.True(frustum.Intersects(nested));
+    }
+
+    [Fact]
+    public void Contains_BoundingFrustum_NullFrustum_Throws()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+
+        Assert.Throws<ArgumentNullException>(() => frustum.Contains((BoundingFrustum)null!));
     }
 
     [Fact]
@@ -247,6 +268,19 @@ public class BoundingFrustumTests
     }
 
     [Fact]
+    public void GetCorners_ArrayOverloadCopiesAndValidatesDestination()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var copied = new Vector3d[BoundingFrustum.CornerCount];
+
+        frustum.GetCorners(copied);
+
+        Assert.Equal(frustum.GetCorners(), copied);
+        Assert.Throws<ArgumentNullException>(() => frustum.GetCorners(null!));
+        Assert.Throws<ArgumentOutOfRangeException>(() => frustum.GetCorners(new Vector3d[BoundingFrustum.CornerCount - 1]));
+    }
+
+    [Fact]
     public void Equality_ComparesFrustumShapeRatherThanMatrixSource()
     {
         var matrixFrustum = new BoundingFrustum(Fixed4x4.Identity);
@@ -261,6 +295,9 @@ public class BoundingFrustumTests
         Assert.True(matrixFrustum.HasMatrix);
         Assert.Equal(Fixed4x4.Identity, matrixFrustum.Matrix);
         Assert.Equal(matrixFrustum, planeFrustum);
+        Assert.True(matrixFrustum.Equals((object)planeFrustum));
+        Assert.False(matrixFrustum.Equals((object)new object()));
+        Assert.False(matrixFrustum.Equals(null));
         Assert.Equal(matrixFrustum.GetHashCode(), planeFrustum.GetHashCode());
     }
 }

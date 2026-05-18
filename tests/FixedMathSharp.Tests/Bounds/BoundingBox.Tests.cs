@@ -117,11 +117,21 @@ public class BoundingBoxTests
     }
 
     [Fact]
+    public void ContainsAndIntersects_NullFrustum_Throw()
+    {
+        var box = new BoundingBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+
+        Assert.Throws<System.ArgumentNullException>(() => box.Contains((BoundingFrustum)null!));
+        Assert.Throws<System.ArgumentNullException>(() => box.Intersects((BoundingFrustum)null!));
+    }
+
+    [Fact]
     public void Contains_TypedBounds_ReturnsContainmentClassification()
     {
         var box = new BoundingBox(Vector3d.Zero, new Vector3d(4, 4, 4));
         var containedBox = new BoundingBox(Vector3d.Zero, new Vector3d(1, 1, 1));
         var crossingArea = new BoundingArea(new Vector3d(1, 1, 0), new Vector3d(3, 3, 0));
+        var disjointArea = new BoundingArea(new Vector3d(5, 5, 5), new Vector3d(6, 6, 6));
         var containedSphere = new BoundingSphere(Vector3d.Zero, Fixed64.One);
         var crossingSphere = new BoundingSphere(new Vector3d(2, 0, 0), Fixed64.One);
         var disjointSphere = new BoundingSphere(new Vector3d(5, 0, 0), Fixed64.One);
@@ -129,14 +139,19 @@ public class BoundingBoxTests
         var crossingFrustumMatrix = Fixed4x4.Identity;
         crossingFrustumMatrix.m30 = Fixed64.Two;
         var crossingFrustum = new BoundingFrustum(crossingFrustumMatrix);
+        var disjointFrustumMatrix = Fixed4x4.Identity;
+        disjointFrustumMatrix.m30 = new Fixed64(10);
+        var disjointFrustum = new BoundingFrustum(disjointFrustumMatrix);
 
         Assert.Equal(ContainmentType.Contains, box.Contains(containedBox));
         Assert.Equal(ContainmentType.Intersects, box.Contains(crossingArea));
+        Assert.Equal(ContainmentType.Disjoint, box.Contains(disjointArea));
         Assert.Equal(ContainmentType.Contains, box.Contains(containedSphere));
         Assert.Equal(ContainmentType.Intersects, box.Contains(crossingSphere));
         Assert.Equal(ContainmentType.Disjoint, box.Contains(disjointSphere));
         Assert.Equal(ContainmentType.Contains, box.Contains(containedFrustum));
         Assert.Equal(ContainmentType.Intersects, box.Contains(crossingFrustum));
+        Assert.Equal(ContainmentType.Disjoint, box.Contains(disjointFrustum));
     }
 
     [Fact]
@@ -185,8 +200,11 @@ public class BoundingBoxTests
         var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         Assert.Equal(new Vector3d(-2, 0.5, 0.25), box.ClosestPointOnSurface(new Vector3d(-1.75, 0.5, 0.25)));
+        Assert.Equal(new Vector3d(2, 0.5, 0.25), box.ClosestPointOnSurface(new Vector3d(1.75, 0.5, 0.25)));
+        Assert.Equal(new Vector3d(0.25, -2, -0.75), box.ClosestPointOnSurface(new Vector3d(0.25, -1.9, -0.75)));
         Assert.Equal(new Vector3d(0.25, 2, -0.75), box.ClosestPointOnSurface(new Vector3d(0.25, 1.9, -0.75)));
         Assert.Equal(new Vector3d(-0.25, 0.5, -2), box.ClosestPointOnSurface(new Vector3d(-0.25, 0.5, -1.8)));
+        Assert.Equal(new Vector3d(-0.25, 0.5, 2), box.ClosestPointOnSurface(new Vector3d(-0.25, 0.5, 1.8)));
     }
 
     [Fact]
@@ -276,6 +294,7 @@ public class BoundingBoxTests
         var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         Assert.False(box.Equals("not-a-box"));
+        Assert.True(box.Equals((object)new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4))));
     }
 
     #endregion
@@ -388,6 +407,17 @@ public class BoundingBoxTests
         var updated = box.Vertices[0];
 
         Assert.NotEqual(original, updated);
+    }
+
+    [Fact]
+    public void Vertices_ReusesCacheUntilBoundsChange()
+    {
+        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+
+        var first = box.Vertices;
+        var second = box.Vertices;
+
+        Assert.Same(first, second);
     }
 
     [Fact]

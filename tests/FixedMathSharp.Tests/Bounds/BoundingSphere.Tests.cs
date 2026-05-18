@@ -202,6 +202,12 @@ public class BoundingSphereTests
     }
 
     [Fact]
+    public void CreateFromFrustum_NullFrustum_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() => BoundingSphere.CreateFromFrustum(null!));
+    }
+
+    [Fact]
     public void CreateFromPoints_ContainsEveryPoint()
     {
         Vector3d[] points =
@@ -216,6 +222,46 @@ public class BoundingSphereTests
 
         foreach (Vector3d point in points)
             Assert.True(sphere.Contains(point));
+    }
+
+    [Fact]
+    public void CreateFromPoints_MaterializesEnumerableAndChoosesLargestYAxisPair()
+    {
+        static System.Collections.Generic.IEnumerable<Vector3d> Points()
+        {
+            yield return new Vector3d(0, -5, 0);
+            yield return new Vector3d(0, 5, 0);
+            yield return new Vector3d(2, 0, 0);
+            yield return new Vector3d(0, 0, 1);
+        }
+
+        BoundingSphere sphere = BoundingSphere.CreateFromPoints(Points());
+
+        Assert.Equal(Vector3d.Zero, sphere.Center);
+        Assert.Equal(new Fixed64(5), sphere.Radius);
+    }
+
+    [Fact]
+    public void CreateFromPoints_ChoosesLargestXAxisPair_WhenLaterPointExtendsMinimumX()
+    {
+        Vector3d[] points =
+        {
+            Vector3d.Zero,
+            new(-5, 0, 0),
+            new(5, 0, 0),
+            new(0, 2, 0)
+        };
+
+        BoundingSphere sphere = BoundingSphere.CreateFromPoints(points);
+
+        Assert.Equal(Vector3d.Zero, sphere.Center);
+        Assert.Equal(new Fixed64(5), sphere.Radius);
+    }
+
+    [Fact]
+    public void CreateFromPoints_NullInput_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() => BoundingSphere.CreateFromPoints(null!));
     }
 
     [Fact]
@@ -236,6 +282,18 @@ public class BoundingSphereTests
         Assert.Equal(new Vector3d(2, 0, 0), merged.Center);
         Assert.Equal(new Fixed64(3), merged.Radius);
         Assert.Equal(left, BoundingSphere.CreateMerged(left, contained));
+    }
+
+    [Fact]
+    public void CreateMerged_ReturnsContainingOrLargerSameCenterSphere()
+    {
+        var small = new BoundingSphere(Vector3d.Zero, Fixed64.One);
+        var largerSameCenter = new BoundingSphere(Vector3d.Zero, new Fixed64(2));
+        var largerOffset = new BoundingSphere(new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Zero), new Fixed64(3));
+
+        Assert.Equal(largerOffset, BoundingSphere.CreateMerged(small, largerOffset));
+        Assert.Equal(largerSameCenter, BoundingSphere.CreateMerged(small, largerSameCenter));
+        Assert.Equal(largerSameCenter, BoundingSphere.CreateMerged(largerSameCenter, small));
     }
 
     #endregion
@@ -333,7 +391,17 @@ public class BoundingSphereTests
         var sphere2 = new BoundingSphere(new Vector3d(0, 0, 1), new Fixed64(5));
 
         Assert.True(sphere1 != sphere2);
+        Assert.True(sphere1.Equals((object)new BoundingSphere(Vector3d.Zero, new Fixed64(5))));
         Assert.False(sphere1.Equals("not-a-sphere"));
+    }
+
+    [Fact]
+    public void ContainsAndIntersects_NullFrustum_Throw()
+    {
+        var sphere = new BoundingSphere(Vector3d.Zero, Fixed64.One);
+
+        Assert.Throws<ArgumentNullException>(() => sphere.Contains((BoundingFrustum)null!));
+        Assert.Throws<ArgumentNullException>(() => sphere.Intersects((BoundingFrustum)null!));
     }
 
     #endregion

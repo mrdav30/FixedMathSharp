@@ -155,9 +155,6 @@ namespace FixedMathSharp
             if (distance + original.Radius <= additional.Radius)
                 return additional;
 
-            if (distance == Fixed64.Zero)
-                return original.Radius >= additional.Radius ? original : additional;
-
             Fixed64 radius = (distance + original.Radius + additional.Radius) * Fixed64.Half;
             Vector3d center = original.Center + centerOffset * ((radius - original.Radius) / distance);
 

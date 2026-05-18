@@ -59,6 +59,7 @@ public class BoundingAreaTests
         Assert.Equal(new Fixed64(3), area.Width);
         Assert.Equal(new Fixed64(3), area.Height);
         Assert.Equal(new Fixed64(3), area.Depth);
+        Assert.Equal(new Fixed64(5), new BoundingArea(new Vector3d(1, 5, 3), new Vector3d(4, 2, 6)).MaxY);
     }
 
     [Fact]
@@ -171,10 +172,20 @@ public class BoundingAreaTests
     }
 
     [Fact]
+    public void ContainsAndIntersects_NullFrustum_Throw()
+    {
+        var area = new BoundingArea(new Vector3d(-1, -1, -1), new Vector3d(1, 1, 1));
+
+        Assert.Throws<System.ArgumentNullException>(() => area.Contains((BoundingFrustum)null!));
+        Assert.Throws<System.ArgumentNullException>(() => area.Intersects((BoundingFrustum)null!));
+    }
+
+    [Fact]
     public void Contains_TypedBounds_ReturnsContainmentClassification()
     {
         var area = new BoundingArea(new Vector3d(-2, -2, 0), new Vector3d(2, 2, 2));
         var containedArea = new BoundingArea(new Vector3d(-1, -1, 0), new Vector3d(1, 1, 1));
+        var disjointArea = new BoundingArea(new Vector3d(5, 5, 5), new Vector3d(6, 6, 6));
         var crossingBox = new BoundingBox(new Vector3d(2, 0, 1), new Vector3d(2, 1, 1));
         var containedSphere = new BoundingSphere(new Vector3d(0, 0, 1), Fixed64.Half);
         var crossingSphere = new BoundingSphere(new Vector3d(2, 0, 1), Fixed64.One);
@@ -183,14 +194,19 @@ public class BoundingAreaTests
         var crossingFrustumMatrix = Fixed4x4.Identity;
         crossingFrustumMatrix.m30 = Fixed64.Two;
         var crossingFrustum = new BoundingFrustum(crossingFrustumMatrix);
+        var disjointFrustumMatrix = Fixed4x4.Identity;
+        disjointFrustumMatrix.m30 = new Fixed64(6);
+        var disjointFrustum = new BoundingFrustum(disjointFrustumMatrix);
 
         Assert.Equal(ContainmentType.Contains, area.Contains(containedArea));
+        Assert.Equal(ContainmentType.Disjoint, area.Contains(disjointArea));
         Assert.Equal(ContainmentType.Intersects, area.Contains(crossingBox));
         Assert.Equal(ContainmentType.Contains, area.Contains(containedSphere));
         Assert.Equal(ContainmentType.Intersects, area.Contains(crossingSphere));
         Assert.Equal(ContainmentType.Disjoint, area.Contains(disjointSphere));
         Assert.Equal(ContainmentType.Contains, area.Contains(containedFrustum));
         Assert.Equal(ContainmentType.Intersects, area.Contains(crossingFrustum));
+        Assert.Equal(ContainmentType.Disjoint, area.Contains(disjointFrustum));
     }
 
     [Fact]
@@ -218,6 +234,66 @@ public class BoundingAreaTests
         var area2 = new BoundingArea(new Vector3d(0, 2, 2), new Vector3d(0, 6, 6));
 
         Assert.True(area1.Intersects(area2));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Intersects_FlatXYAreas_ReturnsFalseForEachSeparatedAxisSide(int separatedSide)
+    {
+        var area = new BoundingArea(new Vector3d(0, 0, 0), new Vector3d(4, 4, 0));
+        BoundingArea other = separatedSide switch
+        {
+            0 => new BoundingArea(new Vector3d(5, 1, 0), new Vector3d(6, 3, 0)),
+            1 => new BoundingArea(new Vector3d(-6, 1, 0), new Vector3d(-5, 3, 0)),
+            2 => new BoundingArea(new Vector3d(1, 5, 0), new Vector3d(3, 6, 0)),
+            3 => new BoundingArea(new Vector3d(1, -6, 0), new Vector3d(3, -5, 0)),
+            _ => throw new System.ArgumentOutOfRangeException(nameof(separatedSide)),
+        };
+
+        Assert.False(area.Intersects(other));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Intersects_FlatXZAreas_ReturnsFalseForEachSeparatedAxisSide(int separatedSide)
+    {
+        var area = new BoundingArea(new Vector3d(0, 0, 0), new Vector3d(4, 0, 4));
+        BoundingArea other = separatedSide switch
+        {
+            0 => new BoundingArea(new Vector3d(5, 0, 1), new Vector3d(6, 0, 3)),
+            1 => new BoundingArea(new Vector3d(-6, 0, 1), new Vector3d(-5, 0, 3)),
+            2 => new BoundingArea(new Vector3d(1, 0, 5), new Vector3d(3, 0, 6)),
+            3 => new BoundingArea(new Vector3d(1, 0, -6), new Vector3d(3, 0, -5)),
+            _ => throw new System.ArgumentOutOfRangeException(nameof(separatedSide)),
+        };
+
+        Assert.False(area.Intersects(other));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Intersects_FlatYZAreas_ReturnsFalseForEachSeparatedAxisSide(int separatedSide)
+    {
+        var area = new BoundingArea(new Vector3d(0, 0, 0), new Vector3d(0, 4, 4));
+        BoundingArea other = separatedSide switch
+        {
+            0 => new BoundingArea(new Vector3d(0, 5, 1), new Vector3d(0, 6, 3)),
+            1 => new BoundingArea(new Vector3d(0, -6, 1), new Vector3d(0, -5, 3)),
+            2 => new BoundingArea(new Vector3d(0, 1, 5), new Vector3d(0, 3, 6)),
+            3 => new BoundingArea(new Vector3d(0, 1, -6), new Vector3d(0, 3, -5)),
+            _ => throw new System.ArgumentOutOfRangeException(nameof(separatedSide)),
+        };
+
+        Assert.False(area.Intersects(other));
     }
 
     [Fact]
@@ -292,6 +368,7 @@ public class BoundingAreaTests
         var area2 = new BoundingArea(new Vector3d(1, 2, 3), new Vector3d(4, 5, 7));
 
         Assert.True(area1 != area2);
+        Assert.True(area1.Equals((object)new BoundingArea(new Vector3d(1, 2, 3), new Vector3d(4, 5, 6))));
         Assert.False(area1.Equals("not-an-area"));
     }
 
