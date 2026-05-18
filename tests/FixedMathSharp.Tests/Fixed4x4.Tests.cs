@@ -36,6 +36,62 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_FromRows_MapsVectorRows()
+    {
+        var row0 = new Vector4d(1, 2, 3, 4);
+        var row1 = new Vector4d(5, 6, 7, 8);
+        var row2 = new Vector4d(9, 10, 11, 12);
+        var row3 = new Vector4d(13, 14, 15, 16);
+
+        var matrix = Fixed4x4.FromRows(row0, row1, row2, row3);
+
+        Assert.Equal(row0.x, matrix.m00);
+        Assert.Equal(row0.y, matrix.m01);
+        Assert.Equal(row0.z, matrix.m02);
+        Assert.Equal(row0.w, matrix.m03);
+        Assert.Equal(row1.x, matrix.m10);
+        Assert.Equal(row1.y, matrix.m11);
+        Assert.Equal(row1.z, matrix.m12);
+        Assert.Equal(row1.w, matrix.m13);
+        Assert.Equal(row2.x, matrix.m20);
+        Assert.Equal(row2.y, matrix.m21);
+        Assert.Equal(row2.z, matrix.m22);
+        Assert.Equal(row2.w, matrix.m23);
+        Assert.Equal(row3.x, matrix.m30);
+        Assert.Equal(row3.y, matrix.m31);
+        Assert.Equal(row3.z, matrix.m32);
+        Assert.Equal(row3.w, matrix.m33);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_FromColumns_MapsVectorColumns()
+    {
+        var column0 = new Vector4d(1, 5, 9, 13);
+        var column1 = new Vector4d(2, 6, 10, 14);
+        var column2 = new Vector4d(3, 7, 11, 15);
+        var column3 = new Vector4d(4, 8, 12, 16);
+
+        var matrix = Fixed4x4.FromColumns(column0, column1, column2, column3);
+
+        Assert.Equal(column0.x, matrix.m00);
+        Assert.Equal(column0.y, matrix.m10);
+        Assert.Equal(column0.z, matrix.m20);
+        Assert.Equal(column0.w, matrix.m30);
+        Assert.Equal(column1.x, matrix.m01);
+        Assert.Equal(column1.y, matrix.m11);
+        Assert.Equal(column1.z, matrix.m21);
+        Assert.Equal(column1.w, matrix.m31);
+        Assert.Equal(column2.x, matrix.m02);
+        Assert.Equal(column2.y, matrix.m12);
+        Assert.Equal(column2.z, matrix.m22);
+        Assert.Equal(column2.w, matrix.m32);
+        Assert.Equal(column3.x, matrix.m03);
+        Assert.Equal(column3.y, matrix.m13);
+        Assert.Equal(column3.z, matrix.m23);
+        Assert.Equal(column3.w, matrix.m33);
+    }
+
+    [Fact]
     public void FixedMatrix4x4_CreateScale_WorksCorrectly()
     {
         var scale = new Vector3d(2, 3, 4);
@@ -779,6 +835,19 @@ public class Fixed4x4Tests
 
         Assert.Equal(Fixed4x4.TransformPoint(matrix, point), transformed);
         Assert.True(point.FuzzyEqual(restored, new Fixed64(0.0001)));
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_TransformVector4dHelpers_UseVector4dTransform()
+    {
+        Fixed4x4 matrix = Fixed4x4.CreateTranslation(new Vector3d(10, 20, 30));
+        var vector = new Vector4d(1, 2, 3, 1);
+
+        var staticResult = Fixed4x4.Transform(matrix, vector);
+        var extensionResult = matrix.Transform(vector);
+
+        Assert.Equal(Vector4d.Transform(matrix, vector), staticResult);
+        Assert.Equal(staticResult, extensionResult);
     }
 
     [Fact]

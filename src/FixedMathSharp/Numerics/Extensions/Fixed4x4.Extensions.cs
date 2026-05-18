@@ -48,6 +48,12 @@ public static class Fixed4x4Extensions
         return Fixed4x4.TransformPoint(matrix, point);
     }
 
+    /// <inheritdoc cref="Fixed4x4.Transform(Fixed4x4, Vector4d)" />
+    public static Vector4d Transform(this Fixed4x4 matrix, Vector4d vector)
+    {
+        return Fixed4x4.Transform(matrix, vector);
+    }
+
     /// <inheritdoc cref="Fixed4x4.InverseTransformPoint(Fixed4x4, Vector3d)" />
     public static Vector3d InverseTransformPoint(this Fixed4x4 matrix, Vector3d point)
     {

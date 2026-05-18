@@ -848,6 +848,15 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     }
 
     /// <summary>
+    /// Converts this <see cref="Vector2d"/> to a <see cref="Vector4d"/> with explicit Z and W components.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly Vector4d ToVector4d(Fixed64 z, Fixed64 w)
+    {
+        return new Vector4d(x, y, z, w);
+    }
+
+    /// <summary>
     /// Deconstructs the current instance into its X and Y coordinate values as single-precision floating-point numbers.
     /// </summary>
     /// <remarks>

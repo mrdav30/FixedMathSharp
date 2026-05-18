@@ -175,6 +175,32 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         this.m30 = m30; this.m31 = m31; this.m32 = m32; this.m33 = m33;
     }
 
+    /// <summary>
+    /// Creates a matrix from four row vectors.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 FromRows(Vector4d row0, Vector4d row1, Vector4d row2, Vector4d row3)
+    {
+        return new Fixed4x4(
+            row0.x, row0.y, row0.z, row0.w,
+            row1.x, row1.y, row1.z, row1.w,
+            row2.x, row2.y, row2.z, row2.w,
+            row3.x, row3.y, row3.z, row3.w);
+    }
+
+    /// <summary>
+    /// Creates a matrix from four column vectors.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 FromColumns(Vector4d column0, Vector4d column1, Vector4d column2, Vector4d column3)
+    {
+        return new Fixed4x4(
+            column0.x, column1.x, column2.x, column3.x,
+            column0.y, column1.y, column2.y, column3.y,
+            column0.z, column1.z, column2.z, column3.z,
+            column0.w, column1.w, column2.w, column3.w);
+    }
+
     #endregion
 
     #region Properties
@@ -1277,6 +1303,15 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         };
 
         return true;
+    }
+
+    /// <summary>
+    /// Transforms a 4D vector by a 4x4 matrix, preserving the computed W component.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4d Transform(Fixed4x4 matrix, Vector4d vector)
+    {
+        return Vector4d.Transform(matrix, vector);
     }
 
     /// <summary>

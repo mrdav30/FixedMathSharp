@@ -1539,6 +1539,15 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     }
 
     /// <summary>
+    /// Converts this <see cref="Vector3d"/> to a <see cref="Vector4d"/> with an explicit W component.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector4d ToVector4d(Fixed64 w)
+    {
+        return new Vector4d(x, y, z, w);
+    }
+
+    /// <summary>
     /// Deconstructs the vector into its X, Y, and Z components as single-precision floating-point values.
     /// </summary>
     /// <param name="x">When this method returns, contains the X component of the vector as a single-precision floating-point value.</param>
