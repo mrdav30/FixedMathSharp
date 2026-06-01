@@ -21,6 +21,8 @@ Floating-point math is fast, hardware-accelerated, and the right choice for rend
 
 Fixed-point math stores numbers as scaled integers. In FixedMathSharp, `Fixed64` uses a Q32.32 layout: 32 bits for the whole-number side and 32 bits for the fractional side. That trade gives you deterministic arithmetic with predictable rounding behavior, at the cost of less dynamic range than `double` and less raw throughput than native floating point.
 
+For the exact raw layout, range, and precision trade-offs, see [`docs/wiki/fixed64-representation.md`](docs/wiki/fixed64-representation.md).
+
 Use FixedMathSharp when you need:
 
 - Lockstep multiplayer, replay systems, rollback, or deterministic simulation.
