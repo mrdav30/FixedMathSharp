@@ -445,15 +445,9 @@ namespace FixedMathSharp
             Fixed64 denominator = Fixed64.One;
 
             // Iterate over the continued fraction terms
-            Fixed64 prevDenominator = denominator;
             int start = x.Abs() > PiOver6 ? 19 : 13;
             for (int i = start; i >= 1; i -= 2)
-            {
                 denominator = (Fixed64)i - (x2 / denominator);
-                if ((denominator - prevDenominator).Abs() < Fixed64.Epsilon)
-                    break;
-                prevDenominator = denominator;
-            }
 
             return numerator / denominator;
         }

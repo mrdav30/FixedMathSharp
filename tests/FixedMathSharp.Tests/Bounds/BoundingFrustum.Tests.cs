@@ -106,6 +106,21 @@ public class BoundingFrustumTests
     }
 
     [Fact]
+    public void Contains_BoundingArea_ReturnsContainsOrIntersects()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var inside = new BoundingArea(
+            new Vector3d(Fixed64.Zero, Fixed64.Zero, new Fixed64(0.25)),
+            new Vector3d(Fixed64.Half, Fixed64.Half, new Fixed64(0.75)));
+        var crossing = new BoundingArea(
+            new Vector3d(new Fixed64(0.75), -Fixed64.Half, new Fixed64(0.25)),
+            new Vector3d(new Fixed64(1.25), Fixed64.Half, new Fixed64(0.75)));
+
+        Assert.Equal(ContainmentType.Contains, frustum.Contains(inside));
+        Assert.Equal(ContainmentType.Intersects, frustum.Contains(crossing));
+    }
+
+    [Fact]
     public void Intersects_BoundingSphere_ReturnsFalseOnlyWhenFullyOutsidePlane()
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
@@ -127,10 +142,12 @@ public class BoundingFrustumTests
         var frontPlane = new FixedPlane(Vector3d.Right, new Fixed64(2));
         var backPlane = new FixedPlane(Vector3d.Right, new Fixed64(-2));
         var crossingPlane = new FixedPlane(Vector3d.Right, Fixed64.Zero);
+        var cornerPlane = new FixedPlane(Vector3d.Right, Fixed64.One);
 
         Assert.Equal(FixedPlaneIntersectionType.Front, frustum.Intersects(frontPlane));
         Assert.Equal(FixedPlaneIntersectionType.Back, frustum.Intersects(backPlane));
         Assert.Equal(FixedPlaneIntersectionType.Intersecting, frustum.Intersects(crossingPlane));
+        Assert.Equal(FixedPlaneIntersectionType.Intersecting, frustum.Intersects(cornerPlane));
     }
 
     [Fact]
@@ -180,6 +197,32 @@ public class BoundingFrustumTests
     }
 
     [Fact]
+    public void Contains_BoundingFrustum_ReturnsDisjointWhenOtherPlaneSeparates()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var other = CreateTransformedFrustum(
+            new Vector3d(-4, -4, -2),
+            new Vector3d(0, 45, 45),
+            Vector3d.One);
+
+        Assert.Equal(ContainmentType.Disjoint, frustum.Contains(other));
+        Assert.False(frustum.Intersects(other));
+    }
+
+    [Fact]
+    public void Contains_BoundingFrustum_ReturnsDisjointForRotatedEdgeAxisSeparation()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var other = CreateTransformedFrustum(
+            new Vector3d(1.336, 1.880, -0.396),
+            new Vector3d(139.413, 115.507, 104.474),
+            new Vector3d(1.660, 1.545, 2.338));
+
+        Assert.Equal(ContainmentType.Disjoint, frustum.Contains(other));
+        Assert.False(frustum.Intersects(other));
+    }
+
+    [Fact]
     public void Matrix_Setter_RebuildsPlanesCornersAndBounds()
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
@@ -218,6 +261,27 @@ public class BoundingFrustumTests
         Assert.Equal(new Vector3d(2, 3, 5), corners[5]);
         Assert.Equal(new Vector3d(2, -3, 5), corners[6]);
         Assert.Equal(new Vector3d(-2, -3, 5), corners[7]);
+    }
+
+    [Fact]
+    public void Constructor_Planes_ThrowsWhenPlanesDoNotHaveUniqueCorners()
+    {
+        Assert.Throws<InvalidOperationException>(() => new BoundingFrustum(
+            CustomNear,
+            CustomFar,
+            CustomNear,
+            CustomRight,
+            CustomTop,
+            CustomBottom));
+    }
+
+    [Fact]
+    public void Intersects_Ray_ReturnsNullWhenFrustumIsBehindRay()
+    {
+        var frustum = new BoundingFrustum(Fixed4x4.Identity);
+        var ray = new FixedRay(new Vector3d(0, 0, 2), Vector3d.Forward);
+
+        Assert.Null(frustum.Intersects(ray));
     }
 
     [Fact]
@@ -299,5 +363,17 @@ public class BoundingFrustumTests
         Assert.False(matrixFrustum.Equals((object)new object()));
         Assert.False(matrixFrustum.Equals(null));
         Assert.Equal(matrixFrustum.GetHashCode(), planeFrustum.GetHashCode());
+    }
+
+    private static BoundingFrustum CreateTransformedFrustum(Vector3d translation, Vector3d rotationDegrees, Vector3d scale)
+    {
+        Fixed4x4 translationMatrix = Fixed4x4.CreateTranslation(translation);
+        Fixed4x4 rotationMatrix =
+            Fixed4x4.CreateRotationX(rotationDegrees.x * FixedMath.Deg2Rad) *
+            Fixed4x4.CreateRotationY(rotationDegrees.y * FixedMath.Deg2Rad) *
+            Fixed4x4.CreateRotationZ(rotationDegrees.z * FixedMath.Deg2Rad);
+        Fixed4x4 scaleMatrix = Fixed4x4.CreateScale(scale);
+
+        return new BoundingFrustum(translationMatrix * rotationMatrix * scaleMatrix);
     }
 }

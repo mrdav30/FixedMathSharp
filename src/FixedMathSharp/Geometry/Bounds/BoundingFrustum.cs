@@ -352,7 +352,7 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
                 return null;
         }
 
-        return tExit < Fixed64.Zero ? null : tEnter;
+        return tEnter;
     }
 
     /// <summary>

@@ -38,10 +38,6 @@ namespace FixedMathSharp.Utility
             // Expand a single seed into two 64-bit state words via splitmix64.
             _s0 = SplitMix64(ref seed);
             _s1 = SplitMix64(ref seed);
-
-            // xoroshiro requires non-zero state; repair pathological seed.
-            if (_s0 == 0UL && _s1 == 0UL)
-                _s1 = 0x9E3779B97F4A7C15UL;
         }
 
         /// <summary>

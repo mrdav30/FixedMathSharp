@@ -407,9 +407,6 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
 
         int shift = FixedMath.SHIFT_AMOUNT_I;
 
-        if (shift <= 0 || shift >= 64)
-            throw new InvalidOperationException($"SHIFT_AMOUNT_I must be in the range 1..63, but was {shift}.");
-
         // Determine sign of the final result.
         bool negative = ((xl ^ yl) < 0);
 

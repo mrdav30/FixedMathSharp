@@ -97,28 +97,29 @@ public partial class FixedCurve : IEquatable<FixedCurve>
         if (time <= Keyframes[0].Time) return Keyframes[0].Value;
         if (time >= Keyframes[^1].Time) return Keyframes[^1].Value;
 
-        // Find the surrounding keyframes
+        // Find the surrounding keyframes. The constructor sorts keyframes, and the range checks above guarantee
+        // that an interior time belongs to one of these segments.
+        int segmentIndex = Keyframes.Length - 2;
         for (int i = 0; i < Keyframes.Length - 1; i++)
         {
-            if (time >= Keyframes[i].Time && time < Keyframes[i + 1].Time)
+            if (time < Keyframes[i + 1].Time)
             {
-                // Compute interpolation factor
-                Fixed64 t = (time - Keyframes[i].Time) / (Keyframes[i + 1].Time - Keyframes[i].Time);
-
-                // Choose interpolation method
-                return Mode switch
-                {
-                    FixedCurveMode.Step => Keyframes[i].Value,// Immediate transition
-                    FixedCurveMode.Smooth => FixedMath.SmoothStep(Keyframes[i].Value, Keyframes[i + 1].Value, t),
-                    FixedCurveMode.Cubic => FixedMath.CubicInterpolate(
-                                                    Keyframes[i].Value, Keyframes[i + 1].Value,
-                                                    Keyframes[i].OutTangent, Keyframes[i + 1].InTangent, t),
-                    _ => FixedMath.LinearInterpolate(Keyframes[i].Value, Keyframes[i + 1].Value, t),
-                };
+                segmentIndex = i;
+                break;
             }
         }
 
-        return Fixed64.One; // Fallback (should never be hit)
+        FixedCurveKey current = Keyframes[segmentIndex];
+        FixedCurveKey next = Keyframes[segmentIndex + 1];
+        Fixed64 t = (time - current.Time) / (next.Time - current.Time);
+
+        return Mode switch
+        {
+            FixedCurveMode.Step => current.Value,
+            FixedCurveMode.Smooth => FixedMath.SmoothStep(current.Value, next.Value, t),
+            FixedCurveMode.Cubic => FixedMath.CubicInterpolate(current.Value, next.Value, current.OutTangent, next.InTangent, t),
+            _ => FixedMath.LinearInterpolate(current.Value, next.Value, t),
+        };
     }
 
     #endregion

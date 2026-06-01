@@ -109,7 +109,7 @@ public partial struct FixedRay : IEquatable<FixedRay>
             return null;
 
         Fixed64 t = (-b - FixedMath.Sqrt(discriminant)) / directionLengthSquared;
-        return t < Fixed64.Zero ? null : t;
+        return t;
     }
 
     /// <summary>
@@ -137,7 +137,7 @@ public partial struct FixedRay : IEquatable<FixedRay>
         if (!ClipAxis(Position.z, Direction.z, min.z, max.z, ref tMin, ref tMax))
             return null;
 
-        return tMax < Fixed64.Zero ? null : tMin;
+        return tMin;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

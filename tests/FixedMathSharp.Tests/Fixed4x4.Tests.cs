@@ -102,6 +102,18 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_CreateScale_OverloadsSetExpectedDiagonalComponents()
+    {
+        var uniform = Fixed4x4.CreateScale(new Fixed64(3));
+        var nonUniform = Fixed4x4.CreateScale(new Fixed64(2), new Fixed64(3), new Fixed64(4));
+
+        Assert.Equal(new Vector3d(3, 3, 3), uniform.Scale);
+        Assert.Equal(new Vector3d(2, 3, 4), nonUniform.Scale);
+        Assert.Equal(Fixed64.One, uniform.m33);
+        Assert.Equal(Fixed64.One, nonUniform.m33);
+    }
+
+    [Fact]
     public void FixedMatrix4x4_DirectionProperties_ReturnNormalizedAxes()
     {
         var matrix = Fixed4x4.CreateScale(new Vector3d(2, 3, 4));

@@ -156,6 +156,7 @@ public class Vector3dTests
         var v2 = new Vector3d(1, 2, 3);
         var result = v1 - v2;
         Assert.Equal(new Vector3d(4, 5, 6), result);
+        Assert.Equal(new Vector3d(4, 6, 8), v1 - Fixed64.One);
     }
 
     [Fact]
@@ -164,6 +165,7 @@ public class Vector3dTests
         var vector = new Vector3d(1, -2, 3);
         var result = vector * new Fixed64(2);
         Assert.Equal(new Vector3d(2, -4, 6), result);
+        Assert.Equal(new Vector3d(3, -6, 9), vector * 3);
     }
 
     [Fact]
@@ -611,6 +613,19 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void ClosestPointsOnTwoLines_ParallelSegments_UsesLongerFirstSegmentParameter()
+    {
+        var (pointOnLine1, pointOnLine2) = Vector3d.ClosestPointsOnTwoLines(
+            new Vector3d(0, 0, 0),
+            new Vector3d(0, 2, 0),
+            new Vector3d(0, 0, 0),
+            new Vector3d(0, 1, 0));
+
+        Assert.Equal(Vector3d.Zero, pointOnLine1);
+        Assert.Equal(Vector3d.Zero, pointOnLine2);
+    }
+
+    [Fact]
     public void ClosestPointsOnTwoLines_ClampsToFirstSegmentEnd_WhenIntersectionFallsBeyondSegment()
     {
         var line1Start = new Vector3d(0, 0, 0);
@@ -917,6 +932,23 @@ public class Vector3dTests
         Assert.Equal(new Vector3d(0, 2, 0), pointOnLine2StartClamp);
         Assert.Equal(Vector3d.Zero, pointOnLine1EndClamp);
         Assert.Equal(new Vector3d(0, -2, 0), pointOnLine2EndClamp);
+
+        var (pointOnLowClampLine1, pointOnLowClampLine2) = Vector3d.ClosestPointsOnTwoLines(
+            Vector3d.Zero,
+            Vector3d.Up,
+            new Vector3d(0, 2, 0),
+            new Vector3d(1, 3, 0));
+
+        var (pointOnHighClampLine1, pointOnHighClampLine2) = Vector3d.ClosestPointsOnTwoLines(
+            Vector3d.Zero,
+            Vector3d.Up,
+            new Vector3d(0, 2, 0),
+            new Vector3d(0, 3, 0));
+
+        Assert.Equal(Vector3d.Up, pointOnLowClampLine1);
+        Assert.Equal(new Vector3d(0, 2, 0), pointOnLowClampLine2);
+        Assert.Equal(Vector3d.Up, pointOnHighClampLine1);
+        Assert.Equal(new Vector3d(0, 2, 0), pointOnHighClampLine2);
     }
 
     [Fact]
@@ -984,8 +1016,10 @@ public class Vector3dTests
     public void Vector3d_ProjectOnPlane_WithFixedPlaneUsesPlaneNormal()
     {
         var plane = new FixedPlane(Vector3d.Up, Fixed64.Zero);
+        var degenerate = new FixedPlane(Vector3d.Zero, new Fixed64(5));
 
         Assert.Equal(new Vector3d(1, 0, 3), Vector3d.ProjectOnPlane(new Vector3d(1, 2, 3), plane));
+        Assert.Equal(new Vector3d(1, 2, 3), Vector3d.ProjectOnPlane(new Vector3d(1, 2, 3), degenerate));
     }
 
     [Theory]

@@ -396,6 +396,18 @@ public class BoundingSphereTests
     }
 
     [Fact]
+    public void DeconstructAndToString_ExposeCenterAndRadius()
+    {
+        var sphere = new BoundingSphere(new Vector3d(1, 2, 3), new Fixed64(5));
+
+        sphere.Deconstruct(out Vector3d center, out Fixed64 radius);
+
+        Assert.Equal(new Vector3d(1, 2, 3), center);
+        Assert.Equal(new Fixed64(5), radius);
+        Assert.Equal("{Center:(1, 2, 3) Radius:5}", sphere.ToString());
+    }
+
+    [Fact]
     public void ContainsAndIntersects_NullFrustum_Throw()
     {
         var sphere = new BoundingSphere(Vector3d.Zero, Fixed64.One);

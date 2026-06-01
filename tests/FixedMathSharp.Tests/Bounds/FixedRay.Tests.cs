@@ -79,11 +79,13 @@ public class FixedRayTests
     {
         var box = new BoundingBox(Vector3d.Zero, new Vector3d(2, 2, 2));
         var parallelOutside = new FixedRay(new Vector3d(-5, 2, 0), Vector3d.Right);
+        var parallelBelow = new FixedRay(new Vector3d(-5, -2, 0), Vector3d.Right);
         var parallelOutsideZ = new FixedRay(new Vector3d(0, 0, 3), Vector3d.Right);
         var behind = new FixedRay(new Vector3d(5, 0, 0), Vector3d.Right);
         var behindOnZ = new FixedRay(new Vector3d(0, 0, 5), Vector3d.Forward);
 
         Assert.Null(parallelOutside.Intersects(box));
+        Assert.Null(parallelBelow.Intersects(box));
         Assert.Null(parallelOutsideZ.Intersects(box));
         Assert.Null(behind.Intersects(box));
         Assert.Null(behindOnZ.Intersects(box));
@@ -209,6 +211,7 @@ public class FixedRayTests
         Assert.False(ray == different);
         Assert.NotEqual(ray, different);
         Assert.False(ray.Equals(different));
+        Assert.False(ray.Equals(new FixedRay(Vector3d.One, Vector3d.Forward)));
     }
 
     [Fact]

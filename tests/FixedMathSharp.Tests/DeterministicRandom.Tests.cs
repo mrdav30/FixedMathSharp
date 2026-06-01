@@ -271,6 +271,28 @@ public class DeterministicRandomTests
     }
 
     [Fact]
+    public void Next_Fixed64_WideRangeRejectsBiasedSampleAndUsesNextValue()
+    {
+        var rng = new DeterministicRandom(0UL);
+        var mirror = new DeterministicRandom(0UL);
+        var min = -Fixed64.One;
+        var max = Fixed64.MAX_VALUE;
+        ulong span = unchecked((ulong)(max.m_rawValue - min.m_rawValue));
+        ulong threshold = unchecked((ulong)-(long)span) % span;
+
+        ulong rejected = mirror.NextU64();
+        ulong accepted = mirror.NextU64();
+
+        var value = rng.NextFixed64(min, max);
+        var expected = Fixed64.FromRaw(unchecked((long)(accepted % span) + min.m_rawValue));
+
+        Assert.True(rejected < threshold);
+        Assert.True(accepted >= threshold);
+        Assert.Equal(expected, value);
+        Assert.True(value >= min && value < max);
+    }
+
+    [Fact]
     public void Next_Fixed64_Covers_TypicalGameRanges()
     {
         var rng = new DeterministicRandom(0xFEEDFACEUL);

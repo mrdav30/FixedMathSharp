@@ -61,6 +61,19 @@ public class Fixed3x3Tests
     }
 
     [Fact]
+    public void CreateScale_WithUniformFixed64_SetsAllDiagonalComponents()
+    {
+        var matrix = Fixed3x3.CreateScale(new Fixed64(3));
+
+        Assert.Equal(
+            new Fixed3x3(
+                new Fixed64(3), Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, new Fixed64(3), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, new Fixed64(3)),
+            matrix);
+    }
+
+    [Fact]
     public void InvertDiagonal_WorksCorrectly()
     {
         var matrix = new Fixed3x3(
@@ -521,6 +534,7 @@ public class Fixed3x3Tests
 
         var changed = a;
         changed.m01 = Fixed64.One;
+        Assert.True(a != changed);
         Assert.NotEqual(hash, changed.GetHashCode());
         Assert.False(a.Equals((object)"not-a-matrix"));
     }

@@ -152,6 +152,7 @@ public class Vector2dTests
         var result = vector1.CrossProduct(vector2);
 
         Assert.Equal(new Fixed64(-2), result); // Cross product of (1, 2) and (3, 4) is 1*4 - 2*3 = -2
+        Assert.Equal(result, Vector2d.CrossProduct(vector1, vector2));
     }
 
     [Fact]

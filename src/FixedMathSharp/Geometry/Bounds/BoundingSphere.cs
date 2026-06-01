@@ -225,9 +225,6 @@ namespace FixedMathSharp
                     continue;
 
                 Fixed64 distance = FixedMath.Sqrt(sqDistance);
-                if (distance == Fixed64.Zero)
-                    continue;
-
                 Fixed64 newRadius = (radius + distance) * Fixed64.Half;
                 center += diff * ((distance - radius) / (Fixed64.Two * distance));
                 radius = newRadius;

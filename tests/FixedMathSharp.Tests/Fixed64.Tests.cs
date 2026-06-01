@@ -169,6 +169,8 @@ public class Fixed64Tests
     public void Multiply_PositiveOverflowProtection_ReturnsMaxValue()
     {
         Assert.Equal(Fixed64.MAX_VALUE, Fixed64.MAX_VALUE * Fixed64.Two);
+        Assert.Equal(Fixed64.MAX_VALUE, Fixed64.MAX_VALUE * Fixed64.MAX_VALUE);
+        Assert.Equal(Fixed64.MAX_VALUE, Fixed64.FromRaw(1L << 47) * Fixed64.FromRaw(1L << 48));
     }
 
     [Fact]

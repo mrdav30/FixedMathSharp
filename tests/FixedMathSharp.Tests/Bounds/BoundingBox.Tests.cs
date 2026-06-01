@@ -19,6 +19,7 @@ public class BoundingBoxTests
 
         Assert.Equal(center, box.Center);
         Assert.Equal(size, box.Proportions);
+        Assert.Equal(size * Fixed64.Half, box.Scope);
         Assert.Equal(new Vector3d(-1, -1, -1), box.Min);
         Assert.Equal(new Vector3d(1, 1, 1), box.Max);
     }
@@ -70,8 +71,10 @@ public class BoundingBoxTests
     {
         var box1 = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
         var box2 = new BoundingBox(new Vector3d(1, 1, 1), new Vector3d(4, 4, 4));
+        var contained = new BoundingBox(Vector3d.Zero, new Vector3d(2, 2, 2));
 
         Assert.True(box1.Intersects(box2));
+        Assert.True(box1.Intersects(contained));
 
         var area3 = new BoundingBox(new Vector3d(-2, -2, 0), new Vector3d(2, 2, 0));
         var area4 = new BoundingBox(new Vector3d(-1, -1, 0), new Vector3d(3, 3, 0));
@@ -417,6 +420,19 @@ public class BoundingBoxTests
         var first = box.Vertices;
         var second = box.Vertices;
 
+        Assert.Same(first, second);
+    }
+
+    [Fact]
+    public void Vertices_DefaultStructAllocatesStableZeroCornerCache()
+    {
+        BoundingBox box = default;
+
+        Vector3d[] first = box.Vertices;
+        Vector3d[] second = box.Vertices;
+
+        Assert.Equal(8, first.Length);
+        Assert.All(first, vertex => Assert.Equal(Vector3d.Zero, vertex));
         Assert.Same(first, second);
     }
 
