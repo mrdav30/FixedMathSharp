@@ -43,10 +43,10 @@ jobs:
       run: dotnet restore
 
     - name: Build tests
-      run: dotnet build tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore
+      run: dotnet build tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Release --no-restore
 
     - name: Run tests with coverage
-      run: dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-build --collect:"XPlat Code Coverage" --results-directory artifacts/coverage
+      run: dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory artifacts/coverage
 
     - name: Install ReportGenerator
       run: dotnet tool install --global dotnet-reportgenerator-globaltool
