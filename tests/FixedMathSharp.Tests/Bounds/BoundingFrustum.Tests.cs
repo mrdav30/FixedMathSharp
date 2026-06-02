@@ -77,7 +77,7 @@ public class BoundingFrustumTests
     public void ClampPoint_UsesFrustumPlanesInsteadOfAabb()
     {
         var matrix = Fixed4x4.Identity;
-        matrix.m20 = Fixed64.One;
+        matrix.M31 = Fixed64.One;
         var frustum = new BoundingFrustum(matrix);
         var point = new Vector3d(1, 0, 1);
 
@@ -155,8 +155,8 @@ public class BoundingFrustumTests
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
         var nestedMatrix = Fixed4x4.Identity;
-        nestedMatrix.m00 = new Fixed64(2);
-        nestedMatrix.m11 = new Fixed64(2);
+        nestedMatrix.M11 = new Fixed64(2);
+        nestedMatrix.M22 = new Fixed64(2);
         var nested = new BoundingFrustum(nestedMatrix);
 
         Assert.Equal(ContainmentType.Contains, frustum.Contains(frustum));
@@ -177,7 +177,7 @@ public class BoundingFrustumTests
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
         var overlappingMatrix = Fixed4x4.Identity;
-        overlappingMatrix.m30 = Fixed64.One;
+        overlappingMatrix.M41 = Fixed64.One;
         var overlapping = new BoundingFrustum(overlappingMatrix);
 
         Assert.Equal(ContainmentType.Intersects, frustum.Contains(overlapping));
@@ -189,7 +189,7 @@ public class BoundingFrustumTests
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
         var separatedMatrix = Fixed4x4.Identity;
-        separatedMatrix.m30 = new Fixed64(3);
+        separatedMatrix.M41 = new Fixed64(3);
         var separated = new BoundingFrustum(separatedMatrix);
 
         Assert.Equal(ContainmentType.Disjoint, frustum.Contains(separated));
@@ -231,7 +231,7 @@ public class BoundingFrustumTests
         Assert.Equal(ContainmentType.Contains, frustum.Contains(point));
 
         var matrix = Fixed4x4.Identity;
-        matrix.m00 = new Fixed64(2);
+        matrix.M11 = new Fixed64(2);
         frustum.Matrix = matrix;
 
         Assert.Equal(ContainmentType.Disjoint, frustum.Contains(point));

@@ -453,9 +453,9 @@ namespace FixedMathSharp
 
         private static Fixed64 GetMaxBasisScale(Fixed4x4 matrix)
         {
-            Fixed64 row0 = matrix.m00 * matrix.m00 + matrix.m01 * matrix.m01 + matrix.m02 * matrix.m02;
-            Fixed64 row1 = matrix.m10 * matrix.m10 + matrix.m11 * matrix.m11 + matrix.m12 * matrix.m12;
-            Fixed64 row2 = matrix.m20 * matrix.m20 + matrix.m21 * matrix.m21 + matrix.m22 * matrix.m22;
+            Fixed64 row0 = matrix.M11 * matrix.M11 + matrix.M12 * matrix.M12 + matrix.M13 * matrix.M13;
+            Fixed64 row1 = matrix.M21 * matrix.M21 + matrix.M22 * matrix.M22 + matrix.M23 * matrix.M23;
+            Fixed64 row2 = matrix.M31 * matrix.M31 + matrix.M32 * matrix.M32 + matrix.M33 * matrix.M33;
 
             return FixedMath.Sqrt(FixedMath.Max(row0, FixedMath.Max(row1, row2)));
         }

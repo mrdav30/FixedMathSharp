@@ -125,7 +125,10 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <param name="xDoub">The X coordinate of the vector, specified as a double-precision floating-point value.</param>
     /// <param name="yDoub">The Y coordinate of the vector, specified as a double-precision floating-point value.</param>
     /// <param name="zDoub">The Z coordinate of the vector, specified as a double-precision floating-point value.</param>
-    public Vector3d(double xDoub, double yDoub, double zDoub) : this((Fixed64)xDoub, (Fixed64)yDoub, (Fixed64)zDoub) { }
+    public Vector3d(double xDoub, double yDoub, double zDoub) : this(
+        Fixed64.FromFloatPoint(xDoub), 
+        Fixed64.FromFloatPoint(yDoub), 
+        Fixed64.FromFloatPoint(zDoub)) { }
 
     /// <summary>
     /// Initializes a new instance of the Vector3d structure with the specified X, Y, and Z components.
@@ -1278,9 +1281,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     public static Vector3d operator *(Fixed3x3 matrix, Vector3d vector)
     {
         return new Vector3d(
-            matrix.m00 * vector.x + matrix.m01 * vector.y + matrix.m02 * vector.z,
-            matrix.m10 * vector.x + matrix.m11 * vector.y + matrix.m12 * vector.z,
-            matrix.m20 * vector.x + matrix.m21 * vector.y + matrix.m22 * vector.z
+            matrix.M11 * vector.x + matrix.M12 * vector.y + matrix.M13 * vector.z,
+            matrix.M21 * vector.x + matrix.M22 * vector.y + matrix.M23 * vector.z,
+            matrix.M31 * vector.x + matrix.M32 * vector.y + matrix.M33 * vector.z
         );
     }
 
@@ -1309,20 +1312,20 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         if (matrix.IsAffine)
         {
             return new Vector3d(
-                matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m03 + matrix.m30,
-                matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m13 + matrix.m31,
-                matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m23 + matrix.m32
+                matrix.M11 * point.x + matrix.M12 * point.y + matrix.M13 * point.z + matrix.M14 + matrix.M41,
+                matrix.M21 * point.x + matrix.M22 * point.y + matrix.M23 * point.z + matrix.M24 + matrix.M42,
+                matrix.M31 * point.x + matrix.M32 * point.y + matrix.M33 * point.z + matrix.M34 + matrix.M43
             );
         }
 
         // Full 4×4 transformation
-        Fixed64 w = matrix.m03 * point.x + matrix.m13 * point.y + matrix.m23 * point.z + matrix.m33;
+        Fixed64 w = matrix.M14 * point.x + matrix.M24 * point.y + matrix.M34 * point.z + matrix.M44;
         if (w == Fixed64.Zero) w = Fixed64.One;  // Prevent divide-by-zero
 
         return new Vector3d(
-            (matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m03 + matrix.m30) / w,
-            (matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m13 + matrix.m31) / w,
-            (matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m23 + matrix.m32) / w
+            (matrix.M11 * point.x + matrix.M12 * point.y + matrix.M13 * point.z + matrix.M14 + matrix.M41) / w,
+            (matrix.M21 * point.x + matrix.M22 * point.y + matrix.M23 * point.z + matrix.M24 + matrix.M42) / w,
+            (matrix.M31 * point.x + matrix.M32 * point.y + matrix.M33 * point.z + matrix.M34 + matrix.M43) / w
         );
     }
 

@@ -710,12 +710,12 @@ public class Vector3dTests
     public void MatrixMultiplication_WithAffineFixed4x4_TransformsPointFromBothSides()
     {
         var matrix = Fixed4x4.Identity;
-        matrix.m00 = Fixed64.FromFloatPoint(2);
-        matrix.m11 = Fixed64.FromFloatPoint(3);
-        matrix.m22 = Fixed64.FromFloatPoint(4);
-        matrix.m30 = Fixed64.FromFloatPoint(5);
-        matrix.m31 = Fixed64.FromFloatPoint(6);
-        matrix.m32 = Fixed64.FromFloatPoint(7);
+        matrix.M11 = Fixed64.FromFloatPoint(2);
+        matrix.M22 = Fixed64.FromFloatPoint(3);
+        matrix.M33 = Fixed64.FromFloatPoint(4);
+        matrix.M41 = Fixed64.FromFloatPoint(5);
+        matrix.M42 = Fixed64.FromFloatPoint(6);
+        matrix.M43 = Fixed64.FromFloatPoint(7);
 
         var vector = new Vector3d(1, 2, 3);
         var expected = new Vector3d(7, 12, 19);

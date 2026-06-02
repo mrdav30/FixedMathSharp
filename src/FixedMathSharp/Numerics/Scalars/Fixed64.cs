@@ -917,7 +917,7 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     /// <summary>
     /// Parses a string to create a Fixed64 instance.
     /// </summary>
-    /// <param name="s">The string representation of the </param>
+    /// <param name="s">The string representation of the Fixed64 value.</param>
     /// <returns>The parsed Fixed64 value.</returns>
     public static Fixed64 Parse(string s)
     {
@@ -944,30 +944,21 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     /// <summary>
     /// Tries to parse a string to create a Fixed64 instance.
     /// </summary>
-    /// <param name="s">The string representation of the </param>
+    /// <param name="s">The string representation of the Fixed64 value.</param>
     /// <param name="result">The parsed Fixed64 value.</param>
     /// <returns>True if parsing succeeded; otherwise, false.</returns>
     public static bool TryParse(string s, out Fixed64 result)
     {
         result = Zero;
-        if (string.IsNullOrEmpty(s)) return false;
-
-        // Check if the value is negative
-        bool isNegative = false;
-        if (s[0] == '-')
+        try
         {
-            isNegative = true;
-            s = s[1..];
+            result = Parse(s);
+            return true;
         }
-
-        if (!long.TryParse(s, out long rawValue)) return false;
-
-        // If the value was negative, negate the result
-        if (isNegative)
-            rawValue = -rawValue;
-
-        result = FromRaw(rawValue);
-        return true;
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>

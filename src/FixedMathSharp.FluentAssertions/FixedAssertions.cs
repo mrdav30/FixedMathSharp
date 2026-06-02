@@ -46,35 +46,35 @@ internal static class FixedAssertionHelpers
 
     public static bool AreComponentApproximatelyEqual(Fixed3x3 actual, Fixed3x3 expected, Fixed64 tolerance)
     {
-        return (actual.m00 - expected.m00).Abs() <= tolerance
-            && (actual.m01 - expected.m01).Abs() <= tolerance
-            && (actual.m02 - expected.m02).Abs() <= tolerance
-            && (actual.m10 - expected.m10).Abs() <= tolerance
-            && (actual.m11 - expected.m11).Abs() <= tolerance
-            && (actual.m12 - expected.m12).Abs() <= tolerance
-            && (actual.m20 - expected.m20).Abs() <= tolerance
-            && (actual.m21 - expected.m21).Abs() <= tolerance
-            && (actual.m22 - expected.m22).Abs() <= tolerance;
+        return (actual.M11 - expected.M11).Abs() <= tolerance
+            && (actual.M12 - expected.M12).Abs() <= tolerance
+            && (actual.M13 - expected.M13).Abs() <= tolerance
+            && (actual.M21 - expected.M21).Abs() <= tolerance
+            && (actual.M22 - expected.M22).Abs() <= tolerance
+            && (actual.M23 - expected.M23).Abs() <= tolerance
+            && (actual.M31 - expected.M31).Abs() <= tolerance
+            && (actual.M32 - expected.M32).Abs() <= tolerance
+            && (actual.M33 - expected.M33).Abs() <= tolerance;
     }
 
     public static bool AreComponentApproximatelyEqual(Fixed4x4 actual, Fixed4x4 expected, Fixed64 tolerance)
     {
-        return (actual.m00 - expected.m00).Abs() <= tolerance
-            && (actual.m01 - expected.m01).Abs() <= tolerance
-            && (actual.m02 - expected.m02).Abs() <= tolerance
-            && (actual.m03 - expected.m03).Abs() <= tolerance
-            && (actual.m10 - expected.m10).Abs() <= tolerance
-            && (actual.m11 - expected.m11).Abs() <= tolerance
-            && (actual.m12 - expected.m12).Abs() <= tolerance
-            && (actual.m13 - expected.m13).Abs() <= tolerance
-            && (actual.m20 - expected.m20).Abs() <= tolerance
-            && (actual.m21 - expected.m21).Abs() <= tolerance
-            && (actual.m22 - expected.m22).Abs() <= tolerance
-            && (actual.m23 - expected.m23).Abs() <= tolerance
-            && (actual.m30 - expected.m30).Abs() <= tolerance
-            && (actual.m31 - expected.m31).Abs() <= tolerance
-            && (actual.m32 - expected.m32).Abs() <= tolerance
-            && (actual.m33 - expected.m33).Abs() <= tolerance;
+        return (actual.M11 - expected.M11).Abs() <= tolerance
+            && (actual.M12 - expected.M12).Abs() <= tolerance
+            && (actual.M13 - expected.M13).Abs() <= tolerance
+            && (actual.M14 - expected.M14).Abs() <= tolerance
+            && (actual.M21 - expected.M21).Abs() <= tolerance
+            && (actual.M22 - expected.M22).Abs() <= tolerance
+            && (actual.M23 - expected.M23).Abs() <= tolerance
+            && (actual.M24 - expected.M24).Abs() <= tolerance
+            && (actual.M31 - expected.M31).Abs() <= tolerance
+            && (actual.M32 - expected.M32).Abs() <= tolerance
+            && (actual.M33 - expected.M33).Abs() <= tolerance
+            && (actual.M34 - expected.M34).Abs() <= tolerance
+            && (actual.M41 - expected.M41).Abs() <= tolerance
+            && (actual.M42 - expected.M42).Abs() <= tolerance
+            && (actual.M43 - expected.M43).Abs() <= tolerance
+            && (actual.M44 - expected.M44).Abs() <= tolerance;
     }
 
     public static bool RepresentsSameRotation(FixedQuaternion actual, FixedQuaternion expected, Fixed64 tolerance)
@@ -87,16 +87,16 @@ internal static class FixedAssertionHelpers
 
     public static bool HasUnitAxes(Fixed3x3 matrix, Fixed64 tolerance)
     {
-        return AreApproximatelyEqual(new Vector3d(matrix.m00, matrix.m01, matrix.m02).Magnitude, Fixed64.One, tolerance)
-            && AreApproximatelyEqual(new Vector3d(matrix.m10, matrix.m11, matrix.m12).Magnitude, Fixed64.One, tolerance)
-            && AreApproximatelyEqual(new Vector3d(matrix.m20, matrix.m21, matrix.m22).Magnitude, Fixed64.One, tolerance);
+        return AreApproximatelyEqual(new Vector3d(matrix.M11, matrix.M12, matrix.M13).Magnitude, Fixed64.One, tolerance)
+            && AreApproximatelyEqual(new Vector3d(matrix.M21, matrix.M22, matrix.M23).Magnitude, Fixed64.One, tolerance)
+            && AreApproximatelyEqual(new Vector3d(matrix.M31, matrix.M32, matrix.M33).Magnitude, Fixed64.One, tolerance);
     }
 
     public static bool HasUnitAxes(Fixed4x4 matrix, Fixed64 tolerance)
     {
-        return AreApproximatelyEqual(new Vector3d(matrix.m00, matrix.m01, matrix.m02).Magnitude, Fixed64.One, tolerance)
-            && AreApproximatelyEqual(new Vector3d(matrix.m10, matrix.m11, matrix.m12).Magnitude, Fixed64.One, tolerance)
-            && AreApproximatelyEqual(new Vector3d(matrix.m20, matrix.m21, matrix.m22).Magnitude, Fixed64.One, tolerance);
+        return AreApproximatelyEqual(new Vector3d(matrix.M11, matrix.M12, matrix.M13).Magnitude, Fixed64.One, tolerance)
+            && AreApproximatelyEqual(new Vector3d(matrix.M21, matrix.M22, matrix.M23).Magnitude, Fixed64.One, tolerance)
+            && AreApproximatelyEqual(new Vector3d(matrix.M31, matrix.M32, matrix.M33).Magnitude, Fixed64.One, tolerance);
     }
 }
 

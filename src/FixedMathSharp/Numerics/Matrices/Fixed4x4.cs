@@ -61,25 +61,25 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(0)]
-    public Fixed64 m00;
+    public Fixed64 M11;
     /// <summary>
     /// Represents the element in the first row and second column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(1)]
-    public Fixed64 m01;
+    public Fixed64 M12;
     /// <summary>
     /// Represents the element in the first row and third column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(2)]
-    public Fixed64 m02;
+    public Fixed64 M13;
     /// <summary>
     /// Represents the element in the first row and fourth column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(3)]
-    public Fixed64 m03;
+    public Fixed64 M14;
 
     // Second row
 
@@ -88,25 +88,25 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(4)]
-    public Fixed64 m10;
+    public Fixed64 M21;
     /// <summary>
     /// Represents the element in the second row and second column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(5)]
-    public Fixed64 m11;
+    public Fixed64 M22;
     /// <summary>
     /// Represents the element in the second row and third column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(6)]
-    public Fixed64 m12;
+    public Fixed64 M23;
     /// <summary>
     /// Represents the element in the second row and fourth column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(7)]
-    public Fixed64 m13;
+    public Fixed64 M24;
 
     // Third row
 
@@ -115,25 +115,25 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(8)]
-    public Fixed64 m20;
+    public Fixed64 M31;
     /// <summary>
     /// Represents the element in the third row and second column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(9)]
-    public Fixed64 m21;
+    public Fixed64 M32;
     /// <summary>
     /// Represents the element in the third row and third column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(10)]
-    public Fixed64 m22;
+    public Fixed64 M33;
     /// <summary>
     /// Represents the element in the third row and fourth column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(11)]
-    public Fixed64 m23;
+    public Fixed64 M34;
 
     // Fourth row
 
@@ -142,25 +142,25 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(12)]
-    public Fixed64 m30;
+    public Fixed64 M41;
     /// <summary>
     /// Represents the element in the fourth row and second column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(13)]
-    public Fixed64 m31;
+    public Fixed64 M42;
     /// <summary>
     /// Represents the element in the fourth row and third column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(14)]
-    public Fixed64 m32;
+    public Fixed64 M43;
     /// <summary>
     /// Represents the element in the fourth row and fourth column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(15)]
-    public Fixed64 m33;
+    public Fixed64 M44;
 
     #endregion
 
@@ -170,42 +170,42 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// Initializes a new FixedMatrix4x4 with individual elements.
     /// </summary>
     public Fixed4x4(
-        Fixed64 m00, Fixed64 m01, Fixed64 m02, Fixed64 m03,
-        Fixed64 m10, Fixed64 m11, Fixed64 m12, Fixed64 m13,
-        Fixed64 m20, Fixed64 m21, Fixed64 m22, Fixed64 m23,
-        Fixed64 m30, Fixed64 m31, Fixed64 m32, Fixed64 m33
+        Fixed64 m11, Fixed64 m12, Fixed64 m13, Fixed64 m14,
+        Fixed64 m21, Fixed64 m22, Fixed64 m23, Fixed64 m24,
+        Fixed64 m31, Fixed64 m32, Fixed64 m33, Fixed64 m34,
+        Fixed64 m41, Fixed64 m42, Fixed64 m43, Fixed64 m44
     )
     {
-        this.m00 = m00; this.m01 = m01; this.m02 = m02; this.m03 = m03;
-        this.m10 = m10; this.m11 = m11; this.m12 = m12; this.m13 = m13;
-        this.m20 = m20; this.m21 = m21; this.m22 = m22; this.m23 = m23;
-        this.m30 = m30; this.m31 = m31; this.m32 = m32; this.m33 = m33;
+        this.M11 = m11; this.M12 = m12; this.M13 = m13; this.M14 = m14;
+        this.M21 = m21; this.M22 = m22; this.M23 = m23; this.M24 = m24;
+        this.M31 = m31; this.M32 = m32; this.M33 = m33; this.M34 = m34;
+        this.M41 = m41; this.M42 = m42; this.M43 = m43; this.M44 = m44;
     }
 
     /// <summary>
     /// Creates a matrix from four row vectors.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 FromRows(Vector4d row0, Vector4d row1, Vector4d row2, Vector4d row3)
+    public static Fixed4x4 FromRows(Vector4d row1, Vector4d row2, Vector4d row3, Vector4d row4)
     {
         return new Fixed4x4(
-            row0.x, row0.y, row0.z, row0.w,
             row1.x, row1.y, row1.z, row1.w,
             row2.x, row2.y, row2.z, row2.w,
-            row3.x, row3.y, row3.z, row3.w);
+            row3.x, row3.y, row3.z, row3.w,
+            row4.x, row4.y, row4.z, row4.w);
     }
 
     /// <summary>
     /// Creates a matrix from four column vectors.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 FromColumns(Vector4d column0, Vector4d column1, Vector4d column2, Vector4d column3)
+    public static Fixed4x4 FromColumns(Vector4d column1, Vector4d column2, Vector4d column3, Vector4d column4)
     {
         return new Fixed4x4(
-            column0.x, column1.x, column2.x, column3.x,
-            column0.y, column1.y, column2.y, column3.y,
-            column0.z, column1.z, column2.z, column3.z,
-            column0.w, column1.w, column2.w, column3.w);
+            column1.x, column2.x, column3.x, column4.x,
+            column1.y, column2.y, column3.y, column4.y,
+            column1.z, column2.z, column3.z, column4.z,
+            column1.w, column2.w, column3.w, column4.w);
     }
 
     #endregion
@@ -221,10 +221,10 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </remarks>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public readonly bool IsAffine => m33 == Fixed64.One 
-        && m03 == Fixed64.Zero 
-        && m13 == Fixed64.Zero 
-        && m23 == Fixed64.Zero;
+    public readonly bool IsAffine => M44 == Fixed64.One 
+        && M14 == Fixed64.Zero 
+        && M24 == Fixed64.Zero 
+        && M34 == Fixed64.Zero;
 
     /// <inheritdoc cref="ExtractTranslation(Fixed4x4)" />
     [JsonIgnore]
@@ -298,22 +298,22 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         {
             return index switch
             {
-                0 => m00,
-                1 => m10,
-                2 => m20,
-                3 => m30,
-                4 => m01,
-                5 => m11,
-                6 => m21,
-                7 => m31,
-                8 => m02,
-                9 => m12,
-                10 => m22,
-                11 => m32,
-                12 => m03,
-                13 => m13,
-                14 => m23,
-                15 => m33,
+                0 => M11,
+                1 => M21,
+                2 => M31,
+                3 => M41,
+                4 => M12,
+                5 => M22,
+                6 => M32,
+                7 => M42,
+                8 => M13,
+                9 => M23,
+                10 => M33,
+                11 => M43,
+                12 => M14,
+                13 => M24,
+                14 => M34,
+                15 => M44,
                 _ => throw new IndexOutOfRangeException("Invalid matrix index!"),
             };
         }
@@ -322,52 +322,52 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
             switch (index)
             {
                 case 0:
-                    m00 = value;
+                    M11 = value;
                     break;
                 case 1:
-                    m10 = value;
+                    M21 = value;
                     break;
                 case 2:
-                    m20 = value;
+                    M31 = value;
                     break;
                 case 3:
-                    m30 = value;
+                    M41 = value;
                     break;
                 case 4:
-                    m01 = value;
+                    M12 = value;
                     break;
                 case 5:
-                    m11 = value;
+                    M22 = value;
                     break;
                 case 6:
-                    m21 = value;
+                    M32 = value;
                     break;
                 case 7:
-                    m31 = value;
+                    M42 = value;
                     break;
                 case 8:
-                    m02 = value;
+                    M13 = value;
                     break;
                 case 9:
-                    m12 = value;
+                    M23 = value;
                     break;
                 case 10:
-                    m22 = value;
+                    M33 = value;
                     break;
                 case 11:
-                    m32 = value;
+                    M43 = value;
                     break;
                 case 12:
-                    m03 = value;
+                    M14 = value;
                     break;
                 case 13:
-                    m13 = value;
+                    M24 = value;
                     break;
                 case 14:
-                    m23 = value;
+                    M34 = value;
                     break;
                 case 15:
-                    m33 = value;
+                    M44 = value;
                     break;
                 default:
                     throw new IndexOutOfRangeException("Invalid matrix index!");
@@ -386,30 +386,27 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     {
         if (IsAffine)
         {
-            return m00 * (m11 * m22 - m12 * m21)
-                 - m01 * (m10 * m22 - m12 * m20)
-                 + m02 * (m10 * m21 - m11 * m20);
+            return M11 * (M22 * M33 - M23 * M32)
+                 - M12 * (M21 * M33 - M23 * M31)
+                 + M13 * (M21 * M32 - M22 * M31);
         }
 
         // Process as full 4x4 matrix
-        Fixed64 minor0 = m22 * m33 - m23 * m32;
-        Fixed64 minor1 = m21 * m33 - m23 * m31;
-        Fixed64 minor2 = m21 * m32 - m22 * m31;
-        Fixed64 cofactor0 = m20 * m33 - m23 * m30;
-        Fixed64 cofactor1 = m20 * m32 - m22 * m30;
-        Fixed64 cofactor2 = m20 * m31 - m21 * m30;
-        return m00 * (m11 * minor0 - m12 * minor1 + m13 * minor2)
-            - m01 * (m10 * minor0 - m12 * cofactor0 + m13 * cofactor1)
-            + m02 * (m10 * minor1 - m11 * cofactor0 + m13 * cofactor2)
-            - m03 * (m10 * minor2 - m11 * cofactor1 + m12 * cofactor2);
+        Fixed64 minor0 = M33 * M44 - M34 * M43;
+        Fixed64 minor1 = M32 * M44 - M34 * M42;
+        Fixed64 minor2 = M32 * M43 - M33 * M42;
+        Fixed64 cofactor0 = M31 * M44 - M34 * M41;
+        Fixed64 cofactor1 = M31 * M43 - M33 * M41;
+        Fixed64 cofactor2 = M31 * M42 - M32 * M41;
+        return M11 * (M22 * minor0 - M23 * minor1 + M24 * minor2)
+            - M12 * (M21 * minor0 - M23 * cofactor0 + M24 * cofactor1)
+            + M13 * (M21 * minor1 - M22 * cofactor0 + M24 * cofactor2)
+            - M14 * (M21 * minor2 - M22 * cofactor1 + M23 * cofactor2);
     }
 
     /// <inheritdoc cref="Fixed4x4.ResetScaleToIdentity(Fixed4x4)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Fixed4x4 ResetScaleToIdentity()
-    {
-        return this = ResetScaleToIdentity(this);
-    }
+    public Fixed4x4 ResetScaleToIdentity() => this = ResetScaleToIdentity(this);
 
     /// <summary>
     /// Sets the translation, scale, and rotation components onto the matrix.
@@ -417,10 +414,8 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// <param name="translation">The translation vector.</param>
     /// <param name="scale">The scale vector.</param>
     /// <param name="rotation">The rotation quaternion.</param>
-    public void SetTransform(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
-    {
+    public void SetTransform(Vector3d translation, FixedQuaternion rotation, Vector3d scale) =>
         this = CreateTransform(translation, rotation, scale);
-    }
 
     #endregion
 
@@ -434,22 +429,22 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     public static Fixed4x4 CreateTranslation(Vector3d position)
     {
         Fixed4x4 result = default;
-        result.m00 = Fixed64.One;
-        result.m01 = Fixed64.Zero;
-        result.m02 = Fixed64.Zero;
-        result.m03 = Fixed64.Zero;
-        result.m10 = Fixed64.Zero;
-        result.m11 = Fixed64.One;
-        result.m12 = Fixed64.Zero;
-        result.m13 = Fixed64.Zero;
-        result.m20 = Fixed64.Zero;
-        result.m21 = Fixed64.Zero;
-        result.m22 = Fixed64.One;
-        result.m23 = Fixed64.Zero;
-        result.m30 = position.x;
-        result.m31 = position.y;
-        result.m32 = position.z;
-        result.m33 = Fixed64.One;
+        result.M11 = Fixed64.One;
+        result.M12 = Fixed64.Zero;
+        result.M13 = Fixed64.Zero;
+        result.M14 = Fixed64.Zero;
+        result.M21 = Fixed64.Zero;
+        result.M22 = Fixed64.One;
+        result.M23 = Fixed64.Zero;
+        result.M24 = Fixed64.Zero;
+        result.M31 = Fixed64.Zero;
+        result.M32 = Fixed64.Zero;
+        result.M33 = Fixed64.One;
+        result.M34 = Fixed64.Zero;
+        result.M41 = position.x;
+        result.M42 = position.y;
+        result.M43 = position.z;
+        result.M44 = Fixed64.One;
         return result;
     }
 
@@ -457,10 +452,8 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// Creates a translation matrix from the specified coordinates.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 CreateTranslation(Fixed64 x, Fixed64 y, Fixed64 z)
-    {
-        return CreateTranslation(new Vector3d(x, y, z));
-    }
+    public static Fixed4x4 CreateTranslation(Fixed64 x, Fixed64 y, Fixed64 z) =>
+        CreateTranslation(new Vector3d(x, y, z));
 
     /// <summary>
     /// Creates a rotation matrix from a quaternion.
@@ -472,85 +465,65 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();
 
         return new Fixed4x4(
-            rotationMatrix.m00, rotationMatrix.m01, rotationMatrix.m02, Fixed64.Zero,
-            rotationMatrix.m10, rotationMatrix.m11, rotationMatrix.m12, Fixed64.Zero,
-            rotationMatrix.m20, rotationMatrix.m21, rotationMatrix.m22, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
-        );
+            rotationMatrix.M11, rotationMatrix.M12, rotationMatrix.M13, Fixed64.Zero,
+            rotationMatrix.M21, rotationMatrix.M22, rotationMatrix.M23, Fixed64.Zero,
+            rotationMatrix.M31, rotationMatrix.M32, rotationMatrix.M33, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
     }
 
     /// <summary>
     /// Creates a rotation matrix around the X axis.
     /// </summary>
-    public static Fixed4x4 CreateRotationX(Fixed64 angle)
-    {
-        return FromRotationMatrix(Fixed3x3.CreateRotationX(angle));
-    }
+    public static Fixed4x4 CreateRotationX(Fixed64 angle) =>
+        FromRotationMatrix(Fixed3x3.CreateRotationX(angle));
 
     /// <summary>
     /// Creates a rotation matrix around the Y axis.
     /// </summary>
-    public static Fixed4x4 CreateRotationY(Fixed64 angle)
-    {
-        return FromRotationMatrix(Fixed3x3.CreateRotationY(angle));
-    }
+    public static Fixed4x4 CreateRotationY(Fixed64 angle) =>
+        FromRotationMatrix(Fixed3x3.CreateRotationY(angle));
 
     /// <summary>
     /// Creates a rotation matrix around the Z axis.
     /// </summary>
-    public static Fixed4x4 CreateRotationZ(Fixed64 angle)
-    {
-        return FromRotationMatrix(Fixed3x3.CreateRotationZ(angle));
-    }
+    public static Fixed4x4 CreateRotationZ(Fixed64 angle) =>
+        FromRotationMatrix(Fixed3x3.CreateRotationZ(angle));
 
     /// <summary>
     /// Creates a rotation matrix from an axis and angle.
     /// </summary>
-    public static Fixed4x4 CreateFromAxisAngle(Vector3d axis, Fixed64 angle)
-    {
-        return CreateRotation(FixedQuaternion.FromAxisAngle(axis, angle));
-    }
+    public static Fixed4x4 CreateFromAxisAngle(Vector3d axis, Fixed64 angle) =>
+        CreateRotation(FixedQuaternion.FromAxisAngle(axis, angle));
 
     /// <summary>
     /// Creates a rotation matrix from pitch, yaw, and roll angles in radians.
     /// </summary>
-    public static Fixed4x4 CreateFromEulerAngles(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
-    {
-        return CreateRotation(FixedQuaternion.FromEulerAngles(pitch, yaw, roll));
-    }
+    public static Fixed4x4 CreateFromEulerAngles(Fixed64 pitch, Fixed64 yaw, Fixed64 roll) =>
+        CreateRotation(FixedQuaternion.FromEulerAngles(pitch, yaw, roll));
 
     /// <summary>
     /// Creates a scale matrix from a 3-dimensional vector.
     /// </summary>
     /// <param name="scale">The vector representing the scale along each axis.</param>
     /// <returns>A 4x4 matrix representing the scale transformation.</returns>
-    public static Fixed4x4 CreateScale(Vector3d scale)
-    {
-        return new Fixed4x4(
+    public static Fixed4x4 CreateScale(Vector3d scale) =>
+        new(
             scale.x, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, scale.y, Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, scale.z, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
-        );
-    }
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
 
     /// <summary>
     /// Creates a uniform scale matrix.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 CreateScale(Fixed64 scale)
-    {
-        return CreateScale(new Vector3d(scale, scale, scale));
-    }
+    public static Fixed4x4 CreateScale(Fixed64 scale) => CreateScale(new Vector3d(scale, scale, scale));
 
     /// <summary>
     /// Creates a non-uniform scale matrix from individual scale components.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 CreateScale(Fixed64 x, Fixed64 y, Fixed64 z)
-    {
-        return CreateScale(new Vector3d(x, y, z));
-    }
+    public static Fixed4x4 CreateScale(Fixed64 x, Fixed64 y, Fixed64 z) => CreateScale(new Vector3d(x, y, z));
 
     /// <summary>
     /// Creates a view matrix looking from a camera position toward a target.
@@ -820,18 +793,12 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// <param name="matrix">The matrix from which to extract the translation.</param>
     /// <returns>A Vector3d representing the translation component.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d ExtractTranslation(Fixed4x4 matrix)
-    {
-        return new Vector3d(matrix.m30, matrix.m31, matrix.m32);
-    }
+    public static Vector3d ExtractTranslation(Fixed4x4 matrix) => new(matrix.M41, matrix.M42, matrix.M43);
 
     /// <summary>
     /// Extracts the right direction from the 4x4 matrix.
     /// </summary>
-    public static Vector3d ExtractRight(Fixed4x4 matrix)
-    {
-        return new Vector3d(matrix.m00, matrix.m01, matrix.m02).Normalize();
-    }
+    public static Vector3d ExtractRight(Fixed4x4 matrix) => new Vector3d(matrix.M11, matrix.M12, matrix.M13).Normalize();
 
     /// <summary>
     /// Extracts the up direction from the 4x4 matrix.
@@ -841,42 +808,30 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </remarks>
     /// <param name="matrix"></param>
     /// <returns>A <see cref="Vector3d"/> representing the up direction.</returns>
-    public static Vector3d ExtractUp(Fixed4x4 matrix)
-    {
-        return new Vector3d(matrix.m10, matrix.m11, matrix.m12).Normalize();
-    }
+    public static Vector3d ExtractUp(Fixed4x4 matrix) => new Vector3d(matrix.M21, matrix.M22, matrix.M23).Normalize();
 
     /// <summary>
     /// Extracts the forward direction from the 4x4 matrix.
     /// </summary>
-    public static Vector3d ExtractForward(Fixed4x4 matrix)
-    {
-        return new Vector3d(matrix.m20, matrix.m21, matrix.m22).Normalize();
-    }
+    public static Vector3d ExtractForward(Fixed4x4 matrix) => new Vector3d(matrix.M31, matrix.M32, matrix.M33).Normalize();
 
     /// <summary>
     /// Extracts the scaling factors from the matrix by calculating the magnitudes of the basis vectors (non-lossy).
     /// </summary>
     /// <returns>A Vector3d representing the precise scale along the X, Y, and Z axes.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d ExtractScale(Fixed4x4 matrix)
-    {
-        return new Vector3d(
-            new Vector3d(matrix.m00, matrix.m01, matrix.m02).Magnitude,  // X scale
-            new Vector3d(matrix.m10, matrix.m11, matrix.m12).Magnitude,  // Y scale
-            new Vector3d(matrix.m20, matrix.m21, matrix.m22).Magnitude   // Z scale
-        );
-    }
+    public static Vector3d ExtractScale(Fixed4x4 matrix) => 
+        new(
+            new Vector3d(matrix.M11, matrix.M12, matrix.M13).Magnitude,
+            new Vector3d(matrix.M21, matrix.M22, matrix.M23).Magnitude,  
+            new Vector3d(matrix.M31, matrix.M32, matrix.M33).Magnitude);
 
     /// <summary>
     /// Extracts the scaling factors from the matrix by returning the diagonal elements (lossy).
     /// </summary>
     /// <returns>A Vector3d representing the scale along X, Y, and Z axes (lossy).</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d ExtractLossyScale(Fixed4x4 matrix)
-    {
-        return new Vector3d(matrix.m00, matrix.m11, matrix.m22);
-    }
+    public static Vector3d ExtractLossyScale(Fixed4x4 matrix) => new(matrix.M11, matrix.M22, matrix.M33);
 
     /// <summary>
     /// Extracts the rotation component from the 4x4 matrix by normalizing the rotation matrix.
@@ -893,9 +848,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Fixed64 scaleZ = scale.z == Fixed64.Zero ? Fixed64.One : scale.z;
 
         Fixed4x4 normalizedMatrix = new(
-            matrix.m00 / scaleX, matrix.m01 / scaleX, matrix.m02 / scaleX, Fixed64.Zero,
-            matrix.m10 / scaleY, matrix.m11 / scaleY, matrix.m12 / scaleY, Fixed64.Zero,
-            matrix.m20 / scaleZ, matrix.m21 / scaleZ, matrix.m22 / scaleZ, Fixed64.Zero,
+            matrix.M11 / scaleX, matrix.M12 / scaleX, matrix.M13 / scaleX, Fixed64.Zero,
+            matrix.M21 / scaleY, matrix.M22 / scaleY, matrix.M23 / scaleY, Fixed64.Zero,
+            matrix.M31 / scaleZ, matrix.M32 / scaleZ, matrix.M33 / scaleZ, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
         );
 
@@ -929,7 +884,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Fixed4x4 normalizedMatrix = ApplyScaleToRotation(matrix, Vector3d.One / scale);
 
         // Extract translation
-        translation = new Vector3d(normalizedMatrix.m30, normalizedMatrix.m31, normalizedMatrix.m32);
+        translation = new Vector3d(normalizedMatrix.M41, normalizedMatrix.M42, normalizedMatrix.M43);
 
         // Check the determinant to ensure correct handedness
         Fixed64 determinant = normalizedMatrix.GetDeterminant();
@@ -937,9 +892,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         {
             // Adjust for left-handed coordinate system by flipping one of the axes
             scale.x = -scale.x;
-            normalizedMatrix.m00 = -normalizedMatrix.m00;
-            normalizedMatrix.m01 = -normalizedMatrix.m01;
-            normalizedMatrix.m02 = -normalizedMatrix.m02;
+            normalizedMatrix.M11 = -normalizedMatrix.M11;
+            normalizedMatrix.M12 = -normalizedMatrix.M12;
+            normalizedMatrix.M13 = -normalizedMatrix.M13;
         }
 
         // Extract the rotation component from the orthogonalized matrix
@@ -956,9 +911,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 SetTranslation(Fixed4x4 matrix, Vector3d translation)
     {
-        matrix.m30 = translation.x;
-        matrix.m31 = translation.y;
-        matrix.m32 = translation.z;
+        matrix.M41 = translation.x;
+        matrix.M42 = translation.y;
+        matrix.M43 = translation.z;
         return matrix;
     }
 
@@ -974,9 +929,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 SetScale(Fixed4x4 matrix, Vector3d scale)
     {
-        matrix.m00 = scale.x;
-        matrix.m11 = scale.y;
-        matrix.m22 = scale.z;
+        matrix.M11 = scale.x;
+        matrix.M22 = scale.y;
+        matrix.M33 = scale.z;
         return matrix;
     }
 
@@ -991,17 +946,17 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     public static Fixed4x4 ApplyScaleToRotation(Fixed4x4 matrix, Vector3d scale)
     {
         // Scale each row of the rotation matrix
-        matrix.m00 *= scale.x;
-        matrix.m01 *= scale.x;
-        matrix.m02 *= scale.x;
+        matrix.M11 *= scale.x;
+        matrix.M12 *= scale.x;
+        matrix.M13 *= scale.x;
 
-        matrix.m10 *= scale.y;
-        matrix.m11 *= scale.y;
-        matrix.m12 *= scale.y;
+        matrix.M21 *= scale.y;
+        matrix.M22 *= scale.y;
+        matrix.M23 *= scale.y;
 
-        matrix.m20 *= scale.z;
-        matrix.m21 *= scale.z;
-        matrix.m22 *= scale.z;
+        matrix.M31 *= scale.z;
+        matrix.M32 *= scale.z;
+        matrix.M33 *= scale.z;
 
         return matrix;
     }
@@ -1012,9 +967,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 ResetScaleToIdentity(Fixed4x4 matrix)
     {
-        matrix.m00 = Fixed64.One;  // X scale
-        matrix.m11 = Fixed64.One;  // Y scale
-        matrix.m22 = Fixed64.One;  // Z scale
+        matrix.M11 = Fixed64.One;  // X scale
+        matrix.M22 = Fixed64.One;  // Y scale
+        matrix.M33 = Fixed64.One;  // Z scale
 
         return matrix;
     }
@@ -1064,17 +1019,17 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
 
         // Apply rotation to the upper-left 3x3 matrix
 
-        matrix.m00 = rotationMatrix.m00 * scale.x;
-        matrix.m01 = rotationMatrix.m01 * scale.x;
-        matrix.m02 = rotationMatrix.m02 * scale.x;
+        matrix.M11 = rotationMatrix.M11 * scale.x;
+        matrix.M12 = rotationMatrix.M12 * scale.x;
+        matrix.M13 = rotationMatrix.M13 * scale.x;
 
-        matrix.m10 = rotationMatrix.m10 * scale.y;
-        matrix.m11 = rotationMatrix.m11 * scale.y;
-        matrix.m12 = rotationMatrix.m12 * scale.y;
+        matrix.M21 = rotationMatrix.M21 * scale.y;
+        matrix.M22 = rotationMatrix.M22 * scale.y;
+        matrix.M23 = rotationMatrix.M23 * scale.y;
 
-        matrix.m20 = rotationMatrix.m20 * scale.z;
-        matrix.m21 = rotationMatrix.m21 * scale.z;
-        matrix.m22 = rotationMatrix.m22 * scale.z;
+        matrix.M31 = rotationMatrix.M31 * scale.z;
+        matrix.M32 = rotationMatrix.M32 * scale.z;
+        matrix.M33 = rotationMatrix.M33 * scale.z;
 
         return matrix;
     }
@@ -1093,9 +1048,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </remarks>
     public static Fixed4x4 NormalizeRotationMatrix(Fixed4x4 matrix)
     {
-        Vector3d basisX = new Vector3d(matrix.m00, matrix.m01, matrix.m02).Normalize();
-        Vector3d basisY = new Vector3d(matrix.m10, matrix.m11, matrix.m12).Normalize();
-        Vector3d basisZ = new Vector3d(matrix.m20, matrix.m21, matrix.m22).Normalize();
+        Vector3d basisX = new Vector3d(matrix.M11, matrix.M12, matrix.M13).Normalize();
+        Vector3d basisY = new Vector3d(matrix.M21, matrix.M22, matrix.M23).Normalize();
+        Vector3d basisZ = new Vector3d(matrix.M31, matrix.M32, matrix.M33).Normalize();
 
         return new Fixed4x4(
             basisX.x, basisX.y, basisX.z, Fixed64.Zero,
@@ -1112,39 +1067,35 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// <summary>
     /// Linearly interpolates between two matrices component-wise.
     /// </summary>
-    public static Fixed4x4 Lerp(Fixed4x4 a, Fixed4x4 b, Fixed64 t)
-    {
-        return new Fixed4x4(
-            FixedMath.Lerp(a.m00, b.m00, t),
-            FixedMath.Lerp(a.m01, b.m01, t),
-            FixedMath.Lerp(a.m02, b.m02, t),
-            FixedMath.Lerp(a.m03, b.m03, t),
-            FixedMath.Lerp(a.m10, b.m10, t),
-            FixedMath.Lerp(a.m11, b.m11, t),
-            FixedMath.Lerp(a.m12, b.m12, t),
-            FixedMath.Lerp(a.m13, b.m13, t),
-            FixedMath.Lerp(a.m20, b.m20, t),
-            FixedMath.Lerp(a.m21, b.m21, t),
-            FixedMath.Lerp(a.m22, b.m22, t),
-            FixedMath.Lerp(a.m23, b.m23, t),
-            FixedMath.Lerp(a.m30, b.m30, t),
-            FixedMath.Lerp(a.m31, b.m31, t),
-            FixedMath.Lerp(a.m32, b.m32, t),
-            FixedMath.Lerp(a.m33, b.m33, t));
-    }
+    public static Fixed4x4 Lerp(Fixed4x4 a, Fixed4x4 b, Fixed64 t) =>
+         new(
+            FixedMath.Lerp(a.M11, b.M11, t),
+            FixedMath.Lerp(a.M12, b.M12, t),
+            FixedMath.Lerp(a.M13, b.M13, t),
+            FixedMath.Lerp(a.M14, b.M14, t),
+            FixedMath.Lerp(a.M21, b.M21, t),
+            FixedMath.Lerp(a.M22, b.M22, t),
+            FixedMath.Lerp(a.M23, b.M23, t),
+            FixedMath.Lerp(a.M24, b.M24, t),
+            FixedMath.Lerp(a.M31, b.M31, t),
+            FixedMath.Lerp(a.M32, b.M32, t),
+            FixedMath.Lerp(a.M33, b.M33, t),
+            FixedMath.Lerp(a.M34, b.M34, t),
+            FixedMath.Lerp(a.M41, b.M41, t),
+            FixedMath.Lerp(a.M42, b.M42, t),
+            FixedMath.Lerp(a.M43, b.M43, t),
+            FixedMath.Lerp(a.M44, b.M44, t));
 
     /// <summary>
     /// Transposes the matrix by swapping rows and columns.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 Transpose(Fixed4x4 matrix)
-    {
-        return new Fixed4x4(
-            matrix.m00, matrix.m10, matrix.m20, matrix.m30,
-            matrix.m01, matrix.m11, matrix.m21, matrix.m31,
-            matrix.m02, matrix.m12, matrix.m22, matrix.m32,
-            matrix.m03, matrix.m13, matrix.m23, matrix.m33);
-    }
+    public static Fixed4x4 Transpose(Fixed4x4 matrix) =>
+         new(
+            matrix.M11, matrix.M21, matrix.M31, matrix.M41,
+            matrix.M12, matrix.M22, matrix.M32, matrix.M42,
+            matrix.M13, matrix.M23, matrix.M33, matrix.M43,
+            matrix.M14, matrix.M24, matrix.M34, matrix.M44);
 
     /// <summary>
     /// Divides each component of one matrix by the corresponding component of another matrix.
@@ -1153,26 +1104,24 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// Thrown when any divisor component is zero.
     /// </exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 ComponentDivide(Fixed4x4 dividend, Fixed4x4 divisor)
-    {
-        return new Fixed4x4(
-            dividend.m00 / divisor.m00,
-            dividend.m01 / divisor.m01,
-            dividend.m02 / divisor.m02,
-            dividend.m03 / divisor.m03,
-            dividend.m10 / divisor.m10,
-            dividend.m11 / divisor.m11,
-            dividend.m12 / divisor.m12,
-            dividend.m13 / divisor.m13,
-            dividend.m20 / divisor.m20,
-            dividend.m21 / divisor.m21,
-            dividend.m22 / divisor.m22,
-            dividend.m23 / divisor.m23,
-            dividend.m30 / divisor.m30,
-            dividend.m31 / divisor.m31,
-            dividend.m32 / divisor.m32,
-            dividend.m33 / divisor.m33);
-    }
+    public static Fixed4x4 ComponentDivide(Fixed4x4 dividend, Fixed4x4 divisor) =>
+        new(
+            dividend.M11 / divisor.M11,
+            dividend.M12 / divisor.M12,
+            dividend.M13 / divisor.M13,
+            dividend.M14 / divisor.M14,
+            dividend.M21 / divisor.M21,
+            dividend.M22 / divisor.M22,
+            dividend.M23 / divisor.M23,
+            dividend.M24 / divisor.M24,
+            dividend.M31 / divisor.M31,
+            dividend.M32 / divisor.M32,
+            dividend.M33 / divisor.M33,
+            dividend.M34 / divisor.M34,
+            dividend.M41 / divisor.M41,
+            dividend.M42 / divisor.M42,
+            dividend.M43 / divisor.M43,
+            dividend.M44 / divisor.M44);
 
     /// <summary>
     /// Divides one matrix by another using inverse matrix division.
@@ -1220,35 +1169,35 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
 
         // Invert the 3×3 upper-left rotation/scale matrix
         result = new Fixed4x4(
-            (matrix.m11 * matrix.m22 - matrix.m12 * matrix.m21) * invDet,
-            (matrix.m02 * matrix.m21 - matrix.m01 * matrix.m22) * invDet,
-            (matrix.m01 * matrix.m12 - matrix.m02 * matrix.m11) * invDet, Fixed64.Zero,
+            (matrix.M22 * matrix.M33 - matrix.M23 * matrix.M32) * invDet,
+            (matrix.M13 * matrix.M32 - matrix.M12 * matrix.M33) * invDet,
+            (matrix.M12 * matrix.M23 - matrix.M13 * matrix.M22) * invDet, Fixed64.Zero,
 
-            (matrix.m12 * matrix.m20 - matrix.m10 * matrix.m22) * invDet,
-            (matrix.m00 * matrix.m22 - matrix.m02 * matrix.m20) * invDet,
-            (matrix.m02 * matrix.m10 - matrix.m00 * matrix.m12) * invDet, Fixed64.Zero,
+            (matrix.M23 * matrix.M31 - matrix.M21 * matrix.M33) * invDet,
+            (matrix.M11 * matrix.M33 - matrix.M13 * matrix.M31) * invDet,
+            (matrix.M13 * matrix.M21 - matrix.M11 * matrix.M23) * invDet, Fixed64.Zero,
 
-            (matrix.m10 * matrix.m21 - matrix.m11 * matrix.m20) * invDet,
-            (matrix.m01 * matrix.m20 - matrix.m00 * matrix.m21) * invDet,
-            (matrix.m00 * matrix.m11 - matrix.m01 * matrix.m10) * invDet, Fixed64.Zero,
+            (matrix.M21 * matrix.M32 - matrix.M22 * matrix.M31) * invDet,
+            (matrix.M12 * matrix.M31 - matrix.M11 * matrix.M32) * invDet,
+            (matrix.M11 * matrix.M22 - matrix.M12 * matrix.M21) * invDet, Fixed64.Zero,
 
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One  // Ensure homogeneous coordinate stays valid
         );
 
         Fixed3x3 rotationScaleInverse = new(
-            result.m00, result.m01, result.m02,
-            result.m10, result.m11, result.m12,
-            result.m20, result.m21, result.m22
+            result.M11, result.M12, result.M13,
+            result.M21, result.M22, result.M23,
+            result.M31, result.M32, result.M33
         );
 
         // Correct translation component
-        Vector3d transformedTranslation = new(matrix.m30, matrix.m31, matrix.m32);
+        Vector3d transformedTranslation = new(matrix.M41, matrix.M42, matrix.M43);
         transformedTranslation = -Fixed3x3.TransformDirection(rotationScaleInverse, transformedTranslation);
 
-        result.m30 = transformedTranslation.x;
-        result.m31 = transformedTranslation.y;
-        result.m32 = transformedTranslation.z;
-        result.m33 = Fixed64.One;
+        result.M41 = transformedTranslation.x;
+        result.M42 = transformedTranslation.y;
+        result.M43 = transformedTranslation.z;
+        result.M44 = Fixed64.One;
 
         return true;
     }
@@ -1269,44 +1218,44 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         result = new Fixed4x4
         {
             // First row
-            m00 = invDet * ((matrix.m11 * matrix.m22 * matrix.m33 + matrix.m12 * matrix.m23 * matrix.m31 + matrix.m13 * matrix.m21 * matrix.m32)
-                          - (matrix.m13 * matrix.m22 * matrix.m31 + matrix.m11 * matrix.m23 * matrix.m32 + matrix.m12 * matrix.m21 * matrix.m33)),
-            m01 = invDet * ((matrix.m01 * matrix.m23 * matrix.m32 + matrix.m02 * matrix.m21 * matrix.m33 + matrix.m03 * matrix.m22 * matrix.m31)
-                          - (matrix.m03 * matrix.m21 * matrix.m32 + matrix.m01 * matrix.m22 * matrix.m33 + matrix.m02 * matrix.m23 * matrix.m31)),
-            m02 = invDet * ((matrix.m01 * matrix.m12 * matrix.m33 + matrix.m02 * matrix.m13 * matrix.m31 + matrix.m03 * matrix.m11 * matrix.m32)
-                          - (matrix.m03 * matrix.m12 * matrix.m31 + matrix.m01 * matrix.m13 * matrix.m32 + matrix.m02 * matrix.m11 * matrix.m33)),
-            m03 = invDet * ((matrix.m01 * matrix.m13 * matrix.m22 + matrix.m02 * matrix.m11 * matrix.m23 + matrix.m03 * matrix.m12 * matrix.m21)
-                          - (matrix.m03 * matrix.m11 * matrix.m22 + matrix.m01 * matrix.m12 * matrix.m23 + matrix.m02 * matrix.m13 * matrix.m21)),
+            M11 = invDet * ((matrix.M22 * matrix.M33 * matrix.M44 + matrix.M23 * matrix.M34 * matrix.M42 + matrix.M24 * matrix.M32 * matrix.M43)
+                          - (matrix.M24 * matrix.M33 * matrix.M42 + matrix.M22 * matrix.M34 * matrix.M43 + matrix.M23 * matrix.M32 * matrix.M44)),
+            M12 = invDet * ((matrix.M12 * matrix.M34 * matrix.M43 + matrix.M13 * matrix.M32 * matrix.M44 + matrix.M14 * matrix.M33 * matrix.M42)
+                          - (matrix.M14 * matrix.M32 * matrix.M43 + matrix.M12 * matrix.M33 * matrix.M44 + matrix.M13 * matrix.M34 * matrix.M42)),
+            M13 = invDet * ((matrix.M12 * matrix.M23 * matrix.M44 + matrix.M13 * matrix.M24 * matrix.M42 + matrix.M14 * matrix.M22 * matrix.M43)
+                          - (matrix.M14 * matrix.M23 * matrix.M42 + matrix.M12 * matrix.M24 * matrix.M43 + matrix.M13 * matrix.M22 * matrix.M44)),
+            M14 = invDet * ((matrix.M12 * matrix.M24 * matrix.M33 + matrix.M13 * matrix.M22 * matrix.M34 + matrix.M14 * matrix.M23 * matrix.M32)
+                          - (matrix.M14 * matrix.M22 * matrix.M33 + matrix.M12 * matrix.M23 * matrix.M34 + matrix.M13 * matrix.M24 * matrix.M32)),
 
             // Second row
-            m10 = invDet * ((matrix.m10 * matrix.m23 * matrix.m32 + matrix.m12 * matrix.m20 * matrix.m33 + matrix.m13 * matrix.m22 * matrix.m30)
-                          - (matrix.m13 * matrix.m20 * matrix.m32 + matrix.m10 * matrix.m22 * matrix.m33 + matrix.m12 * matrix.m23 * matrix.m30)),
-            m11 = invDet * ((matrix.m00 * matrix.m22 * matrix.m33 + matrix.m02 * matrix.m23 * matrix.m30 + matrix.m03 * matrix.m20 * matrix.m32)
-                          - (matrix.m03 * matrix.m20 * matrix.m32 + matrix.m00 * matrix.m23 * matrix.m32 + matrix.m02 * matrix.m20 * matrix.m33)),
-            m12 = invDet * ((matrix.m00 * matrix.m13 * matrix.m32 + matrix.m02 * matrix.m10 * matrix.m33 + matrix.m03 * matrix.m12 * matrix.m30)
-                          - (matrix.m03 * matrix.m10 * matrix.m32 + matrix.m00 * matrix.m12 * matrix.m33 + matrix.m02 * matrix.m13 * matrix.m30)),
-            m13 = invDet * ((matrix.m00 * matrix.m12 * matrix.m23 + matrix.m02 * matrix.m13 * matrix.m20 + matrix.m03 * matrix.m10 * matrix.m22)
-                          - (matrix.m03 * matrix.m10 * matrix.m22 + matrix.m00 * matrix.m13 * matrix.m22 + matrix.m02 * matrix.m12 * matrix.m20)),
+            M21 = invDet * ((matrix.M21 * matrix.M34 * matrix.M43 + matrix.M23 * matrix.M31 * matrix.M44 + matrix.M24 * matrix.M33 * matrix.M41)
+                          - (matrix.M24 * matrix.M31 * matrix.M43 + matrix.M21 * matrix.M33 * matrix.M44 + matrix.M23 * matrix.M34 * matrix.M41)),
+            M22 = invDet * ((matrix.M11 * matrix.M33 * matrix.M44 + matrix.M13 * matrix.M34 * matrix.M41 + matrix.M14 * matrix.M31 * matrix.M43)
+                          - (matrix.M14 * matrix.M31 * matrix.M43 + matrix.M11 * matrix.M34 * matrix.M43 + matrix.M13 * matrix.M31 * matrix.M44)),
+            M23 = invDet * ((matrix.M11 * matrix.M24 * matrix.M43 + matrix.M13 * matrix.M21 * matrix.M44 + matrix.M14 * matrix.M23 * matrix.M41)
+                          - (matrix.M14 * matrix.M21 * matrix.M43 + matrix.M11 * matrix.M23 * matrix.M44 + matrix.M13 * matrix.M24 * matrix.M41)),
+            M24 = invDet * ((matrix.M11 * matrix.M23 * matrix.M34 + matrix.M13 * matrix.M24 * matrix.M31 + matrix.M14 * matrix.M21 * matrix.M33)
+                          - (matrix.M14 * matrix.M21 * matrix.M33 + matrix.M11 * matrix.M24 * matrix.M33 + matrix.M13 * matrix.M23 * matrix.M31)),
 
             // Third row
-            m20 = invDet * ((matrix.m10 * matrix.m21 * matrix.m33 + matrix.m11 * matrix.m23 * matrix.m30 + matrix.m13 * matrix.m20 * matrix.m31)
-                          - (matrix.m13 * matrix.m20 * matrix.m31 + matrix.m10 * matrix.m23 * matrix.m31 + matrix.m11 * matrix.m20 * matrix.m33)),
-            m21 = invDet * ((matrix.m00 * matrix.m23 * matrix.m31 + matrix.m01 * matrix.m20 * matrix.m33 + matrix.m03 * matrix.m21 * matrix.m30)
-                          - (matrix.m03 * matrix.m20 * matrix.m31 + matrix.m00 * matrix.m21 * matrix.m33 + matrix.m01 * matrix.m23 * matrix.m30)),
-            m22 = invDet * ((matrix.m00 * matrix.m11 * matrix.m33 + matrix.m01 * matrix.m13 * matrix.m30 + matrix.m03 * matrix.m10 * matrix.m31)
-                          - (matrix.m03 * matrix.m10 * matrix.m31 + matrix.m00 * matrix.m13 * matrix.m31 + matrix.m01 * matrix.m10 * matrix.m33)),
-            m23 = invDet * ((matrix.m00 * matrix.m13 * matrix.m21 + matrix.m01 * matrix.m10 * matrix.m23 + matrix.m03 * matrix.m11 * matrix.m20)
-                          - (matrix.m03 * matrix.m10 * matrix.m21 + matrix.m00 * matrix.m11 * matrix.m23 + matrix.m01 * matrix.m13 * matrix.m20)),
+            M31 = invDet * ((matrix.M21 * matrix.M32 * matrix.M44 + matrix.M22 * matrix.M34 * matrix.M41 + matrix.M24 * matrix.M31 * matrix.M42)
+                          - (matrix.M24 * matrix.M31 * matrix.M42 + matrix.M21 * matrix.M34 * matrix.M42 + matrix.M22 * matrix.M31 * matrix.M44)),
+            M32 = invDet * ((matrix.M11 * matrix.M34 * matrix.M42 + matrix.M12 * matrix.M31 * matrix.M44 + matrix.M14 * matrix.M32 * matrix.M41)
+                          - (matrix.M14 * matrix.M31 * matrix.M42 + matrix.M11 * matrix.M32 * matrix.M44 + matrix.M12 * matrix.M34 * matrix.M41)),
+            M33 = invDet * ((matrix.M11 * matrix.M22 * matrix.M44 + matrix.M12 * matrix.M24 * matrix.M41 + matrix.M14 * matrix.M21 * matrix.M42)
+                          - (matrix.M14 * matrix.M21 * matrix.M42 + matrix.M11 * matrix.M24 * matrix.M42 + matrix.M12 * matrix.M21 * matrix.M44)),
+            M34 = invDet * ((matrix.M11 * matrix.M24 * matrix.M32 + matrix.M12 * matrix.M21 * matrix.M34 + matrix.M14 * matrix.M22 * matrix.M31)
+                          - (matrix.M14 * matrix.M21 * matrix.M32 + matrix.M11 * matrix.M22 * matrix.M34 + matrix.M12 * matrix.M24 * matrix.M31)),
 
             // Fourth row
-            m30 = invDet * ((matrix.m10 * matrix.m22 * matrix.m31 + matrix.m11 * matrix.m20 * matrix.m32 + matrix.m12 * matrix.m21 * matrix.m30)
-                          - (matrix.m12 * matrix.m20 * matrix.m31 + matrix.m10 * matrix.m21 * matrix.m32 + matrix.m11 * matrix.m22 * matrix.m30)),
-            m31 = invDet * ((matrix.m00 * matrix.m21 * matrix.m32 + matrix.m01 * matrix.m22 * matrix.m30 + matrix.m02 * matrix.m20 * matrix.m31)
-                          - (matrix.m02 * matrix.m20 * matrix.m31 + matrix.m00 * matrix.m22 * matrix.m31 + matrix.m01 * matrix.m20 * matrix.m32)),
-            m32 = invDet * ((matrix.m00 * matrix.m12 * matrix.m31 + matrix.m01 * matrix.m10 * matrix.m32 + matrix.m02 * matrix.m11 * matrix.m30)
-                          - (matrix.m02 * matrix.m10 * matrix.m31 + matrix.m00 * matrix.m11 * matrix.m32 + matrix.m01 * matrix.m12 * matrix.m30)),
-            m33 = invDet * ((matrix.m00 * matrix.m11 * matrix.m22 + matrix.m01 * matrix.m12 * matrix.m20 + matrix.m02 * matrix.m10 * matrix.m21)
-                          - (matrix.m02 * matrix.m10 * matrix.m21 + matrix.m00 * matrix.m12 * matrix.m21 + matrix.m01 * matrix.m11 * matrix.m20)),
+            M41 = invDet * ((matrix.M21 * matrix.M33 * matrix.M42 + matrix.M22 * matrix.M31 * matrix.M43 + matrix.M23 * matrix.M32 * matrix.M41)
+                          - (matrix.M23 * matrix.M31 * matrix.M42 + matrix.M21 * matrix.M32 * matrix.M43 + matrix.M22 * matrix.M33 * matrix.M41)),
+            M42 = invDet * ((matrix.M11 * matrix.M32 * matrix.M43 + matrix.M12 * matrix.M33 * matrix.M41 + matrix.M13 * matrix.M31 * matrix.M42)
+                          - (matrix.M13 * matrix.M31 * matrix.M42 + matrix.M11 * matrix.M33 * matrix.M42 + matrix.M12 * matrix.M31 * matrix.M43)),
+            M43 = invDet * ((matrix.M11 * matrix.M23 * matrix.M42 + matrix.M12 * matrix.M21 * matrix.M43 + matrix.M13 * matrix.M22 * matrix.M41)
+                          - (matrix.M13 * matrix.M21 * matrix.M42 + matrix.M11 * matrix.M22 * matrix.M43 + matrix.M12 * matrix.M23 * matrix.M41)),
+            M44 = invDet * ((matrix.M11 * matrix.M22 * matrix.M33 + matrix.M12 * matrix.M23 * matrix.M31 + matrix.M13 * matrix.M21 * matrix.M32)
+                          - (matrix.M13 * matrix.M21 * matrix.M32 + matrix.M11 * matrix.M23 * matrix.M32 + matrix.M12 * matrix.M22 * matrix.M31)),
         };
 
         return true;
@@ -1316,10 +1265,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// Transforms a 4D vector by a 4x4 matrix, preserving the computed W component.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector4d Transform(Fixed4x4 matrix, Vector4d vector)
-    {
-        return Vector4d.Transform(matrix, vector);
-    }
+    public static Vector4d Transform(Fixed4x4 matrix, Vector4d vector) => Vector4d.Transform(matrix, vector);
 
     /// <summary>
     /// Transforms a point from local space to world space using this transformation matrix.
@@ -1336,9 +1282,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         if (matrix.IsAffine)
         {
             return new Vector3d(
-                matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m30,
-                matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m31,
-                matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m32
+                matrix.M11 * point.x + matrix.M12 * point.y + matrix.M13 * point.z + matrix.M41,
+                matrix.M21 * point.x + matrix.M22 * point.y + matrix.M23 * point.z + matrix.M42,
+                matrix.M31 * point.x + matrix.M32 * point.y + matrix.M33 * point.z + matrix.M43
             );
         }
 
@@ -1348,13 +1294,13 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     private static Vector3d FullTransformPoint(Fixed4x4 matrix, Vector3d point)
     {
         // Full 4×4 transformation (needed for perspective projections)
-        Fixed64 w = matrix.m03 * point.x + matrix.m13 * point.y + matrix.m23 * point.z + matrix.m33;
+        Fixed64 w = matrix.M14 * point.x + matrix.M24 * point.y + matrix.M34 * point.z + matrix.M44;
         if (w == Fixed64.Zero) w = Fixed64.One;  // Prevent divide-by-zero
 
         return new Vector3d(
-            (matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m30) / w,
-            (matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m31) / w,
-            (matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m32) / w
+            (matrix.M11 * point.x + matrix.M12 * point.y + matrix.M13 * point.z + matrix.M41) / w,
+            (matrix.M21 * point.x + matrix.M22 * point.y + matrix.M23 * point.z + matrix.M42) / w,
+            (matrix.M31 * point.x + matrix.M32 * point.y + matrix.M33 * point.z + matrix.M43) / w
         );
     }
 
@@ -1373,9 +1319,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         if (inverseMatrix.IsAffine)
         {
             return new Vector3d(
-                inverseMatrix.m00 * point.x + inverseMatrix.m01 * point.y + inverseMatrix.m02 * point.z + inverseMatrix.m30,
-                inverseMatrix.m10 * point.x + inverseMatrix.m11 * point.y + inverseMatrix.m12 * point.z + inverseMatrix.m31,
-                inverseMatrix.m20 * point.x + inverseMatrix.m21 * point.y + inverseMatrix.m22 * point.z + inverseMatrix.m32
+                inverseMatrix.M11 * point.x + inverseMatrix.M12 * point.y + inverseMatrix.M13 * point.z + inverseMatrix.M41,
+                inverseMatrix.M21 * point.x + inverseMatrix.M22 * point.y + inverseMatrix.M23 * point.z + inverseMatrix.M42,
+                inverseMatrix.M31 * point.x + inverseMatrix.M32 * point.y + inverseMatrix.M33 * point.z + inverseMatrix.M43
             );
         }
 
@@ -1385,13 +1331,13 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     private static Vector3d FullInverseTransformPoint(Fixed4x4 matrix, Vector3d point)
     {
         // Full 4×4 transformation (needed for perspective projections)
-        Fixed64 w = matrix.m03 * point.x + matrix.m13 * point.y + matrix.m23 * point.z + matrix.m33;
+        Fixed64 w = matrix.M14 * point.x + matrix.M24 * point.y + matrix.M34 * point.z + matrix.M44;
         if (w == Fixed64.Zero) w = Fixed64.One;  // Prevent divide-by-zero
 
         return new Vector3d(
-            (matrix.m00 * point.x + matrix.m01 * point.y + matrix.m02 * point.z + matrix.m30) / w,
-            (matrix.m10 * point.x + matrix.m11 * point.y + matrix.m12 * point.z + matrix.m31) / w,
-            (matrix.m20 * point.x + matrix.m21 * point.y + matrix.m22 * point.z + matrix.m32) / w
+            (matrix.M11 * point.x + matrix.M12 * point.y + matrix.M13 * point.z + matrix.M41) / w,
+            (matrix.M21 * point.x + matrix.M22 * point.y + matrix.M23 * point.z + matrix.M42) / w,
+            (matrix.M31 * point.x + matrix.M32 * point.y + matrix.M33 * point.z + matrix.M43) / w
         );
     }
 
@@ -1406,22 +1352,22 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     public static Fixed4x4 operator -(Fixed4x4 value)
     {
         Fixed4x4 result = default;
-        result.m00 = -value.m00;
-        result.m01 = -value.m01;
-        result.m02 = -value.m02;
-        result.m03 = -value.m03;
-        result.m10 = -value.m10;
-        result.m11 = -value.m11;
-        result.m12 = -value.m12;
-        result.m13 = -value.m13;
-        result.m20 = -value.m20;
-        result.m21 = -value.m21;
-        result.m22 = -value.m22;
-        result.m23 = -value.m23;
-        result.m30 = -value.m30;
-        result.m31 = -value.m31;
-        result.m32 = -value.m32;
-        result.m33 = -value.m33;
+        result.M11 = -value.M11;
+        result.M12 = -value.M12;
+        result.M13 = -value.M13;
+        result.M14 = -value.M14;
+        result.M21 = -value.M21;
+        result.M22 = -value.M22;
+        result.M23 = -value.M23;
+        result.M24 = -value.M24;
+        result.M31 = -value.M31;
+        result.M32 = -value.M32;
+        result.M33 = -value.M33;
+        result.M34 = -value.M34;
+        result.M41 = -value.M41;
+        result.M42 = -value.M42;
+        result.M43 = -value.M43;
+        result.M44 = -value.M44;
         return result;
     }
 
@@ -1429,27 +1375,23 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// Adds two matrices element-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 operator +(Fixed4x4 lhs, Fixed4x4 rhs)
-    {
-        return new Fixed4x4(
-            lhs.m00 + rhs.m00, lhs.m01 + rhs.m01, lhs.m02 + rhs.m02, lhs.m03 + rhs.m03,
-            lhs.m10 + rhs.m10, lhs.m11 + rhs.m11, lhs.m12 + rhs.m12, lhs.m13 + rhs.m13,
-            lhs.m20 + rhs.m20, lhs.m21 + rhs.m21, lhs.m22 + rhs.m22, lhs.m23 + rhs.m23,
-            lhs.m30 + rhs.m30, lhs.m31 + rhs.m31, lhs.m32 + rhs.m32, lhs.m33 + rhs.m33);
-    }
+    public static Fixed4x4 operator +(Fixed4x4 lhs, Fixed4x4 rhs) =>
+        new(
+            lhs.M11 + rhs.M11, lhs.M12 + rhs.M12, lhs.M13 + rhs.M13, lhs.M14 + rhs.M14,
+            lhs.M21 + rhs.M21, lhs.M22 + rhs.M22, lhs.M23 + rhs.M23, lhs.M24 + rhs.M24,
+            lhs.M31 + rhs.M31, lhs.M32 + rhs.M32, lhs.M33 + rhs.M33, lhs.M34 + rhs.M34,
+            lhs.M41 + rhs.M41, lhs.M42 + rhs.M42, lhs.M43 + rhs.M43, lhs.M44 + rhs.M44);
 
     /// <summary>
     /// Subtracts two matrices element-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 operator -(Fixed4x4 lhs, Fixed4x4 rhs)
-    {
-        return new Fixed4x4(
-            lhs.m00 - rhs.m00, lhs.m01 - rhs.m01, lhs.m02 - rhs.m02, lhs.m03 - rhs.m03,
-            lhs.m10 - rhs.m10, lhs.m11 - rhs.m11, lhs.m12 - rhs.m12, lhs.m13 - rhs.m13,
-            lhs.m20 - rhs.m20, lhs.m21 - rhs.m21, lhs.m22 - rhs.m22, lhs.m23 - rhs.m23,
-            lhs.m30 - rhs.m30, lhs.m31 - rhs.m31, lhs.m32 - rhs.m32, lhs.m33 - rhs.m33);
-    }
+    public static Fixed4x4 operator -(Fixed4x4 lhs, Fixed4x4 rhs) =>
+        new(
+            lhs.M11 - rhs.M11, lhs.M12 - rhs.M12, lhs.M13 - rhs.M13, lhs.M14 - rhs.M14,
+            lhs.M21 - rhs.M21, lhs.M22 - rhs.M22, lhs.M23 - rhs.M23, lhs.M24 - rhs.M24,
+            lhs.M31 - rhs.M31, lhs.M32 - rhs.M32, lhs.M33 - rhs.M33, lhs.M34 - rhs.M34,
+            lhs.M41 - rhs.M41, lhs.M42 - rhs.M42, lhs.M43 - rhs.M43, lhs.M44 - rhs.M44);
 
     /// <summary>
     /// Multiplies two 4x4 matrices using standard matrix multiplication.
@@ -1461,24 +1403,24 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         {
             // Optimized affine multiplication (skips full 4×4 multiplication)
             return new Fixed4x4(
-                lhs.m00 * rhs.m00 + lhs.m01 * rhs.m10 + lhs.m02 * rhs.m20,
-                lhs.m00 * rhs.m01 + lhs.m01 * rhs.m11 + lhs.m02 * rhs.m21,
-                lhs.m00 * rhs.m02 + lhs.m01 * rhs.m12 + lhs.m02 * rhs.m22,
+                lhs.M11 * rhs.M11 + lhs.M12 * rhs.M21 + lhs.M13 * rhs.M31,
+                lhs.M11 * rhs.M12 + lhs.M12 * rhs.M22 + lhs.M13 * rhs.M32,
+                lhs.M11 * rhs.M13 + lhs.M12 * rhs.M23 + lhs.M13 * rhs.M33,
                 Fixed64.Zero,
 
-                lhs.m10 * rhs.m00 + lhs.m11 * rhs.m10 + lhs.m12 * rhs.m20,
-                lhs.m10 * rhs.m01 + lhs.m11 * rhs.m11 + lhs.m12 * rhs.m21,
-                lhs.m10 * rhs.m02 + lhs.m11 * rhs.m12 + lhs.m12 * rhs.m22,
+                lhs.M21 * rhs.M11 + lhs.M22 * rhs.M21 + lhs.M23 * rhs.M31,
+                lhs.M21 * rhs.M12 + lhs.M22 * rhs.M22 + lhs.M23 * rhs.M32,
+                lhs.M21 * rhs.M13 + lhs.M22 * rhs.M23 + lhs.M23 * rhs.M33,
                 Fixed64.Zero,
 
-                lhs.m20 * rhs.m00 + lhs.m21 * rhs.m10 + lhs.m22 * rhs.m20,
-                lhs.m20 * rhs.m01 + lhs.m21 * rhs.m11 + lhs.m22 * rhs.m21,
-                lhs.m20 * rhs.m02 + lhs.m21 * rhs.m12 + lhs.m22 * rhs.m22,
+                lhs.M31 * rhs.M11 + lhs.M32 * rhs.M21 + lhs.M33 * rhs.M31,
+                lhs.M31 * rhs.M12 + lhs.M32 * rhs.M22 + lhs.M33 * rhs.M32,
+                lhs.M31 * rhs.M13 + lhs.M32 * rhs.M23 + lhs.M33 * rhs.M33,
                 Fixed64.Zero,
 
-                lhs.m30 * rhs.m00 + lhs.m31 * rhs.m10 + lhs.m32 * rhs.m20 + rhs.m30,
-                lhs.m30 * rhs.m01 + lhs.m31 * rhs.m11 + lhs.m32 * rhs.m21 + rhs.m31,
-                lhs.m30 * rhs.m02 + lhs.m31 * rhs.m12 + lhs.m32 * rhs.m22 + rhs.m32,
+                lhs.M41 * rhs.M11 + lhs.M42 * rhs.M21 + lhs.M43 * rhs.M31 + rhs.M41,
+                lhs.M41 * rhs.M12 + lhs.M42 * rhs.M22 + lhs.M43 * rhs.M32 + rhs.M42,
+                lhs.M41 * rhs.M13 + lhs.M42 * rhs.M23 + lhs.M43 * rhs.M33 + rhs.M43,
                 Fixed64.One
             );
         }
@@ -1486,26 +1428,26 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         // Full 4×4 multiplication (fallback for perspective matrices)
         return new Fixed4x4(
             // Upper-left 3×3 matrix multiplication (rotation & scale)
-            lhs.m00 * rhs.m00 + lhs.m01 * rhs.m10 + lhs.m02 * rhs.m20 + lhs.m03 * rhs.m30,
-            lhs.m00 * rhs.m01 + lhs.m01 * rhs.m11 + lhs.m02 * rhs.m21 + lhs.m03 * rhs.m31,
-            lhs.m00 * rhs.m02 + lhs.m01 * rhs.m12 + lhs.m02 * rhs.m22 + lhs.m03 * rhs.m32,
-            lhs.m00 * rhs.m03 + lhs.m01 * rhs.m13 + lhs.m02 * rhs.m23 + lhs.m03 * rhs.m33,
+            lhs.M11 * rhs.M11 + lhs.M12 * rhs.M21 + lhs.M13 * rhs.M31 + lhs.M14 * rhs.M41,
+            lhs.M11 * rhs.M12 + lhs.M12 * rhs.M22 + lhs.M13 * rhs.M32 + lhs.M14 * rhs.M42,
+            lhs.M11 * rhs.M13 + lhs.M12 * rhs.M23 + lhs.M13 * rhs.M33 + lhs.M14 * rhs.M43,
+            lhs.M11 * rhs.M14 + lhs.M12 * rhs.M24 + lhs.M13 * rhs.M34 + lhs.M14 * rhs.M44,
 
-            lhs.m10 * rhs.m00 + lhs.m11 * rhs.m10 + lhs.m12 * rhs.m20 + lhs.m13 * rhs.m30,
-            lhs.m10 * rhs.m01 + lhs.m11 * rhs.m11 + lhs.m12 * rhs.m21 + lhs.m13 * rhs.m31,
-            lhs.m10 * rhs.m02 + lhs.m11 * rhs.m12 + lhs.m12 * rhs.m22 + lhs.m13 * rhs.m32,
-            lhs.m10 * rhs.m03 + lhs.m11 * rhs.m13 + lhs.m12 * rhs.m23 + lhs.m13 * rhs.m33,
+            lhs.M21 * rhs.M11 + lhs.M22 * rhs.M21 + lhs.M23 * rhs.M31 + lhs.M24 * rhs.M41,
+            lhs.M21 * rhs.M12 + lhs.M22 * rhs.M22 + lhs.M23 * rhs.M32 + lhs.M24 * rhs.M42,
+            lhs.M21 * rhs.M13 + lhs.M22 * rhs.M23 + lhs.M23 * rhs.M33 + lhs.M24 * rhs.M43,
+            lhs.M21 * rhs.M14 + lhs.M22 * rhs.M24 + lhs.M23 * rhs.M34 + lhs.M24 * rhs.M44,
 
-            lhs.m20 * rhs.m00 + lhs.m21 * rhs.m10 + lhs.m22 * rhs.m20 + lhs.m23 * rhs.m30,
-            lhs.m20 * rhs.m01 + lhs.m21 * rhs.m11 + lhs.m22 * rhs.m21 + lhs.m23 * rhs.m31,
-            lhs.m20 * rhs.m02 + lhs.m21 * rhs.m12 + lhs.m22 * rhs.m22 + lhs.m23 * rhs.m32,
-            lhs.m20 * rhs.m03 + lhs.m21 * rhs.m13 + lhs.m22 * rhs.m23 + lhs.m23 * rhs.m33,
+            lhs.M31 * rhs.M11 + lhs.M32 * rhs.M21 + lhs.M33 * rhs.M31 + lhs.M34 * rhs.M41,
+            lhs.M31 * rhs.M12 + lhs.M32 * rhs.M22 + lhs.M33 * rhs.M32 + lhs.M34 * rhs.M42,
+            lhs.M31 * rhs.M13 + lhs.M32 * rhs.M23 + lhs.M33 * rhs.M33 + lhs.M34 * rhs.M43,
+            lhs.M31 * rhs.M14 + lhs.M32 * rhs.M24 + lhs.M33 * rhs.M34 + lhs.M34 * rhs.M44,
 
             // Compute new translation
-            lhs.m30 * rhs.m00 + lhs.m31 * rhs.m10 + lhs.m32 * rhs.m20 + lhs.m33 * rhs.m30,
-            lhs.m30 * rhs.m01 + lhs.m31 * rhs.m11 + lhs.m32 * rhs.m21 + lhs.m33 * rhs.m31,
-            lhs.m30 * rhs.m02 + lhs.m31 * rhs.m12 + lhs.m32 * rhs.m22 + lhs.m33 * rhs.m32,
-            lhs.m30 * rhs.m03 + lhs.m31 * rhs.m13 + lhs.m32 * rhs.m23 + lhs.m33 * rhs.m33
+            lhs.M41 * rhs.M11 + lhs.M42 * rhs.M21 + lhs.M43 * rhs.M31 + lhs.M44 * rhs.M41,
+            lhs.M41 * rhs.M12 + lhs.M42 * rhs.M22 + lhs.M43 * rhs.M32 + lhs.M44 * rhs.M42,
+            lhs.M41 * rhs.M13 + lhs.M42 * rhs.M23 + lhs.M43 * rhs.M33 + lhs.M44 * rhs.M43,
+            lhs.M41 * rhs.M14 + lhs.M42 * rhs.M24 + lhs.M43 * rhs.M34 + lhs.M44 * rhs.M44
         );
     }
 
@@ -1513,23 +1455,18 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// Multiplies every matrix component by a scalar.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 operator *(Fixed4x4 matrix, Fixed64 scalar)
-    {
-        return new Fixed4x4(
-            matrix.m00 * scalar, matrix.m01 * scalar, matrix.m02 * scalar, matrix.m03 * scalar,
-            matrix.m10 * scalar, matrix.m11 * scalar, matrix.m12 * scalar, matrix.m13 * scalar,
-            matrix.m20 * scalar, matrix.m21 * scalar, matrix.m22 * scalar, matrix.m23 * scalar,
-            matrix.m30 * scalar, matrix.m31 * scalar, matrix.m32 * scalar, matrix.m33 * scalar);
-    }
+    public static Fixed4x4 operator *(Fixed4x4 matrix, Fixed64 scalar) =>
+        new(
+            matrix.M11 * scalar, matrix.M12 * scalar, matrix.M13 * scalar, matrix.M14 * scalar,
+            matrix.M21 * scalar, matrix.M22 * scalar, matrix.M23 * scalar, matrix.M24 * scalar,
+            matrix.M31 * scalar, matrix.M32 * scalar, matrix.M33 * scalar, matrix.M34 * scalar,
+            matrix.M41 * scalar, matrix.M42 * scalar, matrix.M43 * scalar, matrix.M44 * scalar);
 
     /// <summary>
     /// Multiplies every matrix component by a scalar.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 operator *(Fixed64 scalar, Fixed4x4 matrix)
-    {
-        return matrix * scalar;
-    }
+    public static Fixed4x4 operator *(Fixed64 scalar, Fixed4x4 matrix) => matrix * scalar;
 
     /// <summary>
     /// Divides every matrix component by a scalar.
@@ -1548,10 +1485,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// <param name="right">The second Fixed4x4 instance to compare.</param>
     /// <returns>true if the specified Fixed4x4 instances are equal; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator ==(Fixed4x4 left, Fixed4x4 right)
-    {
-        return left.Equals(right);
-    }
+    public static bool operator ==(Fixed4x4 left, Fixed4x4 right) => left.Equals(right);
 
     /// <summary>
     /// Determines whether two Fixed4x4 instances are not equal.
@@ -1560,10 +1494,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// <param name="right">The second Fixed4x4 instance to compare.</param>
     /// <returns>true if the specified Fixed4x4 instances are not equal; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator !=(Fixed4x4 left, Fixed4x4 right)
-    {
-        return !(left == right);
-    }
+    public static bool operator !=(Fixed4x4 left, Fixed4x4 right) => !(left == right);
 
     #endregion
 
@@ -1571,20 +1502,15 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
 
     /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override bool Equals(object? obj)
-    {
-        return obj is Fixed4x4 x && Equals(x);
-    }
+    public override bool Equals(object? obj) => obj is Fixed4x4 x && Equals(x);
 
     /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Equals(Fixed4x4 other)
-    {
-        return m00 == other.m00 && m01 == other.m01 && m02 == other.m02 && m03 == other.m03 &&
-               m10 == other.m10 && m11 == other.m11 && m12 == other.m12 && m13 == other.m13 &&
-               m20 == other.m20 && m21 == other.m21 && m22 == other.m22 && m23 == other.m23 &&
-               m30 == other.m30 && m31 == other.m31 && m32 == other.m32 && m33 == other.m33;
-    }
+    public bool Equals(Fixed4x4 other) =>
+        M11 == other.M11 && M12 == other.M12 && M13 == other.M13 && M14 == other.M14 &&
+        M21 == other.M21 && M22 == other.M22 && M23 == other.M23 && M24 == other.M24 &&
+        M31 == other.M31 && M32 == other.M32 && M33 == other.M33 && M34 == other.M34 &&
+        M41 == other.M41 && M42 == other.M42 && M43 == other.M43 && M44 == other.M44;
 
     /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1593,22 +1519,22 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         unchecked
         {
             int hash = 17;
-            hash = hash * 23 + m00.GetHashCode();
-            hash = hash * 23 + m01.GetHashCode();
-            hash = hash * 23 + m02.GetHashCode();
-            hash = hash * 23 + m03.GetHashCode();
-            hash = hash * 23 + m10.GetHashCode();
-            hash = hash * 23 + m11.GetHashCode();
-            hash = hash * 23 + m12.GetHashCode();
-            hash = hash * 23 + m13.GetHashCode();
-            hash = hash * 23 + m20.GetHashCode();
-            hash = hash * 23 + m21.GetHashCode();
-            hash = hash * 23 + m22.GetHashCode();
-            hash = hash * 23 + m23.GetHashCode();
-            hash = hash * 23 + m30.GetHashCode();
-            hash = hash * 23 + m31.GetHashCode();
-            hash = hash * 23 + m32.GetHashCode();
-            hash = hash * 23 + m33.GetHashCode();
+            hash = hash * 23 + M11.GetHashCode();
+            hash = hash * 23 + M12.GetHashCode();
+            hash = hash * 23 + M13.GetHashCode();
+            hash = hash * 23 + M14.GetHashCode();
+            hash = hash * 23 + M21.GetHashCode();
+            hash = hash * 23 + M22.GetHashCode();
+            hash = hash * 23 + M23.GetHashCode();
+            hash = hash * 23 + M24.GetHashCode();
+            hash = hash * 23 + M31.GetHashCode();
+            hash = hash * 23 + M32.GetHashCode();
+            hash = hash * 23 + M33.GetHashCode();
+            hash = hash * 23 + M34.GetHashCode();
+            hash = hash * 23 + M41.GetHashCode();
+            hash = hash * 23 + M42.GetHashCode();
+            hash = hash * 23 + M43.GetHashCode();
+            hash = hash * 23 + M44.GetHashCode();
             return hash;
         }
     }
@@ -1617,14 +1543,12 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
 
     #region Private Helpers
 
-    private static Fixed4x4 FromRotationMatrix(Fixed3x3 matrix)
-    {
-        return new Fixed4x4(
-            matrix.m00, matrix.m01, matrix.m02, Fixed64.Zero,
-            matrix.m10, matrix.m11, matrix.m12, Fixed64.Zero,
-            matrix.m20, matrix.m21, matrix.m22, Fixed64.Zero,
+    private static Fixed4x4 FromRotationMatrix(Fixed3x3 matrix) =>
+        new(
+            matrix.M11, matrix.M12, matrix.M13, Fixed64.Zero,
+            matrix.M21, matrix.M22, matrix.M23, Fixed64.Zero,
+            matrix.M31, matrix.M32, matrix.M33, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
-    }
 
     private static void ValidateDepthRange(Fixed64 nearPlaneDistance, Fixed64 farPlaneDistance)
     {

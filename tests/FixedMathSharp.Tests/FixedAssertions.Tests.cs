@@ -154,9 +154,9 @@ public class FixedAssertionsTests
         Fixed3x3 rotation = Fixed3x3.CreateRotationY(Fixed64.HalfPi);
         Fixed3x3 scaleMatrix = Fixed3x3.CreateScale(scale);
         Fixed3x3 mismatch = new(
-            rotation.m00, rotation.m01, rotation.m02,
-            rotation.m10, rotation.m11, rotation.m12,
-            rotation.m20, rotation.m21, rotation.m22 + Fixed64.FromFloatPoint(0.2));
+            rotation.M11, rotation.M12, rotation.M13,
+            rotation.M21, rotation.M22, rotation.M23,
+            rotation.M31, rotation.M32, rotation.M33 + Fixed64.FromFloatPoint(0.2));
 
         AssertAssertionPasses(() =>
         {
@@ -174,9 +174,9 @@ public class FixedAssertionsTests
     {
         Fixed3x3 rotation = Fixed3x3.CreateRotationY(Fixed64.HalfPi);
         Fixed3x3 mismatch = new(
-            rotation.m00, rotation.m01, rotation.m02,
-            rotation.m10, rotation.m11, rotation.m12,
-            rotation.m20, rotation.m21, rotation.m22 + Fixed64.FromFloatPoint(0.2));
+            rotation.M11, rotation.M12, rotation.M13,
+            rotation.M21, rotation.M22, rotation.M23,
+            rotation.M31, rotation.M32, rotation.M33 + Fixed64.FromFloatPoint(0.2));
         Fixed3x3 unnormalizedAxes = Fixed3x3.CreateScale(new Vector3d(1, 1, 2));
 
         AssertAssertionFails(() => rotation.Should().BeIdentity());
@@ -195,10 +195,10 @@ public class FixedAssertionsTests
         Fixed4x4 transform = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
         Fixed4x4 rotationOnly = Fixed4x4.CreateRotation(rotation);
         Fixed4x4 mismatch = new(
-            transform.m00, transform.m01, transform.m02, transform.m03,
-            transform.m10, transform.m11, transform.m12, transform.m13,
-            transform.m20, transform.m21, transform.m22, transform.m23,
-            transform.m30, transform.m31, transform.m32, transform.m33 + Fixed64.FromFloatPoint(0.2));
+            transform.M11, transform.M12, transform.M13, transform.M14,
+            transform.M21, transform.M22, transform.M23, transform.M24,
+            transform.M31, transform.M32, transform.M33, transform.M34,
+            transform.M41, transform.M42, transform.M43, transform.M44 + Fixed64.FromFloatPoint(0.2));
 
         AssertAssertionPasses(() =>
         {
@@ -223,12 +223,12 @@ public class FixedAssertionsTests
         Vector3d scale = new(2, 2, 2);
         Fixed4x4 transform = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
         Fixed4x4 mismatch = new(
-            transform.m00, transform.m01, transform.m02, transform.m03,
-            transform.m10, transform.m11, transform.m12, transform.m13,
-            transform.m20, transform.m21, transform.m22, transform.m23,
-            transform.m30, transform.m31, transform.m32, transform.m33 + Fixed64.FromFloatPoint(0.2));
+            transform.M11, transform.M12, transform.M13, transform.M14,
+            transform.M21, transform.M22, transform.M23, transform.M24,
+            transform.M31, transform.M32, transform.M33, transform.M34,
+            transform.M41, transform.M42, transform.M43, transform.M44 + Fixed64.FromFloatPoint(0.2));
         Fixed4x4 nonAffine = transform;
-        nonAffine.m03 = Fixed64.One;
+        nonAffine.M14 = Fixed64.One;
         Fixed4x4 unnormalizedBasis = Fixed4x4.CreateScale(new Vector3d(1, 1, 2));
 
         AssertAssertionFails(() => transform.Should().BeIdentity());
@@ -383,31 +383,31 @@ public class FixedAssertionsTests
         switch (componentIndex)
         {
             case 0:
-                matrix.m00 += offset;
+                matrix.M11 += offset;
                 break;
             case 1:
-                matrix.m01 += offset;
+                matrix.M12 += offset;
                 break;
             case 2:
-                matrix.m02 += offset;
+                matrix.M13 += offset;
                 break;
             case 3:
-                matrix.m10 += offset;
+                matrix.M21 += offset;
                 break;
             case 4:
-                matrix.m11 += offset;
+                matrix.M22 += offset;
                 break;
             case 5:
-                matrix.m12 += offset;
+                matrix.M23 += offset;
                 break;
             case 6:
-                matrix.m20 += offset;
+                matrix.M31 += offset;
                 break;
             case 7:
-                matrix.m21 += offset;
+                matrix.M32 += offset;
                 break;
             case 8:
-                matrix.m22 += offset;
+                matrix.M33 += offset;
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(componentIndex));
@@ -430,52 +430,52 @@ public class FixedAssertionsTests
         switch (componentIndex)
         {
             case 0:
-                matrix.m00 += offset;
+                matrix.M11 += offset;
                 break;
             case 1:
-                matrix.m01 += offset;
+                matrix.M12 += offset;
                 break;
             case 2:
-                matrix.m02 += offset;
+                matrix.M13 += offset;
                 break;
             case 3:
-                matrix.m03 += offset;
+                matrix.M14 += offset;
                 break;
             case 4:
-                matrix.m10 += offset;
+                matrix.M21 += offset;
                 break;
             case 5:
-                matrix.m11 += offset;
+                matrix.M22 += offset;
                 break;
             case 6:
-                matrix.m12 += offset;
+                matrix.M23 += offset;
                 break;
             case 7:
-                matrix.m13 += offset;
+                matrix.M24 += offset;
                 break;
             case 8:
-                matrix.m20 += offset;
+                matrix.M31 += offset;
                 break;
             case 9:
-                matrix.m21 += offset;
+                matrix.M32 += offset;
                 break;
             case 10:
-                matrix.m22 += offset;
+                matrix.M33 += offset;
                 break;
             case 11:
-                matrix.m23 += offset;
+                matrix.M34 += offset;
                 break;
             case 12:
-                matrix.m30 += offset;
+                matrix.M41 += offset;
                 break;
             case 13:
-                matrix.m31 += offset;
+                matrix.M42 += offset;
                 break;
             case 14:
-                matrix.m32 += offset;
+                matrix.M43 += offset;
                 break;
             case 15:
-                matrix.m33 += offset;
+                matrix.M44 += offset;
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(componentIndex));

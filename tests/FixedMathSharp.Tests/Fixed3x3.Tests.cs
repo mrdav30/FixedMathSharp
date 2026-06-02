@@ -180,15 +180,15 @@ public class Fixed3x3Tests
         matrix[9] = new Fixed64(8);
         matrix[10] = new Fixed64(9);
 
-        Assert.Equal(new Fixed64(1), matrix.m00);
-        Assert.Equal(new Fixed64(2), matrix.m10);
-        Assert.Equal(new Fixed64(3), matrix.m20);
-        Assert.Equal(new Fixed64(4), matrix.m01);
-        Assert.Equal(new Fixed64(5), matrix.m11);
-        Assert.Equal(new Fixed64(6), matrix.m21);
-        Assert.Equal(new Fixed64(7), matrix.m02);
-        Assert.Equal(new Fixed64(8), matrix.m12);
-        Assert.Equal(new Fixed64(9), matrix.m22);
+        Assert.Equal(new Fixed64(1), matrix.M11);
+        Assert.Equal(new Fixed64(2), matrix.M21);
+        Assert.Equal(new Fixed64(3), matrix.M31);
+        Assert.Equal(new Fixed64(4), matrix.M12);
+        Assert.Equal(new Fixed64(5), matrix.M22);
+        Assert.Equal(new Fixed64(6), matrix.M32);
+        Assert.Equal(new Fixed64(7), matrix.M13);
+        Assert.Equal(new Fixed64(8), matrix.M23);
+        Assert.Equal(new Fixed64(9), matrix.M33);
 
         Assert.Equal(new Fixed64(1), matrix[0]);
         Assert.Equal(new Fixed64(2), matrix[1]);
@@ -354,9 +354,9 @@ public class Fixed3x3Tests
 
         matrix.Normalize();
 
-        var xAxis = new Vector3d(matrix.m00, matrix.m01, matrix.m02);
-        var yAxis = new Vector3d(matrix.m10, matrix.m11, matrix.m12);
-        var zAxis = new Vector3d(matrix.m20, matrix.m21, matrix.m22);
+        var xAxis = new Vector3d(matrix.M11, matrix.M12, matrix.M13);
+        var yAxis = new Vector3d(matrix.M21, matrix.M22, matrix.M23);
+        var zAxis = new Vector3d(matrix.M31, matrix.M32, matrix.M33);
 
         Assert.Equal(Fixed64.One, xAxis.Magnitude);
         Assert.Equal(Fixed64.One, yAxis.Magnitude);
@@ -476,7 +476,7 @@ public class Fixed3x3Tests
 
         var direction = new Vector3d(1, 1, 1);
 
-        Assert.Throws<System.InvalidOperationException>(() =>
+        Assert.Throws<InvalidOperationException>(() =>
             Fixed3x3.InverseTransformDirection(singularMatrix, direction));
     }
 
@@ -533,7 +533,7 @@ public class Fixed3x3Tests
         Assert.Equal(hash, Fixed3x3.CreateScale(new Vector3d(2, 3, 4)).GetHashCode());
 
         var changed = a;
-        changed.m01 = Fixed64.One;
+        changed.M12 = Fixed64.One;
         Assert.True(a != changed);
         Assert.NotEqual(hash, changed.GetHashCode());
         Assert.False(a.Equals((object)"not-a-matrix"));
@@ -587,31 +587,31 @@ public class Fixed3x3Tests
         switch (componentIndex)
         {
             case 0:
-                matrix.m00 += offset;
+                matrix.M11 += offset;
                 break;
             case 1:
-                matrix.m01 += offset;
+                matrix.M12 += offset;
                 break;
             case 2:
-                matrix.m02 += offset;
+                matrix.M13 += offset;
                 break;
             case 3:
-                matrix.m10 += offset;
+                matrix.M21 += offset;
                 break;
             case 4:
-                matrix.m11 += offset;
+                matrix.M22 += offset;
                 break;
             case 5:
-                matrix.m12 += offset;
+                matrix.M23 += offset;
                 break;
             case 6:
-                matrix.m20 += offset;
+                matrix.M31 += offset;
                 break;
             case 7:
-                matrix.m21 += offset;
+                matrix.M32 += offset;
                 break;
             case 8:
-                matrix.m22 += offset;
+                matrix.M33 += offset;
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(componentIndex));

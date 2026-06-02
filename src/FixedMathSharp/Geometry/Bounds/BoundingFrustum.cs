@@ -489,12 +489,12 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
 
     private void CreatePlanes(Fixed4x4 matrix)
     {
-        _planes[0] = FixedPlane.Normalize(new FixedPlane(-matrix.m02, -matrix.m12, -matrix.m22, -matrix.m32));
-        _planes[1] = FixedPlane.Normalize(new FixedPlane(matrix.m02 - matrix.m03, matrix.m12 - matrix.m13, matrix.m22 - matrix.m23, matrix.m32 - matrix.m33));
-        _planes[2] = FixedPlane.Normalize(new FixedPlane(-matrix.m03 - matrix.m00, -matrix.m13 - matrix.m10, -matrix.m23 - matrix.m20, -matrix.m33 - matrix.m30));
-        _planes[3] = FixedPlane.Normalize(new FixedPlane(matrix.m00 - matrix.m03, matrix.m10 - matrix.m13, matrix.m20 - matrix.m23, matrix.m30 - matrix.m33));
-        _planes[4] = FixedPlane.Normalize(new FixedPlane(matrix.m01 - matrix.m03, matrix.m11 - matrix.m13, matrix.m21 - matrix.m23, matrix.m31 - matrix.m33));
-        _planes[5] = FixedPlane.Normalize(new FixedPlane(-matrix.m03 - matrix.m01, -matrix.m13 - matrix.m11, -matrix.m23 - matrix.m21, -matrix.m33 - matrix.m31));
+        _planes[0] = FixedPlane.Normalize(new FixedPlane(-matrix.M13, -matrix.M23, -matrix.M33, -matrix.M43));
+        _planes[1] = FixedPlane.Normalize(new FixedPlane(matrix.M13 - matrix.M14, matrix.M23 - matrix.M24, matrix.M33 - matrix.M34, matrix.M43 - matrix.M44));
+        _planes[2] = FixedPlane.Normalize(new FixedPlane(-matrix.M14 - matrix.M11, -matrix.M24 - matrix.M21, -matrix.M34 - matrix.M31, -matrix.M44 - matrix.M41));
+        _planes[3] = FixedPlane.Normalize(new FixedPlane(matrix.M11 - matrix.M14, matrix.M21 - matrix.M24, matrix.M31 - matrix.M34, matrix.M41 - matrix.M44));
+        _planes[4] = FixedPlane.Normalize(new FixedPlane(matrix.M12 - matrix.M14, matrix.M22 - matrix.M24, matrix.M32 - matrix.M34, matrix.M42 - matrix.M44));
+        _planes[5] = FixedPlane.Normalize(new FixedPlane(-matrix.M14 - matrix.M12, -matrix.M24 - matrix.M22, -matrix.M34 - matrix.M32, -matrix.M44 - matrix.M42));
     }
 
     private void CreateCorners()

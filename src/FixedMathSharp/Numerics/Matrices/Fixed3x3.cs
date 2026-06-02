@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using FixedMathSharp.Support;
 using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
@@ -53,19 +54,19 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(0)]
-    public Fixed64 m00;
+    public Fixed64 M11;
     /// <summary>
     /// Represents the element in the first row and second column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(1)]
-    public Fixed64 m01;
+    public Fixed64 M12;
     /// <summary>
     /// Represents the element in the first row and third column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(2)]
-    public Fixed64 m02;
+    public Fixed64 M13;
 
     // Second Row
 
@@ -74,19 +75,19 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(3)]
-    public Fixed64 m10;
+    public Fixed64 M21;
     /// <summary>
     /// Represents the element in the second row and second column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(4)]
-    public Fixed64 m11;
+    public Fixed64 M22;
     /// <summary>
     /// Represents the element in the second row and third column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(5)]
-    public Fixed64 m12;
+    public Fixed64 M23;
 
     // Third Row
 
@@ -95,19 +96,19 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(6)]
-    public Fixed64 m20;
+    public Fixed64 M31;
     /// <summary>
     /// Represents the element in the third row and second column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(7)]
-    public Fixed64 m21;
+    public Fixed64 M32;
     /// <summary>
     /// Represents the element in the third row and third column of the matrix.
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(8)]
-    public Fixed64 m22;
+    public Fixed64 M33;
 
     #endregion
 
@@ -117,24 +118,34 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// Initializes a new FixedMatrix3x3 with the specified elements.
     /// </summary>
     public Fixed3x3(
-        Fixed64 m00, Fixed64 m01, Fixed64 m02,
-        Fixed64 m10, Fixed64 m11, Fixed64 m12,
-        Fixed64 m20, Fixed64 m21, Fixed64 m22
+        Fixed64 m11, Fixed64 m12, Fixed64 m13,
+        Fixed64 m21, Fixed64 m22, Fixed64 m23,
+        Fixed64 m31, Fixed64 m32, Fixed64 m33
     )
     {
-        this.m00 = m00; this.m01 = m01; this.m02 = m02;
-        this.m10 = m10; this.m11 = m11; this.m12 = m12;
-        this.m20 = m20; this.m21 = m21; this.m22 = m22;
+        this.M11 = m11; this.M12 = m12; this.M13 = m13;
+        this.M21 = m21; this.M22 = m22; this.M23 = m23;
+        this.M31 = m31; this.M32 = m32; this.M33 = m33;
     }
 
     /// <summary>
     /// Initializes a new FixedMatrix3x3 using three Vector3d values representing the rows.
     /// </summary>
     public Fixed3x3(
-        Vector3d m00_m01_m02,
-        Vector3d m10_m11_m12,
-        Vector3d m20_m21_m22
-    ) : this(m00_m01_m02.x, m00_m01_m02.y, m00_m01_m02.z, m10_m11_m12.x, m10_m11_m12.y, m10_m11_m12.z, m20_m21_m22.x, m20_m21_m22.y, m20_m21_m22.z) { }
+        Vector3d m11_m12_m13,
+        Vector3d m21_m22_m23,
+        Vector3d m31_m32_m33
+    ) : this(
+        m11_m12_m13.x,
+        m11_m12_m13.y,
+        m11_m12_m13.z,
+        m21_m22_m23.x,
+        m21_m22_m23.y,
+        m21_m22_m23.z,
+        m31_m32_m33.x,
+        m31_m32_m33.y,
+        m31_m32_m33.z)
+    { }
 
     #endregion
 
@@ -158,15 +169,15 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         {
             return index switch
             {
-                0 => m00,
-                1 => m10,
-                2 => m20,
-                4 => m01,
-                5 => m11,
-                6 => m21,
-                8 => m02,
-                9 => m12,
-                10 => m22,
+                0 => M11,
+                1 => M21,
+                2 => M31,
+                4 => M12,
+                5 => M22,
+                6 => M32,
+                8 => M13,
+                9 => M23,
+                10 => M33,
                 _ => throw new IndexOutOfRangeException("Invalid matrix index!"),
             };
         }
@@ -175,31 +186,31 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
             switch (index)
             {
                 case 0:
-                    m00 = value;
+                    M11 = value;
                     break;
                 case 1:
-                    m10 = value;
+                    M21 = value;
                     break;
                 case 2:
-                    m20 = value;
+                    M31 = value;
                     break;
                 case 4:
-                    m01 = value;
+                    M12 = value;
                     break;
                 case 5:
-                    m11 = value;
+                    M22 = value;
                     break;
                 case 6:
-                    m21 = value;
+                    M32 = value;
                     break;
                 case 8:
-                    m02 = value;
+                    M13 = value;
                     break;
                 case 9:
-                    m12 = value;
+                    M23 = value;
                     break;
                 case 10:
-                    m22 = value;
+                    M33 = value;
                     break;
                 default:
                     throw new IndexOutOfRangeException("Invalid matrix index!");
@@ -212,28 +223,20 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     #region Methods (Instance)
 
     /// <inheritdoc cref="Normalize(Fixed3x3)" />
-    public Fixed3x3 Normalize()
-    {
-        return this = Normalize(this);
-    }
+    public Fixed3x3 Normalize() => this = Normalize(this);
 
     /// <inheritdoc cref="ResetScaleToIdentity(Fixed3x3)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Fixed3x3 ResetScaleToIdentity()
-    {
-        return this = ResetScaleToIdentity(this);
-    }
+    public Fixed3x3 ResetScaleToIdentity() => this = ResetScaleToIdentity(this);
 
     /// <summary>
     /// Calculates the determinant of a 3x3 matrix.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Fixed64 GetDeterminant()
-    {
-        return m00 * (m11 * m22 - m12 * m21) -
-               m01 * (m10 * m22 - m12 * m20) +
-               m02 * (m10 * m21 - m11 * m20);
-    }
+    public Fixed64 GetDeterminant() =>
+         M11 * (M22 * M33 - M23 * M32) -
+         M12 * (M21 * M33 - M23 * M31) +
+         M13 * (M21 * M32 - M22 * M31);
 
     /// <summary>
     /// Inverts the diagonal elements of the matrix.
@@ -249,16 +252,19 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// </remarks>
     public Fixed3x3 InvertDiagonal()
     {
-        if (m11 == Fixed64.Zero)
+        try
         {
-            Console.WriteLine("Cannot invert a diagonal matrix with zero elements on the diagonal.");
+            FixedThrowHelper.ThrowIfArgument(M22 == Fixed64.Zero, "Cannot invert a diagonal matrix with zero elements on the diagonal.");
+        }
+        catch (ArgumentException)
+        {
             return this;
         }
 
         return new Fixed3x3(
-            m00 != Fixed64.Zero ? Fixed64.One / m00 : Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.One / m11, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, m22 != Fixed64.Zero ? Fixed64.One / m22 : Fixed64.Zero
+            M11 != Fixed64.Zero ? Fixed64.One / M11 : Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.One / M22, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, M33 != Fixed64.Zero ? Fixed64.One / M33 : Fixed64.Zero
         );
     }
 
@@ -324,14 +330,10 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <param name="shY">Shear factor along the Y-axis.</param>
     /// <param name="shZ">Shear factor along the Z-axis.</param>
     /// <returns>A 3x3 shear matrix.</returns>
-    public static Fixed3x3 CreateShear(Fixed64 shX, Fixed64 shY, Fixed64 shZ)
-    {
-        return new Fixed3x3(
-            Fixed64.One, shX, shY,
+    public static Fixed3x3 CreateShear(Fixed64 shX, Fixed64 shY, Fixed64 shZ) =>
+         new(Fixed64.One, shX, shY,
             shX, Fixed64.One, shZ,
-            shY, shZ, Fixed64.One
-        );
-    }
+            shY, shZ, Fixed64.One);
 
     /// <summary>
     /// Creates a scaling matrix that applies a uniform or non-uniform scale transformation.
@@ -339,14 +341,10 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <param name="scale">The scale factors along the X, Y, and Z axes.</param>
     /// <returns>A 3x3 scaling matrix.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 CreateScale(Vector3d scale)
-    {
-        return new Fixed3x3(
-            scale.x, Fixed64.Zero, Fixed64.Zero,
+    public static Fixed3x3 CreateScale(Vector3d scale) =>
+        new(scale.x, Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, scale.y, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, scale.z
-        );
-    }
+            Fixed64.Zero, Fixed64.Zero, scale.z);
 
     /// <summary>
     /// Creates a uniform scaling matrix with the same scale factor on all axes.
@@ -354,10 +352,8 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <param name="scaleFactor">The uniform scale factor.</param>
     /// <returns>A 3x3 scaling matrix with uniform scaling.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 CreateScale(Fixed64 scaleFactor)
-    {
-        return CreateScale(new Vector3d(scaleFactor, scaleFactor, scaleFactor));
-    }
+    public static Fixed3x3 CreateScale(Fixed64 scaleFactor) =>
+        CreateScale(new Vector3d(scaleFactor, scaleFactor, scaleFactor));
 
     /// <summary>
     /// Normalizes the basis vectors of a 3x3 matrix to ensure they are orthogonal and unit length.
@@ -373,13 +369,13 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// </remarks>
     public static Fixed3x3 Normalize(Fixed3x3 matrix)
     {
-        var x = new Vector3d(matrix.m00, matrix.m01, matrix.m02).Normalize();
-        var y = new Vector3d(matrix.m10, matrix.m11, matrix.m12).Normalize();
+        var x = new Vector3d(matrix.M11, matrix.M12, matrix.M13).Normalize();
+        var y = new Vector3d(matrix.M21, matrix.M22, matrix.M23).Normalize();
         var z = Vector3d.Cross(x, y).Normalize();
 
-        matrix.m00 = x.x; matrix.m01 = x.y; matrix.m02 = x.z;
-        matrix.m10 = y.x; matrix.m11 = y.y; matrix.m12 = y.z;
-        matrix.m20 = z.x; matrix.m21 = z.y; matrix.m22 = z.z;
+        matrix.M11 = x.x; matrix.M12 = x.y; matrix.M13 = x.z;
+        matrix.M21 = y.x; matrix.M22 = y.y; matrix.M23 = y.z;
+        matrix.M31 = z.x; matrix.M32 = z.y; matrix.M33 = z.z;
 
         return matrix;
     }
@@ -390,31 +386,24 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed3x3 ResetScaleToIdentity(Fixed3x3 matrix)
     {
-        matrix.m00 = Fixed64.One;  // Reset scale on X-axis
-        matrix.m11 = Fixed64.One;  // Reset scale on Y-axis
-        matrix.m22 = Fixed64.One;  // Reset scale on Z-axis
+        matrix.M11 = Fixed64.One;  // Reset scale on X-axis
+        matrix.M22 = Fixed64.One;  // Reset scale on Y-axis
+        matrix.M33 = Fixed64.One;  // Reset scale on Z-axis
         return matrix;
     }
 
     /// <inheritdoc cref="SetLossyScale(Fixed64, Fixed64, Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 SetLossyScale(Vector3d scale)
-    {
-        return SetLossyScale(scale.x, scale.y, scale.z);
-    }
+    public static Fixed3x3 SetLossyScale(Vector3d scale) => SetLossyScale(scale.x, scale.y, scale.z);
 
     /// <summary>
     /// Creates a scaling matrix (puts the 'scale' vector down the diagonal)
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 SetLossyScale(Fixed64 x, Fixed64 y, Fixed64 z)
-    {
-        return new Fixed3x3(
-            x, Fixed64.Zero, Fixed64.Zero,
+    public static Fixed3x3 SetLossyScale(Fixed64 x, Fixed64 y, Fixed64 z) =>
+        new(x, Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, y, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, z
-        );
-    }
+            Fixed64.Zero, Fixed64.Zero, z);
 
     /// <summary>
     /// Applies the provided local scale to the matrix by modifying the diagonal elements.
@@ -423,9 +412,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <param name="localScale">A Vector3d representing the local scale to apply.</param>
     public static Fixed3x3 SetScale(Fixed3x3 matrix, Vector3d localScale)
     {
-        matrix.m00 = localScale.x; // Apply scale on X-axis
-        matrix.m11 = localScale.y; // Apply scale on Y-axis
-        matrix.m22 = localScale.z; // Apply scale on Z-axis
+        matrix.M11 = localScale.x; // Apply scale on X-axis
+        matrix.M22 = localScale.y; // Apply scale on Y-axis
+        matrix.M33 = localScale.z; // Apply scale on Z-axis
 
         return matrix;
     }
@@ -464,23 +453,16 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// Extracts the scaling factors from the matrix by returning the diagonal elements.
     /// </summary>
     /// <returns>A Vector3d representing the scale along X, Y, and Z axes.</returns>
-    public static Vector3d ExtractScale(Fixed3x3 matrix)
-    {
-        return new Vector3d(
-            new Vector3d(matrix.m00, matrix.m01, matrix.m02).Magnitude,
-            new Vector3d(matrix.m10, matrix.m11, matrix.m12).Magnitude,
-            new Vector3d(matrix.m20, matrix.m21, matrix.m22).Magnitude
-        );
-    }
+    public static Vector3d ExtractScale(Fixed3x3 matrix) =>
+        new(new Vector3d(matrix.M11, matrix.M12, matrix.M13).Magnitude,
+            new Vector3d(matrix.M21, matrix.M22, matrix.M23).Magnitude,
+            new Vector3d(matrix.M31, matrix.M32, matrix.M33).Magnitude);
 
     /// <summary>
     /// Extracts the scaling factors from the matrix by returning the diagonal elements (lossy).
     /// </summary>
     /// <returns>A Vector3d representing the scale along X, Y, and Z axes (lossy).</returns>
-    public static Vector3d ExtractLossyScale(Fixed3x3 matrix)
-    {
-        return new Vector3d(matrix.m00, matrix.m11, matrix.m22);
-    }
+    public static Vector3d ExtractLossyScale(Fixed3x3 matrix) => new Vector3d(matrix.M11, matrix.M22, matrix.M33);
 
     #endregion
 
@@ -489,28 +471,19 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <summary>
     /// Linearly interpolates between two matrices.
     /// </summary>
-    public static Fixed3x3 Lerp(Fixed3x3 a, Fixed3x3 b, Fixed64 t)
-    {
-        // Perform a linear interpolation between two matrices
-        return new Fixed3x3(
-            FixedMath.Lerp(a.m00, b.m00, t), FixedMath.Lerp(a.m01, b.m01, t), FixedMath.Lerp(a.m02, b.m02, t),
-            FixedMath.Lerp(a.m10, b.m10, t), FixedMath.Lerp(a.m11, b.m11, t), FixedMath.Lerp(a.m12, b.m12, t),
-            FixedMath.Lerp(a.m20, b.m20, t), FixedMath.Lerp(a.m21, b.m21, t), FixedMath.Lerp(a.m22, b.m22, t)
-        );
-    }
+    public static Fixed3x3 Lerp(Fixed3x3 a, Fixed3x3 b, Fixed64 t) =>
+        new(FixedMath.Lerp(a.M11, b.M11, t), FixedMath.Lerp(a.M12, b.M12, t), FixedMath.Lerp(a.M13, b.M13, t),
+            FixedMath.Lerp(a.M21, b.M21, t), FixedMath.Lerp(a.M22, b.M22, t), FixedMath.Lerp(a.M23, b.M23, t),
+            FixedMath.Lerp(a.M31, b.M31, t), FixedMath.Lerp(a.M32, b.M32, t), FixedMath.Lerp(a.M33, b.M33, t));
 
     /// <summary>
     /// Transposes the matrix (swaps rows and columns).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 Transpose(Fixed3x3 matrix)
-    {
-        return new Fixed3x3(
-            matrix.m00, matrix.m10, matrix.m20,
-            matrix.m01, matrix.m11, matrix.m21,
-            matrix.m02, matrix.m12, matrix.m22
-        );
-    }
+    public static Fixed3x3 Transpose(Fixed3x3 matrix) =>
+        new(matrix.M11, matrix.M21, matrix.M31,
+            matrix.M12, matrix.M22, matrix.M32,
+            matrix.M13, matrix.M23, matrix.M33);
 
     /// <summary>
     /// Attempts to invert the matrix. If the determinant is zero, returns false and sets result to null.
@@ -531,17 +504,17 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
 
         // Compute the inverse matrix
         result = new Fixed3x3(
-            invDet * (matrix.m11 * matrix.m22 - matrix.m21 * matrix.m12),
-            invDet * (matrix.m02 * matrix.m21 - matrix.m01 * matrix.m22),
-            invDet * (matrix.m01 * matrix.m12 - matrix.m02 * matrix.m11),
+            invDet * (matrix.M22 * matrix.M33 - matrix.M32 * matrix.M23),
+            invDet * (matrix.M13 * matrix.M32 - matrix.M12 * matrix.M33),
+            invDet * (matrix.M12 * matrix.M23 - matrix.M13 * matrix.M22),
 
-            invDet * (matrix.m12 * matrix.m20 - matrix.m10 * matrix.m22),
-            invDet * (matrix.m00 * matrix.m22 - matrix.m02 * matrix.m20),
-            invDet * (matrix.m02 * matrix.m10 - matrix.m00 * matrix.m12),
+            invDet * (matrix.M23 * matrix.M31 - matrix.M21 * matrix.M33),
+            invDet * (matrix.M11 * matrix.M33 - matrix.M13 * matrix.M31),
+            invDet * (matrix.M13 * matrix.M21 - matrix.M11 * matrix.M23),
 
-            invDet * (matrix.m10 * matrix.m21 - matrix.m11 * matrix.m20),
-            invDet * (matrix.m01 * matrix.m20 - matrix.m00 * matrix.m21),
-            invDet * (matrix.m00 * matrix.m11 - matrix.m01 * matrix.m10)
+            invDet * (matrix.M21 * matrix.M32 - matrix.M22 * matrix.M31),
+            invDet * (matrix.M12 * matrix.M31 - matrix.M11 * matrix.M32),
+            invDet * (matrix.M11 * matrix.M22 - matrix.M12 * matrix.M21)
         );
 
         return true;
@@ -555,14 +528,10 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <param name="direction">The local-space direction vector.</param>
     /// <returns>The transformed direction in world space.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d TransformDirection(Fixed3x3 matrix, Vector3d direction)
-    {
-        return new Vector3d(
-            matrix.m00 * direction.x + matrix.m01 * direction.y + matrix.m02 * direction.z,
-            matrix.m10 * direction.x + matrix.m11 * direction.y + matrix.m12 * direction.z,
-            matrix.m20 * direction.x + matrix.m21 * direction.y + matrix.m22 * direction.z
-        );
-    }
+    public static Vector3d TransformDirection(Fixed3x3 matrix, Vector3d direction) =>
+        new(matrix.M11 * direction.x + matrix.M12 * direction.y + matrix.M13 * direction.z,
+            matrix.M21 * direction.x + matrix.M22 * direction.y + matrix.M23 * direction.z,
+            matrix.M31 * direction.x + matrix.M32 * direction.y + matrix.M33 * direction.z);
 
     /// <summary>
     /// Transforms a direction from world space into the local space of the matrix.
@@ -573,13 +542,13 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <returns>The transformed local-space direction.</returns>
     public static Vector3d InverseTransformDirection(Fixed3x3 matrix, Vector3d direction)
     {
-        if (!Invert(matrix, out Fixed3x3? inverseMatrix) || !inverseMatrix.HasValue)
-            throw new InvalidOperationException("Matrix is not invertible.");
+        bool canInvert = !Invert(matrix, out Fixed3x3? inverseMatrix) || !inverseMatrix.HasValue;
+        FixedThrowHelper.ThrowIfInvalid(canInvert, "Matrix is not invertible.");
 
         return new Vector3d(
-            inverseMatrix.Value.m00 * direction.x + inverseMatrix.Value.m01 * direction.y + inverseMatrix.Value.m02 * direction.z,
-            inverseMatrix.Value.m10 * direction.x + inverseMatrix.Value.m11 * direction.y + inverseMatrix.Value.m12 * direction.z,
-            inverseMatrix.Value.m20 * direction.x + inverseMatrix.Value.m21 * direction.y + inverseMatrix.Value.m22 * direction.z
+            inverseMatrix!.Value.M11 * direction.x + inverseMatrix.Value.M12 * direction.y + inverseMatrix.Value.M13 * direction.z,
+            inverseMatrix.Value.M21 * direction.x + inverseMatrix.Value.M22 * direction.y + inverseMatrix.Value.M23 * direction.z,
+            inverseMatrix.Value.M31 * direction.x + inverseMatrix.Value.M32 * direction.y + inverseMatrix.Value.M33 * direction.z
         );
     }
 
@@ -596,15 +565,10 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// A Fixed3x3 matrix whose elements are the result of subtracting each element of parameter b from the corresponding element of parameter a.
     /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 operator -(Fixed3x3 a, Fixed3x3 b)
-    {
-        // Subtract each element
-        return new Fixed3x3(
-            a.m00 - b.m00, a.m01 - b.m01, a.m02 - b.m02,
-            a.m10 - b.m10, a.m11 - b.m11, a.m12 - b.m12,
-            a.m20 - b.m20, a.m21 - b.m21, a.m22 - b.m22
-        );
-    }
+    public static Fixed3x3 operator -(Fixed3x3 a, Fixed3x3 b) =>
+        new(a.M11 - b.M11, a.M12 - b.M12, a.M13 - b.M13,
+            a.M21 - b.M21, a.M22 - b.M22, a.M23 - b.M23,
+            a.M31 - b.M31, a.M32 - b.M32, a.M33 - b.M33);
 
     /// <summary>
     /// Adds two Fixed3x3 matrices element-wise.
@@ -613,28 +577,19 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <param name="b">The second matrix to add.</param>
     /// <returns>A Fixed3x3 matrix whose elements are the sums of the corresponding elements of the input matrices.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 operator +(Fixed3x3 a, Fixed3x3 b)
-    {
-        // Add each element
-        return new Fixed3x3(
-            a.m00 + b.m00, a.m01 + b.m01, a.m02 + b.m02,
-            a.m10 + b.m10, a.m11 + b.m11, a.m12 + b.m12,
-            a.m20 + b.m20, a.m21 + b.m21, a.m22 + b.m22
-        );
-    }
+    public static Fixed3x3 operator +(Fixed3x3 a, Fixed3x3 b) =>
+        new(a.M11 + b.M11, a.M12 + b.M12, a.M13 + b.M13,
+            a.M21 + b.M21, a.M22 + b.M22, a.M23 + b.M23,
+            a.M31 + b.M31, a.M32 + b.M32, a.M33 + b.M33);
+
     /// <summary>
     /// Negates all elements of the matrix.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 operator -(Fixed3x3 a)
-    {
-        // Negate each element
-        return new Fixed3x3(
-            -a.m00, -a.m01, -a.m02,
-            -a.m10, -a.m11, -a.m12,
-            -a.m20, -a.m21, -a.m22
-        );
-    }
+    public static Fixed3x3 operator -(Fixed3x3 a) =>
+        new(-a.M11, -a.M12, -a.M13,
+            -a.M21, -a.M22, -a.M23,
+            -a.M31, -a.M32, -a.M33);
 
     /// <summary>
     /// Performs matrix multiplication on two 3x3 matrices.
@@ -643,23 +598,18 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <param name="a">The first matrix to multiply.</param>
     /// <param name="b">The second matrix to multiply.</param>
     /// <returns>A new Fixed3x3 instance that is the product of the two input matrices.</returns>
-    public static Fixed3x3 operator *(Fixed3x3 a, Fixed3x3 b)
-    {
-        // Perform matrix multiplication
-        return new Fixed3x3(
-            a.m00 * b.m00 + a.m01 * b.m10 + a.m02 * b.m20,
-            a.m00 * b.m01 + a.m01 * b.m11 + a.m02 * b.m21,
-            a.m00 * b.m02 + a.m01 * b.m12 + a.m02 * b.m22,
+    public static Fixed3x3 operator *(Fixed3x3 a, Fixed3x3 b) =>
+        new(a.M11 * b.M11 + a.M12 * b.M21 + a.M13 * b.M31,
+            a.M11 * b.M12 + a.M12 * b.M22 + a.M13 * b.M32,
+            a.M11 * b.M13 + a.M12 * b.M23 + a.M13 * b.M33,
 
-            a.m10 * b.m00 + a.m11 * b.m10 + a.m12 * b.m20,
-            a.m10 * b.m01 + a.m11 * b.m11 + a.m12 * b.m21,
-            a.m10 * b.m02 + a.m11 * b.m12 + a.m12 * b.m22,
+            a.M21 * b.M11 + a.M22 * b.M21 + a.M23 * b.M31,
+            a.M21 * b.M12 + a.M22 * b.M22 + a.M23 * b.M32,
+            a.M21 * b.M13 + a.M22 * b.M23 + a.M23 * b.M33,
 
-            a.m20 * b.m00 + a.m21 * b.m10 + a.m22 * b.m20,
-            a.m20 * b.m01 + a.m21 * b.m11 + a.m22 * b.m21,
-            a.m20 * b.m02 + a.m21 * b.m12 + a.m22 * b.m22
-        );
-    }
+            a.M31 * b.M11 + a.M32 * b.M21 + a.M33 * b.M31,
+            a.M31 * b.M12 + a.M32 * b.M22 + a.M33 * b.M32,
+            a.M31 * b.M13 + a.M32 * b.M23 + a.M33 * b.M33);
 
     /// <summary>
     /// Multiplies each element of the specified matrix by the given scalar value.
@@ -669,22 +619,13 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <returns>
     /// A new Fixed3x3 matrix whose elements are the result of multiplying each element of the input matrix by the scalar value.
     /// </returns>
-    public static Fixed3x3 operator *(Fixed3x3 a, Fixed64 scalar)
-    {
-        // Perform matrix multiplication by scalar
-        return new Fixed3x3(
-            a.m00 * scalar, a.m01 * scalar, a.m02 * scalar,
-            a.m10 * scalar, a.m11 * scalar, a.m12 * scalar,
-            a.m20 * scalar, a.m21 * scalar, a.m22 * scalar
-        );
-    }
+    public static Fixed3x3 operator *(Fixed3x3 a, Fixed64 scalar) =>
+        new(a.M11 * scalar, a.M12 * scalar, a.M13 * scalar,
+            a.M21 * scalar, a.M22 * scalar, a.M23 * scalar,
+            a.M31 * scalar, a.M32 * scalar, a.M33 * scalar);
 
     /// <inheritdoc cref="operator *(Fixed3x3, Fixed64)"/>
-    public static Fixed3x3 operator *(Fixed64 scalar, Fixed3x3 a)
-    {
-        // Perform matrix multiplication by scalar
-        return a * scalar;
-    }
+    public static Fixed3x3 operator *(Fixed64 scalar, Fixed3x3 a) => a * scalar;
 
     /// <summary>
     /// Divides each element of the specified matrix by the given scalar value.
@@ -698,15 +639,10 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <returns>
     /// A new Fixed3x3 matrix whose elements are the result of dividing the corresponding elements of the input matrix by the specified scalar.
     /// </returns>
-    public static Fixed3x3 operator /(Fixed3x3 a, int divisor)
-    {
-        // Perform matrix multiplication by scalar
-        return new Fixed3x3(
-            a.m00 / divisor, a.m01 / divisor, a.m02 / divisor,
-            a.m10 / divisor, a.m11 / divisor, a.m12 / divisor,
-            a.m20 / divisor, a.m21 / divisor, a.m22 / divisor
-        );
-    }
+    public static Fixed3x3 operator /(Fixed3x3 a, int divisor) =>
+         new(a.M11 / divisor, a.M12 / divisor, a.M13 / divisor,
+             a.M21 / divisor, a.M22 / divisor, a.M23 / divisor,
+             a.M31 / divisor, a.M32 / divisor, a.M33 / divisor);
 
     /// <summary>
     /// Determines whether two Fixed3x3 instances are equal.
@@ -715,10 +651,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <param name="right">The second Fixed3x3 instance to compare.</param>
     /// <returns>true if the specified Fixed3x3 instances are equal; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator ==(Fixed3x3 left, Fixed3x3 right)
-    {
-        return left.Equals(right);
-    }
+    public static bool operator ==(Fixed3x3 left, Fixed3x3 right) => left.Equals(right);
 
     /// <summary>
     /// Determines whether two Fixed3x3 instances are not equal.
@@ -727,10 +660,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <param name="right">The second Fixed3x3 instance to compare.</param>
     /// <returns>true if the specified Fixed3x3 instances are not equal; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator !=(Fixed3x3 left, Fixed3x3 right)
-    {
-        return !left.Equals(right);
-    }
+    public static bool operator !=(Fixed3x3 left, Fixed3x3 right) => !left.Equals(right);
 
     #endregion
 
@@ -738,21 +668,15 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
 
     /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Equals(Fixed3x3 other)
-    {
-        // Compare each element for equality
-        return
-            m00 == other.m00 && m01 == other.m01 && m02 == other.m02 &&
-            m10 == other.m10 && m11 == other.m11 && m12 == other.m12 &&
-            m20 == other.m20 && m21 == other.m21 && m22 == other.m22;
-    }
+    public bool Equals(Fixed3x3 other) =>
+        M11 == other.M11 && M12 == other.M12 && M13 == other.M13 &&
+        M21 == other.M21 && M22 == other.M22 && M23 == other.M23 &&
+        M31 == other.M31 && M32 == other.M32 && M33 == other.M33;
+
 
     /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override bool Equals(object? obj)
-    {
-        return obj is Fixed3x3 other && Equals(other);
-    }
+    public override bool Equals(object? obj) => obj is Fixed3x3 other && Equals(other);
 
     /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -761,15 +685,15 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         unchecked
         {
             int hash = 17;
-            hash = hash * 23 + m00.GetHashCode();
-            hash = hash * 23 + m01.GetHashCode();
-            hash = hash * 23 + m02.GetHashCode();
-            hash = hash * 23 + m10.GetHashCode();
-            hash = hash * 23 + m11.GetHashCode();
-            hash = hash * 23 + m12.GetHashCode();
-            hash = hash * 23 + m20.GetHashCode();
-            hash = hash * 23 + m21.GetHashCode();
-            hash = hash * 23 + m22.GetHashCode();
+            hash = hash * 23 + M11.GetHashCode();
+            hash = hash * 23 + M12.GetHashCode();
+            hash = hash * 23 + M13.GetHashCode();
+            hash = hash * 23 + M21.GetHashCode();
+            hash = hash * 23 + M22.GetHashCode();
+            hash = hash * 23 + M23.GetHashCode();
+            hash = hash * 23 + M31.GetHashCode();
+            hash = hash * 23 + M32.GetHashCode();
+            hash = hash * 23 + M33.GetHashCode();
             return hash;
         }
     }
@@ -787,10 +711,8 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// </remarks>
     /// <returns>A string containing the matrix elements formatted as "[m00, m01, m02; m10, m11, m12; m20, m21, m22]".</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override string ToString()
-    {
-        return $"[{m00}, {m01}, {m02}; {m10}, {m11}, {m12}; {m20}, {m21}, {m22}]";
-    }
+    public override string ToString() =>
+         $"[{M11}, {M12}, {M13}; {M21}, {M22}, {M23}; {M31}, {M32}, {M33}]";
 
     #endregion
 }

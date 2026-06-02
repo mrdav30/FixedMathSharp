@@ -24,4 +24,18 @@ internal static class FixedThrowHelper
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowArgumentNullException(string? paramName, string? message = null) =>
         throw new ArgumentNullException(paramName, message);
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void ThrowIfArgument([DoesNotReturnIf(true)] bool condition, string? message = null)
+    {
+        if (condition)
+            throw new ArgumentException(message);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void ThrowIfInvalid([DoesNotReturnIf(true)] bool condition, string? message = null)
+    {
+        if (condition)
+            throw new InvalidOperationException(message);
+    }
 }

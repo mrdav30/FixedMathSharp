@@ -45,22 +45,22 @@ public class Fixed4x4Tests
 
         var matrix = Fixed4x4.FromRows(row0, row1, row2, row3);
 
-        Assert.Equal(row0.x, matrix.m00);
-        Assert.Equal(row0.y, matrix.m01);
-        Assert.Equal(row0.z, matrix.m02);
-        Assert.Equal(row0.w, matrix.m03);
-        Assert.Equal(row1.x, matrix.m10);
-        Assert.Equal(row1.y, matrix.m11);
-        Assert.Equal(row1.z, matrix.m12);
-        Assert.Equal(row1.w, matrix.m13);
-        Assert.Equal(row2.x, matrix.m20);
-        Assert.Equal(row2.y, matrix.m21);
-        Assert.Equal(row2.z, matrix.m22);
-        Assert.Equal(row2.w, matrix.m23);
-        Assert.Equal(row3.x, matrix.m30);
-        Assert.Equal(row3.y, matrix.m31);
-        Assert.Equal(row3.z, matrix.m32);
-        Assert.Equal(row3.w, matrix.m33);
+        Assert.Equal(row0.x, matrix.M11);
+        Assert.Equal(row0.y, matrix.M12);
+        Assert.Equal(row0.z, matrix.M13);
+        Assert.Equal(row0.w, matrix.M14);
+        Assert.Equal(row1.x, matrix.M21);
+        Assert.Equal(row1.y, matrix.M22);
+        Assert.Equal(row1.z, matrix.M23);
+        Assert.Equal(row1.w, matrix.M24);
+        Assert.Equal(row2.x, matrix.M31);
+        Assert.Equal(row2.y, matrix.M32);
+        Assert.Equal(row2.z, matrix.M33);
+        Assert.Equal(row2.w, matrix.M34);
+        Assert.Equal(row3.x, matrix.M41);
+        Assert.Equal(row3.y, matrix.M42);
+        Assert.Equal(row3.z, matrix.M43);
+        Assert.Equal(row3.w, matrix.M44);
     }
 
     [Fact]
@@ -73,22 +73,22 @@ public class Fixed4x4Tests
 
         var matrix = Fixed4x4.FromColumns(column0, column1, column2, column3);
 
-        Assert.Equal(column0.x, matrix.m00);
-        Assert.Equal(column0.y, matrix.m10);
-        Assert.Equal(column0.z, matrix.m20);
-        Assert.Equal(column0.w, matrix.m30);
-        Assert.Equal(column1.x, matrix.m01);
-        Assert.Equal(column1.y, matrix.m11);
-        Assert.Equal(column1.z, matrix.m21);
-        Assert.Equal(column1.w, matrix.m31);
-        Assert.Equal(column2.x, matrix.m02);
-        Assert.Equal(column2.y, matrix.m12);
-        Assert.Equal(column2.z, matrix.m22);
-        Assert.Equal(column2.w, matrix.m32);
-        Assert.Equal(column3.x, matrix.m03);
-        Assert.Equal(column3.y, matrix.m13);
-        Assert.Equal(column3.z, matrix.m23);
-        Assert.Equal(column3.w, matrix.m33);
+        Assert.Equal(column0.x, matrix.M11);
+        Assert.Equal(column0.y, matrix.M21);
+        Assert.Equal(column0.z, matrix.M31);
+        Assert.Equal(column0.w, matrix.M41);
+        Assert.Equal(column1.x, matrix.M12);
+        Assert.Equal(column1.y, matrix.M22);
+        Assert.Equal(column1.z, matrix.M32);
+        Assert.Equal(column1.w, matrix.M42);
+        Assert.Equal(column2.x, matrix.M13);
+        Assert.Equal(column2.y, matrix.M23);
+        Assert.Equal(column2.z, matrix.M33);
+        Assert.Equal(column2.w, matrix.M43);
+        Assert.Equal(column3.x, matrix.M14);
+        Assert.Equal(column3.y, matrix.M24);
+        Assert.Equal(column3.z, matrix.M34);
+        Assert.Equal(column3.w, matrix.M44);
     }
 
     [Fact]
@@ -109,8 +109,8 @@ public class Fixed4x4Tests
 
         Assert.Equal(new Vector3d(3, 3, 3), uniform.Scale);
         Assert.Equal(new Vector3d(2, 3, 4), nonUniform.Scale);
-        Assert.Equal(Fixed64.One, uniform.m33);
-        Assert.Equal(Fixed64.One, nonUniform.m33);
+        Assert.Equal(Fixed64.One, uniform.M44);
+        Assert.Equal(Fixed64.One, nonUniform.M44);
     }
 
     [Fact]
@@ -419,8 +419,8 @@ public class Fixed4x4Tests
     public void FixedMatrix4x4_Decompose_WorksCorrectly()
     {
         var matrix = Fixed4x4.Identity;
-        matrix.m30 = new Fixed64(5);  // Add translation
-        matrix.m00 = new Fixed64(2);  // Add scaling
+        matrix.M41 = new Fixed64(5);  // Add translation
+        matrix.M11 = new Fixed64(2);  // Add scaling
 
         Assert.True(Fixed4x4.Decompose(
             matrix,
@@ -472,22 +472,22 @@ public class Fixed4x4Tests
         for (int i = 0; i < 16; i++)
             matrix[i] = new Fixed64(i + 1);
 
-        Assert.Equal(new Fixed64(1), matrix.m00);
-        Assert.Equal(new Fixed64(2), matrix.m10);
-        Assert.Equal(new Fixed64(3), matrix.m20);
-        Assert.Equal(new Fixed64(4), matrix.m30);
-        Assert.Equal(new Fixed64(5), matrix.m01);
-        Assert.Equal(new Fixed64(6), matrix.m11);
-        Assert.Equal(new Fixed64(7), matrix.m21);
-        Assert.Equal(new Fixed64(8), matrix.m31);
-        Assert.Equal(new Fixed64(9), matrix.m02);
-        Assert.Equal(new Fixed64(10), matrix.m12);
-        Assert.Equal(new Fixed64(11), matrix.m22);
-        Assert.Equal(new Fixed64(12), matrix.m32);
-        Assert.Equal(new Fixed64(13), matrix.m03);
-        Assert.Equal(new Fixed64(14), matrix.m13);
-        Assert.Equal(new Fixed64(15), matrix.m23);
-        Assert.Equal(new Fixed64(16), matrix.m33);
+        Assert.Equal(new Fixed64(1), matrix.M11);
+        Assert.Equal(new Fixed64(2), matrix.M21);
+        Assert.Equal(new Fixed64(3), matrix.M31);
+        Assert.Equal(new Fixed64(4), matrix.M41);
+        Assert.Equal(new Fixed64(5), matrix.M12);
+        Assert.Equal(new Fixed64(6), matrix.M22);
+        Assert.Equal(new Fixed64(7), matrix.M32);
+        Assert.Equal(new Fixed64(8), matrix.M42);
+        Assert.Equal(new Fixed64(9), matrix.M13);
+        Assert.Equal(new Fixed64(10), matrix.M23);
+        Assert.Equal(new Fixed64(11), matrix.M33);
+        Assert.Equal(new Fixed64(12), matrix.M43);
+        Assert.Equal(new Fixed64(13), matrix.M14);
+        Assert.Equal(new Fixed64(14), matrix.M24);
+        Assert.Equal(new Fixed64(15), matrix.M34);
+        Assert.Equal(new Fixed64(16), matrix.M44);
 
         for (int i = 0; i < 16; i++)
             Assert.Equal(new Fixed64(i + 1), matrix[i]);
@@ -532,17 +532,17 @@ public class Fixed4x4Tests
     public void FixedMatrix4x4_Identity_IsCorrect()
     {
         var identity = Fixed4x4.Identity;
-        Assert.Equal(Fixed64.One, identity.m00);
-        Assert.Equal(Fixed64.One, identity.m11);
-        Assert.Equal(Fixed64.One, identity.m22);
-        Assert.Equal(Fixed64.One, identity.m33);
+        Assert.Equal(Fixed64.One, identity.M11);
+        Assert.Equal(Fixed64.One, identity.M22);
+        Assert.Equal(Fixed64.One, identity.M33);
+        Assert.Equal(Fixed64.One, identity.M44);
 
         Assert.All(new[]
         {
-        identity.m01, identity.m02, identity.m03,
-        identity.m10, identity.m12, identity.m13,
-        identity.m20, identity.m21, identity.m23,
-        identity.m30, identity.m31, identity.m32
+        identity.M12, identity.M13, identity.M14,
+        identity.M21, identity.M23, identity.M24,
+        identity.M31, identity.M32, identity.M34,
+        identity.M41, identity.M42, identity.M43
     }, value => Assert.Equal(Fixed64.Zero, value));
     }
 
@@ -700,9 +700,9 @@ public class Fixed4x4Tests
 
         var updated = Fixed4x4.SetScale(matrix, new Vector3d(2, 3, 4));
 
-        Assert.Equal(new Fixed64(2), updated.m00);
-        Assert.Equal(new Fixed64(3), updated.m11);
-        Assert.Equal(new Fixed64(4), updated.m22);
+        Assert.Equal(new Fixed64(2), updated.M11);
+        Assert.Equal(new Fixed64(3), updated.M22);
+        Assert.Equal(new Fixed64(4), updated.M33);
         Assert.Equal(new Vector3d(5, 6, 7), updated.Translation);
     }
 
@@ -770,15 +770,15 @@ public class Fixed4x4Tests
 
         matrix.NormalizeRotationMatrix();
 
-        var xAxis = new Vector3d(matrix.m00, matrix.m01, matrix.m02);
-        var yAxis = new Vector3d(matrix.m10, matrix.m11, matrix.m12);
-        var zAxis = new Vector3d(matrix.m20, matrix.m21, matrix.m22);
+        var xAxis = new Vector3d(matrix.M11, matrix.M12, matrix.M13);
+        var yAxis = new Vector3d(matrix.M21, matrix.M22, matrix.M23);
+        var zAxis = new Vector3d(matrix.M31, matrix.M32, matrix.M33);
 
         Assert.Equal(Fixed64.One, xAxis.Magnitude);
         Assert.Equal(Fixed64.One, yAxis.Magnitude);
         Assert.Equal(Fixed64.One, zAxis.Magnitude);
         Assert.Equal(Vector3d.Zero, matrix.Translation);
-        Assert.Equal(Fixed64.One, matrix.m33);
+        Assert.Equal(Fixed64.One, matrix.M44);
     }
 
     [Fact]
@@ -972,9 +972,9 @@ public class Fixed4x4Tests
             new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(16)).GetHashCode());
 
         var changedM03 = a;
-        changedM03.m03 = new Fixed64(40);
+        changedM03.M14 = new Fixed64(40);
         var changedM13 = a;
-        changedM13.m13 = new Fixed64(80);
+        changedM13.M24 = new Fixed64(80);
 
         Assert.NotEqual(hash, changedM03.GetHashCode());
         Assert.NotEqual(hash, changedM13.GetHashCode());

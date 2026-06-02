@@ -140,10 +140,10 @@ public class BoundingBoxTests
         var disjointSphere = new BoundingSphere(new Vector3d(5, 0, 0), Fixed64.One);
         var containedFrustum = new BoundingFrustum(Fixed4x4.Identity);
         var crossingFrustumMatrix = Fixed4x4.Identity;
-        crossingFrustumMatrix.m30 = Fixed64.Two;
+        crossingFrustumMatrix.M41 = Fixed64.Two;
         var crossingFrustum = new BoundingFrustum(crossingFrustumMatrix);
         var disjointFrustumMatrix = Fixed4x4.Identity;
-        disjointFrustumMatrix.m30 = new Fixed64(10);
+        disjointFrustumMatrix.M41 = new Fixed64(10);
         var disjointFrustum = new BoundingFrustum(disjointFrustumMatrix);
 
         Assert.Equal(ContainmentType.Contains, box.Contains(containedBox));
