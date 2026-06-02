@@ -462,7 +462,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// Extracts the scaling factors from the matrix by returning the diagonal elements (lossy).
     /// </summary>
     /// <returns>A Vector3d representing the scale along X, Y, and Z axes (lossy).</returns>
-    public static Vector3d ExtractLossyScale(Fixed3x3 matrix) => new Vector3d(matrix.M11, matrix.M22, matrix.M33);
+    public static Vector3d ExtractLossyScale(Fixed3x3 matrix) => new(matrix.M11, matrix.M22, matrix.M33);
 
     #endregion
 

@@ -198,9 +198,9 @@ public class FixedCurveTests
     [Fact]
     public void FixedCurveKey_ConstructorsEqualityAndHashCode_WorkCorrectly()
     {
-        FixedCurveKey fromDouble = new(1.5, 2.5, 3.5, 4.5);
+        FixedCurveKey fromDouble = FixedCurveKey.FromFloatPoint(1.5, 2.5, 3.5, 4.5);
         FixedCurveKey same = new(Fixed64.FromFloatPoint(1.5), Fixed64.FromFloatPoint(2.5), Fixed64.FromFloatPoint(3.5), Fixed64.FromFloatPoint(4.5));
-        FixedCurveKey simple = new(1.5, 2.5);
+        FixedCurveKey simple = FixedCurveKey.FromFloat(1.5, 2.5);
 
         Assert.Equal(Fixed64.FromFloatPoint(1.5), fromDouble.Time);
         Assert.Equal(Fixed64.FromFloatPoint(2.5), fromDouble.Value);

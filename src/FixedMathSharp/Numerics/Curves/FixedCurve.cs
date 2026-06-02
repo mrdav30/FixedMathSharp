@@ -13,24 +13,6 @@ using System.Text.Json.Serialization;
 namespace FixedMathSharp;
 
 /// <summary>
-/// Specifies the interpolation method used when evaluating a <see cref="FixedCurve"/>.
-/// </summary>
-public enum FixedCurveMode
-{
-    /// <summary>Linear interpolation between keyframes.</summary>
-    Linear,
-
-    /// <summary>Step interpolation, instantly jumping between keyframe values.</summary>
-    Step,
-
-    /// <summary>Smooth interpolation using a cosine function (SmoothStep).</summary>
-    Smooth,
-
-    /// <summary>Cubic interpolation for smoother curves using tangents.</summary>
-    Cubic
-}
-
-/// <summary>
 /// A deterministic fixed-point curve that interpolates values between keyframes.
 /// Used for animations, physics calculations, and procedural data.
 /// </summary>
@@ -71,6 +53,7 @@ public partial class FixedCurve : IEquatable<FixedCurve>
     /// </summary>
     [JsonInclude]
     [MemoryPackOrder(0)]
+    [MemoryPackAllowSerialize]
     public FixedCurveMode Mode { get; private set; }
 
     /// <summary>
