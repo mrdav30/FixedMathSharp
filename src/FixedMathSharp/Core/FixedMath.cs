@@ -108,10 +108,8 @@ namespace FixedMathSharp
         /// Produces a value with the magnitude of the first argument and the sign of the second argument.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 CopySign(Fixed64 x, Fixed64 y)
-        {
-            return y >= Fixed64.Zero ? x.Abs() : -x.Abs();
-        }
+        public static Fixed64 CopySign(Fixed64 x, Fixed64 y) =>
+            y >= Fixed64.Zero ? x.Abs() : -x.Abs();
 
         /// <summary>
         /// Clamps value between 0 and 1 and returns value.
@@ -119,24 +117,20 @@ namespace FixedMathSharp
         /// <param name="value"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Clamp01(Fixed64 value)
-        {
-            return value < Fixed64.Zero ? Fixed64.Zero : value > Fixed64.One ? Fixed64.One : value;
-        }
+        public static Fixed64 Clamp01(Fixed64 value) =>
+            value < Fixed64.Zero ? Fixed64.Zero : value > Fixed64.One ? Fixed64.One : value;
 
         /// <summary>
         /// Clamps a fixed-point value between the given minimum and maximum values.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Clamp(Fixed64 f1, Fixed64 min, Fixed64 max)
-        {
-            return f1 < min ? min : f1 > max ? max : f1;
-        }
+        public static Fixed64 Clamp(Fixed64 f1, Fixed64 min, Fixed64 max) => 
+            f1 < min ? min : f1 > max ? max : f1;
 
         /// <summary>
         /// Clamps a value to the inclusive range [min, max].
         /// </summary>
-        /// <typeparam name="T">The type of the value, must implement IComparable&lt;T&gt;.</typeparam>
+        /// <typeparam name="T">The type of the value, must implement <see cref="IComparable{T}"/>.</typeparam>
         /// <param name="value">The value to clamp.</param>
         /// <param name="min">The minimum allowed value.</param>
         /// <param name="max">The maximum allowed value.</param>
@@ -155,10 +149,8 @@ namespace FixedMathSharp
         /// <param name="f1">The Fixed64 value to clamp.</param>
         /// <returns>Returns a value clamped between -1 and 1.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 ClampOne(Fixed64 f1)
-        {
-            return f1 > Fixed64.One ? Fixed64.One : f1 < -Fixed64.One ? -Fixed64.One : f1;
-        }
+        public static Fixed64 ClampOne(Fixed64 f1) =>
+             f1 > Fixed64.One ? Fixed64.One : f1 < -Fixed64.One ? -Fixed64.One : f1;
 
         /// <summary>
         /// Returns the absolute value of a Fixed64 number.
@@ -178,7 +170,7 @@ namespace FixedMathSharp
         /// Returns the smallest integral value that is greater than or equal to the specified number.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Ceiling(Fixed64 value)
+        public static Fixed64 Ceil(Fixed64 value)
         {
             bool hasFractionalPart = (value.m_rawValue & MAX_SHIFTED_AMOUNT_UI) != 0;
             return hasFractionalPart ? value.Floor() + Fixed64.One : value;
@@ -186,31 +178,23 @@ namespace FixedMathSharp
 
         /// <summary>
         /// Returns the largest integer less than or equal to the specified number (floor function).
+        /// Efficiently zeroes out the fractional part.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Floor(Fixed64 value)
-        {
-            // Efficiently zeroes out the fractional part
-            return Fixed64.FromRaw((long)((ulong)value.m_rawValue & FixedMath.MASK_UL));
-        }
+        public static Fixed64 Floor(Fixed64 value) => 
+            Fixed64.FromRaw((long)((ulong)value.m_rawValue & MASK_UL));
 
         /// <summary>
         /// Returns the larger of two fixed-point values.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Max(Fixed64 f1, Fixed64 f2)
-        {
-            return f1 >= f2 ? f1 : f2;
-        }
+        public static Fixed64 Max(Fixed64 a, Fixed64 b) => a > b ? a : b;
 
         /// <summary>
         /// Returns the smaller of two fixed-point values.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Min(Fixed64 a, Fixed64 b)
-        {
-            return (a < b) ? a : b;
-        }
+        public static Fixed64 Min(Fixed64 a, Fixed64 b) => a < b ? a : b;
 
         /// <summary>
         /// Rounds a fixed-point number to the nearest integral value, based on the specified rounding mode.
@@ -228,8 +212,10 @@ namespace FixedMathSharp
             // When value is exactly Fixed64.Halfway between two numbers
             return mode switch
             {
-                MidpointRounding.AwayFromZero => value.m_rawValue > 0 ? integralPart + Fixed64.One : integralPart,// For negative midpoints, Floor() is already away from zero
-                _ => (integralPart.m_rawValue & ONE_L) == 0 ? integralPart : integralPart + Fixed64.One,// Rounds to the nearest even number (default behavior)
+                // For negative midpoints, Floor() is already away from zero
+                MidpointRounding.AwayFromZero => value.m_rawValue > 0 ? integralPart + Fixed64.One : integralPart,
+                // Rounds to the nearest even number (default behavior)
+                _ => (integralPart.m_rawValue & ONE_L) == 0 ? integralPart : integralPart + Fixed64.One,
             };
         }
 
@@ -253,28 +239,19 @@ namespace FixedMathSharp
         /// <param name="value">The Fixed64 value to square.</param>
         /// <returns>The squared value.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Squared(Fixed64 value)
-        {
-            return value * value;
-        }
+        public static Fixed64 Squared(Fixed64 value) => value * value;
 
         /// <summary>
         /// Adds two fixed-point numbers without performing overflow checking.
         /// </summary>  
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 FastAdd(Fixed64 x, Fixed64 y)
-        {
-            return Fixed64.FromRaw(x.m_rawValue + y.m_rawValue);
-        }
+        public static Fixed64 FastAdd(Fixed64 x, Fixed64 y) => Fixed64.FromRaw(x.m_rawValue + y.m_rawValue);
 
         /// <summary>
         /// Subtracts two fixed-point numbers without performing overflow checking.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 FastSub(Fixed64 x, Fixed64 y)
-        {
-            return Fixed64.FromRaw(x.m_rawValue - y.m_rawValue);
-        }
+        public static Fixed64 FastSub(Fixed64 x, Fixed64 y) => Fixed64.FromRaw(x.m_rawValue - y.m_rawValue);
 
         /// <summary>
         /// Multiplies two fixed-point numbers without overflow checking for performance-critical scenarios.
@@ -310,13 +287,10 @@ namespace FixedMathSharp
         /// Fast modulus without the checks performed by the '%' operator.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 FastMod(Fixed64 x, Fixed64 y)
-        {
-            return Fixed64.FromRaw(x.m_rawValue % y.m_rawValue);
-        }
+        public static Fixed64 FastMod(Fixed64 x, Fixed64 y) => Fixed64.FromRaw(x.m_rawValue % y.m_rawValue);
 
         /// <summary>
-        /// Performs a smooth step interpolation between two values.
+        /// Performs a smooth step interpolation using a cubic Hermite curve between two values.
         /// </summary>
         /// <remarks>
         /// The interpolation follows a cubic Hermite curve where the function starts at `a`,
@@ -329,11 +303,11 @@ namespace FixedMathSharp
         public static Fixed64 SmoothStep(Fixed64 a, Fixed64 b, Fixed64 t)
         {
             t = t * t * (Fixed64.Three - Fixed64.Two * t);
-            return LinearInterpolate(a, b, t);
+            return Lerp(a, b, t);
         }
 
         /// <summary>
-        /// Performs a cubic Hermite interpolation between two points, using specified tangents.
+        /// Performs cubic interpolation between two points `p0` and `p1` with tangents `m0` and `m1` at those points.
         /// </summary>
         /// <remarks>
         /// This method interpolates smoothly between `p0` and `p1` while considering the tangents `m0` and `m1`.
@@ -355,16 +329,46 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Performs linear interpolation between two fixed-point values based on the interpolant t (0 greater or equal to `t` and less than or equal to 1).
+        /// Linearly interpolates between two fixed-point values based on a given interpolation factor `t`.
         /// </summary>
-        public static Fixed64 LinearInterpolate(Fixed64 from, Fixed64 to, Fixed64 t)
+        /// <param name="from">The starting value.</param>
+        /// <param name="to">The ending value.</param>
+        /// <param name="t">A value between 0 and 1 that represents the interpolation factor.</param>
+        /// <returns>The interpolated value between `from` and `to`.</returns>
+        /// <remarks>
+        /// The interpolation is clamped between `from` and `to` based on the value of `t`.
+        /// If `t` is less than 0, the result is `from`. If `t` is greater than 1, the result is `to`.
+        /// </remarks>
+        public static Fixed64 Lerp(Fixed64 from, Fixed64 to, Fixed64 t) 
         {
             if (t.m_rawValue >= ONE_L)
                 return to;
             if (t.m_rawValue <= 0)
                 return from;
 
-            return (to * t) + (from * (Fixed64.One - t));
+            return from + (to - from) * t;
+        }
+
+        /// <summary>
+        /// Computes the interpolated point along a Catmull-Rom spline given four control points.
+        /// </summary>
+        /// <param name="p0">The first control point.</param>
+        /// <param name="p1">The second control point.</param>
+        /// <param name="p2">The third control point.</param>
+        /// <param name="p3">The fourth control point.</param>
+        /// <param name="t">Interpolation factor between 0 and 1.</param>
+        /// <returns>The interpolated point on the spline.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 CatmullRom(Fixed64 p0, Fixed64 p1, Fixed64 p2, Fixed64 p3, Fixed64 t)
+        {
+            // Classic Catmull-Rom basis matrix
+            Fixed64 t2 = t * t;
+            Fixed64 t3 = t2 * t;
+            return
+                ((-t3 + 2 * t2 - t) * p0 +
+                 (3 * t3 - 5 * t2 + 2) * p1 +
+                 (-3 * t3 + 4 * t2 + t) * p2 +
+                 (t3 - t2) * p3) / 2;
         }
 
         /// <summary>
@@ -402,7 +406,7 @@ namespace FixedMathSharp
         /// <returns>The sum of <paramref name="x"/> and <paramref name="y"/>.</returns>
         /// <remarks>
         /// Overflow is detected by checking for a change in the sign bit that indicates a wrap-around.
-        /// Additionally, a special check is performed for adding <see cref="Fixed64.MIN_VALUE"/> and -1, 
+        /// Additionally, a special check is performed for adding <see cref="Fixed64.MinValue"/> and -1, 
         /// as this is a known edge case for overflow.
         /// </remarks>
         public static long AddOverflowHelper(long x, long y, ref bool overflow)

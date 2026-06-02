@@ -22,7 +22,7 @@ using FixedMathSharp.Assertions;
 
 new Fixed64(1.25).Should().BeApproximately(new Fixed64(1.25));
 
-var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
+var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
 rotation.Should().BeNormalized();
 
 var matrix = Fixed4x4.ScaleRotateTranslate(

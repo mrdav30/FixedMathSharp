@@ -24,12 +24,12 @@ public partial struct FixedRange : IEquatable<FixedRange>
     /// <summary>
     /// The smallest possible range.
     /// </summary>
-    public static readonly FixedRange MinRange = new(Fixed64.MIN_VALUE, Fixed64.MIN_VALUE);
+    public static readonly FixedRange MinRange = new(Fixed64.MinValue, Fixed64.MinValue);
 
     /// <summary>
     /// The largest possible range.
     /// </summary>
-    public static readonly FixedRange MaxRange = new(Fixed64.MAX_VALUE, Fixed64.MAX_VALUE);
+    public static readonly FixedRange MaxRange = new(Fixed64.MaxValue, Fixed64.MaxValue);
 
     #endregion
 

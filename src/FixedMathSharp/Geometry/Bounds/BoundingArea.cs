@@ -5,8 +5,10 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using FixedMathSharp.Support;
 using MemoryPack;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
@@ -251,8 +253,7 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ContainmentType Contains(BoundingFrustum frustum)
     {
-        if (frustum == null)
-            throw new ArgumentNullException(nameof(frustum));
+        FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum));
 
         if (Contains(frustum.Min) && Contains(frustum.Max))
             return ContainmentType.Contains;
@@ -284,8 +285,7 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(BoundingFrustum frustum)
     {
-        if (frustum == null)
-            throw new ArgumentNullException(nameof(frustum));
+        FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum));
 
         return frustum.Intersects(this);
     }

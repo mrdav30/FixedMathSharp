@@ -46,7 +46,7 @@ public class FixedPlaneTests
 
         plane.Normalize();
 
-        Assert.True(plane.Normal.FuzzyEqual(Vector3d.Up, new Fixed64(0.0001)));
+        Assert.True(plane.Normal.FuzzyEqual(Vector3d.Up, Fixed64.FromFloatPoint(0.0001)));
         FixedMathTestHelper.AssertWithinRelativeTolerance(new Fixed64(-2), plane.D);
     }
 

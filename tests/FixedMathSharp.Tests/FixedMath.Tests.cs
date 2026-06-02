@@ -42,16 +42,16 @@ public class FixedMathTests
     [Fact]
     public void Clamp01_ValueInRange_ReturnsValue()
     {
-        var result = FixedMath.Clamp01(new Fixed64(0.5f));
-        Assert.Equal(new Fixed64(0.5f), result);
+        var result = FixedMath.Clamp01(Fixed64.FromFloatPoint(0.5f));
+        Assert.Equal(Fixed64.FromFloatPoint(0.5f), result);
     }
 
     [Fact]
     public void ClampOne_ClampsToNegativeOneOneRange()
     {
-        Assert.Equal(-Fixed64.One, FixedMath.ClampOne(new Fixed64(-2)));
-        Assert.Equal(new Fixed64(0.5), FixedMath.ClampOne(new Fixed64(0.5)));
-        Assert.Equal(Fixed64.One, FixedMath.ClampOne(new Fixed64(2)));
+        Assert.Equal(-Fixed64.One, FixedMath.ClampOne(Fixed64.FromFloatPoint(-2)));
+        Assert.Equal(Fixed64.FromFloatPoint(0.5f), FixedMath.ClampOne(Fixed64.FromFloatPoint(0.5f)));
+        Assert.Equal(Fixed64.One, FixedMath.ClampOne(Fixed64.FromFloatPoint(2)));
     }
 
     #endregion
@@ -75,7 +75,7 @@ public class FixedMathTests
     [Fact]
     public void FastAbs_MinValue_ReturnsMaxValue()
     {
-        Assert.Equal(Fixed64.MAX_VALUE, FixedMath.Abs(Fixed64.MIN_VALUE));
+        Assert.Equal(Fixed64.MaxValue, FixedMath.Abs(Fixed64.MinValue));
     }
 
     #endregion
@@ -85,14 +85,14 @@ public class FixedMathTests
     [Fact]
     public void Ceiling_WithFraction_ReturnsNextInteger()
     {
-        var result = FixedMath.Ceiling(new Fixed64(1.5));
+        var result = FixedMath.Ceil(Fixed64.FromFloatPoint(1.5));
         Assert.Equal(new Fixed64(2), result);
     }
 
     [Fact]
     public void Ceiling_ExactInteger_ReturnsSameInteger()
     {
-        var result = FixedMath.Ceiling(new Fixed64(3.0));
+        var result = FixedMath.Ceil(Fixed64.FromFloatPoint(3.0));
         var test = new Fixed64(3);
         Assert.Equal(test, result);
     }
@@ -154,28 +154,28 @@ public class FixedMathTests
     [Fact]
     public void Round_ToEven_RoundsToNearestEven()
     {
-        var result = FixedMath.Round(new Fixed64(2.5));
+        var result = FixedMath.Round(Fixed64.FromFloatPoint(2.5));
         Assert.Equal(new Fixed64(2), result);
     }
 
     [Fact]
     public void Round_AwayFromZero_RoundsUp()
     {
-        var result = FixedMath.Round(new Fixed64(2.5), System.MidpointRounding.AwayFromZero);
+        var result = FixedMath.Round(Fixed64.FromFloatPoint(2.5), MidpointRounding.AwayFromZero);
         Assert.Equal(new Fixed64(3), result);
     }
 
     [Fact]
     public void Round_ToEven_NegativeNumber_RoundsToNearestEven()
     {
-        var result = FixedMath.Round(new Fixed64(-2.5));
+        var result = FixedMath.Round(Fixed64.FromFloatPoint(-2.5));
         Assert.Equal(new Fixed64(-2), result);
     }
 
     [Fact]
     public void Round_AwayFromZero_NegativeHalf_RoundsDown()
     {
-        var result = FixedMath.Round(new Fixed64(-2.5), MidpointRounding.AwayFromZero);
+        var result = FixedMath.Round(Fixed64.FromFloatPoint(-2.5), MidpointRounding.AwayFromZero);
         Assert.Equal(new Fixed64(-3), result);
     }
 
@@ -186,29 +186,29 @@ public class FixedMathTests
     [Fact]
     public void Round_WithDecimalPlaces_RoundsToTwoDecimalPlaces()
     {
-        var result = FixedMath.RoundToPrecision(new Fixed64(2.556f), 2, MidpointRounding.AwayFromZero);
+        var result = FixedMath.RoundToPrecision(Fixed64.FromFloatPoint(2.556f), 2, MidpointRounding.AwayFromZero);
         Assert.Equal(2.56f, result.ToFormattedFloat());
     }
 
     [Fact]
     public void Round_WithDecimalPlaces_RoundsToZeroDecimalPlaces_ToEven()
     {
-        var result = FixedMath.RoundToPrecision(new Fixed64(2.5), 0);
+        var result = FixedMath.RoundToPrecision(Fixed64.FromFloatPoint(2.5), 0);
         Assert.Equal(new Fixed64(2), result);
     }
 
     [Fact]
     public void Round_WithDecimalPlaces_RoundsToZeroDecimalPlaces_AwayFromZero()
     {
-        var result = FixedMath.RoundToPrecision(new Fixed64(2.5), 0, MidpointRounding.AwayFromZero);
+        var result = FixedMath.RoundToPrecision(Fixed64.FromFloatPoint(2.5), 0, MidpointRounding.AwayFromZero);
         Assert.Equal(new Fixed64(3), result);
     }
 
     [Fact]
     public void Round_WithDecimalPlaces_ThrowsWhenPrecisionIsOutOfRange()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.RoundToPrecision(new Fixed64(1.23), -1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.RoundToPrecision(new Fixed64(1.23), FixedMath.Pow10Lookup.Length));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.RoundToPrecision(Fixed64.FromFloatPoint(1.23), -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.RoundToPrecision(Fixed64.FromFloatPoint(1.23), FixedMath.Pow10Lookup.Length));
     }
 
     #endregion
@@ -311,21 +311,21 @@ public class FixedMathTests
     [Fact]
     public void LinearInterpolate_TAtZero_ReturnsFromValue()
     {
-        var result = FixedMath.LinearInterpolate(new Fixed64(3), new Fixed64(5), new Fixed64(0));
+        var result = FixedMath.Lerp(new Fixed64(3), new Fixed64(5), new Fixed64(0));
         Assert.Equal(new Fixed64(3), result);
     }
 
     [Fact]
     public void LinearInterpolate_TAtOne_ReturnsToValue()
     {
-        var result = FixedMath.LinearInterpolate(new Fixed64(3), new Fixed64(5), new Fixed64(1));
+        var result = FixedMath.Lerp(new Fixed64(3), new Fixed64(5), new Fixed64(1));
         Assert.Equal(new Fixed64(5), result);
     }
 
     [Fact]
     public void LinearInterpolate_TAtHalf_ReturnsMidpoint()
     {
-        var result = FixedMath.LinearInterpolate(new Fixed64(3), new Fixed64(5), new Fixed64(0.5));
+        var result = FixedMath.Lerp(new Fixed64(3), new Fixed64(5), Fixed64.FromFloatPoint(0.5));
         Assert.Equal(new Fixed64(4), result);  // Midpoint should be 4
     }
 
@@ -346,7 +346,7 @@ public class FixedMathTests
     [Fact]
     public void SmoothStep_TAtHalf_ReturnsSmoothedMidpoint()
     {
-        var result = FixedMath.SmoothStep(new Fixed64(0), new Fixed64(10), new Fixed64(0.5));
+        var result = FixedMath.SmoothStep(new Fixed64(0), new Fixed64(10), Fixed64.FromFloatPoint(0.5));
         Assert.Equal(new Fixed64(5), result); // Should be near 5 with smoothing effect
     }
 
@@ -367,7 +367,7 @@ public class FixedMathTests
     [Fact]
     public void CubicInterpolate_TAtHalf_ReturnsSmoothCurveValue()
     {
-        var result = FixedMath.CubicInterpolate(new Fixed64(0), new Fixed64(10), new Fixed64(2), new Fixed64(2), new Fixed64(0.5));
+        var result = FixedMath.CubicInterpolate(new Fixed64(0), new Fixed64(10), new Fixed64(2), new Fixed64(2), Fixed64.FromFloatPoint(0.5));
         Assert.Equal(new Fixed64(5), result); // Expected to be near midpoint but with cubic smoothing
     }
 
@@ -380,7 +380,7 @@ public class FixedMathTests
     {
         var value = new Fixed64(5);
         var min = new Fixed64(3);
-        var result = FixedMath.Clamp(value, min, Fixed64.MAX_VALUE);
+        var result = FixedMath.Clamp(value, min, Fixed64.MaxValue);
         Assert.Equal(new Fixed64(5), result);
     }
 

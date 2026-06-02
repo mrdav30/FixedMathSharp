@@ -659,7 +659,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Fixed64 nearPlaneDistance,
         Fixed64 farPlaneDistance)
     {
-        if (fieldOfView <= Fixed64.Zero || fieldOfView >= FixedMath.PI)
+        if (fieldOfView <= Fixed64.Zero || fieldOfView >= Fixed64.Pi)
             throw new ArgumentOutOfRangeException(nameof(fieldOfView), fieldOfView, "Field of view must be greater than zero and less than PI.");
         if (aspectRatio <= Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(aspectRatio), aspectRatio, "Aspect ratio must be greater than zero.");
@@ -1115,22 +1115,22 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     public static Fixed4x4 Lerp(Fixed4x4 a, Fixed4x4 b, Fixed64 t)
     {
         return new Fixed4x4(
-            FixedMath.LinearInterpolate(a.m00, b.m00, t),
-            FixedMath.LinearInterpolate(a.m01, b.m01, t),
-            FixedMath.LinearInterpolate(a.m02, b.m02, t),
-            FixedMath.LinearInterpolate(a.m03, b.m03, t),
-            FixedMath.LinearInterpolate(a.m10, b.m10, t),
-            FixedMath.LinearInterpolate(a.m11, b.m11, t),
-            FixedMath.LinearInterpolate(a.m12, b.m12, t),
-            FixedMath.LinearInterpolate(a.m13, b.m13, t),
-            FixedMath.LinearInterpolate(a.m20, b.m20, t),
-            FixedMath.LinearInterpolate(a.m21, b.m21, t),
-            FixedMath.LinearInterpolate(a.m22, b.m22, t),
-            FixedMath.LinearInterpolate(a.m23, b.m23, t),
-            FixedMath.LinearInterpolate(a.m30, b.m30, t),
-            FixedMath.LinearInterpolate(a.m31, b.m31, t),
-            FixedMath.LinearInterpolate(a.m32, b.m32, t),
-            FixedMath.LinearInterpolate(a.m33, b.m33, t));
+            FixedMath.Lerp(a.m00, b.m00, t),
+            FixedMath.Lerp(a.m01, b.m01, t),
+            FixedMath.Lerp(a.m02, b.m02, t),
+            FixedMath.Lerp(a.m03, b.m03, t),
+            FixedMath.Lerp(a.m10, b.m10, t),
+            FixedMath.Lerp(a.m11, b.m11, t),
+            FixedMath.Lerp(a.m12, b.m12, t),
+            FixedMath.Lerp(a.m13, b.m13, t),
+            FixedMath.Lerp(a.m20, b.m20, t),
+            FixedMath.Lerp(a.m21, b.m21, t),
+            FixedMath.Lerp(a.m22, b.m22, t),
+            FixedMath.Lerp(a.m23, b.m23, t),
+            FixedMath.Lerp(a.m30, b.m30, t),
+            FixedMath.Lerp(a.m31, b.m31, t),
+            FixedMath.Lerp(a.m32, b.m32, t),
+            FixedMath.Lerp(a.m33, b.m33, t));
     }
 
     /// <summary>

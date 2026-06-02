@@ -321,7 +321,7 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     public Fixed64? Intersects(FixedRay ray)
     {
         Fixed64 tEnter = Fixed64.Zero;
-        Fixed64 tExit = Fixed64.MAX_VALUE;
+        Fixed64 tExit = Fixed64.MaxValue;
 
         for (int i = 0; i < PlaneCount; i++)
         {

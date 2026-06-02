@@ -89,7 +89,7 @@ Fixed64 step = speed * deltaTime;
 Vector3d position = new Vector3d(0, 0, 0);
 Vector3d velocity = new Vector3d(step, Fixed64.Zero, Fixed64.One);
 
-FixedQuaternion turn = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
+FixedQuaternion turn = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
 Vector3d rotated = turn.Rotate(velocity);
 
 BoundingSphere sensor = new BoundingSphere(position, new Fixed64(5));
@@ -129,7 +129,7 @@ if (hitDistance.HasValue)
 ### Matrices and Transforms
 
 ```csharp
-FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver4);
+FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver4);
 Fixed4x4 transform = Fixed4x4.CreateTranslation(new Vector3d(10, 0, 0)) *
                      Fixed4x4.CreateRotation(rotation);
 

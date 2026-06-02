@@ -493,9 +493,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     {
         // Perform a linear interpolation between two matrices
         return new Fixed3x3(
-            FixedMath.LinearInterpolate(a.m00, b.m00, t), FixedMath.LinearInterpolate(a.m01, b.m01, t), FixedMath.LinearInterpolate(a.m02, b.m02, t),
-            FixedMath.LinearInterpolate(a.m10, b.m10, t), FixedMath.LinearInterpolate(a.m11, b.m11, t), FixedMath.LinearInterpolate(a.m12, b.m12, t),
-            FixedMath.LinearInterpolate(a.m20, b.m20, t), FixedMath.LinearInterpolate(a.m21, b.m21, t), FixedMath.LinearInterpolate(a.m22, b.m22, t)
+            FixedMath.Lerp(a.m00, b.m00, t), FixedMath.Lerp(a.m01, b.m01, t), FixedMath.Lerp(a.m02, b.m02, t),
+            FixedMath.Lerp(a.m10, b.m10, t), FixedMath.Lerp(a.m11, b.m11, t), FixedMath.Lerp(a.m12, b.m12, t),
+            FixedMath.Lerp(a.m20, b.m20, t), FixedMath.Lerp(a.m21, b.m21, t), FixedMath.Lerp(a.m22, b.m22, t)
         );
     }
 

@@ -12,7 +12,7 @@ public class Fixed4x4Tests
     public void FixedMatrix4x4_FromMatrix_ConversionWorksCorrectly()
     {
         // Create a quaternion representing a 90-degree rotation around the Y-axis
-        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2); // 90 degrees
+        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi); // 90 degrees
 
         // Create a rotation matrix using the quaternion
         var matrix = Fixed4x4.CreateRotation(rotation);
@@ -21,7 +21,7 @@ public class Fixed4x4Tests
         var extractedRotation = FixedQuaternion.FromMatrix(matrix);
 
         // Check if the extracted rotation matches the original quaternion
-        Assert.True(extractedRotation.FuzzyEqual(rotation, new Fixed64(0.0001)),
+        Assert.True(extractedRotation.FuzzyEqual(rotation, Fixed64.FromFloatPoint(0.0001)),
             $"Extracted rotation {extractedRotation} does not match expected {rotation}.");
     }
 
@@ -129,13 +129,13 @@ public class Fixed4x4Tests
     [Fact]
     public void FixedMatrix4x4_CreateRotationAxisFactories_RotateAroundExpectedAxes()
     {
-        var tolerance = new Fixed64(0.0001);
+        var tolerance = Fixed64.FromFloatPoint(0.0001);
 
-        Assert.True(Fixed4x4.TransformPoint(Fixed4x4.CreateRotationX(FixedMath.PiOver2), Vector3d.Up)
+        Assert.True(Fixed4x4.TransformPoint(Fixed4x4.CreateRotationX(Fixed64.HalfPi), Vector3d.Up)
             .FuzzyEqual(Vector3d.Forward, tolerance));
-        Assert.True(Fixed4x4.TransformPoint(Fixed4x4.CreateRotationY(FixedMath.PiOver2), Vector3d.Forward)
+        Assert.True(Fixed4x4.TransformPoint(Fixed4x4.CreateRotationY(Fixed64.HalfPi), Vector3d.Forward)
             .FuzzyEqual(Vector3d.Right, tolerance));
-        Assert.True(Fixed4x4.TransformPoint(Fixed4x4.CreateRotationZ(FixedMath.PiOver2), Vector3d.Right)
+        Assert.True(Fixed4x4.TransformPoint(Fixed4x4.CreateRotationZ(Fixed64.HalfPi), Vector3d.Right)
             .FuzzyEqual(Vector3d.Up, tolerance));
     }
 
@@ -143,12 +143,12 @@ public class Fixed4x4Tests
     public void FixedMatrix4x4_CreateFromAxisAngleAndEulerAngles_MatchQuaternionFactories()
     {
         Assert.Equal(
-            Fixed4x4.CreateRotation(FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2)),
-            Fixed4x4.CreateFromAxisAngle(Vector3d.Up, FixedMath.PiOver2));
+            Fixed4x4.CreateRotation(FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi)),
+            Fixed4x4.CreateFromAxisAngle(Vector3d.Up, Fixed64.HalfPi));
 
         Assert.Equal(
-            Fixed4x4.CreateRotation(FixedQuaternion.FromEulerAngles(FixedMath.PiOver4, FixedMath.PiOver4, FixedMath.PiOver4)),
-            Fixed4x4.CreateFromEulerAngles(FixedMath.PiOver4, FixedMath.PiOver4, FixedMath.PiOver4));
+            Fixed4x4.CreateRotation(FixedQuaternion.FromEulerAngles(Fixed64.PiOver4, Fixed64.PiOver4, Fixed64.PiOver4)),
+            Fixed4x4.CreateFromEulerAngles(Fixed64.PiOver4, Fixed64.PiOver4, Fixed64.PiOver4));
     }
 
     [Fact]
@@ -202,31 +202,31 @@ public class Fixed4x4Tests
 
         Vector3d[] corners = frustum.GetCorners();
 
-        Assert.True(corners[0].FuzzyEqual(new Vector3d(0, 3, 1), new Fixed64(0.0001)));
-        Assert.True(corners[2].FuzzyEqual(new Vector3d(2, -1, 1), new Fixed64(0.0001)));
-        Assert.True(corners[6].FuzzyEqual(new Vector3d(2, -1, 5), new Fixed64(0.0001)));
+        Assert.True(corners[0].FuzzyEqual(new Vector3d(0, 3, 1), Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(corners[2].FuzzyEqual(new Vector3d(2, -1, 1), Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(corners[6].FuzzyEqual(new Vector3d(2, -1, 5), Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
     public void FixedMatrix4x4_CreatePerspective_MatchesFieldOfViewForEquivalentVolume()
     {
         Fixed4x4 perspective = Fixed4x4.CreatePerspective(new Fixed64(2), new Fixed64(2), Fixed64.One, new Fixed64(10));
-        Fixed4x4 fieldOfView = Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PiOver2, Fixed64.One, Fixed64.One, new Fixed64(10));
+        Fixed4x4 fieldOfView = Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.HalfPi, Fixed64.One, Fixed64.One, new Fixed64(10));
 
         Assert.True(new BoundingFrustum(perspective).GetCorners()[6]
-            .FuzzyEqual(new BoundingFrustum(fieldOfView).GetCorners()[6], new Fixed64(0.0001)));
+            .FuzzyEqual(new BoundingFrustum(fieldOfView).GetCorners()[6], Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
     public void FixedMatrix4x4_CreatePerspectiveFieldOfView_ProducesExpectedPositiveZFrustum()
     {
-        Fixed4x4 matrix = Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PiOver2, Fixed64.One, Fixed64.One, new Fixed64(10));
+        Fixed4x4 matrix = Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.HalfPi, Fixed64.One, Fixed64.One, new Fixed64(10));
         var frustum = new BoundingFrustum(matrix);
 
         Vector3d[] corners = frustum.GetCorners();
 
-        Assert.True(corners[0].FuzzyEqual(new Vector3d(-1, 1, 1), new Fixed64(0.0001)));
-        Assert.True(corners[6].FuzzyEqual(new Vector3d(10, -10, 10), new Fixed64(0.0001)));
+        Assert.True(corners[0].FuzzyEqual(new Vector3d(-1, 1, 1), Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(corners[6].FuzzyEqual(new Vector3d(10, -10, 10), Fixed64.FromFloatPoint(0.0001)));
         Assert.Equal(ContainmentType.Contains, frustum.Contains(new Vector3d(0, 0, 5)));
         Assert.Equal(ContainmentType.Disjoint, frustum.Contains(new Vector3d(0, 0, -1)));
         Assert.Equal(ContainmentType.Disjoint, frustum.Contains(new Vector3d(0, 0, 11)));
@@ -246,9 +246,9 @@ public class Fixed4x4Tests
 
         Vector3d[] corners = frustum.GetCorners();
 
-        Assert.True(corners[0].FuzzyEqual(new Vector3d(0, 3, 1), new Fixed64(0.0001)));
-        Assert.True(corners[2].FuzzyEqual(new Vector3d(2, -1, 1), new Fixed64(0.0001)));
-        Assert.True(corners[6].FuzzyEqual(new Vector3d(10, -5, 5), new Fixed64(0.0001)));
+        Assert.True(corners[0].FuzzyEqual(new Vector3d(0, 3, 1), Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(corners[2].FuzzyEqual(new Vector3d(2, -1, 1), Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(corners[6].FuzzyEqual(new Vector3d(10, -5, 5), Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
@@ -257,13 +257,13 @@ public class Fixed4x4Tests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.Zero, Fixed64.One, Fixed64.One, new Fixed64(10)));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PI, Fixed64.One, Fixed64.One, new Fixed64(10)));
+            Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.Pi, Fixed64.One, Fixed64.One, new Fixed64(10)));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PiOver2, Fixed64.Zero, Fixed64.One, new Fixed64(10)));
+            Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.HalfPi, Fixed64.Zero, Fixed64.One, new Fixed64(10)));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PiOver2, Fixed64.One, Fixed64.Zero, new Fixed64(10)));
+            Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.HalfPi, Fixed64.One, Fixed64.Zero, new Fixed64(10)));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            Fixed4x4.CreatePerspectiveFieldOfView(FixedMath.PiOver2, Fixed64.One, new Fixed64(10), Fixed64.One));
+            Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.HalfPi, Fixed64.One, new Fixed64(10), Fixed64.One));
     }
 
     [Fact]
@@ -444,7 +444,7 @@ public class Fixed4x4Tests
 
         Assert.Equal(scale, decomposedScale);
         Assert.Equal(translation, decomposedTranslation);
-        Assert.True(rotation.FuzzyEqual(FixedQuaternion.Identity, new Fixed64(0.0001)));
+        Assert.True(rotation.FuzzyEqual(FixedQuaternion.Identity, Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
@@ -452,15 +452,15 @@ public class Fixed4x4Tests
     {
         var translation = new Vector3d(1, 2, 3);
         var scale = new Vector3d(2, 2, 2);
-        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2); // 90 degrees around Y-axis
+        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi); // 90 degrees around Y-axis
 
         var matrix = Fixed4x4.Identity;
         matrix.SetTransform(translation, rotation, scale);
 
         // Extract and validate translation, scale, and rotation
         Assert.Equal(translation, matrix.Translation);
-        Assert.True(scale.FuzzyEqual(matrix.Scale, new Fixed64(0.0001)));
-        Assert.True(matrix.Rotation.FuzzyEqual(rotation, new Fixed64(0.0001)),
+        Assert.True(scale.FuzzyEqual(matrix.Scale, Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(matrix.Rotation.FuzzyEqual(rotation, Fixed64.FromFloatPoint(0.0001)),
             $"Extracted rotation {matrix.Rotation} does not match expected {rotation}.");
     }
 
@@ -629,9 +629,9 @@ public class Fixed4x4Tests
         // Instead of direct equality, compare the decomposed components
         Assert.True(Fixed4x4.Decompose(trsMatrix, out var decomposedScale, out var decomposedRotation, out var decomposedTranslation));
 
-        Assert.True(translation.FuzzyEqual(decomposedTranslation, new Fixed64(0.0001)));
-        Assert.True(scale.FuzzyEqual(decomposedScale, new Fixed64(0.0001)));
-        Assert.True(decomposedRotation.FuzzyEqual(rotation, new Fixed64(0.0001)),
+        Assert.True(translation.FuzzyEqual(decomposedTranslation, Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(scale.FuzzyEqual(decomposedScale, Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(decomposedRotation.FuzzyEqual(rotation, Fixed64.FromFloatPoint(0.0001)),
             $"Expected {rotation} but got {decomposedRotation}");
     }
 
@@ -677,7 +677,7 @@ public class Fixed4x4Tests
     [Fact]
     public void FixedMatrix4x4_SetGlobalScale_WorksWithRotation()
     {
-        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2); // 90 degrees Y-axis
+        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi); // 90 degrees Y-axis
         var initialScale = new Vector3d(2, 2, 2);
         var globalScale = new Vector3d(4, 4, 4);
 
@@ -711,29 +711,29 @@ public class Fixed4x4Tests
     {
         var translation = new Vector3d(5, 6, 7);
         var scale = new Vector3d(2, 2, 2);
-        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Forward, FixedMath.PiOver2);
+        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Forward, Fixed64.HalfPi);
 
         var matrix = Fixed4x4.CreateTransform(translation, FixedQuaternion.Identity, scale);
         var updated = Fixed4x4.SetRotation(matrix, rotation);
 
         Assert.Equal(translation, updated.Translation);
-        Assert.True(scale.FuzzyEqual(updated.Scale, new Fixed64(0.0001)));
-        Assert.True(updated.Rotation.FuzzyEqual(rotation, new Fixed64(0.0001)));
+        Assert.True(scale.FuzzyEqual(updated.Scale, Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(updated.Rotation.FuzzyEqual(rotation, Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
     public void FixedMatrix4x4_SetTranslationAndRotationExtensions_UpdateMatrixInPlace()
     {
         var matrix = Fixed4x4.CreateTransform(new Vector3d(1, 1, 1), FixedQuaternion.Identity, new Vector3d(2, 2, 2));
-        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.PiOver2);
+        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
 
         matrix.SetTranslation(new Vector3d(7, 8, 9));
         var updated = matrix.SetRotation(rotation);
 
         Assert.Equal(new Vector3d(7, 8, 9), matrix.Translation);
         Assert.Equal(matrix, updated);
-        Assert.True(new Vector3d(2, 2, 2).FuzzyEqual(matrix.Scale, new Fixed64(0.0001)));
-        Assert.True(matrix.Rotation.FuzzyEqual(rotation, new Fixed64(0.0001)));
+        Assert.True(new Vector3d(2, 2, 2).FuzzyEqual(matrix.Scale, Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(matrix.Rotation.FuzzyEqual(rotation, Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
@@ -838,7 +838,7 @@ public class Fixed4x4Tests
 
         var transformed = Fixed4x4.TransformPoint(matrix, point);
 
-        Assert.Equal(new Vector3d(new Fixed64(0.5), Fixed64.One, new Fixed64(1.5)), transformed);
+        Assert.Equal(new Vector3d(Fixed64.FromFloatPoint(0.5), Fixed64.One, Fixed64.FromFloatPoint(1.5)), transformed);
     }
 
     [Fact]
@@ -870,7 +870,7 @@ public class Fixed4x4Tests
 
         var restored = Fixed4x4.InverseTransformPoint(matrix, transformed);
 
-        Assert.True(originalPoint.FuzzyEqual(restored, new Fixed64(0.0001)));
+        Assert.True(originalPoint.FuzzyEqual(restored, Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
@@ -916,7 +916,7 @@ public class Fixed4x4Tests
         var restored = matrix.InverseTransformPoint(transformed);
 
         Assert.Equal(Fixed4x4.TransformPoint(matrix, point), transformed);
-        Assert.True(point.FuzzyEqual(restored, new Fixed64(0.0001)));
+        Assert.True(point.FuzzyEqual(restored, Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
@@ -999,7 +999,7 @@ public class Fixed4x4Tests
         var localPoint = Fixed4x4.InverseTransformPoint(transformMatrix, worldPoint);
         var transformedBack = Fixed4x4.TransformPoint(transformMatrix, localPoint);
 
-        Assert.True(worldPoint.FuzzyEqual(transformedBack, new Fixed64(0.01)),
+        Assert.True(worldPoint.FuzzyEqual(transformedBack, Fixed64.FromFloatPoint(0.01)),
             $"Expected {worldPoint} but got {transformedBack}");
     }
 
@@ -1016,7 +1016,7 @@ public class Fixed4x4Tests
         var worldPoint = Fixed4x4.TransformPoint(transformMatrix, localPoint);
         var inverseTransformedPoint = Fixed4x4.InverseTransformPoint(transformMatrix, worldPoint);
 
-        Assert.True(localPoint.FuzzyEqual(inverseTransformedPoint, new Fixed64(0.0001)),
+        Assert.True(localPoint.FuzzyEqual(inverseTransformedPoint, Fixed64.FromFloatPoint(0.0001)),
             $"Expected {localPoint} but got {inverseTransformedPoint}");
     }
 
@@ -1033,7 +1033,7 @@ public class Fixed4x4Tests
         var transformedPoint = Fixed4x4.TransformPoint(transformMatrix, originalPoint);
         var inverseTransformedPoint = Fixed4x4.InverseTransformPoint(transformMatrix, transformedPoint);
 
-        Assert.True(originalPoint.FuzzyEqual(inverseTransformedPoint, new Fixed64(0.0001)),
+        Assert.True(originalPoint.FuzzyEqual(inverseTransformedPoint, Fixed64.FromFloatPoint(0.0001)),
             $"Expected {originalPoint} but got {inverseTransformedPoint}");
     }
 
@@ -1043,7 +1043,7 @@ public class Fixed4x4Tests
     public void Fixed4x4_NetSerialization_RoundTripMaintainsData()
     {
         var translation = new Vector3d(1, 2, 3);
-        var rotation = FixedQuaternion.FromEulerAnglesInDegrees(Fixed64.Zero, FixedMath.PiOver2, Fixed64.Zero);
+        var rotation = FixedQuaternion.FromEulerAnglesInDegrees(Fixed64.Zero, Fixed64.HalfPi, Fixed64.Zero);
         var scale = new Vector3d(1, 1, 1);
 
         var original4x4 = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
@@ -1065,7 +1065,7 @@ public class Fixed4x4Tests
     public void Fixed4x4_MemoryPackSerialization_RoundTripMaintainsData()
     {
         var translation = new Vector3d(1, 2, 3);
-        var rotation = FixedQuaternion.FromEulerAnglesInDegrees(Fixed64.Zero, FixedMath.PiOver2, Fixed64.Zero);
+        var rotation = FixedQuaternion.FromEulerAnglesInDegrees(Fixed64.Zero, Fixed64.HalfPi, Fixed64.Zero);
         var scale = new Vector3d(1, 1, 1);
 
         Fixed4x4 originalValue = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);

@@ -118,7 +118,7 @@ public partial class FixedCurve : IEquatable<FixedCurve>
             FixedCurveMode.Step => current.Value,
             FixedCurveMode.Smooth => FixedMath.SmoothStep(current.Value, next.Value, t),
             FixedCurveMode.Cubic => FixedMath.CubicInterpolate(current.Value, next.Value, current.OutTangent, next.InTangent, t),
-            _ => FixedMath.LinearInterpolate(current.Value, next.Value, t),
+            _ => FixedMath.Lerp(current.Value, next.Value, t),
         };
     }
 

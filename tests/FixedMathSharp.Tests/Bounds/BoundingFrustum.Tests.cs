@@ -110,11 +110,11 @@ public class BoundingFrustumTests
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
         var inside = new BoundingArea(
-            new Vector3d(Fixed64.Zero, Fixed64.Zero, new Fixed64(0.25)),
-            new Vector3d(Fixed64.Half, Fixed64.Half, new Fixed64(0.75)));
+            new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.FromFloatPoint(0.25)),
+            new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.FromFloatPoint(0.75)));
         var crossing = new BoundingArea(
-            new Vector3d(new Fixed64(0.75), -Fixed64.Half, new Fixed64(0.25)),
-            new Vector3d(new Fixed64(1.25), Fixed64.Half, new Fixed64(0.75)));
+            new Vector3d(Fixed64.FromFloatPoint(0.75), -Fixed64.Half, Fixed64.FromFloatPoint(0.25)),
+            new Vector3d(Fixed64.FromFloatPoint(1.25), Fixed64.Half, Fixed64.FromFloatPoint(0.75)));
 
         Assert.Equal(ContainmentType.Contains, frustum.Contains(inside));
         Assert.Equal(ContainmentType.Intersects, frustum.Contains(crossing));
@@ -124,7 +124,7 @@ public class BoundingFrustumTests
     public void Intersects_BoundingSphere_ReturnsFalseOnlyWhenFullyOutsidePlane()
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
-        var inside = new BoundingSphere(new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half), new Fixed64(0.25));
+        var inside = new BoundingSphere(new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half), Fixed64.FromFloatPoint(0.25));
         var outside = new BoundingSphere(new Vector3d(new Fixed64(3), Fixed64.Zero, Fixed64.Half), Fixed64.Half);
         var crossing = new BoundingSphere(new Vector3d(Fixed64.One, Fixed64.Zero, Fixed64.Half), Fixed64.Half);
 
@@ -226,7 +226,7 @@ public class BoundingFrustumTests
     public void Matrix_Setter_RebuildsPlanesCornersAndBounds()
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
-        var point = new Vector3d(new Fixed64(0.75), Fixed64.Zero, Fixed64.Half);
+        var point = new Vector3d(Fixed64.FromFloatPoint(0.75), Fixed64.Zero, Fixed64.Half);
 
         Assert.Equal(ContainmentType.Contains, frustum.Contains(point));
 
@@ -369,9 +369,9 @@ public class BoundingFrustumTests
     {
         Fixed4x4 translationMatrix = Fixed4x4.CreateTranslation(translation);
         Fixed4x4 rotationMatrix =
-            Fixed4x4.CreateRotationX(rotationDegrees.x * FixedMath.Deg2Rad) *
-            Fixed4x4.CreateRotationY(rotationDegrees.y * FixedMath.Deg2Rad) *
-            Fixed4x4.CreateRotationZ(rotationDegrees.z * FixedMath.Deg2Rad);
+            Fixed4x4.CreateRotationX(rotationDegrees.x * Fixed64.Deg2Rad) *
+            Fixed4x4.CreateRotationY(rotationDegrees.y * Fixed64.Deg2Rad) *
+            Fixed4x4.CreateRotationZ(rotationDegrees.z * Fixed64.Deg2Rad);
         Fixed4x4 scaleMatrix = Fixed4x4.CreateScale(scale);
 
         return new BoundingFrustum(translationMatrix * rotationMatrix * scaleMatrix);

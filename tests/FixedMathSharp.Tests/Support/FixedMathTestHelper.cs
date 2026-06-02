@@ -4,7 +4,7 @@ namespace FixedMathSharp.Tests;
 
 internal static class FixedMathTestHelper
 {
-    private static readonly Fixed64 RelativeTolerance = new(0.0001); // 0.01%
+    private static readonly Fixed64 RelativeTolerance = Fixed64.FromFloatPoint(0.0001); // 0.01%
 
     /// <summary>
     /// Asserts that the difference between the expected and actual values is within the specified relative tolerance.
@@ -16,14 +16,11 @@ internal static class FixedMathTestHelper
     public static void AssertWithinRelativeTolerance(
         Fixed64 expected,
         Fixed64 actual,
-        Fixed64 tolerance = default,
+        Fixed64? tolerance = null,
         string message = "")
     {
-        if (tolerance == default)
-            tolerance = RelativeTolerance;
-
         var difference = (actual - expected).Abs();
-        var allowedError = expected.Abs() * tolerance;
+        var allowedError = expected.Abs() * (tolerance ?? RelativeTolerance);
 
         Assert.True(difference <= allowedError,
             string.IsNullOrWhiteSpace(message)

@@ -69,8 +69,8 @@ public class Vector2dTests
         var vector = new Vector2d(3, 4);
         vector.Normalize();
 
-        var expected = new Vector2d(new Fixed64(0.6), new Fixed64(0.8)); // Normalized vector (0.6, 0.8)
-        Assert.True(vector.FuzzyEqual(expected, new Fixed64(0.0001)));
+        var expected = new Vector2d(Fixed64.FromFloatPoint(0.6), Fixed64.FromFloatPoint(0.8)); // Normalized vector (0.6, 0.8)
+        Assert.True(vector.FuzzyEqual(expected, Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class Vector2dTests
     {
         var start = new Vector2d(0, 0);
         var end = new Vector2d(10, 10);
-        var amount = new Fixed64(0.5); // 50% interpolation
+        var amount = Fixed64.FromFloatPoint(0.5); // 50% interpolation
 
         start.LerpInPlace(end, amount);
         Assert.Equal(new Vector2d(5, 5), start); // Should be halfway between (0, 0) and (10, 10)
@@ -88,22 +88,22 @@ public class Vector2dTests
     public void RotateInPlace_RotatesVectorCorrectly()
     {
         var vector = new Vector2d(1, 0);
-        var cos = FixedMath.Cos(FixedMath.PiOver2); // 90° cosine
-        var sin = FixedMath.Sin(FixedMath.PiOver2); // 90° sine
+        var cos = FixedMath.Cos(Fixed64.HalfPi); // 90° cosine
+        var sin = FixedMath.Sin(Fixed64.HalfPi); // 90° sine
 
         vector.RotateInPlace(cos, sin);
-        Assert.True(vector.FuzzyEqual(new Vector2d(0, 1), new Fixed64(0.0001))); // (1, 0) rotated 90° becomes (0, 1)
+        Assert.True(vector.FuzzyEqual(new Vector2d(0, 1), Fixed64.FromFloatPoint(0.0001))); // (1, 0) rotated 90° becomes (0, 1)
     }
 
     [Fact]
     public void RotateInverse_RotatesVectorInOppositeDirection()
     {
         var vector = new Vector2d(1, 0);
-        var cos = FixedMath.Cos(FixedMath.PiOver2); // 90° cosine
-        var sin = FixedMath.Sin(FixedMath.PiOver2); // 90° sine
+        var cos = FixedMath.Cos(Fixed64.HalfPi); // 90° cosine
+        var sin = FixedMath.Sin(Fixed64.HalfPi); // 90° sine
 
         vector.RotateInverse(cos, sin);
-        Assert.True(vector.FuzzyEqual(new Vector2d(0, -1), new Fixed64(0.0001))); // Should rotate -90° to (0, -1)
+        Assert.True(vector.FuzzyEqual(new Vector2d(0, -1), Fixed64.FromFloatPoint(0.0001))); // Should rotate -90° to (0, -1)
     }
 
     [Fact]
@@ -278,7 +278,7 @@ public class Vector2dTests
 
         Assert.Equal(new Fixed64(5), magnitude);
         Assert.Equal(vector, normalized);
-        Assert.True(vector.FuzzyEqual(new Vector2d(new Fixed64(0.6), new Fixed64(0.8)), new Fixed64(0.0001)));
+        Assert.True(vector.FuzzyEqual(new Vector2d(Fixed64.FromFloatPoint(0.6), Fixed64.FromFloatPoint(0.8)), Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
@@ -349,7 +349,7 @@ public class Vector2dTests
     [Fact]
     public void V2ToDegrees_ConvertsCorrectly()
     {
-        var radians = new Vector2d(FixedMath.PiOver2, FixedMath.PI); // (90°, 180°)
+        var radians = new Vector2d(Fixed64.HalfPi, Fixed64.Pi); // (90°, 180°)
         var result = radians.ToDegrees();
 
         Assert.True(result.FuzzyEqual(new Vector2d(90, 180))); // Converts radians to degrees
@@ -361,7 +361,7 @@ public class Vector2dTests
         var degrees = new Vector2d(90, 180);
         var result = degrees.ToRadians();
 
-        Assert.True(result.FuzzyEqual(new Vector2d(FixedMath.PiOver2, FixedMath.PI))); // Converts degrees to radians
+        Assert.True(result.FuzzyEqual(new Vector2d(Fixed64.HalfPi, Fixed64.Pi))); // Converts degrees to radians
     }
 
     [Fact]
@@ -369,7 +369,7 @@ public class Vector2dTests
     {
         var vector1 = new Vector2d(2, 2);
         var vector2 = new Vector2d(2.1, 2.1);
-        var allowedDifference = new Fixed64(0.15);
+        var allowedDifference = Fixed64.FromFloatPoint(0.15);
 
         Assert.True(vector1.FuzzyEqualAbsolute(vector2, allowedDifference)); // Approximate equality with a 0.15 difference
     }
@@ -393,7 +393,7 @@ public class Vector2dTests
     {
         var vector1 = new Vector2d(100, 100);
         var vector2 = new Vector2d(102, 102);
-        var percentage = new Fixed64(0.02); // Allow a 2% difference
+        var percentage = Fixed64.FromFloatPoint(0.02); // Allow a 2% difference
 
         Assert.True(vector1.FuzzyEqual(vector2, percentage)); // Should be approximately equal within 2% difference
     }
@@ -422,10 +422,10 @@ public class Vector2dTests
     public void V2Rotate_RotatesVectorCorrectly()
     {
         var vector = new Vector2d(1, 0);
-        var angle = FixedMath.PiOver2; // Rotate by 90° (π/2 radians)
+        var angle = Fixed64.HalfPi; // Rotate by 90° (π/2 radians)
         var result = vector.Rotate(angle);
 
-        Assert.True(result.FuzzyEqual(new Vector2d(0, 1), new Fixed64(0.0001))); // Should rotate to (0, 1)
+        Assert.True(result.FuzzyEqual(new Vector2d(0, 1), Fixed64.FromFloatPoint(0.0001))); // Should rotate to (0, 1)
     }
 
     [Fact]
@@ -433,9 +433,9 @@ public class Vector2dTests
     {
         var start = new Vector2d(0, 0);
 
-        var result = start.Lerped(new Vector2d(10, 20), new Fixed64(0.25));
+        var result = start.Lerped(new Vector2d(10, 20), Fixed64.FromFloatPoint(0.25));
 
-        Assert.Equal(new Vector2d(new Fixed64(2.5), new Fixed64(5)), result);
+        Assert.Equal(new Vector2d(Fixed64.FromFloatPoint(2.5), new Fixed64(5)), result);
         Assert.Equal(Vector2d.Zero, start);
     }
 
@@ -443,13 +443,13 @@ public class Vector2dTests
     public void Rotated_Overloads_ReturnRotatedCopiesWithoutMutatingOriginal()
     {
         var vector = new Vector2d(1, 0);
-        var rotation = Vector2d.CreateRotation(FixedMath.PiOver2);
+        var rotation = Vector2d.CreateRotation(Fixed64.HalfPi);
 
         var rotatedByComponents = vector.Rotated(rotation.x, rotation.y);
         var rotatedByVector = vector.Rotated(rotation);
 
-        Assert.True(rotatedByComponents.FuzzyEqual(Vector2d.Forward, new Fixed64(0.0001)));
-        Assert.True(rotatedByVector.FuzzyEqual(Vector2d.Forward, new Fixed64(0.0001)));
+        Assert.True(rotatedByComponents.FuzzyEqual(Vector2d.Forward, Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(rotatedByVector.FuzzyEqual(Vector2d.Forward, Fixed64.FromFloatPoint(0.0001)));
         Assert.Equal(Vector2d.Right, vector);
     }
 
@@ -482,9 +482,9 @@ public class Vector2dTests
     [Fact]
     public void ForwardDirection_ReturnsExpectedUnitVector()
     {
-        var result = Vector2d.ForwardDirection(FixedMath.PiOver2);
+        var result = Vector2d.ForwardDirection(Fixed64.HalfPi);
 
-        Assert.True(result.FuzzyEqual(Vector2d.Forward, new Fixed64(0.0001)));
+        Assert.True(result.FuzzyEqual(Vector2d.Forward, Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
@@ -492,7 +492,7 @@ public class Vector2dTests
     {
         var vector = new Vector2d(new Fixed64(3), new Fixed64(4));
 
-        Assert.Equal(new Vector2d(new Fixed64(0.6), new Fixed64(0.8)), vector.Normal);
+        Assert.Equal(new Vector2d(Fixed64.FromFloatPoint(0.6), Fixed64.FromFloatPoint(0.8)), vector.Normal);
         Assert.Equal(new Fixed64(5), vector.Magnitude);
         Assert.Equal(new Fixed64(25), vector.SqrMagnitude);
         Assert.Equal(vector.x.m_rawValue * 31 + vector.y.m_rawValue * 7, vector.LongStateHash);
@@ -525,13 +525,13 @@ public class Vector2dTests
     [Fact]
     public void Vector2d_StaticHelpersAndConversions_WorkCorrectly()
     {
-        var vector = new Vector2d(new Fixed64(1.25), new Fixed64(-2.5));
+        var vector = new Vector2d(Fixed64.FromFloatPoint(1.25), Fixed64.FromFloatPoint(-2.5));
 
         Assert.Equal(new Fixed64(25), Vector2d.SqrDistance(Vector2d.Zero, new Vector2d(3, 4)));
         Assert.Equal(new Fixed64(11), Vector2d.Dot(new Vector2d(1, 2), new Vector2d(3, 4)));
         Assert.Equal(new Vector2d(8, 15), Vector2d.Scale(new Vector2d(2, 3), new Vector2d(4, 5)));
         Assert.Equal("(1.25, -2.5)", vector.ToString());
-        Assert.Equal(new Vector3d(new Fixed64(1.25), new Fixed64(7), new Fixed64(-2.5)), vector.ToVector3d(new Fixed64(7)));
+        Assert.Equal(new Vector3d(Fixed64.FromFloatPoint(1.25), new Fixed64(7), Fixed64.FromFloatPoint(-2.5)), vector.ToVector3d(new Fixed64(7)));
 
         vector.Deconstruct(out float fx, out float fy);
         vector.Deconstruct(out int ix, out int iy);
@@ -571,9 +571,9 @@ public class Vector2dTests
     {
         var actual = new Vector2d(1, 2);
         var expected = actual;
-        expected[componentIndex] += new Fixed64(0.2);
+        expected[componentIndex] += Fixed64.FromFloatPoint(0.2);
 
-        Assert.False(actual.FuzzyEqualAbsolute(expected, new Fixed64(0.1)));
+        Assert.False(actual.FuzzyEqualAbsolute(expected, Fixed64.FromFloatPoint(0.1)));
     }
 
     [Fact]
@@ -590,7 +590,7 @@ public class Vector2dTests
         Assert.Equal(new Vector2d(-1, -2), -vector);
         Assert.Equal(new Vector2d(2, 4), vector * new Fixed64(2));
         Assert.Equal(new Vector2d(2, 6), vector * new Vector2d(2, 3));
-        Assert.Equal(new Vector2d(new Fixed64(0.5), Fixed64.One), vector / new Fixed64(2));
+        Assert.Equal(new Vector2d(Fixed64.FromFloatPoint(0.5), Fixed64.One), vector / new Fixed64(2));
     }
 
     #region Test: Serialization
@@ -598,7 +598,7 @@ public class Vector2dTests
     [Fact]
     public void Vector2d_NetSerialization_RoundTripMaintainsData()
     {
-        var originalValue = new Vector2d(FixedMath.PI, FixedMath.PiOver2);
+        var originalValue = new Vector2d(Fixed64.Pi, Fixed64.HalfPi);
 
         var jsonOptions = new JsonSerializerOptions
         {
@@ -616,7 +616,7 @@ public class Vector2dTests
     [Fact]
     public void Vector2d_MemoryPackSerialization_RoundTripMaintainsData()
     {
-        Vector2d originalValue = new(FixedMath.PI, FixedMath.PiOver2);
+        Vector2d originalValue = new(Fixed64.Pi, Fixed64.HalfPi);
 
         byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
         Vector2d deserializedValue = MemoryPackSerializer.Deserialize<Vector2d>(bytes);

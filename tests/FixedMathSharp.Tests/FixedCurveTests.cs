@@ -126,11 +126,11 @@ public class FixedCurveTests
     public void Evaluate_ExtremeValues_ShouldHandleCorrectly()
     {
         FixedCurve curve = new(FixedCurveMode.Linear,
-            new FixedCurveKey(Fixed64.MIN_VALUE, -(Fixed64)10000),
-            new FixedCurveKey(Fixed64.MAX_VALUE, (Fixed64)10000));
+            new FixedCurveKey(Fixed64.MinValue, -(Fixed64)10000),
+            new FixedCurveKey(Fixed64.MaxValue, (Fixed64)10000));
 
-        Assert.Equal((Fixed64)(-10000), curve.Evaluate(Fixed64.MIN_VALUE));
-        Assert.Equal((Fixed64)(10000), curve.Evaluate(Fixed64.MAX_VALUE));
+        Assert.Equal((Fixed64)(-10000), curve.Evaluate(Fixed64.MinValue));
+        Assert.Equal((Fixed64)(10000), curve.Evaluate(Fixed64.MaxValue));
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public class FixedCurveTests
             new FixedCurveKey(0, 0),
             new FixedCurveKey(10, 10))));
         Assert.False(curve == nullCurve);
-        Assert.True(nullCurve == null);
+        Assert.Null(nullCurve);
         Assert.Equal(curve.GetHashCode(), same.GetHashCode());
     }
 
@@ -199,13 +199,13 @@ public class FixedCurveTests
     public void FixedCurveKey_ConstructorsEqualityAndHashCode_WorkCorrectly()
     {
         FixedCurveKey fromDouble = new(1.5, 2.5, 3.5, 4.5);
-        FixedCurveKey same = new(new Fixed64(1.5), new Fixed64(2.5), new Fixed64(3.5), new Fixed64(4.5));
+        FixedCurveKey same = new(Fixed64.FromFloatPoint(1.5), Fixed64.FromFloatPoint(2.5), Fixed64.FromFloatPoint(3.5), Fixed64.FromFloatPoint(4.5));
         FixedCurveKey simple = new(1.5, 2.5);
 
-        Assert.Equal(new Fixed64(1.5), fromDouble.Time);
-        Assert.Equal(new Fixed64(2.5), fromDouble.Value);
-        Assert.Equal(new Fixed64(3.5), fromDouble.InTangent);
-        Assert.Equal(new Fixed64(4.5), fromDouble.OutTangent);
+        Assert.Equal(Fixed64.FromFloatPoint(1.5), fromDouble.Time);
+        Assert.Equal(Fixed64.FromFloatPoint(2.5), fromDouble.Value);
+        Assert.Equal(Fixed64.FromFloatPoint(3.5), fromDouble.InTangent);
+        Assert.Equal(Fixed64.FromFloatPoint(4.5), fromDouble.OutTangent);
         Assert.Equal(Fixed64.Zero, simple.InTangent);
         Assert.Equal(Fixed64.Zero, simple.OutTangent);
         Assert.True(fromDouble == same);

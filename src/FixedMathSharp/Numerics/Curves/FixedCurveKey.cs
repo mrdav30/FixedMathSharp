@@ -48,13 +48,13 @@ public partial struct FixedCurveKey : IEquatable<FixedCurveKey>
     /// Creates a keyframe with a specified time and value.
     /// </summary>
     public FixedCurveKey(double time, double value)
-        : this(new Fixed64(time), new Fixed64(value)) { }
+        : this(Fixed64.FromFloatPoint(time), Fixed64.FromFloatPoint(value)) { }
 
     /// <summary>
     /// Creates a keyframe with optional tangents for cubic interpolation.
     /// </summary>
     public FixedCurveKey(double time, double value, double inTangent, double outTangent)
-        : this(new Fixed64(time), new Fixed64(value), new Fixed64(inTangent), new Fixed64(outTangent)) { }
+        : this(Fixed64.FromFloatPoint(time), Fixed64.FromFloatPoint(value), Fixed64.FromFloatPoint(inTangent), Fixed64.FromFloatPoint(outTangent)) { }
 
     /// <summary>
     /// Creates a keyframe with a specified time and value.

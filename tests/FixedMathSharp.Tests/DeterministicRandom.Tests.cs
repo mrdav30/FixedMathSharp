@@ -276,7 +276,7 @@ public class DeterministicRandomTests
         var rng = new DeterministicRandom(0UL);
         var mirror = new DeterministicRandom(0UL);
         var min = -Fixed64.One;
-        var max = Fixed64.MAX_VALUE;
+        var max = Fixed64.MaxValue;
         ulong span = unchecked((ulong)(max.m_rawValue - min.m_rawValue));
         ulong threshold = unchecked((ulong)-(long)span) % span;
 

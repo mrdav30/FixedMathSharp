@@ -926,12 +926,12 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// Deconstructs the vector into single-precision floating-point values.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly void Deconstruct(out float x, out float y, out float z, out float w)
+    public readonly void Deconstruct(out double x, out double y, out double z, out double w)
     {
-        x = this.x.ToPreciseFloat();
-        y = this.y.ToPreciseFloat();
-        z = this.z.ToPreciseFloat();
-        w = this.w.ToPreciseFloat();
+        x = (double)this.x;
+        y = (double)this.y;
+        z = (double)this.z;
+        w = (double)this.w;
     }
 
     /// <summary>
@@ -944,6 +944,18 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
         y = this.y.RoundToInt();
         z = this.z.RoundToInt();
         w = this.w.RoundToInt();
+    }
+
+    /// <summary>
+    /// Deconstructs the vector into its raw long component values.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly void Deconstruct(out long x, out long y, out long z, out long w)
+    {
+        x = this.x.m_rawValue;
+        y = this.y.m_rawValue;
+        z = this.z.m_rawValue;
+        w = this.w.m_rawValue;
     }
 
     #endregion

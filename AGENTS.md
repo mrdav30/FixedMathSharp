@@ -25,7 +25,7 @@
 
 ## Code conventions specific to this repo
 
-- Prefer `Fixed64` constants (`Fixed64.Zero`, `Fixed64.One`, `FixedMath.PI`) over primitive literals in math-heavy code.
+- Prefer `Fixed64` constants (`Fixed64.Zero`, `Fixed64.One`, `Fixed64.Pi`) over primitive literals in math-heavy code.
 - Preserve saturating/guarded semantics in operators and math helpers (for example `Fixed64` add/sub overflow behavior).
 - When touching bounds logic, maintain cross-type dispatch shape in `Intersects(IBound)` and shared clamping projection via `IBoundExtensions.ProjectPointWithinBounds`.
 - Serialization compatibility is intentional and now uses MemoryPack:

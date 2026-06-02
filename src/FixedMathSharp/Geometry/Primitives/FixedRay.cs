@@ -126,7 +126,7 @@ public partial struct FixedRay : IEquatable<FixedRay>
     private Fixed64? IntersectsBoxLike(Vector3d min, Vector3d max)
     {
         Fixed64 tMin = Fixed64.Zero;
-        Fixed64 tMax = Fixed64.MAX_VALUE;
+        Fixed64 tMax = Fixed64.MaxValue;
 
         if (!ClipAxis(Position.x, Direction.x, min.x, max.x, ref tMin, ref tMax))
             return null;
