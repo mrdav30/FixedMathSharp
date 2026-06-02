@@ -22,20 +22,20 @@ public class FixedQuaternionTests
     public void FixedQuaternion_InitializesCorrectly()
     {
         var quaternion = new FixedQuaternion(Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
-        Assert.Equal(Fixed64.One, quaternion.x);
-        Assert.Equal(Fixed64.Zero, quaternion.y);
-        Assert.Equal(Fixed64.Zero, quaternion.z);
-        Assert.Equal(Fixed64.One, quaternion.w);
+        Assert.Equal(Fixed64.One, quaternion.X);
+        Assert.Equal(Fixed64.Zero, quaternion.Y);
+        Assert.Equal(Fixed64.Zero, quaternion.Z);
+        Assert.Equal(Fixed64.One, quaternion.W);
     }
 
     [Fact]
     public void FixedQuaternion_Identity_IsCorrect()
     {
         var identity = FixedQuaternion.Identity;
-        Assert.Equal(Fixed64.Zero, identity.x);
-        Assert.Equal(Fixed64.Zero, identity.y);
-        Assert.Equal(Fixed64.Zero, identity.z);
-        Assert.Equal(Fixed64.One, identity.w);
+        Assert.Equal(Fixed64.Zero, identity.X);
+        Assert.Equal(Fixed64.Zero, identity.Y);
+        Assert.Equal(Fixed64.Zero, identity.Z);
+        Assert.Equal(Fixed64.One, identity.W);
     }
 
     [Fact]
@@ -53,10 +53,10 @@ public class FixedQuaternionTests
         quaternion[2] = new Fixed64(9);
         quaternion[3] = new Fixed64(10);
 
-        Assert.Equal(new Fixed64(7), quaternion.x);
-        Assert.Equal(new Fixed64(8), quaternion.y);
-        Assert.Equal(new Fixed64(9), quaternion.z);
-        Assert.Equal(new Fixed64(10), quaternion.w);
+        Assert.Equal(new Fixed64(7), quaternion.X);
+        Assert.Equal(new Fixed64(8), quaternion.Y);
+        Assert.Equal(new Fixed64(9), quaternion.Z);
+        Assert.Equal(new Fixed64(10), quaternion.W);
         Assert.Throws<IndexOutOfRangeException>(() => _ = quaternion[4]);
         Assert.Throws<IndexOutOfRangeException>(() => quaternion[-1] = Fixed64.Zero);
     }
@@ -81,7 +81,7 @@ public class FixedQuaternionTests
         var quaternion = new FixedQuaternion(new Fixed64(1), new Fixed64(1), new Fixed64(1), new Fixed64(1));
         quaternion.Normalize();
 
-        var magnitudeSqr = quaternion.x * quaternion.x + quaternion.y * quaternion.y + quaternion.z * quaternion.z + quaternion.w * quaternion.w;
+        var magnitudeSqr = quaternion.X * quaternion.X + quaternion.Y * quaternion.Y + quaternion.Z * quaternion.Z + quaternion.W * quaternion.W;
         Assert.Equal(Fixed64.One, magnitudeSqr, Fixed64.FromFloatPoint(0.0001)); // Ensure magnitude squared is 1
     }
 
@@ -91,7 +91,7 @@ public class FixedQuaternionTests
         var quaternion = new FixedQuaternion(new Fixed64(2), new Fixed64(2), new Fixed64(2), new Fixed64(2));
         var normalized = FixedQuaternion.GetNormalized(quaternion);
 
-        var magnitudeSqr = normalized.x * normalized.x + normalized.y * normalized.y + normalized.z * normalized.z + normalized.w * normalized.w;
+        var magnitudeSqr = normalized.X * normalized.X + normalized.Y * normalized.Y + normalized.Z * normalized.Z + normalized.W * normalized.W;
         Assert.Equal(Fixed64.One, magnitudeSqr, Fixed64.FromFloatPoint(0.0001));
     }
 
@@ -103,10 +103,10 @@ public class FixedQuaternionTests
         var normal = quaternion.Normal;
 
         Assert.True(normal.IsNormalized());
-        Assert.Equal(new Fixed64(2), quaternion.x);
-        Assert.Equal(Fixed64.Zero, quaternion.y);
-        Assert.Equal(Fixed64.Zero, quaternion.z);
-        Assert.Equal(Fixed64.Zero, quaternion.w);
+        Assert.Equal(new Fixed64(2), quaternion.X);
+        Assert.Equal(Fixed64.Zero, quaternion.Y);
+        Assert.Equal(Fixed64.Zero, quaternion.Z);
+        Assert.Equal(Fixed64.Zero, quaternion.W);
     }
 
     [Fact]
@@ -143,10 +143,10 @@ public class FixedQuaternionTests
         var quaternion = new FixedQuaternion(new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4));
         var conjugate = quaternion.Conjugate();
 
-        Assert.Equal(new Fixed64(-1), conjugate.x);
-        Assert.Equal(new Fixed64(-2), conjugate.y);
-        Assert.Equal(new Fixed64(-3), conjugate.z);
-        Assert.Equal(new Fixed64(4), conjugate.w);
+        Assert.Equal(new Fixed64(-1), conjugate.X);
+        Assert.Equal(new Fixed64(-2), conjugate.Y);
+        Assert.Equal(new Fixed64(-3), conjugate.Z);
+        Assert.Equal(new Fixed64(4), conjugate.W);
     }
 
     [Fact]
@@ -752,16 +752,16 @@ public class FixedQuaternionTests
         switch (componentIndex)
         {
             case 0:
-                quaternion.x += offset;
+                quaternion.X += offset;
                 break;
             case 1:
-                quaternion.y += offset;
+                quaternion.Y += offset;
                 break;
             case 2:
-                quaternion.z += offset;
+                quaternion.Z += offset;
                 break;
             case 3:
-                quaternion.w += offset;
+                quaternion.W += offset;
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(componentIndex));

@@ -115,7 +115,7 @@ public class FixedAssertionsTests
     {
         FixedQuaternion actual = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
         FixedQuaternion negated = actual * -Fixed64.One;
-        FixedQuaternion wOffset = new(actual.x, actual.y, actual.z, actual.w + Fixed64.FromFloatPoint(0.2));
+        FixedQuaternion wOffset = new(actual.X, actual.Y, actual.Z, actual.W + Fixed64.FromFloatPoint(0.2));
 
         AssertAssertionPasses(() =>
         {
@@ -136,7 +136,7 @@ public class FixedAssertionsTests
         FixedQuaternion actual = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
         FixedQuaternion differentRotation = FixedQuaternion.FromAxisAngle(Vector3d.Right, Fixed64.HalfPi);
         FixedQuaternion scaled = actual * new Fixed64(2);
-        FixedQuaternion wOffset = new(actual.x, actual.y, actual.z, actual.w + Fixed64.FromFloatPoint(0.2));
+        FixedQuaternion wOffset = new(actual.X, actual.Y, actual.Z, actual.W + Fixed64.FromFloatPoint(0.2));
 
         AssertAssertionFails(() => actual.Should().Be(FixedQuaternion.Identity));
         AssertAssertionFails(() => FixedQuaternion.Identity.Should().NotBe(FixedQuaternion.Identity));
@@ -352,16 +352,16 @@ public class FixedAssertionsTests
         switch (componentIndex)
         {
             case 0:
-                quaternion.x += offset;
+                quaternion.X += offset;
                 break;
             case 1:
-                quaternion.y += offset;
+                quaternion.Y += offset;
                 break;
             case 2:
-                quaternion.z += offset;
+                quaternion.Z += offset;
                 break;
             case 3:
-                quaternion.w += offset;
+                quaternion.W += offset;
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(componentIndex));

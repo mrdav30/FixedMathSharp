@@ -38,4 +38,11 @@ internal static class FixedThrowHelper
         if (condition)
             throw new InvalidOperationException(message);
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void ThrowIfOutOfRange([DoesNotReturnIf(true)] bool condition, string? message = null)
+    {
+        if (condition)
+            throw new ArgumentOutOfRangeException(message);
+    }
 }

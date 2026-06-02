@@ -1424,18 +1424,18 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(FixedQuaternion rotation, Vector3d point)
     {
-        Fixed64 num1 = rotation.x * 2;
-        Fixed64 num2 = rotation.y * 2;
-        Fixed64 num3 = rotation.z * 2;
-        Fixed64 num4 = rotation.x * num1;
-        Fixed64 num5 = rotation.y * num2;
-        Fixed64 num6 = rotation.z * num3;
-        Fixed64 num7 = rotation.x * num2;
-        Fixed64 num8 = rotation.x * num3;
-        Fixed64 num9 = rotation.y * num3;
-        Fixed64 num10 = rotation.w * num1;
-        Fixed64 num11 = rotation.w * num2;
-        Fixed64 num12 = rotation.w * num3;
+        Fixed64 num1 = rotation.X * 2;
+        Fixed64 num2 = rotation.Y * 2;
+        Fixed64 num3 = rotation.Z * 2;
+        Fixed64 num4 = rotation.X * num1;
+        Fixed64 num5 = rotation.Y * num2;
+        Fixed64 num6 = rotation.Z * num3;
+        Fixed64 num7 = rotation.X * num2;
+        Fixed64 num8 = rotation.X * num3;
+        Fixed64 num9 = rotation.Y * num3;
+        Fixed64 num10 = rotation.W * num1;
+        Fixed64 num11 = rotation.W * num2;
+        Fixed64 num12 = rotation.W * num3;
         Vector3d vector3 = new(
             (Fixed64.One - (num5 + num6)) * point.x + (num7 - num12) * point.y + (num8 + num11) * point.z,
             (num7 + num12) * point.x + (Fixed64.One - (num4 + num6)) * point.y + (num9 - num10) * point.z,

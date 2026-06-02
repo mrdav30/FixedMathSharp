@@ -38,10 +38,10 @@ internal static class FixedAssertionHelpers
 
     public static bool AreComponentApproximatelyEqual(FixedQuaternion actual, FixedQuaternion expected, Fixed64 tolerance)
     {
-        return (actual.x - expected.x).Abs() <= tolerance
-            && (actual.y - expected.y).Abs() <= tolerance
-            && (actual.z - expected.z).Abs() <= tolerance
-            && (actual.w - expected.w).Abs() <= tolerance;
+        return (actual.X - expected.X).Abs() <= tolerance
+            && (actual.Y - expected.Y).Abs() <= tolerance
+            && (actual.Z - expected.Z).Abs() <= tolerance
+            && (actual.W - expected.W).Abs() <= tolerance;
     }
 
     public static bool AreComponentApproximatelyEqual(Fixed3x3 actual, Fixed3x3 expected, Fixed64 tolerance)
