@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development before production or test changes, and use superpowers:verification-before-completion before claiming a phase is complete.
 
+**Status:** Done
+
 **Goal:** Raise the `Debug` coverage run for `FixedMathSharp.slnx` to 100% line coverage and 100% branch coverage without hollow tests or band-aid coverage exclusions.
 
 **Architecture:** Use the fresh Cobertura baseline from `tests/FixedMathSharp.Tests/coverlet.runsettings` as the target map. Add focused public-behavior tests for reachable branches, remove truly unreachable deterministic hot-path code only when the code path is mathematically or structurally dead, and keep the complexity register in sync after coverage/CRAP changes.
