@@ -85,7 +85,7 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 - Modify: `README.md`
 - Create or modify: `docs/wiki/coordinate-conventions.md`
 
-- [ ] Replace `// TODO: in XNA this is reverse` comments with XML docs that state FixedMathSharp's canonical convention.
+- [ ] Add XML remark docs that state FixedMathSharp's canonical convention on specific properties or methods.
 - [ ] Document that XNA/MonoGame use opposite forward naming and should convert at adapter boundaries.
 - [ ] Document that Unity's forward naming aligns with core `+Z`, but Unity matrix storage and transform semantics still require semantic conversion helpers.
 - [ ] Document `Vector2d` as plane math where `Forward == +Y`, and call out that `ForwardDirection(0)` returns `+X` because it is polar angle math.
@@ -167,7 +167,7 @@ dotnet build FixedMathSharp.slnx --configuration Debug --no-restore
 dotnet test FixedMathSharp.slnx --configuration Debug
 dotnet test FixedMathSharp.slnx --configuration Release --no-restore
 dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
-rg -n "TODO: in XNA this is reverse|Forward|Backward|Direction|convention|XNA|Unity" src tests README.md docs
+rg -n "TODO|Forward|Backward|Direction|convention|XNA|Unity" src tests README.md docs
 ```
 
 ## Recommended First Implementation Slice

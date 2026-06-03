@@ -369,6 +369,46 @@ public class Vector3dTests
         Assert.Equal(Vector3d.Forward, angles.Direction);
     }
 
+    [Fact]
+    public void Direction_PositiveYaw_ReturnsRight()
+    {
+        var angles = new Vector3d(Fixed64.Zero, Fixed64.HalfPi, Fixed64.Zero);
+
+        Assert.True(
+            angles.Direction.FuzzyEqual(Vector3d.Right, Fixed64.FromFloatPoint(0.0001)),
+            $"Direction returned {angles.Direction}, expected {Vector3d.Right}.");
+    }
+
+    [Fact]
+    public void Direction_NegativeYaw_ReturnsLeft()
+    {
+        var angles = new Vector3d(Fixed64.Zero, -Fixed64.HalfPi, Fixed64.Zero);
+
+        Assert.True(
+            angles.Direction.FuzzyEqual(Vector3d.Left, Fixed64.FromFloatPoint(0.0001)),
+            $"Direction returned {angles.Direction}, expected {Vector3d.Left}.");
+    }
+
+    [Fact]
+    public void Direction_PositivePitch_ReturnsDown()
+    {
+        var angles = new Vector3d(Fixed64.HalfPi, Fixed64.Zero, Fixed64.Zero);
+
+        Assert.True(
+            angles.Direction.FuzzyEqual(Vector3d.Down, Fixed64.FromFloatPoint(0.0001)),
+            $"Direction returned {angles.Direction}, expected {Vector3d.Down}.");
+    }
+
+    [Fact]
+    public void Direction_NegativePitch_ReturnsUp()
+    {
+        var angles = new Vector3d(-Fixed64.HalfPi, Fixed64.Zero, Fixed64.Zero);
+
+        Assert.True(
+            angles.Direction.FuzzyEqual(Vector3d.Up, Fixed64.FromFloatPoint(0.0001)),
+            $"Direction returned {angles.Direction}, expected {Vector3d.Up}.");
+    }
+
     #endregion
 
     #region Test: Equality 

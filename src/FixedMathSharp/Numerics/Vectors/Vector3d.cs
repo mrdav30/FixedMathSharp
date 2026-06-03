@@ -56,12 +56,12 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// The forward direction vector (0, 0, 1).
     /// </summary>
-    public static Vector3d Forward => new(0, 0, 1); // TODO: in XNA this is reverse
+    public static Vector3d Forward => new(0, 0, 1);
 
     /// <summary>
     /// (0, 0, -1)
     /// </summary>
-    public static Vector3d Backward => new(0, 0, -1); // TODO: in XNA this is reverse
+    public static Vector3d Backward => new(0, 0, -1);
 
     /// <summary>
     /// (1, 1, 1)
@@ -209,11 +209,12 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     }
 
     /// <summary>
-    /// Calculates the forward direction vector based on the yaw (x) and pitch (y) angles.
+    /// Calculates the forward direction vector from pitch (x) and yaw (y) angles.
     /// </summary>
     /// <remarks>
     /// This is commonly used to determine the direction an object is facing in 3D space,
-    /// where 'x' represents the yaw (horizontal rotation) and 'y' represents the pitch (vertical rotation).
+    /// where 'x' represents pitch around the X axis and 'y' represents yaw around the Y axis.
+    /// Positive pitch rotates the forward direction toward <see cref="Down"/>.
     /// </remarks>
     [JsonIgnore]
     [MemoryPackIgnore]
@@ -223,7 +224,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         {
             Fixed64 temp1 = FixedMath.Cos(X) * FixedMath.Sin(Y);
             Fixed64 temp2 = FixedMath.Sin(-X);
-            Fixed64 temp3 = FixedMath.Cos(X) * FixedMath.Cos(Y);  // TODO: in XNA this is reverse
+            Fixed64 temp3 = FixedMath.Cos(X) * FixedMath.Cos(Y);
             return new Vector3d(temp1, temp2, temp3);
         }
     }

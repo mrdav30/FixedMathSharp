@@ -36,42 +36,7 @@ runtime and tests.
 
 ## Active Issues
 
-### FMS-Issue-002: `Vector3d.Direction` docs appear to swap pitch and yaw semantics
-
-**Discovered:** 2026-06-03
-
-**Source:** Coordinate-convention review of vector direction helpers.
-
-**Status:** Proposed
-
-**Affected files:**
-
-- Review: `src/FixedMathSharp/Numerics/Vectors/Vector3d.cs`
-- Test: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs`
-
-**Problem:**
-
-`Vector3d.Direction` documentation says `X` is yaw and `Y` is pitch, while the
-formula appears to make `X` control signed vertical pitch and `Y` control
-horizontal yaw around `+Y`.
-
-**Recommended approach:**
-
-- [ ] Add tests for zero angles, positive yaw, negative yaw, positive pitch, and
-  negative pitch using canonical `+Z` forward expectations.
-- [ ] Decide whether the right fix is XML documentation only or additive helper
-  APIs such as `DirectionFromPitchYaw` / `FromPitchYaw`.
-- [ ] Preserve the existing public API unless a breaking-change phase is
-  explicitly approved.
-- [ ] If helper APIs are added, benchmark only if they are expected to be used
-  in hot paths.
-
-Verification:
-
-```bash
-dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~Vector3dTests"
-dotnet test FixedMathSharp.slnx --configuration Debug
-```
+- N/A
 
 ## Performance Investigation Queue
 
@@ -117,3 +82,35 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 ```
 
 Result on 2026-06-03: passed, 72 tests.
+
+### FMS-Issue-002: `Vector3d.Direction` docs swapped pitch and yaw semantics
+
+**Discovered:** 2026-06-03
+
+**Resolved:** 2026-06-03
+
+**Source:** Coordinate-convention review of vector direction helpers.
+
+**Resolution:**
+
+`Vector3d.Direction` behavior was confirmed as pitch on `X` and yaw on `Y`.
+The XML documentation now matches that convention and calls out the existing
+positive-pitch sign, which rotates canonical forward toward `Vector3d.Down`.
+No additive API was needed for this pass.
+
+**Completed work:**
+
+- [x] Added tests for positive yaw, negative yaw, positive pitch, and negative
+  pitch using canonical `+Z` forward expectations.
+- [x] Preserved the existing zero-angle behavior test.
+- [x] Confirmed the right fix was XML documentation only.
+- [x] Preserved the existing public API.
+- [x] Skipped benchmarking because no hot-path runtime behavior changed.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Vector3dTests"
+```
+
+Result on 2026-06-03: passed, 100 tests.
