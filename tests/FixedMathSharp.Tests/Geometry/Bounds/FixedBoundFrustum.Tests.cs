@@ -4,7 +4,7 @@ using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
 
-public class BoundingFrustumTests
+public class FixedBoundFrustumTests
 {
     private static readonly FixedPlane CustomNear = new(Vector3d.Backward, Fixed64.One);
     private static readonly FixedPlane CustomFar = new(Vector3d.Forward, new Fixed64(-5));

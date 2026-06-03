@@ -6,7 +6,7 @@ using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
 
-public class BoundingAreaTests
+public class FixedBoundAreaTests
 {
     #region Test: Constructor and Property
 
