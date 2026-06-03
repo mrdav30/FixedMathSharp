@@ -1,4 +1,5 @@
-﻿using MemoryPack;
+﻿using FixedMathSharp.Bounds;
+using MemoryPack;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -15,7 +16,7 @@ public class BoundingBoxTests
         var center = new Vector3d(0, 0, 0);
         var size = new Vector3d(2, 2, 2);
 
-        var box = new BoundingBox(center, size);
+        var box = new FixedBoundBox(center, size);
 
         Assert.Equal(center, box.Center);
         Assert.Equal(size, box.Proportions);
@@ -31,7 +32,7 @@ public class BoundingBoxTests
     [Fact]
     public void Contains_PointInside_ReturnsTrue()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
         var point = new Vector3d(1, 1, 1);
 
         Assert.True(box.Contains(point));
@@ -40,7 +41,7 @@ public class BoundingBoxTests
     [Fact]
     public void Contains_PointOutside_ReturnsFalse()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
         var point = new Vector3d(5, 5, 5);
 
         Assert.False(box.Contains(point));
@@ -49,7 +50,7 @@ public class BoundingBoxTests
     [Fact]
     public void Contains_PointOnBoundary_ReturnsTrue()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
         var point = new Vector3d(2, 0, 0);
 
         Assert.True(box.Contains(point));
@@ -58,7 +59,7 @@ public class BoundingBoxTests
     [Fact]
     public void Constructor_WithNegativeSize_StillContainsCenter()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(-4, -4, -4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(-4, -4, -4));
         Assert.True(box.Contains(new Vector3d(0, 0, 0)));
     }
 
@@ -69,23 +70,23 @@ public class BoundingBoxTests
     [Fact]
     public void Intersects_WithOverlappingBox_ReturnsTrue()
     {
-        var box1 = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
-        var box2 = new BoundingBox(new Vector3d(1, 1, 1), new Vector3d(4, 4, 4));
-        var contained = new BoundingBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var box1 = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box2 = new FixedBoundBox(new Vector3d(1, 1, 1), new Vector3d(4, 4, 4));
+        var contained = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
 
         Assert.True(box1.Intersects(box2));
         Assert.True(box1.Intersects(contained));
 
-        var area3 = new BoundingBox(new Vector3d(-2, -2, 0), new Vector3d(2, 2, 0));
-        var area4 = new BoundingBox(new Vector3d(-1, -1, 0), new Vector3d(3, 3, 0));
+        var area3 = new FixedBoundBox(new Vector3d(-2, -2, 0), new Vector3d(2, 2, 0));
+        var area4 = new FixedBoundBox(new Vector3d(-1, -1, 0), new Vector3d(3, 3, 0));
         Assert.False(area3.Intersects(area4));
     }
 
     [Fact]
     public void Intersects_WithNonOverlappingBox_ReturnsFalse()
     {
-        var box1 = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
-        var box2 = new BoundingBox(new Vector3d(5, 5, 5), new Vector3d(2, 2, 2));
+        var box1 = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+        var box2 = new FixedBoundBox(new Vector3d(5, 5, 5), new Vector3d(2, 2, 2));
 
         Assert.False(box1.Intersects(box2));
     }
@@ -93,8 +94,8 @@ public class BoundingBoxTests
     [Fact]
     public void Intersects_WithBoundingArea_ReturnsTrue()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
-        var area = new BoundingArea(new Vector3d(1, 1, 1), new Vector3d(3, 3, 3));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var area = new FixedBoundArea(new Vector3d(1, 1, 1), new Vector3d(3, 3, 3));
 
         Assert.True(box.Intersects(area));
     }
@@ -102,8 +103,8 @@ public class BoundingBoxTests
     [Fact]
     public void Intersects_WithBoundingSphere_ReturnsTrue()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
-        var sphere = new BoundingSphere(new Vector3d(1, 1, 1), Fixed64.One);
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var sphere = new FixedBoundSphere(new Vector3d(1, 1, 1), Fixed64.One);
 
         Assert.True(box.Intersects(sphere));
     }
@@ -111,9 +112,9 @@ public class BoundingBoxTests
     [Fact]
     public void Intersects_WithBoundingFrustum_ReturnsTrueOnlyWhenOverlapping()
     {
-        var frustum = new BoundingFrustum(Fixed4x4.Identity);
-        var overlapping = new BoundingBox(new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half), new Vector3d(2, 2, 2));
-        var disjoint = new BoundingBox(new Vector3d(new Fixed64(4), Fixed64.Zero, Fixed64.Half), new Vector3d(1, 1, 1));
+        var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
+        var overlapping = new FixedBoundBox(new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half), new Vector3d(2, 2, 2));
+        var disjoint = new FixedBoundBox(new Vector3d(new Fixed64(4), Fixed64.Zero, Fixed64.Half), new Vector3d(1, 1, 1));
 
         Assert.True(overlapping.Intersects(frustum));
         Assert.False(disjoint.Intersects(frustum));
@@ -122,46 +123,46 @@ public class BoundingBoxTests
     [Fact]
     public void ContainsAndIntersects_NullFrustum_Throw()
     {
-        var box = new BoundingBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
 
-        Assert.Throws<System.ArgumentNullException>(() => box.Contains((BoundingFrustum)null!));
-        Assert.Throws<System.ArgumentNullException>(() => box.Intersects((BoundingFrustum)null!));
+        Assert.Throws<System.ArgumentNullException>(() => box.Contains((FixedBoundFrustum)null!));
+        Assert.Throws<System.ArgumentNullException>(() => box.Intersects((FixedBoundFrustum)null!));
     }
 
     [Fact]
     public void Contains_TypedBounds_ReturnsContainmentClassification()
     {
-        var box = new BoundingBox(Vector3d.Zero, new Vector3d(4, 4, 4));
-        var containedBox = new BoundingBox(Vector3d.Zero, new Vector3d(1, 1, 1));
-        var crossingArea = new BoundingArea(new Vector3d(1, 1, 0), new Vector3d(3, 3, 0));
-        var disjointArea = new BoundingArea(new Vector3d(5, 5, 5), new Vector3d(6, 6, 6));
-        var containedSphere = new BoundingSphere(Vector3d.Zero, Fixed64.One);
-        var crossingSphere = new BoundingSphere(new Vector3d(2, 0, 0), Fixed64.One);
-        var disjointSphere = new BoundingSphere(new Vector3d(5, 0, 0), Fixed64.One);
-        var containedFrustum = new BoundingFrustum(Fixed4x4.Identity);
+        var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(4, 4, 4));
+        var containedBox = new FixedBoundBox(Vector3d.Zero, new Vector3d(1, 1, 1));
+        var crossingArea = new FixedBoundArea(new Vector3d(1, 1, 0), new Vector3d(3, 3, 0));
+        var disjointArea = new FixedBoundArea(new Vector3d(5, 5, 5), new Vector3d(6, 6, 6));
+        var containedSphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        var crossingSphere = new FixedBoundSphere(new Vector3d(2, 0, 0), Fixed64.One);
+        var disjointSphere = new FixedBoundSphere(new Vector3d(5, 0, 0), Fixed64.One);
+        var containedFrustum = new FixedBoundFrustum(Fixed4x4.Identity);
         var crossingFrustumMatrix = Fixed4x4.Identity;
         crossingFrustumMatrix.M41 = Fixed64.Two;
-        var crossingFrustum = new BoundingFrustum(crossingFrustumMatrix);
+        var crossingFrustum = new FixedBoundFrustum(crossingFrustumMatrix);
         var disjointFrustumMatrix = Fixed4x4.Identity;
         disjointFrustumMatrix.M41 = new Fixed64(10);
-        var disjointFrustum = new BoundingFrustum(disjointFrustumMatrix);
+        var disjointFrustum = new FixedBoundFrustum(disjointFrustumMatrix);
 
-        Assert.Equal(ContainmentType.Contains, box.Contains(containedBox));
-        Assert.Equal(ContainmentType.Intersects, box.Contains(crossingArea));
-        Assert.Equal(ContainmentType.Disjoint, box.Contains(disjointArea));
-        Assert.Equal(ContainmentType.Contains, box.Contains(containedSphere));
-        Assert.Equal(ContainmentType.Intersects, box.Contains(crossingSphere));
-        Assert.Equal(ContainmentType.Disjoint, box.Contains(disjointSphere));
-        Assert.Equal(ContainmentType.Contains, box.Contains(containedFrustum));
-        Assert.Equal(ContainmentType.Intersects, box.Contains(crossingFrustum));
-        Assert.Equal(ContainmentType.Disjoint, box.Contains(disjointFrustum));
+        Assert.Equal(FixedEnclosureType.Contains, box.Contains(containedBox));
+        Assert.Equal(FixedEnclosureType.Intersects, box.Contains(crossingArea));
+        Assert.Equal(FixedEnclosureType.Disjoint, box.Contains(disjointArea));
+        Assert.Equal(FixedEnclosureType.Contains, box.Contains(containedSphere));
+        Assert.Equal(FixedEnclosureType.Intersects, box.Contains(crossingSphere));
+        Assert.Equal(FixedEnclosureType.Disjoint, box.Contains(disjointSphere));
+        Assert.Equal(FixedEnclosureType.Contains, box.Contains(containedFrustum));
+        Assert.Equal(FixedEnclosureType.Intersects, box.Contains(crossingFrustum));
+        Assert.Equal(FixedEnclosureType.Disjoint, box.Contains(disjointFrustum));
     }
 
     [Fact]
     public void Intersects_TouchingEdges_ReturnsFalse()
     {
-        var a = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
-        var b = new BoundingBox(new Vector3d(2, 0, 0), new Vector3d(2, 2, 2));
+        var a = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+        var b = new FixedBoundBox(new Vector3d(2, 0, 0), new Vector3d(2, 2, 2));
 
         Assert.False(a.Intersects(b));
     }
@@ -173,7 +174,7 @@ public class BoundingBoxTests
     [Fact]
     public void DistanceToSurface_WorksCorrectly()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
         var point = new Vector3d(3, 0, 0);
 
         Assert.Equal(Fixed64.One, box.DistanceToSurface(point));
@@ -182,7 +183,7 @@ public class BoundingBoxTests
     [Fact]
     public void DistanceToSurface_InsidePoint_ReturnsZero()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         Assert.Equal(Fixed64.Zero, box.DistanceToSurface(new Vector3d(1, 1, 1)));
     }
@@ -190,7 +191,7 @@ public class BoundingBoxTests
     [Fact]
     public void ClosestPointOnSurface_ReturnsCorrectPoint()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
         var point = new Vector3d(3, 3, 3);
 
         var closestPoint = box.ClosestPointOnSurface(point);
@@ -200,7 +201,7 @@ public class BoundingBoxTests
     [Fact]
     public void ClosestPointOnSurface_InsidePoint_UsesNearestFace()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         Assert.Equal(Vector3d.FromFloatPoint(-2, 0.5, 0.25), box.ClosestPointOnSurface(Vector3d.FromFloatPoint(-1.75, 0.5, 0.25)));
         Assert.Equal(Vector3d.FromFloatPoint(2, 0.5, 0.25), box.ClosestPointOnSurface(Vector3d.FromFloatPoint(1.75, 0.5, 0.25)));
@@ -213,7 +214,7 @@ public class BoundingBoxTests
     [Fact]
     public void ProjectPoint_ClampsToBounds()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         var projected = box.ProjectPoint(new Vector3d(5, -3, 1));
 
@@ -223,7 +224,7 @@ public class BoundingBoxTests
     [Fact]
     public void ClampPoint_ClampsToBounds()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         var clamped = box.ClampPoint(new Vector3d(5, -3, 1));
 
@@ -233,7 +234,7 @@ public class BoundingBoxTests
     [Fact]
     public void GetPointOnSurfaceTowardsObject_UsesProjectedPoint()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         var point = box.GetPointOnSurfaceTowardsObject(new Vector3d(5, 1, 0));
 
@@ -247,8 +248,8 @@ public class BoundingBoxTests
     [Fact]
     public void Equality_SameBox_ReturnsTrue()
     {
-        var box1 = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
-        var box2 = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box1 = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box2 = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         Assert.True(box1 == box2);
     }
@@ -256,8 +257,8 @@ public class BoundingBoxTests
     [Fact]
     public void Equality_DifferentBox_ReturnsFalse()
     {
-        var box1 = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
-        var box2 = new BoundingBox(new Vector3d(1, 1, 1), new Vector3d(4, 4, 4));
+        var box1 = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box2 = new FixedBoundBox(new Vector3d(1, 1, 1), new Vector3d(4, 4, 4));
 
         Assert.False(box1 == box2);
     }
@@ -265,8 +266,8 @@ public class BoundingBoxTests
     [Fact]
     public void GetHashCode_SameBox_ReturnsSameHash()
     {
-        var box1 = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
-        var box2 = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box1 = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box2 = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         Assert.Equal(box1.GetHashCode(), box2.GetHashCode());
     }
@@ -274,7 +275,7 @@ public class BoundingBoxTests
     [Fact]
     public void SetBoundingBox_KeepsSizeAndScopeInSync()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         var newScope = new Vector3d(3, 3, 3);
         box.SetBoundingBox(new Vector3d(1, 1, 1), newScope);
@@ -285,8 +286,8 @@ public class BoundingBoxTests
     [Fact]
     public void Inequality_DifferentBox_ReturnsTrue()
     {
-        var box1 = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
-        var box2 = new BoundingBox(new Vector3d(1, 1, 1), new Vector3d(4, 4, 4));
+        var box1 = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box2 = new FixedBoundBox(new Vector3d(1, 1, 1), new Vector3d(4, 4, 4));
 
         Assert.True(box1 != box2);
     }
@@ -294,10 +295,10 @@ public class BoundingBoxTests
     [Fact]
     public void Equals_WithDifferentObjectType_ReturnsFalse()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         Assert.False(box.Equals("not-a-box"));
-        Assert.True(box.Equals((object)new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4))));
+        Assert.True(box.Equals((object)new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4))));
     }
 
     #endregion
@@ -307,7 +308,7 @@ public class BoundingBoxTests
     [Fact]
     public void Contains_ZeroSizeBox_ContainsPoint()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(0, 0, 0));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(0, 0, 0));
         var point = new Vector3d(0, 0, 0);
 
         Assert.True(box.Contains(point));
@@ -316,8 +317,8 @@ public class BoundingBoxTests
     [Fact]
     public void Intersects_ZeroSizeBox_ReturnsFalseForNonOverlapping()
     {
-        var box1 = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(0, 0, 0));
-        var box2 = new BoundingBox(new Vector3d(1, 1, 1), new Vector3d(2, 2, 2));
+        var box1 = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(0, 0, 0));
+        var box2 = new FixedBoundBox(new Vector3d(1, 1, 1), new Vector3d(2, 2, 2));
 
         Assert.False(box1.Intersects(box2));
     }
@@ -329,7 +330,7 @@ public class BoundingBoxTests
     [Fact]
     public void Resize_PreservesCenter()
     {
-        var box = new BoundingBox(new Vector3d(5, 5, 5), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(5, 5, 5), new Vector3d(4, 4, 4));
 
         box.Resize(new Vector3d(2, 2, 2));
 
@@ -339,7 +340,7 @@ public class BoundingBoxTests
     [Fact]
     public void SetMinMax_SetsCorrectCenterAndSize()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
 
         box.SetMinMax(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
@@ -350,7 +351,7 @@ public class BoundingBoxTests
     [Fact]
     public void Center_Setter_RepositionsBoundsWithoutChangingSize()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 6, 8));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 6, 8));
 
         box.Center = new Vector3d(5, -1, 3);
 
@@ -363,7 +364,7 @@ public class BoundingBoxTests
     [Fact]
     public void Proportions_Setter_ResizesBoundsWithoutChangingCenter()
     {
-        var box = new BoundingBox(new Vector3d(1, 2, 3), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(1, 2, 3), new Vector3d(4, 4, 4));
 
         box.Proportions = new Vector3d(6, 8, 10);
 
@@ -375,7 +376,7 @@ public class BoundingBoxTests
     [Fact]
     public void Orient_WithNullSize_PreservesCurrentProportions()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 6, 8));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 6, 8));
 
         box.Orient(new Vector3d(10, 20, 30), null);
 
@@ -386,7 +387,7 @@ public class BoundingBoxTests
     [Fact]
     public void Orient_WithExplicitSize_UsesProvidedDimensions()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         box.Orient(new Vector3d(1, 2, 3), new Vector3d(2, 4, 6));
 
@@ -403,7 +404,7 @@ public class BoundingBoxTests
     [Fact]
     public void Vertices_UpdateAfterMutation()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
         var original = box.Vertices[0];
 
         box.Resize(new Vector3d(4, 4, 4));
@@ -415,7 +416,7 @@ public class BoundingBoxTests
     [Fact]
     public void Vertices_ReusesCacheUntilBoundsChange()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
 
         var first = box.Vertices;
         var second = box.Vertices;
@@ -426,7 +427,7 @@ public class BoundingBoxTests
     [Fact]
     public void Vertices_DefaultStructAllocatesStableZeroCornerCache()
     {
-        BoundingBox box = default;
+        FixedBoundBox box = default;
 
         Vector3d[] first = box.Vertices;
         Vector3d[] second = box.Vertices;
@@ -439,10 +440,10 @@ public class BoundingBoxTests
     [Fact]
     public void Union_EnclosesBothBoxes()
     {
-        var a = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
-        var b = new BoundingBox(new Vector3d(4, 0, 0), new Vector3d(4, 4, 4));
+        var a = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+        var b = new FixedBoundBox(new Vector3d(4, 0, 0), new Vector3d(4, 4, 4));
 
-        var union = BoundingBox.Union(a, b);
+        var union = FixedBoundBox.Union(a, b);
 
         Assert.Equal(new Vector3d(-1, -2, -2), union.Min);
         Assert.Equal(new Vector3d(6, 2, 2), union.Max);
@@ -451,10 +452,10 @@ public class BoundingBoxTests
     [Fact]
     public void FindClosestPointsBetweenBoxes_ReturnsClosestPointOnFirstBoxSurface()
     {
-        var a = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
-        var b = new BoundingBox(new Vector3d(5, 0, 0), new Vector3d(2, 2, 2));
+        var a = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
+        var b = new FixedBoundBox(new Vector3d(5, 0, 0), new Vector3d(2, 2, 2));
 
-        var closestPoint = BoundingBox.FindClosestPointsBetweenBoxes(a, b);
+        var closestPoint = FixedBoundBox.FindClosestPointsBetweenBoxes(a, b);
 
         Assert.Equal(new Vector3d(1, -1, -1), closestPoint);
     }
@@ -466,7 +467,7 @@ public class BoundingBoxTests
     [Fact]
     public void BoundingBox_NetSerialization_RoundTripMaintainsData()
     {
-        BoundingBox originalValue = new(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        FixedBoundBox originalValue = new(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         var jsonOptions = new JsonSerializerOptions
         {
@@ -474,7 +475,7 @@ public class BoundingBoxTests
             ReferenceHandler = ReferenceHandler.IgnoreCycles
         };
         var json = JsonSerializer.SerializeToUtf8Bytes(originalValue, jsonOptions);
-        var deserializedValue = JsonSerializer.Deserialize<BoundingBox>(json, jsonOptions);
+        var deserializedValue = JsonSerializer.Deserialize<FixedBoundBox>(json, jsonOptions);
 
         // Check that deserialized values match the original
         Assert.Equal(originalValue, deserializedValue);
@@ -484,10 +485,10 @@ public class BoundingBoxTests
     [Fact]
     public void BoundingBox_MemoryPackSerialization_RoundTripMaintainsData()
     {
-        BoundingBox originalValue = new(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        FixedBoundBox originalValue = new(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         byte[] bytes = MemoryPackSerializer.Serialize(originalValue);
-        BoundingBox deserializedValue = MemoryPackSerializer.Deserialize<BoundingBox>(bytes);
+        FixedBoundBox deserializedValue = MemoryPackSerializer.Deserialize<FixedBoundBox>(bytes);
 
         // Check that deserialized values match the original
         Assert.Equal(originalValue, deserializedValue);
@@ -496,10 +497,10 @@ public class BoundingBoxTests
     [Fact]
     public void MemoryPack_SerializedBox_RemainsMutable()
     {
-        var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
+        var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
         var bytes = MemoryPackSerializer.Serialize(box);
-        var deserialized = MemoryPackSerializer.Deserialize<BoundingBox>(bytes);
+        var deserialized = MemoryPackSerializer.Deserialize<FixedBoundBox>(bytes);
 
         deserialized.Resize(new Vector3d(2, 2, 2));
 

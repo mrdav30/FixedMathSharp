@@ -43,7 +43,7 @@ Use floating point when you need:
 - **`Fixed64` scalar arithmetic** with deterministic Q32.32 representation, guarded overflow behavior, parsing, formatting, and common math helpers.
 - **2D, 3D, and 4D vectors** via `Vector2d`, `Vector3d`, and `Vector4d`, including dot products, distances, normalization, transforms, fuzzy equality, and component operations.
 - **Rotations and matrices** with `FixedQuaternion`, `Fixed3x3`, and `Fixed4x4` for deterministic transforms and orientation math.
-- **Geometry and bounds** with `BoundingBox`, `BoundingSphere`, `BoundingArea`, `BoundingFrustum`, `FixedPlane`, and `FixedRay`.
+- **Geometry and bounds** with `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundArea`, `FixedBoundFrustum`, `FixedPlane`, and `FixedRay`.
 - **Curves and ranges** with `FixedCurve`, `FixedCurveKey`, and `FixedRange`.
 - **Deterministic RNG** with `DeterministicRandom` streams derived from seeds, feature keys, and indices.
 - **Serialization-friendly structs** with MemoryPack support in the standard package and a Lean package when you do not want that dependency.
@@ -92,7 +92,7 @@ Vector3d velocity = new Vector3d(step, Fixed64.Zero, Fixed64.One);
 FixedQuaternion turn = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
 Vector3d rotated = turn.Rotate(velocity);
 
-BoundingSphere sensor = new BoundingSphere(position, new Fixed64(5));
+FixedBoundSphere sensor = new FixedBoundSphere(position, new Fixed64(5));
 bool inRange = sensor.Contains(rotated);
 
 Console.WriteLine($"{rotated} in range: {inRange}");
@@ -114,7 +114,7 @@ int lootCount = oreRng.Next(1, 5); // [1, 5)
 ### Bounds and Geometry
 
 ```csharp
-BoundingBox room = new BoundingBox(Vector3d.Zero, new Vector3d(10, 4, 10));
+FixedBoundBox room = new FixedBoundBox(Vector3d.Zero, new Vector3d(10, 4, 10));
 FixedRay ray = new FixedRay(new Vector3d(-20, 0, 0), Vector3d.Right);
 
 Fixed64? hitDistance = ray.Intersects(room);
@@ -144,7 +144,7 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - `FixedMath`: constants, rounding, interpolation, trigonometry, powers, square roots, and utility math.
 - `Vector2d`, `Vector3d`, `Vector4d`: deterministic vector math and transform helpers.
 - `FixedQuaternion`, `Fixed3x3`, `Fixed4x4`: rotations, orientations, matrices, and transform operations.
-- `BoundingBox`, `BoundingSphere`, `BoundingArea`, `BoundingFrustum`: containment, intersection, clamping, and projection queries.
+- `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundArea`, `FixedBoundFrustum`: containment, intersection, clamping, and projection queries.
 - `FixedPlane`, `FixedRay`: geometric primitives for plane classification and ray intersections.
 - `FixedCurve`, `FixedCurveKey`, `FixedRange`: interpolation and range helpers.
 - `DeterministicRandom`: repeatable random streams for simulations and procedural generation.

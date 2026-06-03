@@ -11,7 +11,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace FixedMathSharp;
+namespace FixedMathSharp.Bounds;
 
 /// <summary>
 /// Represents a plane in 3D space using a normal vector and a distance from the origin.
@@ -125,7 +125,7 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Classifies a bounding box relative to this plane.
     /// </summary>
-    public FixedPlaneIntersectionType Intersects(BoundingBox box)
+    public FixedPlaneIntersectionType Intersects(FixedBoundBox box)
     {
         return IntersectsBoxLike(box.Min, box.Max);
     }
@@ -133,7 +133,7 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Classifies a bounding area relative to this plane.
     /// </summary>
-    public FixedPlaneIntersectionType Intersects(BoundingArea area)
+    public FixedPlaneIntersectionType Intersects(FixedBoundArea area)
     {
         return IntersectsBoxLike(area.Min, area.Max);
     }
@@ -141,7 +141,7 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Classifies a bounding sphere relative to this plane.
     /// </summary>
-    public FixedPlaneIntersectionType Intersects(BoundingSphere sphere)
+    public FixedPlaneIntersectionType Intersects(FixedBoundSphere sphere)
     {
         Fixed64 distance = DotCoordinate(sphere.Center);
 

@@ -1,4 +1,5 @@
-﻿using MemoryPack;
+﻿using FixedMathSharp.Bounds;
+using MemoryPack;
 using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;

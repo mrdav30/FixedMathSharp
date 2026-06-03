@@ -3,7 +3,7 @@
 ## Project intent and architecture
 
 - This repository is a deterministic fixed-point math library centered on `Fixed64` (`src/FixedMathSharp/Numerics/Fixed64.cs`) with Q32.32 representation (`SHIFT_AMOUNT_I = 32` in `src/FixedMathSharp/Core/FixedMath.cs`).
-- Most API surface lives in value-type numerics (`Fixed64`, `Vector2d`, `Vector3d`, `FixedQuaternion`, `Fixed3x3`, `Fixed4x4`) plus bounds types (`BoundingBox`, `BoundingSphere`, `BoundingArea`) implementing `IBound`.
+- Most API surface lives in value-type numerics (`Fixed64`, `Vector2d`, `Vector3d`, `FixedQuaternion`, `Fixed3x3`, `Fixed4x4`) plus bounds types (`FixedBoundBox`, `FixedBoundSphere`, `FixedBoundArea`) implementing `IBound`.
 - Keep operations deterministic and allocation-light; many methods use `m_rawValue` and `[MethodImpl(MethodImplOptions.AggressiveInlining)]` for hot paths.
 - `FixedMath` and `FixedTrigonometry` are the shared algorithm backbones; extension classes in `src/FixedMathSharp/Numerics/Extensions/` are thin forwarding wrappers, not alternate implementations.
 
@@ -34,7 +34,7 @@
 
 ## Testing patterns to mirror
 
-- Tests are xUnit (`tests/FixedMathSharp.Tests`). Keep one feature area per test file (e.g., `Vector3d.Tests.cs`, `Bounds/BoundingBox.Tests.cs`).
+- Tests are xUnit (`tests/FixedMathSharp.Tests`). Keep one feature area per test file (e.g., `Vector3d.Tests.cs`, `Bounds/FixedBoundBox.Tests.cs`).
 - Use helper assertions from `tests/FixedMathSharp.Tests/Support/FixedMathTestHelper.cs` for tolerance/range checks rather than ad-hoc epsilon logic.
 - For deterministic RNG changes, validate same-seed reproducibility and bounds/argument exceptions like in `DeterministicRandom.Tests.cs`.
 - Cyclomatic complexity exceptions are documented in `docs/complexity-exceptions.md`; update that register when touching methods above the review threshold instead of refactoring hot deterministic paths just to lower a metric.

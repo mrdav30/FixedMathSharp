@@ -5,7 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-namespace FixedMathSharp;
+namespace FixedMathSharp.Bounds;
 
 /// <summary>
 /// Describes how a plane intersects a bounding volume.

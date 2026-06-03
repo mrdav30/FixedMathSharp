@@ -1,4 +1,5 @@
-﻿using MemoryPack;
+﻿using FixedMathSharp.Bounds;
+using MemoryPack;
 using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -198,7 +199,7 @@ public class Fixed4x4Tests
             new Fixed64(3),
             Fixed64.One,
             new Fixed64(5));
-        var frustum = new BoundingFrustum(matrix);
+        var frustum = new FixedBoundFrustum(matrix);
 
         Vector3d[] corners = frustum.GetCorners();
 
@@ -213,23 +214,23 @@ public class Fixed4x4Tests
         Fixed4x4 perspective = Fixed4x4.CreatePerspective(new Fixed64(2), new Fixed64(2), Fixed64.One, new Fixed64(10));
         Fixed4x4 fieldOfView = Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.HalfPi, Fixed64.One, Fixed64.One, new Fixed64(10));
 
-        Assert.True(new BoundingFrustum(perspective).GetCorners()[6]
-            .FuzzyEqual(new BoundingFrustum(fieldOfView).GetCorners()[6], Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(new FixedBoundFrustum(perspective).GetCorners()[6]
+            .FuzzyEqual(new FixedBoundFrustum(fieldOfView).GetCorners()[6], Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
     public void FixedMatrix4x4_CreatePerspectiveFieldOfView_ProducesExpectedPositiveZFrustum()
     {
         Fixed4x4 matrix = Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.HalfPi, Fixed64.One, Fixed64.One, new Fixed64(10));
-        var frustum = new BoundingFrustum(matrix);
+        var frustum = new FixedBoundFrustum(matrix);
 
         Vector3d[] corners = frustum.GetCorners();
 
         Assert.True(corners[0].FuzzyEqual(new Vector3d(-1, 1, 1), Fixed64.FromFloatPoint(0.0001)));
         Assert.True(corners[6].FuzzyEqual(new Vector3d(10, -10, 10), Fixed64.FromFloatPoint(0.0001)));
-        Assert.Equal(ContainmentType.Contains, frustum.Contains(new Vector3d(0, 0, 5)));
-        Assert.Equal(ContainmentType.Disjoint, frustum.Contains(new Vector3d(0, 0, -1)));
-        Assert.Equal(ContainmentType.Disjoint, frustum.Contains(new Vector3d(0, 0, 11)));
+        Assert.Equal(FixedEnclosureType.Contains, frustum.Contains(new Vector3d(0, 0, 5)));
+        Assert.Equal(FixedEnclosureType.Disjoint, frustum.Contains(new Vector3d(0, 0, -1)));
+        Assert.Equal(FixedEnclosureType.Disjoint, frustum.Contains(new Vector3d(0, 0, 11)));
     }
 
     [Fact]
@@ -242,7 +243,7 @@ public class Fixed4x4Tests
             new Fixed64(3),
             Fixed64.One,
             new Fixed64(5));
-        var frustum = new BoundingFrustum(matrix);
+        var frustum = new FixedBoundFrustum(matrix);
 
         Vector3d[] corners = frustum.GetCorners();
 

@@ -1,5 +1,5 @@
 ﻿//=======================================================================
-// BoundingBox.cs
+// FixedBoundBox.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
@@ -11,23 +11,23 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace FixedMathSharp;
+namespace FixedMathSharp.Bounds;
 
 /// <summary>
 /// Represents an axis-aligned bounding box with fixed-point precision, capable of encapsulating 3D objects for more complex spatial checks.
 /// </summary>
 /// <remarks>
-/// The BoundingBox provides a more detailed representation of an object's spatial extent compared to BoundingArea. 
+/// The FixedBoundBox provides a more detailed representation of an object's spatial extent compared to FixedBoundArea. 
 /// It is useful in 3D scenarios requiring more precise volume fitting and supports a wider range of operations, including more complex intersection checks.
 /// 
 /// Use Cases:
 /// - Encapsulating objects in 3D space for collision detection, ray intersection, or visibility testing.
 /// - Used in physics engines, rendering pipelines, and 3D simulations to represent object boundaries.
-/// - Supports more precise intersection tests than BoundingArea, making it ideal for detailed spatial queries.
+/// - Supports more precise intersection tests than FixedBoundArea, making it ideal for detailed spatial queries.
 /// </remarks>
 [Serializable]
 [MemoryPackable]
-public partial struct BoundingBox : IEquatable<BoundingBox>
+public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
 {
     internal const int MAX_VERTICES = 8;
 
@@ -45,12 +45,12 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     [MemoryPackable]
     public readonly partial struct BoundingBoxState
     {
-        /// <inheritdoc cref="BoundingBox.Min"/>
+        /// <inheritdoc cref="FixedBoundBox.Min"/>
         [JsonInclude]
         [MemoryPackInclude]
         public readonly Vector3d Min;
 
-        /// <inheritdoc cref="BoundingBox.Max"/>
+        /// <inheritdoc cref="FixedBoundBox.Max"/>
         [JsonInclude]
         [MemoryPackInclude]
         public readonly Vector3d Max;
@@ -82,10 +82,10 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     #region Constructors
 
     /// <summary>
-    /// Initializes a new instance of the BoundingBox struct with the specified center and size.
+    /// Initializes a new instance of the FixedBoundBox struct with the specified center and size.
     /// </summary>
 
-    public BoundingBox(Vector3d center, Vector3d size)
+    public FixedBoundBox(Vector3d center, Vector3d size)
     {
         Vector3d half = Vector3d.Abs(size) * Fixed64.Half;
 
@@ -97,12 +97,12 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     }
 
     /// <summary>
-    /// Initializes a new instance of the BoundingBox class with the specified bounding box state.
+    /// Initializes a new instance of the FixedBoundBox class with the specified bounding box state.
     /// </summary>
     /// <param name="state">The state that defines the position, size, and orientation of the bounding box.</param>
     [JsonConstructor]
     [MemoryPackConstructor]
-    public BoundingBox(BoundingBoxState state)
+    public FixedBoundBox(BoundingBoxState state)
     {
         State = state;
         _vertices = new Vector3d[MAX_VERTICES];
@@ -271,63 +271,63 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     /// Tests another bounding box against this bounding box.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ContainmentType Contains(BoundingBox box) => ContainsBoxLike(box.Min, box.Max);
+    public FixedEnclosureType Contains(FixedBoundBox box) => ContainsBoxLike(box.Min, box.Max);
 
     /// <summary>
     /// Tests a bounding area against this bounding box.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ContainmentType Contains(BoundingArea area) => ContainsBoxLike(area.Min, area.Max);
+    public FixedEnclosureType Contains(FixedBoundArea area) => ContainsBoxLike(area.Min, area.Max);
 
     /// <summary>
     /// Tests a bounding sphere against this bounding box.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ContainmentType Contains(BoundingSphere sphere)
+    public FixedEnclosureType Contains(FixedBoundSphere sphere)
     {
         if (Contains(sphere.Min) && Contains(sphere.Max))
-            return ContainmentType.Contains;
+            return FixedEnclosureType.Contains;
 
-        return Intersects(sphere) ? ContainmentType.Intersects : ContainmentType.Disjoint;
+        return Intersects(sphere) ? FixedEnclosureType.Intersects : FixedEnclosureType.Disjoint;
     }
 
     /// <summary>
     /// Tests a bounding frustum against this bounding box.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ContainmentType Contains(BoundingFrustum frustum)
+    public FixedEnclosureType Contains(FixedBoundFrustum frustum)
     {
         FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot test containment against a null frustum.");
 
         if (Contains(frustum.Min) && Contains(frustum.Max))
-            return ContainmentType.Contains;
+            return FixedEnclosureType.Contains;
 
-        return Intersects(frustum) ? ContainmentType.Intersects : ContainmentType.Disjoint;
+        return Intersects(frustum) ? FixedEnclosureType.Intersects : FixedEnclosureType.Disjoint;
     }
 
     /// <summary>
     /// Checks whether another bounding box intersects this bounding box.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Intersects(BoundingBox box) => IntersectsBoxLike(box.Min, box.Max);
+    public bool Intersects(FixedBoundBox box) => IntersectsBoxLike(box.Min, box.Max);
 
     /// <summary>
     /// Checks whether a bounding area intersects this bounding box.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Intersects(BoundingArea area) => IntersectsBoxLike(area.Min, area.Max);
+    public bool Intersects(FixedBoundArea area) => IntersectsBoxLike(area.Min, area.Max);
 
     /// <summary>
     /// Checks whether a bounding sphere intersects this bounding box.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Intersects(BoundingSphere sphere) => IntersectsSphere(sphere);
+    public bool Intersects(FixedBoundSphere sphere) => IntersectsSphere(sphere);
 
     /// <summary>
     /// Checks whether a bounding frustum intersects this bounding box.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Intersects(BoundingFrustum frustum)
+    public bool Intersects(FixedBoundFrustum frustum)
     {
         FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot test intersection against a null frustum.");
 
@@ -354,14 +354,14 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private ContainmentType ContainsBoxLike(Vector3d otherMin, Vector3d otherMax)
+    private FixedEnclosureType ContainsBoxLike(Vector3d otherMin, Vector3d otherMax)
     {
         if (Contains(otherMin) && Contains(otherMax))
-            return ContainmentType.Contains;
+            return FixedEnclosureType.Contains;
 
         return IntersectsBoxLike(otherMin, otherMax)
-            ? ContainmentType.Intersects
-            : ContainmentType.Disjoint;
+            ? FixedEnclosureType.Intersects
+            : FixedEnclosureType.Disjoint;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -372,7 +372,7 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool IntersectsSphere(BoundingSphere sphere)
+    private bool IntersectsSphere(FixedBoundSphere sphere)
     {
         return Vector3d.SqrDistance(sphere.Center, ClampPoint(sphere.Center)) <= sphere.SqrRadius;
     }
@@ -524,9 +524,9 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     /// <summary>
     /// Creates a new bounding box that is the union of two bounding boxes.
     /// </summary>
-    public static BoundingBox Union(BoundingBox a, BoundingBox b)
+    public static FixedBoundBox Union(FixedBoundBox a, FixedBoundBox b)
     {
-        return new BoundingBox
+        return new FixedBoundBox
         {
             Min = Vector3d.Min(a.Min, b.Min),
             Max = Vector3d.Max(a.Max, b.Max),
@@ -537,7 +537,7 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     /// <summary>
     /// Finds the closest points between two bounding boxes.
     /// </summary>
-    public static Vector3d FindClosestPointsBetweenBoxes(BoundingBox a, BoundingBox b)
+    public static Vector3d FindClosestPointsBetweenBoxes(FixedBoundBox a, FixedBoundBox b)
     {
         Vector3d closestPoint = Vector3d.Zero;
         Fixed64 minDistance = Fixed64.MaxValue;
@@ -561,24 +561,24 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     #region Equality
 
     /// <summary>
-    /// Determines whether two BoundingBox instances are equal.
+    /// Determines whether two FixedBoundBox instances are equal.
     /// </summary>
-    public static bool operator ==(BoundingBox left, BoundingBox right) => left.Equals(right);
+    public static bool operator ==(FixedBoundBox left, FixedBoundBox right) => left.Equals(right);
 
     /// <summary>
-    /// Determines whether two BoundingBox instances are not equal.
+    /// Determines whether two FixedBoundBox instances are not equal.
     /// </summary>
-    public static bool operator !=(BoundingBox left, BoundingBox right) => !left.Equals(right);
+    public static bool operator !=(FixedBoundBox left, FixedBoundBox right) => !left.Equals(right);
 
     #endregion
 
     #region Equality and HashCode Overrides
 
     /// <inheritdoc/>
-    public override bool Equals(object? obj) => obj is BoundingBox other && Equals(other);
+    public override bool Equals(object? obj) => obj is FixedBoundBox other && Equals(other);
 
     /// <inheritdoc/>
-    public bool Equals(BoundingBox other)
+    public bool Equals(FixedBoundBox other)
         => Min.Equals(other.Min) && Max.Equals(other.Max);
 
     /// <inheritdoc/>

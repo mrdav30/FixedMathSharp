@@ -9,7 +9,7 @@ using FixedMathSharp.Support;
 using System;
 using System.Runtime.CompilerServices;
 
-namespace FixedMathSharp.Utility
+namespace FixedMathSharp.Random
 {
     /// <summary>
     /// Fast, seedable, deterministic RNG suitable for lockstep sims and map gen.

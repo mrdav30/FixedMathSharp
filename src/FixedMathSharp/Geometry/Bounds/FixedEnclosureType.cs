@@ -5,12 +5,12 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-namespace FixedMathSharp;
+namespace FixedMathSharp.Bounds;
 
 /// <summary>
 /// Describes whether one volume contains, intersects, or is disjoint from another volume.
 /// </summary>
-public enum ContainmentType
+public enum FixedEnclosureType
 {
     /// <summary>
     /// The volumes do not overlap.

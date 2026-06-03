@@ -1,5 +1,5 @@
 //=======================================================================
-// BoundingFrustum.cs
+// FixedBoundFrustum.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
@@ -9,12 +9,12 @@ using FixedMathSharp.Support;
 using System;
 using System.Runtime.CompilerServices;
 
-namespace FixedMathSharp;
+namespace FixedMathSharp.Bounds;
 
 /// <summary>
 /// Represents a frustum bounded by six clipping planes.
 /// </summary>
-public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
+public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
 {
     #region Constants
 
@@ -50,7 +50,7 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     /// <summary>
     /// Initializes a new frustum by extracting the planes and corners from a combined view-projection matrix.
     /// </summary>
-    public BoundingFrustum(Fixed4x4 matrix)
+    public FixedBoundFrustum(Fixed4x4 matrix)
     {
         _corners = new Vector3d[CornerCount];
         _planes = new FixedPlane[PlaneCount];
@@ -60,7 +60,7 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     /// <summary>
     /// Initializes a new frustum from six clipping planes.
     /// </summary>
-    public BoundingFrustum(
+    public FixedBoundFrustum(
         FixedPlane near,
         FixedPlane far,
         FixedPlane left,
@@ -76,7 +76,7 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     /// <summary>
     /// Initializes a new frustum from six clipping planes in near, far, left, right, top, bottom order.
     /// </summary>
-    public BoundingFrustum(FixedPlane[] planes)
+    public FixedBoundFrustum(FixedPlane[] planes)
     {
         FixedThrowHelper.ThrowIfNull(planes, nameof(planes), "Cannot create a frustum from a null plane array.");
         FixedThrowHelper.ThrowIfArgument(planes.Length != PlaneCount, $"A frustum must be defined by exactly {PlaneCount} planes.");
@@ -183,21 +183,21 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     /// <summary>
     /// Tests a point against this frustum.
     /// </summary>
-    public ContainmentType Contains(Vector3d point)
+    public FixedEnclosureType Contains(Vector3d point)
     {
         for (int i = 0; i < PlaneCount; i++)
         {
             if (_planes[i].DotCoordinate(point) > Fixed64.Zero)
-                return ContainmentType.Disjoint;
+                return FixedEnclosureType.Disjoint;
         }
 
-        return ContainmentType.Contains;
+        return FixedEnclosureType.Contains;
     }
 
     /// <summary>
     /// Tests a bounding box against this frustum.
     /// </summary>
-    public ContainmentType Contains(BoundingBox box)
+    public FixedEnclosureType Contains(FixedBoundBox box)
     {
         bool intersects = false;
 
@@ -206,20 +206,20 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
             switch (_planes[i].Intersects(box))
             {
                 case FixedPlaneIntersectionType.Front:
-                    return ContainmentType.Disjoint;
+                    return FixedEnclosureType.Disjoint;
                 case FixedPlaneIntersectionType.Intersecting:
                     intersects = true;
                     break;
             }
         }
 
-        return intersects ? ContainmentType.Intersects : ContainmentType.Contains;
+        return intersects ? FixedEnclosureType.Intersects : FixedEnclosureType.Contains;
     }
 
     /// <summary>
     /// Tests a bounding area against this frustum.
     /// </summary>
-    public ContainmentType Contains(BoundingArea area)
+    public FixedEnclosureType Contains(FixedBoundArea area)
     {
         bool intersects = false;
 
@@ -228,20 +228,20 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
             switch (_planes[i].Intersects(area))
             {
                 case FixedPlaneIntersectionType.Front:
-                    return ContainmentType.Disjoint;
+                    return FixedEnclosureType.Disjoint;
                 case FixedPlaneIntersectionType.Intersecting:
                     intersects = true;
                     break;
             }
         }
 
-        return intersects ? ContainmentType.Intersects : ContainmentType.Contains;
+        return intersects ? FixedEnclosureType.Intersects : FixedEnclosureType.Contains;
     }
 
     /// <summary>
     /// Tests a bounding sphere against this frustum.
     /// </summary>
-    public ContainmentType Contains(BoundingSphere sphere)
+    public FixedEnclosureType Contains(FixedBoundSphere sphere)
     {
         bool intersects = false;
 
@@ -250,30 +250,30 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
             switch (_planes[i].Intersects(sphere))
             {
                 case FixedPlaneIntersectionType.Front:
-                    return ContainmentType.Disjoint;
+                    return FixedEnclosureType.Disjoint;
                 case FixedPlaneIntersectionType.Intersecting:
                     intersects = true;
                     break;
             }
         }
 
-        return intersects ? ContainmentType.Intersects : ContainmentType.Contains;
+        return intersects ? FixedEnclosureType.Intersects : FixedEnclosureType.Contains;
     }
 
     /// <summary>
     /// Tests another frustum against this frustum.
     /// </summary>
-    public ContainmentType Contains(BoundingFrustum frustum)
+    public FixedEnclosureType Contains(FixedBoundFrustum frustum)
     {
         FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot test containment against a null frustum.");
 
         if (Equals(frustum))
-            return ContainmentType.Contains;
+            return FixedEnclosureType.Contains;
 
         bool containsAllCorners = true;
         for (int i = 0; i < CornerCount; i++)
         {
-            if (Contains(frustum._corners[i]) == ContainmentType.Disjoint)
+            if (Contains(frustum._corners[i]) == FixedEnclosureType.Disjoint)
             {
                 containsAllCorners = false;
                 break;
@@ -281,36 +281,36 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
         }
 
         if (containsAllCorners)
-            return ContainmentType.Contains;
+            return FixedEnclosureType.Contains;
 
         return IntersectsFrustum(frustum)
-            ? ContainmentType.Intersects
-            : ContainmentType.Disjoint;
+            ? FixedEnclosureType.Intersects
+            : FixedEnclosureType.Disjoint;
     }
 
     /// <summary>
     /// Checks whether a bounding box intersects this frustum.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Intersects(BoundingBox box) => Contains(box) != ContainmentType.Disjoint;
+    public bool Intersects(FixedBoundBox box) => Contains(box) != FixedEnclosureType.Disjoint;
 
     /// <summary>
     /// Checks whether a bounding area intersects this frustum.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Intersects(BoundingArea area) => Contains(area) != ContainmentType.Disjoint;
+    public bool Intersects(FixedBoundArea area) => Contains(area) != FixedEnclosureType.Disjoint;
 
     /// <summary>
     /// Checks whether a bounding sphere intersects this frustum.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Intersects(BoundingSphere sphere) => Contains(sphere) != ContainmentType.Disjoint;
+    public bool Intersects(FixedBoundSphere sphere) => Contains(sphere) != FixedEnclosureType.Disjoint;
 
     /// <summary>
     /// Checks whether another frustum intersects this frustum.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Intersects(BoundingFrustum frustum) => Contains(frustum) != ContainmentType.Disjoint;
+    public bool Intersects(FixedBoundFrustum frustum) => Contains(frustum) != FixedEnclosureType.Disjoint;
 
     /// <summary>
     /// Finds the first forward intersection between the specified ray and this frustum.
@@ -373,7 +373,7 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     /// </summary>
     public Vector3d ClampPoint(Vector3d point)
     {
-        if (Contains(point) != ContainmentType.Disjoint)
+        if (Contains(point) != FixedEnclosureType.Disjoint)
             return point;
 
         Vector3d best = _corners[0];
@@ -520,7 +520,7 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
         Vector3d cross = Vector3d.Cross(b.Normal, c.Normal);
         Fixed64 denominator = Vector3d.Dot(a.Normal, cross);
 
-        FixedThrowHelper.ThrowIfDivideByZero(denominator == Fixed64.Zero, "Frustum planes do not intersect at a unique point.");
+        FixedThrowHelper.ThrowIfInvalid(denominator == Fixed64.Zero, "Frustum planes do not intersect at a unique point.");
 
         Vector3d v1 = cross * a.D;
         Vector3d v2 = Vector3d.Cross(c.Normal, a.Normal) * b.D;
@@ -554,7 +554,7 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
         bestDistance = candidateDistance;
     }
 
-    private bool IntersectsFrustum(BoundingFrustum other)
+    private bool IntersectsFrustum(FixedBoundFrustum other)
     {
         for (int i = 0; i < PlaneCount; i++)
         {
@@ -613,7 +613,7 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     #region Equality
 
     /// <inheritdoc/>
-    public bool Equals(BoundingFrustum? other)
+    public bool Equals(FixedBoundFrustum? other)
     {
         if (other == null)
             return false;
@@ -628,7 +628,7 @@ public sealed class BoundingFrustum : IEquatable<BoundingFrustum>
     }
 
     /// <inheritdoc/>
-    public override bool Equals(object? obj) => obj is BoundingFrustum other && Equals(other);
+    public override bool Equals(object? obj) => obj is FixedBoundFrustum other && Equals(other);
 
     /// <inheritdoc/>
     public override int GetHashCode()

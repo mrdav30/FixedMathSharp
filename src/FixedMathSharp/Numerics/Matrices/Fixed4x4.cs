@@ -1549,7 +1549,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     private static void ValidateDepthRange(Fixed64 nearPlaneDistance, Fixed64 farPlaneDistance)
     {
         FixedThrowHelper.ThrowIfOutOfRange(nearPlaneDistance < Fixed64.Zero, nameof(nearPlaneDistance), "Near plane distance must be greater than or equal to zero.");
-        FixedThrowHelper.ThrowIfOutOfRange(farPlaneDistance < Fixed64.Zero, nameof(farPlaneDistance), "Far plane distance must be greater than or equal to zero.");
+        FixedThrowHelper.ThrowIfOutOfRange(farPlaneDistance <= nearPlaneDistance, nameof(farPlaneDistance), "Far plane distance must be greater than or equal to zero.");
     }
 
     private static void ValidatePerspectiveDepthRange(Fixed64 nearPlaneDistance, Fixed64 farPlaneDistance)

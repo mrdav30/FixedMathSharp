@@ -325,7 +325,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     {
         Fixed64 divisorSqrMagnitude = divisor.SqrMagnitude;
 
-        FixedThrowHelper.ThrowIfArithmeticError(divisorSqrMagnitude == Fixed64.Zero, "Quaternion divisor is not invertible.");
+        FixedThrowHelper.ThrowIfInvalid(divisorSqrMagnitude == Fixed64.Zero, "Quaternion divisor is not invertible.");
 
         Fixed64 invNorm = Fixed64.One / divisorSqrMagnitude;
         FixedQuaternion inverseDivisor = new(

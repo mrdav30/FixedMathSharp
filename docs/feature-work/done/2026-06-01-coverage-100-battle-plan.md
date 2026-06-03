@@ -41,15 +41,15 @@ Final result on 2026-06-01 after Phases 1-5:
 ## Phase 1: Reachable Low-Risk API Surface
 
 **Files:**
-- Modify: `tests/FixedMathSharp.Tests/Bounds/BoundingBox.Tests.cs`
-- Modify: `tests/FixedMathSharp.Tests/Bounds/BoundingSphere.Tests.cs`
+- Modify: `tests/FixedMathSharp.Tests/Bounds/FixedBoundBox.Tests.cs`
+- Modify: `tests/FixedMathSharp.Tests/Bounds/FixedBoundSphere.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Fixed3x3.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Fixed4x4.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Vector2d.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Vector3d.Tests.cs`
 
-- [x] Add assertions for `BoundingBox.Scope`, default-struct `Vertices`, and contained-box intersection.
-- [x] Add `BoundingSphere.Deconstruct` and `BoundingSphere.ToString` assertions in the existing sphere test file.
+- [x] Add assertions for `FixedBoundBox.Scope`, default-struct `Vertices`, and contained-box intersection.
+- [x] Add `FixedBoundSphere.Deconstruct` and `FixedBoundSphere.ToString` assertions in the existing sphere test file.
 - [x] Add scalar overload coverage for `Fixed3x3.CreateScale(Fixed64)` and `Fixed4x4.CreateScale(Fixed64)`.
 - [x] Add non-uniform scalar overload coverage for `Fixed4x4.CreateScale(Fixed64, Fixed64, Fixed64)`.
 - [x] Add `Fixed3x3` inequality operator coverage.
@@ -58,8 +58,8 @@ Final result on 2026-06-01 after Phases 1-5:
 
 Target uncovered lines:
 
-- `Geometry/Bounds/BoundingBox.cs`: 175, 497.
-- `Geometry/Bounds/BoundingSphere.cs`: 427-430, 511-513.
+- `Geometry/Bounds/FixedBoundBox.cs`: 175, 497.
+- `Geometry/Bounds/FixedBoundSphere.cs`: 427-430, 511-513.
 - `Numerics/Matrices/Fixed3x3.cs`: 358-360, 731-733.
 - `Numerics/Matrices/Fixed4x4.cs`: 542-544, 551-553.
 - `Numerics/Vectors/Vector2d.cs`: 808-810.
@@ -74,14 +74,14 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 ## Phase 2: Reachable Branch Hardening
 
 **Files:**
-- Modify: `tests/FixedMathSharp.Tests/Bounds/BoundingFrustum.Tests.cs`
+- Modify: `tests/FixedMathSharp.Tests/Bounds/FixedBoundFrustum.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Bounds/FixedPlane.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Bounds/FixedRay.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Vector3d.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/DeterministicRandom.Tests.cs`
 
-- [x] Add `BoundingFrustum.Contains(BoundingArea)` cases for fully contained and crossing areas.
-- [x] Add `BoundingFrustum.Intersects(FixedRay)` case where the whole clipped interval is behind the ray.
+- [x] Add `FixedBoundFrustum.Contains(FixedBoundArea)` cases for fully contained and crossing areas.
+- [x] Add `FixedBoundFrustum.Intersects(FixedRay)` case where the whole clipped interval is behind the ray.
 - [x] Add invalid custom-plane frustum construction that triggers non-unique plane intersections.
 - [x] Add `FixedPlane`/frustum classification where a frustum corner lies exactly on the plane.
 - [x] Add ray-box cases for parallel axes below/above range and for an all-behind slab interval.
@@ -92,7 +92,7 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 
 Target partial branches:
 
-- `Geometry/Bounds/BoundingFrustum.cs`: 240, 355, 532, 574, 590.
+- `Geometry/Bounds/FixedBoundFrustum.cs`: 240, 355, 532, 574, 590.
 - `Geometry/Primitives/FixedPlane.cs`: 164.
 - `Geometry/Primitives/FixedRay.cs`: 140, 153, 217.
 - `Numerics/Vectors/Vector3d.cs`: 890, 898, 901, 1019.
@@ -108,7 +108,7 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 
 **Files:**
 - Modify: `src/FixedMathSharp/Core/FixedMath.Trigonometry.cs`
-- Modify: `src/FixedMathSharp/Geometry/Bounds/BoundingSphere.cs`
+- Modify: `src/FixedMathSharp/Geometry/Bounds/FixedBoundSphere.cs`
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedRay.cs`
 - Modify: `src/FixedMathSharp/Numerics/Curves/FixedCurve.cs`
 - Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.cs`
@@ -117,8 +117,8 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 
 - [x] Remove the `Fixed64` multiplication `SHIFT_AMOUNT_I` runtime guard if confirmed unreachable because `SHIFT_AMOUNT_I` is a compile-time constant equal to 32.
 - [x] Remove the `FixedMath.Tan` denominator convergence branch if confirmed ineffective because each continued-fraction iteration changes the term index by 2.
-- [x] Remove the `BoundingSphere.CreateFromPointList` `distance == Fixed64.Zero` check if confirmed unreachable after `sqDistance > sqRadius`.
-- [x] Replace the `FixedRay.Intersects(BoundingSphere)` negative-`t` fallback if confirmed unreachable after the outside/pointing-away guards.
+- [x] Remove the `FixedBoundSphere.CreateFromPointList` `distance == Fixed64.Zero` check if confirmed unreachable after `sqDistance > sqRadius`.
+- [x] Replace the `FixedRay.Intersects(FixedBoundSphere)` negative-`t` fallback if confirmed unreachable after the outside/pointing-away guards.
 - [x] Refactor `FixedCurve.Evaluate` to avoid the structurally unreachable fallback return while preserving sorted-keyframe behavior.
 - [x] Remove the `DeterministicRandom` all-zero state repair if confirmed mathematically unreachable for two consecutive SplitMix64 outputs from one seed.
 

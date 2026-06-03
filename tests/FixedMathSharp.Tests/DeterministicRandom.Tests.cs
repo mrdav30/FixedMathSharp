@@ -1,4 +1,4 @@
-﻿using FixedMathSharp.Utility;
+﻿using FixedMathSharp.Random;
 using System;
 using System.Linq;
 using Xunit;

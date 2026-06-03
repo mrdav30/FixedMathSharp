@@ -1,3 +1,4 @@
+using FixedMathSharp.Bounds;
 using System;
 using Xunit;
 
@@ -53,16 +54,16 @@ public class FixedPlaneTests
     [Fact]
     public void Normalize_ZeroNormal_Throws()
     {
-        Assert.Throws<InvalidOperationException>(() => FixedPlane.Normalize(new FixedPlane(Vector3d.Zero, Fixed64.One)));
+        Assert.Throws<ArithmeticException>(() => FixedPlane.Normalize(new FixedPlane(Vector3d.Zero, Fixed64.One)));
     }
 
     [Fact]
     public void Intersects_BoundingBox_ClassifiesRelativeToPlane()
     {
         var plane = new FixedPlane(Vector3d.Right, new Fixed64(-1));
-        var front = new BoundingBox(new Vector3d(3, 0, 0), new Vector3d(1, 1, 1));
-        var back = new BoundingBox(new Vector3d(-3, 0, 0), new Vector3d(1, 1, 1));
-        var intersecting = new BoundingBox(new Vector3d(1, 0, 0), new Vector3d(2, 1, 1));
+        var front = new FixedBoundBox(new Vector3d(3, 0, 0), new Vector3d(1, 1, 1));
+        var back = new FixedBoundBox(new Vector3d(-3, 0, 0), new Vector3d(1, 1, 1));
+        var intersecting = new FixedBoundBox(new Vector3d(1, 0, 0), new Vector3d(2, 1, 1));
 
         Assert.Equal(FixedPlaneIntersectionType.Front, plane.Intersects(front));
         Assert.Equal(FixedPlaneIntersectionType.Back, plane.Intersects(back));
@@ -73,9 +74,9 @@ public class FixedPlaneTests
     public void Intersects_BoundingArea_ClassifiesRelativeToPlane()
     {
         var plane = new FixedPlane(Vector3d.Right, new Fixed64(-1));
-        var front = new BoundingArea(new Vector3d(2, -1, -1), new Vector3d(3, 1, 1));
-        var back = new BoundingArea(new Vector3d(-3, -1, -1), new Vector3d(-2, 1, 1));
-        var intersecting = new BoundingArea(new Vector3d(0, -1, -1), new Vector3d(2, 1, 1));
+        var front = new FixedBoundArea(new Vector3d(2, -1, -1), new Vector3d(3, 1, 1));
+        var back = new FixedBoundArea(new Vector3d(-3, -1, -1), new Vector3d(-2, 1, 1));
+        var intersecting = new FixedBoundArea(new Vector3d(0, -1, -1), new Vector3d(2, 1, 1));
 
         Assert.Equal(FixedPlaneIntersectionType.Front, plane.Intersects(front));
         Assert.Equal(FixedPlaneIntersectionType.Back, plane.Intersects(back));
@@ -86,9 +87,9 @@ public class FixedPlaneTests
     public void Intersects_BoundingSphere_ClassifiesRelativeToPlane()
     {
         var plane = new FixedPlane(Vector3d.Right, new Fixed64(-1));
-        var front = new BoundingSphere(new Vector3d(3, 0, 0), Fixed64.Half);
-        var back = new BoundingSphere(new Vector3d(-3, 0, 0), Fixed64.Half);
-        var intersecting = new BoundingSphere(new Vector3d(1, 0, 0), Fixed64.Half);
+        var front = new FixedBoundSphere(new Vector3d(3, 0, 0), Fixed64.Half);
+        var back = new FixedBoundSphere(new Vector3d(-3, 0, 0), Fixed64.Half);
+        var intersecting = new FixedBoundSphere(new Vector3d(1, 0, 0), Fixed64.Half);
 
         Assert.Equal(FixedPlaneIntersectionType.Front, plane.Intersects(front));
         Assert.Equal(FixedPlaneIntersectionType.Back, plane.Intersects(back));

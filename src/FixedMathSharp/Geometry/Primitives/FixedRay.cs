@@ -11,7 +11,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace FixedMathSharp;
+namespace FixedMathSharp.Bounds;
 
 /// <summary>
 /// Represents a ray with an origin and direction in three-dimensional space.
@@ -74,7 +74,7 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// <summary>
     /// Finds the first forward intersection with the specified bounding box.
     /// </summary>
-    public Fixed64? Intersects(BoundingBox box)
+    public Fixed64? Intersects(FixedBoundBox box)
     {
         return IntersectsBoxLike(box.Min, box.Max);
     }
@@ -82,7 +82,7 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// <summary>
     /// Finds the first forward intersection with the specified bounding area.
     /// </summary>
-    public Fixed64? Intersects(BoundingArea area)
+    public Fixed64? Intersects(FixedBoundArea area)
     {
         return IntersectsBoxLike(area.Min, area.Max);
     }
@@ -90,7 +90,7 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// <summary>
     /// Finds the first forward intersection with the specified bounding sphere.
     /// </summary>
-    public Fixed64? Intersects(BoundingSphere sphere)
+    public Fixed64? Intersects(FixedBoundSphere sphere)
     {
         Fixed64 directionLengthSquared = Direction.SqrMagnitude;
         if (directionLengthSquared == Fixed64.Zero)
@@ -116,7 +116,7 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// <summary>
     /// Finds the first forward intersection with the specified frustum.
     /// </summary>
-    public Fixed64? Intersects(BoundingFrustum frustum)
+    public Fixed64? Intersects(FixedBoundFrustum frustum)
     {
         FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot test intersection against a null frustum.");
 
