@@ -65,7 +65,7 @@ internal static class Program
             return 1;
         }
 
-        BenchmarkSwitcher.FromTypes(selectedTypes).Run(args.Skip(aliasCount).ToArray());
+        BenchmarkSwitcher.FromTypes(selectedTypes).Run(EnsureAllBenchmarksSelected(args.Skip(aliasCount).ToArray()));
         return 0;
     }
 

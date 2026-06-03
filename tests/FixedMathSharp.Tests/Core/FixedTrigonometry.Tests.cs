@@ -329,6 +329,22 @@ public class FixedTrigonometryTests
     }
 
     [Fact]
+    public void Asin_ValidInput_DoesNotAllocate()
+    {
+        var value = Fixed64.Zero;
+        var expected = Fixed64.Zero;
+
+        _ = FixedMath.Asin(value);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var result = FixedMath.Asin(value);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(expected, result);
+        Assert.Equal(0, allocated);
+    }
+
+    [Fact]
     public void Asin_ReturnsNegativePiOver2()
     {
         var value = -Fixed64.One; // sin(-90°) = -1
@@ -406,6 +422,22 @@ public class FixedTrigonometryTests
         var value = Fixed64.Zero; // cos(90°) = 0
         var result = FixedMath.Acos(value);
         Assert.Equal(Fixed64.HalfPi, result); // acos(0) = π/2
+    }
+
+    [Fact]
+    public void Acos_ValidInput_DoesNotAllocate()
+    {
+        var value = Fixed64.Zero;
+        var expected = Fixed64.HalfPi;
+
+        _ = FixedMath.Acos(value);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var result = FixedMath.Acos(value);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(expected, result);
+        Assert.Equal(0, allocated);
     }
 
     [Fact]

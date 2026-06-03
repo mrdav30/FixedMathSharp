@@ -47,6 +47,23 @@ public class Fixed64Tests
     }
 
     [Fact]
+    public void Divide_ValidDivisor_DoesNotAllocate()
+    {
+        var a = new Fixed64(6);
+        var b = new Fixed64(2);
+        var expected = new Fixed64(3);
+
+        _ = a / b;
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var result = a / b;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(expected, result);
+        Assert.Equal(0, allocated);
+    }
+
+    [Fact]
     public void Divide_ByZero_ThrowsException()
     {
         var a = new Fixed64(6);

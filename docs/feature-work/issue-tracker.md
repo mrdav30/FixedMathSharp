@@ -36,15 +36,90 @@ runtime and tests.
 
 ## Active Issues
 
-- N/A
+### FMS-Issue-005: Coverlet can fail to restore instrumented assemblies on WSL
+
+**Discovered:** 2026-06-03
+
+**Status:** Active
+
+**Source:** Phase 2 scalar/trigonometry allocation test verification.
+
+**Observed behavior:**
+
+Focused `dotnet test` runs passed, but the configured XPlat Code Coverage data
+collector intermittently reported `UnauthorizedAccessException` while restoring
+an instrumented `FixedMathSharp.dll` under `tests/FixedMathSharp.Tests/bin` on
+WSL.
+
+**Impact:**
+
+The tests themselves pass, but coverage instrumentation can add noisy false
+negatives or scary output during tight focused verification loops.
+
+**Recommended next steps:**
+
+- [ ] Reproduce with a clean bin/obj state and the default
+  `coverlet.runsettings`.
+- [ ] Decide whether focused local verification docs should recommend
+  `-p:RunSettingsFilePath=` when coverage is not the goal.
+- [ ] If the collector failure is repeatable, isolate whether it is caused by
+  WSL file locking, generated packages, or concurrent build/test output.
+- [ ] Preserve normal coverage behavior for CI-oriented runs.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore -p:RunSettingsFilePath=
+```
+
+### FMS-Issue-006: `ReleaseLean` `netstandard2.1` build emits MemoryPack shim conflict warnings
+
+**Discovered:** 2026-06-03
+
+**Status:** Active
+
+**Source:** Phase 2 final verification of Unity-supporting `netstandard2.1`
+builds.
+
+**Observed behavior:**
+
+`dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration
+ReleaseLean --framework netstandard2.1 --no-restore` succeeds, but emits many
+`CS0436` warnings where `MemoryPack.Disable.Shim.cs` types conflict with
+imported `MemoryPack.Core` attribute types.
+
+**Impact:**
+
+The build exits successfully, but the lean build is noisy and may hide more
+important warnings. The warning pattern also suggests the lean configuration is
+still seeing MemoryPack assets in a target where the local shim is intended to
+own those symbols.
+
+**Recommended next steps:**
+
+- [ ] Confirm whether the warning existed before the Phase 2 runtime changes.
+- [ ] Inspect the `DisableMemoryPack` and package-reference conditions for
+  `ReleaseLean` across `netstandard2.1` and `net8.0`.
+- [ ] Preserve the public serialization attributes and package layout while
+  removing duplicate MemoryPack type visibility.
+- [ ] Verify both `Release` and `ReleaseLean` builds for `netstandard2.1` and
+  `net8.0`.
+
+Verification:
+
+```bash
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release --framework netstandard2.1 --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean --framework netstandard2.1 --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release --framework net8.0 --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean --framework net8.0 --no-restore
+```
 
 ## Performance Investigation Queue
 
 Performance issues should stay in the benchmark plan unless they become a
 confirmed runtime defect. Current queue:
 
-- 2026-06-03: Investigate allocations in scalar/trigonometry benchmark paths.
-  See `docs/feature-work/2026-06-03-benchmark-hot-path-followups.md`.
 - 2026-06-03: Investigate vector normalization and quaternion creation
   allocations after scalar/trigonometry allocation sources are known.
 
@@ -114,3 +189,67 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 ```
 
 Result on 2026-06-03: passed, 100 tests.
+
+### FMS-Issue-003: Valid scalar/trigonometry fast paths allocated through eager guard messages
+
+**Discovered:** 2026-06-03
+
+**Resolved:** 2026-06-03
+
+**Source:** Phase 2 scalar/trigonometry benchmark diagnostics.
+
+**Resolution:**
+
+`Fixed64.operator /`, `FixedMath.Asin`, and `FixedMath.Acos` now construct
+diagnostic exception messages only after their guard condition is true. This
+preserves existing error-path behavior while removing valid-path string
+allocation inherited by scalar arithmetic, trigonometry, logarithm, and
+quaternion/matrix callers.
+
+**Completed work:**
+
+- [x] Split scalar/trigonometry benchmarks so allocation sources could be
+  isolated by operation.
+- [x] Added allocation regression tests for valid division, `Asin`, and `Acos`.
+- [x] Preserved existing exception types and diagnostic messages for invalid
+  inputs.
+- [x] Re-ran focused tests and short fixed64 arithmetic benchmarks.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Divide_ValidDivisor_DoesNotAllocate|FullyQualifiedName~Asin_ValidInput_DoesNotAllocate|FullyQualifiedName~Acos_ValidInput_DoesNotAllocate"
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic -j Short -i
+```
+
+Result on 2026-06-03: focused allocation tests passed, and the short focused
+benchmark reported no managed allocations for all 13 scalar/trigonometry
+benchmarks.
+
+### FMS-Issue-004: `FixedMath.Pow10Lookup` allocated a new array per access
+
+**Discovered:** 2026-06-03
+
+**Resolved:** 2026-06-03
+
+**Source:** Phase 2 lookup/span allocation review.
+
+**Resolution:**
+
+`FixedMath.Pow10Lookup` keeps the public `ReadOnlySpan<int>` API but now returns
+a span over a single static backing array instead of creating a fresh array on
+every property access.
+
+**Completed work:**
+
+- [x] Added an allocation regression test for `Pow10Lookup` access.
+- [x] Preserved the existing lookup values, length, and public API shape.
+- [x] Re-ran the focused allocation test.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Pow10Lookup_Access_DoesNotAllocate"
+```
+
+Result on 2026-06-03: focused allocation test passed.

@@ -135,19 +135,19 @@ measured benchmark methods. No Phase 1 benchmark code changes were needed.
 - Test if runtime changes are made: `tests/FixedMathSharp.Tests/Core/FixedMath.Tests.cs`
 - Test if runtime changes are made: `tests/FixedMathSharp.Tests/Core/FixedTrigonometry.Tests.cs`
 
-- [ ] Split `Fixed64ArithmeticBenchmarks.SinCos` into separate `Sin` and `Cos`
+- [x] Split `Fixed64ArithmeticBenchmarks.SinCos` into separate `Sin` and `Cos`
   benchmark methods.
-- [ ] Add focused `FixedMath.Tan`, `Acos`, `Asin`, `Atan`, `Pow`, `Log2`, and
+- [x] Add focused `FixedMath.Tan`, `Acos`, `Asin`, `Atan`, `Pow`, `Log2`, and
   `Ln` benchmark methods.
-- [ ] Run focused allocation diagnostics for `fixed64-arithmetic`.
-- [ ] Identify whether allocations come from lookup creation, span/array
+- [x] Run focused allocation diagnostics for `fixed64-arithmetic`.
+- [x] Identify whether allocations come from lookup creation, span/array
   patterns, exception-helper shape, decimal/string conversion, or operator
   helper behavior.
-- [ ] If an allocation source is confirmed, add a targeted correctness test
+- [x] If an allocation source is confirmed, add a targeted correctness test
   before changing runtime code.
-- [ ] Preserve guarded overflow, saturation, rounding, and deterministic
+- [x] Preserve guarded overflow, saturation, rounding, and deterministic
   approximation behavior.
-- [ ] Re-run focused benchmarks before and after each runtime change.
+- [x] Re-run focused benchmarks before and after each runtime change.
 
 Verification:
 
@@ -156,6 +156,39 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic -j Short -i
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic --exporters json
 ```
+
+Phase 2 result on 2026-06-03: completed. The benchmark suite now isolates
+`Sin`, `Cos`, `Tan`, `Acos`, `Asin`, `Atan`, `Atan2`, `Pow`, `Log2`, and `Ln`.
+`Tan` uses a tangent-specific angle fixture inside `[-pi/3, pi/3)` so the
+benchmark measures the hot path without sampling tangent singularities.
+
+Focused allocation diagnostics confirmed eager exception-message construction
+as the scalar/trigonometry allocation source:
+
+- `Fixed64.operator /` built an interpolated divide-by-zero message even when
+  the divisor was valid.
+- `FixedMath.Asin` and `FixedMath.Acos` concatenated domain-error messages even
+  when inputs were in range.
+- `FixedMath.Pow10Lookup` returned a fresh array for every `ReadOnlySpan<int>`
+  access.
+
+Targeted allocation regression tests were added before runtime changes. The
+fixes preserve existing exception types/messages on error paths and only defer
+message/table allocation on valid paths. A short focused benchmark after the
+fix reported no managed allocations for all 13 `fixed64-arithmetic` benchmarks.
+A full focused `Release` benchmark export also reported no managed allocations
+and wrote:
+
+```text
+BenchmarkDotNet.Artifacts/results/FixedMathSharp.Benchmarks.Fixed64ArithmeticBenchmarks-report-full-compressed.json
+```
+
+Verification notes: focused scalar/trigonometry tests passed with coverage
+disabled for the final local verification loop, full solution Debug tests
+passed, and `Release`/`ReleaseLean` `netstandard2.1` build verification passed.
+Follow-up tooling/package warnings discovered during verification are tracked
+in `docs/feature-work/issue-tracker.md` as `FMS-Issue-005` and
+`FMS-Issue-006`.
 
 ## Phase 3: Diagnose Vector And Quaternion Allocations
 

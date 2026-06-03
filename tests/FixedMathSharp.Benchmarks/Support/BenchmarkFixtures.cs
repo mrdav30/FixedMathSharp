@@ -7,7 +7,9 @@ internal static class BenchmarkFixtures
     internal static readonly Fixed64[] ScalarsA = CreateScalars(17, 5);
     internal static readonly Fixed64[] ScalarsB = CreateScalars(29, 7);
     internal static readonly Fixed64[] PositiveScalars = CreatePositiveScalars();
+    internal static readonly Fixed64[] UnitScalars = CreateUnitScalars();
     internal static readonly Fixed64[] Angles = CreateAngles();
+    internal static readonly Fixed64[] TangentAngles = CreateTangentAngles();
     internal static readonly Vector3d[] VectorsA = CreateVectors(3);
     internal static readonly Vector3d[] VectorsB = CreateVectors(19);
     internal static readonly FixedQuaternion[] RotationsA = CreateRotations(5);
@@ -40,6 +42,15 @@ internal static class BenchmarkFixtures
         return values;
     }
 
+    private static Fixed64[] CreateUnitScalars()
+    {
+        var values = new Fixed64[SampleCount];
+        for (int i = 0; i < values.Length; i++)
+            values[i] = Fixed64.FromFraction(i - (SampleCount / 2), SampleCount / 2);
+
+        return values;
+    }
+
     private static Fixed64[] CreateAngles()
     {
         var values = new Fixed64[SampleCount];
@@ -47,6 +58,18 @@ internal static class BenchmarkFixtures
         {
             Fixed64 centered = Fixed64.FromFraction(i - (SampleCount / 2), SampleCount / 2);
             values[i] = centered * Fixed64.Pi;
+        }
+
+        return values;
+    }
+
+    private static Fixed64[] CreateTangentAngles()
+    {
+        var values = new Fixed64[SampleCount];
+        for (int i = 0; i < values.Length; i++)
+        {
+            Fixed64 centered = Fixed64.FromFraction(i - (SampleCount / 2), SampleCount / 2);
+            values[i] = centered * Fixed64.PiOver3;
         }
 
         return values;

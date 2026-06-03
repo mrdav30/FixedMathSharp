@@ -742,7 +742,8 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
         long xl = x.m_rawValue;
         long yl = y.m_rawValue;
 
-        FixedThrowHelper.ThrowIfDivideByZero(yl == 0, $"Attempted to divide {x} by zero.");
+        if (yl == 0)
+            throw new DivideByZeroException($"Attempted to divide {x} by zero.");
 
         ulong remainder = (ulong)(xl < 0 ? -xl : xl);
         ulong divider = (ulong)(yl < 0 ? -yl : yl);

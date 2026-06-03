@@ -15,15 +15,7 @@ namespace FixedMathSharp
     {
         #region Fields and Constants
 
-        /// <summary>
-        /// Provides a lookup table of integer powers of 10 from 10^0 to 10^9.
-        /// </summary>
-        /// <remarks>
-        /// This array can be used to efficiently retrieve the value of 10 raised to an integer
-        /// exponent within the supported range, avoiding repeated calculations. 
-        /// The index corresponds to the exponent.
-        /// </remarks>
-        public static ReadOnlySpan<int> Pow10Lookup => new int[] {
+        private static readonly int[] s_pow10Lookup = {
             1,           // 10^0
             10,          // 10^1
             100,         // 10^2
@@ -35,6 +27,16 @@ namespace FixedMathSharp
             100000000,   // 10^8
             1000000000,  // 10^9
         };
+
+        /// <summary>
+        /// Provides a lookup table of integer powers of 10 from 10^0 to 10^9.
+        /// </summary>
+        /// <remarks>
+        /// This array can be used to efficiently retrieve the value of 10 raised to an integer
+        /// exponent within the supported range, avoiding repeated calculations. 
+        /// The index corresponds to the exponent.
+        /// </remarks>
+        public static ReadOnlySpan<int> Pow10Lookup => s_pow10Lookup;
 
         // Trigonometric and logarithmic constants
 
@@ -411,7 +413,8 @@ namespace FixedMathSharp
         public static Fixed64 Asin(Fixed64 x)
         {
             // Ensure x is within the domain [-1, 1]
-            FixedThrowHelper.ThrowIfArithmeticError(x < -Fixed64.One || x > Fixed64.One, "Input out of domain for Asin: " + x);
+            if (x < -Fixed64.One || x > Fixed64.One)
+                throw new ArithmeticException("Input out of domain for Asin: " + x);
 
             // Handle boundary cases for -1 and 1
             if (x == Fixed64.One) return Fixed64.HalfPi;  // asin(1) = π/2
@@ -444,7 +447,8 @@ namespace FixedMathSharp
         /// <exception cref="ArgumentOutOfRangeException">Thrown if x is outside the domain [-1, 1].</exception>
         public static Fixed64 Acos(Fixed64 x)
         {
-            FixedThrowHelper.ThrowIfArithmeticError(Abs(x) > Fixed64.One, "Input out of domain for Acos: " + x);
+            if (Abs(x) > Fixed64.One)
+                throw new ArithmeticException("Input out of domain for Acos: " + x);
 
             // For values near 1 or -1, the result is directly known.
             if (x == Fixed64.One) return Fixed64.Zero;      // acos(1) = 0

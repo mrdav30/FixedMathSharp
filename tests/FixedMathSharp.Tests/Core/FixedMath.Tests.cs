@@ -211,6 +211,19 @@ public class FixedMathTests
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.RoundToPrecision(Fixed64.FromFloatPoint(1.23), FixedMath.Pow10Lookup.Length));
     }
 
+    [Fact]
+    public void Pow10Lookup_Access_DoesNotAllocate()
+    {
+        _ = FixedMath.Pow10Lookup.Length;
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        int length = FixedMath.Pow10Lookup.Length;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(10, length);
+        Assert.Equal(0, allocated);
+    }
+
     #endregion
 
     #region Test: FastAdd Method
