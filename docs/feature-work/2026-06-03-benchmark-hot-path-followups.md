@@ -7,7 +7,7 @@
 > claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for
 > tracking.
 
-**Status:** Proposed
+**Status:** Active
 
 **Goal:** Turn the first benchmark smoke-run findings into measured,
 deterministic, allocation-conscious runtime improvements without weakening
@@ -84,15 +84,15 @@ diagnostic run identifies the allocation source.
 - Review: `tests/FixedMathSharp.Benchmarks/Support/BenchmarkFixtures.cs`
 - Modify only if needed: `tests/FixedMathSharp.Benchmarks/README.md`
 
-- [ ] Build the benchmark project in `Release` and `ReleaseLean`.
-- [ ] Run `list` and confirm the expected aliases are visible:
+- [x] Build the benchmark project in `Release` and `ReleaseLean`.
+- [x] Run `list` and confirm the expected aliases are visible:
   `bounds`, `fixed64-arithmetic`, `matrix4x4`, `quaternion`, and `vector3d`.
-- [ ] Run the short in-process suite only as a smoke check.
-- [ ] Run a full `Release` baseline with JSON export before runtime
+- [x] Run the short in-process suite only as a smoke check.
+- [x] Run a full `Release` baseline with JSON export before runtime
   optimization begins.
-- [ ] Archive or preserve the baseline artifact path in the working notes or a
+- [x] Archive or preserve the baseline artifact path in the working notes or a
   follow-up doc before making performance changes.
-- [ ] Confirm benchmark fixture setup is outside measured methods or is
+- [x] Confirm benchmark fixture setup is outside measured methods or is
   intentionally part of the measured scenario.
 
 Verification:
@@ -104,6 +104,23 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all -j Short -i
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all --exporters json
 ```
+
+Phase 1 result on 2026-06-03: completed. `Release` and `ReleaseLean` builds
+passed, `list` showed all expected aliases, the short in-process smoke suite
+ran 23 benchmarks, and the full `Release` baseline ran 23 benchmarks with JSON
+exports. Baseline artifacts are gitignored and preserved locally at:
+
+```text
+BenchmarkDotNet.Artifacts/results/FixedMathSharp.Benchmarks.BoundsBenchmarks-report-full-compressed.json
+BenchmarkDotNet.Artifacts/results/FixedMathSharp.Benchmarks.Fixed64ArithmeticBenchmarks-report-full-compressed.json
+BenchmarkDotNet.Artifacts/results/FixedMathSharp.Benchmarks.Matrix4x4Benchmarks-report-full-compressed.json
+BenchmarkDotNet.Artifacts/results/FixedMathSharp.Benchmarks.QuaternionBenchmarks-report-full-compressed.json
+BenchmarkDotNet.Artifacts/results/FixedMathSharp.Benchmarks.Vector3dBenchmarks-report-full-compressed.json
+```
+
+Fixture review: `BenchmarkFixtures` uses static deterministic arrays and factory
+methods to prepare shared scalar, vector, quaternion, and matrix data outside
+measured benchmark methods. No Phase 1 benchmark code changes were needed.
 
 ## Phase 2: Diagnose Scalar And Trigonometry Allocations
 
