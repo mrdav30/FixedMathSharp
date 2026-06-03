@@ -128,13 +128,13 @@ public partial struct FixedRay : IEquatable<FixedRay>
         Fixed64 tMin = Fixed64.Zero;
         Fixed64 tMax = Fixed64.MaxValue;
 
-        if (!ClipAxis(Position.x, Direction.x, min.x, max.x, ref tMin, ref tMax))
+        if (!ClipAxis(Position.X, Direction.X, min.X, max.X, ref tMin, ref tMax))
             return null;
 
-        if (!ClipAxis(Position.y, Direction.y, min.y, max.y, ref tMin, ref tMax))
+        if (!ClipAxis(Position.Y, Direction.Y, min.Y, max.Y, ref tMin, ref tMax))
             return null;
 
-        if (!ClipAxis(Position.z, Direction.z, min.z, max.z, ref tMin, ref tMax))
+        if (!ClipAxis(Position.Z, Direction.Z, min.Z, max.Z, ref tMin, ref tMax))
             return null;
 
         return tMin;

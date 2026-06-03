@@ -202,12 +202,12 @@ public class BoundingBoxTests
     {
         var box = new BoundingBox(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
 
-        Assert.Equal(new Vector3d(-2, 0.5, 0.25), box.ClosestPointOnSurface(new Vector3d(-1.75, 0.5, 0.25)));
-        Assert.Equal(new Vector3d(2, 0.5, 0.25), box.ClosestPointOnSurface(new Vector3d(1.75, 0.5, 0.25)));
-        Assert.Equal(new Vector3d(0.25, -2, -0.75), box.ClosestPointOnSurface(new Vector3d(0.25, -1.9, -0.75)));
-        Assert.Equal(new Vector3d(0.25, 2, -0.75), box.ClosestPointOnSurface(new Vector3d(0.25, 1.9, -0.75)));
-        Assert.Equal(new Vector3d(-0.25, 0.5, -2), box.ClosestPointOnSurface(new Vector3d(-0.25, 0.5, -1.8)));
-        Assert.Equal(new Vector3d(-0.25, 0.5, 2), box.ClosestPointOnSurface(new Vector3d(-0.25, 0.5, 1.8)));
+        Assert.Equal(Vector3d.FromFloatPoint(-2, 0.5, 0.25), box.ClosestPointOnSurface(Vector3d.FromFloatPoint(-1.75, 0.5, 0.25)));
+        Assert.Equal(Vector3d.FromFloatPoint(2, 0.5, 0.25), box.ClosestPointOnSurface(Vector3d.FromFloatPoint(1.75, 0.5, 0.25)));
+        Assert.Equal(Vector3d.FromFloatPoint(0.25, -2, -0.75), box.ClosestPointOnSurface(Vector3d.FromFloatPoint(0.25, -1.9, -0.75)));
+        Assert.Equal(Vector3d.FromFloatPoint(0.25, 2, -0.75), box.ClosestPointOnSurface(Vector3d.FromFloatPoint(0.25, 1.9, -0.75)));
+        Assert.Equal(Vector3d.FromFloatPoint(-0.25, 0.5, -2), box.ClosestPointOnSurface(Vector3d.FromFloatPoint(-0.25, 0.5, -1.8)));
+        Assert.Equal(Vector3d.FromFloatPoint(-0.25, 0.5, 2), box.ClosestPointOnSurface(Vector3d.FromFloatPoint(-0.25, 0.5, 1.8)));
     }
 
     [Fact]

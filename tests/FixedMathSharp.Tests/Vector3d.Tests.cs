@@ -14,9 +14,9 @@ public class Vector3dTests
     public void Constructor_Default_InitializesToZero()
     {
         var vector = new Vector3d();
-        Assert.Equal(Fixed64.Zero, vector.x);
-        Assert.Equal(Fixed64.Zero, vector.y);
-        Assert.Equal(Fixed64.Zero, vector.z);
+        Assert.Equal(Fixed64.Zero, vector.X);
+        Assert.Equal(Fixed64.Zero, vector.Y);
+        Assert.Equal(Fixed64.Zero, vector.Z);
     }
 
     [Fact]
@@ -26,18 +26,18 @@ public class Vector3dTests
         var y = Fixed64.FromFloatPoint(2);
         var z = Fixed64.FromFloatPoint(3);
         var vector = new Vector3d(x, y, z);
-        Assert.Equal(x, vector.x);
-        Assert.Equal(y, vector.y);
-        Assert.Equal(z, vector.z);
+        Assert.Equal(x, vector.X);
+        Assert.Equal(y, vector.Y);
+        Assert.Equal(z, vector.Z);
     }
 
     [Fact]
     public void Constructor_Float_InitializesComponents()
     {
-        var vector = new Vector3d(1.5f, -2.5f, 3.0f);
-        Assert.Equal(Fixed64.FromFloatPoint(1.5), vector.x);
-        Assert.Equal(Fixed64.FromFloatPoint(-2.5), vector.y);
-        Assert.Equal(Fixed64.FromFloatPoint(3.0), vector.z);
+        var vector = Vector3d.FromFloatPoint(1.5f, -2.5f, 3.0f);
+        Assert.Equal(Fixed64.FromFloatPoint(1.5), vector.X);
+        Assert.Equal(Fixed64.FromFloatPoint(-2.5), vector.Y);
+        Assert.Equal(Fixed64.FromFloatPoint(3.0), vector.Z);
     }
 
     #endregion
@@ -118,9 +118,9 @@ public class Vector3dTests
 
         var result = vector.SnapSmallComponentsToZero();
 
-        Assert.Equal(Fixed64.Zero, result.x);
-        Assert.Equal(Fixed64.Zero, result.y);
-        Assert.Equal(Fixed64.Epsilon, result.z); // Boundary: abs(z) == threshold is retained
+        Assert.Equal(Fixed64.Zero, result.X);
+        Assert.Equal(Fixed64.Zero, result.Y);
+        Assert.Equal(Fixed64.Epsilon, result.Z); // Boundary: abs(z) == threshold is retained
     }
 
     [Fact]
@@ -131,9 +131,9 @@ public class Vector3dTests
 
         var result = vector.SnapSmallComponentsToZero(threshold);
 
-        Assert.Equal(Fixed64.Zero, result.x);      // abs(x) < threshold -> snapped
-        Assert.Equal(Fixed64.FromFloatPoint(-0.1), result.y); // abs(y) == threshold -> retained
-        Assert.Equal(Fixed64.FromFloatPoint(0.2), result.z);  // abs(z) > threshold -> retained
+        Assert.Equal(Fixed64.Zero, result.X);      // abs(x) < threshold -> snapped
+        Assert.Equal(Fixed64.FromFloatPoint(-0.1), result.Y); // abs(y) == threshold -> retained
+        Assert.Equal(Fixed64.FromFloatPoint(0.2), result.Z);  // abs(z) > threshold -> retained
     }
 
     #endregion
@@ -592,7 +592,7 @@ public class Vector3dTests
         var (pointOnLine1, pointOnLine2) = Vector3d.ClosestPointsOnTwoLines(line1Start, line1End, line2Start, line2End);
 
         // These points should be the same since the lines intersect at (0.5, 0.5, 0)
-        var expectedIntersection = new Vector3d(0.5, 0.5, 0);
+        var expectedIntersection = Vector3d.FromFloatPoint(0.5, 0.5, 0);
         Assert.Equal(expectedIntersection, pointOnLine1);
         Assert.Equal(expectedIntersection, pointOnLine2);
     }
@@ -785,10 +785,10 @@ public class Vector3dTests
     [Fact]
     public void V3ClampOneInPlace_ClampsCorrectly()
     {
-        var vector = new Vector3d(2, -3, 0.5);
+        var vector = Vector3d.FromFloatPoint(2, -3, 0.5);
         var result = vector.ClampOneInPlace();
 
-        Assert.Equal(new Vector3d(1, -1, 0.5), result); // Clamps x and y, z stays the same
+        Assert.Equal(Vector3d.FromFloatPoint(1, -1, 0.5), result); // Clamps x and y, z stays the same
     }
 
     [Fact]
@@ -827,7 +827,7 @@ public class Vector3dTests
     public void V3FuzzyEqualAbsolute_ComparesCorrectly_WithAllowedDifference()
     {
         var vector1 = new Vector3d(2, 2, 2);
-        var vector2 = new Vector3d(2.1, 2.1, 2.1);
+        var vector2 = Vector3d.FromFloatPoint(2.1, 2.1, 2.1);
         var allowedDifference = Fixed64.FromFloatPoint(0.15);
 
         // Should be approximately equal given the allowed difference of 0.15
@@ -965,7 +965,7 @@ public class Vector3dTests
         Assert.Equal("(1.25, 2.5, 3.75)", vector.ToString());
         Assert.Equal(new Vector2d(Fixed64.FromFloatPoint(1.25), Fixed64.FromFloatPoint(3.75)), vector.ToVector2d());
 
-        vector.Deconstruct(out float fx, out float fy, out float fz);
+        vector.Deconstruct(out double fx, out double fy, out double fz);
         vector.Deconstruct(out int ix, out int iy, out int iz);
 
         Assert.Equal(1.25f, fx);
@@ -990,9 +990,9 @@ public class Vector3dTests
 
         var result = vector.SnapSmallComponentsToZero(threshold);
 
-        Assert.Equal(Fixed64.FromFloatPoint(0.2), result.x);
-        Assert.Equal(Fixed64.Zero, result.y);
-        Assert.Equal(Fixed64.Zero, result.z);
+        Assert.Equal(Fixed64.FromFloatPoint(0.2), result.X);
+        Assert.Equal(Fixed64.Zero, result.Y);
+        Assert.Equal(Fixed64.Zero, result.Z);
     }
 
     [Fact]

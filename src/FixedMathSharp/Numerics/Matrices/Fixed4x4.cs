@@ -189,10 +189,10 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     public static Fixed4x4 FromRows(Vector4d row1, Vector4d row2, Vector4d row3, Vector4d row4)
     {
         return new Fixed4x4(
-            row1.x, row1.y, row1.z, row1.w,
-            row2.x, row2.y, row2.z, row2.w,
-            row3.x, row3.y, row3.z, row3.w,
-            row4.x, row4.y, row4.z, row4.w);
+            row1.X, row1.Y, row1.Z, row1.W,
+            row2.X, row2.Y, row2.Z, row2.W,
+            row3.X, row3.Y, row3.Z, row3.W,
+            row4.X, row4.Y, row4.Z, row4.W);
     }
 
     /// <summary>
@@ -202,10 +202,10 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     public static Fixed4x4 FromColumns(Vector4d column1, Vector4d column2, Vector4d column3, Vector4d column4)
     {
         return new Fixed4x4(
-            column1.x, column2.x, column3.x, column4.x,
-            column1.y, column2.y, column3.y, column4.y,
-            column1.z, column2.z, column3.z, column4.z,
-            column1.w, column2.w, column3.w, column4.w);
+            column1.X, column2.X, column3.X, column4.X,
+            column1.Y, column2.Y, column3.Y, column4.Y,
+            column1.Z, column2.Z, column3.Z, column4.Z,
+            column1.W, column2.W, column3.W, column4.W);
     }
 
     #endregion
@@ -441,9 +441,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         result.M32 = Fixed64.Zero;
         result.M33 = Fixed64.One;
         result.M34 = Fixed64.Zero;
-        result.M41 = position.x;
-        result.M42 = position.y;
-        result.M43 = position.z;
+        result.M41 = position.X;
+        result.M42 = position.Y;
+        result.M43 = position.Z;
         result.M44 = Fixed64.One;
         return result;
     }
@@ -508,9 +508,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// <returns>A 4x4 matrix representing the scale transformation.</returns>
     public static Fixed4x4 CreateScale(Vector3d scale) =>
         new(
-            scale.x, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, scale.y, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, scale.z, Fixed64.Zero,
+            scale.X, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, scale.Y, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, scale.Z, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
 
     /// <summary>
@@ -543,9 +543,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Vector3d up = Vector3d.Cross(forward, right).Normalize();
 
         return new Fixed4x4(
-            right.x, right.y, right.z, Fixed64.Zero,
-            up.x, up.y, up.z, Fixed64.Zero,
-            forward.x, forward.y, forward.z, Fixed64.Zero,
+            right.X, right.Y, right.Z, Fixed64.Zero,
+            up.X, up.Y, up.Z, Fixed64.Zero,
+            forward.X, forward.Y, forward.Z, Fixed64.Zero,
             -Vector3d.Dot(right, cameraPosition),
             -Vector3d.Dot(up, cameraPosition),
             -Vector3d.Dot(forward, cameraPosition),
@@ -698,10 +698,10 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         up = Vector3d.Cross(forward, right).Normalize();
 
         return new Fixed4x4(
-            right.x, right.y, right.z, Fixed64.Zero,
-            up.x, up.y, up.z, Fixed64.Zero,
-            forward.x, forward.y, forward.z, Fixed64.Zero,
-            position.x, position.y, position.z, Fixed64.One);
+            right.X, right.Y, right.Z, Fixed64.Zero,
+            up.X, up.Y, up.Z, Fixed64.Zero,
+            forward.X, forward.Y, forward.Z, Fixed64.Zero,
+            position.X, position.Y, position.Z, Fixed64.One);
     }
 
     /// <summary>
@@ -843,9 +843,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Vector3d scale = ExtractScale(matrix);
 
         // prevent divide by zero exception
-        Fixed64 scaleX = scale.x == Fixed64.Zero ? Fixed64.One : scale.x;
-        Fixed64 scaleY = scale.y == Fixed64.Zero ? Fixed64.One : scale.y;
-        Fixed64 scaleZ = scale.z == Fixed64.Zero ? Fixed64.One : scale.z;
+        Fixed64 scaleX = scale.X == Fixed64.Zero ? Fixed64.One : scale.X;
+        Fixed64 scaleY = scale.Y == Fixed64.Zero ? Fixed64.One : scale.Y;
+        Fixed64 scaleZ = scale.Z == Fixed64.Zero ? Fixed64.One : scale.Z;
 
         Fixed4x4 normalizedMatrix = new(
             matrix.M11 / scaleX, matrix.M12 / scaleX, matrix.M13 / scaleX, Fixed64.Zero,
@@ -876,9 +876,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
 
         // prevent divide by zero exception
         scale = new Vector3d(
-             scale.x == Fixed64.Zero ? Fixed64.One : scale.x,
-             scale.y == Fixed64.Zero ? Fixed64.One : scale.y,
-             scale.z == Fixed64.Zero ? Fixed64.One : scale.z);
+             scale.X == Fixed64.Zero ? Fixed64.One : scale.X,
+             scale.Y == Fixed64.Zero ? Fixed64.One : scale.Y,
+             scale.Z == Fixed64.Zero ? Fixed64.One : scale.Z);
 
         // normalize rotation and scaling
         Fixed4x4 normalizedMatrix = ApplyScaleToRotation(matrix, Vector3d.One / scale);
@@ -891,7 +891,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         if (determinant < Fixed64.Zero)
         {
             // Adjust for left-handed coordinate system by flipping one of the axes
-            scale.x = -scale.x;
+            scale.X = -scale.X;
             normalizedMatrix.M11 = -normalizedMatrix.M11;
             normalizedMatrix.M12 = -normalizedMatrix.M12;
             normalizedMatrix.M13 = -normalizedMatrix.M13;
@@ -911,9 +911,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 SetTranslation(Fixed4x4 matrix, Vector3d translation)
     {
-        matrix.M41 = translation.x;
-        matrix.M42 = translation.y;
-        matrix.M43 = translation.z;
+        matrix.M41 = translation.X;
+        matrix.M42 = translation.Y;
+        matrix.M43 = translation.Z;
         return matrix;
     }
 
@@ -929,9 +929,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed4x4 SetScale(Fixed4x4 matrix, Vector3d scale)
     {
-        matrix.M11 = scale.x;
-        matrix.M22 = scale.y;
-        matrix.M33 = scale.z;
+        matrix.M11 = scale.X;
+        matrix.M22 = scale.Y;
+        matrix.M33 = scale.Z;
         return matrix;
     }
 
@@ -946,17 +946,17 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     public static Fixed4x4 ApplyScaleToRotation(Fixed4x4 matrix, Vector3d scale)
     {
         // Scale each row of the rotation matrix
-        matrix.M11 *= scale.x;
-        matrix.M12 *= scale.x;
-        matrix.M13 *= scale.x;
+        matrix.M11 *= scale.X;
+        matrix.M12 *= scale.X;
+        matrix.M13 *= scale.X;
 
-        matrix.M21 *= scale.y;
-        matrix.M22 *= scale.y;
-        matrix.M23 *= scale.y;
+        matrix.M21 *= scale.Y;
+        matrix.M22 *= scale.Y;
+        matrix.M23 *= scale.Y;
 
-        matrix.M31 *= scale.z;
-        matrix.M32 *= scale.z;
-        matrix.M33 *= scale.z;
+        matrix.M31 *= scale.Z;
+        matrix.M32 *= scale.Z;
+        matrix.M33 *= scale.Z;
 
         return matrix;
     }
@@ -994,9 +994,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
 
         // Compute the new local scale by dividing the desired global scale by the current scale (which was reset to (1, 1, 1))
         Vector3d newLocalScale = new(
-           globalScale.x / Fixed64.One,
-           globalScale.y / Fixed64.One,
-           globalScale.z / Fixed64.One
+           globalScale.X / Fixed64.One,
+           globalScale.Y / Fixed64.One,
+           globalScale.Z / Fixed64.One
         );
 
         // Apply the new local scale directly to the matrix
@@ -1019,17 +1019,17 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
 
         // Apply rotation to the upper-left 3x3 matrix
 
-        matrix.M11 = rotationMatrix.M11 * scale.x;
-        matrix.M12 = rotationMatrix.M12 * scale.x;
-        matrix.M13 = rotationMatrix.M13 * scale.x;
+        matrix.M11 = rotationMatrix.M11 * scale.X;
+        matrix.M12 = rotationMatrix.M12 * scale.X;
+        matrix.M13 = rotationMatrix.M13 * scale.X;
 
-        matrix.M21 = rotationMatrix.M21 * scale.y;
-        matrix.M22 = rotationMatrix.M22 * scale.y;
-        matrix.M23 = rotationMatrix.M23 * scale.y;
+        matrix.M21 = rotationMatrix.M21 * scale.Y;
+        matrix.M22 = rotationMatrix.M22 * scale.Y;
+        matrix.M23 = rotationMatrix.M23 * scale.Y;
 
-        matrix.M31 = rotationMatrix.M31 * scale.z;
-        matrix.M32 = rotationMatrix.M32 * scale.z;
-        matrix.M33 = rotationMatrix.M33 * scale.z;
+        matrix.M31 = rotationMatrix.M31 * scale.Z;
+        matrix.M32 = rotationMatrix.M32 * scale.Z;
+        matrix.M33 = rotationMatrix.M33 * scale.Z;
 
         return matrix;
     }
@@ -1053,9 +1053,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Vector3d basisZ = new Vector3d(matrix.M31, matrix.M32, matrix.M33).Normalize();
 
         return new Fixed4x4(
-            basisX.x, basisX.y, basisX.z, Fixed64.Zero,
-            basisY.x, basisY.y, basisY.z, Fixed64.Zero,
-            basisZ.x, basisZ.y, basisZ.z, Fixed64.Zero,
+            basisX.X, basisX.Y, basisX.Z, Fixed64.Zero,
+            basisY.X, basisY.Y, basisY.Z, Fixed64.Zero,
+            basisZ.X, basisZ.Y, basisZ.Z, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
         );
     }
@@ -1069,22 +1069,22 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </summary>
     public static Fixed4x4 Lerp(Fixed4x4 a, Fixed4x4 b, Fixed64 t) =>
          new(
-            FixedMath.Lerp(a.M11, b.M11, t),
-            FixedMath.Lerp(a.M12, b.M12, t),
-            FixedMath.Lerp(a.M13, b.M13, t),
-            FixedMath.Lerp(a.M14, b.M14, t),
-            FixedMath.Lerp(a.M21, b.M21, t),
-            FixedMath.Lerp(a.M22, b.M22, t),
-            FixedMath.Lerp(a.M23, b.M23, t),
-            FixedMath.Lerp(a.M24, b.M24, t),
-            FixedMath.Lerp(a.M31, b.M31, t),
-            FixedMath.Lerp(a.M32, b.M32, t),
-            FixedMath.Lerp(a.M33, b.M33, t),
-            FixedMath.Lerp(a.M34, b.M34, t),
-            FixedMath.Lerp(a.M41, b.M41, t),
-            FixedMath.Lerp(a.M42, b.M42, t),
-            FixedMath.Lerp(a.M43, b.M43, t),
-            FixedMath.Lerp(a.M44, b.M44, t));
+            Fixed64.Lerp(a.M11, b.M11, t),
+            Fixed64.Lerp(a.M12, b.M12, t),
+            Fixed64.Lerp(a.M13, b.M13, t),
+            Fixed64.Lerp(a.M14, b.M14, t),
+            Fixed64.Lerp(a.M21, b.M21, t),
+            Fixed64.Lerp(a.M22, b.M22, t),
+            Fixed64.Lerp(a.M23, b.M23, t),
+            Fixed64.Lerp(a.M24, b.M24, t),
+            Fixed64.Lerp(a.M31, b.M31, t),
+            Fixed64.Lerp(a.M32, b.M32, t),
+            Fixed64.Lerp(a.M33, b.M33, t),
+            Fixed64.Lerp(a.M34, b.M34, t),
+            Fixed64.Lerp(a.M41, b.M41, t),
+            Fixed64.Lerp(a.M42, b.M42, t),
+            Fixed64.Lerp(a.M43, b.M43, t),
+            Fixed64.Lerp(a.M44, b.M44, t));
 
     /// <summary>
     /// Transposes the matrix by swapping rows and columns.
@@ -1194,9 +1194,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Vector3d transformedTranslation = new(matrix.M41, matrix.M42, matrix.M43);
         transformedTranslation = -Fixed3x3.TransformDirection(rotationScaleInverse, transformedTranslation);
 
-        result.M41 = transformedTranslation.x;
-        result.M42 = transformedTranslation.y;
-        result.M43 = transformedTranslation.z;
+        result.M41 = transformedTranslation.X;
+        result.M42 = transformedTranslation.Y;
+        result.M43 = transformedTranslation.Z;
         result.M44 = Fixed64.One;
 
         return true;
@@ -1282,9 +1282,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         if (matrix.IsAffine)
         {
             return new Vector3d(
-                matrix.M11 * point.x + matrix.M12 * point.y + matrix.M13 * point.z + matrix.M41,
-                matrix.M21 * point.x + matrix.M22 * point.y + matrix.M23 * point.z + matrix.M42,
-                matrix.M31 * point.x + matrix.M32 * point.y + matrix.M33 * point.z + matrix.M43
+                matrix.M11 * point.X + matrix.M12 * point.Y + matrix.M13 * point.Z + matrix.M41,
+                matrix.M21 * point.X + matrix.M22 * point.Y + matrix.M23 * point.Z + matrix.M42,
+                matrix.M31 * point.X + matrix.M32 * point.Y + matrix.M33 * point.Z + matrix.M43
             );
         }
 
@@ -1294,13 +1294,13 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     private static Vector3d FullTransformPoint(Fixed4x4 matrix, Vector3d point)
     {
         // Full 4×4 transformation (needed for perspective projections)
-        Fixed64 w = matrix.M14 * point.x + matrix.M24 * point.y + matrix.M34 * point.z + matrix.M44;
+        Fixed64 w = matrix.M14 * point.X + matrix.M24 * point.Y + matrix.M34 * point.Z + matrix.M44;
         if (w == Fixed64.Zero) w = Fixed64.One;  // Prevent divide-by-zero
 
         return new Vector3d(
-            (matrix.M11 * point.x + matrix.M12 * point.y + matrix.M13 * point.z + matrix.M41) / w,
-            (matrix.M21 * point.x + matrix.M22 * point.y + matrix.M23 * point.z + matrix.M42) / w,
-            (matrix.M31 * point.x + matrix.M32 * point.y + matrix.M33 * point.z + matrix.M43) / w
+            (matrix.M11 * point.X + matrix.M12 * point.Y + matrix.M13 * point.Z + matrix.M41) / w,
+            (matrix.M21 * point.X + matrix.M22 * point.Y + matrix.M23 * point.Z + matrix.M42) / w,
+            (matrix.M31 * point.X + matrix.M32 * point.Y + matrix.M33 * point.Z + matrix.M43) / w
         );
     }
 
@@ -1319,9 +1319,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         if (inverseMatrix.IsAffine)
         {
             return new Vector3d(
-                inverseMatrix.M11 * point.x + inverseMatrix.M12 * point.y + inverseMatrix.M13 * point.z + inverseMatrix.M41,
-                inverseMatrix.M21 * point.x + inverseMatrix.M22 * point.y + inverseMatrix.M23 * point.z + inverseMatrix.M42,
-                inverseMatrix.M31 * point.x + inverseMatrix.M32 * point.y + inverseMatrix.M33 * point.z + inverseMatrix.M43
+                inverseMatrix.M11 * point.X + inverseMatrix.M12 * point.Y + inverseMatrix.M13 * point.Z + inverseMatrix.M41,
+                inverseMatrix.M21 * point.X + inverseMatrix.M22 * point.Y + inverseMatrix.M23 * point.Z + inverseMatrix.M42,
+                inverseMatrix.M31 * point.X + inverseMatrix.M32 * point.Y + inverseMatrix.M33 * point.Z + inverseMatrix.M43
             );
         }
 
@@ -1331,13 +1331,13 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     private static Vector3d FullInverseTransformPoint(Fixed4x4 matrix, Vector3d point)
     {
         // Full 4×4 transformation (needed for perspective projections)
-        Fixed64 w = matrix.M14 * point.x + matrix.M24 * point.y + matrix.M34 * point.z + matrix.M44;
+        Fixed64 w = matrix.M14 * point.X + matrix.M24 * point.Y + matrix.M34 * point.Z + matrix.M44;
         if (w == Fixed64.Zero) w = Fixed64.One;  // Prevent divide-by-zero
 
         return new Vector3d(
-            (matrix.M11 * point.x + matrix.M12 * point.y + matrix.M13 * point.z + matrix.M41) / w,
-            (matrix.M21 * point.x + matrix.M22 * point.y + matrix.M23 * point.z + matrix.M42) / w,
-            (matrix.M31 * point.x + matrix.M32 * point.y + matrix.M33 * point.z + matrix.M43) / w
+            (matrix.M11 * point.X + matrix.M12 * point.Y + matrix.M13 * point.Z + matrix.M41) / w,
+            (matrix.M21 * point.X + matrix.M22 * point.Y + matrix.M23 * point.Z + matrix.M42) / w,
+            (matrix.M31 * point.X + matrix.M32 * point.Y + matrix.M33 * point.Z + matrix.M43) / w
         );
     }
 

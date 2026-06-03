@@ -18,7 +18,7 @@ namespace FixedMathSharp;
 /// </summary>
 [Serializable]
 [MemoryPackable]
-public partial class FixedCurve : IEquatable<FixedCurve>
+public partial struct FixedCurve : IEquatable<FixedCurve>
 {
     #region Constructors
 
@@ -99,9 +99,9 @@ public partial class FixedCurve : IEquatable<FixedCurve>
         return Mode switch
         {
             FixedCurveMode.Step => current.Value,
-            FixedCurveMode.Smooth => FixedMath.SmoothStep(current.Value, next.Value, t),
-            FixedCurveMode.Cubic => FixedMath.CubicInterpolate(current.Value, next.Value, current.OutTangent, next.InTangent, t),
-            _ => FixedMath.Lerp(current.Value, next.Value, t),
+            FixedCurveMode.Smooth => Fixed64.SmoothStep(current.Value, next.Value, t),
+            FixedCurveMode.Cubic => Fixed64.CubicInterpolate(current.Value, next.Value, current.OutTangent, next.InTangent, t),
+            _ => Fixed64.Lerp(current.Value, next.Value, t),
         };
     }
 
@@ -110,12 +110,8 @@ public partial class FixedCurve : IEquatable<FixedCurve>
     #region Equality
 
     /// <inheritdoc/>
-    public bool Equals(FixedCurve? other)
-    {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        return Mode == other.Mode && Keyframes.SequenceEqual(other.Keyframes);
-    }
+    public bool Equals(FixedCurve other) =>
+        Mode == other.Mode && Keyframes.SequenceEqual(other.Keyframes);
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is FixedCurve other && Equals(other);
@@ -135,12 +131,12 @@ public partial class FixedCurve : IEquatable<FixedCurve>
     /// <summary>
     /// Determines whether two FixedCurve instances are equal.
     /// </summary>
-    public static bool operator ==(FixedCurve? left, FixedCurve? right) => left?.Equals(right) ?? right is null;
+    public static bool operator ==(FixedCurve left, FixedCurve right) => left.Equals(right);
 
     /// <summary>
     /// Determines whether two FixedCurve instances are not equal.
     /// </summary>
-    public static bool operator !=(FixedCurve? left, FixedCurve? right) => !(left == right);
+    public static bool operator !=(FixedCurve left, FixedCurve right) => !(left == right);
 
     #endregion
 }

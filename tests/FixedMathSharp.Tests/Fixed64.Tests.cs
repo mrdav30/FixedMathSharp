@@ -187,6 +187,73 @@ public class Fixed64Tests
 
     #endregion
 
+    #region Test: Interpolation Methods
+
+    [Fact]
+    public void LinearInterpolate_TAtZero_ReturnsFromValue()
+    {
+        var result = Fixed64.Lerp(new Fixed64(3), new Fixed64(5), new Fixed64(0));
+        Assert.Equal(new Fixed64(3), result);
+    }
+
+    [Fact]
+    public void LinearInterpolate_TAtOne_ReturnsToValue()
+    {
+        var result = Fixed64.Lerp(new Fixed64(3), new Fixed64(5), new Fixed64(1));
+        Assert.Equal(new Fixed64(5), result);
+    }
+
+    [Fact]
+    public void LinearInterpolate_TAtHalf_ReturnsMidpoint()
+    {
+        var result = Fixed64.Lerp(new Fixed64(3), new Fixed64(5), Fixed64.FromFloatPoint(0.5));
+        Assert.Equal(new Fixed64(4), result);  // Midpoint should be 4
+    }
+
+    [Fact]
+    public void SmoothStep_TAtZero_ReturnsFromValue()
+    {
+        var result = Fixed64.SmoothStep(new Fixed64(3), new Fixed64(5), new Fixed64(0));
+        Assert.Equal(new Fixed64(3), result);
+    }
+
+    [Fact]
+    public void SmoothStep_TAtOne_ReturnsToValue()
+    {
+        var result = Fixed64.SmoothStep(new Fixed64(3), new Fixed64(5), new Fixed64(1));
+        Assert.Equal(new Fixed64(5), result);
+    }
+
+    [Fact]
+    public void SmoothStep_TAtHalf_ReturnsSmoothedMidpoint()
+    {
+        var result = Fixed64.SmoothStep(new Fixed64(0), new Fixed64(10), Fixed64.FromFloatPoint(0.5));
+        Assert.Equal(new Fixed64(5), result); // Should be near 5 with smoothing effect
+    }
+
+    [Fact]
+    public void CubicInterpolate_TAtZero_ReturnsP0()
+    {
+        var result = Fixed64.CubicInterpolate(new Fixed64(3), new Fixed64(5), new Fixed64(1), new Fixed64(1), new Fixed64(0));
+        Assert.Equal(new Fixed64(3), result);
+    }
+
+    [Fact]
+    public void CubicInterpolate_TAtOne_ReturnsP1()
+    {
+        var result = Fixed64.CubicInterpolate(new Fixed64(3), new Fixed64(5), new Fixed64(1), new Fixed64(1), new Fixed64(1));
+        Assert.Equal(new Fixed64(5), result);
+    }
+
+    [Fact]
+    public void CubicInterpolate_TAtHalf_ReturnsSmoothCurveValue()
+    {
+        var result = Fixed64.CubicInterpolate(new Fixed64(0), new Fixed64(10), new Fixed64(2), new Fixed64(2), Fixed64.FromFloatPoint(0.5));
+        Assert.Equal(new Fixed64(5), result); // Expected to be near midpoint but with cubic smoothing
+    }
+
+    #endregion
+
     #region Test: Operations
 
     [Fact]

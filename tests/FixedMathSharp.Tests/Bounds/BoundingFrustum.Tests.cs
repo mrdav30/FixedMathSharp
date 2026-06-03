@@ -68,8 +68,8 @@ public class BoundingFrustumTests
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
 
-        Assert.Equal(new Vector3d(1, 0, 0.5), frustum.ClampPoint(new Vector3d(2, 0, 0.5)));
-        Assert.Equal(new Vector3d(1, 1, 0.5), frustum.ClampPoint(new Vector3d(2, 2, 0.5)));
+        Assert.Equal(Vector3d.FromFloatPoint(1, 0, 0.5), frustum.ClampPoint(Vector3d.FromFloatPoint(2, 0, 0.5)));
+        Assert.Equal(Vector3d.FromFloatPoint(1, 1, 0.5), frustum.ClampPoint(Vector3d.FromFloatPoint(2, 2, 0.5)));
         Assert.Equal(new Vector3d(1, 1, 1), frustum.ClampPoint(new Vector3d(2, 2, 2)));
     }
 
@@ -85,9 +85,9 @@ public class BoundingFrustumTests
 
         Assert.NotEqual(point, clamped);
         Assert.Equal(ContainmentType.Contains, frustum.Contains(clamped));
-        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.Half, clamped.x);
-        Assert.Equal(Fixed64.Zero, clamped.y);
-        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.Half, clamped.z);
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.Half, clamped.X);
+        Assert.Equal(Fixed64.Zero, clamped.Y);
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.Half, clamped.Z);
     }
 
     [Fact]
@@ -214,9 +214,9 @@ public class BoundingFrustumTests
     {
         var frustum = new BoundingFrustum(Fixed4x4.Identity);
         var other = CreateTransformedFrustum(
-            new Vector3d(1.336, 1.880, -0.396),
-            new Vector3d(139.413, 115.507, 104.474),
-            new Vector3d(1.660, 1.545, 2.338));
+            Vector3d.FromFloatPoint(1.336, 1.880, -0.396),
+            Vector3d.FromFloatPoint(139.413, 115.507, 104.474),
+            Vector3d.FromFloatPoint(1.660, 1.545, 2.338));
 
         Assert.Equal(ContainmentType.Disjoint, frustum.Contains(other));
         Assert.False(frustum.Intersects(other));
@@ -369,9 +369,9 @@ public class BoundingFrustumTests
     {
         Fixed4x4 translationMatrix = Fixed4x4.CreateTranslation(translation);
         Fixed4x4 rotationMatrix =
-            Fixed4x4.CreateRotationX(rotationDegrees.x * Fixed64.Deg2Rad) *
-            Fixed4x4.CreateRotationY(rotationDegrees.y * Fixed64.Deg2Rad) *
-            Fixed4x4.CreateRotationZ(rotationDegrees.z * Fixed64.Deg2Rad);
+            Fixed4x4.CreateRotationX(rotationDegrees.X * Fixed64.Deg2Rad) *
+            Fixed4x4.CreateRotationY(rotationDegrees.Y * Fixed64.Deg2Rad) *
+            Fixed4x4.CreateRotationZ(rotationDegrees.Z * Fixed64.Deg2Rad);
         Fixed4x4 scaleMatrix = Fixed4x4.CreateScale(scale);
 
         return new BoundingFrustum(translationMatrix * rotationMatrix * scaleMatrix);

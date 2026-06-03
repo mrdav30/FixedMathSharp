@@ -24,17 +24,15 @@ public static partial class Vector3dExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d ClampOneInPlace(this Vector3d v)
     {
-        v.x = v.x.ClampOne();
-        v.y = v.y.ClampOne();
-        v.z = v.z.ClampOne();
+        v.X = v.X.ClampOne();
+        v.Y = v.Y.ClampOne();
+        v.Z = v.Z.ClampOne();
         return v;
     }
 
     /// <inheritdoc cref="Vector3d.ClampMagnitude(Vector3d, Fixed64)" />
-    public static Vector3d ClampMagnitude(this Vector3d value, Fixed64 maxMagnitude)
-    {
-        return Vector3d.ClampMagnitude(value, maxMagnitude);
-    }
+    public static Vector3d ClampMagnitude(this Vector3d value, Fixed64 maxMagnitude) =>
+        Vector3d.ClampMagnitude(value, maxMagnitude);
 
     /// <summary>
     /// Checks if the distance between two vectors is less than or equal to a specified factor.
@@ -51,16 +49,12 @@ public static partial class Vector3dExtensions
     }
 
     /// <inheritdoc cref="Vector3d.Rotate(Vector3d, Vector3d, FixedQuaternion)" />
-    public static Vector3d Rotate(this Vector3d source, Vector3d position, FixedQuaternion rotation)
-    {
-        return Vector3d.Rotate(source, position, rotation);
-    }
+    public static Vector3d Rotate(this Vector3d source, Vector3d position, FixedQuaternion rotation) =>
+        Vector3d.Rotate(source, position, rotation);
 
     /// <inheritdoc cref="Vector3d.InverseRotate(Vector3d, Vector3d, FixedQuaternion)" />
-    public static Vector3d InverseRotate(this Vector3d source, Vector3d position, FixedQuaternion rotation)
-    {
-        return Vector3d.InverseRotate(source, position, rotation);
-    }
+    public static Vector3d InverseRotate(this Vector3d source, Vector3d position, FixedQuaternion rotation) =>
+        Vector3d.InverseRotate(source, position, rotation);
 
     #endregion
 
@@ -68,31 +62,19 @@ public static partial class Vector3dExtensions
 
     /// <inheritdoc cref="Vector3d.ToDegrees(Vector3d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d ToDegrees(this Vector3d radians)
-    {
-        return Vector3d.ToDegrees(radians);
-    }
+    public static Vector3d ToDegrees(this Vector3d radians) => Vector3d.ToDegrees(radians);
 
     /// <inheritdoc cref="Vector3d.ToRadians(Vector3d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d ToRadians(this Vector3d degrees)
-    {
-        return Vector3d.ToRadians(degrees);
-    }
+    public static Vector3d ToRadians(this Vector3d degrees) => Vector3d.ToRadians(degrees);
 
     /// <inheritdoc cref="Vector3d.Abs(Vector3d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d Abs(this Vector3d value)
-    {
-        return Vector3d.Abs(value);
-    }
+    public static Vector3d Abs(this Vector3d value) => Vector3d.Abs(value);
 
     /// <inheritdoc cref="Vector3d.Sign(Vector3d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d Sign(Vector3d value)
-    {
-        return Vector3d.Sign(value);
-    }
+    public static Vector3d Sign(Vector3d value) => Vector3d.Sign(value);
 
     #endregion
 
@@ -106,12 +88,10 @@ public static partial class Vector3dExtensions
     /// <param name="allowedDifference">The allowed absolute difference between each component.</param>
     /// <returns>True if the components are within the allowed difference, false otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool FuzzyEqualAbsolute(this Vector3d me, Vector3d other, Fixed64 allowedDifference)
-    {
-        return (me.x - other.x).Abs() <= allowedDifference &&
-               (me.y - other.y).Abs() <= allowedDifference &&
-               (me.z - other.z).Abs() <= allowedDifference;
-    }
+    public static bool FuzzyEqualAbsolute(this Vector3d me, Vector3d other, Fixed64 allowedDifference) =>
+        (me.X - other.X).Abs() <= allowedDifference 
+        && (me.Y - other.Y).Abs() <= allowedDifference 
+        && (me.Z - other.Z).Abs() <= allowedDifference;
 
     /// <summary>
     /// Compares two vectors for approximate equality, allowing a fractional difference (percentage).
@@ -125,9 +105,9 @@ public static partial class Vector3dExtensions
     public static bool FuzzyEqual(this Vector3d me, Vector3d other, Fixed64? percentage = null)
     {
         Fixed64 p = percentage ?? Fixed64.Epsilon;
-        return me.x.FuzzyComponentEqual(other.x, p) &&
-                me.y.FuzzyComponentEqual(other.y, p) &&
-                me.z.FuzzyComponentEqual(other.z, p);
+        return me.X.FuzzyComponentEqual(other.X, p) &&
+                me.Y.FuzzyComponentEqual(other.Y, p) &&
+                me.Z.FuzzyComponentEqual(other.Z, p);
     }
 
     #endregion

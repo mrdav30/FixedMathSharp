@@ -340,10 +340,10 @@ public class Vector2dTests
     [Fact]
     public void V2AbsAndSign_ExtensionsReturnComponentWiseResults()
     {
-        var vector = new Vector2d(-2, 0.5);
+        var vector = Vector2d.FromFloatPoint(-2, 0.5);
 
-        Assert.Equal(new Vector2d(2, 0.5), vector.Abs());
-        Assert.Equal(new Vector2d(-1, 1), vector.Sign());
+        Assert.Equal(Vector2d.FromFloatPoint(2, 0.5), vector.Abs());
+        Assert.Equal(Vector2d.FromFloatPoint(-1, 1), vector.Sign());
     }
 
     [Fact]
@@ -368,7 +368,7 @@ public class Vector2dTests
     public void V2FuzzyEqualAbsolute_ComparesCorrectly_WithAllowedDifference()
     {
         var vector1 = new Vector2d(2, 2);
-        var vector2 = new Vector2d(2.1, 2.1);
+        var vector2 = Vector2d.FromFloatPoint(2.1, 2.1);
         var allowedDifference = Fixed64.FromFloatPoint(0.15);
 
         Assert.True(vector1.FuzzyEqualAbsolute(vector2, allowedDifference)); // Approximate equality with a 0.15 difference
@@ -378,12 +378,12 @@ public class Vector2dTests
     public void V2FuzzyEqual_ComparesCorrectly_WithDefaultTolerance()
     {
         var vector1 = new Vector2d(100, 100);
-        var vector2 = new Vector2d(100.0000008537, 100.0000008537); // Small difference
+        var vector2 = Vector2d.FromFloatPoint(100.0000008537, 100.0000008537); // Small difference
 
         // Use FuzzyEqual with the default tolerance, which is small (e.g., 0.01% difference)
         Assert.True(vector1.FuzzyEqual(vector2)); // The difference should be within the default tolerance
 
-        vector2 = new Vector2d(100.0001, 100.0001); // big difference
+        vector2 = Vector2d.FromFloatPoint(100.0001, 100.0001); // big difference
         Assert.False(vector1.FuzzyEqual(vector2)); // The difference should be outside the default tolerance
     }
 
@@ -445,7 +445,7 @@ public class Vector2dTests
         var vector = new Vector2d(1, 0);
         var rotation = Vector2d.CreateRotation(Fixed64.HalfPi);
 
-        var rotatedByComponents = vector.Rotated(rotation.x, rotation.y);
+        var rotatedByComponents = vector.Rotated(rotation.X, rotation.Y);
         var rotatedByVector = vector.Rotated(rotation);
 
         Assert.True(rotatedByComponents.FuzzyEqual(Vector2d.Forward, Fixed64.FromFloatPoint(0.0001)));
@@ -459,7 +459,7 @@ public class Vector2dTests
         var vector = new Vector2d(1, 1);
         var axis = Vector2d.Forward;
 
-        var reflectedByComponents = vector.Reflected(axis.x, axis.y);
+        var reflectedByComponents = vector.Reflected(axis.X, axis.Y);
         var reflectedByVector = vector.Reflected(axis);
 
         Assert.Equal(new Vector2d(-1, 1), reflectedByComponents);
@@ -474,7 +474,7 @@ public class Vector2dTests
         var axis = Vector2d.Forward;
         var projection = vector.Dot(axis);
 
-        var reflected = vector.ReflectInPlace(axis.x, axis.y, projection);
+        var reflected = vector.ReflectInPlace(axis.X, axis.Y, projection);
 
         Assert.Equal(new Vector2d(-1, 1), reflected);
     }
@@ -495,7 +495,7 @@ public class Vector2dTests
         Assert.Equal(new Vector2d(Fixed64.FromFloatPoint(0.6), Fixed64.FromFloatPoint(0.8)), vector.Normal);
         Assert.Equal(new Fixed64(5), vector.Magnitude);
         Assert.Equal(new Fixed64(25), vector.SqrMagnitude);
-        Assert.Equal(vector.x.m_rawValue * 31 + vector.y.m_rawValue * 7, vector.LongStateHash);
+        Assert.Equal(vector.X.m_rawValue * 31 + vector.Y.m_rawValue * 7, vector.LongStateHash);
         Assert.Equal((int)(vector.LongStateHash % int.MaxValue), vector.StateHash);
         Assert.Equal(vector.StateHash, vector.GetHashCode());
     }
@@ -533,7 +533,7 @@ public class Vector2dTests
         Assert.Equal("(1.25, -2.5)", vector.ToString());
         Assert.Equal(new Vector3d(Fixed64.FromFloatPoint(1.25), new Fixed64(7), Fixed64.FromFloatPoint(-2.5)), vector.ToVector3d(new Fixed64(7)));
 
-        vector.Deconstruct(out float fx, out float fy);
+        vector.Deconstruct(out double fx, out double fy);
         vector.Deconstruct(out int ix, out int iy);
 
         Assert.Equal(1.25f, fx);

@@ -184,12 +184,12 @@ namespace FixedMathSharp
             {
                 Vector3d point = points[i];
 
-                if (point.x < minX.x) minX = point;
-                if (point.x > maxX.x) maxX = point;
-                if (point.y < minY.y) minY = point;
-                if (point.y > maxY.y) maxY = point;
-                if (point.z < minZ.z) minZ = point;
-                if (point.z > maxZ.z) maxZ = point;
+                if (point.X < minX.X) minX = point;
+                if (point.X > maxX.X) maxX = point;
+                if (point.Y < minY.Y) minY = point;
+                if (point.Y > maxY.Y) maxY = point;
+                if (point.Z < minZ.Z) minZ = point;
+                if (point.Z > maxZ.Z) maxZ = point;
             }
 
             Fixed64 sqDistX = Vector3d.SqrDistance(maxX, minX);
@@ -429,22 +429,22 @@ namespace FixedMathSharp
         private ContainmentType ContainsBoxLike(Vector3d min, Vector3d max)
         {
             bool containsAllCorners =
-                Contains(new Vector3d(min.x, min.y, min.z)) &&
-                Contains(new Vector3d(max.x, min.y, min.z)) &&
-                Contains(new Vector3d(min.x, max.y, min.z)) &&
-                Contains(new Vector3d(max.x, max.y, min.z)) &&
-                Contains(new Vector3d(min.x, min.y, max.z)) &&
-                Contains(new Vector3d(max.x, min.y, max.z)) &&
-                Contains(new Vector3d(min.x, max.y, max.z)) &&
-                Contains(new Vector3d(max.x, max.y, max.z));
+                Contains(new Vector3d(min.X, min.Y, min.Z)) &&
+                Contains(new Vector3d(max.X, min.Y, min.Z)) &&
+                Contains(new Vector3d(min.X, max.Y, min.Z)) &&
+                Contains(new Vector3d(max.X, max.Y, min.Z)) &&
+                Contains(new Vector3d(min.X, min.Y, max.Z)) &&
+                Contains(new Vector3d(max.X, min.Y, max.Z)) &&
+                Contains(new Vector3d(min.X, max.Y, max.Z)) &&
+                Contains(new Vector3d(max.X, max.Y, max.Z));
 
             if (containsAllCorners)
                 return ContainmentType.Contains;
 
             Vector3d closest = new(
-                FixedMath.Clamp(Center.x, min.x, max.x),
-                FixedMath.Clamp(Center.y, min.y, max.y),
-                FixedMath.Clamp(Center.z, min.z, max.z));
+                FixedMath.Clamp(Center.X, min.X, max.X),
+                FixedMath.Clamp(Center.Y, min.Y, max.Y),
+                FixedMath.Clamp(Center.Z, min.Z, max.Z));
 
             return Vector3d.SqrDistance(Center, closest) <= SqrRadius
                 ? ContainmentType.Intersects

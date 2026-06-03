@@ -45,22 +45,22 @@ public class Fixed4x4Tests
 
         var matrix = Fixed4x4.FromRows(row0, row1, row2, row3);
 
-        Assert.Equal(row0.x, matrix.M11);
-        Assert.Equal(row0.y, matrix.M12);
-        Assert.Equal(row0.z, matrix.M13);
-        Assert.Equal(row0.w, matrix.M14);
-        Assert.Equal(row1.x, matrix.M21);
-        Assert.Equal(row1.y, matrix.M22);
-        Assert.Equal(row1.z, matrix.M23);
-        Assert.Equal(row1.w, matrix.M24);
-        Assert.Equal(row2.x, matrix.M31);
-        Assert.Equal(row2.y, matrix.M32);
-        Assert.Equal(row2.z, matrix.M33);
-        Assert.Equal(row2.w, matrix.M34);
-        Assert.Equal(row3.x, matrix.M41);
-        Assert.Equal(row3.y, matrix.M42);
-        Assert.Equal(row3.z, matrix.M43);
-        Assert.Equal(row3.w, matrix.M44);
+        Assert.Equal(row0.X, matrix.M11);
+        Assert.Equal(row0.Y, matrix.M12);
+        Assert.Equal(row0.Z, matrix.M13);
+        Assert.Equal(row0.W, matrix.M14);
+        Assert.Equal(row1.X, matrix.M21);
+        Assert.Equal(row1.Y, matrix.M22);
+        Assert.Equal(row1.Z, matrix.M23);
+        Assert.Equal(row1.W, matrix.M24);
+        Assert.Equal(row2.X, matrix.M31);
+        Assert.Equal(row2.Y, matrix.M32);
+        Assert.Equal(row2.Z, matrix.M33);
+        Assert.Equal(row2.W, matrix.M34);
+        Assert.Equal(row3.X, matrix.M41);
+        Assert.Equal(row3.Y, matrix.M42);
+        Assert.Equal(row3.Z, matrix.M43);
+        Assert.Equal(row3.W, matrix.M44);
     }
 
     [Fact]
@@ -73,22 +73,22 @@ public class Fixed4x4Tests
 
         var matrix = Fixed4x4.FromColumns(column0, column1, column2, column3);
 
-        Assert.Equal(column0.x, matrix.M11);
-        Assert.Equal(column0.y, matrix.M21);
-        Assert.Equal(column0.z, matrix.M31);
-        Assert.Equal(column0.w, matrix.M41);
-        Assert.Equal(column1.x, matrix.M12);
-        Assert.Equal(column1.y, matrix.M22);
-        Assert.Equal(column1.z, matrix.M32);
-        Assert.Equal(column1.w, matrix.M42);
-        Assert.Equal(column2.x, matrix.M13);
-        Assert.Equal(column2.y, matrix.M23);
-        Assert.Equal(column2.z, matrix.M33);
-        Assert.Equal(column2.w, matrix.M43);
-        Assert.Equal(column3.x, matrix.M14);
-        Assert.Equal(column3.y, matrix.M24);
-        Assert.Equal(column3.z, matrix.M34);
-        Assert.Equal(column3.w, matrix.M44);
+        Assert.Equal(column0.X, matrix.M11);
+        Assert.Equal(column0.Y, matrix.M21);
+        Assert.Equal(column0.Z, matrix.M31);
+        Assert.Equal(column0.W, matrix.M41);
+        Assert.Equal(column1.X, matrix.M12);
+        Assert.Equal(column1.Y, matrix.M22);
+        Assert.Equal(column1.Z, matrix.M32);
+        Assert.Equal(column1.W, matrix.M42);
+        Assert.Equal(column2.X, matrix.M13);
+        Assert.Equal(column2.Y, matrix.M23);
+        Assert.Equal(column2.Z, matrix.M33);
+        Assert.Equal(column2.W, matrix.M43);
+        Assert.Equal(column3.X, matrix.M14);
+        Assert.Equal(column3.Y, matrix.M24);
+        Assert.Equal(column3.Z, matrix.M34);
+        Assert.Equal(column3.W, matrix.M44);
     }
 
     [Fact]
@@ -991,7 +991,7 @@ public class Fixed4x4Tests
     {
         var translation = new Vector3d(7, 12, -5);
         var rotation = FixedQuaternion.FromEulerAnglesInDegrees(-(Fixed64)20, (Fixed64)35, (Fixed64)50);
-        var scale = new Vector3d(1, 2, 1.5);
+        var scale = Vector3d.FromFloatPoint(1, 2, 1.5);
 
         var transformMatrix = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
 
@@ -1006,9 +1006,9 @@ public class Fixed4x4Tests
     [Fact]
     public void InverseTransformPoint_LocalToWorld_ReturnsCorrectResult()
     {
-        var translation = new Vector3d(-4, 1, 2.5);
+        var translation = Vector3d.FromFloatPoint(-4, 1, 2.5);
         var rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)45, -(Fixed64)30, (Fixed64)90);
-        var scale = new Vector3d(1.2, 0.8, 1.5);
+        var scale = Vector3d.FromFloatPoint(1.2, 0.8, 1.5);
 
         var transformMatrix = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
 
@@ -1025,7 +1025,7 @@ public class Fixed4x4Tests
     {
         var translation = new Vector3d(2, -4, 8);
         var rotation = FixedQuaternion.FromEulerAnglesInDegrees(-(Fixed64)45, (Fixed64)30, (Fixed64)90);
-        var scale = new Vector3d(1.5, 2.5, 3.0);
+        var scale = Vector3d.FromFloatPoint(1.5, 2.5, 3.0);
 
         var transformMatrix = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
 

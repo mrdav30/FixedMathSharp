@@ -26,12 +26,12 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     /// <summary>
     /// Identity quaternion (0, 0, 0, 1).
     /// </summary>
-    public static readonly FixedQuaternion Identity = new(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+    public static FixedQuaternion Identity => new(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
 
     /// <summary>
     /// Empty quaternion (0, 0, 0, 0).
     /// </summary>
-    public static readonly FixedQuaternion Zero = new(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
+    public static FixedQuaternion Zero => new(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
 
     #endregion
 
@@ -127,7 +127,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => ToEulerAngles();
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => this = FromEulerAnglesInDegrees(value.x, value.y, value.z);
+        set => this = FromEulerAnglesInDegrees(value.X, value.Y, value.Z);
     }
 
     /// <summary>
@@ -206,7 +206,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     /// Returns the conjugate of this quaternion (inverses the rotational effect).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public FixedQuaternion Conjugate() => new FixedQuaternion(-X, -Y, -Z, W);
+    public FixedQuaternion Conjugate() => new(-X, -Y, -Z, W);
 
     /// <summary>
     /// Returns the inverse of this quaternion.
@@ -227,7 +227,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     public Vector3d Rotate(Vector3d v)
     {
         FixedQuaternion normalizedQuat = Normal;
-        FixedQuaternion vQuat = new(v.x, v.y, v.z, Fixed64.Zero);
+        FixedQuaternion vQuat = new(v.X, v.Y, v.Z, Fixed64.Zero);
         FixedQuaternion invQuat = normalizedQuat.Conjugate();
         FixedQuaternion rotatedVQuat = (normalizedQuat * vQuat) * invQuat;
         return new Vector3d(rotatedVQuat.X, rotatedVQuat.Y, rotatedVQuat.Z);
@@ -351,9 +351,9 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         Vector3d right = Vector3d.Cross(up.Normal, forwardNormalized);
         up = Vector3d.Cross(forwardNormalized, right);
 
-        return FromMatrix(new Fixed3x3(right.x, up.x, forwardNormalized.x,
-                                        right.y, up.y, forwardNormalized.y,
-                                        right.z, up.z, forwardNormalized.z));
+        return FromMatrix(new Fixed3x3(right.X, up.X, forwardNormalized.X,
+                                        right.Y, up.Y, forwardNormalized.Y,
+                                        right.Z, up.Z, forwardNormalized.Z));
     }
 
     /// <summary>
@@ -415,7 +415,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     /// <returns>A quaternion representing the same rotation as the matrix.</returns>
     public static FixedQuaternion FromMatrix(Fixed4x4 matrix)
     {
-        Fixed3x3 rotationMatrix = new Fixed3x3(
+        Fixed3x3 rotationMatrix = new(
             matrix.M11, matrix.M12, matrix.M13,
             matrix.M21, matrix.M22, matrix.M23,
             matrix.M31, matrix.M32, matrix.M33
@@ -470,9 +470,9 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         Fixed64 cosHalfAngle = FixedMath.Cos(halfAngle);
 
         return GetNormalized(new FixedQuaternion(
-            axis.x * sinHalfAngle,
-            axis.y * sinHalfAngle,
-            axis.z * sinHalfAngle,
+            axis.X * sinHalfAngle,
+            axis.Y * sinHalfAngle,
+            axis.Z * sinHalfAngle,
             cosHalfAngle));
     }
 
@@ -504,9 +504,18 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     public static FixedQuaternion FromEulerAngles(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
     {
         // Check if the angles are in a valid range (-pi, pi)
-        FixedThrowHelper.ThrowIfOutOfRange(pitch < -Fixed64.Pi || pitch > Fixed64.Pi, $"Pitch must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {pitch}");
-        FixedThrowHelper.ThrowIfOutOfRange(yaw < -Fixed64.Pi || yaw > Fixed64.Pi, $"Yaw must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {yaw}");
-        FixedThrowHelper.ThrowIfOutOfRange(roll < -Fixed64.Pi || roll > Fixed64.Pi, $"Roll must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {roll}");
+        FixedThrowHelper.ThrowIfOutOfRange(
+            pitch < -Fixed64.Pi || pitch > Fixed64.Pi,
+            nameof(pitch),
+            $"Pitch must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {pitch}");
+        FixedThrowHelper.ThrowIfOutOfRange(
+            yaw < -Fixed64.Pi || yaw > Fixed64.Pi, 
+            nameof(yaw),
+            $"Yaw must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {yaw}");
+        FixedThrowHelper.ThrowIfOutOfRange(
+            roll < -Fixed64.Pi || roll > Fixed64.Pi, 
+            nameof(roll), 
+            $"Roll must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {roll}");
 
         Fixed64 halfPitch = pitch / Fixed64.Two;
         Fixed64 halfYaw = yaw / Fixed64.Two;
@@ -698,9 +707,9 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         Fixed64 cosHalfAngle = FixedMath.Cos(halfAngle);
 
         return new FixedQuaternion(
-            axis.x * sinHalfAngle,
-            axis.y * sinHalfAngle,
-            axis.z * sinHalfAngle,
+            axis.X * sinHalfAngle,
+            axis.Y * sinHalfAngle,
+            axis.Z * sinHalfAngle,
             cosHalfAngle
         );
     }
@@ -791,7 +800,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedQuaternion operator -(FixedQuaternion q) =>
-        new FixedQuaternion(-q.X, -q.Y, -q.Z, -q.W);
+        new(-q.X, -q.Y, -q.Z, -q.W);
 
     /// <summary>
     /// Determines whether two FixedQuaternion instances are equal.

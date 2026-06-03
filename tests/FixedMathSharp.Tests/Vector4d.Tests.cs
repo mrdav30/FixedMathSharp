@@ -14,10 +14,10 @@ public class Vector4dTests
     {
         var vector = new Vector4d();
 
-        Assert.Equal(Fixed64.Zero, vector.x);
-        Assert.Equal(Fixed64.Zero, vector.y);
-        Assert.Equal(Fixed64.Zero, vector.z);
-        Assert.Equal(Fixed64.Zero, vector.w);
+        Assert.Equal(Fixed64.Zero, vector.X);
+        Assert.Equal(Fixed64.Zero, vector.Y);
+        Assert.Equal(Fixed64.Zero, vector.Z);
+        Assert.Equal(Fixed64.Zero, vector.W);
     }
 
     [Fact]
@@ -261,18 +261,18 @@ public class Vector4dTests
         var defaultResult = new Vector4d(halfEpsilon, -halfEpsilon, Fixed64.Epsilon, -Fixed64.Epsilon)
             .SnapSmallComponentsToZero();
 
-        Assert.Equal(Vector4d.Zero, new Vector4d(defaultResult.x, defaultResult.y, Fixed64.Zero, Fixed64.Zero));
-        Assert.Equal(Fixed64.Epsilon, defaultResult.z);
-        Assert.Equal(-Fixed64.Epsilon, defaultResult.w);
+        Assert.Equal(Vector4d.Zero, new Vector4d(defaultResult.X, defaultResult.Y, Fixed64.Zero, Fixed64.Zero));
+        Assert.Equal(Fixed64.Epsilon, defaultResult.Z);
+        Assert.Equal(-Fixed64.Epsilon, defaultResult.W);
 
         var threshold = Fixed64.FromFloatPoint(0.1);
         var customResult = new Vector4d(Fixed64.FromFloatPoint(0.2), Fixed64.FromFloatPoint(-0.05), Fixed64.FromFloatPoint(-0.1), Fixed64.FromFloatPoint(0.15))
             .SnapSmallComponentsToZero(threshold);
 
-        Assert.Equal(Fixed64.FromFloatPoint(0.2), customResult.x);
-        Assert.Equal(Fixed64.Zero, customResult.y);
-        Assert.Equal(Fixed64.FromFloatPoint(-0.1), customResult.z);
-        Assert.Equal(Fixed64.FromFloatPoint(0.15), customResult.w);
+        Assert.Equal(Fixed64.FromFloatPoint(0.2), customResult.X);
+        Assert.Equal(Fixed64.Zero, customResult.Y);
+        Assert.Equal(Fixed64.FromFloatPoint(-0.1), customResult.Z);
+        Assert.Equal(Fixed64.FromFloatPoint(0.15), customResult.W);
 
         var complement = new Vector4d(
             Fixed64.FromFloatPoint(-0.05), 
@@ -280,19 +280,19 @@ public class Vector4dTests
             Fixed64.FromFloatPoint(0.05), 
             Fixed64.FromFloatPoint(-0.05)).SnapSmallComponentsToZero(threshold);
 
-        Assert.Equal(Fixed64.Zero, complement.x);
-        Assert.Equal(Fixed64.FromFloatPoint(0.2), complement.y);
-        Assert.Equal(Fixed64.Zero, complement.z);
-        Assert.Equal(Fixed64.Zero, complement.w);
+        Assert.Equal(Fixed64.Zero, complement.X);
+        Assert.Equal(Fixed64.FromFloatPoint(0.2), complement.Y);
+        Assert.Equal(Fixed64.Zero, complement.Z);
+        Assert.Equal(Fixed64.Zero, complement.W);
     }
 
     [Fact]
     public void ExtensionHelpers_ReturnExpectedValues()
     {
-        var vector = new Vector4d(2, -3, 0.5, -0.25);
+        var vector = Vector4d.FromFloatPoint(2, -3, 0.5, -0.25);
 
-        Assert.Equal(new Vector4d(1, -1, 0.5, -0.25), vector.ClampOneInPlace());
-        Assert.Equal(new Vector4d(2, 3, 0.5, 0.25), vector.Abs());
+        Assert.Equal(Vector4d.FromFloatPoint(1, -1, 0.5, -0.25), vector.ClampOneInPlace());
+        Assert.Equal(Vector4d.FromFloatPoint(2, 3, 0.5, 0.25), vector.Abs());
         Assert.Equal(new Vector4d(1, -1, 1, -1), Vector4dExtensions.Sign(vector));
     }
 
@@ -328,7 +328,7 @@ public class Vector4dTests
     public void FuzzyEqual_WithExplicitPercentage_ReturnsTrueForCloseComponents()
     {
         var actual = new Vector4d(100, 100, 100, 100);
-        var expected = new Vector4d(101, 99, 100.5, 99.5);
+        var expected = Vector4d.FromFloatPoint(101, 99, 100.5, 99.5);
 
         Assert.True(actual.FuzzyEqualAbsolute(expected, new Fixed64(1)));
         Assert.True(actual.FuzzyEqual(expected, Fixed64.FromFloatPoint(0.02)));
@@ -432,8 +432,8 @@ public class Vector4dTests
     public void FuzzyEqual_ComparesComponents()
     {
         var vector = new Vector4d(100, 100, 100, 100);
-        var near = new Vector4d(100.0000008537, 100.0000008537, 100.0000008537, 100.0000008537);
-        var far = new Vector4d(100.0001, 100.0001, 100.0001, 100.0001);
+        var near = Vector4d.FromFloatPoint(100.0000008537, 100.0000008537, 100.0000008537, 100.0000008537);
+        var far = Vector4d.FromFloatPoint(100.0001, 100.0001, 100.0001, 100.0001);
 
         Assert.True(vector.FuzzyEqual(near));
         Assert.False(vector.FuzzyEqual(far));

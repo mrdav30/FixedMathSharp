@@ -124,7 +124,7 @@ namespace FixedMathSharp
              * From term n, we get term n+1 by multiplying with x/n.
              * When the sum term drops to Fixed64.Zero, we can stop summing.
              */
-            int integerPart = (int)x.Floor();
+            int integerPart = Fixed64.RawToInt(Floor(x));
             x = Fixed64.FromRaw(x.m_rawValue & MAX_SHIFTED_AMOUNT_UI);  // Fractional part
 
             var result = Fixed64.One;

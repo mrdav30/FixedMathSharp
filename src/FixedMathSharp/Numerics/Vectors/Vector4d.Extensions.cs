@@ -22,10 +22,10 @@ public static partial class Vector4dExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d ClampOneInPlace(this Vector4d v)
     {
-        v.x = v.x.ClampOne();
-        v.y = v.y.ClampOne();
-        v.z = v.z.ClampOne();
-        v.w = v.w.ClampOne();
+        v.X = v.X.ClampOne();
+        v.Y = v.Y.ClampOne();
+        v.Z = v.Z.ClampOne();
+        v.W = v.W.ClampOne();
         return v;
     }
 
@@ -35,17 +35,11 @@ public static partial class Vector4dExtensions
 
     /// <inheritdoc cref="Vector4d.Abs(Vector4d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector4d Abs(this Vector4d value)
-    {
-        return Vector4d.Abs(value);
-    }
+    public static Vector4d Abs(this Vector4d value) => Vector4d.Abs(value);
 
     /// <inheritdoc cref="Vector4d.Sign(Vector4d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector4d Sign(this Vector4d value)
-    {
-        return Vector4d.Sign(value);
-    }
+    public static Vector4d Sign(this Vector4d value) => Vector4d.Sign(value);
 
     #endregion
 
@@ -55,13 +49,11 @@ public static partial class Vector4dExtensions
     /// Compares two vectors for approximate equality, allowing a fixed absolute difference.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool FuzzyEqualAbsolute(this Vector4d me, Vector4d other, Fixed64 allowedDifference)
-    {
-        return (me.x - other.x).Abs() <= allowedDifference &&
-               (me.y - other.y).Abs() <= allowedDifference &&
-               (me.z - other.z).Abs() <= allowedDifference &&
-               (me.w - other.w).Abs() <= allowedDifference;
-    }
+    public static bool FuzzyEqualAbsolute(this Vector4d me, Vector4d other, Fixed64 allowedDifference) =>
+        (me.X - other.X).Abs() <= allowedDifference &&
+        (me.Y - other.Y).Abs() <= allowedDifference &&
+        (me.Z - other.Z).Abs() <= allowedDifference &&
+        (me.W - other.W).Abs() <= allowedDifference;
 
     /// <summary>
     /// Compares two vectors for approximate equality, allowing a fractional difference.
@@ -70,10 +62,10 @@ public static partial class Vector4dExtensions
     public static bool FuzzyEqual(this Vector4d me, Vector4d other, Fixed64? percentage = null)
     {
         Fixed64 p = percentage ?? Fixed64.Epsilon;
-        return me.x.FuzzyComponentEqual(other.x, p) &&
-               me.y.FuzzyComponentEqual(other.y, p) &&
-               me.z.FuzzyComponentEqual(other.z, p) &&
-               me.w.FuzzyComponentEqual(other.w, p);
+        return me.X.FuzzyComponentEqual(other.X, p) &&
+               me.Y.FuzzyComponentEqual(other.Y, p) &&
+               me.Z.FuzzyComponentEqual(other.Z, p) &&
+               me.W.FuzzyComponentEqual(other.W, p);
     }
 
     #endregion

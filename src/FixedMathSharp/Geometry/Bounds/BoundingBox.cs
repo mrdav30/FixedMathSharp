@@ -259,9 +259,9 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(Vector3d point)
     {
-        return point.x >= Min.x && point.x <= Max.x
-            && point.y >= Min.y && point.y <= Max.y
-            && point.z >= Min.z && point.z <= Max.z;
+        return point.X >= Min.X && point.X <= Max.X
+            && point.Y >= Min.Y && point.Y <= Max.Y
+            && point.Z >= Min.Z && point.Z <= Max.Z;
     }
 
     /// <summary>
@@ -347,9 +347,9 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     public Vector3d ClampPoint(Vector3d point)
     {
         return new Vector3d(
-            FixedMath.Clamp(point.x, Min.x, Max.x),
-            FixedMath.Clamp(point.y, Min.y, Max.y),
-            FixedMath.Clamp(point.z, Min.z, Max.z));
+            FixedMath.Clamp(point.X, Min.X, Max.X),
+            FixedMath.Clamp(point.Y, Min.Y, Max.Y),
+            FixedMath.Clamp(point.Z, Min.Z, Max.Z));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -379,9 +379,9 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasStrictAxisOverlap(Vector3d otherMin, Vector3d otherMax)
     {
-        return !(Max.x <= otherMin.x || Min.x >= otherMax.x ||
-                 Max.y <= otherMin.y || Min.y >= otherMax.y ||
-                 Max.z <= otherMin.z || Min.z >= otherMax.z);
+        return !(Max.X <= otherMin.X || Min.X >= otherMax.X ||
+                 Max.Y <= otherMin.Y || Min.Y >= otherMax.Y ||
+                 Max.Z <= otherMin.Z || Min.Z >= otherMax.Z);
     }
 
     /// <summary>
@@ -402,9 +402,9 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     {
         // Clamp the point to the nearest point on the box's surface
         Vector3d clampedPoint = new(
-            FixedMath.Clamp(point.x, Min.x, Max.x),
-            FixedMath.Clamp(point.y, Min.y, Max.y),
-            FixedMath.Clamp(point.z, Min.z, Max.z)
+            FixedMath.Clamp(point.X, Min.X, Max.X),
+            FixedMath.Clamp(point.Y, Min.Y, Max.Y),
+            FixedMath.Clamp(point.Z, Min.Z, Max.Z)
         );
 
         // If the point is inside the box, return 0
@@ -429,12 +429,12 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
         if (Contains(point))
         {
             // Calculate distances to each face and return the closest face.
-            Fixed64 distToMinX = point.x - Min.x;
-            Fixed64 distToMaxX = Max.x - point.x;
-            Fixed64 distToMinY = point.y - Min.y;
-            Fixed64 distToMaxY = Max.y - point.y;
-            Fixed64 distToMinZ = point.z - Min.z;
-            Fixed64 distToMaxZ = Max.z - point.z;
+            Fixed64 distToMinX = point.X - Min.X;
+            Fixed64 distToMaxX = Max.X - point.X;
+            Fixed64 distToMinY = point.Y - Min.Y;
+            Fixed64 distToMaxY = Max.Y - point.Y;
+            Fixed64 distToMinZ = point.Z - Min.Z;
+            Fixed64 distToMaxZ = Max.Z - point.Z;
 
             Fixed64 minDistToFace = FixedMath.Min(distToMinX,
                 FixedMath.Min(distToMaxX,
@@ -443,23 +443,23 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
                 FixedMath.Min(distToMinZ, distToMaxZ)))));
 
             // Adjust the closest point based on the face.
-            if (minDistToFace == distToMinX) point.x = Min.x;
-            else if (minDistToFace == distToMaxX) point.x = Max.x;
+            if (minDistToFace == distToMinX) point.X = Min.X;
+            else if (minDistToFace == distToMaxX) point.X = Max.X;
 
-            if (minDistToFace == distToMinY) point.y = Min.y;
-            else if (minDistToFace == distToMaxY) point.y = Max.y;
+            if (minDistToFace == distToMinY) point.Y = Min.Y;
+            else if (minDistToFace == distToMaxY) point.Y = Max.Y;
 
-            if (minDistToFace == distToMinZ) point.z = Min.z;
-            else if (minDistToFace == distToMaxZ) point.z = Max.z;
+            if (minDistToFace == distToMinZ) point.Z = Min.Z;
+            else if (minDistToFace == distToMaxZ) point.Z = Max.Z;
 
             return point;
         }
 
         // If the point is outside the box, clamp to the nearest surface.
         return new Vector3d(
-            FixedMath.Clamp(point.x, Min.x, Max.x),
-            FixedMath.Clamp(point.y, Min.y, Max.y),
-            FixedMath.Clamp(point.z, Min.z, Max.z)
+            FixedMath.Clamp(point.X, Min.X, Max.X),
+            FixedMath.Clamp(point.Y, Min.Y, Max.Y),
+            FixedMath.Clamp(point.Z, Min.Z, Max.Z)
         );
     }
 
@@ -501,14 +501,14 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
             Vector3d min = Min;
             Vector3d max = Max;
 
-            _vertices[0] = new(min.x, min.y, min.z);
-            _vertices[1] = new(max.x, min.y, min.z);
-            _vertices[2] = new(min.x, max.y, min.z);
-            _vertices[3] = new(max.x, max.y, min.z);
-            _vertices[4] = new(min.x, min.y, max.z);
-            _vertices[5] = new(max.x, min.y, max.z);
-            _vertices[6] = new(min.x, max.y, max.z);
-            _vertices[7] = new(max.x, max.y, max.z);
+            _vertices[0] = new(min.X, min.Y, min.Z);
+            _vertices[1] = new(max.X, min.Y, min.Z);
+            _vertices[2] = new(min.X, max.Y, min.Z);
+            _vertices[3] = new(max.X, max.Y, min.Z);
+            _vertices[4] = new(min.X, min.Y, max.Z);
+            _vertices[5] = new(max.X, min.Y, max.Z);
+            _vertices[6] = new(min.X, max.Y, max.Z);
+            _vertices[7] = new(max.X, max.Y, max.Z);
 
             _isDirty = false;
         }

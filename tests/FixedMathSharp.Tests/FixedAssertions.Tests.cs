@@ -47,7 +47,7 @@ public class FixedAssertionsTests
     [Fact]
     public void Vector2dAssertions_SupportApproximateMagnitudeAndNormalizationChecks()
     {
-        Vector2d actual = new(2.001, 3.001);
+        Vector2d actual = Vector2d.FromFloatPoint(2.001, 3.001);
         Vector2d expected = new(2, 3);
         Vector2d normalized = new Vector2d(3, 4).Normalize();
 
@@ -71,7 +71,7 @@ public class FixedAssertionsTests
         AssertAssertionFails(() => actual.Should().Be(new Vector2d(2, 4)));
         AssertAssertionFails(() => actual.Should().NotBe(actual));
         AssertAssertionFails(() => actual.Should().BeApproximately(new Vector2d(2, 4), Fixed64.Epsilon));
-        AssertAssertionFails(() => actual.Should().NotBeApproximately(new Vector2d(2.001, 3.001), Fixed64.FromFloatPoint(0.01)));
+        AssertAssertionFails(() => actual.Should().NotBeApproximately(Vector2d.FromFloatPoint(2.001, 3.001), Fixed64.FromFloatPoint(0.01)));
         AssertAssertionFails(() => actual.Should().HaveComponentApproximately(new Vector2d(2, 4), Fixed64.Epsilon));
         AssertAssertionFails(() => actual.Should().HaveMagnitudeApproximately(Fixed64.Zero, Fixed64.Epsilon));
         AssertAssertionFails(() => actual.Should().BeNormalized(Fixed64.FromFloatPoint(0.0001)));
@@ -80,7 +80,7 @@ public class FixedAssertionsTests
     [Fact]
     public void Vector3dAssertions_SupportApproximateMagnitudeAndNormalizationChecks()
     {
-        Vector3d actual = new(1.001, 2.001, 3.001);
+        Vector3d actual = Vector3d.FromFloatPoint(1.001, 2.001, 3.001);
         Vector3d expected = new(1, 2, 3);
         Vector3d normalized = new Vector3d(3, 4, 0).Normalize();
 
@@ -104,7 +104,7 @@ public class FixedAssertionsTests
         AssertAssertionFails(() => actual.Should().Be(new Vector3d(1, 2, 4)));
         AssertAssertionFails(() => actual.Should().NotBe(actual));
         AssertAssertionFails(() => actual.Should().BeApproximately(new Vector3d(1, 2, 4), Fixed64.Epsilon));
-        AssertAssertionFails(() => actual.Should().NotBeApproximately(new Vector3d(1.001, 2.001, 3.001), Fixed64.FromFloatPoint(0.01)));
+        AssertAssertionFails(() => actual.Should().NotBeApproximately(Vector3d.FromFloatPoint(1.001, 2.001, 3.001), Fixed64.FromFloatPoint(0.01)));
         AssertAssertionFails(() => actual.Should().HaveComponentApproximately(new Vector3d(1, 2, 4), Fixed64.Epsilon));
         AssertAssertionFails(() => actual.Should().HaveMagnitudeApproximately(Fixed64.Zero, Fixed64.Epsilon));
         AssertAssertionFails(() => actual.Should().BeNormalized(Fixed64.FromFloatPoint(0.0001)));

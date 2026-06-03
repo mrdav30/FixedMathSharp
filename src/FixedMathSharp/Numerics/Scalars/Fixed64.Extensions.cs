@@ -77,7 +77,7 @@ public static class Fixed64Extensions
     public static Fixed64 FastMod(this Fixed64 a, Fixed64 b) => FixedMath.FastMod(a, b);
 
     /// <inheritdoc cref="FixedMath.Lerp(Fixed64, Fixed64, Fixed64)" />
-    public static Fixed64 Lerp(this Fixed64 a, Fixed64 b, Fixed64 t) => FixedMath.Lerp(a, b, t);
+    public static Fixed64 Lerp(this Fixed64 a, Fixed64 b, Fixed64 t) => Fixed64.Lerp(a, b, t);
 
     /// <inheritdoc cref="FixedMath.Floor(Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

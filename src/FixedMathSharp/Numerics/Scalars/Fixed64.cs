@@ -192,7 +192,7 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
 
     #endregion
 
-    #region Fixed64 Operations
+    #region Static Operations
 
     /// <summary>
     /// Counts the leading zeros in a 64-bit unsigned integer.
@@ -217,8 +217,8 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int Sign(Fixed64 value) =>
-        value.m_rawValue < 0 
-                ? -1 
+        value.m_rawValue < 0
+                ? -1
                 : (value.m_rawValue > 0 ? 1 : 0);
 
     /// <summary>
@@ -228,6 +228,128 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     public static bool IsInteger(Fixed64 value)
     {
         return ((ulong)value.m_rawValue & FixedMath.MAX_SHIFTED_AMOUNT_UI) == 0;
+    }
+
+    /// <summary>
+    /// Performs a smooth step interpolation using a cubic Hermite curve between two values.
+    /// </summary>
+    /// <remarks>
+    /// The interpolation follows a cubic Hermite curve where the function starts at `a`,
+    /// accelerates, and then decelerates towards `b`, ensuring smooth transitions.
+    /// </remarks>
+    /// <param name="a">The starting value.</param>
+    /// <param name="b">The ending value.</param>
+    /// <param name="t">A value between 0 and 1 that represents the interpolation factor.</param>
+    /// <returns>The interpolated value between `a` and `b`.</returns>
+    public static Fixed64 SmoothStep(Fixed64 a, Fixed64 b, Fixed64 t)
+    {
+        if (t.m_rawValue <= 0)
+            return a;
+        if (t.m_rawValue >= FixedMath.ONE_L)
+            return b;
+        // Hermite interpolation: f(t) = 3t^2 - 2t^3
+        Fixed64 t2 = t * t;
+        Fixed64 t3 = t2 * t;
+        return a + (b - a) * (Three * t2 - Two * t3);
+    }
+
+    /// <summary>
+    /// Performs cubic interpolation between two points `p0` and `p1` with tangents `m0` and `m1` at those points.
+    /// </summary>
+    /// <remarks>
+    /// This method interpolates smoothly between `p0` and `p1` while considering the tangents `m0` and `m1`.
+    /// It is useful for animation curves and smooth motion transitions.
+    /// </remarks>
+    /// <param name="p0">The first point.</param>
+    /// <param name="p1">The second point.</param>
+    /// <param name="m0">The tangent (slope) at `p0`.</param>
+    /// <param name="m1">The tangent (slope) at `p1`.</param>
+    /// <param name="t">A value between 0 and 1 that represents the interpolation factor.</param>
+    /// <returns>The interpolated value between `p0` and `p1`.</returns>
+    public static Fixed64 CubicInterpolate(Fixed64 p0, Fixed64 p1, Fixed64 m0, Fixed64 m1, Fixed64 t)
+    {
+        Fixed64 t2 = t * t;
+        Fixed64 t3 = t2 * t;
+        return (Two * p0 - Two * p1 + m0 + m1) * t3
+             + (-Three * p0 + Three * p1 - Two * m0 - m1) * t2
+             + m0 * t + p0;
+    }
+
+    /// <summary>
+    /// Linearly interpolates between two fixed-point values based on a given interpolation factor `t`.
+    /// </summary>
+    /// <param name="from">The starting value.</param>
+    /// <param name="to">The ending value.</param>
+    /// <param name="t">A value between 0 and 1 that represents the interpolation factor.</param>
+    /// <returns>The interpolated value between `from` and `to`.</returns>
+    /// <remarks>
+    /// The interpolation is clamped between `from` and `to` based on the value of `t`.
+    /// If `t` is less than 0, the result is `from`. If `t` is greater than 1, the result is `to`.
+    /// </remarks>
+    public static Fixed64 Lerp(Fixed64 from, Fixed64 to, Fixed64 t)
+    {
+        if (t.m_rawValue >= FixedMath.ONE_L)
+            return to;
+        if (t.m_rawValue <= 0)
+            return from;
+
+        return from + (to - from) * t;
+    }
+
+    /// <summary>
+    /// Computes the interpolated point along a Catmull-Rom spline given four control points.
+    /// </summary>
+    /// <param name="p0">The first control point.</param>
+    /// <param name="p1">The second control point.</param>
+    /// <param name="p2">The third control point.</param>
+    /// <param name="p3">The fourth control point.</param>
+    /// <param name="t">Interpolation factor between 0 and 1.</param>
+    /// <returns>The interpolated point on the spline.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 CatmullRom(Fixed64 p0, Fixed64 p1, Fixed64 p2, Fixed64 p3, Fixed64 t)
+    {
+        // Classic Catmull-Rom basis matrix
+        Fixed64 t2 = t * t;
+        Fixed64 t3 = t2 * t;
+        return ((-t3 + 2 * t2 - t) * p0 +
+             (3 * t3 - 5 * t2 + 2) * p1 +
+             (-3 * t3 + 4 * t2 + t) * p2 +
+             (t3 - t2) * p3) / 2;
+    }
+
+    /// <summary>
+    /// Performs a Hermite interpolation between two Fixed64 values, using the specified tangents and interpolation amount.
+    /// </summary>
+    /// <param name="value1">The first value.</param>
+    /// <param name="tangent1">The tangent at the first value.</param>
+    /// <param name="value2">The second value.</param>
+    /// <param name="tangent2">The tangent at the second value.</param>
+    /// <param name="amount">The interpolation amount.</param>
+    /// <returns>The Hermite spline interpolated value.</returns>
+    public static Fixed64 HermiteSpline(
+        Fixed64 value1,
+        Fixed64 tangent1,
+        Fixed64 value2,
+        Fixed64 tangent2,
+        Fixed64 amount)
+    {
+        if ((amount - Zero).LessThanEpsilon())
+            return value1;
+
+        if ((amount - One).LessThanEpsilon())
+            return value2;
+
+        Fixed64 v1 = value1, v2 = value2, t1 = tangent1, t2 = tangent2, s = amount;
+        Fixed64 sCubed = s * s * s;
+        Fixed64 sSquared = s * s;
+        Fixed64 result = (
+            ((2 * v1 - 2 * v2 + t2 + t1) * sCubed) +
+            ((3 * v2 - 3 * v1 - 2 * t1 - t2) * sSquared) +
+            (t1 * s) +
+            v1
+        );
+
+        return result;
     }
 
     /// <summary>
@@ -245,7 +367,7 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
         Fixed64 value3,
         Fixed64 amount1,
         Fixed64 amount2
-    ) =>  value1 + (value2 - value1) * amount1 + (value3 - value1) * amount2;
+    ) => value1 + (value2 - value1) * amount1 + (value3 - value1) * amount2;
 
     #endregion
 
@@ -435,7 +557,7 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     /// Subtracts an int from a Fixed64, with saturating behavior in case of overflow. 
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator -(Fixed64 x, int y) => 
+    public static Fixed64 operator -(Fixed64 x, int y) =>
         x - new Fixed64((long)y << FixedMath.SHIFT_AMOUNT_I);
 
     /// <summary>
@@ -596,12 +718,12 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     /// Multiplies a Fixed64 by an integer, with overflow handling.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator *(Fixed64 x, int y) => 
+    public static Fixed64 operator *(Fixed64 x, int y) =>
         x * new Fixed64((long)y << FixedMath.SHIFT_AMOUNT_I);
 
     /// <inheritdoc cref="operator *(Fixed64, int)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator *(int x, Fixed64 y) =>  y * x;
+    public static Fixed64 operator *(int x, Fixed64 y) => y * x;
 
     /// <summary>
     /// Multiplies a Fixed64 by a long integer, with overflow handling.
@@ -671,7 +793,7 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void ThrowDivideByZero([DoesNotReturnIf(true)] bool condition, Fixed64 numerator)
     {
-        if(condition)
+        if (condition)
             throw new DivideByZeroException($"Attempted to divide {numerator} by zero.");
     }
 

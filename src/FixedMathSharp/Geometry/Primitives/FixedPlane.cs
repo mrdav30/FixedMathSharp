@@ -171,17 +171,17 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     private FixedPlaneIntersectionType IntersectsBoxLike(Vector3d min, Vector3d max)
     {
         Vector3d positive = new(
-            Normal.x >= Fixed64.Zero ? max.x : min.x,
-            Normal.y >= Fixed64.Zero ? max.y : min.y,
-            Normal.z >= Fixed64.Zero ? max.z : min.z);
+            Normal.X >= Fixed64.Zero ? max.X : min.X,
+            Normal.Y >= Fixed64.Zero ? max.Y : min.Y,
+            Normal.Z >= Fixed64.Zero ? max.Z : min.Z);
 
         if (DotCoordinate(positive) < Fixed64.Zero)
             return FixedPlaneIntersectionType.Back;
 
         Vector3d negative = new(
-            Normal.x >= Fixed64.Zero ? min.x : max.x,
-            Normal.y >= Fixed64.Zero ? min.y : max.y,
-            Normal.z >= Fixed64.Zero ? min.z : max.z);
+            Normal.X >= Fixed64.Zero ? min.X : max.X,
+            Normal.Y >= Fixed64.Zero ? min.Y : max.Y,
+            Normal.Z >= Fixed64.Zero ? min.Z : max.Z);
 
         if (DotCoordinate(negative) > Fixed64.Zero)
             return FixedPlaneIntersectionType.Front;

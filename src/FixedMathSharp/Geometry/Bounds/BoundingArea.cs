@@ -106,7 +106,7 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
     public Fixed64 MinX
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Corner1.x < Corner2.x ? Corner1.x : Corner2.x;
+        get => Corner1.X < Corner2.X ? Corner1.X : Corner2.X;
     }
 
     /// <summary>
@@ -117,7 +117,7 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
     public Fixed64 MaxX
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Corner1.x > Corner2.x ? Corner1.x : Corner2.x;
+        get => Corner1.X > Corner2.X ? Corner1.X : Corner2.X;
     }
 
     /// <summary>
@@ -128,7 +128,7 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
     public Fixed64 MinY
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Corner1.y < Corner2.y ? Corner1.y : Corner2.y;
+        get => Corner1.Y < Corner2.Y ? Corner1.Y : Corner2.Y;
     }
 
     /// <summary>
@@ -139,7 +139,7 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
     public Fixed64 MaxY
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Corner1.y > Corner2.y ? Corner1.y : Corner2.y;
+        get => Corner1.Y > Corner2.Y ? Corner1.Y : Corner2.Y;
     }
 
     /// <summary>
@@ -150,7 +150,7 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
     public Fixed64 MinZ
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Corner1.z < Corner2.z ? Corner1.z : Corner2.z;
+        get => Corner1.Z < Corner2.Z ? Corner1.Z : Corner2.Z;
     }
 
     /// <summary>
@@ -161,7 +161,7 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
     public Fixed64 MaxZ
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Corner1.z > Corner2.z ? Corner1.z : Corner2.z;
+        get => Corner1.Z > Corner2.Z ? Corner1.Z : Corner2.Z;
     }
 
     /// <summary>
@@ -218,9 +218,9 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
     public bool Contains(Vector3d point)
     {
         // Check if the point is within the bounds of the area (including boundaries)
-        return point.x >= MinX && point.x <= MaxX
-            && point.y >= MinY && point.y <= MaxY
-            && point.z >= MinZ && point.z <= MaxZ;
+        return point.X >= MinX && point.X <= MaxX
+            && point.Y >= MinY && point.Y <= MaxY
+            && point.Z >= MinZ && point.Z <= MaxZ;
     }
 
     /// <summary>
@@ -309,9 +309,9 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
         Vector3d max = Max;
 
         return new Vector3d(
-            FixedMath.Clamp(point.x, min.x, max.x),
-            FixedMath.Clamp(point.y, min.y, max.y),
-            FixedMath.Clamp(point.z, min.z, max.z));
+            FixedMath.Clamp(point.X, min.X, max.X),
+            FixedMath.Clamp(point.Y, min.Y, max.Y),
+            FixedMath.Clamp(point.Z, min.Z, max.Z));
     }
 
     /// <summary>
@@ -368,50 +368,50 @@ public partial struct BoundingArea : IEquatable<BoundingArea>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool ContainsPoint(Vector3d point, Vector3d min, Vector3d max)
     {
-        return point.x >= min.x && point.x <= max.x
-            && point.y >= min.y && point.y <= max.y
-            && point.z >= min.z && point.z <= max.z;
+        return point.X >= min.X && point.X <= max.X
+            && point.Y >= min.Y && point.Y <= max.Y
+            && point.Z >= min.Z && point.Z <= max.Z;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsFlatAlongX(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
-        => min.x == max.x && otherMin.x == otherMax.x;
+        => min.X == max.X && otherMin.X == otherMax.X;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsFlatAlongY(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
-        => min.y == max.y && otherMin.y == otherMax.y;
+        => min.Y == max.Y && otherMin.Y == otherMax.Y;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsFlatAlongZ(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
-        => min.z == max.z && otherMin.z == otherMax.z;
+        => min.Z == max.Z && otherMin.Z == otherMax.Z;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool OverlapsOnXY(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
     {
-        return !(max.x < otherMin.x || min.x > otherMax.x ||
-                 max.y < otherMin.y || min.y > otherMax.y);
+        return !(max.X < otherMin.X || min.X > otherMax.X ||
+                 max.Y < otherMin.Y || min.Y > otherMax.Y);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool OverlapsOnXZ(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
     {
-        return !(max.x < otherMin.x || min.x > otherMax.x ||
-                 max.z < otherMin.z || min.z > otherMax.z);
+        return !(max.X < otherMin.X || min.X > otherMax.X ||
+                 max.Z < otherMin.Z || min.Z > otherMax.Z);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool OverlapsOnYZ(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
     {
-        return !(max.y < otherMin.y || min.y > otherMax.y ||
-                 max.z < otherMin.z || min.z > otherMax.z);
+        return !(max.Y < otherMin.Y || min.Y > otherMax.Y ||
+                 max.Z < otherMin.Z || min.Z > otherMax.Z);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool OverlapsOnAllAxes(Vector3d min, Vector3d max, Vector3d otherMin, Vector3d otherMax)
     {
-        return !(max.x < otherMin.x || min.x > otherMax.x ||
-                 max.y < otherMin.y || min.y > otherMax.y ||
-                 max.z < otherMin.z || min.z > otherMax.z);
+        return !(max.X < otherMin.X || min.X > otherMax.X ||
+                 max.Y < otherMin.Y || min.Y > otherMax.Y ||
+                 max.Z < otherMin.Z || min.Z > otherMax.Z);
     }
 
     #endregion

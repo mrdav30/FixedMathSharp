@@ -36,12 +36,12 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <summary>
     /// Returns the identity matrix (no scaling, rotation, or translation).
     /// </summary>
-    public static readonly Fixed3x3 Identity = new(new Vector3d(1f, 0f, 0f), new Vector3d(0f, 1f, 0f), new Vector3d(0f, 0f, 1f));
+    public static readonly Fixed3x3 Identity = new(Vector3d.FromFloatPoint(1f, 0f, 0f), Vector3d.FromFloatPoint(0f, 1f, 0f), Vector3d.FromFloatPoint(0f, 0f, 1f));
 
     /// <summary>
     /// Returns a matrix with all elements set to zero.
     /// </summary>
-    public static readonly Fixed3x3 Zero = new(new Vector3d(0f, 0f, 0f), new Vector3d(0f, 0f, 0f), new Vector3d(0f, 0f, 0f));
+    public static readonly Fixed3x3 Zero = new(Vector3d.FromFloatPoint(0f, 0f, 0f), Vector3d.FromFloatPoint(0f, 0f, 0f), Vector3d.FromFloatPoint(0f, 0f, 0f));
 
     #endregion
 
@@ -136,15 +136,15 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         Vector3d m21_m22_m23,
         Vector3d m31_m32_m33
     ) : this(
-        m11_m12_m13.x,
-        m11_m12_m13.y,
-        m11_m12_m13.z,
-        m21_m22_m23.x,
-        m21_m22_m23.y,
-        m21_m22_m23.z,
-        m31_m32_m33.x,
-        m31_m32_m33.y,
-        m31_m32_m33.z)
+        m11_m12_m13.X,
+        m11_m12_m13.Y,
+        m11_m12_m13.Z,
+        m21_m22_m23.X,
+        m21_m22_m23.Y,
+        m21_m22_m23.Z,
+        m31_m32_m33.X,
+        m31_m32_m33.Y,
+        m31_m32_m33.Z)
     { }
 
     #endregion
@@ -342,9 +342,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <returns>A 3x3 scaling matrix.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed3x3 CreateScale(Vector3d scale) =>
-        new(scale.x, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, scale.y, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, scale.z);
+        new(scale.X, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, scale.Y, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, scale.Z);
 
     /// <summary>
     /// Creates a uniform scaling matrix with the same scale factor on all axes.
@@ -373,9 +373,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         var y = new Vector3d(matrix.M21, matrix.M22, matrix.M23).Normalize();
         var z = Vector3d.Cross(x, y).Normalize();
 
-        matrix.M11 = x.x; matrix.M12 = x.y; matrix.M13 = x.z;
-        matrix.M21 = y.x; matrix.M22 = y.y; matrix.M23 = y.z;
-        matrix.M31 = z.x; matrix.M32 = z.y; matrix.M33 = z.z;
+        matrix.M11 = x.X; matrix.M12 = x.Y; matrix.M13 = x.Z;
+        matrix.M21 = y.X; matrix.M22 = y.Y; matrix.M23 = y.Z;
+        matrix.M31 = z.X; matrix.M32 = z.Y; matrix.M33 = z.Z;
 
         return matrix;
     }
@@ -394,7 +394,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
 
     /// <inheritdoc cref="SetLossyScale(Fixed64, Fixed64, Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 SetLossyScale(Vector3d scale) => SetLossyScale(scale.x, scale.y, scale.z);
+    public static Fixed3x3 SetLossyScale(Vector3d scale) => SetLossyScale(scale.X, scale.Y, scale.Z);
 
     /// <summary>
     /// Creates a scaling matrix (puts the 'scale' vector down the diagonal)
@@ -412,9 +412,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <param name="localScale">A Vector3d representing the local scale to apply.</param>
     public static Fixed3x3 SetScale(Fixed3x3 matrix, Vector3d localScale)
     {
-        matrix.M11 = localScale.x; // Apply scale on X-axis
-        matrix.M22 = localScale.y; // Apply scale on Y-axis
-        matrix.M33 = localScale.z; // Apply scale on Z-axis
+        matrix.M11 = localScale.X; // Apply scale on X-axis
+        matrix.M22 = localScale.Y; // Apply scale on Y-axis
+        matrix.M33 = localScale.Z; // Apply scale on Z-axis
 
         return matrix;
     }
@@ -440,9 +440,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
 
         // Compute the new local scale by dividing the desired global scale by the current global scale
         Vector3d newLocalScale = new(
-            globalScale.x / Fixed64.One,
-            globalScale.y / Fixed64.One,
-            globalScale.z / Fixed64.One
+            globalScale.X / Fixed64.One,
+            globalScale.Y / Fixed64.One,
+            globalScale.Z / Fixed64.One
         );
 
         // Apply the new local scale to the matrix
@@ -472,9 +472,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// Linearly interpolates between two matrices.
     /// </summary>
     public static Fixed3x3 Lerp(Fixed3x3 a, Fixed3x3 b, Fixed64 t) =>
-        new(FixedMath.Lerp(a.M11, b.M11, t), FixedMath.Lerp(a.M12, b.M12, t), FixedMath.Lerp(a.M13, b.M13, t),
-            FixedMath.Lerp(a.M21, b.M21, t), FixedMath.Lerp(a.M22, b.M22, t), FixedMath.Lerp(a.M23, b.M23, t),
-            FixedMath.Lerp(a.M31, b.M31, t), FixedMath.Lerp(a.M32, b.M32, t), FixedMath.Lerp(a.M33, b.M33, t));
+        new(Fixed64.Lerp(a.M11, b.M11, t), Fixed64.Lerp(a.M12, b.M12, t), Fixed64.Lerp(a.M13, b.M13, t),
+            Fixed64.Lerp(a.M21, b.M21, t), Fixed64.Lerp(a.M22, b.M22, t), Fixed64.Lerp(a.M23, b.M23, t),
+            Fixed64.Lerp(a.M31, b.M31, t), Fixed64.Lerp(a.M32, b.M32, t), Fixed64.Lerp(a.M33, b.M33, t));
 
     /// <summary>
     /// Transposes the matrix (swaps rows and columns).
@@ -529,9 +529,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <returns>The transformed direction in world space.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d TransformDirection(Fixed3x3 matrix, Vector3d direction) =>
-        new(matrix.M11 * direction.x + matrix.M12 * direction.y + matrix.M13 * direction.z,
-            matrix.M21 * direction.x + matrix.M22 * direction.y + matrix.M23 * direction.z,
-            matrix.M31 * direction.x + matrix.M32 * direction.y + matrix.M33 * direction.z);
+        new(matrix.M11 * direction.X + matrix.M12 * direction.Y + matrix.M13 * direction.Z,
+            matrix.M21 * direction.X + matrix.M22 * direction.Y + matrix.M23 * direction.Z,
+            matrix.M31 * direction.X + matrix.M32 * direction.Y + matrix.M33 * direction.Z);
 
     /// <summary>
     /// Transforms a direction from world space into the local space of the matrix.
@@ -546,9 +546,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         FixedThrowHelper.ThrowIfInvalid(canInvert, "Matrix is not invertible.");
 
         return new Vector3d(
-            inverseMatrix!.Value.M11 * direction.x + inverseMatrix.Value.M12 * direction.y + inverseMatrix.Value.M13 * direction.z,
-            inverseMatrix.Value.M21 * direction.x + inverseMatrix.Value.M22 * direction.y + inverseMatrix.Value.M23 * direction.z,
-            inverseMatrix.Value.M31 * direction.x + inverseMatrix.Value.M32 * direction.y + inverseMatrix.Value.M33 * direction.z
+            inverseMatrix!.Value.M11 * direction.X + inverseMatrix.Value.M12 * direction.Y + inverseMatrix.Value.M13 * direction.Z,
+            inverseMatrix.Value.M21 * direction.X + inverseMatrix.Value.M22 * direction.Y + inverseMatrix.Value.M23 * direction.Z,
+            inverseMatrix.Value.M31 * direction.X + inverseMatrix.Value.M32 * direction.Y + inverseMatrix.Value.M33 * direction.Z
         );
     }
 

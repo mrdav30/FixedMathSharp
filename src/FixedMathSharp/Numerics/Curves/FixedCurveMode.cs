@@ -10,7 +10,7 @@ namespace FixedMathSharp;
 /// <summary>
 /// Specifies the interpolation method used when evaluating a <see cref="FixedCurve"/>.
 /// </summary>
-public enum FixedCurveMode
+public enum FixedCurveMode : byte
 {
     /// <summary>Linear interpolation between keyframes.</summary>
     Linear,

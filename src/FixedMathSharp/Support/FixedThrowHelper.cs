@@ -40,9 +40,9 @@ internal static class FixedThrowHelper
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void ThrowIfOutOfRange([DoesNotReturnIf(true)] bool condition, string? message = null)
+    internal static void ThrowIfOutOfRange([DoesNotReturnIf(true)] bool condition, string? paramName = null, string? message = null)
     {
         if (condition)
-            throw new ArgumentOutOfRangeException(message);
+            throw new ArgumentOutOfRangeException(paramName, message);
     }
 }
