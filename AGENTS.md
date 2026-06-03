@@ -173,6 +173,10 @@ deterministic.
 - Preserve public API shape unless the task explicitly requests API changes.
 - Match existing style: regions, XML docs, explicit namespaces, no implicit
   usings in project files.
+- Shared runtime code must remain compatible with both `netstandard2.1` and
+  `net8.0`. Do not use APIs that are unavailable to `netstandard2.1` unless
+  they are guarded, isolated to a compatible target, or intentionally placed in
+  tooling/benchmark code.
 - Keep operations allocation-light; many hot methods use `m_rawValue` and
   `[MethodImpl(MethodImplOptions.AggressiveInlining)]`.
 - `FixedMath` and fixed trigonometry code are shared algorithm backbones.
@@ -235,7 +239,7 @@ GitVersion variables are consumed when present, otherwise version falls back to
 
 - Tests are xUnit v3 under [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests).
 - Keep one feature area per test file, such as `Vector3d.Tests.cs` or
-  `Bounds/BoundingBox.Tests.cs`.
+  `Geometry/Bounds/FixedBoundBox.Tests.cs`.
 - Use helper assertions from
   [`tests/FixedMathSharp.Tests/Support/FixedMathTestHelper.cs`](tests/FixedMathSharp.Tests/Support/FixedMathTestHelper.cs)
   for tolerance and range checks instead of ad-hoc epsilon logic.
