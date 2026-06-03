@@ -286,6 +286,44 @@ public class FixedQuaternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_FromDirection_BackwardRotatesForwardToBackward()
+    {
+        FixedQuaternion result = FixedQuaternion.FromDirection(Vector3d.Backward);
+
+        Vector3d rotatedForward = result.Rotate(Vector3d.Forward);
+
+        Assert.True(
+            rotatedForward.FuzzyEqual(Vector3d.Backward, Fixed64.FromFloatPoint(0.0001)),
+            $"FromDirection returned {result}, which rotated forward to {rotatedForward} instead of {Vector3d.Backward}.");
+    }
+
+    [Fact]
+    public void FixedQuaternion_FromDirection_NearForwardRotatesForwardToDirection()
+    {
+        Vector3d direction = new Vector3d(Fixed64.FromFloatPoint(0.001), Fixed64.Zero, Fixed64.One).Normal;
+
+        FixedQuaternion result = FixedQuaternion.FromDirection(direction);
+
+        Vector3d rotatedForward = result.Rotate(Vector3d.Forward);
+        Assert.True(
+            rotatedForward.FuzzyEqual(direction, Fixed64.FromFloatPoint(0.0001)),
+            $"FromDirection returned {result}, which rotated forward to {rotatedForward} instead of {direction}.");
+    }
+
+    [Fact]
+    public void FixedQuaternion_FromDirection_NearBackwardRotatesForwardToDirection()
+    {
+        Vector3d direction = new Vector3d(Fixed64.FromFloatPoint(0.001), Fixed64.Zero, -Fixed64.One).Normal;
+
+        FixedQuaternion result = FixedQuaternion.FromDirection(direction);
+
+        Vector3d rotatedForward = result.Rotate(Vector3d.Forward);
+        Assert.True(
+            rotatedForward.FuzzyEqual(direction, Fixed64.FromFloatPoint(0.0001)),
+            $"FromDirection returned {result}, which rotated forward to {rotatedForward} instead of {direction}.");
+    }
+
+    [Fact]
     public void FixedQuaternion_FromAxisAngle_WorksCorrectly()
     {
         var axis = Vector3d.Up;

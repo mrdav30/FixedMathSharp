@@ -36,46 +36,6 @@ runtime and tests.
 
 ## Active Issues
 
-### FMS-Issue-001: `FixedQuaternion.FromDirection(Vector3d.Backward)` likely returns identity
-
-**Discovered:** 2026-06-03
-
-**Source:** Coordinate-convention review of `Vector3d.Forward`/`Backward` and
-quaternion direction helpers.
-
-**Status:** Proposed
-
-**Affected files:**
-
-- Review: `src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.cs`
-- Test: `tests/FixedMathSharp.Tests/Numerics/Rotations/FixedQuaternion.Tests.cs`
-
-**Problem:**
-
-`FixedQuaternion.FromDirection` computes the rotation axis with
-`Vector3d.Cross(Vector3d.Forward, direction)`. For the anti-parallel
-`Vector3d.Backward` case the cross product is zero, so the current zero-axis
-branch appears to return `FixedQuaternion.Identity`. A backward target direction
-should instead produce a deterministic 180-degree rotation.
-
-**Recommended approach:**
-
-- [ ] Add a failing test for `FixedQuaternion.FromDirection(Vector3d.Backward)`.
-- [ ] Add tests for near-forward and near-backward inputs so the threshold
-  behavior is documented.
-- [ ] Preserve `FixedQuaternion.FromDirection(Vector3d.Forward) ==
-  FixedQuaternion.Identity`.
-- [ ] Use a deterministic fallback axis for the anti-parallel case. Prefer
-  `Vector3d.Up` unless tests prove it conflicts with another invariant.
-- [ ] Re-run focused quaternion tests and the full test project.
-
-Verification:
-
-```bash
-dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedQuaternionTests"
-dotnet test FixedMathSharp.slnx --configuration Debug
-```
-
 ### FMS-Issue-002: `Vector3d.Direction` docs appear to swap pitch and yaw semantics
 
 **Discovered:** 2026-06-03
@@ -125,4 +85,35 @@ confirmed runtime defect. Current queue:
 
 ## Resolved Issues
 
-No resolved feature-work issues yet.
+### FMS-Issue-001: `FixedQuaternion.FromDirection(Vector3d.Backward)` returned identity
+
+**Discovered:** 2026-06-03
+
+**Resolved:** 2026-06-03
+
+**Source:** Coordinate-convention review of `Vector3d.Forward`/`Backward` and
+quaternion direction helpers.
+
+**Resolution:**
+
+`FixedQuaternion.FromDirection` now detects the anti-parallel zero-cross-axis
+case and returns a deterministic 180-degree rotation around `Vector3d.Up`
+instead of `FixedQuaternion.Identity`.
+
+**Completed work:**
+
+- [x] Added a failing test for `FixedQuaternion.FromDirection(Vector3d.Backward)`.
+- [x] Added near-forward and near-backward tests so edge behavior is documented.
+- [x] Preserved `FixedQuaternion.FromDirection(Vector3d.Forward) ==
+  FixedQuaternion.Identity`.
+- [x] Used a deterministic `Vector3d.Up` fallback axis for the anti-parallel
+  case.
+- [x] Re-ran focused quaternion tests.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~FixedQuaternionTests"
+```
+
+Result on 2026-06-03: passed, 72 tests.

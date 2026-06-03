@@ -434,16 +434,18 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         // Compute the rotation axis as the cross product of the standard forward vector and the desired direction
         Vector3d axis = Vector3d.Cross(Vector3d.Forward, direction);
         Fixed64 axisLength = axis.Magnitude;
+        Fixed64 dot = Vector3d.Dot(Vector3d.Forward, direction);
 
-        // If the axis length is very close to zero, it means that the desired direction is almost equal to the standard forward vector
         if (axisLength.Abs() == Fixed64.Zero)
-            return Identity;  // Return the identity quaternion if no rotation is needed
+            return dot < Fixed64.Zero
+                ? FromAxisAngle(Vector3d.Up, Fixed64.Pi)
+                : Identity;
 
         // Normalize the rotation axis
         axis = (axis / axisLength).Normal;
 
         // Compute the angle between the standard forward vector and the desired direction
-        Fixed64 angle = FixedMath.Acos(Vector3d.Dot(Vector3d.Forward, direction));
+        Fixed64 angle = FixedMath.Acos(dot);
 
         // Compute the rotation quaternion from the axis and angle
         return FromAxisAngle(axis, angle);
