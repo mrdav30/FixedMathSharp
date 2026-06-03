@@ -404,7 +404,7 @@ public class Fixed4x4Tests
         var dividend = Fixed4x4.CreateScale(new Vector3d(8, 12, 24));
         var divisor = Fixed4x4.CreateScale(new Vector3d(2, 4, 8));
 
-        var result = Fixed4x4.Divide(dividend, divisor);
+        var result = Fixed4x4.InverseDivide(dividend, divisor);
 
         Assert.Equal(Fixed4x4.CreateScale(new Vector3d(4, 3, 3)), result);
     }
@@ -412,7 +412,7 @@ public class Fixed4x4Tests
     [Fact]
     public void FixedMatrix4x4_Divide_NonInvertibleDivisorThrows()
     {
-        Assert.Throws<InvalidOperationException>(() => Fixed4x4.Divide(Fixed4x4.Identity, Fixed4x4.Zero));
+        Assert.Throws<InvalidOperationException>(() => Fixed4x4.InverseDivide(Fixed4x4.Identity, Fixed4x4.Zero));
     }
 
     [Fact]

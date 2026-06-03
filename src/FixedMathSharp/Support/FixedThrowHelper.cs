@@ -45,4 +45,18 @@ internal static class FixedThrowHelper
         if (condition)
             throw new ArgumentOutOfRangeException(paramName, message);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void ThrowIfDivideByZero([DoesNotReturnIf(true)] bool condition, string? message = null)
+    {
+        if (condition)
+            throw new DivideByZeroException(message ?? "Attempted to divide by zero.");
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void ThrowIfArithmeticError([DoesNotReturnIf(true)] bool condition, string? message = null)
+    {
+        if (condition)
+            throw new ArithmeticException(message ?? "An arithmetic error occurred.");
+    }
 }

@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using FixedMathSharp.Support;
 using MemoryPack;
 using System;
 using System.Collections.Generic;
@@ -124,8 +125,7 @@ namespace FixedMathSharp
         /// </summary>
         public static BoundingSphere CreateFromFrustum(BoundingFrustum frustum)
         {
-            if (frustum == null)
-                throw new ArgumentNullException(nameof(frustum));
+            FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot create a bounding sphere from a null frustum.");
 
             return CreateFromPoints(frustum.GetCorners());
         }
@@ -135,8 +135,7 @@ namespace FixedMathSharp
         /// </summary>
         public static BoundingSphere CreateFromPoints(IEnumerable<Vector3d> points)
         {
-            if (points == null)
-                throw new ArgumentNullException(nameof(points));
+            FixedThrowHelper.ThrowIfNull(points, nameof(points), "Cannot create a bounding sphere from a null collection of points.");
 
             if (points is IReadOnlyList<Vector3d> pointList)
                 return CreateFromPointList(pointList);
@@ -170,8 +169,7 @@ namespace FixedMathSharp
 
         private static BoundingSphere CreateFromPointList(IReadOnlyList<Vector3d> points)
         {
-            if (points.Count == 0)
-                throw new ArgumentException("At least one point is required.", nameof(points));
+            FixedThrowHelper.ThrowIfArgument(points.Count == 0, "At least one point is required to create a bounding sphere.");
 
             Vector3d minX = points[0];
             Vector3d maxX = points[0];
@@ -307,8 +305,7 @@ namespace FixedMathSharp
         /// </summary>
         public ContainmentType Contains(BoundingFrustum frustum)
         {
-            if (frustum == null)
-                throw new ArgumentNullException(nameof(frustum));
+            FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot test containment against a null frustum.");
 
             Vector3d[] corners = frustum.GetCorners();
             bool containsAllCorners = true;
@@ -354,8 +351,7 @@ namespace FixedMathSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Intersects(BoundingFrustum frustum)
         {
-            if (frustum == null)
-                throw new ArgumentNullException(nameof(frustum));
+            FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot test intersection against a null frustum.");
 
             return frustum.Intersects(this);
         }

@@ -103,28 +103,28 @@ public static class Fixed64Extensions
     /// Rounds up the Fixed64 value to the nearest integer.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int CeilToInt(this Fixed64 x) => 
+    public static int CeilToInt(this Fixed64 x) =>
         (int)(FixedMath.Ceil(x).m_rawValue >> FixedMath.SHIFT_AMOUNT_I);
 
     /// <summary>
     /// Rounds up the Fixed64 value to the nearest long.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static long CeilToLong(this Fixed64 x) => 
+    public static long CeilToLong(this Fixed64 x) =>
         (long)(FixedMath.Ceil(x).m_rawValue >> FixedMath.SHIFT_AMOUNT_I);
 
     /// <summary>
     /// Rounds down the Fixed64 value to the nearest integer.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int FloorToInt(this Fixed64 x) => 
+    public static int FloorToInt(this Fixed64 x) =>
         (int)(FixedMath.Floor(x).m_rawValue >> FixedMath.SHIFT_AMOUNT_I);
 
     /// <summary>
     /// Rounds down the Fixed64 value to the nearest long.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static long FloorToLong(this Fixed64 x) => 
+    public static long FloorToLong(this Fixed64 x) =>
         (long)(FixedMath.Floor(x).m_rawValue >> FixedMath.SHIFT_AMOUNT_I);
 
     #endregion

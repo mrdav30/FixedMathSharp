@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using FixedMathSharp.Support;
 using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
@@ -28,6 +29,8 @@ namespace FixedMathSharp;
 [MemoryPackable]
 public partial struct BoundingBox : IEquatable<BoundingBox>
 {
+    internal const int MAX_VERTICES = 8;
+
     #region Nested Types
 
     /// <summary>
@@ -89,7 +92,7 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
         Min = center - half;
         Max = center + half;
 
-        _vertices = new Vector3d[8];
+        _vertices = new Vector3d[MAX_VERTICES];
         _isDirty = true;
     }
 
@@ -102,7 +105,7 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     public BoundingBox(BoundingBoxState state)
     {
         State = state;
-        _vertices = new Vector3d[8];
+        _vertices = new Vector3d[MAX_VERTICES];
     }
 
     #endregion
@@ -294,8 +297,7 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ContainmentType Contains(BoundingFrustum frustum)
     {
-        if (frustum == null)
-            throw new ArgumentNullException(nameof(frustum));
+        FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot test containment against a null frustum.");
 
         if (Contains(frustum.Min) && Contains(frustum.Max))
             return ContainmentType.Contains;
@@ -327,8 +329,7 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(BoundingFrustum frustum)
     {
-        if (frustum == null)
-            throw new ArgumentNullException(nameof(frustum));
+        FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot test intersection against a null frustum.");
 
         return frustum.Intersects(this);
     }
@@ -494,7 +495,7 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
     /// </remarks>
     private Vector3d[] GetOrGenerateVertices()
     {
-        _vertices ??= new Vector3d[8];
+        _vertices ??= new Vector3d[MAX_VERTICES];
 
         if (_isDirty)
         {
@@ -541,7 +542,7 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
         Vector3d closestPoint = Vector3d.Zero;
         Fixed64 minDistance = Fixed64.MaxValue;
 
-        for (int i = 0; i < b.Vertices.Length; i++)
+        for (int i = 0; i < MAX_VERTICES; i++)
         {
             Vector3d point = a.ClosestPointOnSurface(b.Vertices[i]);
             Fixed64 distance = Vector3d.Distance(point, b.Vertices[i]);
@@ -581,10 +582,7 @@ public partial struct BoundingBox : IEquatable<BoundingBox>
         => Min.Equals(other.Min) && Max.Equals(other.Max);
 
     /// <inheritdoc/>
-    public override int GetHashCode()
-    {
-        return HashCode.Combine(Min, Max);
-    }
+    public override int GetHashCode() => HashCode.Combine(Min, Max);
 
     #endregion
 }

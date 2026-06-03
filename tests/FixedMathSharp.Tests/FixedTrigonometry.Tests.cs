@@ -446,14 +446,14 @@ public class FixedTrigonometryTests
     public void Acos_ThrowsOutOfRangeForGreaterThanOne()
     {
         var value = Fixed64.FromFloatPoint(1.1);
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.Acos(value));
+        Assert.Throws<ArithmeticException>(() => FixedMath.Acos(value));
     }
 
     [Fact]
     public void Acos_ThrowsOutOfRangeForLessThanNegativeOne()
     {
         var value = Fixed64.FromFloatPoint(-1.1);
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.Acos(value));
+        Assert.Throws<ArithmeticException>(() => FixedMath.Acos(value));
     }
 
     #endregion

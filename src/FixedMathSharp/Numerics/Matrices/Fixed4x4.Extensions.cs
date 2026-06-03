@@ -22,7 +22,7 @@ public static class Fixed4x4Extensions
     public static Vector3d ExtractLossyScale(this Fixed4x4 matrix) => Fixed4x4.ExtractLossyScale(matrix);
 
     /// <inheritdoc cref="Fixed4x4.SetGlobalScale(Fixed4x4, Vector3d)" />
-    public static Fixed4x4 SetGlobalScale(this ref Fixed4x4 matrix, Vector3d globalScale) => 
+    public static Fixed4x4 SetGlobalScale(this ref Fixed4x4 matrix, Vector3d globalScale) =>
         matrix = Fixed4x4.SetGlobalScale(matrix, globalScale);
 
     /// <inheritdoc cref="Fixed4x4.SetTranslation(Fixed4x4, Vector3d)" />

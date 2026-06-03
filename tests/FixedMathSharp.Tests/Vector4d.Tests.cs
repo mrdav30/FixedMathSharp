@@ -1,6 +1,5 @@
 ﻿using MemoryPack;
 using System;
-using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -275,9 +274,9 @@ public class Vector4dTests
         Assert.Equal(Fixed64.FromFloatPoint(0.15), customResult.W);
 
         var complement = new Vector4d(
-            Fixed64.FromFloatPoint(-0.05), 
-            Fixed64.FromFloatPoint(0.2), 
-            Fixed64.FromFloatPoint(0.05), 
+            Fixed64.FromFloatPoint(-0.05),
+            Fixed64.FromFloatPoint(0.2),
+            Fixed64.FromFloatPoint(0.05),
             Fixed64.FromFloatPoint(-0.05)).SnapSmallComponentsToZero(threshold);
 
         Assert.Equal(Fixed64.Zero, complement.X);

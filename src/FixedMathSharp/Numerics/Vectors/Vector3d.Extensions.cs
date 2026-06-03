@@ -89,8 +89,8 @@ public static partial class Vector3dExtensions
     /// <returns>True if the components are within the allowed difference, false otherwise.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool FuzzyEqualAbsolute(this Vector3d me, Vector3d other, Fixed64 allowedDifference) =>
-        (me.X - other.X).Abs() <= allowedDifference 
-        && (me.Y - other.Y).Abs() <= allowedDifference 
+        (me.X - other.X).Abs() <= allowedDifference
+        && (me.Y - other.Y).Abs() <= allowedDifference
         && (me.Z - other.Z).Abs() <= allowedDifference;
 
     /// <summary>

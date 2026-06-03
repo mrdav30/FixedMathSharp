@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using FixedMathSharp.Support;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -124,7 +125,7 @@ namespace FixedMathSharp
         /// Clamps a fixed-point value between the given minimum and maximum values.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Clamp(Fixed64 f1, Fixed64 min, Fixed64 max) => 
+        public static Fixed64 Clamp(Fixed64 f1, Fixed64 min, Fixed64 max) =>
             f1 < min ? min : f1 > max ? max : f1;
 
         /// <summary>
@@ -181,7 +182,7 @@ namespace FixedMathSharp
         /// Efficiently zeroes out the fractional part.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 Floor(Fixed64 value) => 
+        public static Fixed64 Floor(Fixed64 value) =>
             Fixed64.FromRaw((long)((ulong)value.m_rawValue & MASK_UL));
 
         /// <summary>
@@ -224,8 +225,7 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 RoundToPrecision(Fixed64 value, int decimalPlaces, MidpointRounding mode = MidpointRounding.ToEven)
         {
-            if (decimalPlaces < 0 || decimalPlaces >= Pow10Lookup.Length)
-                throw new ArgumentOutOfRangeException(nameof(decimalPlaces), "Decimal places out of range.");
+            FixedThrowHelper.ThrowIfOutOfRange(decimalPlaces < 0 || decimalPlaces >= Pow10Lookup.Length, nameof(decimalPlaces), "Decimal places out of range.");
 
             int factor = Pow10Lookup[decimalPlaces];
             Fixed64 scaled = value * factor;

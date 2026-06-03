@@ -5,10 +5,10 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using FixedMathSharp.Support;
 using MemoryPack;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
@@ -742,7 +742,7 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
         long xl = x.m_rawValue;
         long yl = y.m_rawValue;
 
-        ThrowDivideByZero(yl == 0, x);
+        FixedThrowHelper.ThrowIfDivideByZero(yl == 0, $"Attempted to divide {x} by zero.");
 
         ulong remainder = (ulong)(xl < 0 ? -xl : xl);
         ulong divider = (ulong)(yl < 0 ? -yl : yl);
@@ -788,13 +788,6 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
             result = -result;
 
         return new Fixed64(result);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void ThrowDivideByZero([DoesNotReturnIf(true)] bool condition, Fixed64 numerator)
-    {
-        if (condition)
-            throw new DivideByZeroException($"Attempted to divide {numerator} by zero.");
     }
 
     /// <summary>

@@ -55,12 +55,12 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// The forward direction vector (0, 0, 1).
     /// </summary>
-    public static Vector3d Forward => new(0, 0, 1);
+    public static Vector3d Forward => new(0, 0, 1); // TODO: in XNA this is reverse
 
     /// <summary>
     /// (0, 0, -1)
     /// </summary>
-    public static Vector3d Backward => new(0, 0, -1);
+    public static Vector3d Backward => new(0, 0, -1); // TODO: in XNA this is reverse
 
     /// <summary>
     /// (1, 1, 1)
@@ -222,7 +222,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         {
             Fixed64 temp1 = FixedMath.Cos(X) * FixedMath.Sin(Y);
             Fixed64 temp2 = FixedMath.Sin(-X);
-            Fixed64 temp3 = FixedMath.Cos(X) * FixedMath.Cos(Y);
+            Fixed64 temp3 = FixedMath.Cos(X) * FixedMath.Cos(Y);  // TODO: in XNA this is reverse
             return new Vector3d(temp1, temp2, temp3);
         }
     }
@@ -591,7 +591,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     {
         mag = FixedMath.Clamp01(mag);
         return new Vector3d(
-            Fixed64.Lerp(a.X, b.X, mag), 
+            Fixed64.Lerp(a.X, b.X, mag),
             Fixed64.Lerp(a.Y, b.Y, mag),
             Fixed64.Lerp(a.Z, b.Z, mag));
     }
@@ -1197,7 +1197,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         Vector3d value2,
         Vector3d value3,
         Fixed64 amount1,
-        Fixed64 amount2) 
+        Fixed64 amount2)
     {
         return new(
             Fixed64.BarycentricCoordinate(value1.X, value2.X, value3.X, amount1, amount2),
@@ -1237,8 +1237,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <returns>The maximized vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Max(Vector3d value1, Vector3d value2) =>
-         new(FixedMath.Max(value1.X, value2.X), 
-             FixedMath.Max(value1.Y, value2.Y), 
+         new(FixedMath.Max(value1.X, value2.X),
+             FixedMath.Max(value1.Y, value2.Y),
              FixedMath.Max(value1.Z, value2.Z));
 
     /// <summary>
@@ -1264,8 +1264,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <returns>The minimized vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Min(Vector3d value1, Vector3d value2) =>
-        new(FixedMath.Min(value1.X, value2.X), 
-            FixedMath.Min(value1.Y, value2.Y), 
+        new(FixedMath.Min(value1.X, value2.X),
+            FixedMath.Min(value1.Y, value2.Y),
             FixedMath.Min(value1.Z, value2.Z));
 
     /// <summary>
@@ -1580,8 +1580,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator /(Vector3d v1, Fixed64 div) =>
-        div == Fixed64.Zero 
-        ? Zero 
+        div == Fixed64.Zero
+        ? Zero
         : new Vector3d(v1.X / div, v1.Y / div, v1.Z / div);
 
     /// <summary>
@@ -1613,8 +1613,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator /(Vector3d v1, int div) =>
-        div == 0 
-        ? Zero 
+        div == 0
+        ? Zero
         : new Vector3d(v1.X / div, v1.Y / div, v1.Z / div);
 
     /// <summary>

@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using FixedMathSharp.Support;
 using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
@@ -221,9 +222,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </remarks>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public readonly bool IsAffine => M44 == Fixed64.One 
-        && M14 == Fixed64.Zero 
-        && M24 == Fixed64.Zero 
+    public readonly bool IsAffine => M44 == Fixed64.One
+        && M14 == Fixed64.Zero
+        && M24 == Fixed64.Zero
         && M34 == Fixed64.Zero;
 
     /// <inheritdoc cref="ExtractTranslation(Fixed4x4)" />
@@ -531,13 +532,13 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     public static Fixed4x4 CreateLookAt(Vector3d cameraPosition, Vector3d cameraTarget, Vector3d cameraUpVector)
     {
         Vector3d forward = cameraTarget - cameraPosition;
-        if (forward.SqrMagnitude == Fixed64.Zero)
-            throw new ArgumentException("Camera position and target must be different.", nameof(cameraTarget));
+
+        FixedThrowHelper.ThrowIfArgument(forward.SqrMagnitude == Fixed64.Zero, "Camera position and target must be different.");
 
         forward = forward.Normalize();
         Vector3d right = Vector3d.Cross(cameraUpVector, forward);
-        if (right.SqrMagnitude == Fixed64.Zero)
-            throw new ArgumentException("Camera up vector must not be parallel to the view direction.", nameof(cameraUpVector));
+
+        FixedThrowHelper.ThrowIfArgument(right.SqrMagnitude == Fixed64.Zero, "Camera up vector must not be parallel to the view direction.");
 
         right = right.Normalize();
         Vector3d up = Vector3d.Cross(forward, right).Normalize();
@@ -557,10 +558,8 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </summary>
     public static Fixed4x4 CreateOrthographic(Fixed64 width, Fixed64 height, Fixed64 zNearPlane, Fixed64 zFarPlane)
     {
-        if (width <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(width), width, "Width must be greater than zero.");
-        if (height <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(height), height, "Height must be greater than zero.");
+        FixedThrowHelper.ThrowIfOutOfRange(width <= Fixed64.Zero, nameof(width), "Width must be greater than zero.");
+        FixedThrowHelper.ThrowIfOutOfRange(height <= Fixed64.Zero, nameof(height), "Height must be greater than zero.");
 
         Fixed64 halfWidth = width * Fixed64.Half;
         Fixed64 halfHeight = height * Fixed64.Half;
@@ -578,10 +577,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Fixed64 zNearPlane,
         Fixed64 zFarPlane)
     {
-        if (left == right)
-            throw new ArgumentOutOfRangeException(nameof(right), right, "Right must be different from left.");
-        if (bottom == top)
-            throw new ArgumentOutOfRangeException(nameof(top), top, "Top must be different from bottom.");
+        FixedThrowHelper.ThrowIfOutOfRange(left == right, nameof(right), "Right must be different from left.");
+        FixedThrowHelper.ThrowIfOutOfRange(bottom == top, nameof(top), "Top must be different from bottom.");
+
         ValidateDepthRange(zNearPlane, zFarPlane);
 
         Fixed64 width = right - left;
@@ -607,10 +605,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Fixed64 nearPlaneDistance,
         Fixed64 farPlaneDistance)
     {
-        if (width <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(width), width, "Width must be greater than zero.");
-        if (height <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(height), height, "Height must be greater than zero.");
+        FixedThrowHelper.ThrowIfOutOfRange(width <= Fixed64.Zero, nameof(width), "Width must be greater than zero.");
+        FixedThrowHelper.ThrowIfOutOfRange(height <= Fixed64.Zero, nameof(height), "Height must be greater than zero.");
+
         ValidatePerspectiveDepthRange(nearPlaneDistance, farPlaneDistance);
 
         Fixed64 depth = farPlaneDistance - nearPlaneDistance;
@@ -632,10 +629,11 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Fixed64 nearPlaneDistance,
         Fixed64 farPlaneDistance)
     {
-        if (fieldOfView <= Fixed64.Zero || fieldOfView >= Fixed64.Pi)
-            throw new ArgumentOutOfRangeException(nameof(fieldOfView), fieldOfView, "Field of view must be greater than zero and less than PI.");
-        if (aspectRatio <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(aspectRatio), aspectRatio, "Aspect ratio must be greater than zero.");
+        FixedThrowHelper.ThrowIfOutOfRange(
+            fieldOfView <= Fixed64.Zero || fieldOfView >= Fixed64.Pi, nameof(fieldOfView),
+            "Field of view must be greater than zero and less than PI.");
+        FixedThrowHelper.ThrowIfOutOfRange(aspectRatio <= Fixed64.Zero, nameof(aspectRatio), "Aspect ratio must be greater than zero.");
+
         ValidatePerspectiveDepthRange(nearPlaneDistance, farPlaneDistance);
 
         Fixed64 yScale = Fixed64.One / FixedMath.Tan(fieldOfView * Fixed64.Half);
@@ -660,10 +658,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         Fixed64 nearPlaneDistance,
         Fixed64 farPlaneDistance)
     {
-        if (left == right)
-            throw new ArgumentOutOfRangeException(nameof(right), right, "Right must be different from left.");
-        if (bottom == top)
-            throw new ArgumentOutOfRangeException(nameof(top), top, "Top must be different from bottom.");
+        FixedThrowHelper.ThrowIfOutOfRange(left == right, nameof(right), "Right must be different from left.");
+        FixedThrowHelper.ThrowIfOutOfRange(bottom == top, nameof(top), "Top must be different from bottom.");
+
         ValidatePerspectiveDepthRange(nearPlaneDistance, farPlaneDistance);
 
         Fixed64 width = right - left;
@@ -686,13 +683,12 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </summary>
     public static Fixed4x4 CreateWorld(Vector3d position, Vector3d forward, Vector3d up)
     {
-        if (forward.SqrMagnitude == Fixed64.Zero)
-            throw new ArgumentException("Forward vector must be non-zero.", nameof(forward));
+        FixedThrowHelper.ThrowIfArgument(forward.SqrMagnitude == Fixed64.Zero, "Forward vector must be non-zero.");
 
         forward = forward.Normalize();
         Vector3d right = Vector3d.Cross(up, forward);
-        if (right.SqrMagnitude == Fixed64.Zero)
-            throw new ArgumentException("Up vector must not be parallel to forward.", nameof(up));
+
+        FixedThrowHelper.ThrowIfArgument(right.SqrMagnitude == Fixed64.Zero, "Up vector must not be parallel to forward.");
 
         right = right.Normalize();
         up = Vector3d.Cross(forward, right).Normalize();
@@ -820,10 +816,10 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </summary>
     /// <returns>A Vector3d representing the precise scale along the X, Y, and Z axes.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d ExtractScale(Fixed4x4 matrix) => 
+    public static Vector3d ExtractScale(Fixed4x4 matrix) =>
         new(
             new Vector3d(matrix.M11, matrix.M12, matrix.M13).Magnitude,
-            new Vector3d(matrix.M21, matrix.M22, matrix.M23).Magnitude,  
+            new Vector3d(matrix.M21, matrix.M22, matrix.M23).Magnitude,
             new Vector3d(matrix.M31, matrix.M32, matrix.M33).Magnitude);
 
     /// <summary>
@@ -1134,7 +1130,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// Thrown when <paramref name="divisor"/> is not invertible.
     /// </exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 Divide(Fixed4x4 dividend, Fixed4x4 divisor)
+    public static Fixed4x4 InverseDivide(Fixed4x4 dividend, Fixed4x4 divisor)
     {
         if (!Invert(divisor, out Fixed4x4 inverseDivisor))
             throw new InvalidOperationException("Matrix divisor is not invertible.");
@@ -1552,20 +1548,14 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
 
     private static void ValidateDepthRange(Fixed64 nearPlaneDistance, Fixed64 farPlaneDistance)
     {
-        if (nearPlaneDistance < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(nearPlaneDistance), nearPlaneDistance, "Near plane distance must be greater than or equal to zero.");
-
-        if (farPlaneDistance <= nearPlaneDistance)
-            throw new ArgumentOutOfRangeException(nameof(farPlaneDistance), farPlaneDistance, "Far plane distance must be greater than near plane distance.");
+        FixedThrowHelper.ThrowIfOutOfRange(nearPlaneDistance < Fixed64.Zero, nameof(nearPlaneDistance), "Near plane distance must be greater than or equal to zero.");
+        FixedThrowHelper.ThrowIfOutOfRange(farPlaneDistance < Fixed64.Zero, nameof(farPlaneDistance), "Far plane distance must be greater than or equal to zero.");
     }
 
     private static void ValidatePerspectiveDepthRange(Fixed64 nearPlaneDistance, Fixed64 farPlaneDistance)
     {
-        if (nearPlaneDistance <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(nearPlaneDistance), nearPlaneDistance, "Near plane distance must be greater than zero.");
-
-        if (farPlaneDistance <= nearPlaneDistance)
-            throw new ArgumentOutOfRangeException(nameof(farPlaneDistance), farPlaneDistance, "Far plane distance must be greater than near plane distance.");
+        FixedThrowHelper.ThrowIfOutOfRange(nearPlaneDistance <= Fixed64.Zero, nameof(nearPlaneDistance), "Near plane distance must be greater than zero.");
+        FixedThrowHelper.ThrowIfOutOfRange(farPlaneDistance <= nearPlaneDistance, nameof(farPlaneDistance), "Far plane distance must be greater than near plane distance.");
     }
 
     #endregion

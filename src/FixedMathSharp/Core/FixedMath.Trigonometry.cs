@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using FixedMathSharp.Support;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -89,9 +90,7 @@ namespace FixedMathSharp
 
             if (b.m_rawValue == 0)
             {
-                if (exp.m_rawValue < 0)
-                    throw new DivideByZeroException("Cannot raise 0 to a negative power.");
-
+                FixedThrowHelper.ThrowIfDivideByZero(exp.m_rawValue < 0, "Cannot raise 0 to a negative power.");
                 return Fixed64.Zero;
             }
 
@@ -154,8 +153,7 @@ namespace FixedMathSharp
         /// </remarks>
         public static Fixed64 Log2(Fixed64 x)
         {
-            if (x.m_rawValue <= 0)
-                throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute logarithm of non-positive number.");
+            FixedThrowHelper.ThrowIfOutOfRange(x.m_rawValue <= 0, nameof(x), "Cannot compute logarithm of non-positive number.");
 
             long b = 1U << (SHIFT_AMOUNT_I - 1);  // Initial value for binary logarithm
             long y = 0;  // Result accumulator
@@ -196,9 +194,7 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 Ln(Fixed64 x)
         {
-            if (x.m_rawValue <= 0)
-                throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute logarithm of non-positive number.");
-
+            FixedThrowHelper.ThrowIfOutOfRange(x.m_rawValue <= 0, nameof(x), "Cannot compute logarithm of non-positive number.");
             return FastMul(Log2(x), Fixed64.Ln2).Round();
         }
 
@@ -207,8 +203,7 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 Sqrt(Fixed64 x)
         {
-            if (x.m_rawValue < 0)
-                throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute square root of a negative number.");
+            FixedThrowHelper.ThrowIfOutOfRange(x.m_rawValue < 0, nameof(x), "Cannot compute square root of a negative number.");
 
             ulong num = (ulong)x.m_rawValue;
             ulong result = 0UL;
@@ -416,8 +411,7 @@ namespace FixedMathSharp
         public static Fixed64 Asin(Fixed64 x)
         {
             // Ensure x is within the domain [-1, 1]
-            if (x < -Fixed64.One || x > Fixed64.One)
-                throw new ArithmeticException("Input out of domain for Asin: " + x);
+            FixedThrowHelper.ThrowIfArithmeticError(x < -Fixed64.One || x > Fixed64.One, "Input out of domain for Asin: " + x);
 
             // Handle boundary cases for -1 and 1
             if (x == Fixed64.One) return Fixed64.HalfPi;  // asin(1) = π/2
@@ -450,8 +444,7 @@ namespace FixedMathSharp
         /// <exception cref="ArgumentOutOfRangeException">Thrown if x is outside the domain [-1, 1].</exception>
         public static Fixed64 Acos(Fixed64 x)
         {
-            if (x < -Fixed64.One || x > Fixed64.One)
-                throw new ArgumentOutOfRangeException(nameof(x), "Input out of domain for Acos: " + x);
+            FixedThrowHelper.ThrowIfArithmeticError(Abs(x) > Fixed64.One, "Input out of domain for Acos: " + x);
 
             // For values near 1 or -1, the result is directly known.
             if (x == Fixed64.One) return Fixed64.Zero;      // acos(1) = 0

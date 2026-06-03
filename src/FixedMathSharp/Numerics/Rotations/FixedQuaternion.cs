@@ -324,8 +324,8 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     public static FixedQuaternion Divide(FixedQuaternion dividend, FixedQuaternion divisor)
     {
         Fixed64 divisorSqrMagnitude = divisor.SqrMagnitude;
-        if (divisorSqrMagnitude == Fixed64.Zero)
-            throw new InvalidOperationException("Quaternion divisor is not invertible.");
+
+        FixedThrowHelper.ThrowIfArithmeticError(divisorSqrMagnitude == Fixed64.Zero, "Quaternion divisor is not invertible.");
 
         Fixed64 invNorm = Fixed64.One / divisorSqrMagnitude;
         FixedQuaternion inverseDivisor = new(
@@ -462,8 +462,10 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
             axis = axis.Normalize();
 
         // Check if the angle is in a valid range (-pi, pi)
-        if (angle < -Fixed64.Pi || angle > Fixed64.Pi)
-            throw new ArgumentOutOfRangeException(nameof(angle), angle, $"Angle must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {angle}");
+        FixedThrowHelper.ThrowIfOutOfRange(
+             angle < -Fixed64.Pi || angle > Fixed64.Pi,
+             nameof(angle),
+             $"Angle must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {angle}");
 
         Fixed64 halfAngle = angle / Fixed64.Two;  // Half-angle formula
         Fixed64 sinHalfAngle = FixedMath.Sin(halfAngle);
@@ -509,12 +511,12 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
             nameof(pitch),
             $"Pitch must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {pitch}");
         FixedThrowHelper.ThrowIfOutOfRange(
-            yaw < -Fixed64.Pi || yaw > Fixed64.Pi, 
+            yaw < -Fixed64.Pi || yaw > Fixed64.Pi,
             nameof(yaw),
             $"Yaw must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {yaw}");
         FixedThrowHelper.ThrowIfOutOfRange(
-            roll < -Fixed64.Pi || roll > Fixed64.Pi, 
-            nameof(roll), 
+            roll < -Fixed64.Pi || roll > Fixed64.Pi,
+            nameof(roll),
             $"Roll must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {roll}");
 
         Fixed64 halfPitch = pitch / Fixed64.Two;
@@ -970,7 +972,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
 
     /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Equals(FixedQuaternion other) => 
+    public bool Equals(FixedQuaternion other) =>
         X == other.X && Y == other.Y && Z == other.Z && W == other.W;
 
     /// <inheritdoc/>

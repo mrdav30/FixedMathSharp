@@ -529,9 +529,9 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Abs(Vector4d value) =>
-        new(FixedMath.Abs(value.X), 
+        new(FixedMath.Abs(value.X),
             FixedMath.Abs(value.Y),
-            FixedMath.Abs(value.Z), 
+            FixedMath.Abs(value.Z),
             FixedMath.Abs(value.W));
 
     /// <summary>
@@ -539,9 +539,9 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Sign(Vector4d value) =>
-        new(value.X.Sign(), 
-            value.Y.Sign(), 
-            value.Z.Sign(), 
+        new(value.X.Sign(),
+            value.Y.Sign(),
+            value.Z.Sign(),
             value.W.Sign());
 
     /// <summary>

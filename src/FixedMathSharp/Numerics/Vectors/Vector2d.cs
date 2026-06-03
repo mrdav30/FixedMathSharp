@@ -998,7 +998,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// <param name="mag">The scalar value by which to multiply each component of the vector.</param>
     /// <returns>A new Vector2d whose components are the components of v1 multiplied by mag.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector2d operator *(Vector2d v1, Fixed64 mag) => new(v1.X* mag, v1.Y* mag);
+    public static Vector2d operator *(Vector2d v1, Fixed64 mag) => new(v1.X * mag, v1.Y * mag);
 
     /// <summary>
     /// Multiplies two vectors element-wise and returns the resulting vector.

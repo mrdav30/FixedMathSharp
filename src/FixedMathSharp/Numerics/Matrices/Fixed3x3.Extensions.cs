@@ -22,7 +22,7 @@ public static class Fixed3x3Extensions
 
     /// <inheritdoc cref="Fixed3x3.SetScale(Fixed3x3, Vector3d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 SetScale(this ref Fixed3x3 matrix, Vector3d localScale) => 
+    public static Fixed3x3 SetScale(this ref Fixed3x3 matrix, Vector3d localScale) =>
         matrix = Fixed3x3.SetScale(matrix, localScale);
 
     /// <inheritdoc cref="Fixed3x3.SetGlobalScale(Fixed3x3, Vector3d)" />
