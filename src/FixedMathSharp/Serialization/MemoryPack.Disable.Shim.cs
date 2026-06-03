@@ -24,7 +24,7 @@ namespace MemoryPack
     {
     }
 
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
     internal sealed class MemoryPackAllowSerializeAttribute : Attribute
     {
     }
