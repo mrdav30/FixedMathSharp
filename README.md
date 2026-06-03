@@ -169,6 +169,13 @@ Release build configurations:
 
 The helper script `.assets/scripts/set-version-and-build.ps1` builds both release configurations and writes release archives to `artifacts/releases/`.
 
+### Benchmarks
+
+FixedMathSharp includes a BenchmarkDotNet project for measuring hot-path scalar, vector, quaternion, matrix, and bounds behavior:
+[`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks).
+
+See [`tests/FixedMathSharp.Benchmarks/README.md`](tests/FixedMathSharp.Benchmarks/README.md) for benchmark setup, aliases, and baseline guidance.
+
 ---
 
 ## Compatibility

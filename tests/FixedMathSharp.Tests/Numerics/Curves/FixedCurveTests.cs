@@ -232,7 +232,7 @@ public class FixedCurveTests
         };
         var json = JsonSerializer.SerializeToUtf8Bytes(originalCurve, jsonOptions);
         var deserializedCurve = JsonSerializer.Deserialize<FixedCurve>(json, jsonOptions);
-        Assert.NotNull(deserializedCurve);
+        Assert.NotEqual(deserializedCurve, default); // Ensure deserialization produced a non-default value
 
         // Check that deserialized values match the original
         Assert.Equal(originalCurve, deserializedCurve);

@@ -2,7 +2,7 @@
 
 This project is the BenchmarkDotNet scaffold for FixedMathSharp hot paths.
 
-The runner, alias catalog, and deterministic fixture helpers are in place. Initial benchmark classes cover context lifecycle, registration/partitioning, simulation, query-service paths, and diagnostics.
+The runner, alias catalog, deterministic fixture helpers, and first-pass hot-path benchmark classes are in place. The initial suite covers scalar arithmetic, fixed trigonometry, vector operations, quaternion rotations, matrix transforms, and bounds checks.
 
 ## Requirements
 
@@ -41,16 +41,16 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 Aliases are derived from benchmark class names. `Benchmarks` or `Benchmark` is stripped, and the remaining words are joined with `-`.
 
-For a class named `CollisionDetectionBenchmarks`, the selection alias is `collision-detection`:
+For a class named `Vector3dBenchmarks`, the selection alias is `vector3d`:
 
 ```bash
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll collision-detection
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector3d
 ```
 
 Multiple aliases can run together:
 
 ```bash
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll collision-detection partitioning
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic vector3d
 ```
 
 ### Forward BenchmarkDotNet arguments
@@ -75,7 +75,12 @@ Do not treat short-run numbers as canonical measurements.
 
 Start with hot paths that can be isolated and repeated deterministically:
 
-- N/A
+- `Fixed64` arithmetic, division, square root, and trigonometry.
+- `Vector2d`, `Vector3d`, and `Vector4d` arithmetic, dot/cross products, normalization, distance, interpolation, and transforms.
+- `FixedQuaternion` creation, multiplication, interpolation, and vector rotation.
+- `Fixed3x3` and `Fixed4x4` creation, multiplication, inversion, and point/vector transforms.
+- Bounds containment/intersection checks and projection/clamping helpers.
+- Serialization roundtrips for standard builds when payload size and allocation behavior matter.
 
 ## Authoring Guidelines
 
@@ -84,7 +89,7 @@ Start with hot paths that can be isolated and repeated deterministically:
 - Apply `[MemoryDiagnoser]` to benchmark classes unless there is a specific reason not to.
 - Use deterministic fixtures and fixed seeds. Do not use ambient randomness in measured paths.
 - Reset or dispose context between benchmark cases so measurements do not depend on previous cases.
-- Capture both throughput and allocation impact when changing hot-path collections, pooling, collision dispatch, or broad-phase behavior.
+- Capture both throughput and allocation impact when changing hot-path arithmetic, normalization, transforms, bounds dispatch, serialization, or fixture generation.
 
 Keep support helpers specific. Remove copied template helpers when they stop serving a FixedMathSharp benchmark scenario.
 
