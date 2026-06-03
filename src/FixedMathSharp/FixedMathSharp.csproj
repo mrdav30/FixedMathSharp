@@ -1,5 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-	
+
 	<!-- General Properties -->
 	<PropertyGroup>
 		<LangVersion>11.0</LangVersion>
@@ -9,7 +9,7 @@
 		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 		<Deterministic>true</Deterministic>
 	</PropertyGroup>
-	
+
 	<!-- Git Versioning -->
 	<PropertyGroup>
 		<SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
@@ -63,7 +63,7 @@
 	<PropertyGroup Condition="'$(Configuration)' == 'ReleaseLean'">
 		<DisableMemoryPack>true</DisableMemoryPack>
 	</PropertyGroup>
-	
+
 	<PropertyGroup Condition="'$(DisableMemoryPack)' == 'true'">
 		<DefineConstants>$(DefineConstants);FIXEDMATHSHARP_DISABLE_MEMORYPACK</DefineConstants>
 		<PackageId>FixedMathSharp.Lean</PackageId>
@@ -72,7 +72,7 @@
 	<PropertyGroup Condition="'$(DisableMemoryPack)' != 'true'">
 		<PackageId>FixedMathSharp</PackageId>
 	</PropertyGroup>
-	
+
 	<PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<IncludeTransitiveProjectReferences>false</IncludeTransitiveProjectReferences>
@@ -93,11 +93,11 @@
 	<ItemGroup Condition="'$(DisableMemoryPack)' != 'true'">
 		<PackageReference Include="MemoryPack" Version="1.21.4" />
 	</ItemGroup>
-	
+
 	<ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
-		<PackageReference Include="System.Text.Json" Version="10.0.5" />
+		<PackageReference Include="System.Text.Json" Version="10.0.8" />
 	</ItemGroup>
-	
+
 	<!-- Ensure LICENSE, README, & icon files are included in the NuGet package -->
 	<ItemGroup>
 		<None Include="..\..\COPYRIGHT" Pack="true" PackagePath="\" Visible="false" />
@@ -112,5 +112,5 @@
 	<ItemGroup Condition="'$(DisableMemoryPack)' == 'true'">
 		<Compile Remove="**\*.MemoryPack.cs" />
 	</ItemGroup>
-	
+
 </Project>

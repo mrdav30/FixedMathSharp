@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <LangVersion>11.0</LangVersion>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0</TargetFrameworks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <Optimize>true</Optimize>
+    <DebugSymbols>true</DebugSymbols>
+    <NoWarn>$(NoWarn);CA1018;CA5351;CA1825</NoWarn>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Configurations>Debug;Release;ReleaseLean</Configurations>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+    <!-- The Test SDK is required only for the VSTest Adapter to work -->
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove=".gitignore" />
+  </ItemGroup>
+</Project>

@@ -16,7 +16,8 @@
     <File Path="NOTICE" />
     <File Path="README.md" />
   </Folder>
-  <Project Path="src/FixedMathSharp.FluentAssertions/FixedMathSharp.FluentAssertions.csproj" />
   <Project Path="src/FixedMathSharp/FixedMathSharp.csproj" />
+  <Project Path="src/FixedMathSharp.FluentAssertions/FixedMathSharp.FluentAssertions.csproj" />
+  <Project Path="tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj" />
   <Project Path="tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj" />
 </Solution>
