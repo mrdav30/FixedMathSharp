@@ -115,11 +115,9 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// <summary>
     /// Finds the first forward intersection with the specified frustum.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64? Intersects(FixedBoundFrustum frustum)
     {
-        if (frustum is null)
-            throw new ArgumentNullException(nameof(frustum), "Cannot test intersection against a null frustum.");
-
         return frustum.Intersects(this);
     }
 

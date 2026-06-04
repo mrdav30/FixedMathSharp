@@ -296,9 +296,6 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedEnclosureType Contains(FixedBoundFrustum frustum)
     {
-        if (frustum is null)
-            throw new ArgumentNullException(nameof(frustum), "Cannot test containment against a null frustum.");
-
         if (Contains(frustum.Min) && Contains(frustum.Max))
             return FixedEnclosureType.Contains;
 
@@ -329,9 +326,6 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundFrustum frustum)
     {
-        if (frustum is null)
-            throw new ArgumentNullException(nameof(frustum), "Cannot test intersection against a null frustum.");
-
         return frustum.Intersects(this);
     }
 

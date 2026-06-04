@@ -13,7 +13,7 @@ namespace FixedMathSharp.Bounds;
 /// <summary>
 /// Represents a frustum bounded by six clipping planes.
 /// </summary>
-public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
+public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
 {
     #region Constants
 
@@ -31,16 +31,24 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
 
     #region Fields
 
-    private Fixed4x4? _matrix;
-    private readonly Vector3d[] _corners;
-    private readonly FixedPlane[] _planes;
+    private const int EdgeCount = 12;
 
-    private static readonly (int Start, int End)[] Edges =
-    {
-        (0, 1), (1, 2), (2, 3), (3, 0),
-        (4, 5), (5, 6), (6, 7), (7, 4),
-        (0, 4), (1, 5), (2, 6), (3, 7)
-    };
+    private bool _hasMatrix;
+    private Fixed4x4 _matrix;
+    private FixedPlane _near;
+    private FixedPlane _far;
+    private FixedPlane _left;
+    private FixedPlane _right;
+    private FixedPlane _top;
+    private FixedPlane _bottom;
+    private Vector3d _nearTopLeft;
+    private Vector3d _nearTopRight;
+    private Vector3d _nearBottomRight;
+    private Vector3d _nearBottomLeft;
+    private Vector3d _farTopLeft;
+    private Vector3d _farTopRight;
+    private Vector3d _farBottomRight;
+    private Vector3d _farBottomLeft;
 
     #endregion
 
@@ -51,8 +59,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// </summary>
     public FixedBoundFrustum(Fixed4x4 matrix)
     {
-        _corners = new Vector3d[CornerCount];
-        _planes = new FixedPlane[PlaneCount];
+        this = default;
         SetMatrix(matrix);
     }
 
@@ -67,8 +74,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         FixedPlane top,
         FixedPlane bottom)
     {
-        _corners = new Vector3d[CornerCount];
-        _planes = new FixedPlane[PlaneCount];
+        this = default;
         SetPlanes(near, far, left, right, top, bottom);
     }
 
@@ -83,8 +89,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         if (planes.Length != PlaneCount)
             throw new ArgumentException($"A frustum must be defined by exactly {PlaneCount} planes.");
 
-        _corners = new Vector3d[CornerCount];
-        _planes = new FixedPlane[PlaneCount];
+        this = default;
         SetPlanes(planes);
     }
 
@@ -98,7 +103,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     public bool HasMatrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _matrix.HasValue;
+        get => _hasMatrix;
     }
 
     /// <summary>
@@ -110,7 +115,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     public Fixed4x4 Matrix
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _matrix ?? throw new InvalidOperationException("This frustum was not created from a matrix.");
+        get => _hasMatrix ? _matrix : throw new InvalidOperationException("This frustum was not created from a matrix.");
         set => SetMatrix(value);
     }
 
@@ -120,7 +125,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     public FixedPlane Near
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _planes[0];
+        get => _near;
     }
 
     /// <summary>
@@ -129,7 +134,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     public FixedPlane Far
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _planes[1];
+        get => _far;
     }
 
     /// <summary>
@@ -138,7 +143,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     public FixedPlane Left
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _planes[2];
+        get => _left;
     }
 
     /// <summary>
@@ -147,7 +152,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     public FixedPlane Right
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _planes[3];
+        get => _right;
     }
 
     /// <summary>
@@ -156,7 +161,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     public FixedPlane Top
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _planes[4];
+        get => _top;
     }
 
     /// <summary>
@@ -165,7 +170,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     public FixedPlane Bottom
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _planes[5];
+        get => _bottom;
     }
 
     /// <summary>
@@ -187,13 +192,14 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// </summary>
     public FixedEnclosureType Contains(Vector3d point)
     {
-        for (int i = 0; i < PlaneCount; i++)
-        {
-            if (_planes[i].DotCoordinate(point) > Fixed64.Zero)
-                return FixedEnclosureType.Disjoint;
-        }
-
-        return FixedEnclosureType.Contains;
+        return _near.DotCoordinate(point) > Fixed64.Zero
+            || _far.DotCoordinate(point) > Fixed64.Zero
+            || _left.DotCoordinate(point) > Fixed64.Zero
+            || _right.DotCoordinate(point) > Fixed64.Zero
+            || _top.DotCoordinate(point) > Fixed64.Zero
+            || _bottom.DotCoordinate(point) > Fixed64.Zero
+                ? FixedEnclosureType.Disjoint
+                : FixedEnclosureType.Contains;
     }
 
     /// <summary>
@@ -203,17 +209,13 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     {
         bool intersects = false;
 
-        for (int i = 0; i < PlaneCount; i++)
-        {
-            switch (_planes[i].Intersects(box))
-            {
-                case FixedPlaneIntersectionType.Front:
-                    return FixedEnclosureType.Disjoint;
-                case FixedPlaneIntersectionType.Intersecting:
-                    intersects = true;
-                    break;
-            }
-        }
+        if (DisjointOrIntersects(_near, box, ref intersects)
+            || DisjointOrIntersects(_far, box, ref intersects)
+            || DisjointOrIntersects(_left, box, ref intersects)
+            || DisjointOrIntersects(_right, box, ref intersects)
+            || DisjointOrIntersects(_top, box, ref intersects)
+            || DisjointOrIntersects(_bottom, box, ref intersects))
+            return FixedEnclosureType.Disjoint;
 
         return intersects ? FixedEnclosureType.Intersects : FixedEnclosureType.Contains;
     }
@@ -225,17 +227,13 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     {
         bool intersects = false;
 
-        for (int i = 0; i < PlaneCount; i++)
-        {
-            switch (_planes[i].Intersects(area))
-            {
-                case FixedPlaneIntersectionType.Front:
-                    return FixedEnclosureType.Disjoint;
-                case FixedPlaneIntersectionType.Intersecting:
-                    intersects = true;
-                    break;
-            }
-        }
+        if (DisjointOrIntersects(_near, area, ref intersects)
+            || DisjointOrIntersects(_far, area, ref intersects)
+            || DisjointOrIntersects(_left, area, ref intersects)
+            || DisjointOrIntersects(_right, area, ref intersects)
+            || DisjointOrIntersects(_top, area, ref intersects)
+            || DisjointOrIntersects(_bottom, area, ref intersects))
+            return FixedEnclosureType.Disjoint;
 
         return intersects ? FixedEnclosureType.Intersects : FixedEnclosureType.Contains;
     }
@@ -247,17 +245,13 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     {
         bool intersects = false;
 
-        for (int i = 0; i < PlaneCount; i++)
-        {
-            switch (_planes[i].Intersects(sphere))
-            {
-                case FixedPlaneIntersectionType.Front:
-                    return FixedEnclosureType.Disjoint;
-                case FixedPlaneIntersectionType.Intersecting:
-                    intersects = true;
-                    break;
-            }
-        }
+        if (DisjointOrIntersects(_near, sphere, ref intersects)
+            || DisjointOrIntersects(_far, sphere, ref intersects)
+            || DisjointOrIntersects(_left, sphere, ref intersects)
+            || DisjointOrIntersects(_right, sphere, ref intersects)
+            || DisjointOrIntersects(_top, sphere, ref intersects)
+            || DisjointOrIntersects(_bottom, sphere, ref intersects))
+            return FixedEnclosureType.Disjoint;
 
         return intersects ? FixedEnclosureType.Intersects : FixedEnclosureType.Contains;
     }
@@ -267,16 +261,13 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// </summary>
     public FixedEnclosureType Contains(FixedBoundFrustum frustum)
     {
-        if (frustum is null)
-            throw new ArgumentNullException(nameof(frustum), "Cannot test containment against a null frustum.");
-
         if (Equals(frustum))
             return FixedEnclosureType.Contains;
 
         bool containsAllCorners = true;
         for (int i = 0; i < CornerCount; i++)
         {
-            if (Contains(frustum._corners[i]) == FixedEnclosureType.Disjoint)
+            if (Contains(frustum.GetCorner(i)) == FixedEnclosureType.Disjoint)
             {
                 containsAllCorners = false;
                 break;
@@ -323,34 +314,13 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         Fixed64 tEnter = Fixed64.Zero;
         Fixed64 tExit = Fixed64.MaxValue;
 
-        for (int i = 0; i < PlaneCount; i++)
-        {
-            FixedPlane plane = _planes[i];
-            Fixed64 distance = plane.DotCoordinate(ray.Position);
-            Fixed64 denominator = plane.DotNormal(ray.Direction);
-
-            if (FixedRay.IsNearlyZero(denominator))
-            {
-                if (distance > Fixed64.Zero)
-                    return null;
-
-                continue;
-            }
-
-            Fixed64 t = -distance / denominator;
-            if (denominator < Fixed64.Zero)
-            {
-                if (t > tEnter)
-                    tEnter = t;
-            }
-            else if (t < tExit)
-            {
-                tExit = t;
-            }
-
-            if (tEnter > tExit)
-                return null;
-        }
+        if (!ClipRay(_near, ray, ref tEnter, ref tExit)
+            || !ClipRay(_far, ray, ref tEnter, ref tExit)
+            || !ClipRay(_left, ray, ref tEnter, ref tExit)
+            || !ClipRay(_right, ray, ref tEnter, ref tExit)
+            || !ClipRay(_top, ray, ref tEnter, ref tExit)
+            || !ClipRay(_bottom, ray, ref tEnter, ref tExit))
+            return null;
 
         return tEnter;
     }
@@ -360,11 +330,11 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// </summary>
     public FixedPlaneIntersectionType Intersects(FixedPlane plane)
     {
-        FixedPlaneIntersectionType result = plane.Intersects(_corners[0]);
+        FixedPlaneIntersectionType result = plane.Intersects(_nearTopLeft);
 
         for (int i = 1; i < CornerCount; i++)
         {
-            if (plane.Intersects(_corners[i]) != result)
+            if (plane.Intersects(GetCorner(i)) != result)
                 return FixedPlaneIntersectionType.Intersecting;
         }
 
@@ -379,22 +349,22 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         if (Contains(point) != FixedEnclosureType.Disjoint)
             return point;
 
-        Vector3d best = _corners[0];
+        Vector3d best = _nearTopLeft;
         Fixed64 bestDistance = Vector3d.SqrDistance(point, best);
 
         for (int i = 1; i < CornerCount; i++)
-            UpdateNearestCandidate(point, _corners[i], ref best, ref bestDistance);
+            UpdateNearestCandidate(point, GetCorner(i), ref best, ref bestDistance);
 
         for (int i = 0; i < PlaneCount; i++)
         {
-            Vector3d candidate = Vector3d.ProjectOnPlane(point, _planes[i]);
+            Vector3d candidate = Vector3d.ProjectOnPlane(point, GetPlane(i));
             if (IsInside(candidate))
                 UpdateNearestCandidate(point, candidate, ref best, ref bestDistance);
         }
 
-        for (int i = 0; i < Edges.Length; i++)
+        for (int i = 0; i < EdgeCount; i++)
         {
-            Vector3d candidate = Vector3d.ClosestPointOnLineSegment(point, _corners[Edges[i].Start], _corners[Edges[i].End]);
+            Vector3d candidate = Vector3d.ClosestPointOnLineSegment(point, GetCorner(GetEdgeStart(i)), GetCorner(GetEdgeEnd(i)));
             UpdateNearestCandidate(point, candidate, ref best, ref bestDistance);
         }
 
@@ -407,7 +377,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     public Vector3d[] GetCorners()
     {
         var corners = new Vector3d[CornerCount];
-        Array.Copy(_corners, corners, CornerCount);
+        GetCorners(corners);
         return corners;
     }
 
@@ -422,7 +392,14 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         if (corners.Length < CornerCount)
             throw new ArgumentOutOfRangeException(nameof(corners), $"The destination array must have at least {CornerCount} elements to hold all corners.");
 
-        Array.Copy(_corners, corners, CornerCount);
+        corners[0] = _nearTopLeft;
+        corners[1] = _nearTopRight;
+        corners[2] = _nearBottomRight;
+        corners[3] = _nearBottomLeft;
+        corners[4] = _farTopLeft;
+        corners[5] = _farTopRight;
+        corners[6] = _farBottomRight;
+        corners[7] = _farBottomLeft;
     }
 
     /// <summary>
@@ -431,7 +408,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     public FixedPlane[] GetPlanes()
     {
         var planes = new FixedPlane[PlaneCount];
-        Array.Copy(_planes, planes, PlaneCount);
+        GetPlanes(planes);
         return planes;
     }
 
@@ -446,12 +423,56 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         if (planes.Length < PlaneCount)
             throw new ArgumentOutOfRangeException(nameof(planes), $"The destination array must have at least {PlaneCount} elements to hold all planes.");
 
-        Array.Copy(_planes, planes, PlaneCount);
+        planes[0] = _near;
+        planes[1] = _far;
+        planes[2] = _left;
+        planes[3] = _right;
+        planes[4] = _top;
+        planes[5] = _bottom;
+    }
+
+    /// <summary>
+    /// Gets the corner at the specified stable index without allocating.
+    /// </summary>
+    public Vector3d GetCorner(int index)
+    {
+        switch (index)
+        {
+            case 0: return _nearTopLeft;
+            case 1: return _nearTopRight;
+            case 2: return _nearBottomRight;
+            case 3: return _nearBottomLeft;
+            case 4: return _farTopLeft;
+            case 5: return _farTopRight;
+            case 6: return _farBottomRight;
+            case 7: return _farBottomLeft;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(index), $"Corner index must be between 0 and {CornerCount - 1}.");
+        }
+    }
+
+    /// <summary>
+    /// Gets the plane at the specified stable index in near, far, left, right, top, bottom order without allocating.
+    /// </summary>
+    public FixedPlane GetPlane(int index)
+    {
+        switch (index)
+        {
+            case 0: return _near;
+            case 1: return _far;
+            case 2: return _left;
+            case 3: return _right;
+            case 4: return _top;
+            case 5: return _bottom;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(index), $"Plane index must be between 0 and {PlaneCount - 1}.");
+        }
     }
 
     private void SetMatrix(Fixed4x4 matrix)
     {
         _matrix = matrix;
+        _hasMatrix = true;
         CreatePlanes(matrix);
         CreateCorners();
         UpdateBounds();
@@ -459,10 +480,15 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
 
     private void SetPlanes(FixedPlane[] planes)
     {
-        for (int i = 0; i < PlaneCount; i++)
-            _planes[i] = FixedPlane.Normalize(planes[i]);
+        _near = FixedPlane.Normalize(planes[0]);
+        _far = FixedPlane.Normalize(planes[1]);
+        _left = FixedPlane.Normalize(planes[2]);
+        _right = FixedPlane.Normalize(planes[3]);
+        _top = FixedPlane.Normalize(planes[4]);
+        _bottom = FixedPlane.Normalize(planes[5]);
 
-        _matrix = null;
+        _hasMatrix = false;
+        _matrix = default;
         CreateCorners();
         UpdateBounds();
     }
@@ -475,49 +501,51 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         FixedPlane top,
         FixedPlane bottom)
     {
-        _planes[0] = FixedPlane.Normalize(near);
-        _planes[1] = FixedPlane.Normalize(far);
-        _planes[2] = FixedPlane.Normalize(left);
-        _planes[3] = FixedPlane.Normalize(right);
-        _planes[4] = FixedPlane.Normalize(top);
-        _planes[5] = FixedPlane.Normalize(bottom);
+        _near = FixedPlane.Normalize(near);
+        _far = FixedPlane.Normalize(far);
+        _left = FixedPlane.Normalize(left);
+        _right = FixedPlane.Normalize(right);
+        _top = FixedPlane.Normalize(top);
+        _bottom = FixedPlane.Normalize(bottom);
 
-        _matrix = null;
+        _hasMatrix = false;
+        _matrix = default;
         CreateCorners();
         UpdateBounds();
     }
 
     private void CreatePlanes(Fixed4x4 matrix)
     {
-        _planes[0] = FixedPlane.Normalize(new FixedPlane(-matrix.M13, -matrix.M23, -matrix.M33, -matrix.M43));
-        _planes[1] = FixedPlane.Normalize(new FixedPlane(matrix.M13 - matrix.M14, matrix.M23 - matrix.M24, matrix.M33 - matrix.M34, matrix.M43 - matrix.M44));
-        _planes[2] = FixedPlane.Normalize(new FixedPlane(-matrix.M14 - matrix.M11, -matrix.M24 - matrix.M21, -matrix.M34 - matrix.M31, -matrix.M44 - matrix.M41));
-        _planes[3] = FixedPlane.Normalize(new FixedPlane(matrix.M11 - matrix.M14, matrix.M21 - matrix.M24, matrix.M31 - matrix.M34, matrix.M41 - matrix.M44));
-        _planes[4] = FixedPlane.Normalize(new FixedPlane(matrix.M12 - matrix.M14, matrix.M22 - matrix.M24, matrix.M32 - matrix.M34, matrix.M42 - matrix.M44));
-        _planes[5] = FixedPlane.Normalize(new FixedPlane(-matrix.M14 - matrix.M12, -matrix.M24 - matrix.M22, -matrix.M34 - matrix.M32, -matrix.M44 - matrix.M42));
+        _near = FixedPlane.Normalize(new FixedPlane(-matrix.M13, -matrix.M23, -matrix.M33, -matrix.M43));
+        _far = FixedPlane.Normalize(new FixedPlane(matrix.M13 - matrix.M14, matrix.M23 - matrix.M24, matrix.M33 - matrix.M34, matrix.M43 - matrix.M44));
+        _left = FixedPlane.Normalize(new FixedPlane(-matrix.M14 - matrix.M11, -matrix.M24 - matrix.M21, -matrix.M34 - matrix.M31, -matrix.M44 - matrix.M41));
+        _right = FixedPlane.Normalize(new FixedPlane(matrix.M11 - matrix.M14, matrix.M21 - matrix.M24, matrix.M31 - matrix.M34, matrix.M41 - matrix.M44));
+        _top = FixedPlane.Normalize(new FixedPlane(matrix.M12 - matrix.M14, matrix.M22 - matrix.M24, matrix.M32 - matrix.M34, matrix.M42 - matrix.M44));
+        _bottom = FixedPlane.Normalize(new FixedPlane(-matrix.M14 - matrix.M12, -matrix.M24 - matrix.M22, -matrix.M34 - matrix.M32, -matrix.M44 - matrix.M42));
     }
 
     private void CreateCorners()
     {
-        _corners[0] = IntersectionPoint(_planes[0], _planes[2], _planes[4]);
-        _corners[1] = IntersectionPoint(_planes[0], _planes[3], _planes[4]);
-        _corners[2] = IntersectionPoint(_planes[0], _planes[3], _planes[5]);
-        _corners[3] = IntersectionPoint(_planes[0], _planes[2], _planes[5]);
-        _corners[4] = IntersectionPoint(_planes[1], _planes[2], _planes[4]);
-        _corners[5] = IntersectionPoint(_planes[1], _planes[3], _planes[4]);
-        _corners[6] = IntersectionPoint(_planes[1], _planes[3], _planes[5]);
-        _corners[7] = IntersectionPoint(_planes[1], _planes[2], _planes[5]);
+        _nearTopLeft = IntersectionPoint(_near, _left, _top);
+        _nearTopRight = IntersectionPoint(_near, _right, _top);
+        _nearBottomRight = IntersectionPoint(_near, _right, _bottom);
+        _nearBottomLeft = IntersectionPoint(_near, _left, _bottom);
+        _farTopLeft = IntersectionPoint(_far, _left, _top);
+        _farTopRight = IntersectionPoint(_far, _right, _top);
+        _farBottomRight = IntersectionPoint(_far, _right, _bottom);
+        _farBottomLeft = IntersectionPoint(_far, _left, _bottom);
     }
 
     private void UpdateBounds()
     {
-        Vector3d min = _corners[0];
-        Vector3d max = _corners[0];
+        Vector3d min = _nearTopLeft;
+        Vector3d max = _nearTopLeft;
 
         for (int i = 1; i < CornerCount; i++)
         {
-            min = Vector3d.Min(min, _corners[i]);
-            max = Vector3d.Max(max, _corners[i]);
+            Vector3d corner = GetCorner(i);
+            min = Vector3d.Min(min, corner);
+            max = Vector3d.Max(max, corner);
         }
 
         Min = min;
@@ -543,7 +571,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     {
         for (int i = 0; i < PlaneCount; i++)
         {
-            if (_planes[i].DotCoordinate(point) > Fixed64.Zero)
+            if (GetPlane(i).DotCoordinate(point) > Fixed64.Zero)
                 return false;
         }
 
@@ -564,30 +592,30 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         bestDistance = candidateDistance;
     }
 
-    private bool IntersectsFrustum(FixedBoundFrustum other)
+    private bool IntersectsFrustum(in FixedBoundFrustum other)
     {
         for (int i = 0; i < PlaneCount; i++)
         {
-            if (Separates(_planes[i].Normal, _corners, other._corners))
+            if (Separates(GetPlane(i).Normal, this, other))
                 return false;
 
-            if (Separates(other._planes[i].Normal, _corners, other._corners))
+            if (Separates(other.GetPlane(i).Normal, this, other))
                 return false;
         }
 
-        for (int i = 0; i < Edges.Length; i++)
+        for (int i = 0; i < EdgeCount; i++)
         {
-            Vector3d edgeA = _corners[Edges[i].End] - _corners[Edges[i].Start];
+            Vector3d edgeA = GetCorner(GetEdgeEnd(i)) - GetCorner(GetEdgeStart(i));
 
-            for (int j = 0; j < Edges.Length; j++)
+            for (int j = 0; j < EdgeCount; j++)
             {
-                Vector3d edgeB = other._corners[Edges[j].End] - other._corners[Edges[j].Start];
+                Vector3d edgeB = other.GetCorner(GetEdgeEnd(j)) - other.GetCorner(GetEdgeStart(j));
                 Vector3d axis = Vector3d.Cross(edgeA, edgeB);
 
                 if (axis.SqrMagnitude <= Fixed64.Epsilon)
                     continue;
 
-                if (Separates(axis, _corners, other._corners))
+                if (Separates(axis, this, other))
                     return false;
             }
         }
@@ -595,7 +623,75 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         return true;
     }
 
-    private static bool Separates(Vector3d axis, Vector3d[] a, Vector3d[] b)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool DisjointOrIntersects(FixedPlane plane, FixedBoundBox box, ref bool intersects)
+    {
+        switch (plane.Intersects(box))
+        {
+            case FixedPlaneIntersectionType.Front:
+                return true;
+            case FixedPlaneIntersectionType.Intersecting:
+                intersects = true;
+                break;
+        }
+
+        return false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool DisjointOrIntersects(FixedPlane plane, FixedBoundArea area, ref bool intersects)
+    {
+        switch (plane.Intersects(area))
+        {
+            case FixedPlaneIntersectionType.Front:
+                return true;
+            case FixedPlaneIntersectionType.Intersecting:
+                intersects = true;
+                break;
+        }
+
+        return false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool DisjointOrIntersects(FixedPlane plane, FixedBoundSphere sphere, ref bool intersects)
+    {
+        switch (plane.Intersects(sphere))
+        {
+            case FixedPlaneIntersectionType.Front:
+                return true;
+            case FixedPlaneIntersectionType.Intersecting:
+                intersects = true;
+                break;
+        }
+
+        return false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool ClipRay(FixedPlane plane, FixedRay ray, ref Fixed64 tEnter, ref Fixed64 tExit)
+    {
+        Fixed64 distance = plane.DotCoordinate(ray.Position);
+        Fixed64 denominator = plane.DotNormal(ray.Direction);
+
+        if (FixedRay.IsNearlyZero(denominator))
+            return distance <= Fixed64.Zero;
+
+        Fixed64 t = -distance / denominator;
+        if (denominator < Fixed64.Zero)
+        {
+            if (t > tEnter)
+                tEnter = t;
+        }
+        else if (t < tExit)
+        {
+            tExit = t;
+        }
+
+        return tEnter <= tExit;
+    }
+
+    private static bool Separates(Vector3d axis, in FixedBoundFrustum a, in FixedBoundFrustum b)
     {
         Project(axis, a, out Fixed64 minA, out Fixed64 maxA);
         Project(axis, b, out Fixed64 minB, out Fixed64 maxB);
@@ -603,18 +699,60 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         return maxA < minB || maxB < minA;
     }
 
-    private static void Project(Vector3d axis, Vector3d[] corners, out Fixed64 min, out Fixed64 max)
+    private static void Project(Vector3d axis, in FixedBoundFrustum frustum, out Fixed64 min, out Fixed64 max)
     {
-        min = Vector3d.Dot(axis, corners[0]);
+        min = Vector3d.Dot(axis, frustum._nearTopLeft);
         max = min;
 
         for (int i = 1; i < CornerCount; i++)
         {
-            Fixed64 projected = Vector3d.Dot(axis, corners[i]);
+            Fixed64 projected = Vector3d.Dot(axis, frustum.GetCorner(i));
             if (projected < min)
                 min = projected;
             else if (projected > max)
                 max = projected;
+        }
+    }
+
+    private static int GetEdgeStart(int edge)
+    {
+        switch (edge)
+        {
+            case 0: return 0;
+            case 1: return 1;
+            case 2: return 2;
+            case 3: return 3;
+            case 4: return 4;
+            case 5: return 5;
+            case 6: return 6;
+            case 7: return 7;
+            case 8: return 0;
+            case 9: return 1;
+            case 10: return 2;
+            case 11: return 3;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(edge), $"Edge index must be between 0 and {EdgeCount - 1}.");
+        }
+    }
+
+    private static int GetEdgeEnd(int edge)
+    {
+        switch (edge)
+        {
+            case 0: return 1;
+            case 1: return 2;
+            case 2: return 3;
+            case 3: return 0;
+            case 4: return 5;
+            case 5: return 6;
+            case 6: return 7;
+            case 7: return 4;
+            case 8: return 4;
+            case 9: return 5;
+            case 10: return 6;
+            case 11: return 7;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(edge), $"Edge index must be between 0 and {EdgeCount - 1}.");
         }
     }
 
@@ -623,18 +761,14 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     #region Equality
 
     /// <inheritdoc/>
-    public bool Equals(FixedBoundFrustum? other)
+    public bool Equals(FixedBoundFrustum other)
     {
-        if (other == null)
-            return false;
-
-        for (int i = 0; i < PlaneCount; i++)
-        {
-            if (_planes[i] != other._planes[i])
-                return false;
-        }
-
-        return true;
+        return _near == other._near
+            && _far == other._far
+            && _left == other._left
+            && _right == other._right
+            && _top == other._top
+            && _bottom == other._bottom;
     }
 
     /// <inheritdoc/>
@@ -643,7 +777,7 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// <inheritdoc/>
     public override int GetHashCode()
     {
-        return HashCode.Combine(_planes[0], _planes[1], _planes[2], _planes[3], _planes[4], _planes[5]);
+        return HashCode.Combine(_near, _far, _left, _right, _top, _bottom);
     }
 
     #endregion

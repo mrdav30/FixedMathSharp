@@ -203,9 +203,17 @@ public class FixedBoundSphereTests
     }
 
     [Fact]
-    public void CreateFromFrustum_NullFrustum_Throws()
+    public void CreateFromFrustum_DoesNotAllocate()
     {
-        Assert.Throws<ArgumentNullException>(() => FixedBoundSphere.CreateFromFrustum(null!));
+        var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
+
+        _ = FixedBoundSphere.CreateFromFrustum(frustum);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        _ = FixedBoundSphere.CreateFromFrustum(frustum);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
     }
 
     [Fact]
@@ -406,15 +414,6 @@ public class FixedBoundSphereTests
         Assert.Equal(new Vector3d(1, 2, 3), center);
         Assert.Equal(new Fixed64(5), radius);
         Assert.Equal("{Center:(1, 2, 3) Radius:5}", sphere.ToString());
-    }
-
-    [Fact]
-    public void ContainsAndIntersects_NullFrustum_Throw()
-    {
-        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
-
-        Assert.Throws<ArgumentNullException>(() => sphere.Contains((FixedBoundFrustum)null!));
-        Assert.Throws<ArgumentNullException>(() => sphere.Intersects((FixedBoundFrustum)null!));
     }
 
     #endregion

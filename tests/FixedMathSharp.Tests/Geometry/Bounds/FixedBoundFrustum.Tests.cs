@@ -23,6 +23,18 @@ public class FixedBoundFrustumTests
     }
 
     [Fact]
+    public void Constructor_Matrix_DoesNotAllocate()
+    {
+        _ = new FixedBoundFrustum(Fixed4x4.Identity);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        _ = new FixedBoundFrustum(Fixed4x4.Identity);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+    }
+
+    [Fact]
     public void GetCorners_ReturnsCopyInStableOrder()
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
@@ -163,14 +175,6 @@ public class FixedBoundFrustumTests
         Assert.Equal(FixedEnclosureType.Contains, frustum.Contains(frustum));
         Assert.Equal(FixedEnclosureType.Contains, frustum.Contains(nested));
         Assert.True(frustum.Intersects(nested));
-    }
-
-    [Fact]
-    public void Contains_BoundingFrustum_NullFrustum_Throws()
-    {
-        var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
-
-        Assert.Throws<ArgumentNullException>(() => frustum.Contains((FixedBoundFrustum)null!));
     }
 
     [Fact]

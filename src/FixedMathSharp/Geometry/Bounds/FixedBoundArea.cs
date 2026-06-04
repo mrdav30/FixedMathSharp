@@ -251,9 +251,6 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedEnclosureType Contains(FixedBoundFrustum frustum)
     {
-        if (frustum is null)
-            throw new ArgumentNullException(nameof(frustum));
-
         if (Contains(frustum.Min) && Contains(frustum.Max))
             return FixedEnclosureType.Contains;
 
@@ -284,9 +281,6 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundFrustum frustum)
     {
-        if (frustum is null)
-            throw new ArgumentNullException(nameof(frustum));
-
         return frustum.Intersects(this);
     }
 

@@ -121,15 +121,6 @@ public class FixedBoundBoxTests
     }
 
     [Fact]
-    public void ContainsAndIntersects_NullFrustum_Throw()
-    {
-        var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
-
-        Assert.Throws<System.ArgumentNullException>(() => box.Contains((FixedBoundFrustum)null!));
-        Assert.Throws<System.ArgumentNullException>(() => box.Intersects((FixedBoundFrustum)null!));
-    }
-
-    [Fact]
     public void Contains_TypedBounds_ReturnsContainmentClassification()
     {
         var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(4, 4, 4));

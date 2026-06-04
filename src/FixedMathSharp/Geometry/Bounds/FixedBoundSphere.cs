@@ -127,10 +127,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     /// </summary>
     public static FixedBoundSphere CreateFromFrustum(FixedBoundFrustum frustum)
     {
-        if (frustum is null)
-            throw new ArgumentNullException(nameof(frustum), "Cannot create a bounding sphere from a null frustum.");
-
-        return CreateFromPoints(frustum.GetCorners());
+        return CreateFromFrustumCorners(frustum);
     }
 
     /// <summary>
@@ -237,6 +234,70 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
         return new FixedBoundSphere(center, radius);
     }
 
+    private static FixedBoundSphere CreateFromFrustumCorners(FixedBoundFrustum frustum)
+    {
+        Vector3d minX = frustum.GetCorner(0);
+        Vector3d maxX = minX;
+        Vector3d minY = minX;
+        Vector3d maxY = minX;
+        Vector3d minZ = minX;
+        Vector3d maxZ = minX;
+
+        for (int i = 1; i < FixedBoundFrustum.CornerCount; i++)
+        {
+            Vector3d point = frustum.GetCorner(i);
+
+            if (point.X < minX.X) minX = point;
+            if (point.X > maxX.X) maxX = point;
+            if (point.Y < minY.Y) minY = point;
+            if (point.Y > maxY.Y) maxY = point;
+            if (point.Z < minZ.Z) minZ = point;
+            if (point.Z > maxZ.Z) maxZ = point;
+        }
+
+        Fixed64 sqDistX = Vector3d.SqrDistance(maxX, minX);
+        Fixed64 sqDistY = Vector3d.SqrDistance(maxY, minY);
+        Fixed64 sqDistZ = Vector3d.SqrDistance(maxZ, minZ);
+
+        Vector3d min = minX;
+        Vector3d max = maxX;
+        Fixed64 largestDistance = sqDistX;
+
+        if (sqDistY > largestDistance)
+        {
+            min = minY;
+            max = maxY;
+            largestDistance = sqDistY;
+        }
+
+        if (sqDistZ > largestDistance)
+        {
+            min = minZ;
+            max = maxZ;
+        }
+
+        Vector3d center = (min + max) * Fixed64.Half;
+        Fixed64 radius = Vector3d.Distance(max, center);
+        Fixed64 sqRadius = radius * radius;
+
+        for (int i = 0; i < FixedBoundFrustum.CornerCount; i++)
+        {
+            Vector3d point = frustum.GetCorner(i);
+            Vector3d diff = point - center;
+            Fixed64 sqDistance = diff.SqrMagnitude;
+            if (sqDistance <= sqRadius)
+                continue;
+
+            Fixed64 distance = FixedMath.Sqrt(sqDistance);
+            Fixed64 newRadius = (radius + distance) * Fixed64.Half;
+            center += diff * ((distance - radius) / (Fixed64.Two * distance));
+            radius = newRadius;
+            sqRadius = EnsureRadiusContainsPoint(point, center, ref radius);
+        }
+
+        return new FixedBoundSphere(center, radius);
+    }
+
     private static Fixed64 EnsureRadiusContainsPoint(Vector3d point, Vector3d center, ref Fixed64 radius)
     {
         Fixed64 sqRadius = radius * radius;
@@ -310,15 +371,11 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     /// </summary>
     public FixedEnclosureType Contains(FixedBoundFrustum frustum)
     {
-        if (frustum is null)
-            throw new ArgumentNullException(nameof(frustum), "Cannot test containment against a null frustum.");
-
-        Vector3d[] corners = frustum.GetCorners();
         bool containsAllCorners = true;
 
-        for (int i = 0; i < corners.Length; i++)
+        for (int i = 0; i < FixedBoundFrustum.CornerCount; i++)
         {
-            if (!Contains(corners[i]))
+            if (!Contains(frustum.GetCorner(i)))
             {
                 containsAllCorners = false;
                 break;
@@ -357,9 +414,6 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundFrustum frustum)
     {
-        if (frustum is null)
-            throw new ArgumentNullException(nameof(frustum), "Cannot test intersection against a null frustum.");
-
         return frustum.Intersects(this);
     }
 

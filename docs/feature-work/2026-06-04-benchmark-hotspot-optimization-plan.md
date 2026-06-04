@@ -25,6 +25,8 @@ xUnit, MemoryPack, System.Text.Json, `Release`, and `ReleaseLean`.
 
 ## Phase 1: Frustum Construction Allocation
 
+**Status:** Complete on 2026-06-04.
+
 **Why:** `BoundsBenchmarks.FrustumCreateFromMatrix` was the only
 non-serialization benchmark with managed allocation in the full baseline:
 933,380.6 ns and 165,888 B per benchmark operation.
@@ -32,15 +34,47 @@ non-serialization benchmark with managed allocation in the full baseline:
 **Likely cause:** `FixedBoundFrustum` is a sealed reference type and owns
 `Vector3d[8]` plus `FixedPlane[6]` arrays per instance.
 
-- [ ] Decide whether frustum construction is expected to be frequent enough to
+- [x] Decide whether frustum construction is expected to be frequent enough to
   justify a public allocation-free construction path.
-- [ ] Investigate internal fixed-field storage, caller-provided buffers, pooling,
+- [x] Investigate internal fixed-field storage, caller-provided buffers, pooling,
   or a value-type/lightweight frustum variant without breaking existing public
   API expectations.
-- [ ] Preserve `GetCorners`/`GetPlanes` array overloads and existing allocation
+- [x] Preserve `GetCorners`/`GetPlanes` array overloads and existing allocation
   regression tests.
-- [ ] Add focused benchmarks for constructor-only cost, matrix-set cost, and
+- [x] Add focused benchmarks for constructor-only cost, matrix-set cost, and
   repeated contains/intersects reuse.
+
+Result:
+
+- Converted `FixedBoundFrustum` from a sealed reference type with owned plane
+  and corner arrays into a value type with fixed plane/corner fields. This is an
+  intentional major-version breaking change that removes per-frustum object and
+  array allocation instead of adding a pooled or parallel lightweight API.
+- Added allocation regression tests for `new FixedBoundFrustum(matrix)` and
+  `FixedBoundSphere.CreateFromFrustum(frustum)`.
+- Added benchmark probes for `FrustumConstructOnly` and `FrustumSetMatrix`; the
+  existing frustum containment/intersection benchmarks continue to cover reused
+  frustum scenarios.
+- Removed obsolete null-frustum tests and null guards at call sites, because a
+  value-type frustum is no longer nullable.
+
+Focused `ShortRun` evidence:
+
+| Benchmark | Before | After |
+| --- | ---: | ---: |
+| `FrustumCreateFromMatrix` | 881.994 us, 165,888 B | 853.613 us, 0 B |
+| `FrustumConstructOnly` | not captured | 858.154 us, 0 B |
+| `FrustumSetMatrix` | not captured | 829.007 us, 0 B |
+| `FrustumContainsPoint` | 17.958 us, 0 B | 17.179 us, 0 B |
+| `FrustumIntersectsSphere` | 29.102 us, 0 B | 28.128 us, 0 B |
+| `FrustumIntersectsRay` | 122.210 us, 0 B | 118.882 us, 0 B |
+| `FrustumGetCornersIntoArray` | 2.370 us, 0 B | 1.880 us, 0 B |
+| `FrustumGetPlanesIntoArray` | 2.202 us, 0 B | 1.140 us, 0 B |
+
+Note: `FrustumIntersectsBox` measured 33.620 us before and 38.621 us after in
+the focused short runs. The allocation fix does not change box/frustum
+algorithmic complexity, so treat this as a follow-up candidate only if a full
+baseline confirms a real regression outside short-run noise.
 
 Verification:
 

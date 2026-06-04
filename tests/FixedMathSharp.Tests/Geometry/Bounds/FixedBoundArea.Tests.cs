@@ -173,15 +173,6 @@ public class FixedBoundAreaTests
     }
 
     [Fact]
-    public void ContainsAndIntersects_NullFrustum_Throw()
-    {
-        var area = new FixedBoundArea(new Vector3d(-1, -1, -1), new Vector3d(1, 1, 1));
-
-        Assert.Throws<System.ArgumentNullException>(() => area.Contains((FixedBoundFrustum)null!));
-        Assert.Throws<System.ArgumentNullException>(() => area.Intersects((FixedBoundFrustum)null!));
-    }
-
-    [Fact]
     public void Contains_TypedBounds_ReturnsContainmentClassification()
     {
         var area = new FixedBoundArea(new Vector3d(-2, -2, 0), new Vector3d(2, 2, 2));

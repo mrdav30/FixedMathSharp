@@ -160,14 +160,6 @@ public class FixedRayTests
     }
 
     [Fact]
-    public void Intersects_BoundingFrustum_NullFrustum_Throws()
-    {
-        var ray = new FixedRay(Vector3d.Zero, Vector3d.Forward);
-
-        Assert.Throws<ArgumentNullException>(() => ray.Intersects((FixedBoundFrustum)null!));
-    }
-
-    [Fact]
     public void Intersects_BoundingFrustum_ReturnsZeroWhenRayStartsInside()
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);

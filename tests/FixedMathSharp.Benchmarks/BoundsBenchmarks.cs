@@ -212,6 +212,34 @@ public class BoundsBenchmarks
     }
 
     [Benchmark]
+    public long FrustumConstructOnly()
+    {
+        long accumulator = 0;
+        for (int i = 0; i < _matrices.Length; i++)
+        {
+            var frustum = new FixedBoundFrustum(_matrices[i]);
+            accumulator += frustum.Min.X.m_rawValue;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public long FrustumSetMatrix()
+    {
+        long accumulator = 0;
+        var frustum = _frustums[0];
+
+        for (int i = 0; i < _matrices.Length; i++)
+        {
+            frustum.Matrix = _matrices[i];
+            accumulator += frustum.Min.X.m_rawValue;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
     public int FrustumContainsPoint()
     {
         int count = 0;
