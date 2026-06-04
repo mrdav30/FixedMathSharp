@@ -5,7 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Support;
 using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
@@ -252,7 +251,8 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedEnclosureType Contains(FixedBoundFrustum frustum)
     {
-        FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum));
+        if (frustum is null)
+            throw new ArgumentNullException(nameof(frustum));
 
         if (Contains(frustum.Min) && Contains(frustum.Max))
             return FixedEnclosureType.Contains;
@@ -284,7 +284,8 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundFrustum frustum)
     {
-        FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum));
+        if (frustum is null)
+            throw new ArgumentNullException(nameof(frustum));
 
         return frustum.Intersects(this);
     }

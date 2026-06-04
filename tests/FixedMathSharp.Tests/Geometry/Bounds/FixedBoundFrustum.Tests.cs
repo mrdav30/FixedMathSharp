@@ -333,6 +333,22 @@ public class FixedBoundFrustumTests
     }
 
     [Fact]
+    public void GetPlanes_ArrayOverloadWithValidDestination_DoesNotAllocate()
+    {
+        var frustum = new FixedBoundFrustum(CustomNear, CustomFar, CustomLeft, CustomRight, CustomTop, CustomBottom);
+        var copied = new FixedPlane[FixedBoundFrustum.PlaneCount];
+
+        frustum.GetPlanes(copied);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        frustum.GetPlanes(copied);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+        Assert.Equal(CustomNear, copied[0]);
+    }
+
+    [Fact]
     public void GetCorners_ArrayOverloadCopiesAndValidatesDestination()
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
@@ -343,6 +359,22 @@ public class FixedBoundFrustumTests
         Assert.Equal(frustum.GetCorners(), copied);
         Assert.Throws<ArgumentNullException>(() => frustum.GetCorners(null!));
         Assert.Throws<ArgumentOutOfRangeException>(() => frustum.GetCorners(new Vector3d[FixedBoundFrustum.CornerCount - 1]));
+    }
+
+    [Fact]
+    public void GetCorners_ArrayOverloadWithValidDestination_DoesNotAllocate()
+    {
+        var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
+        var copied = new Vector3d[FixedBoundFrustum.CornerCount];
+
+        frustum.GetCorners(copied);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        frustum.GetCorners(copied);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+        Assert.Equal(new Vector3d(-1, 1, 0), copied[0]);
     }
 
     [Fact]

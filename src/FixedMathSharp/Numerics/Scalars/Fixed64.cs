@@ -5,7 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Support;
 using MemoryPack;
 using System;
 using System.Collections.Generic;

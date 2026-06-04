@@ -5,7 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Support;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -100,7 +99,8 @@ namespace FixedMathSharp.Random
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Next(int minInclusive, int maxExclusive)
         {
-            FixedThrowHelper.ThrowIfArgument(minInclusive >= maxExclusive, "min >= max");
+            if (minInclusive >= maxExclusive)
+                throw new ArgumentException("min >= max");
 
             uint range = (uint)(maxExclusive - minInclusive);
             return minInclusive + (int)NextBounded(range);
@@ -161,7 +161,8 @@ namespace FixedMathSharp.Random
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Fixed64 NextFixed64(Fixed64 maxExclusive)
         {
-            FixedThrowHelper.ThrowIfOutOfRange(maxExclusive <= Fixed64.Zero, nameof(maxExclusive), "max must be > 0");
+            if (maxExclusive <= Fixed64.Zero)
+                throw new ArgumentOutOfRangeException(nameof(maxExclusive), "max must be > 0");
 
             ulong rawMax = (ulong)maxExclusive.m_rawValue;
             ulong r = NextBounded(rawMax);
@@ -174,7 +175,8 @@ namespace FixedMathSharp.Random
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Fixed64 NextFixed64(Fixed64 minInclusive, Fixed64 maxExclusive)
         {
-            FixedThrowHelper.ThrowIfArgument(minInclusive >= maxExclusive, "min >= max");
+            if (minInclusive >= maxExclusive)
+                throw new ArgumentException("min >= max");
 
             ulong span = (ulong)(maxExclusive.m_rawValue - minInclusive.m_rawValue);
             ulong r = NextBounded(span);

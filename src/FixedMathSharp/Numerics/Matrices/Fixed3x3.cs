@@ -5,7 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Support;
 using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
@@ -254,7 +253,8 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     {
         try
         {
-            FixedThrowHelper.ThrowIfArgument(M22 == Fixed64.Zero, "Cannot invert a diagonal matrix with zero elements on the diagonal.");
+            if (M22 == Fixed64.Zero)
+                throw new ArgumentException("Cannot invert a diagonal matrix with zero elements on the diagonal.");
         }
         catch (ArgumentException)
         {
@@ -543,7 +543,8 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     public static Vector3d InverseTransformDirection(Fixed3x3 matrix, Vector3d direction)
     {
         bool canInvert = !Invert(matrix, out Fixed3x3? inverseMatrix) || !inverseMatrix.HasValue;
-        FixedThrowHelper.ThrowIfInvalid(canInvert, "Matrix is not invertible.");
+        if (canInvert)
+            throw new InvalidOperationException("Matrix is not invertible.");
 
         return new Vector3d(
             inverseMatrix!.Value.M11 * direction.X + inverseMatrix.Value.M12 * direction.Y + inverseMatrix.Value.M13 * direction.Z,

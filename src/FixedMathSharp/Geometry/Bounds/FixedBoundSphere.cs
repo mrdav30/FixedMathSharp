@@ -5,7 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Support;
 using MemoryPack;
 using System;
 using System.Collections.Generic;
@@ -128,7 +127,8 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     /// </summary>
     public static FixedBoundSphere CreateFromFrustum(FixedBoundFrustum frustum)
     {
-        FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot create a bounding sphere from a null frustum.");
+        if (frustum is null)
+            throw new ArgumentNullException(nameof(frustum), "Cannot create a bounding sphere from a null frustum.");
 
         return CreateFromPoints(frustum.GetCorners());
     }
@@ -138,7 +138,8 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     /// </summary>
     public static FixedBoundSphere CreateFromPoints(IEnumerable<Vector3d> points)
     {
-        FixedThrowHelper.ThrowIfNull(points, nameof(points), "Cannot create a bounding sphere from a null collection of points.");
+        if (points is null)
+            throw new ArgumentNullException(nameof(points), "Cannot create a bounding sphere from a null collection of points.");
 
         if (points is IReadOnlyList<Vector3d> pointList)
             return CreateFromPointList(pointList);
@@ -172,7 +173,8 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
 
     private static FixedBoundSphere CreateFromPointList(IReadOnlyList<Vector3d> points)
     {
-        FixedThrowHelper.ThrowIfArgument(points.Count == 0, "At least one point is required to create a bounding sphere.");
+        if (points.Count == 0)
+            throw new ArgumentException("At least one point is required to create a bounding sphere.");
 
         Vector3d minX = points[0];
         Vector3d maxX = points[0];
@@ -308,7 +310,8 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     /// </summary>
     public FixedEnclosureType Contains(FixedBoundFrustum frustum)
     {
-        FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot test containment against a null frustum.");
+        if (frustum is null)
+            throw new ArgumentNullException(nameof(frustum), "Cannot test containment against a null frustum.");
 
         Vector3d[] corners = frustum.GetCorners();
         bool containsAllCorners = true;
@@ -354,7 +357,8 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundFrustum frustum)
     {
-        FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot test intersection against a null frustum.");
+        if (frustum is null)
+            throw new ArgumentNullException(nameof(frustum), "Cannot test intersection against a null frustum.");
 
         return frustum.Intersects(this);
     }

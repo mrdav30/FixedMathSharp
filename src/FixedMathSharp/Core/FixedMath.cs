@@ -5,7 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Support;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -225,7 +224,8 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 RoundToPrecision(Fixed64 value, int decimalPlaces, MidpointRounding mode = MidpointRounding.ToEven)
         {
-            FixedThrowHelper.ThrowIfOutOfRange(decimalPlaces < 0 || decimalPlaces >= Pow10Lookup.Length, nameof(decimalPlaces), "Decimal places out of range.");
+            if (decimalPlaces < 0 || decimalPlaces >= Pow10Lookup.Length)
+                throw new ArgumentOutOfRangeException(nameof(decimalPlaces), "Decimal places out of range.");
 
             int factor = Pow10Lookup[decimalPlaces];
             Fixed64 scaled = value * factor;

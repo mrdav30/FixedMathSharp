@@ -360,6 +360,22 @@ public class FixedQuaternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_FromEulerAngles_ValidInput_DoesNotAllocate()
+    {
+        Fixed64 pitch = Fixed64.PiOver4;
+        Fixed64 yaw = Fixed64.Zero;
+        Fixed64 roll = Fixed64.Zero;
+
+        _ = FixedQuaternion.FromEulerAngles(pitch, yaw, roll);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        _ = FixedQuaternion.FromEulerAngles(pitch, yaw, roll);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+    }
+
+    [Fact]
     public void FixedQuaternion_FromAxisAngle_ThrowsWhenAngleIsOutOfRange()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.Pi + Fixed64.One));

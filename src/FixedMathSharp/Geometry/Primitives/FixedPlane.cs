@@ -5,7 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Support;
 using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
@@ -116,7 +115,8 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     {
         Fixed64 length = value.Normal.Magnitude;
 
-        FixedThrowHelper.ThrowIfArithmeticError(length == Fixed64.Zero, "Cannot normalize a plane with a zero-length normal.");
+        if (length == Fixed64.Zero)
+            throw new ArithmeticException("Cannot normalize a plane with a zero-length normal.");
 
         Fixed64 factor = Fixed64.One / length;
         return new FixedPlane(value.Normal * factor, value.D * factor);

@@ -216,6 +216,9 @@ in `docs/feature-work/issue-tracker.md` as `FMS-Issue-005` and
   `FromDirection`.
 - [ ] Diagnose whether quaternion allocations are inherited from
   trigonometry/vector normalization or from quaternion-specific code.
+- [ ] Diagnose the residual 1 B short-run allocation signal in
+  `QuaternionBenchmarks.FromEulerAngles` and `QuaternionBenchmarks.Slerp` after
+  `FixedThrowHelper` removal.
 - [ ] Compare existing value-returning overloads against existing `out`
   overloads where both are already part of the public API.
 - [ ] Keep coordinate-convention fixes separate from performance changes unless
@@ -228,6 +231,12 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector3d quaternion -j Short -i
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector3d quaternion --exporters json
 ```
+
+Phase 3 note from the `FixedThrowHelper` removal side quest on 2026-06-03:
+`fixed64-arithmetic` remained allocation-free in a short run, while
+`QuaternionBenchmarks.FromEulerAngles` and `QuaternionBenchmarks.Slerp` dropped
+to a small residual `1 B` allocation signal. Treat that as a Phase 3 diagnostic
+target rather than a completed quaternion allocation fix.
 
 ## Phase 4: Expand Matrix And Bounds Coverage
 

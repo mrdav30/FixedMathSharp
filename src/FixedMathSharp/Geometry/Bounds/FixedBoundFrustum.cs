@@ -5,7 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Support;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -78,8 +77,11 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// </summary>
     public FixedBoundFrustum(FixedPlane[] planes)
     {
-        FixedThrowHelper.ThrowIfNull(planes, nameof(planes), "Cannot create a frustum from a null plane array.");
-        FixedThrowHelper.ThrowIfArgument(planes.Length != PlaneCount, $"A frustum must be defined by exactly {PlaneCount} planes.");
+        if (planes is null)
+            throw new ArgumentNullException(nameof(planes), "Cannot create a frustum from a null plane array.");
+
+        if (planes.Length != PlaneCount)
+            throw new ArgumentException($"A frustum must be defined by exactly {PlaneCount} planes.");
 
         _corners = new Vector3d[CornerCount];
         _planes = new FixedPlane[PlaneCount];
@@ -265,7 +267,8 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// </summary>
     public FixedEnclosureType Contains(FixedBoundFrustum frustum)
     {
-        FixedThrowHelper.ThrowIfNull(frustum, nameof(frustum), "Cannot test containment against a null frustum.");
+        if (frustum is null)
+            throw new ArgumentNullException(nameof(frustum), "Cannot test containment against a null frustum.");
 
         if (Equals(frustum))
             return FixedEnclosureType.Contains;
@@ -413,8 +416,11 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// </summary>
     public void GetCorners(Vector3d[] corners)
     {
-        FixedThrowHelper.ThrowIfNull(corners, nameof(corners), "Cannot copy corners to a null array.");
-        FixedThrowHelper.ThrowIfOutOfRange(corners.Length < CornerCount, $"The destination array must have at least {CornerCount} elements to hold all corners.");
+        if (corners is null)
+            throw new ArgumentNullException(nameof(corners), "Cannot copy corners to a null array.");
+
+        if (corners.Length < CornerCount)
+            throw new ArgumentOutOfRangeException(nameof(corners), $"The destination array must have at least {CornerCount} elements to hold all corners.");
 
         Array.Copy(_corners, corners, CornerCount);
     }
@@ -434,8 +440,11 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// </summary>
     public void GetPlanes(FixedPlane[] planes)
     {
-        FixedThrowHelper.ThrowIfNull(planes, nameof(planes), "Cannot copy planes to a null array.");
-        FixedThrowHelper.ThrowIfOutOfRange(planes.Length < PlaneCount, $"The destination array must have at least {PlaneCount} elements to hold all planes.");
+        if (planes is null)
+            throw new ArgumentNullException(nameof(planes), "Cannot copy planes to a null array.");
+
+        if (planes.Length < PlaneCount)
+            throw new ArgumentOutOfRangeException(nameof(planes), $"The destination array must have at least {PlaneCount} elements to hold all planes.");
 
         Array.Copy(_planes, planes, PlaneCount);
     }
@@ -520,7 +529,8 @@ public sealed class FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         Vector3d cross = Vector3d.Cross(b.Normal, c.Normal);
         Fixed64 denominator = Vector3d.Dot(a.Normal, cross);
 
-        FixedThrowHelper.ThrowIfInvalid(denominator == Fixed64.Zero, "Frustum planes do not intersect at a unique point.");
+        if (denominator == Fixed64.Zero)
+            throw new InvalidOperationException("Frustum planes do not intersect at a unique point.");
 
         Vector3d v1 = cross * a.D;
         Vector3d v2 = Vector3d.Cross(c.Normal, a.Normal) * b.D;

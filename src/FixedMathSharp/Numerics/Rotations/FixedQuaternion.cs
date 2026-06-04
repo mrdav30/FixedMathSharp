@@ -5,7 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Support;
 using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
@@ -325,7 +324,8 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     {
         Fixed64 divisorSqrMagnitude = divisor.SqrMagnitude;
 
-        FixedThrowHelper.ThrowIfInvalid(divisorSqrMagnitude == Fixed64.Zero, "Quaternion divisor is not invertible.");
+        if (divisorSqrMagnitude == Fixed64.Zero)
+            throw new InvalidOperationException("Quaternion divisor is not invertible.");
 
         Fixed64 invNorm = Fixed64.One / divisorSqrMagnitude;
         FixedQuaternion inverseDivisor = new(
@@ -464,10 +464,8 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
             axis = axis.Normalize();
 
         // Check if the angle is in a valid range (-pi, pi)
-        FixedThrowHelper.ThrowIfOutOfRange(
-             angle < -Fixed64.Pi || angle > Fixed64.Pi,
-             nameof(angle),
-             $"Angle must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {angle}");
+        if (angle < -Fixed64.Pi || angle > Fixed64.Pi)
+            throw new ArgumentOutOfRangeException(nameof(angle), $"Angle must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {angle}");
 
         Fixed64 halfAngle = angle / Fixed64.Two;  // Half-angle formula
         Fixed64 sinHalfAngle = FixedMath.Sin(halfAngle);
@@ -508,18 +506,14 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     public static FixedQuaternion FromEulerAngles(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
     {
         // Check if the angles are in a valid range (-pi, pi)
-        FixedThrowHelper.ThrowIfOutOfRange(
-            pitch < -Fixed64.Pi || pitch > Fixed64.Pi,
-            nameof(pitch),
-            $"Pitch must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {pitch}");
-        FixedThrowHelper.ThrowIfOutOfRange(
-            yaw < -Fixed64.Pi || yaw > Fixed64.Pi,
-            nameof(yaw),
-            $"Yaw must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {yaw}");
-        FixedThrowHelper.ThrowIfOutOfRange(
-            roll < -Fixed64.Pi || roll > Fixed64.Pi,
-            nameof(roll),
-            $"Roll must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {roll}");
+        if (pitch < -Fixed64.Pi || pitch > Fixed64.Pi)
+            throw new ArgumentOutOfRangeException(nameof(pitch), $"Pitch must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {pitch}");
+
+        if (yaw < -Fixed64.Pi || yaw > Fixed64.Pi)
+            throw new ArgumentOutOfRangeException(nameof(yaw), $"Yaw must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {yaw}");
+
+        if (roll < -Fixed64.Pi || roll > Fixed64.Pi)
+            throw new ArgumentOutOfRangeException(nameof(roll), $"Roll must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {roll}");
 
         Fixed64 halfPitch = pitch / Fixed64.Two;
         Fixed64 halfYaw = yaw / Fixed64.Two;

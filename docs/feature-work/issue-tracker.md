@@ -120,10 +120,51 @@ dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLea
 Performance issues should stay in the benchmark plan unless they become a
 confirmed runtime defect. Current queue:
 
-- 2026-06-03: Investigate vector normalization and quaternion creation
-  allocations after scalar/trigonometry allocation sources are known.
+- 2026-06-03: Investigate vector normalization and remaining quaternion
+  allocation signals. After `FixedThrowHelper` removal, short-run benchmarks
+  still reported `1 B` allocated for `QuaternionBenchmarks.FromEulerAngles` and
+  `QuaternionBenchmarks.Slerp`.
 
 ## Resolved Issues
+
+### FMS-Issue-007: `FixedThrowHelper` was easy to misuse with eager message construction
+
+**Discovered:** 2026-06-03
+
+**Resolved:** 2026-06-03
+
+**Source:** Phase 2 allocation fixes and follow-up review of throw-helper call
+sites.
+
+**Resolution:**
+
+`FixedThrowHelper` has been removed. Runtime guard call sites now use direct
+`if (...) throw ...` branches, so formatted diagnostics are only constructed on
+exception paths. This keeps the code `netstandard2.1` friendly without adding a
+custom interpolated string handler or a helper abstraction that can be
+accidentally misused.
+
+**Completed work:**
+
+- [x] Added allocation regression tests for `FixedBoundFrustum.GetCorners`,
+  `FixedBoundFrustum.GetPlanes`, and `FixedQuaternion.FromEulerAngles` valid
+  paths.
+- [x] Replaced helper calls with direct guard branches while preserving existing
+  exception types and messages.
+- [x] Removed `src/FixedMathSharp/Support/FixedThrowHelper.cs`.
+- [x] Verified no `FixedThrowHelper` or `FixedMathSharp.Support` references
+  remain.
+- [x] Re-ran focused allocation tests.
+
+Verification:
+
+```bash
+rg -n "FixedThrowHelper|FixedMathSharp\\.Support" src tests
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore -p:RunSettingsFilePath= --filter "FullyQualifiedName~GetPlanes_ArrayOverloadWithValidDestination_DoesNotAllocate|FullyQualifiedName~GetCorners_ArrayOverloadWithValidDestination_DoesNotAllocate|FullyQualifiedName~FixedQuaternion_FromEulerAngles_ValidInput_DoesNotAllocate"
+```
+
+Result on 2026-06-03: source scan found no helper references, and the focused
+allocation tests passed.
 
 ### FMS-Issue-001: `FixedQuaternion.FromDirection(Vector3d.Backward)` returned identity
 

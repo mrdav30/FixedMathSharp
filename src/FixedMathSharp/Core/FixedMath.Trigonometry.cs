@@ -5,7 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Support;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -92,7 +91,9 @@ namespace FixedMathSharp
 
             if (b.m_rawValue == 0)
             {
-                FixedThrowHelper.ThrowIfDivideByZero(exp.m_rawValue < 0, "Cannot raise 0 to a negative power.");
+                if (exp.m_rawValue < 0)
+                    throw new DivideByZeroException("Cannot raise 0 to a negative power.");
+
                 return Fixed64.Zero;
             }
 
@@ -155,7 +156,8 @@ namespace FixedMathSharp
         /// </remarks>
         public static Fixed64 Log2(Fixed64 x)
         {
-            FixedThrowHelper.ThrowIfOutOfRange(x.m_rawValue <= 0, nameof(x), "Cannot compute logarithm of non-positive number.");
+            if (x.m_rawValue <= 0)
+                throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute logarithm of non-positive number.");
 
             long b = 1U << (SHIFT_AMOUNT_I - 1);  // Initial value for binary logarithm
             long y = 0;  // Result accumulator
@@ -196,7 +198,9 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 Ln(Fixed64 x)
         {
-            FixedThrowHelper.ThrowIfOutOfRange(x.m_rawValue <= 0, nameof(x), "Cannot compute logarithm of non-positive number.");
+            if (x.m_rawValue <= 0)
+                throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute logarithm of non-positive number.");
+
             return FastMul(Log2(x), Fixed64.Ln2).Round();
         }
 
@@ -205,7 +209,8 @@ namespace FixedMathSharp
         /// </summary>
         public static Fixed64 Sqrt(Fixed64 x)
         {
-            FixedThrowHelper.ThrowIfOutOfRange(x.m_rawValue < 0, nameof(x), "Cannot compute square root of a negative number.");
+            if (x.m_rawValue < 0)
+                throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute square root of a negative number.");
 
             ulong num = (ulong)x.m_rawValue;
             ulong result = 0UL;
