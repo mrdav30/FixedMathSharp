@@ -286,26 +286,48 @@ are sufficient only for compile, selection, and allocation diagnostics.
 - Test if runtime changes are made: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedPlane.Tests.cs`
 - Test if runtime changes are made: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedRay.Tests.cs`
 
-- [ ] Split `Fixed4x4.CreateTransform` into `CreateTranslation`,
+- [x] Split `Fixed4x4.CreateTransform` into `CreateTranslation`,
   `CreateRotation`, `CreateScale`, `CreateTransform`, `ScaleRotateTranslate`,
   and `TranslateRotateScale` benchmark cases.
-- [ ] Split inversion benchmarks into affine and full inversion paths.
-- [ ] Add `Fixed3x3` coverage for rotation creation, multiplication,
+- [x] Split inversion benchmarks into affine and full inversion paths.
+- [x] Add `Fixed3x3` coverage for rotation creation, multiplication,
   transform direction, determinant, and inversion.
-- [ ] Add `FixedBoundSphere`, `FixedBoundArea`, `FixedBoundFrustum`,
+- [x] Add `FixedBoundSphere`, `FixedBoundArea`, `FixedBoundFrustum`,
   `FixedRay`, and `FixedPlane` benchmarks.
-- [ ] Add mixed shape dispatch benchmarks only after deciding which public
+- [x] Add mixed shape dispatch benchmarks only after deciding which public
   dispatch shape must remain stable.
-- [ ] Preserve explicit cross-type overloads unless a measured replacement
+- [x] Preserve explicit cross-type overloads unless a measured replacement
   proves faster and clearer.
 
 Verification:
 
 ```bash
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~Fixed3x3Tests|FullyQualifiedName~Fixed4x4Tests|FullyQualifiedName~FixedBound|FullyQualifiedName~FixedPlaneTests|FullyQualifiedName~FixedRayTests"
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll matrix4x4 bounds -j Short -i
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll matrix4x4 bounds --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll matrix3x3 matrix4x4 bounds -j Short -i
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll matrix3x3 matrix4x4 bounds --exporters json
 ```
+
+Phase 4 result on 2026-06-04: benchmark coverage was expanded for `Fixed3x3`,
+matrix transform construction variants, affine versus full `Fixed4x4`
+inversion, and the remaining hot bounds/primitive shapes. `BenchmarkFixtures`
+now provides deterministic translation, scale, 3x3 matrix, and perspective
+matrix fixtures so measured methods do not build ad-hoc setup data.
+
+Short in-process diagnostics completed 43 benchmark cases across `matrix3x3`,
+`matrix4x4`, and `bounds`. Bounds and primitive operations were allocation-free
+except `FrustumCreateFromMatrix`, which allocated about 165 KB per benchmark
+operation because each measured loop intentionally constructs new
+`FixedBoundFrustum` instances and each frustum owns its plane/corner arrays.
+The reusable `GetCorners(Vector3d[])` and `GetPlanes(FixedPlane[])` frustum
+paths stayed allocation-free.
+
+The in-process run reported tiny residual `1 B` allocation signals in
+`Matrix3x3Benchmarks.CreateRotation`,
+`Matrix4x4Benchmarks.TranslateRotateScale`, and
+`Matrix4x4Benchmarks.InvertFull`. A focused normal BenchmarkDotNet short run
+with `--memory` did not reproduce those allocations, so treat the `1 B` entries
+as in-process diagnoser noise unless a full exported benchmark run reproduces
+them. No runtime optimization was made in Phase 4.
 
 ## Phase 5: Add Serialization, Curves, Ranges, And RNG Coverage
 

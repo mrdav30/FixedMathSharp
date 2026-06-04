@@ -16,11 +16,15 @@ internal static class BenchmarkFixtures
     internal static readonly Vector3d[] VectorsA = CreateVectors(3);
     internal static readonly Vector3d[] VectorsB = CreateVectors(19);
     internal static readonly Vector3d[] NormalizedAxes = CreateNormalizedAxes();
+    internal static readonly Vector3d[] Translations = CreateTranslations();
+    internal static readonly Vector3d[] Scales = CreateScales();
     internal static readonly Vector4d[] Vector4sA = CreateVector4s(3);
     internal static readonly Vector4d[] Vector4sB = CreateVector4s(19);
     internal static readonly FixedQuaternion[] RotationsA = CreateRotations(5);
     internal static readonly FixedQuaternion[] RotationsB = CreateRotations(23);
+    internal static readonly Fixed3x3[] Matrix3s = CreateMatrix3s();
     internal static readonly Fixed4x4[] Matrices = CreateMatrices();
+    internal static readonly Fixed4x4[] PerspectiveMatrices = CreatePerspectiveMatrices();
 
     private static Fixed64[] CreateScalars(int seed, int step)
     {
@@ -126,6 +130,29 @@ internal static class BenchmarkFixtures
         return axes;
     }
 
+    private static Vector3d[] CreateTranslations()
+    {
+        var translations = new Vector3d[SampleCount];
+        for (int i = 0; i < translations.Length; i++)
+            translations[i] = VectorsA[i] * Fixed64.Quarter;
+
+        return translations;
+    }
+
+    private static Vector3d[] CreateScales()
+    {
+        var scales = new Vector3d[SampleCount];
+        for (int i = 0; i < scales.Length; i++)
+        {
+            scales[i] = new Vector3d(
+                Fixed64.One + Fixed64.FromFraction((i % 7) + 1, 16),
+                Fixed64.One + Fixed64.FromFraction((i % 5) + 1, 16),
+                Fixed64.One + Fixed64.FromFraction((i % 3) + 1, 16));
+        }
+
+        return scales;
+    }
+
     private static Vector4d[] CreateVector4s(int seed)
     {
         var vectors = new Vector4d[SampleCount];
@@ -155,19 +182,42 @@ internal static class BenchmarkFixtures
         return rotations;
     }
 
+    private static Fixed3x3[] CreateMatrix3s()
+    {
+        var matrices = new Fixed3x3[SampleCount];
+        for (int i = 0; i < matrices.Length; i++)
+        {
+            Fixed64 pitch = Angles[(i + 7) & (SampleCount - 1)] * Fixed64.Quarter;
+            Fixed64 yaw = Angles[(i + 13) & (SampleCount - 1)] * Fixed64.Quarter;
+            Fixed64 roll = Angles[(i + 29) & (SampleCount - 1)] * Fixed64.Quarter;
+            Fixed3x3 rotation =
+                Fixed3x3.CreateRotationY(yaw) *
+                Fixed3x3.CreateRotationX(pitch) *
+                Fixed3x3.CreateRotationZ(roll);
+
+            matrices[i] = rotation * Fixed3x3.CreateScale(Scales[i]);
+        }
+
+        return matrices;
+    }
+
     private static Fixed4x4[] CreateMatrices()
     {
         var matrices = new Fixed4x4[SampleCount];
         for (int i = 0; i < matrices.Length; i++)
-        {
-            Vector3d translation = VectorsA[i] * Fixed64.Quarter;
-            FixedQuaternion rotation = RotationsA[i];
-            Vector3d scale = new(
-                Fixed64.One + Fixed64.FromFraction((i % 7) + 1, 16),
-                Fixed64.One + Fixed64.FromFraction((i % 5) + 1, 16),
-                Fixed64.One + Fixed64.FromFraction((i % 3) + 1, 16));
+            matrices[i] = Fixed4x4.CreateTransform(Translations[i], RotationsA[i], Scales[i]);
 
-            matrices[i] = Fixed4x4.CreateTransform(translation, rotation, scale);
+        return matrices;
+    }
+
+    private static Fixed4x4[] CreatePerspectiveMatrices()
+    {
+        var matrices = new Fixed4x4[SampleCount];
+        for (int i = 0; i < matrices.Length; i++)
+        {
+            Fixed64 aspect = Fixed64.FromFraction(16 + (i % 3), 9);
+            Fixed64 farPlane = new Fixed64(64 + (i % 17));
+            matrices[i] = Fixed4x4.CreatePerspectiveFieldOfView(Fixed64.PiOver3, aspect, Fixed64.One, farPlane);
         }
 
         return matrices;
