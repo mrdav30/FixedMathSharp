@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <_FixedMathSharpHostPlatform Condition="$([MSBuild]::IsOSPlatform('Windows'))">windows</_FixedMathSharpHostPlatform>
+    <_FixedMathSharpHostPlatform Condition="'$(_FixedMathSharpHostPlatform)' == '' And $([MSBuild]::IsOSPlatform('OSX'))">macos</_FixedMathSharpHostPlatform>
+    <_FixedMathSharpHostPlatform Condition="'$(_FixedMathSharpHostPlatform)' == ''">unix</_FixedMathSharpHostPlatform>
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">obj/$(_FixedMathSharpHostPlatform)/$(Configuration)/</BaseIntermediateOutputPath>
+    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == '' And '$(TargetFramework)' != ''">$(BaseIntermediateOutputPath)$(TargetFramework)/</IntermediateOutputPath>
+  </PropertyGroup>
+</Project>

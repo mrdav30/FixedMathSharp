@@ -73,13 +73,11 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - [ ] Avoid raw timing thresholds until runner variance is understood.
 - [ ] If a smoke job is adopted, keep it alias-scoped and make it validate
   benchmark selection/execution rather than performance deltas.
-- [ ] Account for `Release`/`ReleaseLean` conditional package graphs and avoid
-  shared `obj` restore races.
+- [ ] Account for the host/configuration-isolated intermediate output paths
+  added for `Release`/`ReleaseLean` conditional package graphs.
 
 ## Related Issue Tracker Items
 
-- `FMS-Issue-005`: Coverlet can fail to restore instrumented assemblies on WSL.
-- `FMS-Issue-006`: `ReleaseLean` `netstandard2.1` build emits MemoryPack shim
-  conflict warnings.
-- `FMS-Issue-008`: `--no-restore` can reuse stale NuGet assets across OS or
-  configuration changes.
+- Resolved on 2026-06-04: `FMS-Issue-005`, `FMS-Issue-006`, and
+  `FMS-Issue-008` were closed by making coverage opt-in for local test runs and
+  isolating intermediate/NuGet assets by host platform and configuration.

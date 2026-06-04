@@ -36,143 +36,7 @@ runtime and tests.
 
 ## Active Issues
 
-### FMS-Issue-008: `--no-restore` can reuse stale NuGet assets across OS or configuration changes
-
-**Discovered:** 2026-06-04
-
-**Status:** Active
-
-**Source:** Phase 5 benchmark coverage verification.
-
-**Observed behavior:**
-
-A focused `dotnet test --no-restore` run failed before test execution because
-`tests/FixedMathSharp.Tests/obj/project.assets.json` and generated NuGet props
-referenced Windows fallback package folders such as
-`C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages`.
-Running the same focused command without `--no-restore` regenerated the assets
-for WSL and the tests passed.
-
-A later `Release --no-restore` benchmark build also failed after a
-`ReleaseLean` restore because the benchmark project conditionally includes the
-MemoryPack package only outside `ReleaseLean`. Running the `Release` build with
-restore regenerated the package graph and succeeded.
-
-Running `Release` and `ReleaseLean` benchmark builds in parallel can hit the
-same shared `obj` assets race and leave one configuration seeing the other
-configuration's package graph. Sequential forced restores/builds for both
-configurations succeeded.
-
-**Impact:**
-
-Multi-OS or multi-configuration workspaces can produce noisy local verification
-failures when a restore from one environment/configuration is followed by a
-different `--no-restore` build/test loop. This is not a runtime defect, but it
-can mislead agents or contributors during focused verification.
-
-**Recommended next steps:**
-
-- [ ] Reproduce from a clean Windows restore followed by WSL `dotnet test
-  --no-restore`.
-- [ ] Decide whether local verification docs should avoid `--no-restore` after
-  switching OS environments or benchmark configurations with conditional
-  package references.
-- [ ] Check whether repo-level NuGet configuration can prevent generated assets
-  from carrying machine-local fallback folders.
-- [ ] Preserve fast `--no-restore` workflows when the restore and test happen
-  under the same OS/environment.
-- [ ] Avoid parallel restore/build invocations for configurations with
-  different conditional package references unless the outputs/intermediate
-  paths are isolated.
-
-Verification:
-
-```bash
-dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore -p:RunSettingsFilePath= --filter "FullyQualifiedName~FixedCurveTests|FullyQualifiedName~FixedRangeTests|FullyQualifiedName~DeterministicRandomTests"
-dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug -p:RunSettingsFilePath= --filter "FullyQualifiedName~FixedCurveTests|FullyQualifiedName~FixedRangeTests|FullyQualifiedName~DeterministicRandomTests"
-dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c ReleaseLean -f net8.0
-dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
-dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0
-```
-
-### FMS-Issue-005: Coverlet can fail to restore instrumented assemblies on WSL
-
-**Discovered:** 2026-06-03
-
-**Status:** Active
-
-**Source:** Phase 2 scalar/trigonometry allocation test verification.
-
-**Observed behavior:**
-
-Focused `dotnet test` runs passed, but the configured XPlat Code Coverage data
-collector intermittently reported `UnauthorizedAccessException` while restoring
-an instrumented `FixedMathSharp.dll` under `tests/FixedMathSharp.Tests/bin` on
-WSL.
-
-**Impact:**
-
-The tests themselves pass, but coverage instrumentation can add noisy false
-negatives or scary output during tight focused verification loops.
-
-**Recommended next steps:**
-
-- [ ] Reproduce with a clean bin/obj state and the default
-  `coverlet.runsettings`.
-- [ ] Decide whether focused local verification docs should recommend
-  `-p:RunSettingsFilePath=` when coverage is not the goal.
-- [ ] If the collector failure is repeatable, isolate whether it is caused by
-  WSL file locking, generated packages, or concurrent build/test output.
-- [ ] Preserve normal coverage behavior for CI-oriented runs.
-
-Verification:
-
-```bash
-dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore
-dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore -p:RunSettingsFilePath=
-```
-
-### FMS-Issue-006: `ReleaseLean` `netstandard2.1` build emits MemoryPack shim conflict warnings
-
-**Discovered:** 2026-06-03
-
-**Status:** Active
-
-**Source:** Phase 2 final verification of Unity-supporting `netstandard2.1`
-builds.
-
-**Observed behavior:**
-
-`dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration
-ReleaseLean --framework netstandard2.1 --no-restore` succeeds, but emits many
-`CS0436` warnings where `MemoryPack.Disable.Shim.cs` types conflict with
-imported `MemoryPack.Core` attribute types.
-
-**Impact:**
-
-The build exits successfully, but the lean build is noisy and may hide more
-important warnings. The warning pattern also suggests the lean configuration is
-still seeing MemoryPack assets in a target where the local shim is intended to
-own those symbols.
-
-**Recommended next steps:**
-
-- [ ] Confirm whether the warning existed before the Phase 2 runtime changes.
-- [ ] Inspect the `DisableMemoryPack` and package-reference conditions for
-  `ReleaseLean` across `netstandard2.1` and `net8.0`.
-- [ ] Preserve the public serialization attributes and package layout while
-  removing duplicate MemoryPack type visibility.
-- [ ] Verify both `Release` and `ReleaseLean` builds for `netstandard2.1` and
-  `net8.0`.
-
-Verification:
-
-```bash
-dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release --framework netstandard2.1 --no-restore
-dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean --framework netstandard2.1 --no-restore
-dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release --framework net8.0 --no-restore
-dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean --framework net8.0 --no-restore
-```
+- None currently.
 
 ## Performance Investigation Queue
 
@@ -186,6 +50,118 @@ confirmed runtime defect. Current queue:
   diagnostics, so no runtime defect is currently tracked.
 
 ## Resolved Issues
+
+### FMS-Issue-008: `--no-restore` can reuse stale NuGet assets across OS or configuration changes
+
+**Discovered:** 2026-06-04
+
+**Resolved:** 2026-06-04
+
+**Source:** Phase 5 benchmark coverage verification.
+
+**Resolution:**
+
+`Directory.Build.props` now isolates intermediate and NuGet restore assets by
+host platform and configuration using `BaseIntermediateOutputPath`, while
+explicitly excluding generated `bin/**` and `obj/**` files from SDK source
+globs. This preserves fast `--no-restore` loops after a matching restore, but
+prevents `Release`, `ReleaseLean`, Windows, and WSL builds from sharing the same
+conditional `project.assets.json`.
+
+**Completed work:**
+
+- [x] Added host/configuration-specific intermediate output paths.
+- [x] Excluded all generated `bin/**` and `obj/**` files from source globs so
+  old generated assembly-info files are never compiled as source.
+- [x] Verified focused tests after restore and with `--no-restore`.
+- [x] Verified `Release` and `ReleaseLean` benchmark builds can switch
+  configurations and still succeed with `--no-restore` after matching restores.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug -p:RunSettingsFilePath= --filter "FullyQualifiedName~FixedCurveTests|FullyQualifiedName~FixedRangeTests|FullyQualifiedName~DeterministicRandomTests"
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore -p:RunSettingsFilePath= --filter "FullyQualifiedName~FixedCurveTests|FullyQualifiedName~FixedRangeTests|FullyQualifiedName~DeterministicRandomTests"
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --force
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c ReleaseLean -f net8.0 --force
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c ReleaseLean -f net8.0 --no-restore
+```
+
+Result on 2026-06-04: focused tests passed, and benchmark builds passed with
+zero warnings/errors in both configurations.
+
+### FMS-Issue-005: Coverlet can fail to restore instrumented assemblies on WSL
+
+**Discovered:** 2026-06-03
+
+**Resolved:** 2026-06-04
+
+**Source:** Phase 2 scalar/trigonometry allocation test verification.
+
+**Resolution:**
+
+`tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj` no longer sets
+`RunSettingsFilePath` by default. Normal local `dotnet test` runs now avoid
+coverlet instrumentation unless coverage is explicitly requested with
+`--settings tests/FixedMathSharp.Tests/coverlet.runsettings`, while CI coverage
+continues to request the runsettings file directly.
+
+**Completed work:**
+
+- [x] Removed the default test-project `RunSettingsFilePath`.
+- [x] Verified focused tests without coverage still pass.
+- [x] Verified explicit coverage collection still works and writes a Cobertura
+  attachment.
+- [x] Preserved CI coverage behavior because `.github/workflows/coverage.yml`
+  already passes `--settings tests/FixedMathSharp.Tests/coverlet.runsettings`.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~FixedCurveTests|FullyQualifiedName~FixedRangeTests|FullyQualifiedName~DeterministicRandomTests"
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --settings tests/FixedMathSharp.Tests/coverlet.runsettings --filter "FullyQualifiedName~FixedCurveTests|FullyQualifiedName~FixedRangeTests|FullyQualifiedName~DeterministicRandomTests"
+```
+
+Result on 2026-06-04: both focused runs passed; only the explicit coverage run
+produced a `coverage.cobertura.xml` attachment.
+
+### FMS-Issue-006: `ReleaseLean` `netstandard2.1` build emits MemoryPack shim conflict warnings
+
+**Discovered:** 2026-06-03
+
+**Resolved:** 2026-06-04
+
+**Source:** Phase 2 final verification of Unity-supporting `netstandard2.1`
+builds.
+
+**Resolution:**
+
+The warning pattern did not reproduce after a forced `ReleaseLean` restore. The
+root cause was stale conditional NuGet assets from a previous MemoryPack-enabled
+configuration, not duplicate runtime source. The same host/configuration
+intermediate-output isolation added for `FMS-Issue-008` prevents lean builds
+from seeing MemoryPack package assets restored for standard builds.
+
+**Completed work:**
+
+- [x] Confirmed a forced `ReleaseLean netstandard2.1` restore/build succeeds
+  without shim conflict warnings.
+- [x] Preserved `FIXEDMATHSHARP_DISABLE_MEMORYPACK` shim behavior for lean
+  builds.
+- [x] Verified `Release` and `ReleaseLean` builds for `netstandard2.1` and
+  `net8.0`.
+
+Verification:
+
+```bash
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release --framework netstandard2.1 --force
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean --framework netstandard2.1 --force
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release --framework net8.0 --force
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean --framework net8.0 --force
+```
+
+Result on 2026-06-04: all four builds passed with zero warnings/errors.
 
 ### FMS-Issue-007: `FixedThrowHelper` was easy to misuse with eager message construction
 
