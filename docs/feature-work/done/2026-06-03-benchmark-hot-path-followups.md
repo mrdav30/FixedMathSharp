@@ -7,7 +7,7 @@
 > claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for
 > tracking.
 
-**Status:** Active
+**Status:** Done
 
 **Goal:** Turn the first benchmark smoke-run findings into measured,
 deterministic runtime improvements without weakening FixedMathSharp semantics.
@@ -433,19 +433,19 @@ benchmark configurations. These stale-asset cases are tracked in
 - Create or modify if adopted: benchmark baseline documentation under
   `docs/feature-work` or `docs/wiki`
 
-- [ ] Document how to compare current branch benchmark results against a stored
+- [x] Document how to compare current branch benchmark results against a stored
   baseline.
-- [ ] Decide whether CI should only compile benchmarks or also run a small
+- [x] Decide whether CI should only compile benchmarks or also run a small
   smoke benchmark job.
-- [ ] Avoid raw timing thresholds in CI until runner variance is understood.
-- [ ] Prefer artifact comparison or explicit BenchmarkDotNet comparison support
+- [x] Avoid raw timing thresholds in CI until runner variance is understood.
+- [x] Prefer artifact comparison or explicit BenchmarkDotNet comparison support
   over single-run timing gates.
-- [ ] Define a lightweight review checklist for benchmark findings that covers
+- [x] Define a lightweight review checklist for benchmark findings that covers
   timing deltas, allocation deltas, complexity class, branch/data-movement
   costs, and semantic risk.
-- [ ] Add release-note guidance for performance improvements that includes
+- [x] Add release-note guidance for performance improvements that includes
   environment, baseline, and measured delta.
-- [ ] Confirm optimized paths remain deterministic across `Release` and
+- [x] Confirm optimized paths remain deterministic across `Release` and
   `ReleaseLean`.
 
 Verification:
@@ -459,6 +459,19 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all --exporters json
 git diff --check
 ```
+
+Phase 6 result on 2026-06-04: completed. The benchmark README now documents
+baseline comparison workflow, benchmark finding review criteria, release-note
+guidance, and CI guidance. CI should continue to compile benchmarks at minimum;
+raw timing thresholds remain deferred until runner variance is understood. Any
+future benchmark smoke job should be alias-scoped and should validate selection
+and execution rather than claim performance deltas.
+
+Remaining benchmark-regression work was extracted to
+`docs/feature-work/2026-06-04-benchmark-regression-followups.md`, including a
+fresh full-baseline capture, measured hot-spot prioritization, and future CI
+guardrail decisions. The original hot-path scaffold/diagnostic plan is complete
+and archived under `docs/feature-work/done`.
 
 ## Recommended First Implementation Slice
 

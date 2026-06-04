@@ -103,6 +103,73 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 BenchmarkDotNet writes results to `BenchmarkDotNet.Artifacts/results/` by default. Archive the JSON or markdown reports before changing algorithms so regressions can be compared against known results.
 
+### Comparing Results
+
+Use full `Release` BenchmarkDotNet artifacts for performance claims. Short
+in-process runs are useful for smoke checks, alias validation, and quick
+allocation diagnostics, but they are not stable enough for release notes or
+regression gates.
+
+When comparing a branch against a baseline:
+
+1. Build the benchmark runner in `Release`.
+2. Run the selected benchmark group with JSON export before changing runtime
+   code.
+3. Preserve the baseline artifact outside `BenchmarkDotNet.Artifacts/` if it
+   needs to survive cleanup.
+4. Make one focused runtime change.
+5. Re-run the same benchmark group with the same command, SDK, OS, CPU power
+   mode, and configuration.
+6. Compare mean/median timing, error range, allocation bytes, GC counts, and
+   benchmark method semantics.
+
+Do not treat a single faster local run as proof. Prefer a repeatable trend,
+especially for very small methods where noise can be larger than the measured
+delta.
+
+### Review Checklist
+
+Use this checklist before turning a benchmark result into an optimization task
+or release note:
+
+- **Scenario:** the benchmark represents a real public API path or a documented
+  synthetic stress case.
+- **Environment:** OS, CPU, .NET SDK/runtime, configuration, and BenchmarkDotNet
+  job are recorded.
+- **Timing:** mean, error, and standard deviation are compared against the same
+  baseline command.
+- **Allocation:** allocated bytes and GC counts are explained, including
+  intentional payload allocations such as serialization output.
+- **Complexity:** operation count, loop shape, branch shape, duplicated work,
+  data movement, and algorithmic complexity are considered.
+- **Determinism:** optimized code preserves fixed-point semantics across
+  `Release` and `ReleaseLean`.
+- **Correctness:** focused tests cover any runtime behavior touched by the
+  optimization.
+- **Scope:** public API changes are avoided unless the measured benefit is large
+  enough to justify the compatibility cost.
+- **Reporting:** release notes include measured deltas and environment, not
+  unsourced claims like "faster" or "zero allocation."
+
+### Release Notes
+
+Performance release notes should be proportional and evidence-backed. Include:
+
+- The affected API or scenario.
+- The baseline and optimized commands or artifact names.
+- The measured timing/allocation delta.
+- The environment used for measurement.
+- Any compatibility or determinism caveat.
+
+Example:
+
+```text
+Improved FixedMath.Sin valid-input hot path by removing eager exception-message
+allocation. In a .NET 8 Release BenchmarkDotNet run on <CPU/OS>, the focused
+fixed64-arithmetic suite reported 0 B allocated for Sin/Cos/Tan after the
+change, with correctness tests passing for FixedMath and FixedTrigonometry.
+```
+
 ## CI Guidance
 
 CI should at minimum compile the benchmark project in `Release`. The normal
@@ -113,4 +180,9 @@ direct command when isolating benchmark compilation locally:
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj --configuration Release
 ```
 
-Running full benchmarks in CI is optional until local variance is understood. When performance gates are introduced, prefer BenchmarkDotNet comparison support or stored baseline artifacts over raw timing thresholds, which are sensitive to runner hardware.
+Running full benchmarks in CI is optional until local variance is understood.
+When performance gates are introduced, prefer BenchmarkDotNet comparison support
+or stored baseline artifacts over raw timing thresholds, which are sensitive to
+runner hardware. A future smoke job should compile benchmarks first and, if it
+runs benchmarks at all, use a short alias-scoped job that verifies selection and
+basic execution without claiming a performance delta.

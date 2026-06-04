@@ -181,7 +181,7 @@ confirmed runtime defect. Current queue:
 
 - None currently. The 2026-06-03 vector normalization and residual quaternion
   allocation investigation was completed in
-  `docs/feature-work/2026-06-03-benchmark-hot-path-followups.md` Phase 3. The
+  `docs/feature-work/done/2026-06-03-benchmark-hot-path-followups.md` Phase 3. The
   residual `1 B` signal did not reproduce in the expanded short-run
   diagnostics, so no runtime defect is currently tracked.
 
