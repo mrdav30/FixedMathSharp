@@ -10,14 +10,17 @@
 **Status:** Active
 
 **Goal:** Turn the first benchmark smoke-run findings into measured,
-deterministic, allocation-conscious runtime improvements without weakening
-FixedMathSharp semantics.
+deterministic runtime improvements without weakening FixedMathSharp semantics.
+Evaluate hot paths across speed, allocation behavior, algorithmic complexity,
+branch shape, and data movement; do not treat allocation-free code as optimized
+if it is slower or structurally more expensive than necessary.
 
 **Architecture:** Keep `tests/FixedMathSharp.Benchmarks` as the evidence lab:
-expand coverage, isolate allocation sources, make one runtime optimization at a
-time, and verify each change with focused correctness tests plus before/after
-benchmarks. Treat short in-process BenchmarkDotNet runs as smoke checks only;
-use full `Release` benchmark artifacts for performance claims.
+expand coverage, isolate allocation, throughput, and complexity signals, make
+one runtime optimization at a time, and verify each change with focused
+correctness tests plus before/after benchmarks. Treat short in-process
+BenchmarkDotNet runs as smoke checks only; use full `Release` benchmark
+artifacts for performance claims.
 
 **Tech Stack:** `netstandard2.1` and `net8.0` runtime targets, .NET 8
 BenchmarkDotNet runner, xUnit, `Fixed64`, `FixedMath`, `Vector2d`, `Vector3d`,
@@ -43,6 +46,12 @@ BenchmarkDotNet smoke run. That run exposed useful allocation signals, but its
 numbers are not stable enough for published claims or performance gates.
 
 ## Smoke-Run Signals To Validate
+
+Use allocation signals as one diagnostic axis, not the whole performance story.
+For each hot area, also compare mean/median timing, operation count implied by
+the API shape, avoidable branches, duplicated work, and any setup accidentally
+included in the measured method. Favor changes that remove work or reduce time
+complexity before low-level micro-optimizations.
 
 Allocation-free in the first pass:
 
@@ -94,6 +103,8 @@ diagnostic run identifies the allocation source.
   follow-up doc before making performance changes.
 - [x] Confirm benchmark fixture setup is outside measured methods or is
   intentionally part of the measured scenario.
+- [x] Treat baseline review as a speed, allocation, and complexity pass rather
+  than an allocation-only scan.
 
 Verification:
 
@@ -143,6 +154,8 @@ measured benchmark methods. No Phase 1 benchmark code changes were needed.
 - [x] Identify whether allocations come from lookup creation, span/array
   patterns, exception-helper shape, decimal/string conversion, or operator
   helper behavior.
+- [x] Compare scalar/trigonometry timings and implementation complexity before
+  choosing an optimization target.
 - [x] If an allocation source is confirmed, add a targeted correctness test
   before changing runtime code.
 - [x] Preserve guarded overflow, saturation, rounding, and deterministic
@@ -216,6 +229,8 @@ in `docs/feature-work/issue-tracker.md` as `FMS-Issue-005` and
   `FromDirection`.
 - [x] Diagnose whether quaternion allocations are inherited from
   trigonometry/vector normalization or from quaternion-specific code.
+- [x] Review vector and quaternion timing shape so `out` overload comparisons
+  are not reduced to allocation checks.
 - [x] Diagnose the residual 1 B short-run allocation signal in
   `QuaternionBenchmarks.FromEulerAngles` and `QuaternionBenchmarks.Slerp` after
   `FixedThrowHelper` removal.
@@ -294,6 +309,9 @@ are sufficient only for compile, selection, and allocation diagnostics.
   transform direction, determinant, and inversion.
 - [x] Add `FixedBoundSphere`, `FixedBoundArea`, `FixedBoundFrustum`,
   `FixedRay`, and `FixedPlane` benchmarks.
+- [x] Review matrix and bounds timings for complexity/speed signals, including
+  affine versus full inversion and frustum construction versus reusable
+  array-fill paths.
 - [x] Add mixed shape dispatch benchmarks only after deciding which public
   dispatch shape must remain stable.
 - [x] Preserve explicit cross-type overloads unless a measured replacement
@@ -383,6 +401,9 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - [ ] Avoid raw timing thresholds in CI until runner variance is understood.
 - [ ] Prefer artifact comparison or explicit BenchmarkDotNet comparison support
   over single-run timing gates.
+- [ ] Define a lightweight review checklist for benchmark findings that covers
+  timing deltas, allocation deltas, complexity class, branch/data-movement
+  costs, and semantic risk.
 - [ ] Add release-note guidance for performance improvements that includes
   environment, baseline, and measured delta.
 - [ ] Confirm optimized paths remain deterministic across `Release` and
@@ -411,7 +432,7 @@ commit. A clean sequence is:
 
 1. Add focused benchmark coverage.
 2. Capture baseline artifacts.
-3. Diagnose one allocation source.
+3. Diagnose one speed, allocation, or complexity source.
 4. Add correctness coverage.
 5. Optimize one runtime path.
 6. Re-run focused benchmarks and full tests.
