@@ -3,15 +3,15 @@ using BenchmarkDotNet.Attributes;
 namespace FixedMathSharp.Benchmarks;
 
 [MemoryDiagnoser]
-public class Vector3dBenchmarks
+public class Vector4dBenchmarks
 {
-    private readonly Vector3d[] _left = BenchmarkFixtures.VectorsA;
-    private readonly Vector3d[] _right = BenchmarkFixtures.VectorsB;
+    private readonly Vector4d[] _left = BenchmarkFixtures.Vector4sA;
+    private readonly Vector4d[] _right = BenchmarkFixtures.Vector4sB;
 
     [Benchmark]
-    public Vector3d Add()
+    public Vector4d Add()
     {
-        Vector3d accumulator = Vector3d.Zero;
+        Vector4d accumulator = Vector4d.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += _left[i] + _right[i];
 
@@ -19,12 +19,12 @@ public class Vector3dBenchmarks
     }
 
     [Benchmark]
-    public Vector3d AddOut()
+    public Vector4d AddOut()
     {
-        Vector3d accumulator = Vector3d.Zero;
+        Vector4d accumulator = Vector4d.Zero;
         for (int i = 0; i < _left.Length; i++)
         {
-            Vector3d.Add(_left[i], _right[i], out Vector3d result);
+            Vector4d.Add(_left[i], _right[i], out Vector4d result);
             accumulator += result;
         }
 
@@ -32,9 +32,9 @@ public class Vector3dBenchmarks
     }
 
     [Benchmark]
-    public Vector3d AddScale()
+    public Vector4d AddScale()
     {
-        Vector3d accumulator = Vector3d.Zero;
+        Vector4d accumulator = Vector4d.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += (_left[i] + _right[i]) * Fixed64.Half;
 
@@ -46,17 +46,7 @@ public class Vector3dBenchmarks
     {
         Fixed64 accumulator = Fixed64.Zero;
         for (int i = 0; i < _left.Length; i++)
-            accumulator += Vector3d.Dot(_left[i], _right[i]);
-
-        return accumulator;
-    }
-
-    [Benchmark]
-    public Vector3d Cross()
-    {
-        Vector3d accumulator = Vector3d.Zero;
-        for (int i = 0; i < _left.Length; i++)
-            accumulator += Vector3d.Cross(_left[i], _right[i]);
+            accumulator += Vector4d.Dot(_left[i], _right[i]);
 
         return accumulator;
     }
@@ -72,9 +62,9 @@ public class Vector3dBenchmarks
     }
 
     [Benchmark]
-    public Vector3d Normal()
+    public Vector4d Normal()
     {
-        Vector3d accumulator = Vector3d.Zero;
+        Vector4d accumulator = Vector4d.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += _left[i].Normal;
 
@@ -82,12 +72,12 @@ public class Vector3dBenchmarks
     }
 
     [Benchmark]
-    public Vector3d NormalizeInPlace()
+    public Vector4d NormalizeInPlace()
     {
-        Vector3d accumulator = Vector3d.Zero;
+        Vector4d accumulator = Vector4d.Zero;
         for (int i = 0; i < _left.Length; i++)
         {
-            Vector3d value = _left[i];
+            Vector4d value = _left[i];
             accumulator += value.Normalize();
         }
 
@@ -95,11 +85,11 @@ public class Vector3dBenchmarks
     }
 
     [Benchmark]
-    public Vector3d GetNormalized()
+    public Vector4d GetNormalized()
     {
-        Vector3d accumulator = Vector3d.Zero;
+        Vector4d accumulator = Vector4d.Zero;
         for (int i = 0; i < _left.Length; i++)
-            accumulator += Vector3d.GetNormalized(_left[i]);
+            accumulator += Vector4d.GetNormalized(_left[i]);
 
         return accumulator;
     }
@@ -109,30 +99,17 @@ public class Vector3dBenchmarks
     {
         Fixed64 accumulator = Fixed64.Zero;
         for (int i = 0; i < _left.Length; i++)
-            accumulator += Vector3d.Distance(_left[i], _right[i]);
+            accumulator += Vector4d.Distance(_left[i], _right[i]);
 
         return accumulator;
     }
 
     [Benchmark]
-    public Vector3d Lerp()
+    public Vector4d Lerp()
     {
-        Vector3d accumulator = Vector3d.Zero;
+        Vector4d accumulator = Vector4d.Zero;
         for (int i = 0; i < _left.Length; i++)
-            accumulator += Vector3d.Lerp(_left[i], _right[i], Fixed64.Half);
-
-        return accumulator;
-    }
-
-    [Benchmark]
-    public Vector3d LerpOut()
-    {
-        Vector3d accumulator = Vector3d.Zero;
-        for (int i = 0; i < _left.Length; i++)
-        {
-            Vector3d.Lerp(_left[i], _right[i], Fixed64.Half, out Vector3d result);
-            accumulator += result;
-        }
+            accumulator += Vector4d.Lerp(_left[i], _right[i], Fixed64.Half);
 
         return accumulator;
     }

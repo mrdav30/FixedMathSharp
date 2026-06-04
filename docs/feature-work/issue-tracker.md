@@ -120,10 +120,11 @@ dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLea
 Performance issues should stay in the benchmark plan unless they become a
 confirmed runtime defect. Current queue:
 
-- 2026-06-03: Investigate vector normalization and remaining quaternion
-  allocation signals. After `FixedThrowHelper` removal, short-run benchmarks
-  still reported `1 B` allocated for `QuaternionBenchmarks.FromEulerAngles` and
-  `QuaternionBenchmarks.Slerp`.
+- None currently. The 2026-06-03 vector normalization and residual quaternion
+  allocation investigation was completed in
+  `docs/feature-work/2026-06-03-benchmark-hot-path-followups.md` Phase 3. The
+  residual `1 B` signal did not reproduce in the expanded short-run
+  diagnostics, so no runtime defect is currently tracked.
 
 ## Resolved Issues
 

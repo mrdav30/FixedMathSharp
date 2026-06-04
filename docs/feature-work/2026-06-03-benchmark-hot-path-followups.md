@@ -207,29 +207,29 @@ in `docs/feature-work/issue-tracker.md` as `FMS-Issue-005` and
 - Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector4d.Tests.cs`
 - Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Rotations/FixedQuaternion.Tests.cs`
 
-- [ ] Split `Vector3d.Normalize` into `Magnitude`, `Normal`,
+- [x] Split `Vector3d.Normalize` into `Magnitude`, `Normal`,
   `NormalizeInPlace`, and `GetNormalized` benchmark cases.
-- [ ] Add `Vector2d` and `Vector4d` benchmarks for arithmetic, dot,
+- [x] Add `Vector2d` and `Vector4d` benchmarks for arithmetic, dot,
   normalization, distance, and interpolation.
-- [ ] Add quaternion benchmarks for `FromAxisAngle`, `AngleAxis`,
+- [x] Add quaternion benchmarks for `FromAxisAngle`, `AngleAxis`,
   `FromEulerAngles`, `Lerp`, `Slerp`, `Normalize`, `ToEulerAngles`, and
   `FromDirection`.
-- [ ] Diagnose whether quaternion allocations are inherited from
+- [x] Diagnose whether quaternion allocations are inherited from
   trigonometry/vector normalization or from quaternion-specific code.
-- [ ] Diagnose the residual 1 B short-run allocation signal in
+- [x] Diagnose the residual 1 B short-run allocation signal in
   `QuaternionBenchmarks.FromEulerAngles` and `QuaternionBenchmarks.Slerp` after
   `FixedThrowHelper` removal.
-- [ ] Compare existing value-returning overloads against existing `out`
+- [x] Compare existing value-returning overloads against existing `out`
   overloads where both are already part of the public API.
-- [ ] Keep coordinate-convention fixes separate from performance changes unless
+- [x] Keep coordinate-convention fixes separate from performance changes unless
   a benchmark directly proves a convention-related cost.
 
 Verification:
 
 ```bash
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~Vector2dTests|FullyQualifiedName~Vector3dTests|FullyQualifiedName~Vector4dTests|FullyQualifiedName~FixedQuaternionTests"
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector3d quaternion -j Short -i
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector3d quaternion --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector2d vector3d vector4d quaternion -j Short -i
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector2d vector3d vector4d quaternion --exporters json
 ```
 
 Phase 3 note from the `FixedThrowHelper` removal side quest on 2026-06-03:
@@ -237,6 +237,30 @@ Phase 3 note from the `FixedThrowHelper` removal side quest on 2026-06-03:
 `QuaternionBenchmarks.FromEulerAngles` and `QuaternionBenchmarks.Slerp` dropped
 to a small residual `1 B` allocation signal. Treat that as a Phase 3 diagnostic
 target rather than a completed quaternion allocation fix.
+
+Phase 3 result on 2026-06-03: benchmark coverage was expanded for
+`Vector2d`, `Vector3d`, `Vector4d`, and `FixedQuaternion`. Vector fixtures now
+include deterministic 2D and 4D arrays plus normalized 3D axes for quaternion
+creation paths. `Vector3d` normalization is split into `Magnitude`, `Normal`,
+`NormalizeInPlace`, and `GetNormalized`. Value-returning vector additions were
+compared against existing `out` overloads across 2D, 3D, and 4D; `Vector2d` and
+`Vector3d` also compare value-returning `Lerp` against `Lerp(..., out result)`.
+
+Short in-process BenchmarkDotNet diagnostics reported no managed allocations
+for all vector benchmarks and all quaternion benchmarks, including
+`QuaternionBenchmarks.FromEulerAngles` and `QuaternionBenchmarks.Slerp`. The
+prior residual `1 B` quaternion signal did not reproduce after the benchmark
+expansion and current scalar/trigonometry fixes, so no runtime allocation
+change was made in Phase 3. The current evidence points to the large original
+quaternion allocation coming from shared scalar/trigonometry guard-message and
+lookup paths fixed in Phase 2, not from quaternion-specific heap allocation.
+
+Verification notes: `Release` benchmark build passed with no warnings, `list`
+showed `vector2d`, `vector3d`, `vector4d`, and `quaternion`, and short
+in-process smoke runs completed for the vector/quaternion benchmark set. Timing
+comparisons between value-returning and `out` overloads should not be used as
+API guidance until a full exported benchmark run is captured; the short runs
+are sufficient only for compile, selection, and allocation diagnostics.
 
 ## Phase 4: Expand Matrix And Bounds Coverage
 
