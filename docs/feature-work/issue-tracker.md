@@ -36,6 +36,65 @@ runtime and tests.
 
 ## Active Issues
 
+### FMS-Issue-008: `--no-restore` can reuse stale NuGet assets across OS or configuration changes
+
+**Discovered:** 2026-06-04
+
+**Status:** Active
+
+**Source:** Phase 5 benchmark coverage verification.
+
+**Observed behavior:**
+
+A focused `dotnet test --no-restore` run failed before test execution because
+`tests/FixedMathSharp.Tests/obj/project.assets.json` and generated NuGet props
+referenced Windows fallback package folders such as
+`C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages`.
+Running the same focused command without `--no-restore` regenerated the assets
+for WSL and the tests passed.
+
+A later `Release --no-restore` benchmark build also failed after a
+`ReleaseLean` restore because the benchmark project conditionally includes the
+MemoryPack package only outside `ReleaseLean`. Running the `Release` build with
+restore regenerated the package graph and succeeded.
+
+Running `Release` and `ReleaseLean` benchmark builds in parallel can hit the
+same shared `obj` assets race and leave one configuration seeing the other
+configuration's package graph. Sequential forced restores/builds for both
+configurations succeeded.
+
+**Impact:**
+
+Multi-OS or multi-configuration workspaces can produce noisy local verification
+failures when a restore from one environment/configuration is followed by a
+different `--no-restore` build/test loop. This is not a runtime defect, but it
+can mislead agents or contributors during focused verification.
+
+**Recommended next steps:**
+
+- [ ] Reproduce from a clean Windows restore followed by WSL `dotnet test
+  --no-restore`.
+- [ ] Decide whether local verification docs should avoid `--no-restore` after
+  switching OS environments or benchmark configurations with conditional
+  package references.
+- [ ] Check whether repo-level NuGet configuration can prevent generated assets
+  from carrying machine-local fallback folders.
+- [ ] Preserve fast `--no-restore` workflows when the restore and test happen
+  under the same OS/environment.
+- [ ] Avoid parallel restore/build invocations for configurations with
+  different conditional package references unless the outputs/intermediate
+  paths are isolated.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore -p:RunSettingsFilePath= --filter "FullyQualifiedName~FixedCurveTests|FullyQualifiedName~FixedRangeTests|FullyQualifiedName~DeterministicRandomTests"
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug -p:RunSettingsFilePath= --filter "FullyQualifiedName~FixedCurveTests|FullyQualifiedName~FixedRangeTests|FullyQualifiedName~DeterministicRandomTests"
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c ReleaseLean -f net8.0
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0
+```
+
 ### FMS-Issue-005: Coverlet can fail to restore instrumented assemblies on WSL
 
 **Discovered:** 2026-06-03

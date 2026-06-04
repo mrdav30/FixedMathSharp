@@ -363,17 +363,17 @@ them. No runtime optimization was made in Phase 4.
 - Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Scalars/FixedRange.Tests.cs`
 - Test if runtime changes are made: `tests/FixedMathSharp.Tests/Random/DeterministicRandom.Tests.cs`
 
-- [ ] Add standard-build MemoryPack serialization and deserialization
+- [x] Add standard-build MemoryPack serialization and deserialization
   benchmarks for `Fixed64`, vectors, quaternions, matrices, bounds, and curves.
-- [ ] Add JSON roundtrip benchmarks where JSON support is part of the tested
+- [x] Add JSON roundtrip benchmarks where JSON support is part of the tested
   public behavior.
-- [ ] Ensure serialization benchmarks are excluded or conditionally compiled in
+- [x] Ensure serialization benchmarks are excluded or conditionally compiled in
   `ReleaseLean` when MemoryPack APIs are unavailable.
-- [ ] Add curve evaluation benchmarks for common key counts and interpolation
+- [x] Add curve evaluation benchmarks for common key counts and interpolation
   modes.
-- [ ] Add deterministic random benchmarks for `Next`, `NextFixed64`, seeded
+- [x] Add deterministic random benchmarks for `Next`, `NextFixed64`, seeded
   streams, and feature-derived streams.
-- [ ] Validate that fixtures are deterministic and do not depend on benchmark
+- [x] Validate that fixtures are deterministic and do not depend on benchmark
   execution order.
 
 Verification:
@@ -384,6 +384,45 @@ dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c ReleaseLean -f net8.0
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all -j Short -i
 ```
+
+Phase 5 result on 2026-06-04: benchmark coverage was added for
+serialization, curve evaluation, fixed ranges, and deterministic RNG. The
+benchmark project now defines `FIXEDMATHSHARP_DISABLE_MEMORYPACK` in
+`ReleaseLean`, and `SerializationBenchmarks` compiles MemoryPack methods only
+when that symbol is absent. `Release` lists MemoryPack and JSON serialization
+methods; `ReleaseLean` lists only JSON serialization methods under the same
+`serialization` alias.
+
+Curve, range, and RNG benchmarks use deterministic fixtures and local seeded
+RNG instances so measured output does not depend on BenchmarkDotNet execution
+order. The short in-process Phase 5 smoke run executed 37 benchmark cases across
+`curve`, `fixed-range`, `deterministic-random`, and `serialization`.
+
+Smoke-run signals:
+
+- Curve evaluation, fixed-range operations, and deterministic RNG paths reported
+  no managed allocations.
+- Serialization allocates by design because the measured APIs produce or
+  materialize payloads. In the short smoke, MemoryPack serialize/roundtrip
+  paths were much faster and smaller than JSON equivalents, while MemoryPack
+  scalar/vector deserialization from precomputed payloads reported no managed
+  allocations.
+- Curve benchmarks now include interpolation-mode coverage plus a two-key versus
+  32-key linear-evaluation comparison for later complexity analysis. Treat
+  short-run timing as directional only until a full exported comparison is
+  captured.
+
+Verification notes: `Release` and `ReleaseLean` benchmark builds passed with no
+warnings or errors when restore was allowed to refresh the configuration-specific
+package graph. Focused curve/range/RNG tests passed after allowing restore to
+regenerate WSL-local NuGet assets; the initial `--no-restore` run failed on
+stale Windows fallback package folders. A later `Release --no-restore` benchmark
+build also failed after a `ReleaseLean` restore because MemoryPack is
+configuration-conditional in the benchmark project; parallel `Release` and
+`ReleaseLean` restores can race on the same shared `obj` assets for the same
+reason. The final verification used sequential forced restores for both
+benchmark configurations. These stale-asset cases are tracked in
+`docs/feature-work/issue-tracker.md` as `FMS-Issue-008`.
 
 ## Phase 6: Regression Guardrails And Reporting
 

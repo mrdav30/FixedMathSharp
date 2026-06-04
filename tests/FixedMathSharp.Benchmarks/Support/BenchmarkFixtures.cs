@@ -22,6 +22,13 @@ internal static class BenchmarkFixtures
     internal static readonly Vector4d[] Vector4sB = CreateVector4s(19);
     internal static readonly FixedQuaternion[] RotationsA = CreateRotations(5);
     internal static readonly FixedQuaternion[] RotationsB = CreateRotations(23);
+    internal static readonly FixedRange[] RangesA = CreateRanges(11);
+    internal static readonly FixedRange[] RangesB = CreateRanges(37);
+    internal static readonly FixedCurve[] LinearCurves = CreateCurves(FixedCurveMode.Linear);
+    internal static readonly FixedCurve[] StepCurves = CreateCurves(FixedCurveMode.Step);
+    internal static readonly FixedCurve[] SmoothCurves = CreateCurves(FixedCurveMode.Smooth);
+    internal static readonly FixedCurve[] CubicCurves = CreateCurves(FixedCurveMode.Cubic);
+    internal static readonly Fixed64[] CurveTimes = CreateCurveTimes();
     internal static readonly Fixed3x3[] Matrix3s = CreateMatrix3s();
     internal static readonly Fixed4x4[] Matrices = CreateMatrices();
     internal static readonly Fixed4x4[] PerspectiveMatrices = CreatePerspectiveMatrices();
@@ -180,6 +187,53 @@ internal static class BenchmarkFixtures
         }
 
         return rotations;
+    }
+
+    private static FixedRange[] CreateRanges(int seed)
+    {
+        var ranges = new FixedRange[SampleCount];
+        for (int i = 0; i < ranges.Length; i++)
+        {
+            Fixed64 min = new Fixed64(((seed + (i * 5)) % 37) - 18) + Fixed64.FromFraction(i % 11, 16);
+            Fixed64 length = Fixed64.One + Fixed64.FromFraction((seed + i) % 13, 4);
+            ranges[i] = new FixedRange(min, min + length, enforceOrder: false);
+        }
+
+        return ranges;
+    }
+
+    private static FixedCurve[] CreateCurves(FixedCurveMode mode)
+    {
+        var curves = new FixedCurve[SampleCount];
+        for (int i = 0; i < curves.Length; i++)
+            curves[i] = new FixedCurve(mode, CreateCurveKeys(i));
+
+        return curves;
+    }
+
+    private static FixedCurveKey[] CreateCurveKeys(int seed)
+    {
+        var keys = new FixedCurveKey[8];
+        Fixed64 baseValue = new Fixed64((seed % 17) - 8);
+        for (int i = 0; i < keys.Length; i++)
+        {
+            Fixed64 time = new Fixed64(i * 2);
+            Fixed64 value = baseValue + Fixed64.FromFraction(((seed + (i * 7)) % 31) - 15, 4);
+            Fixed64 inTangent = Fixed64.FromFraction(((seed + i) % 9) - 4, 4);
+            Fixed64 outTangent = Fixed64.FromFraction(((seed + (i * 3)) % 9) - 4, 4);
+            keys[i] = new FixedCurveKey(time, value, inTangent, outTangent);
+        }
+
+        return keys;
+    }
+
+    private static Fixed64[] CreateCurveTimes()
+    {
+        var values = new Fixed64[SampleCount];
+        for (int i = 0; i < values.Length; i++)
+            values[i] = Fixed64.FromFraction((i * 13) % 112, 8);
+
+        return values;
     }
 
     private static Fixed3x3[] CreateMatrix3s()

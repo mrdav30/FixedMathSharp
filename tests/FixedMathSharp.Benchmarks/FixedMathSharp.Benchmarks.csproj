@@ -12,10 +12,16 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <Configurations>Debug;Release;ReleaseLean</Configurations>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'ReleaseLean'">
+    <DefineConstants>$(DefineConstants);FIXEDMATHSHARP_DISABLE_MEMORYPACK</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj" />
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <!-- The Test SDK is required only for the VSTest Adapter to work -->
+  </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)' != 'ReleaseLean'">
+    <PackageReference Include="MemoryPack" Version="1.21.4" />
   </ItemGroup>
   <ItemGroup>
     <None Remove=".gitignore" />
