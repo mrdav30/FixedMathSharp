@@ -278,7 +278,47 @@ public class Vector3dTests
         Assert.Equal(Vector3d.Right, normalized);
     }
 
+    [Theory]
+    [InlineData(0, 3, 4)]
+    [InlineData(3, 4, 12)]
+    [InlineData(-3, 4, 12)]
+    [InlineData(123, 456, 789)]
+    public void Normalize_MatchesComponentDivisionByMagnitude(int x, int y, int z)
+    {
+        var source = new Vector3d(x, y, z);
+
+        AssertNormalizeMatchesComponentDivision(source);
+    }
+
     #endregion
+
+    [Fact]
+    public void Normalize_MatchesComponentDivisionByMagnitude_ForFractionalHugeAndTinyRawValues()
+    {
+        AssertNormalizeMatchesComponentDivision(Vector3d.FromFloatPoint(1.5, -2.25, 3.75));
+        AssertNormalizeMatchesComponentDivision(new Vector3d(10000, -20000, 30000));
+        AssertNormalizeMatchesComponentDivision(new Vector3d(Fixed64.FromRaw(1), Fixed64.FromRaw(-1), Fixed64.FromRaw(2)));
+    }
+
+    private static void AssertNormalizeMatchesComponentDivision(Vector3d source)
+    {
+        Fixed64 magnitude = source.Magnitude;
+        if (magnitude == Fixed64.Zero)
+        {
+            Assert.Equal(Vector3d.Zero, source.Normal);
+
+            var zeroLength = source;
+            Assert.Equal(Vector3d.Zero, zeroLength.Normalize());
+            return;
+        }
+
+        var expected = new Vector3d(source.X / magnitude, source.Y / magnitude, source.Z / magnitude);
+
+        Assert.Equal(expected, source.Normal);
+
+        var inPlace = source;
+        Assert.Equal(expected, inPlace.Normalize());
+    }
 
     #region Test: Dot and Cross Product
 

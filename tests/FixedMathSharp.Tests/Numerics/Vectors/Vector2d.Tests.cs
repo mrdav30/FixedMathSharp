@@ -303,6 +303,26 @@ public class Vector2dTests
         Assert.Equal(Vector2d.Right, normalized);
     }
 
+    [Theory]
+    [InlineData(3, 4)]
+    [InlineData(-3, 4)]
+    [InlineData(5, -12)]
+    [InlineData(123, 456)]
+    public void Normalize_MatchesComponentDivisionByMagnitude(int x, int y)
+    {
+        var source = new Vector2d(x, y);
+
+        AssertNormalizeMatchesComponentDivision(source);
+    }
+
+    [Fact]
+    public void Normalize_MatchesComponentDivisionByMagnitude_ForFractionalHugeAndTinyRawValues()
+    {
+        AssertNormalizeMatchesComponentDivision(Vector2d.FromFloatPoint(1.5, -2.25));
+        AssertNormalizeMatchesComponentDivision(new Vector2d(10000, -20000));
+        AssertNormalizeMatchesComponentDivision(new Vector2d(Fixed64.FromRaw(1), Fixed64.FromRaw(-1)));
+    }
+
     [Fact]
     public void NormalizeInPlace_DoesNothingForZeroVector()
     {
@@ -310,6 +330,26 @@ public class Vector2dTests
         vector.Normalize();
 
         Assert.Equal(new Vector2d(0, 0), vector); // A zero vector remains zero after normalization
+    }
+
+    private static void AssertNormalizeMatchesComponentDivision(Vector2d source)
+    {
+        Fixed64 magnitude = source.Magnitude;
+        if (magnitude == Fixed64.Zero)
+        {
+            Assert.Equal(Vector2d.Zero, source.Normal);
+
+            var zeroLength = source;
+            Assert.Equal(Vector2d.Zero, zeroLength.Normalize());
+            return;
+        }
+
+        var expected = new Vector2d(source.X / magnitude, source.Y / magnitude);
+
+        Assert.Equal(expected, source.Normal);
+
+        var inPlace = source;
+        Assert.Equal(expected, inPlace.Normalize());
     }
 
     [Fact]

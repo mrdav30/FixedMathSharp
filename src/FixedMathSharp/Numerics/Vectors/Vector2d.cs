@@ -394,8 +394,8 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
         if (mag == Fixed64.One)
             return this;
 
-        X /= mag;
-        Y /= mag;
+        X = Fixed64.DivideByPositive(X, mag);
+        Y = Fixed64.DivideByPositive(Y, mag);
 
         return this;
     }
@@ -662,8 +662,8 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
 
         // Normalize it exactly
         return new Vector2d(
-            value.X / mag,
-            value.Y / mag
+            Fixed64.DivideByPositive(value.X, mag),
+            Fixed64.DivideByPositive(value.Y, mag)
         );
     }
 

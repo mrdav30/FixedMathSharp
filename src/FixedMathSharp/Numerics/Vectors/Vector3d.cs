@@ -446,9 +446,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         if (mag == Fixed64.One)
             return this;
 
-        X /= mag;
-        Y /= mag;
-        Z /= mag;
+        X = Fixed64.DivideByPositive(X, mag);
+        Y = Fixed64.DivideByPositive(Y, mag);
+        Z = Fixed64.DivideByPositive(Z, mag);
 
         return this;
     }
@@ -817,11 +817,11 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return value;
 
-        // Normalize it exactly           
+        // Normalize it exactly
         return new Vector3d(
-            value.X / mag,
-            value.Y / mag,
-            value.Z / mag
+            Fixed64.DivideByPositive(value.X, mag),
+            Fixed64.DivideByPositive(value.Y, mag),
+            Fixed64.DivideByPositive(value.Z, mag)
         );
     }
 

@@ -366,7 +366,11 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
         if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return this;
 
-        return this = new Vector4d(X / mag, Y / mag, Z / mag, W / mag);
+        return this = new Vector4d(
+            Fixed64.DivideByPositive(X, mag),
+            Fixed64.DivideByPositive(Y, mag),
+            Fixed64.DivideByPositive(Z, mag),
+            Fixed64.DivideByPositive(W, mag));
     }
 
     /// <summary>
@@ -507,7 +511,11 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
         if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return value;
 
-        return new Vector4d(value.X / mag, value.Y / mag, value.Z / mag, value.W / mag);
+        return new Vector4d(
+            Fixed64.DivideByPositive(value.X, mag),
+            Fixed64.DivideByPositive(value.Y, mag),
+            Fixed64.DivideByPositive(value.Z, mag),
+            Fixed64.DivideByPositive(value.W, mag));
     }
 
     /// <summary>

@@ -216,12 +216,52 @@ public class Vector4dTests
         Assert.Equal(Vector4d.UnitX, Vector4d.GetNormalized(Vector4d.UnitX));
     }
 
+    [Theory]
+    [InlineData(1, 2, 2, 4)]
+    [InlineData(3, 4, 12, 0)]
+    [InlineData(-3, 4, 12, -5)]
+    [InlineData(123, 456, 789, 321)]
+    public void Normalize_MatchesComponentDivisionByMagnitude(int x, int y, int z, int w)
+    {
+        var source = new Vector4d(x, y, z, w);
+
+        AssertNormalizeMatchesComponentDivision(source);
+    }
+
+    [Fact]
+    public void Normalize_MatchesComponentDivisionByMagnitude_ForFractionalHugeAndTinyRawValues()
+    {
+        AssertNormalizeMatchesComponentDivision(Vector4d.FromFloatPoint(1.5, -2.25, 3.75, -4.5));
+        AssertNormalizeMatchesComponentDivision(new Vector4d(10000, -20000, 30000, -10000));
+        AssertNormalizeMatchesComponentDivision(new Vector4d(Fixed64.FromRaw(1), Fixed64.FromRaw(-1), Fixed64.FromRaw(2), Fixed64.FromRaw(-2)));
+    }
+
     [Fact]
     public void IsNormalized_ReturnsExpectedValues()
     {
         Assert.True(Vector4d.UnitX.IsNormalized());
         Assert.False(Vector4d.Zero.IsNormalized());
         Assert.False(new Vector4d(2, 0, 0, 0).IsNormalized());
+    }
+
+    private static void AssertNormalizeMatchesComponentDivision(Vector4d source)
+    {
+        Fixed64 magnitude = source.Magnitude;
+        if (magnitude == Fixed64.Zero)
+        {
+            Assert.Equal(Vector4d.Zero, source.Normal);
+
+            var zeroLength = source;
+            Assert.Equal(Vector4d.Zero, zeroLength.Normalize());
+            return;
+        }
+
+        var expected = new Vector4d(source.X / magnitude, source.Y / magnitude, source.Z / magnitude, source.W / magnitude);
+
+        Assert.Equal(expected, source.Normal);
+
+        var inPlace = source;
+        Assert.Equal(expected, inPlace.Normalize());
     }
 
     [Theory]
