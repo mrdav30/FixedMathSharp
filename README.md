@@ -68,6 +68,11 @@ Choose the package that fits your runtime:
 | `FixedMathSharp.FluentAssertions` | Tests that use FluentAssertions with `Fixed64`, vectors, quaternions, and matrices. | `dotnet add package FixedMathSharp.FluentAssertions` |
 | `FixedMathSharp.FluentAssertions.Lean` | FluentAssertions helpers paired with the Lean package. | `dotnet add package FixedMathSharp.FluentAssertions.Lean` |
 
+### Serialization Guidance
+
+- **MemoryPack:** best for hot paths, snapshots, networking payloads, deterministic state transfer, and binary saves.
+- **JSON:** best for interoperability, debugging, editor tooling, human-readable configs, and low-frequency persistence.
+
 ### Unity
 
 FixedMathSharp is maintained separately for Unity-specific packaging and workflows:

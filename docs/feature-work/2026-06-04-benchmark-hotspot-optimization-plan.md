@@ -397,21 +397,48 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 (1.908 ms, 1,362,672 B), and `JsonSerializeMathTypes` (1.498 ms,
 1,223,096 B). MemoryPack is much cheaper but still allocates payload buffers.
 
-- [ ] Treat JSON and MemoryPack payload allocation as intentional until a focused
+- [x] Treat JSON and MemoryPack payload allocation as intentional until a focused
   benchmark proves avoidable FixedMathSharp-side work.
-- [ ] Keep serialization benchmarks conditional under
+- [x] Keep serialization benchmarks conditional under
   `FIXEDMATHSHARP_DISABLE_MEMORYPACK` for lean builds.
-- [ ] Consider documentation or sample guidance before runtime changes if the
+- [x] Consider documentation or sample guidance before runtime changes if the
   measured cost is primarily serializer behavior.
-- [ ] Only open runtime work if source inspection finds avoidable intermediate
+- [x] Only open runtime work if source inspection finds avoidable intermediate
   objects or repeated metadata setup inside FixedMathSharp-owned code.
+
+Phase 5 result:
+
+- Confirmed scalar/vector MemoryPack deserialization remains effectively
+  allocation-free; serialization allocations mostly come from requested payload
+  buffers.
+- Found one FixedMathSharp-owned curve cost: `FixedCurve` construction used LINQ
+  `OrderBy(...).ToArray()` for every multi-key curve, including serializer
+  roundtrips where keyframes are already materialized.
+- Replaced `FixedCurve` construction with in-place `Array.Sort` and replaced the
+  remaining runtime LINQ equality path with a counted loop. This intentionally
+  changes the constructor contract for v5: the supplied keyframe array is sorted
+  and retained instead of defensively cloned.
+- Removed LINQ usage from the benchmark catalog/CLI and the affected random test
+  while the context was fresh, keeping the repo's performance examples aligned
+  with the runtime direction.
+- Release serialization rerun after the change showed
+  `MemoryPackRoundTripCurve` at 60.252 us / 145,408 B, down from the Phase 5
+  pre-change pass of 90.561 us / 370,688 B. JSON curve roundtrip allocation also
+  dropped from 3,041,452 B to 2,816,172 B, but JSON time remains dominated by
+  `System.Text.Json` behavior and should be treated as noisy unless a future
+  serializer-options/source-generation investigation is opened.
 
 Verification:
 
 ```bash
-dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --force
-dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c ReleaseLean -f net8.0 --force
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll serialization --exporters json
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~FixedCurveTests|FullyQualifiedName~DeterministicRandomTests"
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f netstandard2.1 --no-restore
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c ReleaseLean -f net8.0 --no-restore
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll list
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll serialization -j Short -i --filter "*RoundTripCurve*" --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll serialization -j Short -i --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/ReleaseLean/net8.0/FixedMathSharp.Benchmarks.dll serialization -j Short -i --exporters json
 ```
 
 ## Phase 6: Vector Normalization Follow-Through

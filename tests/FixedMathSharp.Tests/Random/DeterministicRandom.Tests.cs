@@ -1,6 +1,5 @@
 ﻿using FixedMathSharp.Random;
 using System;
-using System.Linq;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -154,7 +153,7 @@ public class DeterministicRandomTests
             rng.NextBytes(buf);
             // Ensure something was written (not all zeros) and length correct
             Assert.Equal(sizes[i], buf.Length);
-            Assert.True(buf.Any(b => b != 0) || sizes[i] == 0);
+            Assert.True(ContainsNonZeroByte(buf) || sizes[i] == 0);
             results[i] = buf;
         }
 
@@ -163,6 +162,17 @@ public class DeterministicRandomTests
         {
             Assert.NotEqual(results[i - 1], results[i]);
         }
+    }
+
+    private static bool ContainsNonZeroByte(byte[] values)
+    {
+        for (int i = 0; i < values.Length; i++)
+        {
+            if (values[i] != 0)
+                return true;
+        }
+
+        return false;
     }
 
     [Fact]

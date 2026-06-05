@@ -1,6 +1,5 @@
 ﻿using BenchmarkDotNet.Running;
 using System;
-using System.Linq;
 
 namespace FixedMathSharp.Benchmarks;
 
@@ -42,7 +41,7 @@ internal static class Program
                 return 1;
             }
 
-            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(EnsureAllBenchmarksSelected(args.Skip(1).ToArray()));
+            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(EnsureAllBenchmarksSelected(CopyRange(args, 1, args.Length - 1)));
             return 0;
         }
 
@@ -56,7 +55,7 @@ internal static class Program
             return 0;
         }
 
-        Type[] selectedTypes = _catalog.Resolve(args.Take(aliasCount).ToArray(), out string unknownAlias);
+        Type[] selectedTypes = _catalog.Resolve(CopyRange(args, 0, aliasCount), out string unknownAlias);
         if (unknownAlias != null)
         {
             Console.Error.WriteLine($"Unknown benchmark selection '{unknownAlias}'.");
@@ -65,16 +64,33 @@ internal static class Program
             return 1;
         }
 
-        BenchmarkSwitcher.FromTypes(selectedTypes).Run(EnsureAllBenchmarksSelected(args.Skip(aliasCount).ToArray()));
+        BenchmarkSwitcher.FromTypes(selectedTypes).Run(EnsureAllBenchmarksSelected(CopyRange(args, aliasCount, args.Length - aliasCount)));
         return 0;
     }
 
     private static string[] EnsureAllBenchmarksSelected(string[] benchmarkArgs)
     {
-        if (benchmarkArgs.Any(IsBenchmarkSelectionArgument))
-            return benchmarkArgs;
+        for (int i = 0; i < benchmarkArgs.Length; i++)
+        {
+            if (IsBenchmarkSelectionArgument(benchmarkArgs[i]))
+                return benchmarkArgs;
+        }
 
-        return new[] { "--filter", "*" }.Concat(benchmarkArgs).ToArray();
+        var args = new string[benchmarkArgs.Length + 2];
+        args[0] = "--filter";
+        args[1] = "*";
+        Array.Copy(benchmarkArgs, 0, args, 2, benchmarkArgs.Length);
+        return args;
+    }
+
+    private static string[] CopyRange(string[] values, int startIndex, int length)
+    {
+        if (length == 0)
+            return Array.Empty<string>();
+
+        var range = new string[length];
+        Array.Copy(values, startIndex, range, 0, length);
+        return range;
     }
 
     private static bool IsBenchmarkSelectionArgument(string argument)

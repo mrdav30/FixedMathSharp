@@ -134,7 +134,7 @@ public class FixedCurveTests
     }
 
     [Fact]
-    public void Constructor_SortsKeyframesAndClonesInputArray()
+    public void Constructor_SortsKeyframesInPlace()
     {
         FixedCurveKey[] keyframes =
         {
@@ -143,10 +143,12 @@ public class FixedCurveTests
         };
 
         FixedCurve curve = new(FixedCurveMode.Linear, keyframes);
-        keyframes[0] = new FixedCurveKey(20, 200);
 
         Assert.Equal(Fixed64.Zero, curve.Keyframes[0].Time);
         Assert.Equal(new Fixed64(10), curve.Keyframes[1].Time);
+        Assert.Same(keyframes, curve.Keyframes);
+        Assert.Equal(Fixed64.Zero, keyframes[0].Time);
+        Assert.Equal(new Fixed64(10), keyframes[1].Time);
     }
 
     [Fact]

@@ -7,7 +7,6 @@
 
 using MemoryPack;
 using System;
-using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace FixedMathSharp;
@@ -20,6 +19,8 @@ namespace FixedMathSharp;
 [MemoryPackable]
 public partial struct FixedCurve : IEquatable<FixedCurve>
 {
+    private static readonly Comparison<FixedCurveKey> CompareKeyframesByTime = (left, right) => left.Time.CompareTo(right.Time);
+
     #region Constructors
 
     /// <summary>
@@ -38,9 +39,16 @@ public partial struct FixedCurve : IEquatable<FixedCurve>
     [MemoryPackConstructor]
     public FixedCurve(FixedCurveMode mode, params FixedCurveKey[] keyframes)
     {
-        Keyframes = keyframes?.Length > 1
-            ? keyframes.OrderBy(k => k.Time).ToArray()
-            : keyframes?.Clone() as FixedCurveKey[] ?? Array.Empty<FixedCurveKey>();
+        if (keyframes is null)
+            Keyframes = Array.Empty<FixedCurveKey>();
+        else
+        {
+            if (keyframes.Length > 1)
+                Array.Sort(keyframes, CompareKeyframesByTime);
+
+            Keyframes = keyframes;
+        }
+
         Mode = mode;
     }
 
@@ -110,8 +118,19 @@ public partial struct FixedCurve : IEquatable<FixedCurve>
     #region Equality
 
     /// <inheritdoc/>
-    public bool Equals(FixedCurve other) =>
-        Mode == other.Mode && Keyframes.SequenceEqual(other.Keyframes);
+    public bool Equals(FixedCurve other)
+    {
+        if (Mode != other.Mode || Keyframes.Length != other.Keyframes.Length)
+            return false;
+
+        for (int i = 0; i < Keyframes.Length; i++)
+        {
+            if (Keyframes[i] != other.Keyframes[i])
+                return false;
+        }
+
+        return true;
+    }
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is FixedCurve other && Equals(other);

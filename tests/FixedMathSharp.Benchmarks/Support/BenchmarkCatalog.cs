@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Text;
 
@@ -25,11 +24,16 @@ internal sealed class BenchmarkCatalog
 
     public static BenchmarkCatalog Create(Assembly assembly)
     {
-        Type[] benchmarkTypes = assembly
-            .GetTypes()
-            .Where(type => type.IsClass && !type.IsAbstract && ContainsBenchmarkMethods(type))
-            .OrderBy(type => type.Name, StringComparer.Ordinal)
-            .ToArray();
+        Type[] assemblyTypes = assembly.GetTypes();
+        var benchmarkTypes = new List<Type>();
+        for (int i = 0; i < assemblyTypes.Length; i++)
+        {
+            Type type = assemblyTypes[i];
+            if (type.IsClass && !type.IsAbstract && ContainsBenchmarkMethods(type))
+                benchmarkTypes.Add(type);
+        }
+
+        benchmarkTypes.Sort(CompareTypesByName);
 
         var aliasLookup = new Dictionary<string, HashSet<Type>>(StringComparer.OrdinalIgnoreCase);
         var displayAliases = new Dictionary<string, HashSet<Type>>(StringComparer.OrdinalIgnoreCase);
@@ -38,7 +42,7 @@ internal sealed class BenchmarkCatalog
         {
             string strippedName = StripBenchmarkSuffix(benchmarkType.Name);
             string[] words = SplitWords(strippedName);
-            string specificAlias = string.Join("-", words.Select(word => word.ToLowerInvariant()));
+            string specificAlias = JoinLowerWords(words, words.Length);
             string selectionAlias = GetSelectionAlias(words);
 
             AddHiddenAlias(aliasLookup, benchmarkType.Name, benchmarkType);
@@ -62,16 +66,8 @@ internal sealed class BenchmarkCatalog
         }
 
         return new BenchmarkCatalog(
-            aliasLookup.ToDictionary(
-                entry => entry.Key,
-                entry => entry.Value.OrderBy(type => type.Name, StringComparer.Ordinal).ToArray(),
-                StringComparer.OrdinalIgnoreCase),
-            displayAliases
-                .OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(entry => new KeyValuePair<string, Type[]>(
-                    entry.Key,
-                    entry.Value.OrderBy(type => type.Name, StringComparer.Ordinal).ToArray()))
-                .ToArray());
+            CreateAliasLookup(aliasLookup),
+            CreateDisplayAliases(displayAliases));
     }
 
     public Type[] Resolve(string[] aliases, out string unknownAlias)
@@ -92,9 +88,7 @@ internal sealed class BenchmarkCatalog
         }
 
         unknownAlias = null;
-        return selectedTypes
-            .OrderBy(type => type.Name, StringComparer.Ordinal)
-            .ToArray();
+        return ToSortedTypeArray(selectedTypes);
     }
 
     public void WriteAvailableSelections(TextWriter writer)
@@ -105,7 +99,7 @@ internal sealed class BenchmarkCatalog
             writer.Write("  ");
             writer.Write(alias.Key.PadRight(24));
             writer.Write(" -> ");
-            writer.WriteLine(string.Join(", ", alias.Value.Select(type => type.Name)));
+            WriteTypeNames(writer, alias.Value);
         }
     }
 
@@ -149,9 +143,14 @@ internal sealed class BenchmarkCatalog
 
     private static bool ContainsBenchmarkMethods(Type type)
     {
-        return type
-            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            .Any(method => method.GetCustomAttributes(typeof(BenchmarkAttribute), false).Length > 0);
+        MethodInfo[] methods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        for (int i = 0; i < methods.Length; i++)
+        {
+            if (methods[i].GetCustomAttributes(typeof(BenchmarkAttribute), false).Length > 0)
+                return true;
+        }
+
+        return false;
     }
 
     private static string StripBenchmarkSuffix(string typeName)
@@ -168,9 +167,9 @@ internal sealed class BenchmarkCatalog
     private static string GetSelectionAlias(string[] words)
     {
         if (words.Length > 1 && _selectionQualifiers.Contains(words[words.Length - 1]))
-            return string.Join("-", words.Take(words.Length - 1).Select(word => word.ToLowerInvariant()));
+            return JoinLowerWords(words, words.Length - 1);
 
-        return string.Join("-", words.Select(word => word.ToLowerInvariant()));
+        return JoinLowerWords(words, words.Length);
     }
 
     private static string[] SplitWords(string value)
@@ -193,7 +192,80 @@ internal sealed class BenchmarkCatalog
         if (currentWord.Length > 0)
             words.Add(currentWord.ToString());
 
-        return words.ToArray();
+        return CopyList(words);
+    }
+
+    private static Dictionary<string, Type[]> CreateAliasLookup(Dictionary<string, HashSet<Type>> aliases)
+    {
+        var lookup = new Dictionary<string, Type[]>(aliases.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (KeyValuePair<string, HashSet<Type>> alias in aliases)
+            lookup.Add(alias.Key, ToSortedTypeArray(alias.Value));
+
+        return lookup;
+    }
+
+    private static KeyValuePair<string, Type[]>[] CreateDisplayAliases(Dictionary<string, HashSet<Type>> aliases)
+    {
+        var displayAliases = new KeyValuePair<string, Type[]>[aliases.Count];
+        int index = 0;
+        foreach (KeyValuePair<string, HashSet<Type>> alias in aliases)
+        {
+            displayAliases[index] = new KeyValuePair<string, Type[]>(alias.Key, ToSortedTypeArray(alias.Value));
+            index++;
+        }
+
+        Array.Sort(displayAliases, CompareAliasEntries);
+        return displayAliases;
+    }
+
+    private static Type[] ToSortedTypeArray(HashSet<Type> types)
+    {
+        var result = new Type[types.Count];
+        types.CopyTo(result);
+        Array.Sort(result, CompareTypesByName);
+        return result;
+    }
+
+    private static int CompareTypesByName(Type left, Type right) =>
+        string.Compare(left.Name, right.Name, StringComparison.Ordinal);
+
+    private static int CompareAliasEntries(KeyValuePair<string, Type[]> left, KeyValuePair<string, Type[]> right) =>
+        string.Compare(left.Key, right.Key, StringComparison.OrdinalIgnoreCase);
+
+    private static void WriteTypeNames(TextWriter writer, Type[] types)
+    {
+        for (int i = 0; i < types.Length; i++)
+        {
+            if (i > 0)
+                writer.Write(", ");
+
+            writer.Write(types[i].Name);
+        }
+
+        writer.WriteLine();
+    }
+
+    private static string JoinLowerWords(string[] words, int count)
+    {
+        var builder = new StringBuilder();
+        for (int i = 0; i < count; i++)
+        {
+            if (i > 0)
+                builder.Append('-');
+
+            string word = words[i];
+            for (int j = 0; j < word.Length; j++)
+                builder.Append(char.ToLowerInvariant(word[j]));
+        }
+
+        return builder.ToString();
+    }
+
+    private static T[] CopyList<T>(List<T> values)
+    {
+        var result = new T[values.Count];
+        values.CopyTo(result);
+        return result;
     }
 
     private static bool ShouldSplitWord(string value, int index)
