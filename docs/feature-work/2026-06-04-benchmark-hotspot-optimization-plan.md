@@ -116,10 +116,8 @@ Result:
 - Benchmarked but rejected a direct `Cos` rewrite and an alternate `Asin`
   half-angle identity because the focused `ShortRun` measurements did not show
   a clear improvement.
-- Left `Pow`, `Log2`, and `Ln` unchanged in this pass. `Pow` remains a real
-  scalar candidate, but it likely needs a dedicated `Log2`/`Pow2` algorithm pass
-  with tighter correctness coverage rather than being mixed into the trig
-  range-reduction work.
+- Left `Pow`, `Log2`, and `Ln` unchanged in this pass. The follow-up scalar
+  pow/log pass was captured and completed as Phase 2b below.
 
 Focused `ShortRun` evidence from this phase:
 
@@ -142,6 +140,56 @@ Verification:
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Fixed64|FullyQualifiedName~FixedTrigonometry"
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic -j Short -i --exporters json
+```
+
+## Phase 2b: Scalar Pow And Log Follow-Through
+
+**Status:** Complete on 2026-06-05.
+
+**Files:**
+
+- Review: `src/FixedMathSharp/Core/FixedMath.Trigonometry.cs`
+- Review: `tests/FixedMathSharp.Tests/Core/FixedTrigonometry.Tests.cs`
+- Review: `tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
+
+- [x] Capture focused baseline numbers for `Pow`, `Pow2`, `Log2`, and `Ln`.
+- [x] Add correctness sweeps for powers of two, fractional exponents, log
+  identities, rounding behavior, and invalid inputs before runtime changes.
+- [x] Prefer removing repeated work and iteration count over lookup-table growth
+  unless a table proves a clear cache-friendly win on `netstandard2.1`.
+- [x] Re-benchmark each changed method and record the before/after result.
+
+Context: Phase 2 of the hotspot optimization plan improved trig-heavy scalar
+paths, but deliberately left `Pow`, `Pow2`, `Log2`, and `Ln` unchanged because
+they need a focused algorithm pass. `Pow` composes `Log2` and `Pow2`, so it is
+the clearest end-user hotspot, while `Ln` is a thin `Log2` derivative. This
+phase should keep the work measurement-driven and avoid changing approximation
+semantics unless tests prove the new raw results stay within accepted
+deterministic tolerances.
+
+Phase 2b result on 2026-06-05: completed. `Pow2` now uses compact Q32.32
+fractional-bit lookup tables for positive and negative exponents instead of a
+division-heavy Taylor loop. `Log2` now normalizes by integer bit position instead
+of repeated shifting, and `Ln` no longer rounds the final result to an integer.
+This also fixed two correctness issues discovered during the phase:
+`Pow2(31)` wrapped negative instead of saturating, and `Ln` discarded fractional
+log results such as `ln(0.125)`.
+
+Focused `ShortRun` evidence:
+
+| Benchmark | Before | After |
+| --- | ---: | ---: |
+| `Pow` | 118.184 us, 0 B | 61.974 us, 0 B |
+| `Pow2` | 75.779 us, 0 B | 9.349 us, 0 B |
+| `Log2` | 33.442 us, 0 B | 31.224 us, 0 B |
+| `Ln` | 41.089 us, 0 B | 33.225 us, 0 B |
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~FixedTrigonometry"
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic -j Short -i --filter "*Pow*" "*Log2*" "*Ln*" --exporters json
 ```
 
 ## Phase 3: Quaternion Direction And Euler Paths

@@ -123,6 +123,16 @@ public class Fixed64ArithmeticBenchmarks
     }
 
     [Benchmark]
+    public Fixed64 Pow2()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _unit.Length; i++)
+            accumulator += FixedMath.Pow2(_unit[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
     public Fixed64 Log2()
     {
         Fixed64 accumulator = Fixed64.Zero;

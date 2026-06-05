@@ -67,6 +67,78 @@ namespace FixedMathSharp
         internal const double SIN_COEFF_7_DOUBLE = 0.00019588856957852840423583984375d; // 1/7!
         internal static readonly long SIN_COEFF_7_LONG = (long)(SIN_COEFF_7_DOUBLE * ONE_L);
 
+        private static readonly long[] s_pow2PositiveFractionLookup =
+        {
+            6074001000L,
+            5107605667L,
+            4683695048L,
+            4485121744L,
+            4389014833L,
+            4341736423L,
+            4318288544L,
+            4306612134L,
+            4300785774L,
+            4297875550L,
+            4296421177L,
+            4295694175L,
+            4295330720L,
+            4295149004L,
+            4295058149L,
+            4295012722L,
+            4294990009L,
+            4294978653L,
+            4294972974L,
+            4294970135L,
+            4294968716L,
+            4294968006L,
+            4294967651L,
+            4294967473L,
+            4294967385L,
+            4294967340L,
+            4294967318L,
+            4294967307L,
+            4294967302L,
+            4294967299L,
+            4294967297L,
+            4294967297L
+        };
+
+        private static readonly long[] s_pow2NegativeFractionLookup =
+        {
+            3037000500L,
+            3611622603L,
+            3938502376L,
+            4112874773L,
+            4202935003L,
+            4248701965L,
+            4271771996L,
+            4283353945L,
+            4289156690L,
+            4292061010L,
+            4293513907L,
+            4294240540L,
+            4294603903L,
+            4294785595L,
+            4294876445L,
+            4294921870L,
+            4294944583L,
+            4294955939L,
+            4294961618L,
+            4294964457L,
+            4294965876L,
+            4294966586L,
+            4294966941L,
+            4294967119L,
+            4294967207L,
+            4294967252L,
+            4294967274L,
+            4294967285L,
+            4294967290L,
+            4294967293L,
+            4294967295L,
+            4294967295L
+        };
+
         #endregion
 
         #region FixedTrigonometry Operations
@@ -110,7 +182,6 @@ namespace FixedMathSharp
             if (x.m_rawValue == 0)
                 return Fixed64.One;
 
-            // Handle negative expFixed64.Onents by using the reciprocal
             bool neg = x.m_rawValue < 0;
             if (neg)
                 x = -x;
@@ -118,32 +189,27 @@ namespace FixedMathSharp
             if (x == Fixed64.One)
                 return neg ? Fixed64.One / Fixed64.Two : Fixed64.Two;
 
-            if (x >= Fixed64.Log2Max)
-                return neg ? Fixed64.One / new Fixed64(MAX_VALUE_L) : new Fixed64(MAX_VALUE_L);
+            int integerPart = (int)(x.m_rawValue >> SHIFT_AMOUNT_I);
+            long fractionalRaw = x.m_rawValue & MAX_SHIFTED_AMOUNT_UI;
 
-            /* 
-             * Taylor series expansion for exp(x)
-             * From term n, we get term n+1 by multiplying with x/n.
-             * When the sum term drops to Fixed64.Zero, we can stop summing.
-             */
-            int integerPart = Fixed64.RawToInt(Floor(x));
-            x = Fixed64.FromRaw(x.m_rawValue & MAX_SHIFTED_AMOUNT_UI);  // Fractional part
-
-            var result = Fixed64.One;
-            var term = Fixed64.One;
-            int i = 1;
-            while (term.m_rawValue != 0)
+            if (neg)
             {
-                term = FastMul(FastMul(x, term), Fixed64.Ln2) / (Fixed64)i;
-                result += term;
-                i++;
+                if (integerPart >= SHIFT_AMOUNT_I)
+                    return Fixed64.MinIncrement;
+
+                Fixed64 result = Pow2Fractional(fractionalRaw, s_pow2NegativeFractionLookup);
+                return Fixed64.FromRaw(ShiftRightRounded(result.m_rawValue, integerPart));
             }
 
-            result = Fixed64.FromRaw(result.m_rawValue << integerPart);
-            if (neg)
-                result = Fixed64.One / result;
+            if (integerPart >= 31)
+                return Fixed64.MaxValue;
 
-            return result;
+            Fixed64 positiveResult = Pow2Fractional(fractionalRaw, s_pow2PositiveFractionLookup);
+            long shifted = positiveResult.m_rawValue << integerPart;
+
+            return shifted < 0
+                ? Fixed64.MaxValue
+                : Fixed64.FromRaw(shifted);
         }
 
         /// <summary>
@@ -160,21 +226,14 @@ namespace FixedMathSharp
                 throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute logarithm of non-positive number.");
 
             long b = 1U << (SHIFT_AMOUNT_I - 1);  // Initial value for binary logarithm
-            long y = 0;  // Result accumulator
             long rawX = x.m_rawValue;
+            int shift = FloorLog2((ulong)rawX) - SHIFT_AMOUNT_I;
+            long y = (long)shift << SHIFT_AMOUNT_I;
 
-            // Adjust rawX to the correct range [1, 2)
-            while (rawX < ONE_L)
-            {
-                rawX <<= 1;
-                y -= ONE_L;
-            }
-
-            while (rawX >= (ONE_L << 1))
-            {
-                rawX >>= 1;
-                y += ONE_L;
-            }
+            if (shift > 0)
+                rawX >>= shift;
+            else if (shift < 0)
+                rawX <<= -shift;
 
             Fixed64 z = Fixed64.FromRaw(rawX);  // Remaining fraction
 
@@ -201,7 +260,75 @@ namespace FixedMathSharp
             if (x.m_rawValue <= 0)
                 throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute logarithm of non-positive number.");
 
-            return FastMul(Log2(x), Fixed64.Ln2).Round();
+            return FastMul(Log2(x), Fixed64.Ln2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Fixed64 Pow2Fractional(long fractionalRaw, long[] lookup)
+        {
+            Fixed64 result = Fixed64.One;
+            long mask = 1L << (SHIFT_AMOUNT_I - 1);
+
+            for (int i = 0; i < SHIFT_AMOUNT_I; i++)
+            {
+                if ((fractionalRaw & mask) != 0)
+                    result = FastMul(result, Fixed64.FromRaw(lookup[i]));
+
+                mask >>= 1;
+            }
+
+            return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static long ShiftRightRounded(long value, int shift)
+        {
+            if (shift == 0)
+                return value;
+
+            long half = 1L << (shift - 1);
+            return (value + half) >> shift;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int FloorLog2(ulong value)
+        {
+            int result = 0;
+
+            if (value >= 1UL << 32)
+            {
+                value >>= 32;
+                result = 32;
+            }
+
+            if (value >= 1UL << 16)
+            {
+                value >>= 16;
+                result += 16;
+            }
+
+            if (value >= 1UL << 8)
+            {
+                value >>= 8;
+                result += 8;
+            }
+
+            if (value >= 1UL << 4)
+            {
+                value >>= 4;
+                result += 4;
+            }
+
+            if (value >= 1UL << 2)
+            {
+                value >>= 2;
+                result += 2;
+            }
+
+            if (value >= 1UL << 1)
+                result++;
+
+            return result;
         }
 
         /// <summary>

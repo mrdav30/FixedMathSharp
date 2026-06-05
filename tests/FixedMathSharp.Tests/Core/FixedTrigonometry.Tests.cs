@@ -56,6 +56,31 @@ public class FixedTrigonometryTests
         Assert.Equal(Fixed64.Zero, result);
     }
 
+    [Fact]
+    public void Pow_MatchesReferenceAcrossFractionalExponents()
+    {
+        var values = new (double Base, double Exponent)[]
+        {
+            (0.25d, -0.5d),
+            (0.5d, 0.5d),
+            (1.5d, 1.25d),
+            (2.0d, -2.0d),
+            (3.0d, 0.75d),
+            (8.0d, 0.333333333d)
+        };
+
+        foreach ((double baseValue, double exponent) in values)
+        {
+            var expected = Fixed64.FromFloatPoint(Math.Pow(baseValue, exponent));
+
+            FixedMathTestHelper.AssertWithinRelativeTolerance(
+                expected,
+                FixedMath.Pow(Fixed64.FromFloatPoint(baseValue), Fixed64.FromFloatPoint(exponent)),
+                Fixed64.FromFloatPoint(0.001),
+                $"pow({baseValue}, {exponent}) exceeded tolerance.");
+        }
+    }
+
     #endregion
 
     #region Test: Pow2 Method
@@ -88,7 +113,41 @@ public class FixedTrigonometryTests
     public void Pow2_LargeMagnitudes_Saturate()
     {
         Assert.Equal(Fixed64.MaxValue, FixedMath.Pow2(Fixed64.Log2Max));
-        Assert.Equal(Fixed64.One / Fixed64.MaxValue, FixedMath.Pow2(-Fixed64.Log2Max));
+        Assert.Equal(Fixed64.MinIncrement, FixedMath.Pow2(-Fixed64.Log2Max));
+    }
+
+    [Fact]
+    public void Pow2_ExponentAtRepresentableOverflow_Saturates()
+    {
+        Assert.Equal(Fixed64.MaxValue, FixedMath.Pow2(new Fixed64(31)));
+    }
+
+    [Fact]
+    public void Pow2_MatchesReferenceAcrossSafeRange()
+    {
+        var exponents = new[]
+        {
+            -8.0d,
+            -4.0d,
+            -2.0d,
+            -0.5d,
+            0.5d,
+            1.5d,
+            4.0d,
+            8.0d,
+            16.0d
+        };
+
+        foreach (double exponent in exponents)
+        {
+            var expected = Fixed64.FromFloatPoint(Math.Pow(2d, exponent));
+
+            FixedMathTestHelper.AssertWithinRelativeTolerance(
+                expected,
+                FixedMath.Pow2(Fixed64.FromFloatPoint(exponent)),
+                Fixed64.FromFloatPoint(0.001),
+                $"pow2({exponent}) exceeded tolerance.");
+        }
     }
 
     #endregion
@@ -165,11 +224,21 @@ public class FixedTrigonometryTests
     }
 
     [Fact]
+    public void Log2_PowersOfTwo_ReturnExactExponents()
+    {
+        for (int exponent = -8; exponent <= 16; exponent++)
+        {
+            var value = FixedMath.Pow2(new Fixed64(exponent));
+            Assert.Equal(new Fixed64(exponent), FixedMath.Log2(value));
+        }
+    }
+
+    [Fact]
     public void Ln_PositiveValue_ReturnsCorrectLog()
     {
         var value = Fixed64.FromFloatPoint(Math.E);
         var result = FixedMath.Ln(value);
-        Assert.Equal(Fixed64.One, result); // ln(e) = 1
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.One, result); // ln(e) = 1
     }
 
     [Fact]
@@ -177,6 +246,29 @@ public class FixedTrigonometryTests
     {
         var value = Fixed64.FromFloatPoint(-1);
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.Ln(value));
+    }
+
+    [Fact]
+    public void Log2AndLn_MatchReferenceAcrossPositiveRange()
+    {
+        var values = new[] { 0.125d, 0.25d, 0.5d, 1.5d, 2.0d, 3.75d, 16.0d, 31.5d };
+
+        foreach (double value in values)
+        {
+            var input = Fixed64.FromFloatPoint(value);
+
+            FixedMathTestHelper.AssertWithinRelativeTolerance(
+                Fixed64.FromFloatPoint(Math.Log2(value)),
+                FixedMath.Log2(input),
+                Fixed64.FromFloatPoint(0.001),
+                $"log2({value}) exceeded tolerance.");
+
+            FixedMathTestHelper.AssertWithinRelativeTolerance(
+                Fixed64.FromFloatPoint(Math.Log(value)),
+                FixedMath.Ln(input),
+                Fixed64.FromFloatPoint(0.001),
+                $"ln({value}) exceeded tolerance.");
+        }
     }
 
     #endregion
