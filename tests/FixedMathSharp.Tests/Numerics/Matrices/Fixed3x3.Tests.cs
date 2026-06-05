@@ -14,8 +14,8 @@ public class Fixed3x3Tests
         var rotationMatrix = Fixed3x3.CreateRotationX(Fixed64.HalfPi); // 90 degrees
         var expectedMatrix = new Fixed3x3(
             Fixed64.One, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, -Fixed64.One,
-            Fixed64.Zero, Fixed64.One, Fixed64.Zero
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, -Fixed64.One, Fixed64.Zero
         );
 
         Assert.Equal(expectedMatrix, rotationMatrix);
@@ -26,9 +26,9 @@ public class Fixed3x3Tests
     {
         var rotationMatrix = Fixed3x3.CreateRotationY(Fixed64.HalfPi); // 90 degrees
         var expectedMatrix = new Fixed3x3(
-            Fixed64.Zero, Fixed64.Zero, Fixed64.One,
+            Fixed64.Zero, Fixed64.Zero, -Fixed64.One,
             Fixed64.Zero, Fixed64.One, Fixed64.Zero,
-            -Fixed64.One, Fixed64.Zero, Fixed64.Zero
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero
         );
 
         Assert.Equal(expectedMatrix, rotationMatrix);
@@ -39,8 +39,8 @@ public class Fixed3x3Tests
     {
         var rotationMatrix = Fixed3x3.CreateRotationZ(Fixed64.HalfPi); // 90 degrees
         var expectedMatrix = new Fixed3x3(
-            Fixed64.Zero, -Fixed64.One, Fixed64.Zero,
-            Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero,
+            -Fixed64.One, Fixed64.Zero, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.One
         );
 
@@ -388,6 +388,20 @@ public class Fixed3x3Tests
         var transformed = Fixed3x3.TransformDirection(matrix, direction);
 
         Assert.Equal(direction, transformed);
+    }
+
+    [Fact]
+    public void TransformDirection_UsesRowVectorConvention()
+    {
+        var matrix = new Fixed3x3(
+            new Fixed64(2), new Fixed64(3), new Fixed64(5),
+            new Fixed64(11), new Fixed64(13), new Fixed64(17),
+            new Fixed64(23), new Fixed64(29), new Fixed64(31));
+        var direction = new Vector3d(2, 3, 5);
+
+        var transformed = Fixed3x3.TransformDirection(matrix, direction);
+
+        Assert.Equal(new Vector3d(152, 190, 216), transformed);
     }
 
     [Fact]

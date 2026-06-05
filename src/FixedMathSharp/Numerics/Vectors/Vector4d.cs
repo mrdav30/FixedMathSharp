@@ -624,14 +624,14 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// Transforms a 4D vector by a 4x4 matrix.
     /// </summary>
     /// <remarks>
-    /// This follows the same storage convention as <see cref="Fixed4x4.TransformPoint(Fixed4x4, Vector3d)"/>,
+    /// This follows the same row-vector storage convention as <see cref="Fixed4x4.TransformPoint(Fixed4x4, Vector3d)"/>,
     /// preserving the computed W component instead of performing perspective division.
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Transform(Fixed4x4 matrix, Vector4d vector) =>
-        new(matrix.M11 * vector.X + matrix.M12 * vector.Y + matrix.M13 * vector.Z + matrix.M41 * vector.W,
-            matrix.M21 * vector.X + matrix.M22 * vector.Y + matrix.M23 * vector.Z + matrix.M42 * vector.W,
-            matrix.M31 * vector.X + matrix.M32 * vector.Y + matrix.M33 * vector.Z + matrix.M43 * vector.W,
+        new(vector.X * matrix.M11 + vector.Y * matrix.M21 + vector.Z * matrix.M31 + vector.W * matrix.M41,
+            vector.X * matrix.M12 + vector.Y * matrix.M22 + vector.Z * matrix.M32 + vector.W * matrix.M42,
+            vector.X * matrix.M13 + vector.Y * matrix.M23 + vector.Z * matrix.M33 + vector.W * matrix.M43,
             matrix.M14 * vector.X + matrix.M24 * vector.Y + matrix.M34 * vector.Z + matrix.M44 * vector.W);
 
     #endregion

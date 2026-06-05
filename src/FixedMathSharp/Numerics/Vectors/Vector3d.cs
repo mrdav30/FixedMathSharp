@@ -1508,9 +1508,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <returns>A new Vector3d that is the result of multiplying the specified matrix by the specified vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d operator *(Fixed3x3 matrix, Vector3d vector) =>
-         new(matrix.M11 * vector.X + matrix.M12 * vector.Y + matrix.M13 * vector.Z,
-             matrix.M21 * vector.X + matrix.M22 * vector.Y + matrix.M23 * vector.Z,
-             matrix.M31 * vector.X + matrix.M32 * vector.Y + matrix.M33 * vector.Z);
+         new(vector.X * matrix.M11 + vector.Y * matrix.M21 + vector.Z * matrix.M31,
+             vector.X * matrix.M12 + vector.Y * matrix.M22 + vector.Z * matrix.M32,
+             vector.X * matrix.M13 + vector.Y * matrix.M23 + vector.Z * matrix.M33);
 
     /// <inheritdoc cref="operator *(Fixed3x3, Vector3d)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1534,9 +1534,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         if (matrix.IsAffine)
         {
             return new Vector3d(
-                matrix.M11 * point.X + matrix.M12 * point.Y + matrix.M13 * point.Z + matrix.M14 + matrix.M41,
-                matrix.M21 * point.X + matrix.M22 * point.Y + matrix.M23 * point.Z + matrix.M24 + matrix.M42,
-                matrix.M31 * point.X + matrix.M32 * point.Y + matrix.M33 * point.Z + matrix.M34 + matrix.M43
+                point.X * matrix.M11 + point.Y * matrix.M21 + point.Z * matrix.M31 + matrix.M41,
+                point.X * matrix.M12 + point.Y * matrix.M22 + point.Z * matrix.M32 + matrix.M42,
+                point.X * matrix.M13 + point.Y * matrix.M23 + point.Z * matrix.M33 + matrix.M43
             );
         }
 
@@ -1545,9 +1545,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         if (w == Fixed64.Zero) w = Fixed64.One;  // Prevent divide-by-zero
 
         return new Vector3d(
-            (matrix.M11 * point.X + matrix.M12 * point.Y + matrix.M13 * point.Z + matrix.M14 + matrix.M41) / w,
-            (matrix.M21 * point.X + matrix.M22 * point.Y + matrix.M23 * point.Z + matrix.M24 + matrix.M42) / w,
-            (matrix.M31 * point.X + matrix.M32 * point.Y + matrix.M33 * point.Z + matrix.M34 + matrix.M43) / w
+            (point.X * matrix.M11 + point.Y * matrix.M21 + point.Z * matrix.M31 + matrix.M41) / w,
+            (point.X * matrix.M12 + point.Y * matrix.M22 + point.Z * matrix.M32 + matrix.M42) / w,
+            (point.X * matrix.M13 + point.Y * matrix.M23 + point.Z * matrix.M33 + matrix.M43) / w
         );
     }
 

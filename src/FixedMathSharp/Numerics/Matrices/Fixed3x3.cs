@@ -284,8 +284,8 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
 
         return new Fixed3x3(
             Fixed64.One, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, cos, -sin,
-            Fixed64.Zero, sin, cos
+            Fixed64.Zero, cos, sin,
+            Fixed64.Zero, -sin, cos
         );
     }
 
@@ -300,9 +300,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         Fixed64 sin = FixedMath.Sin(angle);
 
         return new Fixed3x3(
-            cos, Fixed64.Zero, sin,
+            cos, Fixed64.Zero, -sin,
             Fixed64.Zero, Fixed64.One, Fixed64.Zero,
-            -sin, Fixed64.Zero, cos
+            sin, Fixed64.Zero, cos
         );
     }
 
@@ -317,8 +317,8 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         Fixed64 sin = FixedMath.Sin(angle);
 
         return new Fixed3x3(
-            cos, -sin, Fixed64.Zero,
-            sin, cos, Fixed64.Zero,
+            cos, sin, Fixed64.Zero,
+            -sin, cos, Fixed64.Zero,
             Fixed64.Zero, Fixed64.Zero, Fixed64.One
         );
     }
@@ -524,14 +524,17 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// Transforms a direction vector from local space to world space using this transformation matrix.
     /// Ignores translation.
     /// </summary>
+    /// <remarks>
+    /// FixedMathSharp applies matrices using a row-vector convention: <c>direction * matrix</c>.
+    /// </remarks>
     /// <param name="matrix">The transformation matrix.</param>
     /// <param name="direction">The local-space direction vector.</param>
     /// <returns>The transformed direction in world space.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d TransformDirection(Fixed3x3 matrix, Vector3d direction) =>
-        new(matrix.M11 * direction.X + matrix.M12 * direction.Y + matrix.M13 * direction.Z,
-            matrix.M21 * direction.X + matrix.M22 * direction.Y + matrix.M23 * direction.Z,
-            matrix.M31 * direction.X + matrix.M32 * direction.Y + matrix.M33 * direction.Z);
+        new(direction.X * matrix.M11 + direction.Y * matrix.M21 + direction.Z * matrix.M31,
+            direction.X * matrix.M12 + direction.Y * matrix.M22 + direction.Z * matrix.M32,
+            direction.X * matrix.M13 + direction.Y * matrix.M23 + direction.Z * matrix.M33);
 
     /// <summary>
     /// Transforms a direction from world space into the local space of the matrix.
@@ -546,11 +549,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         if (canInvert)
             throw new InvalidOperationException("Matrix is not invertible.");
 
-        return new Vector3d(
-            inverseMatrix!.Value.M11 * direction.X + inverseMatrix.Value.M12 * direction.Y + inverseMatrix.Value.M13 * direction.Z,
-            inverseMatrix.Value.M21 * direction.X + inverseMatrix.Value.M22 * direction.Y + inverseMatrix.Value.M23 * direction.Z,
-            inverseMatrix.Value.M31 * direction.X + inverseMatrix.Value.M32 * direction.Y + inverseMatrix.Value.M33 * direction.Z
-        );
+        return TransformDirection(inverseMatrix!.Value, direction);
     }
 
     #endregion

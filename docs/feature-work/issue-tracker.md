@@ -36,54 +36,7 @@ runtime and tests.
 
 ## Active Issues
 
-### FMS-Issue-009: `Fixed4x4` point transforms and matrix composition use different affine conventions
-
-**Discovered:** 2026-06-05
-
-**Status:** Active
-
-**Source:** Phase 4 matrix hotspot optimization work while validating affine
-inversion with near-singular transforms.
-
-**Affected files:**
-
-- `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.cs`
-- `src/FixedMathSharp/Numerics/Vectors/Vector3d.cs`
-- `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed4x4.Tests.cs`
-
-**Observation:**
-
-`Fixed4x4.TransformPoint`, `Fixed4x4.InverseTransformPoint`, and
-`Vector3d.operator *(Fixed4x4, Vector3d)` apply affine transforms using the
-upper-left matrix rows plus translation components. The optimized affine matrix
-multiplication path composes translation using the other convention
-(`lhs.M41 * rhs.M11 + lhs.M42 * rhs.M21 + lhs.M43 * rhs.M31 + rhs.M41`), which
-means `matrix * inverse` is not always a reliable identity proof for the same
-public point-transform behavior that `TransformPoint(inverse, TransformPoint(matrix,
-point))` exercises.
-
-**Recommended approach:**
-
-- [ ] Decide the canonical `Fixed4x4` convention for the next major release:
-  point/vector transform shape, matrix multiplication order, translation row or
-  column semantics, and doc language.
-- [ ] Add explicit tests that compare `CreateTranslation`, `CreateScale`,
-  `CreateRotation`, `ScaleRotateTranslate`, `TranslateRotateScale`,
-  `TransformPoint`, `InverseTransformPoint`, and matrix multiplication against
-  that canonical convention.
-- [ ] Update runtime formulas only after the canonical convention is pinned by
-  tests.
-- [ ] Re-run matrix, bounds/frustum, quaternion, and vector transform tests
-  because this may affect broad spatial behavior.
-- [ ] Re-run matrix benchmarks after the semantic fix to confirm no complexity
-  or allocation regression.
-
-Recommended verification:
-
-```bash
-dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Fixed4x4|FullyQualifiedName~Vector3d|FullyQualifiedName~FixedBoundFrustum|FullyQualifiedName~FixedQuaternion"
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll matrix3x3 matrix4x4 bounds quaternion -j Short -i --filter "*Transform*" "*Invert*" "*CreateRotation*" "*CreateTransform*" "*ScaleRotateTranslate*" "*TranslateRotateScale*" "*Frustum*" "*FromDirection*" --exporters json
-```
+- None currently.
 
 ## Performance Investigation Queue
 
@@ -97,6 +50,58 @@ confirmed runtime defect. Current queue:
   diagnostics, so no runtime defect is currently tracked.
 
 ## Resolved Issues
+
+### FMS-Issue-009: `Fixed4x4` point transforms and matrix composition used different affine conventions
+
+**Discovered:** 2026-06-05
+
+**Resolved:** 2026-06-05
+
+**Source:** Phase 4 matrix hotspot optimization work while validating affine
+inversion with near-singular transforms.
+
+**Resolution:**
+
+FixedMathSharp now consistently applies `Fixed3x3` and `Fixed4x4` transforms
+with an explicit row-vector convention: vectors and points are transformed as
+`value * matrix`, translation lives in `M41/M42/M43`, and affine matrix
+composition remains left-to-right. Quaternion matrix conversion and rotation
+factory matrices were transposed to preserve existing `+Z` forward and
+positive-angle rotation semantics under the row-vector convention.
+
+**Completed work:**
+
+- [x] Added regression tests proving `Fixed4x4.TransformPoint` uses row-vector
+  affine math.
+- [x] Added regression tests proving `Fixed4x4` multiplication composes
+  left-to-right row-vector transforms.
+- [x] Added regression tests proving `Fixed3x3.TransformDirection` and
+  `Vector3d * Fixed3x3` use the same row-vector convention.
+- [x] Updated `Fixed3x3`, `Fixed4x4`, `Vector3d`, and `Vector4d` transform
+  formulas to use the same row-vector convention.
+- [x] Updated affine inverse translation for row-vector matrix inversion.
+- [x] Updated quaternion matrix conversion, matrix-to-quaternion extraction,
+  Euler extraction, and `LookRotation` basis construction to match row-vector
+  rotation matrices.
+- [x] Added XML remarks to the core matrix transform APIs that call out the
+  row-vector convention.
+- [x] Verified matrix, quaternion, vector, and bounds/frustum-focused tests.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Fixed3x3|FullyQualifiedName~Fixed4x4|FullyQualifiedName~Vector3d|FullyQualifiedName~Vector4d|FullyQualifiedName~FixedQuaternion|FullyQualifiedName~FixedBoundFrustum|FullyQualifiedName~FixedBoundBox|FullyQualifiedName~FixedRay|FullyQualifiedName~FixedPlane"
+dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f netstandard2.1 --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean -f netstandard2.1 --no-restore
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll matrix3x3 matrix4x4 -j Short -i --filter "*Transform*" "*Invert*" "*CreateRotation*" "*ScaleRotateTranslate*" "*TranslateRotateScale*" --exporters json
+```
+
+Result on 2026-06-05: focused matrix/vector/quaternion/bounds tests passed
+with 516 tests, full solution tests passed with 911 tests, release builds passed
+with zero warnings/errors, and the matrix benchmark smoke completed with no
+managed allocations.
 
 ### FMS-Issue-008: `--no-restore` can reuse stale NuGet assets across OS or configuration changes
 

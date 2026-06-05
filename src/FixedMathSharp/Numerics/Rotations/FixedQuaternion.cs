@@ -353,9 +353,10 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         Vector3d right = Vector3d.Cross(up.Normal, forwardNormalized);
         up = Vector3d.Cross(forwardNormalized, right);
 
-        return FromMatrix(new Fixed3x3(right.X, up.X, forwardNormalized.X,
-                                        right.Y, up.Y, forwardNormalized.Y,
-                                        right.Z, up.Z, forwardNormalized.Z));
+        return FromMatrix(new Fixed3x3(
+            right.X, right.Y, right.Z,
+            up.X, up.Y, up.Z,
+            forwardNormalized.X, forwardNormalized.Y, forwardNormalized.Z));
     }
 
     /// <summary>
@@ -374,9 +375,9 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
             Fixed64 s = FixedMath.Sqrt(trace + Fixed64.One);
             w = s * Fixed64.Half;
             s = Fixed64.Half / s;
-            x = (matrix.M32 - matrix.M23) * s;
-            y = (matrix.M13 - matrix.M31) * s;
-            z = (matrix.M21 - matrix.M12) * s;
+            x = (matrix.M23 - matrix.M32) * s;
+            y = (matrix.M31 - matrix.M13) * s;
+            z = (matrix.M12 - matrix.M21) * s;
         }
         else if (matrix.M11 > matrix.M22 && matrix.M11 > matrix.M33)
         {
@@ -385,7 +386,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
             s = Fixed64.Half / s;
             y = (matrix.M21 + matrix.M12) * s;
             z = (matrix.M13 + matrix.M31) * s;
-            w = (matrix.M32 - matrix.M23) * s;
+            w = (matrix.M23 - matrix.M32) * s;
         }
         else if (matrix.M22 > matrix.M33)
         {
@@ -394,7 +395,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
             s = Fixed64.Half / s;
             z = (matrix.M32 + matrix.M23) * s;
             x = (matrix.M21 + matrix.M12) * s;
-            w = (matrix.M13 - matrix.M31) * s;
+            w = (matrix.M31 - matrix.M13) * s;
         }
         else
         {
@@ -403,7 +404,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
             s = Fixed64.Half / s;
             x = (matrix.M13 + matrix.M31) * s;
             y = (matrix.M32 + matrix.M23) * s;
-            w = (matrix.M21 - matrix.M12) * s;
+            w = (matrix.M12 - matrix.M21) * s;
         }
 
         return new FixedQuaternion(x, y, z, w);
@@ -869,13 +870,13 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         Fixed64 roll;
 
         // For YXZ:
-        // m12 = -sin(pitch)
-        // m02 =  sin(yaw) * cos(pitch)
-        // m22 =  cos(yaw) * cos(pitch)
-        // m10 =  sin(roll) * cos(pitch)
-        // m11 =  cos(roll) * cos(pitch)
+        // m32 = -sin(pitch)
+        // m31 =  sin(yaw) * cos(pitch)
+        // m33 =  cos(yaw) * cos(pitch)
+        // m12 =  sin(roll) * cos(pitch)
+        // m22 =  cos(roll) * cos(pitch)
 
-        Fixed64 sinPitch = -m.M23;
+        Fixed64 sinPitch = -m.M32;
 
         if (sinPitch.Abs() >= Fixed64.One)
         {
@@ -884,13 +885,13 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
 
             // Choose roll = 0 and solve remaining yaw from matrix.
             roll = Fixed64.Zero;
-            yaw = FixedMath.Atan2(-m.M31, m.M11);
+            yaw = FixedMath.Atan2(-m.M13, m.M11);
         }
         else
         {
             pitch = FixedMath.Asin(sinPitch);
-            yaw = FixedMath.Atan2(m.M13, m.M33);
-            roll = FixedMath.Atan2(m.M21, m.M22);
+            yaw = FixedMath.Atan2(m.M31, m.M33);
+            roll = FixedMath.Atan2(m.M12, m.M22);
         }
 
         return new Vector3d(
@@ -930,15 +931,15 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
         Fixed64 scale = Fixed64.One * 2;
 
         result.M11 = Fixed64.One - scale * (y2 + z2);
-        result.M12 = scale * (xy - zw);
-        result.M13 = scale * (xz + yw);
+        result.M12 = scale * (xy + zw);
+        result.M13 = scale * (xz - yw);
 
-        result.M21 = scale * (xy + zw);
+        result.M21 = scale * (xy - zw);
         result.M22 = Fixed64.One - scale * (x2 + z2);
-        result.M23 = scale * (yz - xw);
+        result.M23 = scale * (yz + xw);
 
-        result.M31 = scale * (xz - yw);
-        result.M32 = scale * (yz + xw);
+        result.M31 = scale * (xz + yw);
+        result.M32 = scale * (yz - xw);
         result.M33 = Fixed64.One - scale * (x2 + y2);
 
         return result;

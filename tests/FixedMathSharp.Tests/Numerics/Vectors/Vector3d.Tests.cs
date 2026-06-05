@@ -736,12 +736,11 @@ public class Vector3dTests
     public void MatrixMultiplication_WithFixed3x3_TransformsVectorFromBothSides()
     {
         var matrix = new Fixed3x3(
-            Fixed64.FromFloatPoint(2), Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.FromFloatPoint(3), Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, Fixed64.FromFloatPoint(4)
-        );
+            new Fixed64(2), new Fixed64(3), new Fixed64(5),
+            new Fixed64(11), new Fixed64(13), new Fixed64(17),
+            new Fixed64(23), new Fixed64(29), new Fixed64(31));
         var vector = new Vector3d(1, 2, 3);
-        var expected = new Vector3d(2, 6, 12);
+        var expected = new Vector3d(93, 116, 132);
 
         Assert.Equal(expected, matrix * vector);
         Assert.Equal(expected, vector * matrix);
@@ -775,7 +774,7 @@ public class Vector3dTests
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One
         );
         var vector = new Vector3d(1, 2, 3);
-        var expected = new Vector3d(Fixed64.One, Fixed64.One, Fixed64.FromFloatPoint(1.5));
+        var expected = new Vector3d(Fixed64.FromFloatPoint(0.5), Fixed64.One, Fixed64.FromFloatPoint(1.5));
 
         Assert.Equal(expected, matrix * vector);
         Assert.Equal(expected, vector * matrix);
@@ -791,7 +790,7 @@ public class Vector3dTests
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, -Fixed64.One
         );
         var vector = new Vector3d(1, 2, 3);
-        var expected = new Vector3d(2, 2, 3);
+        var expected = new Vector3d(1, 2, 3);
 
         Assert.Equal(expected, matrix * vector);
         Assert.Equal(expected, vector * matrix);

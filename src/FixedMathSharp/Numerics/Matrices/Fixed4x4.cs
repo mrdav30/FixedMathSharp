@@ -1181,9 +1181,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One  // Ensure homogeneous coordinate stays valid
         );
 
-        result.M41 = -(result.M11 * matrix.M41 + result.M12 * matrix.M42 + result.M13 * matrix.M43);
-        result.M42 = -(result.M21 * matrix.M41 + result.M22 * matrix.M42 + result.M23 * matrix.M43);
-        result.M43 = -(result.M31 * matrix.M41 + result.M32 * matrix.M42 + result.M33 * matrix.M43);
+        result.M41 = -(matrix.M41 * result.M11 + matrix.M42 * result.M21 + matrix.M43 * result.M31);
+        result.M42 = -(matrix.M41 * result.M12 + matrix.M42 * result.M22 + matrix.M43 * result.M32);
+        result.M43 = -(matrix.M41 * result.M13 + matrix.M42 * result.M23 + matrix.M43 * result.M33);
         result.M44 = Fixed64.One;
 
         return true;
@@ -1258,7 +1258,8 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// Transforms a point from local space to world space using this transformation matrix.
     /// </summary>
     /// <remarks>
-    /// This is the same as doing `<see cref="Fixed4x4"/> a * <see cref="Vector3d"/> b`
+    /// FixedMathSharp applies matrices using a row-vector convention: <c>point * matrix</c>.
+    /// This is equivalent to <see cref="Vector3d.operator *(Vector3d, Fixed4x4)"/>.
     /// </remarks>
     /// <param name="matrix">The transformation matrix.</param>
     /// <param name="point">The local-space point.</param>
@@ -1267,13 +1268,11 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     public static Vector3d TransformPoint(Fixed4x4 matrix, Vector3d point)
     {
         if (matrix.IsAffine)
-        {
             return new Vector3d(
-                matrix.M11 * point.X + matrix.M12 * point.Y + matrix.M13 * point.Z + matrix.M41,
-                matrix.M21 * point.X + matrix.M22 * point.Y + matrix.M23 * point.Z + matrix.M42,
-                matrix.M31 * point.X + matrix.M32 * point.Y + matrix.M33 * point.Z + matrix.M43
+                point.X * matrix.M11 + point.Y * matrix.M21 + point.Z * matrix.M31 + matrix.M41,
+                point.X * matrix.M12 + point.Y * matrix.M22 + point.Z * matrix.M32 + matrix.M42,
+                point.X * matrix.M13 + point.Y * matrix.M23 + point.Z * matrix.M33 + matrix.M43
             );
-        }
 
         return FullTransformPoint(matrix, point);
     }
@@ -1285,9 +1284,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         if (w == Fixed64.Zero) w = Fixed64.One;  // Prevent divide-by-zero
 
         return new Vector3d(
-            (matrix.M11 * point.X + matrix.M12 * point.Y + matrix.M13 * point.Z + matrix.M41) / w,
-            (matrix.M21 * point.X + matrix.M22 * point.Y + matrix.M23 * point.Z + matrix.M42) / w,
-            (matrix.M31 * point.X + matrix.M32 * point.Y + matrix.M33 * point.Z + matrix.M43) / w
+            (point.X * matrix.M11 + point.Y * matrix.M21 + point.Z * matrix.M31 + matrix.M41) / w,
+            (point.X * matrix.M12 + point.Y * matrix.M22 + point.Z * matrix.M32 + matrix.M42) / w,
+            (point.X * matrix.M13 + point.Y * matrix.M23 + point.Z * matrix.M33 + matrix.M43) / w
         );
     }
 
@@ -1306,9 +1305,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         if (inverseMatrix.IsAffine)
         {
             return new Vector3d(
-                inverseMatrix.M11 * point.X + inverseMatrix.M12 * point.Y + inverseMatrix.M13 * point.Z + inverseMatrix.M41,
-                inverseMatrix.M21 * point.X + inverseMatrix.M22 * point.Y + inverseMatrix.M23 * point.Z + inverseMatrix.M42,
-                inverseMatrix.M31 * point.X + inverseMatrix.M32 * point.Y + inverseMatrix.M33 * point.Z + inverseMatrix.M43
+                point.X * inverseMatrix.M11 + point.Y * inverseMatrix.M21 + point.Z * inverseMatrix.M31 + inverseMatrix.M41,
+                point.X * inverseMatrix.M12 + point.Y * inverseMatrix.M22 + point.Z * inverseMatrix.M32 + inverseMatrix.M42,
+                point.X * inverseMatrix.M13 + point.Y * inverseMatrix.M23 + point.Z * inverseMatrix.M33 + inverseMatrix.M43
             );
         }
 
@@ -1322,9 +1321,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
         if (w == Fixed64.Zero) w = Fixed64.One;  // Prevent divide-by-zero
 
         return new Vector3d(
-            (matrix.M11 * point.X + matrix.M12 * point.Y + matrix.M13 * point.Z + matrix.M41) / w,
-            (matrix.M21 * point.X + matrix.M22 * point.Y + matrix.M23 * point.Z + matrix.M42) / w,
-            (matrix.M31 * point.X + matrix.M32 * point.Y + matrix.M33 * point.Z + matrix.M43) / w
+            (point.X * matrix.M11 + point.Y * matrix.M21 + point.Z * matrix.M31 + matrix.M41) / w,
+            (point.X * matrix.M12 + point.Y * matrix.M22 + point.Z * matrix.M32 + matrix.M42) / w,
+            (point.X * matrix.M13 + point.Y * matrix.M23 + point.Z * matrix.M33 + matrix.M43) / w
         );
     }
 

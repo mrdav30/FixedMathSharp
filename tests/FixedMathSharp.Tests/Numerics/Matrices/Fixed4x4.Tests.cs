@@ -37,6 +37,40 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_TransformPoint_UsesRowVectorAffineConvention()
+    {
+        var matrix = new Fixed4x4(
+            new Fixed64(2), new Fixed64(3), new Fixed64(5), Fixed64.Zero,
+            new Fixed64(11), new Fixed64(13), new Fixed64(17), Fixed64.Zero,
+            new Fixed64(23), new Fixed64(29), new Fixed64(31), Fixed64.Zero,
+            new Fixed64(41), new Fixed64(43), new Fixed64(47), Fixed64.One);
+        var point = new Vector3d(2, 3, 5);
+
+        var transformed = Fixed4x4.TransformPoint(matrix, point);
+
+        Assert.Equal(new Vector3d(193, 233, 263), transformed);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_Multiply_ComposesRowVectorTransformsLeftToRight()
+    {
+        var point = new Vector3d(2, -1, 3);
+        var first = Fixed4x4.CreateScale(new Vector3d(2, 3, 4));
+        var second = Fixed4x4.CreateRotationY(Fixed64.HalfPi);
+        var third = Fixed4x4.CreateTranslation(new Vector3d(5, 7, 11));
+
+        var explicitResult = Fixed4x4.TransformPoint(
+            third,
+            Fixed4x4.TransformPoint(
+                second,
+                Fixed4x4.TransformPoint(first, point)));
+        var composedResult = Fixed4x4.TransformPoint(first * second * third, point);
+
+        Assert.True(explicitResult.FuzzyEqual(composedResult, Fixed64.FromFloatPoint(0.0001)),
+            $"Expected {explicitResult} but got {composedResult}");
+    }
+
+    [Fact]
     public void FixedMatrix4x4_FromRows_MapsVectorRows()
     {
         var row0 = new Vector4d(1, 2, 3, 4);
