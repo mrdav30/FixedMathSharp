@@ -123,6 +123,40 @@ public class FixedQuaternionTests
         Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.GetNormalized(FixedQuaternion.Zero));
     }
 
+    [Theory]
+    [InlineData(1, 1, 1, 1)]
+    [InlineData(2, 2, 2, 2)]
+    [InlineData(-3, 4, 12, -5)]
+    [InlineData(123, 456, 789, 321)]
+    public void FixedQuaternion_Normalize_MatchesComponentDivisionByMagnitude(int x, int y, int z, int w)
+    {
+        var source = new FixedQuaternion(new Fixed64(x), new Fixed64(y), new Fixed64(z), new Fixed64(w));
+
+        AssertNormalizeMatchesComponentDivision(source);
+    }
+
+    [Fact]
+    public void FixedQuaternion_Normalize_MatchesComponentDivisionByMagnitude_ForFractionalHugeAndTinyRawValues()
+    {
+        AssertNormalizeMatchesComponentDivision(new FixedQuaternion(
+            Fixed64.FromFloatPoint(1.5),
+            Fixed64.FromFloatPoint(-2.25),
+            Fixed64.FromFloatPoint(3.75),
+            Fixed64.FromFloatPoint(-4.5)));
+
+        AssertNormalizeMatchesComponentDivision(new FixedQuaternion(
+            new Fixed64(10000),
+            new Fixed64(-20000),
+            new Fixed64(30000),
+            new Fixed64(-10000)));
+
+        AssertNormalizeMatchesComponentDivision(new FixedQuaternion(
+            Fixed64.FromRaw(1),
+            Fixed64.FromRaw(-1),
+            Fixed64.FromRaw(2),
+            Fixed64.FromRaw(-2)));
+    }
+
     [Fact]
     public void FixedQuaternion_MagnitudeProperties_ReturnExpectedValues()
     {
@@ -131,6 +165,30 @@ public class FixedQuaternionTests
         Assert.Equal(new Fixed64(25), quaternion.SqrMagnitude);
         Assert.Equal(new Fixed64(5), quaternion.Magnitude);
         Assert.Equal(FixedQuaternion.GetMagnitude(quaternion), quaternion.Magnitude);
+    }
+
+    private static void AssertNormalizeMatchesComponentDivision(FixedQuaternion source)
+    {
+        Fixed64 magnitude = source.Magnitude;
+        if (magnitude == Fixed64.Zero)
+        {
+            Assert.Equal(FixedQuaternion.Identity, source.Normal);
+
+            var zeroLength = source;
+            Assert.Equal(FixedQuaternion.Identity, zeroLength.Normalize());
+            return;
+        }
+
+        var expected = new FixedQuaternion(
+            source.X / magnitude,
+            source.Y / magnitude,
+            source.Z / magnitude,
+            source.W / magnitude);
+
+        Assert.Equal(expected, source.Normal);
+
+        var inPlace = source;
+        Assert.Equal(expected, inPlace.Normalize());
     }
 
     #endregion

@@ -115,6 +115,17 @@ public class FixedRayTests
     }
 
     [Fact]
+    public void Intersects_BoundingSphere_HandlesNonUnitDirection()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        var ray = new FixedRay(new Vector3d(-10, 0, 0), new Vector3d(2, 0, 0));
+
+        Fixed64? hit = ray.Intersects(sphere);
+
+        Assert.Equal(Fixed64.FromFloatPoint(4.5), hit);
+    }
+
+    [Fact]
     public void Intersects_BoundingSphere_ReturnsZeroWhenRayStartsInside()
     {
         var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
