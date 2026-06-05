@@ -170,6 +170,18 @@ public class FixedTrigonometryTests
     }
 
     [Fact]
+    public void Sqrt_TinyRawValue_RemainsRepresentable()
+    {
+        var result = FixedMath.Sqrt(Fixed64.MinIncrement);
+
+        Assert.True(result > Fixed64.Zero);
+        FixedMathTestHelper.AssertWithinRelativeTolerance(
+            Fixed64.FromFloatPoint(Math.Sqrt((double)Fixed64.MinIncrement)),
+            result,
+            Fixed64.FromFloatPoint(0.001));
+    }
+
+    [Fact]
     public void Sqrt_Zero_ReturnsZero()
     {
         var value = Fixed64.Zero;
@@ -188,6 +200,34 @@ public class FixedTrigonometryTests
     }
 
     [Fact]
+    public void Sqrt_FractionalInputs_MatchReference()
+    {
+        var values = new[] { 0.0625d, 0.125d, 0.25d, 0.5d, 0.75d, 1.5d, 3.75d };
+
+        foreach (double value in values)
+        {
+            var expected = Fixed64.FromFloatPoint(Math.Sqrt(value));
+            var result = FixedMath.Sqrt(Fixed64.FromFloatPoint(value));
+
+            FixedMathTestHelper.AssertWithinRelativeTolerance(
+                expected,
+                result,
+                Fixed64.FromFloatPoint(0.001),
+                $"sqrt({value}) exceeded tolerance.");
+        }
+    }
+
+    [Fact]
+    public void Sqrt_PerfectSquares_ReturnExactRoots()
+    {
+        for (int root = 1; root <= 128; root++)
+        {
+            var value = new Fixed64(root * root);
+            Assert.Equal(new Fixed64(root), FixedMath.Sqrt(value));
+        }
+    }
+
+    [Fact]
     public void Sqrt_LargeRawValue_UsesLargeRemainderPath()
     {
         var value = Fixed64.FromRaw(7610643186905657857L);
@@ -195,6 +235,16 @@ public class FixedTrigonometryTests
         var expected = Fixed64.FromFloatPoint(Math.Sqrt((double)value));
 
         FixedMathTestHelper.AssertWithinRelativeTolerance(expected, result, Fixed64.FromFloatPoint(0.001));
+    }
+
+    [Fact]
+    public void Sqrt_MaxValue_RemainsInRange()
+    {
+        var result = FixedMath.Sqrt(Fixed64.MaxValue);
+        var expected = Fixed64.FromFloatPoint(Math.Sqrt((double)Fixed64.MaxValue));
+
+        FixedMathTestHelper.AssertWithinRelativeTolerance(expected, result, Fixed64.FromFloatPoint(0.001));
+        FixedMathTestHelper.AssertWithinRange(result, Fixed64.Zero, Fixed64.MaxValue);
     }
 
     #endregion

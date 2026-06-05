@@ -192,6 +192,78 @@ dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic -j Short -i --filter "*Pow*" "*Log2*" "*Ln*" --exporters json
 ```
 
+## Phase 2c: Scalar Sqrt Follow-Through
+
+**Status:** Complete on 2026-06-05.
+
+**Files:**
+
+- Review: `src/FixedMathSharp/Core/FixedMath.Trigonometry.cs`
+- Review: `tests/FixedMathSharp.Tests/Core/FixedTrigonometry.Tests.cs`
+- Review: `tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
+- Review: `tests/FixedMathSharp.Benchmarks/Vector2dBenchmarks.cs`
+- Review: `tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs`
+- Review: `tests/FixedMathSharp.Benchmarks/Vector4dBenchmarks.cs`
+
+- [x] Add focused `Sqrt` baseline plus consumer probes where useful.
+- [x] Strengthen correctness tests for tiny raw values, fractional inputs,
+  perfect squares, huge raw values, and invalid negatives.
+- [x] Investigate deterministic integer/Newton-style approaches against the
+  current bit-by-bit method.
+- [x] Keep only measured wins with no allocation and no precision drift beyond
+  existing tolerance.
+
+Context: `Sqrt` was not changed during Phase 2 or Phase 2b, but it remains a
+core scalar primitive and feeds vector normalization, hypotenuse, bound/ray
+queries, quaternion normalization/conversion, and `Acos`. Treat this as the last
+scalar-primitives cleanup pass before moving into quaternion and vector-heavy
+phases.
+
+Result:
+
+- Kept the deterministic bit-by-bit integer square-root algorithm rather than
+  switching to a Newton/division-based method. The measured win came from
+  removing setup work inside the existing integer path, so there was no need to
+  introduce fixed-point division or new convergence behavior.
+- Added a zero fast path and derived the first candidate bit directly from the
+  input's top set bit via `FloorLog2(num) & ~1`, replacing the repeated
+  top-down scan from bit 62.
+- Added focused correctness coverage for tiny raw values, fractional inputs,
+  perfect squares, huge raw values, `Fixed64.MaxValue`, zero, and invalid
+  negatives.
+- Ran consumer probes for vector and quaternion normalization. Short-run
+  consumer measurements were noisy, so only the direct scalar `Sqrt` result is
+  treated as the phase's performance claim.
+
+Focused `ShortRun` evidence:
+
+| Benchmark | Before | After |
+| --- | ---: | ---: |
+| `Sqrt` | 30.767 us, 0 B | 23.037 us, 0 B |
+
+Consumer smoke evidence before the runtime change:
+
+| Benchmark | Before |
+| --- | ---: |
+| `Vector2d.Normal` | 54.742 us, 0 B |
+| `Vector2d.NormalizeInPlace` | 57.415 us, 0 B |
+| `Vector2d.GetNormalized` | 56.478 us, 0 B |
+| `Vector3d.Normal` | 65.445 us, 0 B |
+| `Vector3d.NormalizeInPlace` | 65.888 us, 0 B |
+| `Vector3d.GetNormalized` | 64.320 us, 0 B |
+| `Vector4d.Normal` | 81.110 us, 0 B |
+| `Vector4d.NormalizeInPlace` | 77.945 us, 0 B |
+| `Vector4d.GetNormalized` | 78.070 us, 0 B |
+| `Quaternion.Normalize` | 81.909 us, 0 B |
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Sqrt|FullyQualifiedName~Vector2d|FullyQualifiedName~Vector3d|FullyQualifiedName~Vector4d|FullyQualifiedName~FixedQuaternion"
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic vector2d vector3d vector4d quaternion -j Short -i --filter "*Sqrt*" "*Normal*" "*Normalize*" --exporters json
+```
+
 ## Phase 3: Quaternion Direction And Euler Paths
 
 **Why:** Quaternion conversion-heavy paths are among the slowest allocation-free

@@ -334,18 +334,18 @@ namespace FixedMathSharp
         /// <summary>
         /// Returns the square root of a specified fixed-point number.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 Sqrt(Fixed64 x)
         {
             if (x.m_rawValue < 0)
                 throw new ArgumentOutOfRangeException(nameof(x), "Cannot compute square root of a negative number.");
 
             ulong num = (ulong)x.m_rawValue;
-            ulong result = 0UL;
-            ulong bit = 1UL << (sizeof(long) * 8) - 2; // second-to-top bit of a 64-bit integer
+            if (num == 0UL)
+                return Fixed64.Zero;
 
-            // Adjust the bit position to a suitable starting point
-            while (bit > num)
-                bit >>= 2;
+            ulong result = 0UL;
+            ulong bit = 1UL << (FloorLog2(num) & ~1);
 
             // Perform the square root calculation using bitwise shifts
             for (int i = 0; i < 2; ++i)
