@@ -51,4 +51,62 @@ public static class Fixed4x4Extensions
         Fixed4x4.InverseTransformPoint(matrix, point);
 
     #endregion
+
+    #region Equality
+
+    /// <summary>
+    /// Compares two Fixed4x4 for approximate equality, allowing a fixed absolute difference between components.
+    /// </summary>
+    /// <param name="f1">The current Fixed4x4.</param>
+    /// <param name="f2">The Fixed4x4 to compare against.</param>
+    /// <param name="allowedDifference">The allowed absolute difference between each component.</param>
+    /// <returns>True if the components are within the allowed difference, false otherwise.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool FuzzyEqualAbsolute(this Fixed4x4 f1, Fixed4x4 f2, Fixed64 allowedDifference) =>
+        (f1.M11 - f2.M11).Abs() <= allowedDifference &&
+        (f1.M12 - f2.M12).Abs() <= allowedDifference &&
+        (f1.M13 - f2.M13).Abs() <= allowedDifference &&
+        (f1.M14 - f2.M14).Abs() <= allowedDifference &&
+        (f1.M21 - f2.M21).Abs() <= allowedDifference &&
+        (f1.M22 - f2.M22).Abs() <= allowedDifference &&
+        (f1.M23 - f2.M23).Abs() <= allowedDifference &&
+        (f1.M24 - f2.M24).Abs() <= allowedDifference &&
+        (f1.M31 - f2.M31).Abs() <= allowedDifference &&
+        (f1.M32 - f2.M32).Abs() <= allowedDifference &&
+        (f1.M33 - f2.M33).Abs() <= allowedDifference &&
+        (f1.M34 - f2.M34).Abs() <= allowedDifference &&
+        (f1.M41 - f2.M41).Abs() <= allowedDifference &&
+        (f1.M42 - f2.M42).Abs() <= allowedDifference &&
+        (f1.M43 - f2.M43).Abs() <= allowedDifference &&
+        (f1.M44 - f2.M44).Abs() <= allowedDifference;
+
+    /// <summary>
+    /// Compares two Fixed4x4 for approximate equality, allowing a fractional percentage (defaults to ~1%) difference between components.
+    /// </summary>
+    /// <param name="f1">The current Fixed4x4.</param>
+    /// <param name="f2">The Fixed4x4 to compare against.</param>
+    /// <param name="percentage">The allowed fractional difference (percentage) for each component.</param>
+    /// <returns>True if the components are within the allowed percentage difference, false otherwise.</returns>
+    public static bool FuzzyEqual(this Fixed4x4 f1, Fixed4x4 f2, Fixed64? percentage = null)
+    {
+        Fixed64 p = percentage ?? Fixed64.Epsilon;
+        return f1.M11.FuzzyComponentEqual(f2.M11, p) &&
+               f1.M12.FuzzyComponentEqual(f2.M12, p) &&
+               f1.M13.FuzzyComponentEqual(f2.M13, p) &&
+               f1.M14.FuzzyComponentEqual(f2.M14, p) &&
+               f1.M21.FuzzyComponentEqual(f2.M21, p) &&
+               f1.M22.FuzzyComponentEqual(f2.M22, p) &&
+               f1.M23.FuzzyComponentEqual(f2.M23, p) &&
+               f1.M24.FuzzyComponentEqual(f2.M24, p) &&
+               f1.M31.FuzzyComponentEqual(f2.M31, p) &&
+               f1.M32.FuzzyComponentEqual(f2.M32, p) &&
+               f1.M33.FuzzyComponentEqual(f2.M33, p) &&
+               f1.M34.FuzzyComponentEqual(f2.M34, p) &&
+               f1.M41.FuzzyComponentEqual(f2.M41, p) &&
+               f1.M42.FuzzyComponentEqual(f2.M42, p) &&
+               f1.M43.FuzzyComponentEqual(f2.M43, p) &&
+               f1.M44.FuzzyComponentEqual(f2.M44, p);
+    }
+
+    #endregion
 }

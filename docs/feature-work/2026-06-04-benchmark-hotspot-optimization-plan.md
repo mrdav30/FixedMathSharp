@@ -320,26 +320,74 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ## Phase 4: Matrix Rotation, Transform Composition, And Inversion
 
+**Status:** Complete on 2026-06-05.
+
 **Why:** Matrix-heavy methods are high in the baseline without managed
 allocation: `Matrix3x3.CreateRotation` (467.73 us), `Matrix4x4.InvertFull`
 (390.78 us), `Matrix4x4.TranslateRotateScale` (287.10 us),
 `Matrix4x4.ScaleRotateTranslate` (267.88 us), `Matrix4x4.InvertAffine`
 (215.20 us), and `Matrix4x4.CreateTransform` (201.88 us).
 
-- [ ] Distinguish trig-driven rotation cost from matrix multiplication and
+- [x] Distinguish trig-driven rotation cost from matrix multiplication and
   inversion cost.
-- [ ] Confirm affine inversion stays on the affine path and does not regress
+- [x] Confirm affine inversion stays on the affine path and does not regress
   full inversion correctness.
-- [ ] Add focused correctness tests for singular, near-singular, affine, and
+- [x] Add focused correctness tests for singular, near-singular, affine, and
   non-affine matrices before optimizing.
-- [ ] Benchmark composition order variants with the same deterministic fixture
+- [x] Benchmark composition order variants with the same deterministic fixture
   set.
+
+Implementation notes:
+
+- `Fixed4x4.CreateTransform` now constructs the transform directly from
+  `FixedQuaternion.ToMatrix3x3()` with scaled basis rows and translation,
+  removing temporary `Fixed4x4` construction, rotation-basis normalization, and
+  scale/translation helper calls from the hot path.
+- `Fixed4x4.ScaleRotateTranslate` now delegates to the direct transform builder
+  because its explicit `Scale * Rotation * Translation` result matches the same
+  matrix layout.
+- `Fixed4x4.TranslateRotateScale` now builds its `Translation * Rotation *
+  Scale` result directly instead of allocating work to three temporary matrices
+  and two matrix multiplications.
+- Affine inversion keeps the existing public point-transform convention but now
+  computes the inverse translation directly, avoiding temporary `Fixed3x3` and
+  `Vector3d` values.
+- Added `Fixed4x4.FuzzyEqualAbsolute` and `Fixed4x4.FuzzyEqual` extension
+  methods to match the existing `Fixed3x3` comparison API and support matrix
+  regression tests.
+- `Matrix3x3.CreateRotation` remains primarily trig-bound and was not changed
+  in this phase.
+- Captured `FMS-Issue-009` in `docs/feature-work/issue-tracker.md` for the
+  deeper `Fixed4x4` convention mismatch between public point transforms and
+  affine matrix composition identity proofs.
+
+Focused `ShortRun` evidence:
+
+| Benchmark | Before | After |
+| --- | ---: | ---: |
+| `Matrix3x3.CreateRotation` | 449.886 us, 0 B | 431.061 us, 0 B |
+| `Matrix3x3.Invert` | 146.526 us, 0 B | 145.205 us, 0 B |
+| `Matrix4x4.CreateRotation` | 113.116 us, 0 B | 111.021 us, 0 B |
+| `Matrix4x4.CreateTransform` | 181.935 us, 0 B | 152.313 us, 0 B |
+| `Matrix4x4.ScaleRotateTranslate` | 249.063 us, 0 B | 152.532 us, 0 B |
+| `Matrix4x4.TranslateRotateScale` | 265.813 us, 0 B | 185.691 us, 0 B |
+| `Matrix4x4.InvertAffine` | 212.357 us, 0 B | 195.912 us, 0 B |
+| `Matrix4x4.InvertFull` | 435.059 us, 0 B | 385.024 us, 0 B |
+
+Note: `Matrix4x4.InvertFull` was not changed directly, so the lower focused
+short-run result should be treated as noise rather than a claimed algorithmic
+win. A combined `matrix3x3 matrix4x4` short run hit a one-off in-process
+BenchmarkDotNet `SEHException` during `Matrix3x3.Invert`; the isolated
+`Matrix3x3.Invert` rerun passed, so no issue was tracked unless it reproduces.
 
 Verification:
 
 ```bash
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Fixed3x3|FullyQualifiedName~Fixed4x4"
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll matrix3x3 matrix4x4 --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll matrix4x4 -j Short -i --filter "*CreateRotation*" "*CreateTransform*" "*ScaleRotateTranslate*" "*TranslateRotateScale*" "*Invert*" --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll matrix3x3 -j Short -i --filter "*Invert*" --exporters json
 ```
 
 ## Phase 5: Serialization Cost Review

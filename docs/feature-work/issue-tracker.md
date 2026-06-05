@@ -36,7 +36,54 @@ runtime and tests.
 
 ## Active Issues
 
-- None currently.
+### FMS-Issue-009: `Fixed4x4` point transforms and matrix composition use different affine conventions
+
+**Discovered:** 2026-06-05
+
+**Status:** Active
+
+**Source:** Phase 4 matrix hotspot optimization work while validating affine
+inversion with near-singular transforms.
+
+**Affected files:**
+
+- `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.cs`
+- `src/FixedMathSharp/Numerics/Vectors/Vector3d.cs`
+- `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed4x4.Tests.cs`
+
+**Observation:**
+
+`Fixed4x4.TransformPoint`, `Fixed4x4.InverseTransformPoint`, and
+`Vector3d.operator *(Fixed4x4, Vector3d)` apply affine transforms using the
+upper-left matrix rows plus translation components. The optimized affine matrix
+multiplication path composes translation using the other convention
+(`lhs.M41 * rhs.M11 + lhs.M42 * rhs.M21 + lhs.M43 * rhs.M31 + rhs.M41`), which
+means `matrix * inverse` is not always a reliable identity proof for the same
+public point-transform behavior that `TransformPoint(inverse, TransformPoint(matrix,
+point))` exercises.
+
+**Recommended approach:**
+
+- [ ] Decide the canonical `Fixed4x4` convention for the next major release:
+  point/vector transform shape, matrix multiplication order, translation row or
+  column semantics, and doc language.
+- [ ] Add explicit tests that compare `CreateTranslation`, `CreateScale`,
+  `CreateRotation`, `ScaleRotateTranslate`, `TranslateRotateScale`,
+  `TransformPoint`, `InverseTransformPoint`, and matrix multiplication against
+  that canonical convention.
+- [ ] Update runtime formulas only after the canonical convention is pinned by
+  tests.
+- [ ] Re-run matrix, bounds/frustum, quaternion, and vector transform tests
+  because this may affect broad spatial behavior.
+- [ ] Re-run matrix benchmarks after the semantic fix to confirm no complexity
+  or allocation regression.
+
+Recommended verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Fixed4x4|FullyQualifiedName~Vector3d|FullyQualifiedName~FixedBoundFrustum|FullyQualifiedName~FixedQuaternion"
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll matrix3x3 matrix4x4 bounds quaternion -j Short -i --filter "*Transform*" "*Invert*" "*CreateRotation*" "*CreateTransform*" "*ScaleRotateTranslate*" "*TranslateRotateScale*" "*Frustum*" "*FromDirection*" --exporters json
+```
 
 ## Performance Investigation Queue
 

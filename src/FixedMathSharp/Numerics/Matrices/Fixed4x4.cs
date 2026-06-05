@@ -733,17 +733,13 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// <returns>A transformation matrix incorporating translation, rotation, and scale.</returns>
     public static Fixed4x4 CreateTransform(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
     {
-        // Create the rotation matrix and normalize it
-        Fixed4x4 rotationMatrix = CreateRotation(rotation);
-        rotationMatrix = NormalizeRotationMatrix(rotationMatrix);
+        Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();
 
-        // Apply scale directly to the rotation matrix
-        rotationMatrix = ApplyScaleToRotation(rotationMatrix, scale);
-
-        // Apply the translation to the combined matrix
-        rotationMatrix = SetTranslation(rotationMatrix, translation);
-
-        return rotationMatrix;
+        return new Fixed4x4(
+            rotationMatrix.M11 * scale.X, rotationMatrix.M12 * scale.X, rotationMatrix.M13 * scale.X, Fixed64.Zero,
+            rotationMatrix.M21 * scale.Y, rotationMatrix.M22 * scale.Y, rotationMatrix.M23 * scale.Y, Fixed64.Zero,
+            rotationMatrix.M31 * scale.Z, rotationMatrix.M32 * scale.Z, rotationMatrix.M33 * scale.Z, Fixed64.Zero,
+            translation.X, translation.Y, translation.Z, Fixed64.One);
     }
 
     /// <summary>
@@ -758,17 +754,7 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </remarks>
     public static Fixed4x4 ScaleRotateTranslate(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
     {
-        // Create translation matrix
-        Fixed4x4 translationMatrix = CreateTranslation(translation);
-
-        // Create rotation matrix using the quaternion
-        Fixed4x4 rotationMatrix = CreateRotation(rotation);
-
-        // Create scaling matrix
-        Fixed4x4 scalingMatrix = CreateScale(scale);
-
-        // Combine all transformations
-        return (scalingMatrix * rotationMatrix) * translationMatrix;
+        return CreateTransform(translation, rotation, scale);
     }
 
     /// <summary>
@@ -782,17 +768,16 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </remarks>
     public static Fixed4x4 TranslateRotateScale(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
     {
-        // Create translation matrix
-        Fixed4x4 translationMatrix = CreateTranslation(translation);
+        Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();
 
-        // Create rotation matrix using the quaternion
-        Fixed4x4 rotationMatrix = CreateRotation(rotation);
-
-        // Create scaling matrix
-        Fixed4x4 scalingMatrix = CreateScale(scale);
-
-        // Combine all transformations
-        return (translationMatrix * rotationMatrix) * scalingMatrix;
+        return new Fixed4x4(
+            rotationMatrix.M11 * scale.X, rotationMatrix.M12 * scale.Y, rotationMatrix.M13 * scale.Z, Fixed64.Zero,
+            rotationMatrix.M21 * scale.X, rotationMatrix.M22 * scale.Y, rotationMatrix.M23 * scale.Z, Fixed64.Zero,
+            rotationMatrix.M31 * scale.X, rotationMatrix.M32 * scale.Y, rotationMatrix.M33 * scale.Z, Fixed64.Zero,
+            (translation.X * rotationMatrix.M11 + translation.Y * rotationMatrix.M21 + translation.Z * rotationMatrix.M31) * scale.X,
+            (translation.X * rotationMatrix.M12 + translation.Y * rotationMatrix.M22 + translation.Z * rotationMatrix.M32) * scale.Y,
+            (translation.X * rotationMatrix.M13 + translation.Y * rotationMatrix.M23 + translation.Z * rotationMatrix.M33) * scale.Z,
+            Fixed64.One);
     }
 
     #endregion
@@ -1196,19 +1181,9 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
             Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One  // Ensure homogeneous coordinate stays valid
         );
 
-        Fixed3x3 rotationScaleInverse = new(
-            result.M11, result.M12, result.M13,
-            result.M21, result.M22, result.M23,
-            result.M31, result.M32, result.M33
-        );
-
-        // Correct translation component
-        Vector3d transformedTranslation = new(matrix.M41, matrix.M42, matrix.M43);
-        transformedTranslation = -Fixed3x3.TransformDirection(rotationScaleInverse, transformedTranslation);
-
-        result.M41 = transformedTranslation.X;
-        result.M42 = transformedTranslation.Y;
-        result.M43 = transformedTranslation.Z;
+        result.M41 = -(result.M11 * matrix.M41 + result.M12 * matrix.M42 + result.M13 * matrix.M43);
+        result.M42 = -(result.M21 * matrix.M41 + result.M22 * matrix.M42 + result.M23 * matrix.M43);
+        result.M43 = -(result.M31 * matrix.M41 + result.M32 * matrix.M42 + result.M33 * matrix.M43);
         result.M44 = Fixed64.One;
 
         return true;

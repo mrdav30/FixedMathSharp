@@ -637,6 +637,38 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_CreateTransform_MatchesDirectRotationScaleRows()
+    {
+        var translation = new Vector3d(3, -2, 5);
+        var rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)30, (Fixed64)45, (Fixed64)60);
+        var scale = new Vector3d(2, 3, 4);
+        Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();
+
+        var expected = new Fixed4x4(
+            rotationMatrix.M11 * scale.X, rotationMatrix.M12 * scale.X, rotationMatrix.M13 * scale.X, Fixed64.Zero,
+            rotationMatrix.M21 * scale.Y, rotationMatrix.M22 * scale.Y, rotationMatrix.M23 * scale.Y, Fixed64.Zero,
+            rotationMatrix.M31 * scale.Z, rotationMatrix.M32 * scale.Z, rotationMatrix.M33 * scale.Z, Fixed64.Zero,
+            translation.X, translation.Y, translation.Z, Fixed64.One);
+
+        var result = Fixed4x4.CreateTransform(translation, rotation, scale);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_ScaleRotateTranslate_MatchesExplicitMultiplicationOrder()
+    {
+        var translation = new Vector3d(3, -2, 5);
+        var rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)30, (Fixed64)45, (Fixed64)60);
+        var scale = new Vector3d(2, 3, 4);
+
+        var expected = Fixed4x4.CreateScale(scale) * Fixed4x4.CreateRotation(rotation) * Fixed4x4.CreateTranslation(translation);
+        var result = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
     public void FixedMatrix4x4_TranslateRotateScale_MatchesExplicitMultiplicationOrder()
     {
         var translation = new Vector3d(3, -2, 5);
@@ -783,6 +815,77 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_FuzzyEqualExtensions_CoverTrueAndFalseBranches()
+    {
+        var baseline = new Fixed4x4(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4),
+            new Fixed64(5), new Fixed64(6), new Fixed64(7), new Fixed64(8),
+            new Fixed64(9), new Fixed64(10), new Fixed64(11), new Fixed64(12),
+            new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(16));
+        var same = baseline;
+        var changed = new Fixed4x4(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4),
+            new Fixed64(5), new Fixed64(6), new Fixed64(7), new Fixed64(8),
+            new Fixed64(9), new Fixed64(10), new Fixed64(11), new Fixed64(12),
+            new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(17));
+
+        Assert.True(baseline.FuzzyEqualAbsolute(same, Fixed64.Zero));
+        Assert.False(baseline.FuzzyEqualAbsolute(changed, Fixed64.FromFloatPoint(0.5)));
+        Assert.True(baseline.FuzzyEqual(same));
+        Assert.False(baseline.FuzzyEqual(changed, Fixed64.FromFloatPoint(0.01)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    [InlineData(10)]
+    [InlineData(11)]
+    [InlineData(12)]
+    [InlineData(13)]
+    [InlineData(14)]
+    [InlineData(15)]
+    public void FixedMatrix4x4_FuzzyEqualAbsolute_ReturnsFalse_WhenAnyComponentExceedsTolerance(int componentIndex)
+    {
+        var baseline = CreateSequentialMatrix4x4();
+        var changed = OffsetMatrixComponent(baseline, componentIndex, Fixed64.FromFloatPoint(0.2));
+
+        Assert.False(baseline.FuzzyEqualAbsolute(changed, Fixed64.FromFloatPoint(0.1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    [InlineData(10)]
+    [InlineData(11)]
+    [InlineData(12)]
+    [InlineData(13)]
+    [InlineData(14)]
+    [InlineData(15)]
+    public void FixedMatrix4x4_FuzzyEqual_ReturnsFalse_WhenAnyComponentExceedsPercentage(int componentIndex)
+    {
+        var baseline = CreateSequentialMatrix4x4();
+        var changed = OffsetMatrixComponent(baseline, componentIndex, new Fixed64(10));
+
+        Assert.False(baseline.FuzzyEqual(changed, Fixed64.FromFloatPoint(0.01)));
+    }
+
+    [Fact]
     public void FixedMatrix4x4_Invert_NonAffineMatrix_WorksCorrectly()
     {
         var matrix = new Fixed4x4(
@@ -824,6 +927,23 @@ public class Fixed4x4Tests
 
         Assert.False(Fixed4x4.Invert(matrix, out var inverted));
         Assert.Equal(Fixed4x4.Identity, inverted);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_Invert_NearSingularAffineMatrix_RemainsInvertible()
+    {
+        var translation = new Vector3d(3, -2, 5);
+        var rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)15, (Fixed64)(-30), (Fixed64)45);
+        var tinyScale = Fixed64.FromRaw(1L << 24);
+        var matrix = Fixed4x4.CreateTransform(translation, rotation, new Vector3d(tinyScale, Fixed64.One, new Fixed64(2)));
+
+        Assert.True(Fixed4x4.Invert(matrix, out var inverted));
+
+        var point = new Vector3d(4, -3, 2);
+        var transformed = Fixed4x4.TransformPoint(matrix, point);
+        var restored = Fixed4x4.TransformPoint(inverted, transformed);
+
+        Assert.True(point.FuzzyEqual(restored, Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
@@ -1036,6 +1156,71 @@ public class Fixed4x4Tests
 
         Assert.True(originalPoint.FuzzyEqual(inverseTransformedPoint, Fixed64.FromFloatPoint(0.0001)),
             $"Expected {originalPoint} but got {inverseTransformedPoint}");
+    }
+
+    private static Fixed4x4 CreateSequentialMatrix4x4() => new(
+        new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4),
+        new Fixed64(5), new Fixed64(6), new Fixed64(7), new Fixed64(8),
+        new Fixed64(9), new Fixed64(10), new Fixed64(11), new Fixed64(12),
+        new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(16));
+
+    private static Fixed4x4 OffsetMatrixComponent(Fixed4x4 matrix, int componentIndex, Fixed64 offset)
+    {
+        switch (componentIndex)
+        {
+            case 0:
+                matrix.M11 += offset;
+                break;
+            case 1:
+                matrix.M12 += offset;
+                break;
+            case 2:
+                matrix.M13 += offset;
+                break;
+            case 3:
+                matrix.M14 += offset;
+                break;
+            case 4:
+                matrix.M21 += offset;
+                break;
+            case 5:
+                matrix.M22 += offset;
+                break;
+            case 6:
+                matrix.M23 += offset;
+                break;
+            case 7:
+                matrix.M24 += offset;
+                break;
+            case 8:
+                matrix.M31 += offset;
+                break;
+            case 9:
+                matrix.M32 += offset;
+                break;
+            case 10:
+                matrix.M33 += offset;
+                break;
+            case 11:
+                matrix.M34 += offset;
+                break;
+            case 12:
+                matrix.M41 += offset;
+                break;
+            case 13:
+                matrix.M42 += offset;
+                break;
+            case 14:
+                matrix.M43 += offset;
+                break;
+            case 15:
+                matrix.M44 += offset;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(componentIndex));
+        }
+
+        return matrix;
     }
 
     #region Test: Serialization
