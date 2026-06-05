@@ -878,7 +878,11 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
              scale.Z == Fixed64.Zero ? Fixed64.One : scale.Z);
 
         // normalize rotation and scaling
-        Fixed4x4 normalizedMatrix = ApplyScaleToRotation(matrix, Vector3d.One / scale);
+        var inverseScale = new Vector3d(
+            Fixed64.DivideByPositive(Fixed64.One, scale.X),
+            Fixed64.DivideByPositive(Fixed64.One, scale.Y),
+            Fixed64.DivideByPositive(Fixed64.One, scale.Z));
+        Fixed4x4 normalizedMatrix = ApplyScaleToRotation(matrix, inverseScale);
 
         // Extract translation
         translation = new Vector3d(normalizedMatrix.M41, normalizedMatrix.M42, normalizedMatrix.M43);

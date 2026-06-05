@@ -93,6 +93,36 @@ public class Matrix4x4Benchmarks
     }
 
     [Benchmark]
+    public Fixed64 ExtractRotation()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _matrices.Length; i++)
+        {
+            FixedQuaternion rotation = Fixed4x4.ExtractRotation(_matrices[i]);
+            accumulator += rotation.X + rotation.Y + rotation.Z + rotation.W;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 Decompose()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _matrices.Length; i++)
+        {
+            if (Fixed4x4.Decompose(_matrices[i], out Vector3d scale, out FixedQuaternion rotation, out Vector3d translation))
+            {
+                accumulator += scale.X + scale.Y + scale.Z;
+                accumulator += rotation.X + rotation.Y + rotation.Z + rotation.W;
+                accumulator += translation.X + translation.Y + translation.Z;
+            }
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
     public Fixed4x4 InvertAffine()
     {
         Fixed4x4 accumulator = Fixed4x4.Identity;

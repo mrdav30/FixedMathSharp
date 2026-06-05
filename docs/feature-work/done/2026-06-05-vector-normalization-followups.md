@@ -1,6 +1,6 @@
 # Vector Normalization Follow-Ups
 
-**Status:** In Progress
+**Status:** Done
 
 **Source:** Extracted from Phase 6 of
 `docs/feature-work/done/2026-06-04-benchmark-hotspot-optimization-plan.md`.
@@ -108,6 +108,8 @@ public operator semantics.
 
 ## Phase 2: Longer-Run Vector4d Normalization Confirmation
 
+**Status:** Completed on 2026-06-05
+
 **Why:** The fresh short run still shows `Vector4d` normalization paths as the
 largest vector normalization costs:
 `GetNormalized` 76.879 us, `Normal` 78.904 us, and `NormalizeInPlace` 82.420 us.
@@ -115,22 +117,59 @@ The costs are expected because the path is square-root plus four fixed
 divisions, but the spread between `GetNormalized` and `NormalizeInPlace` should
 be treated as noise unless reproduced in a longer run.
 
-- [ ] Re-run `Vector4d` normalization in a longer benchmark job before opening
+- [x] Re-run `Vector4d` normalization in a longer benchmark job before opening
   runtime work.
-- [ ] Do not trade away raw-value precision for the sake of reducing fixed
+- [x] Do not trade away raw-value precision for the sake of reducing fixed
   divisions.
-- [ ] Prefer new squared-length consumer APIs or guidance only when callers do
+- [x] Prefer new squared-length consumer APIs or guidance only when callers do
   not need actual magnitude or normalized components.
 
+**Outcome:** Medium-run confirmation collapsed the earlier short-run spread
+between the three public normalization entry points. No Vector4d runtime change
+was opened.
+
+- `Vector4d.Normal`: 83.358 us, 0 allocated.
+- `Vector4d.NormalizeInPlace`: 83.835 us, 0 allocated.
+- `Vector4d.GetNormalized`: 83.898 us, 0 allocated.
+- `Vector4d.IsNormalized`: 4.584 us, 0 allocated.
+
+The normalization APIs remain dominated by square root plus four exact fixed
+divisions. `IsNormalized` is the cheap squared-length-style contrast, so future
+guidance/API work should steer callers there only when they do not need actual
+normalized components.
+
 ## Phase 3: Focused Positive-Divisor Candidate Benchmarks
+
+**Status:** Completed on 2026-06-05
 
 **Why:** Phase 1-b found more methods with locally positive divisors, but these
 paths are not directly covered by the current benchmark suite. Add benchmarks
 before changing runtime code so helper substitutions stay evidence-driven.
 
-- [ ] Add vector benchmarks for `Project`, `ProjectOnPlane`, `Angle`,
+- [x] Add vector benchmarks for `Project`, `ProjectOnPlane`, `Angle`,
   `ClosestPointOnLineSegment`, and `ClosestPointsOnTwoLines`.
-- [ ] Add matrix benchmarks for `ExtractRotation` and `Decompose`.
-- [ ] Test `DivideByPositive` substitutions only after those baselines exist.
-- [ ] Keep `FixedPlane.Normalize` on its reciprocal-plus-multiply shape unless a
+- [x] Add matrix benchmarks for `ExtractRotation` and `Decompose`.
+- [x] Test `DivideByPositive` substitutions only after those baselines exist.
+- [x] Keep `FixedPlane.Normalize` on its reciprocal-plus-multiply shape unless a
   benchmark proves another exact approach is faster.
+
+**Accepted substitutions:**
+
+- `Vector3d.ProjectOnPlane(Vector3d point, FixedPlane plane)` now uses
+  `DivideByPositive(distance, normalLengthSquared)` after the positive squared
+  normal-length guard. Short-run benchmark: 31.437 us to 30.545 us.
+- `Fixed4x4.Decompose` now builds its inverse scale with `DivideByPositive`
+  after replacing zero scale components with one. Short-run benchmark:
+  199.594 us to 184.942 us.
+
+**Rejected substitutions:**
+
+- `Vector3d.Project`: 29.315 us to 30.187 us; reverted.
+- `Vector3d.ProjectOnPlane(Vector3d vector, Vector3d planeNormal)`: 29.608 us
+  to 30.612 us; reverted.
+- `Vector3d.Angle`: 198.672 us to 197.184 us; too small and noisy relative to
+  the acos-heavy path, reverted.
+- `Vector3d.ClosestPointOnLineSegment`: 20.483 us to 22.362 us; reverted.
+- `Vector3d.ClosestPointsOnTwoLines`: 79.169 us to 79.021 us; no meaningful
+  improvement, reverted.
+- `Fixed4x4.ExtractRotation`: 211.822 us to 218.318 us; reverted.

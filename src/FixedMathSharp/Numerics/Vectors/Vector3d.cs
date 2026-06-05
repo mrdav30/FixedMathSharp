@@ -1164,7 +1164,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
             return point;
 
         Fixed64 distance = plane.DotCoordinate(point);
-        return point - plane.Normal * (distance / normalLengthSquared);
+        return point - plane.Normal * Fixed64.DivideByPositive(distance, normalLengthSquared);
     }
 
     /// <summary>

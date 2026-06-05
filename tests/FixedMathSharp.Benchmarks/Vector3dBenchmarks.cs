@@ -1,4 +1,5 @@
 using BenchmarkDotNet.Attributes;
+using FixedMathSharp.Bounds;
 
 namespace FixedMathSharp.Benchmarks;
 
@@ -100,6 +101,77 @@ public class Vector3dBenchmarks
         Vector3d accumulator = Vector3d.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += Vector3d.GetNormalized(_left[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d Project()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector3d.Project(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d ProjectOnPlane()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector3d.ProjectOnPlane(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d ProjectPointOnPlane()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            var plane = new FixedPlane(_right[i], Vector3d.Dot(_right[i], _left[i]) * Fixed64.Quarter);
+            accumulator += Vector3d.ProjectOnPlane(_left[i], plane);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 Angle()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector3d.Angle(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d ClosestPointOnLineSegment()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector3d.ClosestPointOnLineSegment(_right[i], _left[i], _left[i] + _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d ClosestPointsOnTwoLines()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            int next = (i + 17) & (BenchmarkFixtures.SampleCount - 1);
+            (Vector3d pointOnLine1, Vector3d pointOnLine2) = Vector3d.ClosestPointsOnTwoLines(
+                _left[i],
+                _left[i] + _right[i],
+                _right[i],
+                _right[i] + _left[next]);
+            accumulator += pointOnLine1 + pointOnLine2;
+        }
 
         return accumulator;
     }
