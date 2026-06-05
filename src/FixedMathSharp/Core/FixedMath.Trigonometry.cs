@@ -319,14 +319,7 @@ namespace FixedMathSharp
             if (x > Fixed64.HalfPi)
                 x = Fixed64.Pi - x;
 
-            // Precompute x^2
-            Fixed64 x2 = x * x;
-
-            // Optimized Chebyshev Polynomial for Sin(x)
-            Fixed64 result = x * (Fixed64.One
-                - x2 * Fixed64.SinCoeff3
-                + (x2 * x2) * Fixed64.SinCoeff5
-                - (x2 * x2 * x2) * Fixed64.SinCoeff7);
+            Fixed64 result = SinReduced(x);
 
             return flip ? -result : result;
         }
@@ -392,17 +385,30 @@ namespace FixedMathSharp
             else if (x > Fixed64.HalfPi)
                 x -= Fixed64.Pi;
 
-            // Use continued fraction to approximate tan(x)
+            bool flip = x < Fixed64.Zero;
+            if (flip)
+                x = -x;
+
+            Fixed64 sin = SinReduced(x);
+            Fixed64 cos = SinReduced(Fixed64.HalfPi - x);
+            Fixed64 result = sin / cos;
+
+            return flip ? -result : result;
+        }
+
+        /// <summary>
+        /// Computes the sine of an angle x (in radians) using a minimax polynomial approximation.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Fixed64 SinReduced(Fixed64 x)
+        {
             Fixed64 x2 = x * x;
-            Fixed64 numerator = x;
-            Fixed64 denominator = Fixed64.One;
+            Fixed64 x4 = x2 * x2;
 
-            // Iterate over the continued fraction terms
-            int start = x.Abs() > Fixed64.PiOver6 ? 19 : 13;
-            for (int i = start; i >= 1; i -= 2)
-                denominator = (Fixed64)i - (x2 / denominator);
-
-            return numerator / denominator;
+            return x * (Fixed64.One
+                - x2 * Fixed64.SinCoeff3
+                + x4 * Fixed64.SinCoeff5
+                - x4 * x2 * Fixed64.SinCoeff7);
         }
 
         /// <summary>
@@ -438,7 +444,6 @@ namespace FixedMathSharp
                 return numerator;
             }
 
-            // For values closer to ±1, use the identity: asin(x) = π/2 - acos(x) for stability
             return x > Fixed64.Zero
                 ? Fixed64.HalfPi - Acos(x)
                 : -Fixed64.HalfPi + Acos(-x);
@@ -482,17 +487,21 @@ namespace FixedMathSharp
             bool neg = z < Fixed64.Zero;
             if (neg) z = -z;
 
-            // Adjust series for z > 0.5 using the identity.
+
             Fixed64 adjustedResult;
-            if (z > Fixed64.Half)
+            // Adjust series for z > 1 using the identity atan(z) = π/2 - atan(1/z)
+            if (z > Fixed64.One)
+                adjustedResult = Fixed64.HalfPi - Atan(Fixed64.One / z);
+            // For z in (0.5, 1], use a transformation to improve convergence: atan(z) = π/4 - atan((1 - z) / (1 + z))
+            else if (z > Fixed64.Half)
             {
-                // Apply the identity: atan(z) = π/4 - atan((1 - z) / (1 + z))
+
                 Fixed64 transformedZ = (Fixed64.One - z) / (Fixed64.One + z);
                 adjustedResult = Fixed64.PiOver4 - Atan(transformedZ);
             }
+            // For z in (0, 0.5], use the standard Taylor series expansion around 0 for better precision on small values.
             else
             {
-                // Use extended Taylor series directly for better precision on small z.
                 Fixed64 zSq = z * z;
 
                 Fixed64 result = z;

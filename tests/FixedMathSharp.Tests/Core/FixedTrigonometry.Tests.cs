@@ -287,33 +287,33 @@ public class FixedTrigonometryTests
     }
 
     [Fact]
-    public void Tan_NearestConvergenceCandidate_StillDiffersByOneRawUnit()
+    public void Tan_MatchesReferenceAcrossPrincipalRange()
     {
-        var value = Fixed64.FromRaw(6262398315L);
-        var x = value % Fixed64.Pi;
-        var x2 = x * x;
-        var denominator = Fixed64.One;
-        var prevDenominator = denominator;
-        var minGap = Fixed64.MaxValue;
-        var minGapIteration = 0;
-        var start = x.Abs() > Fixed64.PiOver6 ? 19 : 13;
-
-        for (var i = start; i >= 1; i -= 2)
+        var values = new[]
         {
-            denominator = (Fixed64)i - (x2 / denominator);
-            var gap = (denominator - prevDenominator).Abs();
+            -1.25d,
+            -1.0d,
+            -0.75d,
+            -0.5d,
+            -0.25d,
+            0.25d,
+            0.5d,
+            0.75d,
+            1.0d,
+            1.25d
+        };
 
-            if (gap < minGap)
-            {
-                minGap = gap;
-                minGapIteration = i;
-            }
+        foreach (double value in values)
+        {
+            var angle = Fixed64.FromFloatPoint(value);
+            var expected = Fixed64.FromFloatPoint(Math.Tan(value));
 
-            prevDenominator = denominator;
+            FixedMathTestHelper.AssertWithinRelativeTolerance(
+                expected,
+                FixedMath.Tan(angle),
+                Fixed64.FromFloatPoint(0.0005),
+                $"tan({value}) exceeded tolerance.");
         }
-
-        Assert.Equal(Fixed64.MinIncrement, minGap);
-        Assert.Equal(17, minGapIteration);
     }
 
     #endregion
@@ -564,6 +564,38 @@ public class FixedTrigonometryTests
         {
             var result = FixedMath.Atan(value);
             FixedMathTestHelper.AssertWithinRange(result, -Fixed64.HalfPi, Fixed64.HalfPi, $"Result {result} is out of range for input {value}");
+        }
+    }
+
+    [Fact]
+    public void Atan_MatchesReferenceAcrossLargeRange()
+    {
+        var values = new[]
+        {
+            -8.0d,
+            -4.0d,
+            -2.0d,
+            -1.5d,
+            -0.75d,
+            -0.25d,
+            0.25d,
+            0.75d,
+            1.5d,
+            2.0d,
+            4.0d,
+            8.0d
+        };
+
+        foreach (double value in values)
+        {
+            var input = Fixed64.FromFloatPoint(value);
+            var expected = Fixed64.FromFloatPoint(Math.Atan(value));
+
+            FixedMathTestHelper.AssertWithinRelativeTolerance(
+                expected,
+                FixedMath.Atan(input),
+                Fixed64.FromFloatPoint(0.0005),
+                $"atan({value}) exceeded tolerance.");
         }
     }
 

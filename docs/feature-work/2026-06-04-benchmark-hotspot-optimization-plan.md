@@ -85,23 +85,63 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ## Phase 2: Scalar Transcendental Speed
 
+**Status:** Complete on 2026-06-04.
+
 **Why:** The slowest allocation-free scalar methods were `Pow` (136.806 us),
 `Acos` (124.290 us), `Tan` (103.154 us), `Atan2` (93.539 us), `Atan`
 (92.729 us), and `Asin` (77.112 us).
 
-- [ ] Review algorithms in `FixedMath` and `FixedTrigonometry` for iteration
+- [x] Review algorithms in `FixedMath` and `FixedTrigonometry` for iteration
   counts, range reduction, table lookup, division count, and branch shape.
-- [ ] Add correctness sweeps before optimization for edge cases, singularities,
+- [x] Add correctness sweeps before optimization for edge cases, singularities,
   sign handling, and deterministic raw-value expectations.
-- [ ] Benchmark each candidate independently before and after changes.
-- [ ] Prefer deterministic algorithmic wins over lookup-table growth unless the
+- [x] Benchmark each candidate independently before and after changes.
+- [x] Prefer deterministic algorithmic wins over lookup-table growth unless the
   table size, cache behavior, and `netstandard2.1` impact are justified.
+
+Result:
+
+- Factored the reduced sine polynomial into an aggressively inlined helper so
+  `Sin` and other already-reduced callers can share the same polynomial without
+  repeating expression shape.
+- Replaced `Tan`'s continued-fraction path with deterministic principal-range
+  reduction followed by `sin(x) / cos(x)` using the reduced sine polynomial.
+  This removes the per-call variable-depth fraction loop and was the largest
+  scalar win in this phase.
+- Added a large-input `Atan` identity for `|z| > 1`, reducing expensive Taylor
+  work before the existing `z > 0.5` identity path.
+- Added contract-level reference sweeps for tangent principal-range values and
+  arctangent values above and below one, and removed a stale tangent test that
+  asserted details of the old continued-fraction implementation.
+- Benchmarked but rejected a direct `Cos` rewrite and an alternate `Asin`
+  half-angle identity because the focused `ShortRun` measurements did not show
+  a clear improvement.
+- Left `Pow`, `Log2`, and `Ln` unchanged in this pass. `Pow` remains a real
+  scalar candidate, but it likely needs a dedicated `Log2`/`Pow2` algorithm pass
+  with tighter correctness coverage rather than being mixed into the trig
+  range-reduction work.
+
+Focused `ShortRun` evidence from this phase:
+
+| Benchmark | Before | After |
+| --- | ---: | ---: |
+| `Sin` | 37.282 us, 0 B | 37.431 us, 0 B |
+| `Cos` | 44.898 us, 0 B | 42.402 us, 0 B |
+| `Tan` | 95.667 us, 0 B | 59.946 us, 0 B |
+| `Acos` | 127.092 us, 0 B | 117.660 us, 0 B |
+| `Asin` | 80.325 us, 0 B | 82.613 us, 0 B |
+| `Atan` | 86.645 us, 0 B | 66.957 us, 0 B |
+| `Atan2` | 89.267 us, 0 B | 86.025 us, 0 B |
+| `Pow` | 122.432 us, 0 B | 123.863 us, 0 B |
+| `Log2` | 34.097 us, 0 B | 34.382 us, 0 B |
+| `Ln` | 42.336 us, 0 B | 41.323 us, 0 B |
 
 Verification:
 
 ```bash
-dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Fixed64"
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic --exporters json
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Fixed64|FullyQualifiedName~FixedTrigonometry"
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic -j Short -i --exporters json
 ```
 
 ## Phase 3: Quaternion Direction And Euler Paths
