@@ -7,7 +7,7 @@
 > claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for
 > tracking.
 
-**Status:** Active
+**Status:** Done
 
 **Goal:** Convert the 2026-06-04 full benchmark baseline into focused,
 correctness-first optimization work for measured hotspots only.
@@ -443,23 +443,50 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/ReleaseLean/net8.0/FixedMathSharp.Ben
 
 ## Phase 6: Vector Normalization Follow-Through
 
+**Status:** Complete on 2026-06-05.
+
 **Why:** Vector arithmetic is allocation-free and fast, but normalization and
 magnitude paths scale with fixed-point sqrt cost: `Vector4d.GetNormalized`
 (89.416 us), `Vector4d.NormalizeInPlace` (87.263 us), `Vector4d.Normal`
 (86.907 us), `Vector3d.GetNormalized` (72.913 us), and `Vector2d.GetNormalized`
 (58.084 us).
 
-- [ ] Revisit vector normalization after scalar sqrt/transcendental work, since
+- [x] Revisit vector normalization after scalar sqrt/transcendental work, since
   many costs may be inherited.
-- [ ] Confirm zero-vector and near-zero-vector behavior before any fast-path
+- [x] Confirm zero-vector and near-zero-vector behavior before any fast-path
   changes.
-- [ ] Benchmark squared-length alternatives only where public API semantics do
+- [x] Benchmark squared-length alternatives only where public API semantics do
   not require magnitude.
-- [ ] Keep `out` overloads and in-place overloads allocation-free.
+- [x] Keep `out` overloads and in-place overloads allocation-free.
+
+Result:
+
+- Captured a fresh full vector `ShortRun`. The earlier `Sqrt` work already
+  pulled normalization down without vector-specific changes:
+  `Vector2d.GetNormalized` now measured 52.171 us, `Vector3d.GetNormalized`
+  67.265 us, and `Vector4d.GetNormalized` 76.879 us. All vector benchmarked
+  hot paths remained allocation-free.
+- Rejected the tempting `invMag = Fixed64.One / mag` normalization rewrite. It
+  reduced repeated fixed divisions in theory, but changed raw rounding enough to
+  fail exact behavior: `Vector2d(3,4).Normal` drifted by a few raw units and
+  `Vector3d.SpeedLerp_DoesNotOvershoot` overshot to `5.000000004656613`.
+- Kept the existing per-component division path for normalization because it
+  preserves current deterministic rounding and exact no-overshoot behavior.
+- Updated `Vector3d.IsNormalized()` to use `SqrMagnitude` instead of
+  `Magnitude`, matching the existing `Vector4d` shape and avoiding an
+  unnecessary square root where boolean semantics only require squared length.
+- Added focused `IsNormalized` benchmark coverage for `Vector3d` and `Vector4d`.
+  `Vector3d.IsNormalized` measured 3.422 us versus the old `Magnitude` path's
+  30.649 us proxy from the same fresh run; `Vector4d.IsNormalized` measured
+  4.480 us.
 
 Verification:
 
 ```bash
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Vector2d|FullyQualifiedName~Vector3d|FullyQualifiedName~Vector4d"
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector2d vector3d vector4d --exporters json
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Vector3d|FullyQualifiedName~Vector4d"
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f netstandard2.1 --no-restore
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector2d vector3d vector4d -j Short -i --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector3d vector4d -j Short -i --filter "*IsNormalized*" --exporters json
 ```

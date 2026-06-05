@@ -95,6 +95,19 @@ public class Vector4dBenchmarks
     }
 
     [Benchmark]
+    public int IsNormalized()
+    {
+        int count = 0;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            if (_left[i].IsNormalized())
+                count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
     public Fixed64 Distance()
     {
         Fixed64 accumulator = Fixed64.Zero;

@@ -456,7 +456,11 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <summary>
     /// Checks if this vector has been normalized by checking if the magnitude is close to 1.
     /// </summary>
-    public bool IsNormalized() => FixedMath.Abs(Magnitude - Fixed64.One) <= Fixed64.Epsilon;
+    public bool IsNormalized()
+    {
+        Fixed64 sqrMagnitude = SqrMagnitude;
+        return sqrMagnitude != Fixed64.Zero && FixedMath.Abs(sqrMagnitude - Fixed64.One) <= Fixed64.Epsilon;
+    }
 
     /// <summary>
     /// Checks whether all components are strictly greater than <see cref="Fixed64.Epsilon"/>.
