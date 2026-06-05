@@ -36,6 +36,8 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
 
     #region Fields and Constants
 
+    private const long NearOppositeDirectionDotRaw = -4290672328L;
+
     /// <summary>
     /// Represents the X component of the vector as a fixed-point value.
     /// </summary>
@@ -431,24 +433,47 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     /// <returns>A quaternion representing the rotation to align with the direction.</returns>
     public static FixedQuaternion FromDirection(Vector3d direction)
     {
-        // Compute the rotation axis as the cross product of the standard forward vector and the desired direction
-        Vector3d axis = Vector3d.Cross(Vector3d.Forward, direction);
-        Fixed64 axisLength = axis.Magnitude;
-        Fixed64 dot = Vector3d.Dot(Vector3d.Forward, direction);
+        Fixed64 directionSqrMagnitude = direction.SqrMagnitude;
+        if (directionSqrMagnitude == Fixed64.Zero)
+            return Identity;
 
-        if (axisLength.Abs() == Fixed64.Zero)
-            return dot < Fixed64.Zero
-                ? FromAxisAngle(Vector3d.Up, Fixed64.Pi)
-                : Identity;
+        if (FixedMath.Abs(directionSqrMagnitude - Fixed64.One) > Fixed64.Epsilon)
+        {
+            Fixed64 directionMagnitude = FixedMath.Sqrt(directionSqrMagnitude);
+            direction = new Vector3d(
+                direction.X / directionMagnitude,
+                direction.Y / directionMagnitude,
+                direction.Z / directionMagnitude);
+        }
 
-        // Normalize the rotation axis
-        axis = (axis / axisLength).Normal;
+        Fixed64 dot = direction.Z;
+        if (dot <= -Fixed64.One + Fixed64.Epsilon)
+            return FromAxisAngle(Vector3d.Up, Fixed64.Pi);
 
-        // Compute the angle between the standard forward vector and the desired direction
-        Fixed64 angle = FixedMath.Acos(dot);
+        if (dot >= Fixed64.One - Fixed64.Epsilon)
+            return Identity;
 
-        // Compute the rotation quaternion from the axis and angle
-        return FromAxisAngle(axis, angle);
+        if (dot < Fixed64.FromRaw(NearOppositeDirectionDotRaw))
+        {
+            Vector3d axis = new(-direction.Y, direction.X, Fixed64.Zero);
+            Fixed64 axisMagnitude = axis.Magnitude;
+            if (axisMagnitude == Fixed64.Zero)
+                return FromAxisAngle(Vector3d.Up, Fixed64.Pi);
+
+            axis = new Vector3d(
+                axis.X / axisMagnitude,
+                axis.Y / axisMagnitude,
+                Fixed64.Zero);
+
+            return FromAxisAngle(axis, FixedMath.Acos(dot));
+        }
+
+        Fixed64 scale = FixedMath.Sqrt((Fixed64.One + dot) * Fixed64.Two);
+        return new FixedQuaternion(
+            -direction.Y / scale,
+            direction.X / scale,
+            Fixed64.Zero,
+            scale * Fixed64.Half);
     }
 
     /// <summary>
@@ -459,23 +484,32 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     /// <returns>A quaternion representing the rotation.</returns>
     public static FixedQuaternion FromAxisAngle(Vector3d axis, Fixed64 angle)
     {
-        // Check if the axis is a unit vector
-        if (!axis.IsNormalized())
-            axis = axis.Normalize();
-
         // Check if the angle is in a valid range (-pi, pi)
         if (angle < -Fixed64.Pi || angle > Fixed64.Pi)
             throw new ArgumentOutOfRangeException(nameof(angle), $"Angle must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {angle}");
+
+        Fixed64 axisSqrMagnitude = axis.SqrMagnitude;
+        if (axisSqrMagnitude == Fixed64.Zero)
+            return Identity;
+
+        if (FixedMath.Abs(axisSqrMagnitude - Fixed64.One) > Fixed64.Epsilon)
+        {
+            Fixed64 axisMagnitude = FixedMath.Sqrt(axisSqrMagnitude);
+            axis = new Vector3d(
+                axis.X / axisMagnitude,
+                axis.Y / axisMagnitude,
+                axis.Z / axisMagnitude);
+        }
 
         Fixed64 halfAngle = angle / Fixed64.Two;  // Half-angle formula
         Fixed64 sinHalfAngle = FixedMath.Sin(halfAngle);
         Fixed64 cosHalfAngle = FixedMath.Cos(halfAngle);
 
-        return GetNormalized(new FixedQuaternion(
+        return new FixedQuaternion(
             axis.X * sinHalfAngle,
             axis.Y * sinHalfAngle,
             axis.Z * sinHalfAngle,
-            cosHalfAngle));
+            cosHalfAngle);
     }
 
     /// <summary>

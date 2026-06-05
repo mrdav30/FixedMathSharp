@@ -23,6 +23,16 @@ public class QuaternionBenchmarks
     }
 
     [Benchmark]
+    public FixedQuaternion FromAxisAngleCardinal()
+    {
+        FixedQuaternion accumulator = FixedQuaternion.Identity;
+        for (int i = 0; i < _angles.Length; i++)
+            accumulator = accumulator * FixedQuaternion.FromAxisAngle(Vector3d.Up, _angles[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
     public FixedQuaternion AngleAxis()
     {
         FixedQuaternion accumulator = FixedQuaternion.Identity;
@@ -106,6 +116,54 @@ public class QuaternionBenchmarks
         FixedQuaternion accumulator = FixedQuaternion.Identity;
         for (int i = 0; i < _axes.Length; i++)
             accumulator = accumulator * FixedQuaternion.FromDirection(_axes[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public FixedQuaternion FromDirectionCardinal()
+    {
+        FixedQuaternion accumulator = FixedQuaternion.Identity;
+        accumulator = accumulator * FixedQuaternion.FromDirection(Vector3d.Forward);
+        accumulator = accumulator * FixedQuaternion.FromDirection(Vector3d.Right);
+        accumulator = accumulator * FixedQuaternion.FromDirection(Vector3d.Backward);
+        accumulator = accumulator * FixedQuaternion.FromDirection(Vector3d.Left);
+        accumulator = accumulator * FixedQuaternion.FromDirection(Vector3d.Up);
+        accumulator = accumulator * FixedQuaternion.FromDirection(Vector3d.Down);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public FixedQuaternion FromDirectionNearParallel()
+    {
+        FixedQuaternion accumulator = FixedQuaternion.Identity;
+        for (int i = 0; i < _axes.Length; i++)
+        {
+            Vector3d direction = new(
+                Fixed64.FromRaw((i + 1) << 10),
+                Fixed64.FromRaw((i & 1) == 0 ? 1L << 9 : -(1L << 9)),
+                Fixed64.One);
+
+            accumulator = accumulator * FixedQuaternion.FromDirection(direction);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public FixedQuaternion FromDirectionNearAntiParallel()
+    {
+        FixedQuaternion accumulator = FixedQuaternion.Identity;
+        for (int i = 0; i < _axes.Length; i++)
+        {
+            Vector3d direction = new(
+                Fixed64.FromRaw((i + 1) << 10),
+                Fixed64.FromRaw((i & 1) == 0 ? 1L << 9 : -(1L << 9)),
+                -Fixed64.One);
+
+            accumulator = accumulator * FixedQuaternion.FromDirection(direction);
+        }
 
         return accumulator;
     }

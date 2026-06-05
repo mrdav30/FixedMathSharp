@@ -266,23 +266,56 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ## Phase 3: Quaternion Direction And Euler Paths
 
+Status: Completed on 2026-06-05.
+
 **Why:** Quaternion conversion-heavy paths are among the slowest allocation-free
 runtime operations: `FromEulerAngles` (468.24 us), `FromDirection` (443.02 us),
 `ToEulerAngles` (297.75 us), `Slerp` (256.60 us), and `FromAxisAngle`
 (216.72 us).
 
-- [ ] Separate cost inherited from scalar trig from quaternion-specific
+- [x] Separate cost inherited from scalar trig from quaternion-specific
   normalization, branch, and multiplication work.
-- [ ] Reuse coordinate-convention tests to keep forward/up handedness stable.
-- [ ] Add focused benchmarks for common identity, cardinal-axis, near-parallel,
+- [x] Reuse coordinate-convention tests to keep forward/up handedness stable.
+- [x] Add focused benchmarks for common identity, cardinal-axis, near-parallel,
   and anti-parallel inputs.
-- [ ] Avoid changing public convention semantics while optimizing.
+- [x] Avoid changing public convention semantics while optimizing.
+
+Implementation notes:
+
+- `FromDirection` now uses the deterministic unit-vector-to-quaternion form for
+  the common path, while keeping explicit identity, opposite-direction, and
+  near-opposite fallbacks so forward/up handedness and near-180 degree precision
+  stay stable.
+- `FromAxisAngle` now checks squared axis length before normalizing, avoiding
+  the extra square root for already-normalized axes and skipping result
+  normalization when the axis/half-angle construction already produces the
+  rotation.
+- A direct `ToEulerAngles` term rewrite was measured and rejected because it did
+  not beat the matrix-based path in the short benchmark run.
+- Removing `FromEulerAngles` result normalization was measured and rejected
+  because it improved construction in isolation but caused downstream
+  quaternion normalization work to regress.
+
+Measured short-run result:
+
+| Benchmark | Before | After |
+| --- | ---: | ---: |
+| `Quaternion.FromAxisAngle` | 196.100 us, 0 B | 150.884 us, 0 B |
+| `Quaternion.FromEulerAngles` | 429.983 us, 0 B | 427.959 us, 0 B |
+| `Quaternion.Normalize` | 90.859 us, 0 B | 88.443 us, 0 B |
+| `Quaternion.ToEulerAngles` | 292.361 us, 0 B | 291.418 us, 0 B |
+| `Quaternion.FromDirection` | 428.156 us, 0 B | 107.838 us, 0 B |
+| `Quaternion.FromAxisAngleCardinal` | not captured | 127.005 us, 0 B |
+| `Quaternion.FromDirectionCardinal` | not captured | 1.251 us, 0 B |
+| `Quaternion.FromDirectionNearParallel` | not captured | 22.505 us, 0 B |
+| `Quaternion.FromDirectionNearAntiParallel` | not captured | 60.774 us, 0 B |
 
 Verification:
 
 ```bash
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~FixedQuaternion"
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll quaternion --exporters json
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll quaternion -j Short -i --filter "*FromAxisAngle*" "*FromDirection*" "*FromEulerAngles*" "*ToEulerAngles*" "*Normalize*" --exporters json
 ```
 
 ## Phase 4: Matrix Rotation, Transform Composition, And Inversion
