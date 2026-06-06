@@ -107,9 +107,9 @@ public partial struct FixedCurve : IEquatable<FixedCurve>
         return Mode switch
         {
             FixedCurveMode.Step => current.Value,
-            FixedCurveMode.Smooth => Fixed64.SmoothStep(current.Value, next.Value, t),
-            FixedCurveMode.Cubic => Fixed64.CubicInterpolate(current.Value, next.Value, current.OutTangent, next.InTangent, t),
-            _ => Fixed64.Lerp(current.Value, next.Value, t),
+            FixedCurveMode.Smooth => FixedMath.SmoothStep(current.Value, next.Value, t),
+            FixedCurveMode.Cubic => FixedMath.CubicInterpolate(current.Value, next.Value, current.OutTangent, next.InTangent, t),
+            _ => FixedMath.Lerp(current.Value, next.Value, t),
         };
     }
 

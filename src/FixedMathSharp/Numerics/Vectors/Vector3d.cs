@@ -644,9 +644,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     {
         mag = FixedMath.Clamp01(mag);
         return new Vector3d(
-            Fixed64.Lerp(a.X, b.X, mag),
-            Fixed64.Lerp(a.Y, b.Y, mag),
-            Fixed64.Lerp(a.Z, b.Z, mag));
+            FixedMath.Lerp(a.X, b.X, mag),
+            FixedMath.Lerp(a.Y, b.Y, mag),
+            FixedMath.Lerp(a.Z, b.Z, mag));
     }
 
     /// <summary>
@@ -726,9 +726,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         Fixed64 amount)
     {
         return new Vector3d(
-            Fixed64.CatmullRom(value1.X, value2.X, value3.X, value4.X, amount),
-            Fixed64.CatmullRom(value1.Y, value2.Y, value3.Y, value4.Y, amount),
-            Fixed64.CatmullRom(value1.Z, value2.Z, value3.Z, value4.Z, amount)
+            FixedMath.CatmullRom(value1.X, value2.X, value3.X, value4.X, amount),
+            FixedMath.CatmullRom(value1.Y, value2.Y, value3.Y, value4.Y, amount),
+            FixedMath.CatmullRom(value1.Z, value2.Z, value3.Z, value4.Z, amount)
         );
     }
 
@@ -750,9 +750,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         Fixed64 amount)
     {
         return new Vector3d(
-            Fixed64.HermiteSpline(value1.X, tangent1.X, value2.X, tangent2.X, amount),
-            Fixed64.HermiteSpline(value1.Y, tangent1.Y, value2.Y, tangent2.Y, amount),
-            Fixed64.HermiteSpline(value1.Z, tangent1.Z, value2.Z, tangent2.Z, amount));
+            FixedMath.HermiteSpline(value1.X, tangent1.X, value2.X, tangent2.X, amount),
+            FixedMath.HermiteSpline(value1.Y, tangent1.Y, value2.Y, tangent2.Y, amount),
+            FixedMath.HermiteSpline(value1.Z, tangent1.Z, value2.Z, tangent2.Z, amount));
     }
 
     /// <summary>
@@ -766,9 +766,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     public static Vector3d SmoothStep(Vector3d value1, Vector3d value2, Fixed64 amount)
     {
         return new Vector3d(
-            Fixed64.SmoothStep(value1.X, value2.X, amount),
-            Fixed64.SmoothStep(value1.Y, value2.Y, amount),
-            Fixed64.SmoothStep(value1.Z, value2.Z, amount)
+            FixedMath.SmoothStep(value1.X, value2.X, amount),
+            FixedMath.SmoothStep(value1.Y, value2.Y, amount),
+            FixedMath.SmoothStep(value1.Z, value2.Z, amount)
         );
     }
 
@@ -1130,9 +1130,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         Fixed64 amount2)
     {
         return new(
-            Fixed64.BarycentricCoordinate(value1.X, value2.X, value3.X, amount1, amount2),
-            Fixed64.BarycentricCoordinate(value1.Y, value2.Y, value3.Y, amount1, amount2),
-            Fixed64.BarycentricCoordinate(value1.Z, value2.Z, value3.Z, amount1, amount2));
+            FixedMath.BarycentricCoordinate(value1.X, value2.X, value3.X, amount1, amount2),
+            FixedMath.BarycentricCoordinate(value1.Y, value2.Y, value3.Y, amount1, amount2),
+            FixedMath.BarycentricCoordinate(value1.Z, value2.Z, value3.Z, amount1, amount2));
     }
 
     /// <summary>

@@ -550,6 +550,19 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void BarycentricCoordinates_WeightsSecondAndThirdVertices()
+    {
+        var value1 = new Vector3d(10, 100, 1000);
+        var value2 = new Vector3d(20, 200, 2000);
+        var value3 = new Vector3d(30, 300, 3000);
+
+        Assert.Equal(value1, Vector3d.BarycentricCoordinates(value1, value2, value3, Fixed64.Zero, Fixed64.Zero));
+        Assert.Equal(value2, Vector3d.BarycentricCoordinates(value1, value2, value3, Fixed64.One, Fixed64.Zero));
+        Assert.Equal(value3, Vector3d.BarycentricCoordinates(value1, value2, value3, Fixed64.Zero, Fixed64.One));
+        Assert.Equal(new Vector3d(25, 250, 2500), Vector3d.BarycentricCoordinates(value1, value2, value3, Fixed64.Half, Fixed64.Half));
+    }
+
+    [Fact]
     public void SpeedLerp_DoesNotOvershoot()
     {
         var start = new Vector3d(0, 0, 0);

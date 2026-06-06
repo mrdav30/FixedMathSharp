@@ -203,73 +203,6 @@ public class Fixed64Tests
 
     #endregion
 
-    #region Test: Interpolation Methods
-
-    [Fact]
-    public void LinearInterpolate_TAtZero_ReturnsFromValue()
-    {
-        var result = Fixed64.Lerp(new Fixed64(3), new Fixed64(5), new Fixed64(0));
-        Assert.Equal(new Fixed64(3), result);
-    }
-
-    [Fact]
-    public void LinearInterpolate_TAtOne_ReturnsToValue()
-    {
-        var result = Fixed64.Lerp(new Fixed64(3), new Fixed64(5), new Fixed64(1));
-        Assert.Equal(new Fixed64(5), result);
-    }
-
-    [Fact]
-    public void LinearInterpolate_TAtHalf_ReturnsMidpoint()
-    {
-        var result = Fixed64.Lerp(new Fixed64(3), new Fixed64(5), Fixed64.FromFloatPoint(0.5));
-        Assert.Equal(new Fixed64(4), result);  // Midpoint should be 4
-    }
-
-    [Fact]
-    public void SmoothStep_TAtZero_ReturnsFromValue()
-    {
-        var result = Fixed64.SmoothStep(new Fixed64(3), new Fixed64(5), new Fixed64(0));
-        Assert.Equal(new Fixed64(3), result);
-    }
-
-    [Fact]
-    public void SmoothStep_TAtOne_ReturnsToValue()
-    {
-        var result = Fixed64.SmoothStep(new Fixed64(3), new Fixed64(5), new Fixed64(1));
-        Assert.Equal(new Fixed64(5), result);
-    }
-
-    [Fact]
-    public void SmoothStep_TAtHalf_ReturnsSmoothedMidpoint()
-    {
-        var result = Fixed64.SmoothStep(new Fixed64(0), new Fixed64(10), Fixed64.FromFloatPoint(0.5));
-        Assert.Equal(new Fixed64(5), result); // Should be near 5 with smoothing effect
-    }
-
-    [Fact]
-    public void CubicInterpolate_TAtZero_ReturnsP0()
-    {
-        var result = Fixed64.CubicInterpolate(new Fixed64(3), new Fixed64(5), new Fixed64(1), new Fixed64(1), new Fixed64(0));
-        Assert.Equal(new Fixed64(3), result);
-    }
-
-    [Fact]
-    public void CubicInterpolate_TAtOne_ReturnsP1()
-    {
-        var result = Fixed64.CubicInterpolate(new Fixed64(3), new Fixed64(5), new Fixed64(1), new Fixed64(1), new Fixed64(1));
-        Assert.Equal(new Fixed64(5), result);
-    }
-
-    [Fact]
-    public void CubicInterpolate_TAtHalf_ReturnsSmoothCurveValue()
-    {
-        var result = Fixed64.CubicInterpolate(new Fixed64(0), new Fixed64(10), new Fixed64(2), new Fixed64(2), Fixed64.FromFloatPoint(0.5));
-        Assert.Equal(new Fixed64(5), result); // Expected to be near midpoint but with cubic smoothing
-    }
-
-    #endregion
-
     #region Test: Operations
 
     [Fact]
@@ -415,6 +348,25 @@ public class Fixed64Tests
         }
     }
 
+    [Fact]
+    public void Fixed64_DoesNotExposeScalarAlgorithmMethods()
+    {
+        string[] movedMethodNames =
+        {
+            "Lerp",
+            "SmoothStep",
+            "CubicInterpolate",
+            "CatmullRom",
+            "HermiteSpline",
+            "BarycentricCoordinate"
+        };
+
+        foreach (string methodName in movedMethodNames)
+        {
+            Assert.Empty(typeof(Fixed64).GetMember(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static));
+        }
+    }
+
     private static bool IsArithmeticOperatorName(string name)
     {
         switch (name)
@@ -528,6 +480,9 @@ public class Fixed64Tests
         Assert.Equal(FixedMath.FastSub(Fixed64.Three, Fixed64.One), Fixed64.Three.FastSub(Fixed64.One));
         Assert.Equal(FixedMath.FastMul(Fixed64.Two, Fixed64.Three), Fixed64.Two.FastMul(Fixed64.Three));
         Assert.Equal(FixedMath.FastMod(new Fixed64(7), new Fixed64(3)), new Fixed64(7).FastMod(new Fixed64(3)));
+        Assert.Equal(FixedMath.Lerp(Fixed64.Zero, Fixed64.Two, Fixed64.Half), Fixed64.Zero.Lerp(Fixed64.Two, Fixed64.Half));
+        Assert.Equal(FixedMath.SmoothStep(Fixed64.Zero, new Fixed64(10), Fixed64.Half), Fixed64.Zero.SmoothStep(new Fixed64(10), Fixed64.Half));
+        Assert.Equal(FixedMath.CubicInterpolate(Fixed64.Zero, new Fixed64(10), Fixed64.Two, Fixed64.Two, Fixed64.Half), Fixed64.Zero.CubicInterpolate(new Fixed64(10), Fixed64.Two, Fixed64.Two, Fixed64.Half));
         Assert.Equal(FixedMath.Floor(value), value.Floor());
         Assert.Equal(FixedMath.Ceil(value), value.Ceil());
         Assert.Equal((int)FixedMath.Round(positive), positive.RoundToInt());
@@ -548,7 +503,14 @@ public class Fixed64Tests
         Assert.True(formatted is "1.23" or "1,23");
 
         Assert.Equal(FixedMath.DegToRad(new Fixed64(90)), new Fixed64(90).ToRadians());
-        Assert.Equal(FixedMath.RadToDeg(Fixed64.HalfPi), Fixed64.HalfPi.ToDegree());
+        Assert.Equal(FixedMath.RadToDeg(Fixed64.HalfPi), Fixed64.HalfPi.ToDegrees());
+        Assert.Equal(FixedMath.Sin(Fixed64.HalfPi), Fixed64.HalfPi.Sin());
+        Assert.Equal(FixedMath.Cos(Fixed64.HalfPi), Fixed64.HalfPi.Cos());
+        Assert.Equal(FixedMath.Tan(Fixed64.PiOver4), Fixed64.PiOver4.Tan());
+        Assert.Equal(FixedMath.Log2(Fixed64.Two), Fixed64.Two.Log2());
+        Assert.Equal(FixedMath.Ln(Fixed64.Two), Fixed64.Two.Ln());
+        Assert.Equal(FixedMath.Pow(Fixed64.Two, Fixed64.Three), Fixed64.Two.Pow(Fixed64.Three));
+        Assert.Equal(FixedMath.Pow2(Fixed64.Three), Fixed64.Three.Pow2());
     }
 
     [Fact]

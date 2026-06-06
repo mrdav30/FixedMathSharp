@@ -1070,22 +1070,22 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     /// </summary>
     public static Fixed4x4 Lerp(Fixed4x4 a, Fixed4x4 b, Fixed64 t) =>
          new(
-            Fixed64.Lerp(a.M11, b.M11, t),
-            Fixed64.Lerp(a.M12, b.M12, t),
-            Fixed64.Lerp(a.M13, b.M13, t),
-            Fixed64.Lerp(a.M14, b.M14, t),
-            Fixed64.Lerp(a.M21, b.M21, t),
-            Fixed64.Lerp(a.M22, b.M22, t),
-            Fixed64.Lerp(a.M23, b.M23, t),
-            Fixed64.Lerp(a.M24, b.M24, t),
-            Fixed64.Lerp(a.M31, b.M31, t),
-            Fixed64.Lerp(a.M32, b.M32, t),
-            Fixed64.Lerp(a.M33, b.M33, t),
-            Fixed64.Lerp(a.M34, b.M34, t),
-            Fixed64.Lerp(a.M41, b.M41, t),
-            Fixed64.Lerp(a.M42, b.M42, t),
-            Fixed64.Lerp(a.M43, b.M43, t),
-            Fixed64.Lerp(a.M44, b.M44, t));
+            FixedMath.Lerp(a.M11, b.M11, t),
+            FixedMath.Lerp(a.M12, b.M12, t),
+            FixedMath.Lerp(a.M13, b.M13, t),
+            FixedMath.Lerp(a.M14, b.M14, t),
+            FixedMath.Lerp(a.M21, b.M21, t),
+            FixedMath.Lerp(a.M22, b.M22, t),
+            FixedMath.Lerp(a.M23, b.M23, t),
+            FixedMath.Lerp(a.M24, b.M24, t),
+            FixedMath.Lerp(a.M31, b.M31, t),
+            FixedMath.Lerp(a.M32, b.M32, t),
+            FixedMath.Lerp(a.M33, b.M33, t),
+            FixedMath.Lerp(a.M34, b.M34, t),
+            FixedMath.Lerp(a.M41, b.M41, t),
+            FixedMath.Lerp(a.M42, b.M42, t),
+            FixedMath.Lerp(a.M43, b.M43, t),
+            FixedMath.Lerp(a.M44, b.M44, t));
 
     /// <summary>
     /// Transposes the matrix by swapping rows and columns.

@@ -65,19 +65,33 @@ public static class Fixed64Extensions
     public static bool AbsLessThan(this Fixed64 x, Fixed64 y) => Abs(x) < y;
 
     /// <inheritdoc cref="FixedMath.FastAdd(Fixed64, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 FastAdd(this Fixed64 a, Fixed64 b) => FixedMath.FastAdd(a, b);
 
     /// <inheritdoc cref="FixedMath.FastSub(Fixed64, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 FastSub(this Fixed64 a, Fixed64 b) => FixedMath.FastSub(a, b);
 
     /// <inheritdoc cref="FixedMath.FastMul(Fixed64, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 FastMul(this Fixed64 a, Fixed64 b) => FixedMath.FastMul(a, b);
 
     /// <inheritdoc cref="FixedMath.FastMod(Fixed64, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 FastMod(this Fixed64 a, Fixed64 b) => FixedMath.FastMod(a, b);
 
-    /// <inheritdoc cref="Fixed64.Lerp(Fixed64, Fixed64, Fixed64)" />
-    public static Fixed64 Lerp(this Fixed64 a, Fixed64 b, Fixed64 t) => Fixed64.Lerp(a, b, t);
+    /// <inheritdoc cref="FixedMath.Lerp(Fixed64, Fixed64, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Lerp(this Fixed64 a, Fixed64 b, Fixed64 t) => FixedMath.Lerp(a, b, t);
+
+    /// <inheritdoc cref="FixedMath.SmoothStep(Fixed64, Fixed64, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 SmoothStep(this Fixed64 a, Fixed64 b, Fixed64 t) => FixedMath.SmoothStep(a, b, t);
+
+    /// <inheritdoc cref="FixedMath.CubicInterpolate(Fixed64, Fixed64, Fixed64, Fixed64, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 CubicInterpolate(this Fixed64 p0, Fixed64 p1, Fixed64 m0, Fixed64 m1, Fixed64 t) =>
+        FixedMath.CubicInterpolate(p0, p1, m0, m1, t);
 
     /// <inheritdoc cref="FixedMath.Floor(Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -135,9 +149,33 @@ public static class Fixed64Extensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Sqrt(this Fixed64 f) => FixedMath.Sqrt(f);
 
+    /// <inheritdoc cref="FixedMath.Pow(Fixed64, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Pow(this Fixed64 f, Fixed64 exponent) => FixedMath.Pow(f, exponent);
+
+    /// <inheritdoc cref="FixedMath.Pow2(Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Pow2(this Fixed64 f) => FixedMath.Pow2(f);
+
+    /// <inheritdoc cref="FixedMath.Log2(Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Log2(this Fixed64 f) => FixedMath.Log2(f);
+
+    /// <inheritdoc cref="FixedMath.Ln(Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Ln(this Fixed64 f) => FixedMath.Ln(f);
+
     /// <inheritdoc cref="FixedMath.Acos(Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Acos(this Fixed64 f) => FixedMath.Acos(f);
+
+    /// <inheritdoc cref="FixedMath.Asin(Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Asin(this Fixed64 f) => FixedMath.Asin(f);
+
+    /// <inheritdoc cref="FixedMath.Atan(Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Atan(this Fixed64 f) => FixedMath.Atan(f);
 
     /// <inheritdoc cref="FixedMath.Atan2(Fixed64, Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -145,11 +183,15 @@ public static class Fixed64Extensions
 
     /// <inheritdoc cref="FixedMath.Sin(Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 Sin(Fixed64 f) => FixedMath.Sin(f);
+    public static Fixed64 Sin(this Fixed64 f) => FixedMath.Sin(f);
 
     /// <inheritdoc cref="FixedMath.Cos(Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Cos(this Fixed64 f) => FixedMath.Cos(f);
+
+    /// <inheritdoc cref="FixedMath.Tan(Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Tan(this Fixed64 f) => FixedMath.Tan(f);
 
     /// <inheritdoc cref="FixedMath.GetHypotenuse(Fixed64, Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -194,10 +236,10 @@ public static class Fixed64Extensions
     public static Fixed64 ToRadians(this Fixed64 angleInDegrees) => FixedMath.DegToRad(angleInDegrees);
 
     /// <summary>
-    /// Converts the angle in radians to degree.
+    /// Converts the angle in radians to degrees.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 ToDegree(this Fixed64 angleInRadians) => FixedMath.RadToDeg(angleInRadians);
+    public static Fixed64 ToDegrees(this Fixed64 angleInRadians) => FixedMath.RadToDeg(angleInRadians);
 
     #endregion
 

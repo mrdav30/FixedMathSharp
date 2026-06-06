@@ -333,28 +333,62 @@ passed.
 - Modify: `tests/FixedMathSharp.Tests/Core/FixedTrigonometry.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
 
-- [ ] Make `FixedMath` the canonical public surface for deterministic scalar
+- [x] Make `FixedMath` the canonical public surface for deterministic scalar
   algorithms such as `Abs`, `Clamp`, `Round`, `Sqrt`, `Sin`, `Cos`, `Pow`,
   `Log2`, `Pow2`, and `Ln`.
-- [ ] Keep `FixedMath.Trigonometry.cs` as a partial implementation file only;
+- [x] Keep `FixedMath.Trigonometry.cs` as a partial implementation file only;
   do not create a second public class unless a later API review proves it is
   clearer.
-- [ ] Keep `Fixed64` focused on value representation, constants, operators,
+- [x] Keep `Fixed64` focused on value representation, constants, operators,
   parsing, formatting, conversion, and type-specific helpers.
-- [ ] Convert scalar extensions into consistent fluent forwarding wrappers.
+- [x] Convert scalar extensions into consistent fluent forwarding wrappers.
   Fix wrappers that are not actually extension-shaped, such as missing `this`
   on scalar `Sin`.
-- [ ] Decide whether formatting helpers belong on `Fixed64`, extensions, or a
+- [x] Decide whether formatting helpers belong on `Fixed64`, extensions, or a
   separate diagnostics/formatting surface.
-- [ ] Preserve raw-result correctness for all moved or renamed scalar methods.
+- [x] Preserve raw-result correctness for all moved or renamed scalar methods.
+
+Phase 3 result on 2026-06-06: completed.
+
+- `FixedMath` now owns scalar interpolation algorithms in addition to the
+  existing rounding, clamp, square root, power, logarithm, trigonometry, and
+  angle conversion algorithms.
+- `Fixed64` no longer exposes public static scalar algorithm helpers for
+  `Lerp`, `SmoothStep`, `CubicInterpolate`, `CatmullRom`, `HermiteSpline`, or
+  `BarycentricCoordinate`; it stays focused on Q32.32 representation,
+  constants, construction/conversion, operators, parsing, comparison, equality,
+  and serialization layout.
+- `Fixed64.Extensions` remains the fluent wrapper surface. Wrappers forward to
+  `FixedMath`, scalar `Sin` is now extension-shaped, missing fluent wrappers
+  were added for tangent/inverse tangent/power/log flows, and `ToDegree` was
+  renamed to `ToDegrees`.
+- Human-readable formatting helpers remain in `Fixed64.Extensions` for now.
+  This keeps them out of the representation type while preserving convenient
+  call sites; a separate diagnostics/formatting surface can be reconsidered if
+  Phase 4 finds broader formatting API pressure.
+- Barycentric scalar and vector tests now verify the actual weight contract:
+  `amount1` weights the second value/vertex, `amount2` weights the third
+  value/vertex, and the first value/vertex receives the remaining weight.
 
 Verification:
 
 ```bash
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedMath|FullyQualifiedName~FixedTrigonometry|FullyQualifiedName~Fixed64"
-dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f netstandard2.1
-dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean -f netstandard2.1
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedMath|FullyQualifiedName~FixedTrigonometry|FullyQualifiedName~Fixed64|FullyQualifiedName~Vector3d"
+dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f netstandard2.1 --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean -f netstandard2.1 --no-restore
+rg -n "Fixed64\\.(Lerp|SmoothStep|CubicInterpolate|CatmullRom|HermiteSpline|BarycentricCoordinate)|ToDegree\\(" src tests docs
+git diff --check
 ```
+
+Verification result on 2026-06-06: focused scalar tests passed with 943 tests,
+focused scalar plus `Vector3d` tests passed with 945 tests, the full Debug
+solution test run passed with 945 tests, Release and ReleaseLean
+`netstandard2.1` builds passed with zero warnings/errors, the stale scalar API
+scan found no remaining `Fixed64` interpolation calls or old singular degree
+extension calls,
+and `git diff --check` passed.
 
 ## Phase 4: Curated Static, Instance, And Extension Parity
 

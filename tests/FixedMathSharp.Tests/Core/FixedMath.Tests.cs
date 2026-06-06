@@ -361,6 +361,68 @@ public class FixedMathTests
 
     #endregion
 
+    #region Test: Interpolation Methods
+
+    [Fact]
+    public void Lerp_TAtZero_ReturnsFromValue()
+    {
+        var result = FixedMath.Lerp(new Fixed64(3), new Fixed64(5), Fixed64.Zero);
+        Assert.Equal(new Fixed64(3), result);
+    }
+
+    [Fact]
+    public void Lerp_TAtOne_ReturnsToValue()
+    {
+        var result = FixedMath.Lerp(new Fixed64(3), new Fixed64(5), Fixed64.One);
+        Assert.Equal(new Fixed64(5), result);
+    }
+
+    [Fact]
+    public void Lerp_TAtHalf_ReturnsMidpoint()
+    {
+        var result = FixedMath.Lerp(new Fixed64(3), new Fixed64(5), Fixed64.Half);
+        Assert.Equal(new Fixed64(4), result);
+    }
+
+    [Fact]
+    public void SmoothStep_TAtHalf_ReturnsSmoothedMidpoint()
+    {
+        var result = FixedMath.SmoothStep(Fixed64.Zero, new Fixed64(10), Fixed64.Half);
+        Assert.Equal(new Fixed64(5), result);
+    }
+
+    [Fact]
+    public void CubicInterpolate_TAtEndpoints_ReturnsEndpointValues()
+    {
+        var p0 = new Fixed64(3);
+        var p1 = new Fixed64(5);
+
+        Assert.Equal(p0, FixedMath.CubicInterpolate(p0, p1, Fixed64.One, Fixed64.One, Fixed64.Zero));
+        Assert.Equal(p1, FixedMath.CubicInterpolate(p0, p1, Fixed64.One, Fixed64.One, Fixed64.One));
+    }
+
+    [Fact]
+    public void CatmullRomAndHermite_ReturnExpectedValues()
+    {
+        Assert.Equal(new Fixed64(15), FixedMath.CatmullRom(new Fixed64(0), new Fixed64(10), new Fixed64(20), new Fixed64(30), Fixed64.Half));
+        Assert.Equal(new Fixed64(5), FixedMath.HermiteSpline(Fixed64.Zero, Fixed64.Zero, new Fixed64(10), Fixed64.Zero, Fixed64.Half));
+    }
+
+    [Fact]
+    public void BarycentricCoordinate_WeightsSecondAndThirdValues()
+    {
+        var value1 = new Fixed64(10);
+        var value2 = new Fixed64(20);
+        var value3 = new Fixed64(30);
+
+        Assert.Equal(value1, FixedMath.BarycentricCoordinate(value1, value2, value3, Fixed64.Zero, Fixed64.Zero));
+        Assert.Equal(value2, FixedMath.BarycentricCoordinate(value1, value2, value3, Fixed64.One, Fixed64.Zero));
+        Assert.Equal(value3, FixedMath.BarycentricCoordinate(value1, value2, value3, Fixed64.Zero, Fixed64.One));
+        Assert.Equal(new Fixed64(25), FixedMath.BarycentricCoordinate(new Fixed64(10), new Fixed64(20), new Fixed64(30), Fixed64.Half, Fixed64.Half));
+    }
+
+    #endregion
+
     #region Test: MoveTowards Method
 
     [Fact]

@@ -472,9 +472,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// Linearly interpolates between two matrices.
     /// </summary>
     public static Fixed3x3 Lerp(Fixed3x3 a, Fixed3x3 b, Fixed64 t) =>
-        new(Fixed64.Lerp(a.M11, b.M11, t), Fixed64.Lerp(a.M12, b.M12, t), Fixed64.Lerp(a.M13, b.M13, t),
-            Fixed64.Lerp(a.M21, b.M21, t), Fixed64.Lerp(a.M22, b.M22, t), Fixed64.Lerp(a.M23, b.M23, t),
-            Fixed64.Lerp(a.M31, b.M31, t), Fixed64.Lerp(a.M32, b.M32, t), Fixed64.Lerp(a.M33, b.M33, t));
+        new(FixedMath.Lerp(a.M11, b.M11, t), FixedMath.Lerp(a.M12, b.M12, t), FixedMath.Lerp(a.M13, b.M13, t),
+            FixedMath.Lerp(a.M21, b.M21, t), FixedMath.Lerp(a.M22, b.M22, t), FixedMath.Lerp(a.M23, b.M23, t),
+            FixedMath.Lerp(a.M31, b.M31, t), FixedMath.Lerp(a.M32, b.M32, t), FixedMath.Lerp(a.M33, b.M33, t));
 
     /// <summary>
     /// Transposes the matrix (swaps rows and columns).

@@ -242,6 +242,141 @@ namespace FixedMathSharp
         public static Fixed64 Squared(Fixed64 value) => value * value;
 
         /// <summary>
+        /// Performs a smooth step interpolation using a cubic Hermite curve between two values.
+        /// </summary>
+        /// <remarks>
+        /// The interpolation follows a cubic Hermite curve where the function starts at <paramref name="a"/>,
+        /// accelerates, and then decelerates towards <paramref name="b"/>, ensuring smooth transitions.
+        /// </remarks>
+        /// <param name="a">The starting value.</param>
+        /// <param name="b">The ending value.</param>
+        /// <param name="t">A value between 0 and 1 that represents the interpolation factor.</param>
+        /// <returns>The interpolated value between <paramref name="a"/> and <paramref name="b"/>.</returns>
+        public static Fixed64 SmoothStep(Fixed64 a, Fixed64 b, Fixed64 t)
+        {
+            if (t.m_rawValue <= 0)
+                return a;
+            if (t.m_rawValue >= ONE_L)
+                return b;
+
+            Fixed64 t2 = t * t;
+            Fixed64 t3 = t2 * t;
+            return a + (b - a) * (Fixed64.Three * t2 - Fixed64.Two * t3);
+        }
+
+        /// <summary>
+        /// Performs cubic interpolation between two points with tangents at those points.
+        /// </summary>
+        /// <param name="p0">The first point.</param>
+        /// <param name="p1">The second point.</param>
+        /// <param name="m0">The tangent at <paramref name="p0"/>.</param>
+        /// <param name="m1">The tangent at <paramref name="p1"/>.</param>
+        /// <param name="t">A value between 0 and 1 that represents the interpolation factor.</param>
+        /// <returns>The interpolated value between <paramref name="p0"/> and <paramref name="p1"/>.</returns>
+        public static Fixed64 CubicInterpolate(Fixed64 p0, Fixed64 p1, Fixed64 m0, Fixed64 m1, Fixed64 t)
+        {
+            Fixed64 t2 = t * t;
+            Fixed64 t3 = t2 * t;
+            return (Fixed64.Two * p0 - Fixed64.Two * p1 + m0 + m1) * t3
+                 + (-Fixed64.Three * p0 + Fixed64.Three * p1 - Fixed64.Two * m0 - m1) * t2
+                 + m0 * t + p0;
+        }
+
+        /// <summary>
+        /// Linearly interpolates between two fixed-point values based on a given interpolation factor.
+        /// </summary>
+        /// <param name="from">The starting value.</param>
+        /// <param name="to">The ending value.</param>
+        /// <param name="t">A value between 0 and 1 that represents the interpolation factor.</param>
+        /// <returns>The interpolated value between <paramref name="from"/> and <paramref name="to"/>.</returns>
+        /// <remarks>
+        /// The interpolation is clamped between <paramref name="from"/> and <paramref name="to"/> based on the value of <paramref name="t"/>.
+        /// If <paramref name="t"/> is less than 0, the result is <paramref name="from"/>. If <paramref name="t"/> is greater than 1, the result is <paramref name="to"/>.
+        /// </remarks>
+        public static Fixed64 Lerp(Fixed64 from, Fixed64 to, Fixed64 t)
+        {
+            if (t.m_rawValue >= ONE_L)
+                return to;
+            if (t.m_rawValue <= 0)
+                return from;
+
+            return from + (to - from) * t;
+        }
+
+        /// <summary>
+        /// Computes the interpolated point along a Catmull-Rom spline given four control points.
+        /// </summary>
+        /// <param name="p0">The first control point.</param>
+        /// <param name="p1">The second control point.</param>
+        /// <param name="p2">The third control point.</param>
+        /// <param name="p3">The fourth control point.</param>
+        /// <param name="t">Interpolation factor between 0 and 1.</param>
+        /// <returns>The interpolated point on the spline.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 CatmullRom(Fixed64 p0, Fixed64 p1, Fixed64 p2, Fixed64 p3, Fixed64 t)
+        {
+            Fixed64 t2 = t * t;
+            Fixed64 t3 = t2 * t;
+            return ((-t3 + 2 * t2 - t) * p0 +
+                 (3 * t3 - 5 * t2 + 2) * p1 +
+                 (-3 * t3 + 4 * t2 + t) * p2 +
+                 (t3 - t2) * p3) / 2;
+        }
+
+        /// <summary>
+        /// Performs a Hermite interpolation between two Fixed64 values, using the specified tangents and interpolation amount.
+        /// </summary>
+        /// <param name="value1">The first value.</param>
+        /// <param name="tangent1">The tangent at the first value.</param>
+        /// <param name="value2">The second value.</param>
+        /// <param name="tangent2">The tangent at the second value.</param>
+        /// <param name="amount">The interpolation amount.</param>
+        /// <returns>The Hermite spline interpolated value.</returns>
+        public static Fixed64 HermiteSpline(
+            Fixed64 value1,
+            Fixed64 tangent1,
+            Fixed64 value2,
+            Fixed64 tangent2,
+            Fixed64 amount)
+        {
+            if ((amount - Fixed64.Zero).LessThanEpsilon())
+                return value1;
+
+            if ((amount - Fixed64.One).LessThanEpsilon())
+                return value2;
+
+            Fixed64 v1 = value1, v2 = value2, t1 = tangent1, t2 = tangent2, s = amount;
+            Fixed64 sCubed = s * s * s;
+            Fixed64 sSquared = s * s;
+            Fixed64 result = (
+                ((2 * v1 - 2 * v2 + t2 + t1) * sCubed) +
+                ((3 * v2 - 3 * v1 - 2 * t1 - t2) * sSquared) +
+                (t1 * s) +
+                v1
+            );
+
+            return result;
+        }
+
+        /// <summary>
+        /// Performs a barycentric interpolation between three Fixed64 values that represent one axis of a triangle.
+        /// </summary>
+        /// <param name="value1">The coordinate of the first vertex.</param>
+        /// <param name="value2">The coordinate of the second vertex.</param>
+        /// <param name="value3">The coordinate of the third vertex.</param>
+        /// <param name="amount1">The normalized barycentric coordinate for the second vertex equal to the weight of the second vertex.</param>
+        /// <param name="amount2">The normalized barycentric coordinate for the third vertex equal to the weight of the third vertex.</param>
+        /// <returns>The cartesian coordinate for one axis based on the barycentric interpolation.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 BarycentricCoordinate(
+            Fixed64 value1,
+            Fixed64 value2,
+            Fixed64 value3,
+            Fixed64 amount1,
+            Fixed64 amount2
+        ) => value1 + (value2 - value1) * amount1 + (value3 - value1) * amount2;
+
+        /// <summary>
         /// Adds two fixed-point numbers without performing overflow checking.
         /// </summary>  
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
