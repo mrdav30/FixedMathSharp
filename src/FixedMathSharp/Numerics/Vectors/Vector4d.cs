@@ -323,29 +323,54 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     public Vector4d SubtractInPlace(Vector4d other) => SubtractInPlace(other.X, other.Y, other.Z, other.W);
 
     /// <summary>
-    /// Scales the vector components by the specified amounts in place.
+    /// Multiplies the vector components by the specified factors in place.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector4d ScaleInPlace(Fixed64 scaleX, Fixed64 scaleY, Fixed64 scaleZ, Fixed64 scaleW)
+    public Vector4d MultiplyInPlace(Fixed64 factorX, Fixed64 factorY, Fixed64 factorZ, Fixed64 factorW)
     {
-        X *= scaleX;
-        Y *= scaleY;
-        Z *= scaleZ;
-        W *= scaleW;
+        X *= factorX;
+        Y *= factorY;
+        Z *= factorZ;
+        W *= factorW;
         return this;
     }
 
     /// <summary>
-    /// Scales all components in place.
+    /// Multiplies all components in place.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector4d ScaleInPlace(Fixed64 scaleFactor) => ScaleInPlace(scaleFactor, scaleFactor, scaleFactor, scaleFactor);
+    public Vector4d MultiplyInPlace(Fixed64 factor) => MultiplyInPlace(factor, factor, factor, factor);
 
     /// <summary>
-    /// Scales all components by another vector in place.
+    /// Multiplies all components by another vector in place.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector4d ScaleInPlace(Vector4d scale) => ScaleInPlace(scale.X, scale.Y, scale.Z, scale.W);
+    public Vector4d MultiplyInPlace(Vector4d factor) => MultiplyInPlace(factor.X, factor.Y, factor.Z, factor.W);
+
+    /// <summary>
+    /// Divides the vector components by the specified divisors in place.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector4d DivideInPlace(Fixed64 divisorX, Fixed64 divisorY, Fixed64 divisorZ, Fixed64 divisorW)
+    {
+        X /= divisorX;
+        Y /= divisorY;
+        Z /= divisorZ;
+        W /= divisorW;
+        return this;
+    }
+
+    /// <summary>
+    /// Divides all components in place.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector4d DivideInPlace(Fixed64 divisor) => DivideInPlace(divisor, divisor, divisor, divisor);
+
+    /// <summary>
+    /// Divides all components by another vector in place.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector4d DivideInPlace(Vector4d divisor) => DivideInPlace(divisor.X, divisor.Y, divisor.Z, divisor.W);
 
     /// <summary>
     /// Normalizes this vector in place.
@@ -456,28 +481,16 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     #region Static Methods
 
     /// <summary>
-    /// Adds two vectors together and stores the result in the provided vector.
+    /// Adds two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Add(Vector4d v1, Vector4d v2, out Vector4d result)
-    {
-        result.X = v1.X + v2.X;
-        result.Y = v1.Y + v2.Y;
-        result.Z = v1.Z + v2.Z;
-        result.W = v1.W + v2.W;
-    }
+    public static Vector4d Add(Vector4d v1, Vector4d v2) => v1 + v2;
 
     /// <summary>
-    /// Subtracts two vectors and stores the result in the provided vector.
+    /// Subtracts two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Subtract(Vector4d v1, Vector4d v2, out Vector4d result)
-    {
-        result.X = v1.X - v2.X;
-        result.Y = v1.Y - v2.Y;
-        result.Z = v1.Z - v2.Z;
-        result.W = v1.W - v2.W;
-    }
+    public static Vector4d Subtract(Vector4d v1, Vector4d v2) => v1 - v2;
 
     /// <summary>
     /// Linearly interpolates between two vectors, clamping the interpolation amount to [0, 1].
@@ -593,20 +606,26 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// Multiplies two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector4d Scale(Vector4d a, Vector4d b) =>
+    public static Vector4d Multiply(Vector4d a, Vector4d b) =>
         new(a.X * b.X, a.Y * b.Y, a.Z * b.Z, a.W * b.W);
 
     /// <summary>
-    /// Scales two vectors and stores the result in the provided vector.
+    /// Multiplies each vector component by the specified scalar.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Scale(Vector4d v1, Vector4d v2, out Vector4d result)
-    {
-        result.X = v1.X * v2.X;
-        result.Y = v1.Y * v2.Y;
-        result.Z = v1.Z * v2.Z;
-        result.W = v1.W * v2.W;
-    }
+    public static Vector4d Multiply(Vector4d value, Fixed64 factor) => value * factor;
+
+    /// <summary>
+    /// Divides each component of the first vector by the corresponding component of the second vector.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4d Divide(Vector4d v1, Vector4d v2) => v1 / v2;
+
+    /// <summary>
+    /// Divides each vector component by the specified scalar.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4d Divide(Vector4d value, Fixed64 divisor) => value / divisor;
 
     /// <summary>
     /// Returns a vector whose elements are the maximum of each pair of elements.
@@ -740,7 +759,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// Multiplies two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector4d operator *(Vector4d v1, Vector4d v2) => Scale(v1, v2);
+    public static Vector4d operator *(Vector4d v1, Vector4d v2) => Multiply(v1, v2);
 
     /// <summary>
     /// Transforms a vector by a 4x4 matrix.

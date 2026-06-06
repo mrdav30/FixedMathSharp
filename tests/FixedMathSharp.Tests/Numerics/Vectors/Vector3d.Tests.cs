@@ -236,12 +236,51 @@ public class Vector3dTests
     }
 
     [Fact]
-    public void ScaleInPlace_Overloads_ModifyVectorCorrectly()
+    public void StaticArithmeticHelpers_ReturnExpectedValues()
+    {
+        var left = new Vector3d(12, 18, 24);
+        var right = new Vector3d(3, 6, 8);
+
+        Assert.Equal(new Vector3d(15, 24, 32), Vector3d.Add(left, right));
+        Assert.Equal(new Vector3d(9, 12, 16), Vector3d.Subtract(left, right));
+        Assert.Equal(new Vector3d(36, 108, 192), Vector3d.Multiply(left, right));
+        Assert.Equal(new Vector3d(24, 36, 48), Vector3d.Multiply(left, new Fixed64(2)));
+        Assert.Equal(new Vector3d(24, 36, 48), new Fixed64(2) * left);
+        Assert.Equal(new Vector3d(4, 3, 3), Vector3d.Divide(left, right));
+        Assert.Equal(new Vector3d(6, 9, 12), Vector3d.Divide(left, new Fixed64(2)));
+    }
+
+    [Fact]
+    public void MultiplyInPlace_Overloads_ModifyVectorCorrectly()
     {
         var vector = new Vector3d(2, 3, 4);
 
-        Assert.Equal(new Vector3d(4, 6, 8), vector.ScaleInPlace(Fixed64.FromFloatPoint(2)));
-        Assert.Equal(new Vector3d(8, 18, 32), vector.ScaleInPlace(new Vector3d(2, 3, 4)));
+        Assert.Equal(new Vector3d(4, 6, 8), vector.MultiplyInPlace(new Fixed64(2)));
+        Assert.Equal(new Vector3d(12, 24, 40), vector.MultiplyInPlace(new Fixed64(3), new Fixed64(4), new Fixed64(5)));
+        Assert.Equal(new Vector3d(24, 72, 160), vector.MultiplyInPlace(new Vector3d(2, 3, 4)));
+    }
+
+    [Fact]
+    public void DivideInPlace_Overloads_ModifyVectorCorrectly()
+    {
+        var vector = new Vector3d(24, 72, 160);
+
+        Assert.Equal(new Vector3d(12, 36, 80), vector.DivideInPlace(new Fixed64(2)));
+        Assert.Equal(new Vector3d(4, 9, 16), vector.DivideInPlace(new Fixed64(3), new Fixed64(4), new Fixed64(5)));
+        Assert.Equal(new Vector3d(2, 3, 4), vector.DivideInPlace(new Vector3d(2, 3, 4)));
+    }
+
+    [Fact]
+    public void InPlaceHelpers_CanChainWhenAssigned()
+    {
+        var vector = new Vector3d(2, 4, 6);
+
+        vector = vector.AddInPlace(new Vector3d(2, 2, 2))
+            .MultiplyInPlace(new Fixed64(3))
+            .DivideInPlace(new Vector3d(2, 3, 4))
+            .SubtractInPlace(Fixed64.One);
+
+        Assert.Equal(new Vector3d(5, 5, 5), vector);
     }
 
     [Fact]
@@ -983,7 +1022,7 @@ public class Vector3dTests
         Assert.Equal(Vector3d.Zero, Vector3d.Project(new Vector3d(1, 2, 3), Vector3d.Zero));
         Assert.Equal(new Vector3d(1, 2, 3), Vector3d.ProjectOnPlane(new Vector3d(1, 2, 3), Vector3d.Zero));
         Assert.Equal(Fixed64.Zero, Vector3d.Angle(Vector3d.Zero, Vector3d.Right));
-        Assert.Equal(new Vector3d(2, 3, 4), Vector3d.Scale(new Vector3d(1, 1, 1), new Vector3d(2, 3, 4)));
+        Assert.Equal(new Vector3d(2, 3, 4), Vector3d.Multiply(new Vector3d(1, 1, 1), new Vector3d(2, 3, 4)));
         Assert.Equal(new Vector3d(0, 0, 1), Vector3d.Cross(Vector3d.Right, Vector3d.Up));
         Assert.Equal(Fixed64.FromFloatPoint(1), Vector3d.CrossProduct(Vector3d.Right, Vector3d.Up));
         Assert.Equal(new Vector3d(2, 5, 4), Vector3d.Max(new Vector3d(2, 1, 4), new Vector3d(1, 5, 0)));

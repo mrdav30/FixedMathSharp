@@ -8,6 +8,7 @@ public class Vector3dBenchmarks
 {
     private readonly Vector3d[] _left = BenchmarkFixtures.VectorsA;
     private readonly Vector3d[] _right = BenchmarkFixtures.VectorsB;
+    private static readonly Fixed64 s_two = new Fixed64(2);
 
     [Benchmark]
     public Vector3d Add()
@@ -20,24 +21,137 @@ public class Vector3dBenchmarks
     }
 
     [Benchmark]
-    public Vector3d AddOut()
+    public Vector3d AddStatic()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector3d.Add(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d AddInPlace()
     {
         Vector3d accumulator = Vector3d.Zero;
         for (int i = 0; i < _left.Length; i++)
         {
-            Vector3d.Add(_left[i], _right[i], out Vector3d result);
-            accumulator += result;
+            Vector3d value = _left[i];
+            accumulator += value.AddInPlace(_right[i]);
         }
 
         return accumulator;
     }
 
     [Benchmark]
-    public Vector3d AddScale()
+    public Vector3d SubtractStatic()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector3d.Subtract(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d SubtractInPlace()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector3d value = _left[i];
+            accumulator += value.SubtractInPlace(_right[i]);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d AddMultiply()
     {
         Vector3d accumulator = Vector3d.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += (_left[i] + _right[i]) * Fixed64.Half;
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d MultiplyStatic()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector3d.Multiply(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d MultiplyInPlace()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector3d value = _left[i];
+            accumulator += value.MultiplyInPlace(_right[i]);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d DivideStatic()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector3d.Divide(_left[i], s_two);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d DivideInPlace()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector3d value = _left[i];
+            accumulator += value.DivideInPlace(s_two);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d ChainedReturnByValue()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector3d scaledRight = Vector3d.Multiply(_right[i], Fixed64.Quarter);
+            Vector3d value = Vector3d.Add(_left[i], _right[i]);
+            value = Vector3d.Multiply(value, Fixed64.Half);
+            value = Vector3d.Divide(value, s_two);
+            accumulator += Vector3d.Subtract(value, scaledRight);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d ChainedInPlaceAssignment()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector3d scaledRight = Vector3d.Multiply(_right[i], Fixed64.Quarter);
+            Vector3d value = _left[i];
+            value = value.AddInPlace(_right[i])
+                .MultiplyInPlace(Fixed64.Half)
+                .DivideInPlace(s_two)
+                .SubtractInPlace(scaledRight);
+            accumulator += value;
+        }
 
         return accumulator;
     }
@@ -205,19 +319,6 @@ public class Vector3dBenchmarks
         Vector3d accumulator = Vector3d.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += Vector3d.Lerp(_left[i], _right[i], Fixed64.Half);
-
-        return accumulator;
-    }
-
-    [Benchmark]
-    public Vector3d LerpOut()
-    {
-        Vector3d accumulator = Vector3d.Zero;
-        for (int i = 0; i < _left.Length; i++)
-        {
-            Vector3d.Lerp(_left[i], _right[i], Fixed64.Half, out Vector3d result);
-            accumulator += result;
-        }
 
         return accumulator;
     }

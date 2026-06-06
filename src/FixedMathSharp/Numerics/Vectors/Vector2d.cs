@@ -332,32 +332,55 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     public Vector2d SubtractInPlace(Vector2d other) => SubtractInPlace(other.X, other.Y);
 
     /// <summary>
-    /// Scales the components of the vector by the specified x and y factors in place and returns the modified vector.
+    /// Multiplies the components of the vector by the specified x and y factors in place and returns the modified vector.
     /// </summary>
-    /// <param name="scaleX">The factor to scale the x component by.</param>
-    /// <param name="scaleY">The factor to scale the y component by.</param>
-    /// <returns>The modified vector after scaling.</returns>
+    /// <param name="factorX">The factor to multiply the x component by.</param>
+    /// <param name="factorY">The factor to multiply the y component by.</param>
+    /// <returns>The modified vector after multiplication.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector2d ScaleInPlace(Fixed64 scaleX, Fixed64 scaleY)
+    public Vector2d MultiplyInPlace(Fixed64 factorX, Fixed64 factorY)
     {
-        X *= scaleX;
-        Y *= scaleY;
+        X *= factorX;
+        Y *= factorY;
         return this;
     }
 
     /// <summary>
-    /// Scales the components of the vector by the specified scalar factor in place and returns the modified vector.
+    /// Multiplies the components of the vector by the specified scalar factor in place and returns the modified vector.
     /// </summary>
-    /// <param name="scaleFactor">The scalar factor to multiply each component by.</param>
+    /// <param name="factor">The scalar factor to multiply each component by.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector2d ScaleInPlace(Fixed64 scaleFactor) => ScaleInPlace(scaleFactor, scaleFactor);
+    public Vector2d MultiplyInPlace(Fixed64 factor) => MultiplyInPlace(factor, factor);
 
     /// <summary>
-    /// Scales each component of the vector by the corresponding component of the given vector in place and returns the modified vector.
+    /// Multiplies each component of the vector by the corresponding component of the given vector in place and returns the modified vector.
     /// </summary>
-    /// <param name="scale">The vector containing the scale factors for each component.</param>
+    /// <param name="factor">The vector containing the multiplication factors for each component.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector2d ScaleInPlace(Vector2d scale) => ScaleInPlace(scale.X, scale.Y);
+    public Vector2d MultiplyInPlace(Vector2d factor) => MultiplyInPlace(factor.X, factor.Y);
+
+    /// <summary>
+    /// Divides the components of the vector by the specified x and y divisors in place and returns the modified vector.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector2d DivideInPlace(Fixed64 divisorX, Fixed64 divisorY)
+    {
+        X /= divisorX;
+        Y /= divisorY;
+        return this;
+    }
+
+    /// <summary>
+    /// Divides each component of the vector by the specified scalar divisor in place and returns the modified vector.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector2d DivideInPlace(Fixed64 divisor) => DivideInPlace(divisor, divisor);
+
+    /// <summary>
+    /// Divides each component of the vector by the corresponding component of the given vector in place and returns the modified vector.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector2d DivideInPlace(Vector2d divisor) => DivideInPlace(divisor.X, divisor.Y);
 
     /// <summary>
     /// Normalizes this vector in place, making its magnitude (length) equal to 1, and returns the modified vector.
@@ -432,7 +455,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// <summary>
     /// Returns a new vector that is the result of linear interpolation toward the target by the specified amount.
     /// </summary>
-    public Vector2d Lerped(Vector2d target, Fixed64 amount)
+    public Vector2d Lerp(Vector2d target, Fixed64 amount)
     {
         Vector2d vec = this;
         vec.LerpInPlace(target.X, target.Y, amount);
@@ -613,34 +636,40 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
 
 
     /// <summary>
-    /// Subtracts two vectors and stores the result in the provided vector.
+    /// Adds two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Subtract(Vector2d v1, Vector2d v2, out Vector2d result)
-    {
-        result.X = v1.X - v2.X;
-        result.Y = v1.Y - v2.Y;
-    }
+    public static Vector2d Add(Vector2d v1, Vector2d v2) => v1 + v2;
 
     /// <summary>
-    /// Scales two vectors and stores the result in the provided vector.
+    /// Subtracts two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Scale(Vector2d v1, Vector2d v2, out Vector2d result)
-    {
-        result.X = v1.X * v2.X;
-        result.Y = v1.Y * v2.Y;
-    }
+    public static Vector2d Subtract(Vector2d v1, Vector2d v2) => v1 - v2;
 
     /// <summary>
-    /// Adds two vectors together and stores the result in the provided vector.
+    /// Multiplies two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Add(Vector2d v1, Vector2d v2, out Vector2d result)
-    {
-        result.X = v1.X + v2.X;
-        result.Y = v1.Y + v2.Y;
-    }
+    public static Vector2d Multiply(Vector2d v1, Vector2d v2) => v1 * v2;
+
+    /// <summary>
+    /// Multiplies each vector component by the specified scalar.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2d Multiply(Vector2d value, Fixed64 factor) => value * factor;
+
+    /// <summary>
+    /// Divides each component of the first vector by the corresponding component of the second vector.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2d Divide(Vector2d v1, Vector2d v2) => new(v1.X / v2.X, v1.Y / v2.Y);
+
+    /// <summary>
+    /// Divides each vector component by the specified scalar.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2d Divide(Vector2d value, Fixed64 divisor) => value / divisor;
 
 
     /// <summary>
@@ -716,17 +745,6 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     }
 
     /// <summary>
-    /// Linearly interpolates between two vectors and stores the result in the provided vector.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Lerp(Vector2d a, Vector2d b, Fixed64 amount, out Vector2d result)
-    {
-        amount = FixedMath.Clamp01(amount);
-        result.X = a.X + (b.X - a.X) * amount;
-        result.Y = a.Y + (b.Y - a.Y) * amount;
-    }
-
-    /// <summary>
     /// Computes the distance between two vectors using the Euclidean distance formula.
     /// </summary>
     /// <param name="start">The starting vector.</param>
@@ -762,14 +780,6 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// <returns></returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Dot(Vector2d lhs, Vector2d rhs) => lhs.Dot(rhs.X, rhs.Y);
-
-    /// <summary>
-    /// Multiplies two vectors component-wise.
-    /// </summary>
-    /// <param name="a"></param>
-    /// <param name="b"></param>
-    /// <returns></returns>
-    public static Vector2d Scale(Vector2d a, Vector2d b) => new(a.X * b.X, a.Y * b.Y);
 
     /// <summary>
     /// Cross Product of two vectors.
@@ -999,6 +1009,10 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// <returns>A new Vector2d whose components are the components of v1 multiplied by mag.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d operator *(Vector2d v1, Fixed64 mag) => new(v1.X * mag, v1.Y * mag);
+
+    /// <inheritdoc cref="operator *(Vector2d, Fixed64)"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2d operator *(Fixed64 mag, Vector2d v1) => v1 * mag;
 
     /// <summary>
     /// Multiplies two vectors element-wise and returns the resulting vector.

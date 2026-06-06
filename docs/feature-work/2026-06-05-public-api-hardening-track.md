@@ -238,9 +238,9 @@ found no stale plan text, and `git diff --check` passed.
 - Modify: `src/FixedMathSharp/Numerics/Vectors/Vector2d.cs`
 - Modify: `src/FixedMathSharp/Numerics/Vectors/Vector3d.cs`
 - Modify: `src/FixedMathSharp/Numerics/Vectors/Vector4d.cs`
-- Modify: `src/FixedMathSharp/Numerics/Vectors/Vector2d.Extensions.cs`
-- Modify: `src/FixedMathSharp/Numerics/Vectors/Vector3d.Extensions.cs`
-- Modify: `src/FixedMathSharp/Numerics/Vectors/Vector4d.Extensions.cs`
+- Review/no change: `src/FixedMathSharp/Numerics/Vectors/Vector2d.Extensions.cs`
+- Review/no change: `src/FixedMathSharp/Numerics/Vectors/Vector3d.Extensions.cs`
+- Review/no change: `src/FixedMathSharp/Numerics/Vectors/Vector4d.Extensions.cs`
 - Modify: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector4d.Tests.cs`
@@ -248,32 +248,78 @@ found no stale plan text, and `git diff --check` passed.
 - Modify: `tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/Vector4dBenchmarks.cs`
 
-- [ ] Replace legacy public `Add(vector, vector, out vector)`,
+- [x] Replace legacy public `Add(vector, vector, out vector)`,
   `Subtract(vector, vector, out vector)`, `Scale(vector, vector, out vector)`,
   and similar vector `out` helpers with canonical return-by-value statics and
   instance `*InPlace` methods.
-- [ ] Add or standardize `MultiplyInPlace` and `DivideInPlace` naming if the
+- [x] Add or standardize `MultiplyInPlace` and `DivideInPlace` naming if the
   current `ScaleInPlace` terminology is incomplete for component-wise math.
-- [ ] Decide whether `ScaleInPlace` remains as an alias, is renamed, or is
+- [x] Decide whether `ScaleInPlace` remains as an alias, is renamed, or is
   removed for v5.0.0.
-- [ ] Benchmark return-by-value statics, instance `*InPlace`, and `this ref`
+- [x] Benchmark return-by-value statics, instance `*InPlace`, and `this ref`
   extension methods for representative chained vector workflows.
-- [ ] Include chained mutation benchmarks such as add-subtract-scale-normalize
+- [x] Include chained mutation benchmarks such as add-subtract-scale-normalize
   and multiply-divide-project style loops, not just single-operation
   microbenchmarks.
-- [ ] Accept public `this ref` extension methods only if they improve either
+- [x] Accept public `this ref` extension methods only if they improve either
   measurable speed or meaningful call-site ergonomics without confusing value
   type copy semantics.
-- [ ] Remove rejected experiments cleanly and keep only the API shape that has
+- [x] Remove rejected experiments cleanly and keep only the API shape that has
   the best clarity/performance tradeoff.
+
+Phase 2 result on 2026-06-06: completed.
+
+- Added return-by-value `Add`, `Subtract`, `Multiply`, and `Divide` static
+  helpers across `Vector2d`, `Vector3d`, and `Vector4d`.
+- Added `MultiplyInPlace` and `DivideInPlace` overloads across all vector
+  dimensions, then removed `ScaleInPlace` aliases so vector component-wise
+  multiplication has one public verb.
+- Added the missing `Fixed64 * Vector2d` operator so `Vector2d` matches the
+  scalar-left multiply shape already present on `Vector3d` and `Vector4d`.
+- Renamed instance `Vector2d.Lerped` to `Vector2d.Lerp`.
+- Removed redundant static scalar-left `Multiply(Fixed64, Vector*d)` overloads;
+  callers can use `scalar * vector` for that order.
+- Removed vector-result `out Vector*d` helper overloads from the public runtime
+  surface. `Normalize(out Fixed64 magnitude)` remains because it returns a
+  second scalar result, not a legacy vector-result destination.
+- Converted `Vector3d` spline, clamp, cross, min/max, negate, reflect, and
+  transform helpers to return-value-only public shapes where applicable.
+- Updated vector benchmarks to cover operator add, static add/subtract,
+  in-place add/subtract, static/in-place multiply, static/in-place divide, and
+  chained return-by-value versus chained in-place assignment workflows, with
+  stale `AddScale` benchmark names moved to `AddMultiply`.
+- Measured a temporary benchmark-only `this ref` extension experiment and
+  removed it after the run. Short-run chained results were:
+  `Vector2d` return `30.119 us`, in-place assignment `28.361 us`, ref
+  extension `28.042 us`; `Vector3d` return `36.595 us`, in-place assignment
+  `36.060 us`, ref extension `36.889 us`; `Vector4d` return `48.156 us`,
+  in-place assignment `45.504 us`, ref extension `49.266 us`. All reported
+  zero managed allocations. The ref shape was not accepted because its only
+  win was a tiny 2D short-run result while 3D and 4D were slower, and public
+  `this ref` extensions would add value-type mutation ambiguity.
 
 Verification:
 
 ```bash
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~Vector2d|FullyQualifiedName~Vector3d|FullyQualifiedName~Vector4d"
-dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj --configuration Release -f net8.0
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector2d vector3d vector4d -j Short -i --filter "*InPlace*" "*Add*" "*Subtract*" "*Scale*" "*Multiply*" "*Divide*" --exporters json
+dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f netstandard2.1 --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean -f netstandard2.1 --no-restore
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj --configuration Release -f net8.0 --no-restore
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector2d vector3d vector4d -j Short -i --filter "*AddMultiply*" "*MultiplyStatic*" "*MultiplyInPlace*" --exporters json
+rg -n "out Vector[234]d result|public static .*out Vector[234]d|Vector[234]d\.[A-Za-z]+\([^\n]*out Vector[234]d|AddOut|LerpOut|RefInPlace|ChainedRefExtensions|Lerped|ScaleInPlace|public static Vector[234]d Scale|AddScale|Multiply\(Fixed64 factor, Vector[234]d" src tests
+git diff --check
 ```
+
+Verification result on 2026-06-06: focused vector tests passed with 238 tests,
+the full Debug solution test run passed with 944 tests, Release and ReleaseLean
+`netstandard2.1` builds passed with zero warnings/errors, the Release `net8.0`
+benchmark build passed with zero warnings/errors, the short multiply benchmark
+subset completed 9 probes with zero managed allocations, the source scan found
+no remaining public vector-result `out Vector*d` helpers or stale `AddOut`,
+`LerpOut`, `Lerped`, `ScaleInPlace`, `Scale`, `AddScale`, `RefInPlace`, or
+static scalar-left `Multiply(Fixed64, Vector*d)` probes, and `git diff --check`
+passed.
 
 ## Phase 3: FixedMath, Trigonometry, Fixed64, And Scalar Extensions Cleanup
 

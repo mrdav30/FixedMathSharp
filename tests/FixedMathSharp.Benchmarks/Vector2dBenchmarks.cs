@@ -7,6 +7,7 @@ public class Vector2dBenchmarks
 {
     private readonly Vector2d[] _left = BenchmarkFixtures.Vector2sA;
     private readonly Vector2d[] _right = BenchmarkFixtures.Vector2sB;
+    private static readonly Fixed64 s_two = new Fixed64(2);
 
     [Benchmark]
     public Vector2d Add()
@@ -19,24 +20,137 @@ public class Vector2dBenchmarks
     }
 
     [Benchmark]
-    public Vector2d AddOut()
+    public Vector2d AddStatic()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector2d.Add(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d AddInPlace()
     {
         Vector2d accumulator = Vector2d.Zero;
         for (int i = 0; i < _left.Length; i++)
         {
-            Vector2d.Add(_left[i], _right[i], out Vector2d result);
-            accumulator += result;
+            Vector2d value = _left[i];
+            accumulator += value.AddInPlace(_right[i]);
         }
 
         return accumulator;
     }
 
     [Benchmark]
-    public Vector2d AddScale()
+    public Vector2d SubtractStatic()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector2d.Subtract(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d SubtractInPlace()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector2d value = _left[i];
+            accumulator += value.SubtractInPlace(_right[i]);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d AddMultiply()
     {
         Vector2d accumulator = Vector2d.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += (_left[i] + _right[i]) * Fixed64.Half;
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d MultiplyStatic()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector2d.Multiply(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d MultiplyInPlace()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector2d value = _left[i];
+            accumulator += value.MultiplyInPlace(_right[i]);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d DivideStatic()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector2d.Divide(_left[i], s_two);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d DivideInPlace()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector2d value = _left[i];
+            accumulator += value.DivideInPlace(s_two);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d ChainedReturnByValue()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector2d scaledRight = Vector2d.Multiply(_right[i], Fixed64.Quarter);
+            Vector2d value = Vector2d.Add(_left[i], _right[i]);
+            value = Vector2d.Multiply(value, Fixed64.Half);
+            value = Vector2d.Divide(value, s_two);
+            accumulator += Vector2d.Subtract(value, scaledRight);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d ChainedInPlaceAssignment()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector2d scaledRight = Vector2d.Multiply(_right[i], Fixed64.Quarter);
+            Vector2d value = _left[i];
+            value = value.AddInPlace(_right[i])
+                .MultiplyInPlace(Fixed64.Half)
+                .DivideInPlace(s_two)
+                .SubtractInPlace(scaledRight);
+            accumulator += value;
+        }
 
         return accumulator;
     }
@@ -110,19 +224,6 @@ public class Vector2dBenchmarks
         Vector2d accumulator = Vector2d.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += Vector2d.Lerp(_left[i], _right[i], Fixed64.Half);
-
-        return accumulator;
-    }
-
-    [Benchmark]
-    public Vector2d LerpOut()
-    {
-        Vector2d accumulator = Vector2d.Zero;
-        for (int i = 0; i < _left.Length; i++)
-        {
-            Vector2d.Lerp(_left[i], _right[i], Fixed64.Half, out Vector2d result);
-            accumulator += result;
-        }
 
         return accumulator;
     }

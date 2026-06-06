@@ -107,10 +107,58 @@ public class Vector4dTests
         Assert.Equal(new Vector4d(6, 8, 10, 12), vector.SubtractInPlace(Fixed64.One));
         Assert.Equal(new Vector4d(4, 5, 6, 7), vector.SubtractInPlace(new Fixed64(2), new Fixed64(3), new Fixed64(4), new Fixed64(5)));
         Assert.Equal(Vector4d.One, vector.SubtractInPlace(new Vector4d(3, 4, 5, 6)));
-        Assert.Equal(new Vector4d(3, 3, 3, 3), vector.ScaleInPlace(new Fixed64(3)));
-        Assert.Equal(new Vector4d(6, 9, 12, 15), vector.ScaleInPlace(new Vector4d(2, 3, 4, 5)));
+        Assert.Equal(new Vector4d(3, 3, 3, 3), vector.MultiplyInPlace(new Fixed64(3)));
+        Assert.Equal(new Vector4d(6, 9, 12, 15), vector.MultiplyInPlace(new Vector4d(2, 3, 4, 5)));
 
         Assert.Equal(new Vector4d(9, 8, 7, 6), vector.Set(new Fixed64(9), new Fixed64(8), new Fixed64(7), new Fixed64(6)));
+    }
+
+    [Fact]
+    public void StaticArithmeticHelpers_ReturnExpectedValues()
+    {
+        var left = new Vector4d(12, 18, 24, 30);
+        var right = new Vector4d(3, 6, 8, 10);
+
+        Assert.Equal(new Vector4d(15, 24, 32, 40), Vector4d.Add(left, right));
+        Assert.Equal(new Vector4d(9, 12, 16, 20), Vector4d.Subtract(left, right));
+        Assert.Equal(new Vector4d(36, 108, 192, 300), Vector4d.Multiply(left, right));
+        Assert.Equal(new Vector4d(24, 36, 48, 60), Vector4d.Multiply(left, new Fixed64(2)));
+        Assert.Equal(new Vector4d(24, 36, 48, 60), new Fixed64(2) * left);
+        Assert.Equal(new Vector4d(4, 3, 3, 3), Vector4d.Divide(left, right));
+        Assert.Equal(new Vector4d(6, 9, 12, 15), Vector4d.Divide(left, new Fixed64(2)));
+    }
+
+    [Fact]
+    public void MultiplyInPlace_Overloads_ModifyVectorCorrectly()
+    {
+        var vector = new Vector4d(2, 3, 4, 5);
+
+        Assert.Equal(new Vector4d(4, 6, 8, 10), vector.MultiplyInPlace(new Fixed64(2)));
+        Assert.Equal(new Vector4d(12, 24, 40, 60), vector.MultiplyInPlace(new Fixed64(3), new Fixed64(4), new Fixed64(5), new Fixed64(6)));
+        Assert.Equal(new Vector4d(24, 72, 160, 360), vector.MultiplyInPlace(new Vector4d(2, 3, 4, 6)));
+    }
+
+    [Fact]
+    public void DivideInPlace_Overloads_ModifyVectorCorrectly()
+    {
+        var vector = new Vector4d(24, 72, 160, 360);
+
+        Assert.Equal(new Vector4d(12, 36, 80, 180), vector.DivideInPlace(new Fixed64(2)));
+        Assert.Equal(new Vector4d(4, 9, 16, 30), vector.DivideInPlace(new Fixed64(3), new Fixed64(4), new Fixed64(5), new Fixed64(6)));
+        Assert.Equal(new Vector4d(2, 3, 4, 5), vector.DivideInPlace(new Vector4d(2, 3, 4, 6)));
+    }
+
+    [Fact]
+    public void InPlaceHelpers_CanChainWhenAssigned()
+    {
+        var vector = new Vector4d(2, 4, 6, 8);
+
+        vector = vector.AddInPlace(new Vector4d(2, 2, 2, 2))
+            .MultiplyInPlace(new Fixed64(3))
+            .DivideInPlace(new Vector4d(2, 3, 4, 5))
+            .SubtractInPlace(Fixed64.One);
+
+        Assert.Equal(new Vector4d(5, 5, 5, 5), vector);
     }
 
     [Fact]
@@ -128,7 +176,7 @@ public class Vector4dTests
         Assert.Equal(new Fixed64(4), a.Distance(new Fixed64(3), new Fixed64(4), new Fixed64(5), new Fixed64(6)));
         Assert.Equal(new Fixed64(8), a.SqrDistance(new Vector4d(3, 4, 3, 4)));
         Assert.Equal(new Fixed64(70), a.Dot(b));
-        Assert.Equal(new Vector4d(5, 12, 21, 32), Vector4d.Scale(a, b));
+        Assert.Equal(new Vector4d(5, 12, 21, 32), Vector4d.Multiply(a, b));
         Assert.Equal(new Vector4d(1, 2, 3, 4), Vector4d.Min(a, b));
         Assert.Equal(new Vector4d(5, 6, 7, 8), Vector4d.Max(a, b));
         Assert.Equal(new Vector4d(3, 4, 5, 6), Vector4d.Midpoint(a, b));

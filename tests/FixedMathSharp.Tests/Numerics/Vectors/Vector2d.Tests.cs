@@ -125,13 +125,13 @@ public class Vector2dTests
     }
 
     [Fact]
-    public void ScaleInPlace_ScalesVectorCorrectly()
+    public void MultiplyInPlace_ScalarOverload_MultipliesVectorCorrectly()
     {
         var vector = new Vector2d(2, 3);
-        var scaleFactor = new Fixed64(2);
-        vector.ScaleInPlace(scaleFactor);
+        var factor = new Fixed64(2);
+        vector.MultiplyInPlace(factor);
 
-        Assert.Equal(new Vector2d(4, 6), vector); // (2, 3) scaled by 2 becomes (4, 6)
+        Assert.Equal(new Vector2d(4, 6), vector);
     }
 
     [Fact]
@@ -262,11 +262,59 @@ public class Vector2dTests
     }
 
     [Fact]
-    public void ScaleInPlace_VectorOverload_ScalesPerComponent()
+    public void StaticArithmeticHelpers_ReturnExpectedValues()
+    {
+        var left = new Vector2d(12, 18);
+        var right = new Vector2d(3, 6);
+
+        Assert.Equal(new Vector2d(15, 24), Vector2d.Add(left, right));
+        Assert.Equal(new Vector2d(9, 12), Vector2d.Subtract(left, right));
+        Assert.Equal(new Vector2d(36, 108), Vector2d.Multiply(left, right));
+        Assert.Equal(new Vector2d(24, 36), Vector2d.Multiply(left, new Fixed64(2)));
+        Assert.Equal(new Vector2d(24, 36), new Fixed64(2) * left);
+        Assert.Equal(new Vector2d(4, 3), Vector2d.Divide(left, right));
+        Assert.Equal(new Vector2d(6, 9), Vector2d.Divide(left, new Fixed64(2)));
+    }
+
+    [Fact]
+    public void MultiplyInPlace_Overloads_ModifyVectorCorrectly()
     {
         var vector = new Vector2d(2, 3);
 
-        Assert.Equal(new Vector2d(4, 12), vector.ScaleInPlace(new Vector2d(2, 4)));
+        Assert.Equal(new Vector2d(4, 6), vector.MultiplyInPlace(new Fixed64(2)));
+        Assert.Equal(new Vector2d(12, 24), vector.MultiplyInPlace(new Fixed64(3), new Fixed64(4)));
+        Assert.Equal(new Vector2d(24, 72), vector.MultiplyInPlace(new Vector2d(2, 3)));
+    }
+
+    [Fact]
+    public void DivideInPlace_Overloads_ModifyVectorCorrectly()
+    {
+        var vector = new Vector2d(24, 72);
+
+        Assert.Equal(new Vector2d(12, 36), vector.DivideInPlace(new Fixed64(2)));
+        Assert.Equal(new Vector2d(4, 9), vector.DivideInPlace(new Fixed64(3), new Fixed64(4)));
+        Assert.Equal(new Vector2d(2, 3), vector.DivideInPlace(new Vector2d(2, 3)));
+    }
+
+    [Fact]
+    public void InPlaceHelpers_CanChainWhenAssigned()
+    {
+        var vector = new Vector2d(2, 4);
+
+        vector = vector.AddInPlace(new Vector2d(2, 2))
+            .MultiplyInPlace(new Fixed64(3))
+            .DivideInPlace(new Vector2d(2, 3))
+            .SubtractInPlace(Fixed64.One);
+
+        Assert.Equal(new Vector2d(5, 5), vector);
+    }
+
+    [Fact]
+    public void MultiplyInPlace_VectorOverload_MultipliesPerComponent()
+    {
+        var vector = new Vector2d(2, 3);
+
+        Assert.Equal(new Vector2d(4, 12), vector.MultiplyInPlace(new Vector2d(2, 4)));
     }
 
     [Fact]
@@ -469,11 +517,11 @@ public class Vector2dTests
     }
 
     [Fact]
-    public void Lerped_ReturnsInterpolatedCopyWithoutMutatingOriginal()
+    public void Lerp_ReturnsInterpolatedCopyWithoutMutatingOriginal()
     {
         var start = new Vector2d(0, 0);
 
-        var result = start.Lerped(new Vector2d(10, 20), Fixed64.FromFloatPoint(0.25));
+        var result = start.Lerp(new Vector2d(10, 20), Fixed64.FromFloatPoint(0.25));
 
         Assert.Equal(new Vector2d(Fixed64.FromFloatPoint(2.5), new Fixed64(5)), result);
         Assert.Equal(Vector2d.Zero, start);
@@ -569,7 +617,7 @@ public class Vector2dTests
 
         Assert.Equal(new Fixed64(25), Vector2d.SqrDistance(Vector2d.Zero, new Vector2d(3, 4)));
         Assert.Equal(new Fixed64(11), Vector2d.Dot(new Vector2d(1, 2), new Vector2d(3, 4)));
-        Assert.Equal(new Vector2d(8, 15), Vector2d.Scale(new Vector2d(2, 3), new Vector2d(4, 5)));
+        Assert.Equal(new Vector2d(8, 15), Vector2d.Multiply(new Vector2d(2, 3), new Vector2d(4, 5)));
         Assert.Equal("(1.25, -2.5)", vector.ToString());
         Assert.Equal(new Vector3d(Fixed64.FromFloatPoint(1.25), new Fixed64(7), Fixed64.FromFloatPoint(-2.5)), vector.ToVector3d(new Fixed64(7)));
 
@@ -629,6 +677,7 @@ public class Vector2dTests
         Assert.Equal(new Vector2d(2, 2), (3, 4) - vector);
         Assert.Equal(new Vector2d(-1, -2), -vector);
         Assert.Equal(new Vector2d(2, 4), vector * new Fixed64(2));
+        Assert.Equal(new Vector2d(2, 4), new Fixed64(2) * vector);
         Assert.Equal(new Vector2d(2, 6), vector * new Vector2d(2, 3));
         Assert.Equal(new Vector2d(Fixed64.FromFloatPoint(0.5), Fixed64.One), vector / new Fixed64(2));
     }
