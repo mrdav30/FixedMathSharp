@@ -36,7 +36,55 @@ runtime and tests.
 
 ## Active Issues
 
-- None currently.
+### FMS-Issue-010: `Fixed64` arithmetic operators with `long` appear to treat long operands as raw fixed values
+
+**Discovered:** 2026-06-06
+
+**Source:** Phase 1 public API inventory for
+`docs/feature-work/2026-06-05-public-api-hardening-track.md`.
+
+**Status:** Open
+
+**Affected files:**
+
+- `src/FixedMathSharp/Numerics/Scalars/Fixed64.cs`
+- `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+
+**Concern:**
+
+The explicit conversion operator from `long` to `Fixed64` shifts the integer
+operand into Q32.32 value space, but the arithmetic overloads for
+`Fixed64 + long`, `Fixed64 - long`, `long - Fixed64`, `Fixed64 * long`,
+`long * Fixed64`, `Fixed64 / long`, `long / Fixed64`, `Fixed64 % long`, and
+`long % Fixed64` construct `new Fixed64(long)` directly. That constructor is
+internal and raw-value based, so these overloads likely treat user-facing long
+integers as raw fixed increments.
+
+This is larger than a public API cleanup because it may be a correctness bug
+with silent numerical drift. Resolve separately with focused tests before the
+scalar API cleanup phase decides whether long operator overloads should stay in
+v5.0.0.
+
+**Recommended work:**
+
+- [ ] Add tests proving `new Fixed64(1) + 5L` matches
+  `new Fixed64(1) + new Fixed64(5)`.
+- [ ] Add tests for subtraction, multiplication, division, and modulus with
+  positive and negative long operands.
+- [ ] Decide whether long overloads should mirror int overload semantics, route
+  through explicit conversion, or be removed for public API clarity.
+- [ ] Preserve saturating and divide-by-zero behavior for any retained overloads.
+- [ ] Add XML docs that distinguish raw construction via `FromRaw` from
+  integer-value construction.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~Fixed64Tests"
+dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f netstandard2.1 --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean -f netstandard2.1 --no-restore
+```
 
 ## Performance Investigation Queue
 
