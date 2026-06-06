@@ -855,18 +855,18 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>
     }
 
     /// <summary>
-    /// Decomposes a 4x4 matrix into its translation, scale, and rotation components.
+    /// Decomposes a 4x4 matrix into its translation, rotation, and scale components.
     /// </summary>
     /// <param name="matrix">The 4x4 matrix to decompose.</param>
-    /// <param name="scale">The extracted scale component.</param>
-    /// <param name="rotation">The extracted rotation component as a quaternion.</param>
     /// <param name="translation">The extracted translation component.</param>
+    /// <param name="rotation">The extracted rotation component as a quaternion.</param>
+    /// <param name="scale">The extracted scale component.</param>
     /// <returns>True if decomposition was successful, otherwise false.</returns>
     public static bool Decompose(
         Fixed4x4 matrix,
-        out Vector3d scale,
+        out Vector3d translation,
         out FixedQuaternion rotation,
-        out Vector3d translation)
+        out Vector3d scale)
     {
         // Extract scale by calculating the magnitudes of the basis vectors
         scale = ExtractScale(matrix);

@@ -16,18 +16,13 @@ public static partial class Vector2dExtensions
 {
     #region Vector2d Operations
 
-    /// <summary>
-    /// Clamps each component of the vector to the range [-1, 1] in place and returns the modified vector.
-    /// </summary>
-    /// <param name="v">The vector to clamp.</param>
-    /// <returns>The clamped vector with each component between -1 and 1.</returns>
+    /// <inheritdoc cref="Vector2d.Clamp(Vector2d, Vector2d, Vector2d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector2d ClampOneInPlace(this Vector2d v)
-    {
-        v.X = v.X.ClampOne();
-        v.Y = v.Y.ClampOne();
-        return v;
-    }
+    public static Vector2d Clamp(this Vector2d value, Vector2d min, Vector2d max) => Vector2d.Clamp(value, min, max);
+
+    /// <inheritdoc cref="Vector2d.Clamp(Vector2d, Vector2d, Vector2d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2d ClampOne(this Vector2d value) => Vector2d.Clamp(value, Vector2d.Negative, Vector2d.One);
 
     /// <summary>
     /// Checks if the distance between two vectors is less than or equal to a specified factor.
@@ -39,29 +34,21 @@ public static partial class Vector2dExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool CheckDistance(this Vector2d me, Vector2d other, Fixed64 factor)
     {
-        var dis = Vector2d.Distance(me, other);
+        Fixed64 dis = Vector2d.Distance(me, other);
         return dis <= factor;
     }
 
     /// <inheritdoc cref="Vector2d.Rotate(Vector2d, Fixed64)" />
-    public static Vector2d Rotate(this Vector2d vec, Fixed64 angleInRadians)
-    {
-        return Vector2d.Rotate(vec, angleInRadians);
-    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2d Rotate(this Vector2d vec, Fixed64 angleInRadians) => Vector2d.Rotate(vec, angleInRadians);
 
     /// <inheritdoc cref="Vector2d.Abs(Vector2d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector2d Abs(this Vector2d value)
-    {
-        return Vector2d.Abs(value);
-    }
+    public static Vector2d Abs(this Vector2d value) => Vector2d.Abs(value);
 
     /// <inheritdoc cref="Vector2d.Sign(Vector2d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector2d Sign(this Vector2d value)
-    {
-        return Vector2d.Sign(value);
-    }
+    public static Vector2d Sign(this Vector2d value) => Vector2d.Sign(value);
 
     #endregion
 
@@ -69,17 +56,11 @@ public static partial class Vector2dExtensions
 
     /// <inheritdoc cref="Vector2d.ToDegrees(Vector2d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector2d ToDegrees(this Vector2d radians)
-    {
-        return Vector2d.ToDegrees(radians);
-    }
+    public static Vector2d ToDegrees(this Vector2d radians) => Vector2d.ToDegrees(radians);
 
     /// <inheritdoc cref="Vector2d.ToRadians(Vector2d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector2d ToRadians(this Vector2d degrees)
-    {
-        return Vector2d.ToRadians(degrees);
-    }
+    public static Vector2d ToRadians(this Vector2d degrees) => Vector2d.ToRadians(degrees);
 
     #endregion
 

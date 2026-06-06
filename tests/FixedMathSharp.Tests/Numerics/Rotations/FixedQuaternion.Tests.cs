@@ -781,6 +781,38 @@ public class FixedQuaternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_ReceiverShapedExtensions_MatchStaticImplementations()
+    {
+        var start = FixedQuaternion.Identity;
+        var end = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver4);
+
+        Assert.True(start.Lerp(end, Fixed64.Half).FuzzyEqual(FixedQuaternion.Lerp(start, end, Fixed64.Half), Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(start.Slerp(end, Fixed64.Half).FuzzyEqual(FixedQuaternion.Slerp(start, end, Fixed64.Half), Fixed64.FromFloatPoint(0.0001)));
+        Assert.Equal(FixedQuaternion.Angle(start, end), start.Angle(end));
+        Assert.Equal(FixedQuaternion.Dot(start, end), start.Dot(end));
+        Assert.Equal(FixedQuaternion.QuaternionLog(end), end.QuaternionLog());
+    }
+
+    [Fact]
+    public void FixedQuaternionExtensions_DoNotExposeFactoryOrConventionHeavyWrappers()
+    {
+        string[] excludedNames =
+        {
+            "FromEulerAngles",
+            "FromEulerAnglesInDegrees",
+            "FromAxisAngle",
+            "LookRotation",
+            "FromDirection",
+            "FromMatrix"
+        };
+
+        foreach (string methodName in excludedNames)
+        {
+            Assert.Empty(typeof(FixedQuaternionExtensions).GetMember(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static));
+        }
+    }
+
+    [Fact]
     public void FixedQuaternion_FromAxisAngleAndEulerAngles_RejectAnglesOutsidePiRange()
     {
         Fixed64 tooHigh = Fixed64.Pi + Fixed64.Epsilon;

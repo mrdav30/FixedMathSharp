@@ -915,12 +915,12 @@ public class Vector3dTests
     #region Test: Extensions
 
     [Fact]
-    public void V3ClampOneInPlace_ClampsCorrectly()
+    public void V3ClampExtensions_MatchCanonicalImplementations()
     {
         var vector = Vector3d.FromFloatPoint(2, -3, 0.5);
-        var result = vector.ClampOneInPlace();
 
-        Assert.Equal(Vector3d.FromFloatPoint(1, -1, 0.5), result); // Clamps x and y, z stays the same
+        Assert.Equal(Vector3d.FromFloatPoint(1, -1, 0.5), vector.ClampOne());
+        Assert.Equal(Vector3d.FromFloatPoint(1, -1, 0.5), vector.Clamp(Vector3d.Negative, Vector3d.One));
     }
 
     [Fact]
@@ -930,7 +930,27 @@ public class Vector3dTests
 
         Assert.True(vector.ClampMagnitude(Fixed64.FromFloatPoint(5)).FuzzyEqual(new Vector3d(3, 4, 0), Fixed64.FromFloatPoint(0.0001)));
         Assert.Equal(new Vector3d(1, 2, 3), new Vector3d(-1, -2, -3).Abs());
-        Assert.Equal(new Vector3d(-1, 1, 0), Vector3dExtensions.Sign(new Vector3d(-2, 4, 0)));
+        Assert.Equal(new Vector3d(-1, 1, 0), new Vector3d(-2, 4, 0).Sign());
+    }
+
+    [Fact]
+    public void V3ReceiverShapedExtensions_MatchStaticImplementations()
+    {
+        var start = new Vector3d(1, 2, 3);
+        var end = new Vector3d(5, 6, 7);
+        var normal = Vector3d.Up;
+        var matrix = Fixed4x4.CreateTranslation(new Vector3d(10, 20, 30));
+
+        Assert.Equal(Vector3d.Dot(start, end), start.Dot(end));
+        Assert.Equal(Vector3d.Cross(start, end), start.Cross(end));
+        Assert.Equal(Vector3d.CrossProduct(start, end), start.CrossProduct(end));
+        Assert.Equal(Vector3d.Lerp(start, end, Fixed64.Half), start.Lerp(end, Fixed64.Half));
+        Assert.Equal(Vector3d.UnclampedLerp(start, end, new Fixed64(2)), start.UnclampedLerp(end, new Fixed64(2)));
+        Assert.Equal(Vector3d.Project(start, normal), start.Project(normal));
+        Assert.Equal(Vector3d.ProjectOnPlane(start, normal), start.ProjectOnPlane(normal));
+        Assert.Equal(Vector3d.Angle(start, end), start.Angle(end));
+        Assert.Equal(Vector3d.Reflect(start, normal), start.Reflect(normal));
+        Assert.Equal(Vector3d.Transform(start, matrix), start.Transform(matrix));
     }
 
     [Fact]

@@ -16,18 +16,38 @@ public static partial class Vector4dExtensions
 {
     #region Vector4d Operations
 
-    /// <summary>
-    /// Clamps each component of the vector to the range [-1, 1] and returns the clamped vector.
-    /// </summary>
+    /// <inheritdoc cref="Vector4d.Clamp(Vector4d, Vector4d, Vector4d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector4d ClampOneInPlace(this Vector4d v)
-    {
-        v.X = v.X.ClampOne();
-        v.Y = v.Y.ClampOne();
-        v.Z = v.Z.ClampOne();
-        v.W = v.W.ClampOne();
-        return v;
-    }
+    public static Vector4d Clamp(this Vector4d value, Vector4d min, Vector4d max) => Vector4d.Clamp(value, min, max);
+
+    /// <inheritdoc cref="Vector4d.Clamp(Vector4d, Vector4d, Vector4d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4d ClampOne(this Vector4d value) => Vector4d.Clamp(value, Vector4d.Negative, Vector4d.One);
+
+    /// <inheritdoc cref="Vector4d.Lerp(Vector4d, Vector4d, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4d Lerp(this Vector4d start, Vector4d end, Fixed64 amount) => Vector4d.Lerp(start, end, amount);
+
+    /// <inheritdoc cref="Vector4d.UnclampedLerp(Vector4d, Vector4d, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4d UnclampedLerp(this Vector4d start, Vector4d end, Fixed64 amount) =>
+        Vector4d.UnclampedLerp(start, end, amount);
+
+    /// <inheritdoc cref="Vector4d.Midpoint(Vector4d, Vector4d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4d Midpoint(this Vector4d value, Vector4d other) => Vector4d.Midpoint(value, other);
+
+    /// <inheritdoc cref="Vector4d.Max(Vector4d, Vector4d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4d Max(this Vector4d value, Vector4d other) => Vector4d.Max(value, other);
+
+    /// <inheritdoc cref="Vector4d.Min(Vector4d, Vector4d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4d Min(this Vector4d value, Vector4d other) => Vector4d.Min(value, other);
+
+    /// <inheritdoc cref="Vector4d.Transform(Fixed4x4, Vector4d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4d Transform(this Vector4d vector, Fixed4x4 matrix) => Vector4d.Transform(matrix, vector);
 
     #endregion
 

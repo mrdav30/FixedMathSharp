@@ -21,9 +21,32 @@ public static class Fixed4x4Extensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d ExtractLossyScale(this Fixed4x4 matrix) => Fixed4x4.ExtractLossyScale(matrix);
 
+    /// <inheritdoc cref="Fixed4x4.ExtractScale(Fixed4x4)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d ExtractScale(this Fixed4x4 matrix) => Fixed4x4.ExtractScale(matrix);
+
+    /// <inheritdoc cref="Fixed4x4.ExtractTranslation(Fixed4x4)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d ExtractTranslation(this Fixed4x4 matrix) => Fixed4x4.ExtractTranslation(matrix);
+
+    /// <inheritdoc cref="Fixed4x4.ExtractRotation(Fixed4x4)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedQuaternion ExtractRotation(this Fixed4x4 matrix) => Fixed4x4.ExtractRotation(matrix);
+
+    /// <inheritdoc cref="Fixed4x4.Decompose(Fixed4x4, out Vector3d, out FixedQuaternion, out Vector3d)" />
+    public static bool Decompose(
+        this Fixed4x4 matrix,
+        out Vector3d translation,
+        out FixedQuaternion rotation,
+        out Vector3d scale) => Fixed4x4.Decompose(matrix, out translation, out rotation, out scale);
+
     /// <inheritdoc cref="Fixed4x4.SetGlobalScale(Fixed4x4, Vector3d)" />
     public static Fixed4x4 SetGlobalScale(this ref Fixed4x4 matrix, Vector3d globalScale) =>
         matrix = Fixed4x4.SetGlobalScale(matrix, globalScale);
+
+    /// <inheritdoc cref="Fixed4x4.SetScale(Fixed4x4, Vector3d)" />
+    public static Fixed4x4 SetScale(this ref Fixed4x4 matrix, Vector3d scale) =>
+        matrix = Fixed4x4.SetScale(matrix, scale);
 
     /// <inheritdoc cref="Fixed4x4.SetTranslation(Fixed4x4, Vector3d)" />
     public static Fixed4x4 SetTranslation(this ref Fixed4x4 matrix, Vector3d position) =>
@@ -38,15 +61,27 @@ public static class Fixed4x4Extensions
     public static Fixed4x4 NormalizeRotationMatrix(this ref Fixed4x4 matrix) =>
         matrix = Fixed4x4.NormalizeRotationMatrix(matrix);
 
+    /// <inheritdoc cref="Fixed4x4.Lerp(Fixed4x4, Fixed4x4, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 Lerp(this Fixed4x4 matrix, Fixed4x4 target, Fixed64 amount) =>
+        Fixed4x4.Lerp(matrix, target, amount);
+
+    /// <inheritdoc cref="Fixed4x4.Transpose(Fixed4x4)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed4x4 Transpose(this Fixed4x4 matrix) => Fixed4x4.Transpose(matrix);
+
     /// <inheritdoc cref="Fixed4x4.TransformPoint(Fixed4x4, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d TransformPoint(this Fixed4x4 matrix, Vector3d point) =>
         Fixed4x4.TransformPoint(matrix, point);
 
     /// <inheritdoc cref="Fixed4x4.Transform(Fixed4x4, Vector4d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Transform(this Fixed4x4 matrix, Vector4d vector) =>
         Fixed4x4.Transform(matrix, vector);
 
     /// <inheritdoc cref="Fixed4x4.InverseTransformPoint(Fixed4x4, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d InverseTransformPoint(this Fixed4x4 matrix, Vector3d point) =>
         Fixed4x4.InverseTransformPoint(matrix, point);
 

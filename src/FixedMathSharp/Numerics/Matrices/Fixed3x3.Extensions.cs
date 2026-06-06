@@ -20,6 +20,10 @@ public static class Fixed3x3Extensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d ExtractScale(this Fixed3x3 matrix) => Fixed3x3.ExtractScale(matrix);
 
+    /// <inheritdoc cref="Fixed3x3.ExtractLossyScale(Fixed3x3)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d ExtractLossyScale(this Fixed3x3 matrix) => Fixed3x3.ExtractLossyScale(matrix);
+
     /// <inheritdoc cref="Fixed3x3.SetScale(Fixed3x3, Vector3d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed3x3 SetScale(this ref Fixed3x3 matrix, Vector3d localScale) =>
@@ -28,6 +32,25 @@ public static class Fixed3x3Extensions
     /// <inheritdoc cref="Fixed3x3.SetGlobalScale(Fixed3x3, Vector3d)" />
     public static Fixed3x3 SetGlobalScale(this ref Fixed3x3 matrix, Vector3d globalScale) =>
         matrix = Fixed3x3.SetGlobalScale(matrix, globalScale);
+
+    /// <inheritdoc cref="Fixed3x3.Lerp(Fixed3x3, Fixed3x3, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed3x3 Lerp(this Fixed3x3 matrix, Fixed3x3 target, Fixed64 amount) =>
+        Fixed3x3.Lerp(matrix, target, amount);
+
+    /// <inheritdoc cref="Fixed3x3.Transpose(Fixed3x3)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed3x3 Transpose(this Fixed3x3 matrix) => Fixed3x3.Transpose(matrix);
+
+    /// <inheritdoc cref="Fixed3x3.TransformDirection(Fixed3x3, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d TransformDirection(this Fixed3x3 matrix, Vector3d direction) =>
+        Fixed3x3.TransformDirection(matrix, direction);
+
+    /// <inheritdoc cref="Fixed3x3.InverseTransformDirection(Fixed3x3, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d InverseTransformDirection(this Fixed3x3 matrix, Vector3d direction) =>
+        Fixed3x3.InverseTransformDirection(matrix, direction);
 
     #endregion
 

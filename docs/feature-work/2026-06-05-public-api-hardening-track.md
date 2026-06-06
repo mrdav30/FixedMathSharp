@@ -395,30 +395,68 @@ and `git diff --check` passed.
 **Files:**
 
 - Modify: `src/FixedMathSharp/Numerics/Vectors/*.Extensions.cs`
+- Modify: `src/FixedMathSharp/Numerics/Vectors/Vector2d.cs`
 - Modify: `src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.Extensions.cs`
 - Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed3x3.Extensions.cs`
 - Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Extensions.cs`
 - Modify: matching numeric test files under `tests/FixedMathSharp.Tests/`
 
-- [ ] Add extension wrappers only for receiver-shaped operations where fluent
+- [x] Add extension wrappers only for receiver-shaped operations where fluent
   syntax is clearly readable, such as `value.Sqrt()`, `vector.Dot(other)`,
   `matrix.TransformPoint(point)`, and `quaternion.Rotate(vector)`.
-- [ ] Avoid extension wrappers for factories and convention-heavy operations
+- [x] Avoid extension wrappers for factories and convention-heavy operations
   such as `FromEulerAngles`, `CreateLookAt`, `CreatePerspective`, or
   `LookRotation`.
-- [ ] Ensure every extension wrapper forwards to the canonical implementation
+- [x] Ensure every extension wrapper forwards to the canonical implementation
   and does not repeat algorithm logic.
-- [ ] Add tests only where the wrapper shape has meaningful behavior or guards;
+- [x] Add tests only where the wrapper shape has meaningful behavior or guards;
   otherwise rely on canonical implementation tests and compile coverage.
-- [ ] Update XML docs so consumers can discover the canonical method from the
+- [x] Update XML docs so consumers can discover the canonical method from the
   wrapper.
+
+Phase 4 result on 2026-06-06: completed.
+
+- Added curated receiver-shaped wrappers for vector clamp/interpolation,
+  selected `Vector3d` geometry operations, `Vector4d` interpolation/transform
+  helpers, quaternion interpolation/log/dot/angle helpers, and matrix
+  extraction/transform/interpolation helpers.
+- Removed legacy non-ref `ClampOneInPlace(this Vector*d)` extension shapes.
+  They were misleading because value-type extension receivers are copied unless
+  declared `this ref`, and the old helpers duplicated component logic instead
+  of forwarding through a canonical vector implementation.
+- Added `Vector2d.Clamp(Vector2d, Vector2d, Vector2d)` so 2D clamp parity has a
+  canonical static implementation matching `Vector3d` and `Vector4d`.
+- Changed `Fixed4x4.Decompose` to return out parameters in
+  `translation, rotation, scale` order for both static and extension entry
+  points. This intentionally breaks from the System.Numerics/XNA-style
+  `scale, rotation, translation` ordering because FixedMathSharp's transform
+  construction APIs already accept `translation, rotation, scale`, and matching
+  construction/decomposition order is easier for v5 users to read correctly.
+- Added reflection tests to keep quaternion and matrix factory/convention-heavy
+  APIs off the extension surface.
 
 Verification:
 
 ```bash
 rg -n "public static .*\\(this " src/FixedMathSharp/Numerics
+rg -n "ClampOneInPlace|Vector[234]dExtensions\\.Sign|public static .*\\(this .*(FromEulerAngles|CreateLookAt|CreatePerspective|LookRotation)" src tests
+rg -n "Decompose\\([^\\n]*out (var |Vector3d )?(scale|decomposedScale)[^\\n]*out (var |FixedQuaternion )?(rotation|decomposedRotation)[^\\n]*out (var |Vector3d )?(translation|decomposedTranslation)" src tests
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~Vector2d|FullyQualifiedName~Vector3d|FullyQualifiedName~Vector4d|FullyQualifiedName~FixedQuaternion|FullyQualifiedName~Fixed3x3|FullyQualifiedName~Fixed4x4"
 dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f netstandard2.1 --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean -f netstandard2.1 --no-restore
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj --configuration Release -f net8.0 --no-restore
+git diff --check
 ```
+
+Verification result on 2026-06-06: focused vector/quaternion/matrix tests
+passed with 519 tests, the full Debug solution test run passed with 951 tests,
+Release and ReleaseLean `netstandard2.1` builds passed with zero
+warnings/errors, the Release `net8.0` benchmark project build passed with zero
+warnings/errors, the extension surface scan completed, the stale source/test
+scan found no `ClampOneInPlace`, static vector-extension `Sign` calls,
+factory/convention-heavy extension wrappers, or old `Decompose` out-parameter
+ordering, and `git diff --check` passed.
 
 ## Phase 5: Large File Partial Split
 

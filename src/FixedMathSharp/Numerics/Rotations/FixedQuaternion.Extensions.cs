@@ -15,11 +15,38 @@ namespace FixedMathSharp;
 /// </summary>
 public static partial class FixedQuaternionExtensions
 {
+    #region Operations
+
     /// <inheritdoc cref="FixedQuaternion.ToAngularVelocity" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d ToAngularVelocity(
         this FixedQuaternion currentRotation,
         FixedQuaternion previousRotation,
         Fixed64 deltaTime) => FixedQuaternion.ToAngularVelocity(currentRotation, previousRotation, deltaTime);
+
+    /// <inheritdoc cref="FixedQuaternion.Lerp(FixedQuaternion, FixedQuaternion, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedQuaternion Lerp(this FixedQuaternion start, FixedQuaternion end, Fixed64 amount) =>
+        FixedQuaternion.Lerp(start, end, amount);
+
+    /// <inheritdoc cref="FixedQuaternion.Slerp(FixedQuaternion, FixedQuaternion, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedQuaternion Slerp(this FixedQuaternion start, FixedQuaternion end, Fixed64 amount) =>
+        FixedQuaternion.Slerp(start, end, amount);
+
+    /// <inheritdoc cref="FixedQuaternion.Angle(FixedQuaternion, FixedQuaternion)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Angle(this FixedQuaternion start, FixedQuaternion end) => FixedQuaternion.Angle(start, end);
+
+    /// <inheritdoc cref="FixedQuaternion.Dot(FixedQuaternion, FixedQuaternion)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Dot(this FixedQuaternion lhs, FixedQuaternion rhs) => FixedQuaternion.Dot(lhs, rhs);
+
+    /// <inheritdoc cref="FixedQuaternion.QuaternionLog(FixedQuaternion)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d QuaternionLog(this FixedQuaternion q) => FixedQuaternion.QuaternionLog(q);
+
+    #endregion
 
     #region Equality
 

@@ -281,11 +281,36 @@ public class Fixed3x3Tests
     }
 
     [Fact]
-    public void Fixed3x3_ExtractScaleExtension_MatchesStaticImplementation()
+    public void Fixed3x3_ReceiverShapedExtensions_MatchStaticImplementations()
     {
         var matrix = Fixed3x3.CreateScale(new Vector3d(2, 3, 4));
+        var other = Fixed3x3.CreateScale(new Vector3d(4, 5, 6));
+        var direction = new Vector3d(1, 2, 3);
 
         Assert.Equal(Fixed3x3.ExtractScale(matrix), matrix.ExtractScale());
+        Assert.Equal(Fixed3x3.ExtractLossyScale(matrix), matrix.ExtractLossyScale());
+        Assert.Equal(Fixed3x3.TransformDirection(matrix, direction), matrix.TransformDirection(direction));
+        Assert.Equal(Fixed3x3.InverseTransformDirection(matrix, direction), matrix.InverseTransformDirection(direction));
+        Assert.Equal(Fixed3x3.Lerp(matrix, other, Fixed64.Half), matrix.Lerp(other, Fixed64.Half));
+        Assert.Equal(Fixed3x3.Transpose(matrix), matrix.Transpose());
+    }
+
+    [Fact]
+    public void Fixed3x3Extensions_DoNotExposeFactoryWrappers()
+    {
+        string[] excludedNames =
+        {
+            "CreateRotationX",
+            "CreateRotationY",
+            "CreateRotationZ",
+            "CreateShear",
+            "CreateScale"
+        };
+
+        foreach (string methodName in excludedNames)
+        {
+            Assert.Empty(typeof(Fixed3x3Extensions).GetMember(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static));
+        }
     }
 
     [Fact]

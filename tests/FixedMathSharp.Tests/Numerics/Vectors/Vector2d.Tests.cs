@@ -417,12 +417,13 @@ public class Vector2dTests
     }
 
     [Fact]
-    public void V2ClampOneInPlace_ClampsCorrectly()
+    public void V2ClampExtensions_MatchCanonicalImplementations()
     {
         var vector = new Vector2d(2, -3);
-        var result = vector.ClampOneInPlace();
 
-        Assert.Equal(new Vector2d(1, -1), result); // Clamps x and y to [-1, 1]
+        Assert.Equal(new Vector2d(1, -1), vector.ClampOne());
+        Assert.Equal(new Vector2d(1, -1), Vector2d.Clamp(vector, Vector2d.Negative, Vector2d.One));
+        Assert.Equal(Vector2d.Clamp(vector, Vector2d.Negative, Vector2d.One), vector.Clamp(Vector2d.Negative, Vector2d.One));
     }
 
     [Fact]

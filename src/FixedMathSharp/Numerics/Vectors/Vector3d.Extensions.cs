@@ -6,6 +6,7 @@
 //=======================================================================
 
 using System.Runtime.CompilerServices;
+using FixedMathSharp.Bounds;
 
 namespace FixedMathSharp;
 
@@ -16,21 +17,16 @@ public static partial class Vector3dExtensions
 {
     #region Vector3d Operations
 
-    /// <summary>
-    /// Clamps each component of the vector to the range [-1, 1] in place and returns the modified vector.
-    /// </summary>
-    /// <param name="v">The vector to clamp.</param>
-    /// <returns>The clamped vector with each component between -1 and 1.</returns>
+    /// <inheritdoc cref="Vector3d.Clamp(Vector3d, Vector3d, Vector3d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d ClampOneInPlace(this Vector3d v)
-    {
-        v.X = v.X.ClampOne();
-        v.Y = v.Y.ClampOne();
-        v.Z = v.Z.ClampOne();
-        return v;
-    }
+    public static Vector3d Clamp(this Vector3d value, Vector3d min, Vector3d max) => Vector3d.Clamp(value, min, max);
+
+    /// <inheritdoc cref="Vector3d.Clamp(Vector3d, Vector3d, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d ClampOne(this Vector3d value) => Vector3d.Clamp(value, Vector3d.Negative, Vector3d.One);
 
     /// <inheritdoc cref="Vector3d.ClampMagnitude(Vector3d, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d ClampMagnitude(this Vector3d value, Fixed64 maxMagnitude) =>
         Vector3d.ClampMagnitude(value, maxMagnitude);
 
@@ -44,17 +40,77 @@ public static partial class Vector3dExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool CheckDistance(this Vector3d me, Vector3d other, Fixed64 factor)
     {
-        var dis = Vector3d.Distance(me, other);
+        Fixed64 dis = Vector3d.Distance(me, other);
         return dis <= factor;
     }
 
+    /// <inheritdoc cref="Vector3d.Distance(Vector3d, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Distance(this Vector3d start, Vector3d end) => Vector3d.Distance(start, end);
+
+    /// <inheritdoc cref="Vector3d.SqrDistance(Vector3d, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 SqrDistance(this Vector3d start, Vector3d end) => Vector3d.SqrDistance(start, end);
+
+    /// <inheritdoc cref="Vector3d.Dot(Vector3d, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Dot(this Vector3d lhs, Vector3d rhs) => Vector3d.Dot(lhs, rhs);
+
+    /// <inheritdoc cref="Vector3d.Cross(Vector3d, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d Cross(this Vector3d lhs, Vector3d rhs) => Vector3d.Cross(lhs, rhs);
+
+    /// <inheritdoc cref="Vector3d.CrossProduct(Vector3d, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 CrossProduct(this Vector3d lhs, Vector3d rhs) => Vector3d.CrossProduct(lhs, rhs);
+
+    /// <inheritdoc cref="Vector3d.Lerp(Vector3d, Vector3d, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d Lerp(this Vector3d start, Vector3d end, Fixed64 amount) => Vector3d.Lerp(start, end, amount);
+
+    /// <inheritdoc cref="Vector3d.UnclampedLerp(Vector3d, Vector3d, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d UnclampedLerp(this Vector3d start, Vector3d end, Fixed64 amount) =>
+        Vector3d.UnclampedLerp(start, end, amount);
+
+    /// <inheritdoc cref="Vector3d.Slerp(Vector3d, Vector3d, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d Slerp(this Vector3d start, Vector3d end, Fixed64 amount) => Vector3d.Slerp(start, end, amount);
+
+    /// <inheritdoc cref="Vector3d.Project(Vector3d, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d Project(this Vector3d vector, Vector3d onNormal) => Vector3d.Project(vector, onNormal);
+
+    /// <inheritdoc cref="Vector3d.ProjectOnPlane(Vector3d, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d ProjectOnPlane(this Vector3d vector, Vector3d planeNormal) =>
+        Vector3d.ProjectOnPlane(vector, planeNormal);
+
+    /// <inheritdoc cref="Vector3d.ProjectOnPlane(Vector3d, FixedPlane)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d ProjectOnPlane(this Vector3d point, FixedPlane plane) => Vector3d.ProjectOnPlane(point, plane);
+
+    /// <inheritdoc cref="Vector3d.Angle(Vector3d, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 Angle(this Vector3d from, Vector3d to) => Vector3d.Angle(from, to);
+
+    /// <inheritdoc cref="Vector3d.Reflect(Vector3d, Vector3d)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d Reflect(this Vector3d vector, Vector3d normal) => Vector3d.Reflect(vector, normal);
+
     /// <inheritdoc cref="Vector3d.Rotate(Vector3d, Vector3d, FixedQuaternion)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Rotate(this Vector3d source, Vector3d position, FixedQuaternion rotation) =>
         Vector3d.Rotate(source, position, rotation);
 
     /// <inheritdoc cref="Vector3d.InverseRotate(Vector3d, Vector3d, FixedQuaternion)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d InverseRotate(this Vector3d source, Vector3d position, FixedQuaternion rotation) =>
         Vector3d.InverseRotate(source, position, rotation);
+
+    /// <inheritdoc cref="Vector3d.Transform(Vector3d, Fixed4x4)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d Transform(this Vector3d vector, Fixed4x4 matrix) => Vector3d.Transform(vector, matrix);
 
     #endregion
 
@@ -74,7 +130,7 @@ public static partial class Vector3dExtensions
 
     /// <inheritdoc cref="Vector3d.Sign(Vector3d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d Sign(Vector3d value) => Vector3d.Sign(value);
+    public static Vector3d Sign(this Vector3d value) => Vector3d.Sign(value);
 
     #endregion
 

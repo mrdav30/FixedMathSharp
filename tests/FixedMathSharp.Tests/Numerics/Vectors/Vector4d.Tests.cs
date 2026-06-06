@@ -378,9 +378,25 @@ public class Vector4dTests
     {
         var vector = Vector4d.FromFloatPoint(2, -3, 0.5, -0.25);
 
-        Assert.Equal(Vector4d.FromFloatPoint(1, -1, 0.5, -0.25), vector.ClampOneInPlace());
+        Assert.Equal(Vector4d.FromFloatPoint(1, -1, 0.5, -0.25), vector.ClampOne());
+        Assert.Equal(Vector4d.FromFloatPoint(1, -1, 0.5, -0.25), vector.Clamp(Vector4d.Negative, Vector4d.One));
         Assert.Equal(Vector4d.FromFloatPoint(2, 3, 0.5, 0.25), vector.Abs());
-        Assert.Equal(new Vector4d(1, -1, 1, -1), Vector4dExtensions.Sign(vector));
+        Assert.Equal(new Vector4d(1, -1, 1, -1), vector.Sign());
+    }
+
+    [Fact]
+    public void ReceiverShapedExtensions_MatchStaticImplementations()
+    {
+        var start = new Vector4d(1, 2, 3, 4);
+        var end = new Vector4d(5, 6, 7, 8);
+        var matrix = Fixed4x4.CreateTranslation(new Vector3d(10, 20, 30));
+
+        Assert.Equal(Vector4d.Lerp(start, end, Fixed64.Half), start.Lerp(end, Fixed64.Half));
+        Assert.Equal(Vector4d.UnclampedLerp(start, end, new Fixed64(2)), start.UnclampedLerp(end, new Fixed64(2)));
+        Assert.Equal(Vector4d.Midpoint(start, end), start.Midpoint(end));
+        Assert.Equal(Vector4d.Max(start, end), start.Max(end));
+        Assert.Equal(Vector4d.Min(start, end), start.Min(end));
+        Assert.Equal(Vector4d.Transform(matrix, start), start.Transform(matrix));
     }
 
     [Theory]

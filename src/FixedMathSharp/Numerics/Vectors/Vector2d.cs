@@ -671,6 +671,13 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Divide(Vector2d value, Fixed64 divisor) => value / divisor;
 
+    /// <summary>
+    /// Clamps each component of the given vector within the specified min and max bounds.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2d Clamp(Vector2d value, Vector2d min, Vector2d max) =>
+        new(FixedMath.Clamp(value.X, min.X, max.X),
+            FixedMath.Clamp(value.Y, min.Y, max.Y));
 
     /// <summary>
     /// Normalizes the given vector, returning a unit vector with the same direction.

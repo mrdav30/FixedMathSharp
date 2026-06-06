@@ -111,7 +111,7 @@ public class Matrix4x4Benchmarks
         Fixed64 accumulator = Fixed64.Zero;
         for (int i = 0; i < _matrices.Length; i++)
         {
-            if (Fixed4x4.Decompose(_matrices[i], out Vector3d scale, out FixedQuaternion rotation, out Vector3d translation))
+            if (Fixed4x4.Decompose(_matrices[i], out Vector3d translation, out FixedQuaternion rotation, out Vector3d scale))
             {
                 accumulator += scale.X + scale.Y + scale.Z;
                 accumulator += rotation.X + rotation.Y + rotation.Z + rotation.W;

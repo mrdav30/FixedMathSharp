@@ -459,9 +459,9 @@ public class Fixed4x4Tests
 
         Assert.True(Fixed4x4.Decompose(
             matrix,
-            out var scale,
+            out var translation,
             out var rotation,
-            out var translation));
+            out var scale));
 
         Assert.Equal(new Vector3d(2, 1, 1), scale);
         Assert.Equal(new Vector3d(5, 0, 0), translation);
@@ -475,7 +475,7 @@ public class Fixed4x4Tests
         var scale = new Vector3d(-2, 3, 4);
         var matrix = Fixed4x4.CreateTransform(translation, FixedQuaternion.Identity, scale);
 
-        Assert.True(Fixed4x4.Decompose(matrix, out var decomposedScale, out var rotation, out var decomposedTranslation));
+        Assert.True(Fixed4x4.Decompose(matrix, out var decomposedTranslation, out var rotation, out var decomposedScale));
 
         Assert.Equal(scale, decomposedScale);
         Assert.Equal(translation, decomposedTranslation);
@@ -662,7 +662,7 @@ public class Fixed4x4Tests
         var trsMatrix = Fixed4x4.ScaleRotateTranslate(translation, rotation, scale);
 
         // Instead of direct equality, compare the decomposed components
-        Assert.True(Fixed4x4.Decompose(trsMatrix, out var decomposedScale, out var decomposedRotation, out var decomposedTranslation));
+        Assert.True(Fixed4x4.Decompose(trsMatrix, out var decomposedTranslation, out var decomposedRotation, out var decomposedScale));
 
         Assert.True(translation.FuzzyEqual(decomposedTranslation, Fixed64.FromFloatPoint(0.0001)));
         Assert.True(scale.FuzzyEqual(decomposedScale, Fixed64.FromFloatPoint(0.0001)));
@@ -818,7 +818,7 @@ public class Fixed4x4Tests
     {
         var matrix = Fixed4x4.CreateScale(Vector3d.Zero);
 
-        Assert.True(Fixed4x4.Decompose(matrix, out var scale, out var rotation, out var translation));
+        Assert.True(Fixed4x4.Decompose(matrix, out var translation, out var rotation, out var scale));
 
         Assert.Equal(Vector3d.One, scale);
         Assert.Equal(Vector3d.Zero, translation);
@@ -1072,6 +1072,15 @@ public class Fixed4x4Tests
 
         Assert.Equal(Fixed4x4.TransformPoint(matrix, point), transformed);
         Assert.True(point.FuzzyEqual(restored, Fixed64.FromFloatPoint(0.0001)));
+        Assert.Equal(Fixed4x4.ExtractTranslation(matrix), matrix.ExtractTranslation());
+        Assert.Equal(Fixed4x4.ExtractScale(matrix), matrix.ExtractScale());
+        Assert.True(Fixed4x4.ExtractRotation(matrix).FuzzyEqual(matrix.ExtractRotation(), Fixed64.FromFloatPoint(0.0001)));
+        Assert.Equal(Fixed4x4.Transpose(matrix), matrix.Transpose());
+        Assert.Equal(Fixed4x4.Lerp(Fixed4x4.Identity, matrix, Fixed64.Half), Fixed4x4.Identity.Lerp(matrix, Fixed64.Half));
+        Assert.True(matrix.Decompose(out Vector3d translation, out FixedQuaternion rotation, out Vector3d scale));
+        Assert.Equal(Fixed4x4.ExtractTranslation(matrix), translation);
+        Assert.True(Fixed4x4.ExtractRotation(matrix).FuzzyEqual(rotation, Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(Fixed4x4.ExtractScale(matrix).FuzzyEqual(scale, Fixed64.FromFloatPoint(0.0001)));
     }
 
     [Fact]
@@ -1085,6 +1094,26 @@ public class Fixed4x4Tests
 
         Assert.Equal(Vector4d.Transform(matrix, vector), staticResult);
         Assert.Equal(staticResult, extensionResult);
+    }
+
+    [Fact]
+    public void Fixed4x4Extensions_DoNotExposeFactoryOrProjectionWrappers()
+    {
+        string[] excludedNames =
+        {
+            "CreateLookAt",
+            "CreatePerspective",
+            "CreatePerspectiveFieldOfView",
+            "CreatePerspectiveOffCenter",
+            "CreateOrthographic",
+            "CreateOrthographicOffCenter",
+            "CreateFromEulerAngles"
+        };
+
+        foreach (string methodName in excludedNames)
+        {
+            Assert.Empty(typeof(Fixed4x4Extensions).GetMember(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static));
+        }
     }
 
     [Fact]
