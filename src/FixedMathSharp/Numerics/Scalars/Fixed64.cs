@@ -432,13 +432,20 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     /// Converts a 64-bit signed integer to a Fixed64 value using explicit casting.
     /// </summary>
     /// <remarks>
-    /// The conversion interprets the input value as the integer part of the fixed-point number. 
-    /// Use this operator when an explicit conversion from long to Fixed64 is required.
+    /// The conversion interprets the input value as the integer part of the fixed-point number and saturates
+    /// to <see cref="MinValue"/> or <see cref="MaxValue"/> when the integer cannot fit in Q32.32 value space.
+    /// Use <see cref="FromRaw(long)"/> when a raw fixed-point payload is required.
     /// </remarks>
     /// <param name="value">The 64-bit signed integer to convert to a Fixed64 value.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator Fixed64(long value)
     {
+        if (value > int.MaxValue)
+            return MaxValue;
+
+        if (value < int.MinValue)
+            return MinValue;
+
         return FromRaw(value << FixedMath.SHIFT_AMOUNT_I);
     }
 
@@ -585,16 +592,6 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     public static Fixed64 operator +(int x, Fixed64 y) => y + x;
 
     /// <summary>
-    /// Adds an long to a Fixed64, with saturating behavior in case of overflow.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator +(Fixed64 x, long y) => x + new Fixed64(y);
-
-    /// <inheritdoc cref="operator +(Fixed64, long)" />
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator +(long x, Fixed64 y) => y + x;
-
-    /// <summary>
     /// Subtracts one Fixed64 number from another, with saturating behavior in case of overflow.
     /// </summary>
     public static Fixed64 operator -(Fixed64 x, Fixed64 y)
@@ -621,18 +618,6 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator -(int x, Fixed64 y) =>
          new Fixed64((long)x << FixedMath.SHIFT_AMOUNT_I) - y;
-
-    /// <summary>
-    /// Subtracts a long from a Fixed64, with saturating behavior in case of overflow. 
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator -(Fixed64 x, long y) => x - new Fixed64(y);
-
-    /// <summary>
-    /// Subtracts a Fixed64 from a long, with saturating behavior in case of overflow.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator -(long x, Fixed64 y) => new Fixed64(x) - y;
 
     /// <summary>
     /// Multiplies two Fixed64 numbers, handling overflow and rounding.
@@ -781,15 +766,6 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     public static Fixed64 operator *(int x, Fixed64 y) => y * x;
 
     /// <summary>
-    /// Multiplies a Fixed64 by a long integer, with overflow handling.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator *(Fixed64 x, long y) => x * new Fixed64(y);
-
-    /// <inheritdoc cref="operator *(Fixed64, long)" />
-    public static Fixed64 operator *(long x, Fixed64 y) => y * x;
-
-    /// <summary>
     /// Divides one Fixed64 number by another, handling division by zero and overflow.
     /// </summary>
     public static Fixed64 operator /(Fixed64 x, Fixed64 y)
@@ -861,20 +837,6 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
          new Fixed64((long)y << FixedMath.SHIFT_AMOUNT_I) / x;
 
     /// <summary>
-    /// Divides a Fixed64 by a long, handling division by zero and overflow.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator /(Fixed64 x, long y) =>
-         x / new Fixed64(y);
-
-    /// <summary>
-    /// Divides a long by a Fixed64, handling division by zero and overflow.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator /(long y, Fixed64 x) =>
-         new Fixed64(y) / x;
-
-    /// <summary>
     /// Computes the remainder of division of one Fixed64 number by another.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -896,18 +858,6 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator %(int x, Fixed64 y) => new Fixed64((long)x << FixedMath.SHIFT_AMOUNT_I) % y;
-
-    /// <summary>
-    /// Computes the remainder of division of a Fixed64 by a long.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator %(Fixed64 x, long y) => x % new Fixed64(y);
-
-    /// <summary>
-    /// Computes the remainder of division of a long by a Fixed64.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 operator %(long x, Fixed64 y) => new Fixed64(x) % y;
 
     /// <summary>
     /// Unary negation operator.
@@ -1135,7 +1085,11 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     /// <summary>
     /// Creates a Fixed64 from a raw long value.
     /// </summary>
-    /// <param name="rawValue">The raw long value.</param>
+    /// <remarks>
+    /// This method interprets <paramref name="rawValue"/> as an already-scaled Q32.32 payload.
+    /// Use the integer constructors or explicit numeric conversions for user-facing integer values.
+    /// </remarks>
+    /// <param name="rawValue">The raw fixed-point payload.</param>
     /// <returns>A Fixed64 representing the raw value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 FromRaw(long rawValue) => new(rawValue);

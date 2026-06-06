@@ -348,6 +348,7 @@ public class Fixed64Tests
     {
         Fixed64 fromLong = (Fixed64)5L;
         Assert.Equal(new Fixed64(5), fromLong);
+        Assert.Equal(new Fixed64(-5), (Fixed64)(-5L));
         Assert.Equal(5L, (long)Fixed64.FromFloatPoint(5.75));
 
         Fixed64 fromInt = (Fixed64)6;
@@ -369,6 +370,13 @@ public class Fixed64Tests
         Assert.Equal(1.0, Fixed64.ToDouble(Fixed64.One.m_rawValue));
         Assert.Equal(1.0f, Fixed64.ToFloat(Fixed64.One.m_rawValue));
         Assert.True(Math.Abs(Fixed64.ToDecimal(Fixed64.One.m_rawValue) - 1.0m) < 0.000001m);
+
+        Assert.Equal(5L, Fixed64.FromRaw(5).m_rawValue);
+        Assert.NotEqual(Fixed64.FromRaw(5), fromLong);
+        Assert.Equal(Fixed64.MaxValue, (Fixed64)((long)int.MaxValue + 1L));
+        Assert.Equal(Fixed64.MinValue, (Fixed64)((long)int.MinValue - 1L));
+        Assert.Equal(Fixed64.MaxValue, (Fixed64)long.MaxValue);
+        Assert.Equal(Fixed64.MinValue, (Fixed64)long.MinValue);
     }
 
     [Fact]
@@ -386,6 +394,40 @@ public class Fixed64Tests
         Assert.Equal(new Fixed64(3), 2 * value);
         Assert.Equal(Fixed64.FromFloatPoint(0.75), value / 2);
         Assert.Equal(Fixed64.FromFloatPoint(1.3333333333), 2 / value);
+    }
+
+    [Fact]
+    public void LongArithmeticOperators_AreNotPublicApi()
+    {
+        foreach (var method in typeof(Fixed64).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
+        {
+            if (!IsArithmeticOperatorName(method.Name))
+                continue;
+
+            var parameters = method.GetParameters();
+            if (parameters.Length != 2 || method.ReturnType != typeof(Fixed64))
+                continue;
+
+            bool usesLong = parameters[0].ParameterType == typeof(long) || parameters[1].ParameterType == typeof(long);
+            bool usesFixed64 = parameters[0].ParameterType == typeof(Fixed64) || parameters[1].ParameterType == typeof(Fixed64);
+
+            Assert.False(usesLong && usesFixed64, $"{method.Name} should require explicit Fixed64 conversion or Fixed64.FromRaw for long operands.");
+        }
+    }
+
+    private static bool IsArithmeticOperatorName(string name)
+    {
+        switch (name)
+        {
+            case "op_Addition":
+            case "op_Subtraction":
+            case "op_Multiply":
+            case "op_Division":
+            case "op_Modulus":
+                return true;
+            default:
+                return false;
+        }
     }
 
     [Fact]

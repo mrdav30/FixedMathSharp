@@ -36,6 +36,21 @@ runtime and tests.
 
 ## Active Issues
 
+- None currently.
+
+## Performance Investigation Queue
+
+Performance issues should stay in the benchmark plan unless they become a
+confirmed runtime defect. Current queue:
+
+- None currently. The 2026-06-03 vector normalization and residual quaternion
+  allocation investigation was completed in
+  `docs/feature-work/done/2026-06-03-benchmark-hot-path-followups.md` Phase 3. The
+  residual `1 B` signal did not reproduce in the expanded short-run
+  diagnostics, so no runtime defect is currently tracked.
+
+## Resolved Issues
+
 ### FMS-Issue-010: `Fixed64` arithmetic operators with `long` appear to treat long operands as raw fixed values
 
 **Discovered:** 2026-06-06
@@ -43,7 +58,7 @@ runtime and tests.
 **Source:** Phase 1 public API inventory for
 `docs/feature-work/2026-06-05-public-api-hardening-track.md`.
 
-**Status:** Open
+**Status:** Resolved on 2026-06-06
 
 **Affected files:**
 
@@ -67,15 +82,25 @@ v5.0.0.
 
 **Recommended work:**
 
-- [ ] Add tests proving `new Fixed64(1) + 5L` matches
-  `new Fixed64(1) + new Fixed64(5)`.
-- [ ] Add tests for subtraction, multiplication, division, and modulus with
-  positive and negative long operands.
-- [ ] Decide whether long overloads should mirror int overload semantics, route
+- [x] Add tests proving long-to-`Fixed64` conversion uses integer-value
+  semantics, not raw-value semantics.
+- [x] Add tests covering positive, negative, and out-of-range long conversion
+  behavior.
+- [x] Decide whether long overloads should mirror int overload semantics, route
   through explicit conversion, or be removed for public API clarity.
-- [ ] Preserve saturating and divide-by-zero behavior for any retained overloads.
-- [ ] Add XML docs that distinguish raw construction via `FromRaw` from
+- [x] Preserve saturating behavior by keeping explicit long conversion bounded
+  to the representable Q32.32 range.
+- [x] Add XML docs that distinguish raw construction via `FromRaw` from
   integer-value construction.
+
+**Resolution:**
+
+Removed the public `Fixed64` arithmetic operators that accepted `long`
+operands. Callers now need to choose `(Fixed64)longValue` for integer-value
+semantics or `Fixed64.FromRaw(rawValue)` for raw Q32.32 payload semantics. The
+explicit long conversion now saturates to `Fixed64.MinValue` or
+`Fixed64.MaxValue` when the source integer is outside the representable Q32.32
+integer range, avoiding unchecked left-shift overflow.
 
 Verification:
 
@@ -86,18 +111,11 @@ dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f
 dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean -f netstandard2.1 --no-restore
 ```
 
-## Performance Investigation Queue
-
-Performance issues should stay in the benchmark plan unless they become a
-confirmed runtime defect. Current queue:
-
-- None currently. The 2026-06-03 vector normalization and residual quaternion
-  allocation investigation was completed in
-  `docs/feature-work/done/2026-06-03-benchmark-hot-path-followups.md` Phase 3. The
-  residual `1 B` signal did not reproduce in the expanded short-run
-  diagnostics, so no runtime defect is currently tracked.
-
-## Resolved Issues
+Verification result on 2026-06-06: focused `Fixed64Tests` passed with 52 tests,
+the full Debug solution test run passed with 945 tests, Release and ReleaseLean
+`netstandard2.1` builds passed with zero warnings/errors, the source scan found
+no remaining public `Fixed64` arithmetic operators accepting `long`, and
+`git diff --check` passed.
 
 ### FMS-Issue-009: `Fixed4x4` point transforms and matrix composition used different affine conventions
 

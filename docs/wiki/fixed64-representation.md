@@ -78,7 +78,33 @@ Use Q32.32 when deterministic precision is more important than enormous coordina
 
 ## Practical Guidance
 
+### Raw Longs Vs Integer Longs
+
+A `long` can mean two different things around `Fixed64`: a whole-number value
+that should be converted into Q32.32 space, or an already-scaled raw payload.
+FixedMathSharp keeps those paths explicit instead of exposing `Fixed64 + long`
+style arithmetic overloads that would have to guess.
+
+Use an explicit conversion when the `long` is a normal whole-number value:
+
+```csharp
+long tileCount = 5;
+Fixed64 distance = (Fixed64)tileCount;
+```
+
+Use `FromRaw` only when the `long` is already a Q32.32 raw value:
+
+```csharp
+long rawStep = 1;
+Fixed64 smallestStep = Fixed64.FromRaw(rawStep);
+```
+
+The explicit `long` conversion saturates to `Fixed64.MinValue` or
+`Fixed64.MaxValue` when the source integer is outside the representable Q32.32
+whole-number range. This keeps overflow deterministic and makes raw-value
+construction an intentional choice.
+
 - Use `Fixed64.FromRaw(long)` only when you intentionally want an exact raw representation.
-- Use constructors, constants, and helpers such as `Fixed64.One`, `Fixed64.Fraction`, and `FixedMath` methods for normal value-space code.
+- Use constructors, constants, and helpers such as `Fixed64.One`, `Fixed64.FromFraction`, and `FixedMath` methods for normal value-space code.
 - Keep deterministic simulation state in fixed-point values, but convert to `float` or `double` at rendering and engine interop boundaries when needed.
 - Treat overflow behavior as part of the numeric contract; avoid relying on primitive floating-point intuition for extreme values.
