@@ -48,9 +48,9 @@ public static partial class Vector3dExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Distance(this Vector3d start, Vector3d end) => Vector3d.Distance(start, end);
 
-    /// <inheritdoc cref="Vector3d.SqrDistance(Vector3d, Vector3d)" />
+    /// <inheritdoc cref="Vector3d.DistanceSquared(Vector3d, Vector3d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 SqrDistance(this Vector3d start, Vector3d end) => Vector3d.SqrDistance(start, end);
+    public static Fixed64 DistanceSquared(this Vector3d start, Vector3d end) => Vector3d.DistanceSquared(start, end);
 
     /// <inheritdoc cref="Vector3d.Dot(Vector3d, Vector3d)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

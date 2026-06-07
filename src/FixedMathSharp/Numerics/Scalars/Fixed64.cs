@@ -180,7 +180,7 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     /// Returns the raw value as a string.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public string RawToString()
+    public string ToRawString()
     {
         return m_rawValue.ToString();
     }

@@ -50,11 +50,11 @@ public class Fixed3x3Tests
     [Fact]
     public void CreateShear_WorksCorrectly()
     {
-        var shearMatrix = Fixed3x3.CreateShear(Fixed64.FromFloatPoint(1.0), Fixed64.FromFloatPoint(0.5), Fixed64.FromFloatPoint(0.2));
+        var shearMatrix = Fixed3x3.CreateShear(Fixed64.FromDouble(1.0), Fixed64.FromDouble(0.5), Fixed64.FromDouble(0.2));
         var expectedMatrix = new Fixed3x3(
-            Fixed64.One, Fixed64.FromFloatPoint(1.0), Fixed64.FromFloatPoint(0.5),
-            Fixed64.FromFloatPoint(1.0), Fixed64.One, Fixed64.FromFloatPoint(0.2),
-            Fixed64.FromFloatPoint(0.5), Fixed64.FromFloatPoint(0.2), Fixed64.One
+            Fixed64.One, Fixed64.FromDouble(1.0), Fixed64.FromDouble(0.5),
+            Fixed64.FromDouble(1.0), Fixed64.One, Fixed64.FromDouble(0.2),
+            Fixed64.FromDouble(0.5), Fixed64.FromDouble(0.2), Fixed64.One
         );
 
         Assert.Equal(expectedMatrix, shearMatrix);
@@ -77,16 +77,16 @@ public class Fixed3x3Tests
     public void InvertDiagonal_WorksCorrectly()
     {
         var matrix = new Fixed3x3(
-            Fixed64.FromFloatPoint(2.0), Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.FromFloatPoint(3.0), Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, Fixed64.FromFloatPoint(4.0)
+            Fixed64.FromDouble(2.0), Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.FromDouble(3.0), Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.FromDouble(4.0)
         );
 
         var inverted = matrix.InvertDiagonal();
         var expected = new Fixed3x3(
-            Fixed64.One / Fixed64.FromFloatPoint(2.0), Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.One / Fixed64.FromFloatPoint(3.0), Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, Fixed64.One / Fixed64.FromFloatPoint(4.0)
+            Fixed64.One / Fixed64.FromDouble(2.0), Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.One / Fixed64.FromDouble(3.0), Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One / Fixed64.FromDouble(4.0)
         );
 
         Assert.Equal(expected, inverted);
@@ -102,11 +102,11 @@ public class Fixed3x3Tests
             Fixed64.One, Fixed64.One, Fixed64.One
         );
 
-        var result = Fixed3x3.Lerp(matrixA, matrixB, Fixed64.FromFloatPoint(0.5f));
+        var result = Fixed3x3.Lerp(matrixA, matrixB, Fixed64.FromDouble(0.5f));
         var expected = new Fixed3x3(
-            Fixed64.One, Fixed64.FromFloatPoint(0.5f), Fixed64.FromFloatPoint(0.5f),
-            Fixed64.FromFloatPoint(0.5f), Fixed64.One, Fixed64.FromFloatPoint(0.5f),
-            Fixed64.FromFloatPoint(0.5f), Fixed64.FromFloatPoint(0.5f), Fixed64.One
+            Fixed64.One, Fixed64.FromDouble(0.5f), Fixed64.FromDouble(0.5f),
+            Fixed64.FromDouble(0.5f), Fixed64.One, Fixed64.FromDouble(0.5f),
+            Fixed64.FromDouble(0.5f), Fixed64.FromDouble(0.5f), Fixed64.One
         );
 
         Assert.Equal(expected, result);
@@ -116,16 +116,16 @@ public class Fixed3x3Tests
     public void Transpose_WorksCorrectly()
     {
         var matrix = new Fixed3x3(
-            Fixed64.One, Fixed64.FromFloatPoint(2.0f), Fixed64.FromFloatPoint(3.0f),
-            Fixed64.FromFloatPoint(4.0f), Fixed64.One, Fixed64.FromFloatPoint(5.0f),
-            Fixed64.FromFloatPoint(6.0f), Fixed64.FromFloatPoint(7.0f), Fixed64.One
+            Fixed64.One, Fixed64.FromDouble(2.0f), Fixed64.FromDouble(3.0f),
+            Fixed64.FromDouble(4.0f), Fixed64.One, Fixed64.FromDouble(5.0f),
+            Fixed64.FromDouble(6.0f), Fixed64.FromDouble(7.0f), Fixed64.One
         );
 
         var transposed = Fixed3x3.Transpose(matrix);
         var expected = new Fixed3x3(
-            Fixed64.One, Fixed64.FromFloatPoint(4.0f), Fixed64.FromFloatPoint(6.0f),
-            Fixed64.FromFloatPoint(2.0f), Fixed64.One, Fixed64.FromFloatPoint(7.0f),
-            Fixed64.FromFloatPoint(3.0f), Fixed64.FromFloatPoint(5.0f), Fixed64.One
+            Fixed64.One, Fixed64.FromDouble(4.0f), Fixed64.FromDouble(6.0f),
+            Fixed64.FromDouble(2.0f), Fixed64.One, Fixed64.FromDouble(7.0f),
+            Fixed64.FromDouble(3.0f), Fixed64.FromDouble(5.0f), Fixed64.One
         );
 
         Assert.Equal(expected, transposed);
@@ -135,18 +135,18 @@ public class Fixed3x3Tests
     public void Invert_WorksCorrectly()
     {
         var matrix = new Fixed3x3(
-            Fixed64.FromFloatPoint(2.0f), Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.FromFloatPoint(3.0f), Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, Fixed64.FromFloatPoint(4.0f)
+            Fixed64.FromDouble(2.0f), Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.FromDouble(3.0f), Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.FromDouble(4.0f)
         );
 
         var success = Fixed3x3.Invert(matrix, out var result);
         Assert.True(success);
 
         var expected = new Fixed3x3(
-            Fixed64.One / Fixed64.FromFloatPoint(2.0f), Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.One / Fixed64.FromFloatPoint(3.0f), Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, Fixed64.One / Fixed64.FromFloatPoint(4.0f)
+            Fixed64.One / Fixed64.FromDouble(2.0f), Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.One / Fixed64.FromDouble(3.0f), Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.One / Fixed64.FromDouble(4.0f)
         );
 
         Assert.True(result?.FuzzyEqual(expected), $"Expected: {expected}, Actual: {result}");
@@ -275,7 +275,7 @@ public class Fixed3x3Tests
         var extractedScale = Fixed3x3.ExtractLossyScale(rotationMatrix);
 
         Assert.True(
-            extractedScale.FuzzyEqual(globalScale, Fixed64.FromFloatPoint(0.01)),
+            extractedScale.FuzzyEqual(globalScale, Fixed64.FromDouble(0.01)),
             $"Extracted scale {extractedScale} does not match expected {globalScale}."
         );
     }
@@ -327,9 +327,9 @@ public class Fixed3x3Tests
             new Fixed64(7), new Fixed64(8), new Fixed64(10));
 
         Assert.True(baseline.FuzzyEqualAbsolute(same, Fixed64.Zero));
-        Assert.False(baseline.FuzzyEqualAbsolute(changed, Fixed64.FromFloatPoint(0.5)));
+        Assert.False(baseline.FuzzyEqualAbsolute(changed, Fixed64.FromDouble(0.5)));
         Assert.True(baseline.FuzzyEqual(same));
-        Assert.False(baseline.FuzzyEqual(changed, Fixed64.FromFloatPoint(0.01)));
+        Assert.False(baseline.FuzzyEqual(changed, Fixed64.FromDouble(0.01)));
     }
 
     [Theory]
@@ -345,9 +345,9 @@ public class Fixed3x3Tests
     public void Fixed3x3_FuzzyEqualAbsolute_ReturnsFalse_WhenAnyComponentExceedsTolerance(int componentIndex)
     {
         var baseline = CreateSequentialMatrix3x3();
-        var changed = OffsetMatrixComponent(baseline, componentIndex, Fixed64.FromFloatPoint(0.2));
+        var changed = OffsetMatrixComponent(baseline, componentIndex, Fixed64.FromDouble(0.2));
 
-        Assert.False(baseline.FuzzyEqualAbsolute(changed, Fixed64.FromFloatPoint(0.1)));
+        Assert.False(baseline.FuzzyEqualAbsolute(changed, Fixed64.FromDouble(0.1)));
     }
 
     [Theory]
@@ -365,7 +365,7 @@ public class Fixed3x3Tests
         var baseline = CreateSequentialMatrix3x3();
         var changed = OffsetMatrixComponent(baseline, componentIndex, new Fixed64(10));
 
-        Assert.False(baseline.FuzzyEqual(changed, Fixed64.FromFloatPoint(0.01)));
+        Assert.False(baseline.FuzzyEqual(changed, Fixed64.FromDouble(0.01)));
     }
 
     [Fact]
@@ -377,7 +377,7 @@ public class Fixed3x3Tests
             new Vector3d(0, 0, 4)
         );
 
-        matrix.Normalize();
+        matrix.NormalizeInPlace();
 
         var xAxis = new Vector3d(matrix.M11, matrix.M12, matrix.M13);
         var yAxis = new Vector3d(matrix.M21, matrix.M22, matrix.M23);
@@ -472,12 +472,12 @@ public class Fixed3x3Tests
     public void TransformDirection_WithScaling_DirectionRemainsNormalized()
     {
         var matrix = Fixed3x3.CreateScale(new Vector3d(2, 3, 4));
-        var direction = new Vector3d(1, 1, 1).Normal;
+        var direction = new Vector3d(1, 1, 1).Normalized;
 
-        var transformed = Fixed3x3.TransformDirection(matrix, direction).Normal;
+        var transformed = Fixed3x3.TransformDirection(matrix, direction).Normalized;
 
         // Direction should still be normalized (scaling affects positions, not directions)
-        Assert.Equal(Fixed64.One, transformed.Magnitude, Fixed64.FromFloatPoint(0.0001));
+        Assert.Equal(Fixed64.One, transformed.Magnitude, Fixed64.FromDouble(0.0001));
     }
 
     [Fact]
@@ -564,7 +564,7 @@ public class Fixed3x3Tests
         Assert.Equal(
             new Fixed3x3(
                 Fixed64.One, Fixed64.Zero, Fixed64.Zero,
-                Fixed64.Zero, Fixed64.FromFloatPoint(1.5), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.FromDouble(1.5), Fixed64.Zero,
                 Fixed64.Zero, Fixed64.Zero, new Fixed64(2)),
             a / 2);
 

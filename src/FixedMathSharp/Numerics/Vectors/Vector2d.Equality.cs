@@ -18,7 +18,7 @@ public partial struct Vector2d
     /// </summary>
     /// <returns></returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool EqualsZero() => this.Equals(Zero);
+    public bool EqualsZero() => Equals(Zero);
 
     /// <summary>
     /// Determines whether the current value is not equal to zero.
@@ -69,7 +69,7 @@ public partial struct Vector2d
     /// <returns>A value less than zero if this instance is less than <paramref name="other"/>; zero if this instance is equal to
     /// <paramref name="other"/>; or a value greater than zero if this instance is greater than <paramref
     /// name="other"/>, as determined by their squared magnitudes.</returns>
-    public int CompareTo(Vector2d other) => SqrMagnitude.CompareTo(other.SqrMagnitude);
+    public int CompareTo(Vector2d other) => MagnitudeSquared.CompareTo(other.MagnitudeSquared);
 
     #endregion
 }

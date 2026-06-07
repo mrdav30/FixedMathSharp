@@ -1,4 +1,4 @@
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
 
 namespace FixedMathSharp.Benchmarks;
 
@@ -176,11 +176,11 @@ public class Vector2dBenchmarks
     }
 
     [Benchmark]
-    public Vector2d Normal()
+    public Vector2d Normalized()
     {
         Vector2d accumulator = Vector2d.Zero;
         for (int i = 0; i < _left.Length; i++)
-            accumulator += _left[i].Normal;
+            accumulator += _left[i].Normalized;
 
         return accumulator;
     }
@@ -192,7 +192,7 @@ public class Vector2dBenchmarks
         for (int i = 0; i < _left.Length; i++)
         {
             Vector2d value = _left[i];
-            accumulator += value.Normalize();
+            accumulator += value.NormalizeInPlace();
         }
 
         return accumulator;

@@ -144,7 +144,7 @@ public partial struct Vector2d
     /// </summary>
     /// <returns>The squared distance between the two vectors.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 SqrDistance(Vector2d start, Vector2d end) => start.SqrDistance(end);
+    public static Fixed64 DistanceSquared(Vector2d start, Vector2d end) => start.DistanceSquared(end);
 
     /// <summary>
     /// Calculates the forward direction vector in 2D based on a yaw (angle).

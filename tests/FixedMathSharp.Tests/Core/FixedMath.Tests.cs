@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -42,16 +42,16 @@ public class FixedMathTests
     [Fact]
     public void Clamp01_ValueInRange_ReturnsValue()
     {
-        var result = FixedMath.Clamp01(Fixed64.FromFloatPoint(0.5f));
-        Assert.Equal(Fixed64.FromFloatPoint(0.5f), result);
+        var result = FixedMath.Clamp01(Fixed64.FromDouble(0.5f));
+        Assert.Equal(Fixed64.FromDouble(0.5f), result);
     }
 
     [Fact]
     public void ClampOne_ClampsToNegativeOneOneRange()
     {
-        Assert.Equal(-Fixed64.One, FixedMath.ClampOne(Fixed64.FromFloatPoint(-2)));
-        Assert.Equal(Fixed64.FromFloatPoint(0.5f), FixedMath.ClampOne(Fixed64.FromFloatPoint(0.5f)));
-        Assert.Equal(Fixed64.One, FixedMath.ClampOne(Fixed64.FromFloatPoint(2)));
+        Assert.Equal(-Fixed64.One, FixedMath.ClampOne(Fixed64.FromDouble(-2)));
+        Assert.Equal(Fixed64.FromDouble(0.5f), FixedMath.ClampOne(Fixed64.FromDouble(0.5f)));
+        Assert.Equal(Fixed64.One, FixedMath.ClampOne(Fixed64.FromDouble(2)));
     }
 
     #endregion
@@ -85,14 +85,14 @@ public class FixedMathTests
     [Fact]
     public void Ceiling_WithFraction_ReturnsNextInteger()
     {
-        var result = FixedMath.Ceil(Fixed64.FromFloatPoint(1.5));
+        var result = FixedMath.Ceil(Fixed64.FromDouble(1.5));
         Assert.Equal(new Fixed64(2), result);
     }
 
     [Fact]
     public void Ceiling_ExactInteger_ReturnsSameInteger()
     {
-        var result = FixedMath.Ceil(Fixed64.FromFloatPoint(3.0));
+        var result = FixedMath.Ceil(Fixed64.FromDouble(3.0));
         var test = new Fixed64(3);
         Assert.Equal(test, result);
     }
@@ -154,28 +154,28 @@ public class FixedMathTests
     [Fact]
     public void Round_ToEven_RoundsToNearestEven()
     {
-        var result = FixedMath.Round(Fixed64.FromFloatPoint(2.5));
+        var result = FixedMath.Round(Fixed64.FromDouble(2.5));
         Assert.Equal(new Fixed64(2), result);
     }
 
     [Fact]
     public void Round_AwayFromZero_RoundsUp()
     {
-        var result = FixedMath.Round(Fixed64.FromFloatPoint(2.5), MidpointRounding.AwayFromZero);
+        var result = FixedMath.Round(Fixed64.FromDouble(2.5), MidpointRounding.AwayFromZero);
         Assert.Equal(new Fixed64(3), result);
     }
 
     [Fact]
     public void Round_ToEven_NegativeNumber_RoundsToNearestEven()
     {
-        var result = FixedMath.Round(Fixed64.FromFloatPoint(-2.5));
+        var result = FixedMath.Round(Fixed64.FromDouble(-2.5));
         Assert.Equal(new Fixed64(-2), result);
     }
 
     [Fact]
     public void Round_AwayFromZero_NegativeHalf_RoundsDown()
     {
-        var result = FixedMath.Round(Fixed64.FromFloatPoint(-2.5), MidpointRounding.AwayFromZero);
+        var result = FixedMath.Round(Fixed64.FromDouble(-2.5), MidpointRounding.AwayFromZero);
         Assert.Equal(new Fixed64(-3), result);
     }
 
@@ -186,29 +186,29 @@ public class FixedMathTests
     [Fact]
     public void Round_WithDecimalPlaces_RoundsToTwoDecimalPlaces()
     {
-        var result = FixedMath.RoundToPrecision(Fixed64.FromFloatPoint(2.556f), 2, MidpointRounding.AwayFromZero);
+        var result = FixedMath.RoundToPrecision(Fixed64.FromDouble(2.556f), 2, MidpointRounding.AwayFromZero);
         Assert.Equal(2.56f, result.ToFormattedFloat());
     }
 
     [Fact]
     public void Round_WithDecimalPlaces_RoundsToZeroDecimalPlaces_ToEven()
     {
-        var result = FixedMath.RoundToPrecision(Fixed64.FromFloatPoint(2.5), 0);
+        var result = FixedMath.RoundToPrecision(Fixed64.FromDouble(2.5), 0);
         Assert.Equal(new Fixed64(2), result);
     }
 
     [Fact]
     public void Round_WithDecimalPlaces_RoundsToZeroDecimalPlaces_AwayFromZero()
     {
-        var result = FixedMath.RoundToPrecision(Fixed64.FromFloatPoint(2.5), 0, MidpointRounding.AwayFromZero);
+        var result = FixedMath.RoundToPrecision(Fixed64.FromDouble(2.5), 0, MidpointRounding.AwayFromZero);
         Assert.Equal(new Fixed64(3), result);
     }
 
     [Fact]
     public void Round_WithDecimalPlaces_ThrowsWhenPrecisionIsOutOfRange()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.RoundToPrecision(Fixed64.FromFloatPoint(1.23), -1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.RoundToPrecision(Fixed64.FromFloatPoint(1.23), FixedMath.Pow10Lookup.Length));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.RoundToPrecision(Fixed64.FromDouble(1.23), -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedMath.RoundToPrecision(Fixed64.FromDouble(1.23), FixedMath.Pow10Lookup.Length));
     }
 
     [Fact]

@@ -125,17 +125,17 @@ public partial struct Fixed4x4
     {
         Vector3d forward = cameraTarget - cameraPosition;
 
-        if (forward.SqrMagnitude == Fixed64.Zero)
+        if (forward.MagnitudeSquared == Fixed64.Zero)
             throw new ArgumentException("Camera position and target must be different.");
 
-        forward = forward.Normalize();
+        forward = forward.NormalizeInPlace();
         Vector3d right = Vector3d.Cross(cameraUpVector, forward);
 
-        if (right.SqrMagnitude == Fixed64.Zero)
+        if (right.MagnitudeSquared == Fixed64.Zero)
             throw new ArgumentException("Camera up vector must not be parallel to the view direction.");
 
-        right = right.Normalize();
-        Vector3d up = Vector3d.Cross(forward, right).Normalize();
+        right = right.NormalizeInPlace();
+        Vector3d up = Vector3d.Cross(forward, right).NormalizeInPlace();
 
         return new Fixed4x4(
             right.X, right.Y, right.Z, Fixed64.Zero,
@@ -290,17 +290,17 @@ public partial struct Fixed4x4
     /// </summary>
     public static Fixed4x4 CreateWorld(Vector3d position, Vector3d forward, Vector3d up)
     {
-        if (forward.SqrMagnitude == Fixed64.Zero)
+        if (forward.MagnitudeSquared == Fixed64.Zero)
             throw new ArgumentException("Forward vector must be non-zero.");
 
-        forward = forward.Normalize();
+        forward = forward.NormalizeInPlace();
         Vector3d right = Vector3d.Cross(up, forward);
 
-        if (right.SqrMagnitude == Fixed64.Zero)
+        if (right.MagnitudeSquared == Fixed64.Zero)
             throw new ArgumentException("Up vector must not be parallel to forward.");
 
-        right = right.Normalize();
-        up = Vector3d.Cross(forward, right).Normalize();
+        right = right.NormalizeInPlace();
+        up = Vector3d.Cross(forward, right).NormalizeInPlace();
 
         return new Fixed4x4(
             right.X, right.Y, right.Z, Fixed64.Zero,

@@ -1,4 +1,4 @@
-using FixedMathSharp.Bounds;
+﻿using FixedMathSharp.Bounds;
 using System;
 using Xunit;
 
@@ -81,8 +81,8 @@ public class FixedBoundFrustumTests
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
 
-        Assert.Equal(Vector3d.FromFloatPoint(1, 0, 0.5), frustum.ClampPoint(Vector3d.FromFloatPoint(2, 0, 0.5)));
-        Assert.Equal(Vector3d.FromFloatPoint(1, 1, 0.5), frustum.ClampPoint(Vector3d.FromFloatPoint(2, 2, 0.5)));
+        Assert.Equal(Vector3d.FromDouble(1, 0, 0.5), frustum.ClampPoint(Vector3d.FromDouble(2, 0, 0.5)));
+        Assert.Equal(Vector3d.FromDouble(1, 1, 0.5), frustum.ClampPoint(Vector3d.FromDouble(2, 2, 0.5)));
         Assert.Equal(new Vector3d(1, 1, 1), frustum.ClampPoint(new Vector3d(2, 2, 2)));
     }
 
@@ -123,11 +123,11 @@ public class FixedBoundFrustumTests
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
         var inside = new FixedBoundArea(
-            new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.FromFloatPoint(0.25)),
-            new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.FromFloatPoint(0.75)));
+            new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.FromDouble(0.25)),
+            new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.FromDouble(0.75)));
         var crossing = new FixedBoundArea(
-            new Vector3d(Fixed64.FromFloatPoint(0.75), -Fixed64.Half, Fixed64.FromFloatPoint(0.25)),
-            new Vector3d(Fixed64.FromFloatPoint(1.25), Fixed64.Half, Fixed64.FromFloatPoint(0.75)));
+            new Vector3d(Fixed64.FromDouble(0.75), -Fixed64.Half, Fixed64.FromDouble(0.25)),
+            new Vector3d(Fixed64.FromDouble(1.25), Fixed64.Half, Fixed64.FromDouble(0.75)));
 
         Assert.Equal(FixedEnclosureType.Contains, frustum.Contains(inside));
         Assert.Equal(FixedEnclosureType.Intersects, frustum.Contains(crossing));
@@ -137,7 +137,7 @@ public class FixedBoundFrustumTests
     public void Intersects_BoundingSphere_ReturnsFalseOnlyWhenFullyOutsidePlane()
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
-        var inside = new FixedBoundSphere(new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half), Fixed64.FromFloatPoint(0.25));
+        var inside = new FixedBoundSphere(new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half), Fixed64.FromDouble(0.25));
         var outside = new FixedBoundSphere(new Vector3d(new Fixed64(3), Fixed64.Zero, Fixed64.Half), Fixed64.Half);
         var crossing = new FixedBoundSphere(new Vector3d(Fixed64.One, Fixed64.Zero, Fixed64.Half), Fixed64.Half);
 
@@ -219,9 +219,9 @@ public class FixedBoundFrustumTests
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
         var other = CreateTransformedFrustum(
-            Vector3d.FromFloatPoint(1.336, 1.880, -0.396),
-            Vector3d.FromFloatPoint(139.413, 115.507, 104.474),
-            Vector3d.FromFloatPoint(1.660, 1.545, 2.338));
+            Vector3d.FromDouble(1.336, 1.880, -0.396),
+            Vector3d.FromDouble(139.413, 115.507, 104.474),
+            Vector3d.FromDouble(1.660, 1.545, 2.338));
 
         Assert.Equal(FixedEnclosureType.Disjoint, frustum.Contains(other));
         Assert.False(frustum.Intersects(other));
@@ -231,7 +231,7 @@ public class FixedBoundFrustumTests
     public void Matrix_Setter_RebuildsPlanesCornersAndBounds()
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
-        var point = new Vector3d(Fixed64.FromFloatPoint(0.75), Fixed64.Zero, Fixed64.Half);
+        var point = new Vector3d(Fixed64.FromDouble(0.75), Fixed64.Zero, Fixed64.Half);
 
         Assert.Equal(FixedEnclosureType.Contains, frustum.Contains(point));
 

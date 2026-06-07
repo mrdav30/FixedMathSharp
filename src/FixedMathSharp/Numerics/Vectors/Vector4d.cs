@@ -108,10 +108,10 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     [JsonConstructor]
     public Vector4d(Fixed64 x, Fixed64 y, Fixed64 z, Fixed64 w)
     {
-        this.X = x;
-        this.Y = y;
-        this.Z = z;
-        this.W = w;
+        X = x;
+        Y = y;
+        Z = z;
+        W = w;
     }
 
     /// <summary>
@@ -135,7 +135,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// <summary>
     /// Initializes a new Vector4d using double component values.
     /// </summary>
-    public static Vector4d FromFloatPoint(double xDoub, double yDoub, double zDoub, double wDoub) =>
+    public static Vector4d FromDouble(double xDoub, double yDoub, double zDoub, double wDoub) =>
         new((Fixed64)xDoub, (Fixed64)yDoub, (Fixed64)zDoub, (Fixed64)wDoub);
 
     #endregion
@@ -145,7 +145,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// <inheritdoc cref="GetNormalized(Vector4d)"/>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public readonly Vector4d Normal
+    public readonly Vector4d Normalized
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => GetNormalized(this);
@@ -167,7 +167,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public readonly Fixed64 SqrMagnitude
+    public readonly Fixed64 MagnitudeSquared
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => (X * X) + (Y * Y) + (Z * Z) + (W * W);
@@ -376,12 +376,12 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// Normalizes this vector in place.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector4d Normalize() => this = GetNormalized(this);
+    public Vector4d NormalizeInPlace() => this = GetNormalized(this);
 
     /// <summary>
     /// Normalizes this vector in place and returns its original magnitude.
     /// </summary>
-    public Vector4d Normalize(out Fixed64 mag)
+    public Vector4d NormalizeInPlace(out Fixed64 mag)
     {
         mag = GetMagnitude(this);
 
@@ -403,7 +403,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly bool IsNormalized() =>
-        !IsZero && FixedMath.Abs(SqrMagnitude - Fixed64.One) <= Fixed64.Epsilon;
+        !IsZero && FixedMath.Abs(MagnitudeSquared - Fixed64.One) <= Fixed64.Epsilon;
 
     /// <summary>
     /// Determines whether all components are greater than Fixed64.Epsilon.
@@ -430,7 +430,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly Fixed64 Distance(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ, Fixed64 otherW) =>
-        FixedMath.Sqrt(SqrDistance(otherX, otherY, otherZ, otherW));
+        FixedMath.Sqrt(DistanceSquared(otherX, otherY, otherZ, otherW));
 
     /// <summary>
     /// Calculates the distance to another vector.
@@ -442,7 +442,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// Calculates the squared distance to another vector.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly Fixed64 SqrDistance(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ, Fixed64 otherW)
+    public readonly Fixed64 DistanceSquared(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ, Fixed64 otherW)
     {
         Fixed64 dx = otherX - X;
         Fixed64 dy = otherY - Y;
@@ -455,7 +455,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// Calculates the squared distance to another vector.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly Fixed64 SqrDistance(Vector4d other) => SqrDistance(other.X, other.Y, other.Z, other.W);
+    public readonly Fixed64 DistanceSquared(Vector4d other) => DistanceSquared(other.X, other.Y, other.Z, other.W);
 
     /// <summary>
     /// Calculates the dot product with another vector.
@@ -590,10 +590,10 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     public static Fixed64 Distance(Vector4d start, Vector4d end) =>
         start.Distance(end.X, end.Y, end.Z, end.W);
 
-    /// <inheritdoc cref="SqrDistance(Fixed64, Fixed64, Fixed64, Fixed64)" />
+    /// <inheritdoc cref="DistanceSquared(Fixed64, Fixed64, Fixed64, Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 SqrDistance(Vector4d start, Vector4d end) =>
-        start.SqrDistance(end.X, end.Y, end.Z, end.W);
+    public static Fixed64 DistanceSquared(Vector4d start, Vector4d end) =>
+        start.DistanceSquared(end.X, end.Y, end.Z, end.W);
 
     /// <summary>
     /// Calculates the dot product of two vectors.
@@ -930,7 +930,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// <summary>
     /// Compares the current Vector4d instance with another Vector4d based on squared magnitude.
     /// </summary>
-    public readonly int CompareTo(Vector4d other) => SqrMagnitude.CompareTo(other.SqrMagnitude);
+    public readonly int CompareTo(Vector4d other) => MagnitudeSquared.CompareTo(other.MagnitudeSquared);
 
     #endregion
 }

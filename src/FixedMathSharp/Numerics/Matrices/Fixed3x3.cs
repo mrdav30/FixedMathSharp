@@ -35,12 +35,12 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// <summary>
     /// Returns the identity matrix (no scaling, rotation, or translation).
     /// </summary>
-    public static readonly Fixed3x3 Identity = new(Vector3d.FromFloatPoint(1f, 0f, 0f), Vector3d.FromFloatPoint(0f, 1f, 0f), Vector3d.FromFloatPoint(0f, 0f, 1f));
+    public static readonly Fixed3x3 Identity = new(Vector3d.FromDouble(1f, 0f, 0f), Vector3d.FromDouble(0f, 1f, 0f), Vector3d.FromDouble(0f, 0f, 1f));
 
     /// <summary>
     /// Returns a matrix with all elements set to zero.
     /// </summary>
-    public static readonly Fixed3x3 Zero = new(Vector3d.FromFloatPoint(0f, 0f, 0f), Vector3d.FromFloatPoint(0f, 0f, 0f), Vector3d.FromFloatPoint(0f, 0f, 0f));
+    public static readonly Fixed3x3 Zero = new(Vector3d.FromDouble(0f, 0f, 0f), Vector3d.FromDouble(0f, 0f, 0f), Vector3d.FromDouble(0f, 0f, 0f));
 
     #endregion
 
@@ -122,9 +122,9 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
         Fixed64 m31, Fixed64 m32, Fixed64 m33
     )
     {
-        this.M11 = m11; this.M12 = m12; this.M13 = m13;
-        this.M21 = m21; this.M22 = m22; this.M23 = m23;
-        this.M31 = m31; this.M32 = m32; this.M33 = m33;
+        M11 = m11; M12 = m12; M13 = m13;
+        M21 = m21; M22 = m22; M23 = m23;
+        M31 = m31; M32 = m32; M33 = m33;
     }
 
     /// <summary>
@@ -221,8 +221,8 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
 
     #region Methods (Instance)
 
-    /// <inheritdoc cref="Normalize(Fixed3x3)" />
-    public Fixed3x3 Normalize() => this = Normalize(this);
+    /// <inheritdoc cref="GetNormalized(Fixed3x3)" />
+    public Fixed3x3 NormalizeInPlace() => this = GetNormalized(this);
 
     /// <inheritdoc cref="ResetScaleToIdentity(Fixed3x3)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -367,11 +367,11 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// - Ensuring stability and correctness after repeated transformations involving rotation and scaling.
     /// - Useful in physics calculations where orthogonal matrices are required (e.g., inertia tensors or rotations).
     /// </remarks>
-    public static Fixed3x3 Normalize(Fixed3x3 matrix)
+    public static Fixed3x3 GetNormalized(Fixed3x3 matrix)
     {
-        var x = new Vector3d(matrix.M11, matrix.M12, matrix.M13).Normalize();
-        var y = new Vector3d(matrix.M21, matrix.M22, matrix.M23).Normalize();
-        var z = Vector3d.Cross(x, y).Normalize();
+        var x = new Vector3d(matrix.M11, matrix.M12, matrix.M13).NormalizeInPlace();
+        var y = new Vector3d(matrix.M21, matrix.M22, matrix.M23).NormalizeInPlace();
+        var z = Vector3d.Cross(x, y).NormalizeInPlace();
 
         matrix.M11 = x.X; matrix.M12 = x.Y; matrix.M13 = x.Z;
         matrix.M21 = y.X; matrix.M22 = y.Y; matrix.M23 = y.Z;
@@ -433,7 +433,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     public static Fixed3x3 SetGlobalScale(Fixed3x3 matrix, Vector3d globalScale)
     {
         // normalize the matrix to avoid drift in the rotation component
-        matrix.Normalize();
+        matrix.NormalizeInPlace();
 
         // Reset the local scaling portion of the matrix
         matrix.ResetScaleToIdentity();

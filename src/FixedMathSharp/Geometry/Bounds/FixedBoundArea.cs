@@ -356,7 +356,7 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IntersectsSphere(FixedBoundSphere sphere)
     {
-        return Vector3d.SqrDistance(sphere.Center, ClampPoint(sphere.Center)) <= sphere.SqrRadius;
+        return Vector3d.DistanceSquared(sphere.Center, ClampPoint(sphere.Center)) <= sphere.RadiusSquared;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -77,17 +77,17 @@ public partial struct FixedCurveKey : IEquatable<FixedCurveKey>
     /// <summary>
     /// Creates a keyframe with a specified time and value.
     /// </summary>
-    public static FixedCurveKey FromFloat(double time, double value) =>
-        new(Fixed64.FromFloatPoint(time), Fixed64.FromFloatPoint(value));
+    public static FixedCurveKey FromDouble(double time, double value) =>
+        new(Fixed64.FromDouble(time), Fixed64.FromDouble(value));
 
     /// <summary>
     /// Creates a keyframe with optional tangents for cubic interpolation.
     /// </summary>
-    public static FixedCurveKey FromFloatPoint(double time, double value, double inTangent, double outTangent) =>
-        new(Fixed64.FromFloatPoint(time),
-            Fixed64.FromFloatPoint(value),
-            Fixed64.FromFloatPoint(inTangent),
-            Fixed64.FromFloatPoint(outTangent));
+    public static FixedCurveKey FromDouble(double time, double value, double inTangent, double outTangent) =>
+        new(Fixed64.FromDouble(time),
+            Fixed64.FromDouble(value),
+            Fixed64.FromDouble(inTangent),
+            Fixed64.FromDouble(outTangent));
 
     #endregion
 

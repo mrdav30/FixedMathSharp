@@ -1,4 +1,4 @@
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
 using FixedMathSharp.Bounds;
 
 namespace FixedMathSharp.Benchmarks;
@@ -187,11 +187,11 @@ public class Vector3dBenchmarks
     }
 
     [Benchmark]
-    public Vector3d Normal()
+    public Vector3d Normalized()
     {
         Vector3d accumulator = Vector3d.Zero;
         for (int i = 0; i < _left.Length; i++)
-            accumulator += _left[i].Normal;
+            accumulator += _left[i].Normalized;
 
         return accumulator;
     }
@@ -203,7 +203,7 @@ public class Vector3dBenchmarks
         for (int i = 0; i < _left.Length; i++)
         {
             Vector3d value = _left[i];
-            accumulator += value.Normalize();
+            accumulator += value.NormalizeInPlace();
         }
 
         return accumulator;

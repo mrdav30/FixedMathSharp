@@ -109,16 +109,16 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     [JsonConstructor]
     public Vector2d(Fixed64 x, Fixed64 y)
     {
-        this.X = x;
-        this.Y = y;
+        X = x;
+        Y = y;
     }
 
     /// <summary>
     /// Initializes a new instance of the Vector2d structure using double-precision floating-point values for the X and Y components.
     /// floating-point values.
     /// </summary>
-    public static Vector2d FromFloatPoint(double xDoub, double yDoub) =>
-        new(Fixed64.FromFloatPoint(xDoub), Fixed64.FromFloatPoint(yDoub));
+    public static Vector2d FromDouble(double xDoub, double yDoub) =>
+        new(Fixed64.FromDouble(xDoub), Fixed64.FromDouble(yDoub));
 
     #endregion
     #region Properties
@@ -170,7 +170,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// <inheritdoc cref="GetNormalized(Vector2d)"/>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public Vector2d Normal
+    public Vector2d Normalized
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => GetNormalized(this);
@@ -192,7 +192,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public Fixed64 SqrMagnitude
+    public Fixed64 MagnitudeSquared
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => X * X + Y * Y;
@@ -387,7 +387,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// </remarks>
     /// <returns>The normalized vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector2d Normalize() => this = GetNormalized(this);
+    public Vector2d NormalizeInPlace() => this = GetNormalized(this);
 
     /// <summary>
     /// Normalizes this vector in place and outputs its original magnitude.
@@ -397,7 +397,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// If the vector is zero-length or already normalized, no operation is performed, but the original magnitude will still be output.
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector2d Normalize(out Fixed64 mag)
+    public Vector2d NormalizeInPlace(out Fixed64 mag)
     {
         mag = GetMagnitude(this);
 
@@ -610,7 +610,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// </summary>
     /// <returns>The squared distance between the two vectors.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Fixed64 SqrDistance(Fixed64 otherX, Fixed64 otherY)
+    public Fixed64 DistanceSquared(Fixed64 otherX, Fixed64 otherY)
     {
         Fixed64 temp1 = X - otherX;
         temp1 *= temp1;
@@ -624,7 +624,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     /// </summary>
     /// <returns>The squared distance between the two vectors.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Fixed64 SqrDistance(Vector2d other) => SqrDistance(other.X, other.Y);
+    public Fixed64 DistanceSquared(Vector2d other) => DistanceSquared(other.X, other.Y);
 
     #endregion
 }

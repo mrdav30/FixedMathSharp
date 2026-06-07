@@ -1,4 +1,4 @@
-using FixedMathSharp.Bounds;
+﻿using FixedMathSharp.Bounds;
 using MemoryPack;
 using System;
 using System.Text.Json;
@@ -122,7 +122,7 @@ public class FixedRayTests
 
         Fixed64? hit = ray.Intersects(sphere);
 
-        Assert.Equal(Fixed64.FromFloatPoint(4.5), hit);
+        Assert.Equal(Fixed64.FromDouble(4.5), hit);
     }
 
     [Fact]

@@ -297,15 +297,15 @@ public class FixedBoundSphereTests
     public void CreateMerged_HandlesFractionalOffsetAndRadius()
     {
         var left = new FixedBoundSphere(
-            Vector3d.FromFloatPoint(-1.5, 0.25, 2.0),
-            Fixed64.FromFloatPoint(1.25));
+            Vector3d.FromDouble(-1.5, 0.25, 2.0),
+            Fixed64.FromDouble(1.25));
         var right = new FixedBoundSphere(
-            Vector3d.FromFloatPoint(2.5, 0.25, 2.0),
-            Fixed64.FromFloatPoint(0.75));
+            Vector3d.FromDouble(2.5, 0.25, 2.0),
+            Fixed64.FromDouble(0.75));
 
         FixedBoundSphere merged = FixedBoundSphere.CreateMerged(left, right);
 
-        Assert.Equal(Vector3d.FromFloatPoint(0.25, 0.25, 2.0), merged.Center);
+        Assert.Equal(Vector3d.FromDouble(0.25, 0.25, 2.0), merged.Center);
         Assert.Equal(new Fixed64(3), merged.Radius);
     }
 

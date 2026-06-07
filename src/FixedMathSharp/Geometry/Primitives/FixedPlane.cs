@@ -1,4 +1,4 @@
-//=======================================================================
+﻿//=======================================================================
 // FixedPlane.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
@@ -65,7 +65,7 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
         Vector3d ab = b - a;
         Vector3d ac = c - a;
 
-        Normal = Vector3d.Cross(ab, ac).Normalize();
+        Normal = Vector3d.Cross(ab, ac).NormalizeInPlace();
         D = -Vector3d.Dot(Normal, a);
     }
 
@@ -103,15 +103,15 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     /// <summary>
     /// Normalizes this plane in place.
     /// </summary>
-    public void Normalize()
+    public void NormalizeInPlace()
     {
-        this = Normalize(this);
+        this = GetNormalized(this);
     }
 
     /// <summary>
     /// Gets a normalized copy of the specified plane.
     /// </summary>
-    public static FixedPlane Normalize(FixedPlane value)
+    public static FixedPlane GetNormalized(FixedPlane value)
     {
         Fixed64 length = value.Normal.Magnitude;
 

@@ -84,7 +84,7 @@ public readonly partial struct Fixed64
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator Fixed64(float value)
     {
-        return FromFloatPoint(value);
+        return FromDouble(value);
     }
 
     /// <summary>
@@ -110,7 +110,7 @@ public readonly partial struct Fixed64
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator Fixed64(double value)
     {
-        return FromFloatPoint(value);
+        return FromDouble(value);
     }
 
     /// <summary>
@@ -133,7 +133,7 @@ public readonly partial struct Fixed64
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator Fixed64(decimal value)
     {
-        return FromFloatPoint((double)value);
+        return FromDouble((double)value);
     }
 
     /// <summary>
@@ -236,7 +236,7 @@ public readonly partial struct Fixed64
     /// <param name="value">The Fixed64 value to convert.</param>
     /// <returns>The integer representation of the Fixed64 value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int RawToInt(Fixed64 value) => (int)(value.m_rawValue >> FixedMath.SHIFT_AMOUNT_I);
+    public static int ToInt(Fixed64 value) => (int)(value.m_rawValue >> FixedMath.SHIFT_AMOUNT_I);
 
     /// <summary>
     /// Constructs a Fixed64 from a double-precision floating-point value.
@@ -247,7 +247,7 @@ public readonly partial struct Fixed64
     /// </remarks>
     /// <param name="value">Double value to convert to </param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 FromFloatPoint(double value) => new((long)Math.Round(value * FixedMath.ONE_L));
+    public static Fixed64 FromDouble(double value) => new((long)Math.Round(value * FixedMath.ONE_L));
 
     /// <summary>
     /// Creates a Fixed64 from a fractional number.
@@ -256,7 +256,7 @@ public readonly partial struct Fixed64
     /// <param name="denominator">The denominator of the fraction.</param>
     /// <returns>A Fixed64 representing the fraction.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 FromFraction(double numerator, double denominator) => FromFloatPoint(numerator / denominator);
+    public static Fixed64 FromFraction(double numerator, double denominator) => FromDouble(numerator / denominator);
 
     /// <summary>
     /// Converts a Fixed64s RawValue (Int64) into a double

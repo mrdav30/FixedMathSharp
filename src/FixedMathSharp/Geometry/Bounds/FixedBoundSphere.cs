@@ -101,7 +101,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public Fixed64 SqrRadius
+    public Fixed64 RadiusSquared
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => Radius * Radius;
@@ -192,9 +192,9 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
             if (point.Z > maxZ.Z) maxZ = point;
         }
 
-        Fixed64 sqDistX = Vector3d.SqrDistance(maxX, minX);
-        Fixed64 sqDistY = Vector3d.SqrDistance(maxY, minY);
-        Fixed64 sqDistZ = Vector3d.SqrDistance(maxZ, minZ);
+        Fixed64 sqDistX = Vector3d.DistanceSquared(maxX, minX);
+        Fixed64 sqDistY = Vector3d.DistanceSquared(maxY, minY);
+        Fixed64 sqDistZ = Vector3d.DistanceSquared(maxZ, minZ);
 
         Vector3d min = minX;
         Vector3d max = maxX;
@@ -220,7 +220,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
         for (int i = 0; i < points.Count; i++)
         {
             Vector3d diff = points[i] - center;
-            Fixed64 sqDistance = diff.SqrMagnitude;
+            Fixed64 sqDistance = diff.MagnitudeSquared;
             if (sqDistance <= sqRadius)
                 continue;
 
@@ -255,9 +255,9 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
             if (point.Z > maxZ.Z) maxZ = point;
         }
 
-        Fixed64 sqDistX = Vector3d.SqrDistance(maxX, minX);
-        Fixed64 sqDistY = Vector3d.SqrDistance(maxY, minY);
-        Fixed64 sqDistZ = Vector3d.SqrDistance(maxZ, minZ);
+        Fixed64 sqDistX = Vector3d.DistanceSquared(maxX, minX);
+        Fixed64 sqDistY = Vector3d.DistanceSquared(maxY, minY);
+        Fixed64 sqDistZ = Vector3d.DistanceSquared(maxZ, minZ);
 
         Vector3d min = minX;
         Vector3d max = maxX;
@@ -284,7 +284,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
         {
             Vector3d point = frustum.GetCorner(i);
             Vector3d diff = point - center;
-            Fixed64 sqDistance = diff.SqrMagnitude;
+            Fixed64 sqDistance = diff.MagnitudeSquared;
             if (sqDistance <= sqRadius)
                 continue;
 
@@ -301,7 +301,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     private static Fixed64 EnsureRadiusContainsPoint(Vector3d point, Vector3d center, ref Fixed64 radius)
     {
         Fixed64 sqRadius = radius * radius;
-        Fixed64 sqDistance = Vector3d.SqrDistance(point, center);
+        Fixed64 sqDistance = Vector3d.DistanceSquared(point, center);
 
         if (sqDistance <= sqRadius)
             return sqRadius;
@@ -329,7 +329,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     /// <returns>True if the point is inside the sphere, otherwise false.</returns>
     public bool Contains(Vector3d point)
     {
-        return Vector3d.SqrDistance(Center, point) <= SqrRadius;
+        return Vector3d.DistanceSquared(Center, point) <= RadiusSquared;
     }
 
     /// <summary>
@@ -353,7 +353,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     /// </summary>
     public FixedEnclosureType Contains(FixedBoundSphere sphere)
     {
-        Fixed64 sqDistance = Vector3d.SqrDistance(Center, sphere.Center);
+        Fixed64 sqDistance = Vector3d.DistanceSquared(Center, sphere.Center);
         Fixed64 combinedRadius = Radius + sphere.Radius;
 
         if (sqDistance > combinedRadius * combinedRadius)
@@ -438,7 +438,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
         var direction = point - Center;
         if (direction.IsZero) return Center; // If the point is the center, return the center itself
 
-        return Center + direction.Normalize() * Radius;
+        return Center + direction.NormalizeInPlace() * Radius;
     }
 
     /// <summary>
@@ -503,7 +503,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
             FixedMath.Clamp(Center.Y, min.Y, max.Y),
             FixedMath.Clamp(Center.Z, min.Z, max.Z));
 
-        return Vector3d.SqrDistance(Center, closest) <= SqrRadius
+        return Vector3d.DistanceSquared(Center, closest) <= RadiusSquared
             ? FixedEnclosureType.Intersects
             : FixedEnclosureType.Disjoint;
     }

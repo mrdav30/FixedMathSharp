@@ -80,9 +80,9 @@ public class Vector4dTests
         var vector = new Vector4d(1, 2, 2, 4);
 
         Assert.Equal(new Fixed64(5), vector.Magnitude);
-        Assert.Equal(new Fixed64(25), vector.SqrMagnitude);
+        Assert.Equal(new Fixed64(25), vector.MagnitudeSquared);
 
-        var normalized = vector.Normal;
+        var normalized = vector.Normalized;
 
         FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.One, normalized.Magnitude);
     }
@@ -92,7 +92,7 @@ public class Vector4dTests
     {
         var vector = Vector4d.Zero;
 
-        Assert.Equal(Vector4d.Zero, vector.Normalize());
+        Assert.Equal(Vector4d.Zero, vector.NormalizeInPlace());
         Assert.Equal(Vector4d.Zero, Vector4d.GetNormalized(Vector4d.Zero));
     }
 
@@ -170,11 +170,11 @@ public class Vector4dTests
         Assert.Equal(new Vector4d(3, 4, 5, 6), Vector4d.Lerp(a, b, Fixed64.Half));
         Assert.Equal(new Vector4d(-3, -2, -1, 0), Vector4d.UnclampedLerp(a, b, -Fixed64.One));
         Assert.Equal(new Fixed64(70), Vector4d.Dot(a, b));
-        Assert.Equal(new Fixed64(8), Vector4d.SqrDistance(a, new Vector4d(3, 4, 3, 4)));
+        Assert.Equal(new Fixed64(8), Vector4d.DistanceSquared(a, new Vector4d(3, 4, 3, 4)));
         Assert.Equal(new Fixed64(4), Vector4d.Distance(a, new Vector4d(3, 4, 5, 6)));
         Assert.Equal(new Fixed64(4), a.Distance(new Vector4d(3, 4, 5, 6)));
         Assert.Equal(new Fixed64(4), a.Distance(new Fixed64(3), new Fixed64(4), new Fixed64(5), new Fixed64(6)));
-        Assert.Equal(new Fixed64(8), a.SqrDistance(new Vector4d(3, 4, 3, 4)));
+        Assert.Equal(new Fixed64(8), a.DistanceSquared(new Vector4d(3, 4, 3, 4)));
         Assert.Equal(new Fixed64(70), a.Dot(b));
         Assert.Equal(new Vector4d(5, 12, 21, 32), Vector4d.Multiply(a, b));
         Assert.Equal(new Vector4d(1, 2, 3, 4), Vector4d.Min(a, b));
@@ -199,8 +199,8 @@ public class Vector4dTests
         Assert.Equal(new Vector4d(3, 6, 9, 12), a * 3);
         Assert.Equal(new Vector4d(3, 6, 9, 12), 3 * a);
         Assert.Equal(new Vector4d(5, 12, 21, 32), a * b);
-        Assert.Equal(new Vector4d(Fixed64.Half, Fixed64.One, Fixed64.FromFloatPoint(1.5), new Fixed64(2)), a / new Fixed64(2));
-        Assert.Equal(new Vector4d(Fixed64.Half, Fixed64.One, Fixed64.FromFloatPoint(1.5), new Fixed64(2)), a / 2);
+        Assert.Equal(new Vector4d(Fixed64.Half, Fixed64.One, Fixed64.FromDouble(1.5), new Fixed64(2)), a / new Fixed64(2));
+        Assert.Equal(new Vector4d(Fixed64.Half, Fixed64.One, Fixed64.FromDouble(1.5), new Fixed64(2)), a / 2);
         Assert.Equal(new Vector4d(new Fixed64(5), new Fixed64(3), new Fixed64(7) / new Fixed64(3), new Fixed64(2)), b / a);
         Assert.Equal(new Vector4d(2, 3, 4, 5), a + Fixed64.One);
         Assert.Equal(new Vector4d(2, 3, 4, 5), Fixed64.One + a);
@@ -248,18 +248,18 @@ public class Vector4dTests
     {
         var vector = new Vector4d(1, 2, 2, 4);
 
-        var normalized = vector.Normalize(out var magnitude);
+        var normalized = vector.NormalizeInPlace(out var magnitude);
 
         Assert.Equal(new Fixed64(5), magnitude);
         Assert.Equal(vector, normalized);
         FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.One, vector.Magnitude);
 
         var zero = Vector4d.Zero;
-        Assert.Equal(Vector4d.Zero, zero.Normalize(out magnitude));
+        Assert.Equal(Vector4d.Zero, zero.NormalizeInPlace(out magnitude));
         Assert.Equal(Fixed64.Zero, magnitude);
 
         var unit = Vector4d.UnitX;
-        Assert.Equal(Vector4d.UnitX, unit.Normalize(out magnitude));
+        Assert.Equal(Vector4d.UnitX, unit.NormalizeInPlace(out magnitude));
         Assert.Equal(Fixed64.One, magnitude);
         Assert.Equal(Vector4d.UnitX, Vector4d.GetNormalized(Vector4d.UnitX));
     }
@@ -279,7 +279,7 @@ public class Vector4dTests
     [Fact]
     public void Normalize_MatchesComponentDivisionByMagnitude_ForFractionalHugeAndTinyRawValues()
     {
-        AssertNormalizeMatchesComponentDivision(Vector4d.FromFloatPoint(1.5, -2.25, 3.75, -4.5));
+        AssertNormalizeMatchesComponentDivision(Vector4d.FromDouble(1.5, -2.25, 3.75, -4.5));
         AssertNormalizeMatchesComponentDivision(new Vector4d(10000, -20000, 30000, -10000));
         AssertNormalizeMatchesComponentDivision(new Vector4d(Fixed64.FromRaw(1), Fixed64.FromRaw(-1), Fixed64.FromRaw(2), Fixed64.FromRaw(-2)));
     }
@@ -297,19 +297,19 @@ public class Vector4dTests
         Fixed64 magnitude = source.Magnitude;
         if (magnitude == Fixed64.Zero)
         {
-            Assert.Equal(Vector4d.Zero, source.Normal);
+            Assert.Equal(Vector4d.Zero, source.Normalized);
 
             var zeroLength = source;
-            Assert.Equal(Vector4d.Zero, zeroLength.Normalize());
+            Assert.Equal(Vector4d.Zero, zeroLength.NormalizeInPlace());
             return;
         }
 
         var expected = new Vector4d(source.X / magnitude, source.Y / magnitude, source.Z / magnitude, source.W / magnitude);
 
-        Assert.Equal(expected, source.Normal);
+        Assert.Equal(expected, source.Normalized);
 
         var inPlace = source;
-        Assert.Equal(expected, inPlace.Normalize());
+        Assert.Equal(expected, inPlace.NormalizeInPlace());
     }
 
     [Theory]
@@ -352,23 +352,23 @@ public class Vector4dTests
         Assert.Equal(Fixed64.Epsilon, defaultResult.Z);
         Assert.Equal(-Fixed64.Epsilon, defaultResult.W);
 
-        var threshold = Fixed64.FromFloatPoint(0.1);
-        var customResult = new Vector4d(Fixed64.FromFloatPoint(0.2), Fixed64.FromFloatPoint(-0.05), Fixed64.FromFloatPoint(-0.1), Fixed64.FromFloatPoint(0.15))
+        var threshold = Fixed64.FromDouble(0.1);
+        var customResult = new Vector4d(Fixed64.FromDouble(0.2), Fixed64.FromDouble(-0.05), Fixed64.FromDouble(-0.1), Fixed64.FromDouble(0.15))
             .SnapSmallComponentsToZero(threshold);
 
-        Assert.Equal(Fixed64.FromFloatPoint(0.2), customResult.X);
+        Assert.Equal(Fixed64.FromDouble(0.2), customResult.X);
         Assert.Equal(Fixed64.Zero, customResult.Y);
-        Assert.Equal(Fixed64.FromFloatPoint(-0.1), customResult.Z);
-        Assert.Equal(Fixed64.FromFloatPoint(0.15), customResult.W);
+        Assert.Equal(Fixed64.FromDouble(-0.1), customResult.Z);
+        Assert.Equal(Fixed64.FromDouble(0.15), customResult.W);
 
         var complement = new Vector4d(
-            Fixed64.FromFloatPoint(-0.05),
-            Fixed64.FromFloatPoint(0.2),
-            Fixed64.FromFloatPoint(0.05),
-            Fixed64.FromFloatPoint(-0.05)).SnapSmallComponentsToZero(threshold);
+            Fixed64.FromDouble(-0.05),
+            Fixed64.FromDouble(0.2),
+            Fixed64.FromDouble(0.05),
+            Fixed64.FromDouble(-0.05)).SnapSmallComponentsToZero(threshold);
 
         Assert.Equal(Fixed64.Zero, complement.X);
-        Assert.Equal(Fixed64.FromFloatPoint(0.2), complement.Y);
+        Assert.Equal(Fixed64.FromDouble(0.2), complement.Y);
         Assert.Equal(Fixed64.Zero, complement.Z);
         Assert.Equal(Fixed64.Zero, complement.W);
     }
@@ -376,11 +376,11 @@ public class Vector4dTests
     [Fact]
     public void ExtensionHelpers_ReturnExpectedValues()
     {
-        var vector = Vector4d.FromFloatPoint(2, -3, 0.5, -0.25);
+        var vector = Vector4d.FromDouble(2, -3, 0.5, -0.25);
 
-        Assert.Equal(Vector4d.FromFloatPoint(1, -1, 0.5, -0.25), vector.ClampOne());
-        Assert.Equal(Vector4d.FromFloatPoint(1, -1, 0.5, -0.25), vector.Clamp(Vector4d.Negative, Vector4d.One));
-        Assert.Equal(Vector4d.FromFloatPoint(2, 3, 0.5, 0.25), vector.Abs());
+        Assert.Equal(Vector4d.FromDouble(1, -1, 0.5, -0.25), vector.ClampOne());
+        Assert.Equal(Vector4d.FromDouble(1, -1, 0.5, -0.25), vector.Clamp(Vector4d.Negative, Vector4d.One));
+        Assert.Equal(Vector4d.FromDouble(2, 3, 0.5, 0.25), vector.Abs());
         Assert.Equal(new Vector4d(1, -1, 1, -1), vector.Sign());
     }
 
@@ -408,9 +408,9 @@ public class Vector4dTests
     {
         var actual = new Vector4d(1, 2, 3, 4);
         var expected = actual;
-        expected[componentIndex] += Fixed64.FromFloatPoint(0.2);
+        expected[componentIndex] += Fixed64.FromDouble(0.2);
 
-        Assert.False(actual.FuzzyEqualAbsolute(expected, Fixed64.FromFloatPoint(0.1)));
+        Assert.False(actual.FuzzyEqualAbsolute(expected, Fixed64.FromDouble(0.1)));
     }
 
     [Theory]
@@ -424,17 +424,17 @@ public class Vector4dTests
         var expected = actual;
         expected[componentIndex] = new Fixed64(150);
 
-        Assert.False(actual.FuzzyEqual(expected, Fixed64.FromFloatPoint(0.01)));
+        Assert.False(actual.FuzzyEqual(expected, Fixed64.FromDouble(0.01)));
     }
 
     [Fact]
     public void FuzzyEqual_WithExplicitPercentage_ReturnsTrueForCloseComponents()
     {
         var actual = new Vector4d(100, 100, 100, 100);
-        var expected = Vector4d.FromFloatPoint(101, 99, 100.5, 99.5);
+        var expected = Vector4d.FromDouble(101, 99, 100.5, 99.5);
 
         Assert.True(actual.FuzzyEqualAbsolute(expected, new Fixed64(1)));
-        Assert.True(actual.FuzzyEqual(expected, Fixed64.FromFloatPoint(0.02)));
+        Assert.True(actual.FuzzyEqual(expected, Fixed64.FromDouble(0.02)));
     }
 
     [Fact]
@@ -510,17 +510,17 @@ public class Vector4dTests
     [Fact]
     public void ConversionHelpers_ReturnExpectedValues()
     {
-        var vector = new Vector4d(Fixed64.FromFloatPoint(1.25), Fixed64.FromFloatPoint(2.5), Fixed64.FromFloatPoint(3.75), Fixed64.FromFloatPoint(4.5));
-        var vector2 = new Vector2d(Fixed64.FromFloatPoint(1.25), Fixed64.FromFloatPoint(2.5));
-        var vector3 = new Vector3d(Fixed64.FromFloatPoint(1.25), Fixed64.FromFloatPoint(2.5), Fixed64.FromFloatPoint(3.75));
+        var vector = new Vector4d(Fixed64.FromDouble(1.25), Fixed64.FromDouble(2.5), Fixed64.FromDouble(3.75), Fixed64.FromDouble(4.5));
+        var vector2 = new Vector2d(Fixed64.FromDouble(1.25), Fixed64.FromDouble(2.5));
+        var vector3 = new Vector3d(Fixed64.FromDouble(1.25), Fixed64.FromDouble(2.5), Fixed64.FromDouble(3.75));
 
         vector.Deconstruct(out double fx, out double fy, out double fz, out double fw);
 
         vector.Deconstruct(out int ix, out int iy, out int iz, out int iw);
 
-        Assert.Equal(new Vector3d(Fixed64.FromFloatPoint(1.25), Fixed64.FromFloatPoint(2.5), Fixed64.FromFloatPoint(3.75)), vector.ToVector3d());
-        Assert.Equal(vector, vector2.ToVector4d(Fixed64.FromFloatPoint(3.75), Fixed64.FromFloatPoint(4.5)));
-        Assert.Equal(vector, vector3.ToVector4d(Fixed64.FromFloatPoint(4.5)));
+        Assert.Equal(new Vector3d(Fixed64.FromDouble(1.25), Fixed64.FromDouble(2.5), Fixed64.FromDouble(3.75)), vector.ToVector3d());
+        Assert.Equal(vector, vector2.ToVector4d(Fixed64.FromDouble(3.75), Fixed64.FromDouble(4.5)));
+        Assert.Equal(vector, vector3.ToVector4d(Fixed64.FromDouble(4.5)));
         Assert.Equal(1.25f, fx);
         Assert.Equal(2.5f, fy);
         Assert.Equal(3.75f, fz);
@@ -535,8 +535,8 @@ public class Vector4dTests
     public void FuzzyEqual_ComparesComponents()
     {
         var vector = new Vector4d(100, 100, 100, 100);
-        var near = Vector4d.FromFloatPoint(100.0000008537, 100.0000008537, 100.0000008537, 100.0000008537);
-        var far = Vector4d.FromFloatPoint(100.0001, 100.0001, 100.0001, 100.0001);
+        var near = Vector4d.FromDouble(100.0000008537, 100.0000008537, 100.0000008537, 100.0000008537);
+        var far = Vector4d.FromDouble(100.0001, 100.0001, 100.0001, 100.0001);
 
         Assert.True(vector.FuzzyEqual(near));
         Assert.False(vector.FuzzyEqual(far));

@@ -44,7 +44,7 @@ public partial struct Vector3d
     /// <returns>A value less than zero if this instance is less than <paramref name="other"/>; zero if this instance is equal to
     /// <paramref name="other"/>; or a value greater than zero if this instance is greater than <paramref
     /// name="other"/>, as determined by their squared magnitudes.</returns>
-    public int CompareTo(Vector3d other) => SqrMagnitude.CompareTo(other.SqrMagnitude);
+    public int CompareTo(Vector3d other) => MagnitudeSquared.CompareTo(other.MagnitudeSquared);
 
     #endregion
 }

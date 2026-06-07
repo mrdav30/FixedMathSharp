@@ -1,4 +1,4 @@
-//=======================================================================
+﻿//=======================================================================
 // FixedBoundFrustum.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
@@ -350,7 +350,7 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
             return point;
 
         Vector3d best = _nearTopLeft;
-        Fixed64 bestDistance = Vector3d.SqrDistance(point, best);
+        Fixed64 bestDistance = Vector3d.DistanceSquared(point, best);
 
         for (int i = 1; i < CornerCount; i++)
             UpdateNearestCandidate(point, GetCorner(i), ref best, ref bestDistance);
@@ -480,12 +480,12 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
 
     private void SetPlanes(FixedPlane[] planes)
     {
-        _near = FixedPlane.Normalize(planes[0]);
-        _far = FixedPlane.Normalize(planes[1]);
-        _left = FixedPlane.Normalize(planes[2]);
-        _right = FixedPlane.Normalize(planes[3]);
-        _top = FixedPlane.Normalize(planes[4]);
-        _bottom = FixedPlane.Normalize(planes[5]);
+        _near = FixedPlane.GetNormalized(planes[0]);
+        _far = FixedPlane.GetNormalized(planes[1]);
+        _left = FixedPlane.GetNormalized(planes[2]);
+        _right = FixedPlane.GetNormalized(planes[3]);
+        _top = FixedPlane.GetNormalized(planes[4]);
+        _bottom = FixedPlane.GetNormalized(planes[5]);
 
         _hasMatrix = false;
         _matrix = default;
@@ -501,12 +501,12 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         FixedPlane top,
         FixedPlane bottom)
     {
-        _near = FixedPlane.Normalize(near);
-        _far = FixedPlane.Normalize(far);
-        _left = FixedPlane.Normalize(left);
-        _right = FixedPlane.Normalize(right);
-        _top = FixedPlane.Normalize(top);
-        _bottom = FixedPlane.Normalize(bottom);
+        _near = FixedPlane.GetNormalized(near);
+        _far = FixedPlane.GetNormalized(far);
+        _left = FixedPlane.GetNormalized(left);
+        _right = FixedPlane.GetNormalized(right);
+        _top = FixedPlane.GetNormalized(top);
+        _bottom = FixedPlane.GetNormalized(bottom);
 
         _hasMatrix = false;
         _matrix = default;
@@ -516,12 +516,12 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
 
     private void CreatePlanes(Fixed4x4 matrix)
     {
-        _near = FixedPlane.Normalize(new FixedPlane(-matrix.M13, -matrix.M23, -matrix.M33, -matrix.M43));
-        _far = FixedPlane.Normalize(new FixedPlane(matrix.M13 - matrix.M14, matrix.M23 - matrix.M24, matrix.M33 - matrix.M34, matrix.M43 - matrix.M44));
-        _left = FixedPlane.Normalize(new FixedPlane(-matrix.M14 - matrix.M11, -matrix.M24 - matrix.M21, -matrix.M34 - matrix.M31, -matrix.M44 - matrix.M41));
-        _right = FixedPlane.Normalize(new FixedPlane(matrix.M11 - matrix.M14, matrix.M21 - matrix.M24, matrix.M31 - matrix.M34, matrix.M41 - matrix.M44));
-        _top = FixedPlane.Normalize(new FixedPlane(matrix.M12 - matrix.M14, matrix.M22 - matrix.M24, matrix.M32 - matrix.M34, matrix.M42 - matrix.M44));
-        _bottom = FixedPlane.Normalize(new FixedPlane(-matrix.M14 - matrix.M12, -matrix.M24 - matrix.M22, -matrix.M34 - matrix.M32, -matrix.M44 - matrix.M42));
+        _near = FixedPlane.GetNormalized(new FixedPlane(-matrix.M13, -matrix.M23, -matrix.M33, -matrix.M43));
+        _far = FixedPlane.GetNormalized(new FixedPlane(matrix.M13 - matrix.M14, matrix.M23 - matrix.M24, matrix.M33 - matrix.M34, matrix.M43 - matrix.M44));
+        _left = FixedPlane.GetNormalized(new FixedPlane(-matrix.M14 - matrix.M11, -matrix.M24 - matrix.M21, -matrix.M34 - matrix.M31, -matrix.M44 - matrix.M41));
+        _right = FixedPlane.GetNormalized(new FixedPlane(matrix.M11 - matrix.M14, matrix.M21 - matrix.M24, matrix.M31 - matrix.M34, matrix.M41 - matrix.M44));
+        _top = FixedPlane.GetNormalized(new FixedPlane(matrix.M12 - matrix.M14, matrix.M22 - matrix.M24, matrix.M32 - matrix.M34, matrix.M42 - matrix.M44));
+        _bottom = FixedPlane.GetNormalized(new FixedPlane(-matrix.M14 - matrix.M12, -matrix.M24 - matrix.M22, -matrix.M34 - matrix.M32, -matrix.M44 - matrix.M42));
     }
 
     private void CreateCorners()
@@ -584,7 +584,7 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
         ref Vector3d best,
         ref Fixed64 bestDistance)
     {
-        Fixed64 candidateDistance = Vector3d.SqrDistance(point, candidate);
+        Fixed64 candidateDistance = Vector3d.DistanceSquared(point, candidate);
         if (candidateDistance >= bestDistance)
             return;
 
@@ -612,7 +612,7 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
                 Vector3d edgeB = other.GetCorner(GetEdgeEnd(j)) - other.GetCorner(GetEdgeStart(j));
                 Vector3d axis = Vector3d.Cross(edgeA, edgeB);
 
-                if (axis.SqrMagnitude <= Fixed64.Epsilon)
+                if (axis.MagnitudeSquared <= Fixed64.Epsilon)
                     continue;
 
                 if (Separates(axis, this, other))

@@ -24,7 +24,7 @@ public partial struct Fixed4x4
     /// <summary>
     /// Extracts the right direction from the 4x4 matrix.
     /// </summary>
-    public static Vector3d ExtractRight(Fixed4x4 matrix) => new Vector3d(matrix.M11, matrix.M12, matrix.M13).Normalize();
+    public static Vector3d ExtractRight(Fixed4x4 matrix) => new Vector3d(matrix.M11, matrix.M12, matrix.M13).NormalizeInPlace();
 
     /// <summary>
     /// Extracts the up direction from the 4x4 matrix.
@@ -34,12 +34,12 @@ public partial struct Fixed4x4
     /// </remarks>
     /// <param name="matrix"></param>
     /// <returns>A <see cref="Vector3d"/> representing the up direction.</returns>
-    public static Vector3d ExtractUp(Fixed4x4 matrix) => new Vector3d(matrix.M21, matrix.M22, matrix.M23).Normalize();
+    public static Vector3d ExtractUp(Fixed4x4 matrix) => new Vector3d(matrix.M21, matrix.M22, matrix.M23).NormalizeInPlace();
 
     /// <summary>
     /// Extracts the forward direction from the 4x4 matrix.
     /// </summary>
-    public static Vector3d ExtractForward(Fixed4x4 matrix) => new Vector3d(matrix.M31, matrix.M32, matrix.M33).Normalize();
+    public static Vector3d ExtractForward(Fixed4x4 matrix) => new Vector3d(matrix.M31, matrix.M32, matrix.M33).NormalizeInPlace();
 
     /// <summary>
     /// Extracts the scaling factors from the matrix by calculating the magnitudes of the basis vectors (non-lossy).
@@ -278,9 +278,9 @@ public partial struct Fixed4x4
     /// </remarks>
     public static Fixed4x4 NormalizeRotationMatrix(Fixed4x4 matrix)
     {
-        Vector3d basisX = new Vector3d(matrix.M11, matrix.M12, matrix.M13).Normalize();
-        Vector3d basisY = new Vector3d(matrix.M21, matrix.M22, matrix.M23).Normalize();
-        Vector3d basisZ = new Vector3d(matrix.M31, matrix.M32, matrix.M33).Normalize();
+        Vector3d basisX = new Vector3d(matrix.M11, matrix.M12, matrix.M13).NormalizeInPlace();
+        Vector3d basisY = new Vector3d(matrix.M21, matrix.M22, matrix.M23).NormalizeInPlace();
+        Vector3d basisZ = new Vector3d(matrix.M31, matrix.M32, matrix.M33).NormalizeInPlace();
 
         return new Fixed4x4(
             basisX.X, basisX.Y, basisX.Z, Fixed64.Zero,

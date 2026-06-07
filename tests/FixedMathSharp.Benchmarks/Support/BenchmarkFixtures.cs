@@ -1,4 +1,4 @@
-namespace FixedMathSharp.Benchmarks;
+﻿namespace FixedMathSharp.Benchmarks;
 
 internal static class BenchmarkFixtures
 {
@@ -132,7 +132,7 @@ internal static class BenchmarkFixtures
     {
         var axes = new Vector3d[SampleCount];
         for (int i = 0; i < axes.Length; i++)
-            axes[i] = VectorsA[i].Normal;
+            axes[i] = VectorsA[i].Normalized;
 
         return axes;
     }

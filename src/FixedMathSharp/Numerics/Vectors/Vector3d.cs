@@ -121,9 +121,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     [JsonConstructor]
     public Vector3d(Fixed64 x, Fixed64 y, Fixed64 z)
     {
-        this.X = x;
-        this.Y = y;
-        this.Z = z;
+        X = x;
+        Y = y;
+        Z = z;
     }
 
     /// <summary>
@@ -135,10 +135,10 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <param name="xDoub">The X coordinate of the vector, specified as a double-precision floating-point value.</param>
     /// <param name="yDoub">The Y coordinate of the vector, specified as a double-precision floating-point value.</param>
     /// <param name="zDoub">The Z coordinate of the vector, specified as a double-precision floating-point value.</param>
-    public static Vector3d FromFloatPoint(double xDoub, double yDoub, double zDoub) =>
-        new(Fixed64.FromFloatPoint(xDoub),
-            Fixed64.FromFloatPoint(yDoub),
-            Fixed64.FromFloatPoint(zDoub));
+    public static Vector3d FromDouble(double xDoub, double yDoub, double zDoub) =>
+        new(Fixed64.FromDouble(xDoub),
+            Fixed64.FromDouble(yDoub),
+            Fixed64.FromDouble(zDoub));
 
     #endregion
     #region Properties
@@ -173,7 +173,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <inheritdoc cref="GetNormalized(Vector3d)"/>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public Vector3d Normal
+    public Vector3d Normalized
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => GetNormalized(this);
@@ -191,14 +191,14 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     }
 
     /// <summary>
-    /// This vector's square magnitude (aka length squared).
-    /// If you're doing distance checks, use SqrMagnitude and square the distance you're checking against
-    /// If you need to know the actual distance, use MyMagnitude
+    /// This vector's squared magnitude (aka length squared).
+    /// If you're doing distance checks, use MagnitudeSquared and square the distance you're checking against.
+    /// If you need to know the actual distance, use Magnitude.
     /// </summary>
     /// <returns>The magnitude.</returns>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public Fixed64 SqrMagnitude
+    public Fixed64 MagnitudeSquared
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => (X * X) + (Y * Y) + (Z * Z);
@@ -234,7 +234,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     public bool IsZero
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => this.Equals(Zero);
+        get => Equals(Zero);
     }
 
     /// <summary>
@@ -448,7 +448,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// </remarks>
     /// <returns>The normalized vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector3d Normalize() => this = GetNormalized(this);
+    public Vector3d NormalizeInPlace() => this = GetNormalized(this);
 
     /// <summary>
     /// Normalizes this vector in place and outputs its original magnitude.
@@ -457,7 +457,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// If the vector is zero-length or already normalized, no operation is performed, but the original magnitude will still be output.
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector3d Normalize(out Fixed64 mag)
+    public Vector3d NormalizeInPlace(out Fixed64 mag)
     {
         mag = GetMagnitude(this);
 
@@ -486,7 +486,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// </summary>
     public bool IsNormalized()
     {
-        Fixed64 sqrMagnitude = SqrMagnitude;
+        Fixed64 sqrMagnitude = MagnitudeSquared;
         return sqrMagnitude != Fixed64.Zero && FixedMath.Abs(sqrMagnitude - Fixed64.One) <= Fixed64.Epsilon;
     }
 
@@ -544,7 +544,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// </summary>
     /// <returns>The squared distance between the two vectors.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Fixed64 SqrDistance(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ)
+    public Fixed64 DistanceSquared(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ)
     {
         Fixed64 temp1 = X - otherX;
         temp1 *= temp1;

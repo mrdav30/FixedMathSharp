@@ -1,4 +1,4 @@
-//=======================================================================
+﻿//=======================================================================
 // FixedRay.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
@@ -91,12 +91,12 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// </summary>
     public Fixed64? Intersects(FixedBoundSphere sphere)
     {
-        Fixed64 directionLengthSquared = Direction.SqrMagnitude;
+        Fixed64 directionLengthSquared = Direction.MagnitudeSquared;
         if (directionLengthSquared == Fixed64.Zero)
             return sphere.Contains(Position) ? Fixed64.Zero : null;
 
         Vector3d offset = Position - sphere.Center;
-        Fixed64 c = Vector3d.Dot(offset, offset) - sphere.SqrRadius;
+        Fixed64 c = Vector3d.Dot(offset, offset) - sphere.RadiusSquared;
         if (c <= Fixed64.Zero)
             return Fixed64.Zero;
 

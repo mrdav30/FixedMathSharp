@@ -1,4 +1,4 @@
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
 
 namespace FixedMathSharp.Benchmarks;
 
@@ -88,13 +88,13 @@ public class QuaternionBenchmarks
     }
 
     [Benchmark]
-    public FixedQuaternion Normalize()
+    public FixedQuaternion NormalizeInPlace()
     {
         FixedQuaternion accumulator = FixedQuaternion.Identity;
         for (int i = 0; i < _left.Length; i++)
         {
             FixedQuaternion value = _left[i] * _right[i];
-            accumulator = accumulator * value.Normalize();
+            accumulator = accumulator * value.NormalizeInPlace();
         }
 
         return accumulator;

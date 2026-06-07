@@ -94,7 +94,7 @@ public partial struct Vector3d
         Fixed64 dv = speed * dt;
         return dv > v.Magnitude
             ? b
-            : a + v.Normal * dv;
+            : a + v.Normalized * dv;
     }
 
     /// <summary>
@@ -121,7 +121,7 @@ public partial struct Vector3d
         // start and the final result.
         Fixed64 theta = FixedMath.Acos(dot) * percent;
         Vector3d RelativeVec = end - start * dot;
-        RelativeVec.Normalize();
+        RelativeVec.NormalizeInPlace();
         // Orthonormal basis
         // The final result.
         return (start * FixedMath.Cos(theta)) + (RelativeVec * FixedMath.Sin(theta));
@@ -269,8 +269,8 @@ public partial struct Vector3d
     /// <returns></returns>
     public static Vector3d ClampMagnitude(Vector3d value, Fixed64 maxMagnitude)
     {
-        if (value.SqrMagnitude > maxMagnitude * maxMagnitude)
-            return value.Normal * maxMagnitude; // Clamp magnitude without changing direction
+        if (value.MagnitudeSquared > maxMagnitude * maxMagnitude)
+            return value.Normalized * maxMagnitude; // Clamp magnitude without changing direction
 
         return value;
     }
@@ -281,7 +281,7 @@ public partial struct Vector3d
     /// <param name="v1">The first vector.</param>
     /// <param name="v2">The second vector.</param>
     /// <returns>True if the vectors are exactly parallel, false otherwise.</returns>
-    public static bool AreParallel(Vector3d v1, Vector3d v2) => Cross(v1, v2).SqrMagnitude == Fixed64.Zero;
+    public static bool AreParallel(Vector3d v1, Vector3d v2) => Cross(v1, v2).MagnitudeSquared == Fixed64.Zero;
 
     /// <summary>
     /// Determines if two vectors are approximately parallel based on a cosine similarity threshold.
@@ -313,9 +313,9 @@ public partial struct Vector3d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 Distance(Vector3d start, Vector3d end) => start.Distance(end.X, end.Y, end.Z);
 
-    /// <inheritdoc cref="SqrDistance(Fixed64, Fixed64, Fixed64)" />
+    /// <inheritdoc cref="DistanceSquared(Fixed64, Fixed64, Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 SqrDistance(Vector3d start, Vector3d end) => start.SqrDistance(end.X, end.Y, end.Z);
+    public static Fixed64 DistanceSquared(Vector3d start, Vector3d end) => start.DistanceSquared(end.X, end.Y, end.Z);
 
     /// <summary>
     /// Calculates the closest points on two line segments.
@@ -420,7 +420,7 @@ public partial struct Vector3d
     public static Vector3d ClosestPointOnLineSegment(Vector3d point, Vector3d start, Vector3d end)
     {
         Vector3d segment = end - start;
-        Fixed64 lengthSquared = segment.SqrMagnitude;
+        Fixed64 lengthSquared = segment.MagnitudeSquared;
 
         if (lengthSquared == Fixed64.Zero)
             return start;
@@ -501,7 +501,7 @@ public partial struct Vector3d
     /// <returns>The projected point.</returns>
     public static Vector3d ProjectOnPlane(Vector3d point, FixedPlane plane)
     {
-        Fixed64 normalLengthSquared = plane.Normal.SqrMagnitude;
+        Fixed64 normalLengthSquared = plane.Normal.MagnitudeSquared;
         if (normalLengthSquared == Fixed64.Zero)
             return point;
 
@@ -521,7 +521,7 @@ public partial struct Vector3d
     /// </remarks>
     public static Fixed64 Angle(Vector3d from, Vector3d to)
     {
-        Fixed64 denominator = FixedMath.Sqrt(from.SqrMagnitude * to.SqrMagnitude);
+        Fixed64 denominator = FixedMath.Sqrt(from.MagnitudeSquared * to.MagnitudeSquared);
 
         if (denominator.Abs() < Fixed64.Epsilon)
             return Fixed64.Zero;
@@ -593,7 +593,7 @@ public partial struct Vector3d
     public static Vector3d Rotate(Vector3d source, Vector3d position, FixedQuaternion rotation)
     {
         source -= position; // Translate the vector by the position
-        var normalizedRotation = rotation.Normal;
+        var normalizedRotation = rotation.Normalized;
         return (normalizedRotation * source) + position;
     }
 
@@ -607,7 +607,7 @@ public partial struct Vector3d
     public static Vector3d InverseRotate(Vector3d source, Vector3d position, FixedQuaternion rotation)
     {
         source -= position; // Translate the vector by the position
-        var normalizedRotation = rotation.Normal;
+        var normalizedRotation = rotation.Normalized;
         // Undo the rotation
         source = normalizedRotation.Inverse() * source;
         // Add the original position back

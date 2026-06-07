@@ -78,12 +78,12 @@ public partial struct FixedQuaternion
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedQuaternion Divide(FixedQuaternion dividend, FixedQuaternion divisor)
     {
-        Fixed64 divisorSqrMagnitude = divisor.SqrMagnitude;
+        Fixed64 divisorMagnitudeSquared = divisor.MagnitudeSquared;
 
-        if (divisorSqrMagnitude == Fixed64.Zero)
+        if (divisorMagnitudeSquared == Fixed64.Zero)
             throw new InvalidOperationException("Quaternion divisor is not invertible.");
 
-        Fixed64 invNorm = Fixed64.One / divisorSqrMagnitude;
+        Fixed64 invNorm = Fixed64.One / divisorMagnitudeSquared;
         FixedQuaternion inverseDivisor = new(
             -divisor.X * invNorm,
             -divisor.Y * invNorm,
@@ -103,8 +103,8 @@ public partial struct FixedQuaternion
     {
         Vector3d up = upwards ?? Vector3d.Up;
 
-        Vector3d forwardNormalized = forward.Normal;
-        Vector3d right = Vector3d.Cross(up.Normal, forwardNormalized);
+        Vector3d forwardNormalized = forward.Normalized;
+        Vector3d right = Vector3d.Cross(up.Normalized, forwardNormalized);
         up = Vector3d.Cross(forwardNormalized, right);
 
         return FromMatrix(new Fixed3x3(
@@ -188,13 +188,13 @@ public partial struct FixedQuaternion
     /// <returns>A quaternion representing the rotation to align with the direction.</returns>
     public static FixedQuaternion FromDirection(Vector3d direction)
     {
-        Fixed64 directionSqrMagnitude = direction.SqrMagnitude;
-        if (directionSqrMagnitude == Fixed64.Zero)
+        Fixed64 directionMagnitudeSquared = direction.MagnitudeSquared;
+        if (directionMagnitudeSquared == Fixed64.Zero)
             return Identity;
 
-        if (FixedMath.Abs(directionSqrMagnitude - Fixed64.One) > Fixed64.Epsilon)
+        if (FixedMath.Abs(directionMagnitudeSquared - Fixed64.One) > Fixed64.Epsilon)
         {
-            Fixed64 directionMagnitude = FixedMath.Sqrt(directionSqrMagnitude);
+            Fixed64 directionMagnitude = FixedMath.Sqrt(directionMagnitudeSquared);
             direction = new Vector3d(
                 direction.X / directionMagnitude,
                 direction.Y / directionMagnitude,
@@ -243,13 +243,13 @@ public partial struct FixedQuaternion
         if (angle < -Fixed64.Pi || angle > Fixed64.Pi)
             throw new ArgumentOutOfRangeException(nameof(angle), $"Angle must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {angle}");
 
-        Fixed64 axisSqrMagnitude = axis.SqrMagnitude;
-        if (axisSqrMagnitude == Fixed64.Zero)
+        Fixed64 axisMagnitudeSquared = axis.MagnitudeSquared;
+        if (axisMagnitudeSquared == Fixed64.Zero)
             return Identity;
 
-        if (FixedMath.Abs(axisSqrMagnitude - Fixed64.One) > Fixed64.Epsilon)
+        if (FixedMath.Abs(axisMagnitudeSquared - Fixed64.One) > Fixed64.Epsilon)
         {
-            Fixed64 axisMagnitude = FixedMath.Sqrt(axisSqrMagnitude);
+            Fixed64 axisMagnitude = FixedMath.Sqrt(axisMagnitudeSquared);
             axis = new Vector3d(
                 axis.X / axisMagnitude,
                 axis.Y / axisMagnitude,
@@ -340,7 +340,7 @@ public partial struct FixedQuaternion
     public static Vector3d QuaternionLog(FixedQuaternion q)
     {
         // Ensure the quaternion is normalized
-        q = q.Normal;
+        q = q.Normalized;
 
         // Extract vector part
         Vector3d v = new(q.X, q.Y, q.Z);
@@ -398,7 +398,7 @@ public partial struct FixedQuaternion
         result.Z = a.Z * oneMinusT + b.Z * t;
         result.W = a.W * oneMinusT + b.W * t;
 
-        result.Normalize();
+        result.NormalizeInPlace();
 
         return result;
     }
@@ -486,7 +486,7 @@ public partial struct FixedQuaternion
         angle = angle.ToRadians();
 
         // Normalize the axis
-        axis = axis.Normal;
+        axis = axis.Normalized;
 
         // Use the half-angle formula (sin(theta / 2), cos(theta / 2))
         Fixed64 halfAngle = angle / Fixed64.Two;

@@ -45,7 +45,7 @@ public class Vector2dTests
     }
 
     [Fact]
-    public void MyMagnitude_CalculatesCorrectMagnitude()
+    public void Magnitude_CalculatesCorrectMagnitude()
     {
         var vector = new Vector2d(3, 4);
         var result = vector.Magnitude;
@@ -54,10 +54,10 @@ public class Vector2dTests
     }
 
     [Fact]
-    public void SqrMagnitude_CalculatesCorrectSquareMagnitude()
+    public void MagnitudeSquared_CalculatesCorrectSquareMagnitude()
     {
         var vector = new Vector2d(3, 4);
-        var result = vector.SqrMagnitude;
+        var result = vector.MagnitudeSquared;
 
         Assert.Equal(new Fixed64(25), result); // The squared magnitude of (3, 4) is 25 (3^2 + 4^2)
     }
@@ -67,10 +67,10 @@ public class Vector2dTests
     public void NormalizeInPlace_NormalizesVectorCorrectly()
     {
         var vector = new Vector2d(3, 4);
-        vector.Normalize();
+        vector.NormalizeInPlace();
 
-        var expected = new Vector2d(Fixed64.FromFloatPoint(0.6), Fixed64.FromFloatPoint(0.8)); // Normalized vector (0.6, 0.8)
-        Assert.True(vector.FuzzyEqual(expected, Fixed64.FromFloatPoint(0.0001)));
+        var expected = new Vector2d(Fixed64.FromDouble(0.6), Fixed64.FromDouble(0.8)); // Normalized vector (0.6, 0.8)
+        Assert.True(vector.FuzzyEqual(expected, Fixed64.FromDouble(0.0001)));
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class Vector2dTests
     {
         var start = new Vector2d(0, 0);
         var end = new Vector2d(10, 10);
-        var amount = Fixed64.FromFloatPoint(0.5); // 50% interpolation
+        var amount = Fixed64.FromDouble(0.5); // 50% interpolation
 
         start.LerpInPlace(end, amount);
         Assert.Equal(new Vector2d(5, 5), start); // Should be halfway between (0, 0) and (10, 10)
@@ -92,7 +92,7 @@ public class Vector2dTests
         var sin = FixedMath.Sin(Fixed64.HalfPi); // 90° sine
 
         vector.RotateInPlace(cos, sin);
-        Assert.True(vector.FuzzyEqual(new Vector2d(0, 1), Fixed64.FromFloatPoint(0.0001))); // (1, 0) rotated 90° becomes (0, 1)
+        Assert.True(vector.FuzzyEqual(new Vector2d(0, 1), Fixed64.FromDouble(0.0001))); // (1, 0) rotated 90° becomes (0, 1)
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class Vector2dTests
         var sin = FixedMath.Sin(Fixed64.HalfPi); // 90° sine
 
         vector.RotateInverse(cos, sin);
-        Assert.True(vector.FuzzyEqual(new Vector2d(0, -1), Fixed64.FromFloatPoint(0.0001))); // Should rotate -90° to (0, -1)
+        Assert.True(vector.FuzzyEqual(new Vector2d(0, -1), Fixed64.FromDouble(0.0001))); // Should rotate -90° to (0, -1)
     }
 
     [Fact]
@@ -166,11 +166,11 @@ public class Vector2dTests
     }
 
     [Fact]
-    public void SqrDistance_ComputesSquareDistanceCorrectly()
+    public void DistanceSquared_ComputesSquareDistanceCorrectly()
     {
         var vector1 = new Vector2d(1, 1);
         var vector2 = new Vector2d(4, 5);
-        var result = vector1.SqrDistance(vector2);
+        var result = vector1.DistanceSquared(vector2);
 
         Assert.Equal(new Fixed64(25), result); // Squared distance between (1, 1) and (4, 5) is 25
     }
@@ -322,11 +322,11 @@ public class Vector2dTests
     {
         var vector = new Vector2d(3, 4);
 
-        var normalized = vector.Normalize(out var magnitude);
+        var normalized = vector.NormalizeInPlace(out var magnitude);
 
         Assert.Equal(new Fixed64(5), magnitude);
         Assert.Equal(vector, normalized);
-        Assert.True(vector.FuzzyEqual(new Vector2d(Fixed64.FromFloatPoint(0.6), Fixed64.FromFloatPoint(0.8)), Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(vector.FuzzyEqual(new Vector2d(Fixed64.FromDouble(0.6), Fixed64.FromDouble(0.8)), Fixed64.FromDouble(0.0001)));
     }
 
     [Fact]
@@ -334,7 +334,7 @@ public class Vector2dTests
     {
         var vector = Vector2d.Zero;
 
-        var normalized = vector.Normalize(out var magnitude);
+        var normalized = vector.NormalizeInPlace(out var magnitude);
 
         Assert.Equal(Fixed64.Zero, magnitude);
         Assert.Equal(Vector2d.Zero, normalized);
@@ -345,7 +345,7 @@ public class Vector2dTests
     {
         var vector = Vector2d.Right;
 
-        var normalized = vector.Normalize(out var magnitude);
+        var normalized = vector.NormalizeInPlace(out var magnitude);
 
         Assert.Equal(Fixed64.One, magnitude);
         Assert.Equal(Vector2d.Right, normalized);
@@ -366,7 +366,7 @@ public class Vector2dTests
     [Fact]
     public void Normalize_MatchesComponentDivisionByMagnitude_ForFractionalHugeAndTinyRawValues()
     {
-        AssertNormalizeMatchesComponentDivision(Vector2d.FromFloatPoint(1.5, -2.25));
+        AssertNormalizeMatchesComponentDivision(Vector2d.FromDouble(1.5, -2.25));
         AssertNormalizeMatchesComponentDivision(new Vector2d(10000, -20000));
         AssertNormalizeMatchesComponentDivision(new Vector2d(Fixed64.FromRaw(1), Fixed64.FromRaw(-1)));
     }
@@ -375,7 +375,7 @@ public class Vector2dTests
     public void NormalizeInPlace_DoesNothingForZeroVector()
     {
         var vector = new Vector2d(0, 0);
-        vector.Normalize();
+        vector.NormalizeInPlace();
 
         Assert.Equal(new Vector2d(0, 0), vector); // A zero vector remains zero after normalization
     }
@@ -385,19 +385,19 @@ public class Vector2dTests
         Fixed64 magnitude = source.Magnitude;
         if (magnitude == Fixed64.Zero)
         {
-            Assert.Equal(Vector2d.Zero, source.Normal);
+            Assert.Equal(Vector2d.Zero, source.Normalized);
 
             var zeroLength = source;
-            Assert.Equal(Vector2d.Zero, zeroLength.Normalize());
+            Assert.Equal(Vector2d.Zero, zeroLength.NormalizeInPlace());
             return;
         }
 
         var expected = new Vector2d(source.X / magnitude, source.Y / magnitude);
 
-        Assert.Equal(expected, source.Normal);
+        Assert.Equal(expected, source.Normalized);
 
         var inPlace = source;
-        Assert.Equal(expected, inPlace.Normalize());
+        Assert.Equal(expected, inPlace.NormalizeInPlace());
     }
 
     [Fact]
@@ -429,10 +429,10 @@ public class Vector2dTests
     [Fact]
     public void V2AbsAndSign_ExtensionsReturnComponentWiseResults()
     {
-        var vector = Vector2d.FromFloatPoint(-2, 0.5);
+        var vector = Vector2d.FromDouble(-2, 0.5);
 
-        Assert.Equal(Vector2d.FromFloatPoint(2, 0.5), vector.Abs());
-        Assert.Equal(Vector2d.FromFloatPoint(-1, 1), vector.Sign());
+        Assert.Equal(Vector2d.FromDouble(2, 0.5), vector.Abs());
+        Assert.Equal(Vector2d.FromDouble(-1, 1), vector.Sign());
     }
 
     [Fact]
@@ -457,8 +457,8 @@ public class Vector2dTests
     public void V2FuzzyEqualAbsolute_ComparesCorrectly_WithAllowedDifference()
     {
         var vector1 = new Vector2d(2, 2);
-        var vector2 = Vector2d.FromFloatPoint(2.1, 2.1);
-        var allowedDifference = Fixed64.FromFloatPoint(0.15);
+        var vector2 = Vector2d.FromDouble(2.1, 2.1);
+        var allowedDifference = Fixed64.FromDouble(0.15);
 
         Assert.True(vector1.FuzzyEqualAbsolute(vector2, allowedDifference)); // Approximate equality with a 0.15 difference
     }
@@ -467,12 +467,12 @@ public class Vector2dTests
     public void V2FuzzyEqual_ComparesCorrectly_WithDefaultTolerance()
     {
         var vector1 = new Vector2d(100, 100);
-        var vector2 = Vector2d.FromFloatPoint(100.0000008537, 100.0000008537); // Small difference
+        var vector2 = Vector2d.FromDouble(100.0000008537, 100.0000008537); // Small difference
 
         // Use FuzzyEqual with the default tolerance, which is small (e.g., 0.01% difference)
         Assert.True(vector1.FuzzyEqual(vector2)); // The difference should be within the default tolerance
 
-        vector2 = Vector2d.FromFloatPoint(100.0001, 100.0001); // big difference
+        vector2 = Vector2d.FromDouble(100.0001, 100.0001); // big difference
         Assert.False(vector1.FuzzyEqual(vector2)); // The difference should be outside the default tolerance
     }
 
@@ -482,7 +482,7 @@ public class Vector2dTests
     {
         var vector1 = new Vector2d(100, 100);
         var vector2 = new Vector2d(102, 102);
-        var percentage = Fixed64.FromFloatPoint(0.02); // Allow a 2% difference
+        var percentage = Fixed64.FromDouble(0.02); // Allow a 2% difference
 
         Assert.True(vector1.FuzzyEqual(vector2, percentage)); // Should be approximately equal within 2% difference
     }
@@ -498,11 +498,11 @@ public class Vector2dTests
     }
 
     [Fact]
-    public void V2SqrDistance_CalculatesCorrectly()
+    public void V2DistanceSquared_CalculatesCorrectly()
     {
         var vector1 = new Vector2d(0, 0);
         var vector2 = new Vector2d(3, 4); // Squared distance should be 25
-        var result = vector1.SqrDistance(vector2);
+        var result = vector1.DistanceSquared(vector2);
 
         Assert.Equal(new Fixed64(25), result); // 3^2 + 4^2 = 25
     }
@@ -514,7 +514,7 @@ public class Vector2dTests
         var angle = Fixed64.HalfPi; // Rotate by 90° (π/2 radians)
         var result = vector.Rotate(angle);
 
-        Assert.True(result.FuzzyEqual(new Vector2d(0, 1), Fixed64.FromFloatPoint(0.0001))); // Should rotate to (0, 1)
+        Assert.True(result.FuzzyEqual(new Vector2d(0, 1), Fixed64.FromDouble(0.0001))); // Should rotate to (0, 1)
     }
 
     [Fact]
@@ -522,9 +522,9 @@ public class Vector2dTests
     {
         var start = new Vector2d(0, 0);
 
-        var result = start.Lerp(new Vector2d(10, 20), Fixed64.FromFloatPoint(0.25));
+        var result = start.Lerp(new Vector2d(10, 20), Fixed64.FromDouble(0.25));
 
-        Assert.Equal(new Vector2d(Fixed64.FromFloatPoint(2.5), new Fixed64(5)), result);
+        Assert.Equal(new Vector2d(Fixed64.FromDouble(2.5), new Fixed64(5)), result);
         Assert.Equal(Vector2d.Zero, start);
     }
 
@@ -537,8 +537,8 @@ public class Vector2dTests
         var rotatedByComponents = vector.Rotated(rotation.X, rotation.Y);
         var rotatedByVector = vector.Rotated(rotation);
 
-        Assert.True(rotatedByComponents.FuzzyEqual(Vector2d.Forward, Fixed64.FromFloatPoint(0.0001)));
-        Assert.True(rotatedByVector.FuzzyEqual(Vector2d.Forward, Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(rotatedByComponents.FuzzyEqual(Vector2d.Forward, Fixed64.FromDouble(0.0001)));
+        Assert.True(rotatedByVector.FuzzyEqual(Vector2d.Forward, Fixed64.FromDouble(0.0001)));
         Assert.Equal(Vector2d.Right, vector);
     }
 
@@ -573,7 +573,7 @@ public class Vector2dTests
     {
         var result = Vector2d.ForwardDirection(Fixed64.HalfPi);
 
-        Assert.True(result.FuzzyEqual(Vector2d.Forward, Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(result.FuzzyEqual(Vector2d.Forward, Fixed64.FromDouble(0.0001)));
     }
 
     [Fact]
@@ -581,9 +581,9 @@ public class Vector2dTests
     {
         var vector = new Vector2d(new Fixed64(3), new Fixed64(4));
 
-        Assert.Equal(new Vector2d(Fixed64.FromFloatPoint(0.6), Fixed64.FromFloatPoint(0.8)), vector.Normal);
+        Assert.Equal(new Vector2d(Fixed64.FromDouble(0.6), Fixed64.FromDouble(0.8)), vector.Normalized);
         Assert.Equal(new Fixed64(5), vector.Magnitude);
-        Assert.Equal(new Fixed64(25), vector.SqrMagnitude);
+        Assert.Equal(new Fixed64(25), vector.MagnitudeSquared);
         Assert.Equal(vector.X.m_rawValue * 31 + vector.Y.m_rawValue * 7, vector.LongStateHash);
         Assert.Equal((int)(vector.LongStateHash % int.MaxValue), vector.StateHash);
         Assert.Equal(vector.StateHash, vector.GetHashCode());
@@ -614,13 +614,13 @@ public class Vector2dTests
     [Fact]
     public void Vector2d_StaticHelpersAndConversions_WorkCorrectly()
     {
-        var vector = new Vector2d(Fixed64.FromFloatPoint(1.25), Fixed64.FromFloatPoint(-2.5));
+        var vector = new Vector2d(Fixed64.FromDouble(1.25), Fixed64.FromDouble(-2.5));
 
-        Assert.Equal(new Fixed64(25), Vector2d.SqrDistance(Vector2d.Zero, new Vector2d(3, 4)));
+        Assert.Equal(new Fixed64(25), Vector2d.DistanceSquared(Vector2d.Zero, new Vector2d(3, 4)));
         Assert.Equal(new Fixed64(11), Vector2d.Dot(new Vector2d(1, 2), new Vector2d(3, 4)));
         Assert.Equal(new Vector2d(8, 15), Vector2d.Multiply(new Vector2d(2, 3), new Vector2d(4, 5)));
         Assert.Equal("(1.25, -2.5)", vector.ToString());
-        Assert.Equal(new Vector3d(Fixed64.FromFloatPoint(1.25), new Fixed64(7), Fixed64.FromFloatPoint(-2.5)), vector.ToVector3d(new Fixed64(7)));
+        Assert.Equal(new Vector3d(Fixed64.FromDouble(1.25), new Fixed64(7), Fixed64.FromDouble(-2.5)), vector.ToVector3d(new Fixed64(7)));
 
         vector.Deconstruct(out double fx, out double fy);
         vector.Deconstruct(out int ix, out int iy);
@@ -660,9 +660,9 @@ public class Vector2dTests
     {
         var actual = new Vector2d(1, 2);
         var expected = actual;
-        expected[componentIndex] += Fixed64.FromFloatPoint(0.2);
+        expected[componentIndex] += Fixed64.FromDouble(0.2);
 
-        Assert.False(actual.FuzzyEqualAbsolute(expected, Fixed64.FromFloatPoint(0.1)));
+        Assert.False(actual.FuzzyEqualAbsolute(expected, Fixed64.FromDouble(0.1)));
     }
 
     [Fact]
@@ -680,7 +680,7 @@ public class Vector2dTests
         Assert.Equal(new Vector2d(2, 4), vector * new Fixed64(2));
         Assert.Equal(new Vector2d(2, 4), new Fixed64(2) * vector);
         Assert.Equal(new Vector2d(2, 6), vector * new Vector2d(2, 3));
-        Assert.Equal(new Vector2d(Fixed64.FromFloatPoint(0.5), Fixed64.One), vector / new Fixed64(2));
+        Assert.Equal(new Vector2d(Fixed64.FromDouble(0.5), Fixed64.One), vector / new Fixed64(2));
     }
 
     #region Test: Serialization

@@ -139,13 +139,14 @@ Canonical:
   `RadToDeg`, and `DegToRad`.
 - `Fixed64`: constants, raw/value construction, explicit primitive
   conversions, arithmetic/comparison operators, `Parse`, `TryParse`, `FromRaw`,
-  `RawToInt`, `FromFloatPoint`, `FromFraction`, and equality/comparison.
-- Vectors: constants, fields, constructors, `Normal`, `Magnitude`,
-  `SqrMagnitude`, indexers, `Set`, `*InPlace`, `Normalize`, `Distance`,
-  `SqrDistance`, `Dot`, `Cross`, static interpolation/geometry helpers,
+  `ToInt`, `FromDouble`, `FromFraction`, and equality/comparison.
+- Vectors: constants, fields, constructors, `Normalized`, `Magnitude`,
+  `MagnitudeSquared`, indexers, `Set`, `*InPlace`, `NormalizeInPlace`,
+  `Distance`, `DistanceSquared`, `Dot`, `Cross`,
+  static interpolation/geometry helpers,
   operators, conversion/deconstruction, and equality/comparison.
-- Quaternions: constants, fields, constructors, `Normal`, `Magnitude`,
-  `EulerAngles`, `Normalize`, `Conjugate`, `Inverse`, `Rotate`, factories,
+- Quaternions: constants, fields, constructors, `Normalized`, `Magnitude`,
+  `EulerAngles`, `NormalizeInPlace`, `Conjugate`, `Inverse`, `Rotate`, factories,
   interpolation, angle/dot helpers, operators, matrix/direction conversions,
   and equality.
 - Matrices: fields, constructors, basis/transform properties, determinant,
@@ -178,14 +179,16 @@ Rename/review:
 - `Vector2d.Lerped` should be reviewed against `Lerp`, `LerpTo`, or removed if
   it duplicates clearer static/instance forms.
 - `GetMagnitude` methods should be reviewed against existing `Magnitude`
-  properties; keep static forms only if they add discoverable value.
-- `Scale`/`ScaleInPlace` should be reviewed because the current name blends
-  scalar multiplication and component-wise multiplication.
+  properties; static forms remain intentionally because C# cannot expose a
+  static `Magnitude(...)` method beside the instance `Magnitude` property, and
+  they pair with `GetNormalized`.
+- `Scale`/`ScaleInPlace` was resolved in Phase 2 for vectors; matrix scale
+  factories/properties remain because they describe transform scale.
 - `CheckDistance` should be reviewed for naming and implementation; it likely
   wants squared-distance semantics when callers only need threshold checks.
-- `FromFloatPoint`, `RawToString`, and `ToFormatted*` should be reviewed for
-  naming and ownership because they mix conversion, raw representation, and
-  human-readable formatting.
+- `FromFloatPoint`, `RawToString`, and `RawToInt` were resolved in Phase 7 as
+  `FromDouble`, `ToRawString`, and `ToInt`; `ToFormatted*` remains a later
+  formatting/conversion ownership review target.
 - `GetHypotenuse` and `SinToCos` should be reviewed for naming and whether they
   belong on the public `FixedMath` surface or as internal implementation
   helpers with curated extension aliases.
@@ -510,10 +513,15 @@ passed.
 - Modify: `src/FixedMathSharp/**/*.cs`
 - Modify only if already touched: `tests/FixedMathSharp.Tests/**/*.cs`
 
-- [ ] Remove `this.` where it only adds noise.
-- [ ] Keep explicit member qualification when it prevents constructor parameter
+- [x] Remove `this.` where it only adds noise.
+- [x] Keep explicit member qualification when it prevents constructor parameter
   confusion, especially around `m_rawValue`.
-- [ ] Do not mix this purely mechanical cleanup with semantic API changes.
+- [x] Do not mix this purely mechanical cleanup with semantic API changes.
+
+Implementation result on 2026-06-07: removed redundant source `this.`
+qualifiers from constructors and simple member calls while preserving
+`this.m_rawValue` in the internal `Fixed64(long m_rawValue)` constructor,
+where the qualifier disambiguates the parameter from the readonly field.
 
 Verification:
 
@@ -531,16 +539,27 @@ dotnet build FixedMathSharp.slnx --configuration Debug --no-restore
 - Modify: matching tests
 - Modify: README or wiki docs if public names change
 
-- [ ] Normalize singular/plural and tense mismatches such as `ToDegree` versus
+- [x] Normalize singular/plural and tense mismatches such as `ToDegree` versus
   `ToDegrees`, `Lerped` versus `Lerp`, and `GetMagnitude` versus `Magnitude`.
-- [ ] Prefer names that make mutability explicit: `NormalizeInPlace`,
+- [x] Prefer names that make mutability explicit: `NormalizeInPlace`,
   `GetNormalized`, and `IsNormalized` should remain semantically distinct.
-- [ ] Decide whether `Scale` means scalar multiply, component-wise multiply, or
+- [x] Decide whether `Scale` means scalar multiply, component-wise multiply, or
   both; rename if that ambiguity hurts public discoverability.
-- [ ] Document any intentional deviations where a common game-math name is kept
+- [x] Document any intentional deviations where a common game-math name is kept
   for discoverability.
-- [ ] Update tests and benchmark names with the public API changes so future
+- [x] Update tests and benchmark names with the public API changes so future
   reports read cleanly.
+
+Implementation result on 2026-06-07: renamed the public value-returning
+normalization surface from `Normal` to `Normalized`, mutating normalization
+overloads from `Normalize` to `NormalizeInPlace`, static plane/matrix
+normalization from `Normalize` to `GetNormalized`, squared APIs from `Sqr*` to
+`*Squared`, double-based factories from `FromFloatPoint`/`FromFloat` to
+`FromDouble`, and scalar raw helpers from `RawToString`/`RawToInt` to
+`ToRawString`/`ToInt`. `FixedPlane.Normal` remains unchanged because it is a
+real plane normal field, not a normalized-value convenience API. `GetMagnitude`
+remains intentionally because it mirrors `GetNormalized` and avoids a C#
+member-name conflict with instance `Magnitude` properties.
 
 Verification:
 
@@ -548,6 +567,14 @@ Verification:
 dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj --configuration Release -f net8.0 --no-restore
 ```
+
+Verification result on 2026-06-07: the full Debug solution test run passed
+with 951 tests, the Release `net8.0` benchmark project build passed with zero
+warnings/errors, Release and ReleaseLean `netstandard2.1` builds passed with
+zero warnings/errors, the `this.` scan now only reports the intentional
+`Fixed64(long m_rawValue)` field/parameter disambiguation, the stale public API
+name scan only reports old names in Phase 7 rename-history notes, and
+`git diff --check` passed.
 
 ## Phase 8: `Fast*` And Special-Case Helper API Review
 

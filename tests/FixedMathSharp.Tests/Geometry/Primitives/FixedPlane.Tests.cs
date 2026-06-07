@@ -1,4 +1,4 @@
-using FixedMathSharp.Bounds;
+﻿using FixedMathSharp.Bounds;
 using System;
 using Xunit;
 
@@ -34,7 +34,7 @@ public class FixedPlaneTests
     [Fact]
     public void Normalize_ScalesNormalAndDistanceTogether()
     {
-        var plane = FixedPlane.Normalize(new FixedPlane(new Vector3d(0, 0, 2), new Fixed64(-4)));
+        var plane = FixedPlane.GetNormalized(new FixedPlane(new Vector3d(0, 0, 2), new Fixed64(-4)));
 
         Assert.Equal(Vector3d.Forward, plane.Normal);
         Assert.Equal(new Fixed64(-2), plane.D);
@@ -45,16 +45,16 @@ public class FixedPlaneTests
     {
         var plane = new FixedPlane(new Vector3d(0, 3, 0), new Fixed64(-6));
 
-        plane.Normalize();
+        plane.NormalizeInPlace();
 
-        Assert.True(plane.Normal.FuzzyEqual(Vector3d.Up, Fixed64.FromFloatPoint(0.0001)));
+        Assert.True(plane.Normal.FuzzyEqual(Vector3d.Up, Fixed64.FromDouble(0.0001)));
         FixedMathTestHelper.AssertWithinRelativeTolerance(new Fixed64(-2), plane.D);
     }
 
     [Fact]
     public void Normalize_ZeroNormal_Throws()
     {
-        Assert.Throws<ArithmeticException>(() => FixedPlane.Normalize(new FixedPlane(Vector3d.Zero, Fixed64.One)));
+        Assert.Throws<ArithmeticException>(() => FixedPlane.GetNormalized(new FixedPlane(Vector3d.Zero, Fixed64.One)));
     }
 
     [Fact]

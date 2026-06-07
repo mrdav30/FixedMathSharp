@@ -73,10 +73,10 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     /// </summary>
     public FixedQuaternion(Fixed64 x, Fixed64 y, Fixed64 z, Fixed64 w)
     {
-        this.X = x;
-        this.Y = y;
-        this.Z = z;
-        this.W = w;
+        X = x;
+        Y = y;
+        Z = z;
+        W = w;
     }
 
     #endregion
@@ -87,7 +87,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public FixedQuaternion Normal
+    public FixedQuaternion Normalized
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => GetNormalized(this);
@@ -109,7 +109,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
-    public Fixed64 SqrMagnitude
+    public Fixed64 MagnitudeSquared
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => X * X + Y * Y + Z * Z + W * W;
@@ -197,7 +197,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     /// Normalizes this quaternion in place.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public FixedQuaternion Normalize() => this = GetNormalized(this);
+    public FixedQuaternion NormalizeInPlace() => this = GetNormalized(this);
 
     /// <summary>
     /// Returns the conjugate of this quaternion (inverses the rotational effect).
@@ -211,7 +211,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     public FixedQuaternion Inverse()
     {
         if (this == Identity) return Identity;
-        Fixed64 norm = SqrMagnitude;
+        Fixed64 norm = MagnitudeSquared;
         if (norm == Fixed64.Zero) return this; // Handle division by zero by returning the same quaternion
 
         Fixed64 invNorm = Fixed64.One / norm;
@@ -223,7 +223,7 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
     /// </summary>
     public Vector3d Rotate(Vector3d v)
     {
-        FixedQuaternion normalizedQuat = Normal;
+        FixedQuaternion normalizedQuat = Normalized;
         FixedQuaternion vQuat = new(v.X, v.Y, v.Z, Fixed64.Zero);
         FixedQuaternion invQuat = normalizedQuat.Conjugate();
         FixedQuaternion rotatedVQuat = (normalizedQuat * vQuat) * invQuat;

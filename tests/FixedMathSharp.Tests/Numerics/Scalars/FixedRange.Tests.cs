@@ -282,7 +282,7 @@ public class FixedRangeTests
     [Fact]
     public void FixedRange_ToString_FormatsMinAndMax()
     {
-        var range = new FixedRange(Fixed64.FromFloatPoint(-1.25), Fixed64.FromFloatPoint(2.5));
+        var range = new FixedRange(Fixed64.FromDouble(-1.25), Fixed64.FromDouble(2.5));
 
         Assert.Equal("-1.25 - 2.5", range.ToString());
     }
@@ -309,8 +309,8 @@ public class FixedRangeTests
     [Fact]
     public void FixedRange_SmallRanges_OverlapCorrectly()
     {
-        var smallRange1 = new FixedRange(Fixed64.FromFloatPoint(0.0001), Fixed64.FromFloatPoint(0.0002));
-        var smallRange2 = new FixedRange(Fixed64.FromFloatPoint(0.00015), Fixed64.FromFloatPoint(0.00025));
+        var smallRange1 = new FixedRange(Fixed64.FromDouble(0.0001), Fixed64.FromDouble(0.0002));
+        var smallRange2 = new FixedRange(Fixed64.FromDouble(0.00015), Fixed64.FromDouble(0.00025));
 
         Assert.True(smallRange1.Overlaps(smallRange2));
     }

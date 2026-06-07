@@ -1,4 +1,4 @@
-using FixedMathSharp.Assertions;
+﻿using FixedMathSharp.Assertions;
 using System;
 using Xunit;
 
@@ -19,15 +19,15 @@ public class FixedAssertionsTests
     [Fact]
     public void Fixed64Assertions_SupportApproximateEqualityAndRawValueChecks()
     {
-        Fixed64 value = Fixed64.FromFloatPoint(1.25);
+        Fixed64 value = Fixed64.FromDouble(1.25);
         Fixed64 farValue = new(2);
 
         AssertAssertionPasses(() =>
         {
             value.Should().Be(value);
             value.Should().NotBe(farValue);
-            value.Should().BeApproximately(Fixed64.FromFloatPoint(1.25));
-            value.Should().NotBeApproximately(farValue, Fixed64.FromFloatPoint(0.1));
+            value.Should().BeApproximately(Fixed64.FromDouble(1.25));
+            value.Should().NotBeApproximately(farValue, Fixed64.FromDouble(0.1));
             value.Should().HaveRawValue(value.m_rawValue);
         });
     }
@@ -35,31 +35,31 @@ public class FixedAssertionsTests
     [Fact]
     public void Fixed64Assertions_FailForApproximateAndRawValueMismatches()
     {
-        Fixed64 value = Fixed64.FromFloatPoint(1.25);
+        Fixed64 value = Fixed64.FromDouble(1.25);
 
-        AssertAssertionFails(() => value.Should().Be(Fixed64.FromFloatPoint(2)));
+        AssertAssertionFails(() => value.Should().Be(Fixed64.FromDouble(2)));
         AssertAssertionFails(() => value.Should().NotBe(value));
-        AssertAssertionFails(() => value.Should().BeApproximately(new Fixed64(2), Fixed64.FromFloatPoint(0.1)));
-        AssertAssertionFails(() => value.Should().NotBeApproximately(Fixed64.FromFloatPoint(1.3), Fixed64.FromFloatPoint(0.1)));
+        AssertAssertionFails(() => value.Should().BeApproximately(new Fixed64(2), Fixed64.FromDouble(0.1)));
+        AssertAssertionFails(() => value.Should().NotBeApproximately(Fixed64.FromDouble(1.3), Fixed64.FromDouble(0.1)));
         AssertAssertionFails(() => value.Should().HaveRawValue(value.m_rawValue + 1));
     }
 
     [Fact]
     public void Vector2dAssertions_SupportApproximateMagnitudeAndNormalizationChecks()
     {
-        Vector2d actual = Vector2d.FromFloatPoint(2.001, 3.001);
+        Vector2d actual = Vector2d.FromDouble(2.001, 3.001);
         Vector2d expected = new(2, 3);
-        Vector2d normalized = new Vector2d(3, 4).Normalize();
+        Vector2d normalized = new Vector2d(3, 4).NormalizeInPlace();
 
         AssertAssertionPasses(() =>
         {
             actual.Should().Be(actual);
             actual.Should().NotBe(new Vector2d(9, 9));
-            actual.Should().BeApproximately(expected, Fixed64.FromFloatPoint(0.01));
-            actual.Should().NotBeApproximately(new Vector2d(5, 7), Fixed64.FromFloatPoint(0.1));
-            actual.Should().HaveComponentApproximately(expected, Fixed64.FromFloatPoint(0.01));
+            actual.Should().BeApproximately(expected, Fixed64.FromDouble(0.01));
+            actual.Should().NotBeApproximately(new Vector2d(5, 7), Fixed64.FromDouble(0.1));
+            actual.Should().HaveComponentApproximately(expected, Fixed64.FromDouble(0.01));
             actual.Should().HaveMagnitudeApproximately(actual.Magnitude, Fixed64.Epsilon);
-            normalized.Should().BeNormalized(Fixed64.FromFloatPoint(0.0001));
+            normalized.Should().BeNormalized(Fixed64.FromDouble(0.0001));
         });
     }
 
@@ -71,28 +71,28 @@ public class FixedAssertionsTests
         AssertAssertionFails(() => actual.Should().Be(new Vector2d(2, 4)));
         AssertAssertionFails(() => actual.Should().NotBe(actual));
         AssertAssertionFails(() => actual.Should().BeApproximately(new Vector2d(2, 4), Fixed64.Epsilon));
-        AssertAssertionFails(() => actual.Should().NotBeApproximately(Vector2d.FromFloatPoint(2.001, 3.001), Fixed64.FromFloatPoint(0.01)));
+        AssertAssertionFails(() => actual.Should().NotBeApproximately(Vector2d.FromDouble(2.001, 3.001), Fixed64.FromDouble(0.01)));
         AssertAssertionFails(() => actual.Should().HaveComponentApproximately(new Vector2d(2, 4), Fixed64.Epsilon));
         AssertAssertionFails(() => actual.Should().HaveMagnitudeApproximately(Fixed64.Zero, Fixed64.Epsilon));
-        AssertAssertionFails(() => actual.Should().BeNormalized(Fixed64.FromFloatPoint(0.0001)));
+        AssertAssertionFails(() => actual.Should().BeNormalized(Fixed64.FromDouble(0.0001)));
     }
 
     [Fact]
     public void Vector3dAssertions_SupportApproximateMagnitudeAndNormalizationChecks()
     {
-        Vector3d actual = Vector3d.FromFloatPoint(1.001, 2.001, 3.001);
+        Vector3d actual = Vector3d.FromDouble(1.001, 2.001, 3.001);
         Vector3d expected = new(1, 2, 3);
-        Vector3d normalized = new Vector3d(3, 4, 0).Normalize();
+        Vector3d normalized = new Vector3d(3, 4, 0).NormalizeInPlace();
 
         AssertAssertionPasses(() =>
         {
             actual.Should().Be(actual);
             actual.Should().NotBe(new Vector3d(9, 9, 9));
-            actual.Should().BeApproximately(expected, Fixed64.FromFloatPoint(0.01));
-            actual.Should().NotBeApproximately(new Vector3d(8, 8, 8), Fixed64.FromFloatPoint(0.1));
-            actual.Should().HaveComponentApproximately(expected, Fixed64.FromFloatPoint(0.01));
+            actual.Should().BeApproximately(expected, Fixed64.FromDouble(0.01));
+            actual.Should().NotBeApproximately(new Vector3d(8, 8, 8), Fixed64.FromDouble(0.1));
+            actual.Should().HaveComponentApproximately(expected, Fixed64.FromDouble(0.01));
             actual.Should().HaveMagnitudeApproximately(actual.Magnitude, Fixed64.Epsilon);
-            normalized.Should().BeNormalized(Fixed64.FromFloatPoint(0.0001));
+            normalized.Should().BeNormalized(Fixed64.FromDouble(0.0001));
         });
     }
 
@@ -104,10 +104,10 @@ public class FixedAssertionsTests
         AssertAssertionFails(() => actual.Should().Be(new Vector3d(1, 2, 4)));
         AssertAssertionFails(() => actual.Should().NotBe(actual));
         AssertAssertionFails(() => actual.Should().BeApproximately(new Vector3d(1, 2, 4), Fixed64.Epsilon));
-        AssertAssertionFails(() => actual.Should().NotBeApproximately(Vector3d.FromFloatPoint(1.001, 2.001, 3.001), Fixed64.FromFloatPoint(0.01)));
+        AssertAssertionFails(() => actual.Should().NotBeApproximately(Vector3d.FromDouble(1.001, 2.001, 3.001), Fixed64.FromDouble(0.01)));
         AssertAssertionFails(() => actual.Should().HaveComponentApproximately(new Vector3d(1, 2, 4), Fixed64.Epsilon));
         AssertAssertionFails(() => actual.Should().HaveMagnitudeApproximately(Fixed64.Zero, Fixed64.Epsilon));
-        AssertAssertionFails(() => actual.Should().BeNormalized(Fixed64.FromFloatPoint(0.0001)));
+        AssertAssertionFails(() => actual.Should().BeNormalized(Fixed64.FromDouble(0.0001)));
     }
 
     [Fact]
@@ -115,17 +115,17 @@ public class FixedAssertionsTests
     {
         FixedQuaternion actual = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
         FixedQuaternion negated = actual * -Fixed64.One;
-        FixedQuaternion wOffset = new(actual.X, actual.Y, actual.Z, actual.W + Fixed64.FromFloatPoint(0.2));
+        FixedQuaternion wOffset = new(actual.X, actual.Y, actual.Z, actual.W + Fixed64.FromDouble(0.2));
 
         AssertAssertionPasses(() =>
         {
             actual.Should().Be(actual);
             actual.Should().NotBe(FixedQuaternion.Identity);
             actual.Should().BeApproximately(actual, Fixed64.Epsilon);
-            actual.Should().NotBeApproximately(wOffset, Fixed64.FromFloatPoint(0.01));
+            actual.Should().NotBeApproximately(wOffset, Fixed64.FromDouble(0.01));
             actual.Should().HaveComponentApproximately(actual, Fixed64.Epsilon);
-            actual.Should().RepresentSameRotationAs(negated, Fixed64.FromFloatPoint(0.0001));
-            actual.Should().BeNormalized(Fixed64.FromFloatPoint(0.0001));
+            actual.Should().RepresentSameRotationAs(negated, Fixed64.FromDouble(0.0001));
+            actual.Should().BeNormalized(Fixed64.FromDouble(0.0001));
             FixedQuaternion.Identity.Should().BeIdentity();
         });
     }
@@ -136,14 +136,14 @@ public class FixedAssertionsTests
         FixedQuaternion actual = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
         FixedQuaternion differentRotation = FixedQuaternion.FromAxisAngle(Vector3d.Right, Fixed64.HalfPi);
         FixedQuaternion scaled = actual * new Fixed64(2);
-        FixedQuaternion wOffset = new(actual.X, actual.Y, actual.Z, actual.W + Fixed64.FromFloatPoint(0.2));
+        FixedQuaternion wOffset = new(actual.X, actual.Y, actual.Z, actual.W + Fixed64.FromDouble(0.2));
 
         AssertAssertionFails(() => actual.Should().Be(FixedQuaternion.Identity));
         AssertAssertionFails(() => FixedQuaternion.Identity.Should().NotBe(FixedQuaternion.Identity));
-        AssertAssertionFails(() => actual.Should().BeApproximately(wOffset, Fixed64.FromFloatPoint(0.01)));
+        AssertAssertionFails(() => actual.Should().BeApproximately(wOffset, Fixed64.FromDouble(0.01)));
         AssertAssertionFails(() => actual.Should().NotBeApproximately(actual, Fixed64.Epsilon));
-        AssertAssertionFails(() => actual.Should().RepresentSameRotationAs(differentRotation, Fixed64.FromFloatPoint(0.0001)));
-        AssertAssertionFails(() => scaled.Should().BeNormalized(Fixed64.FromFloatPoint(0.0001)));
+        AssertAssertionFails(() => actual.Should().RepresentSameRotationAs(differentRotation, Fixed64.FromDouble(0.0001)));
+        AssertAssertionFails(() => scaled.Should().BeNormalized(Fixed64.FromDouble(0.0001)));
         AssertAssertionFails(() => actual.Should().BeIdentity());
     }
 
@@ -156,14 +156,14 @@ public class FixedAssertionsTests
         Fixed3x3 mismatch = new(
             rotation.M11, rotation.M12, rotation.M13,
             rotation.M21, rotation.M22, rotation.M23,
-            rotation.M31, rotation.M32, rotation.M33 + Fixed64.FromFloatPoint(0.2));
+            rotation.M31, rotation.M32, rotation.M33 + Fixed64.FromDouble(0.2));
 
         AssertAssertionPasses(() =>
         {
             Fixed3x3.Identity.Should().BeIdentity();
             rotation.Should().NotBe(Fixed3x3.Zero);
             rotation.Should().BeApproximately(rotation, Fixed64.Epsilon);
-            rotation.Should().NotBeApproximately(mismatch, Fixed64.FromFloatPoint(0.01));
+            rotation.Should().NotBeApproximately(mismatch, Fixed64.FromDouble(0.01));
             scaleMatrix.Should().HaveScaleApproximately(scale, Fixed64.Epsilon);
             rotation.Should().HaveNormalizedAxes(Fixed64.Epsilon);
         });
@@ -176,12 +176,12 @@ public class FixedAssertionsTests
         Fixed3x3 mismatch = new(
             rotation.M11, rotation.M12, rotation.M13,
             rotation.M21, rotation.M22, rotation.M23,
-            rotation.M31, rotation.M32, rotation.M33 + Fixed64.FromFloatPoint(0.2));
+            rotation.M31, rotation.M32, rotation.M33 + Fixed64.FromDouble(0.2));
         Fixed3x3 unnormalizedAxes = Fixed3x3.CreateScale(new Vector3d(1, 1, 2));
 
         AssertAssertionFails(() => rotation.Should().BeIdentity());
         AssertAssertionFails(() => Fixed3x3.Identity.Should().NotBe(Fixed3x3.Identity));
-        AssertAssertionFails(() => rotation.Should().BeApproximately(mismatch, Fixed64.FromFloatPoint(0.01)));
+        AssertAssertionFails(() => rotation.Should().BeApproximately(mismatch, Fixed64.FromDouble(0.01)));
         AssertAssertionFails(() => rotation.Should().HaveScaleApproximately(new Vector3d(1, 1, 2), Fixed64.Epsilon));
         AssertAssertionFails(() => unnormalizedAxes.Should().HaveNormalizedAxes(Fixed64.Epsilon));
     }
@@ -198,18 +198,18 @@ public class FixedAssertionsTests
             transform.M11, transform.M12, transform.M13, transform.M14,
             transform.M21, transform.M22, transform.M23, transform.M24,
             transform.M31, transform.M32, transform.M33, transform.M34,
-            transform.M41, transform.M42, transform.M43, transform.M44 + Fixed64.FromFloatPoint(0.2));
+            transform.M41, transform.M42, transform.M43, transform.M44 + Fixed64.FromDouble(0.2));
 
         AssertAssertionPasses(() =>
         {
             Fixed4x4.Identity.Should().BeIdentity();
             transform.Should().NotBe(Fixed4x4.Identity);
             transform.Should().BeApproximately(transform, Fixed64.Epsilon);
-            transform.Should().NotBeApproximately(mismatch, Fixed64.FromFloatPoint(0.01));
+            transform.Should().NotBeApproximately(mismatch, Fixed64.FromDouble(0.01));
             transform.Should().BeAffine();
-            transform.Should().HaveTranslationApproximately(translation, Fixed64.FromFloatPoint(0.0001));
-            transform.Should().HaveRotationApproximately(rotation, Fixed64.FromFloatPoint(0.0001));
-            transform.Should().HaveScaleApproximately(scale, Fixed64.FromFloatPoint(0.0001));
+            transform.Should().HaveTranslationApproximately(translation, Fixed64.FromDouble(0.0001));
+            transform.Should().HaveRotationApproximately(rotation, Fixed64.FromDouble(0.0001));
+            transform.Should().HaveScaleApproximately(scale, Fixed64.FromDouble(0.0001));
             rotationOnly.Should().HaveNormalizedRotationBasis(Fixed64.Epsilon);
         });
     }
@@ -226,19 +226,19 @@ public class FixedAssertionsTests
             transform.M11, transform.M12, transform.M13, transform.M14,
             transform.M21, transform.M22, transform.M23, transform.M24,
             transform.M31, transform.M32, transform.M33, transform.M34,
-            transform.M41, transform.M42, transform.M43, transform.M44 + Fixed64.FromFloatPoint(0.2));
+            transform.M41, transform.M42, transform.M43, transform.M44 + Fixed64.FromDouble(0.2));
         Fixed4x4 nonAffine = transform;
         nonAffine.M14 = Fixed64.One;
         Fixed4x4 unnormalizedBasis = Fixed4x4.CreateScale(new Vector3d(1, 1, 2));
 
         AssertAssertionFails(() => transform.Should().BeIdentity());
         AssertAssertionFails(() => Fixed4x4.Identity.Should().NotBe(Fixed4x4.Identity));
-        AssertAssertionFails(() => transform.Should().BeApproximately(mismatch, Fixed64.FromFloatPoint(0.01)));
+        AssertAssertionFails(() => transform.Should().BeApproximately(mismatch, Fixed64.FromDouble(0.01)));
         AssertAssertionFails(() => Fixed4x4.Identity.Should().NotBeApproximately(Fixed4x4.Identity, Fixed64.Epsilon));
         AssertAssertionFails(() => nonAffine.Should().BeAffine());
-        AssertAssertionFails(() => transform.Should().HaveTranslationApproximately(new Vector3d(1, 2, 4), Fixed64.FromFloatPoint(0.0001)));
-        AssertAssertionFails(() => transform.Should().HaveScaleApproximately(new Vector3d(2, 2, 3), Fixed64.FromFloatPoint(0.0001)));
-        AssertAssertionFails(() => transform.Should().HaveRotationApproximately(differentRotation, Fixed64.FromFloatPoint(0.0001)));
+        AssertAssertionFails(() => transform.Should().HaveTranslationApproximately(new Vector3d(1, 2, 4), Fixed64.FromDouble(0.0001)));
+        AssertAssertionFails(() => transform.Should().HaveScaleApproximately(new Vector3d(2, 2, 3), Fixed64.FromDouble(0.0001)));
+        AssertAssertionFails(() => transform.Should().HaveRotationApproximately(differentRotation, Fixed64.FromDouble(0.0001)));
         AssertAssertionFails(() => unnormalizedBasis.Should().HaveNormalizedRotationBasis(Fixed64.Epsilon));
     }
 
@@ -249,9 +249,9 @@ public class FixedAssertionsTests
     {
         var expected = new Vector2d(10, 10);
         var actual = expected;
-        actual[componentIndex] += Fixed64.FromFloatPoint(0.2);
+        actual[componentIndex] += Fixed64.FromDouble(0.2);
 
-        AssertAssertionFails(() => actual.Should().HaveComponentApproximately(expected, Fixed64.FromFloatPoint(0.1)));
+        AssertAssertionFails(() => actual.Should().HaveComponentApproximately(expected, Fixed64.FromDouble(0.1)));
     }
 
     [Theory]
@@ -262,9 +262,9 @@ public class FixedAssertionsTests
     {
         var expected = new Vector3d(10, 10, 10);
         var actual = expected;
-        actual[componentIndex] += Fixed64.FromFloatPoint(0.2);
+        actual[componentIndex] += Fixed64.FromDouble(0.2);
 
-        AssertAssertionFails(() => actual.Should().HaveComponentApproximately(expected, Fixed64.FromFloatPoint(0.1)));
+        AssertAssertionFails(() => actual.Should().HaveComponentApproximately(expected, Fixed64.FromDouble(0.1)));
     }
 
     [Theory]
@@ -275,9 +275,9 @@ public class FixedAssertionsTests
     public void FixedQuaternionAssertions_ComponentApproximationFailsForEachComponent(int componentIndex)
     {
         var expected = new FixedQuaternion(new Fixed64(10), new Fixed64(10), new Fixed64(10), new Fixed64(10));
-        var actual = OffsetQuaternionComponent(expected, componentIndex, Fixed64.FromFloatPoint(0.2));
+        var actual = OffsetQuaternionComponent(expected, componentIndex, Fixed64.FromDouble(0.2));
 
-        AssertAssertionFails(() => actual.Should().BeApproximately(expected, Fixed64.FromFloatPoint(0.1)));
+        AssertAssertionFails(() => actual.Should().BeApproximately(expected, Fixed64.FromDouble(0.1)));
     }
 
     [Theory]
@@ -293,9 +293,9 @@ public class FixedAssertionsTests
     public void Fixed3x3Assertions_ComponentApproximationFailsForEachComponent(int componentIndex)
     {
         var expected = CreateSequentialMatrix3x3();
-        var actual = OffsetMatrixComponent(expected, componentIndex, Fixed64.FromFloatPoint(0.2));
+        var actual = OffsetMatrixComponent(expected, componentIndex, Fixed64.FromDouble(0.2));
 
-        AssertAssertionFails(() => actual.Should().BeApproximately(expected, Fixed64.FromFloatPoint(0.1)));
+        AssertAssertionFails(() => actual.Should().BeApproximately(expected, Fixed64.FromDouble(0.1)));
     }
 
     [Theory]
@@ -318,9 +318,9 @@ public class FixedAssertionsTests
     public void Fixed4x4Assertions_ComponentApproximationFailsForEachComponent(int componentIndex)
     {
         var expected = CreateSequentialMatrix4x4();
-        var actual = OffsetMatrixComponent(expected, componentIndex, Fixed64.FromFloatPoint(0.2));
+        var actual = OffsetMatrixComponent(expected, componentIndex, Fixed64.FromDouble(0.2));
 
-        AssertAssertionFails(() => actual.Should().BeApproximately(expected, Fixed64.FromFloatPoint(0.1)));
+        AssertAssertionFails(() => actual.Should().BeApproximately(expected, Fixed64.FromDouble(0.1)));
     }
 
     [Theory]
