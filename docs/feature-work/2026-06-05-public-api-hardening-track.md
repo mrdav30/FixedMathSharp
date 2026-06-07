@@ -469,15 +469,25 @@ ordering, and `git diff --check` passed.
 - Modify or split: `src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.cs`
 - Consider later: test files above roughly 1000 lines
 
-- [ ] Split only files that have meaningful responsibility boundaries; avoid
+- [x] Split only files that have meaningful responsibility boundaries; avoid
   one-method or two-method partial files.
-- [ ] Prefer partials such as `*.Constants.cs`, `*.Properties.cs`,
+- [x] Prefer partials such as `*.Constants.cs`, `*.Properties.cs`,
   `*.Instance.cs`, `*.Statics.cs`, `*.Operators.cs`, `*.Conversions.cs`,
   `*.Serialization.cs`, and `*.Equality.cs` when those boundaries fit the type.
-- [ ] Move code mechanically first, with no behavior changes in the same commit.
-- [ ] Preserve XML docs, attributes, regions only where they still help, and
+- [x] Move code mechanically first, with no behavior changes in the same commit.
+- [x] Preserve XML docs, attributes, regions only where they still help, and
   MemoryPack/System.Text.Json attributes exactly.
-- [ ] Keep namespace and `partial` declarations consistent across all new files.
+- [x] Keep namespace and `partial` declarations consistent across all new files.
+
+Implementation result on 2026-06-06: split the oversized production structs
+into responsibility-based partials while leaving the front-door type files with
+fields, constructors, properties, and instance methods. New partials cover
+static operations, factories, decomposition, operators, conversions, equality,
+and focused helpers where those boundaries fit. The five original files now sit
+below the roughly 1000-line review threshold; test-file splitting remains a
+later consideration. `AGENTS.md` now captures the production-source rule so
+future large files are split into meaningful partials instead of drifting past
+the threshold.
 
 Verification:
 
@@ -486,6 +496,12 @@ dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
 dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f netstandard2.1 --no-restore
 dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean -f netstandard2.1 --no-restore
 ```
+
+Verification result on 2026-06-06: the full Debug solution test run passed
+with 951 tests, Release and ReleaseLean `netstandard2.1` builds passed with
+zero warnings/errors, the touched production source files and their new
+partials were all below the roughly 1000-line threshold, and `git diff --check`
+passed.
 
 ## Phase 6: Remove Redundant `this.` Qualifiers
 

@@ -179,6 +179,10 @@ deterministic.
   tooling/benchmark code.
 - Keep operations allocation-light; many hot methods use `m_rawValue` and
   `[MethodImpl(MethodImplOptions.AggressiveInlining)]`.
+- Keep production source files under roughly 1000 lines. When a file grows past
+  that threshold, split it into meaningful partials such as `*.Statics.cs`,
+  `*.Operators.cs`, `*.Conversions.cs`, or `*.Equality.cs`; avoid one-method or
+  two-method partials that make navigation worse.
 - `FixedMath` and fixed trigonometry code are shared algorithm backbones.
   Extension classes are thin forwarding wrappers, not alternate implementations.
 - Preserve saturating and guarded semantics in operators and math helpers.
