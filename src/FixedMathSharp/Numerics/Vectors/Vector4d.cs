@@ -392,10 +392,10 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
             return this;
 
         return this = new Vector4d(
-            Fixed64.DivideByPositive(X, mag),
-            Fixed64.DivideByPositive(Y, mag),
-            Fixed64.DivideByPositive(Z, mag),
-            Fixed64.DivideByPositive(W, mag));
+            FixedMath.FastDiv(X, mag),
+            FixedMath.FastDiv(Y, mag),
+            FixedMath.FastDiv(Z, mag),
+            FixedMath.FastDiv(W, mag));
     }
 
     /// <summary>
@@ -525,10 +525,10 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
             return value;
 
         return new Vector4d(
-            Fixed64.DivideByPositive(value.X, mag),
-            Fixed64.DivideByPositive(value.Y, mag),
-            Fixed64.DivideByPositive(value.Z, mag),
-            Fixed64.DivideByPositive(value.W, mag));
+            FixedMath.FastDiv(value.X, mag),
+            FixedMath.FastDiv(value.Y, mag),
+            FixedMath.FastDiv(value.Z, mag),
+            FixedMath.FastDiv(value.W, mag));
     }
 
     /// <summary>

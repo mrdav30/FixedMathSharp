@@ -209,9 +209,9 @@ public partial struct Vector3d
 
         // Normalize it exactly
         return new Vector3d(
-            Fixed64.DivideByPositive(value.X, mag),
-            Fixed64.DivideByPositive(value.Y, mag),
-            Fixed64.DivideByPositive(value.Z, mag)
+            FixedMath.FastDiv(value.X, mag),
+            FixedMath.FastDiv(value.Y, mag),
+            FixedMath.FastDiv(value.Z, mag)
         );
     }
 
@@ -506,7 +506,7 @@ public partial struct Vector3d
             return point;
 
         Fixed64 distance = plane.DotCoordinate(point);
-        return point - plane.Normal * Fixed64.DivideByPositive(distance, normalLengthSquared);
+        return point - plane.Normal * FixedMath.FastDiv(distance, normalLengthSquared);
     }
 
     /// <summary>

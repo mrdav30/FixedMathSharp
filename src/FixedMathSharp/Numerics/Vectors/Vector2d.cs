@@ -413,8 +413,8 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
         if (mag == Fixed64.One)
             return this;
 
-        X = Fixed64.DivideByPositive(X, mag);
-        Y = Fixed64.DivideByPositive(Y, mag);
+        X = FixedMath.FastDiv(X, mag);
+        Y = FixedMath.FastDiv(Y, mag);
 
         return this;
     }

@@ -474,9 +474,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         if (mag == Fixed64.One)
             return this;
 
-        X = Fixed64.DivideByPositive(X, mag);
-        Y = Fixed64.DivideByPositive(Y, mag);
-        Z = Fixed64.DivideByPositive(Z, mag);
+        X = FixedMath.FastDiv(X, mag);
+        Y = FixedMath.FastDiv(Y, mag);
+        Z = FixedMath.FastDiv(Z, mag);
 
         return this;
     }

@@ -108,7 +108,7 @@ public partial struct FixedRay : IEquatable<FixedRay>
         if (discriminant < Fixed64.Zero)
             return null;
 
-        Fixed64 t = Fixed64.DivideByPositive(-b - FixedMath.Sqrt(discriminant), directionLengthSquared);
+        Fixed64 t = FixedMath.FastDiv(-b - FixedMath.Sqrt(discriminant), directionLengthSquared);
         return t;
     }
 

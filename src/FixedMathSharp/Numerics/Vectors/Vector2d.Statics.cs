@@ -77,8 +77,8 @@ public partial struct Vector2d
 
         // Normalize it exactly
         return new Vector2d(
-            Fixed64.DivideByPositive(value.X, mag),
-            Fixed64.DivideByPositive(value.Y, mag)
+            FixedMath.FastDiv(value.X, mag),
+            FixedMath.FastDiv(value.Y, mag)
         );
     }
 

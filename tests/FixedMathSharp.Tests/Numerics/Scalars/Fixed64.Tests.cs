@@ -479,6 +479,7 @@ public class Fixed64Tests
         Assert.Equal(FixedMath.FastAdd(Fixed64.One, Fixed64.Two), Fixed64.One.FastAdd(Fixed64.Two));
         Assert.Equal(FixedMath.FastSub(Fixed64.Three, Fixed64.One), Fixed64.Three.FastSub(Fixed64.One));
         Assert.Equal(FixedMath.FastMul(Fixed64.Two, Fixed64.Three), Fixed64.Two.FastMul(Fixed64.Three));
+        Assert.Equal(FixedMath.FastDiv(Fixed64.Three, Fixed64.Two), Fixed64.Three.FastDiv(Fixed64.Two));
         Assert.Equal(FixedMath.FastMod(new Fixed64(7), new Fixed64(3)), new Fixed64(7).FastMod(new Fixed64(3)));
         Assert.Equal(FixedMath.Lerp(Fixed64.Zero, Fixed64.Two, Fixed64.Half), Fixed64.Zero.Lerp(Fixed64.Two, Fixed64.Half));
         Assert.Equal(FixedMath.SmoothStep(Fixed64.Zero, new Fixed64(10), Fixed64.Half), Fixed64.Zero.SmoothStep(new Fixed64(10), Fixed64.Half));

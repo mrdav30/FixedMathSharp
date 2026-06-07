@@ -108,9 +108,9 @@ public partial struct Fixed4x4
 
         // normalize rotation and scaling
         var inverseScale = new Vector3d(
-            Fixed64.DivideByPositive(Fixed64.One, scale.X),
-            Fixed64.DivideByPositive(Fixed64.One, scale.Y),
-            Fixed64.DivideByPositive(Fixed64.One, scale.Z));
+            FixedMath.FastDiv(Fixed64.One, scale.X),
+            FixedMath.FastDiv(Fixed64.One, scale.Y),
+            FixedMath.FastDiv(Fixed64.One, scale.Z));
         Fixed4x4 normalizedMatrix = ApplyScaleToRotation(matrix, inverseScale);
 
         // Extract translation

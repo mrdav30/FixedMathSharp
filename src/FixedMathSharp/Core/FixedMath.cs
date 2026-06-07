@@ -377,24 +377,46 @@ namespace FixedMathSharp
         ) => value1 + (value2 - value1) * amount1 + (value3 - value1) * amount2;
 
         /// <summary>
-        /// Adds two fixed-point numbers without performing overflow checking.
-        /// </summary>  
+        /// Adds two fixed-point numbers by adding their raw Q32.32 payloads without saturation.
+        /// </summary>
+        /// <remarks>
+        /// This is an unchecked hot-path helper. Use it only when the raw sum is known to fit in
+        /// <see cref="long"/> or raw wraparound is an intentional part of the algorithm. Use
+        /// <see cref="Fixed64.op_Addition(Fixed64, Fixed64)"/> for the public saturating add contract.
+        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 FastAdd(Fixed64 x, Fixed64 y) => Fixed64.FromRaw(x.m_rawValue + y.m_rawValue);
 
         /// <summary>
-        /// Subtracts two fixed-point numbers without performing overflow checking.
+        /// Subtracts two fixed-point numbers by subtracting their raw Q32.32 payloads without saturation.
         /// </summary>
+        /// <remarks>
+        /// This is an unchecked hot-path helper. Use it only when the raw difference is known to fit in
+        /// <see cref="long"/> or raw wraparound is an intentional part of the algorithm. Use
+        /// <see cref="Fixed64.op_Subtraction(Fixed64, Fixed64)"/> for the public saturating subtract contract.
+        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 FastSub(Fixed64 x, Fixed64 y) => Fixed64.FromRaw(x.m_rawValue - y.m_rawValue);
 
         /// <summary>
-        /// Multiplies two fixed-point numbers without overflow checking for performance-critical scenarios.
+        /// Multiplies two fixed-point numbers using unchecked Q32.32 partial products.
         /// </summary>
+        /// <remarks>
+        /// This is an unchecked hot-path helper. It skips the full-width overflow/saturation path used by
+        /// <see cref="Fixed64.op_Multiply(Fixed64, Fixed64)"/> and truncates discarded fractional bits instead
+        /// of applying the operator's round-half-to-even behavior. Use it only when inputs are constrained and
+        /// that precision tradeoff is acceptable. Integral operands take a direct raw multiplication path.
+        /// </remarks>
         public static Fixed64 FastMul(Fixed64 x, Fixed64 y)
         {
             long xl = x.m_rawValue;
             long yl = y.m_rawValue;
+
+            if ((xl & MAX_SHIFTED_AMOUNT_UI) == 0)
+                return Fixed64.FromRaw((xl >> SHIFT_AMOUNT_I) * yl);
+
+            if ((yl & MAX_SHIFTED_AMOUNT_UI) == 0)
+                return Fixed64.FromRaw((yl >> SHIFT_AMOUNT_I) * xl);
 
             // Split values into high and low bits for long multiplication
             ulong xlo = (ulong)(xl & MAX_SHIFTED_AMOUNT_UI);
@@ -419,8 +441,74 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Fast modulus without the checks performed by the '%' operator.
+        /// Divides two fixed-point numbers with an optimized path for known-positive divisors.
         /// </summary>
+        /// <remarks>
+        /// This helper preserves the same deterministic rounding, divide-by-zero, and saturation semantics
+        /// as <see cref="Fixed64.op_Division(Fixed64, Fixed64)"/>. The fast path is only used when
+        /// <paramref name="y"/> is positive; non-positive divisors fall back to the guarded division operator.
+        /// Prefer the operator unless the divisor positivity invariant is already proven by the caller.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 FastDiv(Fixed64 x, Fixed64 y)
+        {
+            long xl = x.m_rawValue;
+            long yl = y.m_rawValue;
+
+            if (yl <= 0)
+                return x / y;
+
+            ulong remainder = (ulong)(xl < 0 ? -xl : xl);
+            ulong divider = (ulong)yl;
+            ulong quotient = 0UL;
+            int bitPos = SHIFT_AMOUNT_I + 1;
+
+            while ((divider & 0xF) == 0 && bitPos >= 4)
+            {
+                divider >>= 4;
+                bitPos -= 4;
+            }
+
+            while (remainder != 0 && bitPos >= 0)
+            {
+                int shift = Fixed64.CountLeadingZeroes(remainder);
+                if (shift > bitPos)
+                    shift = bitPos;
+
+                remainder <<= shift;
+                bitPos -= shift;
+
+                ulong div = remainder / divider;
+                remainder %= divider;
+                quotient += div << bitPos;
+
+                if ((div & ~(0xFFFFFFFFFFFFFFFF >> bitPos)) != 0)
+                    return xl >= 0
+                        ? new Fixed64(MAX_VALUE_L)
+                        : new Fixed64(MIN_VALUE_L);
+
+                remainder <<= 1;
+                --bitPos;
+            }
+
+            if ((quotient & 0x1) != 0)
+                quotient += 1;
+
+            long result = (long)(quotient >> 1);
+            if (xl < 0)
+                result = -result;
+
+            return Fixed64.FromRaw(result);
+        }
+
+        /// <summary>
+        /// Computes the raw remainder of two fixed-point numbers without special-case guards.
+        /// </summary>
+        /// <remarks>
+        /// This is an unchecked hot-path helper. It delegates directly to the raw <see cref="long"/> remainder
+        /// operation, so raw zero divisors and integer edge cases follow runtime integer remainder behavior.
+        /// Use <see cref="Fixed64.op_Modulus(Fixed64, Fixed64)"/> for the public guarded remainder contract.
+        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 FastMod(Fixed64 x, Fixed64 y) => Fixed64.FromRaw(x.m_rawValue % y.m_rawValue);
 

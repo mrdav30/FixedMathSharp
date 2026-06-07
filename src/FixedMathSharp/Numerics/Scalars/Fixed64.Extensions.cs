@@ -76,6 +76,10 @@ public static class Fixed64Extensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 FastMul(this Fixed64 a, Fixed64 b) => FixedMath.FastMul(a, b);
 
+    /// <inheritdoc cref="FixedMath.FastDiv(Fixed64, Fixed64)" />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 FastDiv(this Fixed64 a, Fixed64 b) => FixedMath.FastDiv(a, b);
+
     /// <inheritdoc cref="FixedMath.FastMod(Fixed64, Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 FastMod(this Fixed64 a, Fixed64 b) => FixedMath.FastMod(a, b);

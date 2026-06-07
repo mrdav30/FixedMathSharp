@@ -585,22 +585,62 @@ name scan only reports old names in Phase 7 rename-history notes, and
 - Modify: `tests/FixedMathSharp.Tests/Core/FixedMath.Tests.cs`
 - Modify: relevant benchmark files under `tests/FixedMathSharp.Benchmarks/`
 
-- [ ] Decide whether public `FastAdd`, `FastSub`, `FastMul`, and `FastMod`
+- [x] Decide whether public `FastAdd`, `FastSub`, `FastMul`, and `FastMod`
   should remain public, become internal, or move behind clearer naming.
-- [ ] Document that `Fast*` helpers skip overflow/saturation checks and are not
+- [x] Document that `Fast*` helpers skip overflow/saturation checks and are not
   drop-in replacements for public operators.
-- [ ] Keep exact special-case helpers such as positive-divisor paths internal
+- [x] Keep exact special-case helpers such as positive-divisor paths internal
   unless a public API has a compelling consumer story.
-- [ ] Benchmark each accepted `Fast*` use in real consumers; do not swap
+- [x] Benchmark each accepted `Fast*` use in real consumers; do not swap
   operators for `Fast*` based on theoretical speed alone.
-- [ ] Add tests proving accepted fast paths preserve intended deterministic raw
+- [x] Add tests proving accepted fast paths preserve intended deterministic raw
   results or explicitly document where they intentionally do not.
+
+**Implementation Result:**
+
+Kept `FastAdd`, `FastSub`, `FastMul`, and `FastMod` public because they are
+useful expert APIs when callers can prove the raw-value invariants. Strengthened
+their XML docs so the unchecked raw-payload behavior is explicit, including the
+important `FastMul` precision caveat: it skips the guarded operator's full-width
+saturation path and truncates discarded fractional bits instead of using
+round-half-to-even.
+
+Added public `FixedMath.FastDiv` plus the `Fixed64.FastDiv` extension. The
+consumer story is narrower than the other `Fast*` helpers: it preserves `/`
+semantics and uses a positive-divisor fast path only when `y > 0`, falling back
+to the guarded operator for zero or negative divisors. The earlier internal
+`Fixed64.DivideByPositive` helper was retired so `FastDiv` is the single
+searchable division fast path.
+
+No internal call sites were swapped to `Fast*` purely on theory. A short
+division-only benchmark showed `FastDiv` slightly ahead of `/` for the
+positive-divisor fixture (`5.637 us` vs `5.723 us`, zero allocation), but the
+margin is small enough that wider call-site changes should still be justified by
+local benchmarks.
+
+A fast follow added an integer-operand shortcut to `FastMul`. The branch checks
+the raw fractional mask directly rather than routing through `Fixed64.IsInteger`
+so the hot path avoids an extra call shape while preserving the same invariant.
+Short benchmark results improved in all measured `FastMul` fixtures:
+fractional operands moved from `656.4 ns` to `599.3 ns`, integer-left operands
+from `569.2 ns` to `383.9 ns`, and integer-right operands from `698.4 ns` to
+`520.5 ns`, all with zero allocation. Focused tests lock the unchecked raw
+semantics for integer-left and integer-right operands.
+
+**Verification Result:**
+
+- Focused scalar tests passed: 958 passed.
+- Benchmark project Release/net8.0 build passed.
+- Short division benchmark passed with `Divide` and `FastDiv`.
+- Short multiplication benchmark passed with fractional, integer-left, and
+  integer-right `FastMul` fixtures.
 
 Verification:
 
 ```bash
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedMath|FullyQualifiedName~Fixed64"
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll scalar trig vector2d vector3d vector4d matrix3x3 matrix4x4 quaternion -j Short -i --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic -j Short -i --filter '*Div*' --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic -j Short -i --filter '*FastMul*' --exporters json
 ```
 
 ## Phase 9: Span Overloads And Squared-Distance Hot Path Cleanup

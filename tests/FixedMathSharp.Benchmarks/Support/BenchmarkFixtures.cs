@@ -6,6 +6,7 @@ internal static class BenchmarkFixtures
 
     internal static readonly Fixed64[] ScalarsA = CreateScalars(17, 5);
     internal static readonly Fixed64[] ScalarsB = CreateScalars(29, 7);
+    internal static readonly Fixed64[] IntegerScalars = CreateIntegerScalars();
     internal static readonly Fixed64[] PositiveScalars = CreatePositiveScalars();
     internal static readonly Fixed64[] UnitScalars = CreateUnitScalars();
     internal static readonly Fixed64[] Angles = CreateAngles();
@@ -54,6 +55,18 @@ internal static class BenchmarkFixtures
             int integer = 1 + ((i * 7) % 31);
             long fraction = ((long)((i * 43) + 11) & 0xFFFFL) << 12;
             values[i] = new Fixed64(integer) + Fixed64.FromRaw(fraction);
+        }
+
+        return values;
+    }
+
+    private static Fixed64[] CreateIntegerScalars()
+    {
+        var values = new Fixed64[SampleCount];
+        for (int i = 0; i < values.Length; i++)
+        {
+            int integer = ((i * 11) % 37) - 18;
+            values[i] = new Fixed64(integer);
         }
 
         return values;

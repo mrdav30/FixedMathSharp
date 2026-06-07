@@ -7,6 +7,7 @@ public class Fixed64ArithmeticBenchmarks
 {
     private readonly Fixed64[] _left = BenchmarkFixtures.ScalarsA;
     private readonly Fixed64[] _right = BenchmarkFixtures.ScalarsB;
+    private readonly Fixed64[] _integerScalars = BenchmarkFixtures.IntegerScalars;
     private readonly Fixed64[] _positive = BenchmarkFixtures.PositiveScalars;
     private readonly Fixed64[] _unit = BenchmarkFixtures.UnitScalars;
     private readonly Fixed64[] _angles = BenchmarkFixtures.Angles;
@@ -28,6 +29,46 @@ public class Fixed64ArithmeticBenchmarks
         Fixed64 accumulator = Fixed64.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += _left[i] / _positive[i];
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 FastDiv()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += FixedMath.FastDiv(_left[i], _positive[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 FastMulFractionalOperands()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += FixedMath.FastMul(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 FastMulIntegerLeftOperand()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += FixedMath.FastMul(_integerScalars[i], _left[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 FastMulIntegerRightOperand()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += FixedMath.FastMul(_left[i], _integerScalars[i]);
 
         return accumulator;
     }

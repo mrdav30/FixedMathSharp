@@ -163,7 +163,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
             return additional;
 
         Fixed64 radius = (distance + original.Radius + additional.Radius) * Fixed64.Half;
-        Vector3d center = original.Center + centerOffset * Fixed64.DivideByPositive(radius - original.Radius, distance);
+        Vector3d center = original.Center + centerOffset * FixedMath.FastDiv(radius - original.Radius, distance);
 
         return new FixedBoundSphere(center, radius);
     }
@@ -226,7 +226,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
 
             Fixed64 distance = FixedMath.Sqrt(sqDistance);
             Fixed64 newRadius = (radius + distance) * Fixed64.Half;
-            center += diff * Fixed64.DivideByPositive(distance - radius, Fixed64.Two * distance);
+            center += diff * FixedMath.FastDiv(distance - radius, Fixed64.Two * distance);
             radius = newRadius;
             sqRadius = EnsureRadiusContainsPoint(points[i], center, ref radius);
         }
@@ -290,7 +290,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
 
             Fixed64 distance = FixedMath.Sqrt(sqDistance);
             Fixed64 newRadius = (radius + distance) * Fixed64.Half;
-            center += diff * Fixed64.DivideByPositive(distance - radius, Fixed64.Two * distance);
+            center += diff * FixedMath.FastDiv(distance - radius, Fixed64.Two * distance);
             radius = newRadius;
             sqRadius = EnsureRadiusContainsPoint(point, center, ref radius);
         }

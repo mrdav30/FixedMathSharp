@@ -317,6 +317,34 @@ public class FixedMathTests
         Assert.Equal(Fixed64.Zero, result);
     }
 
+    [Fact]
+    public void FastMul_FractionalRemainder_TruncatesInsteadOfOperatorRounding()
+    {
+        Fixed64 x = Fixed64.FromRaw(1);
+        Fixed64 y = Fixed64.FromRaw((1L << 31) + 1);
+
+        Assert.Equal(Fixed64.FromRaw(1), x * y);
+        Assert.Equal(Fixed64.Zero, FixedMath.FastMul(x, y));
+    }
+
+    [Fact]
+    public void FastMul_IntegerLeftOperand_PreservesUncheckedRawSemantics()
+    {
+        Fixed64 x = new Fixed64(-7);
+        Fixed64 y = Fixed64.FromDouble(3.25);
+
+        Assert.Equal(Fixed64.FromRaw(-7 * y.m_rawValue), FixedMath.FastMul(x, y));
+    }
+
+    [Fact]
+    public void FastMul_IntegerRightOperand_PreservesUncheckedRawSemantics()
+    {
+        Fixed64 x = Fixed64.FromDouble(-3.25);
+        Fixed64 y = new Fixed64(7);
+
+        Assert.Equal(Fixed64.FromRaw(7 * x.m_rawValue), FixedMath.FastMul(x, y));
+    }
+
     #endregion
 
     #region Test: Clamp Method
@@ -451,6 +479,43 @@ public class FixedMathTests
     {
         var result = FixedMath.MoveTowards(new Fixed64(5), new Fixed64(3), new Fixed64(3));
         Assert.Equal(new Fixed64(3), result);
+    }
+
+    #endregion
+
+    #region Test: FastDiv Method
+
+    [Fact]
+    public void FastDiv_DividesTwoPositiveValues()
+    {
+        var result = FixedMath.FastDiv(new Fixed64(10), new Fixed64(2));
+        Assert.Equal(new Fixed64(5), result);
+    }
+
+    [Fact]
+    public void FastDiv_DividesNegativeByPositiveValue()
+    {
+        var result = FixedMath.FastDiv(new Fixed64(-10), new Fixed64(2));
+        Assert.Equal(new Fixed64(-5), result);
+    }
+
+    [Fact]
+    public void FastDiv_SafeFractionalValues_MatchDivisionOperator()
+    {
+        Fixed64 dividend = Fixed64.FromDouble(7.5);
+        Fixed64 divisor = Fixed64.FromDouble(1.25);
+
+        Assert.Equal(dividend / divisor, FixedMath.FastDiv(dividend, divisor));
+    }
+
+    [Fact]
+    public void FastDiv_NonPositiveDivisor_MatchesDivisionOperator()
+    {
+        Fixed64 dividend = Fixed64.FromDouble(7.5);
+        Fixed64 divisor = Fixed64.FromDouble(-1.25);
+
+        Assert.Equal(dividend / divisor, FixedMath.FastDiv(dividend, divisor));
+        Assert.Throws<DivideByZeroException>(() => FixedMath.FastDiv(dividend, Fixed64.Zero));
     }
 
     #endregion
