@@ -1008,6 +1008,15 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void V3CheckDistance_NegativeFactor_ReturnsFalse()
+    {
+        var vector1 = new Vector3d(0, 0, 0);
+        var vector2 = new Vector3d(1, 0, 0);
+
+        Assert.False(vector1.CheckDistance(vector2, -Fixed64.One));
+    }
+
+    [Fact]
     public void V3DistanceSquared_CalculatesCorrectly()
     {
         var vector1 = new Vector3d(0, 0, 0);

@@ -652,18 +652,56 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: matching tests under `tests/FixedMathSharp.Tests/`
 - Modify: matching benchmarks under `tests/FixedMathSharp.Benchmarks/`
 
-- [ ] Add `ReadOnlySpan<T>` overloads where public APIs currently accept
+- [x] Add `ReadOnlySpan<T>` overloads where public APIs currently accept
   `IEnumerable<T>` and can benefit from countable, allocation-free iteration,
   starting with bounds construction APIs such as sphere-from-points workflows.
-- [ ] Keep `IEnumerable<T>` overloads only where they remain useful
+- [x] Keep `IEnumerable<T>` overloads only where they remain useful
   interoperability entry points, forwarding to optimized shared internals where
   possible.
-- [ ] Replace distance-threshold helpers with squared-distance comparisons
+- [x] Replace distance-threshold helpers with squared-distance comparisons
   where callers only need `distance <= threshold`.
-- [ ] Preserve existing behavior for invalid inputs, empty collections, and
+- [x] Preserve existing behavior for invalid inputs, empty collections, and
   degenerate geometry.
-- [ ] Benchmark span overloads and squared-distance changes independently so
+- [x] Benchmark span overloads and squared-distance changes independently so
   collection-shape wins and math wins are not conflated.
+
+Result:
+
+- Added `FixedBoundSphere.CreateFromPoints(ReadOnlySpan<Vector3d>)` for
+  allocation-free sphere construction from countable point data.
+- Added an exact `FixedBoundSphere.CreateFromPoints(Vector3d[])` overload so
+  array call sites stay unambiguous now that both `IEnumerable<Vector3d>` and
+  `ReadOnlySpan<Vector3d>` overloads exist.
+- Kept `FixedBoundSphere.CreateFromPoints(IEnumerable<Vector3d>)` as the broad
+  interoperability entry point. It preserves the existing null/empty behavior,
+  uses `IReadOnlyList<Vector3d>` directly when available, and only materializes
+  streaming enumerables when there is no countable shape to index.
+- Reworked `Vector2d.CheckDistance` and `Vector3d.CheckDistance` to compare
+  squared distances after a negative-threshold guard, removing an unnecessary
+  square root from threshold checks.
+- Swept the runtime public surface for additional `IEnumerable<T>` span
+  candidates and distance-threshold helpers. No other obvious production
+  candidates were found in this phase.
+
+Measured short-run results:
+
+| Benchmark | Mean | Allocated |
+| --- | ---: | ---: |
+| `BoundsBenchmarks.SphereCreateFromPointsArray` | 7.643 us | - |
+| `BoundsBenchmarks.SphereCreateFromPointsSpan` | 7.461 us | - |
+| `BoundsBenchmarks.SphereCreateFromPointsEnumerable` | 10.286 us | 12,456 B |
+| `Vector2dBenchmarks.DistanceThreshold` | 14.289 us | - |
+| `Vector2dBenchmarks.CheckDistance` | 3.262 us | - |
+| `Vector3dBenchmarks.DistanceThreshold` | 24.079 us | - |
+| `Vector3dBenchmarks.CheckDistance` | 4.494 us | - |
+
+Benchmark commands:
+
+```bash
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i --filter '*SphereCreateFromPoints*' --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector2d -j Short -i --filter '*Distance*' --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector3d -j Short -i --filter '*Distance*' --exporters json
+```
 
 Verification:
 

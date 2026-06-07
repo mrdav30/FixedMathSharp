@@ -234,6 +234,45 @@ public class FixedBoundSphereTests
     }
 
     [Fact]
+    public void CreateFromPoints_ReadOnlySpan_ChoosesLargestYAxisPair()
+    {
+        Vector3d[] points =
+        {
+            new(0, -5, 0),
+            new(0, 5, 0),
+            new(2, 0, 0),
+            new(0, 0, 1)
+        };
+
+        ReadOnlySpan<Vector3d> span = points;
+        FixedBoundSphere sphere = FixedBoundSphere.CreateFromPoints(span);
+
+        Assert.Equal(Vector3d.Zero, sphere.Center);
+        Assert.Equal(new Fixed64(5), sphere.Radius);
+    }
+
+    [Fact]
+    public void CreateFromPoints_ReadOnlySpan_DoesNotAllocate()
+    {
+        Vector3d[] points =
+        {
+            new(-1, 0, 0),
+            new(1, 0, 0),
+            new(0, 2, 0),
+            new(0, 0, -3)
+        };
+
+        ReadOnlySpan<Vector3d> span = points;
+        _ = FixedBoundSphere.CreateFromPoints(span);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        _ = FixedBoundSphere.CreateFromPoints(span);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+    }
+
+    [Fact]
     public void CreateFromPoints_MaterializesEnumerableAndChoosesLargestYAxisPair()
     {
         static System.Collections.Generic.IEnumerable<Vector3d> Points()
@@ -277,6 +316,12 @@ public class FixedBoundSphereTests
     public void CreateFromPoints_RejectsEmptyInput()
     {
         Assert.Throws<ArgumentException>(() => FixedBoundSphere.CreateFromPoints(Array.Empty<Vector3d>()));
+    }
+
+    [Fact]
+    public void CreateFromPoints_ReadOnlySpan_RejectsEmptyInput()
+    {
+        Assert.Throws<ArgumentException>(() => FixedBoundSphere.CreateFromPoints(ReadOnlySpan<Vector3d>.Empty));
     }
 
     [Fact]

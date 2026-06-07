@@ -8,6 +8,7 @@ public class Vector3dBenchmarks
 {
     private readonly Vector3d[] _left = BenchmarkFixtures.VectorsA;
     private readonly Vector3d[] _right = BenchmarkFixtures.VectorsB;
+    private static readonly Fixed64 s_checkDistanceThreshold = new Fixed64(16);
     private static readonly Fixed64 s_two = new Fixed64(2);
 
     [Benchmark]
@@ -311,6 +312,32 @@ public class Vector3dBenchmarks
             accumulator += Vector3d.Distance(_left[i], _right[i]);
 
         return accumulator;
+    }
+
+    [Benchmark]
+    public int DistanceThreshold()
+    {
+        int count = 0;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            if (Vector3d.Distance(_left[i], _right[i]) <= s_checkDistanceThreshold)
+                count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
+    public int CheckDistance()
+    {
+        int count = 0;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            if (_left[i].CheckDistance(_right[i], s_checkDistanceThreshold))
+                count++;
+        }
+
+        return count;
     }
 
     [Benchmark]

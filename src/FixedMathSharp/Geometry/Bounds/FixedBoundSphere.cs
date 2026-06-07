@@ -149,6 +149,25 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     }
 
     /// <summary>
+    /// Creates a bounding sphere that contains the specified points.
+    /// </summary>
+    public static FixedBoundSphere CreateFromPoints(Vector3d[] points)
+    {
+        if (points is null)
+            throw new ArgumentNullException(nameof(points), "Cannot create a bounding sphere from a null collection of points.");
+
+        return CreateFromPoints(points.AsSpan());
+    }
+
+    /// <summary>
+    /// Creates a bounding sphere that contains the specified points.
+    /// </summary>
+    public static FixedBoundSphere CreateFromPoints(ReadOnlySpan<Vector3d> points)
+    {
+        return CreateFromPointSpan(points);
+    }
+
+    /// <summary>
     /// Creates the smallest sphere that contains the two specified spheres.
     /// </summary>
     public static FixedBoundSphere CreateMerged(FixedBoundSphere original, FixedBoundSphere additional)
@@ -229,6 +248,73 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
             center += diff * FixedMath.FastDiv(distance - radius, Fixed64.Two * distance);
             radius = newRadius;
             sqRadius = EnsureRadiusContainsPoint(points[i], center, ref radius);
+        }
+
+        return new FixedBoundSphere(center, radius);
+    }
+
+    private static FixedBoundSphere CreateFromPointSpan(ReadOnlySpan<Vector3d> points)
+    {
+        if (points.Length == 0)
+            throw new ArgumentException("At least one point is required to create a bounding sphere.");
+
+        Vector3d minX = points[0];
+        Vector3d maxX = points[0];
+        Vector3d minY = points[0];
+        Vector3d maxY = points[0];
+        Vector3d minZ = points[0];
+        Vector3d maxZ = points[0];
+
+        for (int i = 1; i < points.Length; i++)
+        {
+            Vector3d point = points[i];
+
+            if (point.X < minX.X) minX = point;
+            if (point.X > maxX.X) maxX = point;
+            if (point.Y < minY.Y) minY = point;
+            if (point.Y > maxY.Y) maxY = point;
+            if (point.Z < minZ.Z) minZ = point;
+            if (point.Z > maxZ.Z) maxZ = point;
+        }
+
+        Fixed64 sqDistX = Vector3d.DistanceSquared(maxX, minX);
+        Fixed64 sqDistY = Vector3d.DistanceSquared(maxY, minY);
+        Fixed64 sqDistZ = Vector3d.DistanceSquared(maxZ, minZ);
+
+        Vector3d min = minX;
+        Vector3d max = maxX;
+        Fixed64 largestDistance = sqDistX;
+
+        if (sqDistY > largestDistance)
+        {
+            min = minY;
+            max = maxY;
+            largestDistance = sqDistY;
+        }
+
+        if (sqDistZ > largestDistance)
+        {
+            min = minZ;
+            max = maxZ;
+        }
+
+        Vector3d center = (min + max) * Fixed64.Half;
+        Fixed64 radius = Vector3d.Distance(max, center);
+        Fixed64 sqRadius = radius * radius;
+
+        for (int i = 0; i < points.Length; i++)
+        {
+            Vector3d point = points[i];
+            Vector3d diff = point - center;
+            Fixed64 sqDistance = diff.MagnitudeSquared;
+            if (sqDistance <= sqRadius)
+                continue;
+
+            Fixed64 distance = FixedMath.Sqrt(sqDistance);
+            Fixed64 newRadius = (radius + distance) * Fixed64.Half;
+            center += diff * FixedMath.FastDiv(distance - radius, Fixed64.Two * distance);
+            radius = newRadius;
+            sqRadius = EnsureRadiusContainsPoint(point, center, ref radius);
         }
 
         return new FixedBoundSphere(center, radius);

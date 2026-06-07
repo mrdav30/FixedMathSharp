@@ -40,8 +40,10 @@ public static partial class Vector3dExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool CheckDistance(this Vector3d me, Vector3d other, Fixed64 factor)
     {
-        Fixed64 dis = Vector3d.Distance(me, other);
-        return dis <= factor;
+        if (factor < Fixed64.Zero)
+            return false;
+
+        return Vector3d.DistanceSquared(me, other) <= factor * factor;
     }
 
     /// <inheritdoc cref="Vector3d.Distance(Vector3d, Vector3d)" />

@@ -7,6 +7,7 @@ public class Vector2dBenchmarks
 {
     private readonly Vector2d[] _left = BenchmarkFixtures.Vector2sA;
     private readonly Vector2d[] _right = BenchmarkFixtures.Vector2sB;
+    private static readonly Fixed64 s_checkDistanceThreshold = new Fixed64(16);
     private static readonly Fixed64 s_two = new Fixed64(2);
 
     [Benchmark]
@@ -216,6 +217,32 @@ public class Vector2dBenchmarks
             accumulator += Vector2d.Distance(_left[i], _right[i]);
 
         return accumulator;
+    }
+
+    [Benchmark]
+    public int DistanceThreshold()
+    {
+        int count = 0;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            if (Vector2d.Distance(_left[i], _right[i]) <= s_checkDistanceThreshold)
+                count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
+    public int CheckDistance()
+    {
+        int count = 0;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            if (_left[i].CheckDistance(_right[i], s_checkDistanceThreshold))
+                count++;
+        }
+
+        return count;
     }
 
     [Benchmark]

@@ -498,6 +498,15 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void V2CheckDistance_NegativeFactor_ReturnsFalse()
+    {
+        var vector1 = new Vector2d(0, 0);
+        var vector2 = new Vector2d(1, 0);
+
+        Assert.False(vector1.CheckDistance(vector2, -Fixed64.One));
+    }
+
+    [Fact]
     public void V2DistanceSquared_CalculatesCorrectly()
     {
         var vector1 = new Vector2d(0, 0);

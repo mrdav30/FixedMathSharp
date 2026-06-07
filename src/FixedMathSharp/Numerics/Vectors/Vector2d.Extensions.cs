@@ -34,8 +34,10 @@ public static partial class Vector2dExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool CheckDistance(this Vector2d me, Vector2d other, Fixed64 factor)
     {
-        Fixed64 dis = Vector2d.Distance(me, other);
-        return dis <= factor;
+        if (factor < Fixed64.Zero)
+            return false;
+
+        return Vector2d.DistanceSquared(me, other) <= factor * factor;
     }
 
     /// <inheritdoc cref="Vector2d.Rotate(Vector2d, Fixed64)" />

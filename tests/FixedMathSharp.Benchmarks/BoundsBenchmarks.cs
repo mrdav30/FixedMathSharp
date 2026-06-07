@@ -1,5 +1,7 @@
 ﻿using BenchmarkDotNet.Attributes;
 using FixedMathSharp.Bounds;
+using System;
+using System.Collections.Generic;
 
 namespace FixedMathSharp.Benchmarks;
 
@@ -14,6 +16,7 @@ public class BoundsBenchmarks
     private readonly FixedPlane[] _planeBuffer = new FixedPlane[FixedBoundFrustum.PlaneCount];
     private readonly FixedPlane[] _planes = CreatePlanes();
     private readonly Vector3d[] _points = BenchmarkFixtures.VectorsA;
+    private readonly Vector3d[] _spherePointCloud = CreateSpherePointCloud();
     private readonly FixedRay[] _rays = CreateRays();
     private readonly FixedBoundSphere[] _spheres = CreateSpheres();
 
@@ -136,6 +139,24 @@ public class BoundsBenchmarks
             accumulator = FixedBoundSphere.CreateMerged(accumulator, FixedBoundSphere.CreateFromBoundingBox(_boxes[i]));
 
         return accumulator;
+    }
+
+    [Benchmark]
+    public FixedBoundSphere SphereCreateFromPointsArray()
+    {
+        return FixedBoundSphere.CreateFromPoints(_spherePointCloud);
+    }
+
+    [Benchmark]
+    public FixedBoundSphere SphereCreateFromPointsSpan()
+    {
+        return FixedBoundSphere.CreateFromPoints(_spherePointCloud.AsSpan());
+    }
+
+    [Benchmark]
+    public FixedBoundSphere SphereCreateFromPointsEnumerable()
+    {
+        return FixedBoundSphere.CreateFromPoints(EnumerateSpherePointCloud());
     }
 
     [Benchmark]
@@ -462,5 +483,22 @@ public class BoundsBenchmarks
         }
 
         return spheres;
+    }
+
+    private static Vector3d[] CreateSpherePointCloud()
+    {
+        var points = new Vector3d[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < points.Length; i++)
+        {
+            points[i] = BenchmarkFixtures.VectorsA[i] + (BenchmarkFixtures.NormalizedAxes[i] * Fixed64.FromFraction((i % 9) + 1, 4));
+        }
+
+        return points;
+    }
+
+    private IEnumerable<Vector3d> EnumerateSpherePointCloud()
+    {
+        for (int i = 0; i < _spherePointCloud.Length; i++)
+            yield return _spherePointCloud[i];
     }
 }
