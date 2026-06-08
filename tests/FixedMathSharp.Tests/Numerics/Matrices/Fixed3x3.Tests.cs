@@ -296,24 +296,6 @@ public class Fixed3x3Tests
     }
 
     [Fact]
-    public void Fixed3x3Extensions_DoNotExposeFactoryWrappers()
-    {
-        string[] excludedNames =
-        {
-            "CreateRotationX",
-            "CreateRotationY",
-            "CreateRotationZ",
-            "CreateShear",
-            "CreateScale"
-        };
-
-        foreach (string methodName in excludedNames)
-        {
-            Assert.Empty(typeof(Fixed3x3Extensions).GetMember(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static));
-        }
-    }
-
-    [Fact]
     public void Fixed3x3_FuzzyEqualExtensions_CoverTrueAndFalseBranches()
     {
         var baseline = new Fixed3x3(

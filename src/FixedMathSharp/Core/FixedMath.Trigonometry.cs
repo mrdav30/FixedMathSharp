@@ -207,9 +207,7 @@ namespace FixedMathSharp
             Fixed64 positiveResult = Pow2Fractional(fractionalRaw, s_pow2PositiveFractionLookup);
             long shifted = positiveResult.m_rawValue << integerPart;
 
-            return shifted < 0
-                ? Fixed64.MaxValue
-                : Fixed64.FromRaw(shifted);
+            return Fixed64.FromRaw(shifted);
         }
 
         /// <summary>

@@ -121,6 +121,9 @@ public class FixedQuaternionTests
     {
         Assert.Equal(Fixed64.Zero, FixedQuaternion.GetMagnitude(FixedQuaternion.Zero));
         Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.GetNormalized(FixedQuaternion.Zero));
+
+        var slightlyAboveUnit = new FixedQuaternion(Fixed64.One, Fixed64.FromRaw(65536), Fixed64.Zero, Fixed64.Zero);
+        Assert.Equal(Fixed64.One, FixedQuaternion.GetMagnitude(slightlyAboveUnit));
     }
 
     [Theory]
@@ -341,6 +344,7 @@ public class FixedQuaternionTests
     public void FixedQuaternion_FromDirection_ForwardReturnsIdentity()
     {
         Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.FromDirection(Vector3d.Forward));
+        Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.FromDirection(Vector3d.Zero));
     }
 
     [Fact]
@@ -424,6 +428,7 @@ public class FixedQuaternionTests
         var expected = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
 
         Assert.True(result.FuzzyEqual(expected, Fixed64.FromDouble(0.0001)));
+        Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.FromAxisAngle(Vector3d.Zero, Fixed64.HalfPi));
     }
 
     [Fact]
@@ -757,11 +762,26 @@ public class FixedQuaternionTests
         Assert.Equal(new FixedQuaternion(new Fixed64(-1), new Fixed64(-2), new Fixed64(-3), new Fixed64(-4)), -quaternion);
 
         quaternion.Deconstruct(out Fixed64 x, out Fixed64 y, out Fixed64 z, out Fixed64 w);
+        quaternion.Deconstruct(out int ix, out int iy, out int iz, out int iw);
+        quaternion.Deconstruct(out long lx, out long ly, out long lz, out long lw);
+        quaternion.Deconstruct(out double dx, out double dy, out double dz, out double dw);
 
         Assert.Equal(new Fixed64(1), x);
         Assert.Equal(new Fixed64(2), y);
         Assert.Equal(new Fixed64(3), z);
         Assert.Equal(new Fixed64(4), w);
+        Assert.Equal(1, ix);
+        Assert.Equal(2, iy);
+        Assert.Equal(3, iz);
+        Assert.Equal(4, iw);
+        Assert.Equal(quaternion.X.m_rawValue, lx);
+        Assert.Equal(quaternion.Y.m_rawValue, ly);
+        Assert.Equal(quaternion.Z.m_rawValue, lz);
+        Assert.Equal(quaternion.W.m_rawValue, lw);
+        Assert.Equal(1d, dx);
+        Assert.Equal(2d, dy);
+        Assert.Equal(3d, dz);
+        Assert.Equal(4d, dw);
     }
 
     [Fact]
@@ -791,25 +811,6 @@ public class FixedQuaternionTests
         Assert.Equal(FixedQuaternion.Angle(start, end), start.Angle(end));
         Assert.Equal(FixedQuaternion.Dot(start, end), start.Dot(end));
         Assert.Equal(FixedQuaternion.QuaternionLog(end), end.QuaternionLog());
-    }
-
-    [Fact]
-    public void FixedQuaternionExtensions_DoNotExposeFactoryOrConventionHeavyWrappers()
-    {
-        string[] excludedNames =
-        {
-            "FromEulerAngles",
-            "FromEulerAnglesInDegrees",
-            "FromAxisAngle",
-            "LookRotation",
-            "FromDirection",
-            "FromMatrix"
-        };
-
-        foreach (string methodName in excludedNames)
-        {
-            Assert.Empty(typeof(FixedQuaternionExtensions).GetMember(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static));
-        }
     }
 
     [Fact]

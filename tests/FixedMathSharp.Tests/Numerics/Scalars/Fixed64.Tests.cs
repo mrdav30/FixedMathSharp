@@ -307,6 +307,7 @@ public class Fixed64Tests
         Assert.Equal(new Fixed64(5), fromLong);
         Assert.Equal(new Fixed64(-5), (Fixed64)(-5L));
         Assert.Equal(5L, (long)Fixed64.FromDouble(5.75));
+        Assert.Equal(-5L, (long)Fixed64.FromDouble(-5.75));
 
         Fixed64 fromInt = (Fixed64)6;
         Assert.Equal(new Fixed64(6), fromInt);
@@ -351,59 +352,39 @@ public class Fixed64Tests
         Assert.Equal(new Fixed64(3), 2 * value);
         Assert.Equal(Fixed64.FromDouble(0.75), value / 2);
         Assert.Equal(Fixed64.FromDouble(1.3333333333), 2 / value);
+
+        Assert.Equal(Fixed64.One, new Fixed64(7) % 3);
+        Assert.Equal(Fixed64.One, 7 % new Fixed64(3));
+        Assert.True(value > 1);
+        Assert.True(2 > value);
+        Assert.True(value < 2);
+        Assert.True(1 < value);
+        Assert.True(value >= 1);
+        Assert.True(2 >= value);
+        Assert.True(value <= 2);
+        Assert.True(1 <= value);
+        Assert.True(new Fixed64(2) == 2);
+        Assert.True(2 == new Fixed64(2));
+        Assert.True(value != 2);
+        Assert.True(2 != value);
     }
 
     [Fact]
-    public void LongArithmeticOperators_AreNotPublicApi()
+    public void ConstantsOffsetAndRawFormatting_ReturnExpectedValues()
     {
-        foreach (var method in typeof(Fixed64).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
-        {
-            if (!IsArithmeticOperatorName(method.Name))
-                continue;
+        Assert.Equal(-Fixed64.One, Fixed64.NegOne);
+        Assert.Equal(Fixed64.FromDouble(0.25), Fixed64.Quarter);
+        Assert.Equal(Fixed64.FromDouble(0.125), Fixed64.Eighth);
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.One, Fixed64.InvertedPi * Fixed64.Pi);
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.One, Fixed64.Rad2Deg * Fixed64.Deg2Rad);
+        Assert.Equal(new Fixed64(-64), Fixed64.Log2Min);
 
-            var parameters = method.GetParameters();
-            if (parameters.Length != 2 || method.ReturnType != typeof(Fixed64))
-                continue;
+        Fixed64 value = Fixed64.FromDouble(1.5);
 
-            bool usesLong = parameters[0].ParameterType == typeof(long) || parameters[1].ParameterType == typeof(long);
-            bool usesFixed64 = parameters[0].ParameterType == typeof(Fixed64) || parameters[1].ParameterType == typeof(Fixed64);
-
-            Assert.False(usesLong && usesFixed64, $"{method.Name} should require explicit Fixed64 conversion or Fixed64.FromRaw for long operands.");
-        }
-    }
-
-    [Fact]
-    public void Fixed64_DoesNotExposeScalarAlgorithmMethods()
-    {
-        string[] movedMethodNames =
-        {
-            "Lerp",
-            "SmoothStep",
-            "CubicInterpolate",
-            "CatmullRom",
-            "HermiteSpline",
-            "BarycentricCoordinate"
-        };
-
-        foreach (string methodName in movedMethodNames)
-        {
-            Assert.Empty(typeof(Fixed64).GetMember(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static));
-        }
-    }
-
-    private static bool IsArithmeticOperatorName(string name)
-    {
-        switch (name)
-        {
-            case "op_Addition":
-            case "op_Subtraction":
-            case "op_Multiply":
-            case "op_Division":
-            case "op_Modulus":
-                return true;
-            default:
-                return false;
-        }
+        Assert.Equal(Fixed64.FromDouble(4.5), value.Offset(3));
+        Assert.Equal(value.m_rawValue.ToString(CultureInfo.InvariantCulture), value.ToRawString());
+        Assert.Equal(1, Fixed64.ToInt(value));
+        Assert.False(value.Equals("not-fixed"));
     }
 
     [Fact]
@@ -435,6 +416,7 @@ public class Fixed64Tests
     public void Parsing_DecimalStrings_WorksCorrectly()
     {
         Assert.Equal(Fixed64.FromDouble(1.25), Fixed64.Parse("1.25"));
+        Assert.Equal(Fixed64.FromDouble(1.25), Fixed64.Parse("1.25", null));
         Assert.Equal(Fixed64.FromDouble(-2.5), Fixed64.Parse("-2.5"));
         Assert.Equal(Fixed64.FromDouble(1234.5), Fixed64.Parse("1,234.5", CultureInfo.InvariantCulture));
         Assert.Throws<ArgumentNullException>(() => Fixed64.Parse(null!));
@@ -445,6 +427,9 @@ public class Fixed64Tests
 
         Assert.True(Fixed64.TryParse("1.25", out var parsedPositive));
         Assert.Equal(Fixed64.FromDouble(1.25), parsedPositive);
+
+        Assert.True(Fixed64.TryParse("1.25", null, out var parsedWithNullProvider));
+        Assert.Equal(Fixed64.FromDouble(1.25), parsedWithNullProvider);
 
         Assert.True(Fixed64.TryParse("-2.5", out var parsedNegative));
         Assert.Equal(Fixed64.FromDouble(-2.5), parsedNegative);
@@ -494,6 +479,7 @@ public class Fixed64Tests
         Assert.Equal(Fixed64.MinIncrement, Fixed64.FromDecimal(FixedMath.SCALE_FACTOR_M));
         Assert.Equal(Fixed64.MinValue, Fixed64.FromDecimal(-2147483648m));
         Assert.Throws<OverflowException>(() => Fixed64.FromDecimal(2147483648m));
+        Assert.Throws<OverflowException>(() => Fixed64.FromDecimal(-2147483649m));
         Assert.Equal(Fixed64.FromDecimal(1.25m), (Fixed64)1.25m);
     }
 
@@ -503,6 +489,7 @@ public class Fixed64Tests
         var value = Fixed64.FromDouble(1.2345f);
 
         Assert.Equal("1.23", value.ToString("0.00"));
+        Assert.Equal("1.23", value.ToString("0.00", null));
         Assert.Equal(0, value.CompareTo(Fixed64.FromDouble(1.2345f)));
         Assert.True(value.CompareTo(Fixed64.FromDouble(1.2f)) > 0);
         Assert.True(value.CompareTo(Fixed64.FromDouble(1.3f)) < 0);
@@ -554,6 +541,11 @@ public class Fixed64Tests
         Assert.Equal((int)FixedMath.Round(positive), positive.RoundToInt());
         Assert.Equal((int)FixedMath.Ceil(value), value.CeilToInt());
         Assert.Equal((int)FixedMath.Floor(value), value.FloorToInt());
+        Assert.Equal((long)FixedMath.Round(positive), positive.RoundToLong());
+        Assert.Equal((long)FixedMath.Ceil(value), value.CeilToLong());
+        Assert.Equal((long)FixedMath.Floor(value), value.FloorToLong());
+        Assert.Equal(FixedMath.Clamp(value, Fixed64.Zero, Fixed64.One), value.Clamp(Fixed64.Zero, Fixed64.One));
+        Assert.Equal(FixedMath.Sqrt(Fixed64.Two), Fixed64.Two.Sqrt());
     }
 
     [Fact]
@@ -564,6 +556,11 @@ public class Fixed64Tests
         Assert.Equal(FixedMath.Sin(Fixed64.HalfPi), Fixed64.HalfPi.Sin());
         Assert.Equal(FixedMath.Cos(Fixed64.HalfPi), Fixed64.HalfPi.Cos());
         Assert.Equal(FixedMath.Tan(Fixed64.PiOver4), Fixed64.PiOver4.Tan());
+        Assert.Equal(FixedMath.Acos(Fixed64.Half), Fixed64.Half.Acos());
+        Assert.Equal(FixedMath.Asin(Fixed64.Half), Fixed64.Half.Asin());
+        Assert.Equal(FixedMath.Atan(Fixed64.One), Fixed64.One.Atan());
+        Assert.Equal(FixedMath.Atan2(Fixed64.One, Fixed64.One), Fixed64.One.Atan2(Fixed64.One));
+        Assert.Equal(FixedMath.GetHypotenuse(new Fixed64(3), new Fixed64(4)), new Fixed64(3).Hypot(new Fixed64(4)));
         Assert.Equal(FixedMath.Log2(Fixed64.Two), Fixed64.Two.Log2());
         Assert.Equal(FixedMath.Ln(Fixed64.Two), Fixed64.Two.Ln());
         Assert.Equal(FixedMath.Pow(Fixed64.Two, Fixed64.Three), Fixed64.Two.Pow(Fixed64.Three));

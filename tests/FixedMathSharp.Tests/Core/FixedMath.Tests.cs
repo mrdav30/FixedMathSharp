@@ -420,6 +420,13 @@ public class FixedMathTests
     }
 
     [Fact]
+    public void SmoothStep_TOutsideUnitRange_ReturnsClampedEndpoints()
+    {
+        Assert.Equal(new Fixed64(3), FixedMath.SmoothStep(new Fixed64(3), new Fixed64(5), -Fixed64.Epsilon));
+        Assert.Equal(new Fixed64(5), FixedMath.SmoothStep(new Fixed64(3), new Fixed64(5), Fixed64.One + Fixed64.Epsilon));
+    }
+
+    [Fact]
     public void CubicInterpolate_TAtEndpoints_ReturnsEndpointValues()
     {
         var p0 = new Fixed64(3);
@@ -433,7 +440,9 @@ public class FixedMathTests
     public void CatmullRomAndHermite_ReturnExpectedValues()
     {
         Assert.Equal(new Fixed64(15), FixedMath.CatmullRom(new Fixed64(0), new Fixed64(10), new Fixed64(20), new Fixed64(30), Fixed64.Half));
+        Assert.Equal(Fixed64.Zero, FixedMath.HermiteSpline(Fixed64.Zero, Fixed64.One, new Fixed64(10), Fixed64.One, Fixed64.Zero));
         Assert.Equal(new Fixed64(5), FixedMath.HermiteSpline(Fixed64.Zero, Fixed64.Zero, new Fixed64(10), Fixed64.Zero, Fixed64.Half));
+        Assert.Equal(new Fixed64(10), FixedMath.HermiteSpline(Fixed64.Zero, Fixed64.One, new Fixed64(10), Fixed64.One, Fixed64.One));
     }
 
     [Fact]
@@ -481,6 +490,13 @@ public class FixedMathTests
         Assert.Equal(new Fixed64(3), result);
     }
 
+    [Fact]
+    public void MoveTowards_ValueAlreadyAtTarget_ReturnsTarget()
+    {
+        var result = FixedMath.MoveTowards(new Fixed64(5), new Fixed64(5), new Fixed64(3));
+        Assert.Equal(new Fixed64(5), result);
+    }
+
     #endregion
 
     #region Test: FastDiv Method
@@ -516,6 +532,13 @@ public class FixedMathTests
 
         Assert.Equal(dividend / divisor, FixedMath.FastDiv(dividend, divisor));
         Assert.Throws<DivideByZeroException>(() => FixedMath.FastDiv(dividend, Fixed64.Zero));
+    }
+
+    [Fact]
+    public void FastDiv_OverflowingPositiveDivisorPath_Saturates()
+    {
+        Assert.Equal(Fixed64.MaxValue, FixedMath.FastDiv(Fixed64.MaxValue, Fixed64.MinIncrement));
+        Assert.Equal(Fixed64.MinValue, FixedMath.FastDiv(Fixed64.MinValue, Fixed64.MinIncrement));
     }
 
     #endregion

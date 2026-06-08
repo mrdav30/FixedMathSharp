@@ -37,25 +37,21 @@ internal static class FixedDiagnosticsFormatter
         if (handler(initialBuffer, out int charsWritten))
             return new string(initialBuffer[..charsWritten]);
 
-        char[]? rented = null;
-        try
+        int length = 512;
+        while (true)
         {
-            int length = 512;
-            while (true)
+            char[] rented = ArrayPool<char>.Shared.Rent(length);
+            try
             {
-                rented = ArrayPool<char>.Shared.Rent(length);
                 if (handler(rented.AsSpan(0, length), out charsWritten))
                     return new string(rented, 0, charsWritten);
-
-                ArrayPool<char>.Shared.Return(rented);
-                rented = null;
-                length *= 2;
             }
-        }
-        finally
-        {
-            if (rented is not null)
+            finally
+            {
                 ArrayPool<char>.Shared.Return(rented);
+            }
+
+            length *= 2;
         }
     }
 

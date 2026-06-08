@@ -32,6 +32,8 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     #region Fields
 
     private const int EdgeCount = 12;
+    private static readonly int[] s_edgeStarts = { 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3 };
+    private static readonly int[] s_edgeEnds = { 1, 2, 3, 0, 5, 6, 7, 4, 4, 5, 6, 7 };
 
     private bool _hasMatrix;
     private Fixed4x4 _matrix;
@@ -716,44 +718,12 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
 
     private static int GetEdgeStart(int edge)
     {
-        switch (edge)
-        {
-            case 0: return 0;
-            case 1: return 1;
-            case 2: return 2;
-            case 3: return 3;
-            case 4: return 4;
-            case 5: return 5;
-            case 6: return 6;
-            case 7: return 7;
-            case 8: return 0;
-            case 9: return 1;
-            case 10: return 2;
-            case 11: return 3;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(edge), $"Edge index must be between 0 and {EdgeCount - 1}.");
-        }
+        return s_edgeStarts[edge];
     }
 
     private static int GetEdgeEnd(int edge)
     {
-        switch (edge)
-        {
-            case 0: return 1;
-            case 1: return 2;
-            case 2: return 3;
-            case 3: return 0;
-            case 4: return 5;
-            case 5: return 6;
-            case 6: return 7;
-            case 7: return 4;
-            case 8: return 4;
-            case 9: return 5;
-            case 10: return 6;
-            case 11: return 7;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(edge), $"Edge index must be between 0 and {EdgeCount - 1}.");
-        }
+        return s_edgeEnds[edge];
     }
 
     #endregion

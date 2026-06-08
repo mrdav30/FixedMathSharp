@@ -616,6 +616,7 @@ public class Vector2dTests
         var vector = new Vector2d(1, 2);
 
         Assert.Equal(new Vector2d(10, 20), vector.LerpInPlace(new Vector2d(10, 20), new Fixed64(2)));
+        Assert.Equal(new Vector2d(10, 20), vector.LerpInPlace(new Vector2d(30, 40), Fixed64.Zero));
         Assert.Equal(Vector2d.Zero, Vector2d.Lerp(Vector2d.Zero, new Vector2d(10, 20), -Fixed64.One));
         Assert.Equal(new Vector2d(10, 20), Vector2d.Lerp(Vector2d.Zero, new Vector2d(10, 20), new Fixed64(2)));
     }
@@ -637,15 +638,25 @@ public class Vector2dTests
     {
         var vector = new Vector2d(Fixed64.FromDouble(1.25), Fixed64.FromDouble(-2.5));
 
+        Assert.Equal(Vector2d.Right, Vector2d.DefaultRotation);
+        Assert.Equal(new Vector2d(0, -1), Vector2d.Down);
+        Assert.Equal(new Vector2d(-1, 0), Vector2d.Left);
+        Assert.Equal(new Fixed64(5), Vector2d.Distance(Vector2d.Zero, new Vector2d(3, 4)));
         Assert.Equal(new Fixed64(25), Vector2d.DistanceSquared(Vector2d.Zero, new Vector2d(3, 4)));
         Assert.Equal(new Fixed64(11), Vector2d.Dot(new Vector2d(1, 2), new Vector2d(3, 4)));
         Assert.Equal(new Vector2d(8, 15), Vector2d.Multiply(new Vector2d(2, 3), new Vector2d(4, 5)));
         Assert.Equal("(1.25, -2.5)", vector.ToString());
         Assert.Equal(new Vector3d(Fixed64.FromDouble(1.25), new Fixed64(7), Fixed64.FromDouble(-2.5)), vector.ToVector3d(new Fixed64(7)));
 
+        vector.Deconstruct(out Fixed64 x, out Fixed64 y);
+        vector.Deconstruct(out long lx, out long ly);
         vector.Deconstruct(out double fx, out double fy);
         vector.Deconstruct(out int ix, out int iy);
 
+        Assert.Equal(Fixed64.FromDouble(1.25), x);
+        Assert.Equal(Fixed64.FromDouble(-2.5), y);
+        Assert.Equal(vector.X.m_rawValue, lx);
+        Assert.Equal(vector.Y.m_rawValue, ly);
         Assert.Equal(1.25f, fx);
         Assert.Equal(-2.5f, fy);
         Assert.Equal(1, ix);

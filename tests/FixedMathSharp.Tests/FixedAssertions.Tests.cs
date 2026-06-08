@@ -16,6 +16,14 @@ public class FixedAssertionsTests
         Assert.NotNull(Record.Exception(assertion));
     }
 
+    private static void AssertAssertionFailsWithMessage(Action assertion, string expectedFragment)
+    {
+        Exception? exception = Record.Exception(assertion);
+
+        Assert.NotNull(exception);
+        Assert.Contains(expectedFragment, exception.Message);
+    }
+
     [Fact]
     public void Fixed64Assertions_SupportApproximateEqualityAndRawValueChecks()
     {
@@ -42,6 +50,7 @@ public class FixedAssertionsTests
         AssertAssertionFails(() => value.Should().BeApproximately(new Fixed64(2), Fixed64.FromDouble(0.1)));
         AssertAssertionFails(() => value.Should().NotBeApproximately(Fixed64.FromDouble(1.3), Fixed64.FromDouble(0.1)));
         AssertAssertionFails(() => value.Should().HaveRawValue(value.m_rawValue + 1));
+        AssertAssertionFailsWithMessage(() => new Fixed64Assertions(value).BeNull(), "fixed64");
     }
 
     [Fact]
@@ -75,6 +84,7 @@ public class FixedAssertionsTests
         AssertAssertionFails(() => actual.Should().HaveComponentApproximately(new Vector2d(2, 4), Fixed64.Epsilon));
         AssertAssertionFails(() => actual.Should().HaveMagnitudeApproximately(Fixed64.Zero, Fixed64.Epsilon));
         AssertAssertionFails(() => actual.Should().BeNormalized(Fixed64.FromDouble(0.0001)));
+        AssertAssertionFailsWithMessage(() => new Vector2dAssertions(actual).BeNull(), "vector2d");
     }
 
     [Fact]
@@ -108,6 +118,7 @@ public class FixedAssertionsTests
         AssertAssertionFails(() => actual.Should().HaveComponentApproximately(new Vector3d(1, 2, 4), Fixed64.Epsilon));
         AssertAssertionFails(() => actual.Should().HaveMagnitudeApproximately(Fixed64.Zero, Fixed64.Epsilon));
         AssertAssertionFails(() => actual.Should().BeNormalized(Fixed64.FromDouble(0.0001)));
+        AssertAssertionFailsWithMessage(() => new Vector3dAssertions(actual).BeNull(), "vector3d");
     }
 
     [Fact]

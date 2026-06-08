@@ -53,6 +53,8 @@ public class FixedBoundFrustumTests
         corners[0] = Vector3d.Zero;
 
         Assert.Equal(new Vector3d(-1, 1, 0), frustum.GetCorners()[0]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => frustum.GetCorner(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => frustum.GetCorner(FixedBoundFrustum.CornerCount));
     }
 
     [Fact]
@@ -225,6 +227,14 @@ public class FixedBoundFrustumTests
 
         Assert.Equal(FixedEnclosureType.Disjoint, frustum.Contains(other));
         Assert.False(frustum.Intersects(other));
+
+        var edgeSeparated = CreateTransformedFrustum(
+            Vector3d.FromDouble(-2.5, -2.0, -1.5),
+            Vector3d.FromDouble(15.0, 15.0, 15.0),
+            Vector3d.FromDouble(0.75, 0.75, 0.75));
+
+        Assert.Equal(FixedEnclosureType.Disjoint, frustum.Contains(edgeSeparated));
+        Assert.False(frustum.Intersects(edgeSeparated));
     }
 
     [Fact]
@@ -290,6 +300,15 @@ public class FixedBoundFrustumTests
     }
 
     [Fact]
+    public void Intersects_Ray_DoesNotExpandExistingExitInterval()
+    {
+        var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
+        var ray = new FixedRay(new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half), Vector3d.One);
+
+        Assert.Equal(Fixed64.Zero, frustum.Intersects(ray));
+    }
+
+    [Fact]
     public void Constructor_PlaneArray_ValidatesLengthAndCopiesPlanes()
     {
         FixedPlane[] planes =
@@ -327,6 +346,8 @@ public class FixedBoundFrustumTests
         planes[0] = new FixedPlane(Vector3d.Forward, Fixed64.Zero);
 
         Assert.Equal(CustomNear, frustum.GetPlanes()[0]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => frustum.GetPlane(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => frustum.GetPlane(FixedBoundFrustum.PlaneCount));
 
         var copied = new FixedPlane[FixedBoundFrustum.PlaneCount];
         frustum.GetPlanes(copied);

@@ -535,6 +535,18 @@ public class Vector4dTests
         Assert.Equal(new Vector3d(Fixed64.FromDouble(1.25), Fixed64.FromDouble(2.5), Fixed64.FromDouble(3.75)), vector.ToVector3d());
         Assert.Equal(vector, vector2.ToVector4d(Fixed64.FromDouble(3.75), Fixed64.FromDouble(4.5)));
         Assert.Equal(vector, vector3.ToVector4d(Fixed64.FromDouble(4.5)));
+
+        vector.Deconstruct(out Fixed64 x, out Fixed64 y, out Fixed64 z, out Fixed64 w);
+        vector.Deconstruct(out long lx, out long ly, out long lz, out long lw);
+
+        Assert.Equal(Fixed64.FromDouble(1.25), x);
+        Assert.Equal(Fixed64.FromDouble(2.5), y);
+        Assert.Equal(Fixed64.FromDouble(3.75), z);
+        Assert.Equal(Fixed64.FromDouble(4.5), w);
+        Assert.Equal(vector.X.m_rawValue, lx);
+        Assert.Equal(vector.Y.m_rawValue, ly);
+        Assert.Equal(vector.Z.m_rawValue, lz);
+        Assert.Equal(vector.W.m_rawValue, lw);
         Assert.Equal(1.25f, fx);
         Assert.Equal(2.5f, fy);
         Assert.Equal(3.75f, fz);

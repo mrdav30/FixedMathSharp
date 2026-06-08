@@ -123,6 +123,20 @@ public class FixedTrigonometryTests
     }
 
     [Fact]
+    public void Pow2_LargestFractionalExponentBelowOverflow_ReturnsFiniteValue()
+    {
+        var exponent = Fixed64.FromRaw((30L << FixedMath.SHIFT_AMOUNT_I) | FixedMath.MAX_SHIFTED_AMOUNT_UI);
+
+        Assert.True(FixedMath.Pow2(exponent) < Fixed64.MaxValue);
+    }
+
+    [Fact]
+    public void GetHypotenuse_ReturnsPythagoreanLength()
+    {
+        Assert.Equal(new Fixed64(5), FixedMath.GetHypotenuse(new Fixed64(3), new Fixed64(4)));
+    }
+
+    [Fact]
     public void Pow2_MatchesReferenceAcrossSafeRange()
     {
         var exponents = new[]

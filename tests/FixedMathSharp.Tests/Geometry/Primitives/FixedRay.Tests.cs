@@ -62,6 +62,9 @@ public class FixedRayTests
         Fixed64? hit = ray.Intersects(box);
 
         Assert.Equal(new Fixed64(4), hit);
+
+        var diagonal = new FixedRay(new Vector3d(-5, -5, 0), new Vector3d(1, 1, 0));
+        Assert.Equal(new Fixed64(4), diagonal.Intersects(box));
     }
 
     [Fact]

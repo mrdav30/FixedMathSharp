@@ -200,6 +200,48 @@ public class FixedBoundSphereTests
 
         foreach (Vector3d corner in frustum.GetCorners())
             Assert.True(sphere.Contains(corner));
+
+        var deepFrustum = new FixedBoundFrustum(
+            new FixedPlane(Vector3d.Backward, Fixed64.One),
+            new FixedPlane(Vector3d.Forward, new Fixed64(-10)),
+            new FixedPlane(Vector3d.Left, -Fixed64.One),
+            new FixedPlane(Vector3d.Right, -Fixed64.One),
+            new FixedPlane(Vector3d.Up, -Fixed64.One),
+            new FixedPlane(Vector3d.Down, -Fixed64.One));
+
+        FixedBoundSphere deepSphere = FixedBoundSphere.CreateFromFrustum(deepFrustum);
+
+        foreach (Vector3d corner in deepFrustum.GetCorners())
+            Assert.True(deepSphere.Contains(corner));
+
+        var tallFrustum = new FixedBoundFrustum(
+            new FixedPlane(Vector3d.Backward, Fixed64.One),
+            new FixedPlane(Vector3d.Forward, new Fixed64(-3)),
+            new FixedPlane(Vector3d.Left, -Fixed64.One),
+            new FixedPlane(Vector3d.Right, -Fixed64.One),
+            new FixedPlane(Vector3d.Up, new Fixed64(-10)),
+            new FixedPlane(Vector3d.Down, new Fixed64(-10)));
+
+        FixedBoundSphere tallSphere = FixedBoundSphere.CreateFromFrustum(tallFrustum);
+
+        foreach (Vector3d corner in tallFrustum.GetCorners())
+            Assert.True(tallSphere.Contains(corner));
+
+        var tiltedFrustum = new FixedBoundFrustum(
+            Fixed4x4.CreateRotationX(Fixed64.PiOver4) *
+            Fixed4x4.CreateRotationY(Fixed64.PiOver4) *
+            Fixed4x4.CreateRotationZ(Fixed64.PiOver4));
+
+        FixedBoundSphere tiltedSphere = FixedBoundSphere.CreateFromFrustum(tiltedFrustum);
+
+        foreach (Vector3d corner in tiltedFrustum.GetCorners())
+            Assert.True(tiltedSphere.Contains(corner));
+
+        var flippedFrustum = new FixedBoundFrustum(Fixed4x4.CreateRotationX(Fixed64.Pi));
+        FixedBoundSphere flippedSphere = FixedBoundSphere.CreateFromFrustum(flippedFrustum);
+
+        foreach (Vector3d corner in flippedFrustum.GetCorners())
+            Assert.True(flippedSphere.Contains(corner));
     }
 
     [Fact]
@@ -249,6 +291,19 @@ public class FixedBoundSphereTests
 
         Assert.Equal(Vector3d.Zero, sphere.Center);
         Assert.Equal(new Fixed64(5), sphere.Radius);
+
+        Vector3d[] reversedY =
+        {
+            new(0, 5, 0),
+            new(0, -5, 0),
+            new(2, 0, 0),
+            new(0, 0, 1)
+        };
+
+        FixedBoundSphere reversedSphere = FixedBoundSphere.CreateFromPoints((ReadOnlySpan<Vector3d>)reversedY);
+
+        Assert.Equal(Vector3d.Zero, reversedSphere.Center);
+        Assert.Equal(new Fixed64(5), reversedSphere.Radius);
     }
 
     [Fact]
@@ -287,6 +342,46 @@ public class FixedBoundSphereTests
 
         Assert.Equal(Vector3d.Zero, sphere.Center);
         Assert.Equal(new Fixed64(5), sphere.Radius);
+    }
+
+    [Fact]
+    public void CreateFromPoints_IEnumerableListPath_ValidatesAndCoversZAxisAndExpansion()
+    {
+        System.Collections.Generic.IEnumerable<Vector3d> nullEnumerable = null!;
+        System.Collections.Generic.IEnumerable<Vector3d> emptyList = new System.Collections.Generic.List<Vector3d>();
+        System.Collections.Generic.IEnumerable<Vector3d> zAxisPoints = new System.Collections.Generic.List<Vector3d>
+        {
+            new(0, 0, -6),
+            new(0, 0, 6),
+            new(4, 0, 0)
+        };
+        System.Collections.Generic.IEnumerable<Vector3d> expansionPoints = new System.Collections.Generic.List<Vector3d>
+        {
+            new(-5, 0, 0),
+            new(5, 0, 0),
+            new(0, 4, 4)
+        };
+        System.Collections.Generic.IEnumerable<Vector3d> decreasingPoints = new System.Collections.Generic.List<Vector3d>
+        {
+            new(5, 5, 5),
+            new(-5, -5, -5)
+        };
+
+        Assert.Throws<ArgumentNullException>(() => FixedBoundSphere.CreateFromPoints(nullEnumerable));
+        Assert.Throws<ArgumentException>(() => FixedBoundSphere.CreateFromPoints(emptyList));
+
+        FixedBoundSphere zAxisSphere = FixedBoundSphere.CreateFromPoints(zAxisPoints);
+        Assert.Equal(Vector3d.Zero, zAxisSphere.Center);
+        Assert.Equal(new Fixed64(6), zAxisSphere.Radius);
+
+        FixedBoundSphere expanded = FixedBoundSphere.CreateFromPoints(expansionPoints);
+        Assert.True(expanded.Radius > new Fixed64(5));
+        foreach (Vector3d point in expansionPoints)
+            Assert.True(expanded.Contains(point));
+
+        FixedBoundSphere decreasing = FixedBoundSphere.CreateFromPoints(decreasingPoints);
+        foreach (Vector3d point in decreasingPoints)
+            Assert.True(decreasing.Contains(point));
     }
 
     [Fact]
@@ -475,6 +570,16 @@ public class FixedBoundSphereTests
         Assert.Equal(new Vector3d(1, 2, 3), center);
         Assert.Equal(new Fixed64(5), radius);
         Assert.Equal("{Center:(1, 2, 3) Radius:5}", sphere.ToString());
+    }
+
+    [Fact]
+    public void TryFormat_ReturnsFalseWhenDestinationFitsCenterButNotRadius()
+    {
+        var sphere = new FixedBoundSphere(new Vector3d(1, 2, 3), new Fixed64(5));
+        Span<char> destination = stackalloc char[22];
+
+        Assert.False(sphere.TryFormat(destination, out int charsWritten, ReadOnlySpan<char>.Empty, null));
+        Assert.Equal(0, charsWritten);
     }
 
     #endregion

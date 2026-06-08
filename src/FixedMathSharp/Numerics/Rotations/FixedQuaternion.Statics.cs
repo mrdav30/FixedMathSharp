@@ -212,9 +212,6 @@ public partial struct FixedQuaternion
         {
             Vector3d axis = new(-direction.Y, direction.X, Fixed64.Zero);
             Fixed64 axisMagnitude = axis.Magnitude;
-            if (axisMagnitude == Fixed64.Zero)
-                return FromAxisAngle(Vector3d.Up, Fixed64.Pi);
-
             axis = new Vector3d(
                 axis.X / axisMagnitude,
                 axis.Y / axisMagnitude,

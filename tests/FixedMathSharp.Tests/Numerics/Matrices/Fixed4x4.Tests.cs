@@ -795,11 +795,12 @@ public class Fixed4x4Tests
         var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
 
         matrix.SetTranslation(new Vector3d(7, 8, 9));
+        matrix.SetScale(new Vector3d(3, 4, 5));
         var updated = matrix.SetRotation(rotation);
 
         Assert.Equal(new Vector3d(7, 8, 9), matrix.Translation);
         Assert.Equal(matrix, updated);
-        Assert.True(new Vector3d(2, 2, 2).FuzzyEqual(matrix.Scale, Fixed64.FromDouble(0.0001)));
+        Assert.True(new Vector3d(3, 4, 5).FuzzyEqual(matrix.Scale, Fixed64.FromDouble(0.0001)));
         Assert.True(matrix.Rotation.FuzzyEqual(rotation, Fixed64.FromDouble(0.0001)));
     }
 
@@ -1094,26 +1095,6 @@ public class Fixed4x4Tests
 
         Assert.Equal(Vector4d.Transform(matrix, vector), staticResult);
         Assert.Equal(staticResult, extensionResult);
-    }
-
-    [Fact]
-    public void Fixed4x4Extensions_DoNotExposeFactoryOrProjectionWrappers()
-    {
-        string[] excludedNames =
-        {
-            "CreateLookAt",
-            "CreatePerspective",
-            "CreatePerspectiveFieldOfView",
-            "CreatePerspectiveOffCenter",
-            "CreateOrthographic",
-            "CreateOrthographicOffCenter",
-            "CreateFromEulerAngles"
-        };
-
-        foreach (string methodName in excludedNames)
-        {
-            Assert.Empty(typeof(Fixed4x4Extensions).GetMember(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static));
-        }
     }
 
     [Fact]

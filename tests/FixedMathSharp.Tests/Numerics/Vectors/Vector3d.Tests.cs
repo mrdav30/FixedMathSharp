@@ -281,6 +281,9 @@ public class Vector3dTests
         Assert.Equal(new Vector3d(12, 36, 80), vector.DivideInPlace(new Fixed64(2)));
         Assert.Equal(new Vector3d(4, 9, 16), vector.DivideInPlace(new Fixed64(3), new Fixed64(4), new Fixed64(5)));
         Assert.Equal(new Vector3d(2, 3, 4), vector.DivideInPlace(new Vector3d(2, 3, 4)));
+        Assert.Equal(Vector3d.Zero, new Vector3d(2, 3, 4).DivideInPlace(Fixed64.Zero));
+        Assert.Equal(new Vector3d(0, 3, 0), new Vector3d(2, 3, 4).DivideInPlace(Fixed64.Zero, Fixed64.One, Fixed64.Zero));
+        Assert.Equal(Vector3d.Zero, new Vector3d(2, 3, 4).DivideInPlace(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero));
     }
 
     [Fact]
@@ -952,15 +955,20 @@ public class Vector3dTests
         var start = new Vector3d(1, 2, 3);
         var end = new Vector3d(5, 6, 7);
         var normal = Vector3d.Up;
+        var plane = new FixedPlane(Vector3d.Up, Fixed64.Zero);
         var matrix = Fixed4x4.CreateTranslation(new Vector3d(10, 20, 30));
 
+        Assert.Equal(Vector3d.Distance(start, end), start.Distance(end));
+        Assert.Equal(Vector3d.DistanceSquared(start, end), start.DistanceSquared(end));
         Assert.Equal(Vector3d.Dot(start, end), start.Dot(end));
         Assert.Equal(Vector3d.Cross(start, end), start.Cross(end));
         Assert.Equal(Vector3d.CrossProduct(start, end), start.CrossProduct(end));
         Assert.Equal(Vector3d.Lerp(start, end, Fixed64.Half), start.Lerp(end, Fixed64.Half));
         Assert.Equal(Vector3d.UnclampedLerp(start, end, new Fixed64(2)), start.UnclampedLerp(end, new Fixed64(2)));
+        Assert.Equal(Vector3d.Slerp(start, end, Fixed64.Half), start.Slerp(end, Fixed64.Half));
         Assert.Equal(Vector3d.Project(start, normal), start.Project(normal));
         Assert.Equal(Vector3d.ProjectOnPlane(start, normal), start.ProjectOnPlane(normal));
+        Assert.Equal(Vector3d.ProjectOnPlane(start, plane), start.ProjectOnPlane(plane));
         Assert.Equal(Vector3d.Angle(start, end), start.Angle(end));
         Assert.Equal(Vector3d.Reflect(start, normal), start.Reflect(normal));
         Assert.Equal(Vector3d.Transform(start, matrix), start.Transform(matrix));
@@ -1138,10 +1146,22 @@ public class Vector3dTests
         Assert.True(Vector3d.One <= new Vector3d(1, 2, 3));
         Assert.Equal("(1.25, 2.5, 3.75)", vector.ToString());
         Assert.Equal(new Vector2d(Fixed64.FromDouble(1.25), Fixed64.FromDouble(3.75)), vector.ToVector2d());
+        Assert.Equal(new Vector3d(15, 15, 15), Vector3d.CatmullRom(new Vector3d(0, 0, 0), new Vector3d(10, 10, 10), new Vector3d(20, 20, 20), new Vector3d(30, 30, 30), Fixed64.Half));
+        Assert.Equal(new Vector3d(5, 5, 5), Vector3d.HermiteSpline(Vector3d.Zero, Vector3d.Zero, new Vector3d(10, 10, 10), Vector3d.Zero, Fixed64.Half));
+        Assert.Equal(new Vector3d(5, 5, 5), Vector3d.SmoothStep(Vector3d.Zero, new Vector3d(10, 10, 10), Fixed64.Half));
+        Assert.Equal(new Vector3d(-1, -2, -3), Vector3d.Negate(new Vector3d(1, 2, 3)));
 
+        vector.Deconstruct(out Fixed64 x, out Fixed64 y, out Fixed64 z);
+        vector.Deconstruct(out long lx, out long ly, out long lz);
         vector.Deconstruct(out double fx, out double fy, out double fz);
         vector.Deconstruct(out int ix, out int iy, out int iz);
 
+        Assert.Equal(Fixed64.FromDouble(1.25), x);
+        Assert.Equal(Fixed64.FromDouble(2.5), y);
+        Assert.Equal(Fixed64.FromDouble(3.75), z);
+        Assert.Equal(vector.X.m_rawValue, lx);
+        Assert.Equal(vector.Y.m_rawValue, ly);
+        Assert.Equal(vector.Z.m_rawValue, lz);
         Assert.Equal(1.25f, fx);
         Assert.Equal(2.5f, fy);
         Assert.Equal(3.75f, fz);

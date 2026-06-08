@@ -64,6 +64,32 @@ public class DiagnosticsFormattingTests
         AssertFormatted(sphere, "{Center:(1.25, -2.50, 3.75) Radius:4.50}");
     }
 
+    [Fact]
+    public void FixedDiagnosticsFormatter_GrowsBeyondInitialAndFirstRentedBuffer()
+    {
+        string result = FixedDiagnosticsFormatter.ToString((Span<char> destination, out int charsWritten) =>
+        {
+            const int RequiredLength = 700;
+            if (destination.Length < RequiredLength)
+            {
+                charsWritten = 0;
+                return false;
+            }
+
+            destination[..RequiredLength].Fill('x');
+            charsWritten = RequiredLength;
+            return true;
+        });
+
+        Assert.Equal(new string('x', 700), result);
+
+        Span<char> empty = Span<char>.Empty;
+        int written = 0;
+
+        Assert.False(FixedDiagnosticsFormatter.Append('x', empty, ref written));
+        Assert.Equal(0, written);
+    }
+
     private static void AssertFormatted<T>(T value, string expected)
         where T : IFormattable, ISpanFormattable
     {
