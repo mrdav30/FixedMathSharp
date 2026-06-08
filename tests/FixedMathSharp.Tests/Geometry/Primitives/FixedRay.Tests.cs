@@ -1,6 +1,5 @@
 ﻿using FixedMathSharp.Bounds;
 using MemoryPack;
-using System;
 using System.Text.Json;
 using Xunit;
 

@@ -534,23 +534,23 @@ public partial struct Vector3d
     /// <summary>
     /// Calculates the barycentric coordinates of a point with respect to a triangle defined by three vertices.
     /// </summary>
-    /// <param name="value1">The first vertex of the triangle.</param>
-    /// <param name="value2">The second vertex of the triangle.</param>
-    /// <param name="value3">The third vertex of the triangle.</param>
-    /// <param name="amount1">The first barycentric scalar which represents the weighting factor for the second vertex.</param>
-    /// <param name="amount2">The second barycentric scalar which represents the weighting factor for the third vertex.</param>
+    /// <param name="coordA">The first vertex of the triangle.</param>
+    /// <param name="coordB">The second vertex of the triangle.</param>
+    /// <param name="coordC">The third vertex of the triangle.</param>
+    /// <param name="weightB">The barycentric weight for the second vertex.</param>
+    /// <param name="weightC">The barycentric weight for the third vertex.</param>
     /// <returns>The cartesian translation represented by the barycentric coordinates within the triangle.</returns>
     public static Vector3d BarycentricCoordinates(
-        Vector3d value1,
-        Vector3d value2,
-        Vector3d value3,
-        Fixed64 amount1,
-        Fixed64 amount2)
+        Vector3d coordA,
+        Vector3d coordB,
+        Vector3d coordC,
+        Fixed64 weightB,
+        Fixed64 weightC)
     {
         return new(
-            FixedMath.BarycentricCoordinate(value1.X, value2.X, value3.X, amount1, amount2),
-            FixedMath.BarycentricCoordinate(value1.Y, value2.Y, value3.Y, amount1, amount2),
-            FixedMath.BarycentricCoordinate(value1.Z, value2.Z, value3.Z, amount1, amount2));
+            FixedMath.BarycentricCoordinate(coordA.X, coordB.X, coordC.X, weightB, weightC),
+            FixedMath.BarycentricCoordinate(coordA.Y, coordB.Y, coordC.Y, weightB, weightC),
+            FixedMath.BarycentricCoordinate(coordA.Z, coordB.Z, coordC.Z, weightB, weightC));
     }
 
     /// <summary>

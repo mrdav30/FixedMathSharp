@@ -362,22 +362,22 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Performs a barycentric interpolation between three Fixed64 values that represent one axis of a triangle.
+        /// Performs barycentric interpolation between three scalar coordinates from a triangle.
         /// </summary>
-        /// <param name="value1">The coordinate of the first vertex.</param>
-        /// <param name="value2">The coordinate of the second vertex.</param>
-        /// <param name="value3">The coordinate of the third vertex.</param>
-        /// <param name="amount1">The normalized barycentric coordinate for the second vertex equal to the weight of the second vertex.</param>
-        /// <param name="amount2">The normalized barycentric coordinate for the third vertex equal to the weight of the third vertex.</param>
-        /// <returns>The cartesian coordinate for one axis based on the barycentric interpolation.</returns>
+        /// <param name="coordA">The coordinate of the first vertex.</param>
+        /// <param name="coordB">The coordinate of the second vertex.</param>
+        /// <param name="coordC">The coordinate of the third vertex.</param>
+        /// <param name="weightB">The barycentric weight for the second vertex.</param>
+        /// <param name="weightC">The barycentric weight for the third vertex.</param>
+        /// <returns>The interpolated scalar coordinate.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 BarycentricCoordinate(
-            Fixed64 value1,
-            Fixed64 value2,
-            Fixed64 value3,
-            Fixed64 amount1,
-            Fixed64 amount2
-        ) => value1 + (value2 - value1) * amount1 + (value3 - value1) * amount2;
+            Fixed64 coordA,
+            Fixed64 coordB,
+            Fixed64 coordC,
+            Fixed64 weightB,
+            Fixed64 weightC
+        ) => coordA + (coordB - coordA) * weightB + (coordC - coordA) * weightC;
 
         /// <summary>
         /// Adds two fixed-point numbers by adding their raw Q32.32 payloads without saturation.

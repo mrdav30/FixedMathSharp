@@ -5,8 +5,8 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System.Runtime.CompilerServices;
 using FixedMathSharp.Bounds;
+using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
