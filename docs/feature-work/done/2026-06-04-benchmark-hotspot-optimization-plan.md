@@ -16,8 +16,6 @@ correctness-first optimization work for measured hotspots only.
 work. This plan tracks candidate runtime/design optimizations; the benchmark
 regression plan tracks repeatability, reporting, and CI posture.
 
-**Baseline:** `docs/feature-work/benchmark-baselines/2026-06-04/`
-
 **Tech Stack:** `netstandard2.1` and `net8.0` runtime targets, BenchmarkDotNet,
 xUnit, MemoryPack, System.Text.Json, `Release`, and `ReleaseLean`.
 
