@@ -8,7 +8,7 @@
 > claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for
 > tracking.
 
-**Status:** Active
+**Status:** Done
 
 **Goal:** Make FixedMathSharp's public API easier to discover, harder to
 misuse, and friendlier for v5.0.0 consumers while preserving deterministic,
@@ -719,14 +719,31 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: relevant docs under `docs/`
 - Review: `docs/feature-work/issue-tracker.md`
 
-- [ ] Update README API guidance after the final public shape is known.
-- [ ] Update `AGENTS.md` if the canonical ownership rules or public API policy
+- [x] Update README API guidance after the final public shape is known.
+- [x] Update `AGENTS.md` if the canonical ownership rules or public API policy
   should guide future agents.
-- [ ] Add migration notes for removed or renamed v4 APIs.
-- [ ] Move unresolved follow-up ideas into a new feature-work plan or the issue
+- [x] Defer migration notes for removed or renamed v4 APIs until the release
+  note pass can review the full v4.0.1-to-v5.0.0 commit range.
+- [x] Move unresolved follow-up ideas into a new feature-work plan or the issue
   tracker before marking this plan done.
-- [ ] Move this plan to `docs/feature-work/done/` after all phases are
+- [x] Move this plan to `docs/feature-work/done/` after all phases are
   completed and verified.
+
+Result:
+
+- Added concise README guidance for the final public API shape: canonical
+  scalar algorithms live on `FixedMath`, representation and conversion live on
+  `Fixed64`, mutation uses explicit `*InPlace` APIs, extensions are curated
+  receiver-shaped conveniences, `Fast*` helpers are expert APIs, and span/array
+  overloads are preferred for countable hot-path data.
+- Updated `AGENTS.md` so future work preserves the same ownership model,
+  avoids reintroducing vector-result `out` helpers, keeps convention-heavy
+  factories on owning types, and treats public `Fast*` helpers as documented
+  expert APIs that need benchmarked call-site proof.
+- Skipped migration notes by design. They should be generated later from the
+  full release commit range rather than only this feature plan.
+- Extracted the remaining diagnostics and formatting ownership question into
+  `docs/feature-work/2026-06-07-diagnostics-formatting-surface-plan.md`.
 
 Verification:
 
@@ -739,6 +756,12 @@ dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLea
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj --configuration Release -f net8.0 --no-restore
 git diff --check
 ```
+
+Verification result on 2026-06-07: `dotnet restore`, the Debug solution build,
+the full Debug solution test run, the Release `netstandard2.1` build, the
+ReleaseLean `netstandard2.1` build, and the Release `net8.0` benchmark project
+build all passed with zero warnings/errors. The full test run reported 963
+passed tests.
 
 ## Recommended First Slice
 

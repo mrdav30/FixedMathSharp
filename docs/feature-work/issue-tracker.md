@@ -56,7 +56,7 @@ confirmed runtime defect. Current queue:
 **Discovered:** 2026-06-06
 
 **Source:** Phase 1 public API inventory for
-`docs/feature-work/2026-06-05-public-api-hardening-track.md`.
+`docs/feature-work/done/2026-06-05-public-api-hardening-track.md`.
 
 **Status:** Resolved on 2026-06-06
 

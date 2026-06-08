@@ -155,6 +155,14 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - `DeterministicRandom`: repeatable random streams for simulations and procedural generation.
 - `FixedMathSharp.FluentAssertions`: expressive test assertions for FixedMathSharp types.
 
+### API Shape Notes
+
+- `FixedMath` is the canonical scalar algorithm surface; `Fixed64` owns Q32.32 representation, conversions, parsing, operators, and raw-value helpers.
+- Numeric types expose clear return-by-value statics/operators plus explicit `*InPlace` methods when mutation is useful.
+- Extension methods are curated receiver-shaped conveniences that forward to canonical APIs; factories and convention-heavy operations stay on the owning type.
+- `Fast*` helpers are expert APIs for proven hot paths. They skip some guarded operator behavior, so prefer normal operators unless benchmarks and invariants justify the fast path.
+- Countable hot-path data may use array or `ReadOnlySpan<T>` overloads, while `IEnumerable<T>` remains useful for broader interoperability.
+
 ---
 
 ## Build From Source

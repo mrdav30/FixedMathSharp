@@ -185,6 +185,18 @@ deterministic.
   two-method partials that make navigation worse.
 - `FixedMath` and fixed trigonometry code are shared algorithm backbones.
   Extension classes are thin forwarding wrappers, not alternate implementations.
+- Public API ownership should stay intentional: `FixedMath` owns deterministic
+  scalar algorithms, `Fixed64` owns Q32.32 representation/conversion/operators,
+  vectors/quaternions/matrices own their domain operations, and extensions
+  expose only curated receiver-shaped conveniences.
+- Prefer return-by-value statics/operators plus explicit `*InPlace` methods for
+  mutation. Do not reintroduce vector-result `out` helper shapes unless a
+  measured design proves they are clearer and faster.
+- Keep factories and convention-heavy APIs, such as Euler, look-at, projection,
+  and transform construction, on the owning type rather than extension classes.
+- Treat public `Fast*` helpers as expert APIs. Their XML docs must state the
+  skipped checks or precision caveats, and runtime call sites should use them
+  only after local benchmarks prove the invariant and speed win.
 - Preserve saturating and guarded semantics in operators and math helpers.
 - When touching bounds logic, maintain the explicit cross-type `Contains` and
   `Intersects` overloads among boxes, areas, spheres, frustums, planes, and
