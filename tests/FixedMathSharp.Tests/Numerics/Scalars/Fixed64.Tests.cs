@@ -126,6 +126,22 @@ public class Fixed64Tests
     }
 
     [Fact]
+    public void Convert_FromFloatingPoint_RejectsNonFiniteAndOutOfRangeValues()
+    {
+        Assert.Equal(new Fixed64(2147483647), Fixed64.FromDouble(2147483647d));
+        Assert.Equal(Fixed64.MinValue, Fixed64.FromDouble(-2147483648d));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => Fixed64.FromDouble(double.NaN));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Fixed64.FromDouble(double.PositiveInfinity));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Fixed64.FromDouble(double.NegativeInfinity));
+        Assert.Throws<ArgumentOutOfRangeException>(() => (Fixed64)float.NaN);
+
+        Assert.Throws<OverflowException>(() => Fixed64.FromDouble(2147483648d));
+        Assert.Throws<OverflowException>(() => Fixed64.FromDouble(-2147483649d));
+        Assert.Throws<OverflowException>(() => (Fixed64)float.MaxValue);
+    }
+
+    [Fact]
     public void Convert_ToDouble_ReturnsCorrectDouble()
     {
         var fixedValue = Fixed64.FromDouble(5.5f);
@@ -142,6 +158,13 @@ public class Fixed64Tests
     {
         var result = Fixed64.FromFraction(1, 2);
         Assert.Equal(Fixed64.FromDouble(0.5f), result);
+    }
+
+    [Fact]
+    public void Fraction_RejectsNonFiniteResults()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Fixed64.FromFraction(1, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Fixed64.FromFraction(0, 0));
     }
 
     #endregion

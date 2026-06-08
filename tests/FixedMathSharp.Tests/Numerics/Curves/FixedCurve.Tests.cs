@@ -1,4 +1,5 @@
 ﻿using MemoryPack;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -215,6 +216,20 @@ public class FixedCurveTests
         Assert.True(fromDouble.Equals((object)same));
         Assert.False(fromDouble.Equals(new object()));
         Assert.Equal(fromDouble.GetHashCode(), same.GetHashCode());
+    }
+
+    [Fact]
+    public void FixedCurveKey_FromDouble_UsesCheckedFixed64Conversion()
+    {
+        FixedCurveKey key = FixedCurveKey.FromDouble(1.25, -2.5, 3.75, -4.5);
+
+        Assert.Equal(Fixed64.FromDouble(1.25), key.Time);
+        Assert.Equal(Fixed64.FromDouble(-2.5), key.Value);
+        Assert.Equal(Fixed64.FromDouble(3.75), key.InTangent);
+        Assert.Equal(Fixed64.FromDouble(-4.5), key.OutTangent);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedCurveKey.FromDouble(double.NaN, 0));
+        Assert.Throws<OverflowException>(() => FixedCurveKey.FromDouble(0, 0, 0, 2147483648d));
     }
 
     #region Test: Serialization

@@ -107,16 +107,6 @@ namespace FixedMathSharp.Random
         }
 
         /// <summary>
-        /// Double in [0,1).
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public double NextDouble()
-        {
-            // 53 random bits -> [0,1)
-            return (NextU64() >> 11) * (1.0 / (1UL << 53));
-        }
-
-        /// <summary>
         /// Fill span with random bytes.
         /// </summary>
         public void NextBytes(Span<byte> buffer)

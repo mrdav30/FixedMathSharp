@@ -134,7 +134,10 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// double-precision floating-point values.
     /// </summary>
     /// <remarks>This constructor allows for convenient creation of a Vector3d from double values, which are
-    /// internally converted to the Fixed64 representation used by the structure.</remarks>
+    /// internally converted to the Fixed64 representation used by the structure. Components are converted
+    /// through <see cref="Fixed64.FromDouble(double)"/>, so non-finite values throw
+    /// <see cref="ArgumentOutOfRangeException"/> and finite values outside the Q32.32 range throw
+    /// <see cref="OverflowException"/>.</remarks>
     /// <param name="xDoub">The X coordinate of the vector, specified as a double-precision floating-point value.</param>
     /// <param name="yDoub">The Y coordinate of the vector, specified as a double-precision floating-point value.</param>
     /// <param name="zDoub">The Z coordinate of the vector, specified as a double-precision floating-point value.</param>

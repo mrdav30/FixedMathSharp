@@ -257,7 +257,15 @@ public readonly partial struct Fixed64
         if (!decimal.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, formatProvider ?? CultureInfo.InvariantCulture, out decimal value))
             return false;
 
-        return TryFromDecimal(value, out result);
+        try
+        {
+            result = FromDecimal(value);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -304,12 +312,24 @@ public readonly partial struct Fixed64
     /// Constructs a Fixed64 from a double-precision floating-point value.
     /// </summary>
     /// <remarks>
-    /// The value is multiplied by the scaling factor (2^SHIFT_AMOUNT) and 
-    /// rounded to the nearest integer to fit into the fixed-point representation.
+    /// The value is multiplied by the scaling factor (2^SHIFT_AMOUNT) and rounded to the nearest
+    /// raw integer using midpoint-to-even rounding. Non-finite values throw an
+    /// <see cref="ArgumentOutOfRangeException"/>. Finite values outside the Q32.32 range throw an
+    /// <see cref="OverflowException"/>.
     /// </remarks>
-    /// <param name="value">Double value to convert to </param>
+    /// <param name="value">Double value to convert.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed64 FromDouble(double value) => new((long)Math.Round(value * FixedMath.ONE_L));
+    public static Fixed64 FromDouble(double value)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value))
+            throw new ArgumentOutOfRangeException(nameof(value), value, "Value must be finite.");
+
+        double rawValue = Math.Round(value * FixedMath.ONE_L, MidpointRounding.ToEven);
+        if (rawValue < FixedMath.MIN_RAW_D || rawValue >= FixedMath.MAX_RAW_EXCLUSIVE_D)
+            throw new OverflowException($"{value} is outside the representable range of {nameof(Fixed64)}.");
+
+        return FromRaw((long)rawValue);
+    }
 
     /// <summary>
     /// Constructs a Fixed64 from a decimal value.
@@ -331,24 +351,14 @@ public readonly partial struct Fixed64
         return FromRaw((long)rawValue);
     }
 
-    private static bool TryFromDecimal(decimal value, out Fixed64 result)
-    {
-        result = Zero;
-
-        try
-        {
-            result = FromDecimal(value);
-            return true;
-        }
-        catch (OverflowException)
-        {
-            return false;
-        }
-    }
-
     /// <summary>
     /// Creates a Fixed64 from a fractional number.
     /// </summary>
+    /// <remarks>
+    /// The quotient is converted through <see cref="FromDouble(double)"/>, so non-finite results
+    /// throw <see cref="ArgumentOutOfRangeException"/> and finite results outside the Q32.32 range
+    /// throw <see cref="OverflowException"/>.
+    /// </remarks>
     /// <param name="numerator">The numerator of the fraction.</param>
     /// <param name="denominator">The denominator of the fraction.</param>
     /// <returns>A Fixed64 representing the fraction.</returns>

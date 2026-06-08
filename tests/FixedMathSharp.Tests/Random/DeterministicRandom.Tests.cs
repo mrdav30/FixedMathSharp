@@ -33,7 +33,6 @@ public class DeterministicRandomTests
         Assert.Equal(a.Next(), b.Next());
         Assert.Equal(a.Next(1000), b.Next(1000));
         Assert.Equal(a.Next(-50, 50), b.Next(-50, 50));
-        Assert.Equal(a.NextDouble(), b.NextDouble(), 14);
 
         // Then compare a longer run of NextU64 to be extra sure
         var seqA = U64Seq(a, 32);
@@ -125,17 +124,6 @@ public class DeterministicRandomTests
         Assert.Throws<ArgumentException>(() => rng.Next(5, 5));
         Assert.Throws<ArgumentException>(() => rng.Next(10, -10));
         Assert.Throws<ArgumentException>(() => rng.Next(10, 10));
-    }
-
-    [Fact]
-    public void NextDouble_IsInUnitInterval()
-    {
-        var rng = new DeterministicRandom(123UL);
-        for (int i = 0; i < 4096; i++)
-        {
-            double d = rng.NextDouble();
-            Assert.True(d >= 0.0 && d < 1.0, "NextDouble() must be in [0,1)");
-        }
     }
 
     [Fact]
@@ -237,10 +225,6 @@ public class DeterministicRandomTests
         int i1 = a1.Next(100);
         int i2 = a2.Next(100);
         Assert.Equal(i1, i2);
-
-        double d1 = a1.NextDouble();
-        double d2 = a2.NextDouble();
-        Assert.Equal(d1, d2, 14);
 
         var buf1 = new byte[13];
         var buf2 = new byte[13];

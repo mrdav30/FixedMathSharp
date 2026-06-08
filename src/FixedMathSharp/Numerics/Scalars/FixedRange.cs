@@ -141,13 +141,6 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
         return includeMax ? x >= Min && x <= Max : x >= Min && x < Max;
     }
 
-    /// <inheritdoc cref="InRange(Fixed64, bool)" />
-    public bool InRange(double x, bool includeMax = false)
-    {
-        long xL = (long)Math.Round((double)x * FixedMath.ONE_L);
-        return includeMax ? xL >= Min.m_rawValue && xL <= Max.m_rawValue : xL >= Min.m_rawValue && xL < Max.m_rawValue;
-    }
-
     /// <summary>
     /// Checks whether this range overlaps with the specified range, ensuring no adjacent edges are considered overlaps.
     /// </summary>

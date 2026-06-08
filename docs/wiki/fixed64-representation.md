@@ -117,6 +117,18 @@ construction an intentional choice.
 throw `OverflowException` for decimal values outside the representable Q32.32
 range. `Fixed64.TryParse` reports the same overflow as `false`.
 
+Floating-point boundary helpers such as `Fixed64.FromDouble`, explicit
+`float`/`double` casts to `Fixed64`, vector `FromDouble` factories, and
+curve-key `FromDouble` factories also operate in normal value space. They
+reject `NaN` and infinities with `ArgumentOutOfRangeException`, and throw
+`OverflowException` for finite values outside the representable Q32.32 range.
+This keeps engine or tooling boundary input mistakes visible instead of
+silently manufacturing raw fixed-point payloads.
+
+APIs that can reasonably stay in fixed-point space should do so. For example,
+range checks use `FixedRange.InRange(Fixed64, bool)`, and deterministic random
+generation exposes `Fixed64` helpers instead of a `double` stream.
+
 - Use `Fixed64.FromRaw(long)` only when you intentionally want an exact raw representation.
 - Use constructors, constants, and helpers such as `Fixed64.One`, `Fixed64.FromFraction`, and `FixedMath` methods for normal value-space code.
 - Keep deterministic simulation state in fixed-point values, but convert to `float` or `double` at rendering and engine interop boundaries when needed.

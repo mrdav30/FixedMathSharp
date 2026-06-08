@@ -139,8 +139,13 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// <summary>
     /// Initializes a new Vector4d using double component values.
     /// </summary>
+    /// <remarks>
+    /// Components are converted through <see cref="Fixed64.FromDouble(double)"/>, so non-finite
+    /// values throw <see cref="ArgumentOutOfRangeException"/> and finite values outside the Q32.32
+    /// range throw <see cref="OverflowException"/>.
+    /// </remarks>
     public static Vector4d FromDouble(double xDoub, double yDoub, double zDoub, double wDoub) =>
-        new((Fixed64)xDoub, (Fixed64)yDoub, (Fixed64)zDoub, (Fixed64)wDoub);
+        new(Fixed64.FromDouble(xDoub), Fixed64.FromDouble(yDoub), Fixed64.FromDouble(zDoub), Fixed64.FromDouble(wDoub));
 
     #endregion
 

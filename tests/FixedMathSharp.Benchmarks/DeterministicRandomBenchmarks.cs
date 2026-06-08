@@ -53,17 +53,6 @@ public class DeterministicRandomBenchmarks
     }
 
     [Benchmark]
-    public double NextDouble()
-    {
-        var rng = new DeterministicRandom(0xC0FFEEUL);
-        double accumulator = 0.0;
-        for (int i = 0; i < BenchmarkFixtures.SampleCount * 4; i++)
-            accumulator += rng.NextDouble();
-
-        return accumulator;
-    }
-
-    [Benchmark]
     public Fixed64 NextFixed6401()
     {
         var rng = new DeterministicRandom(0xF164UL);

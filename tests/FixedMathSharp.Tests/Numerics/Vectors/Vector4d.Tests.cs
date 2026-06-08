@@ -34,6 +34,20 @@ public class Vector4dTests
     }
 
     [Fact]
+    public void FromDouble_UsesCheckedFixed64Conversion()
+    {
+        var vector = Vector4d.FromDouble(1.25, -2.5, 3.75, -4.5);
+
+        Assert.Equal(Fixed64.FromDouble(1.25), vector.X);
+        Assert.Equal(Fixed64.FromDouble(-2.5), vector.Y);
+        Assert.Equal(Fixed64.FromDouble(3.75), vector.Z);
+        Assert.Equal(Fixed64.FromDouble(-4.5), vector.W);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => Vector4d.FromDouble(0, 0, 0, double.NegativeInfinity));
+        Assert.Throws<OverflowException>(() => Vector4d.FromDouble(2147483648d, 0, 0, 0));
+    }
+
+    [Fact]
     public void StaticFields_ReturnExpectedValues()
     {
         Assert.Equal(new Vector4d(0, 0, 0, 0), Vector4d.Zero);

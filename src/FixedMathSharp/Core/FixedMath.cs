@@ -64,6 +64,9 @@ namespace FixedMathSharp
         /// </summary>
         public const long ONE_L = 1L << SHIFT_AMOUNT_I;
 
+        internal const double MIN_RAW_D = -9223372036854775808d;
+        internal const double MAX_RAW_EXCLUSIVE_D = 9223372036854775808d;
+
         // Precomputed scale factors only for performance-critical scenarios to avoid division at runtime
 
         /// <summary>

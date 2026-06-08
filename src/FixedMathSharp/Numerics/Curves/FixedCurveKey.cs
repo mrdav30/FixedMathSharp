@@ -77,12 +77,22 @@ public partial struct FixedCurveKey : IEquatable<FixedCurveKey>
     /// <summary>
     /// Creates a keyframe with a specified time and value.
     /// </summary>
+    /// <remarks>
+    /// Values are converted through <see cref="Fixed64.FromDouble(double)"/>, so non-finite values
+    /// throw <see cref="ArgumentOutOfRangeException"/> and finite values outside the Q32.32 range
+    /// throw <see cref="OverflowException"/>.
+    /// </remarks>
     public static FixedCurveKey FromDouble(double time, double value) =>
         new(Fixed64.FromDouble(time), Fixed64.FromDouble(value));
 
     /// <summary>
     /// Creates a keyframe with optional tangents for cubic interpolation.
     /// </summary>
+    /// <remarks>
+    /// Values are converted through <see cref="Fixed64.FromDouble(double)"/>, so non-finite values
+    /// throw <see cref="ArgumentOutOfRangeException"/> and finite values outside the Q32.32 range
+    /// throw <see cref="OverflowException"/>.
+    /// </remarks>
     public static FixedCurveKey FromDouble(double time, double value, double inTangent, double outTangent) =>
         new(Fixed64.FromDouble(time),
             Fixed64.FromDouble(value),

@@ -41,6 +41,19 @@ public class Vector3dTests
         Assert.Equal(Fixed64.FromDouble(3.0), vector.Z);
     }
 
+    [Fact]
+    public void FromDouble_UsesCheckedFixed64Conversion()
+    {
+        var vector = Vector3d.FromDouble(1.25, -2.5, 3.75);
+
+        Assert.Equal(Fixed64.FromDouble(1.25), vector.X);
+        Assert.Equal(Fixed64.FromDouble(-2.5), vector.Y);
+        Assert.Equal(Fixed64.FromDouble(3.75), vector.Z);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => Vector3d.FromDouble(0, double.PositiveInfinity, 0));
+        Assert.Throws<OverflowException>(() => Vector3d.FromDouble(0, 0, -2147483649d));
+    }
+
     #endregion
 
     #region Test: Magnitude and Normalization

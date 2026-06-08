@@ -118,8 +118,12 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
 
     /// <summary>
     /// Initializes a new instance of the Vector2d structure using double-precision floating-point values for the X and Y components.
-    /// floating-point values.
     /// </summary>
+    /// <remarks>
+    /// Components are converted through <see cref="Fixed64.FromDouble(double)"/>, so non-finite
+    /// values throw <see cref="ArgumentOutOfRangeException"/> and finite values outside the Q32.32
+    /// range throw <see cref="OverflowException"/>.
+    /// </remarks>
     public static Vector2d FromDouble(double xDoub, double yDoub) =>
         new(Fixed64.FromDouble(xDoub), Fixed64.FromDouble(yDoub));
 

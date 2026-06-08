@@ -36,6 +36,21 @@ runtime and tests.
 
 ## Active Issues
 
+- None currently.
+
+## Performance Investigation Queue
+
+Performance issues should stay in the benchmark plan unless they become a
+confirmed runtime defect. Current queue:
+
+- None currently. The 2026-06-03 vector normalization and residual quaternion
+  allocation investigation was completed in
+  `docs/feature-work/done/2026-06-03-benchmark-hot-path-followups.md` Phase 3. The
+  residual `1 B` signal did not reproduce in the expanded short-run
+  diagnostics, so no runtime defect is currently tracked.
+
+## Resolved Issues
+
 ### FMS-Issue-011: Floating-point conversion paths rely on unchecked raw casts
 
 **Discovered:** 2026-06-07
@@ -43,7 +58,7 @@ runtime and tests.
 **Source:** Diagnostics and formatting surface implementation while hardening
 `Fixed64.Parse`, `TryParse`, and decimal conversion behavior.
 
-**Status:** Open
+**Status:** Resolved on 2026-06-08
 
 **Affected files:**
 
@@ -70,31 +85,59 @@ in setup-heavy or editor-facing paths.
 
 **Recommended work:**
 
-- [ ] Add tests for `Fixed64.FromDouble`, explicit `float`/`double`
+- [x] Add tests for `Fixed64.FromDouble`, explicit `float`/`double`
   conversions, `FromFraction`, vector `FromDouble` factories, and
-  `FixedRange.InRange(double)` using finite values, `NaN`, infinities, and
-  out-of-range values.
-- [ ] Decide whether floating-point value-space conversion should throw,
+  curve-key `FromDouble` factories using finite values, `NaN`, infinities,
+  and out-of-range values. Removed the `FixedRange.InRange(double)` surface
+  instead of keeping a cross-domain overload.
+- [x] Decide whether floating-point value-space conversion should throw,
   saturate, or route through a shared checked helper. Prefer one documented
   policy rather than per-call-site behavior.
-- [ ] Keep raw Q32.32 construction explicit through `FromRaw`.
-- [ ] Verify that deterministic runtime code does not depend on ambient
+- [x] Keep raw Q32.32 construction explicit through `FromRaw`.
+- [x] Verify that deterministic runtime code does not depend on ambient
   floating-point conversion in hot paths.
-- [ ] Update XML docs and `docs/wiki/fixed64-representation.md` after the
+- [x] Update XML docs and `docs/wiki/fixed64-representation.md` after the
   conversion policy is settled.
 
-## Performance Investigation Queue
+**Resolution:**
 
-Performance issues should stay in the benchmark plan unless they become a
-confirmed runtime defect. Current queue:
+`Fixed64.FromDouble` now performs checked value-space conversion directly.
+Non-finite inputs throw `ArgumentOutOfRangeException`, while finite values
+outside the Q32.32 range throw `OverflowException`. `FromFraction`, explicit
+`float`/`double` conversions, vector `FromDouble` factories, and
+`FixedCurveKey.FromDouble` inherit the same scalar policy.
 
-- None currently. The 2026-06-03 vector normalization and residual quaternion
-  allocation investigation was completed in
-  `docs/feature-work/done/2026-06-03-benchmark-hot-path-followups.md` Phase 3. The
-  residual `1 B` signal did not reproduce in the expanded short-run
-  diagnostics, so no runtime defect is currently tracked.
+`FixedRange.InRange(double)` was removed so callers convert to `Fixed64` at the
+boundary and keep range checks in fixed-point space. `DeterministicRandom.NextDouble`
+was also removed in favor of deterministic `Fixed64` random helpers.
 
-## Resolved Issues
+Raw payload construction remains explicit through `Fixed64.FromRaw(long)`.
+The source scan found no remaining production `Math.Round(value *
+FixedMath.ONE_L)` plus direct `long` cast sites outside `Fixed64.FromDouble`.
+The remaining production `FromDouble` usages are public boundary/factory
+conveniences and static matrix initialization, not deterministic runtime math
+loops.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --no-restore --filter "FullyQualifiedName~Fixed64Tests|FullyQualifiedName~FixedRangeTests|FullyQualifiedName~Vector2dTests|FullyQualifiedName~Vector3dTests|FullyQualifiedName~Vector4dTests|FullyQualifiedName~FixedCurveTests"
+dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f netstandard2.1 --no-restore
+dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean -f netstandard2.1 --no-restore
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj --configuration Release -f net8.0 --no-restore
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed-range -j Short -i --filter "*InRange*"
+rg -n "InRange\\(double|NextDouble|ToRawFromDouble|TryFromDecimal|Math\\.Round\\([^\\n]*ONE_L|\\(long\\)Math\\.Round" src/FixedMathSharp tests/FixedMathSharp.Benchmarks
+```
+
+Verification result on 2026-06-08: focused conversion, range, vector, and curve
+tests first failed against the unchecked conversion behavior, then passed with
+339 tests after the fix. The full Debug solution passed with 975 tests,
+Release and ReleaseLean `netstandard2.1` builds passed with zero warnings and
+errors, and the benchmark runner built in Release `net8.0`. The refactor then
+removed the `FixedRange.InRange(double)` and `DeterministicRandom.NextDouble`
+surfaces entirely. The source scan confirmed no remaining `InRange(double)`,
+`NextDouble`, `ToRawFromDouble`, or `TryFromDecimal` runtime/test surfaces.
 
 ### FMS-Issue-010: `Fixed64` arithmetic operators with `long` appear to treat long operands as raw fixed values
 

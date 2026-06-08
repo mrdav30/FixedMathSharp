@@ -1,4 +1,5 @@
 ﻿using MemoryPack;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -149,26 +150,6 @@ public class FixedRangeTests
     }
 
     [Fact]
-    public void FixedRange_InRange_DoubleValue_RespectsUpperBoundMode()
-    {
-        var range = new FixedRange(new Fixed64(0), new Fixed64(10));
-
-        Assert.True(range.InRange(9.5));
-        Assert.False(range.InRange(10.0));
-        Assert.True(range.InRange(10.0, includeMax: true));
-    }
-
-    [Fact]
-    public void FixedRange_InRange_DoubleValue_ReturnsFalseBelowMin()
-    {
-        var range = new FixedRange(new Fixed64(0), new Fixed64(10));
-
-        Assert.False(range.InRange(-0.5));
-        Assert.False(range.InRange(-0.5, includeMax: true));
-        Assert.False(range.InRange(10.5, includeMax: true));
-    }
-
-    [Fact]
     public void FixedRange_GetDirection_ReturnsFalseAndNull_WhenRangesOverlap()
     {
         var range1 = new FixedRange(new Fixed64(0), new Fixed64(10));
@@ -315,7 +296,6 @@ public class FixedRangeTests
         Assert.True(smallRange1.Overlaps(smallRange2));
     }
 
-
     [Fact]
     public void FixedRange_LargeRanges_OverlapCorrectly()
     {
@@ -326,7 +306,6 @@ public class FixedRangeTests
     }
 
     #region Test: Serialization
-
 
     [Fact]
     public void FixedRange_NetSerialization_RoundTripMaintainsData()

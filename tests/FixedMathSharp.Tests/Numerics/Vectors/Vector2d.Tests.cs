@@ -62,6 +62,18 @@ public class Vector2dTests
         Assert.Equal(new Fixed64(25), result); // The squared magnitude of (3, 4) is 25 (3^2 + 4^2)
     }
 
+    [Fact]
+    public void FromDouble_UsesCheckedFixed64Conversion()
+    {
+        var vector = Vector2d.FromDouble(1.25, -2.5);
+
+        Assert.Equal(Fixed64.FromDouble(1.25), vector.X);
+        Assert.Equal(Fixed64.FromDouble(-2.5), vector.Y);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => Vector2d.FromDouble(double.NaN, 0));
+        Assert.Throws<OverflowException>(() => Vector2d.FromDouble(0, 2147483648d));
+    }
+
 
     [Fact]
     public void NormalizeInPlace_NormalizesVectorCorrectly()

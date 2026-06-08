@@ -37,19 +37,6 @@ public class FixedRangeBenchmarks
     }
 
     [Benchmark]
-    public int InRangeDouble()
-    {
-        int count = 0;
-        for (int i = 0; i < _rangesA.Length; i++)
-        {
-            if (_rangesA[i].InRange((double)_scalars[i]))
-                count++;
-        }
-
-        return count;
-    }
-
-    [Benchmark]
     public int Overlaps()
     {
         int count = 0;
