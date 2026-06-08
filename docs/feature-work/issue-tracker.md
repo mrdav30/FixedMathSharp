@@ -36,7 +36,52 @@ runtime and tests.
 
 ## Active Issues
 
-- None currently.
+### FMS-Issue-011: Floating-point conversion paths rely on unchecked raw casts
+
+**Discovered:** 2026-06-07
+
+**Source:** Diagnostics and formatting surface implementation while hardening
+`Fixed64.Parse`, `TryParse`, and decimal conversion behavior.
+
+**Status:** Open
+
+**Affected files:**
+
+- `src/FixedMathSharp/Numerics/Scalars/Fixed64.Conversions.cs`
+- `src/FixedMathSharp/Numerics/Scalars/FixedRange.cs`
+- `src/FixedMathSharp/Numerics/Vectors/Vector2d.cs`
+- `src/FixedMathSharp/Numerics/Vectors/Vector3d.cs`
+- `src/FixedMathSharp/Numerics/Vectors/Vector4d.cs`
+- `src/FixedMathSharp/Numerics/Curves/FixedCurveKey.cs`
+
+**Concern:**
+
+The diagnostics pass made value-space decimal parsing explicit and rejected
+invalid, non-finite, and out-of-range text. A follow-up scan found older
+floating-point conversion paths that still convert through
+`Math.Round(value * FixedMath.ONE_L)` and direct `long` casts. That shape may
+produce surprising behavior for `NaN`, infinities, and out-of-range doubles,
+and similar logic appears in `FixedRange.InRange(double)`.
+
+This is separate from diagnostic formatting because it affects public numeric
+conversion semantics and should be resolved with focused tests, explicit
+overflow policy, and a small benchmark check if any conversion helper is used
+in setup-heavy or editor-facing paths.
+
+**Recommended work:**
+
+- [ ] Add tests for `Fixed64.FromDouble`, explicit `float`/`double`
+  conversions, `FromFraction`, vector `FromDouble` factories, and
+  `FixedRange.InRange(double)` using finite values, `NaN`, infinities, and
+  out-of-range values.
+- [ ] Decide whether floating-point value-space conversion should throw,
+  saturate, or route through a shared checked helper. Prefer one documented
+  policy rather than per-call-site behavior.
+- [ ] Keep raw Q32.32 construction explicit through `FromRaw`.
+- [ ] Verify that deterministic runtime code does not depend on ambient
+  floating-point conversion in hot paths.
+- [ ] Update XML docs and `docs/wiki/fixed64-representation.md` after the
+  conversion policy is settled.
 
 ## Performance Investigation Queue
 
