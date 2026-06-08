@@ -206,34 +206,6 @@ public static class Fixed64Extensions
     #region Conversion
 
     /// <summary>
-    /// Converts the Fixed64 value to a string formatted to 2 decimal places.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static string ToFormattedString(this Fixed64 f1) => f1.ToPreciseFloat().ToString("0.##");
-
-    /// <summary>
-    /// Converts the Fixed64 value to a double with specified decimal precision.
-    /// </summary>
-    /// <param name="f1">The Fixed64 value to convert.</param>
-    /// <param name="precision">The number of decimal places to round to.</param>
-    /// <returns>The formatted double value.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static double ToFormattedDouble(this Fixed64 f1, int precision = 2) =>
-        Math.Round((double)f1, precision, MidpointRounding.AwayFromZero);
-
-    /// <summary>
-    /// Converts the Fixed64 value to a float with 2 decimal points of precision.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float ToFormattedFloat(this Fixed64 f1) => (float)ToFormattedDouble(f1);
-
-    /// <summary>
-    /// Converts the Fixed64 value to a precise float representation (without rounding).
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float ToPreciseFloat(this Fixed64 f1) => (float)(double)f1;
-
-    /// <summary>
     /// Converts the angle in degrees to radians.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -99,12 +99,29 @@ long rawStep = 1;
 Fixed64 smallestStep = Fixed64.FromRaw(rawStep);
 ```
 
+The same distinction applies to text:
+
+```csharp
+Fixed64 value = Fixed64.Parse("1.25");                 // Decimal value text
+Fixed64 preciseValue = Fixed64.FromDecimal(1.25m);     // Decimal value input
+Fixed64 rawValue = Fixed64.ParseRaw("4294967296");     // Raw Q32.32 payload
+string rawText = Fixed64.One.ToRawString();            // "4294967296"
+```
+
 The explicit `long` conversion saturates to `Fixed64.MinValue` or
 `Fixed64.MaxValue` when the source integer is outside the representable Q32.32
 whole-number range. This keeps overflow deterministic and makes raw-value
 construction an intentional choice.
 
+`Fixed64.Parse` and `Fixed64.FromDecimal` operate in normal value space and
+throw `OverflowException` for decimal values outside the representable Q32.32
+range. `Fixed64.TryParse` reports the same overflow as `false`.
+
 - Use `Fixed64.FromRaw(long)` only when you intentionally want an exact raw representation.
 - Use constructors, constants, and helpers such as `Fixed64.One`, `Fixed64.FromFraction`, and `FixedMath` methods for normal value-space code.
 - Keep deterministic simulation state in fixed-point values, but convert to `float` or `double` at rendering and engine interop boundaries when needed.
 - Treat overflow behavior as part of the numeric contract; avoid relying on primitive floating-point intuition for extreme values.
+
+For human-readable formatting, see
+[`diagnostics-formatting.md`](diagnostics-formatting.md). Diagnostic strings,
+raw payload strings, JSON, and MemoryPack are separate representation concerns.

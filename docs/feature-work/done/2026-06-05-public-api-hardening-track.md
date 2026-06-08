@@ -743,7 +743,7 @@ Result:
 - Skipped migration notes by design. They should be generated later from the
   full release commit range rather than only this feature plan.
 - Extracted the remaining diagnostics and formatting ownership question into
-  `docs/feature-work/2026-06-07-diagnostics-formatting-surface-plan.md`.
+  `docs/feature-work/done/2026-06-07-diagnostics-formatting-surface-plan.md`.
 
 Verification:
 

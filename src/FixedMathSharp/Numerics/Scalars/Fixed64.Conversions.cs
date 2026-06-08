@@ -133,7 +133,7 @@ public readonly partial struct Fixed64
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static explicit operator Fixed64(decimal value)
     {
-        return FromDouble((double)value);
+        return FromDecimal(value);
     }
 
     /// <summary>
@@ -168,53 +168,115 @@ public readonly partial struct Fixed64
     /// <param name="format">A format specification that governs how the current Fixed64 object is converted.</param>
     /// <returns>The string representation of the value of the current Fixed64 object.</returns>  
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public string ToString(string format) => ((double)this).ToString(format, CultureInfo.InvariantCulture);
+    public string ToString(string? format) => ToString(format, CultureInfo.InvariantCulture);
 
     /// <summary>
-    /// Parses a string to create a Fixed64 instance.
+    /// Converts the numeric value of the current Fixed64 object to its equivalent string representation.
+    /// </summary>
+    /// <param name="format">A format specification that governs how the current Fixed64 object is converted.</param>
+    /// <param name="formatProvider">The provider to use for culture-specific formatting information.</param>
+    /// <returns>The string representation of the value of the current Fixed64 object.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public string ToString(string? format, IFormatProvider? formatProvider) =>
+        ((double)this).ToString(format, formatProvider ?? CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Formats the value into the provided destination buffer.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryFormat(
+        Span<char> destination,
+        out int charsWritten,
+        ReadOnlySpan<char> format,
+        IFormatProvider? provider)
+    {
+        return FixedDiagnosticsFormatter.TryFormat(this, destination, out charsWritten, format, provider);
+    }
+
+    /// <summary>
+    /// Parses a decimal string to create a Fixed64 instance.
     /// </summary>
     /// <param name="s">The string representation of the Fixed64 value.</param>
     /// <returns>The parsed Fixed64 value.</returns>
-    public static Fixed64 Parse(string s)
+    public static Fixed64 Parse(string s) => Parse(s, CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Parses a decimal string to create a Fixed64 instance.
+    /// </summary>
+    /// <param name="s">The string representation of the Fixed64 value.</param>
+    /// <param name="formatProvider">The provider to use for culture-specific parsing information.</param>
+    /// <returns>The parsed Fixed64 value.</returns>
+    public static Fixed64 Parse(string s, IFormatProvider? formatProvider)
     {
-        if (string.IsNullOrEmpty(s)) throw new ArgumentNullException(nameof(s));
+        if (s is null)
+            throw new ArgumentNullException(nameof(s));
 
-        // Check if the value is negative
-        bool isNegative = false;
-        if (s[0] == '-')
-        {
-            isNegative = true;
-            s = s[1..];
-        }
-
-        if (!long.TryParse(s, out long rawValue))
+        if (!decimal.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, formatProvider ?? CultureInfo.InvariantCulture, out decimal value))
             throw new FormatException($"Invalid format: {s}");
 
-        // If the value was negative, negate the result
-        if (isNegative)
-            rawValue = -rawValue;
+        return FromDecimal(value);
+    }
+
+    /// <summary>
+    /// Parses a raw Q32.32 payload string to create a Fixed64 instance.
+    /// </summary>
+    /// <param name="s">The raw fixed-point payload.</param>
+    /// <returns>The parsed Fixed64 value.</returns>
+    public static Fixed64 ParseRaw(string s)
+    {
+        if (s is null)
+            throw new ArgumentNullException(nameof(s));
+
+        if (!long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out long rawValue))
+            throw new FormatException($"Invalid format: {s}");
 
         return FromRaw(rawValue);
     }
 
     /// <summary>
-    /// Tries to parse a string to create a Fixed64 instance.
+    /// Tries to parse a decimal string to create a Fixed64 instance.
     /// </summary>
     /// <param name="s">The string representation of the Fixed64 value.</param>
     /// <param name="result">The parsed Fixed64 value.</param>
     /// <returns>True if parsing succeeded; otherwise, false.</returns>
-    public static bool TryParse(string s, out Fixed64 result)
+    public static bool TryParse(string? s, out Fixed64 result) => TryParse(s, CultureInfo.InvariantCulture, out result);
+
+    /// <summary>
+    /// Tries to parse a decimal string to create a Fixed64 instance.
+    /// </summary>
+    /// <param name="s">The string representation of the Fixed64 value.</param>
+    /// <param name="formatProvider">The provider to use for culture-specific parsing information.</param>
+    /// <param name="result">The parsed Fixed64 value.</param>
+    /// <returns>True if parsing succeeded; otherwise, false.</returns>
+    public static bool TryParse(string? s, IFormatProvider? formatProvider, out Fixed64 result)
     {
         result = Zero;
-        try
-        {
-            result = Parse(s);
-            return true;
-        }
-        catch
-        {
+        if (string.IsNullOrEmpty(s))
             return false;
-        }
+
+        if (!decimal.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, formatProvider ?? CultureInfo.InvariantCulture, out decimal value))
+            return false;
+
+        return TryFromDecimal(value, out result);
+    }
+
+    /// <summary>
+    /// Tries to parse a raw Q32.32 payload string to create a Fixed64 instance.
+    /// </summary>
+    /// <param name="s">The raw fixed-point payload.</param>
+    /// <param name="result">The parsed Fixed64 value.</param>
+    /// <returns>True if parsing succeeded; otherwise, false.</returns>
+    public static bool TryParseRaw(string? s, out Fixed64 result)
+    {
+        result = Zero;
+        if (string.IsNullOrEmpty(s))
+            return false;
+
+        if (!long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out long rawValue))
+            return false;
+
+        result = FromRaw(rawValue);
+        return true;
     }
 
     /// <summary>
@@ -248,6 +310,41 @@ public readonly partial struct Fixed64
     /// <param name="value">Double value to convert to </param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 FromDouble(double value) => new((long)Math.Round(value * FixedMath.ONE_L));
+
+    /// <summary>
+    /// Constructs a Fixed64 from a decimal value.
+    /// </summary>
+    /// <remarks>
+    /// The value is multiplied by the scaling factor (2^SHIFT_AMOUNT) and rounded to the nearest
+    /// raw integer using midpoint-to-even rounding. Values outside the Q32.32 range throw an
+    /// <see cref="OverflowException"/>.
+    /// </remarks>
+    /// <param name="value">Decimal value to convert.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 FromDecimal(decimal value)
+    {
+        decimal rawValue = decimal.Round(value * FixedMath.ONE_L, 0, MidpointRounding.ToEven);
+
+        if (rawValue < long.MinValue || rawValue > long.MaxValue)
+            throw new OverflowException($"{value} is outside the representable range of {nameof(Fixed64)}.");
+
+        return FromRaw((long)rawValue);
+    }
+
+    private static bool TryFromDecimal(decimal value, out Fixed64 result)
+    {
+        result = Zero;
+
+        try
+        {
+            result = FromDecimal(value);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
 
     /// <summary>
     /// Creates a Fixed64 from a fractional number.

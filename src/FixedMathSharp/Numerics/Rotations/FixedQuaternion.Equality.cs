@@ -5,6 +5,8 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
@@ -32,7 +34,46 @@ public partial struct FixedQuaternion
     /// </summary>
     /// <returns>A string containing the values of the object formatted as a tuple.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override string ToString() => $"({X}, {Y}, {Z}, {W})";
+    public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Returns a string that represents the current object in the format "(x, y, z, w)".
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public string ToString(string? format, IFormatProvider? formatProvider)
+    {
+        FixedQuaternion value = this;
+        return FixedDiagnosticsFormatter.ToString((Span<char> destination, out int charsWritten) =>
+            value.TryFormat(destination, out charsWritten, format.AsSpan(), formatProvider));
+    }
+
+    /// <summary>
+    /// Formats this quaternion into the provided destination buffer.
+    /// </summary>
+    public bool TryFormat(
+        Span<char> destination,
+        out int charsWritten,
+        ReadOnlySpan<char> format,
+        IFormatProvider? provider)
+    {
+        int written = 0;
+        if (!FixedDiagnosticsFormatter.Append('(', destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(X, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(", ", destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(Y, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(", ", destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(Z, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(", ", destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(W, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(')', destination, ref written))
+        {
+            charsWritten = 0;
+            return false;
+        }
+
+        charsWritten = written;
+        return true;
+    }
 
     #endregion
 }

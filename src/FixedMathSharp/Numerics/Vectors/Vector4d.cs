@@ -8,6 +8,7 @@
 using MemoryPack;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
@@ -21,7 +22,10 @@ namespace FixedMathSharp;
 /// </remarks>
 [Serializable]
 [MemoryPackable]
-public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IEqualityComparer<Vector4d>
+public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IEqualityComparer<Vector4d>, IFormattable
+#if NET8_0_OR_GREATER
+    , ISpanFormattable
+#endif
 {
     #region Static Readonly Fields
 
@@ -837,23 +841,46 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// Returns a string representation of this vector.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override readonly string ToString() =>
-        string.Format("({0}, {1}, {2}, {3})",
-            (double)X,
-            (double)Y,
-            (double)Z,
-            (double)W);
+    public override readonly string ToString() => ToString(null, CultureInfo.InvariantCulture);
 
     /// <summary>
-    /// Returns a string representation of this vector with components formatted to a fixed number of decimal places.
+    /// Returns a string representation of this vector.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly string ToFormattedString() =>
-        string.Format("({0}, {1}, {2}, {3})",
-            X.ToFormattedDouble(),
-            Y.ToFormattedDouble(),
-            Z.ToFormattedDouble(),
-            W.ToFormattedDouble());
+    public readonly string ToString(string? format, IFormatProvider? formatProvider)
+    {
+        Vector4d value = this;
+        return FixedDiagnosticsFormatter.ToString((Span<char> destination, out int charsWritten) =>
+            value.TryFormat(destination, out charsWritten, format.AsSpan(), formatProvider));
+    }
+
+    /// <summary>
+    /// Formats this vector into the provided destination buffer.
+    /// </summary>
+    public readonly bool TryFormat(
+        Span<char> destination,
+        out int charsWritten,
+        ReadOnlySpan<char> format,
+        IFormatProvider? provider)
+    {
+        int written = 0;
+        if (!FixedDiagnosticsFormatter.Append('(', destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(X, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(", ", destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(Y, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(", ", destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(Z, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(", ", destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(W, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(')', destination, ref written))
+        {
+            charsWritten = 0;
+            return false;
+        }
+
+        charsWritten = written;
+        return true;
+    }
 
     /// <summary>
     /// Deconstructs the Vector4d into its four Fixed64 components.

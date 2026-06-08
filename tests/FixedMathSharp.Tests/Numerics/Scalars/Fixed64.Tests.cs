@@ -1,5 +1,6 @@
 ﻿using MemoryPack;
 using System;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -408,28 +409,69 @@ public class Fixed64Tests
     }
 
     [Fact]
-    public void Parsing_RawStrings_WorksCorrectly()
+    public void Parsing_DecimalStrings_WorksCorrectly()
     {
-        var rawValue = Fixed64.One.m_rawValue.ToString();
-        var negativeRawValue = (-Fixed64.One.m_rawValue).ToString();
-
-        Assert.Equal(Fixed64.One, Fixed64.Parse(rawValue));
-        Assert.Equal(-Fixed64.One, Fixed64.Parse(negativeRawValue));
+        Assert.Equal(Fixed64.FromDouble(1.25), Fixed64.Parse("1.25"));
+        Assert.Equal(Fixed64.FromDouble(-2.5), Fixed64.Parse("-2.5"));
+        Assert.Equal(Fixed64.FromDouble(1234.5), Fixed64.Parse("1,234.5", CultureInfo.InvariantCulture));
         Assert.Throws<ArgumentNullException>(() => Fixed64.Parse(null!));
-        Assert.Throws<ArgumentNullException>(() => Fixed64.Parse(string.Empty));
+        Assert.Throws<FormatException>(() => Fixed64.Parse(string.Empty));
         Assert.Throws<FormatException>(() => Fixed64.Parse("abc"));
+        Assert.Throws<FormatException>(() => Fixed64.Parse("NaN"));
+        Assert.Throws<OverflowException>(() => Fixed64.Parse("2147483648", CultureInfo.InvariantCulture));
 
-        Assert.True(Fixed64.TryParse(rawValue, out var parsedPositive));
-        Assert.Equal(Fixed64.One, parsedPositive);
+        Assert.True(Fixed64.TryParse("1.25", out var parsedPositive));
+        Assert.Equal(Fixed64.FromDouble(1.25), parsedPositive);
 
-        Assert.True(Fixed64.TryParse(negativeRawValue, out var parsedNegative));
-        Assert.Equal(-Fixed64.One, parsedNegative);
+        Assert.True(Fixed64.TryParse("-2.5", out var parsedNegative));
+        Assert.Equal(Fixed64.FromDouble(-2.5), parsedNegative);
 
         Assert.False(Fixed64.TryParse(string.Empty, out var emptyResult));
         Assert.Equal(Fixed64.Zero, emptyResult);
 
         Assert.False(Fixed64.TryParse("abc", out var invalidResult));
         Assert.Equal(Fixed64.Zero, invalidResult);
+
+        Assert.False(Fixed64.TryParse("NaN", out var nonFiniteResult));
+        Assert.Equal(Fixed64.Zero, nonFiniteResult);
+
+        Assert.False(Fixed64.TryParse("2147483648", CultureInfo.InvariantCulture, out var overflowResult));
+        Assert.Equal(Fixed64.Zero, overflowResult);
+    }
+
+    [Fact]
+    public void Parsing_RawStrings_UsesExplicitRawApis()
+    {
+        var rawValue = Fixed64.One.m_rawValue.ToString();
+        var negativeRawValue = (-Fixed64.One.m_rawValue).ToString();
+
+        Assert.Equal(Fixed64.One, Fixed64.ParseRaw(rawValue));
+        Assert.Equal(-Fixed64.One, Fixed64.ParseRaw(negativeRawValue));
+        Assert.Throws<ArgumentNullException>(() => Fixed64.ParseRaw(null!));
+        Assert.Throws<FormatException>(() => Fixed64.ParseRaw(string.Empty));
+        Assert.Throws<FormatException>(() => Fixed64.ParseRaw("abc"));
+
+        Assert.True(Fixed64.TryParseRaw(rawValue, out var parsedPositive));
+        Assert.Equal(Fixed64.One, parsedPositive);
+
+        Assert.True(Fixed64.TryParseRaw(negativeRawValue, out var parsedNegative));
+        Assert.Equal(-Fixed64.One, parsedNegative);
+
+        Assert.False(Fixed64.TryParseRaw(string.Empty, out var emptyResult));
+        Assert.Equal(Fixed64.Zero, emptyResult);
+
+        Assert.False(Fixed64.TryParseRaw("abc", out var invalidResult));
+        Assert.Equal(Fixed64.Zero, invalidResult);
+    }
+
+    [Fact]
+    public void DecimalConversion_UsesDecimalMathAndRejectsOutOfRangeValues()
+    {
+        Assert.Equal(Fixed64.FromDouble(1.25), Fixed64.FromDecimal(1.25m));
+        Assert.Equal(Fixed64.MinIncrement, Fixed64.FromDecimal(FixedMath.SCALE_FACTOR_M));
+        Assert.Equal(Fixed64.MinValue, Fixed64.FromDecimal(-2147483648m));
+        Assert.Throws<OverflowException>(() => Fixed64.FromDecimal(2147483648m));
+        Assert.Equal(Fixed64.FromDecimal(1.25m), (Fixed64)1.25m);
     }
 
     [Fact]
@@ -492,17 +534,8 @@ public class Fixed64Tests
     }
 
     [Fact]
-    public void Fixed64Extensions_FormattingAndAngleHelpers_WorkCorrectly()
+    public void Fixed64Extensions_AngleHelpers_WorkCorrectly()
     {
-        var value = Fixed64.FromDouble(1.2345);
-
-        Assert.Equal(1.23, value.ToFormattedDouble());
-        Assert.Equal(1.23f, value.ToFormattedFloat());
-        Assert.Equal((float)(double)value, value.ToPreciseFloat());
-
-        var formatted = value.ToFormattedString();
-        Assert.True(formatted is "1.23" or "1,23");
-
         Assert.Equal(FixedMath.DegToRad(new Fixed64(90)), new Fixed64(90).ToRadians());
         Assert.Equal(FixedMath.RadToDeg(Fixed64.HalfPi), Fixed64.HalfPi.ToDegrees());
         Assert.Equal(FixedMath.Sin(Fixed64.HalfPi), Fixed64.HalfPi.Sin());

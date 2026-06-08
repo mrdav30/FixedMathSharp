@@ -28,7 +28,10 @@ namespace FixedMathSharp;
 /// </remarks>
 [Serializable]
 [MemoryPackable]
-public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IEqualityComparer<Vector3d>
+public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IEqualityComparer<Vector3d>, IFormattable
+#if NET8_0_OR_GREATER
+    , ISpanFormattable
+#endif
 {
     #region Static Readonly Fields
 

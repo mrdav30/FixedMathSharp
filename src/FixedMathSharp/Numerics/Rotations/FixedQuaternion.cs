@@ -18,7 +18,10 @@ namespace FixedMathSharp;
 /// </summary>
 [Serializable]
 [MemoryPackable]
-public partial struct FixedQuaternion : IEquatable<FixedQuaternion>
+public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattable
+#if NET8_0_OR_GREATER
+    , ISpanFormattable
+#endif
 {
     #region Static Readonly Fields
 

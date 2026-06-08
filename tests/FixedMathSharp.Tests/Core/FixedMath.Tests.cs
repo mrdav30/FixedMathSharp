@@ -187,7 +187,7 @@ public class FixedMathTests
     public void Round_WithDecimalPlaces_RoundsToTwoDecimalPlaces()
     {
         var result = FixedMath.RoundToPrecision(Fixed64.FromDouble(2.556f), 2, MidpointRounding.AwayFromZero);
-        Assert.Equal(2.56f, result.ToFormattedFloat());
+        Assert.Equal(Fixed64.FromDouble(2.56), result);
     }
 
     [Fact]

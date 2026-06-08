@@ -28,7 +28,10 @@ namespace FixedMathSharp;
 /// </remarks>
 [Serializable]
 [MemoryPackable]
-public partial struct Fixed4x4 : IEquatable<Fixed4x4>
+public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
+#if NET8_0_OR_GREATER
+    , ISpanFormattable
+#endif
 {
     #region Static Readonly Fields
 

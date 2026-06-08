@@ -8,6 +8,7 @@
 using MemoryPack;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
@@ -30,7 +31,10 @@ namespace FixedMathSharp.Bounds;
 /// </remarks>
 [Serializable]
 [MemoryPackable]
-public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
+public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormattable
+#if NET8_0_OR_GREATER
+    , ISpanFormattable
+#endif
 {
     #region Fields
 
@@ -647,9 +651,46 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>
     /// <summary>
     /// Returns a string that represents the current FixedBoundSphere.
     /// </summary>
-    public override string ToString()
+    public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Returns a string that represents the current FixedBoundSphere.
+    /// </summary>
+    public string ToString(string? format, IFormatProvider? formatProvider)
     {
-        return $"{{Center:{Center} Radius:{Radius}}}";
+        FixedBoundSphere value = this;
+        return FixedDiagnosticsFormatter.ToString((Span<char> destination, out int charsWritten) =>
+            value.TryFormat(destination, out charsWritten, format.AsSpan(), formatProvider));
+    }
+
+    /// <summary>
+    /// Formats this sphere into the provided destination buffer.
+    /// </summary>
+    public bool TryFormat(
+        Span<char> destination,
+        out int charsWritten,
+        ReadOnlySpan<char> format,
+        IFormatProvider? provider)
+    {
+        int written = 0;
+        if (!FixedDiagnosticsFormatter.Append("{Center:", destination, ref written) ||
+            !Center.TryFormat(destination[written..], out int centerChars, format, provider))
+        {
+            charsWritten = 0;
+            return false;
+        }
+
+        written += centerChars;
+        if (!FixedDiagnosticsFormatter.Append(" Radius:", destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(Radius, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append('}', destination, ref written))
+        {
+            charsWritten = 0;
+            return false;
+        }
+
+        charsWritten = written;
+        return true;
     }
 
     #endregion

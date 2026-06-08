@@ -81,6 +81,8 @@ Start with hot paths that can be isolated and repeated deterministically:
 - `Fixed3x3` and `Fixed4x4` creation, multiplication, inversion, and point/vector transforms.
 - Bounds containment/intersection checks and projection/clamping helpers.
 - Serialization roundtrips for standard builds when payload size and allocation behavior matter.
+- Diagnostics formatting when repeated display, logging, or editor polling
+  needs the allocation-free `TryFormat` path.
 
 ## Authoring Guidelines
 

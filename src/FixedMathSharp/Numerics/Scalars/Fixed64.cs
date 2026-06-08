@@ -8,6 +8,7 @@
 using MemoryPack;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
@@ -21,7 +22,10 @@ namespace FixedMathSharp;
 /// </summary>
 [Serializable]
 [MemoryPackable]
-public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqualityComparer<Fixed64>
+public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqualityComparer<Fixed64>, IFormattable
+#if NET8_0_OR_GREATER
+    , ISpanFormattable
+#endif
 {
     #region Static Fields
 
@@ -180,10 +184,7 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     /// Returns the raw value as a string.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public string ToRawString()
-    {
-        return m_rawValue.ToString();
-    }
+    public string ToRawString() => m_rawValue.ToString(CultureInfo.InvariantCulture);
 
     #endregion
 }

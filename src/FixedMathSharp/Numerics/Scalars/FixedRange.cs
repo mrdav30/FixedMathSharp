@@ -7,6 +7,7 @@
 
 using MemoryPack;
 using System;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
@@ -17,7 +18,10 @@ namespace FixedMathSharp;
 /// </summary>
 [Serializable]
 [MemoryPackable]
-public partial struct FixedRange : IEquatable<FixedRange>
+public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
+#if NET8_0_OR_GREATER
+    , ISpanFormattable
+#endif
 {
     #region Static Readonly Fields
 
@@ -277,9 +281,39 @@ public partial struct FixedRange : IEquatable<FixedRange>
     /// Returns a string that represents the FixedRange instance, formatted as "Min - Max".
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override string ToString()
+    public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Returns a string that represents the FixedRange instance, formatted as "Min - Max".
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public string ToString(string? format, IFormatProvider? formatProvider)
     {
-        return $"{Min.ToFormattedDouble()} - {Max.ToFormattedDouble()}";
+        FixedRange value = this;
+        return FixedDiagnosticsFormatter.ToString((Span<char> destination, out int charsWritten) =>
+            value.TryFormat(destination, out charsWritten, format.AsSpan(), formatProvider));
+    }
+
+    /// <summary>
+    /// Formats this range into the provided destination buffer.
+    /// </summary>
+    public bool TryFormat(
+        Span<char> destination,
+        out int charsWritten,
+        ReadOnlySpan<char> format,
+        IFormatProvider? provider)
+    {
+        int written = 0;
+        if (!FixedDiagnosticsFormatter.Append(Min, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(" - ", destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(Max, destination, ref written, format, provider))
+        {
+            charsWritten = 0;
+            return false;
+        }
+
+        charsWritten = written;
+        return true;
     }
 
     #endregion

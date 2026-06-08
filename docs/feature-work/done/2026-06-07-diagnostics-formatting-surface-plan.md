@@ -8,7 +8,7 @@
 > claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for
 > tracking.
 
-**Status:** Active
+**Status:** Done
 
 **Goal:** Define a clear diagnostics and formatting surface for human-readable
 FixedMathSharp values without confusing it with deterministic runtime math,
@@ -24,6 +24,31 @@ human-readable formatting helpers.
 BenchmarkDotNet when allocation or formatting cost matters, `Fixed64`,
 vectors, quaternions, matrices, bounds, ranges, invariant culture formatting,
 and engine-agnostic FixedMathSharp core APIs.
+
+**Result:** Formatting now follows the owning value types through `IFormattable`,
+same-shaped public `TryFormat` methods, and conditional `ISpanFormattable` on
+`net8.0`. Legacy `ToFormatted*` scalar/vector helpers were removed instead of
+kept as culture-sensitive compatibility shims. `Fixed64.Parse`/`TryParse` now
+parse value-space decimal text, while `ParseRaw`/`TryParseRaw` handle raw
+Q32.32 payload text explicitly. Decimal conversion now uses `FromDecimal`
+instead of routing through `double`.
+
+Follow-up `FMS-Issue-011` tracks older floating-point conversion paths that
+still need a separate checked-conversion policy review.
+
+Short-run diagnostics-formatting benchmarks confirmed the intended allocation
+split:
+
+| Method | Mean | Allocated |
+| --- | ---: | ---: |
+| `Fixed64ToString` | 42.37 us | 8,696 B |
+| `Fixed64TryFormat` | 39.27 us | 0 B |
+| `Vector3dToString` | 219.65 us | 47,568 B |
+| `Vector3dTryFormat` | 210.77 us | 0 B |
+| `FixedQuaternionToString` | 164.06 us | 52,224 B |
+| `FixedQuaternionTryFormat` | 148.27 us | 0 B |
+| `Fixed4x4ToString` | 738.27 us | 114,985 B |
+| `Fixed4x4TryFormat` | 692.96 us | 1 B |
 
 ---
 
@@ -91,14 +116,14 @@ mechanical:
 - Review: `src/FixedMathSharp/Geometry/**/*.cs`
 - Modify: this plan and, if needed, `docs/feature-work/issue-tracker.md`
 
-- [ ] Inventory public `ToString`, `ToFormattedString`, `ToFormattedDouble`,
+- [x] Inventory public `ToString`, `ToFormattedString`, `ToFormattedDouble`,
   `ToFormattedFloat`, `ToRawString`, and any formatting-like helpers.
-- [ ] Classify each API as representation, diagnostics, serialization,
+- [x] Classify each API as representation, diagnostics, serialization,
   convenience, or legacy/remove.
-- [ ] Identify formatting call sites that allocate in valid hot paths.
-- [ ] Identify culture-sensitive formatting risks and default formatting
+- [x] Identify formatting call sites that allocate in valid hot paths.
+- [x] Identify culture-sensitive formatting risks and default formatting
   assumptions.
-- [ ] Decide whether diagnostics formatting belongs in extensions, a dedicated
+- [x] Decide whether diagnostics formatting belongs in extensions, a dedicated
   static surface, or targeted instance methods.
 
 Verification:
@@ -116,17 +141,17 @@ dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Debug -f n
 - Modify: matching tests under `tests/FixedMathSharp.Tests`
 - Modify: README or wiki docs if public guidance changes
 
-- [ ] Decide whether `ToFormatted*` should remain, be renamed, or move to a
+- [x] Decide whether `ToFormatted*` should remain, be renamed, or move to a
   dedicated diagnostics surface.
-- [ ] Decide whether raw formatting should remain on `Fixed64` only or be
+- [x] Decide whether raw formatting should remain on `Fixed64` only or be
   exposed consistently through diagnostics helpers.
-- [ ] Adopt a same-shaped `TryFormat` method contract where formatting belongs,
+- [x] Adopt a same-shaped `TryFormat` method contract where formatting belongs,
   while keeping `ISpanFormattable` implementation conditional for compatible
   target frameworks.
-- [ ] Decide whether `double`-backed diagnostic formatting is acceptable for
+- [x] Decide whether `double`-backed diagnostic formatting is acceptable for
   each type, or whether a type requires an exact/raw formatting path.
-- [ ] Preserve convenient debugging output while making hot-path costs obvious.
-- [ ] Document why the chosen shape is better than keeping formatting spread
+- [x] Preserve convenient debugging output while making hot-path costs obvious.
+- [x] Document why the chosen shape is better than keeping formatting spread
   across ad-hoc extensions.
 
 Verification:
@@ -144,22 +169,22 @@ git diff --check
 - Modify: tests and docs for any public rename or removal
 - Review: `docs/wiki/fixed64-representation.md`
 
-- [ ] Implement the chosen diagnostics/formatting surface.
-- [ ] Add `IFormattable` and `ToString(string? format, IFormatProvider?
+- [x] Implement the chosen diagnostics/formatting surface.
+- [x] Add `IFormattable` and `ToString(string? format, IFormatProvider?
   provider)` where applicable.
-- [ ] Add public `TryFormat(Span<char>, out int, ReadOnlySpan<char>,
+- [x] Add public `TryFormat(Span<char>, out int, ReadOnlySpan<char>,
   IFormatProvider?)` methods without depending on `ISpanFormattable` for
   `netstandard2.1`.
-- [ ] Add conditional `ISpanFormattable` implementation for `net8.0` if the
+- [x] Add conditional `ISpanFormattable` implementation for `net8.0` if the
   same-shaped methods prove clean and useful.
-- [ ] Remove or obsolete rejected formatting helpers if the major-release
+- [x] Remove or obsolete rejected formatting helpers if the major-release
   cleanup allows it.
-- [ ] Add tests for invariant formatting, rounding expectations, raw-value
+- [x] Add tests for invariant formatting, rounding expectations, raw-value
   output, negative values, min/max-adjacent values, and vector/matrix composite
   formatting.
-- [ ] Confirm serialization tests are unaffected by diagnostics formatting
+- [x] Confirm serialization tests are unaffected by diagnostics formatting
   changes.
-- [ ] Update docs that explain raw representation versus human-readable
+- [x] Update docs that explain raw representation versus human-readable
   formatting.
 
 Verification:
@@ -178,13 +203,13 @@ git diff --check
 - Modify if useful: `tests/FixedMathSharp.Benchmarks`
 - Modify if useful: `tests/FixedMathSharp.Benchmarks/README.md`
 
-- [ ] Add benchmarks only for formatting APIs that are likely to be used in
+- [x] Add benchmarks only for formatting APIs that are likely to be used in
   repeated diagnostics, editor display, or logging loops.
-- [ ] Capture allocation behavior for string-returning APIs versus any
+- [x] Capture allocation behavior for string-returning APIs versus any
   span-based alternatives.
-- [ ] Keep formatting benchmark results separate from deterministic math
+- [x] Keep formatting benchmark results separate from deterministic math
   throughput claims.
-- [ ] Add final docs guidance that explains MemoryPack, JSON, raw values, and
+- [x] Add final docs guidance that explains MemoryPack, JSON, raw values, and
   diagnostic formatting as separate concerns.
 
 Verification:

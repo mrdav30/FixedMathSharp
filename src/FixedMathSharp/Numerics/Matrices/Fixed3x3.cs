@@ -7,6 +7,7 @@
 
 using MemoryPack;
 using System;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
@@ -28,7 +29,10 @@ namespace FixedMathSharp;
 /// </remarks>
 [Serializable]
 [MemoryPackable]
-public partial struct Fixed3x3 : IEquatable<Fixed3x3>
+public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
+#if NET8_0_OR_GREATER
+    , ISpanFormattable
+#endif
 {
     #region Static Readonly
 
@@ -711,8 +715,60 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>
     /// </remarks>
     /// <returns>A string containing the matrix elements formatted as "[m00, m01, m02; m10, m11, m12; m20, m21, m22]".</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override string ToString() =>
-         $"[{M11}, {M12}, {M13}; {M21}, {M22}, {M23}; {M31}, {M32}, {M33}]";
+    public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Returns a string that represents the current matrix in a readable format.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public string ToString(string? format, IFormatProvider? formatProvider)
+    {
+        Fixed3x3 value = this;
+        return FixedDiagnosticsFormatter.ToString((Span<char> destination, out int charsWritten) =>
+            value.TryFormat(destination, out charsWritten, format.AsSpan(), formatProvider));
+    }
+
+    /// <summary>
+    /// Formats this matrix into the provided destination buffer.
+    /// </summary>
+    public bool TryFormat(
+        Span<char> destination,
+        out int charsWritten,
+        ReadOnlySpan<char> format,
+        IFormatProvider? provider)
+    {
+        int written = 0;
+        if (!FixedDiagnosticsFormatter.Append('[', destination, ref written) ||
+            !AppendRow(M11, M12, M13, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append("; ", destination, ref written) ||
+            !AppendRow(M21, M22, M23, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append("; ", destination, ref written) ||
+            !AppendRow(M31, M32, M33, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(']', destination, ref written))
+        {
+            charsWritten = 0;
+            return false;
+        }
+
+        charsWritten = written;
+        return true;
+    }
+
+    private static bool AppendRow(
+        Fixed64 x,
+        Fixed64 y,
+        Fixed64 z,
+        Span<char> destination,
+        ref int charsWritten,
+        ReadOnlySpan<char> format,
+        IFormatProvider? provider)
+    {
+        return FixedDiagnosticsFormatter.Append(x, destination, ref charsWritten, format, provider) &&
+               FixedDiagnosticsFormatter.Append(", ", destination, ref charsWritten) &&
+               FixedDiagnosticsFormatter.Append(y, destination, ref charsWritten, format, provider) &&
+               FixedDiagnosticsFormatter.Append(", ", destination, ref charsWritten) &&
+               FixedDiagnosticsFormatter.Append(z, destination, ref charsWritten, format, provider);
+    }
 
     #endregion
 }

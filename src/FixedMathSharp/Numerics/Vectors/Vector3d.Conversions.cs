@@ -5,6 +5,8 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
@@ -18,16 +20,44 @@ public partial struct Vector3d
     /// </summary>
     /// <returns>A string representation of the object, displaying the x, y, and z values in a formatted tuple.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override string ToString() =>
-        string.Format("({0}, {1}, {2})", (double)X, (double)Y, (double)Z);
+    public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
 
     /// <summary>
-    /// Returns a string that represents the current object in the format "(x, y, z)", 
-    /// with each component formatted to a fixed number of decimal places for improved readability.
+    /// Returns a string that represents the current object in the format "(x, y, z)".
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public string ToFormattedString() =>
-        string.Format("({0}, {1}, {2})", X.ToFormattedDouble(), Y.ToFormattedDouble(), Z.ToFormattedDouble());
+    public string ToString(string? format, IFormatProvider? formatProvider)
+    {
+        Vector3d value = this;
+        return FixedDiagnosticsFormatter.ToString((Span<char> destination, out int charsWritten) =>
+            value.TryFormat(destination, out charsWritten, format.AsSpan(), formatProvider));
+    }
+
+    /// <summary>
+    /// Formats this vector into the provided destination buffer.
+    /// </summary>
+    public bool TryFormat(
+        Span<char> destination,
+        out int charsWritten,
+        ReadOnlySpan<char> format,
+        IFormatProvider? provider)
+    {
+        int written = 0;
+        if (!FixedDiagnosticsFormatter.Append('(', destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(X, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(", ", destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(Y, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(", ", destination, ref written) ||
+            !FixedDiagnosticsFormatter.Append(Z, destination, ref written, format, provider) ||
+            !FixedDiagnosticsFormatter.Append(')', destination, ref written))
+        {
+            charsWritten = 0;
+            return false;
+        }
+
+        charsWritten = written;
+        return true;
+    }
 
     /// <summary>
     /// Converts this <see cref="Vector3d"/> to a <see cref="Vector2d"/>, 
