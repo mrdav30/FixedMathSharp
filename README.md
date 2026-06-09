@@ -43,7 +43,7 @@ Use floating point when you need:
 - **`Fixed64` scalar arithmetic** with deterministic Q32.32 representation, guarded overflow behavior, parsing, formatting, and common math helpers.
 - **2D, 3D, and 4D vectors** via `Vector2d`, `Vector3d`, and `Vector4d`, including dot products, distances, normalization, transforms, fuzzy equality, and component operations.
 - **Rotations and matrices** with `FixedQuaternion`, `Fixed3x3`, and `Fixed4x4` for deterministic transforms and orientation math.
-- **Coordinate convention helpers** with `ForwardAxis` and `CoordinateConvention3d` for explicit `+Z` and `-Z` forward adapter boundaries.
+- **Coordinate convention helpers** with `Axis3d` and `CoordinateConvention3d` for explicit signed-axis adapter boundaries.
 - **Geometry and bounds** with `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundArea`, `FixedBoundFrustum`, `FixedPlane`, and `FixedRay`.
 - **Curves and ranges** with `FixedCurve`, `FixedCurveKey`, and `FixedRange`.
 - **Deterministic RNG** with `DeterministicRandom` streams derived from seeds, feature keys, and indices.
@@ -150,7 +150,7 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - `FixedMath`: constants, rounding, interpolation, trigonometry, powers, square roots, and utility math.
 - `Vector2d`, `Vector3d`, `Vector4d`: deterministic vector math and transform helpers.
 - `FixedQuaternion`, `Fixed3x3`, `Fixed4x4`: rotations, orientations, matrices, and transform operations.
-- `ForwardAxis`, `CoordinateConvention3d`: stateless helpers for documenting and converting `+Y`-up, signed-Z-forward direction conventions.
+- `Axis3d`, `CoordinateConvention3d`: stateless helpers for documenting and converting signed-axis 3D direction conventions.
 - `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundArea`, `FixedBoundFrustum`: containment, intersection, clamping, and projection queries.
 - `FixedPlane`, `FixedRay`: geometric primitives for plane classification and ray intersections.
 - `FixedCurve`, `FixedCurveKey`, `FixedRange`: interpolation and range helpers.
@@ -170,10 +170,14 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 
 FixedMathSharp's core 3D convention is `+X` right, `+Y` up, and `+Z` forward.
 Use `CoordinateConvention3d.NegativeZForward` when a `+Y`-up adapter boundary
-needs to translate `-Z`-forward direction semantics into the core convention.
-Other engine and toolchain differences, such as a different up axis, handedness,
-matrix multiplication convention, storage layout, or clip-space depth, should be
-handled in adapter code with explicit basis conversion.
+needs to translate `-Z`-forward direction semantics, such as MonoGame's
+`Vector3.Forward`, into the core convention. Use
+`CoordinateConvention3d.XForwardZUp` for `+X` forward, `+Y` right, `+Z` up
+adapter boundaries, such as Unreal-style coordinate spaces. XNA is legacy
+context for MonoGame's maintained XNA-compatible API. Engine and toolchain
+differences beyond direction basis mapping, such as matrix multiplication
+convention, storage layout, transform APIs, origins, units, or clip-space depth,
+belong in adapter code.
 
 ---
 

@@ -64,8 +64,8 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// </summary>
     /// <remarks>
     /// FixedMathSharp defines semantic forward as <c>+Z</c>. Use
-    /// <see cref="CoordinateConvention3d.NegativeZForward"/> at adapter boundaries when an
-    /// external API uses <c>-Z</c> as semantic forward.
+    /// <see cref="CoordinateConvention3d"/> at adapter boundaries when an external API uses
+    /// different semantic axes, such as <c>-Z</c> forward or <c>+X</c> forward with <c>+Z</c> up.
     /// </remarks>
     public static Vector3d Forward => new(0, 0, 1);
 

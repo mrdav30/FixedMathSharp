@@ -16,8 +16,9 @@ one from any engine:
 
 ## Runtime Helpers
 
-`CoordinateConvention3d` is a small, immutable helper for `+Y`-up conventions
-whose semantic forward direction is either `+Z` or `-Z`.
+`CoordinateConvention3d` is a small, immutable helper for direction vectors at
+adapter boundaries. It describes an explicit semantic basis with signed
+right/up/forward axes.
 
 ```csharp
 CoordinateConvention3d core = CoordinateConvention3d.PositiveZForward;
@@ -29,10 +30,23 @@ Vector3d canonicalForward = external.ToCanonicalDirection(externalForward);
 // canonicalForward == Vector3d.Forward
 ```
 
-Use these helpers for direction vectors at adapter boundaries. For positions in
-a coordinate system whose only semantic difference is signed Z forward, the same
-Z sign flip may be appropriate, but keep that conversion in adapter code so
-units, origins, scale, and storage semantics remain explicit.
+Use `CoordinateConvention3d.XForwardZUp` for adapter boundaries where semantic
+forward is `+X`, semantic right is `+Y`, and semantic up is `+Z`.
+
+```csharp
+CoordinateConvention3d external = CoordinateConvention3d.XForwardZUp;
+
+Vector3d externalForward = Vector3d.Right;
+Vector3d canonicalForward = external.ToCanonicalDirection(externalForward);
+
+// canonicalForward == Vector3d.Forward
+```
+
+Use these helpers for direction vectors and basis component mapping at adapter
+boundaries. For positions in a coordinate system whose only differences are
+axis signs or permutations, the same basis mapping may be appropriate, but keep
+that conversion in adapter code so units, origins, scale, and storage semantics
+remain explicit.
 
 ## Adapter Boundaries
 
@@ -45,9 +59,15 @@ Unity's direction naming aligns with FixedMathSharp's `+Z` forward convention,
 but Unity-facing adapters still need to account for Unity's own transform,
 matrix, and package semantics.
 
-XNA and MonoGame commonly use opposite forward naming for `+Y`-up, signed-Z
-direction helpers. Use `CoordinateConvention3d.NegativeZForward` for those
-direction semantics at the adapter boundary.
+MonoGame is the maintained, open-source XNA-compatible framework. Its
+`Vector3.Forward` is `(0, 0, -1)`, so use
+`CoordinateConvention3d.NegativeZForward` for MonoGame direction semantics at
+the adapter boundary. Treat XNA as legacy context when explaining why MonoGame
+uses the `Microsoft.Xna.Framework` namespace and XNA-style API names.
+
+Unreal-style coordinate spaces use `+X` forward, `+Y` right, and `+Z` up. Use
+`CoordinateConvention3d.XForwardZUp` for direction basis mapping when an adapter
+matches that convention.
 
 Other engines, renderers, DCC tools, and file formats may differ by forward axis,
 up axis, handedness, row-vector versus column-vector multiplication, matrix
@@ -61,8 +81,8 @@ adapter-specific basis conversions, not reasons to rename or flip the core
 - Convert external direction vectors before calling `FixedQuaternion.FromDirection`,
   `FixedQuaternion.LookRotation`, `Fixed4x4.CreateWorld`, or similar
   convention-heavy APIs.
-- Do not add Unity, XNA, MonoGame, or other engine conditionals to the core
-  package.
+- Do not add Unity, MonoGame, Unreal, legacy XNA, or other engine conditionals
+  to the core package.
 - Do not treat a blind component copy as a semantic conversion for matrices or
   quaternions unless adapter tests prove basis, handedness, multiplication, and
   storage conventions match.
