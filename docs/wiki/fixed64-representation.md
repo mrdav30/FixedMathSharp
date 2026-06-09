@@ -45,8 +45,8 @@ With Q32.32:
 - Smallest positive raw step: `1 / 2^32`, approximately `0.00000000023283064365`.
 - `Fixed64.One`: raw `0x00000001_00000000`.
 - `Fixed64.MinIncrement`: raw `0x00000000_00000001`.
-- `Fixed64.MIN_VALUE`: raw `long.MinValue`, exactly `-2147483648`.
-- `Fixed64.MAX_VALUE`: raw `long.MaxValue`, just under `2147483648`.
+- `Fixed64.MinValue`: raw `long.MinValue`, exactly `-2147483648`.
+- `Fixed64.MaxValue`: raw `long.MaxValue`, just under `2147483648`.
 
 Example raw values:
 

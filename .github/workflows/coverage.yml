@@ -29,7 +29,9 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: |
+          8.0.x
+          10.0.x
 
     - name: Cache NuGet packages
       uses: actions/cache@v5
@@ -40,14 +42,14 @@ jobs:
           ${{ runner.os }}-nuget-
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore FixedMathSharp.slnx --property:Configuration=Release
 
     - name: Build tests
       run: dotnet build tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Release --no-restore
 
     - name: Run tests with coverage
       run: dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Release --no-build --collect:"XPlat Code Coverage" --settings tests/FixedMathSharp.Tests/coverlet.runsettings --results-directory artifacts/coverage
-    
+
     - name: Install ReportGenerator
       run: dotnet tool install --global dotnet-reportgenerator-globaltool
 

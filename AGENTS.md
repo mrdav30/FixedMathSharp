@@ -224,6 +224,8 @@ Serialization compatibility is intentional.
 
 Solution: [`FixedMathSharp.slnx`](FixedMathSharp.slnx), with the core library,
 FluentAssertions package, test project, and benchmark project.
+`global.json` selects the .NET 10 SDK for `.slnx` tooling consistency while the
+runtime projects continue to target `netstandard2.1` and `net8.0`.
 
 Typical local workflow:
 

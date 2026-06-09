@@ -20,7 +20,7 @@ It includes assertions for:
 using FixedMathSharp;
 using FixedMathSharp.Assertions;
 
-new Fixed64(1.25).Should().BeApproximately(new Fixed64(1.25));
+Fixed64.FromDouble(1.25).Should().BeApproximately(Fixed64.FromDouble(1.25));
 
 var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
 rotation.Should().BeNormalized();

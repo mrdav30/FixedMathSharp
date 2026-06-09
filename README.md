@@ -88,8 +88,8 @@ If you are evaluating this .NET package for Unity-adjacent tooling or Burst AOT-
 ```csharp
 using FixedMathSharp;
 
-Fixed64 speed = new Fixed64(3.5);
-Fixed64 deltaTime = Fixed64.Fraction(1, 60);
+Fixed64 speed = Fixed64.FromDouble(3.5);
+Fixed64 deltaTime = Fixed64.FromFraction(1, 60);
 Fixed64 step = speed * deltaTime;
 
 Vector3d position = new Vector3d(0, 0, 0);
@@ -183,6 +183,10 @@ belong in adapter code.
 
 ## Build From Source
 
+Install the .NET 10 SDK before building from source. `global.json` pins the
+repo tooling to SDK 10 so `.slnx` workflows behave consistently; the packages
+still target .NET Standard 2.1 and .NET 8 for consumers.
+
 ```bash
 git clone https://github.com/mrdav30/FixedMathSharp.git
 cd FixedMathSharp
@@ -208,6 +212,8 @@ See [`tests/FixedMathSharp.Benchmarks/README.md`](tests/FixedMathSharp.Benchmark
 ---
 
 ## Compatibility
+
+Upgrading from v4.x? See the [v5 migration guide](docs/MIGRATION.md).
 
 - .NET Standard 2.1
 - .NET 8
