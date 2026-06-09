@@ -19,6 +19,10 @@ namespace FixedMathSharp;
 /// <remarks>
 /// The Vector3d struct is designed for high-precision applications in 3D space, including games, simulations, and physics engines. 
 /// It offers essential operations like addition, subtraction, dot product, cross product, distance calculation, and normalization.
+///
+/// FixedMathSharp's canonical 3D basis is <c>+X</c> right, <c>+Y</c> up, and <c>+Z</c>
+/// forward. Direction-named core APIs use that convention; engine-specific naming, basis,
+/// handedness, and matrix semantics should be converted at adapter boundaries.
 /// 
 /// Use Cases:
 /// - Modeling 3D positions, directions, and velocities with fixed-point precision.
@@ -36,32 +40,37 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     #region Static Readonly Fields
 
     /// <summary>
-    /// The upward direction vector (0, 1, 0).
+    /// The upward direction vector in the canonical 3D basis (0, 1, 0).
     /// </summary>
     public static Vector3d Up => new(0, 1, 0);
 
     /// <summary>
-    /// (1, 0, 0)
+    /// The right direction vector in the canonical 3D basis (1, 0, 0).
     /// </summary>
     public static Vector3d Right => new(1, 0, 0);
 
     /// <summary>
-    /// (0, -1, 0)
+    /// The downward direction vector in the canonical 3D basis (0, -1, 0).
     /// </summary>
     public static Vector3d Down => new(0, -1, 0);
 
     /// <summary>
-    /// (-1, 0, 0)
+    /// The left direction vector in the canonical 3D basis (-1, 0, 0).
     /// </summary>
     public static Vector3d Left => new(-1, 0, 0);
 
     /// <summary>
-    /// The forward direction vector (0, 0, 1).
+    /// The forward direction vector in the canonical 3D basis (0, 0, 1).
     /// </summary>
+    /// <remarks>
+    /// FixedMathSharp defines semantic forward as <c>+Z</c>. Use
+    /// <see cref="CoordinateConvention3d.NegativeZForward"/> at adapter boundaries when an
+    /// external API uses <c>-Z</c> as semantic forward.
+    /// </remarks>
     public static Vector3d Forward => new(0, 0, 1);
 
     /// <summary>
-    /// (0, 0, -1)
+    /// The backward direction vector in the canonical 3D basis (0, 0, -1).
     /// </summary>
     public static Vector3d Backward => new(0, 0, -1);
 
@@ -216,6 +225,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     /// <remarks>
     /// This is commonly used to determine the direction an object is facing in 3D space,
     /// where 'x' represents pitch around the X axis and 'y' represents yaw around the Y axis.
+    /// At zero pitch and yaw this returns <see cref="Forward"/>.
     /// Positive pitch rotates the forward direction toward <see cref="Down"/>.
     /// </remarks>
     [JsonIgnore]

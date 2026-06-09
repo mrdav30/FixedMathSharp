@@ -162,6 +162,17 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_IdentityBasis_UsesCanonicalPositiveZForward()
+    {
+        Assert.Equal(Vector3d.Right, Fixed4x4.Identity.Right);
+        Assert.Equal(Vector3d.Left, Fixed4x4.Identity.Left);
+        Assert.Equal(Vector3d.Up, Fixed4x4.Identity.Up);
+        Assert.Equal(Vector3d.Down, Fixed4x4.Identity.Down);
+        Assert.Equal(Vector3d.Forward, Fixed4x4.Identity.Forward);
+        Assert.Equal(Vector3d.Backward, Fixed4x4.Identity.Backward);
+    }
+
+    [Fact]
     public void FixedMatrix4x4_CreateRotationAxisFactories_RotateAroundExpectedAxes()
     {
         var tolerance = Fixed64.FromDouble(0.0001);
@@ -211,8 +222,11 @@ public class Fixed4x4Tests
 
         Assert.Equal(new Vector3d(1, 2, 3), world.Translation);
         Assert.Equal(Vector3d.Right, world.Right);
+        Assert.Equal(Vector3d.Left, world.Left);
         Assert.Equal(Vector3d.Up, world.Up);
+        Assert.Equal(Vector3d.Down, world.Down);
         Assert.Equal(Vector3d.Forward, world.Forward);
+        Assert.Equal(Vector3d.Backward, world.Backward);
     }
 
     [Fact]

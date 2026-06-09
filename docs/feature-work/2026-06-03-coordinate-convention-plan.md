@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development before production or test changes, and use superpowers:verification-before-completion before claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Proposed
+**Status:** In progress - Phases 1 through 3 implemented; adapter follow-ups remain.
 
 **Goal:** Make FixedMathSharp's coordinate and forward-axis conventions explicit, tested, and adapter-friendly without binding the core library to Unity, XNA, MonoGame, or any other engine.
 
@@ -37,13 +37,13 @@ The important distinction is that FixedMathSharp should define a deterministic m
 - Modify: `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed4x4.Tests.cs`
 - Review: `docs/feature-work/issue-tracker.md`
 
-- [ ] Add explicit tests that document the core 3D basis: `Vector3d.Right == (1, 0, 0)`, `Vector3d.Up == (0, 1, 0)`, `Vector3d.Forward == (0, 0, 1)`, and `Vector3d.Backward == (0, 0, -1)`.
-- [ ] Add cross-product orientation tests that state `Vector3d.Cross(Vector3d.Right, Vector3d.Up) == Vector3d.Forward`.
-- [ ] Add matrix basis tests that prove `Fixed4x4.Identity.Forward == Vector3d.Forward` and `Fixed4x4.CreateWorld(position, Vector3d.Forward, Vector3d.Up)` preserves the canonical axes.
-- [ ] Add quaternion tests that prove `FixedQuaternion.LookRotation(Vector3d.Forward)` is identity and `FixedQuaternion.FromDirection(Vector3d.Forward)` is identity.
-- [ ] Do not fix known direction-helper bugs in this phase. Track and resolve those through `docs/feature-work/issue-tracker.md`.
-- [ ] Add 2D convention tests that distinguish `Vector2d.Forward == (0, 1)` from `Vector2d.ForwardDirection(Fixed64.Zero) == Vector2d.Right`.
-- [ ] Add `Vector4d` tests only for component-preserving conversion behavior, not forward/back semantics.
+- [x] Add explicit tests that document the core 3D basis: `Vector3d.Right == (1, 0, 0)`, `Vector3d.Up == (0, 1, 0)`, `Vector3d.Forward == (0, 0, 1)`, and `Vector3d.Backward == (0, 0, -1)`.
+- [x] Add cross-product orientation tests that state `Vector3d.Cross(Vector3d.Right, Vector3d.Up) == Vector3d.Forward`.
+- [x] Add matrix basis tests that prove `Fixed4x4.Identity.Forward == Vector3d.Forward` and `Fixed4x4.CreateWorld(position, Vector3d.Forward, Vector3d.Up)` preserves the canonical axes.
+- [x] Add quaternion tests that prove `FixedQuaternion.LookRotation(Vector3d.Forward)` is identity and `FixedQuaternion.FromDirection(Vector3d.Forward)` is identity.
+- [x] Do not fix known direction-helper bugs in this phase. Track and resolve those through `docs/feature-work/issue-tracker.md`.
+- [x] Add 2D convention tests that distinguish `Vector2d.Forward == (0, 1)` from `Vector2d.ForwardDirection(Fixed64.Zero) == Vector2d.Right`.
+- [x] Add `Vector4d` tests only for component-preserving conversion behavior, not forward/back semantics.
 
 Verification:
 
@@ -60,12 +60,12 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 - Create: `tests/FixedMathSharp.Tests/Numerics/CoordinateConventions/CoordinateConvention3d.Tests.cs`
 - Modify: `src/FixedMathSharp/FixedMathSharp.csproj` only if the project uses explicit compile item lists.
 
-- [ ] Add a small `ForwardAxis` enum with `PositiveZ` and `NegativeZ`.
-- [ ] Add a readonly `CoordinateConvention3d` value type with predefined `PositiveZForward` and `NegativeZForward` instances.
-- [ ] Expose `Forward`, `Backward`, `Right`, `Left`, `Up`, and `Down` from the convention type.
-- [ ] Add conversion helpers that map direction vectors between a convention and the core canonical convention. The `PositiveZ` convention should be identity; the `NegativeZ` convention should flip `Z`.
-- [ ] Keep helpers explicit and stateless. Do not add thread-static, static mutable, or ambient convention state.
-- [ ] Add tests proving round trips between `PositiveZForward`, `NegativeZForward`, and canonical vectors.
+- [x] Add a small `ForwardAxis` enum with `PositiveZ` and `NegativeZ`.
+- [x] Add a readonly `CoordinateConvention3d` value type with predefined `PositiveZForward` and `NegativeZForward` instances.
+- [x] Expose `Forward`, `Backward`, `Right`, `Left`, `Up`, and `Down` from the convention type.
+- [x] Add conversion helpers that map direction vectors between a convention and the core canonical convention. The `PositiveZ` convention should be identity; the `NegativeZ` convention should flip `Z`.
+- [x] Keep helpers explicit and stateless. Do not add thread-static, static mutable, or ambient convention state.
+- [x] Add tests proving round trips between `PositiveZForward`, `NegativeZForward`, and canonical vectors.
 
 Verification:
 
@@ -85,12 +85,12 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 - Modify: `README.md`
 - Create or modify: `docs/wiki/coordinate-conventions.md`
 
-- [ ] Add XML remark docs that state FixedMathSharp's canonical convention on specific properties or methods.
-- [ ] Document that XNA/MonoGame use opposite forward naming and should convert at adapter boundaries.
-- [ ] Document that Unity's forward naming aligns with core `+Z`, but Unity matrix storage and transform semantics still require semantic conversion helpers.
-- [ ] Document `Vector2d` as plane math where `Forward == +Y`, and call out that `ForwardDirection(0)` returns `+X` because it is polar angle math.
-- [ ] Document `Vector4d` as component and homogeneous-coordinate math, not a type with independent forward/back semantics.
-- [ ] Add README links to the coordinate-conventions wiki page without making the README crowded.
+- [x] Add XML remark docs that state FixedMathSharp's canonical convention on specific properties or methods.
+- [x] Document that XNA/MonoGame use opposite forward naming and should convert at adapter boundaries.
+- [x] Document that Unity's forward naming aligns with core `+Z`, but Unity matrix storage and transform semantics still require semantic conversion helpers.
+- [x] Document `Vector2d` as plane math where `Forward == +Y`, and call out that `ForwardDirection(0)` returns `+X` because it is polar angle math.
+- [x] Document `Vector4d` as component and homogeneous-coordinate math, not a type with independent forward/back semantics.
+- [x] Add README links to the coordinate-conventions wiki page without making the README crowded.
 
 Verification:
 

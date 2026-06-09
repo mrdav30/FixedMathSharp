@@ -121,6 +121,11 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates a view matrix looking from a camera position toward a target.
     /// </summary>
+    /// <remarks>
+    /// The view direction is expressed in FixedMathSharp's canonical <c>+Z</c>-forward basis and
+    /// the resulting matrix follows the row-vector convention used by <see cref="TransformPoint(Fixed4x4, Vector3d)"/>.
+    /// Convert engine-specific camera conventions at adapter boundaries.
+    /// </remarks>
     public static Fixed4x4 CreateLookAt(Vector3d cameraPosition, Vector3d cameraTarget, Vector3d cameraUpVector)
     {
         Vector3d forward = cameraTarget - cameraPosition;
@@ -288,6 +293,11 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates a world matrix from a position and orientation basis.
     /// </summary>
+    /// <remarks>
+    /// The <paramref name="forward"/> and <paramref name="up"/> vectors are semantic basis vectors
+    /// in FixedMathSharp's canonical coordinate space. The returned matrix stores right, up, and
+    /// forward basis rows for row-vector transforms.
+    /// </remarks>
     public static Fixed4x4 CreateWorld(Vector3d position, Vector3d forward, Vector3d up)
     {
         if (forward.MagnitudeSquared == Fixed64.Zero)

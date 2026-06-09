@@ -18,7 +18,9 @@ namespace FixedMathSharp;
 /// Represents a 4D vector with fixed-point precision.
 /// </summary>
 /// <remarks>
-/// This type is useful for generic 4D component math and homogeneous coordinates used by 4x4 transforms.
+/// This type is useful for generic 4D component math and homogeneous coordinates used by 4x4
+/// transforms. It does not define independent forward or backward semantics; direction naming
+/// belongs to <see cref="Vector2d"/>, <see cref="Vector3d"/>, and adapter-level convention code.
 /// </remarks>
 [Serializable]
 [MemoryPackable]
@@ -40,7 +42,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     public static Vector4d UnitY => new(0, 1, 0, 0);
 
     /// <summary>
-    /// (0, 0, 1, 0)
+    /// The unit Z component vector (0, 0, 1, 0).
     /// </summary>
     public static Vector4d UnitZ => new(0, 0, 1, 0);
 
@@ -482,6 +484,9 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// <summary>
     /// Converts this vector to Vector3d by dropping the W component.
     /// </summary>
+    /// <remarks>
+    /// This is a component-preserving conversion, not a coordinate-convention conversion.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly Vector3d ToVector3d() => new Vector3d(X, Y, Z);
 

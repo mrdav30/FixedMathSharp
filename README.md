@@ -43,6 +43,7 @@ Use floating point when you need:
 - **`Fixed64` scalar arithmetic** with deterministic Q32.32 representation, guarded overflow behavior, parsing, formatting, and common math helpers.
 - **2D, 3D, and 4D vectors** via `Vector2d`, `Vector3d`, and `Vector4d`, including dot products, distances, normalization, transforms, fuzzy equality, and component operations.
 - **Rotations and matrices** with `FixedQuaternion`, `Fixed3x3`, and `Fixed4x4` for deterministic transforms and orientation math.
+- **Coordinate convention helpers** with `ForwardAxis` and `CoordinateConvention3d` for explicit `+Z` and `-Z` forward adapter boundaries.
 - **Geometry and bounds** with `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundArea`, `FixedBoundFrustum`, `FixedPlane`, and `FixedRay`.
 - **Curves and ranges** with `FixedCurve`, `FixedCurveKey`, and `FixedRange`.
 - **Deterministic RNG** with `DeterministicRandom` streams derived from seeds, feature keys, and indices.
@@ -149,6 +150,7 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - `FixedMath`: constants, rounding, interpolation, trigonometry, powers, square roots, and utility math.
 - `Vector2d`, `Vector3d`, `Vector4d`: deterministic vector math and transform helpers.
 - `FixedQuaternion`, `Fixed3x3`, `Fixed4x4`: rotations, orientations, matrices, and transform operations.
+- `ForwardAxis`, `CoordinateConvention3d`: stateless helpers for documenting and converting `+Y`-up, signed-Z-forward direction conventions.
 - `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundArea`, `FixedBoundFrustum`: containment, intersection, clamping, and projection queries.
 - `FixedPlane`, `FixedRay`: geometric primitives for plane classification and ray intersections.
 - `FixedCurve`, `FixedCurveKey`, `FixedRange`: interpolation and range helpers.
@@ -158,10 +160,20 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 ### API Shape Notes
 
 - `FixedMath` is the canonical scalar algorithm surface; `Fixed64` owns Q32.32 representation, conversions, parsing, operators, and raw-value helpers.
+- Core 3D direction semantics are `+X` right, `+Y` up, and `+Z` forward. See [`docs/wiki/coordinate-conventions.md`](docs/wiki/coordinate-conventions.md) before adding adapter-facing conversions.
 - Numeric types expose clear return-by-value statics/operators plus explicit `*InPlace` methods when mutation is useful.
 - Extension methods are curated receiver-shaped conveniences that forward to canonical APIs; factories and convention-heavy operations stay on the owning type.
 - `Fast*` helpers are expert APIs for proven hot paths. They skip some guarded operator behavior, so prefer normal operators unless benchmarks and invariants justify the fast path.
 - Countable hot-path data may use array or `ReadOnlySpan<T>` overloads, while `IEnumerable<T>` remains useful for broader interoperability.
+
+### Coordinate Conventions
+
+FixedMathSharp's core 3D convention is `+X` right, `+Y` up, and `+Z` forward.
+Use `CoordinateConvention3d.NegativeZForward` when a `+Y`-up adapter boundary
+needs to translate `-Z`-forward direction semantics into the core convention.
+Other engine and toolchain differences, such as a different up axis, handedness,
+matrix multiplication convention, storage layout, or clip-space depth, should be
+handled in adapter code with explicit basis conversion.
 
 ---
 

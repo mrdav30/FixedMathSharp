@@ -19,6 +19,10 @@ namespace FixedMathSharp;
 /// A 4x4 matrix is the standard structure for 3D transformations because it can handle both linear transformations (rotation, scaling) 
 /// and affine transformations (translation, shearing, and perspective projections). 
 /// It is commonly used in graphics pipelines, game engines, and 3D rendering systems.
+///
+/// FixedMathSharp applies transform matrices with a row-vector convention: <c>point * matrix</c>.
+/// Translation is stored in <c>M41</c>, <c>M42</c>, and <c>M43</c>. Direction properties use the
+/// canonical 3D basis: <c>+X</c> right, <c>+Y</c> up, and <c>+Z</c> forward.
 /// 
 /// Use Cases:
 /// - Transforming objects in 3D space (position, orientation, and size).
@@ -260,8 +264,12 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     public readonly Vector3d Down => -ExtractUp(this);
 
     /// <summary>
-    /// Gets the forward direction vector for this instance.
+    /// Gets the canonical forward direction vector for this instance.
     /// </summary>
+    /// <remarks>
+    /// FixedMathSharp defines semantic forward as <c>+Z</c>. Convert external matrix or transform
+    /// conventions at adapter boundaries before relying on this basis extraction.
+    /// </remarks>
     [JsonIgnore]
     [MemoryPackIgnore]
     public readonly Vector3d Forward => ExtractForward(this);

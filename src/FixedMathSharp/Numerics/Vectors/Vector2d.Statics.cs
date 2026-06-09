@@ -149,6 +149,11 @@ public partial struct Vector2d
     /// <summary>
     /// Calculates the forward direction vector in 2D based on a yaw (angle).
     /// </summary>
+    /// <remarks>
+    /// This is a polar-angle helper: angle zero points along <see cref="Vector2d.Right"/>.
+    /// It intentionally differs from the named <see cref="Vector2d.Forward"/> plane constant,
+    /// which is <c>+Y</c>.
+    /// </remarks>
     /// <param name="angle">The angle in radians representing the rotation in 2D space.</param>
     /// <returns>A unit vector representing the forward direction.</returns>
     public static Vector2d ForwardDirection(Fixed64 angle)

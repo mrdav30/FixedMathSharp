@@ -94,8 +94,14 @@ public partial struct FixedQuaternion
     }
 
     /// <summary>
-    /// Creates a quaternion that rotates one vector to align with another.
+    /// Creates a quaternion whose canonical forward direction aligns with the specified direction.
     /// </summary>
+    /// <remarks>
+    /// The <paramref name="forward"/> and <paramref name="upwards"/> vectors are expressed in
+    /// FixedMathSharp's canonical basis: <c>+X</c> right, <c>+Y</c> up, and <c>+Z</c> forward.
+    /// Use <see cref="CoordinateConvention3d"/> or adapter-specific basis conversion before
+    /// calling this method when external APIs use different semantic axes.
+    /// </remarks>
     /// <param name="forward">The forward direction vector.</param>
     /// <param name="upwards">The upwards direction vector (optional, default: Vector3d.Up).</param>
     /// <returns>A quaternion representing the rotation from one direction to another.</returns>
@@ -182,8 +188,13 @@ public partial struct FixedQuaternion
     }
 
     /// <summary>
-    /// Creates a quaternion representing the rotation needed to align the forward vector with the given direction.
+    /// Creates a quaternion representing the rotation needed to align canonical <c>+Z</c> forward with the given direction.
     /// </summary>
+    /// <remarks>
+    /// <see cref="Vector3d.Forward"/> returns <see cref="FixedQuaternion.Identity"/>. If an external API names
+    /// <c>-Z</c> as forward, convert that direction into the canonical convention before calling
+    /// this method.
+    /// </remarks>
     /// <param name="direction">The target direction vector.</param>
     /// <returns>A quaternion representing the rotation to align with the direction.</returns>
     public static FixedQuaternion FromDirection(Vector3d direction)

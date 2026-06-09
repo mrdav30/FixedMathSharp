@@ -56,6 +56,29 @@ public class Vector3dTests
 
     #endregion
 
+    #region Test: Coordinate Convention
+
+    [Fact]
+    public void Vector3d_CanonicalBasis_UsesPositiveZForward()
+    {
+        Assert.Equal(new Vector3d(1, 0, 0), Vector3d.Right);
+        Assert.Equal(new Vector3d(-1, 0, 0), Vector3d.Left);
+        Assert.Equal(new Vector3d(0, 1, 0), Vector3d.Up);
+        Assert.Equal(new Vector3d(0, -1, 0), Vector3d.Down);
+        Assert.Equal(new Vector3d(0, 0, 1), Vector3d.Forward);
+        Assert.Equal(new Vector3d(0, 0, -1), Vector3d.Backward);
+    }
+
+    [Fact]
+    public void Vector3d_CrossProduct_UsesRightHandedPositiveZBasis()
+    {
+        Assert.Equal(Vector3d.Forward, Vector3d.Cross(Vector3d.Right, Vector3d.Up));
+        Assert.Equal(Vector3d.Backward, Vector3d.Cross(Vector3d.Up, Vector3d.Right));
+        Assert.Equal(Fixed64.One, Vector3d.CrossProduct(Vector3d.Right, Vector3d.Up));
+    }
+
+    #endregion
+
     #region Test: Magnitude and Normalization
 
     [Fact]

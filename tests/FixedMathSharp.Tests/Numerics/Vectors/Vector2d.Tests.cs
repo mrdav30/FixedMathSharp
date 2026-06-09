@@ -9,6 +9,22 @@ namespace FixedMathSharp.Tests;
 public class Vector2dTests
 {
     [Fact]
+    public void Vector2d_CanonicalPlaneForward_IsPositiveY()
+    {
+        Assert.Equal(new Vector2d(0, 1), Vector2d.Forward);
+        Assert.Equal(new Vector2d(1, 0), Vector2d.Right);
+        Assert.Equal(new Vector2d(0, -1), Vector2d.Down);
+        Assert.Equal(new Vector2d(-1, 0), Vector2d.Left);
+    }
+
+    [Fact]
+    public void Vector2d_ForwardDirectionZero_IsPolarPositiveX()
+    {
+        Assert.Equal(Vector2d.Right, Vector2d.ForwardDirection(Fixed64.Zero));
+        Assert.NotEqual(Vector2d.Forward, Vector2d.ForwardDirection(Fixed64.Zero));
+    }
+
+    [Fact]
     public void RotatedRight_Rotates90DegreesClockwise()
     {
         var vector = new Vector2d(1, 0);

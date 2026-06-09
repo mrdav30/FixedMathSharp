@@ -63,9 +63,13 @@ public partial struct FixedQuaternion
     }
 
     /// <summary>
-    /// Converts this FixedQuaternion to a direction vector.
+    /// Converts this FixedQuaternion to the rotated canonical forward direction.
     /// </summary>
-    /// <returns>A Vector3d representing the direction equivalent to this FixedQuaternion.</returns>
+    /// <remarks>
+    /// The identity quaternion returns <see cref="Vector3d.Forward"/> because FixedMathSharp's
+    /// canonical 3D forward direction is <c>+Z</c>.
+    /// </remarks>
+    /// <returns>A Vector3d representing the rotated canonical forward direction.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d ToDirection() =>
         new(2 * (X * Z - W * Y),

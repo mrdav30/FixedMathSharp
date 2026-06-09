@@ -60,6 +60,19 @@ public class Vector4dTests
     }
 
     [Fact]
+    public void ConversionHelpers_PreserveComponentsWithoutIndependentDirectionSemantics()
+    {
+        var point = new Vector3d(2, 3, 4);
+        var homogeneousPoint = point.ToVector4d(Fixed64.One);
+        var homogeneousDirection = point.ToVector4d(Fixed64.Zero);
+
+        Assert.Equal(new Vector4d(2, 3, 4, 1), homogeneousPoint);
+        Assert.Equal(new Vector4d(2, 3, 4, 0), homogeneousDirection);
+        Assert.Equal(point, homogeneousPoint.ToVector3d());
+        Assert.Equal(point, homogeneousDirection.ToVector3d());
+    }
+
+    [Fact]
     public void Indexer_GetAndSet_RoundTripsComponents()
     {
         var vector = new Vector4d(1, 2, 3, 4);

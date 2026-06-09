@@ -21,6 +21,10 @@ namespace FixedMathSharp;
 /// The Vector2d struct is designed for applications that require precise numerical operations, 
 /// such as games, simulations, or physics engines. It provides methods for common vector operations
 /// like addition, subtraction, dot product, cross product, distance calculations, and rotation.
+///
+/// FixedMathSharp treats <see cref="Vector2d"/> as plane math: <c>+X</c> is right and
+/// <c>+Y</c> is the named <see cref="Forward"/> direction. Polar angle helpers are separate:
+/// <see cref="ForwardDirection(Fixed64)"/> returns <c>+X</c> at angle zero.
 /// 
 /// Use Cases:
 /// - Modeling 2D positions, directions, and velocities in fixed-point math environments.
@@ -43,12 +47,16 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     public static Vector2d DefaultRotation => new(1, 0);
 
     /// <summary>
-    /// (0, 1)
+    /// The named 2D plane forward direction (0, 1).
     /// </summary>
+    /// <remarks>
+    /// This is distinct from polar angle math: <see cref="ForwardDirection(Fixed64)"/> returns
+    /// <see cref="Right"/> when its angle argument is zero.
+    /// </remarks>
     public static Vector2d Forward => new(0, 1);
 
     /// <summary>
-    /// (1, 0)
+    /// The named 2D plane right direction (1, 0).
     /// </summary>
     public static Vector2d Right => new(1, 0);
 

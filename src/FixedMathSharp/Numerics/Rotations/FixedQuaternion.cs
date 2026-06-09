@@ -16,6 +16,11 @@ namespace FixedMathSharp;
 /// Represents a quaternion (x, y, z, w) with fixed-point numbers.
 /// Quaternions are useful for representing rotations and can be used to perform smooth rotations and avoid gimbal lock.
 /// </summary>
+/// <remarks>
+/// Direction-oriented quaternion APIs use FixedMathSharp's canonical 3D convention: <c>+X</c>
+/// right, <c>+Y</c> up, and <c>+Z</c> forward. Convert external engine or tool directions
+/// before calling these APIs when their semantic basis differs.
+/// </remarks>
 [Serializable]
 [MemoryPackable]
 public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattable

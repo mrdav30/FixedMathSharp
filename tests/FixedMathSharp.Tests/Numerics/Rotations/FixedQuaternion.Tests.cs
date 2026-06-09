@@ -348,6 +348,13 @@ public class FixedQuaternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_CanonicalForwardDirection_ReturnsIdentityRotation()
+    {
+        AssertRepresentsSameRotation(FixedQuaternion.FromDirection(Vector3d.Forward), FixedQuaternion.Identity);
+        AssertRepresentsSameRotation(FixedQuaternion.LookRotation(Vector3d.Forward), FixedQuaternion.Identity);
+    }
+
+    [Fact]
     public void FixedQuaternion_FromDirection_NormalizesDirectionInput()
     {
         FixedQuaternion scaled = FixedQuaternion.FromDirection(Vector3d.Right * new Fixed64(3));
