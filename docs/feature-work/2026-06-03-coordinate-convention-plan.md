@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development before production or test changes, and use superpowers:verification-before-completion before claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** In progress - Phases 1 through 4 implemented; adapter follow-ups remain.
+**Status:** In progress - Phases 1 through 5 implemented; MonoGame adapter guidance and full regression follow-ups remain.
 
 **Goal:** Make FixedMathSharp's coordinate and axis conventions explicit, tested, and adapter-friendly without binding the core library to Unity, MonoGame, Unreal, or any other engine.
 
@@ -129,26 +129,43 @@ dotnet build FixedMathSharp.slnx --configuration Debug
 
 **Files:**
 
-- Modify: `com.mrdav30.fixedmathsharp/Runtime/Extensions/Vector3d.Extensions.cs`
-- Modify: `com.mrdav30.fixedmathsharp/Runtime/Extensions/Vector2d.Extensions.cs`
-- Modify: `com.mrdav30.fixedmathsharp/Runtime/Extensions/FixedQuaternion.Extensions.cs`
-- Modify: `com.mrdav30.fixedmathsharp/Runtime/Extensions/Fixed4x4.Extensions.cs`
-- Mirror equivalent changes under `com.mrdav30.fixedmathsharp.lean/Runtime/Extensions/`
-- Modify package README files as needed.
+- Modify: `Build/Base/Runtime/Extensions/Vector3d.Extensions.cs`
+- Modify: `Build/Base/Runtime/Extensions/Vector2d.Extensions.cs`
+- Modify: `Build/Base/Runtime/Extensions/FixedQuaternion.Extensions.cs`
+- Modify: `Build/Base/Runtime/Extensions/Fixed4x4.Extensions.cs`
+- Sync via: `Build/Editor/FixedMathSharpPackageSync.cs`
+- Synced package outputs: `com.mrdav30.fixedmathsharp/Runtime/Extensions/`
+- Synced package outputs: `com.mrdav30.fixedmathsharp.lean/Runtime/Extensions/`
+- Modify: `com.mrdav30.fixedmathsharp/README.md`
+- Modify: `com.mrdav30.fixedmathsharp.lean/README.md`
+- Test: `Tests/EditMode/UnityAdapterCoordinateConventionTests.cs`
+- Test: `Tests/EditMode/Fixed4x4UnityExtensionsTests.cs`
 
-- [ ] Add XML comments that these Unity conversions use FixedMathSharp's canonical `+Z` forward convention.
-- [ ] Keep Unity vector conversions as direct component mappings unless tests prove a semantic mismatch.
-- [ ] Review quaternion conversions against basis tests. Direct component mapping is acceptable only if Unity-facing tests prove equivalent forward/up/right behavior.
-- [ ] Review matrix conversion helpers separately from vector direction conventions. Matrix storage remapping is already semantic and should stay explicit.
-- [ ] Add Unity package tests or sample assertions where available for `Vector3.forward`, `Quaternion.LookRotation(Vector3.forward)`, and `Matrix4x4.TRS` round-trip behavior.
+- [x] Add XML comments that these Unity conversions use FixedMathSharp's canonical `+Z` forward convention.
+- [x] Keep Unity vector conversions as direct component mappings unless tests prove a semantic mismatch.
+- [x] Review quaternion conversions against basis tests. Direct component mapping is acceptable only if Unity-facing tests prove equivalent forward/up/right behavior.
+- [x] Review matrix conversion helpers separately from vector direction conventions. Matrix storage remapping is already semantic and should stay explicit.
+- [x] Add Unity package tests or sample assertions where available for `Vector3.forward`, `Quaternion.LookRotation(Vector3.forward)`, and `Matrix4x4.TRS` round-trip behavior.
+- [x] Add Unity `Transform -> Fixed4x4 -> Transform` local/world round-trip coverage.
+- [x] Fix the Unity adapter call site for the v5 `Fixed4x4.Decompose` output order so transform decomposition reads translation, rotation, and scale correctly.
 
 Verification:
 
 ```bash
-dotnet test FixedMathSharp.slnx --configuration Debug
+"/mnt/c/Program Files/Unity/Hub/Editor/6000.3.9f1/Editor/Unity.exe" \
+  -batchmode \
+  -projectPath "$(wslpath -w /mnt/f/gamedevrepos/FixedMathSharp-Unity)" \
+  -runTests \
+  -testPlatform EditMode \
+  -assemblyNames FixedMathSharp.Unity.Tests.EditMode \
+  -runSynchronously \
+  -testResults "$(wslpath -w /mnt/f/gamedevrepos/FixedMathSharp-Unity/Assets/Packages/TestResults-EditMode.xml)" \
+  -logFile -
 ```
 
-Also verify the Unity package through its established Unity package workflow before publishing package changes.
+Result on 2026-06-10: `total="11" passed="11" failed="0"`.
+
+Also verified `Build/Base` runtime extension changes were synced to both package variants through `FixedMathSharpPackageSync.SyncPackagesBatchMode`, and the Base/package runtime extension directories had no post-sync drift.
 
 ## Phase 6: Add MonoGame Adapter Guidance Or Package
 
