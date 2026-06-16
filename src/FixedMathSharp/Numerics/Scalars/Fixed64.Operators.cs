@@ -10,7 +10,7 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
-public readonly partial struct Fixed64
+public partial struct Fixed64
 {
     #region Arithmetic Operators
 

@@ -22,7 +22,7 @@ namespace FixedMathSharp;
 /// </summary>
 [Serializable]
 [MemoryPackable]
-public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqualityComparer<Fixed64>, IFormattable
+public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqualityComparer<Fixed64>, IFormattable
 #if NET8_0_OR_GREATER
     , ISpanFormattable
 #endif
@@ -145,7 +145,7 @@ public readonly partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed6
     /// </summary>
     [JsonInclude]
     [MemoryPackInclude]
-    public readonly long m_rawValue;
+    public long m_rawValue;
 
     #endregion
     #region Constructors
