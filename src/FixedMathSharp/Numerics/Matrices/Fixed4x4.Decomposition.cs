@@ -210,27 +210,15 @@ public partial struct Fixed4x4
     /// <param name="matrix">The transformation matrix representing the object's global state.</param>
     /// <param name="globalScale">The desired global scale as a vector.</param>
     /// <remarks>
-    /// The method extracts the current global scale from the matrix and computes the new local scale 
-    /// by dividing the desired global scale by the current global scale. 
-    /// The new local scale is then applied to the matrix.
+    /// The method extracts translation and rotation, then rebuilds the transform with the requested
+    /// scale so component mutation does not silently drop position or distort rotation.
     /// </remarks>
     public static Fixed4x4 SetGlobalScale(Fixed4x4 matrix, Vector3d globalScale)
     {
-        // normalize the matrix to avoid drift in the rotation component
-        matrix = NormalizeRotationMatrix(matrix);
+        Vector3d translation = ExtractTranslation(matrix);
+        FixedQuaternion rotation = ExtractRotation(matrix);
 
-        // Reset the local scaling portion of the matrix
-        matrix.ResetScaleToIdentity();
-
-        // Compute the new local scale by dividing the desired global scale by the current scale (which was reset to (1, 1, 1))
-        Vector3d newLocalScale = new(
-           globalScale.X / Fixed64.One,
-           globalScale.Y / Fixed64.One,
-           globalScale.Z / Fixed64.One
-        );
-
-        // Apply the new local scale directly to the matrix
-        return ApplyScaleToRotation(matrix, newLocalScale);
+        return CreateTransform(translation, rotation, globalScale);
     }
 
     /// <summary>
