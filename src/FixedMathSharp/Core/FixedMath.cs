@@ -380,6 +380,34 @@ namespace FixedMathSharp
         ) => coordA + (coordB - coordA) * weightB + (coordC - coordA) * weightC;
 
         /// <summary>
+        /// Returns the second-order scalar product sum for three barycentric vertices.
+        /// </summary>
+        /// <remarks>
+        /// Computes <c>a * a + b * b + c * c + a * b + a * c + b * c</c>.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 SumSquaredBarycentricProducts(Fixed64 a, Fixed64 b, Fixed64 c) =>
+            (a * a) + (b * b) + (c * c) + (a * b) + (a * c) + (b * c);
+
+        /// <summary>
+        /// Returns the cross scalar product sum for two sets of three barycentric vertices.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 SumBarycentricProducts(
+            Fixed64 firstA,
+            Fixed64 firstB,
+            Fixed64 firstC,
+            Fixed64 secondA,
+            Fixed64 secondB,
+            Fixed64 secondC)
+        {
+            Fixed64 firstSum = firstA + firstB + firstC;
+            Fixed64 secondSum = secondA + secondB + secondC;
+            Fixed64 matchingProducts = (firstA * secondA) + (firstB * secondB) + (firstC * secondC);
+            return firstSum * secondSum + matchingProducts;
+        }
+
+        /// <summary>
         /// Adds two fixed-point numbers by adding their raw Q32.32 payloads without saturation.
         /// </summary>
         /// <remarks>

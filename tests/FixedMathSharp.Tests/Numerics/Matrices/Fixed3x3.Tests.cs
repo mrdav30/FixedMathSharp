@@ -74,6 +74,22 @@ public class Fixed3x3Tests
     }
 
     [Fact]
+    public void CreateBarycentricProductSums_ReturnsSymmetricProductSumMatrix()
+    {
+        var result = Fixed3x3.CreateBarycentricProductSums(
+            new Vector3d(1, 2, 3),
+            new Vector3d(4, 5, 6),
+            new Vector3d(7, 8, 9));
+
+        Assert.Equal(
+            new Fixed3x3(
+                new Fixed64(105), new Fixed64(258), new Fixed64(306),
+                new Fixed64(258), new Fixed64(159), new Fixed64(378),
+                new Fixed64(306), new Fixed64(378), new Fixed64(225)),
+            result);
+    }
+
+    [Fact]
     public void InvertDiagonal_WorksCorrectly()
     {
         var matrix = new Fixed3x3(

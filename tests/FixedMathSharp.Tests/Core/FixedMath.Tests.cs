@@ -458,6 +458,28 @@ public class FixedMathTests
         Assert.Equal(new Fixed64(25), FixedMath.BarycentricCoordinate(new Fixed64(10), new Fixed64(20), new Fixed64(30), Fixed64.Half, Fixed64.Half));
     }
 
+    [Fact]
+    public void SumSquaredBarycentricProducts_ReturnsSecondOrderSimplexProductSum()
+    {
+        var result = FixedMath.SumSquaredBarycentricProducts(new Fixed64(2), new Fixed64(3), new Fixed64(5));
+
+        Assert.Equal(new Fixed64(69), result);
+    }
+
+    [Fact]
+    public void SumBarycentricProducts_ReturnsCrossSimplexProductSum()
+    {
+        var result = FixedMath.SumBarycentricProducts(
+            new Fixed64(1),
+            new Fixed64(2),
+            new Fixed64(3),
+            new Fixed64(4),
+            new Fixed64(5),
+            new Fixed64(6));
+
+        Assert.Equal(new Fixed64(122), result);
+    }
+
     #endregion
 
     #region Test: MoveTowards Method

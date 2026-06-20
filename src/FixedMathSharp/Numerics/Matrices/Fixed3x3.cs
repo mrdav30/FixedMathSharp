@@ -360,6 +360,28 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
         CreateScale(new Vector3d(scaleFactor, scaleFactor, scaleFactor));
 
     /// <summary>
+    /// Creates a symmetric matrix containing second-order barycentric product sums for three vectors.
+    /// </summary>
+    /// <remarks>
+    /// The diagonal contains squared component sums, and the off-diagonal elements contain cross-component sums.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed3x3 CreateBarycentricProductSums(Vector3d a, Vector3d b, Vector3d c)
+    {
+        Fixed64 xx = FixedMath.SumSquaredBarycentricProducts(a.X, b.X, c.X);
+        Fixed64 yy = FixedMath.SumSquaredBarycentricProducts(a.Y, b.Y, c.Y);
+        Fixed64 zz = FixedMath.SumSquaredBarycentricProducts(a.Z, b.Z, c.Z);
+        Fixed64 xy = FixedMath.SumBarycentricProducts(a.X, b.X, c.X, a.Y, b.Y, c.Y);
+        Fixed64 xz = FixedMath.SumBarycentricProducts(a.X, b.X, c.X, a.Z, b.Z, c.Z);
+        Fixed64 yz = FixedMath.SumBarycentricProducts(a.Y, b.Y, c.Y, a.Z, b.Z, c.Z);
+
+        return new Fixed3x3(
+            xx, xy, xz,
+            xy, yy, yz,
+            xz, yz, zz);
+    }
+
+    /// <summary>
     /// Normalizes the basis vectors of a 3x3 matrix to ensure they are orthogonal and unit length.
     /// </summary>
     /// <remarks>
