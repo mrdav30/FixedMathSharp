@@ -42,11 +42,6 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     #region Static Readonly Fields
 
     /// <summary>
-    /// (1, 0)
-    /// </summary>
-    public static Vector2d DefaultRotation => new(1, 0);
-
-    /// <summary>
     /// The named 2D plane forward direction (0, 1).
     /// </summary>
     /// <remarks>
@@ -56,14 +51,14 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     public static Vector2d Forward => new(0, 1);
 
     /// <summary>
+    /// (0, -1)
+    /// </summary>
+    public static Vector2d Backward => new(0, -1);
+
+    /// <summary>
     /// The named 2D plane right direction (1, 0).
     /// </summary>
     public static Vector2d Right => new(1, 0);
-
-    /// <summary>
-    /// (0, -1)
-    /// </summary>
-    public static Vector2d Down => new(0, -1);
 
     /// <summary>
     /// (-1, 0)

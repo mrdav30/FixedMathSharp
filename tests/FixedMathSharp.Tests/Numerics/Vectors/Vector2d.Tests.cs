@@ -13,7 +13,7 @@ public class Vector2dTests
     {
         Assert.Equal(new Vector2d(0, 1), Vector2d.Forward);
         Assert.Equal(new Vector2d(1, 0), Vector2d.Right);
-        Assert.Equal(new Vector2d(0, -1), Vector2d.Down);
+        Assert.Equal(new Vector2d(0, -1), Vector2d.Backward);
         Assert.Equal(new Vector2d(-1, 0), Vector2d.Left);
     }
 
@@ -654,8 +654,7 @@ public class Vector2dTests
     {
         var vector = new Vector2d(Fixed64.FromDouble(1.25), Fixed64.FromDouble(-2.5));
 
-        Assert.Equal(Vector2d.Right, Vector2d.DefaultRotation);
-        Assert.Equal(new Vector2d(0, -1), Vector2d.Down);
+        Assert.Equal(new Vector2d(0, -1), Vector2d.Backward);
         Assert.Equal(new Vector2d(-1, 0), Vector2d.Left);
         Assert.Equal(new Fixed64(5), Vector2d.Distance(Vector2d.Zero, new Vector2d(3, 4)));
         Assert.Equal(new Fixed64(25), Vector2d.DistanceSquared(Vector2d.Zero, new Vector2d(3, 4)));
