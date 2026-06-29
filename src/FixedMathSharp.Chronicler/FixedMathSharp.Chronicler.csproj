@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <LangVersion>11.0</LangVersion>
     <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
@@ -23,12 +23,13 @@
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <Configurations>Debug;Release;ReleaseLean</Configurations>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <AssemblyName>FixedMathSharp.FluentAssertions</AssemblyName>
-    <RootNamespace>FixedMathSharp.Assertions</RootNamespace>
+    <AssemblyName>FixedMathSharp.Chronicler</AssemblyName>
+    <RootNamespace>FixedMathSharp.Chronicler</RootNamespace>
     <Authors>mrdav30</Authors>
-    <Description>FluentAssertions extensions for FixedMathSharp types, including Fixed64, vectors, quaternions, and matrices.</Description>
-    <PackageTags>fixed-point;math;precision;deterministic;assertions;fluentassertions;testing;dotnet;game-development</PackageTags>
+    <Description>Chronicler deterministic record-hash writer extensions for FixedMathSharp fixed-point, vector, matrix, transform, and geometry types.</Description>
+    <PackageTags>fixed-point;math;deterministic;lockstep;chronicler;hash;replay;conformance;dotnet;game-development</PackageTags>
     <RepositoryUrl>https://github.com/mrdav30/FixedMathSharp</RepositoryUrl>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -40,23 +41,43 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(DisableMemoryPack)' == 'true'">
-    <PackageId>FixedMathSharp.FluentAssertions.Lean</PackageId>
+    <PackageId>FixedMathSharp.Chronicler.Lean</PackageId>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(DisableMemoryPack)' != 'true'">
-    <PackageId>FixedMathSharp.FluentAssertions</PackageId>
+    <PackageId>FixedMathSharp.Chronicler</PackageId>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DebugSymbols>true</DebugSymbols>
+    <Optimize>false</Optimize>
+    <DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' Or '$(Configuration)' == 'ReleaseLean'">
+    <Optimize>true</Optimize>
+    <DefineConstants>$(DefineConstants);TRACE</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\FixedMathSharp\FixedMathSharp.csproj" />
-    <PackageReference Include="FluentAssertions" Version="8.10.0" />
+  </ItemGroup>
+
+  <!-- Dependencies and Package References -->
+  <ItemGroup Condition="'$(DisableMemoryPack)' != 'true'">
+    <PackageReference Include="Chronicler.Core" Version="0.3.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(DisableMemoryPack)' == 'true'">
+    <PackageReference Include="Chronicler.Core.Lean" Version="0.3.0" />
+    <PackageReference Include="Chronicler.MemoryPackShim" Version="0.3.0" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="\" Visible="false" />
-    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" Visible="false" />
-    <None Include="..\..\NOTICE" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\COPYRIGHT" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\NOTICE" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 </Project>

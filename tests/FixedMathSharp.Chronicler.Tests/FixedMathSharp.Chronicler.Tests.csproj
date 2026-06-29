@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <LangVersion>11.0</LangVersion>
     <TargetFrameworks>net8.0</TargetFrameworks>
@@ -9,17 +9,13 @@
     <Configurations>Debug;Release;ReleaseLean</Configurations>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)' == 'ReleaseLean'">
+  <PropertyGroup Condition="'$(Configuration)' == 'ReleaseLean'">
     <DefineConstants>$(DefineConstants);FIXEDMATHSHARP_DISABLE_MEMORYPACK</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj">
-      <Private>True</Private>
-      <IncludeAssets>compile; build</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </ProjectReference>
-    <ProjectReference Include="..\..\src\FixedMathSharp.FluentAssertions\FixedMathSharp.FluentAssertions.csproj" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj" />
+    <ProjectReference Include="..\..\src\FixedMathSharp.Chronicler\FixedMathSharp.Chronicler.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -33,8 +29,5 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Remove=".gitignore" />
   </ItemGroup>
 </Project>

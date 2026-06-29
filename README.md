@@ -48,6 +48,7 @@ Use floating point when you need:
 - **Curves and ranges** with `FixedCurve`, `FixedCurveKey`, and `FixedRange`.
 - **Deterministic RNG** with `DeterministicRandom` streams derived from seeds, feature keys, and indices.
 - **Serialization-friendly structs** with MemoryPack support in the standard package and a Lean package when you do not want that dependency.
+- **Chronicler record-hash extensions** through a companion package for deterministic replay and conformance signals.
 - **Testing helpers** through the companion FluentAssertions package.
 
 ---
@@ -66,6 +67,8 @@ Choose the package that fits your runtime:
 | --- | --- | --- |
 | `FixedMathSharp` | Most .NET applications. Includes MemoryPack support. | `dotnet add package FixedMathSharp` |
 | `FixedMathSharp.Lean` | Projects that want the same math API without a MemoryPack dependency, including custom serializers and Burst AOT-sensitive workflows. | `dotnet add package FixedMathSharp.Lean` |
+| `FixedMathSharp.Chronicler` | Replay or conformance tooling that hashes FixedMathSharp values with Chronicler's deterministic record-hash writer. | `dotnet add package FixedMathSharp.Chronicler` |
+| `FixedMathSharp.Chronicler.Lean` | Chronicler hash extensions paired with the Lean package graph. | `dotnet add package FixedMathSharp.Chronicler.Lean` |
 | `FixedMathSharp.FluentAssertions` | Tests that use FluentAssertions with `Fixed64`, vectors, quaternions, and matrices. | `dotnet add package FixedMathSharp.FluentAssertions` |
 | `FixedMathSharp.FluentAssertions.Lean` | FluentAssertions helpers paired with the Lean package. | `dotnet add package FixedMathSharp.FluentAssertions.Lean` |
 
@@ -117,6 +120,20 @@ Fixed64 riverBend = riverRng.NextFixed64(-Fixed64.One, Fixed64.One);
 int lootCount = oreRng.Next(1, 5); // [1, 5)
 ```
 
+### Chronicler Record Hashes
+
+```csharp
+using Chronicler;
+using FixedMathSharp;
+using FixedMathSharp.Chronicler;
+
+var writer = new ChronicleHashWriter();
+writer.WriteVector3d(new Vector3d(1, 2, 3));
+writer.WriteQuaternion(FixedQuaternion.Identity);
+
+ChronicleHash hash = writer.ToHash();
+```
+
 ### Bounds and Geometry
 
 ```csharp
@@ -155,6 +172,7 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - `FixedPlane`, `FixedRay`: geometric primitives for plane classification and ray intersections.
 - `FixedCurve`, `FixedCurveKey`, `FixedRange`: interpolation and range helpers.
 - `DeterministicRandom`: repeatable random streams for simulations and procedural generation.
+- `FixedMathSharp.Chronicler`: deterministic `ChronicleHashWriter` extensions for fixed-point, vector, matrix, transform, and bounds values.
 - `FixedMathSharp.FluentAssertions`: expressive test assertions for FixedMathSharp types.
 
 ### API Shape Notes
