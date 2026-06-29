@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development before production or test changes, and use superpowers:verification-before-completion before claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Planned.
+**Status:** In Progress - Phase 1 complete.
 
 **Goal:** Make FixedMathSharp's bounds and planar geometry APIs explicit, allocation-free on hot paths, and reusable by Gravitas, GridForge, Trailblazer, and future deterministic LSF packages without pulling physics-specific behavior into the math layer.
 
@@ -64,13 +64,13 @@ Gravitas now has first-class 2D, 3D, and mixed-dimension physics. That exposed s
 - Modify: `tests/FixedMathSharp.Benchmarks/SerializationBenchmarks.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/Support/BenchmarkCatalog.cs` if a bounds benchmark selector is missing.
 
-- [ ] Add tests that document current inclusive boundary behavior for `FixedBoundBox.Contains` and `FixedBoundBox.Intersects`.
-- [ ] Move existing 3D `FixedBoundArea` tests that represent actual 3D volumes to `FixedBoundBox` tests.
-- [ ] Move existing 3D `FixedBoundArea` tests that represent flat footprints into new 2D `FixedBoundArea` test names that will be implemented in Phase 4.
-- [ ] Add tests for swapped min/max inputs so the desired `FixedBoundBox` normalization behavior is locked before implementation.
-- [ ] Add tests that expose the current `FixedBoundBox.Vertices` allocation/reference-mutability risk. The test should be removed or replaced when `Vertices` is deleted in Phase 3.
-- [ ] Add or confirm a focused `bounds` benchmark catalog entry so later phases can measure construction, containment, intersection, corner copy, and union paths.
-- [ ] Capture a short benchmark baseline before changing the hot-path implementation.
+- [x] Add tests that document current inclusive boundary behavior for `FixedBoundBox.Contains` and `FixedBoundBox.Intersects`.
+- [x] Move existing 3D `FixedBoundArea` tests that represent actual 3D volumes to `FixedBoundBox` tests.
+- [x] Move existing 3D `FixedBoundArea` tests that represent flat footprints into new 2D `FixedBoundArea` test names that will be implemented in Phase 4.
+- [x] Add tests for swapped min/max inputs so the desired `FixedBoundBox` normalization behavior is locked before implementation.
+- [x] Add tests that expose the current `FixedBoundBox.Vertices` allocation/reference-mutability risk. The test should be removed or replaced when `Vertices` is deleted in Phase 3.
+- [x] Add or confirm a focused `bounds` benchmark catalog entry so later phases can measure construction, containment, intersection, corner copy, and union paths.
+- [x] Capture a short benchmark baseline before changing the hot-path implementation.
 
 Verification:
 
@@ -80,6 +80,27 @@ dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll list
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i
 ```
+
+**Phase 1 Notes:**
+
+- `FixedBoundBox.Contains(Vector3d)` is boundary-inclusive for all corners.
+  `FixedBoundBox.Intersects(FixedBoundBox)` is currently strict for
+  face/edge/corner touch unless the other box is fully contained. That behavior
+  is now explicit in tests and should be resolved deliberately during the
+  Phase 8 intersection semantics sweep.
+- Swapped `SetMinMax` and serialized state inputs currently preserve inverted
+  bounds. Phase 1 captured this as current-risk guardrail coverage so Phase 2
+  can replace it with desired normalization behavior without mistaking the
+  change for incidental breakage.
+- `FixedBoundBox.Vertices` currently exposes a mutable backing array and default
+  structs allocate that array on first access. Phase 3 should delete these tests
+  or replace them with `GetCorner`/`CopyCorners` coverage when the public array
+  property is removed.
+- The benchmark catalog already exposes the `bounds` selector. Phase 1 added
+  box construction, `SetMinMax`, vertex-read, and union baselines. Short
+  in-process baseline on 2026-06-29 completed 37 bounds benchmarks; key new
+  baselines: `BoxConstructCenterSize` 20,385.9 ns, `BoxSetMinMax` 9,670.0 ns,
+  `BoxReadVertices` 1,155.0 ns, `BoxUnion` 1,525.0 ns.
 
 ## Phase 2: 3D Bounds Cleanup And Old Area Removal
 

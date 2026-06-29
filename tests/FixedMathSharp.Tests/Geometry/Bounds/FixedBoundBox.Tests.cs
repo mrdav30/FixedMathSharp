@@ -1,5 +1,6 @@
 ﻿using FixedMathSharp.Bounds;
 using MemoryPack;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -56,6 +57,22 @@ public class FixedBoundBoxTests
         Assert.True(box.Contains(point));
     }
 
+    [Theory]
+    [InlineData(-2, -2, -2)]
+    [InlineData(2, -2, -2)]
+    [InlineData(-2, 2, -2)]
+    [InlineData(2, 2, -2)]
+    [InlineData(-2, -2, 2)]
+    [InlineData(2, -2, 2)]
+    [InlineData(-2, 2, 2)]
+    [InlineData(2, 2, 2)]
+    public void Contains_BoxCornerBoundary_ReturnsTrue(int x, int y, int z)
+    {
+        var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(4, 4, 4));
+
+        Assert.True(box.Contains(new Vector3d(x, y, z)));
+    }
+
     [Fact]
     public void Constructor_WithNegativeSize_StillContainsCenter()
     {
@@ -89,6 +106,31 @@ public class FixedBoundBoxTests
         var box2 = new FixedBoundBox(new Vector3d(5, 5, 5), new Vector3d(2, 2, 2));
 
         Assert.False(box1.Intersects(box2));
+    }
+
+    [Fact]
+    public void Intersects_BoxFullyContainedOnBoundary_ReturnsTrue()
+    {
+        var containing = new FixedBoundBox(Vector3d.Zero, new Vector3d(4, 4, 4));
+        var contained = new FixedBoundBox(new Vector3d(1, 0, 0), new Vector3d(2, 4, 4));
+
+        Assert.Equal(new Vector3d(0, -2, -2), contained.Min);
+        Assert.Equal(new Vector3d(2, 2, 2), contained.Max);
+        Assert.Equal(FixedEnclosureType.Contains, containing.Contains(contained));
+        Assert.True(containing.Intersects(contained));
+    }
+
+    [Theory]
+    [InlineData(2, 0, 0)]
+    [InlineData(0, 2, 0)]
+    [InlineData(0, 0, 2)]
+    [InlineData(2, 2, 2)]
+    public void Intersects_TouchingBoxes_ReturnsFalseForCurrentStrictBoundaryBehavior(int x, int y, int z)
+    {
+        var a = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var b = new FixedBoundBox(new Vector3d(x, y, z), new Vector3d(2, 2, 2));
+
+        Assert.False(a.Intersects(b));
     }
 
     [Fact]
@@ -156,6 +198,26 @@ public class FixedBoundBoxTests
         var b = new FixedBoundBox(new Vector3d(2, 0, 0), new Vector3d(2, 2, 2));
 
         Assert.False(a.Intersects(b));
+    }
+
+    [Fact]
+    public void Intersects_Overlapping3DVolumeBoxes_ReturnsTrue()
+    {
+        var a = new FixedBoundBox(new Vector3d(3, 3, 3), new Vector3d(4, 4, 4));
+        var b = new FixedBoundBox(new Vector3d(5, 5, 5), new Vector3d(4, 4, 4));
+
+        Assert.True(a.Intersects(b));
+        Assert.Equal(FixedEnclosureType.Intersects, a.Contains(b));
+    }
+
+    [Fact]
+    public void Intersects_Separated3DVolumeBoxes_ReturnsFalse()
+    {
+        var a = new FixedBoundBox(new Vector3d(1, 1, 1), new Vector3d(2, 2, 2));
+        var b = new FixedBoundBox(new Vector3d(4, 4, 4), new Vector3d(2, 2, 2));
+
+        Assert.False(a.Intersects(b));
+        Assert.Equal(FixedEnclosureType.Disjoint, a.Contains(b));
     }
 
     #endregion
@@ -340,6 +402,31 @@ public class FixedBoundBoxTests
     }
 
     [Fact]
+    public void SetMinMax_SwappedInputs_CurrentlyCreatesInvertedBounds()
+    {
+        var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+
+        box.SetMinMax(new Vector3d(4, 4, 4), new Vector3d(-2, -2, -2));
+
+        Assert.Equal(new Vector3d(4, 4, 4), box.Min);
+        Assert.Equal(new Vector3d(-2, -2, -2), box.Max);
+        Assert.Equal(new Vector3d(-6, -6, -6), box.Proportions);
+        Assert.False(box.Contains(Vector3d.Zero));
+    }
+
+    [Fact]
+    public void State_WithSwappedMinMax_CurrentlyPreservesInvertedBounds()
+    {
+        var box = new FixedBoundBox(new FixedBoundBox.BoundingBoxState(
+            new Vector3d(3, 3, 3),
+            new Vector3d(-1, -1, -1)));
+
+        Assert.Equal(new Vector3d(3, 3, 3), box.Min);
+        Assert.Equal(new Vector3d(-1, -1, -1), box.Max);
+        Assert.Equal(new Vector3d(-4, -4, -4), box.Proportions);
+    }
+
+    [Fact]
     public void Center_Setter_RepositionsBoundsWithoutChangingSize()
     {
         var box = new FixedBoundBox(new Vector3d(0, 0, 0), new Vector3d(4, 6, 8));
@@ -426,6 +513,29 @@ public class FixedBoundBoxTests
         Assert.Equal(8, first.Length);
         Assert.All(first, vertex => Assert.Equal(Vector3d.Zero, vertex));
         Assert.Same(first, second);
+    }
+
+    [Fact]
+    public void Vertices_ExposesMutableBackingArray()
+    {
+        var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+        Vector3d[] vertices = box.Vertices;
+
+        vertices[0] = new Vector3d(99, 99, 99);
+
+        Assert.Equal(new Vector3d(99, 99, 99), box.Vertices[0]);
+    }
+
+    [Fact]
+    public void Vertices_DefaultStructAllocatesBackingArrayOnFirstAccess()
+    {
+        FixedBoundBox box = default;
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        _ = box.Vertices;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(allocated > 0);
     }
 
     [Fact]

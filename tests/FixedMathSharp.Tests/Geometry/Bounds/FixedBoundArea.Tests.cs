@@ -128,10 +128,6 @@ public class FixedBoundAreaTests
         var area2 = new FixedBoundArea(new Vector3d(3, 3, 3), new Vector3d(6, 6, 6));
 
         Assert.True(area1.Intersects(area2));
-
-        var area3 = new FixedBoundArea(new Vector3d(-2, -2, 0), new Vector3d(2, 2, 0));
-        var area4 = new FixedBoundArea(new Vector3d(-1, -1, 0), new Vector3d(3, 3, 0));
-        Assert.True(area3.Intersects(area4));
     }
 
     [Fact]
@@ -215,6 +211,15 @@ public class FixedBoundAreaTests
     {
         var area1 = new FixedBoundArea(new Vector3d(0, 0, 0), new Vector3d(4, 0, 4));
         var area2 = new FixedBoundArea(new Vector3d(2, 0, 2), new Vector3d(6, 0, 6));
+
+        Assert.True(area1.Intersects(area2));
+    }
+
+    [Fact]
+    public void Intersects_FlatXYFootprints_ReturnsTrueWhenPlanarAreasOverlap()
+    {
+        var area1 = new FixedBoundArea(new Vector3d(-2, -2, 0), new Vector3d(2, 2, 0));
+        var area2 = new FixedBoundArea(new Vector3d(-1, -1, 0), new Vector3d(3, 3, 0));
 
         Assert.True(area1.Intersects(area2));
     }

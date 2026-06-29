@@ -8,6 +8,8 @@ namespace FixedMathSharp.Benchmarks;
 [MemoryDiagnoser]
 public class BoundsBenchmarks
 {
+    private const int BoxCornerCount = 8;
+
     private readonly FixedBoundArea[] _areas = CreateAreas();
     private readonly FixedBoundBox[] _boxes = CreateBoxes();
     private readonly Vector3d[] _cornerBuffer = new Vector3d[FixedBoundFrustum.CornerCount];
@@ -19,6 +21,37 @@ public class BoundsBenchmarks
     private readonly Vector3d[] _spherePointCloud = CreateSpherePointCloud();
     private readonly FixedRay[] _rays = CreateRays();
     private readonly FixedBoundSphere[] _spheres = CreateSpheres();
+
+    [Benchmark]
+    public Fixed64 BoxConstructCenterSize()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _points.Length; i++)
+        {
+            Vector3d size = new(
+                Fixed64.One + Fixed64.FromFraction(i % 5, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 7, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 3, 8));
+            var box = new FixedBoundBox(_points[i] * Fixed64.Quarter, size);
+            accumulator += box.Min.X + box.Max.Z;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 BoxSetMinMax()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        var box = _boxes[0];
+        for (int i = 0; i < _boxes.Length; i++)
+        {
+            box.SetMinMax(_boxes[i].Min, _boxes[i].Max);
+            accumulator += box.Center.X;
+        }
+
+        return accumulator;
+    }
 
     [Benchmark]
     public int BoxContainsPoint()
@@ -78,6 +111,26 @@ public class BoundsBenchmarks
         Vector3d accumulator = Vector3d.Zero;
         for (int i = 0; i < _boxes.Length; i++)
             accumulator += _boxes[i].ClampPoint(_points[(i + 37) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d BoxReadVertices()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _boxes.Length; i++)
+            accumulator += _boxes[i].Vertices[i & (BoxCornerCount - 1)];
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public FixedBoundBox BoxUnion()
+    {
+        FixedBoundBox accumulator = _boxes[0];
+        for (int i = 1; i < _boxes.Length; i++)
+            accumulator = FixedBoundBox.Union(accumulator, _boxes[i]);
 
         return accumulator;
     }
