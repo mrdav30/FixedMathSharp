@@ -305,6 +305,19 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void BarycentricCoordinates_WeightsSecondAndThirdVertices()
+    {
+        var value1 = new Vector2d(10, 100);
+        var value2 = new Vector2d(20, 200);
+        var value3 = new Vector2d(30, 300);
+
+        Assert.Equal(value1, Vector2d.BarycentricCoordinates(value1, value2, value3, Fixed64.Zero, Fixed64.Zero));
+        Assert.Equal(value2, Vector2d.BarycentricCoordinates(value1, value2, value3, Fixed64.One, Fixed64.Zero));
+        Assert.Equal(value3, Vector2d.BarycentricCoordinates(value1, value2, value3, Fixed64.Zero, Fixed64.One));
+        Assert.Equal(new Vector2d(25, 250), Vector2d.BarycentricCoordinates(value1, value2, value3, Fixed64.Half, Fixed64.Half));
+    }
+
+    [Fact]
     public void MultiplyInPlace_Overloads_ModifyVectorCorrectly()
     {
         var vector = new Vector2d(2, 3);

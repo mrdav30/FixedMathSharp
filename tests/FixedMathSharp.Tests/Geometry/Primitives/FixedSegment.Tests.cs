@@ -5,7 +5,7 @@ using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
 
-public class FixedSegment3dTests
+public class FixedSegmentTests
 {
     [Fact]
     public void Constructor_AssignsEndpointsAndDerivedValues()

@@ -13,6 +13,8 @@ public class BoundsBenchmarks
     private readonly FixedBoundCircle[] _circles = CreateCircles();
     private readonly FixedSegment2d[] _segments2d = CreateSegments2d();
     private readonly FixedSegment[] _segments3d = CreateSegments3d();
+    private readonly FixedTriangle2d[] _triangles2d = CreateTriangles2d();
+    private readonly FixedTriangle[] _triangles3d = CreateTriangles3d();
     private readonly Vector3d[] _boxCornerBuffer = new Vector3d[FixedBoundBox.CornerCount];
     private readonly Vector3d[] _cornerBuffer = new Vector3d[FixedBoundFrustum.CornerCount];
     private readonly FixedBoundFrustum[] _frustums = CreateFrustums();
@@ -213,6 +215,138 @@ public class BoundsBenchmarks
         Fixed64 accumulator = Fixed64.Zero;
         for (int i = 0; i < _segments3d.Length; i++)
             accumulator += _segments3d[i].DistanceSquared(_points[(i + 53) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 Triangle2dArea()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _triangles2d.Length; i++)
+            accumulator += _triangles2d[i].Area;
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public FixedBoundArea Triangle2dBounds()
+    {
+        FixedBoundArea accumulator = _triangles2d[0].Bounds;
+        for (int i = 1; i < _triangles2d.Length; i++)
+            accumulator = FixedBoundArea.Union(accumulator, _triangles2d[i].Bounds);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int Triangle2dContainsPoint()
+    {
+        int count = 0;
+        for (int i = 0; i < _triangles2d.Length; i++)
+        {
+            if (_triangles2d[i].Contains(_points2d[(i + 37) & (BenchmarkFixtures.SampleCount - 1)]))
+                count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
+    public Vector2d Triangle2dClosestPoint()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _triangles2d.Length; i++)
+            accumulator += _triangles2d[i].ClosestPoint(_points2d[(i + 53) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d Triangle2dGetPoint()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _triangles2d.Length; i++)
+            accumulator += _triangles2d[i].GetPoint(Fixed64.Quarter, Fixed64.Half);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 Triangle2dBarycentricWeights()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _triangles2d.Length; i++)
+        {
+            if (_triangles2d[i].TryGetBarycentricWeights(_triangles2d[i].Centroid, out Fixed64 weightA, out Fixed64 weightB, out Fixed64 weightC))
+                accumulator += weightA + weightB + weightC;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 Triangle3dArea()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _triangles3d.Length; i++)
+            accumulator += _triangles3d[i].Area;
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public FixedBoundBox Triangle3dBounds()
+    {
+        FixedBoundBox accumulator = _triangles3d[0].Bounds;
+        for (int i = 1; i < _triangles3d.Length; i++)
+            accumulator = FixedBoundBox.Union(accumulator, _triangles3d[i].Bounds);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int Triangle3dContainsPoint()
+    {
+        int count = 0;
+        for (int i = 0; i < _triangles3d.Length; i++)
+        {
+            if (_triangles3d[i].Contains(_points[(i + 37) & (BenchmarkFixtures.SampleCount - 1)]))
+                count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
+    public Vector3d Triangle3dClosestPoint()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _triangles3d.Length; i++)
+            accumulator += _triangles3d[i].ClosestPoint(_points[(i + 53) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d Triangle3dGetPoint()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _triangles3d.Length; i++)
+            accumulator += _triangles3d[i].GetPoint(Fixed64.Quarter, Fixed64.Half);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 Triangle3dProjectedBarycentricWeights()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _triangles3d.Length; i++)
+        {
+            if (_triangles3d[i].TryGetProjectedBarycentricWeights(_triangles3d[i].Centroid, out Fixed64 weightA, out Fixed64 weightB, out Fixed64 weightC))
+                accumulator += weightA + weightB + weightC;
+        }
 
         return accumulator;
     }
@@ -742,6 +876,50 @@ public class BoundsBenchmarks
         }
 
         return segments;
+    }
+
+    private static FixedTriangle2d[] CreateTriangles2d()
+    {
+        var triangles = new FixedTriangle2d[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < triangles.Length; i++)
+        {
+            Vector2d a = BenchmarkFixtures.Vector2sA[i] * Fixed64.Quarter;
+            Vector2d b = a + new Vector2d(
+                Fixed64.One + Fixed64.FromFraction(i % 5, 8),
+                Fixed64.FromFraction(i % 3, 16));
+            Vector2d c = a + new Vector2d(
+                Fixed64.FromFraction(i % 7, 16),
+                Fixed64.One + Fixed64.FromFraction(i % 7, 8));
+
+            triangles[i] = (i & 1) == 0
+                ? new FixedTriangle2d(a, b, c)
+                : new FixedTriangle2d(a, c, b);
+        }
+
+        return triangles;
+    }
+
+    private static FixedTriangle[] CreateTriangles3d()
+    {
+        var triangles = new FixedTriangle[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < triangles.Length; i++)
+        {
+            Vector3d a = BenchmarkFixtures.VectorsA[i] * Fixed64.Quarter;
+            Vector3d b = a + new Vector3d(
+                Fixed64.One + Fixed64.FromFraction(i % 5, 8),
+                Fixed64.FromFraction(i % 3, 16),
+                Fixed64.FromFraction(i % 5, 16));
+            Vector3d c = a + new Vector3d(
+                Fixed64.FromFraction(i % 7, 16),
+                Fixed64.One + Fixed64.FromFraction(i % 7, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 3, 8));
+
+            triangles[i] = (i & 1) == 0
+                ? new FixedTriangle(a, b, c)
+                : new FixedTriangle(a, c, b);
+        }
+
+        return triangles;
     }
 
     private static FixedRay2d[] CreateRays2d()

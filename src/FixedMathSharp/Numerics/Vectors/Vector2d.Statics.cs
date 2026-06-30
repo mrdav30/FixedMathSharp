@@ -131,6 +131,28 @@ public partial struct Vector2d
     }
 
     /// <summary>
+    /// Calculates a position between three points using barycentric weights for the second and third vertices.
+    /// </summary>
+    /// <param name="coordA">The first vertex of the triangle.</param>
+    /// <param name="coordB">The second vertex of the triangle.</param>
+    /// <param name="coordC">The third vertex of the triangle.</param>
+    /// <param name="weightB">The barycentric weight for the second vertex.</param>
+    /// <param name="weightC">The barycentric weight for the third vertex.</param>
+    /// <returns>The cartesian translation represented by the barycentric coordinates within the triangle.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2d BarycentricCoordinates(
+        Vector2d coordA,
+        Vector2d coordB,
+        Vector2d coordC,
+        Fixed64 weightB,
+        Fixed64 weightC)
+    {
+        return new(
+            FixedMath.BarycentricCoordinate(coordA.X, coordB.X, coordC.X, weightB, weightC),
+            FixedMath.BarycentricCoordinate(coordA.Y, coordB.Y, coordC.Y, weightB, weightC));
+    }
+
+    /// <summary>
     /// Computes the distance between two vectors using the Euclidean distance formula.
     /// </summary>
     /// <param name="start">The starting vector.</param>
