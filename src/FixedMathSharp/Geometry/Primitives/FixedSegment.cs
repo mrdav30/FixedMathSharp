@@ -17,7 +17,7 @@ namespace FixedMathSharp.Bounds;
 /// </summary>
 [Serializable]
 [MemoryPackable]
-public partial struct FixedSegment3d : IEquatable<FixedSegment3d>
+public partial struct FixedSegment : IEquatable<FixedSegment>
 {
     #region Fields
 
@@ -44,7 +44,7 @@ public partial struct FixedSegment3d : IEquatable<FixedSegment3d>
     /// </summary>
     [JsonConstructor]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public FixedSegment3d(Vector3d start, Vector3d end)
+    public FixedSegment(Vector3d start, Vector3d end)
     {
         Start = start;
         End = end;
@@ -142,13 +142,13 @@ public partial struct FixedSegment3d : IEquatable<FixedSegment3d>
     /// Determines whether two segments have the same ordered endpoints.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator ==(FixedSegment3d left, FixedSegment3d right) => left.Equals(right);
+    public static bool operator ==(FixedSegment left, FixedSegment right) => left.Equals(right);
 
     /// <summary>
     /// Determines whether two segments have different ordered endpoints.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool operator !=(FixedSegment3d left, FixedSegment3d right) => !left.Equals(right);
+    public static bool operator !=(FixedSegment left, FixedSegment right) => !left.Equals(right);
 
     #endregion
 
@@ -156,7 +156,7 @@ public partial struct FixedSegment3d : IEquatable<FixedSegment3d>
 
     /// <inheritdoc />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Equals(FixedSegment3d other)
+    public bool Equals(FixedSegment other)
     {
         return Start == other.Start && End == other.End;
     }
@@ -164,7 +164,7 @@ public partial struct FixedSegment3d : IEquatable<FixedSegment3d>
     /// <inheritdoc />
     public override bool Equals(object? obj)
     {
-        return obj is FixedSegment3d other && Equals(other);
+        return obj is FixedSegment other && Equals(other);
     }
 
     /// <inheritdoc />

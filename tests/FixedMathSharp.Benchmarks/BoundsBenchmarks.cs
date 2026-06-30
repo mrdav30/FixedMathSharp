@@ -12,7 +12,7 @@ public class BoundsBenchmarks
     private readonly FixedBoundBox[] _boxes = CreateBoxes();
     private readonly FixedBoundCircle[] _circles = CreateCircles();
     private readonly FixedSegment2d[] _segments2d = CreateSegments2d();
-    private readonly FixedSegment3d[] _segments3d = CreateSegments3d();
+    private readonly FixedSegment[] _segments3d = CreateSegments3d();
     private readonly Vector3d[] _boxCornerBuffer = new Vector3d[FixedBoundBox.CornerCount];
     private readonly Vector3d[] _cornerBuffer = new Vector3d[FixedBoundFrustum.CornerCount];
     private readonly FixedBoundFrustum[] _frustums = CreateFrustums();
@@ -722,9 +722,9 @@ public class BoundsBenchmarks
         return segments;
     }
 
-    private static FixedSegment3d[] CreateSegments3d()
+    private static FixedSegment[] CreateSegments3d()
     {
-        var segments = new FixedSegment3d[BenchmarkFixtures.SampleCount];
+        var segments = new FixedSegment[BenchmarkFixtures.SampleCount];
         for (int i = 0; i < segments.Length; i++)
         {
             Vector3d start = BenchmarkFixtures.VectorsA[i] * Fixed64.Quarter;
@@ -738,7 +738,7 @@ public class BoundsBenchmarks
             if ((i & 2) != 0)
                 delta.Z = -delta.Z;
 
-            segments[i] = new FixedSegment3d(start, start + delta);
+            segments[i] = new FixedSegment(start, start + delta);
         }
 
         return segments;

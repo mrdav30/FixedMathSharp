@@ -10,7 +10,7 @@ public class FixedSegment3dTests
     [Fact]
     public void Constructor_AssignsEndpointsAndDerivedValues()
     {
-        var segment = new FixedSegment3d(new Vector3d(1, 2, 3), new Vector3d(3, 8, 6));
+        var segment = new FixedSegment(new Vector3d(1, 2, 3), new Vector3d(3, 8, 6));
 
         Assert.Equal(new Vector3d(1, 2, 3), segment.Start);
         Assert.Equal(new Vector3d(3, 8, 6), segment.End);
@@ -25,7 +25,7 @@ public class FixedSegment3dTests
     [Fact]
     public void Bounds_NormalizesReversedEndpoints()
     {
-        var segment = new FixedSegment3d(new Vector3d(5, -2, 7), new Vector3d(-1, 3, -4));
+        var segment = new FixedSegment(new Vector3d(5, -2, 7), new Vector3d(-1, 3, -4));
 
         Assert.Equal(
             FixedBoundBox.FromMinMax(new Vector3d(-1, -2, -4), new Vector3d(5, 3, 7)),
@@ -35,10 +35,10 @@ public class FixedSegment3dTests
     [Fact]
     public void ClosestPoint_ProjectsInsideHorizontalVerticalDepthAndDiagonalSegments()
     {
-        var horizontal = new FixedSegment3d(new Vector3d(0, 0, 0), new Vector3d(8, 0, 0));
-        var vertical = new FixedSegment3d(new Vector3d(3, -4, 2), new Vector3d(3, 4, 2));
-        var depth = new FixedSegment3d(new Vector3d(1, 2, -8), new Vector3d(1, 2, 8));
-        var diagonal = new FixedSegment3d(new Vector3d(0, 0, 0), new Vector3d(8, 8, 8));
+        var horizontal = new FixedSegment(new Vector3d(0, 0, 0), new Vector3d(8, 0, 0));
+        var vertical = new FixedSegment(new Vector3d(3, -4, 2), new Vector3d(3, 4, 2));
+        var depth = new FixedSegment(new Vector3d(1, 2, -8), new Vector3d(1, 2, 8));
+        var diagonal = new FixedSegment(new Vector3d(0, 0, 0), new Vector3d(8, 8, 8));
 
         Assert.Equal(new Vector3d(4, 0, 0), horizontal.ClosestPoint(new Vector3d(4, 3, 2)));
         Assert.Equal(new Vector3d(3, -2, 2), vertical.ClosestPoint(new Vector3d(7, -2, 5)));
@@ -49,7 +49,7 @@ public class FixedSegment3dTests
     [Fact]
     public void ClosestPoint_ClampsToEndpointsForOutsideOrReversedSegments()
     {
-        var segment = new FixedSegment3d(new Vector3d(10, 0, 0), new Vector3d(0, 0, 0));
+        var segment = new FixedSegment(new Vector3d(10, 0, 0), new Vector3d(0, 0, 0));
 
         Assert.Equal(new Vector3d(10, 0, 0), segment.ClosestPoint(new Vector3d(20, 5, 1)));
         Assert.Equal(new Vector3d(0, 0, 0), segment.ClosestPoint(new Vector3d(-3, -2, -1)));
@@ -58,7 +58,7 @@ public class FixedSegment3dTests
     [Fact]
     public void ZeroLengthSegment_ReturnsStartForClosestPointAndDistance()
     {
-        var segment = new FixedSegment3d(new Vector3d(2, 3, 4), new Vector3d(2, 3, 4));
+        var segment = new FixedSegment(new Vector3d(2, 3, 4), new Vector3d(2, 3, 4));
 
         Assert.Equal(Vector3d.Zero, segment.Delta);
         Assert.Equal(Fixed64.Zero, segment.Length);
@@ -73,7 +73,7 @@ public class FixedSegment3dTests
     [Fact]
     public void DistanceSquared_UsesClosestPointWithoutSquareRoot()
     {
-        var segment = new FixedSegment3d(new Vector3d(0, 0, 0), new Vector3d(8, 0, 0));
+        var segment = new FixedSegment(new Vector3d(0, 0, 0), new Vector3d(8, 0, 0));
 
         Assert.Equal(new Fixed64(13), segment.DistanceSquared(new Vector3d(4, 3, 2)));
         Assert.Equal(new Fixed64(25), segment.DistanceSquared(new Vector3d(13, 0, 0)));
@@ -82,9 +82,9 @@ public class FixedSegment3dTests
     [Fact]
     public void EqualityDeconstructAndHashCode_UseOrderedEndpoints()
     {
-        var segment = new FixedSegment3d(new Vector3d(1, 2, 3), new Vector3d(4, 5, 6));
-        var same = new FixedSegment3d(new Vector3d(1, 2, 3), new Vector3d(4, 5, 6));
-        var reversed = new FixedSegment3d(new Vector3d(4, 5, 6), new Vector3d(1, 2, 3));
+        var segment = new FixedSegment(new Vector3d(1, 2, 3), new Vector3d(4, 5, 6));
+        var same = new FixedSegment(new Vector3d(1, 2, 3), new Vector3d(4, 5, 6));
+        var reversed = new FixedSegment(new Vector3d(4, 5, 6), new Vector3d(1, 2, 3));
 
         segment.Deconstruct(out Vector3d start, out Vector3d end);
 
@@ -103,10 +103,10 @@ public class FixedSegment3dTests
     [Fact]
     public void JsonSerialization_RoundTripsState()
     {
-        var segment = new FixedSegment3d(new Vector3d(1, 2, 3), new Vector3d(4, 5, 6));
+        var segment = new FixedSegment(new Vector3d(1, 2, 3), new Vector3d(4, 5, 6));
 
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(segment);
-        var roundTrip = JsonSerializer.Deserialize<FixedSegment3d>(json);
+        var roundTrip = JsonSerializer.Deserialize<FixedSegment>(json);
 
         Assert.Equal(segment, roundTrip);
     }
@@ -115,10 +115,10 @@ public class FixedSegment3dTests
     [Fact]
     public void MemoryPackSerialization_RoundTripsState()
     {
-        var segment = new FixedSegment3d(new Vector3d(1, 2, 3), new Vector3d(4, 5, 6));
+        var segment = new FixedSegment(new Vector3d(1, 2, 3), new Vector3d(4, 5, 6));
 
         byte[] bytes = MemoryPackSerializer.Serialize(segment);
-        var roundTrip = MemoryPackSerializer.Deserialize<FixedSegment3d>(bytes);
+        var roundTrip = MemoryPackSerializer.Deserialize<FixedSegment>(bytes);
 
         Assert.Equal(segment, roundTrip);
     }
