@@ -24,7 +24,8 @@ $configurations = @("Release", "ReleaseLean")
 # Library projects to bundle — add new packages here as needed
 $libraryProjects = @(
     "FixedMathSharp",
-    "FixedMathSharp.FluentAssertions"
+    "FixedMathSharp.FluentAssertions",
+	"FixedMathSharp.Chronicler"
 )
 
 foreach ($config in $configurations) {
