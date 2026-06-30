@@ -73,7 +73,7 @@ claims, serialization layout, or developer workflow changes:
 | [`src/FixedMathSharp/Numerics/Vectors`](src/FixedMathSharp/Numerics/Vectors) | `Vector2d`, `Vector3d`, `Vector4d`, and vector extensions | Watch coordinate-convention assumptions. |
 | [`src/FixedMathSharp/Numerics/Rotations`](src/FixedMathSharp/Numerics/Rotations) | `FixedQuaternion` and rotation helpers | High-risk for convention, normalization, and determinism changes. |
 | [`src/FixedMathSharp/Numerics/Matrices`](src/FixedMathSharp/Numerics/Matrices) | `Fixed3x3`, `Fixed4x4`, and matrix extensions | Keep transform storage and basis semantics explicit. |
-| [`src/FixedMathSharp/Geometry`](src/FixedMathSharp/Geometry) | Bounds and primitive geometry | Includes 2D `FixedBoundArea`, 2D `FixedBoundCircle`, 3D `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`, `FixedRay`, and `FixedPlane`. |
+| [`src/FixedMathSharp/Geometry`](src/FixedMathSharp/Geometry) | Bounds and primitive geometry | Includes 2D `FixedBoundArea`, `FixedBoundCircle`, `FixedRay2d`, `FixedSegment2d`, `FixedTriangle2d`, and 3D `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`, `FixedRay`, `FixedPlane`, `FixedSegment`, and `FixedTriangle`. |
 | [`src/FixedMathSharp.FluentAssertions`](src/FixedMathSharp.FluentAssertions) | Test assertion helpers package | Keep helpers aligned with core API semantics. |
 | [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests) | xUnit v3 test project | Add focused deterministic, edge-case, serialization, and regression coverage. |
 | [`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks) | BenchmarkDotNet project | Experimental performance lab and showcase for hot-path wins. |
@@ -144,12 +144,14 @@ Benchmark workflow:
 ```bash
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll list
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all -j Short -i
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all -j Short
 ```
 
-Use short in-process runs only as smoke checks. Treat full `Release` benchmark
-runs and exported BenchmarkDotNet artifacts as the evidence for performance
-claims.
+Use short out-of-process runs for broad smoke checks. Reserve `-i` in-process
+runs for narrow filtered diagnostics, because broad in-process benchmark batches
+can surface BenchmarkDotNet harness instability that is not a runtime defect.
+Treat full `Release` benchmark runs and exported BenchmarkDotNet artifacts as
+the evidence for performance claims.
 
 ## Experimental Design And Evidence Bar
 

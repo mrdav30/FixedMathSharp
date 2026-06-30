@@ -44,7 +44,7 @@ Use floating point when you need:
 - **2D, 3D, and 4D vectors** via `Vector2d`, `Vector3d`, and `Vector4d`, including dot products, distances, normalization, transforms, fuzzy equality, and component operations.
 - **Rotations and matrices** with `FixedQuaternion`, `Fixed3x3`, and `Fixed4x4` for deterministic transforms and orientation math.
 - **Coordinate convention helpers** with `Axis3d` and `CoordinateConvention3d` for explicit signed-axis adapter boundaries.
-- **Geometry and bounds** with `FixedBoundArea`, `FixedBoundCircle`, `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`, `FixedPlane`, and `FixedRay`.
+- **Geometry and bounds** with 2D areas, circles, rays, segments, and triangles plus 3D boxes, spheres, frustums, planes, rays, segments, and triangles.
 - **Curves and ranges** with `FixedCurve`, `FixedCurveKey`, and `FixedRange`.
 - **Deterministic RNG** with `DeterministicRandom` streams derived from seeds, feature keys, and indices.
 - **Serialization-friendly structs** with MemoryPack support in the standard package and a Lean package when you do not want that dependency.
@@ -141,10 +141,12 @@ FixedBoundBox room = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d
 FixedRay ray = new FixedRay(new Vector3d(-20, 0, 0), Vector3d.Right);
 FixedBoundArea footprint = FixedBoundArea.FromCenterAndSize(Vector2d.Zero, new Vector2d(6, 4));
 FixedBoundCircle sensor2d = new FixedBoundCircle(Vector2d.Zero, new Fixed64(5));
+FixedSegment2d pathEdge = new FixedSegment2d(new Vector2d(-3, 0), new Vector2d(3, 0));
 
 Fixed64? hitDistance = ray.Intersects(room);
 bool insideFootprint = footprint.Contains(new Vector2d(1, 1));
 bool insideSensor = sensor2d.Contains(new Vector2d(3, 4));
+Fixed64 edgeDistanceSquared = pathEdge.DistanceSquared(new Vector2d(0, 2));
 
 if (hitDistance.HasValue)
 {
@@ -175,7 +177,9 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - `FixedBoundArea`: 2D `Vector2d` AABB containment, intersection, clamping, projection, and union queries.
 - `FixedBoundCircle`: 2D circular containment, area/circle intersection, clamping, and projection queries.
 - `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`: 3D containment, intersection, clamping, and projection queries.
-- `FixedPlane`, `FixedRay`: geometric primitives for plane classification and ray intersections.
+- `FixedPlane`, `FixedRay`: geometric primitives for plane classification and 3D ray intersections.
+- `FixedSegment2d`, `FixedRay2d`, `FixedTriangle2d`: finite-segment, ray, and triangle primitives for deterministic 2D plane math.
+- `FixedSegment`, `FixedTriangle`: finite-segment and triangle primitives for deterministic 3D geometry.
 - `FixedCurve`, `FixedCurveKey`, `FixedRange`: interpolation and range helpers.
 - `DeterministicRandom`: repeatable random streams for simulations and procedural generation.
 - `FixedMathSharp.Chronicler`: deterministic `ChronicleHashWriter` extensions for fixed-point, vector, matrix, transform, and bounds values.
@@ -186,9 +190,14 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - `FixedMath` is the canonical scalar algorithm surface; `Fixed64` owns Q32.32 representation, conversions, parsing, operators, and raw-value helpers.
 - Core 3D direction semantics are `+X` right, `+Y` up, and `+Z` forward. See [`docs/wiki/coordinate-conventions.md`](docs/wiki/coordinate-conventions.md) before adding adapter-facing conversions.
 - Numeric types expose clear return-by-value statics/operators plus explicit `*InPlace` methods when mutation is useful.
+- 3D bounds use `FixedBoundBox`; 2D plane bounds use `FixedBoundArea`. Flat world footprints should pair `FixedBoundArea` with explicit layer or elevation state in higher-level packages.
+- Use named bound factories such as `FromMinMax`, `FromCenterAndSize`, and `FromCenterAndScope` so min/max, total size, and half-extent semantics stay visible at call sites.
+- `Intersects` methods use boundary-inclusive closed-bound semantics. Use `IntersectsStrict` where the API exposes it and positive area or volume overlap is required.
 - Extension methods are curated receiver-shaped conveniences that forward to canonical APIs; factories and convention-heavy operations stay on the owning type.
 - `Fast*` helpers are expert APIs for proven hot paths. They skip some guarded operator behavior, so prefer normal operators unless benchmarks and invariants justify the fast path.
 - Countable hot-path data may use array or `ReadOnlySpan<T>` overloads, while `IEnumerable<T>` remains useful for broader interoperability.
+
+For the detailed geometry model, see [`docs/wiki/bounds-and-geometry.md`](docs/wiki/bounds-and-geometry.md).
 
 ### Coordinate Conventions
 

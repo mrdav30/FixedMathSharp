@@ -43,6 +43,10 @@ runtime and tests.
 Performance issues should stay in the benchmark plan unless they become a
 confirmed runtime defect. Current queue:
 
+- None currently.
+
+## Resolved Issues
+
 ### FMS-Issue-012: Full in-process bounds benchmark can crash in frustum segment after prior rows
 
 **Discovered:** 2026-06-30
@@ -50,23 +54,22 @@ confirmed runtime defect. Current queue:
 **Source:** Phase 5 validation for
 `docs/feature-work/2026-06-28-bounds-and-2d-geometry-hardening-plan.md`.
 
-**Status:** Investigation queued
+**Status:** Resolved on 2026-06-30
 
 **Affected files:**
 
-- `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
+- `tests/FixedMathSharp.Benchmarks/README.md`
+- `AGENTS.md`
 - BenchmarkDotNet in-process runner path invoked by `-i`
 
-**Concern:**
+**Resolution:**
 
-`dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i`
-failed once with a fatal `System.AccessViolationException` while executing
-`BoundsBenchmarks.FrustumCreateFromMatrix` after earlier bounds benchmarks had
-already completed. The stack pointed at `FixedBoundFrustum.IntersectionPoint`
-through `CreateCorners`.
+The crash was classified as a broad in-process BenchmarkDotNet harness/toolchain
+instability, not a confirmed `FixedBoundFrustum` or `Fixed64` runtime defect.
+The stack landed in `FixedBoundFrustum.IntersectionPoint`, but that path is
+pure managed fixed-point/vector math and no isolated runtime repro was found.
 
-Current evidence points at an in-process BenchmarkDotNet batch/harness issue
-rather than a confirmed runtime geometry defect:
+Evidence:
 
 - A direct `dotnet-script` repro over 2,000,000 frustum constructions using the
   same perspective-matrix fixture completed successfully.
@@ -74,27 +77,21 @@ rather than a confirmed runtime geometry defect:
   the same fixture completed successfully.
 - The isolated `BoundsBenchmarks.FrustumCreateFromMatrix` in-process benchmark
   completed successfully with no managed allocation.
-- The Phase 5 circle benchmark rows completed successfully with no managed
-  allocation.
+- The full `bounds -j Short -i` benchmark completed successfully in a later
+  rerun, so the original failure was not deterministic.
+- The focused out-of-process frustum benchmark group completed all 9 rows with
+  no managed allocation in the frustum hot rows.
+- The full out-of-process `bounds -j Short` benchmark completed all 64 rows and
+  passed through `FrustumCreateFromMatrix` after the preceding bounds rows.
 
-**Recommended work:**
+Workflow change:
 
-- [ ] Re-run the full bounds group with and without `-i` to determine whether
-  the crash is specific to `InProcessEmitToolchain`.
-- [ ] If the crash reproduces, isolate the smallest preceding benchmark set
-  needed before `FrustumCreateFromMatrix` fails.
-- [ ] Prefer out-of-process BenchmarkDotNet runs for full release evidence if
-  the in-process runner remains unstable.
-- [ ] Only change `FixedBoundFrustum` or `Fixed64` runtime math if an isolated
-  non-BenchmarkDotNet repro or focused unit test demonstrates a library defect.
-
-Current queue also includes the completed 2026-06-03 vector normalization and
-residual quaternion allocation investigation in
-`docs/feature-work/done/2026-06-03-benchmark-hot-path-followups.md` Phase 3. The
-residual `1 B` signal did not reproduce in the expanded short-run diagnostics,
-so no runtime defect is currently tracked for that item.
-
-## Resolved Issues
+- Broad/full benchmark smoke guidance now uses the normal out-of-process
+  BenchmarkDotNet path so each row keeps process isolation.
+- In-process `-i` remains useful for narrow filtered diagnostics, but it should
+  not be used as the broad/full-suite validation path or release evidence.
+- No runtime geometry changes were made because the investigation did not
+  produce a non-BenchmarkDotNet repro or focused failing unit test.
 
 ### FMS-Issue-011: Floating-point conversion paths rely on unchecked raw casts
 

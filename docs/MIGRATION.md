@@ -1,3 +1,258 @@
+# Migrating From v5.x To v6.x
+
+FixedMathSharp v6.x is a geometry and bounds hardening release. The largest
+change is dimensional clarity: `FixedBoundBox` is the 3D AABB type, while
+`FixedBoundArea` is now a true `Vector2d` 2D AABB. The release also removes
+ambiguous bounds construction, removes hidden corner-array storage, adds shared
+2D/3D segment and triangle primitives, and adds an optional
+`FixedMathSharp.Chronicler` companion package for deterministic replay hash
+writers.
+
+Use this guide when upgrading from any v5.x package.
+
+## v6 Upgrade Checklist
+
+- Update package references to `FixedMathSharp` v6.x, or `FixedMathSharp.Lean`
+  v6.x if you use the lean package.
+- Add `FixedMathSharp.Chronicler` or `FixedMathSharp.Chronicler.Lean` only if
+  your project uses Chronicler replay hashing helpers.
+- Replace old 3D `FixedBoundArea` usage. Use `FixedBoundBox` for 3D volumes and
+  the new `Vector2d`-based `FixedBoundArea` for planar footprints.
+- Replace `new FixedBoundBox(center, size)` with named factory calls.
+- Replace `FixedBoundBox.Vertices` with `GetCorner` or `CopyCorners`.
+- Audit `Intersects` behavior where touching bounds used to be treated as
+  separate. Default intersections are now boundary-inclusive.
+- Audit serialized or hashed bounds payloads if you persisted `FixedBoundArea`
+  or `FixedBoundSphere` state directly.
+- Re-run deterministic replay, save/load, spatial-query, and broad-phase tests.
+
+## Dimensional Bounds Split
+
+`FixedBoundArea` no longer represents a 3D shape. It is now a normalized 2D
+axis-aligned area backed by `Vector2d`:
+
+```csharp
+FixedBoundArea area = FixedBoundArea.FromMinMax(
+    new Vector2d(-4, -2),
+    new Vector2d(4, 2));
+```
+
+Migrate old 3D area usage by intent:
+
+| v5.x usage | v6.x replacement |
+| --- | --- |
+| 3D volume, collider, frustum, ray, or plane bounds | `FixedBoundBox` |
+| Flat footprint in a 3D world | `FixedBoundArea` plus explicit layer, height, or elevation state in the consuming package |
+| Pure 2D area query or broad-phase bounds | `FixedBoundArea` |
+
+There is no 3D `FixedBoundArea` compatibility layer. That is intentional: a 3D
+area was ambiguous beside `FixedBoundBox`, and higher-level packages should own
+layer/elevation semantics explicitly.
+
+3D overloads that previously accepted `FixedBoundArea` were removed. For
+example:
+
+```csharp
+// v5.x 3D-shaped area usage
+// bool hit = ray.Intersects(area) != null;
+// FixedPlaneIntersectionType side = plane.Intersects(area);
+
+// v6.x 3D volume usage
+FixedBoundBox box = FixedBoundBox.FromMinMax(min3d, max3d);
+Fixed64? hit = ray.Intersects(box);
+FixedPlaneIntersectionType side = plane.Intersects(box);
+
+// v6.x pure 2D usage
+FixedRay2d ray2d = new(origin2d, direction2d);
+Fixed64? planarHit = ray2d.Intersects(area);
+```
+
+## FixedBoundBox Construction
+
+The public `FixedBoundBox(Vector3d center, Vector3d size)` constructor was
+removed because call sites could not tell whether two vectors meant
+center/size, center/scope, or min/max. Use named factories:
+
+```csharp
+// v5.x
+FixedBoundBox box = new FixedBoundBox(center, size);
+
+// v6.x
+FixedBoundBox box = FixedBoundBox.FromCenterAndSize(center, size);
+FixedBoundBox fromHalfExtents = FixedBoundBox.FromCenterAndScope(center, scope);
+FixedBoundBox fromCorners = FixedBoundBox.FromMinMax(min, max);
+```
+
+`FromMinMax`, `SetMinMax`, and serialized state population normalize swapped
+min/max inputs. `FromCenterAndSize` and `FromCenterAndScope` normalize negative
+extents by absolute component value.
+
+The serialization state constructor remains:
+
+```csharp
+FixedBoundBox box = new FixedBoundBox(
+    new FixedBoundBox.BoundingBoxState(min, max));
+```
+
+Use that constructor for explicit state transfer, not for ordinary call-site
+construction.
+
+## Allocation-Free Box Corners
+
+`FixedBoundBox.Vertices` was removed. It exposed mutable array storage from a
+value type and could allocate when callers only needed a corner.
+
+```csharp
+// v5.x
+Vector3d corner = box.Vertices[0];
+
+// v6.x
+Vector3d corner = box.GetCorner(0);
+
+Span<Vector3d> corners = stackalloc Vector3d[FixedBoundBox.CornerCount];
+box.CopyCorners(corners);
+```
+
+`GetCorner` and `CopyCorners` use the same stable corner order. Prefer
+`GetCorner` for one-off access and caller-owned spans/arrays for bulk copies.
+
+## Intersection Semantics
+
+Default `Intersects` methods now use closed-bound, boundary-inclusive overlap.
+Touching edges, faces, corners, or tangent surfaces count as intersections.
+
+Where positive area or positive volume matters, use `IntersectsStrict`:
+
+```csharp
+bool touchesOrOverlaps = box.Intersects(otherBox);
+bool hasPositiveVolume = box.IntersectsStrict(otherBox);
+
+bool areasTouchOrOverlap = area.Intersects(otherArea);
+bool hasPositiveArea = area.IntersectsStrict(otherArea);
+```
+
+Strict overlap methods reject boundary-only contact and zero-size inputs. They
+exist for box-box, box-sphere, sphere-box, sphere-sphere, area-area,
+area-circle, circle-area, and circle-circle pairs.
+
+If your v5.x logic depended on `FixedBoundBox.Intersects(FixedBoundBox)`
+returning `false` for face, edge, or corner contact, switch that call site to
+`IntersectsStrict`.
+
+## Radius And Serialized Bounds State
+
+`FixedBoundCircle` is new in v6.x. `FixedBoundSphere` was also tightened so
+negative radii are normalized through construction, assignment, and serialized
+state load.
+
+```csharp
+FixedBoundSphere sphere = new FixedBoundSphere(center, new Fixed64(-5));
+// sphere.Radius == 5
+```
+
+`FixedBoundSphere` now exposes a matching `BoundingSphereState` payload, aligned
+with `FixedBoundBox`, `FixedBoundArea`, and `FixedBoundCircle`.
+
+If your project persisted or inspected bounds state directly, audit those
+payloads:
+
+- 3D boxes write canonical `Min` then `Max`.
+- 2D areas write canonical `Vector2d Min` then `Vector2d Max`.
+- 2D circles write `Center` then normalized `Radius`.
+- 3D spheres write `Center` then normalized `Radius`.
+
+## New Geometry Primitives
+
+v6.x adds reusable deterministic geometry primitives that downstream packages
+can use instead of local one-off structs:
+
+| Domain | New type | Main use |
+| --- | --- | --- |
+| 2D area bounds | `FixedBoundArea` | Planar AABB, clamp/project, union, area overlap |
+| 2D circular bounds | `FixedBoundCircle` | Radius queries, circle/area overlap, projection |
+| 2D rays | `FixedRay2d` | Planar ray against area/circle |
+| 2D segments | `FixedSegment2d` | Finite edge, closest point, distance, bounds |
+| 2D triangles | `FixedTriangle2d` | Area, bounds, containment, closest point, barycentric weights |
+| 3D segments | `FixedSegment` | Finite 3D edge, closest point, distance, bounds |
+| 3D triangles | `FixedTriangle` | Normal, area, bounds, containment, closest point, projected barycentric weights |
+
+Segments preserve ordered endpoint identity. Reversed endpoints have the same
+bounds but do not compare equal.
+
+Rays do not normalize direction by construction. A returned ray parameter is a
+physical distance only when the caller supplied a normalized direction.
+
+Triangles preserve ordered vertices. `FixedTriangle2d.TryGetBarycentricWeights`
+solves planar weights directly. `FixedTriangle.TryGetProjectedBarycentricWeights`
+names the 3D projection behavior explicitly.
+
+`Vector2d.BarycentricCoordinates(...)` now mirrors
+`Vector3d.BarycentricCoordinates(...)` for reconstructing points from known B/C
+barycentric weights.
+
+## Chronicler Hash Companion Package
+
+FixedMathSharp v6.x includes an optional `FixedMathSharp.Chronicler` companion
+package. Add it only when your project uses Chronicler replay hashing:
+
+```csharp
+using Chronicler;
+using FixedMathSharp.Chronicler;
+
+ChronicleHashWriter writer = new();
+writer.WriteFixed64(value);
+writer.WriteVector3d(position);
+writer.WriteBoundBox(bounds);
+```
+
+The extension package writes canonical deterministic payloads for `Fixed64`,
+vectors, quaternions, transforms, matrices, bounds, rays, and planes. It keeps
+Chronicler-specific code out of the core math package.
+
+Important `FixedBoundArea` change: `WriteBoundArea` now writes the new 2D
+`FixedBoundArea`. If old replay code used it for 3D area-like payloads, migrate
+that hash input to `WriteBoundBox` or to an explicit 2D area plus separate
+layer/elevation fields.
+
+## Suggested Search Patterns
+
+After updating package references, these searches catch the most common v6
+migration work:
+
+```bash
+rg -n "new FixedBoundBox" src tests
+rg -n "Vertices" src tests
+rg -n "FixedBoundArea" src tests
+rg -n "Intersects" src tests
+rg -n "WriteBoundArea" src tests
+```
+
+Review each `new FixedBoundBox(...)` match manually. The state constructor is
+still valid, while the old center/size constructor should become a named
+factory call.
+
+Review each `FixedBoundArea` match by dimension. If the surrounding code uses
+`Vector3d`, a ray/plane/frustum, or volumetric bounds, it probably wants
+`FixedBoundBox`. If the code is planar, migrate to the new `Vector2d` area.
+
+## v6 Suggested Validation
+
+After migrating source, run:
+
+```bash
+dotnet restore
+dotnet build FixedMathSharp.slnx --configuration Debug --no-restore
+dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
+dotnet test FixedMathSharp.slnx --configuration Release --no-restore
+dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
+```
+
+For consumer applications, also run deterministic replay, save/load,
+broad-phase/query, and spatial partition tests that cover bounds construction,
+intersection semantics, and serialized geometry state.
+
+---
+
 # Migrating From v4.x To v5.0.0
 
 FixedMathSharp v5.0.0 is a major API hardening release. The migration is mostly

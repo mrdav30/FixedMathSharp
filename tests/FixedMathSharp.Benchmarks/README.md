@@ -63,13 +63,23 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ### Fast development check
 
-Use BenchmarkDotNet's short in-process job for quick local smoke runs. This verifies benchmark code compiles and produces plausible output without a full run:
+Use BenchmarkDotNet's short out-of-process job for broad local smoke runs. This
+verifies benchmark code compiles and produces plausible output while preserving
+row-level process isolation:
 
 ```bash
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all -j Short -i
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all -j Short
 ```
 
-Do not treat short-run numbers as canonical measurements.
+For narrow diagnostics, a filtered in-process run is still useful because it is
+fast and keeps setup noise low:
+
+```bash
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i --filter "*FrustumCreateFromMatrix*"
+```
+
+Do not treat short-run numbers as canonical measurements, and do not use broad
+`-i` runs as release validation evidence.
 
 ## Suggested Benchmark Areas
 
@@ -92,6 +102,7 @@ Start with hot paths that can be isolated and repeated deterministically:
 - Use deterministic fixtures and fixed seeds. Do not use ambient randomness in measured paths.
 - Reset or dispose context between benchmark cases so measurements do not depend on previous cases.
 - Capture both throughput and allocation impact when changing hot-path arithmetic, normalization, transforms, bounds dispatch, serialization, or fixture generation.
+- For loop-style bounds benchmarks that iterate over `BenchmarkFixtures.SampleCount`, use the local `SampledBenchmarkAttribute` so BenchmarkDotNet reports cost per fixture operation instead of the whole sampled batch. Keep end-to-end API benchmarks, such as point-cloud construction, as normal `[Benchmark]` rows.
 
 Keep support helpers specific. Remove copied template helpers when they stop serving a FixedMathSharp benchmark scenario.
 
@@ -108,9 +119,9 @@ BenchmarkDotNet writes results to `BenchmarkDotNet.Artifacts/results/` by defaul
 ### Comparing Results
 
 Use full `Release` BenchmarkDotNet artifacts for performance claims. Short
-in-process runs are useful for smoke checks, alias validation, and quick
-allocation diagnostics, but they are not stable enough for release notes or
-regression gates.
+out-of-process runs are useful for broad smoke checks and alias validation.
+Filtered in-process runs are useful for quick allocation diagnostics, but broad
+in-process batches are not stable enough for release notes or regression gates.
 
 When comparing a branch against a baseline:
 

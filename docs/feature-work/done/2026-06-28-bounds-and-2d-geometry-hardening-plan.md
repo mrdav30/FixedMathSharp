@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development before production or test changes, and use superpowers:verification-before-completion before claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** In Progress - Phase 7 complete.
+**Status:** Done.
 
 **Goal:** Make FixedMathSharp's bounds and geometry APIs explicit, allocation-free on hot paths, and reusable by Gravitas, GridForge, Trailblazer, and future deterministic LSF packages without pulling physics-specific behavior into the math layer.
 
@@ -513,15 +513,15 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 - Review after package release: GridForge blocker and traversal call sites.
 - Review after package release: Trailblazer path, steering, or controller call sites.
 
-- [ ] Document the public geometry model: 3D `FixedBoundBox`, 3D `FixedBoundSphere`, `FixedSegment`, `FixedTriangle`, 2D `FixedBoundArea`, 2D `FixedBoundCircle`, `FixedSegment2d`, `FixedRay2d`, and `FixedTriangle2d`.
-- [ ] Document named factory usage and remove examples that call ambiguous constructors.
-- [ ] Document boundary semantics for inclusive and strict intersection methods.
-- [ ] Document that flat world footprints should be represented as `FixedBoundArea` plus explicit layer/elevation state in higher-level packages, not as a 3D area in FixedMathSharp.
-- [ ] Document that physics-specific mesh, collider, shape-cast, and material behavior belongs in Gravitas, not FixedMathSharp.
-- [ ] Run Debug, Release, and ReleaseLean tests.
-- [ ] Run the bounds/geometry benchmark group and confirm no allocation regressions in hot paths.
-- [ ] Search for stale direct `FixedBoundBox` construction, stale `Vertices` usage, stale 3D `FixedBoundArea` docs, and stale `Vector2d.Down` references.
-- [ ] Mark this plan done only after downstream migration notes are either completed or moved into the consuming repo's feature-work docs.
+- [x] Document the public geometry model: 3D `FixedBoundBox`, 3D `FixedBoundSphere`, `FixedSegment`, `FixedTriangle`, 2D `FixedBoundArea`, 2D `FixedBoundCircle`, `FixedSegment2d`, `FixedRay2d`, and `FixedTriangle2d`.
+- [x] Document named factory usage and remove examples that call ambiguous constructors.
+- [x] Document boundary semantics for inclusive and strict intersection methods.
+- [x] Document that flat world footprints should be represented as `FixedBoundArea` plus explicit layer/elevation state in higher-level packages, not as a 3D area in FixedMathSharp.
+- [x] Document that physics-specific mesh, collider, shape-cast, and material behavior belongs in Gravitas, not FixedMathSharp.
+- [x] Run Debug, Release, and ReleaseLean tests.
+- [x] Run the bounds/geometry benchmark group and confirm no allocation regressions in hot paths.
+- [x] Search for stale direct `FixedBoundBox` construction, stale `Vertices` usage, stale 3D `FixedBoundArea` docs, and stale `Vector2d.Down` references.
+- [x] Mark this plan done only after downstream migration notes are either completed or moved into the consuming repo's feature-work docs.
 
 Verification:
 
@@ -533,27 +533,90 @@ dotnet test FixedMathSharp.slnx --configuration Release --no-restore
 dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i
-rg -n "new FixedBoundBox\\(|\\.Vertices\\b|Vector2d\\.Down|FixedBoundTriangle" src tests README.md AGENTS.md docs
+rg -n "new FixedBoundBox\\([^\\)]*,|\\.Vertices\\b|Vector2d\\.Down|FixedBoundTriangle" src tests README.md AGENTS.md docs/wiki docs/complexity-exceptions.md tests/FixedMathSharp.Benchmarks/README.md
 ```
+
+**Phase 9 Notes:**
+
+- Added `docs/wiki/bounds-and-geometry.md` as the package-level reference for
+  the completed geometry model, named factory usage, inclusive/strict
+  intersection semantics, 2D footprint modeling, and downstream ownership
+  boundaries.
+- Updated `README.md`, `AGENTS.md`, and the benchmark README so public package
+  orientation, repository guidance, and bounds benchmark conventions match the
+  completed API.
+- Downstream migration notes were completed in this plan for Gravitas,
+  GridForge, and Trailblazer. Consuming repositories should reference this plan
+  after the package release instead of duplicating new feature-work plans for
+  the same lower-stack shape.
+- Stale-reference search completed with no matches:
+  `rg -n "new FixedBoundBox\([^\)]*,|\.Vertices\b|Vector2d\.Down|FixedBoundTriangle" src tests README.md AGENTS.md docs/wiki docs/complexity-exceptions.md tests/FixedMathSharp.Benchmarks/README.md`.
+- Release validation passed:
+  `dotnet restore`;
+  `dotnet build FixedMathSharp.slnx --configuration Debug --no-restore`;
+  `dotnet test FixedMathSharp.slnx --configuration Debug --no-build`;
+  `dotnet test FixedMathSharp.slnx --configuration Release --no-restore`;
+  `dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore`;
+  and `dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore`.
+- Full short-run bounds benchmark validation completed all 64 rows:
+  `dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i`.
+  Sampled hot-path rows reported `0 B` allocated, including
+  `BoxIntersectsBox` at 2.704 ns/op, `AreaIntersectsArea` at 2.247 ns/op,
+  `Ray2dIntersectsArea` at 115.248 ns/op, `Triangle2dClosestPoint` at
+  273.842 ns/op, and `Triangle3dClosestPoint` at 124.523 ns/op.
+  `SphereCreateFromPointsArray` and `SphereCreateFromPointsSpan` also reported
+  `0 B`; the intentionally adapter-style `SphereCreateFromPointsEnumerable`
+  row reported 12,456 B.
 
 ## Downstream Migration Shape
 
 Gravitas:
 
-- 3D collider bounds and query bounds should use `FixedBoundBox`.
-- Pure 2D collider bounds should use the new `FixedBoundArea` directly.
-- Mixed 2D/3D embedded slabs should keep using `FixedBoundBox` for mixed broad-phase identity, with `FixedBoundArea` used only for pure planar shape math.
+- Reference this plan when migrating to the FixedMathSharp package that contains
+  the bounds/geometry surface completed here.
+- 3D collider bounds, query bounds, mesh triangle AABBs, and mixed slabs should
+  use `FixedBoundBox`.
+- Pure 2D collider and query bounds should use `FixedBoundArea` directly.
+- Pure 2D circular query or collider math should use `FixedBoundCircle`.
+- Finite ray/sensor or edge math should prefer `FixedRay2d`, `FixedSegment2d`,
+  `FixedSegment`, `FixedTriangle2d`, or `FixedTriangle` when those are the
+  actual domain objects.
+- Mixed 2D/3D embedded slabs should keep using `FixedBoundBox` for mixed
+  broad-phase identity, with `FixedBoundArea` used only for pure planar shape
+  math. Do not model a mixed slab as a resurrected 3D `FixedBoundArea`.
+- Physics-specific mesh, collider, shape-cast, contact, inertia, material, and
+  cached-normal behavior should stay in Gravitas. Local triangle/bounds structs
+  can migrate to `FixedTriangle` only where recomputing derived normal/bounds is
+  acceptable or profiling proves a Gravitas-owned cache is still justified.
 
 GridForge:
 
-- `BoundsBlocker` should store a `FixedBoundArea` plus explicit layer/elevation data instead of a 3D `FixedBoundArea` with Y locked to a layer.
+- Reference this plan when migrating to the FixedMathSharp package that contains
+  the bounds/geometry surface completed here.
+- `BoundsBlocker` should store a `FixedBoundArea` plus explicit layer/elevation
+  data instead of a 3D `FixedBoundArea` with Y locked to a layer.
 - 3D or volumetric blocker/query work should use `FixedBoundBox`.
-- Tests that only used `Vector3d` because the old area type required it should migrate to `Vector2d`.
+- Tests that only used `Vector3d` because the old area type required it should
+  migrate to `Vector2d`.
+- Traversal, topology, and voxel-identity code should remain in GridForge; only
+  reusable fixed-point geometry should come from FixedMathSharp.
 
 Trailblazer:
 
-- Planar path footprints, avoidance radii, steering bounds, and character-controller support casts should prefer `FixedBoundArea`, `FixedBoundCircle`, `FixedSegment2d`, and `FixedRay2d`.
-- Any future 3D controller volume should use `FixedBoundBox`, not a resurrected 3D area type. 3D path probes, ledge traces, and steering/debug line math should prefer `FixedSegment` where a finite segment is the actual domain object.
+- Reference this plan when migrating to the FixedMathSharp package that contains
+  the bounds/geometry surface completed here.
+- Planar path footprints, avoidance radii, steering bounds, and
+  character-controller support casts should prefer `FixedBoundArea`,
+  `FixedBoundCircle`, `FixedSegment2d`, and `FixedRay2d`.
+- Future planar triangle tests or funnel/debug geometry can use
+  `FixedTriangle2d` when ordered triangle semantics are useful.
+- Any future 3D controller volume should use `FixedBoundBox`, not a resurrected
+  3D area type. 3D path probes, ledge traces, and steering/debug line math
+  should prefer `FixedSegment` where a finite segment is the actual domain
+  object.
+- Engine-specific fixture/authoring shapes should stay in Trailblazer adapters
+  or consuming packages rather than expanding FixedMathSharp with pathfinding
+  semantics.
 
 ## Recommended First Implementation Slice
 
