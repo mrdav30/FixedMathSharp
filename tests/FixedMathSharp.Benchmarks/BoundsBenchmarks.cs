@@ -11,6 +11,7 @@ public class BoundsBenchmarks
     private readonly FixedBoundArea[] _areas = CreateAreas();
     private readonly FixedBoundBox[] _boxes = CreateBoxes();
     private readonly FixedBoundCircle[] _circles = CreateCircles();
+    private readonly FixedSegment2d[] _segments2d = CreateSegments2d();
     private readonly Vector3d[] _boxCornerBuffer = new Vector3d[FixedBoundBox.CornerCount];
     private readonly Vector3d[] _cornerBuffer = new Vector3d[FixedBoundFrustum.CornerCount];
     private readonly FixedBoundFrustum[] _frustums = CreateFrustums();
@@ -19,6 +20,7 @@ public class BoundsBenchmarks
     private readonly FixedPlane[] _planes = CreatePlanes();
     private readonly Vector3d[] _points = BenchmarkFixtures.VectorsA;
     private readonly Vector2d[] _points2d = BenchmarkFixtures.Vector2sA;
+    private readonly FixedRay2d[] _rays2d = CreateRays2d();
     private readonly Vector3d[] _spherePointCloud = CreateSpherePointCloud();
     private readonly FixedRay[] _rays = CreateRays();
     private readonly FixedBoundSphere[] _spheres = CreateSpheres();
@@ -170,6 +172,54 @@ public class BoundsBenchmarks
         Vector2d accumulator = Vector2d.Zero;
         for (int i = 0; i < _circles.Length; i++)
             accumulator += _circles[i].ProjectPoint(_points2d[(i + 53) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d Segment2dClosestPoint()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _segments2d.Length; i++)
+            accumulator += _segments2d[i].ClosestPoint(_points2d[(i + 37) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 Segment2dDistanceSquared()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _segments2d.Length; i++)
+            accumulator += _segments2d[i].DistanceSquared(_points2d[(i + 53) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 Ray2dIntersectsArea()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _rays2d.Length; i++)
+        {
+            Fixed64? hit = _rays2d[i].Intersects(_areas[i]);
+            if (hit.HasValue)
+                accumulator += hit.Value;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 Ray2dIntersectsCircle()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _rays2d.Length; i++)
+        {
+            Fixed64? hit = _rays2d[i].Intersects(_circles[i]);
+            if (hit.HasValue)
+                accumulator += hit.Value;
+        }
 
         return accumulator;
     }
@@ -630,6 +680,40 @@ public class BoundsBenchmarks
         }
 
         return circles;
+    }
+
+    private static FixedSegment2d[] CreateSegments2d()
+    {
+        var segments = new FixedSegment2d[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < segments.Length; i++)
+        {
+            Vector2d start = BenchmarkFixtures.Vector2sA[i] * Fixed64.Quarter;
+            Vector2d delta = new(
+                Fixed64.One + Fixed64.FromFraction(i % 5, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 7, 8));
+
+            if ((i & 1) != 0)
+                delta.X = -delta.X;
+
+            segments[i] = new FixedSegment2d(start, start + delta);
+        }
+
+        return segments;
+    }
+
+    private static FixedRay2d[] CreateRays2d()
+    {
+        var rays = new FixedRay2d[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < rays.Length; i++)
+        {
+            Vector2d direction = BenchmarkFixtures.Vector2sA[(i + 37) & (BenchmarkFixtures.SampleCount - 1)].Normalized;
+            if (direction.EqualsZero())
+                direction = Vector2d.Right;
+
+            rays[i] = new FixedRay2d(BenchmarkFixtures.Vector2sB[i], direction);
+        }
+
+        return rays;
     }
 
     private static FixedBoundFrustum[] CreateFrustums()

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development before production or test changes, and use superpowers:verification-before-completion before claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** In Progress - Phase 5 complete.
+**Status:** In Progress - Phase 6 complete.
 
 **Goal:** Make FixedMathSharp's bounds and planar geometry APIs explicit, allocation-free on hot paths, and reusable by Gravitas, GridForge, Trailblazer, and future deterministic LSF packages without pulling physics-specific behavior into the math layer.
 
@@ -303,12 +303,12 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs` or create `tests/FixedMathSharp.Benchmarks/Geometry2dBenchmarks.cs`.
 - Modify: `tests/FixedMathSharp.Benchmarks/Support/BenchmarkCatalog.cs` if a new geometry benchmark group is added.
 
-- [ ] Add `FixedSegment2d` with `Start`, `End`, `Delta`, `Length`, `LengthSquared`, `Bounds`, `ClosestPoint(Vector2d point)`, and `DistanceSquared(Vector2d point)`.
-- [ ] Add `FixedRay2d` with `Position`, `Direction`, `GetPoint(Fixed64 distance)`, and intersection helpers against `FixedBoundArea` and `FixedBoundCircle`.
-- [ ] Match `FixedRay` normalization semantics where practical. If `FixedRay` permits unnormalized direction, document whether `FixedRay2d` does the same or intentionally normalizes.
-- [ ] Guard zero-length ray directions and zero-length segments with explicit deterministic behavior covered by tests.
-- [ ] Add tests for horizontal, vertical, diagonal, reversed, zero-length, and boundary-touch cases.
-- [ ] Add benchmark coverage for segment closest-point, segment distance, ray-area intersection, and ray-circle intersection.
+- [x] Add `FixedSegment2d` with `Start`, `End`, `Delta`, `Length`, `LengthSquared`, `Bounds`, `ClosestPoint(Vector2d point)`, and `DistanceSquared(Vector2d point)`.
+- [x] Add `FixedRay2d` with `Position`, `Direction`, `GetPoint(Fixed64 distance)`, and intersection helpers against `FixedBoundArea` and `FixedBoundCircle`.
+- [x] Match `FixedRay` normalization semantics where practical. If `FixedRay` permits unnormalized direction, document whether `FixedRay2d` does the same or intentionally normalizes.
+- [x] Guard zero-length ray directions and zero-length segments with explicit deterministic behavior covered by tests.
+- [x] Add tests for horizontal, vertical, diagonal, reversed, zero-length, and boundary-touch cases.
+- [x] Add benchmark coverage for segment closest-point, segment distance, ray-area intersection, and ray-circle intersection.
 
 Verification:
 
@@ -316,6 +316,27 @@ Verification:
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedSegment2dTests|FullyQualifiedName~FixedRay2dTests"
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i
 ```
+
+**Phase 6 Notes:**
+
+- `FixedSegment2d` is a simple ordered-endpoint primitive with derived length,
+  squared length, bounds, closest-point, and squared-distance helpers. Reversed
+  endpoints keep their order for equality and deconstruction, while `Bounds`
+  normalizes through `FixedBoundArea`.
+- `Vector2d.ClosestPointOnLineSegment(...)` was added for parity with the
+  existing `Vector3d` segment helper, and `FixedSegment2d` delegates to that
+  low-level projection math. Distance and bounds ownership stay on the segment
+  primitive instead of expanding `Vector2d` into a shape API.
+- `FixedRay2d` intentionally does not normalize `Direction`, matching
+  `FixedRay`. Ray intersections return the first forward ray parameter; that
+  value is a physical distance only when the direction is normalized.
+- Zero-length segments return `Start` for closest-point projection.
+  Zero-direction rays return `0` only when the origin is inside or on the
+  queried area/circle, otherwise `null`.
+- Short in-process benchmark rows completed with no managed allocation in the
+  summary: `Segment2dClosestPoint` 14.01 us,
+  `Segment2dDistanceSquared` 15.95 us, `Ray2dIntersectsArea` 31.26 us, and
+  `Ray2dIntersectsCircle` 12.18 us.
 
 ## Phase 7: 2D Triangle Primitive
 

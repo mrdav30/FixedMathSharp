@@ -147,6 +147,31 @@ public partial struct Vector2d
     public static Fixed64 DistanceSquared(Vector2d start, Vector2d end) => start.DistanceSquared(end);
 
     /// <summary>
+    /// Calculates the closest point on a finite line segment to a given point.
+    /// </summary>
+    /// <param name="point">The point to project onto the segment.</param>
+    /// <param name="start">The start of the line segment.</param>
+    /// <param name="end">The end of the line segment.</param>
+    /// <returns>The closest point on the segment to the given point.</returns>
+    /// <remarks>
+    /// Zero-length segments deterministically return <paramref name="start"/>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2d ClosestPointOnLineSegment(Vector2d point, Vector2d start, Vector2d end)
+    {
+        Vector2d segment = end - start;
+        Fixed64 lengthSquared = segment.MagnitudeSquared;
+
+        if (lengthSquared == Fixed64.Zero)
+            return start;
+
+        Fixed64 t = Dot(point - start, segment) / lengthSquared;
+        t = FixedMath.Clamp(t, Fixed64.Zero, Fixed64.One);
+
+        return start + (segment * t);
+    }
+
+    /// <summary>
     /// Calculates the forward direction vector in 2D based on a yaw (angle).
     /// </summary>
     /// <remarks>

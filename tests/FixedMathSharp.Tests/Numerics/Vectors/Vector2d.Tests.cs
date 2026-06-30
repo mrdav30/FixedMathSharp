@@ -679,6 +679,25 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void ClosestPointOnLineSegment_ProjectsAndClampsToSegment()
+    {
+        var segmentStart = new Vector2d(0, 0);
+        var segmentEnd = new Vector2d(8, 0);
+
+        Assert.Equal(new Vector2d(4, 0), Vector2d.ClosestPointOnLineSegment(new Vector2d(4, 3), segmentStart, segmentEnd));
+        Assert.Equal(segmentStart, Vector2d.ClosestPointOnLineSegment(new Vector2d(-2, 5), segmentStart, segmentEnd));
+        Assert.Equal(segmentEnd, Vector2d.ClosestPointOnLineSegment(new Vector2d(12, -5), segmentStart, segmentEnd));
+    }
+
+    [Fact]
+    public void ClosestPointOnLineSegment_ReturnsStartForZeroLengthSegment()
+    {
+        var start = new Vector2d(2, 3);
+
+        Assert.Equal(start, Vector2d.ClosestPointOnLineSegment(new Vector2d(9, 9), start, start));
+    }
+
+    [Fact]
     public void Vector2d_EqualityAndComparisonHelpers_WorkCorrectly()
     {
         var a = new Vector2d(1, 2);
