@@ -301,16 +301,28 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     }
 
     /// <summary>
-    /// Checks whether another bounding box intersects this bounding box.
+    /// Checks whether another bounding box intersects this bounding box, including boundary-only contact.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundBox box) => IntersectsBoxLike(box.Min, box.Max);
 
     /// <summary>
-    /// Checks whether a bounding sphere intersects this bounding box.
+    /// Checks whether a bounding sphere intersects this bounding box, including boundary-only contact.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundSphere sphere) => IntersectsSphere(sphere);
+
+    /// <summary>
+    /// Checks whether another bounding box overlaps this bounding box with positive volume on every axis.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IntersectsStrict(FixedBoundBox box) => HasStrictAxisOverlap(box.Min, box.Max);
+
+    /// <summary>
+    /// Checks whether a bounding sphere overlaps this bounding box with positive volume.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IntersectsStrict(FixedBoundSphere sphere) => IntersectsSphereStrict(sphere);
 
     /// <summary>
     /// Checks whether a bounding frustum intersects this bounding box.
@@ -354,8 +366,9 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IntersectsBoxLike(Vector3d otherMin, Vector3d otherMax)
     {
-        return Contains(otherMin) && Contains(otherMax)
-            || HasStrictAxisOverlap(otherMin, otherMax);
+        return Min.X <= otherMax.X && Max.X >= otherMin.X
+            && Min.Y <= otherMax.Y && Max.Y >= otherMin.Y
+            && Min.Z <= otherMax.Z && Max.Z >= otherMin.Z;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -365,11 +378,29 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IntersectsSphereStrict(FixedBoundSphere sphere)
+    {
+        return HasPositiveVolume()
+            && sphere.Radius > Fixed64.Zero
+            && Vector3d.DistanceSquared(sphere.Center, ClampPoint(sphere.Center)) < sphere.RadiusSquared;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool HasPositiveVolume()
+    {
+        return Min.X < Max.X && Min.Y < Max.Y && Min.Z < Max.Z;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasStrictAxisOverlap(Vector3d otherMin, Vector3d otherMax)
     {
-        return !(Max.X <= otherMin.X || Min.X >= otherMax.X ||
-                 Max.Y <= otherMin.Y || Min.Y >= otherMax.Y ||
-                 Max.Z <= otherMin.Z || Min.Z >= otherMax.Z);
+        return HasPositiveVolume()
+            && otherMin.X < otherMax.X
+            && otherMin.Y < otherMax.Y
+            && otherMin.Z < otherMax.Z
+            && Min.X < otherMax.X && Max.X > otherMin.X
+            && Min.Y < otherMax.Y && Max.Y > otherMin.Y
+            && Min.Z < otherMax.Z && Max.Z > otherMin.Z;
     }
 
     /// <summary>

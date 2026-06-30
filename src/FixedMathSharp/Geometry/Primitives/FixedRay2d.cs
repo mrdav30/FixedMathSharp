@@ -66,7 +66,7 @@ public partial struct FixedRay2d : IEquatable<FixedRay2d>
     public Vector2d GetPoint(Fixed64 distance) => Position + (Direction * distance);
 
     /// <summary>
-    /// Finds the first forward intersection with the specified bounding area.
+    /// Finds the first forward intersection with the specified bounding area, including boundary-only contact.
     /// </summary>
     public Fixed64? Intersects(FixedBoundArea area)
     {
@@ -83,7 +83,7 @@ public partial struct FixedRay2d : IEquatable<FixedRay2d>
     }
 
     /// <summary>
-    /// Finds the first forward intersection with the specified bounding circle.
+    /// Finds the first forward intersection with the specified bounding circle, including boundary-only contact.
     /// </summary>
     public Fixed64? Intersects(FixedBoundCircle circle)
     {

@@ -207,6 +207,22 @@ public class FixedBoundAreaTests
         Assert.True(area.IntersectsStrict(overlapping));
     }
 
+    [Fact]
+    public void IntersectsStrict_Circle_RequiresPositiveAreaOverlap()
+    {
+        var area = FixedBoundArea.FromMinMax(new Vector2d(-2, -2), new Vector2d(2, 2));
+        var touching = new FixedBoundCircle(new Vector2d(3, 0), Fixed64.One);
+        var overlapping = new FixedBoundCircle(new Vector2d(2, 0), Fixed64.One);
+        var contained = new FixedBoundCircle(Vector2d.Zero, Fixed64.One);
+        var zeroRadiusInside = new FixedBoundCircle(Vector2d.Zero, Fixed64.Zero);
+
+        Assert.True(area.Intersects(touching));
+        Assert.False(area.IntersectsStrict(touching));
+        Assert.True(area.IntersectsStrict(overlapping));
+        Assert.True(area.IntersectsStrict(contained));
+        Assert.False(area.IntersectsStrict(zeroRadiusInside));
+    }
+
     #endregion
 
     #region Test: Projection And Union

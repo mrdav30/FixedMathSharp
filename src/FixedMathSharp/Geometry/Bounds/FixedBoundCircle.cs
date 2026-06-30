@@ -195,6 +195,30 @@ public partial struct FixedBoundCircle : IEquatable<FixedBoundCircle>
     }
 
     /// <summary>
+    /// Determines whether another circle overlaps this circle with positive area.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IntersectsStrict(FixedBoundCircle circle)
+    {
+        Fixed64 combinedRadius = Radius + circle.Radius;
+        return Radius > Fixed64.Zero
+            && circle.Radius > Fixed64.Zero
+            && Vector2d.DistanceSquared(Center, circle.Center) < combinedRadius * combinedRadius;
+    }
+
+    /// <summary>
+    /// Determines whether an area overlaps this circle with positive area.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IntersectsStrict(FixedBoundArea area)
+    {
+        return Radius > Fixed64.Zero
+            && area.Min.X < area.Max.X
+            && area.Min.Y < area.Max.Y
+            && Vector2d.DistanceSquared(Center, area.ClampPoint(Center)) < RadiusSquared;
+    }
+
+    /// <summary>
     /// Clamps a point to this circle, returning the point unchanged when it is already inside.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

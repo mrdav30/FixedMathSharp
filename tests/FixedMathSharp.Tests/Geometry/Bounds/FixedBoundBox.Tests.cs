@@ -133,7 +133,8 @@ public class FixedBoundBoxTests
 
         var area3 = FixedBoundBox.FromCenterAndSize(new Vector3d(-2, -2, 0), new Vector3d(2, 2, 0));
         var area4 = FixedBoundBox.FromCenterAndSize(new Vector3d(-1, -1, 0), new Vector3d(3, 3, 0));
-        Assert.False(area3.Intersects(area4));
+        Assert.True(area3.Intersects(area4));
+        Assert.False(area3.IntersectsStrict(area4));
     }
 
     [Fact]
@@ -162,12 +163,13 @@ public class FixedBoundBoxTests
     [InlineData(0, 2, 0)]
     [InlineData(0, 0, 2)]
     [InlineData(2, 2, 2)]
-    public void Intersects_TouchingBoxes_ReturnsFalseForCurrentStrictBoundaryBehavior(int x, int y, int z)
+    public void Intersects_TouchingBoxes_IsBoundaryInclusive(int x, int y, int z)
     {
         var a = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(2, 2, 2));
         var b = FixedBoundBox.FromCenterAndSize(new Vector3d(x, y, z), new Vector3d(2, 2, 2));
 
-        Assert.False(a.Intersects(b));
+        Assert.True(a.Intersects(b));
+        Assert.False(a.IntersectsStrict(b));
     }
 
     [Fact]
@@ -186,6 +188,22 @@ public class FixedBoundBoxTests
         var sphere = new FixedBoundSphere(new Vector3d(1, 1, 1), Fixed64.One);
 
         Assert.True(box.Intersects(sphere));
+    }
+
+    [Fact]
+    public void IntersectsStrict_BoundingSphere_RequiresPositiveVolumeOverlap()
+    {
+        var box = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var touching = new FixedBoundSphere(new Vector3d(2, 0, 0), Fixed64.One);
+        var overlapping = new FixedBoundSphere(new Vector3d(Fixed64.One + Fixed64.Half, Fixed64.Zero, Fixed64.Zero), Fixed64.One);
+        var disjoint = new FixedBoundSphere(new Vector3d(3, 0, 0), Fixed64.One);
+        var zeroRadiusInside = new FixedBoundSphere(Vector3d.Zero, Fixed64.Zero);
+
+        Assert.True(box.Intersects(touching));
+        Assert.False(box.IntersectsStrict(touching));
+        Assert.True(box.IntersectsStrict(overlapping));
+        Assert.False(box.Intersects(disjoint));
+        Assert.False(box.IntersectsStrict(zeroRadiusInside));
     }
 
     [Fact]
@@ -229,12 +247,34 @@ public class FixedBoundBoxTests
     }
 
     [Fact]
-    public void Intersects_TouchingEdges_ReturnsFalse()
+    public void Intersects_TouchingEdges_IsBoundaryInclusive()
     {
         var a = FixedBoundBox.FromCenterAndSize(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
         var b = FixedBoundBox.FromCenterAndSize(new Vector3d(2, 0, 0), new Vector3d(2, 2, 2));
 
-        Assert.False(a.Intersects(b));
+        Assert.True(a.Intersects(b));
+        Assert.False(a.IntersectsStrict(b));
+    }
+
+    [Fact]
+    public void IntersectsStrict_RequiresPositiveVolumeOverlap()
+    {
+        var a = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var touchingFace = FixedBoundBox.FromCenterAndSize(new Vector3d(2, 0, 0), new Vector3d(2, 2, 2));
+        var touchingEdge = FixedBoundBox.FromCenterAndSize(new Vector3d(2, 2, 0), new Vector3d(2, 2, 2));
+        var touchingCorner = FixedBoundBox.FromCenterAndSize(new Vector3d(2, 2, 2), new Vector3d(2, 2, 2));
+        var zeroSizeInside = FixedBoundBox.FromMinMax(Vector3d.Zero, Vector3d.Zero);
+        var overlapping = FixedBoundBox.FromCenterAndSize(new Vector3d(1, 0, 0), new Vector3d(2, 2, 2));
+
+        Assert.True(a.Intersects(touchingFace));
+        Assert.True(a.Intersects(touchingEdge));
+        Assert.True(a.Intersects(touchingCorner));
+        Assert.True(a.Intersects(zeroSizeInside));
+        Assert.False(a.IntersectsStrict(touchingFace));
+        Assert.False(a.IntersectsStrict(touchingEdge));
+        Assert.False(a.IntersectsStrict(touchingCorner));
+        Assert.False(a.IntersectsStrict(zeroSizeInside));
+        Assert.True(a.IntersectsStrict(overlapping));
     }
 
     [Fact]
@@ -413,12 +453,15 @@ public class FixedBoundBoxTests
     }
 
     [Fact]
-    public void Intersects_ZeroSizeBox_ReturnsFalseForNonOverlapping()
+    public void Intersects_ZeroSizeBox_IsBoundaryInclusive()
     {
         var box1 = FixedBoundBox.FromCenterAndSize(new Vector3d(0, 0, 0), new Vector3d(0, 0, 0));
         var box2 = FixedBoundBox.FromCenterAndSize(new Vector3d(1, 1, 1), new Vector3d(2, 2, 2));
+        var disjoint = FixedBoundBox.FromCenterAndSize(new Vector3d(3, 3, 3), new Vector3d(1, 1, 1));
 
-        Assert.False(box1.Intersects(box2));
+        Assert.True(box1.Intersects(box2));
+        Assert.False(box1.IntersectsStrict(box2));
+        Assert.False(box1.Intersects(disjoint));
     }
 
     #endregion

@@ -102,6 +102,22 @@ public class FixedBoundCircleTests
     }
 
     [Fact]
+    public void IntersectsStrict_Circle_RequiresPositiveAreaOverlap()
+    {
+        var circle = new FixedBoundCircle(Vector2d.Zero, new Fixed64(2));
+        var touching = new FixedBoundCircle(new Vector2d(4, 0), new Fixed64(2));
+        var overlapping = new FixedBoundCircle(new Vector2d(3, 0), new Fixed64(2));
+        var disjoint = new FixedBoundCircle(new Vector2d(5, 0), new Fixed64(2));
+        var zeroRadiusInside = new FixedBoundCircle(Vector2d.Zero, Fixed64.Zero);
+
+        Assert.True(circle.Intersects(touching));
+        Assert.False(circle.IntersectsStrict(touching));
+        Assert.True(circle.IntersectsStrict(overlapping));
+        Assert.False(circle.Intersects(disjoint));
+        Assert.False(circle.IntersectsStrict(zeroRadiusInside));
+    }
+
+    [Fact]
     public void Intersects_Area_UsesClosestPointAndBoundaryTouch()
     {
         var circle = new FixedBoundCircle(Vector2d.Zero, new Fixed64(2));
@@ -112,6 +128,20 @@ public class FixedBoundCircleTests
         Assert.True(circle.Intersects(touchingEdge));
         Assert.True(circle.Intersects(overlappingCorner));
         Assert.False(circle.Intersects(disjoint));
+    }
+
+    [Fact]
+    public void IntersectsStrict_Area_RequiresPositiveAreaOverlap()
+    {
+        var circle = new FixedBoundCircle(Vector2d.Zero, new Fixed64(2));
+        var touchingEdge = FixedBoundArea.FromMinMax(new Vector2d(2, -1), new Vector2d(4, 1));
+        var overlappingCorner = FixedBoundArea.FromMinMax(new Vector2d(1, 1), new Vector2d(4, 4));
+        var zeroSizeInside = FixedBoundArea.FromMinMax(Vector2d.Zero, Vector2d.Zero);
+
+        Assert.True(circle.Intersects(touchingEdge));
+        Assert.False(circle.IntersectsStrict(touchingEdge));
+        Assert.True(circle.IntersectsStrict(overlappingCorner));
+        Assert.False(circle.IntersectsStrict(zeroSizeInside));
     }
 
     [Fact]

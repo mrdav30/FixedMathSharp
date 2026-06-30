@@ -49,6 +49,17 @@ public class FixedRay2dTests
     }
 
     [Fact]
+    public void Intersects_Area_IsBoundaryInclusiveForGrazingRay()
+    {
+        var area = FixedBoundArea.FromMinMax(Vector2d.Zero, new Vector2d(4, 4));
+        var alongTopEdge = new FixedRay2d(new Vector2d(-2, 4), Vector2d.Right);
+        var alongRightEdge = new FixedRay2d(new Vector2d(4, -2), Vector2d.Forward);
+
+        Assert.Equal(new Fixed64(2), alongTopEdge.Intersects(area));
+        Assert.Equal(new Fixed64(2), alongRightEdge.Intersects(area));
+    }
+
+    [Fact]
     public void Intersects_Area_ReturnsNullWhenParallelOutsideBehindOrZeroOutside()
     {
         var area = FixedBoundArea.FromMinMax(new Vector2d(-1, -1), new Vector2d(1, 1));

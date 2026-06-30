@@ -466,12 +466,31 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedRay2d.cs`
 - Modify matching tests under `tests/FixedMathSharp.Tests/Geometry`.
 
-- [ ] Audit every `Contains` and `Intersects` overload touched by this plan.
-- [ ] Make inclusive closed-bound overlap the default for `Intersects`.
-- [ ] Add `IntersectsStrict` only for bounds pairs where downstream systems need to distinguish touching from overlapping volume/area.
-- [ ] Ensure strict methods use `<`/`>` and inclusive methods use `<=`/`>=` consistently across 2D and 3D.
-- [ ] Add cross-type tests for box-sphere, 2D area-circle, and 2D ray-boundary cases.
-- [ ] Update XML docs so boundary-touch behavior is stated on public APIs.
+- [x] Audit every `Contains` and `Intersects` overload touched by this plan.
+- [x] Make inclusive closed-bound overlap the default for `Intersects`.
+- [x] Add `IntersectsStrict` only for bounds pairs where downstream systems need to distinguish touching from overlapping volume/area.
+- [x] Ensure strict methods use `<`/`>` and inclusive methods use `<=`/`>=` consistently across 2D and 3D.
+- [x] Add cross-type tests for box-sphere, 2D area-circle, and 2D ray-boundary cases.
+- [x] Update XML docs so boundary-touch behavior is stated on public APIs.
+
+Notes:
+
+- `FixedBoundBox.Intersects(FixedBoundBox)` now follows the same closed-bound
+  inclusive model as 2D areas, circles, spheres, and ray-boundary checks.
+- `IntersectsStrict` was added for box-box, box-sphere, sphere-box,
+  sphere-sphere, area-circle, circle-area, and circle-circle pairs. These
+  methods reject boundary-only contact and zero-area/zero-volume inputs.
+- Strict frustum overloads were intentionally left out of this sweep because
+  frustum plane classification needs a separate positive-volume contract if a
+  downstream consumer proves it needs one.
+
+Verification completed:
+
+- `dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedBoundBoxTests|FullyQualifiedName~FixedBoundSphereTests|FullyQualifiedName~FixedBoundAreaTests|FullyQualifiedName~FixedBoundCircleTests|FullyQualifiedName~FixedRayTests|FullyQualifiedName~FixedRay2dTests"` passed.
+- `dotnet test FixedMathSharp.slnx --configuration Debug` passed.
+- `dotnet test FixedMathSharp.slnx --configuration Release` passed.
+- `dotnet test FixedMathSharp.slnx --configuration ReleaseLean` passed.
+- `dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i` completed all 64 bounds benchmarks. Relevant intersection rows remained allocation-free (`BoxIntersectsBox` 697.8 ns, `BoxIntersectsSphere` 5.39 us, `SphereIntersectsSphere` 5.65 us, `SphereIntersectsBox` 10.95 us, `CircleIntersectsCircle` 3.98 us, `CircleIntersectsArea` 3.90 us).
 
 Verification:
 

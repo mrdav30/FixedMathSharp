@@ -280,6 +280,12 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     }
 
     /// <summary>
+    /// Determines whether this area overlaps a circle with positive area.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IntersectsStrict(FixedBoundCircle circle) => circle.IntersectsStrict(this);
+
+    /// <summary>
     /// Clamps a point to the area boundary or interior.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

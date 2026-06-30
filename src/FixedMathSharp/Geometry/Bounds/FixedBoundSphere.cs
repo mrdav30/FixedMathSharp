@@ -546,16 +546,34 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     }
 
     /// <summary>
-    /// Checks whether a bounding box intersects this sphere.
+    /// Checks whether a bounding box intersects this sphere, including boundary-only contact.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundBox box) => Contains(box) != FixedEnclosureType.Disjoint;
 
     /// <summary>
-    /// Checks whether another sphere intersects this sphere.
+    /// Checks whether another sphere intersects this sphere, including boundary-only contact.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundSphere sphere) => Contains(sphere) != FixedEnclosureType.Disjoint;
+
+    /// <summary>
+    /// Checks whether a bounding box overlaps this sphere with positive volume.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IntersectsStrict(FixedBoundBox box) => box.IntersectsStrict(this);
+
+    /// <summary>
+    /// Checks whether another sphere overlaps this sphere with positive volume.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IntersectsStrict(FixedBoundSphere sphere)
+    {
+        Fixed64 combinedRadius = Radius + sphere.Radius;
+        return Radius > Fixed64.Zero
+            && sphere.Radius > Fixed64.Zero
+            && Vector3d.DistanceSquared(Center, sphere.Center) < combinedRadius * combinedRadius;
+    }
 
     /// <summary>
     /// Checks whether a frustum intersects this sphere.

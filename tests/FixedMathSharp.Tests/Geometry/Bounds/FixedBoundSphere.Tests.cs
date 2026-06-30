@@ -169,12 +169,44 @@ public class FixedBoundSphereTests
     }
 
     [Fact]
+    public void IntersectsStrict_Sphere_RequiresPositiveVolumeOverlap()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, new Fixed64(2));
+        var touching = new FixedBoundSphere(new Vector3d(4, 0, 0), new Fixed64(2));
+        var overlapping = new FixedBoundSphere(new Vector3d(3, 0, 0), new Fixed64(2));
+        var disjoint = new FixedBoundSphere(new Vector3d(5, 0, 0), new Fixed64(2));
+        var zeroRadiusInside = new FixedBoundSphere(Vector3d.Zero, Fixed64.Zero);
+
+        Assert.True(sphere.Intersects(touching));
+        Assert.False(sphere.IntersectsStrict(touching));
+        Assert.True(sphere.IntersectsStrict(overlapping));
+        Assert.False(sphere.Intersects(disjoint));
+        Assert.False(sphere.IntersectsStrict(zeroRadiusInside));
+    }
+
+    [Fact]
     public void Intersects_WithBoundingBox_ReturnsTrue()
     {
         var sphere = new FixedBoundSphere(new Vector3d(0, 0, 0), new Fixed64(5));
         var box = FixedBoundBox.FromCenterAndSize(new Vector3d(-3, -3, -3), new Vector3d(3, 3, 3));
 
         Assert.True(sphere.Intersects(box));
+    }
+
+    [Fact]
+    public void IntersectsStrict_BoundingBox_RequiresPositiveVolumeOverlap()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        var touching = FixedBoundBox.FromCenterAndSize(new Vector3d(2, 0, 0), new Vector3d(2, 2, 2));
+        var overlapping = FixedBoundBox.FromCenterAndSize(new Vector3d(Fixed64.One + Fixed64.Half, Fixed64.Zero, Fixed64.Zero), new Vector3d(2, 2, 2));
+        var disjoint = FixedBoundBox.FromCenterAndSize(new Vector3d(3, 0, 0), new Vector3d(1, 1, 1));
+        var zeroSizeInside = FixedBoundBox.FromMinMax(Vector3d.Zero, Vector3d.Zero);
+
+        Assert.True(sphere.Intersects(touching));
+        Assert.False(sphere.IntersectsStrict(touching));
+        Assert.True(sphere.IntersectsStrict(overlapping));
+        Assert.False(sphere.Intersects(disjoint));
+        Assert.False(sphere.IntersectsStrict(zeroSizeInside));
     }
 
     [Fact]
