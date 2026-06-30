@@ -121,15 +121,6 @@ public static class FixedMathChronicleHashWriterExtensions
     }
 
     /// <summary>
-    /// Writes a bounding area by canonical minimum then maximum corners.
-    /// </summary>
-    public static void WriteBoundArea(this ref global::Chronicler.ChronicleHashWriter writer, FixedBoundArea value)
-    {
-        writer.WriteVector3d(value.Min);
-        writer.WriteVector3d(value.Max);
-    }
-
-    /// <summary>
     /// Writes a bounding sphere as center then radius.
     /// </summary>
     public static void WriteBoundSphere(this ref global::Chronicler.ChronicleHashWriter writer, FixedBoundSphere value)

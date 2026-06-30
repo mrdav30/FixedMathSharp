@@ -131,14 +131,6 @@ public partial struct FixedPlane : IEquatable<FixedPlane>
     }
 
     /// <summary>
-    /// Classifies a bounding area relative to this plane.
-    /// </summary>
-    public FixedPlaneIntersectionType Intersects(FixedBoundArea area)
-    {
-        return IntersectsBoxLike(area.Min, area.Max);
-    }
-
-    /// <summary>
     /// Classifies a bounding sphere relative to this plane.
     /// </summary>
     public FixedPlaneIntersectionType Intersects(FixedBoundSphere sphere)

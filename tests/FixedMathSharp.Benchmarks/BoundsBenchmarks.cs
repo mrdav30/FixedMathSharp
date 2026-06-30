@@ -8,10 +8,8 @@ namespace FixedMathSharp.Benchmarks;
 [MemoryDiagnoser]
 public class BoundsBenchmarks
 {
-    private const int BoxCornerCount = 8;
-
-    private readonly FixedBoundArea[] _areas = CreateAreas();
     private readonly FixedBoundBox[] _boxes = CreateBoxes();
+    private readonly Vector3d[] _boxCornerBuffer = new Vector3d[FixedBoundBox.CornerCount];
     private readonly Vector3d[] _cornerBuffer = new Vector3d[FixedBoundFrustum.CornerCount];
     private readonly FixedBoundFrustum[] _frustums = CreateFrustums();
     private readonly Fixed4x4[] _matrices = BenchmarkFixtures.PerspectiveMatrices;
@@ -32,7 +30,25 @@ public class BoundsBenchmarks
                 Fixed64.One + Fixed64.FromFraction(i % 5, 8),
                 Fixed64.One + Fixed64.FromFraction(i % 7, 8),
                 Fixed64.One + Fixed64.FromFraction(i % 3, 8));
-            var box = new FixedBoundBox(_points[i] * Fixed64.Quarter, size);
+            var box = FixedBoundBox.FromCenterAndSize(_points[i] * Fixed64.Quarter, size);
+            accumulator += box.Min.X + box.Max.Z;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 BoxConstructMinMax()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _points.Length; i++)
+        {
+            Vector3d min = _points[i] * Fixed64.Quarter;
+            Vector3d max = min + new Vector3d(
+                Fixed64.One + Fixed64.FromFraction(i % 5, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 7, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 3, 8));
+            var box = FixedBoundBox.FromMinMax(max, min);
             accumulator += box.Min.X + box.Max.Z;
         }
 
@@ -80,19 +96,6 @@ public class BoundsBenchmarks
     }
 
     [Benchmark]
-    public int BoxIntersectsArea()
-    {
-        int count = 0;
-        for (int i = 0; i < _boxes.Length; i++)
-        {
-            if (_boxes[i].Intersects(_areas[i]))
-                count++;
-        }
-
-        return count;
-    }
-
-    [Benchmark]
     public int BoxIntersectsSphere()
     {
         int count = 0;
@@ -116,11 +119,24 @@ public class BoundsBenchmarks
     }
 
     [Benchmark]
-    public Vector3d BoxReadVertices()
+    public Vector3d BoxGetCorner()
     {
         Vector3d accumulator = Vector3d.Zero;
         for (int i = 0; i < _boxes.Length; i++)
-            accumulator += _boxes[i].Vertices[i & (BoxCornerCount - 1)];
+            accumulator += _boxes[i].GetCorner(i & (FixedBoundBox.CornerCount - 1));
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d BoxCopyCorners()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _boxes.Length; i++)
+        {
+            _boxes[i].CopyCorners(_boxCornerBuffer);
+            accumulator += _boxCornerBuffer[i & (FixedBoundBox.CornerCount - 1)];
+        }
 
         return accumulator;
     }
@@ -218,55 +234,6 @@ public class BoundsBenchmarks
         FixedBoundSphere accumulator = _spheres[0];
         for (int i = 0; i < _spheres.Length; i++)
             accumulator = FixedBoundSphere.CreateMerged(accumulator, _spheres[i].Transform(BenchmarkFixtures.Matrices[i]));
-
-        return accumulator;
-    }
-
-    [Benchmark]
-    public int AreaContainsPoint()
-    {
-        int count = 0;
-        for (int i = 0; i < _areas.Length; i++)
-        {
-            if (_areas[i].Contains(_points[i]))
-                count++;
-        }
-
-        return count;
-    }
-
-    [Benchmark]
-    public int AreaIntersectsArea()
-    {
-        int count = 0;
-        for (int i = 0; i < _areas.Length; i++)
-        {
-            if (_areas[i].Intersects(_areas[(i + 1) & (BenchmarkFixtures.SampleCount - 1)]))
-                count++;
-        }
-
-        return count;
-    }
-
-    [Benchmark]
-    public int AreaIntersectsSphere()
-    {
-        int count = 0;
-        for (int i = 0; i < _areas.Length; i++)
-        {
-            if (_areas[i].Intersects(_spheres[i]))
-                count++;
-        }
-
-        return count;
-    }
-
-    [Benchmark]
-    public Vector3d AreaClampPoint()
-    {
-        Vector3d accumulator = Vector3d.Zero;
-        for (int i = 0; i < _areas.Length; i++)
-            accumulator += _areas[i].ClampPoint(_points[(i + 71) & (BenchmarkFixtures.SampleCount - 1)]);
 
         return accumulator;
     }
@@ -464,23 +431,6 @@ public class BoundsBenchmarks
         return count;
     }
 
-    private static FixedBoundArea[] CreateAreas()
-    {
-        var areas = new FixedBoundArea[BenchmarkFixtures.SampleCount];
-        for (int i = 0; i < areas.Length; i++)
-        {
-            Vector3d center = BenchmarkFixtures.VectorsB[i] * Fixed64.Quarter;
-            Vector3d half = new(
-                Fixed64.One + Fixed64.FromFraction(i % 3, 8),
-                Fixed64.One + Fixed64.FromFraction(i % 5, 8),
-                Fixed64.One + Fixed64.FromFraction(i % 7, 8));
-
-            areas[i] = new FixedBoundArea(center - half, center + half);
-        }
-
-        return areas;
-    }
-
     private static FixedBoundBox[] CreateBoxes()
     {
         var boxes = new FixedBoundBox[BenchmarkFixtures.SampleCount];
@@ -492,7 +442,7 @@ public class BoundsBenchmarks
                 Fixed64.One + Fixed64.FromFraction(i % 7, 8),
                 Fixed64.One + Fixed64.FromFraction(i % 3, 8));
 
-            boxes[i] = new FixedBoundBox(center - half, center + half);
+            boxes[i] = FixedBoundBox.FromMinMax(center - half, center + half);
         }
 
         return boxes;

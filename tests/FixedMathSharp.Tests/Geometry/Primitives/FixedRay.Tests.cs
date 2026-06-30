@@ -1,4 +1,4 @@
-﻿using FixedMathSharp.Bounds;
+using FixedMathSharp.Bounds;
 using MemoryPack;
 using System.Text.Json;
 using Xunit;
@@ -44,7 +44,7 @@ public class FixedRayTests
     [Fact]
     public void Intersects_BoundingBox_ReturnsNearestForwardHit()
     {
-        var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var box = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(2, 2, 2));
         var ray = new FixedRay(new Vector3d(-5, 0, 0), Vector3d.Right);
 
         Fixed64? hit = ray.Intersects(box);
@@ -55,7 +55,7 @@ public class FixedRayTests
     [Fact]
     public void Intersects_BoundingBox_HandlesNegativeDirectionAndSwappedSlabDistances()
     {
-        var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var box = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(2, 2, 2));
         var ray = new FixedRay(new Vector3d(5, 0, 0), Vector3d.Left);
 
         Fixed64? hit = ray.Intersects(box);
@@ -69,7 +69,7 @@ public class FixedRayTests
     [Fact]
     public void Intersects_BoundingBox_ReturnsZeroWhenRayStartsInside()
     {
-        var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var box = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(2, 2, 2));
         var ray = new FixedRay(Vector3d.Zero, Vector3d.Right);
 
         Fixed64? hit = ray.Intersects(box);
@@ -80,7 +80,7 @@ public class FixedRayTests
     [Fact]
     public void Intersects_BoundingBox_ReturnsNullWhenParallelOutsideOrBehind()
     {
-        var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var box = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(2, 2, 2));
         var parallelOutside = new FixedRay(new Vector3d(-5, 2, 0), Vector3d.Right);
         var parallelBelow = new FixedRay(new Vector3d(-5, -2, 0), Vector3d.Right);
         var parallelOutsideZ = new FixedRay(new Vector3d(0, 0, 3), Vector3d.Right);
@@ -95,12 +95,12 @@ public class FixedRayTests
     }
 
     [Fact]
-    public void Intersects_BoundingArea_UsesBoxLikeBounds()
+    public void Intersects_MinMaxBoundingBox_UsesBoxLikeBounds()
     {
-        var area = new FixedBoundArea(new Vector3d(-1, -1, -1), new Vector3d(1, 1, 1));
+        var box = FixedBoundBox.FromMinMax(new Vector3d(-1, -1, -1), new Vector3d(1, 1, 1));
         var ray = new FixedRay(new Vector3d(0, 0, -5), Vector3d.Forward);
 
-        Fixed64? hit = ray.Intersects(area);
+        Fixed64? hit = ray.Intersects(box);
 
         Assert.Equal(new Fixed64(4), hit);
     }
@@ -197,7 +197,7 @@ public class FixedRayTests
     [Fact]
     public void Intersects_ZeroDirection_ReturnsZeroOnlyWhenOriginIsInsideVolume()
     {
-        var box = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var box = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(2, 2, 2));
         var inside = new FixedRay(Vector3d.Zero, Vector3d.Zero);
         var outside = new FixedRay(new Vector3d(3, 0, 0), Vector3d.Zero);
 

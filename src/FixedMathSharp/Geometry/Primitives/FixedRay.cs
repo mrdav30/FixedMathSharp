@@ -79,14 +79,6 @@ public partial struct FixedRay : IEquatable<FixedRay>
     }
 
     /// <summary>
-    /// Finds the first forward intersection with the specified bounding area.
-    /// </summary>
-    public Fixed64? Intersects(FixedBoundArea area)
-    {
-        return IntersectsBoxLike(area.Min, area.Max);
-    }
-
-    /// <summary>
     /// Finds the first forward intersection with the specified bounding sphere.
     /// </summary>
     public Fixed64? Intersects(FixedBoundSphere sphere)

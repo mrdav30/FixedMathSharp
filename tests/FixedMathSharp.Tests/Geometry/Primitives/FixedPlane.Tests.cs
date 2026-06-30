@@ -1,4 +1,4 @@
-﻿using FixedMathSharp.Bounds;
+using FixedMathSharp.Bounds;
 using System;
 using Xunit;
 
@@ -61,9 +61,9 @@ public class FixedPlaneTests
     public void Intersects_BoundingBox_ClassifiesRelativeToPlane()
     {
         var plane = new FixedPlane(Vector3d.Right, new Fixed64(-1));
-        var front = new FixedBoundBox(new Vector3d(3, 0, 0), new Vector3d(1, 1, 1));
-        var back = new FixedBoundBox(new Vector3d(-3, 0, 0), new Vector3d(1, 1, 1));
-        var intersecting = new FixedBoundBox(new Vector3d(1, 0, 0), new Vector3d(2, 1, 1));
+        var front = FixedBoundBox.FromCenterAndSize(new Vector3d(3, 0, 0), new Vector3d(1, 1, 1));
+        var back = FixedBoundBox.FromCenterAndSize(new Vector3d(-3, 0, 0), new Vector3d(1, 1, 1));
+        var intersecting = FixedBoundBox.FromCenterAndSize(new Vector3d(1, 0, 0), new Vector3d(2, 1, 1));
 
         Assert.Equal(FixedPlaneIntersectionType.Front, plane.Intersects(front));
         Assert.Equal(FixedPlaneIntersectionType.Back, plane.Intersects(back));
@@ -71,12 +71,12 @@ public class FixedPlaneTests
     }
 
     [Fact]
-    public void Intersects_BoundingArea_ClassifiesRelativeToPlane()
+    public void Intersects_MinMaxBoundingBox_ClassifiesRelativeToPlane()
     {
         var plane = new FixedPlane(Vector3d.Right, new Fixed64(-1));
-        var front = new FixedBoundArea(new Vector3d(2, -1, -1), new Vector3d(3, 1, 1));
-        var back = new FixedBoundArea(new Vector3d(-3, -1, -1), new Vector3d(-2, 1, 1));
-        var intersecting = new FixedBoundArea(new Vector3d(0, -1, -1), new Vector3d(2, 1, 1));
+        var front = FixedBoundBox.FromMinMax(new Vector3d(2, -1, -1), new Vector3d(3, 1, 1));
+        var back = FixedBoundBox.FromMinMax(new Vector3d(-3, -1, -1), new Vector3d(-2, 1, 1));
+        var intersecting = FixedBoundBox.FromMinMax(new Vector3d(0, -1, -1), new Vector3d(2, 1, 1));
 
         Assert.Equal(FixedPlaneIntersectionType.Front, plane.Intersects(front));
         Assert.Equal(FixedPlaneIntersectionType.Back, plane.Intersects(back));

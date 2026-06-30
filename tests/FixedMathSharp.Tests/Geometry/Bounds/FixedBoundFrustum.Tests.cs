@@ -1,4 +1,4 @@
-﻿using FixedMathSharp.Bounds;
+using FixedMathSharp.Bounds;
 using System;
 using Xunit;
 
@@ -109,9 +109,9 @@ public class FixedBoundFrustumTests
     public void Intersects_BoundingBox_ReturnsFalseOnlyWhenFullyOutsidePlane()
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
-        var inside = new FixedBoundBox(new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half), new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Half));
-        var outside = new FixedBoundBox(new Vector3d(new Fixed64(3), Fixed64.Zero, Fixed64.Half), new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Half));
-        var crossing = new FixedBoundBox(new Vector3d(Fixed64.One, Fixed64.Zero, Fixed64.Half), new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Half));
+        var inside = FixedBoundBox.FromCenterAndSize(new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half), new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Half));
+        var outside = FixedBoundBox.FromCenterAndSize(new Vector3d(new Fixed64(3), Fixed64.Zero, Fixed64.Half), new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Half));
+        var crossing = FixedBoundBox.FromCenterAndSize(new Vector3d(Fixed64.One, Fixed64.Zero, Fixed64.Half), new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Half));
 
         Assert.Equal(FixedEnclosureType.Contains, frustum.Contains(inside));
         Assert.True(frustum.Intersects(inside));
@@ -121,13 +121,13 @@ public class FixedBoundFrustumTests
     }
 
     [Fact]
-    public void Contains_BoundingArea_ReturnsContainsOrIntersects()
+    public void Contains_MinMaxBoundingBox_ReturnsContainsOrIntersects()
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
-        var inside = new FixedBoundArea(
+        var inside = FixedBoundBox.FromMinMax(
             new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.FromDouble(0.25)),
             new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.FromDouble(0.75)));
-        var crossing = new FixedBoundArea(
+        var crossing = FixedBoundBox.FromMinMax(
             new Vector3d(Fixed64.FromDouble(0.75), -Fixed64.Half, Fixed64.FromDouble(0.25)),
             new Vector3d(Fixed64.FromDouble(1.25), Fixed64.Half, Fixed64.FromDouble(0.75)));
 

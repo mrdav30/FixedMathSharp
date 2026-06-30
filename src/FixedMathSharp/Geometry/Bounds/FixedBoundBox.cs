@@ -13,22 +13,20 @@ using System.Text.Json.Serialization;
 namespace FixedMathSharp.Bounds;
 
 /// <summary>
-/// Represents an axis-aligned bounding box with fixed-point precision, capable of encapsulating 3D objects for more complex spatial checks.
+/// Represents a normalized three-dimensional axis-aligned bounding box.
 /// </summary>
 /// <remarks>
-/// The FixedBoundBox provides a more detailed representation of an object's spatial extent compared to FixedBoundArea. 
-/// It is useful in 3D scenarios requiring more precise volume fitting and supports a wider range of operations, including more complex intersection checks.
-/// 
-/// Use Cases:
-/// - Encapsulating objects in 3D space for collision detection, ray intersection, or visibility testing.
-/// - Used in physics engines, rendering pipelines, and 3D simulations to represent object boundaries.
-/// - Supports more precise intersection tests than FixedBoundArea, making it ideal for detailed spatial queries.
+/// Use <see cref="FromMinMax"/>, <see cref="FromCenterAndSize"/>, or
+/// <see cref="FromCenterAndScope"/> so construction intent is explicit at the call site.
 /// </remarks>
 [Serializable]
 [MemoryPackable]
 public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
 {
-    internal const int MAX_VERTICES = 8;
+    /// <summary>
+    /// The number of stable corners exposed by <see cref="GetCorner"/> and <see cref="CopyCorners"/>.
+    /// </summary>
+    public const int CornerCount = 8;
 
     #region Nested Types
 
@@ -58,53 +56,26 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
         /// Initializes a new instance of the BoundingBoxState class with the specified minimum and maximum coordinates.
         /// </summary>
         [JsonConstructor]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public BoundingBoxState(Vector3d min, Vector3d max)
         {
-            Min = min;
-            Max = max;
+            Min = Vector3d.Min(min, max);
+            Max = Vector3d.Max(min, max);
         }
     }
-
-    #endregion
-
-    #region Fields
-
-    /// <summary>
-    /// Vertices of the bounding box.
-    /// </summary>
-    private Vector3d[] _vertices;
-
-    private bool _isDirty;
 
     #endregion
 
     #region Constructors
 
     /// <summary>
-    /// Initializes a new instance of the FixedBoundBox struct with the specified center and size.
-    /// </summary>
-
-    public FixedBoundBox(Vector3d center, Vector3d size)
-    {
-        Vector3d half = Vector3d.Abs(size) * Fixed64.Half;
-
-        Min = center - half;
-        Max = center + half;
-
-        _vertices = new Vector3d[MAX_VERTICES];
-        _isDirty = true;
-    }
-
-    /// <summary>
     /// Initializes a new instance of the FixedBoundBox class with the specified bounding box state.
     /// </summary>
     /// <param name="state">The state that defines the position, size, and orientation of the bounding box.</param>
     [JsonConstructor]
-    [MemoryPackConstructor]
     public FixedBoundBox(BoundingBoxState state)
     {
         State = state;
-        _vertices = new Vector3d[MAX_VERTICES];
     }
 
     #endregion
@@ -141,13 +112,15 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
             Vector3d half = (Max - Min) * Fixed64.Half;
             Min = value - half;
             Max = value + half;
-            _isDirty = true;
         }
     }
 
     /// <summary>
-    /// The total size of the box (Width, Height, Depth). This is always twice the scope.
+    /// The total size of the box. This is always twice the scope.
     /// </summary>
+    /// <remarks>
+    /// Assigned values are normalized by absolute component value.
+    /// </remarks>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d Proportions
@@ -158,11 +131,10 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            Vector3d half = value * Fixed64.Half;
+            Vector3d half = Vector3d.Abs(value) * Fixed64.Half;
             Vector3d center = (Min + Max) * Fixed64.Half;
             Min = center - half;
             Max = center + half;
-            _isDirty = true;
         }
     }
 
@@ -177,17 +149,8 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
         get => (Max - Min) * Fixed64.Half;
     }
 
-    /// <inheritdoc cref="_vertices" />
-    [JsonIgnore]
-    [MemoryPackIgnore]
-    public Vector3d[] Vertices
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => GetOrGenerateVertices();
-    }
-
     /// <summary>
-    /// Gets or sets the current bounding box state, including its minimum and maximum coordinates.
+    /// Gets or sets the current normalized bounding box state, including its minimum and maximum coordinates.
     /// </summary>
     [JsonInclude]
     [MemoryPackInclude]
@@ -195,13 +158,54 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     {
         get => new(Min, Max);
 
-
         internal set
         {
-            Min = value.Min;
-            Max = value.Max;
-            _isDirty = true;
+            SetMinMax(value.Min, value.Max);
         }
+    }
+
+    #endregion
+
+    #region Factories
+
+    /// <summary>
+    /// Creates a normalized bounding box from minimum and maximum corners.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedBoundBox FromMinMax(Vector3d min, Vector3d max)
+    {
+        var box = default(FixedBoundBox);
+        box.SetMinMax(min, max);
+        return box;
+    }
+
+    /// <summary>
+    /// Creates a bounding box from a center point and total size.
+    /// </summary>
+    /// <remarks>
+    /// Negative size components are normalized by absolute value.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedBoundBox FromCenterAndSize(Vector3d center, Vector3d size)
+    {
+        return FromCenterAndScope(center, size * Fixed64.Half);
+    }
+
+    /// <summary>
+    /// Creates a bounding box from a center point and half-size scope.
+    /// </summary>
+    /// <remarks>
+    /// Negative scope components are normalized by absolute value.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedBoundBox FromCenterAndScope(Vector3d center, Vector3d scope)
+    {
+        Vector3d normalizedScope = Vector3d.Abs(scope);
+        return new FixedBoundBox
+        {
+            Min = center - normalizedScope,
+            Max = center + normalizedScope
+        };
     }
 
     #endregion
@@ -214,12 +218,11 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     public void Orient(Vector3d center, Vector3d? size)
     {
         Vector3d half = size.HasValue
-            ? size.Value * Fixed64.Half
+            ? Vector3d.Abs(size.Value) * Fixed64.Half
             : (Max - Min) * Fixed64.Half;
 
         Min = center - half;
         Max = center + half;
-        _isDirty = true;
     }
 
     /// <summary>
@@ -227,32 +230,33 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     /// </summary>
     public void Resize(Vector3d size)
     {
-        Vector3d half = size * Fixed64.Half;
+        Vector3d half = Vector3d.Abs(size) * Fixed64.Half;
         Vector3d center = (Min + Max) * Fixed64.Half;
 
         Min = center - half;
         Max = center + half;
-        _isDirty = true;
     }
 
     /// <summary>
-    /// Sets the bounds of the bounding box by specifying its minimum and maximum points.
+    /// Sets the normalized bounds of the bounding box by specifying its minimum and maximum points.
     /// </summary>
     public void SetMinMax(Vector3d min, Vector3d max)
     {
-        Min = min;
-        Max = max;
-        _isDirty = true;
+        Min = Vector3d.Min(min, max);
+        Max = Vector3d.Max(min, max);
     }
 
     /// <summary>
     /// Configures the bounding box with the specified center and scope (half-size).
     /// </summary>
+    /// <remarks>
+    /// Negative scope components are normalized by absolute value.
+    /// </remarks>
     public void SetBoundingBox(Vector3d center, Vector3d scope)
     {
-        Min = center - scope;
-        Max = center + scope;
-        _isDirty = true;
+        Vector3d normalizedScope = Vector3d.Abs(scope);
+        Min = center - normalizedScope;
+        Max = center + normalizedScope;
     }
 
     /// <summary>
@@ -271,12 +275,6 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedEnclosureType Contains(FixedBoundBox box) => ContainsBoxLike(box.Min, box.Max);
-
-    /// <summary>
-    /// Tests a bounding area against this bounding box.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public FixedEnclosureType Contains(FixedBoundArea area) => ContainsBoxLike(area.Min, area.Max);
 
     /// <summary>
     /// Tests a bounding sphere against this bounding box.
@@ -307,12 +305,6 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundBox box) => IntersectsBoxLike(box.Min, box.Max);
-
-    /// <summary>
-    /// Checks whether a bounding area intersects this bounding box.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Intersects(FixedBoundArea area) => IntersectsBoxLike(area.Min, area.Max);
 
     /// <summary>
     /// Checks whether a bounding sphere intersects this bounding box.
@@ -460,56 +452,46 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     }
 
     /// <summary>
-    /// Generates the vertices of the bounding box based on its center and scope.
+    /// Gets a stable corner without allocating.
     /// </summary>
     /// <remarks>
-    ///  Vertices[0]  near Bot left 
-    ///  Vertices[1]  near Bot right 
-    ///  Vertices[2]  near Top left
-    ///  Vertices[3]  near Top right
-    ///  Vertices[4]  far bot left
-    ///  Vertices[5]  far bot right
-    ///  Vertices[6]  far top left
-    ///  Vertices[7]  far top right
-    ///  ----
-    ///  near quad
-    ///  0 - 1 Bot left near to bot right near
-    ///  2 - 3 Top left near to top right near
-    ///  0 - 2 Bot left near to top left near
-    ///  1 - 3 Bot right near to top right near
-    ///  far quad
-    ///  4 - 5 Bot left far to bot right far
-    ///  6 - 7 Top left far to top right far
-    ///  4 - 6 Bot left far to top left far
-    ///  5 - 7 Bot right far to top right far
-    ///  lines connecting near and far quads
-    ///  0 - 4 Bot left near to bot left far
-    ///  1 - 5 Bot right near to bot right far
-    ///  2 - 6 Top left near to top left far
-    ///  3 - 7 Top right near to top right far  
+    /// Corner order is: min/min/min, max/min/min, min/max/min, max/max/min,
+    /// min/min/max, max/min/max, min/max/max, max/max/max.
     /// </remarks>
-    private Vector3d[] GetOrGenerateVertices()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector3d GetCorner(int index)
     {
-        _vertices ??= new Vector3d[MAX_VERTICES];
-
-        if (_isDirty)
+        return index switch
         {
-            Vector3d min = Min;
-            Vector3d max = Max;
+            0 => new Vector3d(Min.X, Min.Y, Min.Z),
+            1 => new Vector3d(Max.X, Min.Y, Min.Z),
+            2 => new Vector3d(Min.X, Max.Y, Min.Z),
+            3 => new Vector3d(Max.X, Max.Y, Min.Z),
+            4 => new Vector3d(Min.X, Min.Y, Max.Z),
+            5 => new Vector3d(Max.X, Min.Y, Max.Z),
+            6 => new Vector3d(Min.X, Max.Y, Max.Z),
+            7 => new Vector3d(Max.X, Max.Y, Max.Z),
+            _ => throw new ArgumentOutOfRangeException(nameof(index), $"Corner index must be between 0 and {CornerCount - 1}."),
+        };
+    }
 
-            _vertices[0] = new(min.X, min.Y, min.Z);
-            _vertices[1] = new(max.X, min.Y, min.Z);
-            _vertices[2] = new(min.X, max.Y, min.Z);
-            _vertices[3] = new(max.X, max.Y, min.Z);
-            _vertices[4] = new(min.X, min.Y, max.Z);
-            _vertices[5] = new(max.X, min.Y, max.Z);
-            _vertices[6] = new(min.X, max.Y, max.Z);
-            _vertices[7] = new(max.X, max.Y, max.Z);
+    /// <summary>
+    /// Copies this box's corners into the destination span in <see cref="GetCorner"/> order.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void CopyCorners(Span<Vector3d> destination)
+    {
+        if (destination.Length < CornerCount)
+            throw new ArgumentException($"The destination span must contain at least {CornerCount} elements.", nameof(destination));
 
-            _isDirty = false;
-        }
-
-        return _vertices;
+        destination[0] = new Vector3d(Min.X, Min.Y, Min.Z);
+        destination[1] = new Vector3d(Max.X, Min.Y, Min.Z);
+        destination[2] = new Vector3d(Min.X, Max.Y, Min.Z);
+        destination[3] = new Vector3d(Max.X, Max.Y, Min.Z);
+        destination[4] = new Vector3d(Min.X, Min.Y, Max.Z);
+        destination[5] = new Vector3d(Max.X, Min.Y, Max.Z);
+        destination[6] = new Vector3d(Min.X, Max.Y, Max.Z);
+        destination[7] = new Vector3d(Max.X, Max.Y, Max.Z);
     }
 
     #endregion
@@ -521,12 +503,7 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     /// </summary>
     public static FixedBoundBox Union(FixedBoundBox a, FixedBoundBox b)
     {
-        return new FixedBoundBox
-        {
-            Min = Vector3d.Min(a.Min, b.Min),
-            Max = Vector3d.Max(a.Max, b.Max),
-            _isDirty = true
-        };
+        return FromMinMax(Vector3d.Min(a.Min, b.Min), Vector3d.Max(a.Max, b.Max));
     }
 
     /// <summary>
@@ -537,10 +514,11 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
         Vector3d closestPoint = Vector3d.Zero;
         Fixed64 minDistance = Fixed64.MaxValue;
 
-        for (int i = 0; i < MAX_VERTICES; i++)
+        for (int i = 0; i < CornerCount; i++)
         {
-            Vector3d point = a.ClosestPointOnSurface(b.Vertices[i]);
-            Fixed64 distance = Vector3d.Distance(point, b.Vertices[i]);
+            Vector3d corner = b.GetCorner(i);
+            Vector3d point = a.ClosestPointOnSurface(corner);
+            Fixed64 distance = Vector3d.Distance(point, corner);
             if (distance < minDistance)
             {
                 closestPoint = point;

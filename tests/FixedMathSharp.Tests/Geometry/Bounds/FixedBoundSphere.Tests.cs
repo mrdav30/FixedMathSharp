@@ -1,4 +1,4 @@
-﻿using FixedMathSharp.Bounds;
+using FixedMathSharp.Bounds;
 using MemoryPack;
 using System;
 using System.Text.Json;
@@ -75,9 +75,9 @@ public class FixedBoundSphereTests
     public void Contains_BoundingBox_ReturnsContainmentClassification()
     {
         var sphere = new FixedBoundSphere(Vector3d.Zero, new Fixed64(5));
-        var contained = new FixedBoundBox(Vector3d.Zero, new Vector3d(2, 2, 2));
-        var crossing = new FixedBoundBox(new Vector3d(5, 0, 0), new Vector3d(2, 2, 2));
-        var disjoint = new FixedBoundBox(new Vector3d(8, 0, 0), new Vector3d(1, 1, 1));
+        var contained = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var crossing = FixedBoundBox.FromCenterAndSize(new Vector3d(5, 0, 0), new Vector3d(2, 2, 2));
+        var disjoint = FixedBoundBox.FromCenterAndSize(new Vector3d(8, 0, 0), new Vector3d(1, 1, 1));
 
         Assert.Equal(FixedEnclosureType.Contains, sphere.Contains(contained));
         Assert.Equal(FixedEnclosureType.Intersects, sphere.Contains(crossing));
@@ -85,12 +85,12 @@ public class FixedBoundSphereTests
     }
 
     [Fact]
-    public void Contains_BoundingArea_ReturnsContainmentClassification()
+    public void Contains_MinMaxBoundingBox_ReturnsContainmentClassification()
     {
         var sphere = new FixedBoundSphere(Vector3d.Zero, new Fixed64(5));
-        var contained = new FixedBoundArea(new Vector3d(-1, -1, 0), new Vector3d(1, 1, 0));
-        var crossing = new FixedBoundArea(new Vector3d(4, -1, 0), new Vector3d(6, 1, 0));
-        var disjoint = new FixedBoundArea(new Vector3d(8, -1, 0), new Vector3d(9, 1, 0));
+        var contained = FixedBoundBox.FromMinMax(new Vector3d(-1, -1, 0), new Vector3d(1, 1, 0));
+        var crossing = FixedBoundBox.FromMinMax(new Vector3d(4, -1, 0), new Vector3d(6, 1, 0));
+        var disjoint = FixedBoundBox.FromMinMax(new Vector3d(8, -1, 0), new Vector3d(9, 1, 0));
 
         Assert.Equal(FixedEnclosureType.Contains, sphere.Contains(contained));
         Assert.Equal(FixedEnclosureType.Intersects, sphere.Contains(crossing));
@@ -136,31 +136,31 @@ public class FixedBoundSphereTests
     public void Intersects_WithBoundingBox_ReturnsTrue()
     {
         var sphere = new FixedBoundSphere(new Vector3d(0, 0, 0), new Fixed64(5));
-        var box = new FixedBoundBox(new Vector3d(-3, -3, -3), new Vector3d(3, 3, 3));
+        var box = FixedBoundBox.FromCenterAndSize(new Vector3d(-3, -3, -3), new Vector3d(3, 3, 3));
 
         Assert.True(sphere.Intersects(box));
     }
 
     [Fact]
-    public void Intersects_WithBoundingArea_ReturnsTrue()
+    public void Intersects_WithMinMaxBoundingBox_ReturnsTrue()
     {
         var sphere = new FixedBoundSphere(new Vector3d(2, 2, 0), new Fixed64(3));
-        var area = new FixedBoundArea(new Vector3d(0, 0, 0), new Vector3d(4, 4, 0));
+        var box = FixedBoundBox.FromMinMax(new Vector3d(0, 0, 0), new Vector3d(4, 4, 0));
 
-        Assert.True(sphere.Intersects(area));
+        Assert.True(sphere.Intersects(box));
     }
 
     [Fact]
     public void Intersects_TypedBounds_UseSphereGeometry()
     {
         var sphere = new FixedBoundSphere(Vector3d.Zero, new Fixed64(2));
-        var box = new FixedBoundBox(new Vector3d(3, 0, 0), new Vector3d(2, 2, 2));
-        var area = new FixedBoundArea(new Vector3d(2, -1, 0), new Vector3d(4, 1, 0));
+        var box = FixedBoundBox.FromCenterAndSize(new Vector3d(3, 0, 0), new Vector3d(2, 2, 2));
+        var minMaxBox = FixedBoundBox.FromMinMax(new Vector3d(2, -1, 0), new Vector3d(4, 1, 0));
         var otherSphere = new FixedBoundSphere(new Vector3d(4, 0, 0), new Fixed64(2));
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
 
         Assert.True(sphere.Intersects(box));
-        Assert.True(sphere.Intersects(area));
+        Assert.True(sphere.Intersects(minMaxBox));
         Assert.True(sphere.Intersects(otherSphere));
         Assert.True(sphere.Intersects(frustum));
     }
@@ -183,7 +183,7 @@ public class FixedBoundSphereTests
     [Fact]
     public void CreateFromBoundingBox_UsesBoxCenterAndFarthestCorner()
     {
-        var box = new FixedBoundBox(new Vector3d(1, 2, 3), new Vector3d(2, 4, 6));
+        var box = FixedBoundBox.FromCenterAndSize(new Vector3d(1, 2, 3), new Vector3d(2, 4, 6));
 
         FixedBoundSphere sphere = FixedBoundSphere.CreateFromBoundingBox(box);
 

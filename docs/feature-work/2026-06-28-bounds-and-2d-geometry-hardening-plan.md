@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development before production or test changes, and use superpowers:verification-before-completion before claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** In Progress - Phase 1 complete.
+**Status:** In Progress - Phase 3 complete.
 
 **Goal:** Make FixedMathSharp's bounds and planar geometry APIs explicit, allocation-free on hot paths, and reusable by Gravitas, GridForge, Trailblazer, and future deterministic LSF packages without pulling physics-specific behavior into the math layer.
 
@@ -92,10 +92,9 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   bounds. Phase 1 captured this as current-risk guardrail coverage so Phase 2
   can replace it with desired normalization behavior without mistaking the
   change for incidental breakage.
-- `FixedBoundBox.Vertices` currently exposes a mutable backing array and default
-  structs allocate that array on first access. Phase 3 should delete these tests
-  or replace them with `GetCorner`/`CopyCorners` coverage when the public array
-  property is removed.
+- Phase 1 captured that `FixedBoundBox.Vertices` exposed a mutable backing array
+  and default structs allocated that array on first access. Phase 3 replaced
+  those guardrails with `GetCorner`/`CopyCorners` coverage.
 - The benchmark catalog already exposes the `bounds` selector. Phase 1 added
   box construction, `SetMinMax`, vertex-read, and union baselines. Short
   in-process baseline on 2026-06-29 completed 37 bounds benchmarks; key new
@@ -122,17 +121,17 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: `tests/FixedMathSharp.Benchmarks/SerializationBenchmarks.cs`
 - Review downstream after release: Gravitas, GridForge, Trailblazer, and any Unity adapter call sites that construct bounds directly.
 
-- [ ] Add `FixedBoundBox.FromMinMax(Vector3d min, Vector3d max)`.
-- [ ] Add `FixedBoundBox.FromCenterAndSize(Vector3d center, Vector3d size)`.
-- [ ] Add `FixedBoundBox.FromCenterAndScope(Vector3d center, Vector3d scope)`.
-- [ ] Replace the public `FixedBoundBox(Vector3d center, Vector3d size)` constructor with named factories in source, tests, benchmarks, and known local consumers. Keep the state constructor needed by serialization.
-- [ ] Normalize min/max inputs in `FromMinMax`, `SetMinMax`, and state population so callers cannot create inverted boxes through public APIs.
-- [ ] Normalize size/scope through absolute component values where negative extents are accepted. XML docs must state that behavior.
-- [ ] Replace every `Contains(FixedBoundArea)` and `Intersects(FixedBoundArea)` overload in 3D types with `FixedBoundBox`-based coverage.
-- [ ] Replace every `FixedRay.Intersects(FixedBoundArea)` and `FixedPlane.Intersects(FixedBoundArea)` path with `FixedBoundBox` coverage.
-- [ ] Delete the old `FixedBoundArea` source file after all 3D call sites have moved to `FixedBoundBox`.
-- [ ] Delete or migrate old `FixedBoundArea` serialization benchmarks. The new 2D `FixedBoundArea` serialization coverage is added in Phase 4.
-- [ ] Update complexity exception entries that reference `FixedBoundFrustum.Contains(FixedBoundArea)` so they refer to the surviving `FixedBoundBox` path or are removed.
+- [x] Add `FixedBoundBox.FromMinMax(Vector3d min, Vector3d max)`.
+- [x] Add `FixedBoundBox.FromCenterAndSize(Vector3d center, Vector3d size)`.
+- [x] Add `FixedBoundBox.FromCenterAndScope(Vector3d center, Vector3d scope)`.
+- [x] Replace the public `FixedBoundBox(Vector3d center, Vector3d size)` constructor with named factories in source, tests, benchmarks, and known local consumers. Keep the state constructor needed by serialization.
+- [x] Normalize min/max inputs in `FromMinMax`, `SetMinMax`, and state population so callers cannot create inverted boxes through public APIs.
+- [x] Normalize size/scope through absolute component values where negative extents are accepted. XML docs must state that behavior.
+- [x] Replace every `Contains(FixedBoundArea)` and `Intersects(FixedBoundArea)` overload in 3D types with `FixedBoundBox`-based coverage.
+- [x] Replace every `FixedRay.Intersects(FixedBoundArea)` and `FixedPlane.Intersects(FixedBoundArea)` path with `FixedBoundBox` coverage.
+- [x] Delete the old `FixedBoundArea` source file after all 3D call sites have moved to `FixedBoundBox`.
+- [x] Delete or migrate old `FixedBoundArea` serialization benchmarks. The new 2D `FixedBoundArea` serialization coverage is added in Phase 4.
+- [x] Update complexity exception entries that reference `FixedBoundFrustum.Contains(FixedBoundArea)` so they refer to the surviving `FixedBoundBox` path or are removed.
 
 Verification:
 
@@ -144,6 +143,17 @@ rg -n "FixedBoundArea\\b" src tests
 
 Expected after Phase 2: `rg` should find no production references to the old 3D `FixedBoundArea`. Test or benchmark references should exist only if they are intentionally waiting for the new 2D type in Phase 4.
 
+**Phase 2 Notes:**
+
+- The old 3D `FixedBoundArea` source and tests were deleted rather than kept as
+  compatibility wrappers. Live source/test references are clear; remaining
+  mentions are only this plan's future 2D area work.
+- `FixedMathSharp.Chronicler.WriteBoundArea` was removed with the old 3D area.
+  The companion package should add a new deterministic `Vector2d` area hash
+  writer in Phase 4 when the replacement type exists.
+- `FixedBoundBox` keeps the serialization state constructor, but the public
+  center/size construction path now uses named factories.
+
 ## Phase 3: Allocation-Free FixedBoundBox Corners
 
 **Files:**
@@ -152,13 +162,13 @@ Expected after Phase 2: `rg` should find no production references to the old 3D 
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundBox.Tests.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 
-- [ ] Remove the `_vertices` field and `_isDirty` corner-cache behavior from `FixedBoundBox`.
-- [ ] Remove the public `Vertices` array property. Do not replace it with another hidden allocation path.
-- [ ] Add `public Vector3d GetCorner(int index)` with deterministic index ordering matching the current documented near/far corner order.
-- [ ] Add `public void CopyCorners(Span<Vector3d> destination)` and throw `ArgumentException` when `destination.Length < 8`.
-- [ ] Update `FindClosestPointsBetweenBoxes` to use `GetCorner` or a stack/local span path instead of `b.Vertices[i]`.
-- [ ] Add tests for all eight corner indexes, copy ordering, short span validation, and no externally mutable corner storage.
-- [ ] Add a benchmark comparing `GetCorner`, `CopyCorners`, and the old baseline behavior captured in Phase 1.
+- [x] Remove the `_vertices` field and `_isDirty` corner-cache behavior from `FixedBoundBox`.
+- [x] Remove the public `Vertices` array property. Do not replace it with another hidden allocation path.
+- [x] Add `public Vector3d GetCorner(int index)` with deterministic index ordering matching the current documented near/far corner order.
+- [x] Add `public void CopyCorners(Span<Vector3d> destination)` and throw `ArgumentException` when `destination.Length < 8`.
+- [x] Update `FindClosestPointsBetweenBoxes` to use `GetCorner` or a stack/local span path instead of `b.Vertices[i]`.
+- [x] Add tests for all eight corner indexes, copy ordering, short span validation, and no externally mutable corner storage.
+- [x] Add a benchmark comparing `GetCorner`, `CopyCorners`, and the old baseline behavior captured in Phase 1.
 
 Verification:
 
@@ -166,6 +176,14 @@ Verification:
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedBoundBoxTests"
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i
 ```
+
+**Phase 3 Notes:**
+
+- `FixedBoundBox` is now field-only and no longer caches corner arrays. The
+  MemoryPack constructor attribute was removed because MemoryPack does not call
+  constructors for unmanaged structs.
+- `BoxReadVertices` benchmark coverage was replaced by `BoxGetCorner` and
+  `BoxCopyCorners`.
 
 ## Phase 4: True 2D Area Bounds
 

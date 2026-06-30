@@ -223,24 +223,6 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     }
 
     /// <summary>
-    /// Tests a bounding area against this frustum.
-    /// </summary>
-    public FixedEnclosureType Contains(FixedBoundArea area)
-    {
-        bool intersects = false;
-
-        if (DisjointOrIntersects(_near, area, ref intersects)
-            || DisjointOrIntersects(_far, area, ref intersects)
-            || DisjointOrIntersects(_left, area, ref intersects)
-            || DisjointOrIntersects(_right, area, ref intersects)
-            || DisjointOrIntersects(_top, area, ref intersects)
-            || DisjointOrIntersects(_bottom, area, ref intersects))
-            return FixedEnclosureType.Disjoint;
-
-        return intersects ? FixedEnclosureType.Intersects : FixedEnclosureType.Contains;
-    }
-
-    /// <summary>
     /// Tests a bounding sphere against this frustum.
     /// </summary>
     public FixedEnclosureType Contains(FixedBoundSphere sphere)
@@ -289,12 +271,6 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundBox box) => Contains(box) != FixedEnclosureType.Disjoint;
-
-    /// <summary>
-    /// Checks whether a bounding area intersects this frustum.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Intersects(FixedBoundArea area) => Contains(area) != FixedEnclosureType.Disjoint;
 
     /// <summary>
     /// Checks whether a bounding sphere intersects this frustum.
@@ -629,21 +605,6 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     private static bool DisjointOrIntersects(FixedPlane plane, FixedBoundBox box, ref bool intersects)
     {
         switch (plane.Intersects(box))
-        {
-            case FixedPlaneIntersectionType.Front:
-                return true;
-            case FixedPlaneIntersectionType.Intersecting:
-                intersects = true;
-                break;
-        }
-
-        return false;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool DisjointOrIntersects(FixedPlane plane, FixedBoundArea area, ref bool intersects)
-    {
-        switch (plane.Intersects(area))
         {
             case FixedPlaneIntersectionType.Front:
                 return true;

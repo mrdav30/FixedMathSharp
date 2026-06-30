@@ -26,7 +26,6 @@ public class SerializationBenchmarks
     private readonly Fixed4x4[] _matrix4s = BenchmarkFixtures.Matrices;
     private readonly FixedBoundBox[] _boxes = CreateBoxes();
     private readonly FixedBoundSphere[] _spheres = CreateSpheres();
-    private readonly FixedBoundArea[] _areas = CreateAreas();
     private readonly FixedCurve[] _curves = BenchmarkFixtures.CubicCurves;
     private readonly byte[][] _jsonScalarBytes;
     private readonly byte[][] _jsonVector3Bytes;
@@ -76,7 +75,6 @@ public class SerializationBenchmarks
         {
             bytes += MemoryPackSerializer.Serialize(_boxes[i]).Length;
             bytes += MemoryPackSerializer.Serialize(_spheres[i]).Length;
-            bytes += MemoryPackSerializer.Serialize(_areas[i]).Length;
             bytes += MemoryPackSerializer.Serialize(_curves[i]).Length;
         }
 
@@ -143,7 +141,6 @@ public class SerializationBenchmarks
         {
             bytes += JsonSerializer.SerializeToUtf8Bytes(_boxes[i], JsonOptions).Length;
             bytes += JsonSerializer.SerializeToUtf8Bytes(_spheres[i], JsonOptions).Length;
-            bytes += JsonSerializer.SerializeToUtf8Bytes(_areas[i], JsonOptions).Length;
             bytes += JsonSerializer.SerializeToUtf8Bytes(_curves[i], JsonOptions).Length;
         }
 
@@ -203,20 +200,11 @@ public class SerializationBenchmarks
     }
 #endif
 
-    private static FixedBoundArea[] CreateAreas()
-    {
-        var areas = new FixedBoundArea[BenchmarkFixtures.SampleCount];
-        for (int i = 0; i < areas.Length; i++)
-            areas[i] = new FixedBoundArea(BenchmarkFixtures.VectorsA[i], BenchmarkFixtures.VectorsA[i] + BenchmarkFixtures.Scales[i]);
-
-        return areas;
-    }
-
     private static FixedBoundBox[] CreateBoxes()
     {
         var boxes = new FixedBoundBox[BenchmarkFixtures.SampleCount];
         for (int i = 0; i < boxes.Length; i++)
-            boxes[i] = new FixedBoundBox(BenchmarkFixtures.VectorsA[i], BenchmarkFixtures.VectorsA[i] + BenchmarkFixtures.Scales[i]);
+            boxes[i] = FixedBoundBox.FromCenterAndSize(BenchmarkFixtures.VectorsA[i], BenchmarkFixtures.Scales[i]);
 
         return boxes;
     }

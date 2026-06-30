@@ -431,14 +431,6 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     }
 
     /// <summary>
-    /// Tests a bounding area against this sphere.
-    /// </summary>
-    public FixedEnclosureType Contains(FixedBoundArea area)
-    {
-        return ContainsBoxLike(area.Min, area.Max);
-    }
-
-    /// <summary>
     /// Tests another sphere against this sphere.
     /// </summary>
     public FixedEnclosureType Contains(FixedBoundSphere sphere)
@@ -485,12 +477,6 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundBox box) => Contains(box) != FixedEnclosureType.Disjoint;
-
-    /// <summary>
-    /// Checks whether a bounding area intersects this sphere.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Intersects(FixedBoundArea area) => Contains(area) != FixedEnclosureType.Disjoint;
 
     /// <summary>
     /// Checks whether another sphere intersects this sphere.
