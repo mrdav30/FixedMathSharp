@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development before production or test changes, and use superpowers:verification-before-completion before claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** In Progress - Phase 4 complete.
+**Status:** In Progress - Phase 5 complete.
 
 **Goal:** Make FixedMathSharp's bounds and planar geometry APIs explicit, allocation-free on hot paths, and reusable by Gravitas, GridForge, Trailblazer, and future deterministic LSF packages without pulling physics-specific behavior into the math layer.
 
@@ -240,13 +240,13 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundArea.Tests.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 
-- [ ] Add a `FixedBoundCircle` value type with `Vector2d Center`, `Fixed64 Radius`, `Fixed64 RadiusSquared`, and `FixedBoundArea Bounds`.
-- [ ] Normalize negative radius inputs to absolute radius, or reject them with `ArgumentOutOfRangeException`. Choose one policy and keep it consistent with `FixedBoundSphere`.
-- [ ] Add `Contains(Vector2d point)`, `Contains(FixedBoundCircle circle)`, `Intersects(FixedBoundCircle circle)`, `Intersects(FixedBoundArea area)`, `ClampPoint`, and `ProjectPoint`.
-- [ ] Add matching `FixedBoundArea.Contains(FixedBoundCircle circle)` and `FixedBoundArea.Intersects(FixedBoundCircle circle)` only if those overloads remove duplicated downstream code.
-- [ ] Add strict overlap variants only where boundary-touch behavior matters to downstream callers. Do not add duplicate convenience APIs without a known use case.
-- [ ] Add tests for zero-radius circles, touching circles, circle-area touch, containment, projection, equality, hash behavior, JSON roundtrip, and MemoryPack roundtrip when MemoryPack is enabled.
-- [ ] Add benchmark cases for point containment, circle intersection, area intersection, and clamp/projection.
+- [x] Add a `FixedBoundCircle` value type with `Vector2d Center`, `Fixed64 Radius`, `Fixed64 RadiusSquared`, and `FixedBoundArea Bounds`.
+- [x] Normalize negative radius inputs to absolute radius, or reject them with `ArgumentOutOfRangeException`. Choose one policy and keep it consistent with `FixedBoundSphere`.
+- [x] Add `Contains(Vector2d point)`, `Contains(FixedBoundCircle circle)`, `Intersects(FixedBoundCircle circle)`, `Intersects(FixedBoundArea area)`, `ClampPoint`, and `ProjectPoint`.
+- [x] Add matching `FixedBoundArea.Contains(FixedBoundCircle circle)` and `FixedBoundArea.Intersects(FixedBoundCircle circle)` only if those overloads remove duplicated downstream code.
+- [x] Add strict overlap variants only where boundary-touch behavior matters to downstream callers. Do not add duplicate convenience APIs without a known use case.
+- [x] Add tests for zero-radius circles, touching circles, circle-area touch, containment, projection, equality, hash behavior, JSON roundtrip, and MemoryPack roundtrip when MemoryPack is enabled.
+- [x] Add benchmark cases for point containment, circle intersection, area intersection, and clamp/projection.
 
 Verification:
 
@@ -254,6 +254,43 @@ Verification:
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedBoundCircleTests|FullyQualifiedName~FixedBoundAreaTests"
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i
 ```
+
+**Phase 5 Notes:**
+
+- `FixedBoundCircle` is a true `Vector2d` circular bound with normalized radius,
+  a derived `FixedBoundArea Bounds`, boundary-inclusive containment and
+  intersection, deterministic equality/hash behavior, and JSON/MemoryPack
+  roundtrip coverage.
+- Negative circle radii are normalized by absolute value, matching the
+  `FixedBoundArea` size/scope normalization style. During this phase,
+  `FixedBoundSphere` was also tightened so construction and radius assignment
+  cannot retain a negative radius.
+- Review follow-up moved `FixedBoundSphere` to a matching
+  `BoundingSphereState` payload so sphere serialization uses the same explicit
+  state shape as `FixedBoundBox`, `FixedBoundArea`, and `FixedBoundCircle`
+  instead of mixing a serialized center field with a radius-backed property.
+- `FixedBoundArea.Contains(FixedBoundCircle)` and
+  `FixedBoundArea.Intersects(FixedBoundCircle)` were added because downstream
+  planar broad-phase/query callers naturally ask the area-side question and the
+  overloads centralize the closest-point circle/area math.
+- Strict circle overlap methods were intentionally not added. The known
+  downstream need is boundary-inclusive broad-phase/query behavior; strict
+  variants can be added in Phase 8 only if a measured caller needs them.
+- `FixedMathSharp.Chronicler.WriteBoundCircle` hashes canonical `Center` then
+  normalized `Radius`.
+- While scanning for adjacent radius/hash issues, the remaining active
+  `HashCode.Combine` uses in `FixedBoundFrustum` and `FixedCurveKey` were
+  replaced with explicit deterministic component hashes under focused tests.
+- Focused short-run circle benchmark rows completed with no managed allocation:
+  `CircleContainsPoint` 3.373 us, `CircleIntersectsCircle` 3.741 us,
+  `CircleIntersectsArea` 3.780 us, `CircleClampPoint` 58.747 us, and
+  `CircleProjectPoint` 56.495 us.
+- A full in-process bounds benchmark smoke hit an unrelated BenchmarkDotNet
+  crash in the frustum row after prior bounds rows had completed. Direct
+  two-million-iteration frustum construction repros and the isolated frustum
+  benchmark passed, so this is tracked separately as `FMS-Issue-012` in
+  `docs/feature-work/issue-tracker.md` instead of changing production frustum
+  math without a runtime repro.
 
 ## Phase 6: 2D Segment And Ray Primitives
 

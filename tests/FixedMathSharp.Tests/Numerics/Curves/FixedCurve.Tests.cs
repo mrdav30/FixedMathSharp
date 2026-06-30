@@ -219,6 +219,18 @@ public class FixedCurveTests
     }
 
     [Fact]
+    public void FixedCurveKey_GetHashCode_UsesDeterministicComponentOrder()
+    {
+        var key = new FixedCurveKey(
+            Fixed64.FromRaw(1),
+            Fixed64.FromRaw(2),
+            Fixed64.FromRaw(3),
+            Fixed64.FromRaw(4));
+
+        Assert.Equal(CombineCurveKeyHash(key), key.GetHashCode());
+    }
+
+    [Fact]
     public void FixedCurveKey_FromDouble_UsesCheckedFixed64Conversion()
     {
         FixedCurveKey key = FixedCurveKey.FromDouble(1.25, -2.5, 3.75, -4.5);
@@ -272,4 +284,17 @@ public class FixedCurveTests
 #endif
 
     #endregion
+
+    private static int CombineCurveKeyHash(FixedCurveKey key)
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = (hash * 31) + key.Time.GetHashCode();
+            hash = (hash * 31) + key.Value.GetHashCode();
+            hash = (hash * 31) + key.InTangent.GetHashCode();
+            hash = (hash * 31) + key.OutTangent.GetHashCode();
+            return hash;
+        }
+    }
 }

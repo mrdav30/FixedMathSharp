@@ -43,11 +43,56 @@ runtime and tests.
 Performance issues should stay in the benchmark plan unless they become a
 confirmed runtime defect. Current queue:
 
-- None currently. The 2026-06-03 vector normalization and residual quaternion
-  allocation investigation was completed in
-  `docs/feature-work/done/2026-06-03-benchmark-hot-path-followups.md` Phase 3. The
-  residual `1 B` signal did not reproduce in the expanded short-run
-  diagnostics, so no runtime defect is currently tracked.
+### FMS-Issue-012: Full in-process bounds benchmark can crash in frustum segment after prior rows
+
+**Discovered:** 2026-06-30
+
+**Source:** Phase 5 validation for
+`docs/feature-work/2026-06-28-bounds-and-2d-geometry-hardening-plan.md`.
+
+**Status:** Investigation queued
+
+**Affected files:**
+
+- `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
+- BenchmarkDotNet in-process runner path invoked by `-i`
+
+**Concern:**
+
+`dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i`
+failed once with a fatal `System.AccessViolationException` while executing
+`BoundsBenchmarks.FrustumCreateFromMatrix` after earlier bounds benchmarks had
+already completed. The stack pointed at `FixedBoundFrustum.IntersectionPoint`
+through `CreateCorners`.
+
+Current evidence points at an in-process BenchmarkDotNet batch/harness issue
+rather than a confirmed runtime geometry defect:
+
+- A direct `dotnet-script` repro over 2,000,000 frustum constructions using the
+  same perspective-matrix fixture completed successfully.
+- A temporary Release console repro over 2,000,000 frustum constructions using
+  the same fixture completed successfully.
+- The isolated `BoundsBenchmarks.FrustumCreateFromMatrix` in-process benchmark
+  completed successfully with no managed allocation.
+- The Phase 5 circle benchmark rows completed successfully with no managed
+  allocation.
+
+**Recommended work:**
+
+- [ ] Re-run the full bounds group with and without `-i` to determine whether
+  the crash is specific to `InProcessEmitToolchain`.
+- [ ] If the crash reproduces, isolate the smallest preceding benchmark set
+  needed before `FrustumCreateFromMatrix` fails.
+- [ ] Prefer out-of-process BenchmarkDotNet runs for full release evidence if
+  the in-process runner remains unstable.
+- [ ] Only change `FixedBoundFrustum` or `Fixed64` runtime math if an isolated
+  non-BenchmarkDotNet repro or focused unit test demonstrates a library defect.
+
+Current queue also includes the completed 2026-06-03 vector normalization and
+residual quaternion allocation investigation in
+`docs/feature-work/done/2026-06-03-benchmark-hot-path-followups.md` Phase 3. The
+residual `1 B` signal did not reproduce in the expanded short-run diagnostics,
+so no runtime defect is currently tracked for that item.
 
 ## Resolved Issues
 

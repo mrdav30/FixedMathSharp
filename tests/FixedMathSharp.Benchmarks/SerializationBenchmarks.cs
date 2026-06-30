@@ -25,6 +25,7 @@ public class SerializationBenchmarks
     private readonly Fixed3x3[] _matrix3s = BenchmarkFixtures.Matrix3s;
     private readonly Fixed4x4[] _matrix4s = BenchmarkFixtures.Matrices;
     private readonly FixedBoundArea[] _areas = CreateAreas();
+    private readonly FixedBoundCircle[] _circles = CreateCircles();
     private readonly FixedBoundBox[] _boxes = CreateBoxes();
     private readonly FixedBoundSphere[] _spheres = CreateSpheres();
     private readonly FixedCurve[] _curves = BenchmarkFixtures.CubicCurves;
@@ -75,6 +76,7 @@ public class SerializationBenchmarks
         for (int i = 0; i < _boxes.Length; i++)
         {
             bytes += MemoryPackSerializer.Serialize(_areas[i]).Length;
+            bytes += MemoryPackSerializer.Serialize(_circles[i]).Length;
             bytes += MemoryPackSerializer.Serialize(_boxes[i]).Length;
             bytes += MemoryPackSerializer.Serialize(_spheres[i]).Length;
             bytes += MemoryPackSerializer.Serialize(_curves[i]).Length;
@@ -142,6 +144,7 @@ public class SerializationBenchmarks
         for (int i = 0; i < _boxes.Length; i++)
         {
             bytes += JsonSerializer.SerializeToUtf8Bytes(_areas[i], JsonOptions).Length;
+            bytes += JsonSerializer.SerializeToUtf8Bytes(_circles[i], JsonOptions).Length;
             bytes += JsonSerializer.SerializeToUtf8Bytes(_boxes[i], JsonOptions).Length;
             bytes += JsonSerializer.SerializeToUtf8Bytes(_spheres[i], JsonOptions).Length;
             bytes += JsonSerializer.SerializeToUtf8Bytes(_curves[i], JsonOptions).Length;
@@ -212,6 +215,17 @@ public class SerializationBenchmarks
                 Fixed64.One + Fixed64.FromFraction((i % 5) + 1, 16)));
 
         return areas;
+    }
+
+    private static FixedBoundCircle[] CreateCircles()
+    {
+        var circles = new FixedBoundCircle[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < circles.Length; i++)
+            circles[i] = new FixedBoundCircle(
+                BenchmarkFixtures.Vector2sB[i],
+                Fixed64.One + Fixed64.FromFraction((i % 9) + 1, 4));
+
+        return circles;
     }
 
     private static FixedBoundBox[] CreateBoxes()

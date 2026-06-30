@@ -36,21 +36,47 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     , ISpanFormattable
 #endif
 {
+    #region Nested Types
+
+    /// <summary>
+    /// Represents the normalized serializable state of a three-dimensional spherical bound.
+    /// </summary>
+    [Serializable]
+    [MemoryPackable]
+    public readonly partial struct BoundingSphereState
+    {
+        /// <inheritdoc cref="FixedBoundSphere.Center"/>
+        [JsonInclude]
+        [MemoryPackInclude]
+        public readonly Vector3d Center;
+
+        /// <inheritdoc cref="FixedBoundSphere.Radius"/>
+        [JsonInclude]
+        [MemoryPackInclude]
+        public readonly Fixed64 Radius;
+
+        /// <summary>
+        /// Initializes a normalized state from center and radius.
+        /// </summary>
+        [JsonConstructor]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public BoundingSphereState(Vector3d center, Fixed64 radius)
+        {
+            Center = center;
+            Radius = NormalizeRadius(radius);
+        }
+    }
+
+    #endregion
+
     #region Fields
 
     /// <summary>
-    /// The center point of the sphere.
+    /// The radius backing field.
     /// </summary>
-    [JsonInclude]
-    [MemoryPackOrder(0)]
-    public Vector3d Center;
-
-    /// <summary>
-    /// The radius of the sphere.
-    /// </summary>
-    [JsonInclude]
-    [MemoryPackOrder(1)]
-    public Fixed64 Radius;
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    private Fixed64 _radius;
 
     #endregion
 
@@ -59,16 +85,47 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Initializes a new instance of the FixedBoundSphere struct with the specified center and radius.
     /// </summary>
-    [JsonConstructor]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedBoundSphere(Vector3d center, Fixed64 radius)
     {
         Center = center;
-        Radius = radius;
+        _radius = NormalizeRadius(radius);
+    }
+
+    /// <summary>
+    /// Initializes a new instance from serialized or caller-provided state.
+    /// </summary>
+    [JsonConstructor]
+    public FixedBoundSphere(BoundingSphereState state)
+    {
+        Center = state.Center;
+        _radius = state.Radius;
     }
 
     #endregion
 
     #region Properties
+
+    /// <summary>
+    /// The center point of the sphere.
+    /// </summary>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public Vector3d Center { get; set; }
+
+    /// <summary>
+    /// The non-negative radius of the sphere. Assigned values are normalized by absolute value.
+    /// </summary>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public Fixed64 Radius
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _radius;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => _radius = NormalizeRadius(value);
+    }
 
     /// <summary>
     /// Gets the coordinates of the minimum corner of the bounding box that contains the sphere.
@@ -109,6 +166,22 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => Radius * Radius;
+    }
+
+    /// <summary>
+    /// Gets or sets the current normalized state of the sphere.
+    /// </summary>
+    [JsonInclude]
+    [MemoryPackInclude]
+    public BoundingSphereState State
+    {
+        get => new(Center, Radius);
+
+        internal set
+        {
+            Center = value.Center;
+            Radius = value.Radius;
+        }
     }
 
     #endregion
@@ -592,6 +665,9 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
 
         return FixedMath.Sqrt(FixedMath.Max(row0, FixedMath.Max(row1, row2)));
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Fixed64 NormalizeRadius(Fixed64 radius) => FixedMath.Abs(radius);
 
     #endregion
 

@@ -114,8 +114,18 @@ public partial struct FixedCurveKey : IEquatable<FixedCurveKey>
     public override bool Equals(object? obj) => obj is FixedCurveKey other && Equals(other);
 
     /// <inheritdoc/>
-    public override int GetHashCode() =>
-        HashCode.Combine(Time, Value, InTangent, OutTangent);
+    public override int GetHashCode()
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = (hash * 31) + Time.GetHashCode();
+            hash = (hash * 31) + Value.GetHashCode();
+            hash = (hash * 31) + InTangent.GetHashCode();
+            hash = (hash * 31) + OutTangent.GetHashCode();
+            return hash;
+        }
+    }
 
     /// <summary>
     /// Determines whether two FixedCurveKey instances are equal.

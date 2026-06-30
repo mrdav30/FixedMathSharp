@@ -708,7 +708,17 @@ public struct FixedBoundFrustum : IEquatable<FixedBoundFrustum>
     /// <inheritdoc/>
     public override int GetHashCode()
     {
-        return HashCode.Combine(_near, _far, _left, _right, _top, _bottom);
+        unchecked
+        {
+            int hash = 17;
+            hash = (hash * 31) + _near.GetHashCode();
+            hash = (hash * 31) + _far.GetHashCode();
+            hash = (hash * 31) + _left.GetHashCode();
+            hash = (hash * 31) + _right.GetHashCode();
+            hash = (hash * 31) + _top.GetHashCode();
+            hash = (hash * 31) + _bottom.GetHashCode();
+            return hash;
+        }
     }
 
     #endregion

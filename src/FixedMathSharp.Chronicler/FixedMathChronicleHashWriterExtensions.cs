@@ -130,6 +130,15 @@ public static class FixedMathChronicleHashWriterExtensions
     }
 
     /// <summary>
+    /// Writes a 2D bounding circle as center then normalized radius.
+    /// </summary>
+    public static void WriteBoundCircle(this ref global::Chronicler.ChronicleHashWriter writer, FixedBoundCircle value)
+    {
+        writer.WriteVector2d(value.Center);
+        writer.WriteFixed64(value.Radius);
+    }
+
+    /// <summary>
     /// Writes a bounding sphere as center then radius.
     /// </summary>
     public static void WriteBoundSphere(this ref global::Chronicler.ChronicleHashWriter writer, FixedBoundSphere value)

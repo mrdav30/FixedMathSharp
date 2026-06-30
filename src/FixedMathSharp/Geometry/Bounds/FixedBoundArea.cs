@@ -239,6 +239,20 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     }
 
     /// <summary>
+    /// Classifies a circle against this area using boundary-inclusive overlap.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public FixedEnclosureType Contains(FixedBoundCircle circle)
+    {
+        if (Contains(circle.Bounds) == FixedEnclosureType.Contains)
+            return FixedEnclosureType.Contains;
+
+        return Intersects(circle)
+            ? FixedEnclosureType.Intersects
+            : FixedEnclosureType.Disjoint;
+    }
+
+    /// <summary>
     /// Determines whether this area overlaps another area, including boundary-only contact.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -247,6 +261,12 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
         return Min.X <= area.Max.X && Max.X >= area.Min.X
             && Min.Y <= area.Max.Y && Max.Y >= area.Min.Y;
     }
+
+    /// <summary>
+    /// Determines whether this area overlaps a circle, including boundary-only contact.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Intersects(FixedBoundCircle circle) => circle.Intersects(this);
 
     /// <summary>
     /// Determines whether this area overlaps another area with positive area on both axes.

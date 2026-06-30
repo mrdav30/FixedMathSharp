@@ -10,6 +10,7 @@ public class BoundsBenchmarks
 {
     private readonly FixedBoundArea[] _areas = CreateAreas();
     private readonly FixedBoundBox[] _boxes = CreateBoxes();
+    private readonly FixedBoundCircle[] _circles = CreateCircles();
     private readonly Vector3d[] _boxCornerBuffer = new Vector3d[FixedBoundBox.CornerCount];
     private readonly Vector3d[] _cornerBuffer = new Vector3d[FixedBoundFrustum.CornerCount];
     private readonly FixedBoundFrustum[] _frustums = CreateFrustums();
@@ -110,6 +111,65 @@ public class BoundsBenchmarks
         FixedBoundArea accumulator = _areas[0];
         for (int i = 1; i < _areas.Length; i++)
             accumulator = FixedBoundArea.Union(accumulator, _areas[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int CircleContainsPoint()
+    {
+        int count = 0;
+        for (int i = 0; i < _circles.Length; i++)
+        {
+            if (_circles[i].Contains(_points2d[i]))
+                count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
+    public int CircleIntersectsCircle()
+    {
+        int count = 0;
+        for (int i = 0; i < _circles.Length; i++)
+        {
+            if (_circles[i].Intersects(_circles[(i + 1) & (BenchmarkFixtures.SampleCount - 1)]))
+                count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
+    public int CircleIntersectsArea()
+    {
+        int count = 0;
+        for (int i = 0; i < _circles.Length; i++)
+        {
+            if (_circles[i].Intersects(_areas[i]))
+                count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
+    public Vector2d CircleClampPoint()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _circles.Length; i++)
+            accumulator += _circles[i].ClampPoint(_points2d[(i + 37) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d CircleProjectPoint()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _circles.Length; i++)
+            accumulator += _circles[i].ProjectPoint(_points2d[(i + 53) & (BenchmarkFixtures.SampleCount - 1)]);
 
         return accumulator;
     }
@@ -556,6 +616,20 @@ public class BoundsBenchmarks
         }
 
         return boxes;
+    }
+
+    private static FixedBoundCircle[] CreateCircles()
+    {
+        var circles = new FixedBoundCircle[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < circles.Length; i++)
+        {
+            Vector2d center = BenchmarkFixtures.Vector2sB[i] * Fixed64.Quarter;
+            Fixed64 radius = Fixed64.One + Fixed64.FromFraction((i % 9) + 1, 4);
+
+            circles[i] = new FixedBoundCircle(center, radius);
+        }
+
+        return circles;
     }
 
     private static FixedBoundFrustum[] CreateFrustums()

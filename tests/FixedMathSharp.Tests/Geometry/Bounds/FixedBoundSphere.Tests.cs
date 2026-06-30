@@ -25,6 +25,42 @@ public class FixedBoundSphereTests
         Assert.Equal(new Vector3d(6, 7, 8), sphere.Max);
     }
 
+    [Fact]
+    public void Constructor_NormalizesNegativeRadius()
+    {
+        var sphere = new FixedBoundSphere(new Vector3d(1, 2, 3), new Fixed64(-5));
+
+        Assert.Equal(new Fixed64(5), sphere.Radius);
+        Assert.Equal(new Vector3d(-4, -3, -2), sphere.Min);
+        Assert.Equal(new Vector3d(6, 7, 8), sphere.Max);
+    }
+
+    [Fact]
+    public void Radius_Setter_NormalizesNegativeRadius()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+
+        sphere.Radius = new Fixed64(-3);
+
+        Assert.Equal(new Fixed64(3), sphere.Radius);
+        Assert.Equal(new Fixed64(9), sphere.RadiusSquared);
+        Assert.Equal(new Vector3d(-3, -3, -3), sphere.Min);
+        Assert.Equal(new Vector3d(3, 3, 3), sphere.Max);
+    }
+
+    [Fact]
+    public void State_NormalizesNegativeRadius()
+    {
+        var state = new FixedBoundSphere.BoundingSphereState(new Vector3d(1, 2, 3), new Fixed64(-6));
+        var sphere = new FixedBoundSphere(state);
+
+        Assert.Equal(new Vector3d(1, 2, 3), state.Center);
+        Assert.Equal(new Fixed64(6), state.Radius);
+        Assert.Equal(new Vector3d(1, 2, 3), sphere.Center);
+        Assert.Equal(new Fixed64(6), sphere.Radius);
+        Assert.Equal(new FixedBoundSphere.BoundingSphereState(new Vector3d(1, 2, 3), new Fixed64(6)), sphere.State);
+    }
+
     #endregion
 
     #region Test: Containment
@@ -642,6 +678,26 @@ public class FixedBoundSphereTests
         var deserializedValue = JsonSerializer.Deserialize<FixedBoundSphere>(json, jsonOptions);
 
         // Check that deserialized values match the original
+        Assert.Equal(originalValue, deserializedValue);
+    }
+
+    [Fact]
+    public void BoundingSphere_JsonSerialization_UsesStatePayload()
+    {
+        FixedBoundSphere originalValue = new(new Vector3d(1, 2, 3), new Fixed64(-4));
+
+        byte[] json = JsonSerializer.SerializeToUtf8Bytes(originalValue);
+        using JsonDocument document = JsonDocument.Parse(json);
+
+        Assert.True(document.RootElement.TryGetProperty(nameof(FixedBoundSphere.State), out JsonElement stateElement));
+        Assert.False(document.RootElement.TryGetProperty(nameof(FixedBoundSphere.Center), out _));
+        Assert.False(document.RootElement.TryGetProperty(nameof(FixedBoundSphere.Radius), out _));
+        Assert.True(stateElement.TryGetProperty(nameof(FixedBoundSphere.BoundingSphereState.Center), out _));
+        Assert.True(stateElement.TryGetProperty(nameof(FixedBoundSphere.BoundingSphereState.Radius), out _));
+
+        FixedBoundSphere deserializedValue = JsonSerializer.Deserialize<FixedBoundSphere>(json);
+
+        Assert.Equal(new Fixed64(4), deserializedValue.Radius);
         Assert.Equal(originalValue, deserializedValue);
     }
 

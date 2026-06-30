@@ -150,6 +150,21 @@ public class FixedBoundAreaTests
     }
 
     [Fact]
+    public void Contains_Circle_ReturnsContainmentClassification()
+    {
+        var area = FixedBoundArea.FromMinMax(new Vector2d(-2, -2), new Vector2d(2, 2));
+        var contained = new FixedBoundCircle(Vector2d.Zero, Fixed64.One);
+        var crossing = new FixedBoundCircle(new Vector2d(2, 0), Fixed64.One);
+        var touching = new FixedBoundCircle(new Vector2d(3, 0), Fixed64.One);
+        var disjoint = new FixedBoundCircle(new Vector2d(4, 0), Fixed64.One);
+
+        Assert.Equal(FixedEnclosureType.Contains, area.Contains(contained));
+        Assert.Equal(FixedEnclosureType.Intersects, area.Contains(crossing));
+        Assert.Equal(FixedEnclosureType.Intersects, area.Contains(touching));
+        Assert.Equal(FixedEnclosureType.Disjoint, area.Contains(disjoint));
+    }
+
+    [Fact]
     public void Intersects_IsBoundaryInclusive()
     {
         var area = FixedBoundArea.FromMinMax(new Vector2d(-2, -2), new Vector2d(2, 2));
@@ -161,6 +176,19 @@ public class FixedBoundAreaTests
         Assert.True(area.Intersects(touchingEdge));
         Assert.True(area.Intersects(touchingCorner));
         Assert.True(area.Intersects(overlapping));
+        Assert.False(area.Intersects(disjoint));
+    }
+
+    [Fact]
+    public void Intersects_Circle_IsBoundaryInclusive()
+    {
+        var area = FixedBoundArea.FromMinMax(new Vector2d(-2, -2), new Vector2d(2, 2));
+        var contained = new FixedBoundCircle(Vector2d.Zero, Fixed64.One);
+        var touching = new FixedBoundCircle(new Vector2d(3, 0), Fixed64.One);
+        var disjoint = new FixedBoundCircle(new Vector2d(4, 0), Fixed64.One);
+
+        Assert.True(area.Intersects(contained));
+        Assert.True(area.Intersects(touching));
         Assert.False(area.Intersects(disjoint));
     }
 

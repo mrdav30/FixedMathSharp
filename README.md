@@ -44,7 +44,7 @@ Use floating point when you need:
 - **2D, 3D, and 4D vectors** via `Vector2d`, `Vector3d`, and `Vector4d`, including dot products, distances, normalization, transforms, fuzzy equality, and component operations.
 - **Rotations and matrices** with `FixedQuaternion`, `Fixed3x3`, and `Fixed4x4` for deterministic transforms and orientation math.
 - **Coordinate convention helpers** with `Axis3d` and `CoordinateConvention3d` for explicit signed-axis adapter boundaries.
-- **Geometry and bounds** with `FixedBoundArea`, `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`, `FixedPlane`, and `FixedRay`.
+- **Geometry and bounds** with `FixedBoundArea`, `FixedBoundCircle`, `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`, `FixedPlane`, and `FixedRay`.
 - **Curves and ranges** with `FixedCurve`, `FixedCurveKey`, and `FixedRange`.
 - **Deterministic RNG** with `DeterministicRandom` streams derived from seeds, feature keys, and indices.
 - **Serialization-friendly structs** with MemoryPack support in the standard package and a Lean package when you do not want that dependency.
@@ -140,9 +140,11 @@ ChronicleHash hash = writer.ToHash();
 FixedBoundBox room = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(10, 4, 10));
 FixedRay ray = new FixedRay(new Vector3d(-20, 0, 0), Vector3d.Right);
 FixedBoundArea footprint = FixedBoundArea.FromCenterAndSize(Vector2d.Zero, new Vector2d(6, 4));
+FixedBoundCircle sensor2d = new FixedBoundCircle(Vector2d.Zero, new Fixed64(5));
 
 Fixed64? hitDistance = ray.Intersects(room);
 bool insideFootprint = footprint.Contains(new Vector2d(1, 1));
+bool insideSensor = sensor2d.Contains(new Vector2d(3, 4));
 
 if (hitDistance.HasValue)
 {
@@ -171,6 +173,7 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - `FixedQuaternion`, `Fixed3x3`, `Fixed4x4`: rotations, orientations, matrices, and transform operations.
 - `Axis3d`, `CoordinateConvention3d`: stateless helpers for documenting and converting signed-axis 3D direction conventions.
 - `FixedBoundArea`: 2D `Vector2d` AABB containment, intersection, clamping, projection, and union queries.
+- `FixedBoundCircle`: 2D circular containment, area/circle intersection, clamping, and projection queries.
 - `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`: 3D containment, intersection, clamping, and projection queries.
 - `FixedPlane`, `FixedRay`: geometric primitives for plane classification and ray intersections.
 - `FixedCurve`, `FixedCurveKey`, `FixedRange`: interpolation and range helpers.

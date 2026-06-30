@@ -423,6 +423,14 @@ public class FixedBoundFrustumTests
         Assert.Equal(matrixFrustum.GetHashCode(), planeFrustum.GetHashCode());
     }
 
+    [Fact]
+    public void GetHashCode_UsesDeterministicPlaneOrder()
+    {
+        var frustum = new FixedBoundFrustum(CustomNear, CustomFar, CustomLeft, CustomRight, CustomTop, CustomBottom);
+
+        Assert.Equal(CombinePlaneHash(CustomNear, CustomFar, CustomLeft, CustomRight, CustomTop, CustomBottom), frustum.GetHashCode());
+    }
+
     private static FixedBoundFrustum CreateTransformedFrustum(Vector3d translation, Vector3d rotationDegrees, Vector3d scale)
     {
         Fixed4x4 translationMatrix = Fixed4x4.CreateTranslation(translation);
@@ -433,5 +441,26 @@ public class FixedBoundFrustumTests
         Fixed4x4 scaleMatrix = Fixed4x4.CreateScale(scale);
 
         return new FixedBoundFrustum(translationMatrix * rotationMatrix * scaleMatrix);
+    }
+
+    private static int CombinePlaneHash(
+        FixedPlane near,
+        FixedPlane far,
+        FixedPlane left,
+        FixedPlane right,
+        FixedPlane top,
+        FixedPlane bottom)
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = (hash * 31) + near.GetHashCode();
+            hash = (hash * 31) + far.GetHashCode();
+            hash = (hash * 31) + left.GetHashCode();
+            hash = (hash * 31) + right.GetHashCode();
+            hash = (hash * 31) + top.GetHashCode();
+            hash = (hash * 31) + bottom.GetHashCode();
+            return hash;
+        }
     }
 }
