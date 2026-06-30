@@ -1,9 +1,27 @@
-﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Attributes;
 using FixedMathSharp.Bounds;
 using System;
 using System.Collections.Generic;
 
 namespace FixedMathSharp.Benchmarks;
+
+/// <summary>
+/// Normalizes loop-style bounds benchmarks so BenchmarkDotNet reports one
+/// fixture operation instead of the whole sampled batch.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method)]
+internal sealed class SampledBenchmarkAttribute : BenchmarkAttribute
+{
+    public SampledBenchmarkAttribute()
+        : this(BenchmarkFixtures.SampleCount)
+    {
+    }
+
+    public SampledBenchmarkAttribute(int operationsPerInvoke)
+    {
+        OperationsPerInvoke = operationsPerInvoke;
+    }
+}
 
 [MemoryDiagnoser]
 public class BoundsBenchmarks
@@ -28,7 +46,7 @@ public class BoundsBenchmarks
     private readonly FixedRay[] _rays = CreateRays();
     private readonly FixedBoundSphere[] _spheres = CreateSpheres();
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 AreaConstructCenterSize()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -44,7 +62,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 AreaConstructMinMax()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -61,7 +79,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int AreaContainsPoint()
     {
         int count = 0;
@@ -74,7 +92,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int AreaIntersectsArea()
     {
         int count = 0;
@@ -87,7 +105,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int AreaIntersectsAreaStrict()
     {
         int count = 0;
@@ -100,7 +118,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector2d AreaClampPoint()
     {
         Vector2d accumulator = Vector2d.Zero;
@@ -110,7 +128,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark(BenchmarkFixtures.SampleCount - 1)]
     public FixedBoundArea AreaUnion()
     {
         FixedBoundArea accumulator = _areas[0];
@@ -120,7 +138,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int CircleContainsPoint()
     {
         int count = 0;
@@ -133,7 +151,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int CircleIntersectsCircle()
     {
         int count = 0;
@@ -146,7 +164,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int CircleIntersectsArea()
     {
         int count = 0;
@@ -159,7 +177,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector2d CircleClampPoint()
     {
         Vector2d accumulator = Vector2d.Zero;
@@ -169,7 +187,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector2d CircleProjectPoint()
     {
         Vector2d accumulator = Vector2d.Zero;
@@ -179,7 +197,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector2d Segment2dClosestPoint()
     {
         Vector2d accumulator = Vector2d.Zero;
@@ -189,7 +207,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 Segment2dDistanceSquared()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -199,7 +217,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector3d Segment3dClosestPoint()
     {
         Vector3d accumulator = Vector3d.Zero;
@@ -209,7 +227,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 Segment3dDistanceSquared()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -219,7 +237,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 Triangle2dArea()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -229,7 +247,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark(BenchmarkFixtures.SampleCount - 1)]
     public FixedBoundArea Triangle2dBounds()
     {
         FixedBoundArea accumulator = _triangles2d[0].Bounds;
@@ -239,7 +257,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int Triangle2dContainsPoint()
     {
         int count = 0;
@@ -252,7 +270,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector2d Triangle2dClosestPoint()
     {
         Vector2d accumulator = Vector2d.Zero;
@@ -262,7 +280,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector2d Triangle2dGetPoint()
     {
         Vector2d accumulator = Vector2d.Zero;
@@ -272,7 +290,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 Triangle2dBarycentricWeights()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -285,7 +303,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 Triangle3dArea()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -295,7 +313,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark(BenchmarkFixtures.SampleCount - 1)]
     public FixedBoundBox Triangle3dBounds()
     {
         FixedBoundBox accumulator = _triangles3d[0].Bounds;
@@ -305,7 +323,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int Triangle3dContainsPoint()
     {
         int count = 0;
@@ -318,7 +336,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector3d Triangle3dClosestPoint()
     {
         Vector3d accumulator = Vector3d.Zero;
@@ -328,7 +346,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector3d Triangle3dGetPoint()
     {
         Vector3d accumulator = Vector3d.Zero;
@@ -338,7 +356,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 Triangle3dProjectedBarycentricWeights()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -351,7 +369,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 Ray2dIntersectsArea()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -365,7 +383,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 Ray2dIntersectsCircle()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -379,7 +397,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 BoxConstructCenterSize()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -396,7 +414,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 BoxConstructMinMax()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -414,7 +432,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 BoxSetMinMax()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -428,7 +446,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int BoxContainsPoint()
     {
         int count = 0;
@@ -441,7 +459,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int BoxIntersectsBox()
     {
         int count = 0;
@@ -454,7 +472,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int BoxIntersectsSphere()
     {
         int count = 0;
@@ -467,7 +485,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector3d BoxClampPoint()
     {
         Vector3d accumulator = Vector3d.Zero;
@@ -477,7 +495,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector3d BoxGetCorner()
     {
         Vector3d accumulator = Vector3d.Zero;
@@ -487,7 +505,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector3d BoxCopyCorners()
     {
         Vector3d accumulator = Vector3d.Zero;
@@ -500,7 +518,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark(BenchmarkFixtures.SampleCount - 1)]
     public FixedBoundBox BoxUnion()
     {
         FixedBoundBox accumulator = _boxes[0];
@@ -510,7 +528,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int SphereContainsPoint()
     {
         int count = 0;
@@ -523,7 +541,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int SphereIntersectsSphere()
     {
         int count = 0;
@@ -536,7 +554,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int SphereIntersectsBox()
     {
         int count = 0;
@@ -549,7 +567,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector3d SphereClampPoint()
     {
         Vector3d accumulator = Vector3d.Zero;
@@ -559,7 +577,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public FixedBoundSphere SphereCreateFromBoundingBox()
     {
         FixedBoundSphere accumulator = _spheres[0];
@@ -587,7 +605,7 @@ public class BoundsBenchmarks
         return FixedBoundSphere.CreateFromPoints(EnumerateSpherePointCloud());
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public FixedBoundSphere SphereTransform()
     {
         FixedBoundSphere accumulator = _spheres[0];
@@ -597,7 +615,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int FrustumCreateFromMatrix()
     {
         int count = 0;
@@ -611,7 +629,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public long FrustumConstructOnly()
     {
         long accumulator = 0;
@@ -624,7 +642,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public long FrustumSetMatrix()
     {
         long accumulator = 0;
@@ -639,7 +657,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int FrustumContainsPoint()
     {
         int count = 0;
@@ -652,7 +670,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int FrustumIntersectsBox()
     {
         int count = 0;
@@ -665,7 +683,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int FrustumIntersectsSphere()
     {
         int count = 0;
@@ -678,7 +696,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 FrustumIntersectsRay()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -692,7 +710,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Vector3d FrustumGetCornersIntoArray()
     {
         Vector3d accumulator = Vector3d.Zero;
@@ -705,7 +723,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 FrustumGetPlanesIntoArray()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -718,7 +736,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 RayIntersectsBox()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -732,7 +750,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 RayIntersectsSphere()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -746,7 +764,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 RayIntersectsPlane()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -760,7 +778,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public Fixed64 PlaneDotCoordinate()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -770,7 +788,7 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int PlaneIntersectsBox()
     {
         int count = 0;
@@ -780,7 +798,7 @@ public class BoundsBenchmarks
         return count;
     }
 
-    [Benchmark]
+    [SampledBenchmark]
     public int PlaneIntersectsSphere()
     {
         int count = 0;

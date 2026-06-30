@@ -464,6 +464,7 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: `src/FixedMathSharp/Geometry/Bounds/FixedBoundCircle.cs`
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedRay.cs` only if ray semantics are inconsistent.
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedRay2d.cs`
+- Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 - Modify matching tests under `tests/FixedMathSharp.Tests/Geometry`.
 
 - [x] Audit every `Contains` and `Intersects` overload touched by this plan.
@@ -490,7 +491,8 @@ Verification completed:
 - `dotnet test FixedMathSharp.slnx --configuration Debug` passed.
 - `dotnet test FixedMathSharp.slnx --configuration Release` passed.
 - `dotnet test FixedMathSharp.slnx --configuration ReleaseLean` passed.
-- `dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i` completed all 64 bounds benchmarks. Relevant intersection rows remained allocation-free (`BoxIntersectsBox` 697.8 ns, `BoxIntersectsSphere` 5.39 us, `SphereIntersectsSphere` 5.65 us, `SphereIntersectsBox` 10.95 us, `CircleIntersectsCircle` 3.98 us, `CircleIntersectsArea` 3.90 us).
+- `dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i` completed all 64 bounds benchmarks before the benchmark-reporting fast-follow. Relevant intersection rows remained allocation-free as whole fixture-batch measurements (`BoxIntersectsBox` 697.8 ns, `BoxIntersectsSphere` 5.39 us, `SphereIntersectsSphere` 5.65 us, `SphereIntersectsBox` 10.95 us, `CircleIntersectsCircle` 3.98 us, `CircleIntersectsArea` 3.90 us).
+- Fast-follow benchmark cleanup added `SampledBenchmarkAttribute` so loop-style bounds benchmarks report per fixture operation through `OperationsPerInvoke`; point-cloud `CreateFromPoints` benchmarks intentionally remain end-to-end API measurements. Focused short-run verification passed with no managed allocation for sampled rows (`AreaIntersectsArea` 2.239 ns/op, `AreaIntersectsAreaStrict` 2.468 ns/op, `BoxIntersectsBox` 2.746 ns/op) and preserved `SphereCreateFromPointsArray` as an end-to-end 5.012 us row.
 
 Verification:
 
