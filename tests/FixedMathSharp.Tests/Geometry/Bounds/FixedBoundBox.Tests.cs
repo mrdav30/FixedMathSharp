@@ -363,6 +363,14 @@ public class FixedBoundBoxTests
     }
 
     [Fact]
+    public void GetHashCode_UsesDeterministicComponentHash()
+    {
+        var box = FixedBoundBox.FromMinMax(new Vector3d(-1, -2, -3), new Vector3d(3, 5, 7));
+
+        Assert.Equal(CombineVectorPairHash(box.Min, box.Max), box.GetHashCode());
+    }
+
+    [Fact]
     public void SetBoundingBox_KeepsSizeAndScopeInSync()
     {
         var box = FixedBoundBox.FromCenterAndSize(new Vector3d(0, 0, 0), new Vector3d(4, 4, 4));
@@ -703,4 +711,15 @@ public class FixedBoundBoxTests
 #endif
 
     #endregion
+
+    private static int CombineVectorPairHash(Vector3d min, Vector3d max)
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = (hash * 31) + min.StateHash;
+            hash = (hash * 31) + max.StateHash;
+            return hash;
+        }
+    }
 }

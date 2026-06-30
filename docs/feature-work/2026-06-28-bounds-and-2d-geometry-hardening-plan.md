@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development before production or test changes, and use superpowers:verification-before-completion before claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** In Progress - Phase 3 complete.
+**Status:** In Progress - Phase 4 complete.
 
 **Goal:** Make FixedMathSharp's bounds and planar geometry APIs explicit, allocation-free on hot paths, and reusable by Gravitas, GridForge, Trailblazer, and future deterministic LSF packages without pulling physics-specific behavior into the math layer.
 
@@ -16,10 +16,10 @@
 
 Gravitas now has first-class 2D, 3D, and mixed-dimension physics. That exposed several lower-stack geometry gaps:
 
-- The current `FixedBoundArea` is described as lightweight area math, but it stores `Vector3d` corners and overlaps heavily with `FixedBoundBox`.
+- The former 3D-shaped `FixedBoundArea` was described as lightweight area math, but it stored `Vector3d` corners and overlapped heavily with `FixedBoundBox`.
 - 3D callers that need volume bounds should use `FixedBoundBox`. Flat 3D footprints should be modeled by higher-level systems as a 2D area plus explicit layer or elevation state.
-- `FixedBoundBox` has a public `(center, size)` constructor, while common call sites also need explicit min/max construction. That makes new code harder to read and easier to misuse.
-- `FixedBoundBox.Vertices` hides a mutable cached `Vector3d[]` inside a struct, which is surprising for value semantics and allocates when callers only need corner enumeration.
+- The prior `FixedBoundBox` public `(center, size)` constructor made construction intent harder to read at call sites that needed explicit min/max or center/scope behavior.
+- The prior `FixedBoundBox.Vertices` property hid a mutable cached `Vector3d[]` inside a struct, which was surprising for value semantics and allocated when callers only needed corner enumeration.
 - There is no true `Vector2d`-based AABB/circle/segment/ray/triangle geometry layer for pure 2D packages to share.
 - Gravitas, GridForge, and Trailblazer should not duplicate planar math just because the current FixedMathSharp bounds surface is 3D-shaped.
 
@@ -141,13 +141,15 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 rg -n "FixedBoundArea\\b" src tests
 ```
 
-Expected after Phase 2: `rg` should find no production references to the old 3D `FixedBoundArea`. Test or benchmark references should exist only if they are intentionally waiting for the new 2D type in Phase 4.
+Expected after Phase 2 and before Phase 4: `rg` should find no production
+references to the old 3D `FixedBoundArea`. Test or benchmark references should
+exist only if they are intentionally waiting for the new 2D type in Phase 4.
 
 **Phase 2 Notes:**
 
 - The old 3D `FixedBoundArea` source and tests were deleted rather than kept as
-  compatibility wrappers. Live source/test references are clear; remaining
-  mentions are only this plan's future 2D area work.
+  compatibility wrappers. Phase 4 reintroduced `FixedBoundArea` as a true
+  `Vector2d` AABB instead of preserving the old 3D semantics.
 - `FixedMathSharp.Chronicler.WriteBoundArea` was removed with the old 3D area.
   The companion package should add a new deterministic `Vector2d` area hash
   writer in Phase 4 when the replacement type exists.
@@ -195,14 +197,14 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: `tests/FixedMathSharp.Benchmarks/SerializationBenchmarks.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/Support/BenchmarkCatalog.cs` if needed.
 
-- [ ] Add a `FixedBoundArea` value type with `Vector2d Min`, `Vector2d Max`, `Vector2d Center`, `Vector2d Size`, and `Vector2d Scope`.
-- [ ] Add named factories: `FromMinMax`, `FromCenterAndSize`, and `FromCenterAndScope`.
-- [ ] Normalize min/max and extents consistently with the 3D bounds factories.
-- [ ] Add `Contains(Vector2d point)`, `Contains(FixedBoundArea area)`, `Intersects(FixedBoundArea area)`, `IntersectsStrict(FixedBoundArea area)`, `ClampPoint`, `ProjectPoint`, and `Union`.
-- [ ] Add `Deconstruct(out Vector2d min, out Vector2d max)` so consumers can unpack normalized bounds without reaching into internal storage.
-- [ ] Add Release and ReleaseLean compatible serialization attributes following existing bounds patterns.
-- [ ] Add tests for construction, normalization, boundary containment, strict vs inclusive intersection, union, clamp, projection, equality, hash behavior, JSON roundtrip, and MemoryPack roundtrip when MemoryPack is enabled.
-- [ ] Add benchmark cases for 2D construction, contains, intersects, union, clamp, and serialization.
+- [x] Add a `FixedBoundArea` value type with `Vector2d Min`, `Vector2d Max`, `Vector2d Center`, `Vector2d Size`, and `Vector2d Scope`.
+- [x] Add named factories: `FromMinMax`, `FromCenterAndSize`, and `FromCenterAndScope`.
+- [x] Normalize min/max and extents consistently with the 3D bounds factories.
+- [x] Add `Contains(Vector2d point)`, `Contains(FixedBoundArea area)`, `Intersects(FixedBoundArea area)`, `IntersectsStrict(FixedBoundArea area)`, `ClampPoint`, `ProjectPoint`, and `Union`.
+- [x] Add `Deconstruct(out Vector2d min, out Vector2d max)` so consumers can unpack normalized bounds without reaching into internal storage.
+- [x] Add Release and ReleaseLean compatible serialization attributes following existing bounds patterns.
+- [x] Add tests for construction, normalization, boundary containment, strict vs inclusive intersection, union, clamp, projection, equality, hash behavior, JSON roundtrip, and MemoryPack roundtrip when MemoryPack is enabled.
+- [x] Add benchmark cases for 2D construction, contains, intersects, union, clamp, and serialization.
 
 Verification:
 
@@ -210,6 +212,23 @@ Verification:
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedBoundAreaTests"
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i
 ```
+
+**Phase 4 Notes:**
+
+- `FixedBoundArea` is a true `Vector2d` AABB with mutable `Min`/`Max`
+  ownership, named factories, normalized state, and no 3D compatibility
+  surface.
+- The 2D API uses `Size` for total extent and `Scope` for half extent. A
+  `Proportions` alias was intentionally not added to avoid duplicate public
+  names for the same value.
+- `Contains(FixedBoundArea)` returns `FixedEnclosureType`, matching 3D bounds
+  classification. `Intersects` is boundary-inclusive; `IntersectsStrict`
+  requires positive area overlap on both axes.
+- `FixedMathSharp.Chronicler.WriteBoundArea` was restored for the new 2D area
+  shape and writes canonical `Min` then `Max` as `Vector2d` values.
+- Phase 4 also tightened `FixedBoundBox.GetHashCode()` away from
+  `HashCode.Combine` to an explicit deterministic component hash, matching the
+  new `FixedBoundArea` hash behavior.
 
 ## Phase 5: 2D Circle Bounds
 

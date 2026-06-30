@@ -8,6 +8,7 @@ namespace FixedMathSharp.Benchmarks;
 [MemoryDiagnoser]
 public class BoundsBenchmarks
 {
+    private readonly FixedBoundArea[] _areas = CreateAreas();
     private readonly FixedBoundBox[] _boxes = CreateBoxes();
     private readonly Vector3d[] _boxCornerBuffer = new Vector3d[FixedBoundBox.CornerCount];
     private readonly Vector3d[] _cornerBuffer = new Vector3d[FixedBoundFrustum.CornerCount];
@@ -16,9 +17,102 @@ public class BoundsBenchmarks
     private readonly FixedPlane[] _planeBuffer = new FixedPlane[FixedBoundFrustum.PlaneCount];
     private readonly FixedPlane[] _planes = CreatePlanes();
     private readonly Vector3d[] _points = BenchmarkFixtures.VectorsA;
+    private readonly Vector2d[] _points2d = BenchmarkFixtures.Vector2sA;
     private readonly Vector3d[] _spherePointCloud = CreateSpherePointCloud();
     private readonly FixedRay[] _rays = CreateRays();
     private readonly FixedBoundSphere[] _spheres = CreateSpheres();
+
+    [Benchmark]
+    public Fixed64 AreaConstructCenterSize()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _points2d.Length; i++)
+        {
+            Vector2d size = new(
+                Fixed64.One + Fixed64.FromFraction(i % 5, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 7, 8));
+            var area = FixedBoundArea.FromCenterAndSize(_points2d[i] * Fixed64.Quarter, size);
+            accumulator += area.Min.X + area.Max.Y;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 AreaConstructMinMax()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _points2d.Length; i++)
+        {
+            Vector2d min = _points2d[i] * Fixed64.Quarter;
+            Vector2d max = min + new Vector2d(
+                Fixed64.One + Fixed64.FromFraction(i % 5, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 7, 8));
+            var area = FixedBoundArea.FromMinMax(max, min);
+            accumulator += area.Min.X + area.Max.Y;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int AreaContainsPoint()
+    {
+        int count = 0;
+        for (int i = 0; i < _areas.Length; i++)
+        {
+            if (_areas[i].Contains(_points2d[i]))
+                count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
+    public int AreaIntersectsArea()
+    {
+        int count = 0;
+        for (int i = 0; i < _areas.Length; i++)
+        {
+            if (_areas[i].Intersects(_areas[(i + 1) & (BenchmarkFixtures.SampleCount - 1)]))
+                count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
+    public int AreaIntersectsAreaStrict()
+    {
+        int count = 0;
+        for (int i = 0; i < _areas.Length; i++)
+        {
+            if (_areas[i].IntersectsStrict(_areas[(i + 1) & (BenchmarkFixtures.SampleCount - 1)]))
+                count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
+    public Vector2d AreaClampPoint()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _areas.Length; i++)
+            accumulator += _areas[i].ClampPoint(_points2d[(i + 37) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public FixedBoundArea AreaUnion()
+    {
+        FixedBoundArea accumulator = _areas[0];
+        for (int i = 1; i < _areas.Length; i++)
+            accumulator = FixedBoundArea.Union(accumulator, _areas[i]);
+
+        return accumulator;
+    }
 
     [Benchmark]
     public Fixed64 BoxConstructCenterSize()
@@ -429,6 +523,22 @@ public class BoundsBenchmarks
             count += (int)_planes[i].Intersects(_spheres[i]);
 
         return count;
+    }
+
+    private static FixedBoundArea[] CreateAreas()
+    {
+        var areas = new FixedBoundArea[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < areas.Length; i++)
+        {
+            Vector2d center = BenchmarkFixtures.Vector2sA[i] * Fixed64.Quarter;
+            Vector2d half = new(
+                Fixed64.One + Fixed64.FromFraction(i % 5, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 7, 8));
+
+            areas[i] = FixedBoundArea.FromMinMax(center - half, center + half);
+        }
+
+        return areas;
     }
 
     private static FixedBoundBox[] CreateBoxes()

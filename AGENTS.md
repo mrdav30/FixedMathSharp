@@ -73,7 +73,7 @@ claims, serialization layout, or developer workflow changes:
 | [`src/FixedMathSharp/Numerics/Vectors`](src/FixedMathSharp/Numerics/Vectors) | `Vector2d`, `Vector3d`, `Vector4d`, and vector extensions | Watch coordinate-convention assumptions. |
 | [`src/FixedMathSharp/Numerics/Rotations`](src/FixedMathSharp/Numerics/Rotations) | `FixedQuaternion` and rotation helpers | High-risk for convention, normalization, and determinism changes. |
 | [`src/FixedMathSharp/Numerics/Matrices`](src/FixedMathSharp/Numerics/Matrices) | `Fixed3x3`, `Fixed4x4`, and matrix extensions | Keep transform storage and basis semantics explicit. |
-| [`src/FixedMathSharp/Geometry`](src/FixedMathSharp/Geometry) | Bounds and primitive geometry | Includes `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`, `FixedRay`, and `FixedPlane`. |
+| [`src/FixedMathSharp/Geometry`](src/FixedMathSharp/Geometry) | Bounds and primitive geometry | Includes 2D `FixedBoundArea`, 3D `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`, `FixedRay`, and `FixedPlane`. |
 | [`src/FixedMathSharp.FluentAssertions`](src/FixedMathSharp.FluentAssertions) | Test assertion helpers package | Keep helpers aligned with core API semantics. |
 | [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests) | xUnit v3 test project | Add focused deterministic, edge-case, serialization, and regression coverage. |
 | [`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks) | BenchmarkDotNet project | Experimental performance lab and showcase for hot-path wins. |

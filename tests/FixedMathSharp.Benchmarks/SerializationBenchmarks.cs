@@ -24,6 +24,7 @@ public class SerializationBenchmarks
     private readonly FixedQuaternion[] _quaternions = BenchmarkFixtures.RotationsA;
     private readonly Fixed3x3[] _matrix3s = BenchmarkFixtures.Matrix3s;
     private readonly Fixed4x4[] _matrix4s = BenchmarkFixtures.Matrices;
+    private readonly FixedBoundArea[] _areas = CreateAreas();
     private readonly FixedBoundBox[] _boxes = CreateBoxes();
     private readonly FixedBoundSphere[] _spheres = CreateSpheres();
     private readonly FixedCurve[] _curves = BenchmarkFixtures.CubicCurves;
@@ -73,6 +74,7 @@ public class SerializationBenchmarks
         int bytes = 0;
         for (int i = 0; i < _boxes.Length; i++)
         {
+            bytes += MemoryPackSerializer.Serialize(_areas[i]).Length;
             bytes += MemoryPackSerializer.Serialize(_boxes[i]).Length;
             bytes += MemoryPackSerializer.Serialize(_spheres[i]).Length;
             bytes += MemoryPackSerializer.Serialize(_curves[i]).Length;
@@ -139,6 +141,7 @@ public class SerializationBenchmarks
         int bytes = 0;
         for (int i = 0; i < _boxes.Length; i++)
         {
+            bytes += JsonSerializer.SerializeToUtf8Bytes(_areas[i], JsonOptions).Length;
             bytes += JsonSerializer.SerializeToUtf8Bytes(_boxes[i], JsonOptions).Length;
             bytes += JsonSerializer.SerializeToUtf8Bytes(_spheres[i], JsonOptions).Length;
             bytes += JsonSerializer.SerializeToUtf8Bytes(_curves[i], JsonOptions).Length;
@@ -199,6 +202,17 @@ public class SerializationBenchmarks
         return bytes;
     }
 #endif
+
+    private static FixedBoundArea[] CreateAreas()
+    {
+        var areas = new FixedBoundArea[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < areas.Length; i++)
+            areas[i] = FixedBoundArea.FromCenterAndSize(BenchmarkFixtures.Vector2sA[i], new Vector2d(
+                Fixed64.One + Fixed64.FromFraction((i % 7) + 1, 16),
+                Fixed64.One + Fixed64.FromFraction((i % 5) + 1, 16)));
+
+        return areas;
+    }
 
     private static FixedBoundBox[] CreateBoxes()
     {

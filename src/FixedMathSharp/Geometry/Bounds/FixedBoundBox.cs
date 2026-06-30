@@ -555,7 +555,16 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
         => Min.Equals(other.Min) && Max.Equals(other.Max);
 
     /// <inheritdoc/>
-    public override int GetHashCode() => HashCode.Combine(Min, Max);
+    public override int GetHashCode()
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = (hash * 31) + Min.StateHash;
+            hash = (hash * 31) + Max.StateHash;
+            return hash;
+        }
+    }
 
     #endregion
 }

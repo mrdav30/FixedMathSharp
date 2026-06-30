@@ -100,6 +100,9 @@ public sealed class FixedMathChronicleHashWriterExtensionsTests
     [Fact]
     public void GeometryWriters_UseCanonicalDeterministicFields()
     {
+        var area = FixedBoundArea.FromCenterAndSize(
+            new Vector2d(Raw(5), Raw(6)),
+            new Vector2d(Raw(2), Raw(4)));
         var box = FixedBoundBox.FromCenterAndSize(
             new Vector3d(Raw(10), Raw(20), Raw(30)),
             new Vector3d(Raw(8), Raw(10), Raw(12)));
@@ -109,6 +112,9 @@ public sealed class FixedMathChronicleHashWriterExtensionsTests
             new Vector3d(Raw(34), Raw(35), Raw(36)));
         var plane = new FixedPlane(new Vector3d(Raw(41), Raw(42), Raw(43)), Raw(44));
 
+        Assert.Equal(
+            HashVector2Pair(area.Min, area.Max),
+            Hash((ref ChronicleHashWriter writer) => writer.WriteBoundArea(area)));
         Assert.Equal(
             HashVector3Pair(box.Min, box.Max),
             Hash((ref ChronicleHashWriter writer) => writer.WriteBoundBox(box)));
@@ -130,6 +136,9 @@ public sealed class FixedMathChronicleHashWriterExtensionsTests
             new Vector3d(Raw(1), Raw(2), Raw(3)),
             FixedQuaternion.Identity,
             new Vector3d(Raw(4), Raw(5), Raw(6)));
+        var area = FixedBoundArea.FromCenterAndSize(
+            new Vector2d(Raw(5), Raw(6)),
+            new Vector2d(Raw(2), Raw(4)));
         var box = FixedBoundBox.FromCenterAndSize(
             new Vector3d(Raw(7), Raw(8), Raw(9)),
             new Vector3d(Raw(2), Raw(4), Raw(6)));
@@ -142,7 +151,7 @@ public sealed class FixedMathChronicleHashWriterExtensionsTests
         for (int i = 0; i < 512; i++)
         {
             var warmup = new ChronicleHashWriter();
-            WriteAll(ref warmup, transform, box, sphere, ray, plane);
+            WriteAll(ref warmup, transform, area, box, sphere, ray, plane);
             _ = warmup.ToHash();
         }
 
@@ -150,7 +159,7 @@ public sealed class FixedMathChronicleHashWriterExtensionsTests
         for (int i = 0; i < 4096; i++)
         {
             var writer = new ChronicleHashWriter();
-            WriteAll(ref writer, transform, box, sphere, ray, plane);
+            WriteAll(ref writer, transform, area, box, sphere, ray, plane);
             _ = writer.ToHash();
         }
 
@@ -178,6 +187,16 @@ public sealed class FixedMathChronicleHashWriterExtensionsTests
         return writer.ToHash();
     }
 
+    private static ChronicleHash HashVector2Pair(Vector2d first, Vector2d second)
+    {
+        var writer = new ChronicleHashWriter();
+        writer.WriteInt64(first.X.m_rawValue);
+        writer.WriteInt64(first.Y.m_rawValue);
+        writer.WriteInt64(second.X.m_rawValue);
+        writer.WriteInt64(second.Y.m_rawValue);
+        return writer.ToHash();
+    }
+
     private static ChronicleHash HashVector3Pair(Vector3d first, Vector3d second)
     {
         var writer = new ChronicleHashWriter();
@@ -193,6 +212,7 @@ public sealed class FixedMathChronicleHashWriterExtensionsTests
     private static void WriteAll(
         ref ChronicleHashWriter writer,
         FixedTransform transform,
+        FixedBoundArea area,
         FixedBoundBox box,
         FixedBoundSphere sphere,
         FixedRay ray,
@@ -206,6 +226,7 @@ public sealed class FixedMathChronicleHashWriterExtensionsTests
         writer.WriteTransform(transform);
         writer.WriteFixed3x3(Fixed3x3.Identity);
         writer.WriteFixed4x4(Fixed4x4.Identity);
+        writer.WriteBoundArea(area);
         writer.WriteBoundBox(box);
         writer.WriteBoundSphere(sphere);
         writer.WriteRay(ray);

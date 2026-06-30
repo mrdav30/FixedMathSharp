@@ -112,6 +112,15 @@ public static class FixedMathChronicleHashWriterExtensions
     }
 
     /// <summary>
+    /// Writes a 2D bounding area by canonical minimum then maximum corners.
+    /// </summary>
+    public static void WriteBoundArea(this ref global::Chronicler.ChronicleHashWriter writer, FixedBoundArea value)
+    {
+        writer.WriteVector2d(value.Min);
+        writer.WriteVector2d(value.Max);
+    }
+
+    /// <summary>
     /// Writes a bounding box by canonical minimum then maximum corners.
     /// </summary>
     public static void WriteBoundBox(this ref global::Chronicler.ChronicleHashWriter writer, FixedBoundBox value)
