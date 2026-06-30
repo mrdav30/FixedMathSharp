@@ -12,6 +12,7 @@ public class BoundsBenchmarks
     private readonly FixedBoundBox[] _boxes = CreateBoxes();
     private readonly FixedBoundCircle[] _circles = CreateCircles();
     private readonly FixedSegment2d[] _segments2d = CreateSegments2d();
+    private readonly FixedSegment3d[] _segments3d = CreateSegments3d();
     private readonly Vector3d[] _boxCornerBuffer = new Vector3d[FixedBoundBox.CornerCount];
     private readonly Vector3d[] _cornerBuffer = new Vector3d[FixedBoundFrustum.CornerCount];
     private readonly FixedBoundFrustum[] _frustums = CreateFrustums();
@@ -192,6 +193,26 @@ public class BoundsBenchmarks
         Fixed64 accumulator = Fixed64.Zero;
         for (int i = 0; i < _segments2d.Length; i++)
             accumulator += _segments2d[i].DistanceSquared(_points2d[(i + 53) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d Segment3dClosestPoint()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _segments3d.Length; i++)
+            accumulator += _segments3d[i].ClosestPoint(_points[(i + 37) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 Segment3dDistanceSquared()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _segments3d.Length; i++)
+            accumulator += _segments3d[i].DistanceSquared(_points[(i + 53) & (BenchmarkFixtures.SampleCount - 1)]);
 
         return accumulator;
     }
@@ -696,6 +717,28 @@ public class BoundsBenchmarks
                 delta.X = -delta.X;
 
             segments[i] = new FixedSegment2d(start, start + delta);
+        }
+
+        return segments;
+    }
+
+    private static FixedSegment3d[] CreateSegments3d()
+    {
+        var segments = new FixedSegment3d[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < segments.Length; i++)
+        {
+            Vector3d start = BenchmarkFixtures.VectorsA[i] * Fixed64.Quarter;
+            Vector3d delta = new(
+                Fixed64.One + Fixed64.FromFraction(i % 5, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 7, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 3, 8));
+
+            if ((i & 1) != 0)
+                delta.X = -delta.X;
+            if ((i & 2) != 0)
+                delta.Z = -delta.Z;
+
+            segments[i] = new FixedSegment3d(start, start + delta);
         }
 
         return segments;

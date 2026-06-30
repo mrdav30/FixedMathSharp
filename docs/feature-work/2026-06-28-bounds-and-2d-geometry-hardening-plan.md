@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development before production or test changes, and use superpowers:verification-before-completion before claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** In Progress - Phase 6 complete.
+**Status:** In Progress - Phase 6b complete.
 
-**Goal:** Make FixedMathSharp's bounds and planar geometry APIs explicit, allocation-free on hot paths, and reusable by Gravitas, GridForge, Trailblazer, and future deterministic LSF packages without pulling physics-specific behavior into the math layer.
+**Goal:** Make FixedMathSharp's bounds and geometry APIs explicit, allocation-free on hot paths, and reusable by Gravitas, GridForge, Trailblazer, and future deterministic LSF packages without pulling physics-specific behavior into the math layer.
 
-**Architecture:** Split dimensional ownership cleanly: `FixedBoundBox` owns 3D AABB behavior, while `FixedBoundArea` becomes a true `Vector2d` AABB. Remove the old 3D `FixedBoundArea` meaning instead of patching it with more 3D parity. Add 2D circle, segment, ray, and triangle primitives around the new area type, and remove hidden mutable array state from 3D bounds structs.
+**Architecture:** Split dimensional ownership cleanly: `FixedBoundBox` owns 3D AABB behavior, while `FixedBoundArea` becomes a true `Vector2d` AABB. Remove the old 3D `FixedBoundArea` meaning instead of patching it with more 3D parity. Add 2D circle, segment, ray, and triangle primitives around the new area type, add explicit 3D segment parity for shared spatial math, and remove hidden mutable array state from 3D bounds structs.
 
 **Tech Stack:** `netstandard2.1`, `net8.0`, `Fixed64`, `Vector2d`, `Vector3d`, MemoryPack standard package support, ReleaseLean shims, xUnit v3, BenchmarkDotNet.
 
@@ -21,6 +21,7 @@ Gravitas now has first-class 2D, 3D, and mixed-dimension physics. That exposed s
 - The prior `FixedBoundBox` public `(center, size)` constructor made construction intent harder to read at call sites that needed explicit min/max or center/scope behavior.
 - The prior `FixedBoundBox.Vertices` property hid a mutable cached `Vector3d[]` inside a struct, which was surprising for value semantics and allocated when callers only needed corner enumeration.
 - There is no true `Vector2d`-based AABB/circle/segment/ray/triangle geometry layer for pure 2D packages to share.
+- There is no explicit 3D segment primitive even though `Vector3d` already owns useful segment projection helpers.
 - Gravitas, GridForge, and Trailblazer should not duplicate planar math just because the current FixedMathSharp bounds surface is 3D-shaped.
 
 ## Design Rules
@@ -43,6 +44,7 @@ Gravitas now has first-class 2D, 3D, and mixed-dimension physics. That exposed s
 - A `FixedBoundTriangle` name that implies a triangle is an axis-aligned bound. Use `FixedTriangle2d` for triangle geometry.
 - Hidden array caches in structs. They behave poorly under copies and are easy to mutate through public accessors.
 - 2D APIs that accidentally mean X/Z, Y-up, screen-space, or engine-space. FixedMathSharp 2D geometry is plain `Vector2d` plane math.
+- A 3D segment API that duplicates or subtly diverges from `Vector3d.ClosestPointOnLineSegment(...)`.
 - Intersection semantics that differ silently between area, box, circle, sphere, ray, and triangle types.
 
 ## Phase 1: Inventory And Guardrail Tests
@@ -338,6 +340,47 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   `Segment2dDistanceSquared` 15.95 us, `Ray2dIntersectsArea` 31.26 us, and
   `Ray2dIntersectsCircle` 12.18 us.
 
+## Phase 6b: 3D Segment Primitive
+
+**Files:**
+
+- Create: `src/FixedMathSharp/Geometry/Primitives/FixedSegment3d.cs`
+- Create: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedSegment3d.Tests.cs`
+- Modify: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs` only if existing segment-helper coverage needs naming or edge-case cleanup.
+- Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs` or `tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs` for segment primitive benchmark coverage.
+
+- [x] Add `FixedSegment3d` with `Start`, `End`, `Delta`, `Length`, `LengthSquared`, `Bounds`, `ClosestPoint(Vector3d point)`, and `DistanceSquared(Vector3d point)`.
+- [x] Use `FixedBoundBox.FromMinMax(Start, End)` for `Bounds` so reversed endpoints produce normalized 3D AABB coverage without resurrecting 3D `FixedBoundArea`.
+- [x] Delegate closest-point projection to the existing `Vector3d.ClosestPointOnLineSegment(...)` helper so 3D segment primitive behavior stays aligned with current `Vector3d` math.
+- [x] Preserve ordered endpoint equality and deconstruction. Reversed endpoints should have the same `Bounds` but should not compare equal unless a measured caller needs unordered segment identity.
+- [x] Guard zero-length segments with explicit deterministic behavior: `ClosestPoint(point)` returns `Start`, `Length` and `LengthSquared` are zero, and `DistanceSquared(point)` equals squared point-to-start distance.
+- [x] Add JSON and MemoryPack roundtrip tests following `FixedSegment2d` and `FixedRay` primitive patterns.
+- [x] Add tests for horizontal, vertical, depth-axis, diagonal, reversed, zero-length, bounds, equality/hash, deconstruction, and serialization behavior.
+- [x] Add benchmark coverage for `FixedSegment3d.ClosestPoint` and `FixedSegment3d.DistanceSquared`. Keep the benchmark fixture deterministic and allocation-free after setup.
+
+Verification:
+
+```bash
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedSegment3dTests|FullyQualifiedName~Vector3dTests"
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds --filter "*Segment3d*" -j Short -i
+```
+
+**Phase 6b Notes:**
+
+- `FixedSegment3d` mirrors the 2D segment value model with ordered endpoints,
+  derived length data, normalized `FixedBoundBox` coverage, deconstruction,
+  deterministic equality/hash behavior, and JSON/MemoryPack-compatible state.
+- Closest-point projection is intentionally delegated to
+  `Vector3d.ClosestPointOnLineSegment(...)` so the primitive does not fork
+  lower-level segment math. Zero-length segments inherit the existing
+  deterministic `Start` fallback and are covered through the primitive tests.
+- Existing `Vector3d` segment helper tests did not need changes; the focused
+  Phase 6b test run covered both `FixedSegment3dTests` and `Vector3dTests`.
+- Short in-process benchmark rows completed with no managed allocation in the
+  summary: `Segment3dClosestPoint` 18.75 us and
+  `Segment3dDistanceSquared` 22.31 us.
+
 ## Phase 7: 2D Triangle Primitive
 
 **Files:**
@@ -398,7 +441,7 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 - Review after package release: GridForge blocker and traversal call sites.
 - Review after package release: Trailblazer path, steering, or controller call sites.
 
-- [ ] Document the public geometry model: 3D `FixedBoundBox`, 3D `FixedBoundSphere`, 2D `FixedBoundArea`, 2D `FixedBoundCircle`, `FixedSegment2d`, `FixedRay2d`, and `FixedTriangle2d`.
+- [ ] Document the public geometry model: 3D `FixedBoundBox`, 3D `FixedBoundSphere`, `FixedSegment3d`, 2D `FixedBoundArea`, 2D `FixedBoundCircle`, `FixedSegment2d`, `FixedRay2d`, and `FixedTriangle2d`.
 - [ ] Document named factory usage and remove examples that call ambiguous constructors.
 - [ ] Document boundary semantics for inclusive and strict intersection methods.
 - [ ] Document that flat world footprints should be represented as `FixedBoundArea` plus explicit layer/elevation state in higher-level packages, not as a 3D area in FixedMathSharp.
@@ -438,12 +481,12 @@ GridForge:
 Trailblazer:
 
 - Planar path footprints, avoidance radii, steering bounds, and character-controller support casts should prefer `FixedBoundArea`, `FixedBoundCircle`, `FixedSegment2d`, and `FixedRay2d`.
-- Any future 3D controller volume should use `FixedBoundBox`, not a resurrected 3D area type.
+- Any future 3D controller volume should use `FixedBoundBox`, not a resurrected 3D area type. 3D path probes, ledge traces, and steering/debug line math should prefer `FixedSegment3d` where a finite segment is the actual domain object.
 
 ## Recommended First Implementation Slice
 
 Start with Phases 1 through 3 as one reviewable 3D cleanup slice. That locks down current 3D behavior, introduces explicit `FixedBoundBox` factories, removes old 3D `FixedBoundArea`, and removes the allocation-prone `FixedBoundBox.Vertices` shape before new 2D APIs are layered on top.
 
-Then implement Phases 4 through 7 as true planar geometry. These phases are independent enough to review by type, but they should ship together if Gravitas, GridForge, or Trailblazer is waiting on a coherent 2D geometry surface.
+Then implement Phases 4 through 7 as true planar geometry, with Phase 6b as the adjacent 3D segment parity pass. These phases are independent enough to review by type, but they should ship together if Gravitas, GridForge, or Trailblazer is waiting on a coherent geometry surface.
 
 Finish with Phase 8 and Phase 9 as a semantics and validation pass. The final package should leave downstream consumers with clearer APIs, fewer local geometry helpers, and no ambiguity about boundary-touch behavior.
