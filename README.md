@@ -246,7 +246,7 @@ See [`tests/FixedMathSharp.Benchmarks/README.md`](tests/FixedMathSharp.Benchmark
 
 ## Compatibility
 
-Upgrading from v4.x? See the [v5 migration guide](docs/MIGRATION.md).
+Upgrading to a major release? See the [migration guide](docs/MIGRATION.md).
 
 - .NET Standard 2.1
 - .NET 8
