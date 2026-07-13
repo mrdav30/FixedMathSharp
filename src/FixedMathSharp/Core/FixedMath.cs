@@ -200,6 +200,21 @@ namespace FixedMathSharp
         public static Fixed64 Min(Fixed64 a, Fixed64 b) => a < b ? a : b;
 
         /// <summary>
+        /// Returns the arithmetic midpoint of two fixed-point values without intermediate overflow.
+        /// </summary>
+        /// <remarks>
+        /// A midpoint exactly between two raw Q32.32 values is rounded to the nearest even raw value.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 Midpoint(Fixed64 left, Fixed64 right)
+        {
+            long floor = (left.m_rawValue & right.m_rawValue)
+                + ((left.m_rawValue ^ right.m_rawValue) >> 1);
+            long tieToEvenCorrection = (left.m_rawValue ^ right.m_rawValue) & floor & 1L;
+            return Fixed64.FromRaw(floor + tieToEvenCorrection);
+        }
+
+        /// <summary>
         /// Rounds a fixed-point number to the nearest integral value, based on the specified rounding mode.
         /// </summary>
         public static Fixed64 Round(Fixed64 value, MidpointRounding mode = MidpointRounding.ToEven)

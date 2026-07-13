@@ -76,6 +76,16 @@ public class Vector4dBenchmarks
     }
 
     [Benchmark]
+    public Vector4d Midpoint()
+    {
+        Vector4d accumulator = Vector4d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector4d.Midpoint(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
     public Vector4d MultiplyStatic()
     {
         Vector4d accumulator = Vector4d.Zero;

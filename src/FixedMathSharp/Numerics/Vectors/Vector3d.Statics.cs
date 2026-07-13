@@ -307,7 +307,7 @@ public partial struct Vector3d
     /// <returns>The midpoint vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Midpoint(Vector3d v1, Vector3d v2) =>
-        new((v1.X + v2.X) * Fixed64.Half, (v1.Y + v2.Y) * Fixed64.Half, (v1.Z + v2.Z) * Fixed64.Half);
+        new(FixedMath.Midpoint(v1.X, v2.X), FixedMath.Midpoint(v1.Y, v2.Y), FixedMath.Midpoint(v1.Z, v2.Z));
 
     /// <inheritdoc cref="Distance(Fixed64, Fixed64, Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -754,6 +754,26 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void Midpoint_WithExtremeAndRawTieComponents_DoesNotSaturateBeforeHalving()
+    {
+        var left = new Vector3d(
+            Fixed64.MaxValue,
+            Fixed64.MinValue,
+            Fixed64.FromRaw(1));
+        var right = new Vector3d(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.FromRaw(2));
+
+        Vector3d result = Vector3d.Midpoint(left, right);
+
+        Assert.Equal(new Vector3d(
+            Fixed64.MaxValue,
+            Fixed64.Zero,
+            Fixed64.FromRaw(2)), result);
+    }
+
+    [Fact]
     public void ClosestPointsOnTwoLines_NonParallelSegments()
     {
         var line1Start = new Vector3d(0, 0, 0);

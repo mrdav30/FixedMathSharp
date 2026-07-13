@@ -242,6 +242,29 @@ public class Vector4dTests
     }
 
     [Fact]
+    public void Midpoint_WithExtremeAndRawTieComponents_DoesNotSaturateBeforeHalving()
+    {
+        var left = new Vector4d(
+            Fixed64.MaxValue,
+            Fixed64.MinValue,
+            Fixed64.FromRaw(1),
+            Fixed64.FromRaw(-2));
+        var right = new Vector4d(
+            Fixed64.MaxValue,
+            Fixed64.MinValue,
+            Fixed64.FromRaw(2),
+            Fixed64.FromRaw(-1));
+
+        Vector4d result = Vector4d.Midpoint(left, right);
+
+        Assert.Equal(new Vector4d(
+            Fixed64.MaxValue,
+            Fixed64.MinValue,
+            Fixed64.FromRaw(2),
+            Fixed64.FromRaw(-2)), result);
+    }
+
+    [Fact]
     public void MatrixOperator_FromVectorSide_DelegatesToMatrixTransform()
     {
         var matrix = Fixed4x4.CreateScale(new Vector3d(2, 3, 4));

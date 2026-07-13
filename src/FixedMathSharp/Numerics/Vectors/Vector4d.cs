@@ -594,10 +594,10 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector4d Midpoint(Vector4d v1, Vector4d v2) =>
-        new((v1.X + v2.X) * Fixed64.Half,
-            (v1.Y + v2.Y) * Fixed64.Half,
-            (v1.Z + v2.Z) * Fixed64.Half,
-            (v1.W + v2.W) * Fixed64.Half);
+        new(FixedMath.Midpoint(v1.X, v2.X),
+            FixedMath.Midpoint(v1.Y, v2.Y),
+            FixedMath.Midpoint(v1.Z, v2.Z),
+            FixedMath.Midpoint(v1.W, v2.W));
 
     /// <inheritdoc cref="Distance(Fixed64, Fixed64, Fixed64, Fixed64)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

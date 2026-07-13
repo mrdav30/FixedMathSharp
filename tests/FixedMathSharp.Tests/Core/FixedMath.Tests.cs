@@ -149,6 +149,26 @@ public class FixedMathTests
 
     #endregion
 
+    #region Test: Midpoint Method
+
+    [Theory]
+    [InlineData(long.MaxValue, long.MaxValue, long.MaxValue)]
+    [InlineData(long.MinValue, long.MinValue, long.MinValue)]
+    [InlineData(long.MinValue, long.MaxValue, 0L)]
+    [InlineData(1L, 2L, 2L)]
+    [InlineData(2L, 3L, 2L)]
+    [InlineData(-2L, -1L, -2L)]
+    [InlineData(-3L, -2L, -2L)]
+    public void Midpoint_ExtremesAndRawTies_ReturnsNearestEven(long leftRaw, long rightRaw, long expectedRaw)
+    {
+        Fixed64 result = FixedMath.Midpoint(Fixed64.FromRaw(leftRaw), Fixed64.FromRaw(rightRaw));
+
+        Assert.Equal(Fixed64.FromRaw(expectedRaw), result);
+        Assert.Equal(result, FixedMath.Midpoint(Fixed64.FromRaw(rightRaw), Fixed64.FromRaw(leftRaw)));
+    }
+
+    #endregion
+
     #region Test: Round Method (Without Decimal Places)
 
     [Fact]

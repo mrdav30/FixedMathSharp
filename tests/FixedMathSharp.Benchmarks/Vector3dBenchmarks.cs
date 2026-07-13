@@ -78,6 +78,16 @@ public class Vector3dBenchmarks
     }
 
     [Benchmark]
+    public Vector3d Midpoint()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += Vector3d.Midpoint(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
     public Vector3d MultiplyStatic()
     {
         Vector3d accumulator = Vector3d.Zero;
