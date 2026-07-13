@@ -66,6 +66,33 @@ public class FixedRayTests
         Assert.Equal(new Fixed64(4), diagonal.Intersects(box));
     }
 
+    [Theory]
+    [InlineData(1L)]
+    [InlineData(-1L)]
+    public void Intersects_BoundingBox_TreatsOneRawDirectionAsMotion(long rawDirection)
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1);
+        Fixed64 positionX = rawDirection > 0 ? -oneRaw : Fixed64.One + oneRaw;
+        var box = FixedBoundBox.FromMinMax(Vector3d.Zero, Vector3d.One);
+        var ray = new FixedRay(
+            new Vector3d(positionX, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.FromRaw(rawDirection), Fixed64.One, Fixed64.Zero));
+
+        Assert.Equal(Fixed64.One, ray.Intersects(box));
+    }
+
+    [Fact]
+    public void Intersects_BoundingBox_ZeroDirectionOutsideSlabReturnsNull()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1);
+        var box = FixedBoundBox.FromMinMax(Vector3d.Zero, Vector3d.One);
+        var ray = new FixedRay(
+            new Vector3d(-oneRaw, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.Zero, Fixed64.One, Fixed64.Zero));
+
+        Assert.Null(ray.Intersects(box));
+    }
+
     [Fact]
     public void Intersects_BoundingBox_ReturnsZeroWhenRayStartsInside()
     {

@@ -39,6 +39,33 @@ public class FixedRay2dTests
         Assert.Equal(new Fixed64(2), diagonal.Intersects(area));
     }
 
+    [Theory]
+    [InlineData(1L)]
+    [InlineData(-1L)]
+    public void Intersects_Area_TreatsOneRawDirectionAsMotion(long rawDirection)
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1);
+        Fixed64 positionX = rawDirection > 0 ? -oneRaw : Fixed64.One + oneRaw;
+        var area = FixedBoundArea.FromMinMax(Vector2d.Zero, Vector2d.One);
+        var ray = new FixedRay2d(
+            new Vector2d(positionX, Fixed64.Zero),
+            new Vector2d(Fixed64.FromRaw(rawDirection), Fixed64.One));
+
+        Assert.Equal(Fixed64.One, ray.Intersects(area));
+    }
+
+    [Fact]
+    public void Intersects_Area_ZeroDirectionOutsideSlabReturnsNull()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1);
+        var area = FixedBoundArea.FromMinMax(Vector2d.Zero, Vector2d.One);
+        var ray = new FixedRay2d(
+            new Vector2d(-oneRaw, Fixed64.Zero),
+            new Vector2d(Fixed64.Zero, Fixed64.One));
+
+        Assert.Null(ray.Intersects(area));
+    }
+
     [Fact]
     public void Intersects_Area_ReturnsZeroWhenRayStartsInsideOrOnBoundary()
     {

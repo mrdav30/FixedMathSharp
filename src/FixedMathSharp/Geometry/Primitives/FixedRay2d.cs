@@ -126,7 +126,7 @@ public partial struct FixedRay2d : IEquatable<FixedRay2d>
         ref Fixed64 tMin,
         ref Fixed64 tMax)
     {
-        if (IsNearlyZero(direction))
+        if (direction == Fixed64.Zero)
             return position >= min && position <= max;
 
         Fixed64 t1 = (min - position) / direction;
@@ -142,12 +142,6 @@ public partial struct FixedRay2d : IEquatable<FixedRay2d>
             tMax = t2;
 
         return tMin <= tMax;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool IsNearlyZero(Fixed64 value)
-    {
-        return value.Abs() <= Fixed64.Epsilon;
     }
 
     #endregion
