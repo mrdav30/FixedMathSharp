@@ -39,11 +39,11 @@ FixedBoundArea area = FixedBoundArea.FromMinMax(
 
 Migrate old 3D area usage by intent:
 
-| v5.x usage | v6.x replacement |
-| --- | --- |
-| 3D volume, collider, frustum, ray, or plane bounds | `FixedBoundBox` |
-| Flat footprint in a 3D world | `FixedBoundArea` plus explicit layer, height, or elevation state in the consuming package |
-| Pure 2D area query or broad-phase bounds | `FixedBoundArea` |
+| v5.x usage                                         | v6.x replacement                                                                          |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 3D volume, collider, frustum, ray, or plane bounds | `FixedBoundBox`                                                                           |
+| Flat footprint in a 3D world                       | `FixedBoundArea` plus explicit layer, height, or elevation state in the consuming package |
+| Pure 2D area query or broad-phase bounds           | `FixedBoundArea`                                                                          |
 
 There is no 3D `FixedBoundArea` compatibility layer. That is intentional: a 3D
 area was ambiguous beside `FixedBoundBox`, and higher-level packages should own
@@ -70,8 +70,8 @@ Fixed64? planarHit = ray2d.Intersects(area);
 ## FixedBoundBox Construction
 
 The public `FixedBoundBox(Vector3d center, Vector3d size)` constructor was
-removed because call sites could not tell whether two vectors meant
-center/size, center/scope, or min/max. Use named factories:
+removed because call sites could not tell whether two vectors meant center/size,
+center/scope, or min/max. Use named factories:
 
 ```csharp
 // v5.x
@@ -166,15 +166,15 @@ payloads:
 v6.x adds reusable deterministic geometry primitives that downstream packages
 can use instead of local one-off structs:
 
-| Domain | New type | Main use |
-| --- | --- | --- |
-| 2D area bounds | `FixedBoundArea` | Planar AABB, clamp/project, union, area overlap |
-| 2D circular bounds | `FixedBoundCircle` | Radius queries, circle/area overlap, projection |
-| 2D rays | `FixedRay2d` | Planar ray against area/circle |
-| 2D segments | `FixedSegment2d` | Finite edge, closest point, distance, bounds |
-| 2D triangles | `FixedTriangle2d` | Area, bounds, containment, closest point, barycentric weights |
-| 3D segments | `FixedSegment` | Finite 3D edge, closest point, distance, bounds |
-| 3D triangles | `FixedTriangle` | Normal, area, bounds, containment, closest point, projected barycentric weights |
+| Domain             | New type           | Main use                                                                        |
+| ------------------ | ------------------ | ------------------------------------------------------------------------------- |
+| 2D area bounds     | `FixedBoundArea`   | Planar AABB, clamp/project, union, area overlap                                 |
+| 2D circular bounds | `FixedBoundCircle` | Radius queries, circle/area overlap, projection                                 |
+| 2D rays            | `FixedRay2d`       | Planar ray against area/circle                                                  |
+| 2D segments        | `FixedSegment2d`   | Finite edge, closest point, distance, bounds                                    |
+| 2D triangles       | `FixedTriangle2d`  | Area, bounds, containment, closest point, barycentric weights                   |
+| 3D segments        | `FixedSegment`     | Finite 3D edge, closest point, distance, bounds                                 |
+| 3D triangles       | `FixedTriangle`    | Normal, area, bounds, containment, closest point, projected barycentric weights |
 
 Segments preserve ordered endpoint identity. Reversed endpoints have the same
 bounds but do not compare equal.
@@ -183,8 +183,9 @@ Rays do not normalize direction by construction. A returned ray parameter is a
 physical distance only when the caller supplied a normalized direction.
 
 Triangles preserve ordered vertices. `FixedTriangle2d.TryGetBarycentricWeights`
-solves planar weights directly. `FixedTriangle.TryGetProjectedBarycentricWeights`
-names the 3D projection behavior explicitly.
+solves planar weights directly.
+`FixedTriangle.TryGetProjectedBarycentricWeights` names the 3D projection
+behavior explicitly.
 
 `Vector2d.BarycentricCoordinates(...)` now mirrors
 `Vector3d.BarycentricCoordinates(...)` for reconstructing points from known B/C
@@ -228,8 +229,8 @@ rg -n "WriteBoundArea" src tests
 ```
 
 Review each `new FixedBoundBox(...)` match manually. The state constructor is
-still valid, while the old center/size constructor should become a named
-factory call.
+still valid, while the old center/size constructor should become a named factory
+call.
 
 Review each `FixedBoundArea` match by dimension. If the surrounding code uses
 `Vector3d`, a ray/plane/frustum, or volumetric bounds, it probably wants
@@ -282,12 +283,12 @@ Use this guide when upgrading from v4.0.1 or earlier.
 The bounds types now use the same `Fixed*` naming style as the rest of the
 library.
 
-| v4.x | v5.0.0 |
-| --- | --- |
-| `BoundingBox` | `FixedBoundBox` |
-| `BoundingSphere` | `FixedBoundSphere` |
-| `BoundingArea` | `FixedBoundArea` |
-| `BoundingFrustum` | `FixedBoundFrustum` |
+| v4.x              | v5.0.0               |
+| ----------------- | -------------------- |
+| `BoundingBox`     | `FixedBoundBox`      |
+| `BoundingSphere`  | `FixedBoundSphere`   |
+| `BoundingArea`    | `FixedBoundArea`     |
+| `BoundingFrustum` | `FixedBoundFrustum`  |
 | `ContainmentType` | `FixedEnclosureType` |
 
 The core geometry namespace remains `FixedMathSharp`. Most call sites need a
@@ -309,8 +310,8 @@ FixedEnclosureType state = room.Contains(other);
 
 ### Decimal Text Vs Raw Text
 
-In v4.x, `Fixed64.Parse` and `TryParse` interpreted text as a raw Q32.32
-`long` payload. In v5.0.0, they parse normal decimal value text.
+In v4.x, `Fixed64.Parse` and `TryParse` interpreted text as a raw Q32.32 `long`
+payload. In v5.0.0, they parse normal decimal value text.
 
 ```csharp
 // v4.x raw payload text
@@ -362,8 +363,8 @@ factories, and `FixedCurveKey.FromDouble` now reject `NaN` and infinities with
 ### Raw Longs Vs Integer Longs
 
 The `Fixed64` arithmetic operators that accepted `long` operands were removed.
-Those overloads were ambiguous because a `long` can mean either a normal
-integer value or an already-scaled raw Q32.32 payload.
+Those overloads were ambiguous because a `long` can mean either a normal integer
+value or an already-scaled raw Q32.32 payload.
 
 ```csharp
 long tileCount = 5;
@@ -382,12 +383,12 @@ whole-number range.
 Several cross-domain helpers were removed so deterministic code stays in
 fixed-point land.
 
-| v4.x | v5.0.0 |
-| --- | --- |
-| `FixedRange.InRange(double)` | Convert once with `Fixed64.FromDouble`, then call `InRange(Fixed64)` |
-| `DeterministicRandom.NextDouble()` | Use `NextFixed6401()` or `NextFixed64(...)` |
-| `Fixed64.RawToString()` | `Fixed64.ToRawString()` |
-| `Fixed64.RawToInt(...)` | `Fixed64.ToInt(...)` |
+| v4.x                               | v5.0.0                                                               |
+| ---------------------------------- | -------------------------------------------------------------------- |
+| `FixedRange.InRange(double)`       | Convert once with `Fixed64.FromDouble`, then call `InRange(Fixed64)` |
+| `DeterministicRandom.NextDouble()` | Use `NextFixed6401()` or `NextFixed64(...)`                          |
+| `Fixed64.RawToString()`            | `Fixed64.ToRawString()`                                              |
+| `Fixed64.RawToInt(...)`            | `Fixed64.ToInt(...)`                                                 |
 
 Keep floating-point conversion at engine, UI, editor, or import/export
 boundaries. Core simulation code should pass `Fixed64` values directly.
@@ -401,8 +402,8 @@ raw helpers.
 
 For v4 call sites, the verified scalar rename is:
 
-| v4.x | v5.0.0 |
-| --- | --- |
+| v4.x               | v5.0.0              |
+| ------------------ | ------------------- |
 | `value.ToDegree()` | `value.ToDegrees()` |
 
 For new or refactored scalar interpolation code, prefer the `FixedMath` static
@@ -415,17 +416,17 @@ Factories and convention-heavy methods stay on the owning type.
 
 Vector mutation and value-returning APIs now use one naming model.
 
-| v4.x | v5.0.0 |
-| --- | --- |
-| `vector.x`, `vector.y`, `vector.z`, `vector.w` | `vector.X`, `vector.Y`, `vector.Z`, `vector.W` |
-| `vector.Normal` | `vector.Normalized` |
-| `vector.Normalize()` | `vector.NormalizeInPlace()` |
-| `Vector*d.Normalize(value)` where applicable | `Vector*d.GetNormalized(value)` |
-| `SqrMagnitude` | `MagnitudeSquared` |
-| `SqrDistance(...)` | `DistanceSquared(...)` |
-| `Vector2d.Lerped(...)` | `Vector2d.Lerp(...)` |
-| `ScaleInPlace(...)` | `MultiplyInPlace(...)` |
-| Public vector-result `out Vector*d` helpers | Return-by-value statics or explicit `*InPlace` methods |
+| v4.x                                           | v5.0.0                                                 |
+| ---------------------------------------------- | ------------------------------------------------------ |
+| `vector.x`, `vector.y`, `vector.z`, `vector.w` | `vector.X`, `vector.Y`, `vector.Z`, `vector.W`         |
+| `vector.Normal`                                | `vector.Normalized`                                    |
+| `vector.Normalize()`                           | `vector.NormalizeInPlace()`                            |
+| `Vector*d.Normalize(value)` where applicable   | `Vector*d.GetNormalized(value)`                        |
+| `SqrMagnitude`                                 | `MagnitudeSquared`                                     |
+| `SqrDistance(...)`                             | `DistanceSquared(...)`                                 |
+| `Vector2d.Lerped(...)`                         | `Vector2d.Lerp(...)`                                   |
+| `ScaleInPlace(...)`                            | `MultiplyInPlace(...)`                                 |
+| Public vector-result `out Vector*d` helpers    | Return-by-value statics or explicit `*InPlace` methods |
 
 Example:
 
@@ -445,8 +446,9 @@ If you persist vectors through JSON using field names, audit payloads that use
 lowercase component names. MemoryPack component order remains explicit through
 the existing `[MemoryPackOrder]` attributes.
 
-`Normalize(out Fixed64 magnitude)` remains as `NormalizeInPlace(out Fixed64
-magnitude)` because it returns a second scalar result.
+`Normalize(out Fixed64 magnitude)` remains as
+`NormalizeInPlace(out Fixed64 magnitude)` because it returns a second scalar
+result.
 
 ## Matrix And Transform Semantics
 
@@ -518,9 +520,9 @@ Human-readable formatting is now separated from raw payload representation:
 - Use `ToRawString`, `ParseRaw`, and `TryParseRaw` for raw Q32.32 payload text.
 - Use MemoryPack or JSON support for structured serialization.
 
-On `net8.0`, supported types implement `ISpanFormattable`. On
-`netstandard2.1`, the same `TryFormat` method shape is exposed where the
-interface itself is unavailable.
+On `net8.0`, supported types implement `ISpanFormattable`. On `netstandard2.1`,
+the same `TryFormat` method shape is exposed where the interface itself is
+unavailable.
 
 ## Suggested Validation
 
@@ -534,6 +536,6 @@ dotnet test FixedMathSharp.slnx --configuration Release --no-restore
 dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 ```
 
-For consumer applications, also run deterministic replay, save/load, and
-network synchronization tests that cover transforms, parsing, serialization,
-and random streams.
+For consumer applications, also run deterministic replay, save/load, and network
+synchronization tests that cover transforms, parsing, serialization, and random
+streams.

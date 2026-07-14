@@ -24,8 +24,8 @@ Current priorities:
    still correct and explainable.
 3. Keep the core runtime engine-agnostic; engine-specific conversions belong in
    adapter packages or docs.
-4. Use benchmarks to guide hot-path redesigns and to demonstrate why the
-   library is worth using.
+4. Use benchmarks to guide hot-path redesigns and to demonstrate why the library
+   is worth using.
 5. Avoid band-aid layers that preserve weak translations from the Unity
    prototype when a clean deterministic design is the right move.
 
@@ -37,9 +37,11 @@ Read these in order before making non-trivial changes:
    current positioning.
 2. [`src/FixedMathSharp/FixedMathSharp.csproj`](src/FixedMathSharp/FixedMathSharp.csproj),
    [`tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj`](tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj),
-   and [`tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj`](tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj).
+   and
+   [`tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj`](tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj).
 3. The relevant source area under [`src/FixedMathSharp`](src/FixedMathSharp).
-4. The matching test file under [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests).
+4. The matching test file under
+   [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests).
 5. [`tests/FixedMathSharp.Benchmarks/README.md`](tests/FixedMathSharp.Benchmarks/README.md)
    before changing measured hot paths or adding benchmark cases.
 6. [`docs/complexity-exceptions.md`](docs/complexity-exceptions.md) before
@@ -65,20 +67,20 @@ claims, serialization layout, or developer workflow changes:
 
 ## Repository Map
 
-| Path | Purpose | Notes |
-| --- | --- | --- |
-| [`src/FixedMathSharp`](src/FixedMathSharp) | Main math library | Multi-targets `netstandard2.1` and `net8.0`. |
-| [`src/FixedMathSharp/Numerics/Scalars`](src/FixedMathSharp/Numerics/Scalars) | `Fixed64` and scalar helpers | Preserve guarded overflow and deterministic rounding. |
-| [`src/FixedMathSharp/Core`](src/FixedMathSharp/Core) | Shared fixed math and trigonometry algorithms | Hot deterministic backbone. Measure before redesigning. |
-| [`src/FixedMathSharp/Numerics/Vectors`](src/FixedMathSharp/Numerics/Vectors) | `Vector2d`, `Vector3d`, `Vector4d`, and vector extensions | Watch coordinate-convention assumptions. |
-| [`src/FixedMathSharp/Numerics/Rotations`](src/FixedMathSharp/Numerics/Rotations) | `FixedQuaternion` and rotation helpers | High-risk for convention, normalization, and determinism changes. |
-| [`src/FixedMathSharp/Numerics/Matrices`](src/FixedMathSharp/Numerics/Matrices) | `Fixed3x3`, `Fixed4x4`, and matrix extensions | Keep transform storage and basis semantics explicit. |
-| [`src/FixedMathSharp/Geometry`](src/FixedMathSharp/Geometry) | Bounds and primitive geometry | Includes 2D `FixedBoundArea`, `FixedBoundCircle`, `FixedRay2d`, `FixedSegment2d`, `FixedTriangle2d`, and 3D `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`, `FixedRay`, `FixedPlane`, `FixedSegment`, and `FixedTriangle`. |
-| [`src/FixedMathSharp.FluentAssertions`](src/FixedMathSharp.FluentAssertions) | Test assertion helpers package | Keep helpers aligned with core API semantics. |
-| [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests) | xUnit v3 test project | Add focused deterministic, edge-case, serialization, and regression coverage. |
-| [`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks) | BenchmarkDotNet project | Experimental performance lab and showcase for hot-path wins. |
-| [`docs/feature-work`](docs/feature-work) | Active and completed implementation plans | Use for multi-step design and optimization efforts. |
-| [`docs/wiki`](docs/wiki) | Deeper package documentation | Add focused pages when README would become crowded. |
+| Path                                                                             | Purpose                                                   | Notes                                                                                                                                                                                                                                |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`src/FixedMathSharp`](src/FixedMathSharp)                                       | Main math library                                         | Multi-targets `netstandard2.1` and `net8.0`.                                                                                                                                                                                         |
+| [`src/FixedMathSharp/Numerics/Scalars`](src/FixedMathSharp/Numerics/Scalars)     | `Fixed64` and scalar helpers                              | Preserve guarded overflow and deterministic rounding.                                                                                                                                                                                |
+| [`src/FixedMathSharp/Core`](src/FixedMathSharp/Core)                             | Shared fixed math and trigonometry algorithms             | Hot deterministic backbone. Measure before redesigning.                                                                                                                                                                              |
+| [`src/FixedMathSharp/Numerics/Vectors`](src/FixedMathSharp/Numerics/Vectors)     | `Vector2d`, `Vector3d`, `Vector4d`, and vector extensions | Watch coordinate-convention assumptions.                                                                                                                                                                                             |
+| [`src/FixedMathSharp/Numerics/Rotations`](src/FixedMathSharp/Numerics/Rotations) | `FixedQuaternion` and rotation helpers                    | High-risk for convention, normalization, and determinism changes.                                                                                                                                                                    |
+| [`src/FixedMathSharp/Numerics/Matrices`](src/FixedMathSharp/Numerics/Matrices)   | `Fixed3x3`, `Fixed4x4`, and matrix extensions             | Keep transform storage and basis semantics explicit.                                                                                                                                                                                 |
+| [`src/FixedMathSharp/Geometry`](src/FixedMathSharp/Geometry)                     | Bounds and primitive geometry                             | Includes 2D `FixedBoundArea`, `FixedBoundCircle`, `FixedRay2d`, `FixedSegment2d`, `FixedTriangle2d`, and 3D `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`, `FixedRay`, `FixedPlane`, `FixedSegment`, and `FixedTriangle`. |
+| [`src/FixedMathSharp.FluentAssertions`](src/FixedMathSharp.FluentAssertions)     | Test assertion helpers package                            | Keep helpers aligned with core API semantics.                                                                                                                                                                                        |
+| [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests)                       | xUnit v3 test project                                     | Add focused deterministic, edge-case, serialization, and regression coverage.                                                                                                                                                        |
+| [`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks)             | BenchmarkDotNet project                                   | Experimental performance lab and showcase for hot-path wins.                                                                                                                                                                         |
+| [`docs/feature-work`](docs/feature-work)                                         | Active and completed implementation plans                 | Use for multi-step design and optimization efforts.                                                                                                                                                                                  |
+| [`docs/wiki`](docs/wiki)                                                         | Deeper package documentation                              | Add focused pages when README would become crowded.                                                                                                                                                                                  |
 
 Ignore generated output when reviewing structure:
 
@@ -131,8 +133,8 @@ For hot-path changes:
   reference implementation that proves correctness.
 - Capture allocation impact with `[MemoryDiagnoser]` unless there is a specific
   reason not to.
-- Use deterministic fixtures and fixed seeds; benchmark setup must not depend
-  on ambient randomness or previous benchmark cases.
+- Use deterministic fixtures and fixed seeds; benchmark setup must not depend on
+  ambient randomness or previous benchmark cases.
 - Prefer algorithmic wins, fewer branches, fewer allocations, better cache
   locality, and lower time complexity over micro-optimizations that make the
   code fragile.
@@ -176,8 +178,8 @@ deterministic.
 - Match existing style: regions, XML docs, explicit namespaces, no implicit
   usings in project files.
 - Shared runtime code must remain compatible with both `netstandard2.1` and
-  `net8.0`. Do not use APIs that are unavailable to `netstandard2.1` unless
-  they are guarded, isolated to a compatible target, or intentionally placed in
+  `net8.0`. Do not use APIs that are unavailable to `netstandard2.1` unless they
+  are guarded, isolated to a compatible target, or intentionally placed in
   tooling/benchmark code.
 - Keep operations allocation-light; many hot methods use `m_rawValue` and
   `[MethodImpl(MethodImplOptions.AggressiveInlining)]`.
@@ -225,9 +227,9 @@ Serialization compatibility is intentional.
 ## Build, Test, And Coverage Workflows
 
 Solution: [`FixedMathSharp.slnx`](FixedMathSharp.slnx), with the core library,
-FluentAssertions package, test project, and benchmark project.
-`global.json` selects the .NET 10 SDK for `.slnx` tooling consistency while the
-runtime projects continue to target `netstandard2.1` and `net8.0`.
+FluentAssertions package, test project, and benchmark project. `global.json`
+selects the .NET 10 SDK for `.slnx` tooling consistency while the runtime
+projects continue to target `netstandard2.1` and `net8.0`.
 
 Typical local workflow:
 
@@ -244,8 +246,8 @@ dotnet test FixedMathSharp.slnx --configuration Release --no-restore
 dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 ```
 
-Coverage uses `tests/FixedMathSharp.Tests/coverlet.runsettings`. CI runs
-Release and ReleaseLean on Linux and Windows through
+Coverage uses `tests/FixedMathSharp.Tests/coverlet.runsettings`. CI runs Release
+and ReleaseLean on Linux and Windows through
 [`.github/workflows/build-and-test.yml`](.github/workflows/build-and-test.yml).
 The coverage workflow publishes coverage reports after `build-and-test`
 completes on `main`.
@@ -257,7 +259,8 @@ GitVersion variables are consumed when present, otherwise version falls back to
 
 ## Testing Patterns To Mirror
 
-- Tests are xUnit v3 under [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests).
+- Tests are xUnit v3 under
+  [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests).
 - Keep one feature area per test file, such as `Vector3d.Tests.cs` or
   `Geometry/Bounds/FixedBoundBox.Tests.cs`.
 - Use helper assertions from

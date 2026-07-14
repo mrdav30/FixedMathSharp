@@ -24,17 +24,16 @@ The formatting surface follows familiar .NET shapes:
 - `ToString()` returns an invariant diagnostic string.
 - `ToString(string? format, IFormatProvider? provider)` supports standard
   numeric format strings where a type has numeric components.
-- `TryFormat(Span<char> destination, out int charsWritten,
-  ReadOnlySpan<char> format, IFormatProvider? provider)` writes into a caller
-  supplied buffer and avoids the string allocation when the buffer is large
-  enough.
+- `TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider)`
+  writes into a caller supplied buffer and avoids the string allocation when the
+  buffer is large enough.
 - Runtime targets that support `ISpanFormattable`, such as `net8.0`, implement
   the interface. `netstandard2.1` exposes the same `TryFormat` method shape but
   cannot implement `ISpanFormattable` because the interface is unavailable.
 
-Use `TryFormat` for repeated diagnostics, editor polling, or logging loops
-where allocation pressure matters. Use `ToString` for low-frequency debugging
-or convenience.
+Use `TryFormat` for repeated diagnostics, editor polling, or logging loops where
+allocation pressure matters. Use `ToString` for low-frequency debugging or
+convenience.
 
 ## Raw Values
 
@@ -55,9 +54,9 @@ Fixed64 value = Fixed64.Parse("1.25", CultureInfo.InvariantCulture);
 
 `Parse` and `TryParse` read value-space decimal text, reject non-finite or
 invalid text, and treat values outside the representable Q32.32 range as
-overflow. Use `FromDecimal` when the source value is already a `decimal` and
-you want the same deterministic midpoint-to-even conversion path without
-rounding through `double`.
+overflow. Use `FromDecimal` when the source value is already a `decimal` and you
+want the same deterministic midpoint-to-even conversion path without rounding
+through `double`.
 
 This distinction matters because `"1.25"` and `"4294967296"` are different
 representations of different concepts:

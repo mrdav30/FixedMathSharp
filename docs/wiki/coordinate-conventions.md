@@ -1,7 +1,7 @@
 # Coordinate Conventions
 
-FixedMathSharp defines its own deterministic math convention instead of inheriting
-one from any engine:
+FixedMathSharp defines its own deterministic math convention instead of
+inheriting one from any engine:
 
 - 3D core basis: `+X` is right, `+Y` is up, and `+Z` is forward.
 - 3D cross-product orientation: `Vector3d.Cross(Vector3d.Right, Vector3d.Up)`
@@ -43,9 +43,9 @@ Vector3d canonicalForward = external.ToCanonicalDirection(externalForward);
 ```
 
 Use these helpers for direction vectors and basis component mapping at adapter
-boundaries. For positions in a coordinate system whose only differences are
-axis signs or permutations, the same basis mapping may be appropriate, but keep
-that conversion in adapter code so units, origins, scale, and storage semantics
+boundaries. For positions in a coordinate system whose only differences are axis
+signs or permutations, the same basis mapping may be appropriate, but keep that
+conversion in adapter code so units, origins, scale, and storage semantics
 remain explicit.
 
 ## Adapter Boundaries
@@ -69,18 +69,18 @@ Unreal-style coordinate spaces use `+X` forward, `+Y` right, and `+Z` up. Use
 `CoordinateConvention3d.XForwardZUp` for direction basis mapping when an adapter
 matches that convention.
 
-Other engines, renderers, DCC tools, and file formats may differ by forward axis,
-up axis, handedness, row-vector versus column-vector multiplication, matrix
-storage layout, projection depth range, or clip-space handedness. Those are
-adapter-specific basis conversions, not reasons to rename or flip the core
+Other engines, renderers, DCC tools, and file formats may differ by forward
+axis, up axis, handedness, row-vector versus column-vector multiplication,
+matrix storage layout, projection depth range, or clip-space handedness. Those
+are adapter-specific basis conversions, not reasons to rename or flip the core
 `Vector3d.Forward` constant.
 
 ## Practical Rules
 
 - In core FixedMathSharp code, use `Vector3d.Forward` for semantic forward.
-- Convert external direction vectors before calling `FixedQuaternion.FromDirection`,
-  `FixedQuaternion.LookRotation`, `Fixed4x4.CreateWorld`, or similar
-  convention-heavy APIs.
+- Convert external direction vectors before calling
+  `FixedQuaternion.FromDirection`, `FixedQuaternion.LookRotation`,
+  `Fixed4x4.CreateWorld`, or similar convention-heavy APIs.
 - Do not add Unity, MonoGame, Unreal, legacy XNA, or other engine conditionals
   to the core package.
 - Do not treat a blind component copy as a semantic conversion for matrices or

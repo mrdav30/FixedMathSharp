@@ -18,8 +18,8 @@ verification. Feature plans may reference this tracker instead of carrying bug
 fixes inside API or design phases.
 
 **Tech Stack:** `netstandard2.1` and `net8.0` runtime targets, xUnit,
-BenchmarkDotNet when performance evidence is needed, FixedMathSharp core
-runtime and tests.
+BenchmarkDotNet when performance evidence is needed, FixedMathSharp core runtime
+and tests.
 
 ---
 
@@ -66,8 +66,8 @@ confirmed runtime defect. Current queue:
 
 The crash was classified as a broad in-process BenchmarkDotNet harness/toolchain
 instability, not a confirmed `FixedBoundFrustum` or `Fixed64` runtime defect.
-The stack landed in `FixedBoundFrustum.IntersectionPoint`, but that path is
-pure managed fixed-point/vector math and no isolated runtime repro was found.
+The stack landed in `FixedBoundFrustum.IntersectionPoint`, but that path is pure
+managed fixed-point/vector math and no isolated runtime repro was found.
 
 Evidence:
 
@@ -117,29 +117,29 @@ The diagnostics pass made value-space decimal parsing explicit and rejected
 invalid, non-finite, and out-of-range text. A follow-up scan found older
 floating-point conversion paths that still convert through
 `Math.Round(value * FixedMath.ONE_L)` and direct `long` casts. That shape may
-produce surprising behavior for `NaN`, infinities, and out-of-range doubles,
-and similar logic appears in `FixedRange.InRange(double)`.
+produce surprising behavior for `NaN`, infinities, and out-of-range doubles, and
+similar logic appears in `FixedRange.InRange(double)`.
 
 This is separate from diagnostic formatting because it affects public numeric
 conversion semantics and should be resolved with focused tests, explicit
-overflow policy, and a small benchmark check if any conversion helper is used
-in setup-heavy or editor-facing paths.
+overflow policy, and a small benchmark check if any conversion helper is used in
+setup-heavy or editor-facing paths.
 
 **Recommended work:**
 
-- [x] Add tests for `Fixed64.FromDouble`, explicit `float`/`double`
-  conversions, `FromFraction`, vector `FromDouble` factories, and
-  curve-key `FromDouble` factories using finite values, `NaN`, infinities,
-  and out-of-range values. Removed the `FixedRange.InRange(double)` surface
-  instead of keeping a cross-domain overload.
+- [x] Add tests for `Fixed64.FromDouble`, explicit `float`/`double` conversions,
+      `FromFraction`, vector `FromDouble` factories, and curve-key `FromDouble`
+      factories using finite values, `NaN`, infinities, and out-of-range values.
+      Removed the `FixedRange.InRange(double)` surface instead of keeping a
+      cross-domain overload.
 - [x] Decide whether floating-point value-space conversion should throw,
-  saturate, or route through a shared checked helper. Prefer one documented
-  policy rather than per-call-site behavior.
+      saturate, or route through a shared checked helper. Prefer one documented
+      policy rather than per-call-site behavior.
 - [x] Keep raw Q32.32 construction explicit through `FromRaw`.
 - [x] Verify that deterministic runtime code does not depend on ambient
-  floating-point conversion in hot paths.
+      floating-point conversion in hot paths.
 - [x] Update XML docs and `docs/wiki/fixed64-representation.md` after the
-  conversion policy is settled.
+      conversion policy is settled.
 
 **Resolution:**
 
@@ -150,15 +150,15 @@ outside the Q32.32 range throw `OverflowException`. `FromFraction`, explicit
 `FixedCurveKey.FromDouble` inherit the same scalar policy.
 
 `FixedRange.InRange(double)` was removed so callers convert to `Fixed64` at the
-boundary and keep range checks in fixed-point space. `DeterministicRandom.NextDouble`
-was also removed in favor of deterministic `Fixed64` random helpers.
+boundary and keep range checks in fixed-point space.
+`DeterministicRandom.NextDouble` was also removed in favor of deterministic
+`Fixed64` random helpers.
 
-Raw payload construction remains explicit through `Fixed64.FromRaw(long)`.
-The source scan found no remaining production `Math.Round(value *
-FixedMath.ONE_L)` plus direct `long` cast sites outside `Fixed64.FromDouble`.
-The remaining production `FromDouble` usages are public boundary/factory
-conveniences and static matrix initialization, not deterministic runtime math
-loops.
+Raw payload construction remains explicit through `Fixed64.FromRaw(long)`. The
+source scan found no remaining production `Math.Round(value * FixedMath.ONE_L)`
+plus direct `long` cast sites outside `Fixed64.FromDouble`. The remaining
+production `FromDouble` usages are public boundary/factory conveniences and
+static matrix initialization, not deterministic runtime math loops.
 
 Verification:
 
@@ -174,11 +174,11 @@ rg -n "InRange\\(double|NextDouble|ToRawFromDouble|TryFromDecimal|Math\\.Round\\
 
 Verification result on 2026-06-08: focused conversion, range, vector, and curve
 tests first failed against the unchecked conversion behavior, then passed with
-339 tests after the fix. The full Debug solution passed with 975 tests,
-Release and ReleaseLean `netstandard2.1` builds passed with zero warnings and
-errors, and the benchmark runner built in Release `net8.0`. The refactor then
-removed the `FixedRange.InRange(double)` and `DeterministicRandom.NextDouble`
-surfaces entirely. The source scan confirmed no remaining `InRange(double)`,
+339 tests after the fix. The full Debug solution passed with 975 tests, Release
+and ReleaseLean `netstandard2.1` builds passed with zero warnings and errors,
+and the benchmark runner built in Release `net8.0`. The refactor then removed
+the `FixedRange.InRange(double)` and `DeterministicRandom.NextDouble` surfaces
+entirely. The source scan confirmed no remaining `InRange(double)`,
 `NextDouble`, `ToRawFromDouble`, or `TryFromDecimal` runtime/test surfaces.
 
 ### FMS-Issue-010: `Fixed64` arithmetic operators with `long` appear to treat long operands as raw fixed values
@@ -213,24 +213,24 @@ v5.0.0.
 **Recommended work:**
 
 - [x] Add tests proving long-to-`Fixed64` conversion uses integer-value
-  semantics, not raw-value semantics.
+      semantics, not raw-value semantics.
 - [x] Add tests covering positive, negative, and out-of-range long conversion
-  behavior.
+      behavior.
 - [x] Decide whether long overloads should mirror int overload semantics, route
-  through explicit conversion, or be removed for public API clarity.
+      through explicit conversion, or be removed for public API clarity.
 - [x] Preserve saturating behavior by keeping explicit long conversion bounded
-  to the representable Q32.32 range.
+      to the representable Q32.32 range.
 - [x] Add XML docs that distinguish raw construction via `FromRaw` from
-  integer-value construction.
+      integer-value construction.
 
 **Resolution:**
 
-Removed the public `Fixed64` arithmetic operators that accepted `long`
-operands. Callers now need to choose `(Fixed64)longValue` for integer-value
-semantics or `Fixed64.FromRaw(rawValue)` for raw Q32.32 payload semantics. The
-explicit long conversion now saturates to `Fixed64.MinValue` or
-`Fixed64.MaxValue` when the source integer is outside the representable Q32.32
-integer range, avoiding unchecked left-shift overflow.
+Removed the public `Fixed64` arithmetic operators that accepted `long` operands.
+Callers now need to choose `(Fixed64)longValue` for integer-value semantics or
+`Fixed64.FromRaw(rawValue)` for raw Q32.32 payload semantics. The explicit long
+conversion now saturates to `Fixed64.MinValue` or `Fixed64.MaxValue` when the
+source integer is outside the representable Q32.32 integer range, avoiding
+unchecked left-shift overflow.
 
 Verification:
 
@@ -268,19 +268,19 @@ positive-angle rotation semantics under the row-vector convention.
 **Completed work:**
 
 - [x] Added regression tests proving `Fixed4x4.TransformPoint` uses row-vector
-  affine math.
+      affine math.
 - [x] Added regression tests proving `Fixed4x4` multiplication composes
-  left-to-right row-vector transforms.
+      left-to-right row-vector transforms.
 - [x] Added regression tests proving `Fixed3x3.TransformDirection` and
-  `Vector3d * Fixed3x3` use the same row-vector convention.
+      `Vector3d * Fixed3x3` use the same row-vector convention.
 - [x] Updated `Fixed3x3`, `Fixed4x4`, `Vector3d`, and `Vector4d` transform
-  formulas to use the same row-vector convention.
+      formulas to use the same row-vector convention.
 - [x] Updated affine inverse translation for row-vector matrix inversion.
 - [x] Updated quaternion matrix conversion, matrix-to-quaternion extraction,
-  Euler extraction, and `LookRotation` basis construction to match row-vector
-  rotation matrices.
+      Euler extraction, and `LookRotation` basis construction to match
+      row-vector rotation matrices.
 - [x] Added XML remarks to the core matrix transform APIs that call out the
-  row-vector convention.
+      row-vector convention.
 - [x] Verified matrix, quaternion, vector, and bounds/frustum-focused tests.
 
 Verification:
@@ -294,10 +294,10 @@ dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll matrix3x3 matrix4x4 -j Short -i --filter "*Transform*" "*Invert*" "*CreateRotation*" "*ScaleRotateTranslate*" "*TranslateRotateScale*" --exporters json
 ```
 
-Result on 2026-06-05: focused matrix/vector/quaternion/bounds tests passed
-with 516 tests, full solution tests passed with 911 tests, release builds passed
-with zero warnings/errors, and the matrix benchmark smoke completed with no
-managed allocations.
+Result on 2026-06-05: focused matrix/vector/quaternion/bounds tests passed with
+516 tests, full solution tests passed with 911 tests, release builds passed with
+zero warnings/errors, and the matrix benchmark smoke completed with no managed
+allocations.
 
 ### FMS-Issue-008: `--no-restore` can reuse stale NuGet assets across OS or configuration changes
 
@@ -328,12 +328,13 @@ for the repository projects.
 
 - [x] Added host/configuration-specific intermediate output paths.
 - [x] Kept `BenchmarkDotNet.Autogenerated` on a platform-only generated-project
-  path so BenchmarkDotNet restore/build agree during full benchmark exports.
+      path so BenchmarkDotNet restore/build agree during full benchmark exports.
 - [x] Excluded all generated `bin/**` and `obj/**` files from source globs so
-  old generated assembly-info files are never compiled as source.
+      old generated assembly-info files are never compiled as source.
 - [x] Verified focused tests after restore and with `--no-restore`.
 - [x] Verified `Release` and `ReleaseLean` benchmark builds can switch
-  configurations and still succeed with `--no-restore` after matching restores.
+      configurations and still succeed with `--no-restore` after matching
+      restores.
 
 Verification:
 
@@ -374,9 +375,10 @@ continues to request the runsettings file directly.
 - [x] Removed the default test-project `RunSettingsFilePath`.
 - [x] Verified focused tests without coverage still pass.
 - [x] Verified explicit coverage collection still works and writes a Cobertura
-  attachment.
+      attachment.
 - [x] Preserved CI coverage behavior because `.github/workflows/coverage.yml`
-  already passes `--settings tests/FixedMathSharp.Tests/coverlet.runsettings`.
+      already passes
+      `--settings tests/FixedMathSharp.Tests/coverlet.runsettings`.
 
 Verification:
 
@@ -408,11 +410,11 @@ from seeing MemoryPack package assets restored for standard builds.
 **Completed work:**
 
 - [x] Confirmed a forced `ReleaseLean netstandard2.1` restore/build succeeds
-  without shim conflict warnings.
+      without shim conflict warnings.
 - [x] Preserved `FIXEDMATHSHARP_DISABLE_MEMORYPACK` shim behavior for lean
-  builds.
+      builds.
 - [x] Verified `Release` and `ReleaseLean` builds for `netstandard2.1` and
-  `net8.0`.
+      `net8.0`.
 
 Verification:
 
@@ -445,13 +447,13 @@ accidentally misused.
 **Completed work:**
 
 - [x] Added allocation regression tests for `FixedBoundFrustum.GetCorners`,
-  `FixedBoundFrustum.GetPlanes`, and `FixedQuaternion.FromEulerAngles` valid
-  paths.
+      `FixedBoundFrustum.GetPlanes`, and `FixedQuaternion.FromEulerAngles` valid
+      paths.
 - [x] Replaced helper calls with direct guard branches while preserving existing
-  exception types and messages.
+      exception types and messages.
 - [x] Removed `src/FixedMathSharp/Support/FixedThrowHelper.cs`.
 - [x] Verified no `FixedThrowHelper` or `FixedMathSharp.Support` references
-  remain.
+      remain.
 - [x] Re-ran focused allocation tests.
 
 Verification:
@@ -481,12 +483,13 @@ instead of `FixedQuaternion.Identity`.
 
 **Completed work:**
 
-- [x] Added a failing test for `FixedQuaternion.FromDirection(Vector3d.Backward)`.
+- [x] Added a failing test for
+      `FixedQuaternion.FromDirection(Vector3d.Backward)`.
 - [x] Added near-forward and near-backward tests so edge behavior is documented.
-- [x] Preserved `FixedQuaternion.FromDirection(Vector3d.Forward) ==
-  FixedQuaternion.Identity`.
+- [x] Preserved
+      `FixedQuaternion.FromDirection(Vector3d.Forward) == FixedQuaternion.Identity`.
 - [x] Used a deterministic `Vector3d.Up` fallback axis for the anti-parallel
-  case.
+      case.
 - [x] Re-ran focused quaternion tests.
 
 Verification:
@@ -507,15 +510,15 @@ Result on 2026-06-03: passed, 72 tests.
 
 **Resolution:**
 
-`Vector3d.Direction` behavior was confirmed as pitch on `X` and yaw on `Y`.
-The XML documentation now matches that convention and calls out the existing
-positive-pitch sign, which rotates canonical forward toward `Vector3d.Down`.
-No additive API was needed for this pass.
+`Vector3d.Direction` behavior was confirmed as pitch on `X` and yaw on `Y`. The
+XML documentation now matches that convention and calls out the existing
+positive-pitch sign, which rotates canonical forward toward `Vector3d.Down`. No
+additive API was needed for this pass.
 
 **Completed work:**
 
 - [x] Added tests for positive yaw, negative yaw, positive pitch, and negative
-  pitch using canonical `+Z` forward expectations.
+      pitch using canonical `+Z` forward expectations.
 - [x] Preserved the existing zero-angle behavior test.
 - [x] Confirmed the right fix was XML documentation only.
 - [x] Preserved the existing public API.
@@ -548,10 +551,10 @@ quaternion/matrix callers.
 **Completed work:**
 
 - [x] Split scalar/trigonometry benchmarks so allocation sources could be
-  isolated by operation.
+      isolated by operation.
 - [x] Added allocation regression tests for valid division, `Asin`, and `Acos`.
 - [x] Preserved existing exception types and diagnostic messages for invalid
-  inputs.
+      inputs.
 - [x] Re-ran focused tests and short fixed64 arithmetic benchmarks.
 
 Verification:

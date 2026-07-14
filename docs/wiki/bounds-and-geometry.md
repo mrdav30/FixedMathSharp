@@ -15,8 +15,8 @@ Use 3D types for volume and spatial math:
 - `FixedRay`: 3D ray intersection primitive.
 - `FixedPlane`: 3D plane classification primitive.
 - `FixedSegment`: finite 3D segment with closest-point, distance, and bounds.
-- `FixedTriangle`: ordered 3D triangle with area, normal, bounds,
-  closest-point, containment, interpolation, and projected barycentric helpers.
+- `FixedTriangle`: ordered 3D triangle with area, normal, bounds, closest-point,
+  containment, interpolation, and projected barycentric helpers.
 
 Use 2D types for plane math:
 
@@ -49,8 +49,8 @@ FixedBoundArea sensorArea = FixedBoundArea.FromCenterAndScope(center2d, halfExte
 
 `FromMinMax` normalizes swapped inputs. `FromCenterAndSize` and
 `FromCenterAndScope` normalize negative extents by absolute component value.
-This keeps public bounds state canonical without asking every caller to sort
-or sanitize the inputs first.
+This keeps public bounds state canonical without asking every caller to sort or
+sanitize the inputs first.
 
 `FixedBoundCircle` and `FixedBoundSphere` normalize radius by absolute value
 through construction, assignment, and serialized state load. `FixedRay` and

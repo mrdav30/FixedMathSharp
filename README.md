@@ -9,25 +9,38 @@
 [![License](https://img.shields.io/github/license/mrdav30/FixedMathSharp.svg)](https://github.com/mrdav30/FixedMathSharp/blob/main/LICENSE)
 [![Frameworks](https://img.shields.io/badge/frameworks-netstandard2.1%20%7C%20net8.0-512BD4.svg)](https://github.com/mrdav30/FixedMathSharp)
 
-**Deterministic fixed-point math for .NET simulations, games, tools, and procedural systems.**
+**Deterministic fixed-point math for .NET simulations, games, tools, and
+procedural systems.**
 
-FixedMathSharp gives you a practical Q32.32 fixed-point numeric stack: scalar math, vectors, matrices, quaternions, bounds, curves, and deterministic random generation. It is built for code where the same inputs should produce the same results across machines, runs, replays, and networked clients.
+FixedMathSharp gives you a practical Q32.32 fixed-point numeric stack: scalar
+math, vectors, matrices, quaternions, bounds, curves, and deterministic random
+generation. It is built for code where the same inputs should produce the same
+results across machines, runs, replays, and networked clients.
 
 ---
 
 ## Why Fixed-Point?
 
-Floating-point math is fast, hardware-accelerated, and the right choice for rendering, visual effects, and many everyday calculations. It is also allowed to vary in small ways across runtimes, processors, compiler settings, instruction sets, and evaluation order.
+Floating-point math is fast, hardware-accelerated, and the right choice for
+rendering, visual effects, and many everyday calculations. It is also allowed to
+vary in small ways across runtimes, processors, compiler settings, instruction
+sets, and evaluation order.
 
-Fixed-point math stores numbers as scaled integers. In FixedMathSharp, `Fixed64` uses a Q32.32 layout: 32 bits for the whole-number side and 32 bits for the fractional side. That trade gives you deterministic arithmetic with predictable rounding behavior, at the cost of less dynamic range than `double` and less raw throughput than native floating point.
+Fixed-point math stores numbers as scaled integers. In FixedMathSharp, `Fixed64`
+uses a Q32.32 layout: 32 bits for the whole-number side and 32 bits for the
+fractional side. That trade gives you deterministic arithmetic with predictable
+rounding behavior, at the cost of less dynamic range than `double` and less raw
+throughput than native floating point.
 
-For the exact raw layout, range, and precision trade-offs, see [`docs/wiki/fixed64-representation.md`](docs/wiki/fixed64-representation.md).
+For the exact raw layout, range, and precision trade-offs, see
+[`docs/wiki/fixed64-representation.md`](docs/wiki/fixed64-representation.md).
 
 Use FixedMathSharp when you need:
 
 - Lockstep multiplayer, replay systems, rollback, or deterministic simulation.
 - Procedural generation that must be reproducible from the same seed.
-- Gameplay, physics-adjacent, or tooling logic where drift and platform differences are painful.
+- Gameplay, physics-adjacent, or tooling logic where drift and platform
+  differences are painful.
 - Serializable math values with stable behavior across .NET targets.
 
 Use floating point when you need:
@@ -40,15 +53,24 @@ Use floating point when you need:
 
 ## Features
 
-- **`Fixed64` scalar arithmetic** with deterministic Q32.32 representation, guarded overflow behavior, parsing, formatting, and common math helpers.
-- **2D, 3D, and 4D vectors** via `Vector2d`, `Vector3d`, and `Vector4d`, including dot products, distances, normalization, transforms, fuzzy equality, and component operations.
-- **Rotations and matrices** with `FixedQuaternion`, `Fixed3x3`, and `Fixed4x4` for deterministic transforms and orientation math.
-- **Coordinate convention helpers** with `Axis3d` and `CoordinateConvention3d` for explicit signed-axis adapter boundaries.
-- **Geometry and bounds** with 2D areas, circles, rays, segments, and triangles plus 3D boxes, spheres, frustums, planes, rays, segments, and triangles.
+- **`Fixed64` scalar arithmetic** with deterministic Q32.32 representation,
+  guarded overflow behavior, parsing, formatting, and common math helpers.
+- **2D, 3D, and 4D vectors** via `Vector2d`, `Vector3d`, and `Vector4d`,
+  including dot products, distances, normalization, transforms, fuzzy equality,
+  and component operations.
+- **Rotations and matrices** with `FixedQuaternion`, `Fixed3x3`, and `Fixed4x4`
+  for deterministic transforms and orientation math.
+- **Coordinate convention helpers** with `Axis3d` and `CoordinateConvention3d`
+  for explicit signed-axis adapter boundaries.
+- **Geometry and bounds** with 2D areas, circles, rays, segments, and triangles
+  plus 3D boxes, spheres, frustums, planes, rays, segments, and triangles.
 - **Curves and ranges** with `FixedCurve`, `FixedCurveKey`, and `FixedRange`.
-- **Deterministic RNG** with `DeterministicRandom` streams derived from seeds, feature keys, and indices.
-- **Serialization-friendly structs** with MemoryPack support in the standard package and a Lean package when you do not want that dependency.
-- **Chronicler record-hash extensions** through a companion package for deterministic replay and conformance signals.
+- **Deterministic RNG** with `DeterministicRandom` streams derived from seeds,
+  feature keys, and indices.
+- **Serialization-friendly structs** with MemoryPack support in the standard
+  package and a Lean package when you do not want that dependency.
+- **Chronicler record-hash extensions** through a companion package for
+  deterministic replay and conformance signals.
 - **Testing helpers** through the companion FluentAssertions package.
 
 ---
@@ -63,26 +85,30 @@ dotnet add package FixedMathSharp
 
 Choose the package that fits your runtime:
 
-| Package | Best For | Install |
-| --- | --- | --- |
-| `FixedMathSharp` | Most .NET applications. Includes MemoryPack support. | `dotnet add package FixedMathSharp` |
-| `FixedMathSharp.Lean` | Projects that want the same math API without a MemoryPack dependency, including custom serializers and Burst AOT-sensitive workflows. | `dotnet add package FixedMathSharp.Lean` |
-| `FixedMathSharp.Chronicler` | Replay or conformance tooling that hashes FixedMathSharp values with Chronicler's deterministic record-hash writer. | `dotnet add package FixedMathSharp.Chronicler` |
-| `FixedMathSharp.Chronicler.Lean` | Chronicler hash extensions paired with the Lean package graph. | `dotnet add package FixedMathSharp.Chronicler.Lean` |
-| `FixedMathSharp.FluentAssertions` | Tests that use FluentAssertions with `Fixed64`, vectors, quaternions, and matrices. | `dotnet add package FixedMathSharp.FluentAssertions` |
-| `FixedMathSharp.FluentAssertions.Lean` | FluentAssertions helpers paired with the Lean package. | `dotnet add package FixedMathSharp.FluentAssertions.Lean` |
+| Package                                | Best For                                                                                                                              | Install                                                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `FixedMathSharp`                       | Most .NET applications. Includes MemoryPack support.                                                                                  | `dotnet add package FixedMathSharp`                       |
+| `FixedMathSharp.Lean`                  | Projects that want the same math API without a MemoryPack dependency, including custom serializers and Burst AOT-sensitive workflows. | `dotnet add package FixedMathSharp.Lean`                  |
+| `FixedMathSharp.Chronicler`            | Replay or conformance tooling that hashes FixedMathSharp values with Chronicler's deterministic record-hash writer.                   | `dotnet add package FixedMathSharp.Chronicler`            |
+| `FixedMathSharp.Chronicler.Lean`       | Chronicler hash extensions paired with the Lean package graph.                                                                        | `dotnet add package FixedMathSharp.Chronicler.Lean`       |
+| `FixedMathSharp.FluentAssertions`      | Tests that use FluentAssertions with `Fixed64`, vectors, quaternions, and matrices.                                                   | `dotnet add package FixedMathSharp.FluentAssertions`      |
+| `FixedMathSharp.FluentAssertions.Lean` | FluentAssertions helpers paired with the Lean package.                                                                                | `dotnet add package FixedMathSharp.FluentAssertions.Lean` |
 
 ### Serialization Guidance
 
-- **MemoryPack:** best for hot paths, snapshots, networking payloads, deterministic state transfer, and binary saves.
-- **JSON:** best for interoperability, debugging, editor tooling, human-readable configs, and low-frequency persistence.
+- **MemoryPack:** best for hot paths, snapshots, networking payloads,
+  deterministic state transfer, and binary saves.
+- **JSON:** best for interoperability, debugging, editor tooling, human-readable
+  configs, and low-frequency persistence.
 
 ### Unity
 
-FixedMathSharp is maintained separately for Unity-specific packaging and workflows:
+FixedMathSharp is maintained separately for Unity-specific packaging and
+workflows:
 [FixedMathSharp-Unity](https://github.com/mrdav30/FixedMathSharp-Unity).
 
-If you are evaluating this .NET package for Unity-adjacent tooling or Burst AOT-sensitive code, prefer `FixedMathSharp.Lean`.
+If you are evaluating this .NET package for Unity-adjacent tooling or Burst
+AOT-sensitive code, prefer `FixedMathSharp.Lean`.
 
 ---
 
@@ -170,34 +196,63 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 ## Library Map
 
 - `Fixed64`: deterministic scalar type backed by a signed 64-bit raw value.
-- `FixedMath`: constants, rounding, interpolation, trigonometry, powers, square roots, and utility math.
-- `Vector2d`, `Vector3d`, `Vector4d`: deterministic vector math and transform helpers.
-- `FixedQuaternion`, `Fixed3x3`, `Fixed4x4`: rotations, orientations, matrices, and transform operations.
-- `Axis3d`, `CoordinateConvention3d`: stateless helpers for documenting and converting signed-axis 3D direction conventions.
-- `FixedBoundArea`: 2D `Vector2d` AABB containment, intersection, clamping, projection, and union queries.
-- `FixedBoundCircle`: 2D circular containment, area/circle intersection, clamping, and projection queries.
-- `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`: 3D containment, intersection, clamping, and projection queries.
-- `FixedPlane`, `FixedRay`: geometric primitives for plane classification and 3D ray intersections.
-- `FixedSegment2d`, `FixedRay2d`, `FixedTriangle2d`: finite-segment, ray, and triangle primitives for deterministic 2D plane math.
-- `FixedSegment`, `FixedTriangle`: finite-segment and triangle primitives for deterministic 3D geometry.
+- `FixedMath`: constants, rounding, interpolation, trigonometry, powers, square
+  roots, and utility math.
+- `Vector2d`, `Vector3d`, `Vector4d`: deterministic vector math and transform
+  helpers.
+- `FixedQuaternion`, `Fixed3x3`, `Fixed4x4`: rotations, orientations, matrices,
+  and transform operations.
+- `Axis3d`, `CoordinateConvention3d`: stateless helpers for documenting and
+  converting signed-axis 3D direction conventions.
+- `FixedBoundArea`: 2D `Vector2d` AABB containment, intersection, clamping,
+  projection, and union queries.
+- `FixedBoundCircle`: 2D circular containment, area/circle intersection,
+  clamping, and projection queries.
+- `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`: 3D containment,
+  intersection, clamping, and projection queries.
+- `FixedPlane`, `FixedRay`: geometric primitives for plane classification and 3D
+  ray intersections.
+- `FixedSegment2d`, `FixedRay2d`, `FixedTriangle2d`: finite-segment, ray, and
+  triangle primitives for deterministic 2D plane math.
+- `FixedSegment`, `FixedTriangle`: finite-segment and triangle primitives for
+  deterministic 3D geometry.
 - `FixedCurve`, `FixedCurveKey`, `FixedRange`: interpolation and range helpers.
-- `DeterministicRandom`: repeatable random streams for simulations and procedural generation.
-- `FixedMathSharp.Chronicler`: deterministic `ChronicleHashWriter` extensions for fixed-point, vector, matrix, transform, and bounds values.
-- `FixedMathSharp.FluentAssertions`: expressive test assertions for FixedMathSharp types.
+- `DeterministicRandom`: repeatable random streams for simulations and
+  procedural generation.
+- `FixedMathSharp.Chronicler`: deterministic `ChronicleHashWriter` extensions
+  for fixed-point, vector, matrix, transform, and bounds values.
+- `FixedMathSharp.FluentAssertions`: expressive test assertions for
+  FixedMathSharp types.
 
 ### API Shape Notes
 
-- `FixedMath` is the canonical scalar algorithm surface; `Fixed64` owns Q32.32 representation, conversions, parsing, operators, and raw-value helpers.
-- Core 3D direction semantics are `+X` right, `+Y` up, and `+Z` forward. See [`docs/wiki/coordinate-conventions.md`](docs/wiki/coordinate-conventions.md) before adding adapter-facing conversions.
-- Numeric types expose clear return-by-value statics/operators plus explicit `*InPlace` methods when mutation is useful.
-- 3D bounds use `FixedBoundBox`; 2D plane bounds use `FixedBoundArea`. Flat world footprints should pair `FixedBoundArea` with explicit layer or elevation state in higher-level packages.
-- Use named bound factories such as `FromMinMax`, `FromCenterAndSize`, and `FromCenterAndScope` so min/max, total size, and half-extent semantics stay visible at call sites.
-- `Intersects` methods use boundary-inclusive closed-bound semantics. Use `IntersectsStrict` where the API exposes it and positive area or volume overlap is required.
-- Extension methods are curated receiver-shaped conveniences that forward to canonical APIs; factories and convention-heavy operations stay on the owning type.
-- `Fast*` helpers are expert APIs for proven hot paths. They skip some guarded operator behavior, so prefer normal operators unless benchmarks and invariants justify the fast path.
-- Countable hot-path data may use array or `ReadOnlySpan<T>` overloads, while `IEnumerable<T>` remains useful for broader interoperability.
+- `FixedMath` is the canonical scalar algorithm surface; `Fixed64` owns Q32.32
+  representation, conversions, parsing, operators, and raw-value helpers.
+- Core 3D direction semantics are `+X` right, `+Y` up, and `+Z` forward. See
+  [`docs/wiki/coordinate-conventions.md`](docs/wiki/coordinate-conventions.md)
+  before adding adapter-facing conversions.
+- Numeric types expose clear return-by-value statics/operators plus explicit
+  `*InPlace` methods when mutation is useful.
+- 3D bounds use `FixedBoundBox`; 2D plane bounds use `FixedBoundArea`. Flat
+  world footprints should pair `FixedBoundArea` with explicit layer or elevation
+  state in higher-level packages.
+- Use named bound factories such as `FromMinMax`, `FromCenterAndSize`, and
+  `FromCenterAndScope` so min/max, total size, and half-extent semantics stay
+  visible at call sites.
+- `Intersects` methods use boundary-inclusive closed-bound semantics. Use
+  `IntersectsStrict` where the API exposes it and positive area or volume
+  overlap is required.
+- Extension methods are curated receiver-shaped conveniences that forward to
+  canonical APIs; factories and convention-heavy operations stay on the owning
+  type.
+- `Fast*` helpers are expert APIs for proven hot paths. They skip some guarded
+  operator behavior, so prefer normal operators unless benchmarks and invariants
+  justify the fast path.
+- Countable hot-path data may use array or `ReadOnlySpan<T>` overloads, while
+  `IEnumerable<T>` remains useful for broader interoperability.
 
-For the detailed geometry model, see [`docs/wiki/bounds-and-geometry.md`](docs/wiki/bounds-and-geometry.md).
+For the detailed geometry model, see
+[`docs/wiki/bounds-and-geometry.md`](docs/wiki/bounds-and-geometry.md).
 
 ### Coordinate Conventions
 
@@ -216,9 +271,9 @@ belong in adapter code.
 
 ## Build From Source
 
-Install the .NET 10 SDK before building from source. `global.json` pins the
-repo tooling to SDK 10 so `.slnx` workflows behave consistently; the packages
-still target .NET Standard 2.1 and .NET 8 for consumers.
+Install the .NET 10 SDK before building from source. `global.json` pins the repo
+tooling to SDK 10 so `.slnx` workflows behave consistently; the packages still
+target .NET Standard 2.1 and .NET 8 for consumers.
 
 ```bash
 git clone https://github.com/mrdav30/FixedMathSharp.git
@@ -233,14 +288,18 @@ Release build configurations:
 - `Release` builds the standard package.
 - `ReleaseLean` builds the Lean package with MemoryPack excluded.
 
-The helper script `.assets/scripts/set-version-and-build.ps1` builds both release configurations and writes release archives to `artifacts/releases/`.
+The helper script `.assets/scripts/set-version-and-build.ps1` builds both
+release configurations and writes release archives to `artifacts/releases/`.
 
 ### Benchmarks
 
-FixedMathSharp includes a BenchmarkDotNet project for measuring hot-path scalar, vector, quaternion, matrix, and bounds behavior:
+FixedMathSharp includes a BenchmarkDotNet project for measuring hot-path scalar,
+vector, quaternion, matrix, and bounds behavior:
 [`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks).
 
-See [`tests/FixedMathSharp.Benchmarks/README.md`](tests/FixedMathSharp.Benchmarks/README.md) for benchmark setup, aliases, and baseline guidance.
+See
+[`tests/FixedMathSharp.Benchmarks/README.md`](tests/FixedMathSharp.Benchmarks/README.md)
+for benchmark setup, aliases, and baseline guidance.
 
 ---
 
@@ -256,15 +315,23 @@ Upgrading to a major release? See the [migration guide](docs/MIGRATION.md).
 
 ## Quality Notes
 
-The library is covered by xUnit tests for arithmetic, vectors, matrices, quaternions, bounds, curves, serialization, deterministic random behavior, and FluentAssertions helpers.
+The library is covered by xUnit tests for arithmetic, vectors, matrices,
+quaternions, bounds, curves, serialization, deterministic random behavior, and
+FluentAssertions helpers.
 
-Cyclomatic complexity exceptions are tracked in [`docs/complexity-exceptions.md`](docs/complexity-exceptions.md). The register explains why specific hot-path or fixed-shape methods exceed the review threshold and what should trigger revisiting them.
+Cyclomatic complexity exceptions are tracked in
+[`docs/complexity-exceptions.md`](docs/complexity-exceptions.md). The register
+explains why specific hot-path or fixed-shape methods exceed the review
+threshold and what should trigger revisiting them.
 
 ---
 
 ## Contributing
 
-Contributions, bug reports, feature requests, and real-world determinism stories are welcome. Please read the [CONTRIBUTING](https://github.com/mrdav30/FixedMathSharp/blob/main/CONTRIBUTING.md) guide before opening a pull request.
+Contributions, bug reports, feature requests, and real-world determinism stories
+are welcome. Please read the
+[CONTRIBUTING](https://github.com/mrdav30/FixedMathSharp/blob/main/CONTRIBUTING.md)
+guide before opening a pull request.
 
 For questions and discussion, join the official Discord community:
 [Join the Discord Server](https://discord.gg/mhwK2QFNBA)

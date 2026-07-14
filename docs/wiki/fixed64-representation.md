@@ -1,6 +1,7 @@
 # Fixed64 Representation
 
-`Fixed64` is the scalar foundation of FixedMathSharp. It stores a deterministic fixed-point value in a signed 64-bit raw integer using a Q32.32 layout.
+`Fixed64` is the scalar foundation of FixedMathSharp. It stores a deterministic
+fixed-point value in a signed 64-bit raw integer using a Q32.32 layout.
 
 ## Q32.32 Layout
 
@@ -18,13 +19,19 @@ value = rawValue / 2^32
 rawValue = value * 2^32
 ```
 
-The lower 32 bits provide the fractional resolution. The upper side of the signed 64-bit value provides the whole-number range through normal two's-complement signed integer behavior.
+The lower 32 bits provide the fractional resolution. The upper side of the
+signed 64-bit value provides the whole-number range through normal
+two's-complement signed integer behavior.
 
 ## Scaled Integers, Not Stored Fractions
 
-`Fixed64` does not store a whole-number part and a fractional object separately. It stores one signed integer, and the library interprets that integer through the fixed Q32.32 scale.
+`Fixed64` does not store a whole-number part and a fractional object separately.
+It stores one signed integer, and the library interprets that integer through
+the fixed Q32.32 scale.
 
-For example, `0.5` is stored as raw `0x00000000_80000000`, or `1L << 31`. That value is an integer. It means one half only because `Fixed64` interprets raw values as units of `1 / 2^32`.
+For example, `0.5` is stored as raw `0x00000000_80000000`, or `1L << 31`. That
+value is an integer. It means one half only because `Fixed64` interprets raw
+values as units of `1 / 2^32`.
 
 This is the useful mental model:
 
@@ -34,15 +41,23 @@ This is the useful mental model:
 1 raw bit -> 1 / 4,294,967,296
 ```
 
-Addition and subtraction can operate directly on raw values because both operands already share the same scale. Multiplication and division need rescaling because multiplying two Q32.32 values produces an intermediate value with twice as many fractional bits, while division needs enough shifted numerator precision before the quotient is taken.
+Addition and subtraction can operate directly on raw values because both
+operands already share the same scale. Multiplication and division need
+rescaling because multiplying two Q32.32 values produces an intermediate value
+with twice as many fractional bits, while division needs enough shifted
+numerator precision before the quotient is taken.
 
-So the fractional part does not disappear during bit shifts. It was never a separate stored thing. The fraction is the interpretation of the scaled integer, much like inches, centimeters, frames, or ticks are interpretations of a count at a chosen measurement scale.
+So the fractional part does not disappear during bit shifts. It was never a
+separate stored thing. The fraction is the interpretation of the scaled integer,
+much like inches, centimeters, frames, or ticks are interpretations of a count
+at a chosen measurement scale.
 
 ## Range and Resolution
 
 With Q32.32:
 
-- Smallest positive raw step: `1 / 2^32`, approximately `0.00000000023283064365`.
+- Smallest positive raw step: `1 / 2^32`, approximately
+  `0.00000000023283064365`.
 - `Fixed64.One`: raw `0x00000001_00000000`.
 - `Fixed64.MinIncrement`: raw `0x00000000_00000001`.
 - `Fixed64.MinValue`: raw `long.MinValue`, exactly `-2147483648`.
@@ -50,31 +65,48 @@ With Q32.32:
 
 Example raw values:
 
-| Raw value | Meaning |
-| --- | --- |
-| `0x00000000_00000000` | `0` |
-| `0x00000001_00000000` | `1` |
-| `0x00000000_00000001` | `1 / 2^32` |
+| Raw value             | Meaning                              |
+| --------------------- | ------------------------------------ |
+| `0x00000000_00000000` | `0`                                  |
+| `0x00000001_00000000` | `1`                                  |
+| `0x00000000_00000001` | `1 / 2^32`                           |
 | `0x7FFFFFFF_FFFFFFFF` | Maximum representable positive value |
 | `0x80000000_00000000` | Minimum representable negative value |
 
 ## Why This Trade-Off?
 
-Q32.32 favors fine fractional precision while keeping a large enough whole-number range for many deterministic simulations, games, procedural systems, and tools. The trade-off is deliberate:
+Q32.32 favors fine fractional precision while keeping a large enough
+whole-number range for many deterministic simulations, games, procedural
+systems, and tools. The trade-off is deliberate:
 
-- More fractional bits reduce quantization error in small movements, rotations, interpolation, and accumulated simulation steps.
-- Fewer whole-number bits than `double` or a wider integer-backed fixed type mean large worlds should usually use local coordinates, chunk-relative positions, rebasing, or domain-specific scaling.
-- Arithmetic must guard overflow because multiply, divide, trigonometry, and interpolation can temporarily need more intermediate range than the final 64-bit value can store.
+- More fractional bits reduce quantization error in small movements, rotations,
+  interpolation, and accumulated simulation steps.
+- Fewer whole-number bits than `double` or a wider integer-backed fixed type
+  mean large worlds should usually use local coordinates, chunk-relative
+  positions, rebasing, or domain-specific scaling.
+- Arithmetic must guard overflow because multiply, divide, trigonometry, and
+  interpolation can temporarily need more intermediate range than the final
+  64-bit value can store.
 
-FixedMathSharp handles these cases with deterministic, guarded algorithms. For example, `Fixed64` multiplication uses full-width intermediate precision and saturating behavior for overflow paths.
+FixedMathSharp handles these cases with deterministic, guarded algorithms. For
+example, `Fixed64` multiplication uses full-width intermediate precision and
+saturating behavior for overflow paths.
 
 ## What About Other Shift Amounts?
 
-A different fixed-point layout would choose a different range/precision balance. For example, a Q48.16 style layout would have much more whole-number range and much less fractional precision.
+A different fixed-point layout would choose a different range/precision balance.
+For example, a Q48.16 style layout would have much more whole-number range and
+much less fractional precision.
 
-FixedMathSharp does not currently expose `SHIFT_AMOUNT_I` as a user-configurable setting. Changing it would affect constants, arithmetic algorithms, serialization compatibility, test expectations, and the practical behavior of every numeric type built on `Fixed64`.
+FixedMathSharp does not currently expose `SHIFT_AMOUNT_I` as a user-configurable
+setting. Changing it would affect constants, arithmetic algorithms,
+serialization compatibility, test expectations, and the practical behavior of
+every numeric type built on `Fixed64`.
 
-Use Q32.32 when deterministic precision is more important than enormous coordinate range. If an application needs much larger absolute values, prefer changing the domain scale or coordinate system before changing the numeric representation.
+Use Q32.32 when deterministic precision is more important than enormous
+coordinate range. If an application needs much larger absolute values, prefer
+changing the domain scale or coordinate system before changing the numeric
+representation.
 
 ## Practical Guidance
 
@@ -119,20 +151,24 @@ range. `Fixed64.TryParse` reports the same overflow as `false`.
 
 Floating-point boundary helpers such as `Fixed64.FromDouble`, explicit
 `float`/`double` casts to `Fixed64`, vector `FromDouble` factories, and
-curve-key `FromDouble` factories also operate in normal value space. They
-reject `NaN` and infinities with `ArgumentOutOfRangeException`, and throw
+curve-key `FromDouble` factories also operate in normal value space. They reject
+`NaN` and infinities with `ArgumentOutOfRangeException`, and throw
 `OverflowException` for finite values outside the representable Q32.32 range.
-This keeps engine or tooling boundary input mistakes visible instead of
-silently manufacturing raw fixed-point payloads.
+This keeps engine or tooling boundary input mistakes visible instead of silently
+manufacturing raw fixed-point payloads.
 
 APIs that can reasonably stay in fixed-point space should do so. For example,
 range checks use `FixedRange.InRange(Fixed64, bool)`, and deterministic random
 generation exposes `Fixed64` helpers instead of a `double` stream.
 
-- Use `Fixed64.FromRaw(long)` only when you intentionally want an exact raw representation.
-- Use constructors, constants, and helpers such as `Fixed64.One`, `Fixed64.FromFraction`, and `FixedMath` methods for normal value-space code.
-- Keep deterministic simulation state in fixed-point values, but convert to `float` or `double` at rendering and engine interop boundaries when needed.
-- Treat overflow behavior as part of the numeric contract; avoid relying on primitive floating-point intuition for extreme values.
+- Use `Fixed64.FromRaw(long)` only when you intentionally want an exact raw
+  representation.
+- Use constructors, constants, and helpers such as `Fixed64.One`,
+  `Fixed64.FromFraction`, and `FixedMath` methods for normal value-space code.
+- Keep deterministic simulation state in fixed-point values, but convert to
+  `float` or `double` at rendering and engine interop boundaries when needed.
+- Treat overflow behavior as part of the numeric contract; avoid relying on
+  primitive floating-point intuition for extreme values.
 
 For human-readable formatting, see
 [`diagnostics-formatting.md`](diagnostics-formatting.md). Diagnostic strings,
