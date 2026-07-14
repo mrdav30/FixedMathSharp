@@ -394,13 +394,16 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// </summary>
     public Vector4d NormalizeInPlace(out Fixed64 mag)
     {
-        mag = GetMagnitude(this);
+        bool magnitudeIsRepresentable = TryGetMagnitude(this, out mag);
 
         if (mag == Fixed64.Zero)
             return this = Zero;
 
         if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return this;
+
+        if (!magnitudeIsRepresentable || mag <= FixedMath.ScaleSafeMagnitudeThreshold)
+            return this = GetNormalized(this);
 
         return this = new Vector4d(
             FixedMath.FastDiv(X, mag),
@@ -539,10 +542,16 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// </summary>
     public static Vector4d GetNormalized(Vector4d value)
     {
-        Fixed64 mag = GetMagnitude(value);
+        bool magnitudeIsRepresentable = TryGetMagnitude(value, out Fixed64 mag);
 
         if (mag == Fixed64.Zero)
             return Zero;
+
+        if (!magnitudeIsRepresentable)
+            return GetNormalized(value * Fixed64.Half);
+
+        if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
+            return GetScaleNormalized(value);
 
         if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return value;
@@ -554,22 +563,72 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
             FixedMath.FastDiv(value.W, mag));
     }
 
+    private static Vector4d GetScaleNormalized(Vector4d value)
+    {
+        Fixed64 scale = FixedMath.Max(
+            FixedMath.Max(value.X.Abs(), value.Y.Abs()),
+            FixedMath.Max(value.Z.Abs(), value.W.Abs()));
+        Vector4d scaled = value / scale;
+        Fixed64 scaledMagnitude = FixedMath.GetScaledMagnitude(scaled.X, scaled.Y, scaled.Z, scaled.W);
+        return scaled / scaledMagnitude;
+    }
+
     /// <summary>
     /// Returns the magnitude of the given vector.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 GetMagnitude(Vector4d vector)
     {
+        _ = TryGetMagnitude(vector, out Fixed64 magnitude);
+        return magnitude;
+    }
+
+    /// <summary>
+    /// Attempts to return the magnitude of the given vector without saturating the result.
+    /// </summary>
+    /// <param name="vector">The vector to measure.</param>
+    /// <param name="magnitude">The magnitude, or <see cref="Fixed64.MaxValue"/> when it is not representable.</param>
+    /// <returns><see langword="true"/> when the magnitude fits in <see cref="Fixed64"/>; otherwise, <see langword="false"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryGetMagnitude(Vector4d vector, out Fixed64 magnitude)
+    {
         Fixed64 mag = (vector.X * vector.X) + (vector.Y * vector.Y) + (vector.Z * vector.Z) + (vector.W * vector.W);
 
         if (mag == Fixed64.MaxValue)
-            return FixedMath.GetScaledMagnitude(vector.X, vector.Y, vector.Z, vector.W);
+            return FixedMath.TryGetScaledMagnitude(vector.X, vector.Y, vector.Z, vector.W, out magnitude);
+
+        if (mag <= FixedMath.ScaleSafeMagnitudeSquaredThreshold)
+        {
+            magnitude = FixedMath.GetScaledMagnitude(vector.X, vector.Y, vector.Z, vector.W);
+            return true;
+        }
 
         if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
-            return Fixed64.One;
+        {
+            magnitude = Fixed64.One;
+            return true;
+        }
 
-        return mag != Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
+        magnitude = mag != Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
+        return true;
     }
+
+    /// <summary>
+    /// Compares the exact squared magnitudes of two vectors without fixed-point saturation.
+    /// </summary>
+    /// <returns>A negative value when <paramref name="left"/> is shorter, zero when the
+    /// magnitudes are equal, or a positive value when <paramref name="left"/> is longer.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CompareMagnitudeSquared(Vector4d left, Vector4d right) =>
+        Fixed64.CompareMagnitudeSquared(
+            left.X,
+            left.Y,
+            left.Z,
+            left.W,
+            right.X,
+            right.Y,
+            right.Z,
+            right.W);
 
     /// <summary>
     /// Returns a new vector containing the absolute value of each component.

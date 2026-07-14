@@ -149,6 +149,36 @@ public class FixedMathTests
 
     #endregion
 
+    #region Test: Average Method
+
+    [Theory]
+    [InlineData(long.MaxValue, long.MaxValue, long.MaxValue, long.MaxValue)]
+    [InlineData(long.MinValue, long.MinValue, long.MinValue, long.MinValue)]
+    [InlineData(long.MinValue, long.MaxValue, 0L, 0L)]
+    [InlineData(long.MaxValue, long.MaxValue, long.MinValue, 3074457345618258602L)]
+    [InlineData(0L, 0L, 1L, 0L)]
+    [InlineData(0L, 0L, 2L, 1L)]
+    [InlineData(0L, 0L, -1L, 0L)]
+    [InlineData(0L, 0L, -2L, -1L)]
+    public void Average_ExtremesAndRawRemainders_ReturnsNearest(
+        long firstRaw,
+        long secondRaw,
+        long thirdRaw,
+        long expectedRaw)
+    {
+        Fixed64 first = Fixed64.FromRaw(firstRaw);
+        Fixed64 second = Fixed64.FromRaw(secondRaw);
+        Fixed64 third = Fixed64.FromRaw(thirdRaw);
+
+        Fixed64 result = FixedMath.Average(first, second, third);
+
+        Assert.Equal(Fixed64.FromRaw(expectedRaw), result);
+        Assert.Equal(result, FixedMath.Average(third, first, second));
+        Assert.Equal(result, FixedMath.Average(second, third, first));
+    }
+
+    #endregion
+
     #region Test: Midpoint Method
 
     [Theory]

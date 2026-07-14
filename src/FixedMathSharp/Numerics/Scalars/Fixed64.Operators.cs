@@ -152,6 +152,82 @@ public partial struct Fixed64
     }
 
     /// <summary>
+    /// Determines whether the Euclidean magnitude of up to four fixed-point components
+    /// fits in the positive <see cref="Fixed64"/> range.
+    /// </summary>
+    internal static bool IsMagnitudeRepresentable(Fixed64 x, Fixed64 y, Fixed64 z, Fixed64 w)
+    {
+        GetMagnitudeSquaredWords(x, y, z, w, out ulong overflow, out ulong sumHi, out ulong sumLo);
+
+        // (long.MaxValue)^2 = 0x3FFF_FFFF_FFFF_FFFF_0000_0000_0000_0001.
+        return overflow == 0UL
+            && (sumHi < 0x3FFF_FFFF_FFFF_FFFFUL
+                || (sumHi == 0x3FFF_FFFF_FFFF_FFFFUL && sumLo <= 1UL));
+    }
+
+    /// <summary>
+    /// Compares exact squared magnitudes without projecting their sums back into Q32.32.
+    /// </summary>
+    internal static int CompareMagnitudeSquared(
+        Fixed64 leftX,
+        Fixed64 leftY,
+        Fixed64 leftZ,
+        Fixed64 leftW,
+        Fixed64 rightX,
+        Fixed64 rightY,
+        Fixed64 rightZ,
+        Fixed64 rightW)
+    {
+        GetMagnitudeSquaredWords(leftX, leftY, leftZ, leftW, out ulong leftOverflow, out ulong leftHi, out ulong leftLo);
+        GetMagnitudeSquaredWords(rightX, rightY, rightZ, rightW, out ulong rightOverflow, out ulong rightHi, out ulong rightLo);
+
+        if (leftOverflow != rightOverflow)
+            return leftOverflow < rightOverflow ? -1 : 1;
+        if (leftHi != rightHi)
+            return leftHi < rightHi ? -1 : 1;
+        if (leftLo != rightLo)
+            return leftLo < rightLo ? -1 : 1;
+        return 0;
+    }
+
+    private static void GetMagnitudeSquaredWords(
+        Fixed64 x,
+        Fixed64 y,
+        Fixed64 z,
+        Fixed64 w,
+        out ulong overflow,
+        out ulong sumHi,
+        out ulong sumLo)
+    {
+        overflow = 0UL;
+        sumHi = 0UL;
+        sumLo = 0UL;
+        AddMagnitudeSquare(x.m_rawValue, ref overflow, ref sumHi, ref sumLo);
+        AddMagnitudeSquare(y.m_rawValue, ref overflow, ref sumHi, ref sumLo);
+        AddMagnitudeSquare(z.m_rawValue, ref overflow, ref sumHi, ref sumLo);
+        AddMagnitudeSquare(w.m_rawValue, ref overflow, ref sumHi, ref sumLo);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void AddMagnitudeSquare(
+        long component,
+        ref ulong overflow,
+        ref ulong sumHi,
+        ref ulong sumLo)
+    {
+        ulong magnitude = AbsToUInt64(component);
+        Multiply64To128(magnitude, magnitude, out ulong squareHi, out ulong squareLo);
+
+        ulong previousLo = sumLo;
+        sumLo += squareLo;
+        ulong addHi = squareHi + (sumLo < previousLo ? 1UL : 0UL);
+        ulong previousHi = sumHi;
+        sumHi += addHi;
+        if (sumHi < previousHi)
+            overflow++;
+    }
+
+    /// <summary>
     /// Shifts the unsigned 128-bit value (hi:lo) right by <paramref name="shift"/> bits,
     /// applying round-half-to-even to the discarded bits.
     /// </summary>

@@ -66,10 +66,16 @@ public partial struct Vector2d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d GetNormalized(Vector2d value)
     {
-        Fixed64 mag = GetMagnitude(value);
+        bool magnitudeIsRepresentable = TryGetMagnitude(value, out Fixed64 mag);
 
         if (mag == Fixed64.Zero)
             return new Vector2d(Fixed64.Zero, Fixed64.Zero);
+
+        if (!magnitudeIsRepresentable)
+            return GetNormalized(value * Fixed64.Half);
+
+        if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
+            return GetScaleNormalized(value);
 
         // If already normalized, return as-is
         if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
@@ -82,6 +88,18 @@ public partial struct Vector2d
         );
     }
 
+    private static Vector2d GetScaleNormalized(Vector2d value)
+    {
+        Fixed64 scale = FixedMath.Max(value.X.Abs(), value.Y.Abs());
+        Vector2d scaled = value / scale;
+        Fixed64 scaledMagnitude = FixedMath.GetScaledMagnitude(
+            scaled.X,
+            scaled.Y,
+            Fixed64.Zero,
+            Fixed64.Zero);
+        return scaled / scaledMagnitude;
+    }
+
     /// <summary>
     /// Returns the magnitude (length) of the given vector.
     /// </summary>
@@ -90,17 +108,66 @@ public partial struct Vector2d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 GetMagnitude(Vector2d vector)
     {
+        _ = TryGetMagnitude(vector, out Fixed64 magnitude);
+        return magnitude;
+    }
+
+    /// <summary>
+    /// Attempts to return the magnitude of the given vector without saturating the result.
+    /// </summary>
+    /// <param name="vector">The vector to measure.</param>
+    /// <param name="magnitude">The magnitude, or <see cref="Fixed64.MaxValue"/> when it is not representable.</param>
+    /// <returns><see langword="true"/> when the magnitude fits in <see cref="Fixed64"/>; otherwise, <see langword="false"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryGetMagnitude(Vector2d vector, out Fixed64 magnitude)
+    {
         Fixed64 mag = (vector.X * vector.X) + (vector.Y * vector.Y);
 
         if (mag == Fixed64.MaxValue)
-            return FixedMath.GetScaledMagnitude(vector.X, vector.Y, Fixed64.Zero, Fixed64.Zero);
+            return FixedMath.TryGetScaledMagnitude(
+                vector.X,
+                vector.Y,
+                Fixed64.Zero,
+                Fixed64.Zero,
+                out magnitude);
+
+        if (mag <= FixedMath.ScaleSafeMagnitudeSquaredThreshold)
+        {
+            magnitude = FixedMath.GetScaledMagnitude(
+                vector.X,
+                vector.Y,
+                Fixed64.Zero,
+                Fixed64.Zero);
+            return true;
+        }
 
         // If rounding error pushed magnitude slightly above 1, clamp it
         if (mag > Fixed64.One && mag <= Fixed64.One + Fixed64.Epsilon)
-            return Fixed64.One;
+        {
+            magnitude = Fixed64.One;
+            return true;
+        }
 
-        return mag.Abs() > Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
+        magnitude = mag.Abs() > Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
+        return true;
     }
+
+    /// <summary>
+    /// Compares the exact squared magnitudes of two vectors without fixed-point saturation.
+    /// </summary>
+    /// <returns>A negative value when <paramref name="left"/> is shorter, zero when the
+    /// magnitudes are equal, or a positive value when <paramref name="left"/> is longer.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CompareMagnitudeSquared(Vector2d left, Vector2d right) =>
+        Fixed64.CompareMagnitudeSquared(
+            left.X,
+            left.Y,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            right.X,
+            right.Y,
+            Fixed64.Zero,
+            Fixed64.Zero);
 
     /// <summary>
     /// Returns a new <see cref="Vector2d"/> where each component is the absolute value of the corresponding input component.

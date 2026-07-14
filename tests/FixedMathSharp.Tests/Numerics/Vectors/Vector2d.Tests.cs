@@ -75,7 +75,84 @@ public class Vector2dTests
         var vector = new Vector2d(60000, 80000);
 
         Assert.Equal(new Fixed64(100000), vector.Magnitude);
+        Assert.True(Vector2d.TryGetMagnitude(vector, out Fixed64 magnitude));
+        Assert.Equal(new Fixed64(100000), magnitude);
         Assert.Equal(new Fixed64(100000), Vector2d.Distance(Vector2d.Zero, vector));
+    }
+
+    [Fact]
+    public void Normalize_WhenLengthExceedsScalarRange_ReturnsUnitDirectionAndReportsSaturation()
+    {
+        var vector = new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue);
+
+        Assert.False(Vector2d.TryGetMagnitude(vector, out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MaxValue, magnitude);
+
+        Vector2d normalized = vector.Normalized;
+        Assert.Equal(normalized.X, normalized.Y);
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.One, normalized.Magnitude);
+
+        Vector2d inPlace = vector;
+        Assert.Equal(normalized, inPlace.NormalizeInPlace(out Fixed64 originalMagnitude));
+        Assert.Equal(Fixed64.MaxValue, originalMagnitude);
+    }
+
+    [Fact]
+    public void TryGetMagnitude_MaximumAxisLength_IsRepresentable()
+    {
+        Assert.True(Vector2d.TryGetMagnitude(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MaxValue, magnitude);
+    }
+
+    [Fact]
+    public void TryGetMagnitude_DetectsExactScalarRangeBoundary()
+    {
+        Assert.False(Vector2d.TryGetMagnitude(
+            new Vector2d(Fixed64.MinValue, Fixed64.Zero),
+            out Fixed64 minimumAxisMagnitude));
+        Assert.Equal(Fixed64.MaxValue, minimumAxisMagnitude);
+
+        Fixed64 justBelowMaximum = Fixed64.FromRaw(Fixed64.MaxValue.m_rawValue - 1);
+        Assert.False(Vector2d.TryGetMagnitude(
+            new Vector2d(justBelowMaximum, Fixed64.Two),
+            out Fixed64 overflowMagnitude));
+        Assert.Equal(Fixed64.MaxValue, overflowMagnitude);
+
+        Assert.True(Vector2d.TryGetMagnitude(
+            new Vector2d(justBelowMaximum, Fixed64.Half),
+            out Fixed64 representableMagnitude));
+        Assert.Equal(justBelowMaximum, representableMagnitude);
+
+        Assert.False(Vector2d.TryGetMagnitude(
+            new Vector2d(Fixed64.MaxValue, Fixed64.FromRaw(1)),
+            out Fixed64 oneRawBeyondBoundary));
+        Assert.Equal(Fixed64.MaxValue, oneRawBeyondBoundary);
+
+        Fixed64 carryComponent = Fixed64.FromRaw((1L << 62) + 1);
+        Assert.True(Vector2d.TryGetMagnitude(
+            new Vector2d(carryComponent, carryComponent),
+            out _));
+    }
+
+    [Fact]
+    public void Normalize_MinimumAxisLength_ReturnsNegativeUnitDirection()
+    {
+        Assert.Equal(
+            Vector2d.Left,
+            new Vector2d(Fixed64.MinValue, Fixed64.Zero).Normalized);
+    }
+
+    [Fact]
+    public void CompareMagnitudeSquared_OrdersVectorsAcrossScalarMagnitudeRange()
+    {
+        var shorter = new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue - Fixed64.One);
+        var longer = new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue);
+
+        Assert.True(Vector2d.CompareMagnitudeSquared(shorter, longer) < 0);
+        Assert.True(Vector2d.CompareMagnitudeSquared(longer, shorter) > 0);
+        Assert.Equal(0, Vector2d.CompareMagnitudeSquared(longer, -longer));
     }
 
     [Fact]
@@ -431,11 +508,10 @@ public class Vector2dTests
     }
 
     [Fact]
-    public void Normalize_MatchesComponentDivisionByMagnitude_ForFractionalHugeAndTinyRawValues()
+    public void Normalize_MatchesComponentDivisionByMagnitude_ForFractionalAndHugeValues()
     {
         AssertNormalizeMatchesComponentDivision(Vector2d.FromDouble(1.5, -2.25));
         AssertNormalizeMatchesComponentDivision(new Vector2d(10000, -20000));
-        AssertNormalizeMatchesComponentDivision(new Vector2d(Fixed64.FromRaw(1), Fixed64.FromRaw(-1)));
     }
 
     [Fact]
@@ -459,12 +535,13 @@ public class Vector2dTests
             return;
         }
 
-        var expected = new Vector2d(source.X / magnitude, source.Y / magnitude);
-
+        Vector2d expected = source / magnitude;
         Assert.Equal(expected, source.Normalized);
 
         var inPlace = source;
-        Assert.Equal(expected, inPlace.NormalizeInPlace());
+        Assert.Equal(expected, inPlace.NormalizeInPlace(out Fixed64 originalMagnitude));
+        Assert.Equal(magnitude, originalMagnitude);
+        Assert.Equal(expected, inPlace);
     }
 
     [Fact]
@@ -786,6 +863,48 @@ public class Vector2dTests
         Assert.Equal(new Vector2d(2, 4), new Fixed64(2) * vector);
         Assert.Equal(new Vector2d(2, 6), vector * new Vector2d(2, 3));
         Assert.Equal(new Vector2d(Fixed64.FromDouble(0.5), Fixed64.One), vector / new Fixed64(2));
+    }
+
+    [Fact]
+    public void Normalized_WithSmallRepresentableComponents_ShouldRemainUnitLength()
+    {
+        var vector = new Vector2d(Fixed64.FromRaw(21_011_293), Fixed64.FromRaw(3_311_656));
+
+        Vector2d normalized = vector.Normalized;
+
+        Assert.True(FixedMath.Abs(normalized.Magnitude - Fixed64.One) <= Fixed64.Epsilon);
+    }
+
+    [Fact]
+    public void MagnitudeAndNormalized_WithMinimumRepresentableAxis_ShouldPreserveDirection()
+    {
+        var vector = new Vector2d(Fixed64.MinIncrement, Fixed64.Zero);
+
+        Assert.True(Vector2d.TryGetMagnitude(vector, out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MinIncrement, magnitude);
+        Assert.Equal(Vector2d.Right, vector.Normalized);
+    }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(1, 2)]
+    public void Normalized_WithSubSquareResolutionComponents_ShouldPreserveRatio(long xRaw, long yRaw)
+    {
+        var vector = new Vector2d(Fixed64.FromRaw(xRaw), Fixed64.FromRaw(yRaw));
+        Vector2d expected = new Vector2d((Fixed64)xRaw, (Fixed64)yRaw).Normalized;
+
+        Vector2d normalized = vector.Normalized;
+        var inPlace = vector;
+        Vector2d inPlaceResult = inPlace.NormalizeInPlace(out Fixed64 inPlaceMagnitude);
+
+        Assert.True(FixedMath.Abs(normalized.X - expected.X) <= Fixed64.Epsilon);
+        Assert.True(FixedMath.Abs(normalized.Y - expected.Y) <= Fixed64.Epsilon);
+        Assert.True(FixedMath.Abs(normalized.Magnitude - Fixed64.One) <= Fixed64.Epsilon);
+        Assert.True(Vector2d.TryGetMagnitude(vector, out Fixed64 expectedMagnitude));
+        Assert.Equal(expectedMagnitude, inPlaceMagnitude);
+        Assert.True(FixedMath.Abs(inPlaceResult.X - expected.X) <= Fixed64.Epsilon);
+        Assert.True(FixedMath.Abs(inPlaceResult.Y - expected.Y) <= Fixed64.Epsilon);
+        Assert.Equal(inPlaceResult, inPlace);
     }
 
     #region Test: Serialization

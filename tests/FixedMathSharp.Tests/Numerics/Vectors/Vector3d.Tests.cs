@@ -94,7 +94,58 @@ public class Vector3dTests
         var vector = new Vector3d(20000, 40000, 40000);
 
         Assert.Equal(new Fixed64(60000), vector.Magnitude);
+        Assert.True(Vector3d.TryGetMagnitude(vector, out Fixed64 magnitude));
+        Assert.Equal(new Fixed64(60000), magnitude);
         Assert.Equal(new Fixed64(60000), Vector3d.Distance(Vector3d.Zero, vector));
+    }
+
+    [Fact]
+    public void Normalize_WhenLengthExceedsScalarRange_ReturnsUnitDirectionAndReportsSaturation()
+    {
+        var vector = new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue);
+
+        Assert.False(Vector3d.TryGetMagnitude(vector, out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MaxValue, magnitude);
+
+        Vector3d normalized = vector.Normalized;
+        Assert.Equal(normalized.X, normalized.Y);
+        Assert.Equal(normalized.Y, normalized.Z);
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.One, normalized.Magnitude);
+
+        Vector3d inPlace = vector;
+        Assert.Equal(normalized, inPlace.NormalizeInPlace(out Fixed64 originalMagnitude));
+        Assert.Equal(Fixed64.MaxValue, originalMagnitude);
+    }
+
+    [Fact]
+    public void TryGetMagnitude_MaximumAxisLength_IsRepresentable()
+    {
+        Assert.True(Vector3d.TryGetMagnitude(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MaxValue, magnitude);
+    }
+
+    [Fact]
+    public void TryGetMagnitude_WhenThirdComponentExceedsRange_ReturnsFalse()
+    {
+        Fixed64 component = Fixed64.FromRaw(6_000_000_000_000_000_000L);
+
+        Assert.False(Vector3d.TryGetMagnitude(
+            new Vector3d(component, component, component),
+            out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MaxValue, magnitude);
+    }
+
+    [Fact]
+    public void CompareMagnitudeSquared_OrdersVectorsAcrossScalarMagnitudeRange()
+    {
+        var shorter = new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue - Fixed64.One);
+        var longer = new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue);
+
+        Assert.True(Vector3d.CompareMagnitudeSquared(shorter, longer) < 0);
+        Assert.True(Vector3d.CompareMagnitudeSquared(longer, shorter) > 0);
+        Assert.Equal(0, Vector3d.CompareMagnitudeSquared(longer, -longer));
     }
 
     [Fact]
@@ -397,11 +448,10 @@ public class Vector3dTests
     #endregion
 
     [Fact]
-    public void Normalize_MatchesComponentDivisionByMagnitude_ForFractionalHugeAndTinyRawValues()
+    public void Normalize_MatchesComponentDivisionByMagnitude_ForFractionalAndHugeValues()
     {
         AssertNormalizeMatchesComponentDivision(Vector3d.FromDouble(1.5, -2.25, 3.75));
         AssertNormalizeMatchesComponentDivision(new Vector3d(10000, -20000, 30000));
-        AssertNormalizeMatchesComponentDivision(new Vector3d(Fixed64.FromRaw(1), Fixed64.FromRaw(-1), Fixed64.FromRaw(2)));
     }
 
     private static void AssertNormalizeMatchesComponentDivision(Vector3d source)
@@ -416,12 +466,13 @@ public class Vector3dTests
             return;
         }
 
-        var expected = new Vector3d(source.X / magnitude, source.Y / magnitude, source.Z / magnitude);
-
+        Vector3d expected = source / magnitude;
         Assert.Equal(expected, source.Normalized);
 
         var inPlace = source;
-        Assert.Equal(expected, inPlace.NormalizeInPlace());
+        Assert.Equal(expected, inPlace.NormalizeInPlace(out Fixed64 originalMagnitude));
+        Assert.Equal(magnitude, originalMagnitude);
+        Assert.Equal(expected, inPlace);
     }
 
     #region Test: Dot and Cross Product
@@ -1341,6 +1392,47 @@ public class Vector3dTests
 
         Assert.False(left < strictRight);
         Assert.False(left <= inclusiveRight);
+    }
+
+    [Fact]
+    public void Normalized_WithSmallRepresentableComponents_ShouldRemainUnitLength()
+    {
+        var vector = new Vector3d(
+            Fixed64.FromRaw(21_011_293),
+            Fixed64.FromRaw(3_311_656),
+            Fixed64.FromRaw(1_288));
+
+        Vector3d normalized = vector.Normalized;
+
+        Assert.True(FixedMath.Abs(normalized.Magnitude - Fixed64.One) <= Fixed64.Epsilon);
+    }
+
+    [Fact]
+    public void MagnitudeAndNormalized_WithMinimumRepresentableAxis_ShouldPreserveDirection()
+    {
+        var vector = new Vector3d(Fixed64.MinIncrement, Fixed64.Zero, Fixed64.Zero);
+
+        Assert.True(Vector3d.TryGetMagnitude(vector, out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MinIncrement, magnitude);
+        Assert.Equal(Vector3d.Right, vector.Normalized);
+    }
+
+    [Fact]
+    public void Normalized_WithSubSquareResolutionComponents_ShouldPreserveRatio()
+    {
+        var vector = new Vector3d(Fixed64.MinIncrement, Fixed64.MinIncrement, Fixed64.MinIncrement);
+        Vector3d expected = new Vector3d(Fixed64.One, Fixed64.One, Fixed64.One).Normalized;
+
+        Vector3d normalized = vector.Normalized;
+        var inPlace = vector;
+        Vector3d inPlaceResult = inPlace.NormalizeInPlace(out Fixed64 inPlaceMagnitude);
+
+        Assert.True(normalized.FuzzyEqualAbsolute(expected, Fixed64.Epsilon));
+        Assert.True(FixedMath.Abs(normalized.Magnitude - Fixed64.One) <= Fixed64.Epsilon);
+        Assert.True(Vector3d.TryGetMagnitude(vector, out Fixed64 expectedMagnitude));
+        Assert.Equal(expectedMagnitude, inPlaceMagnitude);
+        Assert.True(inPlaceResult.FuzzyEqualAbsolute(expected, Fixed64.Epsilon));
+        Assert.Equal(inPlaceResult, inPlace);
     }
 
     #endregion

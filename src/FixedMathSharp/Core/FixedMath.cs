@@ -200,6 +200,33 @@ namespace FixedMathSharp
         public static Fixed64 Min(Fixed64 a, Fixed64 b) => a < b ? a : b;
 
         /// <summary>
+        /// Returns the arithmetic average of three fixed-point values without intermediate overflow.
+        /// </summary>
+        /// <remarks>
+        /// The exact raw Q32.32 sum is divided by three and rounded to the nearest raw value.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Fixed64 Average(Fixed64 first, Fixed64 second, Fixed64 third)
+        {
+            long quotient = first.m_rawValue / 3
+                + second.m_rawValue / 3
+                + third.m_rawValue / 3;
+            int remainder = (int)(
+                first.m_rawValue % 3
+                + second.m_rawValue % 3
+                + third.m_rawValue % 3);
+
+            quotient += remainder / 3;
+            int residual = remainder % 3;
+            if (residual == 2)
+                quotient++;
+            else if (residual == -2)
+                quotient--;
+
+            return Fixed64.FromRaw(quotient);
+        }
+
+        /// <summary>
         /// Returns the arithmetic midpoint of two fixed-point values without intermediate overflow.
         /// </summary>
         /// <remarks>

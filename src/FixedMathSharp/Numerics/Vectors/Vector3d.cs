@@ -475,7 +475,7 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector3d NormalizeInPlace(out Fixed64 mag)
     {
-        mag = GetMagnitude(this);
+        bool magnitudeIsRepresentable = TryGetMagnitude(this, out mag);
 
         // If magnitude is zero, return a zero vector to avoid divide-by-zero errors
         if (mag == Fixed64.Zero)
@@ -489,6 +489,9 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         // If already normalized, return as-is
         if (mag == Fixed64.One)
             return this;
+
+        if (!magnitudeIsRepresentable || mag <= FixedMath.ScaleSafeMagnitudeThreshold)
+            return this = GetNormalized(this);
 
         X = FixedMath.FastDiv(X, mag);
         Y = FixedMath.FastDiv(Y, mag);

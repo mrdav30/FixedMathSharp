@@ -120,7 +120,71 @@ public class Vector4dTests
         var vector = new Vector4d(30000, 30000, 30000, 30000);
 
         Assert.Equal(new Fixed64(60000), vector.Magnitude);
+        Assert.True(Vector4d.TryGetMagnitude(vector, out Fixed64 magnitude));
+        Assert.Equal(new Fixed64(60000), magnitude);
         Assert.Equal(new Fixed64(60000), Vector4d.Distance(Vector4d.Zero, vector));
+    }
+
+    [Fact]
+    public void Normalize_WhenLengthExceedsScalarRange_ReturnsUnitDirectionAndReportsSaturation()
+    {
+        var vector = new Vector4d(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.MaxValue);
+
+        Assert.False(Vector4d.TryGetMagnitude(vector, out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MaxValue, magnitude);
+
+        Vector4d normalized = vector.Normalized;
+        Assert.Equal(normalized.X, normalized.Y);
+        Assert.Equal(normalized.Y, normalized.Z);
+        Assert.Equal(normalized.Z, normalized.W);
+        FixedMathTestHelper.AssertWithinRelativeTolerance(Fixed64.One, normalized.Magnitude);
+
+        Vector4d inPlace = vector;
+        Assert.Equal(normalized, inPlace.NormalizeInPlace(out Fixed64 originalMagnitude));
+        Assert.Equal(Fixed64.MaxValue, originalMagnitude);
+    }
+
+    [Fact]
+    public void TryGetMagnitude_MaximumAxisLength_IsRepresentable()
+    {
+        Assert.True(Vector4d.TryGetMagnitude(
+            new Vector4d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero),
+            out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MaxValue, magnitude);
+    }
+
+    [Fact]
+    public void TryGetMagnitude_WhenFourthComponentExceedsRange_ReturnsFalse()
+    {
+        Fixed64 component = Fixed64.FromRaw((1L << 62) + 1);
+
+        Assert.False(Vector4d.TryGetMagnitude(
+            new Vector4d(component, component, component, component),
+            out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MaxValue, magnitude);
+    }
+
+    [Fact]
+    public void CompareMagnitudeSquared_OrdersVectorsAcrossUnsigned128Overflow()
+    {
+        var shorter = new Vector4d(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.MaxValue - Fixed64.One);
+        var longer = new Vector4d(
+            Fixed64.MinValue,
+            Fixed64.MinValue,
+            Fixed64.MinValue,
+            Fixed64.MinValue);
+
+        Assert.True(Vector4d.CompareMagnitudeSquared(shorter, longer) < 0);
+        Assert.True(Vector4d.CompareMagnitudeSquared(longer, shorter) > 0);
+        Assert.Equal(0, Vector4d.CompareMagnitudeSquared(longer, longer));
     }
 
     [Fact]
@@ -355,11 +419,10 @@ public class Vector4dTests
     }
 
     [Fact]
-    public void Normalize_MatchesComponentDivisionByMagnitude_ForFractionalHugeAndTinyRawValues()
+    public void Normalize_MatchesComponentDivisionByMagnitude_ForFractionalAndHugeValues()
     {
         AssertNormalizeMatchesComponentDivision(Vector4d.FromDouble(1.5, -2.25, 3.75, -4.5));
         AssertNormalizeMatchesComponentDivision(new Vector4d(10000, -20000, 30000, -10000));
-        AssertNormalizeMatchesComponentDivision(new Vector4d(Fixed64.FromRaw(1), Fixed64.FromRaw(-1), Fixed64.FromRaw(2), Fixed64.FromRaw(-2)));
     }
 
     [Fact]
@@ -382,12 +445,13 @@ public class Vector4dTests
             return;
         }
 
-        var expected = new Vector4d(source.X / magnitude, source.Y / magnitude, source.Z / magnitude, source.W / magnitude);
-
+        Vector4d expected = source / magnitude;
         Assert.Equal(expected, source.Normalized);
 
         var inPlace = source;
-        Assert.Equal(expected, inPlace.NormalizeInPlace());
+        Assert.Equal(expected, inPlace.NormalizeInPlace(out Fixed64 originalMagnitude));
+        Assert.Equal(magnitude, originalMagnitude);
+        Assert.Equal(expected, inPlace);
     }
 
     [Theory]
@@ -630,6 +694,57 @@ public class Vector4dTests
 
         Assert.True(vector.FuzzyEqual(near));
         Assert.False(vector.FuzzyEqual(far));
+    }
+
+    [Fact]
+    public void Normalized_WithSmallRepresentableComponents_ShouldRemainUnitLength()
+    {
+        var vector = new Vector4d(
+            Fixed64.FromRaw(21_011_293),
+            Fixed64.FromRaw(3_311_656),
+            Fixed64.FromRaw(1_288),
+            Fixed64.FromRaw(4_294));
+
+        Vector4d normalized = vector.Normalized;
+
+        Assert.True(FixedMath.Abs(normalized.Magnitude - Fixed64.One) <= Fixed64.Epsilon);
+    }
+
+    [Fact]
+    public void MagnitudeAndNormalized_WithMinimumRepresentableAxis_ShouldPreserveDirection()
+    {
+        var vector = new Vector4d(Fixed64.MinIncrement, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
+
+        Assert.True(Vector4d.TryGetMagnitude(vector, out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MinIncrement, magnitude);
+        Assert.Equal(Vector4d.UnitX, vector.Normalized);
+    }
+
+    [Fact]
+    public void Normalized_WithSubSquareResolutionComponents_ShouldPreserveRatio()
+    {
+        var vector = new Vector4d(
+            Fixed64.MinIncrement,
+            Fixed64.MinIncrement,
+            Fixed64.MinIncrement,
+            Fixed64.MinIncrement);
+
+        Vector4d normalized = vector.Normalized;
+        var inPlace = vector;
+        Vector4d inPlaceResult = inPlace.NormalizeInPlace(out Fixed64 inPlaceMagnitude);
+
+        Assert.True(FixedMath.Abs(normalized.X - Fixed64.Half) <= Fixed64.Epsilon);
+        Assert.True(FixedMath.Abs(normalized.Y - Fixed64.Half) <= Fixed64.Epsilon);
+        Assert.True(FixedMath.Abs(normalized.Z - Fixed64.Half) <= Fixed64.Epsilon);
+        Assert.True(FixedMath.Abs(normalized.W - Fixed64.Half) <= Fixed64.Epsilon);
+        Assert.True(FixedMath.Abs(normalized.Magnitude - Fixed64.One) <= Fixed64.Epsilon);
+        Assert.True(Vector4d.TryGetMagnitude(vector, out Fixed64 expectedMagnitude));
+        Assert.Equal(expectedMagnitude, inPlaceMagnitude);
+        Assert.True(FixedMath.Abs(inPlaceResult.X - Fixed64.Half) <= Fixed64.Epsilon);
+        Assert.True(FixedMath.Abs(inPlaceResult.Y - Fixed64.Half) <= Fixed64.Epsilon);
+        Assert.True(FixedMath.Abs(inPlaceResult.Z - Fixed64.Half) <= Fixed64.Epsilon);
+        Assert.True(FixedMath.Abs(inPlaceResult.W - Fixed64.Half) <= Fixed64.Epsilon);
+        Assert.Equal(inPlaceResult, inPlace);
     }
 
     [Fact]

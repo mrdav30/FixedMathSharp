@@ -44,28 +44,28 @@ namespace FixedMathSharp
         /// Represents the mathematical constant π (pi).
         /// </summary>
         /// <remarks>The value is approximately 3.14159265358979323846.</remarks>
-        internal static readonly long PI_LONG = (long)(PI_DOUBLE * ONE_L);
+        internal const long PI_LONG = (long)(PI_DOUBLE * ONE_L);
 
         internal const double LN2_DOUBLE = 0.6931471805599453d;
         /// <summary>
         /// Represents the mathematical constant natural logarithm of 2 (ln(2)).
         /// </summary>
         /// <remarks>The value is approximately 0.6931471805599453.</remarks>
-        internal static readonly long LN2_LONG = (long)(LN2_DOUBLE * ONE_L);
+        internal const long LN2_LONG = (long)(LN2_DOUBLE * ONE_L);
 
         // Asin Padé approximations
         internal const double PADE_A1_DOUBLE = 0.183320102d;
-        internal static readonly long PADE_A1_LONG = (long)(PADE_A1_DOUBLE * ONE_L);
+        internal const long PADE_A1_LONG = (long)(PADE_A1_DOUBLE * ONE_L);
         internal const double PADE_A2_DOUBLE = 0.0218804099d;
-        internal static readonly long PADE_A2_LONG = (long)(PADE_A2_DOUBLE * ONE_L);
+        internal const long PADE_A2_LONG = (long)(PADE_A2_DOUBLE * ONE_L);
 
         // Carefully optimized polynomial coefficients for sin(x), ensuring maximum precision in Fixed64 math.
         internal const double SIN_COEFF_3_DOUBLE = 0.16666667605750262737274169921875d; // 1/3!
-        internal static readonly long SIN_COEFF_3_LONG = (long)(SIN_COEFF_3_DOUBLE * ONE_L);
+        internal const long SIN_COEFF_3_LONG = (long)(SIN_COEFF_3_DOUBLE * ONE_L);
         internal const double SIN_COEFF_5_DOUBLE = 0.0083328341133892536163330078125d; // 1/5!
-        internal static readonly long SIN_COEFF_5_LONG = (long)(SIN_COEFF_5_DOUBLE * ONE_L);
+        internal const long SIN_COEFF_5_LONG = (long)(SIN_COEFF_5_DOUBLE * ONE_L);
         internal const double SIN_COEFF_7_DOUBLE = 0.00019588856957852840423583984375d; // 1/7!
-        internal static readonly long SIN_COEFF_7_LONG = (long)(SIN_COEFF_7_DOUBLE * ONE_L);
+        internal const long SIN_COEFF_7_LONG = (long)(SIN_COEFF_7_DOUBLE * ONE_L);
 
         private static readonly long[] s_pow2PositiveFractionLookup =
         {
@@ -138,6 +138,22 @@ namespace FixedMathSharp
             4294967295L,
             4294967295L
         };
+
+        /// <summary>
+        /// Squared magnitudes at or below this value use component scaling so
+        /// fixed-point squaring cannot dominate the normalized direction's
+        /// relative error.
+        /// </summary>
+        internal static readonly Fixed64 ScaleSafeMagnitudeSquaredThreshold =
+            Fixed64.FromFraction(1, 256);
+
+        /// <summary>
+        /// Magnitudes at or below this value normalize in scale-relative
+        /// coordinates so quantizing the final scalar length cannot distort
+        /// component ratios.
+        /// </summary>
+        internal static readonly Fixed64 ScaleSafeMagnitudeThreshold =
+            Fixed64.FromFraction(1, 16);
 
         #endregion
 
@@ -499,6 +515,24 @@ namespace FixedMathSharp
             z /= scale;
             w /= scale;
             return scale * Sqrt(x * x + y * y + z * z + w * w);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool TryGetScaledMagnitude(
+            Fixed64 x,
+            Fixed64 y,
+            Fixed64 z,
+            Fixed64 w,
+            out Fixed64 magnitude)
+        {
+            if (!Fixed64.IsMagnitudeRepresentable(x, y, z, w))
+            {
+                magnitude = Fixed64.MaxValue;
+                return false;
+            }
+
+            magnitude = GetScaledMagnitude(x, y, z, w);
+            return true;
         }
 
         /// <summary>
