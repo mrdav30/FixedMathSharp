@@ -613,6 +613,25 @@ public class FixedMathTests
         Assert.Equal(Fixed64.MinValue, FixedMath.FastDiv(Fixed64.MinValue, Fixed64.MinIncrement));
     }
 
+    [Fact]
+    public void FastDiv_PositiveDivisors_MatchesDivisionAtRoundingBoundaries()
+    {
+        Fixed64 positive = Fixed64.MinIncrement;
+        Fixed64 negative = -Fixed64.MinIncrement;
+        Fixed64[] divisors =
+        {
+            Fixed64.Two + Fixed64.MinIncrement,
+            Fixed64.Two,
+            Fixed64.Two - Fixed64.MinIncrement,
+        };
+
+        foreach (Fixed64 divisor in divisors)
+        {
+            Assert.Equal(positive / divisor, FixedMath.FastDiv(positive, divisor));
+            Assert.Equal(negative / divisor, FixedMath.FastDiv(negative, divisor));
+        }
+    }
+
     #endregion
 
     #region Test: FastMod Method (Edge Case)

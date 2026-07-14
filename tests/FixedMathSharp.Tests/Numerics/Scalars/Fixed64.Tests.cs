@@ -1,6 +1,7 @@
 ﻿using MemoryPack;
 using System;
 using System.Globalization;
+using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -69,6 +70,195 @@ public class Fixed64Tests
     {
         var a = new Fixed64(6);
         Assert.Throws<DivideByZeroException>(() => { var result = a / Fixed64.Zero; });
+    }
+
+    [Theory]
+    [InlineData(1L, 0L)]
+    [InlineData(3L, 2L)]
+    [InlineData(5L, 2L)]
+    [InlineData(-1L, 0L)]
+    [InlineData(-3L, -2L)]
+    [InlineData(-5L, -2L)]
+    public void Divide_ByTwo_MidpointsRoundToEven(long inputRaw, long expectedRaw)
+    {
+        Fixed64 result = Fixed64.FromRaw(inputRaw) / Fixed64.Two;
+
+        Assert.Equal(Fixed64.FromRaw(expectedRaw), result);
+    }
+
+    [Fact]
+    public void Divide_ByBinaryPowers_MatchesMultiplicationByExactReciprocal()
+    {
+        long[] rawValues =
+        {
+            long.MinValue,
+            long.MaxValue,
+            -9L,
+            -8L,
+            -7L,
+            -6L,
+            -5L,
+            -4L,
+            -3L,
+            -2L,
+            -1L,
+            0L,
+            1L,
+            2L,
+            3L,
+            4L,
+            5L,
+            6L,
+            7L,
+            8L,
+            9L,
+        };
+
+        foreach (long rawValue in rawValues)
+        {
+            Fixed64 value = Fixed64.FromRaw(rawValue);
+
+            Assert.Equal(value * Fixed64.Half, value / Fixed64.Two);
+            Assert.Equal(value * Fixed64.Quarter, value / new Fixed64(4));
+            Assert.Equal(value * Fixed64.Eighth, value / new Fixed64(8));
+        }
+    }
+
+    [Fact]
+    public void Divide_AroundMidpoint_RoundsBelowAtAndAboveToNearestEven()
+    {
+        Fixed64 positive = Fixed64.MinIncrement;
+        Fixed64 negative = -Fixed64.MinIncrement;
+        (Fixed64 Divisor, long PositiveRaw, long NegativeRaw)[] cases =
+        {
+            (Fixed64.Two + Fixed64.MinIncrement, 0L, 0L),
+            (Fixed64.Two, 0L, 0L),
+            (Fixed64.Two - Fixed64.MinIncrement, 1L, -1L),
+        };
+
+        foreach ((Fixed64 divisor, long positiveRaw, long negativeRaw) in cases)
+        {
+            Assert.Equal(Fixed64.FromRaw(positiveRaw), positive / divisor);
+            Assert.Equal(Fixed64.FromRaw(negativeRaw), negative / divisor);
+        }
+    }
+
+    [Fact]
+    public void Divide_RawDomain_MatchesBigIntegerOracle()
+    {
+        (long Dividend, long Divisor)[] boundaryPairs =
+        {
+            (0L, 1L),
+            (1L, Fixed64.Two.m_rawValue),
+            (3L, Fixed64.Two.m_rawValue),
+            (5L, Fixed64.Two.m_rawValue),
+            (-1L, Fixed64.Two.m_rawValue),
+            (-3L, Fixed64.Two.m_rawValue),
+            (-5L, Fixed64.Two.m_rawValue),
+            (long.MinValue, long.MinValue),
+            (long.MinValue, -Fixed64.One.m_rawValue),
+            (long.MinValue, Fixed64.One.m_rawValue),
+            (long.MinValue, -1L),
+            (long.MinValue, 1L),
+            (long.MinValue, long.MaxValue),
+            (long.MaxValue, long.MinValue),
+            (long.MaxValue, -1L),
+            (long.MaxValue, 1L),
+            (long.MaxValue, long.MaxValue),
+        };
+
+        foreach ((long dividend, long divisor) in boundaryPairs)
+            AssertDivisionMatchesOracle(dividend, divisor);
+
+        var random = new System.Random(0xD1A1DE);
+        for (int i = 0; i < 2_048; i++)
+        {
+            long dividend = random.NextInt64();
+            if ((i & 1) != 0)
+                dividend = ~dividend;
+
+            long divisor = random.NextInt64(1L, long.MaxValue);
+            if ((i & 2) != 0)
+                divisor = -divisor;
+
+            AssertDivisionMatchesOracle(dividend, divisor);
+        }
+    }
+
+    [Fact]
+    public void RoundGuardedQuotientToEven_UsesGuardStickyParityAndCarry()
+    {
+        AssertRoundGuardedQuotient(4UL, false, 2UL, false);
+        AssertRoundGuardedQuotient(5UL, false, 2UL, false);
+        AssertRoundGuardedQuotient(7UL, false, 4UL, false);
+        AssertRoundGuardedQuotient(5UL, true, 3UL, false);
+        AssertRoundGuardedQuotient(ulong.MaxValue, false, 1UL << 63, true);
+    }
+
+    [Theory]
+    [InlineData(false, long.MaxValue)]
+    [InlineData(true, long.MinValue)]
+    public void DivideMagnitude_RoundedCarrySaturatesToSignedLimit(
+        bool negative,
+        long expectedRaw)
+    {
+        // A full-width dividend reaches final rounding carry while the divisor remains
+        // inside the signed-raw magnitude domain required by DivideMagnitude.
+        Fixed64 result = Fixed64.DivideMagnitude(
+            ulong.MaxValue,
+            1UL << (FixedMath.SHIFT_AMOUNT_I + 1),
+            negative);
+
+        Assert.Equal(expectedRaw, result.m_rawValue);
+    }
+
+    private static void AssertRoundGuardedQuotient(
+        ulong guardedQuotient,
+        bool hasTrailingRemainder,
+        ulong expected,
+        bool expectedOverflow)
+    {
+        ulong result = Fixed64.RoundGuardedQuotientToEven(
+            guardedQuotient,
+            hasTrailingRemainder,
+            out bool overflowed);
+
+        Assert.Equal(expected, result);
+        Assert.Equal(expectedOverflow, overflowed);
+    }
+
+    private static void AssertDivisionMatchesOracle(long dividendRaw, long divisorRaw)
+    {
+        long expectedRaw = DivideRawToEven(dividendRaw, divisorRaw);
+        Fixed64 dividend = Fixed64.FromRaw(dividendRaw);
+        Fixed64 divisor = Fixed64.FromRaw(divisorRaw);
+
+        Assert.Equal(expectedRaw, (dividend / divisor).m_rawValue);
+        if (divisorRaw > 0)
+            Assert.Equal(expectedRaw, FixedMath.FastDiv(dividend, divisor).m_rawValue);
+    }
+
+    private static long DivideRawToEven(long dividendRaw, long divisorRaw)
+    {
+        BigInteger divisorMagnitude = BigInteger.Abs(new BigInteger(divisorRaw));
+        BigInteger quotient = BigInteger.DivRem(
+            BigInteger.Abs(new BigInteger(dividendRaw)) << FixedMath.SHIFT_AMOUNT_I,
+            divisorMagnitude,
+            out BigInteger remainder);
+
+        int midpointComparison = (remainder << 1).CompareTo(divisorMagnitude);
+        if (midpointComparison > 0 || (midpointComparison == 0 && !quotient.IsEven))
+            quotient++;
+
+        bool negative = (dividendRaw < 0) ^ (divisorRaw < 0);
+        BigInteger limit = negative ? BigInteger.One << 63 : long.MaxValue;
+        if (quotient > limit)
+            return negative ? long.MinValue : long.MaxValue;
+        if (negative && quotient == limit)
+            return long.MinValue;
+
+        long result = (long)quotient;
+        return negative ? -result : result;
     }
 
     #endregion

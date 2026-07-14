@@ -531,47 +531,10 @@ namespace FixedMathSharp
             if (yl <= 0)
                 return x / y;
 
-            ulong remainder = (ulong)(xl < 0 ? -xl : xl);
-            ulong divider = (ulong)yl;
-            ulong quotient = 0UL;
-            int bitPos = SHIFT_AMOUNT_I + 1;
-
-            while ((divider & 0xF) == 0 && bitPos >= 4)
-            {
-                divider >>= 4;
-                bitPos -= 4;
-            }
-
-            while (remainder != 0 && bitPos >= 0)
-            {
-                int shift = Fixed64.CountLeadingZeroes(remainder);
-                if (shift > bitPos)
-                    shift = bitPos;
-
-                remainder <<= shift;
-                bitPos -= shift;
-
-                ulong div = remainder / divider;
-                remainder %= divider;
-                quotient += div << bitPos;
-
-                if ((div & ~(0xFFFFFFFFFFFFFFFF >> bitPos)) != 0)
-                    return xl >= 0
-                        ? new Fixed64(MAX_VALUE_L)
-                        : new Fixed64(MIN_VALUE_L);
-
-                remainder <<= 1;
-                --bitPos;
-            }
-
-            if ((quotient & 0x1) != 0)
-                quotient += 1;
-
-            long result = (long)(quotient >> 1);
-            if (xl < 0)
-                result = -result;
-
-            return Fixed64.FromRaw(result);
+            return Fixed64.DivideMagnitude(
+                Fixed64.AbsToUInt64(xl),
+                (ulong)yl,
+                xl < 0);
         }
 
         /// <summary>

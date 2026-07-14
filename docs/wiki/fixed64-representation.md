@@ -92,6 +92,17 @@ FixedMathSharp handles these cases with deterministic, guarded algorithms. For
 example, `Fixed64` multiplication uses full-width intermediate precision and
 saturating behavior for overflow paths.
 
+### Multiplication And Division Rounding
+
+`Fixed64` multiplication and division round an exact midpoint to the even raw
+integer. This makes exact binary reciprocal forms agree across the representable
+domain, including `x / Fixed64.Two == x * Fixed64.Half` and the equivalent
+quarter and eighth identities.
+
+That identity does not extend to an already rounded reciprocal. For example,
+`x / 3` can differ from `x * (Fixed64.One / 3)` because the reciprocal itself
+was first quantized to Q32.32.
+
 ## What About Other Shift Amounts?
 
 A different fixed-point layout would choose a different range/precision balance.

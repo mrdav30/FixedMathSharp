@@ -121,7 +121,7 @@ public partial struct Fixed64
     /// safely handling long.MinValue.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static ulong AbsToUInt64(long value)
+    internal static ulong AbsToUInt64(long value)
     {
         return value < 0
             ? unchecked((ulong)(~value + 1))
@@ -299,8 +299,28 @@ public partial struct Fixed64
         if (yl == 0)
             throw new DivideByZeroException($"Attempted to divide {x} by zero.");
 
-        ulong remainder = (ulong)(xl < 0 ? -xl : xl);
-        ulong divider = (ulong)(yl < 0 ? -yl : yl);
+        return DivideMagnitude(
+            AbsToUInt64(xl),
+            AbsToUInt64(yl),
+            (xl ^ yl) < 0);
+    }
+
+    /// <summary>
+    /// Divides unsigned raw magnitudes and applies the requested result sign.
+    /// </summary>
+    /// <remarks>
+    /// The divisor magnitude must be in the range 1 through 2^63, inclusive, matching the
+    /// unsigned magnitude of any signed raw value. This bound keeps remainder doubling within
+    /// <see cref="ulong"/>. The quotient is calculated with one guard bit and rounded to the
+    /// nearest even raw value before final saturation.
+    /// </remarks>
+    internal static Fixed64 DivideMagnitude(
+        ulong dividendMagnitude,
+        ulong divisorMagnitude,
+        bool negative)
+    {
+        ulong remainder = dividendMagnitude;
+        ulong divider = divisorMagnitude;
         ulong quotient = 0UL;
         int bitPos = FixedMath.SHIFT_AMOUNT_I + 1;
 
@@ -324,25 +344,46 @@ public partial struct Fixed64
             remainder %= divider;
             quotient += div << bitPos;
 
-            // Detect overflow
-            if ((div & ~(0xFFFFFFFFFFFFFFFF >> bitPos)) != 0)
-                return ((xl ^ yl) & FixedMath.MIN_VALUE_L) == 0
-                    ? new Fixed64(FixedMath.MAX_VALUE_L)
-                    : new Fixed64(FixedMath.MIN_VALUE_L);
+            if ((div & ~(ulong.MaxValue >> bitPos)) != 0)
+                return negative ? MinValue : MaxValue;
 
             remainder <<= 1;
             --bitPos;
         }
 
-        // Rounding logic: "Round half to even" or "Banker's rounding"
-        if ((quotient & 0x1) != 0)
-            quotient += 1;
+        ulong magnitude = RoundGuardedQuotientToEven(
+            quotient,
+            remainder != 0UL,
+            out bool roundedOverflow);
 
-        long result = (long)(quotient >> 1);
-        if (((xl ^ yl) & FixedMath.MIN_VALUE_L) != 0)
-            result = -result;
+        if (roundedOverflow)
+            return negative ? MinValue : MaxValue;
 
-        return new Fixed64(result);
+        long result = (long)magnitude;
+        return new Fixed64(negative ? -result : result);
+    }
+
+    /// <summary>
+    /// Removes the low guard bit and rounds the retained quotient to even.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static ulong RoundGuardedQuotientToEven(
+        ulong guardedQuotient,
+        bool hasTrailingRemainder,
+        out bool overflowed)
+    {
+        bool shouldRoundUp = (guardedQuotient & 1UL) != 0UL
+            && (hasTrailingRemainder || (guardedQuotient & 2UL) != 0UL);
+
+        if (!shouldRoundUp)
+        {
+            overflowed = false;
+            return guardedQuotient >> 1;
+        }
+
+        ulong roundedGuardedQuotient = guardedQuotient + 1UL;
+        overflowed = roundedGuardedQuotient == 0UL;
+        return overflowed ? 1UL << 63 : roundedGuardedQuotient >> 1;
     }
 
     /// <summary>
