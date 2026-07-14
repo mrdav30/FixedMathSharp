@@ -89,6 +89,32 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void Magnitude_WhenSquaresSaturate_ReturnsRepresentableLength()
+    {
+        var vector = new Vector3d(20000, 40000, 40000);
+
+        Assert.Equal(new Fixed64(60000), vector.Magnitude);
+        Assert.Equal(new Fixed64(60000), Vector3d.Distance(Vector3d.Zero, vector));
+    }
+
+    [Fact]
+    public void Distance_NearUnit_PreservesOrdinarySquareRootResult()
+    {
+        Fixed64 nearUnit = Fixed64.FromRaw(Fixed64.One.m_rawValue - 1);
+
+        Assert.Equal(nearUnit, Vector3d.Distance(Vector3d.Zero, new Vector3d(nearUnit, Fixed64.Zero, Fixed64.Zero)));
+    }
+
+    [Fact]
+    public void Distance_WhenSquaresSaturate_ReturnsRepresentableSignedEndpointLength()
+    {
+        var start = new Vector3d(-10000, -20000, -20000);
+        var end = new Vector3d(10000, 20000, 20000);
+
+        Assert.Equal(new Fixed64(60000), Vector3d.Distance(start, end));
+    }
+
+    [Fact]
     public void Normalize_ProducesUnitVector()
     {
         var vector = new Vector3d(3, 4, 0);

@@ -440,8 +440,17 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// Calculates the distance to another vector.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly Fixed64 Distance(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ, Fixed64 otherW) =>
-        FixedMath.Sqrt(DistanceSquared(otherX, otherY, otherZ, otherW));
+    public readonly Fixed64 Distance(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ, Fixed64 otherW)
+    {
+        Fixed64 deltaX = otherX - X;
+        Fixed64 deltaY = otherY - Y;
+        Fixed64 deltaZ = otherZ - Z;
+        Fixed64 deltaW = otherW - W;
+        Fixed64 squareSum = deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ + deltaW * deltaW;
+        return squareSum == Fixed64.MaxValue
+            ? FixedMath.GetScaledMagnitude(deltaX, deltaY, deltaZ, deltaW)
+            : FixedMath.Sqrt(squareSum);
+    }
 
     /// <summary>
     /// Calculates the distance to another vector.
@@ -552,6 +561,9 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     public static Fixed64 GetMagnitude(Vector4d vector)
     {
         Fixed64 mag = (vector.X * vector.X) + (vector.Y * vector.Y) + (vector.Z * vector.Z) + (vector.W * vector.W);
+
+        if (mag == Fixed64.MaxValue)
+            return FixedMath.GetScaledMagnitude(vector.X, vector.Y, vector.Z, vector.W);
 
         if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return Fixed64.One;

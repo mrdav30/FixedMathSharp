@@ -70,6 +70,32 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void Magnitude_WhenSquaresSaturate_ReturnsRepresentableLength()
+    {
+        var vector = new Vector2d(60000, 80000);
+
+        Assert.Equal(new Fixed64(100000), vector.Magnitude);
+        Assert.Equal(new Fixed64(100000), Vector2d.Distance(Vector2d.Zero, vector));
+    }
+
+    [Fact]
+    public void Distance_NearUnit_PreservesOrdinarySquareRootResult()
+    {
+        Fixed64 nearUnit = Fixed64.FromRaw(Fixed64.One.m_rawValue + 1);
+
+        Assert.Equal(nearUnit, Vector2d.Distance(Vector2d.Zero, new Vector2d(nearUnit, Fixed64.Zero)));
+    }
+
+    [Fact]
+    public void Distance_WhenSquaresSaturate_ReturnsRepresentableSignedEndpointLength()
+    {
+        var start = new Vector2d(-30000, -40000);
+        var end = new Vector2d(30000, 40000);
+
+        Assert.Equal(new Fixed64(100000), Vector2d.Distance(start, end));
+    }
+
+    [Fact]
     public void MagnitudeSquared_CalculatesCorrectSquareMagnitude()
     {
         var vector = new Vector2d(3, 4);

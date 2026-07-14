@@ -92,6 +92,9 @@ public partial struct Vector2d
     {
         Fixed64 mag = (vector.X * vector.X) + (vector.Y * vector.Y);
 
+        if (mag == Fixed64.MaxValue)
+            return FixedMath.GetScaledMagnitude(vector.X, vector.Y, Fixed64.Zero, Fixed64.Zero);
+
         // If rounding error pushed magnitude slightly above 1, clamp it
         if (mag > Fixed64.One && mag <= Fixed64.One + Fixed64.Epsilon)
             return Fixed64.One;

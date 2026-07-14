@@ -476,7 +476,30 @@ namespace FixedMathSharp
         /// <param name="b">The length of side b.</param>
         /// <returns>The length of the hypotenuse.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 GetHypotenuse(Fixed64 a, Fixed64 b) => Sqrt(a * a + b * b);
+        public static Fixed64 GetHypotenuse(Fixed64 a, Fixed64 b)
+        {
+            Fixed64 squareSum = a * a + b * b;
+            return squareSum == Fixed64.MaxValue
+                ? GetScaledMagnitude(a, b, Fixed64.Zero, Fixed64.Zero)
+                : Sqrt(squareSum);
+        }
+
+        internal static Fixed64 GetScaledMagnitude(Fixed64 x, Fixed64 y, Fixed64 z, Fixed64 w)
+        {
+            x = Abs(x);
+            y = Abs(y);
+            z = Abs(z);
+            w = Abs(w);
+            Fixed64 scale = Max(Max(x, y), Max(z, w));
+            if (scale == Fixed64.Zero)
+                return Fixed64.Zero;
+
+            x /= scale;
+            y /= scale;
+            z /= scale;
+            w /= scale;
+            return scale * Sqrt(x * x + y * y + z * z + w * w);
+        }
 
         /// <summary>
         /// Calculates the cosine value corresponding to a given sine value, assuming the angle is in the first or

@@ -115,6 +115,34 @@ public class Vector4dTests
     }
 
     [Fact]
+    public void Magnitude_WhenSquaresSaturate_ReturnsRepresentableLength()
+    {
+        var vector = new Vector4d(30000, 30000, 30000, 30000);
+
+        Assert.Equal(new Fixed64(60000), vector.Magnitude);
+        Assert.Equal(new Fixed64(60000), Vector4d.Distance(Vector4d.Zero, vector));
+    }
+
+    [Fact]
+    public void Distance_NearUnit_PreservesOrdinarySquareRootResult()
+    {
+        Fixed64 nearUnit = Fixed64.FromRaw(Fixed64.One.m_rawValue - 1);
+
+        Assert.Equal(
+            nearUnit,
+            Vector4d.Distance(Vector4d.Zero, new Vector4d(nearUnit, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero)));
+    }
+
+    [Fact]
+    public void Distance_WhenSquaresSaturate_ReturnsRepresentableSignedEndpointLength()
+    {
+        var start = new Vector4d(-15000, -15000, -15000, -15000);
+        var end = new Vector4d(15000, 15000, 15000, 15000);
+
+        Assert.Equal(new Fixed64(60000), Vector4d.Distance(start, end));
+    }
+
+    [Fact]
     public void Normalize_ZeroVector_ReturnsZero()
     {
         var vector = Vector4d.Zero;

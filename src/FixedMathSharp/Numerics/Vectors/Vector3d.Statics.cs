@@ -225,6 +225,9 @@ public partial struct Vector3d
     {
         Fixed64 mag = (vector.X * vector.X) + (vector.Y * vector.Y) + (vector.Z * vector.Z);
 
+        if (mag == Fixed64.MaxValue)
+            return FixedMath.GetScaledMagnitude(vector.X, vector.Y, vector.Z, Fixed64.Zero);
+
         // Clamp tiny drift around 1 in either direction.
         if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return Fixed64.One;

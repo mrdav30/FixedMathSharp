@@ -546,13 +546,13 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64 Distance(Fixed64 otherX, Fixed64 otherY, Fixed64 otherZ)
     {
-        Fixed64 temp1 = X - otherX;
-        temp1 *= temp1;
-        Fixed64 temp2 = Y - otherY;
-        temp2 *= temp2;
-        Fixed64 temp3 = Z - otherZ;
-        temp3 *= temp3;
-        return FixedMath.Sqrt(temp1 + temp2 + temp3);
+        Fixed64 deltaX = X - otherX;
+        Fixed64 deltaY = Y - otherY;
+        Fixed64 deltaZ = Z - otherZ;
+        Fixed64 squareSum = deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ;
+        return squareSum == Fixed64.MaxValue
+            ? FixedMath.GetScaledMagnitude(deltaX, deltaY, deltaZ, Fixed64.Zero)
+            : FixedMath.Sqrt(squareSum);
     }
 
     /// <summary>

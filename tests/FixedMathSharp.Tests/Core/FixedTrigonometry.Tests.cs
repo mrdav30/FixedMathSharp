@@ -137,6 +137,13 @@ public class FixedTrigonometryTests
     }
 
     [Fact]
+    public void GetHypotenuse_WhenSquaresSaturate_ReturnsRepresentableLength()
+    {
+        Assert.Equal(new Fixed64(100000), FixedMath.GetHypotenuse(new Fixed64(-60000), new Fixed64(80000)));
+        Assert.Equal(Fixed64.MaxValue, FixedMath.GetHypotenuse(Fixed64.MaxValue, Fixed64.MaxValue));
+    }
+
+    [Fact]
     public void Pow2_MatchesReferenceAcrossSafeRange()
     {
         var exponents = new[]

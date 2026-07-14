@@ -602,11 +602,12 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64 Distance(Fixed64 otherX, Fixed64 otherY)
     {
-        Fixed64 temp1 = X - otherX;
-        temp1 *= temp1;
-        Fixed64 temp2 = Y - otherY;
-        temp2 *= temp2;
-        return FixedMath.Sqrt(temp1 + temp2);
+        Fixed64 deltaX = X - otherX;
+        Fixed64 deltaY = Y - otherY;
+        Fixed64 squareSum = deltaX * deltaX + deltaY * deltaY;
+        return squareSum == Fixed64.MaxValue
+            ? FixedMath.GetScaledMagnitude(deltaX, deltaY, Fixed64.Zero, Fixed64.Zero)
+            : FixedMath.Sqrt(squareSum);
     }
 
     /// <summary>
