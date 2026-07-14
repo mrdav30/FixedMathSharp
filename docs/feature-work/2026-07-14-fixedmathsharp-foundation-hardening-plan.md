@@ -225,14 +225,16 @@ CCD.
 
 ### Task 1: FixedMathSharp Division Rounding Contract
 
+**Status:** Complete on 2026-07-14 (`179debc`).
+
 **Files:**
 
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Core/FixedMath.cs`
-- Modify: `../FixedMathSharp/docs/wiki/fixed64-representation.md`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Core/FixedMath.Tests.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
+- Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
+- Modify: `src/FixedMathSharp/Core/FixedMath.cs`
+- Modify: `docs/wiki/fixed64-representation.md`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Core/FixedMath.Tests.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
 
 **Interfaces:**
 
@@ -262,7 +264,7 @@ internal static ulong RoundGuardedQuotientToEven(
   only when that bit is set and either trailing remainder exists or the retained
   magnitude is odd.
 
-- [ ] **Step 1: Add the midpoint regression before changing source.**
+- [x] **Step 1: Add the midpoint regression before changing source.**
 
 ```csharp
 [Theory]
@@ -280,7 +282,7 @@ public void DivideByTwo_MidpointsRoundToEven(long inputRaw, long expectedRaw)
 }
 ```
 
-- [ ] **Step 2: Add exact binary reciprocal identity tests** across
+- [x] **Step 2: Add exact binary reciprocal identity tests** across
       `long.MinValue`, `long.MaxValue`, zero, and raw values `-9..9`:
 
 ```csharp
@@ -289,47 +291,69 @@ Assert.Equal(value * Fixed64.Quarter, value / new Fixed64(4));
 Assert.Equal(value * Fixed64.Eighth, value / new Fixed64(8));
 ```
 
-- [ ] **Step 3: Add below/at/above midpoint and fast-path tests.** For raw
+- [x] **Step 3: Add below/at/above midpoint and fast-path tests.** For raw
       dividend `1`, use divisors `Fixed64.Two + Fixed64.MinIncrement`,
       `Fixed64.Two`, and `Fixed64.Two - Fixed64.MinIncrement`; require raw
       results `0`, `0`, and `1`. Repeat with a negative dividend and assert
       `FastDiv` exactly matches `/` for every positive divisor case.
-- [ ] **Step 4: Run the focused tests and confirm the exact-even midpoint cases
+- [x] **Step 4: Run the focused tests and confirm the exact-even midpoint cases
       fail while below/above midpoint behavior remains correct.**
 
 ```powershell
-dotnet test ../FixedMathSharp/tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter "FullyQualifiedName~Fixed64|FullyQualifiedName~FastDiv"
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter "FullyQualifiedName~Fixed64|FullyQualifiedName~FastDiv"
 ```
 
-- [ ] **Step 5: Extract the existing magnitude division loop** into
+- [x] **Step 5: Extract the existing magnitude division loop** into
       `DivideMagnitude` and route both `/` and the positive-divisor `FastDiv`
       path through it. Keep `FastDiv`'s non-positive-divisor fallback and the
       public operator's divide-by-zero exception unchanged.
-- [ ] **Step 6: Replace the false banker-rounding branch** with
+- [x] **Step 6: Replace the false banker-rounding branch** with
       `RoundGuardedQuotientToEven`. Preserve the loop's extra guard bit, pass
       whether its final remainder is nonzero as the sticky condition, and test
       rounded carry against the asymmetric positive `long.MaxValue` and
       negative `2^63` magnitude limits before constructing the result.
-- [ ] **Step 7: Add a deterministic `BigInteger` oracle in tests only.** Compare
+- [x] **Step 7: Add a deterministic `BigInteger` oracle in tests only.** Compare
       `/` and positive-divisor `FastDiv` against exact
       `abs(dividendRaw) * 2^32 / abs(divisorRaw)` quotient/remainder arithmetic.
       Cover seeded raw pairs plus exact ties, both signs, zero dividend,
       `long.MinValue`, `long.MaxValue`, divisor `long.MinValue`, final rounding
       carry, saturation, and divide by zero.
-- [ ] **Step 8: Document the arithmetic contract** in
+- [x] **Step 8: Document the arithmetic contract** in
       `fixed64-representation.md`: multiplication and division round exact
       midpoints to the even raw value; exact binary reciprocal identities hold;
       pre-rounded reciprocals such as one third can still differ from direct
       division.
-- [ ] **Step 9: Run the scalar and `FastDiv` tests in `Release` and
+- [x] **Step 9: Run the scalar and `FastDiv` tests in `Release` and
       `ReleaseLean`, then run exact FixedMathSharp coverage.** Require all
       guard, sticky, retained-parity, sign, carry, saturation, and zero-divisor
       branches to be covered.
-- [ ] **Step 10: Benchmark `Divide` and `FastDiv`** before and after the shared
+- [x] **Step 10: Benchmark `Divide` and `FastDiv`** before and after the shared
       core. Require zero allocations and no material regression; optimize the
       shared loop rather than restoring duplicated rounding implementations.
-- [ ] **Step 11: Owner review checkpoint.** Leave all FixedMathSharp changes
+- [x] **Step 11: Owner review checkpoint.** Leave all FixedMathSharp changes
       unstaged and provide a proposed commit message.
+
+**Result:**
+
+- Replaced the duplicated false banker-rounding branches with one guarded
+  unsigned division core shared by `/` and positive-divisor `FastDiv`. Exact
+  midpoints now round to the even raw value; divide-by-zero, sign, saturation,
+  and the non-positive `FastDiv` fallback remain intact.
+- Added midpoint, exact binary reciprocal, below/at/above boundary, signed
+  saturation, rounded-carry, and 2,048-pair seeded `BigInteger` oracle tests.
+  The initial regression run produced the expected seven failures before the
+  shared-core fix.
+- Final verification passed 1,186 FixedMathSharp plus 7 Chronicler tests in
+  `Release`, and 1,165 FixedMathSharp plus 7 Chronicler tests in `ReleaseLean`.
+  `DivideMagnitude` and `RoundGuardedQuotientToEven` reached 100% line and
+  branch coverage. Remaining repository-wide gaps are reserved for Task 11.
+- Focused BenchmarkDotNet `ShortRun` evidence remained allocation-free:
+  `Divide` moved from 5.319 us to 5.144 us and `FastDiv` from 4.800 us to
+  4.724 us. Treat these short-run timings as regression checks, not canonical
+  performance claims.
+- Independent review found one overly broad internal divisor contract. Source,
+  tests, and this plan now consistently constrain the divisor magnitude to
+  `1..2^63`; the follow-up review returned no remaining findings.
 
 ---
 
