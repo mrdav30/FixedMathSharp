@@ -396,6 +396,82 @@ public class Fixed64Tests
     }
 
     [Fact]
+    public void TryAdd_ExactResultsIncludingRepresentableLimits_Succeeds()
+    {
+        Assert.True(Fixed64.TryAdd(Fixed64.One, Fixed64.Two, out Fixed64 ordinaryResult));
+        Assert.Equal(Fixed64.Three, ordinaryResult);
+
+        Assert.True(Fixed64.TryAdd(
+            Fixed64.FromRaw(long.MaxValue - 1),
+            Fixed64.MinIncrement,
+            out Fixed64 maximumResult));
+        Assert.Equal(Fixed64.MaxValue, maximumResult);
+
+        Assert.True(Fixed64.TryAdd(
+            Fixed64.FromRaw(long.MinValue + 1),
+            Fixed64.FromRaw(-1),
+            out Fixed64 minimumResult));
+        Assert.Equal(Fixed64.MinValue, minimumResult);
+    }
+
+    [Fact]
+    public void TryAdd_Overflow_ReturnsFalseAndDefaultWithoutChangingOperatorSaturation()
+    {
+        Assert.False(Fixed64.TryAdd(
+            Fixed64.MaxValue,
+            Fixed64.MinIncrement,
+            out Fixed64 positiveResult));
+        Assert.Equal(default, positiveResult);
+        Assert.Equal(Fixed64.MaxValue, Fixed64.MaxValue + Fixed64.MinIncrement);
+
+        Fixed64 negativeIncrement = Fixed64.FromRaw(-1);
+        Assert.False(Fixed64.TryAdd(
+            Fixed64.MinValue,
+            negativeIncrement,
+            out Fixed64 negativeResult));
+        Assert.Equal(default, negativeResult);
+        Assert.Equal(Fixed64.MinValue, Fixed64.MinValue + negativeIncrement);
+    }
+
+    [Fact]
+    public void TrySubtract_ExactResultsIncludingRepresentableLimits_Succeeds()
+    {
+        Assert.True(Fixed64.TrySubtract(Fixed64.Three, Fixed64.One, out Fixed64 ordinaryResult));
+        Assert.Equal(Fixed64.Two, ordinaryResult);
+
+        Assert.True(Fixed64.TrySubtract(
+            Fixed64.FromRaw(long.MaxValue - 1),
+            Fixed64.FromRaw(-1),
+            out Fixed64 maximumResult));
+        Assert.Equal(Fixed64.MaxValue, maximumResult);
+
+        Assert.True(Fixed64.TrySubtract(
+            Fixed64.FromRaw(long.MinValue + 1),
+            Fixed64.MinIncrement,
+            out Fixed64 minimumResult));
+        Assert.Equal(Fixed64.MinValue, minimumResult);
+    }
+
+    [Fact]
+    public void TrySubtract_Overflow_ReturnsFalseAndDefaultWithoutChangingOperatorSaturation()
+    {
+        Fixed64 negativeIncrement = Fixed64.FromRaw(-1);
+        Assert.False(Fixed64.TrySubtract(
+            Fixed64.MaxValue,
+            negativeIncrement,
+            out Fixed64 positiveResult));
+        Assert.Equal(default, positiveResult);
+        Assert.Equal(Fixed64.MaxValue, Fixed64.MaxValue - negativeIncrement);
+
+        Assert.False(Fixed64.TrySubtract(
+            Fixed64.MinValue,
+            Fixed64.MinIncrement,
+            out Fixed64 negativeResult));
+        Assert.Equal(default, negativeResult);
+        Assert.Equal(Fixed64.MinValue, Fixed64.MinValue - Fixed64.MinIncrement);
+    }
+
+    [Fact]
     public void Multiply_PositiveOverflowProtection_ReturnsMaxValue()
     {
         Assert.Equal(Fixed64.MaxValue, Fixed64.MaxValue * Fixed64.Two);

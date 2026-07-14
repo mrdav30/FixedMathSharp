@@ -361,15 +361,15 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
 
 **Files:**
 
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Vectors/Vector2d.Statics.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/Vector2dBenchmarks.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs`
+- Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
+- Modify: `src/FixedMathSharp/Numerics/Vectors/Vector2d.Statics.cs`
+- Modify: `src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/Vector2dBenchmarks.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs`
 
 **Interfaces:**
 
@@ -399,31 +399,57 @@ public partial struct Vector3d
 - On failure, `result` is `default`; no partially saturated vector is exposed.
 - Existing operators preserve their current saturated result.
 
-- [ ] **Step 1: Add scalar red tests** covering ordinary values, exact
+- [x] **Step 1: Add scalar red tests** covering ordinary values, exact
       `MinValue`/`MaxValue` boundaries, positive and negative overflow, default
       failure output, and unchanged saturating operator results.
-- [ ] **Step 2: Run the focused scalar tests and confirm the new API tests fail.**
+- [x] **Step 2: Run the focused scalar tests and confirm the new API tests fail.**
 
 ```powershell
-dotnet test ../FixedMathSharp/tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter "FullyQualifiedName~Fixed64"
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter "FullyQualifiedName~Fixed64"
 ```
 
-- [ ] **Step 3: Extract one private raw add/subtract overflow core** and route
+- [x] **Step 3: Extract one private raw add/subtract overflow core** and route
       both the existing operators and new public `Try*` methods through it.
       Mark the small hot methods for aggressive inlining; do not maintain two
       independent bit predicates.
-- [ ] **Step 4: Add component-atomic vector `Try*` methods** using the scalar
+- [x] **Step 4: Add component-atomic vector `Try*` methods** using the scalar
       methods. Set the vector result only after every component succeeds.
-- [ ] **Step 5: Add vector boundary tests** for a failing first, middle, and
+- [x] **Step 5: Add vector boundary tests** for a failing first, middle, and
       final component plus ordinary exact translations and differences.
-- [ ] **Step 6: Run the scalar and vector tests in `Release` and
+- [x] **Step 6: Run the scalar and vector tests in `Release` and
       `ReleaseLean`.**
-- [ ] **Step 7: Benchmark scalar and vector `Try*` success paths** against the
+- [x] **Step 7: Benchmark scalar and vector `Try*` success paths** against the
       current calculate-and-inverse-check pattern. Require zero allocations and
       no material hot-path regression; optimize the shared raw core rather than
       adding a second API shape.
-- [ ] **Step 8: Owner review checkpoint.** Leave all FixedMathSharp changes
+- [x] **Step 8: Owner review checkpoint.** Leave all FixedMathSharp changes
       unstaged and provide a proposed commit message.
+
+**Result:**
+
+- Added exact, non-saturating `TryAdd` and `TrySubtract` APIs to `Fixed64`,
+  `Vector2d`, and `Vector3d`. Exact `MinValue`/`MaxValue` results succeed;
+  overflow returns `false` with `default`, and vector results remain atomic.
+  Existing scalar and vector operators retain their saturating contract.
+- Routed the operators and new scalar APIs through one aggressively-inlined
+  signed-overflow predicate. The first boolean-selector form was rejected by
+  the benchmark gate after it slowed vector operators; the final precomputed
+  sign-mask form restored the hot paths without duplicating overflow logic.
+- Added scalar positive/negative overflow and exact-boundary regressions plus
+  2D and 3D first/middle/final component-failure coverage. The red runs failed
+  with the expected missing-API compiler errors before implementation.
+- Final verification passed 1,196 FixedMathSharp plus 7 Chronicler tests in
+  `Release`, and 1,175 FixedMathSharp plus 7 Chronicler tests in `ReleaseLean`.
+  The shared predicate and all six public `Try*` methods reached 100% line and
+  branch coverage. Remaining repository-wide gaps are reserved for Task 11.
+- Focused BenchmarkDotNet `ShortRun` evidence was allocation-free. Compared
+  with calculate-and-inverse-check, exact `Try*` reduced successful scalar work
+  from 1.053 us to 661.3 ns, `Vector2d` from 1.811 us to 1.056 us, and
+  `Vector3d` from 2.712 us to 1.588 us. Existing operator benchmarks were flat
+  or faster than their pre-change baselines; the largest observed regression
+  was approximately 0.3%, within short-run noise.
+- Independent review found no critical, important, or minor issues and judged
+  the task ready for owner review.
 
 ---
 

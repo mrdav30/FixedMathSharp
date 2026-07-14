@@ -408,6 +408,65 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void TryAddAndTrySubtract_ExactResultsIncludingRepresentableLimits_Succeed()
+    {
+        var left = new Vector2d(12, 18);
+        var right = new Vector2d(3, 6);
+
+        Assert.True(Vector2d.TryAdd(left, right, out Vector2d sum));
+        Assert.Equal(new Vector2d(15, 24), sum);
+        Assert.True(Vector2d.TrySubtract(left, right, out Vector2d difference));
+        Assert.Equal(new Vector2d(9, 12), difference);
+
+        var boundaryLeft = new Vector2d(
+            Fixed64.FromRaw(long.MaxValue - 1),
+            Fixed64.FromRaw(long.MinValue + 1));
+        Assert.True(Vector2d.TryAdd(
+            boundaryLeft,
+            new Vector2d(Fixed64.MinIncrement, Fixed64.FromRaw(-1)),
+            out Vector2d boundarySum));
+        Assert.Equal(new Vector2d(Fixed64.MaxValue, Fixed64.MinValue), boundarySum);
+
+        Assert.True(Vector2d.TrySubtract(
+            boundaryLeft,
+            new Vector2d(Fixed64.FromRaw(-1), Fixed64.MinIncrement),
+            out Vector2d boundaryDifference));
+        Assert.Equal(new Vector2d(Fixed64.MaxValue, Fixed64.MinValue), boundaryDifference);
+    }
+
+    [Fact]
+    public void TryAdd_ComponentOverflow_ReturnsFalseAndDefaultAtomically()
+    {
+        var firstLeft = new Vector2d(Fixed64.MaxValue, Fixed64.One);
+        var firstRight = new Vector2d(Fixed64.MinIncrement, Fixed64.One);
+        Assert.False(Vector2d.TryAdd(firstLeft, firstRight, out Vector2d firstResult));
+        Assert.Equal(default, firstResult);
+        Assert.Equal(new Vector2d(Fixed64.MaxValue, Fixed64.Two), firstLeft + firstRight);
+
+        var finalLeft = new Vector2d(Fixed64.One, Fixed64.MinValue);
+        var finalRight = new Vector2d(Fixed64.One, Fixed64.FromRaw(-1));
+        Assert.False(Vector2d.TryAdd(finalLeft, finalRight, out Vector2d finalResult));
+        Assert.Equal(default, finalResult);
+        Assert.Equal(new Vector2d(Fixed64.Two, Fixed64.MinValue), finalLeft + finalRight);
+    }
+
+    [Fact]
+    public void TrySubtract_ComponentOverflow_ReturnsFalseAndDefaultAtomically()
+    {
+        var firstLeft = new Vector2d(Fixed64.MinValue, Fixed64.Three);
+        var firstRight = new Vector2d(Fixed64.MinIncrement, Fixed64.One);
+        Assert.False(Vector2d.TrySubtract(firstLeft, firstRight, out Vector2d firstResult));
+        Assert.Equal(default, firstResult);
+        Assert.Equal(new Vector2d(Fixed64.MinValue, Fixed64.Two), firstLeft - firstRight);
+
+        var finalLeft = new Vector2d(Fixed64.Three, Fixed64.MaxValue);
+        var finalRight = new Vector2d(Fixed64.One, Fixed64.FromRaw(-1));
+        Assert.False(Vector2d.TrySubtract(finalLeft, finalRight, out Vector2d finalResult));
+        Assert.Equal(default, finalResult);
+        Assert.Equal(new Vector2d(Fixed64.Two, Fixed64.MaxValue), finalLeft - finalRight);
+    }
+
+    [Fact]
     public void BarycentricCoordinates_WeightsSecondAndThirdVertices()
     {
         var value1 = new Vector2d(10, 100);

@@ -21,10 +21,60 @@ public partial struct Vector2d
     public static Vector2d Add(Vector2d v1, Vector2d v2) => v1 + v2;
 
     /// <summary>
+    /// Attempts to add two vectors without component saturation.
+    /// </summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <param name="result">
+    /// The exact component-wise sum when every component is representable; otherwise, <see langword="default"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when every exact component is representable; otherwise, <see langword="false"/>.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryAdd(Vector2d left, Vector2d right, out Vector2d result)
+    {
+        if (!Fixed64.TryAdd(left.X, right.X, out Fixed64 x)
+            || !Fixed64.TryAdd(left.Y, right.Y, out Fixed64 y))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector2d(x, y);
+        return true;
+    }
+
+    /// <summary>
     /// Subtracts two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Subtract(Vector2d v1, Vector2d v2) => v1 - v2;
+
+    /// <summary>
+    /// Attempts to subtract two vectors without component saturation.
+    /// </summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <param name="result">
+    /// The exact component-wise difference when every component is representable; otherwise, <see langword="default"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when every exact component is representable; otherwise, <see langword="false"/>.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TrySubtract(Vector2d left, Vector2d right, out Vector2d result)
+    {
+        if (!Fixed64.TrySubtract(left.X, right.X, out Fixed64 x)
+            || !Fixed64.TrySubtract(left.Y, right.Y, out Fixed64 y))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector2d(x, y);
+        return true;
+    }
 
     /// <summary>
     /// Multiplies two vectors component-wise.

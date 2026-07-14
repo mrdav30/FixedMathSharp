@@ -55,6 +55,37 @@ public class Vector3dBenchmarks
     }
 
     [Benchmark]
+    public Vector3d TryAddSubtractExact()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            if (Vector3d.TryAdd(_left[i], _right[i], out Vector3d sum)
+                && Vector3d.TrySubtract(_left[i], _right[i], out Vector3d difference))
+            {
+                accumulator += sum + difference;
+            }
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d AddSubtractInverseChecked()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector3d sum = _left[i] + _right[i];
+            Vector3d difference = _left[i] - _right[i];
+            if (sum - _right[i] == _left[i] && difference + _right[i] == _left[i])
+                accumulator += sum + difference;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
     public Vector3d SubtractInPlace()
     {
         Vector3d accumulator = Vector3d.Zero;

@@ -364,6 +364,84 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void TryAddAndTrySubtract_ExactResultsIncludingRepresentableLimits_Succeed()
+    {
+        var left = new Vector3d(12, 18, 24);
+        var right = new Vector3d(3, 6, 8);
+
+        Assert.True(Vector3d.TryAdd(left, right, out Vector3d sum));
+        Assert.Equal(new Vector3d(15, 24, 32), sum);
+        Assert.True(Vector3d.TrySubtract(left, right, out Vector3d difference));
+        Assert.Equal(new Vector3d(9, 12, 16), difference);
+
+        var boundaryLeft = new Vector3d(
+            Fixed64.FromRaw(long.MaxValue - 1),
+            Fixed64.FromRaw(long.MinValue + 1),
+            Fixed64.Zero);
+        Assert.True(Vector3d.TryAdd(
+            boundaryLeft,
+            new Vector3d(Fixed64.MinIncrement, Fixed64.FromRaw(-1), Fixed64.Zero),
+            out Vector3d boundarySum));
+        Assert.Equal(new Vector3d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.Zero), boundarySum);
+
+        Assert.True(Vector3d.TrySubtract(
+            boundaryLeft,
+            new Vector3d(Fixed64.FromRaw(-1), Fixed64.MinIncrement, Fixed64.Zero),
+            out Vector3d boundaryDifference));
+        Assert.Equal(new Vector3d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.Zero), boundaryDifference);
+    }
+
+    [Fact]
+    public void TryAdd_ComponentOverflow_ReturnsFalseAndDefaultAtomically()
+    {
+        var increment = Fixed64.MinIncrement;
+        var negativeIncrement = Fixed64.FromRaw(-1);
+
+        Assert.False(Vector3d.TryAdd(
+            new Vector3d(Fixed64.MaxValue, Fixed64.One, Fixed64.One),
+            new Vector3d(increment, Fixed64.One, Fixed64.One),
+            out Vector3d firstResult));
+        Assert.Equal(default, firstResult);
+
+        Assert.False(Vector3d.TryAdd(
+            new Vector3d(Fixed64.One, Fixed64.MinValue, Fixed64.One),
+            new Vector3d(Fixed64.One, negativeIncrement, Fixed64.One),
+            out Vector3d middleResult));
+        Assert.Equal(default, middleResult);
+
+        var finalLeft = new Vector3d(Fixed64.One, Fixed64.One, Fixed64.MaxValue);
+        var finalRight = new Vector3d(Fixed64.One, Fixed64.One, increment);
+        Assert.False(Vector3d.TryAdd(finalLeft, finalRight, out Vector3d finalResult));
+        Assert.Equal(default, finalResult);
+        Assert.Equal(new Vector3d(Fixed64.Two, Fixed64.Two, Fixed64.MaxValue), finalLeft + finalRight);
+    }
+
+    [Fact]
+    public void TrySubtract_ComponentOverflow_ReturnsFalseAndDefaultAtomically()
+    {
+        var increment = Fixed64.MinIncrement;
+        var negativeIncrement = Fixed64.FromRaw(-1);
+
+        Assert.False(Vector3d.TrySubtract(
+            new Vector3d(Fixed64.MinValue, Fixed64.Three, Fixed64.Three),
+            new Vector3d(increment, Fixed64.One, Fixed64.One),
+            out Vector3d firstResult));
+        Assert.Equal(default, firstResult);
+
+        Assert.False(Vector3d.TrySubtract(
+            new Vector3d(Fixed64.Three, Fixed64.MaxValue, Fixed64.Three),
+            new Vector3d(Fixed64.One, negativeIncrement, Fixed64.One),
+            out Vector3d middleResult));
+        Assert.Equal(default, middleResult);
+
+        var finalLeft = new Vector3d(Fixed64.Three, Fixed64.Three, Fixed64.MinValue);
+        var finalRight = new Vector3d(Fixed64.One, Fixed64.One, increment);
+        Assert.False(Vector3d.TrySubtract(finalLeft, finalRight, out Vector3d finalResult));
+        Assert.Equal(default, finalResult);
+        Assert.Equal(new Vector3d(Fixed64.Two, Fixed64.Two, Fixed64.MinValue), finalLeft - finalRight);
+    }
+
+    [Fact]
     public void MultiplyInPlace_Overloads_ModifyVectorCorrectly()
     {
         var vector = new Vector3d(2, 3, 4);

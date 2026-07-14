@@ -24,6 +24,37 @@ public class Fixed64ArithmeticBenchmarks
     }
 
     [Benchmark]
+    public Fixed64 TryAddSubtractExact()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            if (Fixed64.TryAdd(_left[i], _right[i], out Fixed64 sum)
+                && Fixed64.TrySubtract(_left[i], _right[i], out Fixed64 difference))
+            {
+                accumulator += sum + difference;
+            }
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 AddSubtractInverseChecked()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Fixed64 sum = _left[i] + _right[i];
+            Fixed64 difference = _left[i] - _right[i];
+            if (sum - _right[i] == _left[i] && difference + _right[i] == _left[i])
+                accumulator += sum + difference;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
     public Fixed64 Divide()
     {
         Fixed64 accumulator = Fixed64.Zero;

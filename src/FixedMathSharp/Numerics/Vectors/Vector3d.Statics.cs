@@ -21,10 +21,62 @@ public partial struct Vector3d
     public static Vector3d Add(Vector3d v1, Vector3d v2) => v1 + v2;
 
     /// <summary>
+    /// Attempts to add two vectors without component saturation.
+    /// </summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <param name="result">
+    /// The exact component-wise sum when every component is representable; otherwise, <see langword="default"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when every exact component is representable; otherwise, <see langword="false"/>.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryAdd(Vector3d left, Vector3d right, out Vector3d result)
+    {
+        if (!Fixed64.TryAdd(left.X, right.X, out Fixed64 x)
+            || !Fixed64.TryAdd(left.Y, right.Y, out Fixed64 y)
+            || !Fixed64.TryAdd(left.Z, right.Z, out Fixed64 z))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector3d(x, y, z);
+        return true;
+    }
+
+    /// <summary>
     /// Subtracts two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Subtract(Vector3d v1, Vector3d v2) => v1 - v2;
+
+    /// <summary>
+    /// Attempts to subtract two vectors without component saturation.
+    /// </summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <param name="result">
+    /// The exact component-wise difference when every component is representable; otherwise, <see langword="default"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when every exact component is representable; otherwise, <see langword="false"/>.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TrySubtract(Vector3d left, Vector3d right, out Vector3d result)
+    {
+        if (!Fixed64.TrySubtract(left.X, right.X, out Fixed64 x)
+            || !Fixed64.TrySubtract(left.Y, right.Y, out Fixed64 y)
+            || !Fixed64.TrySubtract(left.Z, right.Z, out Fixed64 z))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector3d(x, y, z);
+        return true;
+    }
 
     /// <summary>
     /// Multiplies two vectors component-wise.

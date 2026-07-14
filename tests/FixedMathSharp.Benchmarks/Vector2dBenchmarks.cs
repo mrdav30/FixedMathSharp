@@ -54,6 +54,37 @@ public class Vector2dBenchmarks
     }
 
     [Benchmark]
+    public Vector2d TryAddSubtractExact()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            if (Vector2d.TryAdd(_left[i], _right[i], out Vector2d sum)
+                && Vector2d.TrySubtract(_left[i], _right[i], out Vector2d difference))
+            {
+                accumulator += sum + difference;
+            }
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector2d AddSubtractInverseChecked()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector2d sum = _left[i] + _right[i];
+            Vector2d difference = _left[i] - _right[i];
+            if (sum - _right[i] == _left[i] && difference + _right[i] == _left[i])
+                accumulator += sum + difference;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
     public Vector2d SubtractInPlace()
     {
         Vector2d accumulator = Vector2d.Zero;

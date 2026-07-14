@@ -14,17 +14,21 @@ public partial struct Fixed64
 {
     #region Arithmetic Operators
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsAddOrSubtractResultExact(long left, long result, long overflowMask) =>
+        (overflowMask & (left ^ result)) >= 0;
+
     /// <summary>
     /// Adds two Fixed64 numbers, with saturating behavior in case of overflow.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator +(Fixed64 x, Fixed64 y)
     {
         long xl = x.m_rawValue;
         long yl = y.m_rawValue;
-        long sum = xl + yl;
-        // Check for overflow, if signs of operands are equal and signs of sum and x are different
-        if (((~(xl ^ yl) & (xl ^ sum)) & FixedMath.MIN_VALUE_L) != 0)
-            sum = xl > 0 ? FixedMath.MAX_VALUE_L : FixedMath.MIN_VALUE_L;
+        long sum = unchecked(xl + yl);
+        if (!IsAddOrSubtractResultExact(xl, sum, ~(xl ^ yl)))
+            sum = xl < 0 ? FixedMath.MIN_VALUE_L : FixedMath.MAX_VALUE_L;
         return new Fixed64(sum);
     }
 
@@ -39,15 +43,40 @@ public partial struct Fixed64
     public static Fixed64 operator +(int x, Fixed64 y) => y + x;
 
     /// <summary>
+    /// Attempts to add two values without saturation.
+    /// </summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <param name="result">
+    /// The exact sum when representable; otherwise, <see langword="default"/>.
+    /// </param>
+    /// <returns><see langword="true"/> when the exact sum is representable; otherwise, <see langword="false"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryAdd(Fixed64 left, Fixed64 right, out Fixed64 result)
+    {
+        long leftRaw = left.m_rawValue;
+        long rightRaw = right.m_rawValue;
+        long rawResult = unchecked(leftRaw + rightRaw);
+        if (!IsAddOrSubtractResultExact(leftRaw, rawResult, ~(leftRaw ^ rightRaw)))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Fixed64(rawResult);
+        return true;
+    }
+
+    /// <summary>
     /// Subtracts one Fixed64 number from another, with saturating behavior in case of overflow.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator -(Fixed64 x, Fixed64 y)
     {
         long xl = x.m_rawValue;
         long yl = y.m_rawValue;
-        long diff = xl - yl;
-        // Check for overflow, if signs of operands are different and signs of sum and x are different
-        if ((((xl ^ yl) & (xl ^ diff)) & FixedMath.MIN_VALUE_L) != 0)
+        long diff = unchecked(xl - yl);
+        if (!IsAddOrSubtractResultExact(xl, diff, xl ^ yl))
             diff = xl < 0 ? FixedMath.MIN_VALUE_L : FixedMath.MAX_VALUE_L;
         return new Fixed64(diff);
     }
@@ -65,6 +94,31 @@ public partial struct Fixed64
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64 operator -(int x, Fixed64 y) =>
          new Fixed64((long)x << FixedMath.SHIFT_AMOUNT_I) - y;
+
+    /// <summary>
+    /// Attempts to subtract two values without saturation.
+    /// </summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <param name="result">
+    /// The exact difference when representable; otherwise, <see langword="default"/>.
+    /// </param>
+    /// <returns><see langword="true"/> when the exact difference is representable; otherwise, <see langword="false"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TrySubtract(Fixed64 left, Fixed64 right, out Fixed64 result)
+    {
+        long leftRaw = left.m_rawValue;
+        long rightRaw = right.m_rawValue;
+        long rawResult = unchecked(leftRaw - rightRaw);
+        if (!IsAddOrSubtractResultExact(leftRaw, rawResult, leftRaw ^ rightRaw))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Fixed64(rawResult);
+        return true;
+    }
 
     /// <summary>
     /// Multiplies two Fixed64 numbers, handling overflow and rounding.
