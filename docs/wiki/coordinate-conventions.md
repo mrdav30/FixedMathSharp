@@ -14,6 +14,19 @@ inheriting one from any engine:
 - `Vector4d` is component math and homogeneous-coordinate math. It has no
   independent forward or backward semantics.
 
+## Angle And Rotation Inputs
+
+Quaternion angle constructors accept the complete finite `Fixed64` domain.
+Radian inputs are reduced by the deterministic trigonometric functions, so
+multi-turn angles represent the same rotation modulo quaternion sign. Degree
+constructors convert with one fused round-half-to-even operation before using
+the same radian path; `DegToRad` is representable for every input, while
+`RadToDeg` saturates only when the final degree value is outside `Fixed64`.
+
+`FixedQuaternion.FromAxisAngle` and `FixedQuaternion.AngleAxis` normalize any
+nonzero finite axis scale-safely. A zero axis deterministically returns
+`FixedQuaternion.Identity`.
+
 ## Runtime Helpers
 
 `CoordinateConvention3d` is a small, immutable helper for direction vectors at

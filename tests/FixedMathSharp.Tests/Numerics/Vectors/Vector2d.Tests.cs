@@ -205,6 +205,53 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void IsNormalized_UsesNonzeroSquaredMagnitudeEpsilonContract()
+    {
+        Assert.True(Vector2d.Right.IsNormalized());
+        Assert.True(Vector2d.Forward.IsNormalized());
+        Assert.False(Vector2d.Zero.IsNormalized());
+        Assert.False(new Vector2d(2, 0).IsNormalized());
+        Assert.True(new Vector2d(3, 4).Normalized.IsNormalized());
+
+        var oneRawInside = new Vector2d(Fixed64.One, Fixed64.FromRaw(1_045_500));
+        var oneRawOutside = new Vector2d(Fixed64.One, Fixed64.FromRaw(1_049_600));
+        Assert.Equal(Fixed64.One + Fixed64.Epsilon - Fixed64.MinIncrement, oneRawInside.MagnitudeSquared);
+        Assert.Equal(Fixed64.One + Fixed64.Epsilon + Fixed64.MinIncrement, oneRawOutside.MagnitudeSquared);
+        Assert.True(oneRawInside.IsNormalized());
+        Assert.False(oneRawOutside.IsNormalized());
+    }
+
+    [Fact]
+    public void NormalizedResults_AreNormalizedAcrossTinyOrdinaryAndExtremeVectorDomains()
+    {
+        Vector2d[] vectors2d =
+        {
+            new(Fixed64.FromRaw(1), Fixed64.FromRaw(2)),
+            new(3, 4),
+            new(Fixed64.MaxValue, Fixed64.MinValue),
+        };
+        Vector3d[] vectors3d =
+        {
+            new(Fixed64.FromRaw(1), Fixed64.FromRaw(2), Fixed64.FromRaw(3)),
+            new(2, -3, 6),
+            new(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.MaxValue),
+        };
+        Vector4d[] vectors4d =
+        {
+            new(Fixed64.FromRaw(1), Fixed64.FromRaw(2), Fixed64.FromRaw(3), Fixed64.FromRaw(4)),
+            new(Fixed64.One, -Fixed64.Two, Fixed64.Three, -Fixed64.One),
+            new(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.MaxValue, Fixed64.MinValue),
+        };
+
+        foreach (Vector2d vector in vectors2d)
+            Assert.True(vector.Normalized.IsNormalized(), $"2D normalization failed for {vector}.");
+        foreach (Vector3d vector in vectors3d)
+            Assert.True(vector.Normalized.IsNormalized(), $"3D normalization failed for {vector}.");
+        foreach (Vector4d vector in vectors4d)
+            Assert.True(vector.Normalized.IsNormalized(), $"4D normalization failed for {vector}.");
+    }
+
+    [Fact]
     public void LerpInPlace_InterpolatesBetweenVectorsCorrectly()
     {
         var start = new Vector2d(0, 0);

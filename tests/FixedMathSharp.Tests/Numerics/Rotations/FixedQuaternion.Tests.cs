@@ -1,5 +1,6 @@
 ﻿using MemoryPack;
 using System;
+using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -121,9 +122,131 @@ public class FixedQuaternionTests
     {
         Assert.Equal(Fixed64.Zero, FixedQuaternion.GetMagnitude(FixedQuaternion.Zero));
         Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.GetNormalized(FixedQuaternion.Zero));
+        Assert.Equal(
+            Fixed64.FromRaw(5),
+            FixedQuaternion.GetMagnitude(new FixedQuaternion(
+                Fixed64.FromRaw(3),
+                Fixed64.FromRaw(4),
+                Fixed64.Zero,
+                Fixed64.Zero)));
 
         var slightlyAboveUnit = new FixedQuaternion(Fixed64.One, Fixed64.FromRaw(65536), Fixed64.Zero, Fixed64.Zero);
         Assert.Equal(Fixed64.One, FixedQuaternion.GetMagnitude(slightlyAboveUnit));
+    }
+
+    [Fact]
+    public void FixedQuaternion_MagnitudeAndNormalization_HandleFullFiniteComponentDomain()
+    {
+        Fixed64 quarterMaximum = Fixed64.FromRaw(long.MaxValue / 4L);
+        FixedQuaternion[] quaternions =
+        {
+            new(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero),
+            new(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero),
+            new(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue),
+            new(Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue),
+            new(quarterMaximum, quarterMaximum, quarterMaximum, quarterMaximum),
+        };
+
+        foreach (FixedQuaternion quaternion in quaternions)
+        {
+            Assert.Equal(GetMagnitudeOracle(quaternion), FixedQuaternion.GetMagnitude(quaternion));
+            Assert.True(FixedQuaternion.GetNormalized(quaternion).IsNormalized(), $"Normalization failed for {quaternion}.");
+        }
+
+        Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.GetNormalized(FixedQuaternion.Zero));
+    }
+
+    [Fact]
+    public void FixedQuaternion_GetMagnitude_PreservesRepresentableNearMaximumBoundary()
+    {
+        var quaternion = new FixedQuaternion(
+            Fixed64.FromRaw(7_441_271_719_093_614_805L),
+            Fixed64.FromRaw(4_814_940_524_119_397_815L),
+            Fixed64.FromRaw(2_188_609_329_145_180_825L),
+            Fixed64.FromRaw(1_313_165_597_487_108_495L));
+        Fixed64 expected = Fixed64.FromRaw(long.MaxValue - 3L);
+
+        Assert.Equal(expected, GetMagnitudeOracle(quaternion));
+        Assert.Equal(expected, FixedQuaternion.GetMagnitude(quaternion));
+    }
+
+    [Fact]
+    public void FixedQuaternion_GetMagnitude_SaturatesOnlyWhenRoundedRootExceedsMaximum()
+    {
+        var roundsOutside = new FixedQuaternion(
+            Fixed64.MaxValue,
+            Fixed64.FromRaw(3_037_000_500L),
+            Fixed64.Zero,
+            Fixed64.Zero);
+        var minimumComponent = new FixedQuaternion(
+            Fixed64.MinValue,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            Fixed64.Zero);
+
+        Assert.True(GetRoundedMagnitudeRaw(roundsOutside) > long.MaxValue);
+        Assert.Equal(BigInteger.One << 63, GetRoundedMagnitudeRaw(minimumComponent));
+        Assert.Equal(Fixed64.MaxValue, FixedQuaternion.GetMagnitude(roundsOutside));
+        Assert.Equal(Fixed64.MaxValue, FixedQuaternion.GetMagnitude(minimumComponent));
+    }
+
+    [Fact]
+    public void FixedQuaternion_GetMagnitude_MatchesOracleForAsymmetricOrdinaryComponents()
+    {
+        var quaternion = new FixedQuaternion(
+            Fixed64.FromRaw(29_624_622_239L),
+            Fixed64.FromRaw(-6_665_689_937L),
+            Fixed64.FromRaw(-7_791_209_407L),
+            Fixed64.FromRaw(-31_327_321_054L));
+        Fixed64 expected = Fixed64.FromRaw(44_318_773_151L);
+
+        Assert.Equal(expected, GetMagnitudeOracle(quaternion));
+        Assert.Equal(expected, FixedQuaternion.GetMagnitude(quaternion));
+    }
+
+    [Fact]
+    public void FixedQuaternion_GetMagnitude_MatchesOracleAcrossDeterministicBroadSample()
+    {
+        const int sampleCountPerDomain = 10_000;
+        ulong state = 0x8A5C_D789_635D_2DFFUL;
+        int representableCount = 0;
+        int saturatedCount = 0;
+
+        for (int i = 0; i < sampleCountPerDomain * 2; i++)
+        {
+            bool fullRawDomain = i >= sampleCountPerDomain;
+            FixedQuaternion quaternion = CreateDeterministicQuaternion(ref state, fullRawDomain);
+            BigInteger expectedRaw = GetRoundedMagnitudeRaw(quaternion);
+            Fixed64 expected = expectedRaw > long.MaxValue
+                ? Fixed64.MaxValue
+                : Fixed64.FromRaw((long)expectedRaw);
+
+            if (expectedRaw > long.MaxValue)
+                saturatedCount++;
+            else
+                representableCount++;
+
+            Fixed64 actual = FixedQuaternion.GetMagnitude(quaternion);
+            Assert.True(
+                actual == expected,
+                $"Sample {i} ({(fullRawDomain ? "full" : "ordinary")}) expected raw {expected.m_rawValue} " +
+                $"but got {actual.m_rawValue} for ({quaternion.X.m_rawValue}, {quaternion.Y.m_rawValue}, " +
+                $"{quaternion.Z.m_rawValue}, {quaternion.W.m_rawValue}).");
+        }
+
+        Assert.True(representableCount > 0);
+        Assert.True(saturatedCount > 0);
+    }
+
+    [Fact]
+    public void FixedQuaternion_Normalization_IsInvariantUnderRepresentablePositiveScaling()
+    {
+        var source = new FixedQuaternion(Fixed64.One, -Fixed64.Two, Fixed64.Three, new Fixed64(4));
+        var scaled = source * new Fixed64(17);
+
+        Assert.True(source.Normalized.FuzzyEqual(scaled.Normalized, Fixed64.Epsilon));
+        Assert.True(source.Normalized.IsNormalized());
+        Assert.True(scaled.Normalized.IsNormalized());
     }
 
     [Theory]
@@ -139,7 +262,7 @@ public class FixedQuaternionTests
     }
 
     [Fact]
-    public void FixedQuaternion_Normalize_MatchesComponentDivisionByMagnitude_ForFractionalHugeAndTinyRawValues()
+    public void FixedQuaternion_Normalize_MatchesComponentDivisionByMagnitude_ForFractionalAndHugeValues()
     {
         AssertNormalizeMatchesComponentDivision(new FixedQuaternion(
             Fixed64.FromDouble(1.5),
@@ -152,12 +275,25 @@ public class FixedQuaternionTests
             new Fixed64(-20000),
             new Fixed64(30000),
             new Fixed64(-10000)));
+    }
 
-        AssertNormalizeMatchesComponentDivision(new FixedQuaternion(
+    [Fact]
+    public void FixedQuaternion_Normalize_TinyRawComponentsPreservesRatiosAndReturnsUnitQuaternion()
+    {
+        var source = new FixedQuaternion(
             Fixed64.FromRaw(1),
             Fixed64.FromRaw(-1),
             Fixed64.FromRaw(2),
-            Fixed64.FromRaw(-2)));
+            Fixed64.FromRaw(-2));
+
+        FixedQuaternion normalized = source.Normalized;
+        Assert.True(normalized.IsNormalized());
+        Assert.Equal(normalized.X, -normalized.Y);
+        Assert.Equal(normalized.Z, -normalized.W);
+        Assert.True(FixedMath.Abs(normalized.Z - (normalized.X * Fixed64.Two)) <= Fixed64.Epsilon);
+
+        var inPlace = source;
+        Assert.Equal(normalized, inPlace.NormalizeInPlace());
     }
 
     [Fact]
@@ -364,6 +500,17 @@ public class FixedQuaternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_FromDirection_NormalizesExtremeDirectionWithoutSaturatedSquareSum()
+    {
+        var extreme = new Vector3d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.MaxValue);
+
+        FixedQuaternion actual = FixedQuaternion.FromDirection(extreme);
+        FixedQuaternion expected = FixedQuaternion.FromDirection(extreme.Normalized);
+
+        AssertRepresentsSameRotation(actual, expected);
+    }
+
+    [Fact]
     public void FixedQuaternion_FromDirection_BackwardRotatesForwardToBackward()
     {
         FixedQuaternion result = FixedQuaternion.FromDirection(Vector3d.Backward);
@@ -439,6 +586,17 @@ public class FixedQuaternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_FromAxisAngle_NormalizesExtremeAxisWithoutSaturatedSquareSum()
+    {
+        var extreme = new Vector3d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.MaxValue);
+
+        FixedQuaternion actual = FixedQuaternion.FromAxisAngle(extreme, Fixed64.PiOver4);
+        FixedQuaternion expected = FixedQuaternion.FromAxisAngle(extreme.Normalized, Fixed64.PiOver4);
+
+        AssertRepresentsSameRotation(actual, expected);
+    }
+
+    [Fact]
     public void FixedQuaternion_FromEulerAngles_ValidInput_DoesNotAllocate()
     {
         Fixed64 pitch = Fixed64.PiOver4;
@@ -455,20 +613,39 @@ public class FixedQuaternionTests
     }
 
     [Fact]
-    public void FixedQuaternion_FromAxisAngle_ThrowsWhenAngleIsOutOfRange()
+    public void FixedQuaternion_FromAxisAngle_AcceptsPeriodicMultiTurnAngles()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.Pi + Fixed64.One));
+        Fixed64 angle = Fixed64.PiOver4;
+        FixedQuaternion expected = FixedQuaternion.FromAxisAngle(Vector3d.Up, angle);
+        Fixed64[] periodicAngles =
+        {
+            angle + Fixed64.TwoPi,
+            angle - Fixed64.TwoPi,
+            angle + (Fixed64.TwoPi * new Fixed64(7)),
+            angle - (Fixed64.TwoPi * new Fixed64(6)),
+        };
+
+        foreach (Fixed64 periodicAngle in periodicAngles)
+            AssertRepresentsSameRotation(FixedQuaternion.FromAxisAngle(Vector3d.Up, periodicAngle), expected);
     }
 
-    [Theory]
-    [InlineData("pitch", 4, 0, 0)]
-    [InlineData("yaw", 0, 4, 0)]
-    [InlineData("roll", 0, 0, 4)]
-    public void FixedQuaternion_FromEulerAngles_ThrowsWhenComponentIsOutOfRange(string parameterName, int pitch, int yaw, int roll)
+    [Fact]
+    public void FixedQuaternion_FromEulerAngles_AcceptsPeriodicMultiTurnComponents()
     {
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(new Fixed64(pitch), new Fixed64(yaw), new Fixed64(roll)));
+        Fixed64 pitch = Fixed64.PiOver6;
+        Fixed64 yaw = -Fixed64.PiOver4;
+        Fixed64 roll = Fixed64.PiOver3;
+        FixedQuaternion expected = FixedQuaternion.FromEulerAngles(pitch, yaw, roll);
 
-        Assert.Equal(parameterName, exception.ParamName);
+        AssertRepresentsSameRotation(
+            FixedQuaternion.FromEulerAngles(pitch + Fixed64.TwoPi, yaw, roll),
+            expected);
+        AssertRepresentsSameRotation(
+            FixedQuaternion.FromEulerAngles(pitch, yaw - (Fixed64.TwoPi * new Fixed64(5)), roll),
+            expected);
+        AssertRepresentsSameRotation(
+            FixedQuaternion.FromEulerAngles(pitch, yaw, roll + (Fixed64.TwoPi * new Fixed64(4))),
+            expected);
     }
 
     [Fact]
@@ -639,6 +816,74 @@ public class FixedQuaternionTests
         Assert.True(result.FuzzyEqual(expected), $"AngleAxis returned {result}, expected {expected}.");
     }
 
+    [Fact]
+    public void FixedQuaternion_DegreeConstructors_AcceptPeriodicMultiTurnAngles()
+    {
+        FixedQuaternion expectedEuler = FixedQuaternion.FromEulerAnglesInDegrees(
+            new Fixed64(30),
+            new Fixed64(-45),
+            new Fixed64(60));
+
+        AssertRepresentsSameRotation(
+            FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(390), new Fixed64(-45), new Fixed64(60)),
+            expectedEuler);
+        AssertRepresentsSameRotation(
+            FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(30), new Fixed64(-765), new Fixed64(60)),
+            expectedEuler);
+        AssertRepresentsSameRotation(
+            FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(30), new Fixed64(-45), new Fixed64(1_500)),
+            expectedEuler);
+
+        Fixed64[] angles =
+        {
+            new Fixed64(90),
+            new Fixed64(450),
+            new Fixed64(-270),
+            new Fixed64(2_250),
+            new Fixed64(-2_070),
+        };
+        foreach (Fixed64 angle in angles)
+        {
+            AssertRepresentsSameRotation(
+                FixedQuaternion.AngleAxis(angle, Vector3d.Up),
+                FixedQuaternion.FromAxisAngle(Vector3d.Up, FixedMath.DegToRad(angle)));
+        }
+
+        Assert.Equal(FixedQuaternion.Identity, FixedQuaternion.AngleAxis(new Fixed64(90), Vector3d.Zero));
+    }
+
+    [Theory]
+    [InlineData(long.MinValue)]
+    [InlineData(long.MaxValue)]
+    public void FixedQuaternion_ExtremeRadianConstructors_MatchModuloTwoPiReduction(long angleRaw)
+    {
+        Fixed64 angle = Fixed64.FromRaw(angleRaw);
+        Fixed64 reduced = angle % Fixed64.TwoPi;
+
+        AssertRepresentsSameRotation(
+            FixedQuaternion.FromAxisAngle(Vector3d.Up, angle),
+            FixedQuaternion.FromAxisAngle(Vector3d.Up, reduced));
+        AssertRepresentsSameRotation(
+            FixedQuaternion.FromEulerAngles(angle, Fixed64.PiOver6, -Fixed64.PiOver4),
+            FixedQuaternion.FromEulerAngles(reduced, Fixed64.PiOver6, -Fixed64.PiOver4));
+    }
+
+    [Theory]
+    [InlineData(long.MinValue)]
+    [InlineData(long.MaxValue)]
+    public void FixedQuaternion_ExtremeDegreeConstructors_MatchModuloFullTurnReduction(long angleRaw)
+    {
+        Fixed64 angle = Fixed64.FromRaw(angleRaw);
+        Fixed64 reduced = angle % new Fixed64(360);
+
+        AssertRepresentsSameRotation(
+            FixedQuaternion.AngleAxis(angle, Vector3d.Up),
+            FixedQuaternion.AngleAxis(reduced, Vector3d.Up));
+        AssertRepresentsSameRotation(
+            FixedQuaternion.FromEulerAnglesInDegrees(angle, new Fixed64(30), new Fixed64(-45)),
+            FixedQuaternion.FromEulerAnglesInDegrees(reduced, new Fixed64(30), new Fixed64(-45)));
+    }
+
     #endregion
 
     #region Test: Rotation
@@ -724,6 +969,37 @@ public class FixedQuaternionTests
         var tinyRotation = new FixedQuaternion(Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.Zero, Fixed64.One).NormalizeInPlace();
 
         Assert.True(FixedQuaternion.QuaternionLog(tinyRotation).FuzzyEqual(Vector3d.Zero));
+    }
+
+    [Fact]
+    public void FixedQuaternion_QuaternionLog_NormalizesAndClampsEndpointDriftAcrossFiniteDomain()
+    {
+        Fixed64 endpointVectorThreshold = Fixed64.FromRaw(4_096);
+        FixedQuaternion[] quaternions =
+        {
+            new(endpointVectorThreshold, Fixed64.Zero, Fixed64.Zero, Fixed64.One + Fixed64.MinIncrement),
+            new(endpointVectorThreshold, Fixed64.Zero, Fixed64.Zero, -Fixed64.One - Fixed64.MinIncrement),
+            new(endpointVectorThreshold, Fixed64.Zero, Fixed64.Zero, Fixed64.One),
+            new(endpointVectorThreshold, Fixed64.Zero, Fixed64.Zero, -Fixed64.One),
+            new(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue),
+            new(Fixed64.MinValue, Fixed64.MaxValue, Fixed64.MinValue, Fixed64.MaxValue),
+        };
+
+        foreach (FixedQuaternion quaternion in quaternions)
+            AssertQuaternionLogMatchesIndependentNormalization(quaternion);
+    }
+
+    [Fact]
+    public void FixedQuaternion_QuaternionLog_ZeroAndTinyVectorPartReturnZero()
+    {
+        Assert.Equal(Vector3d.Zero, FixedQuaternion.QuaternionLog(FixedQuaternion.Zero));
+
+        var tinyVectorPart = new FixedQuaternion(
+            Fixed64.FromRaw(4_095),
+            Fixed64.Zero,
+            Fixed64.Zero,
+            Fixed64.One + Fixed64.MinIncrement);
+        Assert.Equal(Vector3d.Zero, FixedQuaternion.QuaternionLog(tinyVectorPart));
     }
 
     #endregion
@@ -820,22 +1096,6 @@ public class FixedQuaternionTests
         Assert.Equal(FixedQuaternion.QuaternionLog(end), end.QuaternionLog());
     }
 
-    [Fact]
-    public void FixedQuaternion_FromAxisAngleAndEulerAngles_RejectAnglesOutsidePiRange()
-    {
-        Fixed64 tooHigh = Fixed64.Pi + Fixed64.Epsilon;
-        Fixed64 tooLow = -Fixed64.Pi - Fixed64.Epsilon;
-
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromAxisAngle(Vector3d.Up, tooHigh));
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromAxisAngle(Vector3d.Up, tooLow));
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(tooHigh, Fixed64.Zero, Fixed64.Zero));
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(tooLow, Fixed64.Zero, Fixed64.Zero));
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(Fixed64.Zero, tooHigh, Fixed64.Zero));
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(Fixed64.Zero, tooLow, Fixed64.Zero));
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(Fixed64.Zero, Fixed64.Zero, tooHigh));
-        Assert.Throws<ArgumentOutOfRangeException>(() => FixedQuaternion.FromEulerAngles(Fixed64.Zero, Fixed64.Zero, tooLow));
-    }
-
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -907,6 +1167,110 @@ public class FixedQuaternionTests
 #endif
 
     #endregion
+
+    private static void AssertQuaternionLogMatchesIndependentNormalization(FixedQuaternion quaternion)
+    {
+        Vector3d actual = default;
+        Exception? exception = Record.Exception(() => actual = FixedQuaternion.QuaternionLog(quaternion));
+
+        Assert.Null(exception);
+        Vector3d expected = FixedQuaternion.QuaternionLog(NormalizeQuaternionOracle(quaternion));
+        Assert.True(
+            actual.FuzzyEqual(expected, Fixed64.FromDouble(0.0001)),
+            $"QuaternionLog returned {actual} for {quaternion}; expected {expected}.");
+    }
+
+    private static Fixed64 GetMagnitudeOracle(FixedQuaternion quaternion)
+    {
+        BigInteger magnitudeRaw = GetRoundedMagnitudeRaw(quaternion);
+        return magnitudeRaw > long.MaxValue
+            ? Fixed64.MaxValue
+            : Fixed64.FromRaw((long)magnitudeRaw);
+    }
+
+    private static FixedQuaternion CreateDeterministicQuaternion(ref ulong state, bool fullRawDomain)
+    {
+        return new FixedQuaternion(
+            Fixed64.FromRaw(NextDeterministicRaw(ref state, fullRawDomain)),
+            Fixed64.FromRaw(NextDeterministicRaw(ref state, fullRawDomain)),
+            Fixed64.FromRaw(NextDeterministicRaw(ref state, fullRawDomain)),
+            Fixed64.FromRaw(NextDeterministicRaw(ref state, fullRawDomain)));
+    }
+
+    private static long NextDeterministicRaw(ref ulong state, bool fullRawDomain)
+    {
+        ulong bits = NextSplitMix64(ref state);
+        if (fullRawDomain)
+            return unchecked((long)bits);
+
+        const long tenRaw = 10L << 32;
+        const ulong ordinarySpan = (20UL << 32) + 1UL;
+        return (long)(bits % ordinarySpan) - tenRaw;
+    }
+
+    private static ulong NextSplitMix64(ref ulong state)
+    {
+        unchecked
+        {
+            state += 0x9E37_79B9_7F4A_7C15UL;
+            ulong value = state;
+            value = (value ^ (value >> 30)) * 0xBF58_476D_1CE4_E5B9UL;
+            value = (value ^ (value >> 27)) * 0x94D0_49BB_1331_11EBUL;
+            return value ^ (value >> 31);
+        }
+    }
+
+    private static FixedQuaternion NormalizeQuaternionOracle(FixedQuaternion quaternion)
+    {
+        BigInteger magnitudeRaw = GetRoundedMagnitudeRaw(quaternion);
+        if (magnitudeRaw.IsZero)
+            return FixedQuaternion.Identity;
+
+        return new FixedQuaternion(
+            Fixed64.FromRaw((long)RoundDivideToEven((BigInteger)quaternion.X.m_rawValue << 32, magnitudeRaw)),
+            Fixed64.FromRaw((long)RoundDivideToEven((BigInteger)quaternion.Y.m_rawValue << 32, magnitudeRaw)),
+            Fixed64.FromRaw((long)RoundDivideToEven((BigInteger)quaternion.Z.m_rawValue << 32, magnitudeRaw)),
+            Fixed64.FromRaw((long)RoundDivideToEven((BigInteger)quaternion.W.m_rawValue << 32, magnitudeRaw)));
+    }
+
+    private static BigInteger GetRoundedMagnitudeRaw(FixedQuaternion quaternion)
+    {
+        BigInteger x = quaternion.X.m_rawValue;
+        BigInteger y = quaternion.Y.m_rawValue;
+        BigInteger z = quaternion.Z.m_rawValue;
+        BigInteger w = quaternion.W.m_rawValue;
+        BigInteger squareSum = (x * x) + (y * y) + (z * z) + (w * w);
+
+        BigInteger low = BigInteger.Zero;
+        BigInteger high = BigInteger.One << 65;
+        while (low < high)
+        {
+            BigInteger midpoint = (low + high + BigInteger.One) >> 1;
+            if (midpoint * midpoint <= squareSum)
+                low = midpoint;
+            else
+                high = midpoint - BigInteger.One;
+        }
+
+        BigInteger lowerDistance = squareSum - (low * low);
+        BigInteger upper = low + BigInteger.One;
+        BigInteger upperDistance = (upper * upper) - squareSum;
+        return upperDistance < lowerDistance || (upperDistance == lowerDistance && !low.IsEven)
+            ? upper
+            : low;
+    }
+
+    private static BigInteger RoundDivideToEven(BigInteger numerator, BigInteger denominator)
+    {
+        bool negative = numerator.Sign < 0;
+        numerator = BigInteger.Abs(numerator);
+        BigInteger quotient = BigInteger.DivRem(numerator, denominator, out BigInteger remainder);
+        BigInteger twiceRemainder = remainder << 1;
+        if (twiceRemainder > denominator || (twiceRemainder == denominator && !quotient.IsEven))
+            quotient++;
+
+        return negative ? -quotient : quotient;
+    }
 
     private static FixedQuaternion OffsetQuaternionComponent(FixedQuaternion quaternion, int componentIndex, Fixed64 offset)
     {

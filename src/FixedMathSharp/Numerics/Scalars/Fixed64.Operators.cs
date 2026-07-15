@@ -220,6 +220,33 @@ public partial struct Fixed64
     }
 
     /// <summary>
+    /// Returns the exactly rounded Euclidean magnitude of up to four Q32.32
+    /// components, saturating only when the rounded positive result does not fit.
+    /// </summary>
+    internal static Fixed64 GetRoundedMagnitude(Fixed64 x, Fixed64 y, Fixed64 z, Fixed64 w)
+    {
+        GetMagnitudeSquaredWords(x, y, z, w, out ulong overflow, out ulong sumHi, out ulong sumLo);
+        if (overflow != 0UL)
+            return MaxValue;
+        if ((sumHi | sumLo) == 0UL)
+            return Zero;
+
+        ulong root = GetFloorSquareRoot(sumHi, sumLo, out _, out ulong remainderLo);
+        if (root > long.MaxValue)
+            return MaxValue;
+
+        if (remainderLo > root)
+        {
+            if (root == long.MaxValue)
+                return MaxValue;
+
+            root++;
+        }
+
+        return FromRaw((long)root);
+    }
+
+    /// <summary>
     /// Compares exact squared magnitudes without projecting their sums back into Q32.32.
     /// </summary>
     internal static int CompareMagnitudeSquared(
@@ -426,6 +453,47 @@ public partial struct Fixed64
         AddMagnitudeSquare(y.m_rawValue, ref overflow, ref sumHi, ref sumLo);
         AddMagnitudeSquare(z.m_rawValue, ref overflow, ref sumHi, ref sumLo);
         AddMagnitudeSquare(w.m_rawValue, ref overflow, ref sumHi, ref sumLo);
+    }
+
+    private static ulong GetFloorSquareRoot(
+        ulong valueHi,
+        ulong valueLo,
+        out ulong remainderHi,
+        out ulong remainderLo)
+    {
+        int highestBit = valueHi != 0UL
+            ? 127 - CountLeadingZeroes(valueHi)
+            : 63 - CountLeadingZeroes(valueLo);
+        int pairIndex = highestBit >> 1;
+        ulong root = 0UL;
+        remainderHi = 0UL;
+        remainderLo = 0UL;
+
+        for (; pairIndex >= 0; pairIndex--)
+        {
+            ulong pair = pairIndex >= 32
+                ? (valueHi >> ((pairIndex - 32) << 1)) & 3UL
+                : (valueLo >> (pairIndex << 1)) & 3UL;
+
+            remainderHi = (remainderHi << 2) | (remainderLo >> 62);
+            remainderLo = (remainderLo << 2) | pair;
+            root <<= 1;
+
+            ulong candidateHi = root >> 63;
+            ulong candidateLo = (root << 1) | 1UL;
+            if (remainderHi < candidateHi
+                || (remainderHi == candidateHi && remainderLo < candidateLo))
+            {
+                continue;
+            }
+
+            ulong previousRemainderLo = remainderLo;
+            remainderLo -= candidateLo;
+            remainderHi -= candidateHi + (previousRemainderLo < candidateLo ? 1UL : 0UL);
+            root++;
+        }
+
+        return root;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

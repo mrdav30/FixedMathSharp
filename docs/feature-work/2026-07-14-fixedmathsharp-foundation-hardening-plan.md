@@ -697,17 +697,18 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
 
 **Files:**
 
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Core/FixedMath.Trigonometry.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Vectors/Vector2d.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.Statics.cs`
-- Modify: `../FixedMathSharp/docs/wiki/coordinate-conventions.md`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Core/FixedTrigonometry.Tests.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Rotations/FixedQuaternion.Tests.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/Vector2dBenchmarks.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/QuaternionBenchmarks.cs`
+- Modify: `src/FixedMathSharp/Core/FixedMath.Trigonometry.cs`
+- Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
+- Modify: `src/FixedMathSharp/Numerics/Vectors/Vector2d.cs`
+- Modify: `src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.cs`
+- Modify: `src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.Statics.cs`
+- Modify: `docs/wiki/coordinate-conventions.md`
+- Test: `tests/FixedMathSharp.Tests/Core/FixedTrigonometry.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Rotations/FixedQuaternion.Tests.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/Vector2dBenchmarks.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/QuaternionBenchmarks.cs`
 
 **Interfaces:**
 
@@ -725,8 +726,10 @@ public partial struct Vector2d
 
 - `FixedQuaternion.GetMagnitude` and `GetNormalized` keep their signatures but
   work for every nonzero finite component combination without saturating the
-  sum of squares. Normalizing the zero quaternion continues to return
-  `FixedQuaternion.Identity`.
+  sum of squares. Public magnitude is exactly rounded from the raw square sum
+  and saturates only when that rounded result is outside the positive range;
+  normalization retains a separate scale-relative path. Normalizing the zero
+  quaternion continues to return `FixedQuaternion.Identity`.
 - `FixedQuaternion.FromAxisAngle`, `FromEulerAngles`,
   `FromEulerAnglesInDegrees`, and `AngleAxis` keep their signatures but accept
   every representable angle. Radian constructors rely on deterministic
@@ -742,10 +745,10 @@ public partial struct Vector2d
   `FixedMath.Acos`. No solver-only safe-log variant or gross-failure branch is
   introduced.
 
-- [ ] **Step 1: Add `Vector2d.IsNormalized` red tests** for `UnitX`, `UnitY`,
+- [x] **Step 1: Add `Vector2d.IsNormalized` red tests** for `UnitX`, `UnitY`,
       zero, length two, a normalized non-axis vector, and squared magnitudes one
       raw unit inside and outside the accepted epsilon boundary.
-- [ ] **Step 2: Add normalized-result parity coverage** for deterministic tiny,
+- [x] **Step 2: Add normalized-result parity coverage** for deterministic tiny,
       ordinary, and extreme nonzero 2D/3D/4D inputs. Add quaternion cases with
       one and four `Fixed64.MaxValue` or `Fixed64.MinValue` components. Assert
       every nonzero normalized quaternion reports normalized, normalization is
@@ -755,67 +758,125 @@ public partial struct Vector2d
       test-only `BigInteger` square-sum/root oracle: require the exact rounded
       finite magnitude when representable and `Fixed64.MaxValue` only when the
       true magnitude exceeds the public range.
-- [ ] **Step 3: Add quaternion-log regressions** for normalized endpoint drift,
+- [x] **Step 3: Add quaternion-log regressions** for normalized endpoint drift,
       exact `W = +/-One`, a zero quaternion, a tiny vector part, and extreme
       finite component combinations. Compare each nonzero result with the log of
       its independently normalized quaternion and assert no domain exception.
       Keep separate `FixedMath.Acos` tests proving values outside `[-1, 1]`
       remain invalid when no quaternion normalization contract applies.
-- [ ] **Step 4: Add `BigInteger` degree/radian conversion oracles in tests.**
+- [x] **Step 4: Add `BigInteger` degree/radian conversion oracles in tests.**
       Cover exact and adjacent round-half-to-even cases, ordinary values,
       intermediate-overflow/final-fit cases, and `Fixed64.MinValue`/
       `Fixed64.MaxValue`. Require `DegToRad` to return the representable oracle
       result and `RadToDeg` to saturate only when the final oracle result lies
       outside the asymmetric raw range.
-- [ ] **Step 5: Replace old angle-rejection tests** with periodic-equivalence
+- [x] **Step 5: Replace old angle-rejection tests** with periodic-equivalence
       tests. Use radians offset by `+/-TwoPi` for radian constructors and degrees
       offset by `+/-360` for degree constructors, including multiple turns and
       both signs. Compare rotations modulo quaternion sign. Add `AngleAxis`
       parity with `FromAxisAngle(axis, FixedMath.DegToRad(angle))` and require a
       zero axis to return identity.
-- [ ] **Step 6: Add extreme-axis and direction regressions** proving
+- [x] **Step 6: Add extreme-axis and direction regressions** proving
       `FromAxisAngle` and `FromDirection` use scale-safe vector normalization
       rather than a saturating `MagnitudeSquared` sum.
-- [ ] **Step 7: Run the focused tests and confirm** the new parity API is
+- [x] **Step 7: Run the focused tests and confirm** the new parity API is
       missing and the quaternion, conversion, and multi-turn regressions expose
       the current full-domain defects.
 
 ```powershell
-dotnet test ../FixedMathSharp/tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter "FullyQualifiedName~Vector2d|FullyQualifiedName~FixedQuaternion|FullyQualifiedName~FixedTrigonometry"
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter "FullyQualifiedName~Vector2d|FullyQualifiedName~FixedQuaternion|FullyQualifiedName~FixedTrigonometry"
 ```
 
-- [ ] **Step 8: Implement `Vector2d.IsNormalized`** with the same nonzero and
+- [x] **Step 8: Implement `Vector2d.IsNormalized`** with the same nonzero and
       squared-magnitude epsilon contract as `Vector3d` and `Vector4d`.
-- [ ] **Step 9: Replace quaternion magnitude/normalization arithmetic** with
-      the proven scale-relative four-component pattern already used by
-      `Vector4d`. Share a focused internal helper only if it removes real
-      duplication without exposing a public wide-number abstraction.
-- [ ] **Step 10: Route axis/direction normalization** through the scale-safe
+- [x] **Step 9: Replace quaternion magnitude/normalization arithmetic.** Reuse
+      the exact private raw square accumulator for one correctly rounded public
+      magnitude result, with no public wide-number abstraction. Keep
+      normalization on the proven scale-relative four-component pattern used
+      by `Vector4d` so normalized hot paths do not pay for an exact root loop.
+- [x] **Step 10: Route axis/direction normalization** through the scale-safe
       `Vector3d.Normalized` contract in `FromAxisAngle` and `FromDirection`.
       Preserve identity for a zero axis/direction and the current deterministic
       opposite-direction fallback.
-- [ ] **Step 11: Repair `QuaternionLog` at its invariant boundary.** Normalize
+- [x] **Step 11: Repair `QuaternionLog` at its invariant boundary.** Normalize
       scale-safely, retain the existing tiny-vector early return, clamp `W`
       unconditionally to `[-1, 1]`, and then call strict `Acos`. Replace
       `0x00001000L` with a named decimal raw threshold `4_096` and document that
       it is approximately `9.536743e-7` in Q32.32.
-- [ ] **Step 12: Remove the `[-Pi, Pi]` guards** from radian quaternion
+- [x] **Step 12: Remove the `[-Pi, Pi]` guards** from radian quaternion
       constructors. Route `DegToRad` and `RadToDeg` through Task 4's internal
       fused result core with one final rounding/saturation decision. Reduce
       `AngleAxis` to delegation through
       `FromAxisAngle(axis, FixedMath.DegToRad(angle))`; do not retain its
       duplicate axis-angle implementation or add a public angle wrapper.
-- [ ] **Step 13: Run the focused tests in `Release` and `ReleaseLean`, then run
+- [x] **Step 13: Run the focused tests in `Release` and `ReleaseLean`, then run
       exact FixedMathSharp coverage.** Cover every zero, scale selection,
       endpoint clamp, final conversion saturation, periodic reduction, and
       `IsNormalized` branch.
-- [ ] **Step 14: Benchmark the new `Vector2d.IsNormalized`, `DegToRad`, and
-      `RadToDeg` rows plus existing quaternion magnitude/normalize/construct
+- [x] **Step 14: Benchmark the new `Vector2d.IsNormalized`, `DegToRad`, and
+      `RadToDeg` rows plus quaternion magnitude/normalize/construct
       rows.** Require zero allocations and no material ordinary-input
       regression; optimize shared fused/scale-relative paths rather than
       restoring saturating duplicate arithmetic.
-- [ ] **Step 15: Owner review checkpoint.** Leave all FixedMathSharp changes
+- [x] **Step 15: Owner review checkpoint.** Leave all FixedMathSharp changes
       unstaged and provide a proposed commit message.
+
+**Result:**
+
+- Added `Vector2d.IsNormalized` with the established nonzero squared-magnitude
+  epsilon contract. Public quaternion magnitude now reuses the exact 129-bit
+  raw square accumulator and a leading-pair-skipping restoring integer square
+  root. It rounds once from the exact remainder and saturates only when that
+  rounded positive root exceeds `long.MaxValue`. Normalization deliberately
+  retains a separate scale-relative helper and normalized-input fast path; zero
+  normalization still returns identity.
+- Axis/direction creation uses scale-safe vector normalization. Quaternion log
+  normalizes scale-safely, clamps both scalar endpoints, and uses the named
+  `4_096` raw vector threshold. Added the lower drift regression at
+  `W = -One - MinIncrement` as well as the upper endpoint coverage.
+- Removed artificial quaternion angle-range guards. Radian constructors now
+  accept the complete `Fixed64` domain, degree constructors use the Task 4
+  fused conversion path, `RadToDeg` saturates only its final result, and
+  `AngleAxis` delegates to `FromAxisAngle`. The coordinate-convention contract
+  documents multi-turn equivalence modulo quaternion sign and zero-axis
+  identity; the obsolete Euler-angle complexity exception was removed.
+- Strict TDD first failed compilation with the expected missing
+  `Vector2d.IsNormalized` API. Adding only that API then left 11 expected
+  full-domain failures covering fused conversions, extreme quaternion/vector
+  normalization, quaternion-log endpoint drift, and multi-turn angles before
+  the first production repair.
+- Final review then found that the scale-relative public magnitude path was not
+  exact. The second RED run failed the reviewer boundary
+  `(7441271719093614805, 4814940524119397815, 2188609329145180825,
+  1313165597487108495)` (`long.MaxValue - 3` expected, `long.MaxValue` actual),
+  an asymmetric ordinary vector (one raw unit low), and a deterministic sample
+  (one raw unit low): 3 failed and 180 passed. The exact-root correction made a
+  20,000-case deterministic `BigInteger` oracle probe pass across 10,000
+  ordinary and 10,000 full-raw-domain quaternions, including representable
+  roots, final saturation, `MinValue`, and near-maximum rounding boundaries.
+- Extreme `MinValue`/`MaxValue` radian and degree constructors now have
+  periodic-equivalence coverage against `% TwoPi` and `% 360` reductions,
+  compared modulo quaternion sign. The degree conversion tests explicitly
+  prove the true even/odd exact tie raws `48_318_382_080` and
+  `144_955_146_240`. Because the reduced `RadToDeg` factors preclude a tie,
+  its tests derive and prove the closest-below and closest-above half cases.
+- Final focused verification passed 280 tests in `Release` and 278 in
+  `ReleaseLean`. Full verification passed 1,262 FixedMathSharp plus 7
+  Chronicler tests in `Release`, and 1,241 FixedMathSharp plus 7 Chronicler
+  tests in `ReleaseLean`. All 16 Task 5 methods and focused helpers reached
+  100% line and branch coverage.
+- BenchmarkDotNet `ShortRun` measured 256 operations per row with zero
+  allocations. Exact public magnitude moved from 4.772 to 16.310 us, about
+  45 ns more per input for exact accumulation and root rounding. Keeping the
+  exact root out of normalization preserved the hot paths: normalize moved
+  from 73.388 to 72.536 us, axis-angle 141.534 to 138.181 us, degree
+  axis-angle 148.196 to 144.053 us, Euler 413.253 to 408.750 us, and direction
+  102.585 to 101.517 us. The new conversion/parity rows remained `DegToRad`
+  6.355 us, `RadToDeg` 9.982 us, and `Vector2d.IsNormalized` 1.973 us. Treat
+  these ShortRun timings as regression evidence, not canonical performance
+  claims.
+- Changes remain unstaged for owner review. Proposed commit message:
+  `feat: harden vector and quaternion full-domain contracts`.
 
 ---
 

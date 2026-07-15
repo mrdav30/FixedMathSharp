@@ -411,13 +411,15 @@ namespace FixedMathSharp
         /// Converts a value in radians to degrees.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 RadToDeg(Fixed64 rad) => (rad * Fixed64.OneEighty) / Fixed64.Pi;
+        public static Fixed64 RadToDeg(Fixed64 rad) =>
+            Fixed64.MultiplyDivide(rad, Fixed64.OneEighty, Fixed64.Pi, out _);
 
         /// <summary>
         /// Converts a value in degrees to radians.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Fixed64 DegToRad(Fixed64 deg) => (deg * Fixed64.Pi) / Fixed64.OneEighty;
+        public static Fixed64 DegToRad(Fixed64 deg) =>
+            Fixed64.MultiplyDivide(deg, Fixed64.Pi, Fixed64.OneEighty, out _);
 
         /// <summary>
         /// Computes the sine of a given angle in radians using an optimized 

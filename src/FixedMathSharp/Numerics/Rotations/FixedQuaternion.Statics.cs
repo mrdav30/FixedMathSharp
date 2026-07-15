@@ -27,18 +27,25 @@ public partial struct FixedQuaternion
     /// Calculates the magnitude (or length) of the specified quaternion.
     /// </summary>
     /// <remarks>
-    /// If rounding errors cause the computed magnitude to be slightly greater than 1 but within epsilon, the result is clamped to 1. 
-    /// This helps maintain numerical stability when working with normalized quaternions.</remarks>
+    /// Component squares are accumulated exactly and the integer square root is
+    /// rounded once. Only an unrepresentable rounded result saturates.
+    /// </remarks>
     /// <param name="q">The quaternion for which to compute the magnitude.</param>
     /// <returns>The magnitude of the quaternion as a Fixed64 value. Returns 0 if the quaternion is the zero quaternion.</returns>
     public static Fixed64 GetMagnitude(FixedQuaternion q)
+        => Fixed64.GetRoundedMagnitude(q.X, q.Y, q.Z, q.W);
+
+    private static Fixed64 GetNormalizationMagnitude(FixedQuaternion q)
     {
         Fixed64 mag = (q.X * q.X) + (q.Y * q.Y) + (q.Z * q.Z) + (q.W * q.W);
-        // If rounding error caused the final magnitude to be slightly above 1, clamp it
-        if (mag > Fixed64.One && mag <= Fixed64.One + Fixed64.Epsilon)
+
+        if (mag == Fixed64.MaxValue || mag <= FixedMath.ScaleSafeMagnitudeSquaredThreshold)
+            return FixedMath.GetScaledMagnitude(q.X, q.Y, q.Z, q.W);
+
+        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
             return Fixed64.One;
 
-        return mag != Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
+        return FixedMath.Sqrt(mag);
     }
 
     /// <summary>
@@ -47,11 +54,14 @@ public partial struct FixedQuaternion
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedQuaternion GetNormalized(FixedQuaternion q)
     {
-        Fixed64 mag = GetMagnitude(q);
+        Fixed64 mag = GetNormalizationMagnitude(q);
 
         // If magnitude is zero, return identity quaternion (to avoid divide by zero)
         if (mag == Fixed64.Zero)
-            return new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+            return Identity;
+
+        if (mag == Fixed64.MaxValue || mag <= FixedMath.ScaleSafeMagnitudeThreshold)
+            return GetScaleNormalized(q);
 
         // If already normalized, return as-is
         if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
@@ -64,6 +74,20 @@ public partial struct FixedQuaternion
             q.Z / mag,
             q.W / mag
         );
+    }
+
+    private static FixedQuaternion GetScaleNormalized(FixedQuaternion q)
+    {
+        Fixed64 scale = FixedMath.Max(
+            FixedMath.Max(q.X.Abs(), q.Y.Abs()),
+            FixedMath.Max(q.Z.Abs(), q.W.Abs()));
+        FixedQuaternion scaled = q / scale;
+        Fixed64 scaledMagnitude = FixedMath.GetScaledMagnitude(
+            scaled.X,
+            scaled.Y,
+            scaled.Z,
+            scaled.W);
+        return scaled / scaledMagnitude;
     }
 
     /// <summary>
@@ -199,18 +223,11 @@ public partial struct FixedQuaternion
     /// <returns>A quaternion representing the rotation to align with the direction.</returns>
     public static FixedQuaternion FromDirection(Vector3d direction)
     {
-        Fixed64 directionMagnitudeSquared = direction.MagnitudeSquared;
-        if (directionMagnitudeSquared == Fixed64.Zero)
+        if (direction == Vector3d.Zero)
             return Identity;
 
-        if (FixedMath.Abs(directionMagnitudeSquared - Fixed64.One) > Fixed64.Epsilon)
-        {
-            Fixed64 directionMagnitude = FixedMath.Sqrt(directionMagnitudeSquared);
-            direction = new Vector3d(
-                direction.X / directionMagnitude,
-                direction.Y / directionMagnitude,
-                direction.Z / directionMagnitude);
-        }
+        if (!direction.IsNormalized())
+            direction = direction.Normalized;
 
         Fixed64 dot = direction.Z;
         if (dot <= -Fixed64.One + Fixed64.Epsilon)
@@ -221,12 +238,7 @@ public partial struct FixedQuaternion
 
         if (dot < Fixed64.FromRaw(NearOppositeDirectionDotRaw))
         {
-            Vector3d axis = new(-direction.Y, direction.X, Fixed64.Zero);
-            Fixed64 axisMagnitude = axis.Magnitude;
-            axis = new Vector3d(
-                axis.X / axisMagnitude,
-                axis.Y / axisMagnitude,
-                Fixed64.Zero);
+            Vector3d axis = new Vector3d(-direction.Y, direction.X, Fixed64.Zero).Normalized;
 
             return FromAxisAngle(axis, FixedMath.Acos(dot));
         }
@@ -242,27 +254,16 @@ public partial struct FixedQuaternion
     /// <summary>
     /// Creates a quaternion representing a rotation around a specified axis by a given angle.
     /// </summary>
-    /// <param name="axis">The axis to rotate around (must be normalized).</param>
+    /// <param name="axis">The axis to rotate around. Nonzero inputs are normalized; zero returns identity.</param>
     /// <param name="angle">The rotation angle in radians.</param>
     /// <returns>A quaternion representing the rotation.</returns>
     public static FixedQuaternion FromAxisAngle(Vector3d axis, Fixed64 angle)
     {
-        // Check if the angle is in a valid range (-pi, pi)
-        if (angle < -Fixed64.Pi || angle > Fixed64.Pi)
-            throw new ArgumentOutOfRangeException(nameof(angle), $"Angle must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {angle}");
-
-        Fixed64 axisMagnitudeSquared = axis.MagnitudeSquared;
-        if (axisMagnitudeSquared == Fixed64.Zero)
+        if (axis == Vector3d.Zero)
             return Identity;
 
-        if (FixedMath.Abs(axisMagnitudeSquared - Fixed64.One) > Fixed64.Epsilon)
-        {
-            Fixed64 axisMagnitude = FixedMath.Sqrt(axisMagnitudeSquared);
-            axis = new Vector3d(
-                axis.X / axisMagnitude,
-                axis.Y / axisMagnitude,
-                axis.Z / axisMagnitude);
-        }
+        if (!axis.IsNormalized())
+            axis = axis.Normalized;
 
         Fixed64 halfAngle = angle / Fixed64.Two;  // Half-angle formula
         Fixed64 sinHalfAngle = FixedMath.Sin(halfAngle);
@@ -302,16 +303,6 @@ public partial struct FixedQuaternion
     /// </remarks>
     public static FixedQuaternion FromEulerAngles(Fixed64 pitch, Fixed64 yaw, Fixed64 roll)
     {
-        // Check if the angles are in a valid range (-pi, pi)
-        if (pitch < -Fixed64.Pi || pitch > Fixed64.Pi)
-            throw new ArgumentOutOfRangeException(nameof(pitch), $"Pitch must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {pitch}");
-
-        if (yaw < -Fixed64.Pi || yaw > Fixed64.Pi)
-            throw new ArgumentOutOfRangeException(nameof(yaw), $"Yaw must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {yaw}");
-
-        if (roll < -Fixed64.Pi || roll > Fixed64.Pi)
-            throw new ArgumentOutOfRangeException(nameof(roll), $"Roll must be in the range ({-Fixed64.Pi}, {Fixed64.Pi}), but was {roll}");
-
         Fixed64 halfPitch = pitch / Fixed64.Two;
         Fixed64 halfYaw = yaw / Fixed64.Two;
         Fixed64 halfRoll = roll / Fixed64.Two;
@@ -348,18 +339,19 @@ public partial struct FixedQuaternion
     public static Vector3d QuaternionLog(FixedQuaternion q)
     {
         // Ensure the quaternion is normalized
-        q = q.Normalized;
+        q = GetNormalized(q);
 
         // Extract vector part
         Vector3d v = new(q.X, q.Y, q.Z);
         Fixed64 vLength = v.Magnitude;
 
         // If rotation is very small, avoid division by zero
-        if (vLength < Fixed64.FromRaw(0x00001000L)) // Small epsilon
+        if (vLength < Fixed64.FromRaw(QuaternionLogVectorThresholdRaw))
             return Vector3d.Zero;
 
         // Compute angle (theta = 2 * acos(w))
-        Fixed64 theta = Fixed64.Two * FixedMath.Acos(q.W);
+        Fixed64 normalizedW = FixedMath.Clamp(q.W, -Fixed64.One, Fixed64.One);
+        Fixed64 theta = Fixed64.Two * FixedMath.Acos(normalizedW);
 
         // Convert to angular velocity
         return (v / vLength) * theta;
@@ -486,28 +478,10 @@ public partial struct FixedQuaternion
     /// Creates a quaternion from an angle and axis.
     /// </summary>
     /// <param name="angle">The angle in degrees.</param>
-    /// <param name="axis">The axis to rotate around (must be normalized).</param>
+    /// <param name="axis">The axis to rotate around. Nonzero inputs are normalized; zero returns identity.</param>
     /// <returns>A quaternion representing the rotation.</returns>
-    public static FixedQuaternion AngleAxis(Fixed64 angle, Vector3d axis)
-    {
-        // Convert the angle to radians
-        angle = angle.ToRadians();
-
-        // Normalize the axis
-        axis = axis.Normalized;
-
-        // Use the half-angle formula (sin(theta / 2), cos(theta / 2))
-        Fixed64 halfAngle = angle / Fixed64.Two;
-        Fixed64 sinHalfAngle = FixedMath.Sin(halfAngle);
-        Fixed64 cosHalfAngle = FixedMath.Cos(halfAngle);
-
-        return new FixedQuaternion(
-            axis.X * sinHalfAngle,
-            axis.Y * sinHalfAngle,
-            axis.Z * sinHalfAngle,
-            cosHalfAngle
-        );
-    }
+    public static FixedQuaternion AngleAxis(Fixed64 angle, Vector3d axis) =>
+        FromAxisAngle(axis, FixedMath.DegToRad(angle));
 
     /// <summary>
     /// Calculates the dot product of two quaternions.

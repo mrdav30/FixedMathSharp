@@ -11,6 +11,7 @@ public class Fixed64ArithmeticBenchmarks
     private readonly Fixed64[] _positive = BenchmarkFixtures.PositiveScalars;
     private readonly Fixed64[] _unit = BenchmarkFixtures.UnitScalars;
     private readonly Fixed64[] _angles = BenchmarkFixtures.Angles;
+    private readonly Fixed64[] _degreeAngles = BenchmarkFixtures.DegreeAngles;
     private readonly Fixed64[] _tangentAngles = BenchmarkFixtures.TangentAngles;
     private static readonly Fixed64 s_rescuedMultiplyDivideValue = new(65_536);
 
@@ -259,6 +260,26 @@ public class Fixed64ArithmeticBenchmarks
         Fixed64 accumulator = Fixed64.Zero;
         for (int i = 0; i < _angles.Length; i++)
             accumulator += FixedMath.Cos(_angles[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 DegToRad()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _degreeAngles.Length; i++)
+            accumulator += FixedMath.DegToRad(_degreeAngles[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 RadToDeg()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _angles.Length; i++)
+            accumulator += FixedMath.RadToDeg(_angles[i]);
 
         return accumulator;
     }

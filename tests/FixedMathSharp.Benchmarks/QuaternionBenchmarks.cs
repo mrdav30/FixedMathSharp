@@ -101,6 +101,16 @@ public class QuaternionBenchmarks
     }
 
     [Benchmark]
+    public Fixed64 Magnitude()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += _left[i].Magnitude;
+
+        return accumulator;
+    }
+
+    [Benchmark]
     public Vector3d ToEulerAngles()
     {
         Vector3d accumulator = Vector3d.Zero;

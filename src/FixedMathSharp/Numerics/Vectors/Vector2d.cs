@@ -433,6 +433,17 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     }
 
     /// <summary>
+    /// Checks whether this nonzero vector's squared magnitude is within epsilon of one.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly bool IsNormalized()
+    {
+        Fixed64 squaredMagnitude = X * X + Y * Y;
+        return squaredMagnitude != Fixed64.Zero
+            && FixedMath.Abs(squaredMagnitude - Fixed64.One) <= Fixed64.Epsilon;
+    }
+
+    /// <summary>
     /// Linearly interpolates this vector toward the target vector by the specified amount.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

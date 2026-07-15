@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Numerics;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -364,6 +365,91 @@ public class FixedTrigonometryTests
         FixedMathTestHelper.AssertWithinRelativeTolerance(expected, result);
     }
 
+    [Fact]
+    public void DegToRad_MatchesFullDomainBigIntegerOracle()
+    {
+        long evenMidpointRaw = 48_318_382_080L;
+        long oddMidpointRaw = 144_955_146_240L;
+        AssertExactHalfRemainder(
+            evenMidpointRaw,
+            Fixed64.Pi.m_rawValue,
+            Fixed64.OneEighty.m_rawValue,
+            expectedLowerQuotientEven: true);
+        AssertExactHalfRemainder(
+            oddMidpointRaw,
+            Fixed64.Pi.m_rawValue,
+            Fixed64.OneEighty.m_rawValue,
+            expectedLowerQuotientEven: false);
+
+        long[] degreeRawValues =
+        {
+            0L,
+            Fixed64.OneEighty.m_rawValue,
+            -Fixed64.OneEighty.m_rawValue,
+            evenMidpointRaw - 1L,
+            evenMidpointRaw,
+            evenMidpointRaw + 1L,
+            oddMidpointRaw - 1L,
+            oddMidpointRaw,
+            oddMidpointRaw + 1L,
+            new Fixed64(1_000_000).m_rawValue,
+            long.MinValue,
+            long.MaxValue,
+        };
+
+        foreach (long degreeRaw in degreeRawValues)
+        {
+            Fixed64 expected = MultiplyDivideOracle(
+                degreeRaw,
+                Fixed64.Pi.m_rawValue,
+                Fixed64.OneEighty.m_rawValue);
+
+            Assert.Equal(expected, FixedMath.DegToRad(Fixed64.FromRaw(degreeRaw)));
+        }
+    }
+
+    [Fact]
+    public void RadToDeg_MatchesFullDomainBigIntegerOracleAndSaturatesOnlyFinalOverflow()
+    {
+        long closestBelowHalfRaw = 562_694_588L;
+        long closestAboveHalfRaw = 1_123_935_125L;
+        AssertClosestHalfRemainder(
+            closestBelowHalfRaw,
+            Fixed64.OneEighty.m_rawValue,
+            Fixed64.Pi.m_rawValue,
+            expectedAboveHalf: false);
+        AssertClosestHalfRemainder(
+            closestAboveHalfRaw,
+            Fixed64.OneEighty.m_rawValue,
+            Fixed64.Pi.m_rawValue,
+            expectedAboveHalf: true);
+
+        long[] radianRawValues =
+        {
+            0L,
+            Fixed64.Pi.m_rawValue,
+            -Fixed64.Pi.m_rawValue,
+            closestBelowHalfRaw - 1L,
+            closestBelowHalfRaw,
+            closestBelowHalfRaw + 1L,
+            closestAboveHalfRaw,
+            new Fixed64(20_000_000).m_rawValue,
+            new Fixed64(-20_000_000).m_rawValue,
+            long.MinValue,
+            long.MaxValue,
+        };
+
+        foreach (long radianRaw in radianRawValues)
+        {
+            Fixed64 expected = MultiplyDivideOracle(
+                radianRaw,
+                Fixed64.OneEighty.m_rawValue,
+                Fixed64.Pi.m_rawValue);
+
+            Assert.Equal(expected, FixedMath.RadToDeg(Fixed64.FromRaw(radianRaw)));
+        }
+    }
+
     #endregion
 
     #region Test: Sin and Cos Methods
@@ -651,6 +737,13 @@ public class FixedTrigonometryTests
         Assert.Throws<ArithmeticException>(() => FixedMath.Acos(value));
     }
 
+    [Fact]
+    public void Acos_RemainsStrictOneRawUnitOutsideDomain()
+    {
+        Assert.Throws<ArithmeticException>(() => FixedMath.Acos(Fixed64.One + Fixed64.MinIncrement));
+        Assert.Throws<ArithmeticException>(() => FixedMath.Acos(-Fixed64.One - Fixed64.MinIncrement));
+    }
+
     #endregion
 
     #region Test: Atan
@@ -872,4 +965,59 @@ public class FixedTrigonometryTests
     }
 
     #endregion
+
+    private static Fixed64 MultiplyDivideOracle(long leftRaw, long rightRaw, long divisorRaw)
+    {
+        BigInteger numerator = (BigInteger)leftRaw * rightRaw;
+        BigInteger denominator = divisorRaw;
+        bool negative = (numerator.Sign < 0) != (denominator.Sign < 0);
+        numerator = BigInteger.Abs(numerator);
+        denominator = BigInteger.Abs(denominator);
+
+        BigInteger quotient = BigInteger.DivRem(numerator, denominator, out BigInteger remainder);
+        BigInteger twiceRemainder = remainder << 1;
+        if (twiceRemainder > denominator || (twiceRemainder == denominator && !quotient.IsEven))
+            quotient++;
+
+        if (negative)
+            quotient = -quotient;
+
+        if (quotient > long.MaxValue)
+            return Fixed64.MaxValue;
+        if (quotient < long.MinValue)
+            return Fixed64.MinValue;
+
+        return Fixed64.FromRaw((long)quotient);
+    }
+
+    private static void AssertExactHalfRemainder(
+        long leftRaw,
+        long rightRaw,
+        long divisorRaw,
+        bool expectedLowerQuotientEven)
+    {
+        BigInteger numerator = BigInteger.Abs((BigInteger)leftRaw * rightRaw);
+        BigInteger divisor = BigInteger.Abs(divisorRaw);
+        BigInteger quotient = BigInteger.DivRem(numerator, divisor, out BigInteger remainder);
+
+        Assert.Equal(divisor, remainder << 1);
+        Assert.Equal(expectedLowerQuotientEven, quotient.IsEven);
+    }
+
+    private static void AssertClosestHalfRemainder(
+        long leftRaw,
+        long rightRaw,
+        long divisorRaw,
+        bool expectedAboveHalf)
+    {
+        BigInteger factor = BigInteger.Abs(rightRaw);
+        BigInteger divisor = BigInteger.Abs(divisorRaw);
+        BigInteger gcd = BigInteger.GreatestCommonDivisor(factor, divisor);
+        BigInteger remainder = BigInteger.Abs((BigInteger)leftRaw * rightRaw) % divisor;
+        BigInteger twiceRemainder = remainder << 1;
+
+        Assert.Equal(new BigInteger(8), gcd);
+        Assert.Equal(gcd, BigInteger.Abs(twiceRemainder - divisor));
+        Assert.Equal(expectedAboveHalf, twiceRemainder > divisor);
+    }
 }

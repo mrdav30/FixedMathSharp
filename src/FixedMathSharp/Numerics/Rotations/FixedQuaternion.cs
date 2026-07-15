@@ -45,6 +45,9 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
 
     private const long NearOppositeDirectionDotRaw = -4290672328L;
 
+    // Approximately 9.536743e-7 in Q32.32.
+    private const long QuaternionLogVectorThresholdRaw = 4_096L;
+
     /// <summary>
     /// Represents the X component of the vector as a fixed-point value.
     /// </summary>
