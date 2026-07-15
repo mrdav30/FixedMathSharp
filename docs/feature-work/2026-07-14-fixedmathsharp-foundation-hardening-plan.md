@@ -6,10 +6,10 @@
 > checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make FixedMathSharp the first-class deterministic source of truth for
-scalar arithmetic, vector and quaternion invariants, reusable segment geometry,
-and explicit X/Z planar transforms, then delete the corresponding Gravitas
-workarounds and duplicate math and re-achieve 100% reachable coverage before
-release.
+scalar arithmetic, vector and quaternion invariants, reusable segment and 2D
+triangle geometry, and explicit X/Z planar transforms, then delete the
+corresponding Gravitas workarounds and duplicate math and re-achieve 100%
+reachable coverage before release.
 
 **Architecture:** FixedMathSharp first corrects `/` and `FastDiv` to share one
 round-half-to-even division core. It keeps saturating operators while adding
@@ -17,15 +17,15 @@ result-producing exact `Try*` APIs, fused multiply-divide, and full-domain
 projection arithmetic. Existing vector, quaternion, segment, and transform types
 then gain only the missing shared behavior: `Vector2d.IsNormalized`, scale-safe
 quaternion normalization, quaternion-log domain repair, multi-turn quaternion
-creation, segment intersection/closest-pair queries, and explicit X/Z planar
-transform components. Gravitas consumes those APIs, deletes its duplicates, and
-retains only physics policy such as GJK scaling, solver thresholds, and
-contact-cache compatibility.
+creation, segment intersection/closest-pair queries, exact full-domain 2D
+triangle predicates/barycentrics, and explicit X/Z planar transform components.
+Gravitas consumes those APIs, deletes its duplicates, and retains only physics
+policy such as GJK scaling, solver thresholds, and contact-cache compatibility.
 
 **Tech Stack:** C# 11, Q32.32 `Fixed64`, FixedMathSharp `Vector2d`/`Vector3d`,
-`FixedQuaternion`, `FixedSegment2d`, `FixedSegment`, and `FixedTransform`, xUnit
-v3, BenchmarkDotNet, Gravitas 2D/3D/mixed collision, queries, constraints, and
-CCD.
+`FixedQuaternion`, `FixedSegment2d`, `FixedSegment`, `FixedTriangle2d`, and
+`FixedTransform`, xUnit v3, BenchmarkDotNet, Gravitas 2D/3D/mixed collision,
+queries, constraints, and CCD.
 
 ## Global Constraints
 
@@ -55,6 +55,9 @@ CCD.
   normal-compatibility policy without a concrete consumer.
 - Reuse `FixedSegment2d` and `FixedSegment`; do not transplant Gravitas geometry
   helpers as new parallel utility classes.
+- Keep `Signed192` and every wide conversion helper internal. Public triangle
+  scalars remain rounded/saturating `Fixed64` results; predicates and candidate
+  ordering use exact wide values before that public conversion.
 - Do not use `Debug.Assert` as a runtime correctness guard.
 - Use temporary local project references in the source, test, and benchmark
   projects of each downstream solution. Leave every project-reference change
@@ -132,7 +135,15 @@ CCD.
     `Vector3d.ClosestPointsOnTwoLines` surface is deleted rather than forwarded.
     This does not claim a new full-domain 3D solver or introduce an
     intersection-classification hierarchy.
-16. `FixedTransform` remains a general math/host type and preserves signed or
+16. `FixedTriangle2d` reuses the internal `Signed192` geometry core for exact
+    orientation, degeneracy, containment, barycentric solving, and closest-edge
+    ordering across the complete raw coordinate domain. `SignedArea`, `Area`,
+    and barycentric weights retain their existing public `Fixed64` shapes with
+    one final round-half-to-even/saturation decision. `Centroid` reuses
+    `FixedMath.Average`, and `GetPoint` routes through the hardened shared
+    `FixedMath.BarycentricCoordinate`; no public wide-number or predicate type is
+    added.
+17. `FixedTransform` remains a general math/host type and preserves signed or
     zero authored scale. Gravitas collider scale represents physical dimensions,
     not reflection: every scale component consumed by a 2D or 3D collider must
     be strictly positive. Standalone transform scale and compound-part scale are
@@ -219,6 +230,12 @@ CCD.
   segment's zero squared length, so a degenerate second segment is not handled
   symmetrically. `FixedSegment` is the existing ownership type for that
   operation.
+- `FixedTriangle2d` still subtracts full-domain endpoints through saturating
+  vector operators before signed-area, containment, and barycentric cross
+  products. Its closest-edge selection also compares public saturated
+  distances, its centroid sums before dividing, and its shared barycentric point
+  helper chains saturating differences/products. These are the same
+  intermediate-loss class already solved for segments and projections.
 
 ---
 
@@ -345,7 +362,7 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
 - Final verification passed 1,186 FixedMathSharp plus 7 Chronicler tests in
   `Release`, and 1,165 FixedMathSharp plus 7 Chronicler tests in `ReleaseLean`.
   `DivideMagnitude` and `RoundGuardedQuotientToEven` reached 100% line and
-  branch coverage. Remaining repository-wide gaps are reserved for Task 11.
+  branch coverage. Remaining repository-wide gaps are reserved for Task 12.
 - Focused BenchmarkDotNet `ShortRun` evidence remained allocation-free: `Divide`
   moved from 5.319 us to 5.144 us and `FastDiv` from 4.800 us to 4.724 us. Treat
   these short-run timings as regression checks, not canonical performance
@@ -441,7 +458,7 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
 - Final verification passed 1,196 FixedMathSharp plus 7 Chronicler tests in
   `Release`, and 1,175 FixedMathSharp plus 7 Chronicler tests in `ReleaseLean`.
   The shared predicate and all six public `Try*` methods reached 100% line and
-  branch coverage. Remaining repository-wide gaps are reserved for Task 11.
+  branch coverage. Remaining repository-wide gaps are reserved for Task 12.
 - Focused BenchmarkDotNet `ShortRun` evidence was allocation-free. Compared with
   calculate-and-inverse-check, exact `Try*` reduced successful scalar work from
   1.053 us to 661.3 ns, `Vector2d` from 1.811 us to 1.056 us, and `Vector3d`
@@ -541,7 +558,7 @@ public partial struct Vector3d
 - Final verification passed 1,204 FixedMathSharp plus 7 Chronicler tests in
   `Release`, and 1,183 FixedMathSharp plus 7 Chronicler tests in `ReleaseLean`.
   All seven Task 3 methods reached 100% line and branch coverage; remaining
-  repository-wide gaps are reserved for Task 11. A separate seeded `BigInteger`
+  repository-wide gaps are reserved for Task 12. A separate seeded `BigInteger`
   oracle matched 4,096 full-raw-domain 3D tuples.
 - Focused BenchmarkDotNet `ShortRun` evidence was allocation-free. The exact
   ordinary comparison measured 2.202 us versus 2.608 us for saturating 2D and
@@ -676,7 +693,7 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
 - Final verification passed 1,244 FixedMathSharp plus 7 Chronicler tests in
   `Release`, and 1,223 FixedMathSharp plus 7 Chronicler tests in `ReleaseLean`.
   All ten Task 4 methods reached 100% line and branch coverage; remaining
-  repository-wide gaps are reserved for Task 11.
+  repository-wide gaps are reserved for Task 12.
 - Focused BenchmarkDotNet `ShortRun` evidence covered 256 operations per row
   with zero allocations. Two-factor ordinary chain/fused means were 6.003/6.493
   us and rescued-extreme means were 4.946/5.310 us. Three-factor ordinary
@@ -880,7 +897,7 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
 
 ### Task 6: Full-Domain Fixed Segment Geometry Ownership
 
-**Status:** Complete on 2026-07-15; changes remain unstaged for owner review.
+**Status:** Complete and committed on 2026-07-15 as `6ddd7a1`.
 
 **Files:**
 
@@ -1026,7 +1043,7 @@ Task 6 result:
 - Final solution validation passed 1,283 FixedMathSharp plus 7 Chronicler tests
   in `Release`, and 1,262 plus 7 in `ReleaseLean`. Fresh Debug coverage records
   100% line and branch coverage for every Task 6 method; repository-wide
-  pre-existing gaps remain assigned to Task 11.
+  pre-existing gaps remain assigned to Task 12.
 - Independent review found that parameter reconstruction could move an exact
   non-dyadic endpoint contact by two raw units. Exact shared endpoints are now
   returned before parameterized intersections, both regressions are covered, and
@@ -1133,7 +1150,159 @@ public class FixedTransform
 
 ---
 
-### Task 8: Gravitas Consumes FixedMathSharp Arithmetic
+### Task 8: Full-Domain Fixed Triangle2d Geometry
+
+**Status:** Not started.
+
+**Files:**
+
+- Modify: `src/FixedMathSharp/Core/FixedMath.cs`
+- Modify:
+  `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
+- Modify:
+  `src/FixedMathSharp/Geometry/Primitives/FixedTriangle2d.cs`
+- Modify: `docs/wiki/bounds-and-geometry.md`
+- Modify: `docs/complexity-exceptions.md` only if fresh coverage/complexity
+  evidence requires a registered exception.
+- Test: `tests/FixedMathSharp.Tests/Core/FixedMath.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+- Test:
+  `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedTriangle2d.Tests.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
+
+**Interfaces:**
+
+- Consumes: Task 1's round-half-to-even policy, Task 3's full-width product
+  accumulation, Task 6's internal `Signed192` cross/dot core and exact 2D
+  distance comparison, and the existing full-domain `FixedMath.Average`.
+- Produces: no new public API. The following existing surfaces gain a
+  full-domain intermediate-arithmetic contract:
+
+```csharp
+public static class FixedMath
+{
+    public static Fixed64 BarycentricCoordinate(
+        Fixed64 coordA,
+        Fixed64 coordB,
+        Fixed64 coordC,
+        Fixed64 weightB,
+        Fixed64 weightC);
+}
+
+public partial struct FixedTriangle2d
+{
+    public Fixed64 SignedArea { get; }
+    public Fixed64 Area { get; }
+    public Vector2d Centroid { get; }
+    public bool IsDegenerate { get; }
+
+    public Vector2d GetPoint(Fixed64 weightB, Fixed64 weightC);
+    public bool TryGetBarycentricWeights(
+        Vector2d point,
+        out Fixed64 weightA,
+        out Fixed64 weightB,
+        out Fixed64 weightC);
+    public bool Contains(Vector2d point);
+    public Vector2d ClosestPoint(Vector2d point);
+}
+```
+
+- `SignedArea` evaluates the exact endpoint-difference cross product, divides
+  by two, and performs one final round-half-to-even/saturation conversion.
+  `Area` remains its nonnegative saturating magnitude.
+- `Centroid` averages each raw component without an intermediate three-value
+  sum. `GetPoint` uses the shared full-domain barycentric-coordinate root rather
+  than a triangle-local workaround.
+- `IsDegenerate` preserves its `abs(area) <= Fixed64.Epsilon` contract using
+  the exact wide magnitude. Barycentric solving preserves its existing
+  `abs(doubled area) <= Fixed64.Epsilon` failure threshold and writes three zero
+  outputs on failure.
+- Barycentric weights are solved from three direct exact area numerators. Each
+  signed ratio is converted independently with one round-half-to-even decision
+  and saturates only if that final weight is outside the `Fixed64` domain; the
+  implementation does not derive `weightA` through two saturating subtractions.
+- `Contains` preserves winding independence, inclusive epsilon boundaries, and
+  collapsed-edge behavior. Exact wide orientation values decide every sign and
+  tolerance comparison before public scalar saturation.
+- `ClosestPoint` retains stable AB, BC, CA candidate order and keeps the first
+  exact-distance tie. Candidate ordering uses the Task 6 wide squared-distance
+  comparison; public `DistanceSquared` remains saturating.
+- This task does not claim full-domain 3D triangle/segment solving or ray
+  quadratics. Those require separate evidence and, for ray discriminants, wider
+  arithmetic than `Signed192`.
+
+- [ ] **Step 1: Capture the ordinary-input baseline** for the existing
+      `Triangle2dArea`, `Triangle2dContainsPoint`, `Triangle2dClosestPoint`,
+      `Triangle2dGetPoint`, and `Triangle2dBarycentricWeights` benchmark rows.
+      Record medians and allocations before source changes.
+- [ ] **Step 2: Add test-only `BigInteger` oracles** for exact endpoint
+      differences, signed cross products, half-area conversion, general signed
+      ratios, barycentric interpolation, and raw squared-distance ordering. Keep
+      all arbitrary-precision arithmetic in tests.
+- [ ] **Step 3: Add centroid and interpolation red tests.** Cover permutations
+      containing `Fixed64.MinValue`/`MaxValue`, exact thirds, raw rounding cases,
+      full-domain barycentric cancellation whose final coordinate fits, and
+      final-only positive/negative saturation.
+- [ ] **Step 4: Add signed-area and degeneracy red tests** for both winding
+      orders, 65-bit endpoint differences, cancelling products with the smallest
+      nonzero determinant, round-half-to-even area ties, positive/negative final
+      saturation, and exact values immediately below/at/above the documented
+      area epsilon threshold.
+- [ ] **Step 5: Add barycentric-solve red tests** for clockwise and
+      counter-clockwise full-domain triangles, interior/boundary/exterior points,
+      negative and greater-than-one weights, denominator sign reversal, exact
+      ratio ties, final weight saturation, and degenerate values immediately
+      below/at/above the doubled-area epsilon threshold. Assert default outputs
+      on failure.
+- [ ] **Step 6: Add containment red tests** using extreme coordinates where
+      ordinary `B - A` or `point - A` saturates, near-cancelling orientations,
+      both windings, inclusive epsilon edges/vertices, exterior points, and
+      collapsed line/point triangles.
+- [ ] **Step 7: Add closest-edge red tests** where all public squared distances
+      saturate but one edge is exactly nearer. Add an exact equal-distance case
+      and require stable AB, BC, CA tie order.
+- [ ] **Step 8: Run the focused scalar/math/triangle tests and confirm** the
+      centroid, interpolation, orientation, ratio, containment, and distance
+      ordering cases expose current intermediate saturation or underflow.
+- [ ] **Step 9: Extend the internal wide core minimally** with the signed
+      comparison, scaled round-half-to-even/saturating conversion, and general
+      signed-ratio conversion required by these tests. Reuse the existing word
+      multiplier, accumulator, magnitude extraction, unsigned comparison,
+      subtraction, and guard/sticky rounding paths. Do not add a public wide
+      number, generic arbitrary-precision API, heap allocation, or
+      target-specific `Int128` branch.
+- [ ] **Step 10: Harden `FixedMath.BarycentricCoordinate`** by accumulating the
+      base coordinate and both weighted 65-bit endpoint differences before one
+      final Q32.32 conversion. Route `Vector2d.BarycentricCoordinates` and
+      `FixedTriangle2d.GetPoint` through that shared implementation; add no
+      triangle-local interpolation helper.
+- [ ] **Step 11: Harden triangle-derived values and predicates.** Use
+      `FixedMath.Average` for both centroid components. Reuse exact wide cross
+      products for signed area, area/denominator degeneracy thresholds, winding,
+      containment edge tests, and the three direct barycentric numerators.
+- [ ] **Step 12: Harden closest-edge ordering** by comparing the exact raw
+      squared distances through the existing Vector2d/Task 6 helper. Keep the
+      first candidate on equality and do not add a second distance type.
+- [ ] **Step 13: Update XML and geometry documentation** with final rounding and
+      saturation, the two existing epsilon contracts, independently rounded
+      barycentric weights, winding/boundary behavior, and deterministic AB/BC/CA
+      closest-edge ordering.
+- [ ] **Step 14: Run focused and full validation** in `Release` and
+      `ReleaseLean`, then fresh exact coverage. Cover every wide sign,
+      comparison, conversion, carry, guard/sticky, saturation, epsilon,
+      winding, degeneracy, and tie-order branch; update the complexity register
+      only from the fresh report.
+- [ ] **Step 15: Rerun the five existing triangle benchmark rows.** Require zero
+      allocations and no material ordinary-input regression; optimize shared
+      word operations rather than adding a reduced-range path with different
+      behavior.
+- [ ] **Step 16: Owner review checkpoint.** Leave all FixedMathSharp source,
+      test, benchmark, and documentation changes unstaged and provide a proposed
+      commit message.
+
+---
+
+### Task 9: Gravitas Consumes FixedMathSharp Arithmetic
 
 **Files:**
 
@@ -1224,7 +1393,7 @@ internal static bool TryResolveVelocityDelta(
 
 ---
 
-### Task 9: Gravitas Consumes FixedMathSharp Geometry And Planar Contracts
+### Task 10: Gravitas Consumes FixedMathSharp Geometry And Planar Contracts
 
 **Files:**
 
@@ -1257,7 +1426,8 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 
 **Interfaces:**
 
-- Consumes: Tasks 5 through 7.
+- Consumes: Tasks 5 through 7. Task 8 completes FixedMathSharp release
+  hardening before this downstream phase but has no current Gravitas caller.
 - Produces: no new Gravitas math API. Host transform synchronization uses
   `PositionXZ` and `RotationXZRadians`; segment operations use `FixedSegment2d`
   and `FixedSegment`; joint angular error uses `FixedQuaternion.QuaternionLog`
@@ -1340,7 +1510,7 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 
 ---
 
-### Task 10: Remove Release-Only Assertion Behavior
+### Task 11: Remove Release-Only Assertion Behavior
 
 **Files:**
 
@@ -1367,7 +1537,7 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 
 ---
 
-### Task 11: Re-Achieve 100% FixedMathSharp Coverage
+### Task 12: Re-Achieve 100% FixedMathSharp Coverage
 
 **Files:**
 
@@ -1384,7 +1554,7 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 
 **Interfaces:**
 
-- Consumes: all FixedMathSharp changes from Tasks 1 through 7.
+- Consumes: all FixedMathSharp changes from Tasks 1 through 8.
 - Produces: one fresh merged Cobertura/ReportGenerator artifact proving 100%
   reachable line, branch, and method coverage across the FixedMathSharp runtime
   package set. Generated and compiler-generated sources remain excluded by the
@@ -1445,7 +1615,7 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 
 ---
 
-### Task 12: Cross-Stack Validation And Documentation Closure
+### Task 13: Cross-Stack Validation And Documentation Closure
 
 **Files:**
 
@@ -1457,13 +1627,14 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 - Temporarily modify, then restore: dependency, test, and benchmark project
   references in `../SwiftCollections`, `../GridForge`, and Gravitas.
 
-- [ ] **Step 1: Confirm Task 11's final merged artifact** still reports exact
+- [ ] **Step 1: Confirm Task 12's final merged artifact** still reports exact
       100% line, branch, and method coverage, then run clean FixedMathSharp
       `Release` and `ReleaseLean` package builds/tests from the reviewed tree.
 - [ ] **Step 2: Run the focused FixedMathSharp benchmark rows** for scalar
       division, fused multiply-divide, vector `Try*`, magnitude/normalization,
       degree/radian conversion, quaternion construction/log, projection, segment
-      geometry, and `Vector2d.IsNormalized`. Record medians and allocations.
+      geometry, 2D triangle geometry, and `Vector2d.IsNormalized`. Record
+      medians and allocations.
 - [ ] **Step 3: Validate SwiftCollections, GridForge, and Gravitas** through
       explicit local project references in each library, test, and benchmark
       project that requires them. Treat this as source-integration evidence, not
@@ -1496,10 +1667,10 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
       ownership correction, division-rounding RCA, exact reciprocal identities,
       full-domain quaternion normalization/conversion, quaternion-log endpoint
       repair, multi-turn quaternion contract, component-backed transform and
-      explicit X/Z parity, full-domain segment-geometry ownership, odd-raw GJK
-      regression, final test counts, coverage artifact, and benchmark evidence.
-      Remove the previous claim that the staged downstream arithmetic was
-      already the final ownership boundary.
+      explicit X/Z parity, full-domain segment/2D-triangle geometry ownership,
+      odd-raw GJK regression, final test counts, coverage artifact, and benchmark
+      evidence. Remove the previous claim that the staged downstream arithmetic
+      was already the final ownership boundary.
 - [ ] **Step 8: Request independent final review** of correctness, determinism,
       API ownership, hot-path cost, and documentation consistency.
 - [ ] **Step 9: Move this plan to `docs/feature-work/done/`** and update the
@@ -1548,6 +1719,11 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
   `Vector3d.ClosestPointsOnTwoLines` is removed, and Gravitas contains no
   `PlanarSegmentGeometry` or private equivalent wrapper where those primitives
   apply.
+- `FixedTriangle2d` computes centroid/interpolation without premature
+  saturation, classifies signed area, degeneracy, containment, and barycentric
+  ratios from exact wide intermediates, and orders closest edges by exact raw
+  distance while preserving its public saturating `Fixed64` results and stable
+  AB, BC, CA tie order.
 - Gravitas authoritative planar rotation uses the single half-open `[-Pi, Pi)`
   representation, including exact `+Pi -> -Pi` canonicalization.
 - Gravitas rejects every nonpositive scale component consumed by a standalone or
