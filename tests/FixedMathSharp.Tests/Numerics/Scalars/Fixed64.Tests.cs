@@ -558,6 +558,127 @@ public class Fixed64Tests
         Assert.Equal(expectedRaw, result.m_rawValue);
     }
 
+    [Fact]
+    public void WideDifferenceProducts_MatchBigIntegerAcrossRawDomain()
+    {
+        var random = new System.Random(0x6E9D21);
+        for (int i = 0; i < 2_048; i++)
+        {
+            long leftEndX = random.NextInt64();
+            long leftStartX = random.NextInt64();
+            long leftEndY = random.NextInt64();
+            long leftStartY = random.NextInt64();
+            long rightEndX = random.NextInt64();
+            long rightStartX = random.NextInt64();
+            long rightEndY = random.NextInt64();
+            long rightStartY = random.NextInt64();
+
+            BigInteger leftX = (BigInteger)leftEndX - leftStartX;
+            BigInteger leftY = (BigInteger)leftEndY - leftStartY;
+            BigInteger rightX = (BigInteger)rightEndX - rightStartX;
+            BigInteger rightY = (BigInteger)rightEndY - rightStartY;
+
+            Fixed64.Signed192 dot = Fixed64.GetDifferenceDotProduct2D(
+                Fixed64.FromRaw(leftEndX), Fixed64.FromRaw(leftStartX),
+                Fixed64.FromRaw(leftEndY), Fixed64.FromRaw(leftStartY),
+                Fixed64.FromRaw(rightEndX), Fixed64.FromRaw(rightStartX),
+                Fixed64.FromRaw(rightEndY), Fixed64.FromRaw(rightStartY));
+            Fixed64.Signed192 cross = Fixed64.GetDifferenceCrossProduct2D(
+                Fixed64.FromRaw(leftEndX), Fixed64.FromRaw(leftStartX),
+                Fixed64.FromRaw(leftEndY), Fixed64.FromRaw(leftStartY),
+                Fixed64.FromRaw(rightEndX), Fixed64.FromRaw(rightStartX),
+                Fixed64.FromRaw(rightEndY), Fixed64.FromRaw(rightStartY));
+
+            Assert.Equal((leftX * rightX) + (leftY * rightY), ToBigInteger(dot));
+            Assert.Equal((leftX * rightY) - (leftY * rightX), ToBigInteger(cross));
+        }
+    }
+
+    [Fact]
+    public void TryGetUnitIntervalRatio_UsesWideSignRangeAndNearestEvenRounding()
+    {
+        AssertWideRatioRejected(BigInteger.Zero, BigInteger.Zero);
+        AssertWideRatioRejected(BigInteger.One, -2);
+        AssertWideRatioRejected(-BigInteger.One, 2);
+        AssertWideRatioRejected(3, 2);
+
+        (BigInteger Numerator, BigInteger Denominator)[] cases =
+        {
+            (BigInteger.Zero, 7),
+            (7, 7),
+            (1, 2),
+            (1, BigInteger.One << 33),
+            (3, BigInteger.One << 33),
+            (1, 3),
+            (2, 3),
+            (-((BigInteger.One << 129) + 17), -((BigInteger.One << 130) + 91)),
+            ((BigInteger.One << 190) - 13, (BigInteger.One << 190) - 1),
+        };
+
+        foreach ((BigInteger numerator, BigInteger denominator) in cases)
+        {
+            Assert.True(Fixed64.TryGetUnitIntervalRatio(
+                ToSigned192(numerator),
+                ToSigned192(denominator),
+                out Fixed64 result));
+            Assert.Equal(RoundUnitRatioRawToEven(numerator, denominator), result.m_rawValue);
+        }
+
+        Assert.True(Fixed64.CompareMagnitude(ToSigned192(-9), ToSigned192(8)) > 0);
+        Assert.True(Fixed64.CompareMagnitude(ToSigned192(-8), ToSigned192(9)) < 0);
+        Assert.Equal(0, Fixed64.CompareMagnitude(ToSigned192(-9), ToSigned192(9)));
+        Assert.Equal(
+            0,
+            Fixed64.CompareMagnitude(
+                ToSigned192(-(BigInteger.One << 65)),
+                ToSigned192(BigInteger.One << 65)));
+        Assert.Equal(
+            0,
+            Fixed64.CompareMagnitude(
+                ToSigned192(-(BigInteger.One << 128)),
+                ToSigned192(BigInteger.One << 128)));
+    }
+
+    private static void AssertWideRatioRejected(BigInteger numerator, BigInteger denominator)
+    {
+        Assert.False(Fixed64.TryGetUnitIntervalRatio(
+            ToSigned192(numerator),
+            ToSigned192(denominator),
+            out Fixed64 result));
+        Assert.Equal(default, result);
+    }
+
+    private static Fixed64.Signed192 ToSigned192(BigInteger value)
+    {
+        BigInteger modulus = BigInteger.One << 192;
+        BigInteger encoded = value.Sign < 0 ? modulus + value : value;
+        BigInteger wordMask = ulong.MaxValue;
+        return new Fixed64.Signed192(
+            (ulong)((encoded >> 128) & wordMask),
+            (ulong)((encoded >> 64) & wordMask),
+            (ulong)(encoded & wordMask));
+    }
+
+    private static BigInteger ToBigInteger(Fixed64.Signed192 value)
+    {
+        BigInteger encoded = ((BigInteger)value.High << 128)
+            | ((BigInteger)value.Middle << 64)
+            | value.Low;
+        return value.Sign < 0 ? encoded - (BigInteger.One << 192) : encoded;
+    }
+
+    private static long RoundUnitRatioRawToEven(BigInteger numerator, BigInteger denominator)
+    {
+        BigInteger quotient = BigInteger.DivRem(
+            BigInteger.Abs(numerator) << FixedMath.SHIFT_AMOUNT_I,
+            BigInteger.Abs(denominator),
+            out BigInteger remainder);
+        int midpointComparison = (remainder << 1).CompareTo(BigInteger.Abs(denominator));
+        if (midpointComparison > 0 || (midpointComparison == 0 && !quotient.IsEven))
+            quotient++;
+        return (long)quotient;
+    }
+
     private static void AssertRoundGuardedQuotient(
         ulong guardedQuotient,
         bool hasTrailingRemainder,

@@ -338,15 +338,8 @@ namespace FixedMathSharp
         /// The interpolation is clamped between <paramref name="from"/> and <paramref name="to"/> based on the value of <paramref name="t"/>.
         /// If <paramref name="t"/> is less than 0, the result is <paramref name="from"/>. If <paramref name="t"/> is greater than 1, the result is <paramref name="to"/>.
         /// </remarks>
-        public static Fixed64 Lerp(Fixed64 from, Fixed64 to, Fixed64 t)
-        {
-            if (t.m_rawValue >= ONE_L)
-                return to;
-            if (t.m_rawValue <= 0)
-                return from;
-
-            return from + (to - from) * t;
-        }
+        public static Fixed64 Lerp(Fixed64 from, Fixed64 to, Fixed64 t) =>
+            Fixed64.LerpFullDomain(from, to, t);
 
         /// <summary>
         /// Computes the interpolated point along a Catmull-Rom spline given four control points.

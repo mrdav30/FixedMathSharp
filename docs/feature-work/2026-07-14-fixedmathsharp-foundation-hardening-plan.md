@@ -14,13 +14,13 @@ release.
 **Architecture:** FixedMathSharp first corrects `/` and `FastDiv` to share one
 round-half-to-even division core. It keeps saturating operators while adding
 result-producing exact `Try*` APIs, fused multiply-divide, and full-domain
-projection arithmetic. Existing vector, quaternion, segment, and transform
-types then gain only the missing shared behavior: `Vector2d.IsNormalized`,
-scale-safe quaternion normalization, quaternion-log domain repair, multi-turn quaternion creation,
-segment intersection/closest-pair queries, and explicit X/Z planar transform
-components. Gravitas consumes those APIs, deletes its duplicates, and retains
-only physics policy such as GJK scaling, solver thresholds, and contact-cache
-compatibility.
+projection arithmetic. Existing vector, quaternion, segment, and transform types
+then gain only the missing shared behavior: `Vector2d.IsNormalized`, scale-safe
+quaternion normalization, quaternion-log domain repair, multi-turn quaternion
+creation, segment intersection/closest-pair queries, and explicit X/Z planar
+transform components. Gravitas consumes those APIs, deletes its duplicates, and
+retains only physics policy such as GJK scaling, solver thresholds, and
+contact-cache compatibility.
 
 **Tech Stack:** C# 11, Q32.32 `Fixed64`, FixedMathSharp `Vector2d`/`Vector3d`,
 `FixedQuaternion`, `FixedSegment2d`, `FixedSegment`, and `FixedTransform`, xUnit
@@ -32,19 +32,19 @@ CCD.
 - Correctness and determinism precede maintainability and performance.
 - Preserve the existing saturating behavior of `Fixed64` and vector operators.
 - Correct `Fixed64` division midpoint behavior to round-half-to-even, matching
-  multiplication, conversions, midpoint arithmetic, and the documented
-  division contract. Do not preserve the current half-away-from-zero defect.
+  multiplication, conversions, midpoint arithmetic, and the documented division
+  contract. Do not preserve the current half-away-from-zero defect.
 - Do not make ordinary operator chains context-sensitive. Parentheses around a
   multiplication do not retain a wide intermediate; fused arithmetic must be
   requested explicitly.
 - Do not introduce floating-point arithmetic or target-specific `Int128`
-  behavior; FixedMathSharp must continue targeting `netstandard2.1` and
-  `net8.0` consistently.
-- Do not add public `CanAdd`, `CanSubtract`, or combinatorial
-  `CanSubtractThen*` APIs. Use result-producing `Try*` operations and compose
-  them where an algorithm needs multiple terms.
-- Do not duplicate raw overflow detection or 64-by-64 full-width
-  multiplication in Gravitas.
+  behavior; FixedMathSharp must continue targeting `netstandard2.1` and `net8.0`
+  consistently.
+- Do not add public `CanAdd`, `CanSubtract`, or combinatorial `CanSubtractThen*`
+  APIs. Use result-producing `Try*` operations and compose them where an
+  algorithm needs multiple terms.
+- Do not duplicate raw overflow detection or 64-by-64 full-width multiplication
+  in Gravitas.
 - Keep `FixedMath.Acos` strict. Make quaternion normalization scale-safe, then
   enforce the normalized-component domain inside `QuaternionLog` before calling
   `Acos`.
@@ -53,8 +53,8 @@ CCD.
   negative three-dimensional Y yaw.
 - Do not add configurable transform planes, a second transform type, or generic
   normal-compatibility policy without a concrete consumer.
-- Reuse `FixedSegment2d` and `FixedSegment`; do not transplant Gravitas
-  geometry helpers as new parallel utility classes.
+- Reuse `FixedSegment2d` and `FixedSegment`; do not transplant Gravitas geometry
+  helpers as new parallel utility classes.
 - Do not use `Debug.Assert` as a runtime correctness guard.
 - Use temporary local project references in the source, test, and benchmark
   projects of each downstream solution. Leave every project-reference change
@@ -74,9 +74,9 @@ CCD.
    identity is promised when the reciprocal was already rounded, such as
    `Fixed64.One / 3`.
 2. `PositiveFixed64RawHighLimit` will not remain in Gravitas. If the
-   FixedMathSharp implementation still needs that boundary internally, derive
-   it from `long.MaxValue >> FixedMath.SHIFT_AMOUNT_I`; do not copy the hex
-   literal downstream.
+   FixedMathSharp implementation still needs that boundary internally, derive it
+   from `long.MaxValue >> FixedMath.SHIFT_AMOUNT_I`; do not copy the hex literal
+   downstream.
 3. Hex literals provide no runtime advantage over decimal literals. Use them
    only where their bit layout is the clearest representation, and accompany
    them with a decimal or invariant-based explanation. Prefer named constants,
@@ -116,15 +116,14 @@ CCD.
 13. `FixedTransform` remains one three-dimensional host shell but stores its
     authored position, rotation, and scale components explicitly instead of
     repeatedly decomposing an internal matrix. The matrix constructor performs
-    its documented decomposition once.
-    It gains `PositionXZ`, `RotationXZRadians`, and `ScaleXZ` plus one
-    `Vector2d` constructor overload. The position and scale setters preserve the
-    existing Y component; the rotation setter establishes a pure Y-axis
-    rotation and therefore replaces pitch and roll.
+    its documented decomposition once. It gains `PositionXZ`,
+    `RotationXZRadians`, and `ScaleXZ` plus one `Vector2d` constructor overload.
+    The position and scale setters preserve the existing Y component; the
+    rotation setter establishes a pure Y-axis rotation and therefore replaces
+    pitch and roll.
 14. `RotationXZRadians` follows `Vector2d.Rotate`: zero faces `Vector2d.Right`
-    and positive angles rotate toward `Vector2d.Forward`. The backing
-    quaternion therefore uses the negated Y-axis angle under the established
-    X/Z embedding.
+    and positive angles rotate toward `Vector2d.Forward`. The backing quaternion
+    therefore uses the negated Y-axis angle under the established X/Z embedding.
 15. `FixedSegment2d` owns full-domain point projection, point distance, unique
     finite-segment intersection, and closest segment-pair queries. Collinear
     overlap is not mislabeled as a unique intersection. `FixedSegment` owns the
@@ -136,19 +135,19 @@ CCD.
 16. `FixedTransform` remains a general math/host type and preserves signed or
     zero authored scale. Gravitas collider scale represents physical dimensions,
     not reflection: every scale component consumed by a 2D or 3D collider must
-    be strictly positive. Standalone transform scale and compound-part scale
-    are validated before shape math; Gravitas does not silently take absolute
-    values or attempt mesh winding reflection in this release.
+    be strictly positive. Standalone transform scale and compound-part scale are
+    validated before shape math; Gravitas does not silently take absolute values
+    or attempt mesh winding reflection in this release.
 
 ## Current Review Findings
 
 - `Fixed64.operator /` has claimed round-half-to-even behavior since the initial
   repository commit, but it increments every guarded quotient with a low bit of
-  one. Exact midpoint magnitudes therefore round away from zero. Raw inputs
-  `1`, `5`, and `9` expose `x / Two != x * Half`; raw inputs `3` and `7` agree
-  only because the away-from-zero result is also the even neighbor. The April
-  2026 scalar hardening corrected multiplication from half-up to true
-  half-to-even but left both division implementations unchanged.
+  one. Exact midpoint magnitudes therefore round away from zero. Raw inputs `1`,
+  `5`, and `9` expose `x / Two != x * Half`; raw inputs `3` and `7` agree only
+  because the away-from-zero result is also the even neighbor. The April 2026
+  scalar hardening corrected multiplication from half-up to true half-to-even
+  but left both division implementations unchanged.
 - `FixedMath.FastDiv` duplicates the same division loop and rounding defect.
   Correcting only the public operator would leave normalization and geometry
   paths with different arithmetic semantics.
@@ -158,11 +157,11 @@ CCD.
 - `GjkSimplexScale` duplicates raw signed-overflow predicates already inherent
   in `Fixed64` operator implementation.
 - `ConvexSupportProjection` duplicates FixedMathSharp's 64-by-64-to-128
-  multiplication and exposes only a conditionally safe two-word signed sum.
-  Two or three full-domain difference-products require an accumulator wider
-  than signed 128 bits.
-- `SelectThreeTermShift` under-bounds negative odd-raw expansion components.
-  For `point.X = Fixed64.MaxValue`, target X bounds at `Fixed64.MinValue`, and
+  multiplication and exposes only a conditionally safe two-word signed sum. Two
+  or three full-domain difference-products require an accumulator wider than
+  signed 128 bits.
+- `SelectThreeTermShift` under-bounds negative odd-raw expansion components. For
+  `point.X = Fixed64.MaxValue`, target X bounds at `Fixed64.MinValue`, and
   `expansionRadius = Fixed64.MinIncrement`, the positive radius bound becomes
   zero after shift one while an actual negative expansion component remains
   negative one raw unit. The selector approves a working shift whose third
@@ -174,9 +173,9 @@ CCD.
   geometry behavior.
 - CCD mobility currently rejects a representable response when
   `normalComponent = 1 / 65536`, `bodyInverseMass = 1`,
-  `constrainedInverseMass = Fixed64.MinIncrement`, and `responseSpeed = 1`.
-  The exact velocity delta is `65536`, but the ordinary inverse-mass ratio
-  saturates before the small normal component reduces it.
+  `constrainedInverseMass = Fixed64.MinIncrement`, and `responseSpeed = 1`. The
+  exact velocity delta is `65536`, but the ordinary inverse-mass ratio saturates
+  before the small normal component reduces it.
 - `Vector2d` is the only vector type without `IsNormalized`. Seeded normalized
   3D/4D probes remain well inside the existing squared-magnitude tolerance, so
   no broader predicate or tolerance overload is justified.
@@ -191,8 +190,8 @@ CCD.
   inputs. Gravitas accumulates unbounded 2D rotation and can therefore throw
   while publishing an otherwise valid planar transform.
 - `DegToRad` and `RadToDeg` multiply before dividing. Their final result can fit
-  even when that ordinary product saturates, so removing quaternion angle
-  guards without fused conversion would still produce incorrect extreme degree
+  even when that ordinary product saturates, so removing quaternion angle guards
+  without fused conversion would still produce incorrect extreme degree
   rotations. `AngleAxis` separately duplicates axis-angle construction and
   mishandles a zero axis.
 - FixedMathSharp's positive 2D rotation sends `Right` toward `Forward`, while a
@@ -215,8 +214,8 @@ CCD.
   collinear segments, so its current name overstates the operation. Two more
   private 2D closest-segment-pair solvers duplicate the same endpoint-projection
   algorithm.
-- `Vector3d.ClosestPointsOnTwoLines` actually solves finite segments despite
-  its vector/line naming. Its zero-determinant branch can divide by the second
+- `Vector3d.ClosestPointsOnTwoLines` actually solves finite segments despite its
+  vector/line naming. Its zero-determinant branch can divide by the second
   segment's zero squared length, so a degenerate second segment is not handled
   symmetrically. `FixedSegment` is the existing ownership type for that
   operation.
@@ -310,8 +309,8 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
 - [x] **Step 6: Replace the false banker-rounding branch** with
       `RoundGuardedQuotientToEven`. Preserve the loop's extra guard bit, pass
       whether its final remainder is nonzero as the sticky condition, and test
-      rounded carry against the asymmetric positive `long.MaxValue` and
-      negative `2^63` magnitude limits before constructing the result.
+      rounded carry against the asymmetric positive `long.MaxValue` and negative
+      `2^63` magnitude limits before constructing the result.
 - [x] **Step 7: Add a deterministic `BigInteger` oracle in tests only.** Compare
       `/` and positive-divisor `FastDiv` against exact
       `abs(dividendRaw) * 2^32 / abs(divisorRaw)` quotient/remainder arithmetic.
@@ -347,10 +346,10 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
   `Release`, and 1,165 FixedMathSharp plus 7 Chronicler tests in `ReleaseLean`.
   `DivideMagnitude` and `RoundGuardedQuotientToEven` reached 100% line and
   branch coverage. Remaining repository-wide gaps are reserved for Task 11.
-- Focused BenchmarkDotNet `ShortRun` evidence remained allocation-free:
-  `Divide` moved from 5.319 us to 5.144 us and `FastDiv` from 4.800 us to
-  4.724 us. Treat these short-run timings as regression checks, not canonical
-  performance claims.
+- Focused BenchmarkDotNet `ShortRun` evidence remained allocation-free: `Divide`
+  moved from 5.319 us to 5.144 us and `FastDiv` from 4.800 us to 4.724 us. Treat
+  these short-run timings as regression checks, not canonical performance
+  claims.
 - Independent review found one overly broad internal divisor contract. Source,
   tests, and this plan now consistently constrain the divisor magnitude to
   `1..2^63`; the follow-up review returned no remaining findings.
@@ -402,15 +401,16 @@ public partial struct Vector3d
 - [x] **Step 1: Add scalar red tests** covering ordinary values, exact
       `MinValue`/`MaxValue` boundaries, positive and negative overflow, default
       failure output, and unchanged saturating operator results.
-- [x] **Step 2: Run the focused scalar tests and confirm the new API tests fail.**
+- [x] **Step 2: Run the focused scalar tests and confirm the new API tests
+      fail.**
 
 ```powershell
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter "FullyQualifiedName~Fixed64"
 ```
 
 - [x] **Step 3: Extract one private raw add/subtract overflow core** and route
-      both the existing operators and new public `Try*` methods through it.
-      Mark the small hot methods for aggressive inlining; do not maintain two
+      both the existing operators and new public `Try*` methods through it. Mark
+      the small hot methods for aggressive inlining; do not maintain two
       independent bit predicates.
 - [x] **Step 4: Add component-atomic vector `Try*` methods** using the scalar
       methods. Set the vector result only after every component succeeds.
@@ -432,22 +432,22 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
   overflow returns `false` with `default`, and vector results remain atomic.
   Existing scalar and vector operators retain their saturating contract.
 - Routed the operators and new scalar APIs through one aggressively-inlined
-  signed-overflow predicate. The first boolean-selector form was rejected by
-  the benchmark gate after it slowed vector operators; the final precomputed
+  signed-overflow predicate. The first boolean-selector form was rejected by the
+  benchmark gate after it slowed vector operators; the final precomputed
   sign-mask form restored the hot paths without duplicating overflow logic.
-- Added scalar positive/negative overflow and exact-boundary regressions plus
-  2D and 3D first/middle/final component-failure coverage. The red runs failed
-  with the expected missing-API compiler errors before implementation.
+- Added scalar positive/negative overflow and exact-boundary regressions plus 2D
+  and 3D first/middle/final component-failure coverage. The red runs failed with
+  the expected missing-API compiler errors before implementation.
 - Final verification passed 1,196 FixedMathSharp plus 7 Chronicler tests in
   `Release`, and 1,175 FixedMathSharp plus 7 Chronicler tests in `ReleaseLean`.
   The shared predicate and all six public `Try*` methods reached 100% line and
   branch coverage. Remaining repository-wide gaps are reserved for Task 11.
-- Focused BenchmarkDotNet `ShortRun` evidence was allocation-free. Compared
-  with calculate-and-inverse-check, exact `Try*` reduced successful scalar work
-  from 1.053 us to 661.3 ns, `Vector2d` from 1.811 us to 1.056 us, and
-  `Vector3d` from 2.712 us to 1.588 us. Existing operator benchmarks were flat
-  or faster than their pre-change baselines; the largest observed regression
-  was approximately 0.3%, within short-run noise.
+- Focused BenchmarkDotNet `ShortRun` evidence was allocation-free. Compared with
+  calculate-and-inverse-check, exact `Try*` reduced successful scalar work from
+  1.053 us to 661.3 ns, `Vector2d` from 1.811 us to 1.056 us, and `Vector3d`
+  from 2.712 us to 1.588 us. Existing operator benchmarks were flat or faster
+  than their pre-change baselines; the largest observed regression was
+  approximately 0.3%, within short-run noise.
 - Independent review found no critical, important, or minor issues and judged
   the task ready for owner review.
 
@@ -520,34 +520,34 @@ public partial struct Vector3d
       invariant rather than its hexadecimal spelling.
 - [x] **Step 6: Run the focused tests in `Release` and `ReleaseLean`.**
 - [x] **Step 7: Benchmark ordinary support-projection comparisons and extreme
-      inputs.** Require zero allocations and compare the same fixture before
-      and after the wide-accumulator change.
+      inputs.** Require zero allocations and compare the same fixture before and
+      after the wide-accumulator change.
 - [x] **Step 8: Owner review checkpoint.** Leave all FixedMathSharp changes
       unstaged and provide a proposed commit message.
 
 **Result:**
 
 - Added exact `Vector2d.CompareProjection`, `Vector3d.CompareProjection`, and
-  conservative `Vector3d.ProjectNonNegativeDifference` APIs. One internal
-  signed three-word accumulator now handles complete raw differences, extreme
-  products, cancellation, flooring, and final-only saturation while reusing
-  the existing allocation-free 64-by-64 multiplier.
+  conservative `Vector3d.ProjectNonNegativeDifference` APIs. One internal signed
+  three-word accumulator now handles complete raw differences, extreme products,
+  cancellation, flooring, and final-only saturation while reusing the existing
+  allocation-free 64-by-64 multiplier.
 - Added full-domain endpoint, signed-128-overflow, cancellation, carry,
-  `MinValue` direction, zero/negative, one-unit, fractional-floor,
-  sub-quantum, upper-representability-boundary, and final-saturation tests. The
-  initial red run failed with the expected missing-API compiler errors; the
-  upper boundary test was also mutation-checked against an incorrect `>=`
-  comparison before restoring the correct `>` contract.
+  `MinValue` direction, zero/negative, one-unit, fractional-floor, sub-quantum,
+  upper-representability-boundary, and final-saturation tests. The initial red
+  run failed with the expected missing-API compiler errors; the upper boundary
+  test was also mutation-checked against an incorrect `>=` comparison before
+  restoring the correct `>` contract.
 - Final verification passed 1,204 FixedMathSharp plus 7 Chronicler tests in
   `Release`, and 1,183 FixedMathSharp plus 7 Chronicler tests in `ReleaseLean`.
   All seven Task 3 methods reached 100% line and branch coverage; remaining
-  repository-wide gaps are reserved for Task 11. A separate seeded
-  `BigInteger` oracle matched 4,096 full-raw-domain 3D tuples.
+  repository-wide gaps are reserved for Task 11. A separate seeded `BigInteger`
+  oracle matched 4,096 full-raw-domain 3D tuples.
 - Focused BenchmarkDotNet `ShortRun` evidence was allocation-free. The exact
   ordinary comparison measured 2.202 us versus 2.608 us for saturating 2D and
   3.266 us versus 3.717 us for saturating 3D. On extreme fixtures, exact 2D
-  measured 1.158 us versus 1.990 us and exact 3D measured 1.760 us versus
-  3.013 us. Treat these short-run timings as regression checks, not canonical
+  measured 1.158 us versus 1.990 us and exact 3D measured 1.760 us versus 3.013
+  us. Treat these short-run timings as regression checks, not canonical
   performance claims.
 - Independent review found the missing upper representability-boundary
   regression. After adding it and the recommended sub-quantum floor case, the
@@ -597,8 +597,9 @@ public partial struct Fixed64
   successful negative result.
 - The public `Try*` overloads and package-internal conversion callers share one
   fused core that reports final representability and the correctly saturated
-  result. This lets `FixedMath.DegToRad`/`RadToDeg` preserve their value-returning
-  contracts without calculate-and-reverse checks or duplicate wide arithmetic.
+  result. This lets `FixedMath.DegToRad`/`RadToDeg` preserve their
+  value-returning contracts without calculate-and-reverse checks or duplicate
+  wide arithmetic.
 
 - [x] **Step 1: Add two-factor red tests** using raw-value operands for all sign
       combinations, exact zero, exact `MinValue`/`MaxValue`, divisor zero,
@@ -619,10 +620,10 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
       64-by-64-to-128 multiplier and one allocation-free unsigned divide with
       quotient/remainder. Feed its guard and sticky state through Task 1's
       rounding helper, then apply the result sign after comparing the rounded
-      magnitude against the asymmetric positive and negative limits.
-      Keep the result-producing core internal so Task 5's angle conversions can
-      reuse its final saturation result while public `TryMultiplyDivide` writes
-      `default` on failure.
+      magnitude against the asymmetric positive and negative limits. Keep the
+      result-producing core internal so Task 5's angle conversions can reuse its
+      final saturation result while public `TryMultiplyDivide` writes `default`
+      on failure.
 - [x] **Step 5: Add three-factor red tests** matching the two-factor sign,
       boundary, zero-divisor, default-output, and half-to-even coverage. Add the
       CCD regression with raw values `2^16`, `2^32`, `2^32`, and `1`; require
@@ -632,8 +633,8 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
       64-bit divisor, retain the quotient's low 32 discarded bits plus the
       division remainder, reduce them to one guard bit plus sticky state, and
       use Task 1's rounding helper to produce the final Q32.32 raw result once.
-      Do not use `BigInteger`, floating point, `Int128`, or a public wide numeric
-      type in runtime code.
+      Do not use `BigInteger`, floating point, `Int128`, or a public wide
+      numeric type in runtime code.
 - [x] **Step 7: Add deterministic oracle coverage** in the test project using
       `BigInteger` only as an independently computed reference. Cover fixed
       boundary vectors plus a seeded set of raw inputs for both overloads,
@@ -653,15 +654,15 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
 
 - Added the complete approved two-factor and three-factor
   `Fixed64.TryMultiplyDivide` surface. The allocation-free core preserves the
-  exact 128-bit or 192-bit unsigned numerator, divides before applying one
-  final round-half-to-even operation, accepts exact `long.MinValue`, and
-  rejects only a zero divisor or an unrepresentable final result. Public
-  failure writes `default`; the shared internal core retains the correct signed
-  saturation for Task 5's value-returning conversion callers.
-- Reused the existing 64-by-64 multiplier and Task 1 rounding helper. A
-  measured common path cancels shared powers of two before unsigned division;
-  no runtime `BigInteger`, floating point, `Int128`, public wide-number type, or
-  allocation was introduced. The cohesive implementation moved into
+  exact 128-bit or 192-bit unsigned numerator, divides before applying one final
+  round-half-to-even operation, accepts exact `long.MinValue`, and rejects only
+  a zero divisor or an unrepresentable final result. Public failure writes
+  `default`; the shared internal core retains the correct signed saturation for
+  Task 5's value-returning conversion callers.
+- Reused the existing 64-by-64 multiplier and Task 1 rounding helper. A measured
+  common path cancels shared powers of two before unsigned division; no runtime
+  `BigInteger`, floating point, `Int128`, public wide-number type, or allocation
+  was introduced. The cohesive implementation moved into
   `Fixed64.MultiplyDivide.cs` rather than pushing `Fixed64.Operators.cs` across
   the repository's source-size warning.
 - Added sign, zero, exact-boundary, divisor-zero, positive/negative overflow,
@@ -677,12 +678,12 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
   All ten Task 4 methods reached 100% line and branch coverage; remaining
   repository-wide gaps are reserved for Task 11.
 - Focused BenchmarkDotNet `ShortRun` evidence covered 256 operations per row
-  with zero allocations. Two-factor ordinary chain/fused means were
-  6.003/6.493 us and rescued-extreme means were 4.946/5.310 us. Three-factor
-  ordinary chain/fused means were 8.400/14.551 us and rescued-extreme means
-  were 6.243/12.262 us. The three-factor cost is the measured price of retaining
-  a full 192-bit product and one final rounding where the cheaper operator
-  chain can saturate or discard information; treat these short-run timings as
+  with zero allocations. Two-factor ordinary chain/fused means were 6.003/6.493
+  us and rescued-extreme means were 4.946/5.310 us. Three-factor ordinary
+  chain/fused means were 8.400/14.551 us and rescued-extreme means were
+  6.243/12.262 us. The three-factor cost is the measured price of retaining a
+  full 192-bit product and one final rounding where the cheaper operator chain
+  can saturate or discard information; treat these short-run timings as
   regression evidence rather than canonical performance claims.
 - Independent review found no production-arithmetic defect after an additional
   boundary-grid and 100,000-sample exact-arithmetic comparison. It identified
@@ -725,9 +726,9 @@ public partial struct Vector2d
 ```
 
 - `FixedQuaternion.GetMagnitude` and `GetNormalized` keep their signatures but
-  work for every nonzero finite component combination without saturating the
-  sum of squares. Public magnitude is exactly rounded from the raw square sum
-  and saturates only when that rounded result is outside the positive range;
+  work for every nonzero finite component combination without saturating the sum
+  of squares. Public magnitude is exactly rounded from the raw square sum and
+  saturates only when that rounded result is outside the positive range;
   normalization retains a separate scale-relative path. Normalizing the zero
   quaternion continues to return `FixedQuaternion.Identity`.
 - `FixedQuaternion.FromAxisAngle`, `FromEulerAngles`,
@@ -737,9 +738,9 @@ public partial struct Vector2d
   conversion.
 - `FixedMath.DegToRad` returns the correctly rounded finite conversion for every
   `Fixed64` input because its mathematical result always fits. `RadToDeg`
-  preserves final saturation when the converted degree value is genuinely out
-  of range, but no longer saturates merely because its product intermediate
-  does not fit.
+  preserves final saturation when the converted degree value is genuinely out of
+  range, but no longer saturates merely because its product intermediate does
+  not fit.
 - `QuaternionLog` keeps its signature. It scale-safely normalizes every nonzero
   finite quaternion, clamps normalized `W` to `[-1, 1]`, and then calls strict
   `FixedMath.Acos`. No solver-only safe-log variant or gross-failure branch is
@@ -771,11 +772,11 @@ public partial struct Vector2d
       result and `RadToDeg` to saturate only when the final oracle result lies
       outside the asymmetric raw range.
 - [x] **Step 5: Replace old angle-rejection tests** with periodic-equivalence
-      tests. Use radians offset by `+/-TwoPi` for radian constructors and degrees
-      offset by `+/-360` for degree constructors, including multiple turns and
-      both signs. Compare rotations modulo quaternion sign. Add `AngleAxis`
-      parity with `FromAxisAngle(axis, FixedMath.DegToRad(angle))` and require a
-      zero axis to return identity.
+      tests. Use radians offset by `+/-TwoPi` for radian constructors and
+      degrees offset by `+/-360` for degree constructors, including multiple
+      turns and both signs. Compare rotations modulo quaternion sign. Add
+      `AngleAxis` parity with `FromAxisAngle(axis, FixedMath.DegToRad(angle))`
+      and require a zero axis to return identity.
 - [x] **Step 6: Add extreme-axis and direction regressions** proving
       `FromAxisAngle` and `FromDirection` use scale-safe vector normalization
       rather than a saturating `MagnitudeSquared` sum.
@@ -792,8 +793,8 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
 - [x] **Step 9: Replace quaternion magnitude/normalization arithmetic.** Reuse
       the exact private raw square accumulator for one correctly rounded public
       magnitude result, with no public wide-number abstraction. Keep
-      normalization on the proven scale-relative four-component pattern used
-      by `Vector4d` so normalized hot paths do not pay for an exact root loop.
+      normalization on the proven scale-relative four-component pattern used by
+      `Vector4d` so normalized hot paths do not pay for an exact root loop.
 - [x] **Step 10: Route axis/direction normalization** through the scale-safe
       `Vector3d.Normalized` contract in `FromAxisAngle` and `FromDirection`.
       Preserve identity for a zero axis/direction and the current deterministic
@@ -814,91 +815,91 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
       endpoint clamp, final conversion saturation, periodic reduction, and
       `IsNormalized` branch.
 - [x] **Step 14: Benchmark the new `Vector2d.IsNormalized`, `DegToRad`, and
-      `RadToDeg` rows plus quaternion magnitude/normalize/construct
-      rows.** Require zero allocations and no material ordinary-input
-      regression; optimize shared fused/scale-relative paths rather than
-      restoring saturating duplicate arithmetic.
+      `RadToDeg` rows plus quaternion magnitude/normalize/construct rows.**
+      Require zero allocations and no material ordinary-input regression;
+      optimize shared fused/scale-relative paths rather than restoring
+      saturating duplicate arithmetic.
 - [x] **Step 15: Owner review checkpoint.** Leave all FixedMathSharp changes
       unstaged and provide a proposed commit message.
 
 **Result:**
 
 - Added `Vector2d.IsNormalized` with the established nonzero squared-magnitude
-  epsilon contract. Public quaternion magnitude now reuses the exact 129-bit
-  raw square accumulator and a leading-pair-skipping restoring integer square
-  root. It rounds once from the exact remainder and saturates only when that
-  rounded positive root exceeds `long.MaxValue`. Normalization deliberately
-  retains a separate scale-relative helper and normalized-input fast path; zero
+  epsilon contract. Public quaternion magnitude now reuses the exact 129-bit raw
+  square accumulator and a leading-pair-skipping restoring integer square root.
+  It rounds once from the exact remainder and saturates only when that rounded
+  positive root exceeds `long.MaxValue`. Normalization deliberately retains a
+  separate scale-relative helper and normalized-input fast path; zero
   normalization still returns identity.
 - Axis/direction creation uses scale-safe vector normalization. Quaternion log
   normalizes scale-safely, clamps both scalar endpoints, and uses the named
   `4_096` raw vector threshold. Added the lower drift regression at
   `W = -One - MinIncrement` as well as the upper endpoint coverage.
 - Removed artificial quaternion angle-range guards. Radian constructors now
-  accept the complete `Fixed64` domain, degree constructors use the Task 4
-  fused conversion path, `RadToDeg` saturates only its final result, and
-  `AngleAxis` delegates to `FromAxisAngle`. The coordinate-convention contract
-  documents multi-turn equivalence modulo quaternion sign and zero-axis
-  identity; the obsolete Euler-angle complexity exception was removed.
+  accept the complete `Fixed64` domain, degree constructors use the Task 4 fused
+  conversion path, `RadToDeg` saturates only its final result, and `AngleAxis`
+  delegates to `FromAxisAngle`. The coordinate-convention contract documents
+  multi-turn equivalence modulo quaternion sign and zero-axis identity; the
+  obsolete Euler-angle complexity exception was removed.
 - Strict TDD first failed compilation with the expected missing
   `Vector2d.IsNormalized` API. Adding only that API then left 11 expected
   full-domain failures covering fused conversions, extreme quaternion/vector
-  normalization, quaternion-log endpoint drift, and multi-turn angles before
-  the first production repair.
+  normalization, quaternion-log endpoint drift, and multi-turn angles before the
+  first production repair.
 - Final review then found that the scale-relative public magnitude path was not
   exact. The second RED run failed the reviewer boundary
-  `(7441271719093614805, 4814940524119397815, 2188609329145180825,
-  1313165597487108495)` (`long.MaxValue - 3` expected, `long.MaxValue` actual),
-  an asymmetric ordinary vector (one raw unit low), and a deterministic sample
-  (one raw unit low): 3 failed and 180 passed. The exact-root correction made a
-  20,000-case deterministic `BigInteger` oracle probe pass across 10,000
-  ordinary and 10,000 full-raw-domain quaternions, including representable
-  roots, final saturation, `MinValue`, and near-maximum rounding boundaries.
+  `(7441271719093614805, 4814940524119397815, 2188609329145180825, 1313165597487108495)`
+  (`long.MaxValue - 3` expected, `long.MaxValue` actual), an asymmetric ordinary
+  vector (one raw unit low), and a deterministic sample (one raw unit low): 3
+  failed and 180 passed. The exact-root correction made a 20,000-case
+  deterministic `BigInteger` oracle probe pass across 10,000 ordinary and 10,000
+  full-raw-domain quaternions, including representable roots, final saturation,
+  `MinValue`, and near-maximum rounding boundaries.
 - Extreme `MinValue`/`MaxValue` radian and degree constructors now have
   periodic-equivalence coverage against `% TwoPi` and `% 360` reductions,
-  compared modulo quaternion sign. The degree conversion tests explicitly
-  prove the true even/odd exact tie raws `48_318_382_080` and
-  `144_955_146_240`. Because the reduced `RadToDeg` factors preclude a tie,
-  its tests derive and prove the closest-below and closest-above half cases.
+  compared modulo quaternion sign. The degree conversion tests explicitly prove
+  the true even/odd exact tie raws `48_318_382_080` and `144_955_146_240`.
+  Because the reduced `RadToDeg` factors preclude a tie, its tests derive and
+  prove the closest-below and closest-above half cases.
 - Final focused verification passed 280 tests in `Release` and 278 in
-  `ReleaseLean`. Full verification passed 1,262 FixedMathSharp plus 7
-  Chronicler tests in `Release`, and 1,241 FixedMathSharp plus 7 Chronicler
-  tests in `ReleaseLean`. All 16 Task 5 methods and focused helpers reached
-  100% line and branch coverage.
+  `ReleaseLean`. Full verification passed 1,262 FixedMathSharp plus 7 Chronicler
+  tests in `Release`, and 1,241 FixedMathSharp plus 7 Chronicler tests in
+  `ReleaseLean`. All 16 Task 5 methods and focused helpers reached 100% line and
+  branch coverage.
 - BenchmarkDotNet `ShortRun` measured 256 operations per row with zero
-  allocations. Exact public magnitude moved from 4.772 to 16.310 us, about
-  45 ns more per input for exact accumulation and root rounding. Keeping the
-  exact root out of normalization preserved the hot paths: normalize moved
-  from 73.388 to 72.536 us, axis-angle 141.534 to 138.181 us, degree
-  axis-angle 148.196 to 144.053 us, Euler 413.253 to 408.750 us, and direction
-  102.585 to 101.517 us. The new conversion/parity rows remained `DegToRad`
-  6.355 us, `RadToDeg` 9.982 us, and `Vector2d.IsNormalized` 1.973 us. Treat
-  these ShortRun timings as regression evidence, not canonical performance
-  claims.
-- Changes remain unstaged for owner review. Proposed commit message:
-  `feat: harden vector and quaternion full-domain contracts`.
+  allocations. Exact public magnitude moved from 4.772 to 16.310 us, about 45 ns
+  more per input for exact accumulation and root rounding. Keeping the exact
+  root out of normalization preserved the hot paths: normalize moved from 73.388
+  to 72.536 us, axis-angle 141.534 to 138.181 us, degree axis-angle 148.196 to
+  144.053 us, Euler 413.253 to 408.750 us, and direction 102.585 to 101.517 us.
+  The new conversion/parity rows remained `DegToRad` 6.355 us, `RadToDeg` 9.982
+  us, and `Vector2d.IsNormalized` 1.973 us. Treat these ShortRun timings as
+  regression evidence, not canonical performance claims.
 
 ---
 
 ### Task 6: Full-Domain Fixed Segment Geometry Ownership
 
+**Status:** Complete on 2026-07-15; changes remain unstaged for owner review.
+
 **Files:**
 
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Core/FixedMath.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Vectors/Vector2d.Statics.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Geometry/Primitives/FixedSegment2d.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Geometry/Primitives/FixedSegment.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs`
-- Modify: `../FixedMathSharp/docs/wiki/bounds-and-geometry.md`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Core/FixedMath.Tests.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Geometry/Primitives/FixedSegment2d.Tests.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Geometry/Primitives/FixedSegment.Tests.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs`
+- Modify: `src/FixedMathSharp/Core/FixedMath.cs`
+- Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
+- Add: `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
+- Modify: `src/FixedMathSharp/Numerics/Vectors/Vector2d.Statics.cs`
+- Modify: `src/FixedMathSharp/Geometry/Primitives/FixedSegment2d.cs`
+- Modify: `src/FixedMathSharp/Geometry/Primitives/FixedSegment.cs`
+- Modify: `src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs`
+- Modify: `docs/wiki/bounds-and-geometry.md`
+- Test: `tests/FixedMathSharp.Tests/Core/FixedMath.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedSegment2d.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedSegment.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs`
 
 **Interfaces:**
 
@@ -938,87 +939,106 @@ public partial struct FixedSegment
   Public distance-returning methods preserve `Fixed64` final saturation; the
   internal candidate comparison does not use that saturated value for ordering.
 - `FixedSegment.GetClosestPoints` preserves the current ordinary finite-segment
-  algorithm and result contract while handling a first, second, or both
-  segments whose ordinary Q32.32 squared length resolves to zero symmetrically.
-  This includes exact point segments and sub-square-root-resolution deltas. It
-  does not acquire the 2D path's new full-domain guarantee in this workstream.
+  algorithm and result contract while handling a first, second, or both segments
+  whose ordinary Q32.32 squared length resolves to zero symmetrically. This
+  includes exact point segments and sub-square-root-resolution deltas. It does
+  not acquire the 2D path's new full-domain guarantee in this workstream.
 - No public arbitrary-precision, rational, determinant, or intersection-result
   hierarchy is introduced.
 
-- [ ] **Step 1: Add 2D unique-intersection red tests** for interior crossing,
+- [x] **Step 1: Add 2D unique-intersection red tests** for interior crossing,
       both endpoint orders, endpoint touch, disjoint lines, parallel segments,
       collinear disjoint/touching/positive overlap, identical points, distinct
       points, one point lying on the other segment, and one off-segment point.
       Assert the first-segment parameter and default failure output.
-- [ ] **Step 2: Add 2D closest-pair red tests** for crossing, parallel,
+- [x] **Step 2: Add 2D closest-pair red tests** for crossing, parallel,
       collinear overlap, both degenerate, either degenerate, endpoint clamps,
       reversed endpoints, and deterministic equal-distance ties.
-- [ ] **Step 3: Move the existing 3D closest-pair behavior tests** from
-      `Vector3d.Tests` to `FixedSegment.Tests`, then add identical/distinct point
-      segments, exactly degenerate first and second segments, one-raw-unit first
-      and second segments whose squared length resolves to zero, reversed
+- [x] **Step 3: Move the existing 3D closest-pair behavior tests** from
+      `Vector3d.Tests` to `FixedSegment.Tests`, then add identical/distinct
+      point segments, exactly degenerate first and second segments, one-raw-unit
+      first and second segments whose squared length resolves to zero, reversed
       inputs, and symmetry regressions. Confirm the current vector helper throws
       for the degenerate-second case before changing source.
-- [ ] **Step 4: Add full-domain point-projection and interpolation tests.** Use
+- [x] **Step 4: Add full-domain point-projection and interpolation tests.** Use
       endpoints near opposite `Fixed64` limits so their raw delta requires 65
       bits, and cover midpoint ties plus parameters at zero and one. Require
       `FixedMath.Lerp`, `Vector2d.ClosestPointOnLineSegment`, and
       `FixedSegment2d.ClosestPoint` to return in-bounds oracle values without an
       early saturated delta.
-- [ ] **Step 5: Add test-only `BigInteger` oracles** for orientation,
+- [x] **Step 5: Add test-only `BigInteger` oracles** for orientation,
       determinant/numerator ratios, interpolated points, and exact squared
       distance ordering. Cover cancelling products, a smallest-representable
       nonzero determinant, endpoint coordinates near both limits, and cases
       where two public `DistanceSquared` results both saturate but the closer
       candidate is still uniquely knowable.
-- [ ] **Step 6: Run the focused tests and confirm** the new segment APIs are
-      missing and the extreme projection/ordering cases expose saturation in
-      the existing implementation.
-- [ ] **Step 7: Extend the internal wide arithmetic core** with the minimum
-      allocation-free operations required here. Reuse Task 3's signed 65-bit
-      raw endpoint differences, add 65-by-65-bit products and signed 192-bit
+- [x] **Step 6: Run the focused tests and confirm** the new segment APIs are
+      missing and the extreme projection/ordering cases expose saturation in the
+      existing implementation.
+- [x] **Step 7: Extend the internal wide arithmetic core** with the minimum
+      allocation-free operations required here. Reuse Task 3's signed 65-bit raw
+      endpoint differences, add 65-by-65-bit products and signed 192-bit
       cross/dot accumulation, exact magnitude comparison, and conversion of a
       proven unit-interval wide numerator/denominator ratio to Q32.32 using 32
       fractional bits plus guard/sticky round-half-to-even state. Keep these
       implementation details internal and shared with Tasks 3 and 4.
-- [ ] **Step 8: Harden `FixedMath.Lerp`** using the 65-bit endpoint difference
+- [x] **Step 8: Harden `FixedMath.Lerp`** using the 65-bit endpoint difference
       and a full-width difference-by-Q32.32 interpolation followed by one final
       round-half-to-even conversion. Do not implement it as
       `start + ((end - start) * amount)` with saturating intermediates.
-- [ ] **Step 9: Harden `Vector2d.ClosestPointOnLineSegment`** by computing the
+- [x] **Step 9: Harden `Vector2d.ClosestPointOnLineSegment`** by computing the
       projection numerator and squared-length denominator in the wide core,
       classifying/clamping the exact ratio before conversion, and interpolating
       through the hardened `FixedMath.Lerp` path. Zero-length segments return
       the start point exactly.
-- [ ] **Step 10: Implement unique intersection** with exact wide determinant and
+- [x] **Step 10: Implement unique intersection** with exact wide determinant and
       numerator sign/range comparisons. Classify only an exactly zero
       determinant as parallel/collinear; do not use a physics epsilon. Handle
       the explicit point and collinear endpoint semantics before rejecting
       positive-length overlap, then convert only the proven `[0, 1]` parameter.
-- [ ] **Step 11: Implement 2D closest points** by first accepting a unique
+- [x] **Step 11: Implement 2D closest points** by first accepting a unique
       intersection, then evaluating the four endpoint projections in a fixed
       order. Compare their squared raw distances in the wide accumulator rather
       than via saturating public `Fixed64` distances.
-- [ ] **Step 12: Move the finite 3D solver into `FixedSegment.GetClosestPoints`.**
-      Compute the existing `a`/`c` squared lengths first and classify either
-      `== Fixed64.Zero` as a point at Q32.32 resolution before determinant or
-      division arithmetic. Handle the first, second, and both-point cases
-      symmetrically, keep the existing ordinary/parallel parameter policy,
-      update every FixedMathSharp caller, and delete
-      `Vector3d.ClosestPointsOnTwoLines` plus its private helpers. Do not add a
-      forwarding compatibility method.
-- [ ] **Step 13: Run segment, scalar, math, and vector tests in `Release` and
+- [x] **Step 12: Move the finite 3D solver into
+      `FixedSegment.GetClosestPoints`.** Compute the existing `a`/`c` squared
+      lengths first and classify either `== Fixed64.Zero` as a point at Q32.32
+      resolution before determinant or division arithmetic. Handle the first,
+      second, and both-point cases symmetrically, keep the existing
+      ordinary/parallel parameter policy, update every FixedMathSharp caller,
+      and delete `Vector3d.ClosestPointsOnTwoLines` plus its private helpers. Do
+      not add a forwarding compatibility method.
+- [x] **Step 13: Run segment, scalar, math, and vector tests in `Release` and
       `ReleaseLean`, then exact coverage.** Every point-degenerate, parallel,
-      collinear, endpoint, determinant-sign, ratio-rounding, and tie-order branch
-      must be covered.
-- [ ] **Step 14: Benchmark 2D point projection, unique intersection, and closest
+      collinear, endpoint, determinant-sign, ratio-rounding, and tie-order
+      branch must be covered.
+- [x] **Step 14: Benchmark 2D point projection, unique intersection, and closest
       pairs** in `BoundsBenchmarks`. Move the existing 3D closest-pair benchmark
       out of `Vector3dBenchmarks` and compare the same fixture through
       `FixedSegment`. Require zero allocations and no material ordinary-input
       regression; optimize shared word operations rather than adding a
       reduced-range fast path with different semantics.
-- [ ] **Step 15: Owner review checkpoint.** Leave all FixedMathSharp changes
+- [x] **Step 15: Owner review checkpoint.** Leave all FixedMathSharp changes
       unstaged and provide a proposed commit message.
+
+Task 6 result:
+
+- Final solution validation passed 1,283 FixedMathSharp plus 7 Chronicler tests
+  in `Release`, and 1,262 plus 7 in `ReleaseLean`. Fresh Debug coverage records
+  100% line and branch coverage for every Task 6 method; repository-wide
+  pre-existing gaps remain assigned to Task 11.
+- Independent review found that parameter reconstruction could move an exact
+  non-dyadic endpoint contact by two raw units. Exact shared endpoints are now
+  returned before parameterized intersections, both regressions are covered, and
+  the focused re-review reported no remaining findings.
+- The allocation-free `ShortRun` rows measured 27.96 ns for 2D projection, 49.49
+  ns for unique intersection, and 379.30 ns for 2D closest pairs after the
+  exact-endpoint review correction. A same-run legacy projection control
+  measured 49.30 ns, while the like-for-like 3D closest-pair fixture improved
+  from 72.02 us to 67.99 us.
+- Full-domain word arithmetic lives in the focused `Fixed64.WideGeometry.cs`
+  partial so `Fixed64.Operators.cs` remains below the repository's 1,000-line
+  warning threshold.
 
 ---
 
@@ -1026,9 +1046,11 @@ public partial struct FixedSegment
 
 **Files:**
 
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Matrices/FixedTransform.cs`
+- Modify:
+  `../FixedMathSharp/src/FixedMathSharp/Numerics/Matrices/FixedTransform.cs`
 - Modify: `../FixedMathSharp/docs/wiki/coordinate-conventions.md`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Matrices/FixedTransform.Tests.cs`
+- Test:
+  `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Matrices/FixedTransform.Tests.cs`
 
 **Interfaces:**
 
@@ -1053,15 +1075,15 @@ public class FixedTransform
 
 - The planar constructor uses elevation zero and Y scale one. `PositionXZ` and
   `ScaleXZ` setters preserve existing Y values. `RotationXZRadians` setter
-  replaces the complete rotation with a pure rotation around Y using the
-  negated planar angle.
+  replaces the complete rotation with a pure rotation around Y using the negated
+  planar angle.
 - `FixedTransform` stores explicit `_position`, `_rotation`, and `_scale`
   components. The component constructor preserves negative and zero scale
   exactly. The matrix constructor decomposes once using the documented
-  `Fixed4x4` convention; later component access does not repeatedly decompose
-  or rebuild a hidden matrix.
-- The misleading `LossyScale` alias is removed. Without parent composition it
-  is neither a hierarchy-derived nor lossy world scale; downstream callers use
+  `Fixed4x4` convention; later component access does not repeatedly decompose or
+  rebuild a hidden matrix.
+- The misleading `LossyScale` alias is removed. Without parent composition it is
+  neither a hierarchy-derived nor lossy world scale; downstream callers use
   `Scale`.
 - `RotationXZRadians` getter reports the signed angle from embedded
   `Vector2d.Right` toward the transform's projected local-right direction. Pure
@@ -1116,8 +1138,10 @@ public class FixedTransform
 **Files:**
 
 - Delete: `src/Gravitas/Support/FixedVectorDifference.cs`
-- Delete: `src/Gravitas/CollisionHandling/Detection/3D/ConvexSupportProjection.cs`
-- Modify: `src/Gravitas/CollisionHandling/Continuous/ContinuousCollisionImpulsePolicy.cs`
+- Delete:
+  `src/Gravitas/CollisionHandling/Detection/3D/ConvexSupportProjection.cs`
+- Modify:
+  `src/Gravitas/CollisionHandling/Continuous/ContinuousCollisionImpulsePolicy.cs`
 - Modify: `src/Gravitas/Core/2D/SolidBody2D.ContinuousCollision.Dynamic.cs`
 - Modify: `src/Gravitas/Core/2D/SolidBody2D.ContinuousCollision.Kinematic.cs`
 - Modify: `src/Gravitas/Core/3D/SolidBody.ContinuousCollision.Dynamic.cs`
@@ -1130,7 +1154,8 @@ rg -l "FixedVectorDifference|ConvexSupportProjection" src/Gravitas tests/Gravita
 
 - Modify: `src/Gravitas/Queries/GjkSimplexScale.cs`
 - Test: `tests/Gravitas.Tests/CollisionHandling/ContinuousCollisionMathTests.cs`
-- Test: `tests/Gravitas.Tests/CollisionHandling/ContinuousCollisionPolicyTests.cs`
+- Test:
+  `tests/Gravitas.Tests/CollisionHandling/ContinuousCollisionPolicyTests.cs`
 - Test: `tests/Gravitas.Tests/CollisionHandling/ConvexColliderSupportTests.cs`
 - Test: `tests/Gravitas.Tests/Queries/GjkSimplexScaleTests.cs`
 - Test: relevant 2D, 3D, and mixed query/CCD suites already exercising those
@@ -1172,8 +1197,8 @@ internal static bool TryResolveVelocityDelta(
       FixedMathSharp vector APIs, then delete `ConvexSupportProjection` and its
       duplicated multiplier.
 - [ ] **Step 5: Remove raw overflow predicates from `GjkSimplexScale`.** Keep
-      the private bounds predicates, but implement them by composing FixedMathSharp
-      `Try*` operations.
+      the private bounds predicates, but implement them by composing
+      FixedMathSharp `Try*` operations.
 - [ ] **Step 6: Preserve GJK-owned power-of-two coordinate policy.** Use the
       existing `Fixed64 >>` operator for components. For the nonnegative radius
       bound, reconstruct the shifted value and add `Fixed64.MinIncrement` when
@@ -1190,12 +1215,12 @@ internal static bool TryResolveVelocityDelta(
       `TryMultiplyDivide` overload. For two-body response, compute both velocity
       deltas successfully before applying either one. Do not retain a
       solver-conditioning threshold without separate physical evidence.
-- [ ] **Step 10: Add 2D and 3D CCD regressions** for the `65536` finite response,
-      zero inverse mass, final-result overflow rejection without partial body
-      mutation, and unchanged ordinary mobility. Run the focused
+- [ ] **Step 10: Add 2D and 3D CCD regressions** for the `65536` finite
+      response, zero inverse mass, final-result overflow rejection without
+      partial body mutation, and unchanged ordinary mobility. Run the focused
       continuous-collision policy and sweep suites.
-- [ ] **Step 11: Owner review checkpoint.** Leave Gravitas implementation changes
-      unstaged and provide a proposed commit message.
+- [ ] **Step 11: Owner review checkpoint.** Leave Gravitas implementation
+      changes unstaged and provide a proposed commit message.
 
 ---
 
@@ -1203,7 +1228,8 @@ internal static bool TryResolveVelocityDelta(
 
 **Files:**
 
-- Delete: `src/Gravitas/CollisionHandling/Detection/Geometry/PlanarSegmentGeometry.cs`
+- Delete:
+  `src/Gravitas/CollisionHandling/Detection/Geometry/PlanarSegmentGeometry.cs`
 - Delete: `tests/Gravitas.Tests/CollisionHandling/PlanarSegmentGeometryTests.cs`
 - Modify: every current caller returned by:
 
@@ -1226,27 +1252,28 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 - Test: `tests/Gravitas.Tests/Physics2D/Collider2DStateParityTests.cs`
 - Test: `tests/Gravitas.Tests/Physics2D/Physics2DSimulationTests.cs`
 - Test: relevant 2D/3D primitive, compound, and physics-mesh scale suites.
-- Test: relevant 2D/mixed segment collision/query and 3D constraint stress suites.
+- Test: relevant 2D/mixed segment collision/query and 3D constraint stress
+  suites.
 
 **Interfaces:**
 
 - Consumes: Tasks 5 through 7.
 - Produces: no new Gravitas math API. Host transform synchronization uses
-  `PositionXZ` and `RotationXZRadians`; segment operations use
-  `FixedSegment2d` and `FixedSegment`; joint angular error uses
-  `FixedQuaternion.QuaternionLog` directly; scale consumers use `Scale`.
+  `PositionXZ` and `RotationXZRadians`; segment operations use `FixedSegment2d`
+  and `FixedSegment`; joint angular error uses `FixedQuaternion.QuaternionLog`
+  directly; scale consumers use `Scale`.
 - FixedTransform itself permits signed/zero scale, but Gravitas admits only
-  strictly positive collider scale on every consumed axis. Invalid standalone
-  or compound scale fails explicitly before bounds, radius, inertia, mesh, or
+  strictly positive collider scale on every consumed axis. Invalid standalone or
+  compound scale fails explicitly before bounds, radius, inertia, mesh, or
   partition state is built; no component-wise absolute-value fallback is used.
 - Gravitas keeps its scalar 2D rotation canonical in the half-open interval
   `[-Pi, Pi)`, so `+Pi` has the single representative `-Pi`. This is
   authoritative state hygiene, not a second quaternion angle restriction.
 
 - [ ] **Step 1: Add host/collision parity regressions** with an asymmetric 2D
-      polygon or capsule. For `+HalfPi` and `-HalfPi`, assert the host transform's
-      embedded local-right direction matches `Vector2d.Rotate`, and kinematic
-      readback reconstructs the same scalar rotation.
+      polygon or capsule. For `+HalfPi` and `-HalfPi`, assert the host
+      transform's embedded local-right direction matches `Vector2d.Rotate`, and
+      kinematic readback reconstructs the same scalar rotation.
 - [ ] **Step 2: Add multi-turn 2D regressions** for initialization,
       `ResetPosition`, `SetRotation`, dynamic integration across `Pi`, kinematic
       host readback, serialization population, and repeated positive/negative
@@ -1259,9 +1286,9 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
       the local FixedMathSharp reference fixes it before deleting the Gravitas
       workaround.
 - [ ] **Step 4: Add collider-scale admission regressions** for zero and negative
-      components on each participating axis of standalone 3D primitives,
-      meshes, 2D/3D compound parts, and runtime scale rebuilds. Require one
-      explicit failure contract before shape/partition mutation; retain positive
+      components on each participating axis of standalone 3D primitives, meshes,
+      2D/3D compound parts, and runtime scale rebuilds. Require one explicit
+      failure contract before shape/partition mutation; retain positive
       nonuniform-scale behavior. Prove FixedTransform still stores the rejected
       signed value so the policy boundary is Gravitas, not hidden math loss.
 - [ ] **Step 5: Replace manual X/Z transform projection** in 2D body/collider
@@ -1274,11 +1301,11 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
       consumed component `<= Fixed64.Zero` before mutating runtime shape,
       bounds, mass, mesh, or partition state. Reuse that contract from mesh
       validation instead of preserving shape-specific disagreement.
-- [ ] **Step 7: Add one private scalar rotation canonicalizer** in
-      `SolidBody2D` using remainder by `TwoPi`, then subtracting `TwoPi` when the
-      result is `>= Pi` or adding `TwoPi` when it is `< -Pi`. Route every
-      authoritative external assignment and simulation commit through it; do
-      not canonicalize temporary CCD sample/restore values independently.
+- [ ] **Step 7: Add one private scalar rotation canonicalizer** in `SolidBody2D`
+      using remainder by `TwoPi`, then subtracting `TwoPi` when the result is
+      `>= Pi` or adding `TwoPi` when it is `< -Pi`. Route every authoritative
+      external assignment and simulation commit through it; do not canonicalize
+      temporary CCD sample/restore values independently.
 - [ ] **Step 8: Replace `GetSafeQuaternionLog`** with direct
       `FixedQuaternion.QuaternionLog`, delete the duplicate log implementation,
       and retain only solver-specific twist thresholds. Replace any remaining
@@ -1297,9 +1324,9 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
       geometry wrapper.
 - [ ] **Step 11: Run focused 2D, 3D, mixed, segment, scale, constraint, and
       serialization tests in `Release` and `ReleaseLean`.** Confirm no
-      `PlanarSegmentGeometry`, `GetSafeQuaternionLog`, or manual
-      `EulerAngles.Y` 2D host mapping remains, and `rg -n "LossyScale"`
-      returns no runtime or test caller.
+      `PlanarSegmentGeometry`, `GetSafeQuaternionLog`, or manual `EulerAngles.Y`
+      2D host mapping remains, and `rg -n "LossyScale"` returns no runtime or
+      test caller.
 - [ ] **Step 12: Run the existing 2D simulation, mixed collision/query, and 3D
       constraint benchmark rows.** Require zero allocation regression and no
       material slowdown from value-type segment construction or planar
@@ -1324,8 +1351,8 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 
 **Interfaces:**
 
-- Produces: identical debug and release behavior for invalid internal shape
-  use; no new public API.
+- Produces: identical debug and release behavior for invalid internal shape use;
+  no new public API.
 
 - [ ] **Step 1: Add tests** proving triangle shapes cannot be used as sweep
       sources and circle slabs cannot be used as target-normal providers.
@@ -1352,7 +1379,8 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 - Modify: `../FixedMathSharp/src/FixedMathSharp` only when review proves a gap
   is unreachable stale code rather than missing behavior coverage.
 - Modify: `../FixedMathSharp/docs/complexity-exceptions.md`
-- Generate: `../FixedMathSharp/tests/FixedMathSharp.Tests/TestResults/coverage-analysis`
+- Generate:
+  `../FixedMathSharp/tests/FixedMathSharp.Tests/TestResults/coverage-analysis`
 
 **Interfaces:**
 
@@ -1379,10 +1407,10 @@ dotnet test FixedMathSharp.slnx --configuration Debug --collect:"XPlat Code Cove
       `tests/FixedMathSharp.Tests/TestResults/coverage-analysis/reports`, emit
       HTML and text summaries, and record exact covered/total line, branch, and
       method counts before adding tests.
-- [ ] **Step 3: Build a gap ledger ordered by owning source block.** Keep related
-      branches together instead of jumping among files. Classify each gap as a
-      reachable public behavior, an internal state reachable through a public
-      operation, or mathematically/structurally unreachable stale code.
+- [ ] **Step 3: Build a gap ledger ordered by owning source block.** Keep
+      related branches together instead of jumping among files. Classify each
+      gap as a reachable public behavior, an internal state reachable through a
+      public operation, or mathematically/structurally unreachable stale code.
 - [ ] **Step 4: Close reachable gaps with focused behavior tests.** Assert exact
       results, state transitions, exceptions, deterministic ordering, or
       serialization round trips. Do not use reflection when a public path
@@ -1390,10 +1418,11 @@ dotnet test FixedMathSharp.slnx --configuration Debug --collect:"XPlat Code Cove
       that merely repeat setup values.
 - [ ] **Step 5: Remove only proven unreachable branches** when their invariant
       is already enforced by the shared caller or type construction. Document
-      the proof in the owning test or source comment only when it is not obvious;
-      do not add pragma exclusions or defensive zombie branches for the metric.
-- [ ] **Step 6: Re-run focused tests after each source block, then rerun the full
-      Debug coverage command and merged report.** Continue until the report
+      the proof in the owning test or source comment only when it is not
+      obvious; do not add pragma exclusions or defensive zombie branches for the
+      metric.
+- [ ] **Step 6: Re-run focused tests after each source block, then rerun the
+      full Debug coverage command and merged report.** Continue until the report
       shows exactly 100% line, 100% branch, and 100% method coverage with zero
       test failures.
 - [ ] **Step 7: Run coverage/CRAP analysis** against the final Cobertura file.
@@ -1410,9 +1439,9 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 
 - [ ] **Step 9: Owner review checkpoint.** Leave all coverage tests, justified
       dead-code removals, documentation, and generated artifacts unstaged and
-      report the final test/line/branch/method/CRAP counts with a proposed commit
-      message. Return to the Gravitas repository with `Pop-Location` after
-      capturing the evidence.
+      report the final test/line/branch/method/CRAP counts with a proposed
+      commit message. Return to the Gravitas repository with `Pop-Location`
+      after capturing the evidence.
 
 ---
 
@@ -1433,9 +1462,8 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
       `Release` and `ReleaseLean` package builds/tests from the reviewed tree.
 - [ ] **Step 2: Run the focused FixedMathSharp benchmark rows** for scalar
       division, fused multiply-divide, vector `Try*`, magnitude/normalization,
-      degree/radian conversion, quaternion construction/log, projection,
-      segment geometry, and `Vector2d.IsNormalized`. Record medians and
-      allocations.
+      degree/radian conversion, quaternion construction/log, projection, segment
+      geometry, and `Vector2d.IsNormalized`. Record medians and allocations.
 - [ ] **Step 3: Validate SwiftCollections, GridForge, and Gravitas** through
       explicit local project references in each library, test, and benchmark
       project that requires them. Treat this as source-integration evidence, not
@@ -1449,17 +1477,17 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 - [ ] **Step 5: Advance the lower consumers sequentially against released
       packages.** Replace SwiftCollections local links with the released
       FixedMathSharp version, restore/build/test/benchmark its package-only
-      solution, then complete its owner release checkpoint. Repeat for
-      GridForge against the released FixedMathSharp and SwiftCollections
-      versions, but do not release GridForge until ordered issue 1,
+      solution, then complete its owner release checkpoint. Repeat for GridForge
+      against the released FixedMathSharp and SwiftCollections versions, but do
+      not release GridForge until ordered issue 1,
       `GridForge Reuses Grid Spawn Tokens Across Pooled Generations`, is fixed
       and independently verified in its own reviewed change. Do not validate a
       later package against an unreleased local dependency and call that release
       closure.
 - [ ] **Step 6: Restore Gravitas package references and run package-only
       gates.** Remove every Gravitas local project link, update package
-      references to the released FixedMathSharp, SwiftCollections, and
-      GridForge versions, and restore from packages. Then run full `Release`,
+      references to the released FixedMathSharp, SwiftCollections, and GridForge
+      versions, and restore from packages. Then run full `Release`,
       `ReleaseLean`, exact coverage, replay, and the existing convex-sweep, 2D
       simulation, mixed collision, and constraint benchmark rows. Require 100%
       line and branch coverage, deterministic replay, and zero allocation
@@ -1472,8 +1500,8 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
       regression, final test counts, coverage artifact, and benchmark evidence.
       Remove the previous claim that the staged downstream arithmetic was
       already the final ownership boundary.
-- [ ] **Step 8: Request independent final review** of correctness,
-      determinism, API ownership, hot-path cost, and documentation consistency.
+- [ ] **Step 8: Request independent final review** of correctness, determinism,
+      API ownership, hot-path cost, and documentation consistency.
 - [ ] **Step 9: Move this plan to `docs/feature-work/done/`** and update the
       overview only after all source-linked validation, sequential releases,
       package-only gates, and independent review pass.
@@ -1487,9 +1515,8 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 - `Fixed64.operator /` and `FixedMath.FastDiv` share one magnitude-division and
   rounding core, match the `BigInteger` oracle, and round exact midpoints to the
   even raw value for both signs.
-- `x / Two == x * Half`, `x / 4 == x * Quarter`, and
-  `x / 8 == x * Eighth` hold across the tested raw domain including
-  `long.MinValue` and `long.MaxValue`.
+- `x / Two == x * Half`, `x / 4 == x * Quarter`, and `x / 8 == x * Eighth` hold
+  across the tested raw domain including `long.MinValue` and `long.MaxValue`.
 - Existing operators remain saturating; `Try*` methods report exactness without
   throwing or exposing partial results.
 - Both fused multiply-divide overloads retain their complete numerator until one
@@ -1499,8 +1526,8 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
   intermediate inverse-mass ratio would saturate.
 - Projection comparison is correct for the complete `Fixed64` component domain,
   not only normalized axes.
-- `Vector2d`, `Vector3d`, and `Vector4d` expose the same tested
-  `IsNormalized` contract; normal-cache compatibility remains Gravitas policy.
+- `Vector2d`, `Vector3d`, and `Vector4d` expose the same tested `IsNormalized`
+  contract; normal-cache compatibility remains Gravitas policy.
 - Every nonzero finite quaternion normalizes through scale-relative arithmetic;
   `QuaternionLog` accepts normalized endpoint drift without weakening strict
   `Acos`, and Gravitas contains no duplicate safe-log method.
@@ -1516,21 +1543,21 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 - `FixedMath.Lerp`, `Vector2d.ClosestPointOnLineSegment`, and `FixedSegment2d`
   handle 65-bit endpoint differences and exact wide comparison before final
   Q32.32 conversion. `FixedSegment2d` owns unique intersection and closest-pair
-  geometry, `FixedSegment` owns symmetric finite 3D closest pairs including
-  tiny deltas whose ordinary squared length resolves to zero,
+  geometry, `FixedSegment` owns symmetric finite 3D closest pairs including tiny
+  deltas whose ordinary squared length resolves to zero,
   `Vector3d.ClosestPointsOnTwoLines` is removed, and Gravitas contains no
   `PlanarSegmentGeometry` or private equivalent wrapper where those primitives
   apply.
-- Gravitas authoritative planar rotation uses the single half-open
-  `[-Pi, Pi)` representation, including exact `+Pi -> -Pi` canonicalization.
-- Gravitas rejects every nonpositive scale component consumed by a standalone
-  or compound collider before shape, bounds, mass, mesh, or partition mutation;
+- Gravitas authoritative planar rotation uses the single half-open `[-Pi, Pi)`
+  representation, including exact `+Pi -> -Pi` canonicalization.
+- Gravitas rejects every nonpositive scale component consumed by a standalone or
+  compound collider before shape, bounds, mass, mesh, or partition mutation;
   FixedTransform still preserves signed/zero host scale without hidden absolute
   conversion.
 - The odd-raw negative-expansion shift regression passes without saturation.
 - No `Debug.Assert` remains in Gravitas runtime source.
 - FixedMathSharp re-achieves 100% reachable line, branch, and method coverage
-  without behavioral exclusions or hollow tests; Gravitas retains its 100%
-  line and branch gates, and all measured hot paths remain allocation-free.
+  without behavioral exclusions or hollow tests; Gravitas retains its 100% line
+  and branch gates, and all measured hot paths remain allocation-free.
 - All temporary local project references remain unstaged and are removed before
   package-only release validation.

@@ -324,16 +324,49 @@ public partial struct Vector2d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d ClosestPointOnLineSegment(Vector2d point, Vector2d start, Vector2d end)
     {
-        Vector2d segment = end - start;
-        Fixed64 lengthSquared = segment.MagnitudeSquared;
+        Fixed64 t = GetClosestPointOnLineSegmentParameter(point, start, end);
+        return new Vector2d(
+            FixedMath.Lerp(start.X, end.X, t),
+            FixedMath.Lerp(start.Y, end.Y, t));
+    }
 
-        if (lengthSquared == Fixed64.Zero)
-            return start;
+    internal static Fixed64 GetClosestPointOnLineSegmentParameter(
+        Vector2d point,
+        Vector2d start,
+        Vector2d end)
+    {
+        Fixed64.Signed192 denominator = Fixed64.GetDifferenceDotProduct2D(
+            end.X, start.X, end.Y, start.Y,
+            end.X, start.X, end.Y, start.Y);
+        if (denominator.IsZero)
+            return Fixed64.Zero;
 
-        Fixed64 t = Dot(point - start, segment) / lengthSquared;
-        t = FixedMath.Clamp(t, Fixed64.Zero, Fixed64.One);
+        Fixed64.Signed192 numerator = Fixed64.GetDifferenceDotProduct2D(
+            point.X, start.X, point.Y, start.Y,
+            end.X, start.X, end.Y, start.Y);
+        if (numerator.Sign <= 0)
+            return Fixed64.Zero;
+        if (Fixed64.CompareMagnitude(numerator, denominator) >= 0)
+            return Fixed64.One;
 
-        return start + (segment * t);
+        _ = Fixed64.TryGetUnitIntervalRatio(numerator, denominator, out Fixed64 parameter);
+        return parameter;
+    }
+
+    internal static int CompareDistanceSquared(
+        Vector2d leftStart,
+        Vector2d leftEnd,
+        Vector2d rightStart,
+        Vector2d rightEnd)
+    {
+        Fixed64.Signed192 leftDistance = Fixed64.GetDifferenceDotProduct2D(
+            leftStart.X, leftEnd.X, leftStart.Y, leftEnd.Y,
+            leftStart.X, leftEnd.X, leftStart.Y, leftEnd.Y);
+        Fixed64.Signed192 rightDistance = Fixed64.GetDifferenceDotProduct2D(
+            rightStart.X, rightEnd.X, rightStart.Y, rightEnd.Y,
+            rightStart.X, rightEnd.X, rightStart.Y, rightEnd.Y);
+
+        return Fixed64.CompareMagnitude(leftDistance, rightDistance);
     }
 
     /// <summary>

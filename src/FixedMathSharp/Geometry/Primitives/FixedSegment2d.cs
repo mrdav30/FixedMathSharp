@@ -120,6 +120,215 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
         return Vector2d.DistanceSquared(point, ClosestPoint(point));
     }
 
+    /// <summary>
+    /// Attempts to find the unique intersection point shared by this segment and another segment.
+    /// </summary>
+    /// <remarks>
+    /// Closed endpoint touches and coincident point segments have one unique intersection.
+    /// Collinear segments with a positive-length overlap do not.
+    /// </remarks>
+    public readonly bool TryGetUniqueIntersection(
+        FixedSegment2d other,
+        out Fixed64 thisParameter)
+    {
+        return TryGetUniqueIntersection(other, out thisParameter, out _);
+    }
+
+    /// <summary>
+    /// Returns the closest finite points on this segment and another segment.
+    /// </summary>
+    /// <remarks>
+    /// Exact shared endpoints are returned in this-start, this-end, other-start,
+    /// other-end order before parameterized interior intersections. Remaining endpoint
+    /// projections use the same order, and exact distance ties keep the first candidate.
+    /// </remarks>
+    public readonly (Vector2d ThisPoint, Vector2d OtherPoint) GetClosestPoints(FixedSegment2d other)
+    {
+        if (PointOnSegment(Start, other))
+            return (Start, Start);
+        if (PointOnSegment(End, other))
+            return (End, End);
+        if (PointOnSegment(other.Start, this))
+            return (other.Start, other.Start);
+        if (PointOnSegment(other.End, this))
+            return (other.End, other.End);
+
+        if (TryGetUniqueIntersection(other, out Fixed64 thisParameter, out Fixed64 otherParameter))
+        {
+            return (Interpolate(this, thisParameter), Interpolate(other, otherParameter));
+        }
+
+        Vector2d thisPoint = Start;
+        Vector2d otherPoint = other.ClosestPoint(Start);
+
+        ConsiderClosestCandidate(End, other.ClosestPoint(End), ref thisPoint, ref otherPoint);
+        ConsiderClosestCandidate(
+            Vector2d.ClosestPointOnLineSegment(other.Start, Start, End),
+            other.Start,
+            ref thisPoint,
+            ref otherPoint);
+        ConsiderClosestCandidate(
+            Vector2d.ClosestPointOnLineSegment(other.End, Start, End),
+            other.End,
+            ref thisPoint,
+            ref otherPoint);
+
+        return (thisPoint, otherPoint);
+    }
+
+    private readonly bool TryGetUniqueIntersection(
+        FixedSegment2d other,
+        out Fixed64 thisParameter,
+        out Fixed64 otherParameter)
+    {
+        bool thisIsPoint = Start == End;
+        bool otherIsPoint = other.Start == other.End;
+
+        if (thisIsPoint)
+        {
+            thisParameter = Fixed64.Zero;
+            if (!PointOnSegment(Start, other))
+            {
+                otherParameter = default;
+                return false;
+            }
+
+            otherParameter = otherIsPoint
+                ? Fixed64.Zero
+                : Vector2d.GetClosestPointOnLineSegmentParameter(Start, other.Start, other.End);
+            return true;
+        }
+
+        if (otherIsPoint)
+        {
+            otherParameter = Fixed64.Zero;
+            if (!PointOnSegment(other.Start, this))
+            {
+                thisParameter = default;
+                return false;
+            }
+
+            thisParameter = Vector2d.GetClosestPointOnLineSegmentParameter(other.Start, Start, End);
+            return true;
+        }
+
+        Fixed64.Signed192 determinant = Fixed64.GetDifferenceCrossProduct2D(
+            End.X, Start.X, End.Y, Start.Y,
+            other.End.X, other.Start.X, other.End.Y, other.Start.Y);
+        if (!determinant.IsZero)
+        {
+            Fixed64.Signed192 thisNumerator = Fixed64.GetDifferenceCrossProduct2D(
+                other.Start.X, Start.X, other.Start.Y, Start.Y,
+                other.End.X, other.Start.X, other.End.Y, other.Start.Y);
+            Fixed64.Signed192 otherNumerator = Fixed64.GetDifferenceCrossProduct2D(
+                other.Start.X, Start.X, other.Start.Y, Start.Y,
+                End.X, Start.X, End.Y, Start.Y);
+
+            if (Fixed64.TryGetUnitIntervalRatio(thisNumerator, determinant, out thisParameter)
+                && Fixed64.TryGetUnitIntervalRatio(otherNumerator, determinant, out otherParameter))
+            {
+                return true;
+            }
+
+            thisParameter = default;
+            otherParameter = default;
+            return false;
+        }
+
+        Fixed64.Signed192 collinearity = Fixed64.GetDifferenceCrossProduct2D(
+            other.Start.X, Start.X, other.Start.Y, Start.Y,
+            End.X, Start.X, End.Y, Start.Y);
+        if (!collinearity.IsZero)
+        {
+            thisParameter = default;
+            otherParameter = default;
+            return false;
+        }
+
+        int sharedPointCount = 0;
+        Vector2d sharedPoint = default;
+        ConsiderSharedEndpoint(Start, this, other, ref sharedPointCount, ref sharedPoint);
+        ConsiderSharedEndpoint(End, this, other, ref sharedPointCount, ref sharedPoint);
+        ConsiderSharedEndpoint(other.Start, this, other, ref sharedPointCount, ref sharedPoint);
+        ConsiderSharedEndpoint(other.End, this, other, ref sharedPointCount, ref sharedPoint);
+
+        if (sharedPointCount == 1)
+        {
+            thisParameter = Vector2d.GetClosestPointOnLineSegmentParameter(sharedPoint, Start, End);
+            otherParameter = Vector2d.GetClosestPointOnLineSegmentParameter(sharedPoint, other.Start, other.End);
+            return true;
+        }
+
+        thisParameter = default;
+        otherParameter = default;
+        return false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector2d Interpolate(FixedSegment2d segment, Fixed64 parameter)
+    {
+        return new Vector2d(
+            FixedMath.Lerp(segment.Start.X, segment.End.X, parameter),
+            FixedMath.Lerp(segment.Start.Y, segment.End.Y, parameter));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool PointOnSegment(Vector2d point, FixedSegment2d segment)
+    {
+        Fixed64.Signed192 cross = Fixed64.GetDifferenceCrossProduct2D(
+            point.X, segment.Start.X, point.Y, segment.Start.Y,
+            segment.End.X, segment.Start.X, segment.End.Y, segment.Start.Y);
+        if (!cross.IsZero)
+            return false;
+
+        long pointX = point.X.m_rawValue;
+        long pointY = point.Y.m_rawValue;
+        long startX = segment.Start.X.m_rawValue;
+        long startY = segment.Start.Y.m_rawValue;
+        long endX = segment.End.X.m_rawValue;
+        long endY = segment.End.Y.m_rawValue;
+        return pointX >= Math.Min(startX, endX)
+            && pointX <= Math.Max(startX, endX)
+            && pointY >= Math.Min(startY, endY)
+            && pointY <= Math.Max(startY, endY);
+    }
+
+    private static void ConsiderSharedEndpoint(
+        Vector2d candidate,
+        FixedSegment2d first,
+        FixedSegment2d second,
+        ref int sharedPointCount,
+        ref Vector2d sharedPoint)
+    {
+        if (!PointOnSegment(candidate, first)
+            || !PointOnSegment(candidate, second)
+            || (sharedPointCount != 0 && candidate == sharedPoint))
+        {
+            return;
+        }
+
+        sharedPoint = candidate;
+        sharedPointCount++;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void ConsiderClosestCandidate(
+        Vector2d candidateThisPoint,
+        Vector2d candidateOtherPoint,
+        ref Vector2d thisPoint,
+        ref Vector2d otherPoint)
+    {
+        if (Vector2d.CompareDistanceSquared(
+            candidateThisPoint,
+            candidateOtherPoint,
+            thisPoint,
+            otherPoint) < 0)
+        {
+            thisPoint = candidateThisPoint;
+            otherPoint = candidateOtherPoint;
+        }
+    }
+
     #endregion
 
     #region Deconstruction

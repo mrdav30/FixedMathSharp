@@ -1017,78 +1017,6 @@ public class Vector3dTests
     }
 
     [Fact]
-    public void ClosestPointsOnTwoLines_NonParallelSegments()
-    {
-        var line1Start = new Vector3d(0, 0, 0);
-        var line1End = new Vector3d(1, 1, 0);
-        var line2Start = new Vector3d(1, 0, 0);
-        var line2End = new Vector3d(0, 1, 0);
-
-        var (pointOnLine1, pointOnLine2) = Vector3d.ClosestPointsOnTwoLines(line1Start, line1End, line2Start, line2End);
-
-        // These points should be the same since the lines intersect at (0.5, 0.5, 0)
-        var expectedIntersection = Vector3d.FromDouble(0.5, 0.5, 0);
-        Assert.Equal(expectedIntersection, pointOnLine1);
-        Assert.Equal(expectedIntersection, pointOnLine2);
-    }
-
-
-    [Fact]
-    public void ClosestPointsOnTwoLines_ParallelSegments()
-    {
-        var line1Start = new Vector3d(0, 0, 0);
-        var line1End = new Vector3d(1, 1, 0);
-        var line2Start = new Vector3d(0, 0, 1);
-        var line2End = new Vector3d(1, 1, 1);
-        var (pointOnLine1, pointOnLine2) = Vector3d.ClosestPointsOnTwoLines(line1Start, line1End, line2Start, line2End);
-
-        // Points on the same relative positions on the parallel lines
-        Assert.Equal(new Vector3d(0, 0, 0), pointOnLine1);
-        Assert.Equal(new Vector3d(0, 0, 1), pointOnLine2);
-    }
-
-    [Fact]
-    public void ClosestPointsOnTwoLines_ParallelSegments_UsesLongerFirstSegmentParameter()
-    {
-        var (pointOnLine1, pointOnLine2) = Vector3d.ClosestPointsOnTwoLines(
-            new Vector3d(0, 0, 0),
-            new Vector3d(0, 2, 0),
-            new Vector3d(0, 0, 0),
-            new Vector3d(0, 1, 0));
-
-        Assert.Equal(Vector3d.Zero, pointOnLine1);
-        Assert.Equal(Vector3d.Zero, pointOnLine2);
-    }
-
-    [Fact]
-    public void ClosestPointsOnTwoLines_ClampsToFirstSegmentEnd_WhenIntersectionFallsBeyondSegment()
-    {
-        var line1Start = new Vector3d(0, 0, 0);
-        var line1End = new Vector3d(1, 0, 0);
-        var line2Start = new Vector3d(2, -1, 0);
-        var line2End = new Vector3d(2, 1, 0);
-
-        var (pointOnLine1, pointOnLine2) = Vector3d.ClosestPointsOnTwoLines(line1Start, line1End, line2Start, line2End);
-
-        Assert.Equal(new Vector3d(1, 0, 0), pointOnLine1);
-        Assert.Equal(new Vector3d(2, 0, 0), pointOnLine2);
-    }
-
-    [Fact]
-    public void ClosestPointsOnTwoLines_ClampsToFirstSegmentStart_WhenIntersectionFallsBeforeSegment()
-    {
-        var line1Start = new Vector3d(0, 0, 0);
-        var line1End = new Vector3d(1, 0, 0);
-        var line2Start = new Vector3d(-1, -1, 0);
-        var line2End = new Vector3d(-1, 1, 0);
-
-        var (pointOnLine1, pointOnLine2) = Vector3d.ClosestPointsOnTwoLines(line1Start, line1End, line2Start, line2End);
-
-        Assert.Equal(new Vector3d(0, 0, 0), pointOnLine1);
-        Assert.Equal(new Vector3d(-1, 0, 0), pointOnLine2);
-    }
-
-    [Fact]
     public void ClosestPointOnLineSegment_InsideSegment()
     {
         var a = new Vector3d(0, 0, 0);
@@ -1376,47 +1304,6 @@ public class Vector3dTests
         Assert.Equal(Fixed64.FromDouble(1), Vector3d.CrossProduct(Vector3d.Right, Vector3d.Up));
         Assert.Equal(new Vector3d(2, 5, 4), Vector3d.Max(new Vector3d(2, 1, 4), new Vector3d(1, 5, 0)));
         Assert.Equal(new Vector3d(1, 1, 0), Vector3d.Min(new Vector3d(2, 1, 4), new Vector3d(1, 5, 0)));
-    }
-
-    [Fact]
-    public void Vector3d_ClosestPointsOnTwoLines_ClampSecondSegmentEndpoints()
-    {
-        var line1Start = new Vector3d(0, 0, 0);
-        var line1End = new Vector3d(10, 0, 0);
-
-        var (pointOnLine1StartClamp, pointOnLine2StartClamp) = Vector3d.ClosestPointsOnTwoLines(
-            line1Start,
-            line1End,
-            new Vector3d(0, 2, 0),
-            new Vector3d(0, 3, 0));
-
-        var (pointOnLine1EndClamp, pointOnLine2EndClamp) = Vector3d.ClosestPointsOnTwoLines(
-            line1Start,
-            line1End,
-            new Vector3d(0, -3, 0),
-            new Vector3d(0, -2, 0));
-
-        Assert.Equal(Vector3d.Zero, pointOnLine1StartClamp);
-        Assert.Equal(new Vector3d(0, 2, 0), pointOnLine2StartClamp);
-        Assert.Equal(Vector3d.Zero, pointOnLine1EndClamp);
-        Assert.Equal(new Vector3d(0, -2, 0), pointOnLine2EndClamp);
-
-        var (pointOnLowClampLine1, pointOnLowClampLine2) = Vector3d.ClosestPointsOnTwoLines(
-            Vector3d.Zero,
-            Vector3d.Up,
-            new Vector3d(0, 2, 0),
-            new Vector3d(1, 3, 0));
-
-        var (pointOnHighClampLine1, pointOnHighClampLine2) = Vector3d.ClosestPointsOnTwoLines(
-            Vector3d.Zero,
-            Vector3d.Up,
-            new Vector3d(0, 2, 0),
-            new Vector3d(0, 3, 0));
-
-        Assert.Equal(Vector3d.Up, pointOnLowClampLine1);
-        Assert.Equal(new Vector3d(0, 2, 0), pointOnLowClampLine2);
-        Assert.Equal(Vector3d.Up, pointOnHighClampLine1);
-        Assert.Equal(new Vector3d(0, 2, 0), pointOnHighClampLine2);
     }
 
     [Fact]

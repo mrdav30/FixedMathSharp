@@ -40,6 +40,7 @@ public class BoundsBenchmarks
     private readonly FixedPlane[] _planeBuffer = new FixedPlane[FixedBoundFrustum.PlaneCount];
     private readonly FixedPlane[] _planes = CreatePlanes();
     private readonly Vector3d[] _points = BenchmarkFixtures.VectorsA;
+    private readonly Vector3d[] _pointsB = BenchmarkFixtures.VectorsB;
     private readonly Vector2d[] _points2d = BenchmarkFixtures.Vector2sA;
     private readonly FixedRay2d[] _rays2d = CreateRays2d();
     private readonly Vector3d[] _spherePointCloud = CreateSpherePointCloud();
@@ -218,6 +219,34 @@ public class BoundsBenchmarks
     }
 
     [SampledBenchmark]
+    public Fixed64 Segment2dUniqueIntersection()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _segments2d.Length; i++)
+        {
+            FixedSegment2d other = _segments2d[(i + 17) & (BenchmarkFixtures.SampleCount - 1)];
+            if (_segments2d[i].TryGetUniqueIntersection(other, out Fixed64 parameter))
+                accumulator += parameter;
+        }
+
+        return accumulator;
+    }
+
+    [SampledBenchmark]
+    public Vector2d Segment2dClosestPoints()
+    {
+        Vector2d accumulator = Vector2d.Zero;
+        for (int i = 0; i < _segments2d.Length; i++)
+        {
+            FixedSegment2d other = _segments2d[(i + 17) & (BenchmarkFixtures.SampleCount - 1)];
+            (Vector2d thisPoint, Vector2d otherPoint) = _segments2d[i].GetClosestPoints(other);
+            accumulator += thisPoint + otherPoint;
+        }
+
+        return accumulator;
+    }
+
+    [SampledBenchmark]
     public Vector3d Segment3dClosestPoint()
     {
         Vector3d accumulator = Vector3d.Zero;
@@ -233,6 +262,22 @@ public class BoundsBenchmarks
         Fixed64 accumulator = Fixed64.Zero;
         for (int i = 0; i < _segments3d.Length; i++)
             accumulator += _segments3d[i].DistanceSquared(_points[(i + 53) & (BenchmarkFixtures.SampleCount - 1)]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Vector3d Segment3dClosestPoints()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _points.Length; i++)
+        {
+            int next = (i + 17) & (BenchmarkFixtures.SampleCount - 1);
+            var first = new FixedSegment(_points[i], _points[i] + _pointsB[i]);
+            var second = new FixedSegment(_pointsB[i], _pointsB[i] + _points[next]);
+            (Vector3d firstPoint, Vector3d secondPoint) = first.GetClosestPoints(second);
+            accumulator += firstPoint + secondPoint;
+        }
 
         return accumulator;
     }

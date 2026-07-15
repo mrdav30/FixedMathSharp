@@ -14,7 +14,8 @@ Use 3D types for volume and spatial math:
 - `FixedBoundFrustum`: 3D frustum bound.
 - `FixedRay`: 3D ray intersection primitive.
 - `FixedPlane`: 3D plane classification primitive.
-- `FixedSegment`: finite 3D segment with closest-point, distance, and bounds.
+- `FixedSegment`: finite 3D segment with closest-point, closest-pair, distance,
+  and bounds.
 - `FixedTriangle`: ordered 3D triangle with area, normal, bounds, closest-point,
   containment, interpolation, and projected barycentric helpers.
 
@@ -23,7 +24,8 @@ Use 2D types for plane math:
 - `FixedBoundArea`: 2D `Vector2d` axis-aligned bounding area.
 - `FixedBoundCircle`: 2D circular bound.
 - `FixedRay2d`: 2D ray intersection primitive.
-- `FixedSegment2d`: finite 2D segment with closest-point, distance, and bounds.
+- `FixedSegment2d`: finite 2D segment with full-domain closest-point,
+  unique-intersection, closest-pair, distance, and bounds.
 - `FixedTriangle2d`: ordered 2D triangle with signed area, bounds,
   closest-point, containment, interpolation, and barycentric helpers.
 
@@ -92,11 +94,34 @@ FixedSegment segment = new(start3d, end3d);
 Vector3d closest = segment.ClosestPoint(point3d);
 Fixed64 distanceSquared = segment.DistanceSquared(point3d);
 FixedBoundBox bounds = segment.Bounds;
+(Vector3d firstPoint, Vector3d secondPoint) = segment.GetClosestPoints(other3d);
+
+FixedSegment2d segment2d = new(start2d, end2d);
+bool hasUniqueIntersection = segment2d.TryGetUniqueIntersection(
+    other2d,
+    out Fixed64 segmentParameter);
+(Vector2d firstPoint2d, Vector2d secondPoint2d) = segment2d.GetClosestPoints(other2d);
 ```
 
 Reversed endpoints produce the same bounds but are not equal. This keeps
 directed segment use cases deterministic without hiding identity policy inside
 the primitive.
+
+`FixedSegment2d.TryGetUniqueIntersection` uses closed finite segments. A single
+shared endpoint is unique, while disjoint segments and collinear
+positive-length overlap return `false` with a default parameter. A zero-length
+segment is a point: an identical point or a point on the other segment is a
+unique intersection. Exact zero, rather than a physics epsilon, classifies
+parallel and collinear inputs.
+
+The 2D closest-pair order is the first segment's start, its end, the other
+segment's start, then its end. Exact distance ties keep the first candidate,
+and candidate distances are compared before public `Fixed64` saturation.
+`FixedMath.Lerp` and `Vector2d.ClosestPointOnLineSegment` also accept endpoint
+differences spanning the complete raw `Fixed64` domain. The 3D closest-pair
+solver preserves its established ordinary-input policy and treats a direction
+whose Q32.32 squared length is zero as a point at its start; it does not claim
+the 2D path's full-domain guarantee.
 
 Triangles also preserve ordered vertices:
 

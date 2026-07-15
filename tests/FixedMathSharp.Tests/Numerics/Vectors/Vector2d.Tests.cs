@@ -951,6 +951,21 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void ClosestPointOnLineSegment_FullDomainDelta_ProjectsAndPreservesEndpoints()
+    {
+        var start = new Vector2d(Fixed64.MinValue, Fixed64.Zero);
+        var end = new Vector2d(Fixed64.MaxValue, Fixed64.Zero);
+        var midpointProbe = new Vector2d(Fixed64.Zero, Fixed64.MaxValue);
+
+        Assert.Equal(new Vector2d(Fixed64.Zero, Fixed64.Zero),
+            Vector2d.ClosestPointOnLineSegment(midpointProbe, start, end));
+        Assert.Equal(new Vector2d(Fixed64.Zero, Fixed64.Zero),
+            Vector2d.ClosestPointOnLineSegment(midpointProbe, end, start));
+        Assert.Equal(start, Vector2d.ClosestPointOnLineSegment(start, start, end));
+        Assert.Equal(end, Vector2d.ClosestPointOnLineSegment(end, start, end));
+    }
+
+    [Fact]
     public void Vector2d_EqualityAndComparisonHelpers_WorkCorrectly()
     {
         var a = new Vector2d(1, 2);

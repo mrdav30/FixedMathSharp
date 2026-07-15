@@ -372,6 +372,7 @@ public partial struct Fixed64
             candidateX.m_rawValue,
             currentX.m_rawValue,
             directionX.m_rawValue,
+            0L,
             ref sumHigh,
             ref sumMiddle,
             ref sumLow);
@@ -379,6 +380,7 @@ public partial struct Fixed64
             candidateY.m_rawValue,
             currentY.m_rawValue,
             directionY.m_rawValue,
+            0L,
             ref sumHigh,
             ref sumMiddle,
             ref sumLow);
@@ -386,6 +388,7 @@ public partial struct Fixed64
             candidateZ.m_rawValue,
             currentZ.m_rawValue,
             directionZ.m_rawValue,
+            0L,
             ref sumHigh,
             ref sumMiddle,
             ref sumLow);
@@ -395,23 +398,28 @@ public partial struct Fixed64
     private static void AccumulateDifferenceProduct(
         long candidate,
         long current,
-        long direction,
+        long directionEnd,
+        long directionStart,
         ref ulong sumHigh,
         ref ulong sumMiddle,
         ref ulong sumLow)
     {
-        if (candidate == current || direction == 0L)
+        if (candidate == current || directionEnd == directionStart)
             return;
 
         bool negativeDifference = candidate < current;
         ulong differenceMagnitude = negativeDifference
             ? unchecked((ulong)current - (ulong)candidate)
             : unchecked((ulong)candidate - (ulong)current);
-        bool negativeProduct = negativeDifference != (direction < 0L);
+        bool negativeDirection = directionEnd < directionStart;
+        ulong directionMagnitude = negativeDirection
+            ? unchecked((ulong)directionStart - (ulong)directionEnd)
+            : unchecked((ulong)directionEnd - (ulong)directionStart);
+        bool negativeProduct = negativeDifference != negativeDirection;
 
         Multiply64To128(
             differenceMagnitude,
-            AbsToUInt64(direction),
+            directionMagnitude,
             out ulong productMiddle,
             out ulong productLow);
 

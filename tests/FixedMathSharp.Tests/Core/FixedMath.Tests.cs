@@ -1,5 +1,6 @@
 ﻿using System;
 using Xunit;
+using System.Numerics;
 
 namespace FixedMathSharp.Tests;
 
@@ -460,6 +461,49 @@ public class FixedMathTests
     {
         var result = FixedMath.Lerp(new Fixed64(3), new Fixed64(5), Fixed64.Half);
         Assert.Equal(new Fixed64(4), result);
+    }
+
+    [Fact]
+    public void Lerp_FullRawDomain_MatchesBigIntegerOracle()
+    {
+        (Fixed64 From, Fixed64 To, Fixed64 Amount)[] cases =
+        {
+            (Fixed64.MinValue, Fixed64.MaxValue, Fixed64.Zero),
+            (Fixed64.MinValue, Fixed64.MaxValue, Fixed64.MinIncrement),
+            (Fixed64.MinValue, Fixed64.MaxValue, Fixed64.Half),
+            (Fixed64.MinValue, Fixed64.MaxValue, Fixed64.One - Fixed64.MinIncrement),
+            (Fixed64.MinValue, Fixed64.MaxValue, Fixed64.One),
+            (Fixed64.MaxValue, Fixed64.MinValue, Fixed64.Half),
+            (Fixed64.FromRaw(long.MinValue + 1), Fixed64.MaxValue, Fixed64.Half),
+            (Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.FromFraction(3, 4)),
+        };
+
+        foreach ((Fixed64 from, Fixed64 to, Fixed64 amount) in cases)
+        {
+            Fixed64 expected = Fixed64.FromRaw(LerpRawToEven(from.m_rawValue, to.m_rawValue, amount.m_rawValue));
+            Fixed64 actual = FixedMath.Lerp(from, to, amount);
+            Assert.True(
+                expected == actual,
+                $"from={from.m_rawValue}, to={to.m_rawValue}, amount={amount.m_rawValue}, expected={expected.m_rawValue}, actual={actual.m_rawValue}");
+        }
+    }
+
+    private static long LerpRawToEven(long fromRaw, long toRaw, long amountRaw)
+    {
+        if (amountRaw <= 0L)
+            return fromRaw;
+        if (amountRaw >= FixedMath.ONE_L)
+            return toRaw;
+
+        BigInteger numerator = ((BigInteger)fromRaw << FixedMath.SHIFT_AMOUNT_I)
+            + ((BigInteger)toRaw - fromRaw) * amountRaw;
+        BigInteger denominator = BigInteger.One << FixedMath.SHIFT_AMOUNT_I;
+        BigInteger quotient = BigInteger.DivRem(BigInteger.Abs(numerator), denominator, out BigInteger remainder);
+        int midpointComparison = (remainder << 1).CompareTo(denominator);
+        if (midpointComparison > 0 || (midpointComparison == 0 && !quotient.IsEven))
+            quotient++;
+
+        return (long)(numerator.Sign < 0 ? -quotient : quotient);
     }
 
     [Fact]

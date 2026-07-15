@@ -120,6 +120,106 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
         return Vector3d.DistanceSquared(point, ClosestPoint(point));
     }
 
+    /// <summary>
+    /// Returns the closest finite points on this segment and another segment.
+    /// </summary>
+    /// <remarks>
+    /// A segment whose Q32.32 squared direction rounds to zero is treated as a
+    /// point at its start. Non-degenerate inputs preserve the established finite
+    /// segment parameter and clamping policy.
+    /// </remarks>
+    public readonly (Vector3d ThisPoint, Vector3d OtherPoint) GetClosestPoints(FixedSegment other)
+    {
+        Vector3d firstDirection = End - Start;
+        Vector3d secondDirection = other.End - other.Start;
+        Fixed64 firstLengthSquared = Vector3d.Dot(firstDirection, firstDirection);
+        Fixed64 secondLengthSquared = Vector3d.Dot(secondDirection, secondDirection);
+
+        if (firstLengthSquared == Fixed64.Zero)
+        {
+            return secondLengthSquared == Fixed64.Zero
+                ? (Start, other.Start)
+                : (Start, other.ClosestPoint(Start));
+        }
+
+        if (secondLengthSquared == Fixed64.Zero)
+            return (Vector3d.ClosestPointOnLineSegment(other.Start, Start, End), other.Start);
+
+        Vector3d startDifference = Start - other.Start;
+        Fixed64 directionsDot = Vector3d.Dot(firstDirection, secondDirection);
+        Fixed64 firstDirectionDotDifference = Vector3d.Dot(firstDirection, startDifference);
+        Fixed64 secondDirectionDotDifference = Vector3d.Dot(secondDirection, startDifference);
+        Fixed64 determinant = (firstLengthSquared * secondLengthSquared) - (directionsDot * directionsDot);
+
+        (Fixed64 firstParameter, Fixed64 secondParameter) = SolveClosestParameters(
+            firstLengthSquared,
+            directionsDot,
+            secondLengthSquared,
+            firstDirectionDotDifference,
+            secondDirectionDotDifference,
+            determinant);
+
+        if (firstParameter < Fixed64.Zero)
+        {
+            firstParameter = Fixed64.Zero;
+            secondParameter = ClampParameter(secondDirectionDotDifference, secondLengthSquared);
+        }
+        else if (firstParameter > Fixed64.One)
+        {
+            firstParameter = Fixed64.One;
+            secondParameter = ClampParameter(secondDirectionDotDifference + directionsDot, secondLengthSquared);
+        }
+
+        if (secondParameter < Fixed64.Zero)
+        {
+            secondParameter = Fixed64.Zero;
+            firstParameter = ClampParameter(-firstDirectionDotDifference, firstLengthSquared);
+        }
+        else if (secondParameter > Fixed64.One)
+        {
+            secondParameter = Fixed64.One;
+            firstParameter = ClampParameter(-firstDirectionDotDifference + directionsDot, firstLengthSquared);
+        }
+
+        return (
+            Start + (firstParameter * firstDirection),
+            other.Start + (secondParameter * secondDirection));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static (Fixed64 First, Fixed64 Second) SolveClosestParameters(
+        Fixed64 firstLengthSquared,
+        Fixed64 directionsDot,
+        Fixed64 secondLengthSquared,
+        Fixed64 firstDirectionDotDifference,
+        Fixed64 secondDirectionDotDifference,
+        Fixed64 determinant)
+    {
+        if (determinant.Abs() < Fixed64.Epsilon)
+        {
+            Fixed64 secondParameter = directionsDot > secondLengthSquared
+                ? firstDirectionDotDifference / directionsDot
+                : secondDirectionDotDifference / secondLengthSquared;
+            return (Fixed64.Zero, secondParameter);
+        }
+
+        return (
+            ((directionsDot * secondDirectionDotDifference)
+                - (secondLengthSquared * firstDirectionDotDifference)) / determinant,
+            ((firstLengthSquared * secondDirectionDotDifference)
+                - (directionsDot * firstDirectionDotDifference)) / determinant);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Fixed64 ClampParameter(Fixed64 numerator, Fixed64 denominator)
+    {
+        if (numerator < Fixed64.Zero)
+            return Fixed64.Zero;
+        if (numerator > denominator)
+            return Fixed64.One;
+        return numerator / denominator;
+    }
+
     #endregion
 
     #region Deconstruction

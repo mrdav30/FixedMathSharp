@@ -385,24 +385,6 @@ public class Vector3dBenchmarks
     }
 
     [Benchmark]
-    public Vector3d ClosestPointsOnTwoLines()
-    {
-        Vector3d accumulator = Vector3d.Zero;
-        for (int i = 0; i < _left.Length; i++)
-        {
-            int next = (i + 17) & (BenchmarkFixtures.SampleCount - 1);
-            (Vector3d pointOnLine1, Vector3d pointOnLine2) = Vector3d.ClosestPointsOnTwoLines(
-                _left[i],
-                _left[i] + _right[i],
-                _right[i],
-                _right[i] + _left[next]);
-            accumulator += pointOnLine1 + pointOnLine2;
-        }
-
-        return accumulator;
-    }
-
-    [Benchmark]
     public int IsNormalized()
     {
         int count = 0;
