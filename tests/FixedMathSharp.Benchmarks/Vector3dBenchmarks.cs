@@ -10,6 +10,18 @@ public class Vector3dBenchmarks
     private readonly Vector3d[] _right = BenchmarkFixtures.VectorsB;
     private static readonly Fixed64 s_checkDistanceThreshold = new Fixed64(16);
     private static readonly Fixed64 s_two = new Fixed64(2);
+    private static readonly Vector3d s_extremeCandidate = new(
+        Fixed64.MaxValue,
+        Fixed64.MaxValue,
+        Fixed64.MaxValue);
+    private static readonly Vector3d s_extremeCurrent = new(
+        Fixed64.MinValue,
+        Fixed64.MinValue,
+        Fixed64.MinValue);
+    private static readonly Vector3d s_extremeDirection = new(
+        Fixed64.MaxValue,
+        Fixed64.MaxValue,
+        Fixed64.MaxValue);
 
     [Benchmark]
     public Vector3d Add()
@@ -204,6 +216,64 @@ public class Vector3dBenchmarks
         Fixed64 accumulator = Fixed64.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += Vector3d.Dot(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int CompareProjectionSaturatingOrdinary()
+    {
+        int accumulator = 0;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            accumulator += Vector3d.Dot(
+                _left[i] - _right[i],
+                BenchmarkFixtures.NormalizedAxes[i]).CompareTo(Fixed64.Zero);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int CompareProjectionSaturatingExtreme()
+    {
+        int accumulator = 0;
+        for (int i = 0; i < BenchmarkFixtures.SampleCount; i++)
+        {
+            accumulator += Vector3d.Dot(
+                s_extremeCandidate - s_extremeCurrent,
+                s_extremeDirection).CompareTo(Fixed64.Zero);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int CompareProjectionExactOrdinary()
+    {
+        int accumulator = 0;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            accumulator += Vector3d.CompareProjection(
+                _left[i],
+                _right[i],
+                BenchmarkFixtures.NormalizedAxes[i]);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int CompareProjectionExactExtreme()
+    {
+        int accumulator = 0;
+        for (int i = 0; i < BenchmarkFixtures.SampleCount; i++)
+        {
+            accumulator += Vector3d.CompareProjection(
+                s_extremeCandidate,
+                s_extremeCurrent,
+                s_extremeDirection);
+        }
 
         return accumulator;
     }

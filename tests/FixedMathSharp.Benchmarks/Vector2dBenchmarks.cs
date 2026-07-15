@@ -9,6 +9,9 @@ public class Vector2dBenchmarks
     private readonly Vector2d[] _right = BenchmarkFixtures.Vector2sB;
     private static readonly Fixed64 s_checkDistanceThreshold = new Fixed64(16);
     private static readonly Fixed64 s_two = new Fixed64(2);
+    private static readonly Vector2d s_extremeCandidate = new(Fixed64.MaxValue, Fixed64.MaxValue);
+    private static readonly Vector2d s_extremeCurrent = new(Fixed64.MinValue, Fixed64.MinValue);
+    private static readonly Vector2d s_extremeDirection = new(Fixed64.MaxValue, Fixed64.MaxValue);
 
     [Benchmark]
     public Vector2d Add()
@@ -193,6 +196,61 @@ public class Vector2dBenchmarks
         Fixed64 accumulator = Fixed64.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += Vector2d.Dot(_left[i], _right[i]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int CompareProjectionSaturatingOrdinary()
+    {
+        int accumulator = 0;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector2d direction = _left[(i + 37) & (BenchmarkFixtures.SampleCount - 1)];
+            accumulator += Vector2d.Dot(_left[i] - _right[i], direction).CompareTo(Fixed64.Zero);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int CompareProjectionSaturatingExtreme()
+    {
+        int accumulator = 0;
+        for (int i = 0; i < BenchmarkFixtures.SampleCount; i++)
+        {
+            accumulator += Vector2d.Dot(
+                s_extremeCandidate - s_extremeCurrent,
+                s_extremeDirection).CompareTo(Fixed64.Zero);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int CompareProjectionExactOrdinary()
+    {
+        int accumulator = 0;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Vector2d direction = _left[(i + 37) & (BenchmarkFixtures.SampleCount - 1)];
+            accumulator += Vector2d.CompareProjection(_left[i], _right[i], direction);
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public int CompareProjectionExactExtreme()
+    {
+        int accumulator = 0;
+        for (int i = 0; i < BenchmarkFixtures.SampleCount; i++)
+        {
+            accumulator += Vector2d.CompareProjection(
+                s_extremeCandidate,
+                s_extremeCurrent,
+                s_extremeDirection);
+        }
 
         return accumulator;
     }

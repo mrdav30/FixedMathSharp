@@ -467,6 +467,37 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void CompareProjection_FullDomain_ReturnsExactSignAndCancellation()
+    {
+        var maximum = new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue);
+        var minimum = new Vector2d(Fixed64.MinValue, Fixed64.MinValue);
+        var direction = new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue);
+
+        Assert.Equal(1, Vector2d.CompareProjection(maximum, minimum, direction));
+        Assert.Equal(-1, Vector2d.CompareProjection(minimum, maximum, direction));
+        Assert.Equal(0, Vector2d.CompareProjection(
+            new Vector2d(Fixed64.MaxValue, Fixed64.MinValue),
+            new Vector2d(Fixed64.MinValue, Fixed64.MaxValue),
+            direction));
+        Assert.Equal(-1, Vector2d.CompareProjection(
+            maximum,
+            minimum,
+            new Vector2d(Fixed64.MinValue, Fixed64.MinValue)));
+        Assert.Equal(0, Vector2d.CompareProjection(maximum, minimum, Vector2d.Zero));
+    }
+
+    [Fact]
+    public void CompareProjection_OpposingLowProducts_PropagatesCarryAcrossWords()
+    {
+        int result = Vector2d.CompareProjection(
+            new Vector2d(Fixed64.FromRaw(2), Fixed64.Zero),
+            new Vector2d(Fixed64.Zero, Fixed64.MinIncrement),
+            new Vector2d(Fixed64.MinIncrement, Fixed64.MinIncrement));
+
+        Assert.Equal(1, result);
+    }
+
+    [Fact]
     public void BarycentricCoordinates_WeightsSecondAndThirdVertices()
     {
         var value1 = new Vector2d(10, 100);

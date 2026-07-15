@@ -79,6 +79,56 @@ public partial struct Vector3d
     }
 
     /// <summary>
+    /// Compares the exact component-difference projections of two vectors.
+    /// </summary>
+    /// <param name="candidate">The candidate point.</param>
+    /// <param name="current">The point to compare against.</param>
+    /// <param name="direction">The projection direction; it need not be normalized.</param>
+    /// <returns>
+    /// A negative value, zero, or a positive value when the candidate projection is
+    /// respectively less than, equal to, or greater than the current projection.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CompareProjection(Vector3d candidate, Vector3d current, Vector3d direction) =>
+        Fixed64.CompareDifferenceProjection(
+            candidate.X,
+            current.X,
+            direction.X,
+            candidate.Y,
+            current.Y,
+            direction.Y,
+            candidate.Z,
+            current.Z,
+            direction.Z);
+
+    /// <summary>
+    /// Projects <paramref name="target"/> minus <paramref name="source"/> onto a direction
+    /// without intermediate saturation, then returns a conservative nonnegative result.
+    /// </summary>
+    /// <param name="target">The target point.</param>
+    /// <param name="source">The source point.</param>
+    /// <param name="direction">The projection direction; it need not be normalized.</param>
+    /// <returns>
+    /// Zero for a nonpositive projection, the positive projection floored to Q32.32, or
+    /// <see cref="Fixed64.MaxValue"/> when only the final result is unrepresentable.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 ProjectNonNegativeDifference(
+        Vector3d target,
+        Vector3d source,
+        Vector3d direction) =>
+        Fixed64.ProjectNonNegativeDifference(
+            target.X,
+            source.X,
+            direction.X,
+            target.Y,
+            source.Y,
+            direction.Y,
+            target.Z,
+            source.Z,
+            direction.Z);
+
+    /// <summary>
     /// Multiplies two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

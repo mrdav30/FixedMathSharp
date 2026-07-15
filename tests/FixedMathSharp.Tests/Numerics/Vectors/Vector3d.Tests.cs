@@ -442,6 +442,94 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void CompareProjection_ThreeExtremeTermsBeyondSigned128_ReturnsExactSign()
+    {
+        var maximum = new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue);
+        var minimum = new Vector3d(Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue);
+        var direction = new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue);
+
+        Assert.Equal(1, Vector3d.CompareProjection(maximum, minimum, direction));
+        Assert.Equal(-1, Vector3d.CompareProjection(minimum, maximum, direction));
+        Assert.Equal(0, Vector3d.CompareProjection(
+            new Vector3d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.Zero),
+            new Vector3d(Fixed64.MinValue, Fixed64.MaxValue, Fixed64.Zero),
+            direction));
+    }
+
+    [Fact]
+    public void ProjectNonNegativeDifference_ZeroOrNegativeResult_ReturnsZero()
+    {
+        var value = new Vector3d(1, 2, 3);
+
+        Assert.Equal(Fixed64.Zero, Vector3d.ProjectNonNegativeDifference(value, value, Vector3d.One));
+        Assert.Equal(Fixed64.Zero, Vector3d.ProjectNonNegativeDifference(
+            Vector3d.Zero,
+            Vector3d.One,
+            Vector3d.One));
+    }
+
+    [Fact]
+    public void ProjectNonNegativeDifference_ExtremeCancellation_PreservesOneUnit()
+    {
+        var source = new Vector3d(Fixed64.MinValue, Fixed64.MaxValue, Fixed64.Zero);
+        var target = new Vector3d(
+            Fixed64.MaxValue,
+            Fixed64.MinValue + Fixed64.One,
+            Fixed64.Zero);
+
+        Fixed64 result = Vector3d.ProjectNonNegativeDifference(target, source, Vector3d.One);
+
+        Assert.Equal(Fixed64.One, result);
+    }
+
+    [Fact]
+    public void ProjectNonNegativeDifference_PositiveFractionalRawResult_Floors()
+    {
+        Fixed64 oneRawUnitResult = Vector3d.ProjectNonNegativeDifference(
+            new Vector3d(Fixed64.FromRaw(3), Fixed64.Zero, Fixed64.Zero),
+            Vector3d.Zero,
+            new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Zero));
+        Fixed64 subQuantumResult = Vector3d.ProjectNonNegativeDifference(
+            new Vector3d(Fixed64.MinIncrement, Fixed64.Zero, Fixed64.Zero),
+            Vector3d.Zero,
+            new Vector3d(Fixed64.MinIncrement, Fixed64.Zero, Fixed64.Zero));
+
+        Assert.Equal(Fixed64.MinIncrement, oneRawUnitResult);
+        Assert.Equal(Fixed64.Zero, subQuantumResult);
+    }
+
+    [Fact]
+    public void ProjectNonNegativeDifference_UpperRepresentableBoundary_RemainsExact()
+    {
+        long boundaryRaw = (long.MaxValue >> FixedMath.SHIFT_AMOUNT_I)
+            << FixedMath.SHIFT_AMOUNT_I;
+        var target = new Vector3d(Fixed64.FromRaw(boundaryRaw), Fixed64.Zero, Fixed64.Zero);
+
+        Fixed64 result = Vector3d.ProjectNonNegativeDifference(
+            target,
+            Vector3d.Zero,
+            Vector3d.Right);
+
+        Assert.Equal(boundaryRaw, result.m_rawValue);
+    }
+
+    [Fact]
+    public void ProjectNonNegativeDifference_UnrepresentableFinalResult_Saturates()
+    {
+        Fixed64 twoWordResult = Vector3d.ProjectNonNegativeDifference(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
+            Vector3d.Right);
+        Fixed64 threeWordResult = Vector3d.ProjectNonNegativeDifference(
+            new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue),
+            new Vector3d(Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue),
+            new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue));
+
+        Assert.Equal(Fixed64.MaxValue, twoWordResult);
+        Assert.Equal(Fixed64.MaxValue, threeWordResult);
+    }
+
+    [Fact]
     public void MultiplyInPlace_Overloads_ModifyVectorCorrectly()
     {
         var vector = new Vector3d(2, 3, 4);

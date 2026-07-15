@@ -77,6 +77,29 @@ public partial struct Vector2d
     }
 
     /// <summary>
+    /// Compares the exact component-difference projections of two vectors.
+    /// </summary>
+    /// <param name="candidate">The candidate point.</param>
+    /// <param name="current">The point to compare against.</param>
+    /// <param name="direction">The projection direction; it need not be normalized.</param>
+    /// <returns>
+    /// A negative value, zero, or a positive value when the candidate projection is
+    /// respectively less than, equal to, or greater than the current projection.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CompareProjection(Vector2d candidate, Vector2d current, Vector2d direction) =>
+        Fixed64.CompareDifferenceProjection(
+            candidate.X,
+            current.X,
+            direction.X,
+            candidate.Y,
+            current.Y,
+            direction.Y,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            Fixed64.Zero);
+
+    /// <summary>
     /// Multiplies two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

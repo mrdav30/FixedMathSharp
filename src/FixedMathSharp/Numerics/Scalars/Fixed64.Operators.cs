@@ -244,6 +244,172 @@ public partial struct Fixed64
         return 0;
     }
 
+    /// <summary>
+    /// Compares the exact projection of three component differences without first
+    /// converting those differences or their products back to <see cref="Fixed64"/>.
+    /// </summary>
+    internal static int CompareDifferenceProjection(
+        Fixed64 candidateX,
+        Fixed64 currentX,
+        Fixed64 directionX,
+        Fixed64 candidateY,
+        Fixed64 currentY,
+        Fixed64 directionY,
+        Fixed64 candidateZ,
+        Fixed64 currentZ,
+        Fixed64 directionZ)
+    {
+        GetDifferenceProjectionWords(
+            candidateX,
+            currentX,
+            directionX,
+            candidateY,
+            currentY,
+            directionY,
+            candidateZ,
+            currentZ,
+            directionZ,
+            out ulong sumHigh,
+            out ulong sumMiddle,
+            out ulong sumLow);
+
+        if ((sumHigh & (1UL << 63)) != 0UL)
+            return -1;
+
+        return (sumHigh | sumMiddle | sumLow) == 0UL ? 0 : 1;
+    }
+
+    /// <summary>
+    /// Projects three component differences, clamps negative sums to zero, floors
+    /// positive Q64.64 remainder, and saturates only the final Q32.32 result.
+    /// </summary>
+    internal static Fixed64 ProjectNonNegativeDifference(
+        Fixed64 targetX,
+        Fixed64 sourceX,
+        Fixed64 directionX,
+        Fixed64 targetY,
+        Fixed64 sourceY,
+        Fixed64 directionY,
+        Fixed64 targetZ,
+        Fixed64 sourceZ,
+        Fixed64 directionZ)
+    {
+        GetDifferenceProjectionWords(
+            targetX,
+            sourceX,
+            directionX,
+            targetY,
+            sourceY,
+            directionY,
+            targetZ,
+            sourceZ,
+            directionZ,
+            out ulong sumHigh,
+            out ulong sumMiddle,
+            out ulong sumLow);
+
+        if ((sumHigh & (1UL << 63)) != 0UL || (sumHigh | sumMiddle | sumLow) == 0UL)
+            return Zero;
+
+        // After the Q64.64-to-Q32.32 shift, the low 32 bits of this word become
+        // the result's high 32 bits. long.MaxValue >> 32 is therefore the largest
+        // positive middle word that can still produce a representable raw result.
+        ulong positiveRawHighLimit = (ulong)(long.MaxValue >> FixedMath.SHIFT_AMOUNT_I);
+        if (sumHigh != 0UL || sumMiddle > positiveRawHighLimit)
+            return MaxValue;
+
+        long rawResult = unchecked((long)(
+            (sumMiddle << FixedMath.SHIFT_AMOUNT_I)
+            | (sumLow >> FixedMath.SHIFT_AMOUNT_I)));
+        return new Fixed64(rawResult);
+    }
+
+    private static void GetDifferenceProjectionWords(
+        Fixed64 candidateX,
+        Fixed64 currentX,
+        Fixed64 directionX,
+        Fixed64 candidateY,
+        Fixed64 currentY,
+        Fixed64 directionY,
+        Fixed64 candidateZ,
+        Fixed64 currentZ,
+        Fixed64 directionZ,
+        out ulong sumHigh,
+        out ulong sumMiddle,
+        out ulong sumLow)
+    {
+        sumHigh = 0UL;
+        sumMiddle = 0UL;
+        sumLow = 0UL;
+        AccumulateDifferenceProduct(
+            candidateX.m_rawValue,
+            currentX.m_rawValue,
+            directionX.m_rawValue,
+            ref sumHigh,
+            ref sumMiddle,
+            ref sumLow);
+        AccumulateDifferenceProduct(
+            candidateY.m_rawValue,
+            currentY.m_rawValue,
+            directionY.m_rawValue,
+            ref sumHigh,
+            ref sumMiddle,
+            ref sumLow);
+        AccumulateDifferenceProduct(
+            candidateZ.m_rawValue,
+            currentZ.m_rawValue,
+            directionZ.m_rawValue,
+            ref sumHigh,
+            ref sumMiddle,
+            ref sumLow);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void AccumulateDifferenceProduct(
+        long candidate,
+        long current,
+        long direction,
+        ref ulong sumHigh,
+        ref ulong sumMiddle,
+        ref ulong sumLow)
+    {
+        if (candidate == current || direction == 0L)
+            return;
+
+        bool negativeDifference = candidate < current;
+        ulong differenceMagnitude = negativeDifference
+            ? unchecked((ulong)current - (ulong)candidate)
+            : unchecked((ulong)candidate - (ulong)current);
+        bool negativeProduct = negativeDifference != (direction < 0L);
+
+        Multiply64To128(
+            differenceMagnitude,
+            AbsToUInt64(direction),
+            out ulong productMiddle,
+            out ulong productLow);
+
+        ulong productHigh = 0UL;
+        if (negativeProduct)
+        {
+            productLow = unchecked(~productLow + 1UL);
+            productMiddle = unchecked(~productMiddle + (productLow == 0UL ? 1UL : 0UL));
+            productHigh = ulong.MaxValue;
+        }
+
+        ulong previousLow = sumLow;
+        sumLow = unchecked(sumLow + productLow);
+        ulong carry = sumLow < previousLow ? 1UL : 0UL;
+
+        ulong addMiddle = unchecked(productMiddle + carry);
+        ulong carryHigh = addMiddle < productMiddle ? 1UL : 0UL;
+        ulong previousMiddle = sumMiddle;
+        sumMiddle = unchecked(sumMiddle + addMiddle);
+        if (sumMiddle < previousMiddle)
+            carryHigh = 1UL;
+
+        sumHigh = unchecked(sumHigh + productHigh + carryHigh);
+    }
+
     private static void GetMagnitudeSquaredWords(
         Fixed64 x,
         Fixed64 y,

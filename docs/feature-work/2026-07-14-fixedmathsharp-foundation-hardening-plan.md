@@ -457,13 +457,13 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
 
 **Files:**
 
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Vectors/Vector2d.Statics.cs`
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/Vector2dBenchmarks.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs`
+- Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
+- Modify: `src/FixedMathSharp/Numerics/Vectors/Vector2d.Statics.cs`
+- Modify: `src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/Vector2dBenchmarks.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs`
 
 **Interfaces:**
 
@@ -501,29 +501,58 @@ public partial struct Vector3d
   positive fractional remainder to preserve a conservative lower bound, clamps
   negative results to zero, and saturates only the final positive result.
 
-- [ ] **Step 1: Add red tests** for positive, negative, and cancelling
+- [x] **Step 1: Add red tests** for positive, negative, and cancelling
       projections across the complete component range, including a three-term
       positive sum and negative sum that overflow a signed 128-bit accumulator.
-- [ ] **Step 2: Add red conservative-projection tests** for zero, negative,
+- [x] **Step 2: Add red conservative-projection tests** for zero, negative,
       one-unit, fractional-floor, and final-result saturation behavior.
-- [ ] **Step 3: Run the focused vector tests and confirm the new APIs fail.**
-- [ ] **Step 4: Implement the full-domain projection core** inside `Fixed64`.
+- [x] **Step 3: Run the focused vector tests and confirm the new APIs fail.**
+- [x] **Step 4: Implement the full-domain projection core** inside `Fixed64`.
       Represent `candidate - current` and `target - source` raw differences as
       sign plus an unsigned 65-bit magnitude instead of first constructing a
       saturated `Fixed64`. Multiply each 65-bit difference by the 64-bit
       direction component into a signed three-word product, accumulate with
       carry/sign extension, and decide sign/order from the complete sum. Keep
       the word types internal so vector callers share one implementation.
-- [ ] **Step 5: Convert the positive Q64.64 sum to Q32.32 only after checking
+- [x] **Step 5: Convert the positive Q64.64 sum to Q32.32 only after checking
       the complete high words.** If a local high-word boundary is needed, derive
       it from `long.MaxValue >> FixedMath.SHIFT_AMOUNT_I` and document the
       invariant rather than its hexadecimal spelling.
-- [ ] **Step 6: Run the focused tests in `Release` and `ReleaseLean`.**
-- [ ] **Step 7: Benchmark ordinary support-projection comparisons and extreme
+- [x] **Step 6: Run the focused tests in `Release` and `ReleaseLean`.**
+- [x] **Step 7: Benchmark ordinary support-projection comparisons and extreme
       inputs.** Require zero allocations and compare the same fixture before
       and after the wide-accumulator change.
-- [ ] **Step 8: Owner review checkpoint.** Leave all FixedMathSharp changes
+- [x] **Step 8: Owner review checkpoint.** Leave all FixedMathSharp changes
       unstaged and provide a proposed commit message.
+
+**Result:**
+
+- Added exact `Vector2d.CompareProjection`, `Vector3d.CompareProjection`, and
+  conservative `Vector3d.ProjectNonNegativeDifference` APIs. One internal
+  signed three-word accumulator now handles complete raw differences, extreme
+  products, cancellation, flooring, and final-only saturation while reusing
+  the existing allocation-free 64-by-64 multiplier.
+- Added full-domain endpoint, signed-128-overflow, cancellation, carry,
+  `MinValue` direction, zero/negative, one-unit, fractional-floor,
+  sub-quantum, upper-representability-boundary, and final-saturation tests. The
+  initial red run failed with the expected missing-API compiler errors; the
+  upper boundary test was also mutation-checked against an incorrect `>=`
+  comparison before restoring the correct `>` contract.
+- Final verification passed 1,204 FixedMathSharp plus 7 Chronicler tests in
+  `Release`, and 1,183 FixedMathSharp plus 7 Chronicler tests in `ReleaseLean`.
+  All seven Task 3 methods reached 100% line and branch coverage; remaining
+  repository-wide gaps are reserved for Task 11. A separate seeded
+  `BigInteger` oracle matched 4,096 full-raw-domain 3D tuples.
+- Focused BenchmarkDotNet `ShortRun` evidence was allocation-free. The exact
+  ordinary comparison measured 2.202 us versus 2.608 us for saturating 2D and
+  3.266 us versus 3.717 us for saturating 3D. On extreme fixtures, exact 2D
+  measured 1.158 us versus 1.990 us and exact 3D measured 1.760 us versus
+  3.013 us. Treat these short-run timings as regression checks, not canonical
+  performance claims.
+- Independent review found the missing upper representability-boundary
+  regression. After adding it and the recommended sub-quantum floor case, the
+  follow-up review returned no remaining findings and judged the task ready for
+  owner review.
 
 ---
 
