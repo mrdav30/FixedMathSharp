@@ -12,6 +12,7 @@ public class Fixed64ArithmeticBenchmarks
     private readonly Fixed64[] _unit = BenchmarkFixtures.UnitScalars;
     private readonly Fixed64[] _angles = BenchmarkFixtures.Angles;
     private readonly Fixed64[] _tangentAngles = BenchmarkFixtures.TangentAngles;
+    private static readonly Fixed64 s_rescuedMultiplyDivideValue = new(65_536);
 
     [Benchmark]
     public Fixed64 AddSubtractMultiply()
@@ -60,6 +61,134 @@ public class Fixed64ArithmeticBenchmarks
         Fixed64 accumulator = Fixed64.Zero;
         for (int i = 0; i < _left.Length; i++)
             accumulator += _left[i] / _positive[i];
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 MultiplyDivideOperatorChainOrdinary()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            accumulator += (_left[i] * _right[i]) / _positive[i];
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 MultiplyDivideOperatorChainRescuedSaturation()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < BenchmarkFixtures.SampleCount; i++)
+        {
+            accumulator += (s_rescuedMultiplyDivideValue * s_rescuedMultiplyDivideValue)
+                / s_rescuedMultiplyDivideValue;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 TryMultiplyDivideTwoFactorOrdinary()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            if (Fixed64.TryMultiplyDivide(
+                _left[i],
+                _right[i],
+                _positive[i],
+                out Fixed64 result))
+            {
+                accumulator += result;
+            }
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 TryMultiplyDivideTwoFactorRescuedSaturation()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < BenchmarkFixtures.SampleCount; i++)
+        {
+            if (Fixed64.TryMultiplyDivide(
+                s_rescuedMultiplyDivideValue,
+                s_rescuedMultiplyDivideValue,
+                s_rescuedMultiplyDivideValue,
+                out Fixed64 result))
+            {
+                accumulator += result;
+            }
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 MultiplyDivideOperatorChainThreeFactorOrdinary()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Fixed64 divisor = _positive[(i + 37) & (BenchmarkFixtures.SampleCount - 1)];
+            accumulator += ((_left[i] * _right[i]) * _positive[i]) / divisor;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 TryMultiplyDivideThreeFactorOrdinary()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Fixed64 divisor = _positive[(i + 37) & (BenchmarkFixtures.SampleCount - 1)];
+            if (Fixed64.TryMultiplyDivide(
+                _left[i],
+                _right[i],
+                _positive[i],
+                divisor,
+                out Fixed64 result))
+            {
+                accumulator += result;
+            }
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 MultiplyDivideOperatorChainThreeFactorRescuedSaturation()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < BenchmarkFixtures.SampleCount; i++)
+        {
+            accumulator += ((s_rescuedMultiplyDivideValue * s_rescuedMultiplyDivideValue)
+                * Fixed64.One) / s_rescuedMultiplyDivideValue;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public Fixed64 TryMultiplyDivideThreeFactorRescuedSaturation()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < BenchmarkFixtures.SampleCount; i++)
+        {
+            if (Fixed64.TryMultiplyDivide(
+                s_rescuedMultiplyDivideValue,
+                s_rescuedMultiplyDivideValue,
+                Fixed64.One,
+                s_rescuedMultiplyDivideValue,
+                out Fixed64 result))
+            {
+                accumulator += result;
+            }
+        }
 
         return accumulator;
     }

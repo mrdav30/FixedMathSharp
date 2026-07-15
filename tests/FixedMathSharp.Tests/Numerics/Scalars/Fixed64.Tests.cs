@@ -185,6 +185,352 @@ public class Fixed64Tests
         }
     }
 
+    [Theory]
+    [InlineData(6L, 1L, 2L, 3L)]
+    [InlineData(-6L, 1L, 2L, -3L)]
+    [InlineData(6L, -1L, 2L, -3L)]
+    [InlineData(6L, 1L, -2L, -3L)]
+    [InlineData(-6L, -1L, 2L, 3L)]
+    [InlineData(-6L, 1L, -2L, 3L)]
+    [InlineData(6L, -1L, -2L, 3L)]
+    [InlineData(-6L, -1L, -2L, -3L)]
+    [InlineData(0L, long.MinValue, 1L, 0L)]
+    [InlineData(long.MaxValue, 1L, 1L, long.MaxValue)]
+    [InlineData(long.MinValue, 1L, 1L, long.MinValue)]
+    public void TryMultiplyDivide_TwoFactors_SignAndBoundaryCases_ReturnExactResult(
+        long leftRaw,
+        long rightRaw,
+        long divisorRaw,
+        long expectedRaw)
+    {
+        bool succeeded = Fixed64.TryMultiplyDivide(
+            Fixed64.FromRaw(leftRaw),
+            Fixed64.FromRaw(rightRaw),
+            Fixed64.FromRaw(divisorRaw),
+            out Fixed64 result);
+
+        Assert.True(succeeded);
+        Assert.Equal(expectedRaw, result.m_rawValue);
+    }
+
+    [Fact]
+    public void TryMultiplyDivide_TwoFactors_DivisorZeroOrOverflow_ReturnsFalseAndDefault()
+    {
+        Assert.False(Fixed64.TryMultiplyDivide(
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.Zero,
+            out Fixed64 zeroDivisorResult));
+        Assert.Equal(default, zeroDivisorResult);
+
+        Assert.False(Fixed64.TryMultiplyDivide(
+            Fixed64.MaxValue,
+            Fixed64.FromRaw(2),
+            Fixed64.MinIncrement,
+            out Fixed64 positiveOverflowResult));
+        Assert.Equal(default, positiveOverflowResult);
+
+        Assert.False(Fixed64.TryMultiplyDivide(
+            Fixed64.MinValue,
+            Fixed64.FromRaw(2),
+            Fixed64.MinIncrement,
+            out Fixed64 negativeOverflowResult));
+        Assert.Equal(default, negativeOverflowResult);
+    }
+
+    [Theory]
+    [InlineData(1L, 0L)]
+    [InlineData(3L, 2L)]
+    [InlineData(-1L, 0L)]
+    [InlineData(-3L, -2L)]
+    public void TryMultiplyDivide_TwoFactors_MidpointsRoundToEven(long leftRaw, long expectedRaw)
+    {
+        bool succeeded = Fixed64.TryMultiplyDivide(
+            Fixed64.FromRaw(leftRaw),
+            Fixed64.MinIncrement,
+            Fixed64.FromRaw(2),
+            out Fixed64 result);
+
+        Assert.True(succeeded);
+        Assert.Equal(expectedRaw, result.m_rawValue);
+    }
+
+    [Fact]
+    public void TryMultiplyDivide_TwoFactors_RescuesSaturatedIntermediate()
+    {
+        var value = new Fixed64(65_536);
+
+        Assert.NotEqual(value, (value * value) / value);
+        Assert.True(Fixed64.TryMultiplyDivide(value, value, value, out Fixed64 result));
+        Assert.Equal(value, result);
+    }
+
+    [Fact]
+    public void TryMultiplyDivide_TwoFactors_RescuesRoundedToZeroIntermediate()
+    {
+        Assert.Equal(Fixed64.Zero, (Fixed64.MinIncrement * Fixed64.Half) / Fixed64.Half);
+        Assert.True(Fixed64.TryMultiplyDivide(
+            Fixed64.MinIncrement,
+            Fixed64.Half,
+            Fixed64.Half,
+            out Fixed64 result));
+        Assert.Equal(Fixed64.MinIncrement, result);
+    }
+
+    [Theory]
+    [InlineData(6L, 1L, 4_294_967_296L, 2L, 3L)]
+    [InlineData(-6L, 1L, 4_294_967_296L, 2L, -3L)]
+    [InlineData(6L, -1L, 4_294_967_296L, 2L, -3L)]
+    [InlineData(6L, 1L, -4_294_967_296L, 2L, -3L)]
+    [InlineData(6L, 1L, 4_294_967_296L, -2L, -3L)]
+    [InlineData(-6L, -1L, 4_294_967_296L, 2L, 3L)]
+    [InlineData(-6L, 1L, -4_294_967_296L, 2L, 3L)]
+    [InlineData(-6L, 1L, 4_294_967_296L, -2L, 3L)]
+    [InlineData(6L, -1L, -4_294_967_296L, -2L, -3L)]
+    [InlineData(0L, long.MinValue, long.MinValue, 1L, 0L)]
+    [InlineData(long.MaxValue, 4_294_967_296L, 4_294_967_296L, 4_294_967_296L, long.MaxValue)]
+    [InlineData(long.MinValue, 4_294_967_296L, 4_294_967_296L, 4_294_967_296L, long.MinValue)]
+    public void TryMultiplyDivide_ThreeFactors_SignAndBoundaryCases_ReturnExactResult(
+        long firstRaw,
+        long secondRaw,
+        long thirdRaw,
+        long divisorRaw,
+        long expectedRaw)
+    {
+        bool succeeded = Fixed64.TryMultiplyDivide(
+            Fixed64.FromRaw(firstRaw),
+            Fixed64.FromRaw(secondRaw),
+            Fixed64.FromRaw(thirdRaw),
+            Fixed64.FromRaw(divisorRaw),
+            out Fixed64 result);
+
+        Assert.True(succeeded);
+        Assert.Equal(expectedRaw, result.m_rawValue);
+    }
+
+    [Fact]
+    public void TryMultiplyDivide_ThreeFactors_DivisorZeroOrOverflow_ReturnsFalseAndDefault()
+    {
+        Assert.False(Fixed64.TryMultiplyDivide(
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.Zero,
+            out Fixed64 zeroDivisorResult));
+        Assert.Equal(default, zeroDivisorResult);
+
+        Assert.False(Fixed64.TryMultiplyDivide(
+            Fixed64.MaxValue,
+            Fixed64.FromRaw(2),
+            Fixed64.One,
+            Fixed64.MinIncrement,
+            out Fixed64 positiveOverflowResult));
+        Assert.Equal(default, positiveOverflowResult);
+
+        Assert.False(Fixed64.TryMultiplyDivide(
+            Fixed64.MinValue,
+            Fixed64.FromRaw(2),
+            Fixed64.One,
+            Fixed64.MinIncrement,
+            out Fixed64 negativeOverflowResult));
+        Assert.Equal(default, negativeOverflowResult);
+    }
+
+    [Theory]
+    [InlineData(1L, 0L)]
+    [InlineData(3L, 2L)]
+    [InlineData(-1L, 0L)]
+    [InlineData(-3L, -2L)]
+    public void TryMultiplyDivide_ThreeFactors_MidpointsRoundToEven(long firstRaw, long expectedRaw)
+    {
+        bool succeeded = Fixed64.TryMultiplyDivide(
+            Fixed64.FromRaw(firstRaw),
+            Fixed64.MinIncrement,
+            Fixed64.One,
+            Fixed64.FromRaw(2),
+            out Fixed64 result);
+
+        Assert.True(succeeded);
+        Assert.Equal(expectedRaw, result.m_rawValue);
+    }
+
+    [Fact]
+    public void TryMultiplyDivide_ThreeFactors_CcdRawRegressionPreservesRepresentableResult()
+    {
+        bool succeeded = Fixed64.TryMultiplyDivide(
+            Fixed64.FromRaw(1L << 16),
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.MinIncrement,
+            out Fixed64 result);
+
+        Assert.True(succeeded);
+        Assert.Equal(1L << 48, result.m_rawValue);
+    }
+
+    [Fact]
+    public void TryMultiplyDivide_ThreeFactors_RescuesSaturatedIntermediate()
+    {
+        var value = new Fixed64(65_536);
+
+        Assert.NotEqual(value, ((value * value) * Fixed64.One) / value);
+        Assert.True(Fixed64.TryMultiplyDivide(
+            value,
+            value,
+            Fixed64.One,
+            value,
+            out Fixed64 result));
+        Assert.Equal(value, result);
+    }
+
+    [Fact]
+    public void TryMultiplyDivide_ThreeFactors_RescuesRoundedToZeroIntermediate()
+    {
+        Assert.Equal(
+            Fixed64.Zero,
+            ((Fixed64.MinIncrement * Fixed64.Half) * Fixed64.One) / Fixed64.Half);
+        Assert.True(Fixed64.TryMultiplyDivide(
+            Fixed64.MinIncrement,
+            Fixed64.Half,
+            Fixed64.One,
+            Fixed64.Half,
+            out Fixed64 result));
+        Assert.Equal(Fixed64.MinIncrement, result);
+    }
+
+    [Fact]
+    public void TryMultiplyDivide_RawDomain_MatchesBigIntegerOracle()
+    {
+        (long Left, long Right, long Divisor)[] twoFactorBoundaries =
+        {
+            (0L, long.MinValue, 1L),
+            (1L, 1L, 2L),
+            (3L, 1L, 2L),
+            (-3L, 1L, 2L),
+            (long.MaxValue, 1L, 1L),
+            (long.MinValue, 1L, 1L),
+            (long.MaxValue, 2L, 1L),
+            (long.MinValue, 2L, 1L),
+            (1L << 48, 1L << 48, 1L << 48),
+            (1L, 1L << 31, 1L << 31),
+            // Exercises the small-divisor 128-by-64 path with a nonzero high word.
+            (FixedMath.ONE_L, FixedMath.ONE_L, 3L),
+            // The exact quotient is 2^63 plus a remainder above one half.
+            (long.MaxValue, 5L << 60, (5L << 60) - 1L),
+            // Exercises the 2^63 divisor magnitude without cancellation and with
+            // the largest possible remainder.
+            (long.MaxValue, 1L, long.MinValue),
+            // Exercises the maximum 63-bit common-power cancellation.
+            (long.MinValue, 1L, long.MinValue),
+            (1L, 1L, 0L),
+        };
+        foreach ((long left, long right, long divisor) in twoFactorBoundaries)
+            AssertMultiplyDivideMatchesOracle(left, right, divisor);
+
+        (long First, long Second, long Third, long Divisor)[] threeFactorBoundaries =
+        {
+            (0L, long.MinValue, long.MinValue, 1L),
+            (1L, 1L, FixedMath.ONE_L, 2L),
+            (3L, 1L, FixedMath.ONE_L, 2L),
+            (-3L, 1L, FixedMath.ONE_L, 2L),
+            (long.MaxValue, FixedMath.ONE_L, FixedMath.ONE_L, FixedMath.ONE_L),
+            (long.MinValue, FixedMath.ONE_L, FixedMath.ONE_L, FixedMath.ONE_L),
+            (long.MaxValue, 2L, FixedMath.ONE_L, 1L),
+            (long.MinValue, 2L, FixedMath.ONE_L, 1L),
+            (1L << 16, FixedMath.ONE_L, FixedMath.ONE_L, 1L),
+            (1L << 48, 1L << 48, FixedMath.ONE_L, 1L << 48),
+            (1L, 1L << 31, FixedMath.ONE_L, 1L << 31),
+            // The discarded quotient bits are zero; only the division remainder is sticky.
+            (1L, 1L, (1L << 33) + 1L, 2L),
+            // The two partial middle words carry into the high word while the
+            // final rounded result remains representable.
+            (4_416_396_496_686_455L, 2_551_152_366_865_965L,
+                1_530_502_775_920_113L, 1_796_020_480_733_518_619L),
+            // Exercises a nonzero 2^63 divisor magnitude and maximum remainder.
+            (long.MaxValue, 1L, 1L, long.MinValue),
+            // Exercises the maximum 63-bit common-power cancellation.
+            (long.MinValue, FixedMath.ONE_L, FixedMath.ONE_L, long.MinValue),
+            // Exercises long.MinValue as the third-factor magnitude.
+            (1L, FixedMath.ONE_L, long.MinValue, FixedMath.ONE_L),
+            (1L, 1L, FixedMath.ONE_L, 0L),
+        };
+        foreach ((long first, long second, long third, long divisor) in threeFactorBoundaries)
+            AssertMultiplyDivideMatchesOracle(first, second, third, divisor);
+
+        var random = new System.Random(0x4D17D1);
+        for (int i = 0; i < 2_048; i++)
+        {
+            long first = random.NextInt64();
+            long second = random.NextInt64();
+            long third = random.NextInt64();
+            long divisor = random.NextInt64(1L, long.MaxValue);
+            if ((i & 1) != 0)
+                first = ~first;
+            if ((i & 2) != 0)
+                second = ~second;
+            if ((i & 4) != 0)
+                third = ~third;
+            if ((i & 8) != 0)
+                divisor = -divisor;
+
+            AssertMultiplyDivideMatchesOracle(first, second, divisor);
+            AssertMultiplyDivideMatchesOracle(first, second, third, divisor);
+        }
+
+        (long FactorLimit, long DivisorMinimum, long DivisorLimit)[] representableTiers =
+        {
+            (1L << 16, 1L, 1L << 8),
+            (1L << 36, 1L << 31, 1L << 37),
+            (1L << 52, 1L << 61, long.MaxValue),
+        };
+        foreach ((long factorLimit, long divisorMinimum, long divisorLimit) in representableTiers)
+        {
+            for (int i = 0; i < 256; i++)
+            {
+                long first = random.NextInt64(1L, factorLimit);
+                long second = random.NextInt64(1L, factorLimit);
+                long third = random.NextInt64(1L, factorLimit);
+                long divisor = random.NextInt64(divisorMinimum, divisorLimit);
+                if ((i & 1) != 0)
+                    first = -first;
+                if ((i & 2) != 0)
+                    second = -second;
+                if ((i & 4) != 0)
+                    third = -third;
+                if ((i & 8) != 0)
+                    divisor = -divisor;
+
+                AssertMultiplyDivideMatchesOracle(
+                    first,
+                    second,
+                    third,
+                    divisor,
+                    requireRepresentable: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void MultiplyDivide_InternalCore_PreservesSaturatedFallback()
+    {
+        Fixed64 twoFactorPositive = Fixed64.MultiplyDivide(
+            Fixed64.MaxValue,
+            Fixed64.FromRaw(2),
+            Fixed64.MinIncrement,
+            out bool twoFactorRepresentable);
+        Fixed64 threeFactorNegative = Fixed64.MultiplyDivide(
+            Fixed64.MinValue,
+            Fixed64.FromRaw(2),
+            Fixed64.One,
+            Fixed64.MinIncrement,
+            out bool threeFactorRepresentable);
+
+        Assert.False(twoFactorRepresentable);
+        Assert.Equal(Fixed64.MaxValue, twoFactorPositive);
+        Assert.False(threeFactorRepresentable);
+        Assert.Equal(Fixed64.MinValue, threeFactorNegative);
+    }
+
     [Fact]
     public void RoundGuardedQuotientToEven_UsesGuardStickyParityAndCarry()
     {
@@ -259,6 +605,81 @@ public class Fixed64Tests
 
         long result = (long)quotient;
         return negative ? -result : result;
+    }
+
+    private static void AssertMultiplyDivideMatchesOracle(
+        long leftRaw,
+        long rightRaw,
+        long divisorRaw)
+    {
+        bool expectedSuccess = TryRoundRationalToInt64(
+            (BigInteger)leftRaw * rightRaw,
+            divisorRaw,
+            out long expectedRaw);
+        bool actualSuccess = Fixed64.TryMultiplyDivide(
+            Fixed64.FromRaw(leftRaw),
+            Fixed64.FromRaw(rightRaw),
+            Fixed64.FromRaw(divisorRaw),
+            out Fixed64 actual);
+
+        Assert.Equal(expectedSuccess, actualSuccess);
+        Assert.Equal(expectedSuccess ? expectedRaw : 0L, actual.m_rawValue);
+    }
+
+    private static void AssertMultiplyDivideMatchesOracle(
+        long firstRaw,
+        long secondRaw,
+        long thirdRaw,
+        long divisorRaw,
+        bool requireRepresentable = false)
+    {
+        bool expectedSuccess = TryRoundRationalToInt64(
+            (BigInteger)firstRaw * secondRaw * thirdRaw,
+            (BigInteger)divisorRaw << FixedMath.SHIFT_AMOUNT_I,
+            out long expectedRaw);
+        if (requireRepresentable)
+            Assert.True(expectedSuccess);
+
+        bool actualSuccess = Fixed64.TryMultiplyDivide(
+            Fixed64.FromRaw(firstRaw),
+            Fixed64.FromRaw(secondRaw),
+            Fixed64.FromRaw(thirdRaw),
+            Fixed64.FromRaw(divisorRaw),
+            out Fixed64 actual);
+
+        Assert.Equal(expectedSuccess, actualSuccess);
+        Assert.Equal(expectedSuccess ? expectedRaw : 0L, actual.m_rawValue);
+    }
+
+    private static bool TryRoundRationalToInt64(
+        BigInteger numerator,
+        BigInteger denominator,
+        out long result)
+    {
+        if (denominator.IsZero)
+        {
+            result = default;
+            return false;
+        }
+
+        BigInteger quotient = BigInteger.DivRem(
+            BigInteger.Abs(numerator),
+            BigInteger.Abs(denominator),
+            out BigInteger remainder);
+        int midpointComparison = (remainder << 1).CompareTo(BigInteger.Abs(denominator));
+        if (midpointComparison > 0 || (midpointComparison == 0 && !quotient.IsEven))
+            quotient++;
+
+        if ((numerator.Sign < 0) != (denominator.Sign < 0))
+            quotient = -quotient;
+        if (quotient < long.MinValue || quotient > long.MaxValue)
+        {
+            result = default;
+            return false;
+        }
+
+        result = (long)quotient;
+        return true;
     }
 
     #endregion

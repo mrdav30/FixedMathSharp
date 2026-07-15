@@ -560,9 +560,9 @@ public partial struct Vector3d
 
 **Files:**
 
-- Modify: `../FixedMathSharp/src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
-- Test: `../FixedMathSharp/tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
-- Benchmark: `../FixedMathSharp/tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
+- Add: `src/FixedMathSharp/Numerics/Scalars/Fixed64.MultiplyDivide.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
 
 **Interfaces:**
 
@@ -600,22 +600,22 @@ public partial struct Fixed64
   result. This lets `FixedMath.DegToRad`/`RadToDeg` preserve their value-returning
   contracts without calculate-and-reverse checks or duplicate wide arithmetic.
 
-- [ ] **Step 1: Add two-factor red tests** using raw-value operands for all sign
+- [x] **Step 1: Add two-factor red tests** using raw-value operands for all sign
       combinations, exact zero, exact `MinValue`/`MaxValue`, divisor zero,
       positive and negative final overflow, default failure output, and
       half-to-even cases `1 * 1 / 2 -> 0` and `3 * 1 / 2 -> 2` raw units.
-- [ ] **Step 2: Add the rescued-intermediate regressions.** Prove that
+- [x] **Step 2: Add the rescued-intermediate regressions.** Prove that
       `65536 * 65536 / 65536` returns `65536` although the ordinary product
       saturates, and that `MinIncrement * Half / Half` returns `MinIncrement`
       although the ordinary product rounds to zero.
-- [ ] **Step 3: Run the focused scalar tests and confirm both overloads are
+- [x] **Step 3: Run the focused scalar tests and confirm both overloads are
       missing.**
 
 ```powershell
-dotnet test ../FixedMathSharp/tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter "FullyQualifiedName~Fixed64"
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter "FullyQualifiedName~Fixed64"
 ```
 
-- [ ] **Step 4: Implement the two-factor overload** with the existing unsigned
+- [x] **Step 4: Implement the two-factor overload** with the existing unsigned
       64-by-64-to-128 multiplier and one allocation-free unsigned divide with
       quotient/remainder. Feed its guard and sticky state through Task 1's
       rounding helper, then apply the result sign after comparing the rounded
@@ -623,31 +623,73 @@ dotnet test ../FixedMathSharp/tests/FixedMathSharp.Tests/FixedMathSharp.Tests.cs
       Keep the result-producing core internal so Task 5's angle conversions can
       reuse its final saturation result while public `TryMultiplyDivide` writes
       `default` on failure.
-- [ ] **Step 5: Add three-factor red tests** matching the two-factor sign,
+- [x] **Step 5: Add three-factor red tests** matching the two-factor sign,
       boundary, zero-divisor, default-output, and half-to-even coverage. Add the
       CCD regression with raw values `2^16`, `2^32`, `2^32`, and `1`; require
       the representable raw result `2^48` (`65536`).
-- [ ] **Step 6: Implement the three-factor overload** by extending the existing
+- [x] **Step 6: Implement the three-factor overload** by extending the existing
       unsigned product to three 64-bit words. Divide that numerator by the
       64-bit divisor, retain the quotient's low 32 discarded bits plus the
       division remainder, reduce them to one guard bit plus sticky state, and
       use Task 1's rounding helper to produce the final Q32.32 raw result once.
       Do not use `BigInteger`, floating point, `Int128`, or a public wide numeric
       type in runtime code.
-- [ ] **Step 7: Add deterministic oracle coverage** in the test project using
+- [x] **Step 7: Add deterministic oracle coverage** in the test project using
       `BigInteger` only as an independently computed reference. Cover fixed
       boundary vectors plus a seeded set of raw inputs for both overloads,
       including cases where ordinary grouping saturates or underflows but the
       fused result fits.
-- [ ] **Step 8: Run the focused tests in `Release` and `ReleaseLean`, then run
+- [x] **Step 8: Run the focused tests in `Release` and `ReleaseLean`, then run
       exact FixedMathSharp coverage.** Every divisor-zero, sign, carry,
       quotient-overflow, rounding, and `long.MinValue` branch must be reachable.
-- [ ] **Step 9: Benchmark both overloads** against their ordinary operator
+- [x] **Step 9: Benchmark both overloads** against their ordinary operator
       chains for common in-range inputs and rescued extreme inputs. Require zero
       allocations; optimize a proven common path without weakening the
       single-rounding contract.
-- [ ] **Step 10: Owner review checkpoint.** Leave all FixedMathSharp changes
+- [x] **Step 10: Owner review checkpoint.** Leave all FixedMathSharp changes
       unstaged and provide a proposed commit message.
+
+**Result:**
+
+- Added the complete approved two-factor and three-factor
+  `Fixed64.TryMultiplyDivide` surface. The allocation-free core preserves the
+  exact 128-bit or 192-bit unsigned numerator, divides before applying one
+  final round-half-to-even operation, accepts exact `long.MinValue`, and
+  rejects only a zero divisor or an unrepresentable final result. Public
+  failure writes `default`; the shared internal core retains the correct signed
+  saturation for Task 5's value-returning conversion callers.
+- Reused the existing 64-by-64 multiplier and Task 1 rounding helper. A
+  measured common path cancels shared powers of two before unsigned division;
+  no runtime `BigInteger`, floating point, `Int128`, public wide-number type, or
+  allocation was introduced. The cohesive implementation moved into
+  `Fixed64.MultiplyDivide.cs` rather than pushing `Fixed64.Operators.cs` across
+  the repository's source-size warning.
+- Added sign, zero, exact-boundary, divisor-zero, positive/negative overflow,
+  midpoint, saturated-intermediate, rounded-to-zero-intermediate, CCD, carry,
+  maximum-remainder, 63-bit cancellation, and `long.MinValue` factor/divisor
+  regressions. A test-only `BigInteger` oracle matched fixed boundary vectors,
+  2,048 seeded full-raw-domain tuples per overload, and 768 magnitude-stratified
+  three-factor tuples whose final results are explicitly required to remain
+  representable. The two red stages failed with the expected missing-overload
+  compiler errors before implementation.
+- Final verification passed 1,244 FixedMathSharp plus 7 Chronicler tests in
+  `Release`, and 1,223 FixedMathSharp plus 7 Chronicler tests in `ReleaseLean`.
+  All ten Task 4 methods reached 100% line and branch coverage; remaining
+  repository-wide gaps are reserved for Task 11.
+- Focused BenchmarkDotNet `ShortRun` evidence covered 256 operations per row
+  with zero allocations. Two-factor ordinary chain/fused means were
+  6.003/6.493 us and rescued-extreme means were 4.946/5.310 us. Three-factor
+  ordinary chain/fused means were 8.400/14.551 us and rescued-extreme means
+  were 6.243/12.262 us. The three-factor cost is the measured price of retaining
+  a full 192-bit product and one final rounding where the cheaper operator
+  chain can saturate or discard information; treat these short-run timings as
+  regression evidence rather than canonical performance claims.
+- Independent review found no production-arithmetic defect after an additional
+  boundary-grid and 100,000-sample exact-arithmetic comparison. It identified
+  missing representable carry and `long.MinValue` divisor/third-factor oracle
+  vectors; after those focused tests and magnitude-stratified samples were
+  added, follow-up review returned no remaining findings and judged the task
+  ready for owner review.
 
 ---
 
