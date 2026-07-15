@@ -189,6 +189,9 @@ public partial struct Fixed64
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void Multiply64To128(ulong a, ulong b, out ulong hi, out ulong lo)
     {
+#if NET8_0_OR_GREATER
+        hi = Math.BigMul(a, b, out lo);
+#else
         ulong aLo = (uint)a;
         ulong aHi = a >> 32;
         ulong bLo = (uint)b;
@@ -203,6 +206,7 @@ public partial struct Fixed64
 
         lo = (p0 & 0xFFFFFFFFUL) | (middle << 32);
         hi = p3 + (p1 >> 32) + (p2 >> 32) + (middle >> 32);
+#endif
     }
 
     /// <summary>

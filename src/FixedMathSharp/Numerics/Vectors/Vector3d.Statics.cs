@@ -496,18 +496,33 @@ public partial struct Vector3d
     /// <param name="start">The start of the line segment.</param>
     /// <param name="end">The end of the line segment.</param>
     /// <returns>The closest point on the line segment to the given point.</returns>
+    /// <remarks>
+    /// Endpoint differences and projection products are evaluated across the
+    /// complete raw domain before the parameter is clamped and rounded.
+    /// A direction whose exact Q64.64 squared-length total is at most 2^31 raw
+    /// units rounds to zero in Q32.32 and returns <paramref name="start"/>.
+    /// </remarks>
     public static Vector3d ClosestPointOnLineSegment(Vector3d point, Vector3d start, Vector3d end)
     {
-        Vector3d segment = end - start;
-        Fixed64 lengthSquared = segment.MagnitudeSquared;
-
-        if (lengthSquared == Fixed64.Zero)
+        Fixed64.Signed192 denominator = Fixed64.GetDifferenceDotProduct3D(
+            end.X, start.X, end.Y, start.Y, end.Z, start.Z,
+            end.X, start.X, end.Y, start.Y, end.Z, start.Z);
+        if (Fixed64.IsSquaredLengthDegenerate(denominator))
             return start;
 
-        Fixed64 t = Dot(point - start, segment) / lengthSquared;
-        t = FixedMath.Clamp(t, Fixed64.Zero, Fixed64.One);
+        Fixed64.Signed192 numerator = Fixed64.GetDifferenceDotProduct3D(
+            point.X, start.X, point.Y, start.Y, point.Z, start.Z,
+            end.X, start.X, end.Y, start.Y, end.Z, start.Z);
+        if (numerator.Sign <= 0)
+            return start;
+        if (Fixed64.CompareMagnitude(numerator, denominator) >= 0)
+            return end;
 
-        return start + segment * t;
+        _ = Fixed64.TryGetUnitIntervalRatio(numerator, denominator, out Fixed64 parameter);
+        return new Vector3d(
+            FixedMath.Lerp(start.X, end.X, parameter),
+            FixedMath.Lerp(start.Y, end.Y, parameter),
+            FixedMath.Lerp(start.Z, end.Z, parameter));
     }
 
     /// <summary>

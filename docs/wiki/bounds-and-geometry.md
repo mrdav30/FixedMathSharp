@@ -117,11 +117,25 @@ parallel and collinear inputs.
 The 2D closest-pair order is the first segment's start, its end, the other
 segment's start, then its end. Exact distance ties keep the first candidate,
 and candidate distances are compared before public `Fixed64` saturation.
-`FixedMath.Lerp` and `Vector2d.ClosestPointOnLineSegment` also accept endpoint
-differences spanning the complete raw `Fixed64` domain. The 3D closest-pair
-solver preserves its established ordinary-input policy and treats a direction
-whose Q32.32 squared length is zero as a point at its start; it does not claim
-the 2D path's full-domain guarantee.
+`FixedMath.Lerp` and both `Vector2d.ClosestPointOnLineSegment` and
+`Vector3d.ClosestPointOnLineSegment` accept endpoint differences spanning the
+complete raw `Fixed64` domain.
+
+The 3D `FixedSegment` closest-point, closest-pair, and squared-distance queries
+use exact fixed-width endpoint differences and products across that same raw
+domain. An exact Q64.64 squared-length total at or below 2^31 raw units rounds
+to zero in Q32.32 and classifies the segment as a point at its start. The
+closest-pair solver compares its exact determinant magnitude with
+`Fixed64.Epsilon` before choosing the established near-parallel policy, then
+rounds parameters half-to-even and clamps them deterministically to the closed
+interval [0, 1]. A mathematical zero-separation contact that is already an
+endpoint is returned bit-for-bit in both segment orders. `DistanceSquared`
+performs one final round-half-to-even conversion of the exact squared sum and
+saturates positive results outside the `Fixed64` range to `Fixed64.MaxValue`.
+
+`FixedSegment.Delta`, `Length`, and `LengthSquared` retain ordinary public
+saturating vector-arithmetic behavior. They are convenient value properties,
+not aliases for the wider intermediate contract of the query methods.
 
 Triangles also preserve ordered vertices:
 

@@ -1070,13 +1070,14 @@ Task 6 result:
 
 ### Task 7: Full-Domain 3D Segment Geometry
 
-**Status:** Not started.
+**Status:** Complete as of 2026-07-15; awaiting owner review.
 
 **Files:**
 
 - Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.cs`
 - Modify:
   `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
+- Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
 - Modify: `src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs`
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedSegment.cs`
 - Modify: `docs/wiki/bounds-and-geometry.md`
@@ -1120,10 +1121,13 @@ public partial struct FixedSegment
   products, parameter classification, and interpolation are evaluated without
   an early saturating `Fixed64` conversion. Public squared distance retains one
   final round-half-to-even/saturation conversion.
-- The existing Q32.32-resolution point-degeneracy rule and
-  `abs(determinant) < Fixed64.Epsilon` near-parallel rule remain the public
-  policy, but their comparisons use exact wide quantities rather than already
-  rounded or saturated dot products.
+- A direction is point-degenerate when its exact total squared length rounds to
+  zero in Q32.32: `sum(deltaRaw^2) <= 2^31`, including the round-half-to-even
+  tie. This preserves the intended resolution rule without retaining the
+  current coordinate-dependent per-component rounding artifact. The existing
+  `abs(determinant) < Fixed64.Epsilon` near-parallel rule remains public policy,
+  but compares the exact Q128.128 determinant against
+  `Fixed64.Epsilon.m_rawValue << 96` before any scalar conversion.
 - Exact parameter signs and bounds are classified before conversion. Final
   parameters use 32 fractional bits plus guard/sticky round-half-to-even state,
   and coordinates are reconstructed through Task 6's full-domain scalar
@@ -1136,63 +1140,94 @@ public partial struct FixedSegment
   arbitrary-precision arithmetic, 3D triangle predicates, or ray quadratics.
   No public wide integer, rational, or alternate segment type is added.
 
-- [ ] **Step 1: Capture ordinary-input baselines** for the existing
+- [x] **Step 1: Capture ordinary-input baselines** for the existing
       `Segment3dClosestPoint`, `Segment3dDistanceSquared`,
       `Segment3dClosestPoints`, and `ClosestPointOnLineSegment` benchmark rows.
       Record medians and allocations before source changes.
-- [ ] **Step 2: Add test-only `BigInteger` oracles** for signed 65-bit endpoint
+- [x] **Step 2: Add test-only `BigInteger` oracles** for signed 65-bit endpoint
       differences, three-term dot products, exact squared distance,
       `a * c - b * b` determinants, closest-parameter numerators, signed ratio
       conversion, clamping, and interpolated coordinates. Keep all
       arbitrary-precision arithmetic in tests.
-- [ ] **Step 3: Add point-projection and distance red tests** using endpoint and
+- [x] **Step 3: Add point-projection and distance red tests** using endpoint and
       query coordinates near opposite `Fixed64` limits. Cover interior
       projection, both clamps, 32-bit quotient rounding ties, exact and
       Q32.32-resolution point segments, final distance saturation, and inputs
       whose final point or distance fits despite ordinary intermediate
       saturation.
-- [ ] **Step 4: Add closest-pair red tests** for crossing, skew, parallel,
+- [x] **Step 4: Add closest-pair red tests** for crossing, skew, parallel,
       near-parallel, collinear, endpoint-clamped, reversed, and swapped segments;
       exact and Q32.32-resolution point segments in either position; cancelling
       determinants; smallest distinguishable determinant thresholds; parameter
       rounding ties; and endpoint differences spanning the complete raw domain.
       Compare points and exact squared separation with the `BigInteger` oracle.
-- [ ] **Step 5: Run the focused vector and segment tests and confirm** the
+- [x] **Step 5: Run the focused vector and segment tests and confirm** the
       extreme projection, distance, determinant, parameter, and interpolation
       cases expose current saturating intermediates.
-- [ ] **Step 6: Extend the internal wide core minimally.** Reuse `Signed192` for
+- [x] **Step 6: Extend the internal wide core minimally.** Reuse `Signed192` for
       exact 3D dots and squared distances. Add only the five-word signed
       multiply-subtract, magnitude comparison, threshold comparison, and
       guard/sticky ratio conversion required by the segment solver. Do not add a
       general arbitrary-precision surface, heap allocation, or target-specific
       `Int128` branch.
-- [ ] **Step 7: Harden point projection and point distance.** Classify the exact
+- [x] **Step 7: Harden point projection and point distance.** Classify the exact
       projection ratio before conversion, interpolate each coordinate through
       `FixedMath.Lerp`, and compute `FixedSegment.DistanceSquared` from the exact
       three-component raw difference sum before one public conversion. Do not
       broaden this into unrelated vector distance APIs.
-- [ ] **Step 8: Harden `FixedSegment.GetClosestPoints`.** Compute exact wide
+- [x] **Step 8: Harden `FixedSegment.GetClosestPoints`.** Compute exact wide
       squared lengths, direction dot products, start-difference dots,
-      determinant, and parameter numerators. Preserve the documented degeneracy
-      and near-parallel policies, perform exact sign/range clamps before
-      converting parameters, and reconstruct both points through full-domain
-      interpolation.
-- [ ] **Step 9: Update XML and geometry documentation** with the full-domain
+      determinant, and parameter numerators. Apply the exact-total
+      Q32.32-resolution degeneracy rule and retained near-parallel policy,
+      perform exact sign/range clamps before converting parameters, and
+      reconstruct both points through full-domain interpolation.
+- [x] **Step 9: Update XML and geometry documentation** with the full-domain
       intermediate contract, final distance saturation, retained degeneracy and
       near-parallel policies, deterministic clamping, and the intentionally
       ordinary `Delta` surface.
-- [ ] **Step 10: Run focused and full validation** in `Release` and
+- [x] **Step 10: Run focused and full validation** in `Release` and
       `ReleaseLean`, then fresh exact coverage. Cover every word carry/borrow,
       sign, cancellation, threshold, clamp, quotient guard/sticky, saturation,
       degeneracy, and parallel branch; update the complexity register only from
       fresh metrics.
-- [ ] **Step 11: Rerun the four existing 3D segment benchmark rows.** Require
+- [x] **Step 11: Rerun the four existing 3D segment benchmark rows.** Require
       zero allocations and no material ordinary-input regression; optimize the
       shared word operations rather than adding a reduced-range path with
       different arithmetic semantics.
-- [ ] **Step 12: Owner review checkpoint.** Leave all FixedMathSharp source,
+- [x] **Step 12: Owner review checkpoint.** Leave all FixedMathSharp source,
       test, benchmark, and documentation changes unstaged and provide a proposed
       commit message.
+
+**Task 7 result:** `Vector3d.ClosestPointOnLineSegment`,
+`FixedSegment.ClosestPoint`, `DistanceSquared`, and `GetClosestPoints` now keep
+signed endpoint differences, three-axis dot products, Gram determinants,
+parameter numerators, and final squared-distance sums exact across the complete
+`Fixed64` raw domain. The implementation reuses `Signed192`, adds a private
+five-word signed solver value only where determinant products require it,
+preserves exact existing endpoints at zero-separation contacts, and performs one
+guard/sticky round-half-to-even conversion at each public parameter or distance
+boundary. The shared 64-by-64-bit product uses the exact .NET 8 `Math.BigMul`
+intrinsic with the existing manual `netstandard2.1` limb fallback; no public wide
+integer, `BigInteger` runtime dependency, allocation, `Int128` branch, or
+ordinary-semantics solver was introduced.
+
+Focused validation passed 259/259 tests in `Release` and 256/256 in
+`ReleaseLean`. Full validation passed 1,292 FixedMathSharp plus 7 Chronicler
+tests in `Release`, and 1,271 plus 7 in `ReleaseLean`, while building both
+`net8.0` and `netstandard2.1`. Fresh full-project coverage remained 99.6% line
+and 99% branch, and every Task 7 method reached 100% line and branch coverage.
+The fresh complexity register records the fully covered solver hotspots;
+`SolveClosestParameters` remains the largest at complexity/CRAP 44 and should
+only be structurally redesigned with equivalent exactness and neutral measured
+cost.
+
+The final allocation-free `ShortRun` medians were 26.689 ns for closest point
+(-66.2%), 36.391 ns for squared distance (-60.9%), 74.945 us for closest pairs
+(+9.56%), and 9.508 us for vector projection (-47.8%). A fresh independent
+review found no P0-P3 issues and matched 20,000 randomized full-domain
+closest-pair cases, including the `netstandard2.1` fallback, against a test-only
+`BigInteger` oracle. The closest-pair row's remaining 9.56% ShortRun increase
+and solver complexity stay explicit owner-review considerations.
 
 ---
 

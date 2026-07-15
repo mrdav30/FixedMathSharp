@@ -1037,6 +1037,18 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void ClosestPointOnLineSegment_FullRawSpan_ProjectsWithoutIntermediateSaturation()
+    {
+        var start = new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero);
+        var end = new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero);
+        var point = new Vector3d(Fixed64.Zero, new Fixed64(3), new Fixed64(4));
+
+        Assert.Equal(
+            new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero),
+            Vector3d.ClosestPointOnLineSegment(point, start, end));
+    }
+
+    [Fact]
     public void Max_CalculatesCorrectly()
     {
         var v1 = new Vector3d(1, 5, 3);

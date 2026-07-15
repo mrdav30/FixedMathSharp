@@ -51,6 +51,32 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
         internal int Sign => IsZero ? 0 : (High & (1UL << 63)) != 0UL ? -1 : 1;
     }
 
+    /// <summary>
+    /// A signed five-word value used by the 3D segment solver for products and
+    /// differences of exact three-component dot products.
+    /// </summary>
+    internal readonly struct Signed320
+    {
+        internal readonly ulong Word4;
+        internal readonly ulong Word3;
+        internal readonly ulong Word2;
+        internal readonly ulong Word1;
+        internal readonly ulong Word0;
+
+        internal Signed320(ulong word4, ulong word3, ulong word2, ulong word1, ulong word0)
+        {
+            Word4 = word4;
+            Word3 = word3;
+            Word2 = word2;
+            Word1 = word1;
+            Word0 = word0;
+        }
+
+        internal bool IsZero => (Word4 | Word3 | Word2 | Word1 | Word0) == 0UL;
+
+        internal int Sign => IsZero ? 0 : (Word4 & (1UL << 63)) != 0UL ? -1 : 1;
+    }
+
     #endregion
     #region Static Fields
 
