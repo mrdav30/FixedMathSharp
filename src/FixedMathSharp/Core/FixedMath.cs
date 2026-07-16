@@ -405,6 +405,11 @@ namespace FixedMathSharp
         /// <param name="weightB">The barycentric weight for the second vertex.</param>
         /// <param name="weightC">The barycentric weight for the third vertex.</param>
         /// <returns>The interpolated scalar coordinate.</returns>
+        /// <remarks>
+        /// Endpoint differences, both weighted terms, and the base coordinate
+        /// are accumulated before one final round-half-to-even conversion.
+        /// Results outside the <see cref="Fixed64"/> range saturate.
+        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Fixed64 BarycentricCoordinate(
             Fixed64 coordA,
@@ -412,7 +417,7 @@ namespace FixedMathSharp
             Fixed64 coordC,
             Fixed64 weightB,
             Fixed64 weightC
-        ) => coordA + (coordB - coordA) * weightB + (coordC - coordA) * weightC;
+        ) => Fixed64.BarycentricCoordinateFullDomain(coordA, coordB, coordC, weightB, weightC);
 
         /// <summary>
         /// Returns the second-order scalar product sum for three barycentric vertices.

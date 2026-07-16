@@ -553,6 +553,60 @@ public class FixedMathTests
     }
 
     [Fact]
+    public void BarycentricCoordinate_FullRawDomain_MatchesSingleRoundingOracle()
+    {
+        (long A, long B, long C, long WeightB, long WeightC)[] cases =
+        {
+            (long.MinValue, long.MaxValue, long.MaxValue, Fixed64.Half.m_rawValue, Fixed64.Half.m_rawValue),
+            (long.MaxValue, long.MinValue, long.MinValue, Fixed64.Half.m_rawValue, Fixed64.Half.m_rawValue),
+            (long.MaxValue, long.MinValue, 0L, long.MinValue, 0L),
+            (long.MinValue, long.MaxValue, 0L, long.MinValue, 0L),
+            (0L, 1L, 0L, Fixed64.Half.m_rawValue, 0L),
+            (1L, 2L, 0L, Fixed64.Half.m_rawValue, 0L),
+        };
+
+        foreach ((long a, long b, long c, long weightB, long weightC) in cases)
+        {
+            Fixed64 expected = BarycentricRawToEvenSaturating(a, b, c, weightB, weightC);
+            Fixed64 actual = FixedMath.BarycentricCoordinate(
+                Fixed64.FromRaw(a),
+                Fixed64.FromRaw(b),
+                Fixed64.FromRaw(c),
+                Fixed64.FromRaw(weightB),
+                Fixed64.FromRaw(weightC));
+
+            Assert.True(
+                expected == actual,
+                $"a={a}, b={b}, c={c}, weightB={weightB}, weightC={weightC}, expected={expected.m_rawValue}, actual={actual.m_rawValue}");
+        }
+    }
+
+    private static Fixed64 BarycentricRawToEvenSaturating(
+        long a,
+        long b,
+        long c,
+        long weightB,
+        long weightC)
+    {
+        BigInteger numerator = ((BigInteger)a << FixedMath.SHIFT_AMOUNT_I)
+            + (((BigInteger)b - a) * weightB)
+            + (((BigInteger)c - a) * weightC);
+        BigInteger denominator = BigInteger.One << FixedMath.SHIFT_AMOUNT_I;
+        BigInteger quotient = BigInteger.DivRem(BigInteger.Abs(numerator), denominator, out BigInteger remainder);
+        int midpointComparison = (remainder << 1).CompareTo(denominator);
+        if (midpointComparison > 0 || (midpointComparison == 0 && !quotient.IsEven))
+            quotient++;
+
+        if (numerator.Sign < 0)
+            quotient = -quotient;
+        if (quotient > long.MaxValue)
+            return Fixed64.MaxValue;
+        if (quotient < long.MinValue)
+            return Fixed64.MinValue;
+        return Fixed64.FromRaw((long)quotient);
+    }
+
+    [Fact]
     public void SumSquaredBarycentricProducts_ReturnsSecondOrderSimplexProductSum()
     {
         var result = FixedMath.SumSquaredBarycentricProducts(new Fixed64(2), new Fixed64(3), new Fixed64(5));

@@ -1693,7 +1693,7 @@ successful-reparent row measured 2.450 us. Both remained allocation-free.
 
 ### Task 9: Full-Domain Fixed Triangle2d Geometry
 
-**Status:** Not started.
+**Status:** Implementation and validation complete; owner review pending.
 
 **Files:**
 
@@ -1772,74 +1772,122 @@ public partial struct FixedTriangle2d
   Those require separate evidence and, for ray discriminants, wider arithmetic
   than `Signed192`.
 
-- [ ] **Step 1: Capture the ordinary-input baseline** for the existing
+- [x] **Step 1: Capture the ordinary-input baseline** for the existing
       `Triangle2dArea`, `Triangle2dContainsPoint`, `Triangle2dClosestPoint`,
       `Triangle2dGetPoint`, and `Triangle2dBarycentricWeights` benchmark rows.
       Record medians and allocations before source changes.
-- [ ] **Step 2: Add test-only `BigInteger` oracles** for exact endpoint
+- [x] **Step 2: Add test-only `BigInteger` oracles** for exact endpoint
       differences, signed cross products, half-area conversion, general signed
       ratios, barycentric interpolation, and raw squared-distance ordering. Keep
       all arbitrary-precision arithmetic in tests.
-- [ ] **Step 3: Add centroid and interpolation red tests.** Cover permutations
+- [x] **Step 3: Add centroid and interpolation red tests.** Cover permutations
       containing `Fixed64.MinValue`/`MaxValue`, exact thirds, raw rounding cases,
       full-domain barycentric cancellation whose final coordinate fits, and
       final-only positive/negative saturation.
-- [ ] **Step 4: Add signed-area and degeneracy red tests** for both winding
+- [x] **Step 4: Add signed-area and degeneracy red tests** for both winding
       orders, 65-bit endpoint differences, cancelling products with the smallest
       nonzero determinant, round-half-to-even area ties, positive/negative final
       saturation, and exact values immediately below/at/above the documented
       area epsilon threshold.
-- [ ] **Step 5: Add barycentric-solve red tests** for clockwise and
+- [x] **Step 5: Add barycentric-solve red tests** for clockwise and
       counter-clockwise full-domain triangles, interior/boundary/exterior points,
       negative and greater-than-one weights, denominator sign reversal, exact
       ratio ties, final weight saturation, and degenerate values immediately
       below/at/above the doubled-area epsilon threshold. Assert default outputs
       on failure.
-- [ ] **Step 6: Add containment red tests** using extreme coordinates where
+- [x] **Step 6: Add containment red tests** using extreme coordinates where
       ordinary `B - A` or `point - A` saturates, near-cancelling orientations,
       both windings, inclusive epsilon edges/vertices, exterior points, and
       collapsed line/point triangles.
-- [ ] **Step 7: Add closest-edge red tests** where all public squared distances
+- [x] **Step 7: Add closest-edge red tests** where all public squared distances
       saturate but one edge is exactly nearer. Add an exact equal-distance case
       and require stable AB, BC, CA tie order.
-- [ ] **Step 8: Run the focused scalar/math/triangle tests and confirm** the
+- [x] **Step 8: Run the focused scalar/math/triangle tests and confirm** the
       centroid, interpolation, orientation, ratio, containment, and distance
       ordering cases expose current intermediate saturation or underflow.
-- [ ] **Step 9: Extend the internal wide core minimally** with the signed
+- [x] **Step 9: Extend the internal wide core minimally** with the signed
       comparison, scaled round-half-to-even/saturating conversion, and general
       signed-ratio conversion required by these tests. Reuse the existing word
       multiplier, accumulator, magnitude extraction, unsigned comparison,
       subtraction, and guard/sticky rounding paths. Do not add a public wide
       number, generic arbitrary-precision API, heap allocation, or
       target-specific `Int128` branch.
-- [ ] **Step 10: Harden `FixedMath.BarycentricCoordinate`** by accumulating the
+- [x] **Step 10: Harden `FixedMath.BarycentricCoordinate`** by accumulating the
       base coordinate and both weighted 65-bit endpoint differences before one
       final Q32.32 conversion. Route `Vector2d.BarycentricCoordinates` and
       `FixedTriangle2d.GetPoint` through that shared implementation; add no
       triangle-local interpolation helper.
-- [ ] **Step 11: Harden triangle-derived values and predicates.** Use
+- [x] **Step 11: Harden triangle-derived values and predicates.** Use
       `FixedMath.Average` for both centroid components. Reuse exact wide cross
       products for signed area, area/denominator degeneracy thresholds, winding,
       containment edge tests, and the three direct barycentric numerators.
-- [ ] **Step 12: Harden closest-edge ordering** by comparing the exact raw
+- [x] **Step 12: Harden closest-edge ordering** by comparing the exact raw
       squared distances through the existing Vector2d/Task 6 helper. Keep the
       first candidate on equality and do not add a second distance type.
-- [ ] **Step 13: Update XML and geometry documentation** with final rounding and
+- [x] **Step 13: Update XML and geometry documentation** with final rounding and
       saturation, the two existing epsilon contracts, independently rounded
       barycentric weights, winding/boundary behavior, and deterministic AB/BC/CA
       closest-edge ordering.
-- [ ] **Step 14: Run focused and full validation** in `Release` and
+- [x] **Step 14: Run focused and full validation** in `Release` and
       `ReleaseLean`, then fresh exact coverage. Cover every wide sign,
       comparison, conversion, carry, guard/sticky, saturation, epsilon,
       winding, degeneracy, and tie-order branch; update the complexity register
       only from the fresh report.
-- [ ] **Step 15: Rerun the five existing triangle benchmark rows.** Require zero
-      allocations and no material ordinary-input regression; optimize shared
-      word operations rather than adding a reduced-range path with different
-      behavior.
-- [ ] **Step 16: Owner review checkpoint.** Leave all FixedMathSharp source,
+- [x] **Step 15: Rerun the five existing triangle benchmark rows.** Require zero
+      allocations and measure ordinary inputs against the legacy reduced-domain
+      baseline. Optimize shared word operations, but do not restore chained
+      rounding or derive the third weight merely to match old latency; record
+      any remaining cost of the stronger contract explicitly.
+- [x] **Step 16: Owner review checkpoint.** Leave all FixedMathSharp source,
       test, benchmark, and documentation changes unstaged and provide a proposed
       commit message.
+
+Task 9 baseline was captured on 2026-07-16 from the five existing short-run
+rows, all at 0 B: area 31.958 ns, containment 58.284 ns, closest point
+144.839 ns, `GetPoint` 53.644 ns, and barycentric weights 136.669 ns.
+
+Task 9 implementation completed on 2026-07-16. The shared wide core now owns
+single-conversion barycentric accumulation, signed scaled conversion, general
+signed ratios, and scaled magnitude thresholds. `FixedTriangle2d` uses exact
+cross products for area, degeneracy, weights, and containment; independently
+averages centroid components; and reuses exact `Vector2d` squared-distance
+ordering for stable AB, BC, CA candidates. Focused regressions recorded current
+intermediate-saturation failures before source edits, including a containment
+false positive and a closest-edge misorder with three saturated public
+distances. Final `Release` and `ReleaseLean` solution validation and both target
+framework builds passed.
+
+An independent review then found two signed-limit defects that the first oracle
+set missed: scaled conversion could discard a nonzero high word or wrap while
+rounding, and a positive ratio rounding to raw `2^63` could become
+`Fixed64.MinValue`. Public triangle regressions and direct `BigInteger` cases
+reproduced both failures before the shared roots were corrected. The final
+tests cover high-word overflow, pre/post-round signed limits, guarded-quotient
+carry, and both saturation signs. The unreachable zero-input bit-length branch
+was removed rather than covered artificially, and centroid expectations now
+come from an independent exact-average oracle.
+
+Final `Release` validation passed 1,393 FixedMathSharp and 8 Chronicler tests;
+`ReleaseLean` passed 1,372 and 8. Both target frameworks, benchmark projects,
+and standard/Lean packages built. Fresh coverage is 99.5% line / 97.3% branch
+project-wide, with every changed Task 9 method at 100% line and branch. The
+complexity register records the fully covered `GetSignedRatio` (48),
+`RoundSignedToFixed` (24), and `FixedTriangle2d.Contains` (12) paths; remaining
+legacy coverage belongs to Task 13.
+
+The final five-row short benchmark remained at 0 B. Medians were area 11.317 ns,
+containment 31.703 ns, closest point 140.518 ns, `GetPoint` 66.917 ns, and
+barycentric weights 215.880 ns. Area, containment, and closest point improved
+over the legacy baseline. Shared base/product accumulation and an exact
+unit-interval ratio dispatch recovered 9.0% and 30.8% from the first correct
+`GetPoint` and weight implementations. The final interpolation and weight rows
+remain 24.7% and 57.9% slower than the legacy reduced-domain implementation:
+the new contract performs one final interpolation rounding and three direct,
+independently rounded ratios instead of chained rounding and two ratios plus a
+saturating subtraction. Measured 64-by-32 multiplication, common-power
+cancellation, and direct-helper variants all regressed and were removed. A
+larger normalized multiword divider was rejected here because its substantial
+complexity was not justified by the remaining nanosecond-scale cost.
 
 ---
 

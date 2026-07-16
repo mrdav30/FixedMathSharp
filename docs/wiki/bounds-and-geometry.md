@@ -150,3 +150,20 @@ Vector3d closest = triangle.ClosestPoint(point);
 weights directly. `FixedTriangle.TryGetProjectedBarycentricWeights(...)` names
 the 3D projection behavior explicitly so callers do not confuse projected
 weights with strict on-plane containment.
+
+`FixedTriangle2d` evaluates endpoint differences, cross products, barycentric
+interpolation, and distance ordering across the complete raw `Fixed64` domain.
+`SignedArea` halves the exact doubled area and performs one final
+round-half-to-even conversion, saturating only the final signed result; `Area`
+is its nonnegative saturating magnitude. `Centroid` averages each component
+without an intermediate three-value sum. `IsDegenerate` uses an inclusive
+`Fixed64.Epsilon` area threshold, while `TryGetBarycentricWeights` preserves its
+separate inclusive `Fixed64.Epsilon` doubled-area failure threshold and returns
+three zero weights on failure. Successful A, B, and C weights come from direct
+exact numerators and are rounded and saturated independently.
+
+Containment is winding-independent and includes epsilon-wide edges and
+vertices. Exact orientations decide signs and tolerances before public scalar
+saturation; collapsed line and point triangles retain their edge-distance
+behavior. Closest-point candidates are visited in AB, BC, CA order, compared by
+exact squared distance, and exact ties retain the first candidate.

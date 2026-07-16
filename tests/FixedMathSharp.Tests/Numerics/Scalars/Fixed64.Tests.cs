@@ -611,6 +611,110 @@ public class Fixed64Tests
     }
 
     [Fact]
+    public void WideSignedConversionAndBarycentricAccumulation_MatchBigIntegerOracle()
+    {
+        BigInteger weighted = (((BigInteger)long.MinValue - long.MaxValue) * Fixed64.Half.m_rawValue) * 2;
+        Fixed64.Signed192 weightedActual = Fixed64.GetDifferenceDotProduct2D(
+            Fixed64.MinValue, Fixed64.MaxValue, Fixed64.MinValue, Fixed64.MaxValue,
+            Fixed64.Half, Fixed64.Zero, Fixed64.Half, Fixed64.Zero);
+
+        Assert.Equal(weighted, ToBigInteger(weightedActual));
+        Assert.Equal(
+            Fixed64.MinValue,
+            Fixed64.BarycentricCoordinateFullDomain(
+                Fixed64.MaxValue,
+                Fixed64.MinValue,
+                Fixed64.MinValue,
+                Fixed64.Half,
+                Fixed64.Half));
+
+        (BigInteger Value, int FractionalBits)[] conversions =
+        {
+            (BigInteger.One << 31, 32),
+            (3 * (BigInteger.One << 31), 32),
+            (-(BigInteger.One << 31), 32),
+            (-3 * (BigInteger.One << 31), 32),
+            ((BigInteger)long.MaxValue << 32, 32),
+            ((BigInteger)long.MinValue << 32, 32),
+            ((BigInteger)long.MaxValue << 33, 33),
+            ((BigInteger)long.MinValue << 33, 33),
+            (BigInteger.One << 128, 32),
+            (-(BigInteger.One << 128), 33),
+            (BigInteger.One << 160, 32),
+            (-(BigInteger.One << 159), 33),
+            ((BigInteger)long.MaxValue << 32 | ((BigInteger.One << 31) + 1), 32),
+            (-(((BigInteger.One << 63) << 32) + (BigInteger.One << 31) + 1), 32),
+            (((BigInteger)ulong.MaxValue << 32) + (BigInteger.One << 31) + 1, 32),
+            (-(((BigInteger)ulong.MaxValue << 32) + (BigInteger.One << 31) + 1), 32),
+        };
+
+        foreach ((BigInteger value, int fractionalBits) in conversions)
+        {
+            Assert.Equal(
+                RoundWideRawToFixed(value, fractionalBits),
+                Fixed64.RoundSignedToFixed(ToSigned192(value), fractionalBits));
+        }
+    }
+
+    [Fact]
+    public void WideGeneralSignedRatiosAndThresholds_MatchBigIntegerOracle()
+    {
+        (BigInteger Numerator, BigInteger Denominator)[] ratios =
+        {
+            (BigInteger.Zero, 3),
+            (1, 2),
+            (3, 2),
+            (-3, 2),
+            (3, -2),
+            (-3, -2),
+            (1, BigInteger.One << 33),
+            (3, BigInteger.One << 33),
+            ((BigInteger)long.MaxValue << 17, BigInteger.One << 49),
+            ((BigInteger)long.MinValue << 17, BigInteger.One << 49),
+            (BigInteger.One << 160, BigInteger.One),
+            (-(BigInteger.One << 160), BigInteger.One),
+            (long.MaxValue, BigInteger.One << 32),
+            ((BigInteger.One << 64) - 1, BigInteger.One << 33),
+            (BigInteger.One << 64, BigInteger.One << 33),
+            (-((BigInteger.One << 64) - 1), BigInteger.One << 33),
+            (-(BigInteger.One << 64), BigInteger.One << 33),
+            (-((BigInteger.One << 64) + 1), BigInteger.One << 33),
+        };
+
+        foreach ((BigInteger numerator, BigInteger denominator) in ratios)
+        {
+            Assert.Equal(
+                RoundWideRatioToFixed(numerator, denominator),
+                Fixed64.GetSignedRatio(ToSigned192(numerator), ToSigned192(denominator)));
+        }
+
+        Assert.Equal(Fixed64.MaxValue, Fixed64.GetSignedRatio(ToSigned192(1), default));
+        Assert.Equal(Fixed64.MinValue, Fixed64.GetSignedRatio(ToSigned192(-1), default));
+
+        BigInteger threshold = (BigInteger)Fixed64.Epsilon.m_rawValue << 33;
+        Assert.True(Fixed64.IsMagnitudeAtMost(ToSigned192(threshold - 1), (ulong)Fixed64.Epsilon.m_rawValue, 33));
+        Assert.True(Fixed64.IsMagnitudeAtMost(ToSigned192(-threshold), (ulong)Fixed64.Epsilon.m_rawValue, 33));
+        Assert.False(Fixed64.IsMagnitudeAtMost(ToSigned192(threshold + 1), (ulong)Fixed64.Epsilon.m_rawValue, 33));
+
+        var random = new System.Random(0x51A9_77);
+        var bytes = new byte[17];
+        for (int i = 0; i < 512; i++)
+        {
+            BigInteger numerator = NextSignedGeometryDot(random, bytes);
+            BigInteger denominator;
+            do
+            {
+                denominator = NextSignedGeometryDot(random, bytes);
+            }
+            while (denominator.IsZero);
+
+            Assert.Equal(
+                RoundWideRatioToFixed(numerator, denominator),
+                Fixed64.GetSignedRatio(ToSigned192(numerator), ToSigned192(denominator)));
+        }
+    }
+
+    [Fact]
     public void WideSegmentProductsThresholdsAndRatios_MatchBigIntegerOracle()
     {
         BigInteger maximumDot = (BigInteger.One << 130) - 1;
@@ -929,6 +1033,45 @@ public class Fixed64Tests
             quotient++;
 
         return quotient > long.MaxValue ? Fixed64.MaxValue : Fixed64.FromRaw((long)quotient);
+    }
+
+    private static Fixed64 RoundWideRawToFixed(BigInteger value, int fractionalBits)
+    {
+        BigInteger denominator = BigInteger.One << fractionalBits;
+        BigInteger quotient = BigInteger.DivRem(BigInteger.Abs(value), denominator, out BigInteger remainder);
+        int midpointComparison = (remainder << 1).CompareTo(denominator);
+        if (midpointComparison > 0 || (midpointComparison == 0 && !quotient.IsEven))
+            quotient++;
+        if (value.Sign < 0)
+            quotient = -quotient;
+        if (quotient > long.MaxValue)
+            return Fixed64.MaxValue;
+        if (quotient < long.MinValue)
+            return Fixed64.MinValue;
+        return Fixed64.FromRaw((long)quotient);
+    }
+
+    private static Fixed64 RoundWideRatioToFixed(BigInteger numerator, BigInteger denominator)
+    {
+        if (numerator.IsZero)
+            return Fixed64.Zero;
+        if (denominator.IsZero)
+            return numerator.Sign < 0 ? Fixed64.MinValue : Fixed64.MaxValue;
+
+        BigInteger quotient = BigInteger.DivRem(
+            BigInteger.Abs(numerator) << FixedMath.SHIFT_AMOUNT_I,
+            BigInteger.Abs(denominator),
+            out BigInteger remainder);
+        int midpointComparison = (remainder << 1).CompareTo(BigInteger.Abs(denominator));
+        if (midpointComparison > 0 || (midpointComparison == 0 && !quotient.IsEven))
+            quotient++;
+        if (numerator.Sign != denominator.Sign)
+            quotient = -quotient;
+        if (quotient > long.MaxValue)
+            return Fixed64.MaxValue;
+        if (quotient < long.MinValue)
+            return Fixed64.MinValue;
+        return Fixed64.FromRaw((long)quotient);
     }
 
     private static BigInteger NextSignedGeometryDot(System.Random random, byte[] bytes)

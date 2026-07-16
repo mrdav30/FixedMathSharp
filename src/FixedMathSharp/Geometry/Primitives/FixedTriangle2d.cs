@@ -79,16 +79,20 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// The signed area of the triangle. Positive values indicate counter-clockwise winding.
     /// </summary>
+    /// <remarks>
+    /// The exact endpoint-difference cross product is halved and converted once
+    /// with round-half-to-even and signed saturation.
+    /// </remarks>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 SignedArea
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Vector2d.CrossProduct(B - A, C - A) * Fixed64.Half;
+        get => Fixed64.RoundSignedToFixed(GetDoubledArea(), FixedMath.SHIFT_AMOUNT_I + 1);
     }
 
     /// <summary>
-    /// The non-negative area of the triangle.
+    /// The non-negative saturating magnitude of <see cref="SignedArea"/>.
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
@@ -110,25 +114,31 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     }
 
     /// <summary>
-    /// The arithmetic center of the three vertices.
+    /// The arithmetic center of the three vertices, averaged independently per component.
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector2d Centroid
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (A + B + C) / (Fixed64)3;
+        get => new(
+            FixedMath.Average(A.X, B.X, C.X),
+            FixedMath.Average(A.Y, B.Y, C.Y));
     }
 
     /// <summary>
-    /// Returns true when the triangle has no positive area.
+    /// Returns true when the exact area magnitude is less than or equal to
+    /// <see cref="Fixed64.Epsilon"/>.
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public bool IsDegenerate
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Area <= Fixed64.Epsilon;
+        get => Fixed64.IsMagnitudeAtMost(
+            GetDoubledArea(),
+            (ulong)Fixed64.Epsilon.m_rawValue,
+            FixedMath.SHIFT_AMOUNT_I + 1);
     }
 
     #endregion
@@ -164,11 +174,13 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// <summary>
     /// Gets the point represented by barycentric weights for vertices B and C.
     /// </summary>
+    /// <remarks>
+    /// Each component uses the shared full-domain barycentric interpolation
+    /// contract with one final round-half-to-even/saturating conversion.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector2d GetPoint(Fixed64 weightB, Fixed64 weightC)
-    {
-        return Vector2d.BarycentricCoordinates(A, B, C, weightB, weightC);
-    }
+    public Vector2d GetPoint(Fixed64 weightB, Fixed64 weightC) =>
+        Vector2d.BarycentricCoordinates(A, B, C, weightB, weightC);
 
     #endregion
 
@@ -178,15 +190,21 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     /// Computes barycentric weights for a point relative to this triangle.
     /// </summary>
     /// <returns>
-    /// True when the triangle has non-degenerate area; false when weights cannot be solved.
+    /// True when the exact doubled-area magnitude is greater than
+    /// <see cref="Fixed64.Epsilon"/>; otherwise false with three zero outputs.
     /// </returns>
+    /// <remarks>
+    /// The three weights use direct exact area numerators and are rounded and
+    /// saturated independently. Reversing winding does not change the result.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryGetBarycentricWeights(Vector2d point, out Fixed64 weightA, out Fixed64 weightB, out Fixed64 weightC)
     {
-        Vector2d ab = B - A;
-        Vector2d ac = C - A;
-        Fixed64 denominator = Vector2d.CrossProduct(ab, ac);
-        if (FixedMath.Abs(denominator) <= Fixed64.Epsilon)
+        Fixed64.Signed192 denominator = GetDoubledArea();
+        if (Fixed64.IsMagnitudeAtMost(
+            denominator,
+            (ulong)Fixed64.Epsilon.m_rawValue,
+            FixedMath.SHIFT_AMOUNT_I))
         {
             weightA = Fixed64.Zero;
             weightB = Fixed64.Zero;
@@ -194,49 +212,60 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
             return false;
         }
 
-        Vector2d ap = point - A;
-        weightB = Vector2d.CrossProduct(ap, ac) / denominator;
-        weightC = Vector2d.CrossProduct(ab, ap) / denominator;
-        weightA = Fixed64.One - weightB - weightC;
+        weightA = Fixed64.GetSignedRatio(GetCrossProduct(point, B, C), denominator);
+        weightB = Fixed64.GetSignedRatio(GetCrossProduct(point, C, A), denominator);
+        weightC = Fixed64.GetSignedRatio(GetCrossProduct(point, A, B), denominator);
         return true;
     }
 
     /// <summary>
-    /// Determines whether the point is inside the triangle, including edges and vertices.
+    /// Determines whether the point is inside the triangle, including epsilon-wide edges and vertices.
     /// </summary>
+    /// <remarks>
+    /// Exact wide orientations make the winding-independent decision before
+    /// scalar saturation. Collapsed line and point triangles retain edge-distance behavior.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(Vector2d point)
     {
-        Fixed64 signedArea = SignedArea;
-        if (FixedMath.Abs(signedArea) <= Fixed64.Epsilon)
+        Fixed64.Signed192 doubledArea = GetDoubledArea();
+        if (Fixed64.IsMagnitudeAtMost(
+            doubledArea,
+            (ulong)Fixed64.Epsilon.m_rawValue,
+            FixedMath.SHIFT_AMOUNT_I + 1))
             return IsPointOnAnyEdge(point);
 
-        Fixed64 ab = Vector2d.CrossProduct(B - A, point - A);
-        Fixed64 bc = Vector2d.CrossProduct(C - B, point - B);
-        Fixed64 ca = Vector2d.CrossProduct(A - C, point - C);
+        Fixed64.Signed192 ab = GetCrossProduct(A, B, point);
+        Fixed64.Signed192 bc = GetCrossProduct(B, C, point);
+        Fixed64.Signed192 ca = GetCrossProduct(C, A, point);
+        ulong epsilonRaw = (ulong)Fixed64.Epsilon.m_rawValue;
 
-        return signedArea > Fixed64.Zero
-            ? ab >= -Fixed64.Epsilon && bc >= -Fixed64.Epsilon && ca >= -Fixed64.Epsilon
-            : ab <= Fixed64.Epsilon && bc <= Fixed64.Epsilon && ca <= Fixed64.Epsilon;
+        return doubledArea.Sign > 0
+            ? IsNonnegativeWithinEpsilon(ab, epsilonRaw)
+                && IsNonnegativeWithinEpsilon(bc, epsilonRaw)
+                && IsNonnegativeWithinEpsilon(ca, epsilonRaw)
+            : IsNonpositiveWithinEpsilon(ab, epsilonRaw)
+                && IsNonpositiveWithinEpsilon(bc, epsilonRaw)
+                && IsNonpositiveWithinEpsilon(ca, epsilonRaw);
     }
 
     /// <summary>
     /// Finds the closest point on or inside this triangle to the supplied point.
     /// </summary>
+    /// <remarks>
+    /// Edge candidates are compared in AB, BC, CA order with exact squared
+    /// distances. Exact ties retain the first candidate.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector2d ClosestPoint(Vector2d point)
-    {
-        return Contains(point) ? point : ClosestPointOnEdges(point);
-    }
+    public Vector2d ClosestPoint(Vector2d point) =>
+        Contains(point) ? point : ClosestPointOnEdges(point);
 
     /// <summary>
     /// Computes the squared distance from the supplied point to this triangle.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Fixed64 DistanceSquared(Vector2d point)
-    {
-        return Vector2d.DistanceSquared(point, ClosestPoint(point));
-    }
+    public Fixed64 DistanceSquared(Vector2d point) =>
+        Vector2d.DistanceSquared(point, ClosestPoint(point));
 
     #endregion
 
@@ -275,16 +304,10 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
 
     /// <inheritdoc />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Equals(FixedTriangle2d other)
-    {
-        return A == other.A && B == other.B && C == other.C;
-    }
+    public bool Equals(FixedTriangle2d other) => A == other.A && B == other.B && C == other.C;
 
     /// <inheritdoc />
-    public override bool Equals(object? obj)
-    {
-        return obj is FixedTriangle2d other && Equals(other);
-    }
+    public override bool Equals(object? obj) => obj is FixedTriangle2d other && Equals(other);
 
     /// <inheritdoc />
     public override int GetHashCode()
@@ -313,35 +336,47 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     private Vector2d ClosestPointOnEdges(Vector2d point)
     {
         Vector2d best = GetEdge(0).ClosestPoint(point);
-        Fixed64 bestDistance = Vector2d.DistanceSquared(point, best);
-        TrySetCloserPoint(GetEdge(1), point, ref best, ref bestDistance);
-        TrySetCloserPoint(GetEdge(2), point, ref best, ref bestDistance);
+        TrySetCloserPoint(GetEdge(1), point, ref best);
+        TrySetCloserPoint(GetEdge(2), point, ref best);
         return best;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void TrySetCloserPoint(FixedSegment2d edge, Vector2d point, ref Vector2d best, ref Fixed64 bestDistance)
+    private static void TrySetCloserPoint(FixedSegment2d edge, Vector2d point, ref Vector2d best)
     {
         Vector2d candidate = edge.ClosestPoint(point);
-        Fixed64 distance = Vector2d.DistanceSquared(point, candidate);
-        if (distance >= bestDistance)
+        if (Vector2d.CompareDistanceSquared(point, candidate, point, best) >= 0)
             return;
 
-        bestDistance = distance;
         best = candidate;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector2d ComponentMin(Vector2d a, Vector2d b)
-    {
-        return new Vector2d(FixedMath.Min(a.X, b.X), FixedMath.Min(a.Y, b.Y));
-    }
+    private Fixed64.Signed192 GetDoubledArea() => GetCrossProduct(A, B, C);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector2d ComponentMax(Vector2d a, Vector2d b)
-    {
-        return new Vector2d(FixedMath.Max(a.X, b.X), FixedMath.Max(a.Y, b.Y));
-    }
+    private static Fixed64.Signed192 GetCrossProduct(Vector2d origin, Vector2d first, Vector2d second) =>
+        Fixed64.GetDifferenceCrossProduct2D(
+            first.X, origin.X, first.Y, origin.Y,
+            second.X, origin.X, second.Y, origin.Y);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsNonnegativeWithinEpsilon(Fixed64.Signed192 value, ulong epsilonRaw) =>
+        value.Sign >= 0
+        || Fixed64.IsMagnitudeAtMost(value, epsilonRaw, FixedMath.SHIFT_AMOUNT_I);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsNonpositiveWithinEpsilon(Fixed64.Signed192 value, ulong epsilonRaw) =>
+        value.Sign <= 0
+        || Fixed64.IsMagnitudeAtMost(value, epsilonRaw, FixedMath.SHIFT_AMOUNT_I);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector2d ComponentMin(Vector2d a, Vector2d b) =>
+        new(FixedMath.Min(a.X, b.X), FixedMath.Min(a.Y, b.Y));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector2d ComponentMax(Vector2d a, Vector2d b) =>
+        new(FixedMath.Max(a.X, b.X), FixedMath.Max(a.Y, b.Y));
 
     #endregion
 }

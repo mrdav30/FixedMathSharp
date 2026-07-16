@@ -202,6 +202,74 @@ public partial struct Fixed64
     }
 
     /// <summary>
+    /// Evaluates one barycentric coordinate without saturating endpoint
+    /// differences or weighted intermediates.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Fixed64 BarycentricCoordinateFullDomain(
+        Fixed64 coordA,
+        Fixed64 coordB,
+        Fixed64 coordC,
+        Fixed64 weightB,
+        Fixed64 weightC)
+    {
+        long baseRaw = coordA.m_rawValue;
+        ulong extension = baseRaw < 0L ? ulong.MaxValue : 0UL;
+        ulong high = extension;
+        ulong middle = (extension << FixedMath.SHIFT_AMOUNT_I)
+            | (unchecked((ulong)baseRaw) >> FixedMath.SHIFT_AMOUNT_I);
+        ulong low = unchecked((ulong)baseRaw << FixedMath.SHIFT_AMOUNT_I);
+        AccumulateDifferenceProduct(
+            coordB.m_rawValue,
+            baseRaw,
+            weightB.m_rawValue,
+            0L,
+            ref high,
+            ref middle,
+            ref low);
+        AccumulateDifferenceProduct(
+            coordC.m_rawValue,
+            baseRaw,
+            weightC.m_rawValue,
+            0L,
+            ref high,
+            ref middle,
+            ref low);
+        return RoundSignedToFixed(new Signed192(high, middle, low), FixedMath.SHIFT_AMOUNT_I);
+    }
+
+    /// <summary>
+    /// Converts a signed wide value to Q32.32 with one final
+    /// round-half-to-even step and signed saturation.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Fixed64 RoundSignedToFixed(Signed192 value, int fractionalBits)
+    {
+        bool negative = value.Sign < 0;
+        GetMagnitude(value, out ulong high, out ulong middle, out ulong low);
+        if (high != 0UL || (middle >> fractionalBits) != 0UL)
+            return negative ? MinValue : MaxValue;
+
+        ulong magnitude = (middle << (64 - fractionalBits)) | (low >> fractionalBits);
+        ulong limit = negative ? 1UL << 63 : (ulong)long.MaxValue;
+        if (magnitude > limit)
+            return negative ? MinValue : MaxValue;
+
+        ulong remainderMask = (1UL << fractionalBits) - 1UL;
+        ulong remainder = low & remainderMask;
+        ulong half = 1UL << (fractionalBits - 1);
+        if (remainder > half || (remainder == half && (magnitude & 1UL) != 0UL))
+        {
+            if (magnitude == limit)
+                return negative ? MinValue : MaxValue;
+            magnitude++;
+        }
+
+        long raw = negative ? unchecked(-(long)magnitude) : (long)magnitude;
+        return new Fixed64(raw);
+    }
+
+    /// <summary>
     /// Returns the exact sign of the scalar triple product of three raw
     /// three-component vectors.
     /// </summary>
@@ -247,6 +315,140 @@ public partial struct Fixed64
             rightHigh,
             rightMiddle,
             rightLow);
+    }
+
+    /// <summary>
+    /// Returns whether a wide magnitude is at most a positive raw threshold
+    /// shifted into the value's scale.
+    /// </summary>
+    internal static bool IsMagnitudeAtMost(Signed192 value, ulong rawThreshold, int leftShift)
+    {
+        Signed192 threshold = new(
+            0UL,
+            rawThreshold >> (64 - leftShift),
+            rawThreshold << leftShift);
+        return CompareMagnitude(value, threshold) <= 0;
+    }
+
+    /// <summary>
+    /// Converts an arbitrary nonzero signed wide ratio to Q32.32 with
+    /// round-half-to-even and signed saturation.
+    /// </summary>
+    internal static Fixed64 GetSignedRatio(Signed192 numerator, Signed192 denominator)
+    {
+        int numeratorSign = numerator.Sign;
+        int denominatorSign = denominator.Sign;
+        if (numeratorSign == 0)
+            return Zero;
+        if (denominatorSign == 0)
+            return numeratorSign < 0 ? MinValue : MaxValue;
+
+        bool negative = numeratorSign != denominatorSign;
+        GetMagnitude(numerator, out ulong numeratorHigh, out ulong numeratorMiddle, out ulong numeratorLow);
+        GetMagnitude(denominator, out ulong denominatorHigh, out ulong denominatorMiddle, out ulong denominatorLow);
+
+        if (!negative)
+        {
+            int comparison = CompareUnsigned(
+                numeratorHigh, numeratorMiddle, numeratorLow,
+                denominatorHigh, denominatorMiddle, denominatorLow);
+            if (comparison <= 0)
+            {
+                return comparison == 0
+                    ? One
+                    : GetUnitIntervalRatio(
+                        numeratorHigh, numeratorMiddle, numeratorLow,
+                        denominatorHigh, denominatorMiddle, denominatorLow);
+            }
+        }
+
+        int numeratorBits = GetBitLength(numeratorHigh, numeratorMiddle, numeratorLow);
+        int denominatorBits = GetBitLength(denominatorHigh, denominatorMiddle, denominatorLow);
+        int integerShift = numeratorBits - denominatorBits;
+        if (integerShift >= 31)
+        {
+            if (integerShift > 31)
+                return negative ? MinValue : MaxValue;
+
+            ShiftLeft(
+                denominatorHigh,
+                denominatorMiddle,
+                denominatorLow,
+                31,
+                out ulong limitHigh,
+                out ulong limitMiddle,
+                out ulong limitLow);
+            int limitComparison = CompareUnsigned(
+                numeratorHigh, numeratorMiddle, numeratorLow,
+                limitHigh, limitMiddle, limitLow);
+            if (limitComparison > 0 || (limitComparison == 0 && !negative))
+                return negative ? MinValue : MaxValue;
+            if (limitComparison == 0)
+                return MinValue;
+        }
+
+        ulong guardedQuotient = 0UL;
+        if (integerShift >= 0)
+        {
+            ShiftLeft(
+                denominatorHigh,
+                denominatorMiddle,
+                denominatorLow,
+                integerShift,
+                out ulong shiftedHigh,
+                out ulong shiftedMiddle,
+                out ulong shiftedLow);
+            for (int bit = integerShift; bit >= 0; bit--)
+            {
+                if (CompareUnsigned(
+                    numeratorHigh, numeratorMiddle, numeratorLow,
+                    shiftedHigh, shiftedMiddle, shiftedLow) >= 0)
+                {
+                    SubtractUnsigned(
+                        ref numeratorHigh,
+                        ref numeratorMiddle,
+                        ref numeratorLow,
+                        shiftedHigh,
+                        shiftedMiddle,
+                        shiftedLow);
+                    guardedQuotient |= 1UL << bit;
+                }
+
+                ShiftRightOne(ref shiftedHigh, ref shiftedMiddle, ref shiftedLow);
+            }
+        }
+
+        for (int bit = FixedMath.SHIFT_AMOUNT_I; bit >= 0; bit--)
+        {
+            ShiftLeftOne(ref numeratorHigh, ref numeratorMiddle, ref numeratorLow);
+            guardedQuotient <<= 1;
+            if (CompareUnsigned(
+                numeratorHigh, numeratorMiddle, numeratorLow,
+                denominatorHigh, denominatorMiddle, denominatorLow) < 0)
+            {
+                continue;
+            }
+
+            SubtractUnsigned(
+                ref numeratorHigh,
+                ref numeratorMiddle,
+                ref numeratorLow,
+                denominatorHigh,
+                denominatorMiddle,
+                denominatorLow);
+            guardedQuotient |= 1UL;
+        }
+
+        ulong magnitude = RoundGuardedQuotientToEven(
+            guardedQuotient,
+            (numeratorHigh | numeratorMiddle | numeratorLow) != 0UL,
+            out bool roundedOverflow);
+        ulong limit = negative ? 1UL << 63 : (ulong)long.MaxValue;
+        if (roundedOverflow || magnitude > limit)
+            return negative ? MinValue : MaxValue;
+
+        long raw = negative ? unchecked(-(long)magnitude) : (long)magnitude;
+        return new Fixed64(raw);
     }
 
     /// <summary>
@@ -317,14 +519,32 @@ public partial struct Fixed64
             return true;
         }
 
+        result = GetUnitIntervalRatio(
+            numeratorHigh,
+            numeratorMiddle,
+            numeratorLow,
+            denominatorHigh,
+            denominatorMiddle,
+            denominatorLow);
+        return true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Fixed64 GetUnitIntervalRatio(
+        ulong numeratorHigh,
+        ulong numeratorMiddle,
+        ulong numeratorLow,
+        ulong denominatorHigh,
+        ulong denominatorMiddle,
+        ulong denominatorLow)
+    {
         if ((numeratorHigh | denominatorHigh) == 0UL)
         {
-            result = GetUnitIntervalRatio128(
+            return GetUnitIntervalRatio128(
                 numeratorMiddle,
                 numeratorLow,
                 denominatorMiddle,
                 denominatorLow);
-            return true;
         }
 
         ulong guardedQuotient = 0UL;
@@ -357,8 +577,7 @@ public partial struct Fixed64
             guardedQuotient,
             (numeratorHigh | numeratorMiddle | numeratorLow) != 0UL,
             out _);
-        result = new Fixed64((long)rounded);
-        return true;
+        return new Fixed64((long)rounded);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -965,6 +1184,47 @@ public partial struct Fixed64
         high = (high << 1) | (middle >> 63);
         middle = (middle << 1) | (low >> 63);
         low <<= 1;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void ShiftLeft(
+        ulong high,
+        ulong middle,
+        ulong low,
+        int bits,
+        out ulong shiftedHigh,
+        out ulong shiftedMiddle,
+        out ulong shiftedLow)
+    {
+        if (bits == 0)
+        {
+            shiftedHigh = high;
+            shiftedMiddle = middle;
+            shiftedLow = low;
+            return;
+        }
+
+        shiftedHigh = (high << bits) | (middle >> (64 - bits));
+        shiftedMiddle = (middle << bits) | (low >> (64 - bits));
+        shiftedLow = low << bits;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void ShiftRightOne(ref ulong high, ref ulong middle, ref ulong low)
+    {
+        low = (low >> 1) | (middle << 63);
+        middle = (middle >> 1) | (high << 63);
+        high >>= 1;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int GetBitLength(ulong high, ulong middle, ulong low)
+    {
+        if (high != 0UL)
+            return 192 - CountLeadingZeroes(high);
+        if (middle != 0UL)
+            return 128 - CountLeadingZeroes(middle);
+        return 64 - CountLeadingZeroes(low);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
