@@ -60,16 +60,20 @@ public static class FixedMathChronicleHashWriterExtensions
     }
 
     /// <summary>
-    /// Writes a transform as position, rotation, then scale. Parent identity and derived Euler angles are not hashed.
+    /// Writes authoritative local position, local rotation, then local scale.
     /// </summary>
+    /// <remarks>
+    /// Parent identity and all derived world views are intentionally excluded. Adopting this local
+    /// contract is a replay/hash compatibility boundary for hashes produced by older package versions.
+    /// </remarks>
     public static void WriteTransform(this ref global::Chronicler.ChronicleHashWriter writer, FixedTransform value)
     {
         if (value == null)
             throw new ArgumentNullException(nameof(value));
 
-        writer.WriteVector3d(value.Position);
-        writer.WriteQuaternion(value.Rotation);
-        writer.WriteVector3d(value.Scale);
+        writer.WriteVector3d(value.LocalPosition);
+        writer.WriteQuaternion(value.LocalRotation);
+        writer.WriteVector3d(value.LocalScale);
     }
 
     /// <summary>

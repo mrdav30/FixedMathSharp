@@ -418,19 +418,6 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
         return matrix;
     }
 
-    /// <inheritdoc cref="SetLossyScale(Fixed64, Fixed64, Fixed64)" />
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 SetLossyScale(Vector3d scale) => SetLossyScale(scale.X, scale.Y, scale.Z);
-
-    /// <summary>
-    /// Creates a scaling matrix (puts the 'scale' vector down the diagonal)
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 SetLossyScale(Fixed64 x, Fixed64 y, Fixed64 z) =>
-        new(x, Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, y, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, z);
-
     /// <summary>
     /// Applies the provided local scale to the matrix by modifying the diagonal elements.
     /// </summary>
@@ -476,19 +463,32 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     }
 
     /// <summary>
-    /// Extracts the scaling factors from the matrix by returning the diagonal elements.
+    /// Extracts the unsigned magnitudes of the matrix basis rows.
     /// </summary>
-    /// <returns>A Vector3d representing the scale along X, Y, and Z axes.</returns>
-    public static Vector3d ExtractScale(Fixed3x3 matrix) =>
+    /// <returns>The nonnegative basis magnitudes along X, Y, and Z.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d ExtractScaleMagnitudes(Fixed3x3 matrix) =>
         new(new Vector3d(matrix.M11, matrix.M12, matrix.M13).Magnitude,
             new Vector3d(matrix.M21, matrix.M22, matrix.M23).Magnitude,
             new Vector3d(matrix.M31, matrix.M32, matrix.M33).Magnitude);
 
     /// <summary>
-    /// Extracts the scaling factors from the matrix by returning the diagonal elements (lossy).
+    /// Extracts canonical signed lossy scale from the matrix basis rows.
     /// </summary>
-    /// <returns>A Vector3d representing the scale along X, Y, and Z axes (lossy).</returns>
-    public static Vector3d ExtractLossyScale(Fixed3x3 matrix) => new(matrix.M11, matrix.M22, matrix.M33);
+    /// <remarks>A reflected basis assigns its one recoverable negative sign to X.</remarks>
+    public static Vector3d ExtractLossyScale(Fixed3x3 matrix)
+    {
+        Vector3d scale = ExtractScaleMagnitudes(matrix);
+        if (Fixed64.GetTripleProductSign(
+            matrix.M11, matrix.M12, matrix.M13,
+            matrix.M21, matrix.M22, matrix.M23,
+            matrix.M31, matrix.M32, matrix.M33) < 0)
+        {
+            scale.X = -scale.X;
+        }
+
+        return scale;
+    }
 
     #endregion
 

@@ -233,18 +233,6 @@ public class Fixed3x3Tests
     }
 
     [Fact]
-    public void Fixed3x3_SetLossyScale_Overloads_CreateExpectedMatrix()
-    {
-        var expected = new Fixed3x3(
-            new Fixed64(2), Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, new Fixed64(3), Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero, new Fixed64(4));
-
-        Assert.Equal(expected, Fixed3x3.SetLossyScale(new Vector3d(2, 3, 4)));
-        Assert.Equal(expected, Fixed3x3.SetLossyScale(new Fixed64(2), new Fixed64(3), new Fixed64(4)));
-    }
-
-    [Fact]
     public void InvertDiagonal_ZeroMiddleAxis_ReturnsOriginalMatrix()
     {
         var matrix = new Fixed3x3(
@@ -266,7 +254,7 @@ public class Fixed3x3Tests
 
         matrix.SetGlobalScale(globalScale);
 
-        var extractedScale = Fixed3x3.ExtractScale(matrix);
+        var extractedScale = Fixed3x3.ExtractScaleMagnitudes(matrix);
         Assert.Equal(globalScale, extractedScale);
     }
 
@@ -303,7 +291,7 @@ public class Fixed3x3Tests
         var other = Fixed3x3.CreateScale(new Vector3d(4, 5, 6));
         var direction = new Vector3d(1, 2, 3);
 
-        Assert.Equal(Fixed3x3.ExtractScale(matrix), matrix.ExtractScale());
+        Assert.Equal(Fixed3x3.ExtractScaleMagnitudes(matrix), matrix.ExtractScaleMagnitudes());
         Assert.Equal(Fixed3x3.ExtractLossyScale(matrix), matrix.ExtractLossyScale());
         Assert.Equal(Fixed3x3.TransformDirection(matrix, direction), matrix.TransformDirection(direction));
         Assert.Equal(Fixed3x3.InverseTransformDirection(matrix, direction), matrix.InverseTransformDirection(direction));

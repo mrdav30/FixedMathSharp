@@ -545,12 +545,12 @@ public sealed class Fixed3x3Assertions : FixedStructAssertions<Fixed3x3, Fixed3x
         params object[] becauseArgs)
     {
         Fixed64 limit = FixedAssertionHelpers.ResolveTolerance(tolerance);
-        Vector3d scale = Fixed3x3.ExtractScale(Subject);
+        Vector3d scale = Fixed3x3.ExtractScaleMagnitudes(Subject);
 
         CurrentAssertionChain
             .ForCondition(FixedAssertionHelpers.AreComponentApproximatelyEqual(scale, expected, limit))
             .BecauseOf(because, becauseArgs)
-            .FailWith("Expected fixed3x3 matrix scale to be approximately {0} +/- {1}{reason}, but found {2}.", expected, limit, scale);
+            .FailWith("Expected fixed3x3 matrix scale magnitudes to be approximately {0} +/- {1}{reason}, but found {2}.", expected, limit, scale);
 
         return new AndConstraint<Fixed3x3Assertions>(this);
     }
@@ -660,12 +660,12 @@ public sealed class Fixed4x4Assertions : FixedStructAssertions<Fixed4x4, Fixed4x
         params object[] becauseArgs)
     {
         Fixed64 limit = FixedAssertionHelpers.ResolveTolerance(tolerance);
-        Vector3d scale = Subject.Scale;
+        Vector3d scale = Fixed4x4.ExtractScaleMagnitudes(Subject);
 
         CurrentAssertionChain
             .ForCondition(FixedAssertionHelpers.AreComponentApproximatelyEqual(scale, expected, limit))
             .BecauseOf(because, becauseArgs)
-            .FailWith("Expected fixed4x4 matrix scale to be approximately {0} +/- {1}{reason}, but found {2}.", expected, limit, scale);
+            .FailWith("Expected fixed4x4 matrix scale magnitudes to be approximately {0} +/- {1}{reason}, but found {2}.", expected, limit, scale);
 
         return new AndConstraint<Fixed4x4Assertions>(this);
     }

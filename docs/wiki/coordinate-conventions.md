@@ -27,40 +27,61 @@ the same radian path; `DegToRad` is representable for every input, while
 nonzero finite axis scale-safely. A zero axis deterministically returns
 `FixedQuaternion.Identity`.
 
-## X/Z Planar Transforms
+## FixedTransform Contracts
 
-`FixedTransform` exposes an explicit bridge between `Vector2d` plane math and
-the core X/Z ground plane. A planar position `(x, y)` embeds as `(x, 0, y)`, and
-a planar scale `(x, y)` embeds as `(x, 1, y)`. The planar constructor accepts an
-optional `Parent` reference, but `FixedTransform` does not compose hierarchy
-state. `Scale` is therefore the authored component scale, not a lossy or
-hierarchy-derived world scale.
+`FixedTransform` is an engine-neutral transform snapshot shell. Its only
+authoritative values are `LocalPosition`, normalized `LocalRotation`, and exact
+signed or zero `LocalScale`. Adapters copy their host's local components into
+those properties; FixedMathSharp does not retain engine objects or synchronize
+live scene nodes.
 
-`PositionXZ` and `ScaleXZ` use the existing `ToVector2d`/`ToVector3d` mapping.
-Their setters replace X and Z while preserving the current Y elevation or Y
-scale. Component construction and assignment preserve negative and zero scale
-exactly. Rotation is stored as a normalized quaternion.
+`LocalMatrix` rebuilds those components as scale, rotation, then translation.
+With row vectors, a hierarchy composes in child-to-root multiplication order:
 
-Planar rotation is measured in radians from `Vector2d.Right` toward
-`Vector2d.Forward`, matching `Vector2d.Rotate`. Setting `RotationXZRadians`
-replaces pitch and roll with a pure rotation around `Vector3d.Up`; the
-quaternion uses the negated planar angle so positive planar rotation maps local
-right toward `+Z`. Getting it rotates local right, projects that direction onto
-X/Z, and returns `Atan2(z, x)`. This is deterministic and independent of scale
-even when the quaternion also contains pitch or roll. A zero projected
-local-right direction reports zero radians. Pure planar values round-trip
-modulo `Fixed64.TwoPi`.
+```csharp
+Fixed4x4 world = child.LocalMatrix * parent.LocalMatrix * grandParent.LocalMatrix;
+```
 
-The matrix constructor calls `Fixed4x4.Decompose` once and stores its resulting
-components. It deliberately inherits that method's existing canonicalization:
-scale magnitudes are extracted from basis rows, an odd handedness change is
-represented with a negative X scale, and zero scale magnitudes become one to
-avoid division by zero. Multiple negative axes are not uniquely recoverable and
-may be absorbed into the decomposed rotation. `Decompose` also does not reject
-shear, perspective, or other non-TRS matrices, so those inputs receive its
-established extraction result rather than a promised lossless TRS round trip.
-Component-constructed transforms do not pass through matrix decomposition and
-therefore do not inherit those ambiguities.
+`LocalToWorldMatrix`, `WorldPosition`, and `LossyScale` walk the parent chain
+iteratively on every read. Traversal is allocation-free and linear in depth;
+there is no child list, matrix cache, dirty propagation, or scene-graph
+ownership. Nonuniform scale and rotation at different hierarchy levels may
+produce a sheared world matrix. `WorldRotation` deliberately composes the
+stored quaternion chain instead of decomposing that matrix, so scale,
+reflection, and shear do not change the reported orientation.
+
+`LocalScale` remains the exact authored component value. `LossyScale` is a
+derived matrix view: basis magnitudes are preserved, including zero, and an odd
+reflection is canonicalized to negative X because a matrix cannot recover which
+authored axis originally carried the sign.
+
+Matrix import is explicit through `FixedTransform.TryCreateFromLocalMatrix`.
+It accepts only affine, nonsingular, orthogonal TRS matrices that pass strict
+decomposition and recomposition checks. Perspective, zero scale, shear,
+unrepresentable magnitudes, and non-round-trippable values return `false` and a
+null transform. Component construction is the lossless adapter path for signed
+and zero scale.
+
+Parent-preserving and world-space mutation methods also fail explicitly when a
+required parent inverse is singular, saturated, or does not verify in both
+multiplication orders. These operations are atomic: failure does not partially
+change local components or parent identity. Reparenting additionally rejects
+self and hierarchy cycles.
+
+### X/Z Planar Helpers
+
+The X/Z bridge keeps the existing plane convention. A planar position `(x, y)`
+embeds as `(x, 0, y)`, and planar scale `(x, y)` embeds as `(x, 1, y)`.
+`LocalPositionXZ` and `LocalScaleXZ` replace X and Z while preserving Y. Planar
+rotation is measured from `Vector2d.Right` toward `Vector2d.Forward`, matching
+`Vector2d.Rotate`; the local setter uses the negated Y-axis angle. Local and
+world getters rotate local right, project onto X/Z, and return `Atan2(z, x)`.
+Pure planar values round-trip modulo `Fixed64.TwoPi`.
+
+Chronicler hashes local position, local rotation, and local scale in that stable
+order. Parent identity and every derived world view are excluded. Moving from
+the earlier ambiguous component names to this authoritative local layout is an
+intentional replay/hash compatibility boundary.
 
 ## Runtime Helpers
 

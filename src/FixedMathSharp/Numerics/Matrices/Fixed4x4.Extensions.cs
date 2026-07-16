@@ -21,9 +21,9 @@ public static class Fixed4x4Extensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d ExtractLossyScale(this Fixed4x4 matrix) => Fixed4x4.ExtractLossyScale(matrix);
 
-    /// <inheritdoc cref="Fixed4x4.ExtractScale(Fixed4x4)" />
+    /// <inheritdoc cref="Fixed4x4.ExtractScaleMagnitudes(Fixed4x4)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d ExtractScale(this Fixed4x4 matrix) => Fixed4x4.ExtractScale(matrix);
+    public static Vector3d ExtractScaleMagnitudes(this Fixed4x4 matrix) => Fixed4x4.ExtractScaleMagnitudes(matrix);
 
     /// <inheritdoc cref="Fixed4x4.ExtractTranslation(Fixed4x4)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -51,6 +51,7 @@ public partial struct Fixed4x4
     /// <summary>
     /// Creates a rotation matrix from a quaternion.
     /// </summary>
+    /// <remarks>Quaternion magnitude does not affect the result; zero represents identity.</remarks>
     /// <param name="rotation">The quaternion representing the rotation.</param>
     /// <returns>A 4x4 matrix representing the rotation.</returns>
     public static Fixed4x4 CreateRotation(FixedQuaternion rotation)
@@ -325,23 +326,24 @@ public partial struct Fixed4x4
     /// rotational basis, and sets the translation component separately.
     /// </summary>
     /// <remarks>
-    /// - Uses a normalized rotation matrix to maintain numerical stability.
+    /// - Quaternion magnitude does not affect the rotation matrix; zero represents identity.
     /// - Applies non-uniform scaling to the rotation before setting translation.
     /// - Preferred when ensuring transformations remain mathematically correct.
-    /// - If the rotation is already normalized and combined transformations are needed, consider using <see cref="ScaleRotateTranslate"/>.
+    /// - For explicit matrix-composition order, see <see cref="ScaleRotateTranslate"/>.
     /// </remarks>
     /// <param name="translation">The translation vector.</param>
     /// <param name="scale">The scale vector.</param>
     /// <param name="rotation">The rotation quaternion.</param>
     /// <returns>A transformation matrix incorporating translation, rotation, and scale.</returns>
-    public static Fixed4x4 CreateTransform(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
-    {
-        Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();
+    public static Fixed4x4 CreateTransform(Vector3d translation, FixedQuaternion rotation, Vector3d scale) =>
+        CreateTransform(translation, rotation.ToMatrix3x3(), scale);
 
+    private static Fixed4x4 CreateTransform(Vector3d translation, Fixed3x3 rotation, Vector3d scale)
+    {
         return new Fixed4x4(
-            rotationMatrix.M11 * scale.X, rotationMatrix.M12 * scale.X, rotationMatrix.M13 * scale.X, Fixed64.Zero,
-            rotationMatrix.M21 * scale.Y, rotationMatrix.M22 * scale.Y, rotationMatrix.M23 * scale.Y, Fixed64.Zero,
-            rotationMatrix.M31 * scale.Z, rotationMatrix.M32 * scale.Z, rotationMatrix.M33 * scale.Z, Fixed64.Zero,
+            rotation.M11 * scale.X, rotation.M12 * scale.X, rotation.M13 * scale.X, Fixed64.Zero,
+            rotation.M21 * scale.Y, rotation.M22 * scale.Y, rotation.M23 * scale.Y, Fixed64.Zero,
+            rotation.M31 * scale.Z, rotation.M32 * scale.Z, rotation.M33 * scale.Z, Fixed64.Zero,
             translation.X, translation.Y, translation.Z, Fixed64.One);
     }
 
@@ -367,7 +369,9 @@ public partial struct Fixed4x4
     /// <remarks>
     /// - Use this method when transformations need to be applied **relative to an object's local origin**.
     /// - Example use cases include **animation systems**, **hierarchical transformations**, and **UI transformations**.
-    /// - If you need to apply world-space transformations, use <see cref="CreateTransform"/> instead.
+    /// - If you need to apply world-space transformations, use
+    ///   <see cref="CreateTransform(Vector3d, FixedQuaternion, Vector3d)"/> instead.
+    /// - Quaternion magnitude does not affect the rotation matrix; zero represents identity.
     /// </remarks>
     public static Fixed4x4 TranslateRotateScale(Vector3d translation, FixedQuaternion rotation, Vector3d scale)
     {

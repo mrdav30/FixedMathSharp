@@ -42,22 +42,33 @@ public partial struct Fixed4x4
     public static Vector3d ExtractForward(Fixed4x4 matrix) => new Vector3d(matrix.M31, matrix.M32, matrix.M33).NormalizeInPlace();
 
     /// <summary>
-    /// Extracts the scaling factors from the matrix by calculating the magnitudes of the basis vectors (non-lossy).
+    /// Extracts the unsigned magnitudes of the matrix basis rows.
     /// </summary>
-    /// <returns>A Vector3d representing the precise scale along the X, Y, and Z axes.</returns>
+    /// <returns>The nonnegative basis magnitudes along X, Y, and Z.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d ExtractScale(Fixed4x4 matrix) =>
+    public static Vector3d ExtractScaleMagnitudes(Fixed4x4 matrix) =>
         new(
             new Vector3d(matrix.M11, matrix.M12, matrix.M13).Magnitude,
             new Vector3d(matrix.M21, matrix.M22, matrix.M23).Magnitude,
             new Vector3d(matrix.M31, matrix.M32, matrix.M33).Magnitude);
 
     /// <summary>
-    /// Extracts the scaling factors from the matrix by returning the diagonal elements (lossy).
+    /// Extracts canonical signed lossy scale from the matrix basis rows.
     /// </summary>
-    /// <returns>A Vector3d representing the scale along X, Y, and Z axes (lossy).</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d ExtractLossyScale(Fixed4x4 matrix) => new(matrix.M11, matrix.M22, matrix.M33);
+    /// <remarks>A reflected basis assigns its one recoverable negative sign to X.</remarks>
+    public static Vector3d ExtractLossyScale(Fixed4x4 matrix)
+    {
+        Vector3d scale = ExtractScaleMagnitudes(matrix);
+        if (Fixed64.GetTripleProductSign(
+            matrix.M11, matrix.M12, matrix.M13,
+            matrix.M21, matrix.M22, matrix.M23,
+            matrix.M31, matrix.M32, matrix.M33) < 0)
+        {
+            scale.X = -scale.X;
+        }
+
+        return scale;
+    }
 
     /// <summary>
     /// Extracts the rotation component from the 4x4 matrix by normalizing the rotation matrix.
@@ -66,7 +77,7 @@ public partial struct Fixed4x4
     /// <returns>A FixedQuaternion representing the rotation component.</returns>
     public static FixedQuaternion ExtractRotation(Fixed4x4 matrix)
     {
-        Vector3d scale = ExtractScale(matrix);
+        Vector3d scale = ExtractScaleMagnitudes(matrix);
 
         // prevent divide by zero exception
         Fixed64 scaleX = scale.X == Fixed64.Zero ? Fixed64.One : scale.X;
@@ -84,8 +95,15 @@ public partial struct Fixed4x4
     }
 
     /// <summary>
-    /// Decomposes a 4x4 matrix into its translation, rotation, and scale components.
+    /// Attempts to decompose an affine 4x4 matrix into strict translation,
+    /// rotation, and canonical lossy-scale components.
     /// </summary>
+    /// <remarks>
+    /// Perspective, shear, singular or unrepresentable basis magnitudes, and
+    /// rotation bases that cannot round-trip within <see cref="Fixed64.Epsilon"/>
+    /// are rejected. Reflections assign their single negative scale sign to X.
+    /// Every failure writes zero translation, identity rotation, and unit scale.
+    /// </remarks>
     /// <param name="matrix">The 4x4 matrix to decompose.</param>
     /// <param name="translation">The extracted translation component.</param>
     /// <param name="rotation">The extracted rotation component as a quaternion.</param>
@@ -97,41 +115,76 @@ public partial struct Fixed4x4
         out FixedQuaternion rotation,
         out Vector3d scale)
     {
-        // Extract scale by calculating the magnitudes of the basis vectors
-        scale = ExtractScale(matrix);
+        translation = Vector3d.Zero;
+        rotation = FixedQuaternion.Identity;
+        scale = Vector3d.One;
 
-        // prevent divide by zero exception
-        scale = new Vector3d(
-             scale.X == Fixed64.Zero ? Fixed64.One : scale.X,
-             scale.Y == Fixed64.Zero ? Fixed64.One : scale.Y,
-             scale.Z == Fixed64.Zero ? Fixed64.One : scale.Z);
+        if (!matrix.IsAffine)
+            return false;
 
-        // normalize rotation and scaling
-        var inverseScale = new Vector3d(
-            FixedMath.FastDiv(Fixed64.One, scale.X),
-            FixedMath.FastDiv(Fixed64.One, scale.Y),
-            FixedMath.FastDiv(Fixed64.One, scale.Z));
-        Fixed4x4 normalizedMatrix = ApplyScaleToRotation(matrix, inverseScale);
-
-        // Extract translation
-        translation = new Vector3d(normalizedMatrix.M41, normalizedMatrix.M42, normalizedMatrix.M43);
-
-        // Check the determinant to ensure correct handedness
-        Fixed64 determinant = normalizedMatrix.GetDeterminant();
-        if (determinant < Fixed64.Zero)
+        Vector3d basisX = new(matrix.M11, matrix.M12, matrix.M13);
+        Vector3d basisY = new(matrix.M21, matrix.M22, matrix.M23);
+        Vector3d basisZ = new(matrix.M31, matrix.M32, matrix.M33);
+        if (!Vector3d.TryGetMagnitude(basisX, out Fixed64 scaleX)
+            || !Vector3d.TryGetMagnitude(basisY, out Fixed64 scaleY)
+            || !Vector3d.TryGetMagnitude(basisZ, out Fixed64 scaleZ)
+            || scaleX == Fixed64.Zero
+            || scaleY == Fixed64.Zero
+            || scaleZ == Fixed64.Zero)
         {
-            // Adjust for left-handed coordinate system by flipping one of the axes
-            scale.X = -scale.X;
-            normalizedMatrix.M11 = -normalizedMatrix.M11;
-            normalizedMatrix.M12 = -normalizedMatrix.M12;
-            normalizedMatrix.M13 = -normalizedMatrix.M13;
+            return false;
         }
 
-        // Extract the rotation component from the orthogonalized matrix
-        rotation = FixedQuaternion.FromMatrix(normalizedMatrix);
+        basisX /= scaleX;
+        basisY /= scaleY;
+        basisZ /= scaleZ;
+        if (!IsNormalizedOrthogonalBasis(basisX, basisY, basisZ))
+            return false;
 
+        int handedness = Fixed64.GetTripleProductSign(
+            matrix.M11, matrix.M12, matrix.M13,
+            matrix.M21, matrix.M22, matrix.M23,
+            matrix.M31, matrix.M32, matrix.M33);
+        if (handedness < 0)
+        {
+            scaleX = -scaleX;
+            basisX = -basisX;
+        }
+
+        Fixed3x3 normalizedBasis = new(
+            basisX,
+            basisY,
+            basisZ);
+        FixedQuaternion candidateRotation = FixedQuaternion.FromMatrix(normalizedBasis).Normalized;
+        Fixed3x3 reconstructed = candidateRotation.ToMatrix3x3();
+        if (!reconstructed.FuzzyEqualAbsolute(normalizedBasis, Fixed64.Epsilon))
+            return false;
+
+        Vector3d candidateTranslation = new(matrix.M41, matrix.M42, matrix.M43);
+        Vector3d candidateScale = new(scaleX, scaleY, scaleZ);
+        Fixed4x4 reconstructedTransform = CreateTransform(
+            candidateTranslation,
+            reconstructed,
+            candidateScale);
+        if (!reconstructedTransform.FuzzyEqualAbsolute(matrix, Fixed64.Epsilon))
+            return false;
+
+        translation = candidateTranslation;
+        rotation = candidateRotation;
+        scale = candidateScale;
         return true;
     }
+
+    private static bool IsNormalizedOrthogonalBasis(Vector3d x, Vector3d y, Vector3d z) =>
+        Vector3d.TryGetMagnitude(x, out Fixed64 xLength)
+        && Vector3d.TryGetMagnitude(y, out Fixed64 yLength)
+        && Vector3d.TryGetMagnitude(z, out Fixed64 zLength)
+        && FixedMath.Abs(xLength - Fixed64.One) <= Fixed64.Epsilon
+        && FixedMath.Abs(yLength - Fixed64.One) <= Fixed64.Epsilon
+        && FixedMath.Abs(zLength - Fixed64.One) <= Fixed64.Epsilon
+        && FixedMath.Abs(Vector3d.Dot(x, y)) <= Fixed64.Epsilon
+        && FixedMath.Abs(Vector3d.Dot(x, z)) <= Fixed64.Epsilon
+        && FixedMath.Abs(Vector3d.Dot(y, z)) <= Fixed64.Epsilon;
 
     /// <summary>
     /// Sets the translation component of the 4x4 matrix.
@@ -227,13 +280,15 @@ public partial struct Fixed4x4
     /// <param name="matrix">The matrix to modify. The rotation will replace the upper-left 3x3 portion of the matrix.</param>
     /// <param name="rotation">The quaternion representing the new rotation to apply.</param>
     /// <remarks>
-    /// This method preserves the matrix's translation component. For complete transformation updates, use <see cref="SetTransform"/>.
+    /// Quaternion magnitude does not affect the replacement rotation; zero
+    /// represents identity. This method preserves the matrix's translation
+    /// component. For complete transformation updates, use <see cref="SetTransform"/>.
     /// </remarks>
     public static Fixed4x4 SetRotation(Fixed4x4 matrix, FixedQuaternion rotation)
     {
         Fixed3x3 rotationMatrix = rotation.ToMatrix3x3();
 
-        Vector3d scale = ExtractScale(matrix);
+        Vector3d scale = ExtractScaleMagnitudes(matrix);
 
         // Apply rotation to the upper-left 3x3 matrix
 

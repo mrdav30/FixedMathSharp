@@ -118,17 +118,15 @@ queries, constraints, and CCD.
     dependencies already reduce arbitrary representable radians; degree/radian
     conversion uses the fused arithmetic core so conversion does not saturate
     before division. No second public angle-wrapper abstraction is added.
-13. `FixedTransform` remains one three-dimensional host shell but stores its
-    authored position, rotation, and scale components explicitly instead of
-    repeatedly decomposing an internal matrix. The matrix constructor performs
-    its documented decomposition once. It gains `PositionXZ`,
-    `RotationXZRadians`, and `ScaleXZ` plus one `Vector2d` constructor overload.
-    The position and scale setters preserve the existing Y component; the
-    rotation setter establishes a pure Y-axis rotation and therefore replaces
-    pitch and roll.
-14. `RotationXZRadians` follows `Vector2d.Rotate`: zero faces `Vector2d.Right`
-    and positive angles rotate toward `Vector2d.Forward`. The backing quaternion
-    therefore uses the negated Y-axis angle under the established X/Z embedding.
+13. `FixedTransform` remains one three-dimensional engine-neutral host shell
+    with authoritative local position, normalized rotation, and exact signed or
+    zero scale. It exposes explicit local/world names, derives matrices and
+    world views through an optional parent reference, and never owns children,
+    caching, dirty propagation, scene state, or engine objects.
+14. Local and world X/Z rotation follow `Vector2d.Rotate`: zero faces
+    `Vector2d.Right` and positive angles rotate toward `Vector2d.Forward`. Local
+    setters use the negated Y-axis angle under the established X/Z embedding;
+    world planar views derive from the normalized parent quaternion chain.
 15. `FixedSegment2d` owns full-domain point projection, point distance, unique
     finite-segment intersection, and closest segment-pair queries. Collinear
     overlap is not mislabeled as a unique intersection. `FixedSegment` owns
@@ -146,12 +144,18 @@ queries, constraints, and CCD.
     `FixedMath.Average`, and `GetPoint` routes through the hardened shared
     `FixedMath.BarycentricCoordinate`; no public wide-number or predicate type is
     added.
-17. `FixedTransform` remains a general math/host type and preserves signed or
-    zero authored scale. Gravitas collider scale represents physical dimensions,
-    not reflection: every scale component consumed by a 2D or 3D collider must
-    be strictly positive. Standalone transform scale and compound-part scale are
-    validated before shape math; Gravitas does not silently take absolute values
-    or attempt mesh winding reflection in this release.
+17. Matrix scale extraction never claims to recover authored components.
+    `ExtractScaleMagnitudes` returns unsigned basis lengths;
+    `ExtractLossyScale` returns the same magnitudes with reflected handedness
+    canonicalized to negative X. Strict `Fixed4x4.Decompose` rejects
+    perspective, shear, singular scale, unrepresentable magnitude, and
+    non-round-trippable rotation rather than silently inventing TRS values.
+18. `FixedTransform.LocalScale` remains a general math/host value and preserves
+    signed or zero authored scale. Gravitas collider scale represents physical
+    dimensions, not reflection: every canonical world-scale component consumed
+    by a 2D or 3D collider must be strictly positive. Transform and compound-part
+    scale are validated before shape math; Gravitas does not silently take
+    absolute values or attempt mesh winding reflection in this release.
 
 ## Current Review Findings
 
@@ -218,6 +222,13 @@ queries, constraints, and CCD.
   `LossyScale` name implies hierarchy behavior that `Parent` does not implement.
   Explicit component storage is both simpler and the only reliable source for
   the new planar rotation view.
+- Task 8 corrected component ownership but deliberately left `Parent` inert and
+  local/world naming ambiguous. `Fixed4x4.Decompose` still reports success for
+  perspective, shear, and singular matrices, while both matrix
+  `ExtractLossyScale` implementations return diagonal entries that change under
+  rotation instead of basis magnitudes. A usable engine-adapter boundary needs
+  strict local matrix import, explicit derived world views, and one canonical
+  hierarchy-derived lossy-scale contract without scene-graph ownership.
 - Once `FixedTransform.Scale` preserves sign, mechanically replacing
   `LossyScale` would feed negative dimensions into primitive bounds/radii while
   existing mesh validation rejects nonpositive scale. Gravitas needs one
@@ -1070,7 +1081,7 @@ Task 6 result:
 
 ### Task 7: Full-Domain 3D Segment Geometry
 
-**Status:** Complete as of 2026-07-15; awaiting owner review.
+**Status:** Complete and committed on 2026-07-15 as `b925924`.
 
 **Files:**
 
@@ -1233,7 +1244,7 @@ and solver complexity stay explicit owner-review considerations.
 
 ### Task 8: Explicit X/Z Planar Transform Contract
 
-**Status:** Complete as of 2026-07-15; awaiting owner review.
+**Status:** Complete and committed on 2026-07-15 as `323e9e0`.
 
 **Files:**
 
@@ -1344,11 +1355,339 @@ validation passed 1,300 FixedMathSharp plus 7 Chronicler tests in `Release`, and
 branch; all 19 `FixedTransform` methods reached 100% line and branch coverage.
 No benchmark was required by the approved task scope. A fresh independent
 review found no Critical or Important issues. Four known Gravitas `LossyScale`
-callers remain intentionally deferred to Task 11, where they will move to the
-explicit validated `Scale` contract. Because Chronicler hashes the exposed
-transform components directly, adopting this breaking package version is also
-an intentional replay/hash compatibility boundary for hosts whose prior state
-depended on matrix-canonicalized scale or rotation values.
+callers remain intentionally deferred to Task 11, where they will move to Task
+8A's genuine hierarchy-derived scale contract. Because Chronicler hashes the
+exposed transform components directly, adopting this breaking package version
+is also an intentional replay/hash compatibility boundary for hosts whose prior
+state depended on matrix-canonicalized scale or rotation values.
+
+---
+
+### Task 8A: Engine-Neutral FixedTransform Hierarchy Contract
+
+**Status:** Complete on 2026-07-16; awaiting owner review.
+
+**Files:**
+
+- Modify:
+  `src/FixedMathSharp/Numerics/Matrices/FixedTransform.cs`
+- Modify:
+  `src/FixedMathSharp/Numerics/Matrices/Fixed3x3.cs`
+- Modify:
+  `src/FixedMathSharp/Numerics/Matrices/Fixed3x3.Extensions.cs`
+- Modify:
+  `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.cs`
+- Modify:
+  `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Factories.cs`
+- Modify:
+  `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Decomposition.cs`
+- Modify:
+  `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Extensions.cs`
+- Modify:
+  `src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.Conversions.cs`
+- Modify:
+  `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
+- Modify:
+  `src/FixedMathSharp.FluentAssertions/FixedAssertions.cs`
+- Modify:
+  `src/FixedMathSharp.Chronicler/FixedMathChronicleHashWriterExtensions.cs`
+- Modify: `docs/wiki/coordinate-conventions.md`
+- Modify: `docs/complexity-exceptions.md` only if fresh metrics require a
+  registered exception.
+- Test:
+  `tests/FixedMathSharp.Tests/Numerics/Matrices/FixedTransform.Tests.cs`
+- Test:
+  `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed3x3.Tests.cs`
+- Test:
+  `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed4x4.Tests.cs`
+- Test:
+  `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+- Test:
+  `tests/FixedMathSharp.Tests/FixedAssertions.Tests.cs`
+- Test:
+  `tests/FixedMathSharp.Chronicler.Tests/FixedMathChronicleHashWriterExtensionsTests.cs`
+- Benchmark:
+  `tests/FixedMathSharp.Benchmarks/Matrix4x4Benchmarks.cs`
+- Benchmark:
+  `tests/FixedMathSharp.Benchmarks/QuaternionBenchmarks.cs`
+- Benchmark: create
+  `tests/FixedMathSharp.Benchmarks/FixedTransformBenchmarks.cs` only if the
+  existing matrix benchmark fixture cannot express parent-depth traversal
+  without mixing unrelated setup.
+
+**Interfaces:**
+
+- Consumes: Task 5's normalized full-domain quaternion construction, Task 7's
+  allocation-free wide signed arithmetic, Task 8's explicit component storage
+  and X/Z basis parity, and the existing row-vector `Fixed4x4` convention.
+- Produces one engine-neutral transform snapshot/hierarchy shell. Game-engine
+  adapters copy local components into this API; `FixedTransform` never retains
+  Unity, Godot, Unreal, renderer, scene-node, or other host references.
+
+```csharp
+public class FixedTransform
+{
+    public FixedTransform(
+        Vector3d localPosition,
+        FixedQuaternion localRotation,
+        Vector3d localScale,
+        FixedTransform? parent = null);
+
+    public FixedTransform(
+        Vector2d localPositionXZ,
+        Fixed64 localRotationXZRadians,
+        Vector2d localScaleXZ,
+        FixedTransform? parent = null);
+
+    public Vector3d LocalPosition { get; set; }
+    public FixedQuaternion LocalRotation { get; set; }
+    public Vector3d LocalScale { get; set; }
+    public Vector3d LocalEulerAngles { get; set; }
+    public Vector2d LocalPositionXZ { get; set; }
+    public Fixed64 LocalRotationXZRadians { get; set; }
+    public Vector2d LocalScaleXZ { get; set; }
+
+    public FixedTransform? Parent { get; }
+    public Fixed4x4 LocalMatrix { get; }
+    public Fixed4x4 LocalToWorldMatrix { get; }
+    public Vector3d WorldPosition { get; }
+    public FixedQuaternion WorldRotation { get; }
+    public Vector3d LossyScale { get; }
+    public Vector2d WorldPositionXZ { get; }
+    public Fixed64 WorldRotationXZRadians { get; }
+
+    public bool TryGetWorldToLocalMatrix(out Fixed4x4 matrix);
+    public void SetParentKeepingLocal(FixedTransform? parent);
+    public bool TrySetParentKeepingWorld(FixedTransform? parent);
+    public bool TrySetWorldPosition(Vector3d position);
+    public bool TrySetWorldPose(
+        Vector3d position,
+        FixedQuaternion rotation);
+
+    public static bool TryCreateFromLocalMatrix(
+        Fixed4x4 localMatrix,
+        out FixedTransform? transform,
+        FixedTransform? parent = null);
+}
+```
+
+- Local position, normalized rotation, and exact signed/zero scale are the only
+  stored transform values. The old ambiguous `Position`, `Rotation`, `Scale`,
+  `EulerAngles`, and planar aliases are removed rather than retained as legacy
+  forwarding APIs. `Parent` becomes read-only; the permissive matrix
+  constructor is removed.
+- `LocalMatrix` rebuilds directly through `Fixed4x4.CreateTransform`.
+  `LocalToWorldMatrix` iteratively multiplies child-local through ancestor-local
+  matrices in row-vector order. No recursion, child collection, scene graph,
+  matrix cache, dirty propagation, or engine adapter abstraction is added.
+- `WorldPosition` is composed-matrix translation. `WorldRotation` is the
+  normalized parent-to-child quaternion product independent of scale/shear.
+  `LossyScale` is the composed matrix's canonical signed basis magnitude:
+  zero axes remain zero, and a reflected basis assigns its single negative sign
+  to X because authored negative-axis allocation is not recoverable from a
+  matrix.
+- Parent changes reject self/ancestor cycles. `SetParentKeepingLocal` changes
+  only the parent reference. `TrySetParentKeepingWorld` commits atomically only
+  when the prospective parent is invertible and the resulting local matrix
+  passes strict TRS decomposition. World-position/pose mutation follows the
+  same no-partial-mutation rule.
+- `TryCreateFromLocalMatrix` accepts only affine, nonsingular, orthogonal TRS
+  input under absolute `Fixed64.Epsilon` normalized-basis and recomposition
+  checks. Perspective, shear, zero-scale/singular, unrepresentable-magnitude,
+  and non-round-trippable matrices return `false` with a null transform.
+  Component construction remains the lossless engine adapter path for signed
+  and zero local scale.
+- `FixedQuaternion.ToMatrix3x3` owns magnitude-independent quaternion-to-matrix
+  conversion: every nonzero common scaling of a quaternion produces the same
+  orthogonal rotation basis, while zero maps to identity. Full-domain component
+  scaling keeps the norm calculation representable. Matrix factories delegate
+  to that one conversion root instead of applying a stricter private
+  normalization policy.
+- World-to-local access uses the existing affine inverse only as a candidate,
+  then verifies both multiplication orders against identity before reporting
+  success. Extreme but mathematically invertible inputs may conservatively
+  return `false`; no world mutation trusts a saturated or unverified inverse.
+- Matrix scale naming becomes explicit across both matrix sizes:
+
+```csharp
+public static Vector3d ExtractScaleMagnitudes(Fixed3x3 matrix);
+public static Vector3d ExtractLossyScale(Fixed3x3 matrix);
+public static Vector3d ExtractScaleMagnitudes(Fixed4x4 matrix);
+public static Vector3d ExtractLossyScale(Fixed4x4 matrix);
+public readonly Vector3d LossyScale { get; }
+```
+
+  The ambiguous `ExtractScale`, `Fixed4x4.Scale`, diagonal-only
+  `ExtractLossyScale`, and duplicate `Fixed3x3.SetLossyScale` APIs are removed.
+  Magnitude extraction is nonnegative; lossy extraction applies the canonical
+  negative-X reflection convention. `Fixed4x4.Decompose` keeps its existing
+  Boolean signature but finally returns `false` for non-TRS input.
+
+- [x] **Step 1: Capture the existing matrix baseline and API inventory.** Run
+      the current `Matrix4x4Benchmarks.Decompose` row, record median and
+      allocation, and search all stack repositories for the removed transform
+      and matrix scale surfaces. Keep downstream engine/Gravitas migrations in
+      Task 11 rather than adding compatibility aliases here.
+- [x] **Step 2: Add matrix-scale red tests.** Cover identity, rotation-only,
+      nonuniform positive scale, each single negative axis, even/odd negative
+      counts, zero axes, shear, and values near both `Fixed64` limits for both
+      `Fixed3x3` and `Fixed4x4`. Compare handedness with a test-only `BigInteger`
+      triple-product oracle and prove diagonal entries are not scale.
+- [x] **Step 3: Add strict-decomposition red tests.** Accept ordinary affine
+      TRS, extreme translation, representable tiny/large scale, and canonical
+      single-reflection inputs. Reject
+      perspective, all shear directions, non-affine homogeneous rows,
+      singular/zero-scale bases, unrepresentable basis magnitudes, and
+      orthogonality just outside the documented tolerance. Require neutral out
+      values on every failure and successful normalized-space recomposition
+      within `Fixed64.Epsilon`.
+- [x] **Step 4: Add local-component and API red tests.** Cover renamed 3D/XZ
+      properties, exact signed/zero local scale, normalized local rotation,
+      `LocalMatrix`, parent construction, strict matrix creation, and removal of
+      all ambiguous aliases and the matrix constructor.
+- [x] **Step 5: Add hierarchy-read red tests.** Cover root, one-parent, and
+      multi-level translation/rotation/nonuniform-scale chains; row-vector
+      multiplication order; normalized quaternion world rotation; sheared
+      world matrices; canonical `LossyScale`; world X/Z projection; and depth
+      traversal without recursion or allocation.
+- [x] **Step 6: Add reparenting red tests.** Cover keep-local attach/detach,
+      exact keep-world attach/detach, unchanged-parent no-ops, self/ancestor
+      cycle rejection, singular prospective parents, shear/non-TRS relative
+      matrices, and atomic failure without component or parent mutation.
+- [x] **Step 7: Add world-mutation and inverse red tests.** Cover root and
+      nested `TrySetWorldPosition`/`TrySetWorldPose`, normalized relative
+      rotation, invertible nonuniform parents, singular parents, unchanged
+      local state after failure, and `TryGetWorldToLocalMatrix` round trips.
+      Include an extreme matrix whose ordinary affine inversion saturates and
+      require conservative failure unless both inverse multiplication orders
+      verify against identity.
+- [x] **Step 8: Add Chronicler red tests.** Hash only local position, rotation,
+      and scale in stable order. Prove derived matrices, world views, and parent
+      object identity are excluded, while a local-component change alters the
+      hash. Record the intentional replay/hash compatibility boundary.
+- [x] **Step 9: Run the focused matrix, transform, scalar-wide, and Chronicler
+      tests and confirm** missing explicit APIs, diagonal lossy extraction,
+      permissive decomposition, inert parent behavior, and ambiguous serialized
+      component names fail for the intended reasons.
+- [x] **Step 10: Harden matrix scale ownership.** Add only the allocation-free
+      wide triple-product sign operation required for full-domain handedness,
+      reuse scale-safe vector magnitudes, move both matrix sizes to explicit
+      magnitude/lossy naming, update the FluentAssertions scale diagnostic to
+      the explicit magnitude contract, preserve zero magnitudes, and remove the
+      duplicate scale APIs. Do not add a public wide integer or runtime
+      `BigInteger`.
+- [x] **Step 11: Make decomposition strict.** Validate exact affine layout,
+      nonzero representable basis magnitudes, scale-relative orthogonality,
+      canonical reflection, normalized rotation, and deterministic
+      recomposition before returning success. Make `ToMatrix3x3` itself
+      magnitude-independent through a full-domain scale-relative non-unit
+      quaternion formula so direct conversion and every owning `Fixed4x4`
+      rotation/TRS boundary share one truthful root. Preserve the public
+      tolerance-based `IsNormalized`/`Normalized` hot-path contract, and do not
+      weaken decomposition tolerance to accept a drifted basis. Route
+      `TryCreateFromLocalMatrix` and keep-world reparenting through this single
+      contract. Validate every candidate world-to-local inverse in both
+      multiplication orders before use; do not retain a permissive fallback or
+      silently accept saturated inverse arithmetic.
+- [x] **Step 12: Implement the transform hierarchy shell.** Rename stored/local
+      surfaces, compose matrices iteratively, compose normalized world rotation,
+      add explicit reparent/world mutation methods with cycle and atomicity
+      guarantees, and retain Task 8's X/Z angle convention. Do not add children,
+      caching, dirty flags, direction aliases, point-transform wrappers, or live
+      engine synchronization.
+- [x] **Step 13: Update Chronicler and documentation.** Serialize/hash local
+      authoritative components only. Document local/world naming, adapter
+      snapshot mapping, row-vector parent order, singular failure behavior,
+      strict matrix import, shear, canonical lossy scale, and the absence of
+      scene-graph ownership.
+- [x] **Step 14: Run focused and full validation** in `Release` and
+      `ReleaseLean`, then fresh exact coverage. Cover every affine, tolerance,
+      orthogonality, handedness, zero, cycle, depth, inversion, decomposition,
+      and atomic-failure branch; update the complexity register only from fresh
+      metrics.
+- [x] **Step 15: Measure the final contract.** Rerun matrix decomposition and
+      add allocation measurements for root and depth-eight world-matrix reads,
+      lossy-scale reads, and successful/failed reparenting. Require zero managed
+      allocation and document linear depth scaling. Also compare ordinary and
+      full-domain `ToMatrix3x3`, `CreateRotation`, `CreateTransform`, and
+      `ToEulerAngles` against the captured pre-conversion baseline; add a
+      precision-proven ordinary fast path only if evidence shows a material
+      regression. Do not add hierarchy caching unless a real downstream
+      benchmark proves it necessary.
+- [x] **Step 16: Independent review and owner checkpoint.** Have a fresh agent
+      review the complete source/test/docs diff, leave every change unstaged,
+      and provide a breaking-change commit message.
+
+Task 8A baseline captured on 2026-07-16: the focused matrix, transform, and
+FluentAssertions suite passed 223/223 tests in `Release`, and the Chronicler
+suite passed 7/7. The existing 256-sample `Matrix4x4Benchmarks.Decompose` row
+measured a 182.780 us median with no managed allocation under the documented
+short in-process diagnostic command on .NET 8.0.28 / Windows 11 / Intel
+i7-9700K. Repository inventory found only FixedMathSharp-owned migrations plus
+Gravitas: 53 production references and 156 test/benchmark references remain
+intentionally assigned to Task 11 because local-vs-world mutation requires a
+semantic migration rather than a name replacement. GridForge, Trailblazer,
+SwiftCollections, and Chronicler contain no affected API calls. The separate
+`FixedMathSharp-Unity` adapter requires an explicit compatibility audit before
+public release; core Task 8A remains engine agnostic and does not absorb that
+adapter work.
+
+Task 8A matrix foundation completed on 2026-07-16. Both matrix sizes now expose
+explicit unsigned-magnitude and canonical lossy-scale contracts; exact internal
+wide handedness covers the full raw domain; and `Fixed4x4.Decompose` rejects
+non-affine, singular, sheared, unrepresentable, or non-round-trippable input
+with neutral outputs. Review also found the deeper `CreateTransform` root:
+`FixedQuaternion.ToMatrix3x3` had silently used a unit-only formula. The public
+conversion is now magnitude independent for every nonzero quaternion and maps
+zero to identity. A proven ordinary band of `[1/2, 2]` preserves normalized
+rotation performance while tiny and extreme inputs use scale-relative
+coordinates. Final matrix-phase verification passed 1,365 `Release` and 1,344
+`ReleaseLean` tests plus clean `netstandard2.1` core/FluentAssertions builds.
+All six benchmark rows remained allocation-free; versus the broken baseline,
+the corrected final rows measured 162.275 ns ordinary conversion, 1.064 us
+full-domain conversion, 116.507 us `CreateRotation`, 154.317 us
+`CreateTransform`, 321.523 us strict `Decompose`, and 285.202 us Euler
+conversion on the recorded machine. Independent review passed with no Critical
+or Important findings.
+
+Task 8A transform hierarchy completed on 2026-07-16. `FixedTransform` now owns
+authoritative local TRS, iterative row-vector hierarchy composition,
+scale-independent quaternion world rotation, canonical composed lossy scale,
+strict matrix import, read-only parent identity, explicit keep-local/keep-world
+reparenting, verified world-to-local access, and atomic world position/pose
+mutation. Every derived position or matrix mutation that can lose
+representability forward-verifies its achieved world state before commit, so a
+representable inverse cannot hide a saturated target conversion. Quaternion
+pose composition stays within normalized rotational arithmetic and avoids a
+redundant unreachable verification branch. Chronicler hashes only local
+position, local rotation, and local
+scale; parent identity and derived world views remain outside deterministic
+state identity. Final transform-phase verification passed 1,378 `Release` and
+1,357 `ReleaseLean` FixedMathSharp tests plus 8 Chronicler tests in each
+configuration. Root/depth-eight reads, lossy scale, successful reparenting, and
+failed reparenting remained allocation-free; coherent non-null successful
+reparenting measured 2.281 us in the recorded short-run environment.
+Independent phase review passed with no Critical or Important findings.
+
+Task 8A final closeout completed on 2026-07-16. The broad independent review
+found one real strict-import gap: normalized-basis validation alone could hide
+scale-amplified reconstruction error. `Decompose` now also requires the complete
+candidate TRS matrix to round-trip within absolute `Fixed64.Epsilon`, with a
+regression proving a 1,000-scale matrix whose 1,476-raw-unit error is rejected
+with neutral outputs. Exact-coverage RCA also removed the unreachable
+zero-handedness and world-pose rotation guards, retained the reachable
+quaternion-reconstruction rejection through the shared matrix comparison, and
+made the final wide carry propagation branchless. Final verification passed
+1,382 FixedMathSharp plus 8 Chronicler tests in `Release`, and 1,361 plus 8 in
+`ReleaseLean`; clean `net8.0`/`netstandard2.1` builds and package builds passed.
+Fresh project-wide coverage measured 99.5% lines and 97.2% branches, while every
+Task 8A changed production contract reached 100% line and branch coverage. The
+remaining unrelated legacy gaps stay assigned to Task 12. Final independent
+re-review returned approved with no Critical or Important findings. The first
+strict full-matrix validation benchmark measured 389.975 us; reusing the
+already-computed rotation matrix instead of converting the same quaternion
+twice reduced the final `Decompose` median to 346.802 us. The affected coherent
+successful-reparent row measured 2.450 us. Both remained allocation-free.
 
 ---
 
@@ -1628,16 +1967,18 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 
 **Interfaces:**
 
-- Consumes: Tasks 5 through 8. Task 9 completes FixedMathSharp release
+- Consumes: Tasks 5 through 8A. Task 9 completes FixedMathSharp release
   hardening before this downstream phase but has no current Gravitas caller.
 - Produces: no new Gravitas math API. Host transform synchronization uses
-  `PositionXZ` and `RotationXZRadians`; segment operations use `FixedSegment2d`
-  and `FixedSegment`; joint angular error uses `FixedQuaternion.QuaternionLog`
-  directly; scale consumers use `Scale`.
-- FixedTransform itself permits signed/zero scale, but Gravitas admits only
-  strictly positive collider scale on every consumed axis. Invalid standalone or
-  compound scale fails explicitly before bounds, radius, inertia, mesh, or
-  partition state is built; no component-wise absolute-value fallback is used.
+  `WorldPositionXZ` and `WorldRotationXZRadians`; segment operations use
+  `FixedSegment2d` and `FixedSegment`; joint angular error uses
+  `FixedQuaternion.QuaternionLog` directly; hierarchy-aware collider scale
+  consumers use the genuine `LossyScale` world approximation.
+- `FixedTransform.LocalScale` permits signed/zero authored scale, but Gravitas
+  admits only strictly positive canonical world scale on every consumed
+  collider axis. Invalid standalone or compound scale fails explicitly before
+  bounds, radius, inertia, mesh, or partition state is built; no component-wise
+  absolute-value fallback is used.
 - Gravitas keeps its scalar 2D rotation canonical in the half-open interval
   `[-Pi, Pi)`, so `+Pi` has the single representative `-Pi`. This is
   authoritative state hygiene, not a second quaternion angle restriction.
@@ -1661,13 +2002,15 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
       components on each participating axis of standalone 3D primitives, meshes,
       2D/3D compound parts, and runtime scale rebuilds. Require one explicit
       failure contract before shape/partition mutation; retain positive
-      nonuniform-scale behavior. Prove FixedTransform still stores the rejected
-      signed value so the policy boundary is Gravitas, not hidden math loss.
+      nonuniform-scale behavior. Prove `FixedTransform.LocalScale` still stores
+      the rejected signed value so the policy boundary is Gravitas, not hidden
+      math loss.
 - [ ] **Step 5: Replace manual X/Z transform projection** in 2D body/collider
-      host paths with `PositionXZ` and `RotationXZRadians`. Preserve host Y
-      elevation and do not alter mixed-slab ownership. Replace every
-      `LossyScale` consumer with explicit validated `Scale`; do not recreate the
-      removed alias or take an implicit absolute value in Gravitas.
+      host paths with `WorldPositionXZ` and `WorldRotationXZRadians`. Preserve
+      host Y elevation and do not alter mixed-slab ownership. Route every
+      hierarchy-sensitive collider-scale consumer through genuine
+      `LossyScale`, validate the canonical result explicitly, and never take an
+      implicit absolute value in Gravitas.
 - [ ] **Step 6: Centralize collider-scale validation** at the earliest shared
       2D/3D standalone and compound admission/rebuild boundaries. Reject any
       consumed component `<= Fixed64.Zero` before mutating runtime shape,
@@ -1697,16 +2040,18 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 - [ ] **Step 11: Run focused 2D, 3D, mixed, segment, scale, constraint, and
       serialization tests in `Release` and `ReleaseLean`.** Confirm no
       `PlanarSegmentGeometry`, `GetSafeQuaternionLog`, or manual `EulerAngles.Y`
-      2D host mapping remains, and `rg -n "LossyScale"` returns no runtime or
-      test caller.
+      2D host mapping remains, no ambiguous `Position`/`Rotation`/`Scale`
+      `FixedTransform` access remains, and every `LossyScale` caller validates
+      strictly positive canonical world scale before shape mutation.
 - [ ] **Step 12: Run the existing 2D simulation, mixed collision/query, and 3D
       constraint benchmark rows.** Require zero allocation regression and no
       material slowdown from value-type segment construction or planar
       projection.
 - [ ] **Step 13: Update coordinate documentation** with the explicit X/Z
-      property names, positive-angle basis, Y preservation, canonical Gravitas
-      scalar rotation range, and the distinction between general signed
-      transform scale and strictly positive physics-collider dimensions.
+      local/world property names, positive-angle basis, Y preservation,
+      canonical Gravitas scalar rotation range, and the distinction between
+      general signed local transform scale, hierarchy-derived lossy world
+      scale, and strictly positive physics-collider dimensions.
 - [ ] **Step 14: Owner review checkpoint.** Leave all Gravitas changes unstaged
       and provide a proposed commit message.
 

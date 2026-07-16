@@ -16,9 +16,9 @@ public static class Fixed3x3Extensions
 {
     #region Transformations
 
-    /// <inheritdoc cref="Fixed3x3.ExtractScale(Fixed3x3)" />
+    /// <inheritdoc cref="Fixed3x3.ExtractScaleMagnitudes(Fixed3x3)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3d ExtractScale(this Fixed3x3 matrix) => Fixed3x3.ExtractScale(matrix);
+    public static Vector3d ExtractScaleMagnitudes(this Fixed3x3 matrix) => Fixed3x3.ExtractScaleMagnitudes(matrix);
 
     /// <inheritdoc cref="Fixed3x3.ExtractLossyScale(Fixed3x3)" />
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

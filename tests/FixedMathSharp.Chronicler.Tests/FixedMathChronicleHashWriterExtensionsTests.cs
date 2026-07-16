@@ -70,16 +70,16 @@ public sealed class FixedMathChronicleHashWriterExtensionsTests
             Hash((ref ChronicleHashWriter writer) => writer.WriteQuaternion(quaternion)));
         Assert.Equal(
             HashRaw(
-                transform.Position.X.m_rawValue,
-                transform.Position.Y.m_rawValue,
-                transform.Position.Z.m_rawValue,
-                transform.Rotation.X.m_rawValue,
-                transform.Rotation.Y.m_rawValue,
-                transform.Rotation.Z.m_rawValue,
-                transform.Rotation.W.m_rawValue,
-                transform.Scale.X.m_rawValue,
-                transform.Scale.Y.m_rawValue,
-                transform.Scale.Z.m_rawValue),
+                transform.LocalPosition.X.m_rawValue,
+                transform.LocalPosition.Y.m_rawValue,
+                transform.LocalPosition.Z.m_rawValue,
+                transform.LocalRotation.X.m_rawValue,
+                transform.LocalRotation.Y.m_rawValue,
+                transform.LocalRotation.Z.m_rawValue,
+                transform.LocalRotation.W.m_rawValue,
+                transform.LocalScale.X.m_rawValue,
+                transform.LocalScale.Y.m_rawValue,
+                transform.LocalScale.Z.m_rawValue),
             Hash((ref ChronicleHashWriter writer) => writer.WriteTransform(transform)));
         Assert.Equal(
             HashRaw(11, 12, 13, 14, 15, 16, 17, 18, 19),
@@ -95,6 +95,40 @@ public sealed class FixedMathChronicleHashWriterExtensionsTests
         var writer = new ChronicleHashWriter();
 
         Assert.Throws<ArgumentNullException>(() => writer.WriteTransform(null!));
+    }
+
+    [Fact]
+    public void WriteTransform_HashesOnlyAuthoritativeLocalComponents()
+    {
+        var firstParent = new FixedTransform(
+            new Vector3d(Raw(20), Raw(21), Raw(22)),
+            FixedQuaternion.Identity,
+            Vector3d.One);
+        var secondParent = new FixedTransform(
+            new Vector3d(Raw(30), Raw(31), Raw(32)),
+            FixedQuaternion.Identity,
+            Vector3d.One);
+        var first = new FixedTransform(
+            new Vector3d(Raw(1), Raw(2), Raw(3)),
+            FixedQuaternion.Identity,
+            new Vector3d(Raw(4), Raw(5), Raw(6)),
+            firstParent);
+        var second = new FixedTransform(
+            first.LocalPosition,
+            first.LocalRotation,
+            first.LocalScale,
+            secondParent);
+
+        Assert.NotEqual(first.WorldPosition, second.WorldPosition);
+        Assert.Equal(
+            Hash((ref ChronicleHashWriter writer) => writer.WriteTransform(first)),
+            Hash((ref ChronicleHashWriter writer) => writer.WriteTransform(second)));
+
+        second.LocalPosition = new Vector3d(Raw(7), Raw(2), Raw(3));
+
+        Assert.NotEqual(
+            Hash((ref ChronicleHashWriter writer) => writer.WriteTransform(first)),
+            Hash((ref ChronicleHashWriter writer) => writer.WriteTransform(second)));
     }
 
     [Fact]

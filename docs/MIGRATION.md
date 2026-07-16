@@ -1,4 +1,6 @@
-# Migrating From v5.x To v6.x
+# FixedMathSharp Migration Guide
+
+## Migrating From v5.x To v6.x
 
 FixedMathSharp v6.x is a geometry and bounds hardening release. The largest
 change is dimensional clarity: `FixedBoundBox` is the 3D AABB type, while
@@ -10,7 +12,7 @@ writers.
 
 Use this guide when upgrading from any v5.x package.
 
-## v6 Upgrade Checklist
+### v6 Upgrade Checklist
 
 - Update package references to `FixedMathSharp` v6.x, or `FixedMathSharp.Lean`
   v6.x if you use the lean package.
@@ -26,7 +28,7 @@ Use this guide when upgrading from any v5.x package.
   or `FixedBoundSphere` state directly.
 - Re-run deterministic replay, save/load, spatial-query, and broad-phase tests.
 
-## Dimensional Bounds Split
+### Dimensional Bounds Split
 
 `FixedBoundArea` no longer represents a 3D shape. It is now a normalized 2D
 axis-aligned area backed by `Vector2d`:
@@ -67,7 +69,7 @@ FixedRay2d ray2d = new(origin2d, direction2d);
 Fixed64? planarHit = ray2d.Intersects(area);
 ```
 
-## FixedBoundBox Construction
+### FixedBoundBox Construction
 
 The public `FixedBoundBox(Vector3d center, Vector3d size)` constructor was
 removed because call sites could not tell whether two vectors meant center/size,
@@ -97,7 +99,7 @@ FixedBoundBox box = new FixedBoundBox(
 Use that constructor for explicit state transfer, not for ordinary call-site
 construction.
 
-## Allocation-Free Box Corners
+### Allocation-Free Box Corners
 
 `FixedBoundBox.Vertices` was removed. It exposed mutable array storage from a
 value type and could allocate when callers only needed a corner.
@@ -116,7 +118,7 @@ box.CopyCorners(corners);
 `GetCorner` and `CopyCorners` use the same stable corner order. Prefer
 `GetCorner` for one-off access and caller-owned spans/arrays for bulk copies.
 
-## Intersection Semantics
+### Intersection Semantics
 
 Default `Intersects` methods now use closed-bound, boundary-inclusive overlap.
 Touching edges, faces, corners, or tangent surfaces count as intersections.
@@ -139,7 +141,7 @@ If your v5.x logic depended on `FixedBoundBox.Intersects(FixedBoundBox)`
 returning `false` for face, edge, or corner contact, switch that call site to
 `IntersectsStrict`.
 
-## Radius And Serialized Bounds State
+### Radius And Serialized Bounds State
 
 `FixedBoundCircle` is new in v6.x. `FixedBoundSphere` was also tightened so
 negative radii are normalized through construction, assignment, and serialized
@@ -161,7 +163,7 @@ payloads:
 - 2D circles write `Center` then normalized `Radius`.
 - 3D spheres write `Center` then normalized `Radius`.
 
-## New Geometry Primitives
+### New Geometry Primitives
 
 v6.x adds reusable deterministic geometry primitives that downstream packages
 can use instead of local one-off structs:
@@ -191,7 +193,7 @@ behavior explicitly.
 `Vector3d.BarycentricCoordinates(...)` for reconstructing points from known B/C
 barycentric weights.
 
-## Chronicler Hash Companion Package
+### Chronicler Hash Companion Package
 
 FixedMathSharp v6.x includes an optional `FixedMathSharp.Chronicler` companion
 package. Add it only when your project uses Chronicler replay hashing:
@@ -215,7 +217,7 @@ Important `FixedBoundArea` change: `WriteBoundArea` now writes the new 2D
 that hash input to `WriteBoundBox` or to an explicit 2D area plus separate
 layer/elevation fields.
 
-## Suggested Search Patterns
+### Suggested Search Patterns
 
 After updating package references, these searches catch the most common v6
 migration work:
@@ -236,7 +238,7 @@ Review each `FixedBoundArea` match by dimension. If the surrounding code uses
 `Vector3d`, a ray/plane/frustum, or volumetric bounds, it probably wants
 `FixedBoundBox`. If the code is planar, migrate to the new `Vector2d` area.
 
-## v6 Suggested Validation
+### v6 Suggested Validation
 
 After migrating source, run:
 
@@ -254,7 +256,7 @@ intersection semantics, and serialized geometry state.
 
 ---
 
-# Migrating From v4.x To v5.0.0
+## Migrating From v4.x To v5.0.0
 
 FixedMathSharp v5.0.0 is a major API hardening release. The migration is mostly
 source-level cleanup, but several changes affect numeric interpretation,
@@ -262,7 +264,7 @@ transform semantics, and public names.
 
 Use this guide when upgrading from v4.0.1 or earlier.
 
-## Upgrade Checklist
+### Upgrade Checklist
 
 - Update package references to `FixedMathSharp` 5.0.0, or `FixedMathSharp.Lean`
   5.0.0 if you use the lean package.
@@ -278,7 +280,7 @@ Use this guide when upgrading from v4.0.1 or earlier.
 - Re-run deterministic replay, save/load, and lockstep tests after the code
   compiles.
 
-## Geometry Type Renames
+### Geometry Type Renames
 
 The bounds types now use the same `Fixed*` naming style as the rest of the
 library.
@@ -304,11 +306,11 @@ FixedBoundBox room = new FixedBoundBox(center, size);
 FixedEnclosureType state = room.Contains(other);
 ```
 
-## Fixed64 Value And Raw Conversions
+### Fixed64 Value And Raw Conversions
 
 `Fixed64` now makes value-space and raw-payload conversions explicit.
 
-### Decimal Text Vs Raw Text
+#### Decimal Text Vs Raw Text
 
 In v4.x, `Fixed64.Parse` and `TryParse` interpreted text as a raw Q32.32 `long`
 payload. In v5.0.0, they parse normal decimal value text.
@@ -328,7 +330,7 @@ Use `TryParseRaw` for raw payload text and `ToRawString` when writing raw text.
 Use `Parse`, `TryParse`, `ToString`, and `TryFormat` for human-readable decimal
 diagnostics.
 
-### Constructor And Factory Changes
+#### Constructor And Factory Changes
 
 The public double constructor was removed. Floating-point input now goes through
 checked boundary factories.
@@ -360,7 +362,7 @@ factories, and `FixedCurveKey.FromDouble` now reject `NaN` and infinities with
 `ArgumentOutOfRangeException`. Finite values outside the Q32.32 range throw
 `OverflowException`.
 
-### Raw Longs Vs Integer Longs
+#### Raw Longs Vs Integer Longs
 
 The `Fixed64` arithmetic operators that accepted `long` operands were removed.
 Those overloads were ambiguous because a `long` can mean either a normal integer
@@ -378,7 +380,7 @@ The explicit `long` conversion now saturates to `Fixed64.MinValue` or
 `Fixed64.MaxValue` when the source integer is outside the representable Q32.32
 whole-number range.
 
-## Fixed-Point Boundary APIs
+### Fixed-Point Boundary APIs
 
 Several cross-domain helpers were removed so deterministic code stays in
 fixed-point land.
@@ -393,7 +395,7 @@ fixed-point land.
 Keep floating-point conversion at engine, UI, editor, or import/export
 boundaries. Core simulation code should pass `Fixed64` values directly.
 
-## Scalar Algorithm Ownership
+### Scalar Algorithm Ownership
 
 `FixedMath` is the canonical home for scalar algorithms such as interpolation,
 powers, logarithms, trigonometry, square root, rounding, and clamping. `Fixed64`
@@ -412,7 +414,7 @@ surface, such as `FixedMath.Lerp`, `FixedMath.CatmullRom`,
 extension surface is curated and forwards to the canonical implementation.
 Factories and convention-heavy methods stay on the owning type.
 
-## Vector API Cleanup
+### Vector API Cleanup
 
 Vector mutation and value-returning APIs now use one naming model.
 
@@ -450,7 +452,7 @@ the existing `[MemoryPackOrder]` attributes.
 `NormalizeInPlace(out Fixed64 magnitude)` because it returns a second scalar
 result.
 
-## Matrix And Transform Semantics
+### Matrix And Transform Semantics
 
 v5.0.0 makes affine transform semantics explicit and consistent:
 
@@ -476,7 +478,7 @@ Fixed4x4.Decompose(matrix, out Vector3d scale, out FixedQuaternion rotation, out
 Fixed4x4.Decompose(matrix, out Vector3d translation, out FixedQuaternion rotation, out Vector3d scale);
 ```
 
-## Coordinate Convention Helpers
+### Coordinate Convention Helpers
 
 Use `CoordinateConvention3d` at adapter boundaries instead of changing core
 direction constants or adding engine-specific conditionals.
@@ -496,7 +498,7 @@ Built-in conventions include:
 These helpers map direction vectors and signed axes. Matrix storage, handedness,
 clip-space depth, units, and origins remain adapter-specific concerns.
 
-## Bounds And Hot-Path Helpers
+### Bounds And Hot-Path Helpers
 
 `FixedBoundSphere.CreateFromPoints` now has `Vector3d[]` and
 `ReadOnlySpan<Vector3d>` overloads for countable, allocation-light call sites.
@@ -511,7 +513,7 @@ APIs. Their docs describe the skipped checks or precision caveats. Prefer the
 normal operators unless a local benchmark proves that the fast path is correct
 for your inputs and worth the narrower contract.
 
-## Diagnostics Formatting
+### Diagnostics Formatting
 
 Human-readable formatting is now separated from raw payload representation:
 
@@ -524,7 +526,7 @@ On `net8.0`, supported types implement `ISpanFormattable`. On `netstandard2.1`,
 the same `TryFormat` method shape is exposed where the interface itself is
 unavailable.
 
-## Suggested Validation
+### Suggested Validation
 
 After migrating source, run:
 

@@ -80,33 +80,59 @@ public partial struct FixedQuaternion
     /// <summary>
     /// Converts the quaternion into a 3x3 rotation matrix.
     /// </summary>
+    /// <remarks>
+    /// Every nonzero scalar multiple represents the same rotation. The zero
+    /// quaternion converts to <see cref="Fixed3x3.Identity"/>.
+    /// </remarks>
     /// <returns>A FixedMatrix3x3 representing the same rotation as the quaternion.</returns>
     public Fixed3x3 ToMatrix3x3()
     {
-        Fixed64 x2 = X * X;
-        Fixed64 y2 = Y * Y;
-        Fixed64 z2 = Z * Z;
-        Fixed64 xy = X * Y;
-        Fixed64 xz = X * Z;
-        Fixed64 yz = Y * Z;
-        Fixed64 xw = X * W;
-        Fixed64 yw = Y * W;
-        Fixed64 zw = Z * W;
+        Fixed64 componentScale = FixedMath.Max(
+            FixedMath.Max(X.Abs(), Y.Abs()),
+            FixedMath.Max(Z.Abs(), W.Abs()));
+        if (componentScale == Fixed64.Zero)
+            return Fixed3x3.Identity;
+
+        Fixed64 x = X;
+        Fixed64 y = Y;
+        Fixed64 z = Z;
+        Fixed64 w = W;
+
+        // Ordinary rotation inputs can use their original coordinates without
+        // square underflow, sum saturation, or material factor quantization.
+        if (componentScale < Fixed64.Half
+            || componentScale > Fixed64.Two)
+        {
+            x /= componentScale;
+            y /= componentScale;
+            z /= componentScale;
+            w /= componentScale;
+        }
+
+        Fixed64 x2 = x * x;
+        Fixed64 y2 = y * y;
+        Fixed64 z2 = z * z;
+        Fixed64 xy = x * y;
+        Fixed64 xz = x * z;
+        Fixed64 yz = y * z;
+        Fixed64 xw = x * w;
+        Fixed64 yw = y * w;
+        Fixed64 zw = z * w;
 
         Fixed3x3 result = new();
-        Fixed64 scale = Fixed64.One * 2;
+        Fixed64 factor = Fixed64.Two / (x2 + y2 + z2 + (w * w));
 
-        result.M11 = Fixed64.One - scale * (y2 + z2);
-        result.M12 = scale * (xy + zw);
-        result.M13 = scale * (xz - yw);
+        result.M11 = Fixed64.One - factor * (y2 + z2);
+        result.M12 = factor * (xy + zw);
+        result.M13 = factor * (xz - yw);
 
-        result.M21 = scale * (xy - zw);
-        result.M22 = Fixed64.One - scale * (x2 + z2);
-        result.M23 = scale * (yz + xw);
+        result.M21 = factor * (xy - zw);
+        result.M22 = Fixed64.One - factor * (x2 + z2);
+        result.M23 = factor * (yz + xw);
 
-        result.M31 = scale * (xz + yw);
-        result.M32 = scale * (yz - xw);
-        result.M33 = Fixed64.One - scale * (x2 + y2);
+        result.M31 = factor * (xz + yw);
+        result.M32 = factor * (yz - xw);
+        result.M33 = Fixed64.One - factor * (x2 + y2);
 
         return result;
     }

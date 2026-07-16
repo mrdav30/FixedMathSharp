@@ -202,6 +202,38 @@ public partial struct Fixed64
     }
 
     /// <summary>
+    /// Returns the exact sign of the scalar triple product of three raw
+    /// three-component vectors.
+    /// </summary>
+    internal static int GetTripleProductSign(
+        Fixed64 firstX,
+        Fixed64 firstY,
+        Fixed64 firstZ,
+        Fixed64 secondX,
+        Fixed64 secondY,
+        Fixed64 secondZ,
+        Fixed64 thirdX,
+        Fixed64 thirdY,
+        Fixed64 thirdZ)
+    {
+        Signed192 minorX = GetDifferenceCrossProduct2D(
+            secondY, Zero, secondZ, Zero,
+            thirdY, Zero, thirdZ, Zero);
+        Signed192 minorY = GetDifferenceCrossProduct2D(
+            secondZ, Zero, secondX, Zero,
+            thirdZ, Zero, thirdX, Zero);
+        Signed192 minorZ = GetDifferenceCrossProduct2D(
+            secondX, Zero, secondY, Zero,
+            thirdX, Zero, thirdY, Zero);
+        Signed320 tripleProduct = AddSigned320(
+            AddSigned320(
+                MultiplySigned192(FromSignedRaw(firstX.m_rawValue), minorX),
+                MultiplySigned192(FromSignedRaw(firstY.m_rawValue), minorY)),
+            MultiplySigned192(FromSignedRaw(firstZ.m_rawValue), minorZ));
+        return tripleProduct.Sign;
+    }
+
+    /// <summary>
     /// Compares unsigned magnitudes of signed wide values.
     /// </summary>
     internal static int CompareMagnitude(Signed192 left, Signed192 right)
@@ -454,6 +486,28 @@ public partial struct Fixed64
     {
         ulong extension = value.Sign < 0 ? ulong.MaxValue : 0UL;
         return new Signed320(extension, extension, value.High, value.Middle, value.Low);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Signed192 FromSignedRaw(long value)
+    {
+        ulong extension = value < 0L ? ulong.MaxValue : 0UL;
+        return new Signed192(extension, extension, unchecked((ulong)value));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Signed320 AddSigned320(Signed320 left, Signed320 right)
+    {
+        ulong word0 = unchecked(left.Word0 + right.Word0);
+        ulong carry = word0 < left.Word0 ? 1UL : 0UL;
+        ulong word1 = unchecked(left.Word1 + right.Word1 + carry);
+        carry = word1 < left.Word1 || (carry != 0UL && word1 == left.Word1) ? 1UL : 0UL;
+        ulong word2 = unchecked(left.Word2 + right.Word2 + carry);
+        carry = word2 < left.Word2 || (carry != 0UL && word2 == left.Word2) ? 1UL : 0UL;
+        ulong word3 = unchecked(left.Word3 + right.Word3 + carry);
+        // The high bit of the standard carry expression includes the incoming carry encoded in word3.
+        carry = ((left.Word3 & right.Word3) | ((left.Word3 | right.Word3) & ~word3)) >> 63;
+        return new Signed320(unchecked(left.Word4 + right.Word4 + carry), word3, word2, word1, word0);
     }
 
     /// <summary>

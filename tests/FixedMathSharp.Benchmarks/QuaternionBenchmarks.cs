@@ -11,6 +11,7 @@ public class QuaternionBenchmarks
     private readonly Vector3d[] _vectors = BenchmarkFixtures.VectorsA;
     private readonly FixedQuaternion[] _left = BenchmarkFixtures.RotationsA;
     private readonly FixedQuaternion[] _right = BenchmarkFixtures.RotationsB;
+    private readonly FixedQuaternion[] _fullDomainMatrixInputs = CreateFullDomainMatrixInputs();
 
     [Benchmark]
     public FixedQuaternion FromAxisAngle()
@@ -110,6 +111,36 @@ public class QuaternionBenchmarks
         return accumulator;
     }
 
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Fixed64 ToMatrix3x3Ordinary()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            Fixed3x3 matrix = _left[i].ToMatrix3x3();
+            accumulator += matrix.M11 + matrix.M12 + matrix.M13
+                + matrix.M21 + matrix.M22 + matrix.M23
+                + matrix.M31 + matrix.M32 + matrix.M33;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Fixed64 ToMatrix3x3FullDomain()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _fullDomainMatrixInputs.Length; i++)
+        {
+            Fixed3x3 matrix = _fullDomainMatrixInputs[i].ToMatrix3x3();
+            accumulator += matrix.M11 + matrix.M12 + matrix.M13
+                + matrix.M21 + matrix.M22 + matrix.M23
+                + matrix.M31 + matrix.M32 + matrix.M33;
+        }
+
+        return accumulator;
+    }
+
     [Benchmark]
     public Vector3d ToEulerAngles()
     {
@@ -186,5 +217,44 @@ public class QuaternionBenchmarks
             accumulator += _left[i] * _vectors[i];
 
         return accumulator;
+    }
+
+    private static FixedQuaternion[] CreateFullDomainMatrixInputs()
+    {
+        var inputs = new FixedQuaternion[BenchmarkFixtures.SampleCount];
+        ulong state = 0xA076_1D64_78BD_642FUL;
+        for (int i = 0; i < inputs.Length; i++)
+        {
+            inputs[i] = new FixedQuaternion(
+                Fixed64.FromRaw(unchecked((long)NextSplitMix64(ref state))),
+                Fixed64.FromRaw(unchecked((long)NextSplitMix64(ref state))),
+                Fixed64.FromRaw(unchecked((long)NextSplitMix64(ref state))),
+                Fixed64.FromRaw(unchecked((long)NextSplitMix64(ref state))));
+        }
+
+        inputs[0] = FixedQuaternion.Zero;
+        inputs[1] = new FixedQuaternion(
+            Fixed64.FromRaw(1),
+            Fixed64.FromRaw(-1),
+            Fixed64.FromRaw(2),
+            Fixed64.FromRaw(-2));
+        inputs[2] = new FixedQuaternion(
+            Fixed64.MaxValue,
+            Fixed64.MinValue,
+            Fixed64.MaxValue,
+            Fixed64.MinValue);
+        return inputs;
+    }
+
+    private static ulong NextSplitMix64(ref ulong state)
+    {
+        unchecked
+        {
+            state += 0x9E37_79B9_7F4A_7C15UL;
+            ulong value = state;
+            value = (value ^ (value >> 30)) * 0xBF58_476D_1CE4_E5B9UL;
+            value = (value ^ (value >> 27)) * 0x94D0_49BB_1331_11EBUL;
+            return value ^ (value >> 31);
+        }
     }
 }

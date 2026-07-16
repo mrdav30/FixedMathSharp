@@ -281,10 +281,10 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
     [MemoryPackIgnore]
     public readonly Vector3d Backward => -ExtractForward(this);
 
-    /// <inheritdoc cref="ExtractScale(Fixed4x4)" />
+    /// <inheritdoc cref="ExtractLossyScale(Fixed4x4)" />
     [JsonIgnore]
     [MemoryPackIgnore]
-    public readonly Vector3d Scale => ExtractScale(this);
+    public readonly Vector3d LossyScale => ExtractLossyScale(this);
 
     /// <inheritdoc cref="ExtractRotation(Fixed4x4)" />
     [JsonIgnore]

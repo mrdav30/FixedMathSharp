@@ -176,6 +176,7 @@ public class FixedAssertionsTests
             rotation.Should().BeApproximately(rotation, Fixed64.Epsilon);
             rotation.Should().NotBeApproximately(mismatch, Fixed64.FromDouble(0.01));
             scaleMatrix.Should().HaveScaleApproximately(scale, Fixed64.Epsilon);
+            rotation.Should().HaveScaleApproximately(Vector3d.One, Fixed64.Epsilon);
             rotation.Should().HaveNormalizedAxes(Fixed64.Epsilon);
         });
     }
@@ -221,6 +222,7 @@ public class FixedAssertionsTests
             transform.Should().HaveTranslationApproximately(translation, Fixed64.FromDouble(0.0001));
             transform.Should().HaveRotationApproximately(rotation, Fixed64.FromDouble(0.0001));
             transform.Should().HaveScaleApproximately(scale, Fixed64.FromDouble(0.0001));
+            rotationOnly.Should().HaveScaleApproximately(Vector3d.One, Fixed64.Epsilon);
             rotationOnly.Should().HaveNormalizedRotationBasis(Fixed64.Epsilon);
         });
     }
