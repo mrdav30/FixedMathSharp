@@ -1,5 +1,303 @@
 # FixedMathSharp Migration Guide
 
+## Migrating From v6.x To v7.x
+
+FixedMathSharp v7.x is a deterministic arithmetic, transform, and full-domain
+geometry hardening release. The largest source-breaking change is the
+`FixedTransform` redesign: local and world values are now explicit, parent
+changes have named preservation semantics, and arbitrary matrix import is
+strict. Arithmetic and geometry APIs also retain exact wide intermediates until
+their final Q32.32 conversion, which can change raw results at rounding,
+overflow, normalization, degeneracy, and containment boundaries.
+
+Use this guide when upgrading from any v6.x package.
+
+### v7 Upgrade Checklist
+
+- Update package references to `FixedMathSharp` v7.x, or `FixedMathSharp.Lean`
+  v7.x if you use the Lean package.
+- Rebuild first and migrate removed `FixedTransform`, matrix-scale, and
+  `Vector3d.ClosestPointsOnTwoLines` usages.
+- Decide explicitly whether each transform access is local or world space.
+- Audit chained multiply/divide calculations that rely on an intermediate
+  saturated result; use `TryMultiplyDivide` when the mathematical expression
+  requires one final rounding step.
+- Re-record deterministic golden values, replay hashes, and serialized expected
+  outputs that depend on division, normalization, transforms, segments, or
+  triangles. Do not silently compare v6 and v7 simulation hashes as though the
+  numeric contract were unchanged.
+- Re-run deterministic replay, save/load, collision/query, transform-hierarchy,
+  and broad-phase tests after the source migration compiles.
+
+### Division Rounds Midpoints To Even
+
+`Fixed64` multiplication and division now share the same nearest-even rounding
+contract. Division previously rounded exact midpoints away from zero. In v7, the
+retained raw value's parity decides the tie:
+
+```csharp
+Fixed64 oneRaw = Fixed64.FromRaw(1);
+Fixed64 threeRaw = Fixed64.FromRaw(3);
+
+// v7 raw results: 0 and 2.
+Fixed64 first = oneRaw / Fixed64.Two;
+Fixed64 second = threeRaw / Fixed64.Two;
+```
+
+`FixedMath.FastDiv` matches `/` for its supported positive-divisor path.
+Divide-by-zero and final saturation behavior are unchanged.
+
+This correction also restores exact binary reciprocal identities:
+
+```csharp
+value / Fixed64.Two == value * Fixed64.Half
+value / new Fixed64(4) == value * Fixed64.Quarter
+value / new Fixed64(8) == value * Fixed64.Eighth
+```
+
+Pre-rounded reciprocals are still different mathematical inputs. For example,
+`value / new Fixed64(3)` is not required to equal
+`value * Fixed64.FromFraction(1, 3)`.
+
+### Exact Try Arithmetic And Fused Multiply-Divide
+
+The normal `Fixed64`, `Vector2d`, and `Vector3d` addition/subtraction operators
+remain saturating. Use the new `TryAdd` and `TrySubtract` methods when
+saturation must be reported instead of accepted:
+
+```csharp
+if (!Vector3d.TrySubtract(end, start, out Vector3d delta))
+{
+    // The exact component result was outside the Fixed64 range.
+}
+```
+
+Failure returns `false` with `result = default`. Vector operations are atomic;
+they never expose a partially calculated or partially saturated vector.
+
+Parentheses do not fuse overloaded operators. `(left * right) / divisor` still
+rounds and saturates the multiplication before division. Use `TryMultiplyDivide`
+when the complete expression should round once and fail only when the divisor is
+zero or the final result is not representable:
+
+```csharp
+if (!Fixed64.TryMultiplyDivide(left, right, divisor, out Fixed64 result))
+{
+    // Zero divisor or final-result overflow.
+}
+
+if (!Fixed64.TryMultiplyDivide(first, second, third, divisor, out result))
+{
+    // Zero divisor or final-result overflow.
+}
+```
+
+These are opt-in APIs. Existing operators retain their public saturating
+contract.
+
+### Exact Projection, Magnitude, And Rotation Behavior
+
+v7 adds full-domain helpers for calculations that must make decisions before
+public saturation:
+
+- `Vector2d.CompareProjection(...)`
+- `Vector3d.CompareProjection(...)`
+- `Vector3d.ProjectNonNegativeDifference(...)`
+- `Vector2d.TryGetMagnitude(...)`
+- `Vector3d.TryGetMagnitude(...)`
+- `Vector4d.TryGetMagnitude(...)`
+- `Vector2d.IsNormalized()`
+- `FixedMath.Average(first, second, third)`
+- `FixedMath.Midpoint(left, right)`
+
+Vector and quaternion magnitude/normalization paths now preserve complete finite
+component ranges. Quaternion construction and conversion are also more robust:
+
+- Nonzero axis and direction inputs normalize scale-safely.
+- Zero-axis axis-angle construction returns `FixedQuaternion.Identity`.
+- Radian and degree constructors accept the complete finite `Fixed64` domain;
+  multi-turn inputs reduce deterministically.
+- `FixedQuaternion.QuaternionLog` tolerates one-raw-unit normalization drift at
+  both `Acos` endpoints.
+- `FixedQuaternion.ToMatrix3x3` is independent of a nonzero quaternion's common
+  scale; zero still maps to identity.
+- `FixedMath.DegToRad` and `RadToDeg` retain full-domain intermediates and round
+  once at the public boundary.
+
+Ordinary inputs generally retain their expected meaning, but raw results can
+change where v6 saturated, underflowed, or rounded an intermediate. Refresh
+golden numeric and replay expectations rather than adding downstream clamps.
+
+### FixedTransform Local And World Contract
+
+`FixedTransform` no longer hides one mutable matrix behind ambiguous component
+properties. Its authoritative state is now local position, normalized local
+rotation, and exact signed or zero local scale. World values are derived from
+the parent chain.
+
+Migrate properties by intent:
+
+| v6.x surface                 | v7.x local replacement       | v7.x world replacement                            |
+| ---------------------------- | ---------------------------- | ------------------------------------------------- |
+| `Position`                   | `LocalPosition`              | `WorldPosition` or `TrySetWorldPosition(...)`     |
+| `Rotation`                   | `LocalRotation`              | `WorldRotation` or `TrySetWorldPose(...)`         |
+| `Scale`                      | `LocalScale`                 | `LossyScale`                                      |
+| `LossyScale` alias           | `LocalScale`                 | `LossyScale` with hierarchy-derived semantics     |
+| `EulerAngles`                | `LocalEulerAngles`           | No writable world-Euler alias                     |
+| Writable `Parent`            | `SetParentKeepingLocal(...)` | `TrySetParentKeepingWorld(...)`                   |
+| `new FixedTransform(matrix)` | Component constructor        | `TryCreateFromLocalMatrix(...)` for strict import |
+
+For example:
+
+```csharp
+// v6.x: names and parent-assignment behavior were ambiguous.
+transform.Position = localPosition;
+transform.Parent = parent;
+
+// v7.x: local mutation and reparenting intent are explicit.
+transform.LocalPosition = localPosition;
+transform.SetParentKeepingLocal(parent);
+
+// Use this instead when the current world pose must be preserved.
+bool reparented = transform.TrySetParentKeepingWorld(parent);
+```
+
+`Parent` is read-only. Reparenting rejects self/ancestor cycles.
+`TrySetParentKeepingWorld`, `TrySetWorldPosition`, and `TrySetWorldPose` commit
+atomically only when the required inverse and strict TRS decomposition succeed.
+
+The v6 matrix constructor accepted arbitrary matrices. In v7, import is explicit
+and strict:
+
+```csharp
+if (!FixedTransform.TryCreateFromLocalMatrix(
+        localMatrix,
+        out FixedTransform? transform,
+        parent))
+{
+    // Perspective, shear, singular/zero scale, unrepresentable, or
+    // non-round-trippable matrix.
+}
+```
+
+Prefer the component constructors at engine-adapter boundaries. They preserve
+signed and zero authored local scale without asking FixedMathSharp to infer
+components from a matrix. Calls using named constructor arguments must also
+rename `position`, `rotation`, and `scale` to `localPosition`, `localRotation`,
+and `localScale`.
+
+`LocalToWorldMatrix`, `WorldPosition`, and `LossyScale` traverse parents on
+read. `FixedTransform` does not own a scene graph, child collection, matrix
+cache, or engine object.
+
+The new `LocalPositionXZ`, `LocalRotationXZRadians`, `LocalScaleXZ`,
+`WorldPositionXZ`, and `WorldRotationXZRadians` helpers embed planar `(x, y)` as
+3D `(x, 0, y)`. Local position and scale setters preserve the existing Y
+component. Positive planar rotation matches `Vector2d.Rotate`; local and world
+angle getters report the projected local-right direction modulo `Fixed64.TwoPi`.
+Use `LossyScale.ToVector2d()` only when a canonical hierarchy-derived X/Z scale
+view fits the consuming system.
+
+### Matrix Scale Naming And Strict Decomposition
+
+Matrix scale APIs now distinguish unsigned basis magnitudes from a canonical
+signed lossy view:
+
+| v6.x surface                    | v7.x replacement                       |
+| ------------------------------- | -------------------------------------- |
+| `Fixed3x3.ExtractScale(...)`    | `Fixed3x3.ExtractScaleMagnitudes(...)` |
+| `matrix3x3.ExtractScale()`      | `matrix3x3.ExtractScaleMagnitudes()`   |
+| `Fixed4x4.ExtractScale(...)`    | `Fixed4x4.ExtractScaleMagnitudes(...)` |
+| `matrix4x4.ExtractScale()`      | `matrix4x4.ExtractScaleMagnitudes()`   |
+| `Fixed4x4.Scale`                | `Fixed4x4.LossyScale`                  |
+| `Fixed3x3.SetLossyScale(scale)` | `Fixed3x3.CreateScale(scale)`          |
+
+`ExtractScaleMagnitudes` always returns nonnegative basis magnitudes.
+`ExtractLossyScale` and `Fixed4x4.LossyScale` now derive basis magnitudes and
+assign an odd reflection's canonical negative sign to X. They no longer return
+the matrix diagonal. If a caller genuinely needs diagonal entries, read `M11`,
+`M22`, and `M33` explicitly and do not label them scale.
+
+`Fixed4x4.Decompose(...)` keeps its Boolean signature but now returns `false`
+for matrices that are not valid affine orthogonal TRS values. Check the result:
+
+```csharp
+if (!Fixed4x4.Decompose(matrix, out Vector3d translation,
+        out FixedQuaternion rotation, out Vector3d scale))
+{
+    // Handle non-TRS input explicitly.
+}
+```
+
+### Full-Domain Segment And Triangle Geometry
+
+The existing 2D/3D segment and triangle query surfaces now preserve exact raw
+endpoint differences, predicates, ratios, and distance ordering until the final
+public conversion. This fixes extreme-coordinate and near-degenerate cases but
+can change raw results relative to v6.
+
+New segment APIs replace downstream line/segment solvers:
+
+```csharp
+var first2d = new FixedSegment2d(a2d, b2d);
+var second2d = new FixedSegment2d(c2d, d2d);
+
+bool unique = first2d.TryGetUniqueIntersection(
+    second2d,
+    out Fixed64 firstParameter,
+    out Fixed64 secondParameter);
+
+(Vector2d firstPoint, Vector2d secondPoint) =
+    first2d.GetClosestPoints(second2d);
+```
+
+`Vector3d.ClosestPointsOnTwoLines(...)` was removed because it actually solved
+finite segments. Replace it with the accurately owned API:
+
+```csharp
+// v7.x
+var first = new FixedSegment(firstStart, firstEnd);
+var second = new FixedSegment(secondStart, secondEnd);
+(Vector3d firstPoint, Vector3d secondPoint) = first.GetClosestPoints(second);
+```
+
+`FixedSegment`, `FixedSegment2d`, `FixedTriangle`, and `FixedTriangle2d` now use
+one final nearest-even conversion and final-only saturation for their hardened
+query results. Triangle barycentric weights are calculated independently;
+degenerate closest-point ties retain stable AB, BC, CA order. No source change
+is normally required, but collision, containment, and deterministic golden tests
+should be rerun.
+
+### Chronicler Transform Hash Boundary
+
+`FixedMathSharp.Chronicler.WriteTransform` now hashes authoritative local
+position, local rotation, and local scale in that order. Parent identity and all
+derived world views are excluded.
+
+This is an intentional replay/hash compatibility boundary. Version stored
+replays or regenerate v7 golden hashes rather than expecting hashes produced
+from the v6 matrix-backed transform representation to match.
+
+### Suggested Search Patterns for v7 Migration
+
+After updating package references, these searches catch the main v7 migration
+work:
+
+```bash
+rg -n "new FixedTransform\s*\(" src tests
+rg -n "\.(Position|Rotation|Scale|EulerAngles|PositionXZ|RotationXZRadians|ScaleXZ)\b" src tests
+rg -n "\.Parent\s*=" src tests
+rg -n "ExtractScale|SetLossyScale|\.Scale\b" src tests
+rg -n "ClosestPointsOnTwoLines" src tests
+rg -n "WriteTransform" src tests
+```
+
+Review property matches by intent instead of mechanically adding `Local`.
+Physics and simulation state often wants local components, while rendering,
+queries, and hierarchy-aware bounds may want derived world values.
+
+---
+
 ## Migrating From v5.x To v6.x
 
 FixedMathSharp v6.x is a geometry and bounds hardening release. The largest
@@ -217,7 +515,7 @@ Important `FixedBoundArea` change: `WriteBoundArea` now writes the new 2D
 that hash input to `WriteBoundBox` or to an explicit 2D area plus separate
 layer/elevation fields.
 
-### Suggested Search Patterns
+### Suggested Search Patterns for v6 Migration
 
 After updating package references, these searches catch the most common v6
 migration work:
@@ -237,24 +535,6 @@ call.
 Review each `FixedBoundArea` match by dimension. If the surrounding code uses
 `Vector3d`, a ray/plane/frustum, or volumetric bounds, it probably wants
 `FixedBoundBox`. If the code is planar, migrate to the new `Vector2d` area.
-
-### v6 Suggested Validation
-
-After migrating source, run:
-
-```bash
-dotnet restore
-dotnet build FixedMathSharp.slnx --configuration Debug --no-restore
-dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
-dotnet test FixedMathSharp.slnx --configuration Release --no-restore
-dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
-```
-
-For consumer applications, also run deterministic replay, save/load,
-broad-phase/query, and spatial partition tests that cover bounds construction,
-intersection semantics, and serialized geometry state.
-
----
 
 ## Migrating From v4.x To v5.0.0
 
@@ -525,19 +805,3 @@ Human-readable formatting is now separated from raw payload representation:
 On `net8.0`, supported types implement `ISpanFormattable`. On `netstandard2.1`,
 the same `TryFormat` method shape is exposed where the interface itself is
 unavailable.
-
-### Suggested Validation
-
-After migrating source, run:
-
-```bash
-dotnet restore
-dotnet build FixedMathSharp.slnx --configuration Debug --no-restore
-dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
-dotnet test FixedMathSharp.slnx --configuration Release --no-restore
-dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
-```
-
-For consumer applications, also run deterministic replay, save/load, and network
-synchronization tests that cover transforms, parsing, serialization, and random
-streams.
