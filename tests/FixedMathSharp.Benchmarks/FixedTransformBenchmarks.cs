@@ -48,6 +48,15 @@ public class FixedTransformBenchmarks
     public Fixed4x4 RootWorldMatrix() => _root.LocalToWorldMatrix;
 
     [Benchmark]
+    public Vector3d RootWorldPosition() => _root.WorldPosition;
+
+    [Benchmark]
+    public FixedQuaternion RootWorldRotation() => _root.WorldRotation;
+
+    [Benchmark]
+    public Vector3d RootLossyScale() => _root.LossyScale;
+
+    [Benchmark]
     public Fixed4x4 DepthEightWorldMatrix() => _depthEight.LocalToWorldMatrix;
 
     [Benchmark]

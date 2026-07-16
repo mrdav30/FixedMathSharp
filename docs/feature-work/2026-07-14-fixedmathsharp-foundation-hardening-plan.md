@@ -155,10 +155,11 @@ constraints, and CCD.
     non-round-trippable rotation rather than silently inventing TRS values.
 18. `FixedTransform.LocalScale` remains a general math/host value and preserves
     signed or zero authored scale. Gravitas collider scale represents physical
-    dimensions, not reflection: every canonical world-scale component consumed
-    by a 2D or 3D collider must be strictly positive. Transform and compound-part
-    scale are validated before shape math; Gravitas does not silently take
-    absolute values or attempt mesh winding reflection in this release.
+    dimensions, not reflection: every consumed authored local-scale component
+    throughout the transform ancestry and every resulting canonical world-scale
+    component must be strictly positive. Transform and compound-part scale are
+    validated before body registration or shape math; Gravitas does not silently
+    take absolute values or attempt mesh winding reflection in this release.
 19. `Signed192` and `Signed320` become top-level internal readonly structs under
     `Numerics/Wide`; they remain fixed-shape two's-complement storage, not public
     arbitrary-precision numbers. `WideArithmetic` owns limb operations,
@@ -2337,42 +2338,64 @@ internal static bool TryResolveVelocityDelta(
     out Vector3d velocityDelta);
 ```
 
-- [ ] **Step 1: Add the odd-raw negative-expansion regression** using
+- [x] **Step 1: Add the odd-raw negative-expansion regression** using
       `MaxValue`, `MinValue`, and `Fixed64.MinIncrement`. Assert that the
       selected working shift makes the actual three-term support difference
       exact.
-- [ ] **Step 2: Run `GjkSimplexScaleTests` and confirm the regression fails.**
-- [ ] **Step 3: Replace endpoint and translation checks** with
+- [x] **Step 2: Run `GjkSimplexScaleTests` and confirm the regression fails.**
+- [x] **Step 3: Replace endpoint and translation checks** with
       `Vector2d.TryAdd`/`TrySubtract` and `Vector3d.TryAdd`/`TrySubtract`, then
       delete `FixedVectorDifference` and its direct helper tests.
-- [ ] **Step 4: Replace support ordering and conservative projection** with the
+- [x] **Step 4: Replace support ordering and conservative projection** with the
       FixedMathSharp vector APIs, then delete `ConvexSupportProjection` and its
       duplicated multiplier.
-- [ ] **Step 5: Remove raw overflow predicates from `GjkSimplexScale`.** Keep
+- [x] **Step 5: Remove raw overflow predicates from `GjkSimplexScale`.** Keep
       the private bounds predicates, but implement them by composing
       FixedMathSharp `Try*` operations.
-- [ ] **Step 6: Preserve GJK-owned power-of-two coordinate policy.** Use the
+- [x] **Step 6: Preserve GJK-owned power-of-two coordinate policy.** Use the
       existing `Fixed64 >>` operator for components. For the nonnegative radius
       bound, reconstruct the shifted value and add `Fixed64.MinIncrement` when
       discarded raw bits require a ceiling; this must conservatively cover
       negative arithmetic shifts.
-- [ ] **Step 7: Reject shifts outside `0..2` explicitly** before any shift or
+- [x] **Step 7: Reject shifts outside `0..2` explicitly** before any shift or
       restore operation. Do not add a new public enum or abstraction for an
       internal three-value implementation detail.
-- [ ] **Step 8: Run focused GJK, support, query, and CCD tests in `Release` and
+- [x] **Step 8: Run focused GJK, support, query, and CCD tests in `Release` and
       `ReleaseLean`.**
-- [ ] **Step 9: Delete the arithmetic-driven `IsResolvableMobility` cutoff** and
+- [x] **Step 9: Delete the arithmetic-driven `IsResolvableMobility` cutoff** and
       replace both `ResolveVelocityDelta` overloads with component-atomic
       `TryResolveVelocityDelta` methods composed from the three-factor
       `TryMultiplyDivide` overload. For two-body response, compute both velocity
       deltas successfully before applying either one. Do not retain a
       solver-conditioning threshold without separate physical evidence.
-- [ ] **Step 10: Add 2D and 3D CCD regressions** for the `65536` finite
+- [x] **Step 10: Add 2D and 3D CCD regressions** for the `65536` finite
       response, zero inverse mass, final-result overflow rejection without
       partial body mutation, and unchanged ordinary mobility. Run the focused
       continuous-collision policy and sweep suites.
-- [ ] **Step 11: Owner review checkpoint.** Leave Gravitas implementation
+- [x] **Step 11: Owner review checkpoint.** Leave Gravitas implementation
       changes unstaged and provide a proposed commit message.
+
+**Result:**
+
+- Deleted `FixedVectorDifference` and `ConvexSupportProjection`, migrated every
+  caller to FixedMathSharp's result-producing vector and full-domain projection
+  contracts, and removed the duplicate raw multiplier/overflow ownership from
+  Gravitas.
+- Hardened `GjkSimplexScale` around the exact odd-raw negative-expansion case,
+  conservative radius ceiling, and explicit `0..2` shift boundary while
+  retaining Gravitas-owned GJK admission policy.
+- Replaced the arithmetic-driven CCD mobility cutoff with fused,
+  component-atomic velocity-delta resolution. Both participant deltas are
+  computed before either body mutates; zero mobility succeeds with zero delta,
+  representable near-singular responses such as `65536` are retained, and
+  final overflow returns `default` without partial component output. Each
+  participant's response normal is projected through that body's mobility
+  constraints before fusion, so discarded frozen-axis components cannot cause
+  a false overflow rejection. Full 2D/3D body regressions distinguish that
+  representable frozen-axis response from genuine overflow on an allowed
+  component and prove the latter cannot apply a one-sided impulse.
+- Fresh local-source verification passed all 2,657 Gravitas `Release` tests and
+  all 2,618 `ReleaseLean` tests, with both `netstandard2.1` library builds clean.
 
 ---
 
@@ -2419,88 +2442,133 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
   `WorldPositionXZ` and `WorldRotationXZRadians`; segment operations use
   `FixedSegment2d` and `FixedSegment`; joint angular error uses
   `FixedQuaternion.QuaternionLog` directly; hierarchy-aware collider scale
-  consumers use the genuine `LossyScale` world approximation.
+  consumers validate authored scale ancestry and use the genuine `LossyScale`
+  world approximation.
 - `FixedTransform.LocalScale` permits signed/zero authored scale, but Gravitas
-  admits only strictly positive canonical world scale on every consumed
-  collider axis. Invalid standalone or compound scale fails explicitly before
-  bounds, radius, inertia, mesh, or partition state is built; no component-wise
-  absolute-value fallback is used.
+  admits only strictly positive authored local scale throughout the ancestry
+  and strictly positive canonical world scale on every consumed collider axis.
+  This rejects even reflection pairs that canonical `LossyScale` cannot expose.
+  Invalid standalone or compound scale fails explicitly before body
+  registration, bounds, radius, inertia, mesh, or partition state is built; no
+  component-wise absolute-value fallback is used.
 - Gravitas keeps its scalar 2D rotation canonical in the half-open interval
   `[-Pi, Pi)`, so `+Pi` has the single representative `-Pi`. This is
   authoritative state hygiene, not a second quaternion angle restriction.
 
-- [ ] **Step 1: Add host/collision parity regressions** with an asymmetric 2D
+- [x] **Step 1: Add host/collision parity regressions** with an asymmetric 2D
       polygon or capsule. For `+HalfPi` and `-HalfPi`, assert the host
       transform's embedded local-right direction matches `Vector2d.Rotate`, and
       kinematic readback reconstructs the same scalar rotation.
-- [ ] **Step 2: Add multi-turn 2D regressions** for initialization,
+- [x] **Step 2: Add multi-turn 2D regressions** for initialization,
       `ResetPosition`, `SetRotation`, dynamic integration across `Pi`, kinematic
       host readback, serialization population, and repeated positive/negative
       turns. Assert no quaternion construction throws and authoritative state
       remains in `[-Pi, Pi)` while representing the requested rotation. Add
       exact representative assertions for `+Pi`, `-Pi`, and equivalent
       multi-turn values to protect deterministic state hashes.
-- [ ] **Step 3: Add a joint-solver regression** using the exact quaternion-log
+- [x] **Step 3: Add a joint-solver regression** using the exact quaternion-log
       endpoint-drift input from Task 5 through the public solver path. Confirm
       the local FixedMathSharp reference fixes it before deleting the Gravitas
       workaround.
-- [ ] **Step 4: Add collider-scale admission regressions** for zero and negative
+- [x] **Step 4: Add collider-scale admission regressions** for zero and negative
       components on each participating axis of standalone 3D primitives, meshes,
-      2D/3D compound parts, and runtime scale rebuilds. Require one explicit
-      failure contract before shape/partition mutation; retain positive
-      nonuniform-scale behavior. Prove `FixedTransform.LocalScale` still stores
-      the rejected signed value so the policy boundary is Gravitas, not hidden
-      math loss.
-- [ ] **Step 5: Replace manual X/Z transform projection** in 2D body/collider
+      2D/3D compound parts, canceled ancestry reflections, body-bound
+      initialization, and runtime scale rebuilds. Require one explicit failure
+      contract before body registration or shape/partition mutation; retain
+      positive nonuniform-scale behavior. Prove `FixedTransform.LocalScale`
+      still stores the rejected signed value so the policy boundary is
+      Gravitas, not hidden math loss.
+- [x] **Step 5: Replace manual X/Z transform projection** in 2D body/collider
       host paths with `WorldPositionXZ` and `WorldRotationXZRadians`. Preserve
       host Y elevation and do not alter mixed-slab ownership. Route every
-      hierarchy-sensitive collider-scale consumer through genuine
-      `LossyScale`, validate the canonical result explicitly, and never take an
-      implicit absolute value in Gravitas.
-- [ ] **Step 6: Centralize collider-scale validation** at the earliest shared
+      hierarchy-sensitive collider-scale consumer through authored-ancestry
+      validation and genuine `LossyScale`, validate the canonical result
+      explicitly, and never take an implicit absolute value in Gravitas.
+- [x] **Step 6: Centralize collider-scale validation** at the earliest shared
       2D/3D standalone and compound admission/rebuild boundaries. Reject any
-      consumed component `<= Fixed64.Zero` before mutating runtime shape,
-      bounds, mass, mesh, or partition state. Reuse that contract from mesh
-      validation instead of preserving shape-specific disagreement.
-- [ ] **Step 7: Add one private scalar rotation canonicalizer** in `SolidBody2D`
+      consumed local-ancestry or world component `<= Fixed64.Zero` before
+      mutating body registration, runtime shape, bounds, mass, mesh, or
+      partition state. Reuse that contract from mesh validation instead of
+      preserving shape-specific disagreement.
+- [x] **Step 7: Add one private scalar rotation canonicalizer** in `SolidBody2D`
       using remainder by `TwoPi`, then subtracting `TwoPi` when the result is
       `>= Pi` or adding `TwoPi` when it is `< -Pi`. Route every authoritative
       external assignment and simulation commit through it; do not canonicalize
       temporary CCD sample/restore values independently.
-- [ ] **Step 8: Replace `GetSafeQuaternionLog`** with direct
+- [x] **Step 8: Replace `GetSafeQuaternionLog`** with direct
       `FixedQuaternion.QuaternionLog`, delete the duplicate log implementation,
       and retain only solver-specific twist thresholds. Replace any remaining
       hexadecimal raw threshold with the named decimal value and units.
-- [ ] **Step 9: Replace point projection and distance callers** with
+- [x] **Step 9: Replace point projection and distance callers** with
       `FixedSegment2d.ClosestPoint`/`DistanceSquared`, then replace both private
       2D closest-pair solvers and unique-intersection callers with Task 6's
       segment methods. Delete `PlanarSegmentGeometry` and its duplicate tests;
       move behavior coverage to FixedMathSharp rather than retaining forwarding
       tests in Gravitas.
-- [ ] **Step 10: Replace private 3D closest-segment wrappers** with
+- [x] **Step 10: Replace private 3D closest-segment wrappers** with
       `FixedSegment.GetClosestPoints` where their semantics match. Keep a local
       physics threshold only if a regression proves that threshold-length
       collider axes must intentionally be treated as points; document that
       physical policy beside the caller rather than adding another general
       geometry wrapper.
-- [ ] **Step 11: Run focused 2D, 3D, mixed, segment, triangle, mesh-contact,
+- [x] **Step 11: Run focused 2D, 3D, mixed, segment, triangle, mesh-contact,
       scale, constraint, and
       serialization tests in `Release` and `ReleaseLean`.** Confirm no
       `PlanarSegmentGeometry`, `GetSafeQuaternionLog`, or manual `EulerAngles.Y`
       2D host mapping remains, no ambiguous `Position`/`Rotation`/`Scale`
       `FixedTransform` access remains, and every `LossyScale` caller validates
-      strictly positive canonical world scale before shape mutation.
-- [ ] **Step 12: Run the existing 2D simulation, mixed collision/query, and 3D
+      strictly positive authored ancestry and canonical world scale before body
+      registration or shape mutation.
+- [x] **Step 12: Run the existing 2D simulation, mixed collision/query, and 3D
       constraint benchmark rows.** Require zero allocation regression and no
       material slowdown from value-type segment construction or planar
       projection.
-- [ ] **Step 13: Update coordinate documentation** with the explicit X/Z
+- [x] **Step 13: Update coordinate documentation** with the explicit X/Z
       local/world property names, positive-angle basis, Y preservation,
       canonical Gravitas scalar rotation range, and the distinction between
       general signed local transform scale, hierarchy-derived lossy world
       scale, and strictly positive physics-collider dimensions.
-- [ ] **Step 14: Owner review checkpoint.** Leave all Gravitas changes unstaged
+- [x] **Step 14: Owner review checkpoint.** Leave all Gravitas changes unstaged
       and provide a proposed commit message.
+
+**Result:**
+
+- Deleted `PlanarSegmentGeometry` and the misleading 3D line helper usage;
+  collision and query callers now consume `FixedSegment2d` and `FixedSegment`
+  directly while retaining only the tested capsule-axis collapse policy owned
+  by physics.
+- Migrated host synchronization to explicit world/local `FixedTransform`
+  contracts. Positive planar rotation now matches `Vector2d.Rotate`, dynamic
+  publication and kinematic readback preserve world Y through atomic world-pose
+  writes, and authoritative 2D rotation uses the single `[-Pi, Pi)`
+  representative across initialization, integration, host input, and
+  serialization.
+- Centralized strictly positive collider-scale admission for standalone and
+  compound 2D/3D shapes. Every consumed local scale throughout the ancestry and
+  the hierarchy-derived `LossyScale` are validated before body registration,
+  runtime shape, mass, mesh, bounds, or partition state changes. This closes
+  canceled-reflection admission and rebuild gaps while signed or zero authored
+  `LocalScale` remains untouched in FixedMathSharp.
+- Removed Gravitas's solver-local quaternion-log repair and now consumes the
+  hardened FixedMathSharp implementation directly. The remaining twist limit is
+  expressed as the decimal raw-unit policy value `4_096`.
+- Benchmarking exposed unnecessary root-matrix composition in the new
+  transform boundary. FixedMathSharp now fast-paths root world position,
+  normalized rotation, and nonnegative lossy scale without weakening canonical
+  signed/zero or hierarchy semantics. Median root reads improved from
+  `155.396 ns`, `22.276 ns`, and `336.891 ns` to `1.624 ns`, `1.617 ns`, and
+  `1.730 ns`, respectively, at `0 B`. Gravitas's representative final rows were
+  allocation-free for 2D integration, mixed sweeps, and mixed response; the
+  3D constraint row retained its existing `10 B` signal and improved from a
+  `6.231 ms` to `5.372 ms` median within this task's before/after run.
+- The post-review ancestry admission/rebuild gate retained the hot-path signal:
+  2D integration medians were `63.247 us` for 64 bodies and `1.251 ms` for
+  1,024 bodies at `0 B`; the 32-link 3D constraint median was `4.978 ms` with
+  the existing amortized allocation signal reduced to `2 B` in the short run.
+- Fresh FixedMathSharp verification passed 1,403 standard plus 8 Chronicler
+  tests and 1,382 Lean plus 8 Lean Chronicler tests. Fresh Gravitas verification
+  passed all 2,657 `Release` and 2,618 `ReleaseLean` tests, and both libraries
+  built cleanly for `netstandard2.1` in standard and Lean configurations.
 
 ---
 

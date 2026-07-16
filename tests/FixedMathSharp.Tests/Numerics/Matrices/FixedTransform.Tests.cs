@@ -186,6 +186,19 @@ public sealed class FixedTransformTests
     }
 
     [Fact]
+    public void FixedTransform_PositiveRootWorldViews_ReturnExactStoredComponents()
+    {
+        Vector3d position = new((Fixed64)3, (Fixed64)(-2), (Fixed64)7);
+        FixedQuaternion rotation = FixedQuaternion.FromEulerAngles(Fixed64.PiOver6, Fixed64.PiOver4, Fixed64.PiOver3);
+        Vector3d scale = new((Fixed64)2, (Fixed64)3, (Fixed64)4);
+        var transform = new FixedTransform(position, rotation, scale);
+
+        Assert.Equal(position, transform.WorldPosition);
+        Assert.Equal(transform.LocalRotation, transform.WorldRotation);
+        Assert.Equal(scale, transform.LossyScale);
+    }
+
+    [Fact]
     public void FixedTransform_HierarchyReads_UseExactRowVectorOrderAndQuaternionChain()
     {
         var grandParent = new FixedTransform(

@@ -157,7 +157,9 @@ public class FixedTransform
     /// <summary>
     /// Gets world translation from the composed matrix.
     /// </summary>
-    public Vector3d WorldPosition => LocalToWorldMatrix.Translation;
+    public Vector3d WorldPosition => _parent == null
+        ? _localPosition
+        : LocalToWorldMatrix.Translation;
 
     /// <summary>
     /// Gets the normalized rotational parent-to-child quaternion chain.
@@ -171,6 +173,9 @@ public class FixedTransform
     {
         get
         {
+            if (_parent == null)
+                return _localRotation;
+
             FixedQuaternion rotation = _localRotation;
             FixedTransform? ancestor = _parent;
             while (ancestor != null)
@@ -187,7 +192,12 @@ public class FixedTransform
     /// Gets canonical signed lossy scale from the composed matrix.
     /// </summary>
     /// <remarks>Zero magnitudes are preserved and reflected handedness is canonicalized to negative X.</remarks>
-    public Vector3d LossyScale => LocalToWorldMatrix.LossyScale;
+    public Vector3d LossyScale => _parent == null
+        && _localScale.X >= Fixed64.Zero
+        && _localScale.Y >= Fixed64.Zero
+        && _localScale.Z >= Fixed64.Zero
+            ? _localScale
+            : LocalToWorldMatrix.LossyScale;
 
     /// <summary>
     /// Gets world position projected onto X/Z.
