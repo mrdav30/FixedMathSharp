@@ -584,17 +584,17 @@ public class Fixed64Tests
             BigInteger leftZ = (BigInteger)leftEndZ - leftStartZ;
             BigInteger rightZ = (BigInteger)rightEndZ - rightStartZ;
 
-            Fixed64.Signed192 dot = Fixed64.GetDifferenceDotProduct2D(
+            Signed192 dot = WideGeometry.GetDifferenceDotProduct2D(
                 Fixed64.FromRaw(leftEndX), Fixed64.FromRaw(leftStartX),
                 Fixed64.FromRaw(leftEndY), Fixed64.FromRaw(leftStartY),
                 Fixed64.FromRaw(rightEndX), Fixed64.FromRaw(rightStartX),
                 Fixed64.FromRaw(rightEndY), Fixed64.FromRaw(rightStartY));
-            Fixed64.Signed192 cross = Fixed64.GetDifferenceCrossProduct2D(
+            Signed192 cross = WideGeometry.GetDifferenceCrossProduct2D(
                 Fixed64.FromRaw(leftEndX), Fixed64.FromRaw(leftStartX),
                 Fixed64.FromRaw(leftEndY), Fixed64.FromRaw(leftStartY),
                 Fixed64.FromRaw(rightEndX), Fixed64.FromRaw(rightStartX),
                 Fixed64.FromRaw(rightEndY), Fixed64.FromRaw(rightStartY));
-            Fixed64.Signed192 dot3D = Fixed64.GetDifferenceDotProduct3D(
+            Signed192 dot3D = WideGeometry.GetDifferenceDotProduct3D(
                 Fixed64.FromRaw(leftEndX), Fixed64.FromRaw(leftStartX),
                 Fixed64.FromRaw(leftEndY), Fixed64.FromRaw(leftStartY),
                 Fixed64.FromRaw(leftEndZ), Fixed64.FromRaw(leftStartZ),
@@ -614,7 +614,7 @@ public class Fixed64Tests
     public void WideSignedConversionAndBarycentricAccumulation_MatchBigIntegerOracle()
     {
         BigInteger weighted = (((BigInteger)long.MinValue - long.MaxValue) * Fixed64.Half.m_rawValue) * 2;
-        Fixed64.Signed192 weightedActual = Fixed64.GetDifferenceDotProduct2D(
+        Signed192 weightedActual = WideGeometry.GetDifferenceDotProduct2D(
             Fixed64.MinValue, Fixed64.MaxValue, Fixed64.MinValue, Fixed64.MaxValue,
             Fixed64.Half, Fixed64.Zero, Fixed64.Half, Fixed64.Zero);
 
@@ -692,9 +692,9 @@ public class Fixed64Tests
         Assert.Equal(Fixed64.MinValue, Fixed64.GetSignedRatio(ToSigned192(-1), default));
 
         BigInteger threshold = (BigInteger)Fixed64.Epsilon.m_rawValue << 33;
-        Assert.True(Fixed64.IsMagnitudeAtMost(ToSigned192(threshold - 1), (ulong)Fixed64.Epsilon.m_rawValue, 33));
-        Assert.True(Fixed64.IsMagnitudeAtMost(ToSigned192(-threshold), (ulong)Fixed64.Epsilon.m_rawValue, 33));
-        Assert.False(Fixed64.IsMagnitudeAtMost(ToSigned192(threshold + 1), (ulong)Fixed64.Epsilon.m_rawValue, 33));
+        Assert.True(WideArithmetic.IsMagnitudeAtMost(ToSigned192(threshold - 1), (ulong)Fixed64.Epsilon.m_rawValue, 33));
+        Assert.True(WideArithmetic.IsMagnitudeAtMost(ToSigned192(-threshold), (ulong)Fixed64.Epsilon.m_rawValue, 33));
+        Assert.False(WideArithmetic.IsMagnitudeAtMost(ToSigned192(threshold + 1), (ulong)Fixed64.Epsilon.m_rawValue, 33));
 
         var random = new System.Random(0x51A9_77);
         var bytes = new byte[17];
@@ -739,7 +739,7 @@ public class Fixed64Tests
 
         foreach ((BigInteger first, BigInteger second, BigInteger third, BigInteger fourth) in products)
         {
-            Fixed64.Signed320 actual = Fixed64.MultiplySubtract(
+            Signed320 actual = WideArithmetic.MultiplySubtract(
                 ToSigned192(first),
                 ToSigned192(second),
                 ToSigned192(third),
@@ -759,24 +759,24 @@ public class Fixed64Tests
 
             Assert.Equal(
                 (first * second) - (third * fourth),
-                ToBigInteger(Fixed64.MultiplySubtract(
+                ToBigInteger(WideArithmetic.MultiplySubtract(
                     ToSigned192(first),
                     ToSigned192(second),
                     ToSigned192(third),
                     ToSigned192(fourth))));
             Assert.Equal(
                 first + second,
-                ToBigInteger(Fixed64.AddSigned192(ToSigned192(first), ToSigned192(second))));
+                ToBigInteger(WideArithmetic.AddSigned192(ToSigned192(first), ToSigned192(second))));
             Assert.Equal(
                 first - second,
-                ToBigInteger(Fixed64.SubtractSigned192(ToSigned192(first), ToSigned192(second))));
+                ToBigInteger(WideArithmetic.SubtractSigned192(ToSigned192(first), ToSigned192(second))));
         }
 
         BigInteger determinantThreshold = (BigInteger)Fixed64.Epsilon.m_rawValue << 96;
-        Assert.True(Fixed64.IsSegmentDeterminantNearParallel(ToSigned320(determinantThreshold - 1)));
-        Assert.True(Fixed64.IsSegmentDeterminantNearParallel(ToSigned320(-determinantThreshold + 1)));
-        Assert.False(Fixed64.IsSegmentDeterminantNearParallel(ToSigned320(determinantThreshold)));
-        Assert.False(Fixed64.IsSegmentDeterminantNearParallel(ToSigned320(-determinantThreshold)));
+        Assert.True(WideGeometry.IsSegmentDeterminantNearParallel(ToSigned320(determinantThreshold - 1)));
+        Assert.True(WideGeometry.IsSegmentDeterminantNearParallel(ToSigned320(-determinantThreshold + 1)));
+        Assert.False(WideGeometry.IsSegmentDeterminantNearParallel(ToSigned320(determinantThreshold)));
+        Assert.False(WideGeometry.IsSegmentDeterminantNearParallel(ToSigned320(-determinantThreshold)));
 
         (BigInteger Numerator, BigInteger Denominator)[] ratios =
         {
@@ -828,16 +828,16 @@ public class Fixed64Tests
         Assert.Equal(Fixed64.One, negativeOne);
 
         BigInteger word0Base = BigInteger.One << 200;
-        Assert.True(Fixed64.CompareMagnitude(
+        Assert.True(WideArithmetic.CompareMagnitude(
             ToSigned320(word0Base + 1),
             ToSigned320(word0Base + 2)) < 0);
-        Assert.True(Fixed64.CompareMagnitude(
+        Assert.True(WideArithmetic.CompareMagnitude(
             ToSigned320(word0Base + 2),
             ToSigned320(word0Base + 1)) > 0);
-        Assert.True(Fixed64.CompareMagnitude(
+        Assert.True(WideArithmetic.CompareMagnitude(
             ToSigned320(BigInteger.One << 64),
             ToSigned320(BigInteger.One << 65)) < 0);
-        Assert.True(Fixed64.CompareMagnitude(
+        Assert.True(WideArithmetic.CompareMagnitude(
             ToSigned320(BigInteger.One << 65),
             ToSigned320(BigInteger.One << 64)) > 0);
 
@@ -851,7 +851,7 @@ public class Fixed64Tests
         };
         foreach (BigInteger value in negativeWordBoundaries)
         {
-            Assert.True(Fixed64.CompareMagnitude(
+            Assert.True(WideArithmetic.CompareMagnitude(
                 ToSigned320(value),
                 ToSigned320(BigInteger.Zero)) > 0);
         }
@@ -878,8 +878,8 @@ public class Fixed64Tests
                 Fixed64.RoundSquaredDistance(ToSigned192(value)));
         }
 
-        Assert.True(Fixed64.IsSquaredLengthDegenerate(ToSigned192(BigInteger.One << 31)));
-        Assert.False(Fixed64.IsSquaredLengthDegenerate(ToSigned192((BigInteger.One << 31) + 1)));
+        Assert.True(WideGeometry.IsSquaredLengthDegenerate(ToSigned192(BigInteger.One << 31)));
+        Assert.False(WideGeometry.IsSquaredLengthDegenerate(ToSigned192((BigInteger.One << 31) + 1)));
         Assert.Equal(Fixed64.Zero, Fixed64.RoundSquaredDistance(ToSigned192(-BigInteger.One)));
     }
 
@@ -913,17 +913,17 @@ public class Fixed64Tests
             Assert.Equal(RoundUnitRatioRawToEven(numerator, denominator), result.m_rawValue);
         }
 
-        Assert.True(Fixed64.CompareMagnitude(ToSigned192(-9), ToSigned192(8)) > 0);
-        Assert.True(Fixed64.CompareMagnitude(ToSigned192(-8), ToSigned192(9)) < 0);
-        Assert.Equal(0, Fixed64.CompareMagnitude(ToSigned192(-9), ToSigned192(9)));
+        Assert.True(WideArithmetic.CompareMagnitude(ToSigned192(-9), ToSigned192(8)) > 0);
+        Assert.True(WideArithmetic.CompareMagnitude(ToSigned192(-8), ToSigned192(9)) < 0);
+        Assert.Equal(0, WideArithmetic.CompareMagnitude(ToSigned192(-9), ToSigned192(9)));
         Assert.Equal(
             0,
-            Fixed64.CompareMagnitude(
+            WideArithmetic.CompareMagnitude(
                 ToSigned192(-(BigInteger.One << 65)),
                 ToSigned192(BigInteger.One << 65)));
         Assert.Equal(
             0,
-            Fixed64.CompareMagnitude(
+            WideArithmetic.CompareMagnitude(
                 ToSigned192(-(BigInteger.One << 128)),
                 ToSigned192(BigInteger.One << 128)));
     }
@@ -968,18 +968,18 @@ public class Fixed64Tests
         Assert.Equal(default, result);
     }
 
-    private static Fixed64.Signed192 ToSigned192(BigInteger value)
+    private static Signed192 ToSigned192(BigInteger value)
     {
         BigInteger modulus = BigInteger.One << 192;
         BigInteger encoded = value.Sign < 0 ? modulus + value : value;
         BigInteger wordMask = ulong.MaxValue;
-        return new Fixed64.Signed192(
+        return new Signed192(
             (ulong)((encoded >> 128) & wordMask),
             (ulong)((encoded >> 64) & wordMask),
             (ulong)(encoded & wordMask));
     }
 
-    private static BigInteger ToBigInteger(Fixed64.Signed192 value)
+    private static BigInteger ToBigInteger(Signed192 value)
     {
         BigInteger encoded = ((BigInteger)value.High << 128)
             | ((BigInteger)value.Middle << 64)
@@ -987,12 +987,12 @@ public class Fixed64Tests
         return value.Sign < 0 ? encoded - (BigInteger.One << 192) : encoded;
     }
 
-    private static Fixed64.Signed320 ToSigned320(BigInteger value)
+    private static Signed320 ToSigned320(BigInteger value)
     {
         BigInteger modulus = BigInteger.One << 320;
         BigInteger encoded = value.Sign < 0 ? modulus + value : value;
         BigInteger wordMask = ulong.MaxValue;
-        return new Fixed64.Signed320(
+        return new Signed320(
             (ulong)((encoded >> 256) & wordMask),
             (ulong)((encoded >> 192) & wordMask),
             (ulong)((encoded >> 128) & wordMask),
@@ -1000,7 +1000,7 @@ public class Fixed64Tests
             (ulong)(encoded & wordMask));
     }
 
-    private static BigInteger ToBigInteger(Fixed64.Signed320 value)
+    private static BigInteger ToBigInteger(Signed320 value)
     {
         BigInteger encoded = ((BigInteger)value.Word4 << 256)
             | ((BigInteger)value.Word3 << 192)

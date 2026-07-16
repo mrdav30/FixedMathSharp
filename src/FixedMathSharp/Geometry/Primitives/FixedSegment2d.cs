@@ -212,15 +212,15 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
             return true;
         }
 
-        Fixed64.Signed192 determinant = Fixed64.GetDifferenceCrossProduct2D(
+        Signed192 determinant = WideGeometry.GetDifferenceCrossProduct2D(
             End.X, Start.X, End.Y, Start.Y,
             other.End.X, other.Start.X, other.End.Y, other.Start.Y);
         if (!determinant.IsZero)
         {
-            Fixed64.Signed192 thisNumerator = Fixed64.GetDifferenceCrossProduct2D(
+            Signed192 thisNumerator = WideGeometry.GetDifferenceCrossProduct2D(
                 other.Start.X, Start.X, other.Start.Y, Start.Y,
                 other.End.X, other.Start.X, other.End.Y, other.Start.Y);
-            Fixed64.Signed192 otherNumerator = Fixed64.GetDifferenceCrossProduct2D(
+            Signed192 otherNumerator = WideGeometry.GetDifferenceCrossProduct2D(
                 other.Start.X, Start.X, other.Start.Y, Start.Y,
                 End.X, Start.X, End.Y, Start.Y);
 
@@ -235,7 +235,7 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
             return false;
         }
 
-        Fixed64.Signed192 collinearity = Fixed64.GetDifferenceCrossProduct2D(
+        Signed192 collinearity = WideGeometry.GetDifferenceCrossProduct2D(
             other.Start.X, Start.X, other.Start.Y, Start.Y,
             End.X, Start.X, End.Y, Start.Y);
         if (!collinearity.IsZero)
@@ -275,7 +275,7 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool PointOnSegment(Vector2d point, FixedSegment2d segment)
     {
-        Fixed64.Signed192 cross = Fixed64.GetDifferenceCrossProduct2D(
+        Signed192 cross = WideGeometry.GetDifferenceCrossProduct2D(
             point.X, segment.Start.X, point.Y, segment.Start.Y,
             segment.End.X, segment.Start.X, segment.End.Y, segment.Start.Y);
         if (!cross.IsZero)

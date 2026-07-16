@@ -135,7 +135,7 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     public bool IsDegenerate
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Fixed64.IsMagnitudeAtMost(
+        get => WideArithmetic.IsMagnitudeAtMost(
             GetDoubledArea(),
             (ulong)Fixed64.Epsilon.m_rawValue,
             FixedMath.SHIFT_AMOUNT_I + 1);
@@ -200,8 +200,8 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryGetBarycentricWeights(Vector2d point, out Fixed64 weightA, out Fixed64 weightB, out Fixed64 weightC)
     {
-        Fixed64.Signed192 denominator = GetDoubledArea();
-        if (Fixed64.IsMagnitudeAtMost(
+        Signed192 denominator = GetDoubledArea();
+        if (WideArithmetic.IsMagnitudeAtMost(
             denominator,
             (ulong)Fixed64.Epsilon.m_rawValue,
             FixedMath.SHIFT_AMOUNT_I))
@@ -228,16 +228,16 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(Vector2d point)
     {
-        Fixed64.Signed192 doubledArea = GetDoubledArea();
-        if (Fixed64.IsMagnitudeAtMost(
+        Signed192 doubledArea = GetDoubledArea();
+        if (WideArithmetic.IsMagnitudeAtMost(
             doubledArea,
             (ulong)Fixed64.Epsilon.m_rawValue,
             FixedMath.SHIFT_AMOUNT_I + 1))
             return IsPointOnAnyEdge(point);
 
-        Fixed64.Signed192 ab = GetCrossProduct(A, B, point);
-        Fixed64.Signed192 bc = GetCrossProduct(B, C, point);
-        Fixed64.Signed192 ca = GetCrossProduct(C, A, point);
+        Signed192 ab = GetCrossProduct(A, B, point);
+        Signed192 bc = GetCrossProduct(B, C, point);
+        Signed192 ca = GetCrossProduct(C, A, point);
         ulong epsilonRaw = (ulong)Fixed64.Epsilon.m_rawValue;
 
         return doubledArea.Sign > 0
@@ -352,23 +352,23 @@ public partial struct FixedTriangle2d : IEquatable<FixedTriangle2d>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private Fixed64.Signed192 GetDoubledArea() => GetCrossProduct(A, B, C);
+    private Signed192 GetDoubledArea() => GetCrossProduct(A, B, C);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Fixed64.Signed192 GetCrossProduct(Vector2d origin, Vector2d first, Vector2d second) =>
-        Fixed64.GetDifferenceCrossProduct2D(
+    private static Signed192 GetCrossProduct(Vector2d origin, Vector2d first, Vector2d second) =>
+        WideGeometry.GetDifferenceCrossProduct2D(
             first.X, origin.X, first.Y, origin.Y,
             second.X, origin.X, second.Y, origin.Y);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsNonnegativeWithinEpsilon(Fixed64.Signed192 value, ulong epsilonRaw) =>
+    private static bool IsNonnegativeWithinEpsilon(Signed192 value, ulong epsilonRaw) =>
         value.Sign >= 0
-        || Fixed64.IsMagnitudeAtMost(value, epsilonRaw, FixedMath.SHIFT_AMOUNT_I);
+        || WideArithmetic.IsMagnitudeAtMost(value, epsilonRaw, FixedMath.SHIFT_AMOUNT_I);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsNonpositiveWithinEpsilon(Fixed64.Signed192 value, ulong epsilonRaw) =>
+    private static bool IsNonpositiveWithinEpsilon(Signed192 value, ulong epsilonRaw) =>
         value.Sign <= 0
-        || Fixed64.IsMagnitudeAtMost(value, epsilonRaw, FixedMath.SHIFT_AMOUNT_I);
+        || WideArithmetic.IsMagnitudeAtMost(value, epsilonRaw, FixedMath.SHIFT_AMOUNT_I);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector2d ComponentMin(Vector2d a, Vector2d b) =>

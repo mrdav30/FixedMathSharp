@@ -90,7 +90,7 @@ public partial struct Vector3d
     /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CompareProjection(Vector3d candidate, Vector3d current, Vector3d direction) =>
-        Fixed64.CompareDifferenceProjection(
+        WideGeometry.CompareDifferenceProjection(
             candidate.X,
             current.X,
             direction.X,
@@ -504,18 +504,18 @@ public partial struct Vector3d
     /// </remarks>
     public static Vector3d ClosestPointOnLineSegment(Vector3d point, Vector3d start, Vector3d end)
     {
-        Fixed64.Signed192 denominator = Fixed64.GetDifferenceDotProduct3D(
+        Signed192 denominator = WideGeometry.GetDifferenceDotProduct3D(
             end.X, start.X, end.Y, start.Y, end.Z, start.Z,
             end.X, start.X, end.Y, start.Y, end.Z, start.Z);
-        if (Fixed64.IsSquaredLengthDegenerate(denominator))
+        if (WideGeometry.IsSquaredLengthDegenerate(denominator))
             return start;
 
-        Fixed64.Signed192 numerator = Fixed64.GetDifferenceDotProduct3D(
+        Signed192 numerator = WideGeometry.GetDifferenceDotProduct3D(
             point.X, start.X, point.Y, start.Y, point.Z, start.Z,
             end.X, start.X, end.Y, start.Y, end.Z, start.Z);
         if (numerator.Sign <= 0)
             return start;
-        if (Fixed64.CompareMagnitude(numerator, denominator) >= 0)
+        if (WideArithmetic.CompareMagnitude(numerator, denominator) >= 0)
             return end;
 
         _ = Fixed64.TryGetUnitIntervalRatio(numerator, denominator, out Fixed64 parameter);

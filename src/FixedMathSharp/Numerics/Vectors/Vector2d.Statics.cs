@@ -88,7 +88,7 @@ public partial struct Vector2d
     /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CompareProjection(Vector2d candidate, Vector2d current, Vector2d direction) =>
-        Fixed64.CompareDifferenceProjection(
+        WideGeometry.CompareDifferenceProjection(
             candidate.X,
             current.X,
             direction.X,
@@ -335,18 +335,18 @@ public partial struct Vector2d
         Vector2d start,
         Vector2d end)
     {
-        Fixed64.Signed192 denominator = Fixed64.GetDifferenceDotProduct2D(
+        Signed192 denominator = WideGeometry.GetDifferenceDotProduct2D(
             end.X, start.X, end.Y, start.Y,
             end.X, start.X, end.Y, start.Y);
         if (denominator.IsZero)
             return Fixed64.Zero;
 
-        Fixed64.Signed192 numerator = Fixed64.GetDifferenceDotProduct2D(
+        Signed192 numerator = WideGeometry.GetDifferenceDotProduct2D(
             point.X, start.X, point.Y, start.Y,
             end.X, start.X, end.Y, start.Y);
         if (numerator.Sign <= 0)
             return Fixed64.Zero;
-        if (Fixed64.CompareMagnitude(numerator, denominator) >= 0)
+        if (WideArithmetic.CompareMagnitude(numerator, denominator) >= 0)
             return Fixed64.One;
 
         _ = Fixed64.TryGetUnitIntervalRatio(numerator, denominator, out Fixed64 parameter);
@@ -359,14 +359,14 @@ public partial struct Vector2d
         Vector2d rightStart,
         Vector2d rightEnd)
     {
-        Fixed64.Signed192 leftDistance = Fixed64.GetDifferenceDotProduct2D(
+        Signed192 leftDistance = WideGeometry.GetDifferenceDotProduct2D(
             leftStart.X, leftEnd.X, leftStart.Y, leftEnd.Y,
             leftStart.X, leftEnd.X, leftStart.Y, leftEnd.Y);
-        Fixed64.Signed192 rightDistance = Fixed64.GetDifferenceDotProduct2D(
+        Signed192 rightDistance = WideGeometry.GetDifferenceDotProduct2D(
             rightStart.X, rightEnd.X, rightStart.Y, rightEnd.Y,
             rightStart.X, rightEnd.X, rightStart.Y, rightEnd.Y);
 
-        return Fixed64.CompareMagnitude(leftDistance, rightDistance);
+        return WideArithmetic.CompareMagnitude(leftDistance, rightDistance);
     }
 
     /// <summary>

@@ -1925,8 +1925,7 @@ complexity was not justified by the remaining nanosecond-scale cost.
 
 ### Task 10: Internal Wide Arithmetic Ownership Split
 
-**Status:** Planned; execute as a behavior-neutral mechanical refactor before
-Task 11.
+**Status:** Complete on 2026-07-16; awaiting owner review and commit.
 
 **Files:**
 
@@ -1942,13 +1941,20 @@ Task 11.
 - Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
 - Modify: `src/FixedMathSharp/Numerics/Vectors/Vector2d.Statics.cs`
 - Modify: `src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs`
+- Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed3x3.cs`
+- Modify:
+  `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Decomposition.cs`
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedSegment2d.cs`
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedSegment.cs`
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedTriangle2d.cs`
-- Modify: focused internal-call tests returned by:
+- Modify:
+  `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+- Modify:
+  `tests/FixedMathSharp.Tests/Numerics/Matrices/MatrixScaleContract.Tests.cs`
+- Verify focused internal-call tests returned by:
 
 ```powershell
-rg -l "Fixed64\.(Signed192|Signed320|GetDifference|CompareMagnitude|IsMagnitudeAtMost|MultiplySubtract|ExtendToSigned320)" tests/FixedMathSharp.Tests
+rg -l "Fixed64\.(Signed192|Signed320|GetDifference|GetTripleProductSign|CompareMagnitude|IsMagnitudeAtMost|MultiplySubtract|ExtendToSigned320)" tests/FixedMathSharp.Tests
 ```
 
 - Modify: `docs/complexity-exceptions.md`
@@ -1983,53 +1989,91 @@ rg -l "Fixed64\.(Signed192|Signed320|GetDifference|CompareMagnitude|IsMagnitudeA
   ordinary operators. Promote only the minimum access needed by the new
   internal owners; do not duplicate them.
 
-- [ ] **Step 1: Capture a clean green baseline before moving code.** Run the
+- [x] **Step 1: Capture a clean green baseline before moving code.** Run the
       complete `Release` and `ReleaseLean` solutions, fresh exact coverage/CRAP,
       and the existing 2D/3D segment plus 2D triangle benchmark rows. Record
       exact test totals, covered/total counts, method complexities, medians, and
       allocations.
-- [ ] **Step 2: Freeze the current internal ownership inventory.** Record every
+- [x] **Step 2: Freeze the current internal ownership inventory.** Record every
       source and test caller of `Signed192`, `Signed320`, and every member in
       `Fixed64.WideGeometry.cs`. Classify each member into exactly one of the
       three owners above before moving it; do not change an algorithm while
       deciding where it lives.
-- [ ] **Step 3: Extract the two storage structs first.** Move their existing
+- [x] **Step 3: Extract the two storage structs first.** Move their existing
       fields, constructor, `IsZero`, and `Sign` bodies verbatim into top-level
       internal readonly structs and update qualified names. Run the focused
       scalar/segment/triangle tests; this is green-to-green refactoring, not a
       reason to invent a failing behavioral test.
-- [ ] **Step 4: Extract fixed-limb arithmetic.** Move the existing signed word
+- [x] **Step 4: Extract fixed-limb arithmetic.** Move the existing signed word
       operations and their private carry/borrow/multiply/shift helpers into
       `WideArithmetic`. Preserve word order, unchecked behavior, inlining,
       branch order, and exact fast paths. Update callers directly; add no
       forwarding compatibility layer on `Fixed64`.
-- [ ] **Step 5: Extract exact geometry operations.** Move endpoint-difference
+- [x] **Step 5: Extract exact geometry operations.** Move endpoint-difference
       accumulation, dot/cross/triple-product helpers, squared-length resolution,
       and segment determinant policy into `WideGeometry`. Reuse
       `WideArithmetic`; do not create separate 2D/3D utility classes or copy the
       multiplier.
-- [ ] **Step 6: Retain only Q32.32 conversion in the partial.** Move the
+- [x] **Step 6: Retain only Q32.32 conversion in the partial.** Move the
       remaining interpolation, rounding/saturation, and ratio members to
       `Fixed64.WideConversion.cs`, then delete `Fixed64.WideGeometry.cs` and the
       nested wide types from `Fixed64.cs`. Require every new production file to
       remain below the repository's roughly 1,000-line warning.
-- [ ] **Step 7: Prove the refactor is mechanical.** Run focused scalar, vector,
+- [x] **Step 7: Prove the refactor is mechanical.** Run focused scalar, vector,
       2D/3D segment, and 2D triangle tests in both configurations. Inspect the
       diff for copied algorithms, forwarding wrappers, changed constants,
       reordered conditions, new allocations, target-specific code, or public
       surface changes; none are permitted.
-- [ ] **Step 8: Re-run full validation and exact coverage.** Require the same
+- [x] **Step 8: Re-run full validation and exact coverage.** Require the same
       behavior, test totals, reachable coverage, and CRAP values as the Step 1
       baseline after accounting only for class/file ownership names. Update the
       complexity register paths/owners without changing the rationales.
-- [ ] **Step 9: Re-run the identical benchmark rows.** Require 0 B and no
+- [x] **Step 9: Re-run the identical benchmark rows.** Require 0 B and no
       material regression. Because this task changes no algorithm, any sustained
       slowdown must be corrected through inlining/ownership placement before
       approval rather than accepted as refactor cost.
-- [ ] **Step 10: Independent review and owner checkpoint.** Have a fresh agent
+- [x] **Step 10: Independent review and owner checkpoint.** Have a fresh agent
       verify behavior-neutrality and the absence of unnecessary abstraction.
       Leave every change unstaged and provide a non-breaking refactor commit
       message.
+
+Task 10 implementation completed on 2026-07-16. The nested `Signed192` and
+`Signed320` storage values moved verbatim to top-level internal structs;
+fixed-limb operations now have one `WideArithmetic` owner; exact coordinate
+products and geometry thresholds now have one `WideGeometry` owner; and the
+remaining `Fixed64.WideConversion` partial contains only operations whose
+result is Q32.32. Callers and internal-focused tests reference those owners
+directly. No public API, algorithm, constant, branch order, allocation,
+target-specific implementation, or compatibility forwarding layer was added.
+The deleted 1,286-line mixed-ownership partial is replaced by focused files of
+598, 333, 563, 30, and 34 lines, all below the repository warning threshold.
+
+The clean baseline and final validation match exactly: `Release` passed 1,393
+FixedMathSharp plus 8 Chronicler tests, while `ReleaseLean` passed 1,372 plus 8;
+both target frameworks and standard/Lean packages built. Fresh merged coverage
+remains 8,074/8,110 lines, 2,699/2,725 branches, and 1,455/1,460 methods, with
+the same 1,456 analyzed methods and the same three CRAP-above-30 hotspots.
+`Signed192`, `Signed320`, `WideArithmetic`, and `WideGeometry` are each at 100%
+line coverage, and the complexity register now records the focused owners.
+
+All twelve identical short benchmark rows remained at 0 B. Final medians were
+21.445 ns (2D closest point), 26.717 ns (2D squared distance), 36.496 ns (2D
+unique intersection repeat), 304.212 ns (2D closest pair), 26.788 ns (3D
+closest point), 36.583 ns (3D squared distance), 9.972 ns (2D triangle area),
+28.913 ns (2D containment), 131.560 ns (2D triangle closest point), 66.497 ns
+(`GetPoint`), 207.484 ns (barycentric weights), and 75.162 us (3D closest
+pair). Every row was neutral or faster than its immediate baseline after one
+measured ownership-boundary correction: disassembly showed the relocated exact
+2D cross product remained behind two hot calls, so its existing behavior gained
+one targeted `AggressiveInlining` hint. Speculative hints on threshold helpers
+were measured, showed no benefit, and were removed.
+
+A fresh independent reviewer normalized and compared every relocated method
+body against the committed implementation and found the ownership split exact.
+Their only note was an encoding-only UTF-8 BOM change in `Fixed64.Tests.cs`; the
+BOM was restored, the reviewer verified the resolution, and the final review is
+approved with no remaining findings. All Task 10 changes remain unstaged for
+owner review.
 
 ---
 

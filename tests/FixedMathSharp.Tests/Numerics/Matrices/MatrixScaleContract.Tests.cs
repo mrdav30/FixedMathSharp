@@ -114,7 +114,7 @@ public class MatrixScaleContractTests
                 - (BigInteger)raw[1] * ((BigInteger)raw[3] * raw[8] - (BigInteger)raw[5] * raw[6])
                 + (BigInteger)raw[2] * ((BigInteger)raw[3] * raw[7] - (BigInteger)raw[4] * raw[6])).Sign;
 
-            int actual = Fixed64.GetTripleProductSign(
+            int actual = WideGeometry.GetTripleProductSign(
                 Fixed64.FromRaw(raw[0]), Fixed64.FromRaw(raw[1]), Fixed64.FromRaw(raw[2]),
                 Fixed64.FromRaw(raw[3]), Fixed64.FromRaw(raw[4]), Fixed64.FromRaw(raw[5]),
                 Fixed64.FromRaw(raw[6]), Fixed64.FromRaw(raw[7]), Fixed64.FromRaw(raw[8]));

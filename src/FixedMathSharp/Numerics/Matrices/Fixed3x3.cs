@@ -479,7 +479,7 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     public static Vector3d ExtractLossyScale(Fixed3x3 matrix)
     {
         Vector3d scale = ExtractScaleMagnitudes(matrix);
-        if (Fixed64.GetTripleProductSign(
+        if (WideGeometry.GetTripleProductSign(
             matrix.M11, matrix.M12, matrix.M13,
             matrix.M21, matrix.M22, matrix.M23,
             matrix.M31, matrix.M32, matrix.M33) < 0)

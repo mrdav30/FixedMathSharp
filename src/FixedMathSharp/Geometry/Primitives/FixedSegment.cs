@@ -153,37 +153,37 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     /// </remarks>
     public readonly (Vector3d ThisPoint, Vector3d OtherPoint) GetClosestPoints(FixedSegment other)
     {
-        Fixed64.Signed192 firstLengthSquared = GetDifferenceDot(End, Start, End, Start);
-        Fixed64.Signed192 secondLengthSquared = GetDifferenceDot(
+        Signed192 firstLengthSquared = GetDifferenceDot(End, Start, End, Start);
+        Signed192 secondLengthSquared = GetDifferenceDot(
             other.End,
             other.Start,
             other.End,
             other.Start);
 
-        if (Fixed64.IsSquaredLengthDegenerate(firstLengthSquared))
+        if (WideGeometry.IsSquaredLengthDegenerate(firstLengthSquared))
         {
-            if (Fixed64.IsSquaredLengthDegenerate(secondLengthSquared))
+            if (WideGeometry.IsSquaredLengthDegenerate(secondLengthSquared))
                 return (Start, other.Start);
             if (PointOnSegment(Start, other, secondLengthSquared))
                 return (Start, Start);
             return (Start, other.ClosestPoint(Start));
         }
 
-        if (Fixed64.IsSquaredLengthDegenerate(secondLengthSquared))
+        if (WideGeometry.IsSquaredLengthDegenerate(secondLengthSquared))
         {
             if (PointOnSegment(other.Start, this, firstLengthSquared))
                 return (other.Start, other.Start);
             return (Vector3d.ClosestPointOnLineSegment(other.Start, Start, End), other.Start);
         }
 
-        Fixed64.Signed192 directionsDot = GetDifferenceDot(End, Start, other.End, other.Start);
-        Fixed64.Signed192 firstDirectionDotDifference = GetDifferenceDot(End, Start, Start, other.Start);
-        Fixed64.Signed192 secondDirectionDotDifference = GetDifferenceDot(
+        Signed192 directionsDot = GetDifferenceDot(End, Start, other.End, other.Start);
+        Signed192 firstDirectionDotDifference = GetDifferenceDot(End, Start, Start, other.Start);
+        Signed192 secondDirectionDotDifference = GetDifferenceDot(
             other.End,
             other.Start,
             Start,
             other.Start);
-        Fixed64.Signed320 determinant = Fixed64.MultiplySubtract(
+        Signed320 determinant = WideArithmetic.MultiplySubtract(
             firstLengthSquared,
             secondLengthSquared,
             directionsDot,
@@ -212,23 +212,23 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     }
 
     private static (Fixed64 First, Fixed64 Second, byte EndpointCandidates) SolveClosestParameters(
-        Fixed64.Signed192 firstLengthSquared,
-        Fixed64.Signed192 directionsDot,
-        Fixed64.Signed192 secondLengthSquared,
-        Fixed64.Signed192 firstDirectionDotDifference,
-        Fixed64.Signed192 secondDirectionDotDifference,
-        Fixed64.Signed320 determinant)
+        Signed192 firstLengthSquared,
+        Signed192 directionsDot,
+        Signed192 secondLengthSquared,
+        Signed192 firstDirectionDotDifference,
+        Signed192 secondDirectionDotDifference,
+        Signed320 determinant)
     {
         Fixed64 firstParameter;
         bool firstParameterIsClamped;
-        Fixed64.Signed320 firstNumerator = default;
-        Fixed64.Signed320 secondNumerator = default;
-        Fixed64.Signed320 secondDenominator = default;
-        Fixed64.Signed192 narrowSecondNumerator = default;
-        Fixed64.Signed192 narrowSecondDenominator = default;
+        Signed320 firstNumerator = default;
+        Signed320 secondNumerator = default;
+        Signed320 secondDenominator = default;
+        Signed192 narrowSecondNumerator = default;
+        Signed192 narrowSecondDenominator = default;
         bool secondRatioIsWide;
         byte endpointCandidates = 0;
-        bool isNearParallel = Fixed64.IsSegmentDeterminantNearParallel(determinant);
+        bool isNearParallel = WideGeometry.IsSegmentDeterminantNearParallel(determinant);
 
         if (isNearParallel)
         {
@@ -236,7 +236,7 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
             firstParameterIsClamped = true;
             endpointCandidates = 1;
             bool useDirectionsDot = directionsDot.Sign > 0
-                && Fixed64.CompareMagnitude(directionsDot, secondLengthSquared) > 0;
+                && WideArithmetic.CompareMagnitude(directionsDot, secondLengthSquared) > 0;
             narrowSecondNumerator = useDirectionsDot
                 ? firstDirectionDotDifference
                 : secondDirectionDotDifference;
@@ -245,14 +245,14 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
         }
         else
         {
-            firstNumerator = Fixed64.MultiplySubtract(
+            firstNumerator = WideArithmetic.MultiplySubtract(
                 directionsDot,
                 secondDirectionDotDifference,
                 secondLengthSquared,
                 firstDirectionDotDifference);
             int firstNumeratorComparison = firstNumerator.Sign < 0
                 ? -1
-                : Fixed64.CompareMagnitude(firstNumerator, determinant);
+                : WideArithmetic.CompareMagnitude(firstNumerator, determinant);
 
             if (firstNumerator.Sign < 0)
             {
@@ -268,7 +268,7 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
                 firstParameter = Fixed64.One;
                 firstParameterIsClamped = true;
                 endpointCandidates = 0;
-                narrowSecondNumerator = Fixed64.AddSigned192(
+                narrowSecondNumerator = WideArithmetic.AddSigned192(
                     secondDirectionDotDifference,
                     directionsDot);
                 narrowSecondDenominator = secondLengthSquared;
@@ -278,7 +278,7 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
             {
                 firstParameter = default;
                 firstParameterIsClamped = false;
-                secondNumerator = Fixed64.MultiplySubtract(
+                secondNumerator = WideArithmetic.MultiplySubtract(
                     firstLengthSquared,
                     secondDirectionDotDifference,
                     directionsDot,
@@ -288,7 +288,7 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
 
                 int secondNumeratorComparison = secondNumerator.Sign < 0
                     ? -1
-                    : Fixed64.CompareMagnitude(secondNumerator, determinant);
+                    : WideArithmetic.CompareMagnitude(secondNumerator, determinant);
                 if (secondNumerator.Sign >= 0 && secondNumeratorComparison <= 0)
                 {
                     if (firstNumerator.IsZero)
@@ -309,18 +309,18 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
         if (secondNumeratorSign < 0)
             return (
                 ClampParameter(
-                    Fixed64.SubtractSigned192(default, firstDirectionDotDifference),
+                    WideArithmetic.SubtractSigned192(default, firstDirectionDotDifference),
                     firstLengthSquared),
                 Fixed64.Zero,
                 isNearParallel ? (byte)4 : (byte)0);
 
         int secondRatioComparison = secondRatioIsWide
-            ? Fixed64.CompareMagnitude(secondNumerator, secondDenominator)
-            : Fixed64.CompareMagnitude(narrowSecondNumerator, narrowSecondDenominator);
+            ? WideArithmetic.CompareMagnitude(secondNumerator, secondDenominator)
+            : WideArithmetic.CompareMagnitude(narrowSecondNumerator, narrowSecondDenominator);
         if (secondRatioComparison > 0)
             return (
                 ClampParameter(
-                    Fixed64.SubtractSigned192(directionsDot, firstDirectionDotDifference),
+                    WideArithmetic.SubtractSigned192(directionsDot, firstDirectionDotDifference),
                     firstLengthSquared),
                 Fixed64.One,
                 isNearParallel ? (byte)8 : (byte)0);
@@ -347,24 +347,24 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Fixed64 ClampParameter(Fixed64.Signed192 numerator, Fixed64.Signed192 denominator)
+    private static Fixed64 ClampParameter(Signed192 numerator, Signed192 denominator)
     {
         if (numerator.Sign <= 0)
             return Fixed64.Zero;
-        if (Fixed64.CompareMagnitude(numerator, denominator) >= 0)
+        if (WideArithmetic.CompareMagnitude(numerator, denominator) >= 0)
             return Fixed64.One;
         _ = Fixed64.TryGetUnitIntervalRatio(numerator, denominator, out Fixed64 parameter);
         return parameter;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Fixed64.Signed192 GetDifferenceDot(
+    private static Signed192 GetDifferenceDot(
         Vector3d leftEnd,
         Vector3d leftStart,
         Vector3d rightEnd,
         Vector3d rightStart)
     {
-        return Fixed64.GetDifferenceDotProduct3D(
+        return WideGeometry.GetDifferenceDotProduct3D(
             leftEnd.X, leftStart.X, leftEnd.Y, leftStart.Y, leftEnd.Z, leftStart.Z,
             rightEnd.X, rightStart.X, rightEnd.Y, rightStart.Y, rightEnd.Z, rightStart.Z);
     }
@@ -372,7 +372,7 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     private static bool PointOnSegment(
         Vector3d point,
         FixedSegment segment,
-        Fixed64.Signed192 lengthSquared)
+        Signed192 lengthSquared)
     {
         long pointX = point.X.m_rawValue;
         long pointY = point.Y.m_rawValue;
@@ -387,17 +387,17 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
             return false;
         }
 
-        Fixed64.Signed192 projection = GetDifferenceDot(
+        Signed192 projection = GetDifferenceDot(
             point,
             segment.Start,
             segment.End,
             segment.Start);
-        Fixed64.Signed192 pointDistanceSquared = GetDifferenceDot(
+        Signed192 pointDistanceSquared = GetDifferenceDot(
             point,
             segment.Start,
             point,
             segment.Start);
-        return Fixed64.MultiplySubtract(
+        return WideArithmetic.MultiplySubtract(
             lengthSquared,
             pointDistanceSquared,
             projection,
