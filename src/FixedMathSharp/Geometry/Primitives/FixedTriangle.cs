@@ -13,8 +13,12 @@ using System.Text.Json.Serialization;
 namespace FixedMathSharp.Bounds;
 
 /// <summary>
-/// Represents a triangle in three-dimensional fixed-point space.
+/// Represents an ordered triangle in three-dimensional fixed-point space.
 /// </summary>
+/// <remarks>
+/// Triangle queries preserve complete raw-coordinate differences and exact wide
+/// predicates until their final public <see cref="Fixed64"/> conversion.
+/// </remarks>
 [Serializable]
 [MemoryPackable]
 public partial struct FixedTriangle : IEquatable<FixedTriangle>
@@ -79,17 +83,33 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
     /// <summary>
     /// The unnormalized triangle normal from <c>cross(B - A, C - A)</c>.
     /// </summary>
+    /// <remarks>
+    /// Each exact cross component is rounded once, half to even, and saturates
+    /// independently at the public Q32.32 boundary.
+    /// </remarks>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d UnnormalizedNormal
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Vector3d.Cross(B - A, C - A);
+        get
+        {
+            GetExactNormalComponents(out Signed192 x, out Signed192 y, out Signed192 z);
+            return new Vector3d(
+                Fixed64.RoundSignedToFixed(x, FixedMath.SHIFT_AMOUNT_I),
+                Fixed64.RoundSignedToFixed(y, FixedMath.SHIFT_AMOUNT_I),
+                Fixed64.RoundSignedToFixed(z, FixedMath.SHIFT_AMOUNT_I));
+        }
     }
 
     /// <summary>
-    /// The normalized triangle normal. Degenerate triangles return <see cref="Vector3d.Zero"/>.
+    /// The normalized triangle normal derived from the exact cross product.
     /// </summary>
+    /// <remarks>
+    /// Components are rounded half to even from the exact squared magnitude.
+    /// Triangles at or below the inclusive degeneracy threshold return
+    /// <see cref="Vector3d.Zero"/>.
+    /// </remarks>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d Normal
@@ -97,23 +117,47 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            Vector3d normal = UnnormalizedNormal;
-            Fixed64 magnitudeSquared = normal.MagnitudeSquared;
-            return magnitudeSquared <= Fixed64.Epsilon
-                ? Vector3d.Zero
-                : normal / FixedMath.Sqrt(magnitudeSquared);
+            GetExactNormalComponents(out Signed192 x, out Signed192 y, out Signed192 z);
+            Signed320 squaredMagnitude = WideGeometry.GetSquaredMagnitude(
+                x,
+                y,
+                z,
+                out Signed320 xSquare,
+                out Signed320 ySquare,
+                out Signed320 zSquare);
+            if (WideGeometry.IsQ128MagnitudeAtMostEpsilon(squaredMagnitude))
+                return Vector3d.Zero;
+
+            Signed192 magnitude = WideArithmetic.GetFloorSquareRoot(squaredMagnitude, out Signed192 remainder);
+            Signed192 ceilingMagnitude = remainder.IsZero
+                ? magnitude
+                : WideArithmetic.AddSigned192(magnitude, WideArithmetic.FromSignedRaw(1L));
+            return new Vector3d(
+                Fixed64.NormalizeWideComponent(x, xSquare, ceilingMagnitude, squaredMagnitude),
+                Fixed64.NormalizeWideComponent(y, ySquare, ceilingMagnitude, squaredMagnitude),
+                Fixed64.NormalizeWideComponent(z, zSquare, ceilingMagnitude, squaredMagnitude));
         }
     }
 
     /// <summary>
     /// The non-negative surface area of the triangle.
     /// </summary>
+    /// <remarks>
+    /// The exact cross-product magnitude is halved and rounded once, half to
+    /// even. Results beyond the positive Q32.32 range saturate to
+    /// <see cref="Fixed64.MaxValue"/>.
+    /// </remarks>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 Area
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => UnnormalizedNormal.Magnitude * Fixed64.Half;
+        get
+        {
+            GetExactNormal(out _, out _, out _, out Signed320 squaredMagnitude);
+            Signed192 root = WideArithmetic.GetFloorSquareRoot(squaredMagnitude, out Signed192 remainder);
+            return Fixed64.RoundSquareRootToFixed(root, remainder, FixedMath.SHIFT_AMOUNT_I + 1);
+        }
     }
 
     /// <summary>
@@ -128,25 +172,33 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
     }
 
     /// <summary>
-    /// The arithmetic center of the three vertices.
+    /// The arithmetic center of the three vertices, rounded half to even per component.
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d Centroid
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (A + B + C) / (Fixed64)3;
+        get => new(
+            FixedMath.Average(A.X, B.X, C.X),
+            FixedMath.Average(A.Y, B.Y, C.Y),
+            FixedMath.Average(A.Z, B.Z, C.Z));
     }
 
     /// <summary>
-    /// Returns true when the triangle has no positive surface area.
+    /// Returns true when the exact squared normal magnitude is at or below
+    /// the inclusive <see cref="Fixed64.Epsilon"/> threshold.
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public bool IsDegenerate
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => UnnormalizedNormal.MagnitudeSquared <= Fixed64.Epsilon;
+        get
+        {
+            GetExactNormal(out _, out _, out _, out Signed320 squaredMagnitude);
+            return WideGeometry.IsQ128MagnitudeAtMostEpsilon(squaredMagnitude);
+        }
     }
 
     #endregion
@@ -180,13 +232,12 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
         };
 
     /// <summary>
-    /// Gets the point represented by barycentric weights for vertices B and C.
+    /// Gets the point represented by barycentric weights for vertices B and C
+    /// without saturating intermediate differences.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector3d GetPoint(Fixed64 weightB, Fixed64 weightC)
-    {
-        return Vector3d.BarycentricCoordinates(A, B, C, weightB, weightC);
-    }
+    public Vector3d GetPoint(Fixed64 weightB, Fixed64 weightC) =>
+        Vector3d.BarycentricCoordinates(A, B, C, weightB, weightC);
 
     #endregion
 
@@ -196,23 +247,26 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
     /// Computes barycentric weights for the point projected onto this triangle's plane.
     /// </summary>
     /// <returns>
-    /// True when the triangle has non-degenerate area; false when weights cannot be solved.
+    /// True when the exact Gram denominator is outside the inclusive
+    /// <see cref="Fixed64.Epsilon"/> failure threshold; otherwise false with
+    /// all three weights set to zero.
     /// </returns>
+    /// <remarks>
+    /// Successful weights are computed from independent exact numerators, then
+    /// rounded half to even and saturated independently at the public boundary.
+    /// The point is projected onto the triangle plane; it need not lie on it.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryGetProjectedBarycentricWeights(Vector3d point, out Fixed64 weightA, out Fixed64 weightB, out Fixed64 weightC)
     {
-        Vector3d ab = B - A;
-        Vector3d ac = C - A;
-        Vector3d ap = point - A;
+        Signed192 abAb = GetDifferenceDot(B, A, B, A);
+        Signed192 abAc = GetDifferenceDot(B, A, C, A);
+        Signed192 acAc = GetDifferenceDot(C, A, C, A);
+        Signed192 apAb = GetDifferenceDot(point, A, B, A);
+        Signed192 apAc = GetDifferenceDot(point, A, C, A);
+        Signed320 denominator = WideArithmetic.MultiplySubtract(abAb, acAc, abAc, abAc);
 
-        Fixed64 abAb = Vector3d.Dot(ab, ab);
-        Fixed64 abAc = Vector3d.Dot(ab, ac);
-        Fixed64 acAc = Vector3d.Dot(ac, ac);
-        Fixed64 apAb = Vector3d.Dot(ap, ab);
-        Fixed64 apAc = Vector3d.Dot(ap, ac);
-        Fixed64 denominator = (abAb * acAc) - (abAc * abAc);
-
-        if (FixedMath.Abs(denominator) <= Fixed64.Epsilon)
+        if (WideGeometry.IsQ128MagnitudeAtMostEpsilon(denominator))
         {
             weightA = Fixed64.Zero;
             weightB = Fixed64.Zero;
@@ -220,14 +274,20 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
             return false;
         }
 
-        weightB = ((acAc * apAb) - (abAc * apAc)) / denominator;
-        weightC = ((abAb * apAc) - (abAc * apAb)) / denominator;
-        weightA = Fixed64.One - weightB - weightC;
+        Signed320 numeratorB = WideArithmetic.MultiplySubtract(acAc, apAb, abAc, apAc);
+        Signed320 numeratorC = WideArithmetic.MultiplySubtract(abAb, apAc, abAc, apAb);
+        Signed320 numeratorA = WideArithmetic.SubtractSigned320(
+            WideArithmetic.SubtractSigned320(denominator, numeratorB),
+            numeratorC);
+        weightA = Fixed64.GetSignedRatio(numeratorA, denominator);
+        weightB = Fixed64.GetSignedRatio(numeratorB, denominator);
+        weightC = Fixed64.GetSignedRatio(numeratorC, denominator);
         return true;
     }
 
     /// <summary>
-    /// Determines whether the point lies on or inside this triangle.
+    /// Determines whether the point is within the inclusive squared-distance
+    /// epsilon of this triangle.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(Vector3d point)
@@ -238,69 +298,82 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
     /// <summary>
     /// Finds the closest point on or inside this triangle to the supplied point.
     /// </summary>
+    /// <remarks>
+    /// Voronoi-region predicates and degenerate edge distances use exact wide
+    /// intermediates. Degenerate candidates are visited in AB, BC, CA order,
+    /// and an exact distance tie retains the first candidate.
+    /// </remarks>
     public Vector3d ClosestPoint(Vector3d point)
     {
-        if (IsDegenerate)
+        Signed192 abAb = GetDifferenceDot(B, A, B, A);
+        Signed192 abAc = GetDifferenceDot(B, A, C, A);
+        Signed192 acAc = GetDifferenceDot(C, A, C, A);
+        Signed320 denominator = WideArithmetic.MultiplySubtract(abAb, acAc, abAc, abAc);
+        if (WideGeometry.IsQ128MagnitudeAtMostEpsilon(denominator))
             return ClosestPointOnEdges(point);
 
-        Vector3d ab = B - A;
-        Vector3d ac = C - A;
-        Vector3d ap = point - A;
-
-        Fixed64 d1 = Vector3d.Dot(ab, ap);
-        Fixed64 d2 = Vector3d.Dot(ac, ap);
-        if (d1 <= Fixed64.Zero && d2 <= Fixed64.Zero)
+        Signed192 d1 = GetDifferenceDot(B, A, point, A);
+        Signed192 d2 = GetDifferenceDot(C, A, point, A);
+        if (d1.Sign <= 0 && d2.Sign <= 0)
             return A;
 
-        Vector3d bp = point - B;
-        Fixed64 d3 = Vector3d.Dot(ab, bp);
-        Fixed64 d4 = Vector3d.Dot(ac, bp);
-        if (d3 >= Fixed64.Zero && d4 <= d3)
+        Signed192 d3 = WideArithmetic.SubtractSigned192(d1, abAb);
+        Signed192 d4 = WideArithmetic.SubtractSigned192(d2, abAc);
+        if (d3.Sign >= 0 && WideArithmetic.SubtractSigned192(d4, d3).Sign <= 0)
             return B;
 
-        Fixed64 vc = (d1 * d4) - (d3 * d2);
-        if (vc <= Fixed64.Zero && d1 >= Fixed64.Zero && d3 <= Fixed64.Zero)
+        Signed320 vc = WideArithmetic.MultiplySubtract(d1, d4, d3, d2);
+        if (vc.Sign <= 0 && d1.Sign >= 0 && d3.Sign <= 0)
         {
-            Fixed64 v = d1 / (d1 - d3);
-            return A + ab * v;
+            _ = Fixed64.TryGetUnitIntervalRatio(
+                d1,
+                WideArithmetic.SubtractSigned192(d1, d3),
+                out Fixed64 parameter);
+            return Vector3d.Lerp(A, B, parameter);
         }
 
-        Vector3d cp = point - C;
-        Fixed64 d5 = Vector3d.Dot(ab, cp);
-        Fixed64 d6 = Vector3d.Dot(ac, cp);
-        if (d6 >= Fixed64.Zero && d5 <= d6)
+        Signed192 d5 = WideArithmetic.SubtractSigned192(d1, abAc);
+        Signed192 d6 = WideArithmetic.SubtractSigned192(d2, acAc);
+        if (d6.Sign >= 0 && WideArithmetic.SubtractSigned192(d5, d6).Sign <= 0)
             return C;
 
-        Fixed64 vb = (d5 * d2) - (d1 * d6);
-        if (vb <= Fixed64.Zero && d2 >= Fixed64.Zero && d6 <= Fixed64.Zero)
+        Signed320 vb = WideArithmetic.MultiplySubtract(d5, d2, d1, d6);
+        if (vb.Sign <= 0 && d2.Sign >= 0 && d6.Sign <= 0)
         {
-            Fixed64 w = d2 / (d2 - d6);
-            return A + ac * w;
+            _ = Fixed64.TryGetUnitIntervalRatio(
+                d2,
+                WideArithmetic.SubtractSigned192(d2, d6),
+                out Fixed64 parameter);
+            return Vector3d.Lerp(A, C, parameter);
         }
 
-        Fixed64 va = (d3 * d6) - (d5 * d4);
-        if (va <= Fixed64.Zero && d4 - d3 >= Fixed64.Zero && d5 - d6 >= Fixed64.Zero)
+        Signed320 va = WideArithmetic.MultiplySubtract(d3, d6, d5, d4);
+        Signed192 d4MinusD3 = WideArithmetic.SubtractSigned192(d4, d3);
+        Signed192 d5MinusD6 = WideArithmetic.SubtractSigned192(d5, d6);
+        if (va.Sign <= 0 && d4MinusD3.Sign >= 0 && d5MinusD6.Sign >= 0)
         {
-            Fixed64 w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-            return B + (C - B) * w;
+            _ = Fixed64.TryGetUnitIntervalRatio(
+                d4MinusD3,
+                WideArithmetic.AddSigned192(d4MinusD3, d5MinusD6),
+                out Fixed64 parameter);
+            return Vector3d.Lerp(B, C, parameter);
         }
 
-        Fixed64 denominator = va + vb + vc;
-        if (denominator <= Fixed64.Zero)
-            return ClosestPointOnEdges(point);
-
-        Fixed64 vFace = vb / denominator;
-        Fixed64 wFace = vc / denominator;
-        return A + ab * vFace + ac * wFace;
+        _ = Fixed64.TryGetUnitIntervalRatio(vb, denominator, out Fixed64 weightB);
+        _ = Fixed64.TryGetUnitIntervalRatio(vc, denominator, out Fixed64 weightC);
+        return GetPoint(weightB, weightC);
     }
 
     /// <summary>
-    /// Computes the squared distance from the supplied point to this triangle.
+    /// Computes the squared distance from the supplied point to this triangle,
+    /// rounded once and positively saturated at the public boundary.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Fixed64 DistanceSquared(Vector3d point)
     {
-        return Vector3d.DistanceSquared(point, ClosestPoint(point));
+        Vector3d closest = ClosestPoint(point);
+        Signed192 squaredDistance = GetDifferenceDot(point, closest, point, closest);
+        return Fixed64.RoundSquaredDistance(squaredDistance);
     }
 
     #endregion
@@ -371,23 +444,57 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
     private Vector3d ClosestPointOnEdges(Vector3d point)
     {
         Vector3d best = GetEdge(0).ClosestPoint(point);
-        Fixed64 bestDistance = Vector3d.DistanceSquared(point, best);
-        TrySetCloserPoint(GetEdge(1), point, ref best, ref bestDistance);
-        TrySetCloserPoint(GetEdge(2), point, ref best, ref bestDistance);
+        TrySetCloserPoint(GetEdge(1), point, ref best);
+        TrySetCloserPoint(GetEdge(2), point, ref best);
         return best;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void TrySetCloserPoint(FixedSegment edge, Vector3d point, ref Vector3d best, ref Fixed64 bestDistance)
+    private static void TrySetCloserPoint(FixedSegment edge, Vector3d point, ref Vector3d best)
     {
         Vector3d candidate = edge.ClosestPoint(point);
-        Fixed64 distance = Vector3d.DistanceSquared(point, candidate);
-        if (distance >= bestDistance)
+        if (WideGeometry.CompareSquaredDistance3D(
+            point.X, candidate.X, point.Y, candidate.Y, point.Z, candidate.Z,
+            point.X, best.X, point.Y, best.Y, point.Z, best.Z) >= 0)
             return;
 
-        bestDistance = distance;
         best = candidate;
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetExactNormal(
+        out Signed192 x,
+        out Signed192 y,
+        out Signed192 z,
+        out Signed320 squaredMagnitude)
+    {
+        GetExactNormalComponents(out x, out y, out z);
+        squaredMagnitude = WideGeometry.GetSquaredMagnitude(x, y, z, out _, out _, out _);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetExactNormalComponents(
+        out Signed192 x,
+        out Signed192 y,
+        out Signed192 z)
+    {
+        WideGeometry.GetDifferenceCrossProduct3D(
+            B.X, A.X, B.Y, A.Y, B.Z, A.Z,
+            C.X, A.X, C.Y, A.Y, C.Z, A.Z,
+            out x,
+            out y,
+            out z);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Signed192 GetDifferenceDot(
+        Vector3d leftEnd,
+        Vector3d leftStart,
+        Vector3d rightEnd,
+        Vector3d rightStart) =>
+        WideGeometry.GetDifferenceDotProduct3D(
+            leftEnd.X, leftStart.X, leftEnd.Y, leftStart.Y, leftEnd.Z, leftStart.Z,
+            rightEnd.X, rightStart.X, rightEnd.Y, rightStart.Y, rightEnd.Z, rightStart.Z);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector3d ComponentMin(Vector3d a, Vector3d b)

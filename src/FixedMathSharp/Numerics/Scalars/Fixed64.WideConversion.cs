@@ -188,6 +188,79 @@ public partial struct Fixed64
     }
 
     /// <summary>
+    /// Converts an exact nonnegative square root to Q32.32 with one final
+    /// round-half-to-even step and positive saturation.
+    /// </summary>
+    internal static Fixed64 RoundSquareRootToFixed(
+        Signed192 root,
+        Signed192 remainder,
+        int fractionalBits)
+    {
+        WideArithmetic.GetMagnitude(root, out ulong high, out ulong middle, out ulong low);
+        if (high != 0UL || (middle >> fractionalBits) != 0UL)
+            return MaxValue;
+
+        ulong magnitude = (middle << (64 - fractionalBits)) | (low >> fractionalBits);
+        if (magnitude > (ulong)long.MaxValue)
+            return MaxValue;
+
+        ulong remainderMask = (1UL << fractionalBits) - 1UL;
+        ulong discarded = low & remainderMask;
+        ulong half = 1UL << (fractionalBits - 1);
+        if (discarded > half
+            || (discarded == half && (!remainder.IsZero || (magnitude & 1UL) != 0UL)))
+        {
+            if (magnitude == (ulong)long.MaxValue)
+                return MaxValue;
+            magnitude++;
+        }
+
+        return new Fixed64((long)magnitude);
+    }
+
+    /// <summary>
+    /// Converts one exact cross component to a normalized Q32.32 component.
+    /// </summary>
+    /// <remarks>
+    /// The caller supplies the component's exact square, the positive ceiling
+    /// of the exact magnitude, and a nondegenerate squared magnitude produced
+    /// from the same cross product.
+    /// </remarks>
+    internal static Fixed64 NormalizeWideComponent(
+        Signed192 component,
+        Signed320 componentSquare,
+        Signed192 ceilingMagnitude,
+        Signed320 squaredMagnitude)
+    {
+        int sign = component.Sign;
+        if (sign == 0)
+            return Zero;
+
+        WideArithmetic.GetMagnitude(
+            ceilingMagnitude,
+            out ulong magnitudeHigh,
+            out ulong magnitudeMiddle,
+            out ulong magnitudeLow);
+        int bitLength = WideArithmetic.GetBitLength(magnitudeHigh, magnitudeMiddle, magnitudeLow);
+        int shift = bitLength > 63 ? bitLength - 63 : 0;
+        ulong numerator = WideArithmetic.ShiftRightToUInt64(component, shift, out _);
+        ulong denominator = WideArithmetic.ShiftRightToUInt64(ceilingMagnitude, shift, out bool discarded);
+        if (discarded)
+            denominator++;
+
+        ulong candidate = (ulong)DivideMagnitude(numerator, denominator, false).m_rawValue;
+        int midpointComparison = WideArithmetic.CompareNormalizedComponentToMidpoint(
+            componentSquare,
+            squaredMagnitude,
+            candidate);
+        if (midpointComparison > 0 || (midpointComparison == 0 && (candidate & 1UL) != 0UL))
+            candidate++;
+
+        long raw = (long)candidate;
+        return new Fixed64(sign < 0 ? -raw : raw);
+    }
+
+    /// <summary>
     /// Converts an arbitrary nonzero signed wide ratio to Q32.32 with
     /// round-half-to-even and signed saturation.
     /// </summary>
@@ -299,6 +372,209 @@ public partial struct Fixed64
         ulong magnitude = RoundGuardedQuotientToEven(
             guardedQuotient,
             (numeratorHigh | numeratorMiddle | numeratorLow) != 0UL,
+            out bool roundedOverflow);
+        ulong limit = negative ? 1UL << 63 : (ulong)long.MaxValue;
+        if (roundedOverflow || magnitude > limit)
+            return negative ? MinValue : MaxValue;
+
+        long raw = negative ? unchecked(-(long)magnitude) : (long)magnitude;
+        return new Fixed64(raw);
+    }
+
+    /// <summary>
+    /// Converts an arbitrary nonzero signed five-word ratio to Q32.32 with
+    /// round-half-to-even and signed saturation.
+    /// </summary>
+    internal static Fixed64 GetSignedRatio(Signed320 numerator, Signed320 denominator)
+    {
+        if (WideArithmetic.TryNarrowSigned192(numerator, out Signed192 narrowNumerator)
+            && WideArithmetic.TryNarrowSigned192(denominator, out Signed192 narrowDenominator))
+        {
+            return GetSignedRatio(narrowNumerator, narrowDenominator);
+        }
+
+        int numeratorSign = numerator.Sign;
+        int denominatorSign = denominator.Sign;
+        if (numeratorSign == 0)
+            return Zero;
+        if (denominatorSign == 0)
+            return numeratorSign < 0 ? MinValue : MaxValue;
+
+        bool negative = numeratorSign != denominatorSign;
+        WideArithmetic.GetMagnitude(
+            numerator,
+            out ulong numeratorWord4,
+            out ulong numeratorWord3,
+            out ulong numeratorWord2,
+            out ulong numeratorWord1,
+            out ulong numeratorWord0);
+        WideArithmetic.GetMagnitude(
+            denominator,
+            out ulong denominatorWord4,
+            out ulong denominatorWord3,
+            out ulong denominatorWord2,
+            out ulong denominatorWord1,
+            out ulong denominatorWord0);
+
+        int comparison = WideArithmetic.CompareUnsigned(
+            numeratorWord4,
+            numeratorWord3,
+            numeratorWord2,
+            numeratorWord1,
+            numeratorWord0,
+            denominatorWord4,
+            denominatorWord3,
+            denominatorWord2,
+            denominatorWord1,
+            denominatorWord0);
+        if (comparison <= 0)
+        {
+            if (comparison == 0)
+                return negative ? -One : One;
+
+            Fixed64 unitRatio = GetUnitIntervalRatio(
+                numeratorWord4,
+                numeratorWord3,
+                numeratorWord2,
+                numeratorWord1,
+                numeratorWord0,
+                denominatorWord4,
+                denominatorWord3,
+                denominatorWord2,
+                denominatorWord1,
+                denominatorWord0);
+            return negative ? -unitRatio : unitRatio;
+        }
+
+        int numeratorBits = WideArithmetic.GetBitLength(
+            numeratorWord4, numeratorWord3, numeratorWord2, numeratorWord1, numeratorWord0);
+        int denominatorBits = WideArithmetic.GetBitLength(
+            denominatorWord4, denominatorWord3, denominatorWord2, denominatorWord1, denominatorWord0);
+        int integerShift = numeratorBits - denominatorBits;
+        if (integerShift >= 31)
+        {
+            if (integerShift > 31)
+                return negative ? MinValue : MaxValue;
+
+            WideArithmetic.ShiftLeft(
+                denominatorWord4,
+                denominatorWord3,
+                denominatorWord2,
+                denominatorWord1,
+                denominatorWord0,
+                31,
+                out ulong limitWord4,
+                out ulong limitWord3,
+                out ulong limitWord2,
+                out ulong limitWord1,
+                out ulong limitWord0);
+            int limitComparison = WideArithmetic.CompareUnsigned(
+                numeratorWord4,
+                numeratorWord3,
+                numeratorWord2,
+                numeratorWord1,
+                numeratorWord0,
+                limitWord4,
+                limitWord3,
+                limitWord2,
+                limitWord1,
+                limitWord0);
+            if (limitComparison > 0 || (limitComparison == 0 && !negative))
+                return negative ? MinValue : MaxValue;
+            if (limitComparison == 0)
+                return MinValue;
+        }
+
+        ulong guardedQuotient = 0UL;
+        WideArithmetic.ShiftLeft(
+            denominatorWord4,
+            denominatorWord3,
+            denominatorWord2,
+            denominatorWord1,
+            denominatorWord0,
+            integerShift,
+            out ulong shiftedWord4,
+            out ulong shiftedWord3,
+            out ulong shiftedWord2,
+            out ulong shiftedWord1,
+            out ulong shiftedWord0);
+        for (int bit = integerShift; bit >= 0; bit--)
+        {
+            if (WideArithmetic.CompareUnsigned(
+                numeratorWord4,
+                numeratorWord3,
+                numeratorWord2,
+                numeratorWord1,
+                numeratorWord0,
+                shiftedWord4,
+                shiftedWord3,
+                shiftedWord2,
+                shiftedWord1,
+                shiftedWord0) >= 0)
+            {
+                WideArithmetic.SubtractUnsigned(
+                    ref numeratorWord4,
+                    ref numeratorWord3,
+                    ref numeratorWord2,
+                    ref numeratorWord1,
+                    ref numeratorWord0,
+                    shiftedWord4,
+                    shiftedWord3,
+                    shiftedWord2,
+                    shiftedWord1,
+                    shiftedWord0);
+                guardedQuotient |= 1UL << bit;
+            }
+
+            WideArithmetic.ShiftRightOne(
+                ref shiftedWord4,
+                ref shiftedWord3,
+                ref shiftedWord2,
+                ref shiftedWord1,
+                ref shiftedWord0);
+        }
+
+        for (int bit = FixedMath.SHIFT_AMOUNT_I; bit >= 0; bit--)
+        {
+            WideArithmetic.ShiftLeftOne(
+                ref numeratorWord4,
+                ref numeratorWord3,
+                ref numeratorWord2,
+                ref numeratorWord1,
+                ref numeratorWord0);
+            guardedQuotient <<= 1;
+            if (WideArithmetic.CompareUnsigned(
+                numeratorWord4,
+                numeratorWord3,
+                numeratorWord2,
+                numeratorWord1,
+                numeratorWord0,
+                denominatorWord4,
+                denominatorWord3,
+                denominatorWord2,
+                denominatorWord1,
+                denominatorWord0) < 0)
+            {
+                continue;
+            }
+
+            WideArithmetic.SubtractUnsigned(
+                ref numeratorWord4,
+                ref numeratorWord3,
+                ref numeratorWord2,
+                ref numeratorWord1,
+                ref numeratorWord0,
+                denominatorWord4,
+                denominatorWord3,
+                denominatorWord2,
+                denominatorWord1,
+                denominatorWord0);
+            guardedQuotient |= 1UL;
+        }
+
+        ulong magnitude = RoundGuardedQuotientToEven(
+            guardedQuotient,
+            (numeratorWord4 | numeratorWord3 | numeratorWord2 | numeratorWord1 | numeratorWord0) != 0UL,
             out bool roundedOverflow);
         ulong limit = negative ? 1UL << 63 : (ulong)long.MaxValue;
         if (roundedOverflow || magnitude > limit)
@@ -427,6 +703,32 @@ public partial struct Fixed64
             return true;
         }
 
+        result = GetUnitIntervalRatio(
+            numeratorWord4,
+            numeratorWord3,
+            numeratorWord2,
+            numeratorWord1,
+            numeratorWord0,
+            denominatorWord4,
+            denominatorWord3,
+            denominatorWord2,
+            denominatorWord1,
+            denominatorWord0);
+        return true;
+    }
+
+    private static Fixed64 GetUnitIntervalRatio(
+        ulong numeratorWord4,
+        ulong numeratorWord3,
+        ulong numeratorWord2,
+        ulong numeratorWord1,
+        ulong numeratorWord0,
+        ulong denominatorWord4,
+        ulong denominatorWord3,
+        ulong denominatorWord2,
+        ulong denominatorWord1,
+        ulong denominatorWord0)
+    {
         ulong guardedQuotient = 0UL;
         for (int bit = FixedMath.SHIFT_AMOUNT_I; bit >= 0; bit--)
         {
@@ -470,8 +772,7 @@ public partial struct Fixed64
             guardedQuotient,
             (numeratorWord4 | numeratorWord3 | numeratorWord2 | numeratorWord1 | numeratorWord0) != 0UL,
             out _);
-        result = new Fixed64((long)rounded);
-        return true;
+        return new Fixed64((long)rounded);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -358,6 +358,26 @@ public class BoundsBenchmarks
         return accumulator;
     }
 
+    [SampledBenchmark]
+    public Vector3d Triangle3dUnnormalizedNormal()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _triangles3d.Length; i++)
+            accumulator += _triangles3d[i].UnnormalizedNormal;
+
+        return accumulator;
+    }
+
+    [SampledBenchmark]
+    public Vector3d Triangle3dNormal()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _triangles3d.Length; i++)
+            accumulator += _triangles3d[i].Normal;
+
+        return accumulator;
+    }
+
     [SampledBenchmark(BenchmarkFixtures.SampleCount - 1)]
     public FixedBoundBox Triangle3dBounds()
     {

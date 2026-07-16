@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
@@ -140,6 +141,20 @@ internal static class WideArithmetic
         // The high bit of the standard carry expression includes the incoming carry encoded in word3.
         carry = ((left.Word3 & right.Word3) | ((left.Word3 | right.Word3) & ~word3)) >> 63;
         return new Signed320(unchecked(left.Word4 + right.Word4 + carry), word3, word2, word1, word0);
+    }
+
+    /// <summary>
+    /// Subtracts exact five-word values without scalar conversion.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed320 SubtractSigned320(Signed320 left, Signed320 right)
+    {
+        ulong borrow = 0UL;
+        ulong word0 = SubtractWord(left.Word0, right.Word0, ref borrow);
+        ulong word1 = SubtractWord(left.Word1, right.Word1, ref borrow);
+        ulong word2 = SubtractWord(left.Word2, right.Word2, ref borrow);
+        ulong word3 = SubtractWord(left.Word3, right.Word3, ref borrow);
+        return new Signed320(unchecked(left.Word4 - right.Word4 - borrow), word3, word2, word1, word0);
     }
 
     /// <summary>
@@ -363,6 +378,56 @@ internal static class WideArithmetic
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static int GetBitLength(
+        ulong word4,
+        ulong word3,
+        ulong word2,
+        ulong word1,
+        ulong word0)
+    {
+        if (word4 != 0UL)
+            return 320 - Fixed64.CountLeadingZeroes(word4);
+        if (word3 != 0UL)
+            return 256 - Fixed64.CountLeadingZeroes(word3);
+        if (word2 != 0UL)
+            return 192 - Fixed64.CountLeadingZeroes(word2);
+        if (word1 != 0UL)
+            return 128 - Fixed64.CountLeadingZeroes(word1);
+        return 64 - Fixed64.CountLeadingZeroes(word0);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void ShiftLeft(
+        ulong word4,
+        ulong word3,
+        ulong word2,
+        ulong word1,
+        ulong word0,
+        int bits,
+        out ulong shiftedWord4,
+        out ulong shiftedWord3,
+        out ulong shiftedWord2,
+        out ulong shiftedWord1,
+        out ulong shiftedWord0)
+    {
+        if (bits == 0)
+        {
+            shiftedWord4 = word4;
+            shiftedWord3 = word3;
+            shiftedWord2 = word2;
+            shiftedWord1 = word1;
+            shiftedWord0 = word0;
+            return;
+        }
+
+        shiftedWord4 = (word4 << bits) | (word3 >> (64 - bits));
+        shiftedWord3 = (word3 << bits) | (word2 >> (64 - bits));
+        shiftedWord2 = (word2 << bits) | (word1 >> (64 - bits));
+        shiftedWord1 = (word1 << bits) | (word0 >> (64 - bits));
+        shiftedWord0 = word0 << bits;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void ShiftLeftOne(
         ref ulong word4,
         ref ulong word3,
@@ -375,6 +440,241 @@ internal static class WideArithmetic
         word2 = (word2 << 1) | (word1 >> 63);
         word1 = (word1 << 1) | (word0 >> 63);
         word0 <<= 1;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void ShiftRightOne(
+        ref ulong word4,
+        ref ulong word3,
+        ref ulong word2,
+        ref ulong word1,
+        ref ulong word0)
+    {
+        word0 = (word0 >> 1) | (word1 << 63);
+        word1 = (word1 >> 1) | (word2 << 63);
+        word2 = (word2 >> 1) | (word3 << 63);
+        word3 = (word3 >> 1) | (word4 << 63);
+        word4 >>= 1;
+    }
+
+    /// <summary>
+    /// Returns the floor square root and exact remainder of a nonnegative five-word value.
+    /// </summary>
+    internal static Signed192 GetFloorSquareRoot(Signed320 value, out Signed192 remainder)
+    {
+        if (value.IsZero)
+        {
+            remainder = default;
+            return default;
+        }
+
+        if (value.Word4 == 0UL && value.Word3 == 0UL)
+            return GetFloorSquareRoot192(value.Word2, value.Word1, value.Word0, out remainder);
+
+        int pairIndex = (GetBitLength(value.Word4, value.Word3, value.Word2, value.Word1, value.Word0) - 1) >> 1;
+        ulong rootHigh = 0UL;
+        ulong rootMiddle = 0UL;
+        ulong rootLow = 0UL;
+        ulong remainderHigh = 0UL;
+        ulong remainderMiddle = 0UL;
+        ulong remainderLow = 0UL;
+
+        for (; pairIndex >= 0; pairIndex--)
+        {
+            int pairShift = (pairIndex & 31) << 1;
+            ulong pair = (pairIndex >> 5) switch
+            {
+                4 => (value.Word4 >> pairShift) & 3UL,
+                3 => (value.Word3 >> pairShift) & 3UL,
+                2 => (value.Word2 >> pairShift) & 3UL,
+                1 => (value.Word1 >> pairShift) & 3UL,
+                _ => (value.Word0 >> pairShift) & 3UL,
+            };
+
+            remainderHigh = (remainderHigh << 2) | (remainderMiddle >> 62);
+            remainderMiddle = (remainderMiddle << 2) | (remainderLow >> 62);
+            remainderLow = (remainderLow << 2) | pair;
+            rootHigh = (rootHigh << 1) | (rootMiddle >> 63);
+            rootMiddle = (rootMiddle << 1) | (rootLow >> 63);
+            rootLow <<= 1;
+
+            ulong candidateHigh = (rootHigh << 1) | (rootMiddle >> 63);
+            ulong candidateMiddle = (rootMiddle << 1) | (rootLow >> 63);
+            ulong candidateLow = (rootLow << 1) | 1UL;
+            if (CompareUnsigned(
+                remainderHigh,
+                remainderMiddle,
+                remainderLow,
+                candidateHigh,
+                candidateMiddle,
+                candidateLow) < 0)
+            {
+                continue;
+            }
+
+            SubtractUnsigned(
+                ref remainderHigh,
+                ref remainderMiddle,
+                ref remainderLow,
+                candidateHigh,
+                candidateMiddle,
+                candidateLow);
+            // The preceding shift leaves rootLow even, so this increment cannot overflow.
+            rootLow++;
+        }
+
+        remainder = new Signed192(remainderHigh, remainderMiddle, remainderLow);
+        return new Signed192(rootHigh, rootMiddle, rootLow);
+    }
+
+    /// <summary>
+    /// Shifts a nonnegative three-word value into a 64-bit normalized prefix.
+    /// </summary>
+    /// <remarks>
+    /// Triangle normalization calls this with 0 through 67 discarded bits,
+    /// which guarantees that the returned prefix fits in 64 bits.
+    /// </remarks>
+    internal static ulong ShiftRightToUInt64(Signed192 value, int bits, out bool discarded)
+    {
+        GetMagnitude(value, out ulong high, out ulong middle, out ulong low);
+        if (bits == 0)
+        {
+            discarded = false;
+            return low;
+        }
+
+        if (bits < 64)
+        {
+            discarded = (low & ((1UL << bits) - 1UL)) != 0UL;
+            return (middle << (64 - bits)) | (low >> bits);
+        }
+
+        int upperShift = bits - 64;
+        discarded = low != 0UL
+            || (upperShift != 0 && (middle & ((1UL << upperShift) - 1UL)) != 0UL);
+        return upperShift == 0
+            ? middle
+            : (high << (64 - upperShift)) | (middle >> upperShift);
+    }
+
+    /// <summary>
+    /// Compares a normalized component square with the squared midpoint between
+    /// adjacent Q32.32 raw candidates.
+    /// </summary>
+    internal static int CompareNormalizedComponentToMidpoint(
+        Signed320 componentSquare,
+        Signed320 squaredMagnitude,
+        ulong lowerCandidateRaw)
+    {
+        ulong doubledMidpoint = (lowerCandidateRaw << 1) + 1UL;
+        Fixed64.Multiply64To128(
+            doubledMidpoint,
+            doubledMidpoint,
+            out ulong multiplierHigh,
+            out ulong multiplierLow);
+
+        if (TryNarrowSigned192(squaredMagnitude, out Signed192 narrowSquaredMagnitude))
+        {
+            Signed320 rightNarrow = MultiplySigned192(
+                narrowSquaredMagnitude,
+                new Signed192(0UL, multiplierHigh, multiplierLow));
+            return CompareUnsigned(
+                (componentSquare.Word3 << 2) | (componentSquare.Word2 >> 62),
+                (componentSquare.Word2 << 2) | (componentSquare.Word1 >> 62),
+                (componentSquare.Word1 << 2) | (componentSquare.Word0 >> 62),
+                componentSquare.Word0 << 2,
+                0UL,
+                rightNarrow.Word4,
+                rightNarrow.Word3,
+                rightNarrow.Word2,
+                rightNarrow.Word1,
+                rightNarrow.Word0);
+        }
+
+        Span<ulong> left = stackalloc ulong[6];
+        left.Clear();
+        left[1] = componentSquare.Word0 << 2;
+        left[2] = (componentSquare.Word1 << 2) | (componentSquare.Word0 >> 62);
+        left[3] = (componentSquare.Word2 << 2) | (componentSquare.Word1 >> 62);
+        left[4] = (componentSquare.Word3 << 2) | (componentSquare.Word2 >> 62);
+        left[5] = (componentSquare.Word4 << 2) | (componentSquare.Word3 >> 62);
+        Span<ulong> right = stackalloc ulong[6];
+        right.Clear();
+        Span<ulong> magnitude = stackalloc ulong[5]
+        {
+            squaredMagnitude.Word0,
+            squaredMagnitude.Word1,
+            squaredMagnitude.Word2,
+            squaredMagnitude.Word3,
+            squaredMagnitude.Word4,
+        };
+
+        for (int index = 0; index < magnitude.Length; index++)
+        {
+            Fixed64.Multiply64To128(magnitude[index], multiplierLow, out ulong high, out ulong low);
+            AddWord(right, index, low);
+            AddWord(right, index + 1, high);
+            if (multiplierHigh == 0UL)
+                continue;
+
+            Fixed64.Multiply64To128(magnitude[index], multiplierHigh, out high, out low);
+            AddWord(right, index + 1, low);
+            if (index + 2 < right.Length)
+                AddWord(right, index + 2, high);
+        }
+
+        for (int index = left.Length - 1; index >= 0; index--)
+        {
+            if (left[index] != right[index])
+                return left[index] < right[index] ? -1 : 1;
+        }
+
+        return 0;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Signed192 GetFloorSquareRoot192(
+        ulong valueHigh,
+        ulong valueMiddle,
+        ulong valueLow,
+        out Signed192 remainder)
+    {
+        int pairIndex = (GetBitLength(valueHigh, valueMiddle, valueLow) - 1) >> 1;
+        ulong rootHigh = 0UL;
+        ulong rootLow = 0UL;
+        ulong remainderHigh = 0UL;
+        ulong remainderLow = 0UL;
+
+        for (; pairIndex >= 0; pairIndex--)
+        {
+            int pairShift = (pairIndex & 31) << 1;
+            ulong pair = pairIndex >= 64
+                ? (valueHigh >> pairShift) & 3UL
+                : pairIndex >= 32
+                    ? (valueMiddle >> pairShift) & 3UL
+                    : (valueLow >> pairShift) & 3UL;
+
+            remainderHigh = (remainderHigh << 2) | (remainderLow >> 62);
+            remainderLow = (remainderLow << 2) | pair;
+            rootHigh = (rootHigh << 1) | (rootLow >> 63);
+            rootLow <<= 1;
+
+            ulong candidateHigh = (rootHigh << 1) | (rootLow >> 63);
+            ulong candidateLow = (rootLow << 1) | 1UL;
+            if (remainderHigh < candidateHigh
+                || (remainderHigh == candidateHigh && remainderLow < candidateLow))
+            {
+                continue;
+            }
+
+            ulong originalRemainderLow = remainderLow;
+            remainderLow -= candidateLow;
+            remainderHigh -= candidateHigh + (originalRemainderLow < candidateLow ? 1UL : 0UL);
+            rootLow++;
+        }
+
+        remainder = new Signed192(0UL, remainderHigh, remainderLow);
+        return new Signed192(0UL, rootHigh, rootLow);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -594,5 +894,17 @@ internal static class WideArithmetic
         ulong result = unchecked(value - subtrahend);
         borrow = overflow | (value < subtrahend ? 1UL : 0UL);
         return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void AddWord(Span<ulong> words, int index, ulong value)
+    {
+        while (value != 0UL && index < words.Length)
+        {
+            ulong previous = words[index];
+            words[index] = unchecked(previous + value);
+            value = words[index] < previous ? 1UL : 0UL;
+            index++;
+        }
     }
 }

@@ -67,6 +67,22 @@ internal static class WideGeometry
         Fixed64 rightEndZ,
         Fixed64 rightStartZ)
     {
+        if (TrySubtractRaw(leftEndX.m_rawValue, leftStartX.m_rawValue, out long leftX)
+            && TrySubtractRaw(leftEndY.m_rawValue, leftStartY.m_rawValue, out long leftY)
+            && TrySubtractRaw(leftEndZ.m_rawValue, leftStartZ.m_rawValue, out long leftZ)
+            && TrySubtractRaw(rightEndX.m_rawValue, rightStartX.m_rawValue, out long rightX)
+            && TrySubtractRaw(rightEndY.m_rawValue, rightStartY.m_rawValue, out long rightY)
+            && TrySubtractRaw(rightEndZ.m_rawValue, rightStartZ.m_rawValue, out long rightZ))
+        {
+            ulong narrowHigh = 0UL;
+            ulong narrowMiddle = 0UL;
+            ulong narrowLow = 0UL;
+            AccumulateRawProduct(leftX, rightX, false, ref narrowHigh, ref narrowMiddle, ref narrowLow);
+            AccumulateRawProduct(leftY, rightY, false, ref narrowHigh, ref narrowMiddle, ref narrowLow);
+            AccumulateRawProduct(leftZ, rightZ, false, ref narrowHigh, ref narrowMiddle, ref narrowLow);
+            return new Signed192(narrowHigh, narrowMiddle, narrowLow);
+        }
+
         ulong high = 0UL;
         ulong middle = 0UL;
         ulong low = 0UL;
@@ -140,6 +156,120 @@ internal static class WideGeometry
             ref middle,
             ref low);
         return new Signed192(high, middle, low);
+    }
+
+    /// <summary>
+    /// Returns all three exact components of a 3D endpoint-difference cross product.
+    /// </summary>
+    internal static void GetDifferenceCrossProduct3D(
+        Fixed64 leftEndX,
+        Fixed64 leftStartX,
+        Fixed64 leftEndY,
+        Fixed64 leftStartY,
+        Fixed64 leftEndZ,
+        Fixed64 leftStartZ,
+        Fixed64 rightEndX,
+        Fixed64 rightStartX,
+        Fixed64 rightEndY,
+        Fixed64 rightStartY,
+        Fixed64 rightEndZ,
+        Fixed64 rightStartZ,
+        out Signed192 x,
+        out Signed192 y,
+        out Signed192 z)
+    {
+        if (TrySubtractRaw(leftEndX.m_rawValue, leftStartX.m_rawValue, out long leftX)
+            && TrySubtractRaw(leftEndY.m_rawValue, leftStartY.m_rawValue, out long leftY)
+            && TrySubtractRaw(leftEndZ.m_rawValue, leftStartZ.m_rawValue, out long leftZ)
+            && TrySubtractRaw(rightEndX.m_rawValue, rightStartX.m_rawValue, out long rightX)
+            && TrySubtractRaw(rightEndY.m_rawValue, rightStartY.m_rawValue, out long rightY)
+            && TrySubtractRaw(rightEndZ.m_rawValue, rightStartZ.m_rawValue, out long rightZ))
+        {
+            x = GetRawCrossComponent(leftY, leftZ, rightZ, rightY);
+            y = GetRawCrossComponent(leftZ, leftX, rightX, rightZ);
+            z = GetRawCrossComponent(leftX, leftY, rightY, rightX);
+            return;
+        }
+
+        x = GetDifferenceCrossProduct2D(
+            leftEndY, leftStartY, leftEndZ, leftStartZ,
+            rightEndY, rightStartY, rightEndZ, rightStartZ);
+        y = GetDifferenceCrossProduct2D(
+            leftEndZ, leftStartZ, leftEndX, leftStartX,
+            rightEndZ, rightStartZ, rightEndX, rightStartX);
+        z = GetDifferenceCrossProduct2D(
+            leftEndX, leftStartX, leftEndY, leftStartY,
+            rightEndX, rightStartX, rightEndY, rightStartY);
+    }
+
+    /// <summary>
+    /// Returns the exact nonnegative squared magnitude of three wide components.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed320 GetSquaredMagnitude(
+        Signed192 x,
+        Signed192 y,
+        Signed192 z,
+        out Signed320 xSquare,
+        out Signed320 ySquare,
+        out Signed320 zSquare)
+    {
+        xSquare = WideArithmetic.MultiplySigned192(x, x);
+        ySquare = WideArithmetic.MultiplySigned192(y, y);
+        zSquare = WideArithmetic.MultiplySigned192(z, z);
+        return WideArithmetic.AddSigned320(WideArithmetic.AddSigned320(xSquare, ySquare), zSquare);
+    }
+
+    /// <summary>
+    /// Applies the inclusive public epsilon threshold to an exact Q128.128 magnitude.
+    /// </summary>
+    internal static bool IsQ128MagnitudeAtMostEpsilon(Signed320 value)
+    {
+        WideArithmetic.GetMagnitude(
+            value,
+            out ulong word4,
+            out ulong word3,
+            out ulong word2,
+            out ulong word1,
+            out ulong word0);
+        ulong epsilonRaw = (ulong)Fixed64.Epsilon.m_rawValue;
+        return WideArithmetic.CompareUnsigned(
+            word4,
+            word3,
+            word2,
+            word1,
+            word0,
+            0UL,
+            0UL,
+            epsilonRaw >> 32,
+            epsilonRaw << 32,
+            0UL) <= 0;
+    }
+
+    /// <summary>
+    /// Compares exact squared distances between two pairs of 3D points.
+    /// </summary>
+    internal static int CompareSquaredDistance3D(
+        Fixed64 leftStartX,
+        Fixed64 leftEndX,
+        Fixed64 leftStartY,
+        Fixed64 leftEndY,
+        Fixed64 leftStartZ,
+        Fixed64 leftEndZ,
+        Fixed64 rightStartX,
+        Fixed64 rightEndX,
+        Fixed64 rightStartY,
+        Fixed64 rightEndY,
+        Fixed64 rightStartZ,
+        Fixed64 rightEndZ)
+    {
+        Signed192 left = GetDifferenceDotProduct3D(
+            leftStartX, leftEndX, leftStartY, leftEndY, leftStartZ, leftEndZ,
+            leftStartX, leftEndX, leftStartY, leftEndY, leftStartZ, leftEndZ);
+        Signed192 right = GetDifferenceDotProduct3D(
+            rightStartX, rightEndX, rightStartY, rightEndY, rightStartZ, rightEndZ,
+            rightStartX, rightEndX, rightStartY, rightEndY, rightStartZ, rightEndZ);
+        return WideArithmetic.CompareMagnitude(left, right);
     }
 
     /// <summary>
@@ -308,6 +438,67 @@ internal static class WideGeometry
             directionMagnitude,
             out ulong productMiddle,
             out ulong productLow);
+
+        ulong productHigh = 0UL;
+        if (negativeProduct)
+        {
+            productLow = unchecked(~productLow + 1UL);
+            productMiddle = unchecked(~productMiddle + (productLow == 0UL ? 1UL : 0UL));
+            productHigh = ulong.MaxValue;
+        }
+
+        ulong previousLow = sumLow;
+        sumLow = unchecked(sumLow + productLow);
+        ulong carry = sumLow < previousLow ? 1UL : 0UL;
+
+        ulong addMiddle = unchecked(productMiddle + carry);
+        ulong carryHigh = addMiddle < productMiddle ? 1UL : 0UL;
+        ulong previousMiddle = sumMiddle;
+        sumMiddle = unchecked(sumMiddle + addMiddle);
+        if (sumMiddle < previousMiddle)
+            carryHigh = 1UL;
+
+        sumHigh = unchecked(sumHigh + productHigh + carryHigh);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Signed192 GetRawCrossComponent(
+        long leftFirst,
+        long leftSecond,
+        long rightFirst,
+        long rightSecond)
+    {
+        ulong high = 0UL;
+        ulong middle = 0UL;
+        ulong low = 0UL;
+        AccumulateRawProduct(leftFirst, rightFirst, false, ref high, ref middle, ref low);
+        AccumulateRawProduct(leftSecond, rightSecond, true, ref high, ref middle, ref low);
+        return new Signed192(high, middle, low);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TrySubtractRaw(long end, long start, out long difference)
+    {
+        difference = unchecked(end - start);
+        return ((end ^ start) & (end ^ difference)) >= 0L;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void AccumulateRawProduct(
+        long left,
+        long right,
+        bool subtract,
+        ref ulong sumHigh,
+        ref ulong sumMiddle,
+        ref ulong sumLow)
+    {
+        if (left == 0L || right == 0L)
+            return;
+
+        ulong leftMagnitude = left < 0L ? unchecked(0UL - (ulong)left) : (ulong)left;
+        ulong rightMagnitude = right < 0L ? unchecked(0UL - (ulong)right) : (ulong)right;
+        bool negativeProduct = (left < 0L) != (right < 0L) != subtract;
+        Fixed64.Multiply64To128(leftMagnitude, rightMagnitude, out ulong productMiddle, out ulong productLow);
 
         ulong productHigh = 0UL;
         if (negativeProduct)

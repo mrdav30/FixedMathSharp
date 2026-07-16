@@ -167,3 +167,25 @@ vertices. Exact orientations decide signs and tolerances before public scalar
 saturation; collapsed line and point triangles retain their edge-distance
 behavior. Closest-point candidates are visited in AB, BC, CA order, compared by
 exact squared distance, and exact ties retain the first candidate.
+
+`FixedTriangle` applies the same full-domain ownership to all three coordinate
+components. It computes exact cross components and their exact squared sum
+before converting public values. `UnnormalizedNormal` rounds each component
+half to even and saturates components independently. `Normal` divides the exact
+components by the exact magnitude and rounds each result half to even; it does
+not normalize the already-saturated public normal. `Area` takes one exact
+integer square root, halves at the final Q32.32 boundary, rounds half to even,
+and saturates only the final nonnegative result. `Centroid` averages each
+component without a potentially saturating three-value sum.
+
+Projected barycentric weights use exact Gram numerators and denominator. A Gram
+denominator at or below the inclusive `Fixed64.Epsilon` threshold returns
+`false` and three zero weights; successful A, B, and C weights are rounded and
+saturated independently. Closest-point Voronoi predicates also remain exact,
+and degenerate edge candidates preserve stable AB, BC, CA tie order.
+`Contains` remains the inclusive squared-distance epsilon predicate.
+
+This full-domain triangle contract does not change general `Vector3d` cross,
+dot, magnitude, or distance operations, and it does not extend to ray
+discriminants or quadratic solvers. Those consumers require separate contracts
+and evidence.

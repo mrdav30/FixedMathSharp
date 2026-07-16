@@ -858,6 +858,176 @@ public class Fixed64Tests
     }
 
     [Fact]
+    public void WideTriangleRootsAndSignedRatios_MatchBigIntegerOracle()
+    {
+        BigInteger[] squaredMagnitudes =
+        {
+            BigInteger.Zero,
+            BigInteger.One,
+            ((BigInteger.One << 65) - 1) * ((BigInteger.One << 65) - 1),
+            (BigInteger.One << 128) - 1,
+            BigInteger.One << 128,
+            BigInteger.One << 200,
+            ((BigInteger.One << 129) - 1) * ((BigInteger.One << 129) - 1),
+            (BigInteger.One << 260) + (BigInteger.One << 129) + 17,
+            (BigInteger.One << 263) - 1,
+        };
+
+        foreach (BigInteger squaredMagnitude in squaredMagnitudes)
+        {
+            Signed192 root = WideArithmetic.GetFloorSquareRoot(
+                ToSigned320(squaredMagnitude),
+                out Signed192 remainder);
+            BigInteger expectedRoot = IntegerSquareRoot(squaredMagnitude);
+            Assert.Equal(expectedRoot, ToBigInteger(root));
+            Assert.Equal(squaredMagnitude - (expectedRoot * expectedRoot), ToBigInteger(remainder));
+        }
+
+        Assert.Equal(257, WideArithmetic.GetBitLength(1UL, 0UL, 0UL, 0UL, 0UL));
+        Assert.Equal(193, WideArithmetic.GetBitLength(0UL, 1UL, 0UL, 0UL, 0UL));
+        Assert.Equal(129, WideArithmetic.GetBitLength(0UL, 0UL, 1UL, 0UL, 0UL));
+        Assert.Equal(65, WideArithmetic.GetBitLength(0UL, 0UL, 0UL, 1UL, 0UL));
+        Assert.Equal(1, WideArithmetic.GetBitLength(0UL, 0UL, 0UL, 0UL, 1UL));
+
+        (BigInteger Numerator, BigInteger Denominator)[] ratios =
+        {
+            (BigInteger.Zero, BigInteger.One << 258),
+            (BigInteger.One << 258, BigInteger.Zero),
+            (-(BigInteger.One << 258), BigInteger.Zero),
+            ((BigInteger.One << 258) + 17, (BigInteger.One << 259) + 31),
+            (-((BigInteger.One << 258) + 17), (BigInteger.One << 259) + 31),
+            ((BigInteger.One << 258) + 17, -((BigInteger.One << 259) + 31)),
+            (3 * (BigInteger.One << 250), 2 * (BigInteger.One << 250)),
+            (-3 * (BigInteger.One << 250), 2 * (BigInteger.One << 250)),
+            (2 * (BigInteger.One << 250), 3 * (BigInteger.One << 250)),
+            ((BigInteger.One << 260) + 51, (BigInteger.One << 258) + 7),
+            (BigInteger.One << 300, BigInteger.One << 269),
+            (-(BigInteger.One << 300), BigInteger.One << 269),
+            (BigInteger.One << 310, BigInteger.One << 270),
+            (-(BigInteger.One << 310), BigInteger.One << 270),
+            ((BigInteger.One << 31) * (BigInteger.One << 260), BigInteger.One << 260),
+            (-((BigInteger.One << 31) * (BigInteger.One << 260)), BigInteger.One << 260),
+            (((BigInteger.One << 31) * (BigInteger.One << 260)) - 1, BigInteger.One << 260),
+            (-(((BigInteger.One << 31) * (BigInteger.One << 260)) - 1), BigInteger.One << 260),
+            ((((BigInteger.One << 260) + 1) << 31) - 1, (BigInteger.One << 260) + 1),
+            ((((BigInteger.One << 260) + 1) << 31) + 1, (BigInteger.One << 260) + 1),
+            (-((((BigInteger.One << 260) + 1) << 31) + 1), (BigInteger.One << 260) + 1),
+        };
+
+        foreach ((BigInteger numerator, BigInteger denominator) in ratios)
+        {
+            Assert.Equal(
+                RoundWideRatioToFixed(numerator, denominator),
+                Fixed64.GetSignedRatio(ToSigned320(numerator), ToSigned320(denominator)));
+        }
+
+        BigInteger left = (BigInteger.One << 258) + 17;
+        BigInteger right = -((BigInteger.One << 257) + 91);
+        Assert.Equal(
+            left - right,
+            ToBigInteger(WideArithmetic.SubtractSigned320(ToSigned320(left), ToSigned320(right))));
+
+        int fractionalBits = FixedMath.SHIFT_AMOUNT_I + 1;
+        BigInteger half = BigInteger.One << (fractionalBits - 1);
+        Assert.Equal(
+            Fixed64.MaxValue,
+            Fixed64.RoundSquareRootToFixed(ToSigned192(BigInteger.One << 128), default, fractionalBits));
+        Assert.Equal(
+            Fixed64.MaxValue,
+            Fixed64.RoundSquareRootToFixed(
+                ToSigned192((BigInteger.One << 63) << fractionalBits),
+                default,
+                fractionalBits));
+        Assert.Equal(
+            Fixed64.MaxValue,
+            Fixed64.RoundSquareRootToFixed(
+                ToSigned192(((BigInteger)long.MaxValue << fractionalBits) + half),
+                ToSigned192(BigInteger.One),
+                fractionalBits));
+
+        Assert.Equal(
+            0,
+            WideArithmetic.CompareNormalizedComponentToMidpoint(
+                ToSigned320(BigInteger.One),
+                ToSigned320(BigInteger.One << 66),
+                0UL));
+        Assert.Equal(
+            -1,
+            WideArithmetic.CompareNormalizedComponentToMidpoint(
+                ToSigned320(BigInteger.One),
+                ToSigned320(BigInteger.One << 200),
+                0UL));
+        Assert.Equal(
+            0,
+            WideArithmetic.CompareNormalizedComponentToMidpoint(
+                ToSigned320(BigInteger.One << 134),
+                ToSigned320(BigInteger.One << 200),
+                0UL));
+        Assert.Equal(
+            1,
+            WideArithmetic.CompareNormalizedComponentToMidpoint(
+                ToSigned320(BigInteger.One << 135),
+                ToSigned320(BigInteger.One << 200),
+                0UL));
+        Assert.Equal(
+            -1,
+            WideArithmetic.CompareNormalizedComponentToMidpoint(
+                ToSigned320(BigInteger.One),
+                ToSigned320(BigInteger.One << 200),
+                uint.MaxValue));
+        Assert.Equal(
+            2,
+            Fixed64.NormalizeWideComponent(
+                ToSigned192(3),
+                ToSigned320(9),
+                ToSigned192(BigInteger.One << 33),
+                ToSigned320(BigInteger.One << 66)).m_rawValue);
+        Assert.Equal(
+            0,
+            Fixed64.NormalizeWideComponent(
+                ToSigned192(BigInteger.One),
+                ToSigned320(BigInteger.One),
+                ToSigned192(BigInteger.One << 33),
+                ToSigned320(BigInteger.One << 66)).m_rawValue);
+        BigInteger normalizedComponent = BigInteger.Parse("2501680466859034032");
+        BigInteger normalizedMagnitude = BigInteger.Parse("11460232859870921725");
+        BigInteger normalizedSquaredMagnitude = normalizedMagnitude * normalizedMagnitude;
+        Assert.Equal(
+            NormalizedComponentRaw(normalizedComponent, normalizedSquaredMagnitude),
+            Fixed64.NormalizeWideComponent(
+                ToSigned192(normalizedComponent),
+                ToSigned320(normalizedComponent * normalizedComponent),
+                ToSigned192(normalizedMagnitude),
+                ToSigned320(normalizedSquaredMagnitude)).m_rawValue);
+
+        AssertShiftedPrefix(123, 0);
+        AssertShiftedPrefix(BigInteger.One << 65, 2);
+        AssertShiftedPrefix((BigInteger.One << 65) + 3, 2);
+        AssertShiftedPrefix((BigInteger.One << 127) + (BigInteger.One << 64), 64);
+        AssertShiftedPrefix((BigInteger.One << 128) + (BigInteger.One << 64), 67);
+        AssertShiftedPrefix((BigInteger.One << 129) + (BigInteger.One << 65) + 3, 67);
+
+        Assert.Equal(
+            BigInteger.One,
+            ToBigInteger(WideGeometry.GetDifferenceDotProduct3D(
+                Fixed64.FromRaw(2), Fixed64.Zero,
+                Fixed64.FromRaw(1), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero,
+                Fixed64.FromRaw(2), Fixed64.Zero,
+                Fixed64.FromRaw(-3), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero)));
+        Assert.Equal(
+            BigInteger.One,
+            ToBigInteger(WideGeometry.GetDifferenceDotProduct3D(
+                Fixed64.FromRaw(1), Fixed64.Zero,
+                Fixed64.FromRaw(2), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero,
+                Fixed64.FromRaw(-3), Fixed64.Zero,
+                Fixed64.FromRaw(2), Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero)));
+    }
+
+    [Fact]
     public void WideSquaredDistanceConversion_MatchesNearestEvenAndSaturationOracle()
     {
         BigInteger[] values =
@@ -1080,6 +1250,50 @@ public class Fixed64Tests
         bytes[16] &= 0x03;
         BigInteger value = new BigInteger(bytes, isUnsigned: true, isBigEndian: false);
         return random.Next(2) == 0 ? value : -value;
+    }
+
+    private static BigInteger IntegerSquareRoot(BigInteger value)
+    {
+        if (value.IsZero)
+            return BigInteger.Zero;
+
+        BigInteger current = BigInteger.One << (int)((value.GetBitLength() + 1) / 2);
+        while (true)
+        {
+            BigInteger next = (current + (value / current)) >> 1;
+            if (next >= current)
+                return current;
+            current = next;
+        }
+    }
+
+    private static long NormalizedComponentRaw(BigInteger component, BigInteger squaredMagnitude)
+    {
+        BigInteger target = component * component << 64;
+        BigInteger low = BigInteger.Zero;
+        BigInteger high = BigInteger.One << 32;
+        while (low < high)
+        {
+            BigInteger middle = (low + high + 1) >> 1;
+            if ((middle * middle * squaredMagnitude) <= target)
+                low = middle;
+            else
+                high = middle - 1;
+        }
+
+        BigInteger midpoint = (low << 1) + 1;
+        int comparison = (target << 2).CompareTo(midpoint * midpoint * squaredMagnitude);
+        if (comparison > 0 || (comparison == 0 && !low.IsEven))
+            low++;
+        return component.Sign < 0 ? -(long)low : (long)low;
+    }
+
+    private static void AssertShiftedPrefix(BigInteger value, int bits)
+    {
+        ulong actual = WideArithmetic.ShiftRightToUInt64(ToSigned192(value), bits, out bool discarded);
+        BigInteger mask = bits == 0 ? BigInteger.Zero : (BigInteger.One << bits) - 1;
+        Assert.Equal((ulong)(value >> bits), actual);
+        Assert.Equal((value & mask) != 0, discarded);
     }
 
     private static void AssertRoundGuardedQuotient(

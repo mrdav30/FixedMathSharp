@@ -1925,7 +1925,7 @@ complexity was not justified by the remaining nanosecond-scale cost.
 
 ### Task 10: Internal Wide Arithmetic Ownership Split
 
-**Status:** Complete on 2026-07-16; awaiting owner review and commit.
+**Status:** Complete and committed on 2026-07-16.
 
 **Files:**
 
@@ -2079,7 +2079,7 @@ owner review.
 
 ### Task 11: Full-Domain FixedTriangle Geometry
 
-**Status:** Planned; begins only after Task 10 is reviewed and committed.
+**Status:** Complete on 2026-07-16; awaiting owner review and commit.
 
 **Files:**
 
@@ -2160,73 +2160,128 @@ public partial struct FixedTriangle
   `DistanceSquared`, and does not include ray discriminants/quadratics. Those
   broader surfaces need separate consumers and evidence.
 
-- [ ] **Step 1: Capture the ordinary-input baseline.** Benchmark the existing
+- [x] **Step 1: Capture the ordinary-input baseline.** Benchmark the existing
       `Triangle3dArea`, `Triangle3dContainsPoint`, `Triangle3dClosestPoint`,
       `Triangle3dGetPoint`, and `Triangle3dProjectedBarycentricWeights` rows at
       0 B. Add `Triangle3dUnnormalizedNormal` and `Triangle3dNormal` benchmark
       rows before source changes and capture their baseline too.
-- [ ] **Step 2: Add test-only `BigInteger` oracles** for 65-bit endpoint
+- [x] **Step 2: Add test-only `BigInteger` oracles** for 65-bit endpoint
       differences, all three signed cross components, their roughly 260-bit
       squared sum, integer square root/remainder, final area and normalized
       component conversion, `Signed320` Gram products/ratios, and exact
       three-component squared-distance ordering. Keep arbitrary precision out
       of production.
-- [ ] **Step 3: Add centroid and unnormalized-normal red tests.** Cover vertex
+- [x] **Step 3: Add centroid and unnormalized-normal red tests.** Cover vertex
       permutations containing `MinValue`/`MaxValue`, exact thirds, both
       windings, independent component cancellation, 65-bit differences, and
       positive/negative final component saturation.
-- [ ] **Step 4: Add area, normal, and degeneracy red tests.** Cover axis-aligned
+- [x] **Step 4: Add area, normal, and degeneracy red tests.** Cover axis-aligned
       and oblique triangles, extreme finite coordinates, cancelling cross
       components, collinear line/point triangles, squared-magnitude values
       immediately below/at/above the existing epsilon boundary, square-root
       guard/sticky cases, final area saturation, and normalized direction for
       both windings. Require degenerate normals to return `Vector3d.Zero`.
-- [ ] **Step 5: Add projected-barycentric red tests.** Cover full-domain
+- [x] **Step 5: Add projected-barycentric red tests.** Cover full-domain
       clockwise/counter-clockwise triangles, projection from both sides of the
       plane, interior/edge/vertex/exterior points, negative and greater-than-one
       weights, denominator sign/range boundaries, exact ratio ties, final
       saturation, and default outputs at/below the denominator threshold.
-- [ ] **Step 6: Add closest-point and containment red tests.** Exercise every
+- [x] **Step 6: Add closest-point and containment red tests.** Exercise every
       vertex, edge, and face Voronoi region; extreme inputs whose ordinary dots
       or determinants saturate; degenerate line/point fallback; projected
       interior containment; epsilon surface boundaries; three saturated public
       candidate distances with one exact winner; and exact ties requiring AB,
       BC, CA stability.
-- [ ] **Step 7: Confirm the focused tests fail for intermediate loss** before
+- [x] **Step 7: Confirm the focused tests fail for intermediate loss** before
       editing `FixedTriangle`. Record representative normal/area,
       barycentric-region, and closest-distance failures rather than accepting
       tests that already pass through ordinary-range fixtures.
-- [ ] **Step 8: Extend the internal wide owners minimally.** Add exact 3D cross
+- [x] **Step 8: Extend the internal wide owners minimally.** Add exact 3D cross
       output, squared-cross accumulation, integer square root/remainder, the
       fixed six-limb normalized-midpoint comparison, signed-`Signed320` ratio
       conversion, and exact 3D squared-distance comparison by reusing Task 10
       limb operations. Do not add generic arbitrary precision, heap allocation,
       target-specific `Int128`, or a second geometry utility hierarchy.
-- [ ] **Step 9: Harden derived values.** Route centroid components through
+- [x] **Step 9: Harden derived values.** Route centroid components through
       `FixedMath.Average`; compute unnormalized normal, normal, area, and
       degeneracy from the shared exact cross/squared-magnitude state. Document
       public rounding, saturation, winding, and zero-normal behavior.
-- [ ] **Step 10: Harden projected weights and closest-point regions.** Use
+- [x] **Step 10: Harden projected weights and closest-point regions.** Use
       exact Gram numerators/denominator and independent final ratios; replace
       every saturating region predicate and degenerate edge-distance comparison
       with the shared wide operations. Reuse full-domain interpolation for the
       returned point.
-- [ ] **Step 11: Run focused and complete validation** in `Release` and
+- [x] **Step 11: Run focused and complete validation** in `Release` and
       `ReleaseLean`, then fresh exact coverage/CRAP. Cover every new word,
       carry/borrow, square-root, remainder, guard/sticky, sign, saturation,
       region, degeneracy, and stable-tie branch; register only fully covered
       methods above the complexity threshold.
-- [ ] **Step 12: Rerun all seven 3D triangle benchmark rows.** Require 0 B and
+- [x] **Step 12: Rerun all seven 3D triangle benchmark rows.** Require 0 B and
       optimize shared word operations if ordinary inputs regress materially.
       Do not restore saturating predicates or approximate the exact normal merely
       to match the legacy timings.
-- [ ] **Step 13: Update geometry documentation** with exact intermediate
+- [x] **Step 13: Update geometry documentation** with exact intermediate
       ownership, unnormalized/public conversion behavior, normal/area rounding,
       projected barycentric failure semantics, closest-region/tie order, and
       the explicit ray-quadratic exclusion.
-- [ ] **Step 14: Independent review and owner checkpoint.** Have a fresh agent
+- [x] **Step 14: Independent review and owner checkpoint.** Have a fresh agent
       review the complete source/test/docs diff, leave every change unstaged,
       and provide a non-breaking feature commit message.
+
+Task 11 implementation completed on 2026-07-16. `FixedTriangle` now retains
+65-bit endpoint differences, exact three-component cross/dot state, exact
+`Signed320` squared magnitudes and Gram determinants, and exact squared-distance
+ordering until one public Q32.32 conversion. Centroid, unnormalized and unit
+normal, area, degeneracy, projected weights, all closest-point Voronoi regions,
+degenerate AB/BC/CA selection, distance, and containment therefore preserve the
+complete raw coordinate domain. The public API did not change. Ray
+discriminants, quadratics, and general `Vector3d` operators remain explicitly
+outside this task.
+
+The test-first pass produced eight intended public triangle failures while all
+15 existing triangle tests remained green. Independent `BigInteger` oracles now
+cover exact cross components, square root/remainder, nearest-even area and unit
+normal conversion, Gram ratios, Voronoi decisions, stable distance ties, every
+new fixed-word branch, both signed saturation limits, and the optimized
+ordinary/full-width paths. Final `Release` validation passed 1,402
+FixedMathSharp plus 8 Chronicler tests; `ReleaseLean` passed 1,381 plus 8. Both
+target frameworks and standard/Lean packages built successfully.
+
+Fresh generated-source-excluded coverage is 8,641/8,671 lines and 2,898/2,916
+branches. Every Task 11 production line and branch is covered: `FixedTriangle`
+has only its pre-existing `Equals(object)` false branch outstanding, and
+`Fixed64.WideConversion` only the pre-existing `Signed192` exact-negative-limit
+branch. The new `Signed320` ratio has complexity 52 at 100% line/branch;
+`FixedTriangle.ClosestPoint` is 32 at 100%/100%; the full and common-width square
+roots are 15 and 14 at 100%/100%; and normalized midpoint conversion plus all
+coordinate-product fast/fallback paths are 100%/100%. The refreshed CRAP report
+analyzes 1,482 methods and records four scores above 30, all in the exception
+register.
+
+All seven final ShortRun rows remained at 0 B. Final means were 348.71 ns
+(`Area`), 32.03 ns (`UnnormalizedNormal`), 1,258.88 ns (`Normal`), 163.58 ns
+(`Contains`), 160.18 ns (`ClosestPoint`), 78.14 ns (`GetPoint`), and 396.27 ns
+(projected weights). Exact square root, independent normal-component rounding,
+and three independent Gram ratios carry a deliberate ordinary-input premium;
+`GetPoint` remained neutral. Before accepting that cost, a measured optimization
+pass added a proven 192-bit root path, reused component squares and five shared
+Voronoi basis dots, removed discarded normal-square work, and selected raw
+product fast paths only when all endpoint differences fit. Those changes cut
+the first exact implementation from 447.34 to 348.71 ns for area, 84.28 to
+32.03 ns for unnormalized normal, 1,411.70 to 1,258.88 ns for normal, 192.97 to
+163.58 ns for containment, 174.19 to 160.18 ns for closest point, and 412.43 to
+396.27 ns for projected weights without weakening the full-domain contract.
+
+The fresh independent review found one remaining split-rounding defect after
+the initial verification: `DistanceSquared` still delegated to component-wise
+`Vector3d.DistanceSquared`, allowing three separately rounded squares to move a
+point across the inclusive containment boundary. The raw
+`(46_341, 46_341, 1_047_551)` regression reproduced 257 instead of the exact
+epsilon raw value 256. `FixedTriangle` now obtains one exact three-component
+difference dot and performs one `RoundSquaredDistance` conversion. The focused
+regression, full standard/Lean suites, fresh coverage, and affected containment
+benchmark all reran cleanly; the reviewer re-reviewed the resolution and
+approved the complete unstaged diff with no remaining findings.
 
 ---
 
