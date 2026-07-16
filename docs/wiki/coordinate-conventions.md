@@ -27,6 +27,41 @@ the same radian path; `DegToRad` is representable for every input, while
 nonzero finite axis scale-safely. A zero axis deterministically returns
 `FixedQuaternion.Identity`.
 
+## X/Z Planar Transforms
+
+`FixedTransform` exposes an explicit bridge between `Vector2d` plane math and
+the core X/Z ground plane. A planar position `(x, y)` embeds as `(x, 0, y)`, and
+a planar scale `(x, y)` embeds as `(x, 1, y)`. The planar constructor accepts an
+optional `Parent` reference, but `FixedTransform` does not compose hierarchy
+state. `Scale` is therefore the authored component scale, not a lossy or
+hierarchy-derived world scale.
+
+`PositionXZ` and `ScaleXZ` use the existing `ToVector2d`/`ToVector3d` mapping.
+Their setters replace X and Z while preserving the current Y elevation or Y
+scale. Component construction and assignment preserve negative and zero scale
+exactly. Rotation is stored as a normalized quaternion.
+
+Planar rotation is measured in radians from `Vector2d.Right` toward
+`Vector2d.Forward`, matching `Vector2d.Rotate`. Setting `RotationXZRadians`
+replaces pitch and roll with a pure rotation around `Vector3d.Up`; the
+quaternion uses the negated planar angle so positive planar rotation maps local
+right toward `+Z`. Getting it rotates local right, projects that direction onto
+X/Z, and returns `Atan2(z, x)`. This is deterministic and independent of scale
+even when the quaternion also contains pitch or roll. A zero projected
+local-right direction reports zero radians. Pure planar values round-trip
+modulo `Fixed64.TwoPi`.
+
+The matrix constructor calls `Fixed4x4.Decompose` once and stores its resulting
+components. It deliberately inherits that method's existing canonicalization:
+scale magnitudes are extracted from basis rows, an odd handedness change is
+represented with a negative X scale, and zero scale magnitudes become one to
+avoid division by zero. Multiple negative axes are not uniquely recoverable and
+may be absorbed into the decomposed rotation. `Decompose` also does not reject
+shear, perspective, or other non-TRS matrices, so those inputs receive its
+established extraction result rather than a promised lossless TRS round trip.
+Component-constructed transforms do not pass through matrix decomposition and
+therefore do not inherit those ambiguities.
+
 ## Runtime Helpers
 
 `CoordinateConvention3d` is a small, immutable helper for direction vectors at

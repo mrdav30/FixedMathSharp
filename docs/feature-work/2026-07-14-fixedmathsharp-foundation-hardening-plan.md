@@ -1233,6 +1233,8 @@ and solver complexity stay explicit owner-review considerations.
 
 ### Task 8: Explicit X/Z Planar Transform Contract
 
+**Status:** Complete as of 2026-07-15; awaiting owner review.
+
 **Files:**
 
 - Modify:
@@ -1279,46 +1281,74 @@ public class FixedTransform
   X/Z transforms round-trip modulo `TwoPi`; the projection contract remains
   deterministic for a transform that also contains pitch or roll.
 
-- [ ] **Step 1: Add constructor and component red tests** covering default Y
+- [x] **Step 1: Add constructor and component red tests** covering default Y
       elevation/scale, parent preservation, position and scale mutation while Y
       remains unchanged, negative and zero scale preservation, and rotation
       setter replacement of pitch/roll.
-- [ ] **Step 2: Add basis-parity red tests.** Assert zero maps local right to
+- [x] **Step 2: Add basis-parity red tests.** Assert zero maps local right to
       embedded `Vector2d.Right`, `HalfPi` maps it to embedded
       `Vector2d.Forward`, and `-HalfPi` maps it oppositely. Compare against
       `Vector2d.Rotate` rather than a game-engine convention.
-- [ ] **Step 3: Add rotation round-trip tests** for ordinary values, `+/-Pi`,
+- [x] **Step 3: Add rotation round-trip tests** for ordinary values, `+/-Pi`,
       `+/-TwoPi`, several positive/negative turns, negative/zero scale, and a
       quaternion containing pitch/roll. Document and assert the
       projected-local-right result for the nonplanar case, independent of scale.
-- [ ] **Step 4: Add matrix-constructor decomposition tests** for translation,
+- [x] **Step 4: Add matrix-constructor decomposition tests** for translation,
       rotation, and supported signed-scale conventions. Document ambiguous or
       non-decomposable matrix behavior explicitly; component-constructed
       transforms must never depend on that ambiguity.
-- [ ] **Step 5: Run `FixedTransformTests` and confirm the planar surface is
+- [x] **Step 5: Run `FixedTransformTests` and confirm the planar surface is
       missing.**
-- [ ] **Step 6: Replace matrix-backed component storage** with explicit
+- [x] **Step 6: Replace matrix-backed component storage** with explicit
       position, normalized rotation, and scale fields. Make existing component
       properties direct deterministic accessors, keep `Parent` reference
       semantics, perform matrix decomposition only in the matrix constructor,
       and remove `LossyScale`. Do not add a public matrix cache or retain two
       mutable sources of truth.
-- [ ] **Step 7: Implement the planar constructor and position/scale properties**
+- [x] **Step 7: Implement the planar constructor and position/scale properties**
       by reusing the existing X/Z conversion helpers. Do not add `Translate2D`,
       a plane enum, a second transform type, or a factory wrapping this
       constructor.
-- [ ] **Step 8: Implement rotation parity** with a negated Y-axis quaternion in
+- [x] **Step 8: Implement rotation parity** with a negated Y-axis quaternion in
       the setter and
       `Atan2(Rotation.Rotate(Vector3d.Right).Z, Rotation.Rotate(Vector3d.Right).X)`
       in the getter. Define a zero planar projection as zero radians; do not
       derive rotation from scaled matrix basis vectors or read degrees through
       `EulerAngles` on this path.
-- [ ] **Step 9: Run `FixedTransformTests` and the full FixedMathSharp suite in
+- [x] **Step 9: Run `FixedTransformTests` and the full FixedMathSharp suite in
       `Release` and `ReleaseLean`, then exact coverage.** No benchmark is
       required for component projection and assignment unless downstream
       measurement shows a regression.
-- [ ] **Step 10: Owner review checkpoint.** Leave all FixedMathSharp changes
+- [x] **Step 10: Owner review checkpoint.** Leave all FixedMathSharp changes
       unstaged and provide a proposed commit message.
+
+**Task 8 result:** `FixedTransform` now owns explicit position, normalized
+rotation, and scale components rather than a hidden mutable matrix. Component
+construction and assignment preserve signed and zero scale exactly, while the
+matrix constructor performs the established `Fixed4x4.Decompose` extraction
+once and retains its documented sign-canonicalization, zero-scale, and non-TRS
+limitations. The misleading `LossyScale` alias is removed.
+
+The new planar constructor and `PositionXZ`, `RotationXZRadians`, and `ScaleXZ`
+properties provide an explicit X/Z bridge. Position and scale setters preserve
+their existing Y components, planar rotation matches `Vector2d.Rotate` through
+a normalized negated-Y quaternion, and rotation extraction uses projected local
+right so it remains scale-independent and deterministic for pitch/roll inputs.
+No plane abstraction, second transform type, translation helper, matrix cache,
+or downstream workaround was introduced.
+
+Focused validation passed 13/13 tests in both `Release` and `ReleaseLean`. Full
+validation passed 1,300 FixedMathSharp plus 7 Chronicler tests in `Release`, and
+1,279 plus 7 in `ReleaseLean`, while building both `net8.0` and
+`netstandard2.1`. Fresh full-project coverage remained 99.6% line and 99%
+branch; all 19 `FixedTransform` methods reached 100% line and branch coverage.
+No benchmark was required by the approved task scope. A fresh independent
+review found no Critical or Important issues. Four known Gravitas `LossyScale`
+callers remain intentionally deferred to Task 11, where they will move to the
+explicit validated `Scale` contract. Because Chronicler hashes the exposed
+transform components directly, adopting this breaking package version is also
+an intentional replay/hash compatibility boundary for hosts whose prior state
+depended on matrix-canonicalized scale or rotation values.
 
 ---
 
