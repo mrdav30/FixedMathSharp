@@ -1,12 +1,11 @@
 # Diagnostics And Formatting Surface Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use
-> superpowers:brainstorming before changing public API shape,
-> superpowers:test-driven-development before production or test changes,
-> performance-optimization-engineer before accepting performance-motivated
-> runtime changes, and superpowers:verification-before-completion before
-> claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for
-> tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:brainstorming
+> before changing public API shape, superpowers:test-driven-development before
+> production or test changes, performance-optimization-engineer before accepting
+> performance-motivated runtime changes, and
+> superpowers:verification-before-completion before claiming a phase is
+> complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Status:** Done
 
@@ -21,17 +20,17 @@ worth the complexity, but do not make hot deterministic code depend on
 human-readable formatting helpers.
 
 **Tech Stack:** `netstandard2.1` and `net8.0` runtime targets, xUnit,
-BenchmarkDotNet when allocation or formatting cost matters, `Fixed64`,
-vectors, quaternions, matrices, bounds, ranges, invariant culture formatting,
-and engine-agnostic FixedMathSharp core APIs.
+BenchmarkDotNet when allocation or formatting cost matters, `Fixed64`, vectors,
+quaternions, matrices, bounds, ranges, invariant culture formatting, and
+engine-agnostic FixedMathSharp core APIs.
 
-**Result:** Formatting now follows the owning value types through `IFormattable`,
-same-shaped public `TryFormat` methods, and conditional `ISpanFormattable` on
-`net8.0`. Legacy `ToFormatted*` scalar/vector helpers were removed instead of
-kept as culture-sensitive compatibility shims. `Fixed64.Parse`/`TryParse` now
-parse value-space decimal text, while `ParseRaw`/`TryParseRaw` handle raw
-Q32.32 payload text explicitly. Decimal conversion now uses `FromDecimal`
-instead of routing through `double`.
+**Result:** Formatting now follows the owning value types through
+`IFormattable`, same-shaped public `TryFormat` methods, and conditional
+`ISpanFormattable` on `net8.0`. Legacy `ToFormatted*` scalar/vector helpers were
+removed instead of kept as culture-sensitive compatibility shims.
+`Fixed64.Parse`/`TryParse` now parse value-space decimal text, while
+`ParseRaw`/`TryParseRaw` handle raw Q32.32 payload text explicitly. Decimal
+conversion now uses `FromDecimal` instead of routing through `double`.
 
 Follow-up `FMS-Issue-011` tracks older floating-point conversion paths that
 still need a separate checked-conversion policy review.
@@ -39,16 +38,16 @@ still need a separate checked-conversion policy review.
 Short-run diagnostics-formatting benchmarks confirmed the intended allocation
 split:
 
-| Method | Mean | Allocated |
-| --- | ---: | ---: |
-| `Fixed64ToString` | 42.37 us | 8,696 B |
-| `Fixed64TryFormat` | 39.27 us | 0 B |
-| `Vector3dToString` | 219.65 us | 47,568 B |
-| `Vector3dTryFormat` | 210.77 us | 0 B |
-| `FixedQuaternionToString` | 164.06 us | 52,224 B |
-| `FixedQuaternionTryFormat` | 148.27 us | 0 B |
-| `Fixed4x4ToString` | 738.27 us | 114,985 B |
-| `Fixed4x4TryFormat` | 692.96 us | 1 B |
+| Method                     |      Mean | Allocated |
+| -------------------------- | --------: | --------: |
+| `Fixed64ToString`          |  42.37 us |   8,696 B |
+| `Fixed64TryFormat`         |  39.27 us |       0 B |
+| `Vector3dToString`         | 219.65 us |  47,568 B |
+| `Vector3dTryFormat`        | 210.77 us |       0 B |
+| `FixedQuaternionToString`  | 164.06 us |  52,224 B |
+| `FixedQuaternionTryFormat` | 148.27 us |       0 B |
+| `Fixed4x4ToString`         | 738.27 us | 114,985 B |
+| `Fixed4x4TryFormat`        | 692.96 us |       1 B |
 
 ---
 
@@ -63,9 +62,9 @@ separate concerns:
 - serialization shape for MemoryPack and JSON.
 - human-readable diagnostics, logging, editor display, and debugging.
 
-This plan keeps that work separate from the completed public API hardening
-track so release migration notes can be gathered later from the full v4.0.1 to
-v5.0.0 commit range.
+This plan keeps that work separate from the completed public API hardening track
+so release migration notes can be gathered later from the full v4.0.1 to v5.0.0
+commit range.
 
 ## Recommended Transition Shape
 
@@ -76,9 +75,10 @@ mechanical:
 
 - Add `IFormattable` and `ToString(string? format, IFormatProvider? provider)`
   where the method shape is useful for scalar and composite diagnostics.
-- Add public `TryFormat(Span<char> destination, out int charsWritten,
-  ReadOnlySpan<char> format, IFormatProvider? provider)` methods now, even on
-  `netstandard2.1`, without implementing `ISpanFormattable` on that target.
+- Add public
+  `TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider)`
+  methods now, even on `netstandard2.1`, without implementing `ISpanFormattable`
+  on that target.
 - Conditionally implement `ISpanFormattable` for `net8.0` using partials or
   guarded declarations once the public method shape is proven.
 - Keep `double`-backed formatting clearly scoped to human-readable diagnostics.
@@ -117,14 +117,14 @@ mechanical:
 - Modify: this plan and, if needed, `docs/feature-work/issue-tracker.md`
 
 - [x] Inventory public `ToString`, `ToFormattedString`, `ToFormattedDouble`,
-  `ToFormattedFloat`, `ToRawString`, and any formatting-like helpers.
+      `ToFormattedFloat`, `ToRawString`, and any formatting-like helpers.
 - [x] Classify each API as representation, diagnostics, serialization,
-  convenience, or legacy/remove.
+      convenience, or legacy/remove.
 - [x] Identify formatting call sites that allocate in valid hot paths.
 - [x] Identify culture-sensitive formatting risks and default formatting
-  assumptions.
+      assumptions.
 - [x] Decide whether diagnostics formatting belongs in extensions, a dedicated
-  static surface, or targeted instance methods.
+      static surface, or targeted instance methods.
 
 Verification:
 
@@ -142,17 +142,17 @@ dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Debug -f n
 - Modify: README or wiki docs if public guidance changes
 
 - [x] Decide whether `ToFormatted*` should remain, be renamed, or move to a
-  dedicated diagnostics surface.
+      dedicated diagnostics surface.
 - [x] Decide whether raw formatting should remain on `Fixed64` only or be
-  exposed consistently through diagnostics helpers.
+      exposed consistently through diagnostics helpers.
 - [x] Adopt a same-shaped `TryFormat` method contract where formatting belongs,
-  while keeping `ISpanFormattable` implementation conditional for compatible
-  target frameworks.
+      while keeping `ISpanFormattable` implementation conditional for compatible
+      target frameworks.
 - [x] Decide whether `double`-backed diagnostic formatting is acceptable for
-  each type, or whether a type requires an exact/raw formatting path.
+      each type, or whether a type requires an exact/raw formatting path.
 - [x] Preserve convenient debugging output while making hot-path costs obvious.
 - [x] Document why the chosen shape is better than keeping formatting spread
-  across ad-hoc extensions.
+      across ad-hoc extensions.
 
 Verification:
 
@@ -170,22 +170,22 @@ git diff --check
 - Review: `docs/wiki/fixed64-representation.md`
 
 - [x] Implement the chosen diagnostics/formatting surface.
-- [x] Add `IFormattable` and `ToString(string? format, IFormatProvider?
-  provider)` where applicable.
-- [x] Add public `TryFormat(Span<char>, out int, ReadOnlySpan<char>,
-  IFormatProvider?)` methods without depending on `ISpanFormattable` for
-  `netstandard2.1`.
+- [x] Add `IFormattable` and
+      `ToString(string? format, IFormatProvider? provider)` where applicable.
+- [x] Add public
+      `TryFormat(Span<char>, out int, ReadOnlySpan<char>, IFormatProvider?)`
+      methods without depending on `ISpanFormattable` for `netstandard2.1`.
 - [x] Add conditional `ISpanFormattable` implementation for `net8.0` if the
-  same-shaped methods prove clean and useful.
+      same-shaped methods prove clean and useful.
 - [x] Remove or obsolete rejected formatting helpers if the major-release
-  cleanup allows it.
+      cleanup allows it.
 - [x] Add tests for invariant formatting, rounding expectations, raw-value
-  output, negative values, min/max-adjacent values, and vector/matrix composite
-  formatting.
+      output, negative values, min/max-adjacent values, and vector/matrix
+      composite formatting.
 - [x] Confirm serialization tests are unaffected by diagnostics formatting
-  changes.
+      changes.
 - [x] Update docs that explain raw representation versus human-readable
-  formatting.
+      formatting.
 
 Verification:
 
@@ -204,13 +204,13 @@ git diff --check
 - Modify if useful: `tests/FixedMathSharp.Benchmarks/README.md`
 
 - [x] Add benchmarks only for formatting APIs that are likely to be used in
-  repeated diagnostics, editor display, or logging loops.
+      repeated diagnostics, editor display, or logging loops.
 - [x] Capture allocation behavior for string-returning APIs versus any
-  span-based alternatives.
+      span-based alternatives.
 - [x] Keep formatting benchmark results separate from deterministic math
-  throughput claims.
+      throughput claims.
 - [x] Add final docs guidance that explains MemoryPack, JSON, raw values, and
-  diagnostic formatting as separate concerns.
+      diagnostic formatting as separate concerns.
 
 Verification:
 

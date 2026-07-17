@@ -108,15 +108,15 @@ directed segment use cases deterministic without hiding identity policy inside
 the primitive.
 
 `FixedSegment2d.TryGetUniqueIntersection` uses closed finite segments. A single
-shared endpoint is unique, while disjoint segments and collinear
-positive-length overlap return `false` with a default parameter. A zero-length
-segment is a point: an identical point or a point on the other segment is a
-unique intersection. Exact zero, rather than a physics epsilon, classifies
-parallel and collinear inputs.
+shared endpoint is unique, while disjoint segments and collinear positive-length
+overlap return `false` with a default parameter. A zero-length segment is a
+point: an identical point or a point on the other segment is a unique
+intersection. Exact zero, rather than a physics epsilon, classifies parallel and
+collinear inputs.
 
 The 2D closest-pair order is the first segment's start, its end, the other
-segment's start, then its end. Exact distance ties keep the first candidate,
-and candidate distances are compared before public `Fixed64` saturation.
+segment's start, then its end. Exact distance ties keep the first candidate, and
+candidate distances are compared before public `Fixed64` saturation.
 `FixedMath.Lerp` and both `Vector2d.ClosestPointOnLineSegment` and
 `Vector3d.ClosestPointOnLineSegment` accept endpoint differences spanning the
 complete raw `Fixed64` domain.
@@ -134,8 +134,8 @@ performs one final round-half-to-even conversion of the exact squared sum and
 saturates positive results outside the `Fixed64` range to `Fixed64.MaxValue`.
 
 `FixedSegment.Delta`, `Length`, and `LengthSquared` retain ordinary public
-saturating vector-arithmetic behavior. They are convenient value properties,
-not aliases for the wider intermediate contract of the query methods.
+saturating vector-arithmetic behavior. They are convenient value properties, not
+aliases for the wider intermediate contract of the query methods.
 
 Triangles also preserve ordered vertices:
 
@@ -162,16 +162,16 @@ separate inclusive `Fixed64.Epsilon` doubled-area failure threshold and returns
 three zero weights on failure. Successful A, B, and C weights come from direct
 exact numerators and are rounded and saturated independently.
 
-Containment is winding-independent and includes epsilon-wide edges and
-vertices. Exact orientations decide signs and tolerances before public scalar
-saturation; collapsed line and point triangles retain their edge-distance
-behavior. Closest-point candidates are visited in AB, BC, CA order, compared by
-exact squared distance, and exact ties retain the first candidate.
+Containment is winding-independent and includes epsilon-wide edges and vertices.
+Exact orientations decide signs and tolerances before public scalar saturation;
+collapsed line and point triangles retain their edge-distance behavior.
+Closest-point candidates are visited in AB, BC, CA order, compared by exact
+squared distance, and exact ties retain the first candidate.
 
 `FixedTriangle` applies the same full-domain ownership to all three coordinate
 components. It computes exact cross components and their exact squared sum
-before converting public values. `UnnormalizedNormal` rounds each component
-half to even and saturates components independently. `Normal` divides the exact
+before converting public values. `UnnormalizedNormal` rounds each component half
+to even and saturates components independently. `Normal` divides the exact
 components by the exact magnitude and rounds each result half to even; it does
 not normalize the already-saturated public normal. `Area` takes one exact
 integer square root, halves at the final Q32.32 boundary, rounds half to even,
@@ -181,9 +181,9 @@ component without a potentially saturating three-value sum.
 Projected barycentric weights use exact Gram numerators and denominator. A Gram
 denominator at or below the inclusive `Fixed64.Epsilon` threshold returns
 `false` and three zero weights; successful A, B, and C weights are rounded and
-saturated independently. Closest-point Voronoi predicates also remain exact,
-and degenerate edge candidates preserve stable AB, BC, CA tie order.
-`Contains` remains the inclusive squared-distance epsilon predicate.
+saturated independently. Closest-point Voronoi predicates also remain exact, and
+degenerate edge candidates preserve stable AB, BC, CA tie order. `Contains`
+remains the inclusive squared-distance epsilon predicate.
 
 This full-domain triangle contract does not change general `Vector3d` cross,
 dot, magnitude, or distance operations, and it does not extend to ray

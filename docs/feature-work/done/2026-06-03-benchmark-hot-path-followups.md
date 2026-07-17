@@ -35,7 +35,8 @@ The first benchmark pass added deterministic BenchmarkDotNet coverage for:
 
 - `Fixed64` arithmetic, division, square root, `Sin`/`Cos`, and `Atan2`.
 - `Vector3d` arithmetic, dot, cross, normalization, distance, and interpolation.
-- `FixedQuaternion` creation, multiplication, interpolation, and vector rotation.
+- `FixedQuaternion` creation, multiplication, interpolation, and vector
+  rotation.
 - `Fixed4x4` transform creation, multiplication, point transforms, and affine
   inversion.
 - `FixedBoundBox` containment, intersection, sphere intersection, and point
@@ -94,17 +95,17 @@ diagnostic run identifies the allocation source.
 - Modify only if needed: `tests/FixedMathSharp.Benchmarks/README.md`
 
 - [x] Build the benchmark project in `Release` and `ReleaseLean`.
-- [x] Run `list` and confirm the expected aliases are visible:
-  `bounds`, `fixed64-arithmetic`, `matrix4x4`, `quaternion`, and `vector3d`.
+- [x] Run `list` and confirm the expected aliases are visible: `bounds`,
+      `fixed64-arithmetic`, `matrix4x4`, `quaternion`, and `vector3d`.
 - [x] Run the short in-process suite only as a smoke check.
-- [x] Run a full `Release` baseline with JSON export before runtime
-  optimization begins.
+- [x] Run a full `Release` baseline with JSON export before runtime optimization
+      begins.
 - [x] Archive or preserve the baseline artifact path in the working notes or a
-  follow-up doc before making performance changes.
+      follow-up doc before making performance changes.
 - [x] Confirm benchmark fixture setup is outside measured methods or is
-  intentionally part of the measured scenario.
+      intentionally part of the measured scenario.
 - [x] Treat baseline review as a speed, allocation, and complexity pass rather
-  than an allocation-only scan.
+      than an allocation-only scan.
 
 Verification:
 
@@ -117,8 +118,8 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 ```
 
 Phase 1 result on 2026-06-03: completed. `Release` and `ReleaseLean` builds
-passed, `list` showed all expected aliases, the short in-process smoke suite
-ran 23 benchmarks, and the full `Release` baseline ran 23 benchmarks with JSON
+passed, `list` showed all expected aliases, the short in-process smoke suite ran
+23 benchmarks, and the full `Release` baseline ran 23 benchmarks with JSON
 exports. Baseline artifacts are gitignored and preserved locally at:
 
 ```text
@@ -137,29 +138,34 @@ measured benchmark methods. No Phase 1 benchmark code changes were needed.
 
 **Files:**
 
-- Modify as needed: `tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
-- Modify as needed: `tests/FixedMathSharp.Benchmarks/Support/BenchmarkFixtures.cs`
+- Modify as needed:
+  `tests/FixedMathSharp.Benchmarks/Fixed64ArithmeticBenchmarks.cs`
+- Modify as needed:
+  `tests/FixedMathSharp.Benchmarks/Support/BenchmarkFixtures.cs`
 - Review: `src/FixedMathSharp/Numerics/Scalars/Fixed64.cs`
 - Review: `src/FixedMathSharp/Core/FixedMath.cs`
 - Review: `src/FixedMathSharp/Core/FixedMath.Trigonometry.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Core/FixedMath.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Core/FixedTrigonometry.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Core/FixedMath.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Core/FixedTrigonometry.Tests.cs`
 
 - [x] Split `Fixed64ArithmeticBenchmarks.SinCos` into separate `Sin` and `Cos`
-  benchmark methods.
+      benchmark methods.
 - [x] Add focused `FixedMath.Tan`, `Acos`, `Asin`, `Atan`, `Pow`, `Log2`, and
-  `Ln` benchmark methods.
+      `Ln` benchmark methods.
 - [x] Run focused allocation diagnostics for `fixed64-arithmetic`.
 - [x] Identify whether allocations come from lookup creation, span/array
-  patterns, exception-helper shape, decimal/string conversion, or operator
-  helper behavior.
+      patterns, exception-helper shape, decimal/string conversion, or operator
+      helper behavior.
 - [x] Compare scalar/trigonometry timings and implementation complexity before
-  choosing an optimization target.
+      choosing an optimization target.
 - [x] If an allocation source is confirmed, add a targeted correctness test
-  before changing runtime code.
+      before changing runtime code.
 - [x] Preserve guarded overflow, saturation, rounding, and deterministic
-  approximation behavior.
+      approximation behavior.
 - [x] Re-run focused benchmarks before and after each runtime change.
 
 Verification:
@@ -170,13 +176,13 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic --exporters json
 ```
 
-Phase 2 result on 2026-06-03: completed. The benchmark suite now isolates
-`Sin`, `Cos`, `Tan`, `Acos`, `Asin`, `Atan`, `Atan2`, `Pow`, `Log2`, and `Ln`.
-`Tan` uses a tangent-specific angle fixture inside `[-pi/3, pi/3)` so the
-benchmark measures the hot path without sampling tangent singularities.
+Phase 2 result on 2026-06-03: completed. The benchmark suite now isolates `Sin`,
+`Cos`, `Tan`, `Acos`, `Asin`, `Atan`, `Atan2`, `Pow`, `Log2`, and `Ln`. `Tan`
+uses a tangent-specific angle fixture inside `[-pi/3, pi/3)` so the benchmark
+measures the hot path without sampling tangent singularities.
 
-Focused allocation diagnostics confirmed eager exception-message construction
-as the scalar/trigonometry allocation source:
+Focused allocation diagnostics confirmed eager exception-message construction as
+the scalar/trigonometry allocation source:
 
 - `Fixed64.operator /` built an interpolated divide-by-zero message even when
   the divisor was valid.
@@ -187,10 +193,10 @@ as the scalar/trigonometry allocation source:
 
 Targeted allocation regression tests were added before runtime changes. The
 fixes preserve existing exception types/messages on error paths and only defer
-message/table allocation on valid paths. A short focused benchmark after the
-fix reported no managed allocations for all 13 `fixed64-arithmetic` benchmarks.
-A full focused `Release` benchmark export also reported no managed allocations
-and wrote:
+message/table allocation on valid paths. A short focused benchmark after the fix
+reported no managed allocations for all 13 `fixed64-arithmetic` benchmarks. A
+full focused `Release` benchmark export also reported no managed allocations and
+wrote:
 
 ```text
 BenchmarkDotNet.Artifacts/results/FixedMathSharp.Benchmarks.Fixed64ArithmeticBenchmarks-report-full-compressed.json
@@ -199,9 +205,8 @@ BenchmarkDotNet.Artifacts/results/FixedMathSharp.Benchmarks.Fixed64ArithmeticBen
 Verification notes: focused scalar/trigonometry tests passed with coverage
 disabled for the final local verification loop, full solution Debug tests
 passed, and `Release`/`ReleaseLean` `netstandard2.1` build verification passed.
-Follow-up tooling/package warnings discovered during verification are tracked
-in `docs/feature-work/issue-tracker.md` as `FMS-Issue-005` and
-`FMS-Issue-006`.
+Follow-up tooling/package warnings discovered during verification are tracked in
+`docs/feature-work/issue-tracker.md` as `FMS-Issue-005` and `FMS-Issue-006`.
 
 ## Phase 3: Diagnose Vector And Quaternion Allocations
 
@@ -215,29 +220,33 @@ in `docs/feature-work/issue-tracker.md` as `FMS-Issue-005` and
 - Review: `src/FixedMathSharp/Numerics/Vectors/Vector3d.cs`
 - Review: `src/FixedMathSharp/Numerics/Vectors/Vector4d.cs`
 - Review: `src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector4d.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Rotations/FixedQuaternion.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector4d.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Numerics/Rotations/FixedQuaternion.Tests.cs`
 
-- [x] Split `Vector3d.Normalize` into `Magnitude`, `Normal`,
-  `NormalizeInPlace`, and `GetNormalized` benchmark cases.
+- [x] Split `Vector3d.Normalize` into `Magnitude`, `Normal`, `NormalizeInPlace`,
+      and `GetNormalized` benchmark cases.
 - [x] Add `Vector2d` and `Vector4d` benchmarks for arithmetic, dot,
-  normalization, distance, and interpolation.
+      normalization, distance, and interpolation.
 - [x] Add quaternion benchmarks for `FromAxisAngle`, `AngleAxis`,
-  `FromEulerAngles`, `Lerp`, `Slerp`, `Normalize`, `ToEulerAngles`, and
-  `FromDirection`.
+      `FromEulerAngles`, `Lerp`, `Slerp`, `Normalize`, `ToEulerAngles`, and
+      `FromDirection`.
 - [x] Diagnose whether quaternion allocations are inherited from
-  trigonometry/vector normalization or from quaternion-specific code.
+      trigonometry/vector normalization or from quaternion-specific code.
 - [x] Review vector and quaternion timing shape so `out` overload comparisons
-  are not reduced to allocation checks.
+      are not reduced to allocation checks.
 - [x] Diagnose the residual 1 B short-run allocation signal in
-  `QuaternionBenchmarks.FromEulerAngles` and `QuaternionBenchmarks.Slerp` after
-  `FixedThrowHelper` removal.
+      `QuaternionBenchmarks.FromEulerAngles` and `QuaternionBenchmarks.Slerp`
+      after `FixedThrowHelper` removal.
 - [x] Compare existing value-returning overloads against existing `out`
-  overloads where both are already part of the public API.
+      overloads where both are already part of the public API.
 - [x] Keep coordinate-convention fixes separate from performance changes unless
-  a benchmark directly proves a convention-related cost.
+      a benchmark directly proves a convention-related cost.
 
 Verification:
 
@@ -253,20 +262,20 @@ Phase 3 note from the `FixedThrowHelper` removal side quest on 2026-06-03:
 to a small residual `1 B` allocation signal. Treat that as a Phase 3 diagnostic
 target rather than a completed quaternion allocation fix.
 
-Phase 3 result on 2026-06-03: benchmark coverage was expanded for
-`Vector2d`, `Vector3d`, `Vector4d`, and `FixedQuaternion`. Vector fixtures now
-include deterministic 2D and 4D arrays plus normalized 3D axes for quaternion
-creation paths. `Vector3d` normalization is split into `Magnitude`, `Normal`,
+Phase 3 result on 2026-06-03: benchmark coverage was expanded for `Vector2d`,
+`Vector3d`, `Vector4d`, and `FixedQuaternion`. Vector fixtures now include
+deterministic 2D and 4D arrays plus normalized 3D axes for quaternion creation
+paths. `Vector3d` normalization is split into `Magnitude`, `Normal`,
 `NormalizeInPlace`, and `GetNormalized`. Value-returning vector additions were
 compared against existing `out` overloads across 2D, 3D, and 4D; `Vector2d` and
 `Vector3d` also compare value-returning `Lerp` against `Lerp(..., out result)`.
 
-Short in-process BenchmarkDotNet diagnostics reported no managed allocations
-for all vector benchmarks and all quaternion benchmarks, including
+Short in-process BenchmarkDotNet diagnostics reported no managed allocations for
+all vector benchmarks and all quaternion benchmarks, including
 `QuaternionBenchmarks.FromEulerAngles` and `QuaternionBenchmarks.Slerp`. The
 prior residual `1 B` quaternion signal did not reproduce after the benchmark
-expansion and current scalar/trigonometry fixes, so no runtime allocation
-change was made in Phase 3. The current evidence points to the large original
+expansion and current scalar/trigonometry fixes, so no runtime allocation change
+was made in Phase 3. The current evidence points to the large original
 quaternion allocation coming from shared scalar/trigonometry guard-message and
 lookup paths fixed in Phase 2, not from quaternion-specific heap allocation.
 
@@ -274,8 +283,8 @@ Verification notes: `Release` benchmark build passed with no warnings, `list`
 showed `vector2d`, `vector3d`, `vector4d`, and `quaternion`, and short
 in-process smoke runs completed for the vector/quaternion benchmark set. Timing
 comparisons between value-returning and `out` overloads should not be used as
-API guidance until a full exported benchmark run is captured; the short runs
-are sufficient only for compile, selection, and allocation diagnostics.
+API guidance until a full exported benchmark run is captured; the short runs are
+sufficient only for compile, selection, and allocation diagnostics.
 
 ## Phase 4: Expand Matrix And Bounds Coverage
 
@@ -292,30 +301,38 @@ are sufficient only for compile, selection, and allocation diagnostics.
 - Review: `src/FixedMathSharp/Geometry/Bounds/FixedBoundSphere.cs`
 - Review: `src/FixedMathSharp/Geometry/Primitives/FixedPlane.cs`
 - Review: `src/FixedMathSharp/Geometry/Primitives/FixedRay.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed3x3.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed4x4.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundArea.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundBox.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundFrustum.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundSphere.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedPlane.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedRay.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed3x3.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed4x4.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundArea.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundBox.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundFrustum.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundSphere.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedPlane.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedRay.Tests.cs`
 
 - [x] Split `Fixed4x4.CreateTransform` into `CreateTranslation`,
-  `CreateRotation`, `CreateScale`, `CreateTransform`, `ScaleRotateTranslate`,
-  and `TranslateRotateScale` benchmark cases.
+      `CreateRotation`, `CreateScale`, `CreateTransform`,
+      `ScaleRotateTranslate`, and `TranslateRotateScale` benchmark cases.
 - [x] Split inversion benchmarks into affine and full inversion paths.
-- [x] Add `Fixed3x3` coverage for rotation creation, multiplication,
-  transform direction, determinant, and inversion.
-- [x] Add `FixedBoundSphere`, `FixedBoundArea`, `FixedBoundFrustum`,
-  `FixedRay`, and `FixedPlane` benchmarks.
+- [x] Add `Fixed3x3` coverage for rotation creation, multiplication, transform
+      direction, determinant, and inversion.
+- [x] Add `FixedBoundSphere`, `FixedBoundArea`, `FixedBoundFrustum`, `FixedRay`,
+      and `FixedPlane` benchmarks.
 - [x] Review matrix and bounds timings for complexity/speed signals, including
-  affine versus full inversion and frustum construction versus reusable
-  array-fill paths.
+      affine versus full inversion and frustum construction versus reusable
+      array-fill paths.
 - [x] Add mixed shape dispatch benchmarks only after deciding which public
-  dispatch shape must remain stable.
+      dispatch shape must remain stable.
 - [x] Preserve explicit cross-type overloads unless a measured replacement
-  proves faster and clearer.
+      proves faster and clearer.
 
 Verification:
 
@@ -326,18 +343,18 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 ```
 
 Phase 4 result on 2026-06-04: benchmark coverage was expanded for `Fixed3x3`,
-matrix transform construction variants, affine versus full `Fixed4x4`
-inversion, and the remaining hot bounds/primitive shapes. `BenchmarkFixtures`
-now provides deterministic translation, scale, 3x3 matrix, and perspective
-matrix fixtures so measured methods do not build ad-hoc setup data.
+matrix transform construction variants, affine versus full `Fixed4x4` inversion,
+and the remaining hot bounds/primitive shapes. `BenchmarkFixtures` now provides
+deterministic translation, scale, 3x3 matrix, and perspective matrix fixtures so
+measured methods do not build ad-hoc setup data.
 
 Short in-process diagnostics completed 43 benchmark cases across `matrix3x3`,
 `matrix4x4`, and `bounds`. Bounds and primitive operations were allocation-free
 except `FrustumCreateFromMatrix`, which allocated about 165 KB per benchmark
 operation because each measured loop intentionally constructs new
-`FixedBoundFrustum` instances and each frustum owns its plane/corner arrays.
-The reusable `GetCorners(Vector3d[])` and `GetPlanes(FixedPlane[])` frustum
-paths stayed allocation-free.
+`FixedBoundFrustum` instances and each frustum owns its plane/corner arrays. The
+reusable `GetCorners(Vector3d[])` and `GetPlanes(FixedPlane[])` frustum paths
+stayed allocation-free.
 
 The in-process run reported tiny residual `1 B` allocation signals in
 `Matrix3x3Benchmarks.CreateRotation`,
@@ -359,22 +376,25 @@ them. No runtime optimization was made in Phase 4.
 - Review: `src/FixedMathSharp/Numerics/Curves/FixedCurveKey.cs`
 - Review: `src/FixedMathSharp/Numerics/Scalars/FixedRange.cs`
 - Review: `src/FixedMathSharp/Random/DeterministicRandom.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Curves/FixedCurveTests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Numerics/Scalars/FixedRange.Tests.cs`
-- Test if runtime changes are made: `tests/FixedMathSharp.Tests/Random/DeterministicRandom.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Numerics/Curves/FixedCurveTests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Numerics/Scalars/FixedRange.Tests.cs`
+- Test if runtime changes are made:
+  `tests/FixedMathSharp.Tests/Random/DeterministicRandom.Tests.cs`
 
-- [x] Add standard-build MemoryPack serialization and deserialization
-  benchmarks for `Fixed64`, vectors, quaternions, matrices, bounds, and curves.
+- [x] Add standard-build MemoryPack serialization and deserialization benchmarks
+      for `Fixed64`, vectors, quaternions, matrices, bounds, and curves.
 - [x] Add JSON roundtrip benchmarks where JSON support is part of the tested
-  public behavior.
+      public behavior.
 - [x] Ensure serialization benchmarks are excluded or conditionally compiled in
-  `ReleaseLean` when MemoryPack APIs are unavailable.
+      `ReleaseLean` when MemoryPack APIs are unavailable.
 - [x] Add curve evaluation benchmarks for common key counts and interpolation
-  modes.
+      modes.
 - [x] Add deterministic random benchmarks for `Next`, `NextFixed64`, seeded
-  streams, and feature-derived streams.
+      streams, and feature-derived streams.
 - [x] Validate that fixtures are deterministic and do not depend on benchmark
-  execution order.
+      execution order.
 
 Verification:
 
@@ -385,17 +405,16 @@ dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all -j Short -i
 ```
 
-Phase 5 result on 2026-06-04: benchmark coverage was added for
-serialization, curve evaluation, fixed ranges, and deterministic RNG. The
-benchmark project now defines `FIXEDMATHSHARP_DISABLE_MEMORYPACK` in
-`ReleaseLean`, and `SerializationBenchmarks` compiles MemoryPack methods only
-when that symbol is absent. `Release` lists MemoryPack and JSON serialization
-methods; `ReleaseLean` lists only JSON serialization methods under the same
-`serialization` alias.
+Phase 5 result on 2026-06-04: benchmark coverage was added for serialization,
+curve evaluation, fixed ranges, and deterministic RNG. The benchmark project now
+defines `FIXEDMATHSHARP_DISABLE_MEMORYPACK` in `ReleaseLean`, and
+`SerializationBenchmarks` compiles MemoryPack methods only when that symbol is
+absent. `Release` lists MemoryPack and JSON serialization methods; `ReleaseLean`
+lists only JSON serialization methods under the same `serialization` alias.
 
-Curve, range, and RNG benchmarks use deterministic fixtures and local seeded
-RNG instances so measured output does not depend on BenchmarkDotNet execution
-order. The short in-process Phase 5 smoke run executed 37 benchmark cases across
+Curve, range, and RNG benchmarks use deterministic fixtures and local seeded RNG
+instances so measured output does not depend on BenchmarkDotNet execution order.
+The short in-process Phase 5 smoke run executed 37 benchmark cases across
 `curve`, `fixed-range`, `deterministic-random`, and `serialization`.
 
 Smoke-run signals:
@@ -403,8 +422,8 @@ Smoke-run signals:
 - Curve evaluation, fixed-range operations, and deterministic RNG paths reported
   no managed allocations.
 - Serialization allocates by design because the measured APIs produce or
-  materialize payloads. In the short smoke, MemoryPack serialize/roundtrip
-  paths were much faster and smaller than JSON equivalents, while MemoryPack
+  materialize payloads. In the short smoke, MemoryPack serialize/roundtrip paths
+  were much faster and smaller than JSON equivalents, while MemoryPack
   scalar/vector deserialization from precomputed payloads reported no managed
   allocations.
 - Curve benchmarks now include interpolation-mode coverage plus a two-key versus
@@ -413,16 +432,16 @@ Smoke-run signals:
   captured.
 
 Verification notes: `Release` and `ReleaseLean` benchmark builds passed with no
-warnings or errors when restore was allowed to refresh the configuration-specific
-package graph. Focused curve/range/RNG tests passed after allowing restore to
-regenerate WSL-local NuGet assets; the initial `--no-restore` run failed on
-stale Windows fallback package folders. A later `Release --no-restore` benchmark
-build also failed after a `ReleaseLean` restore because MemoryPack is
-configuration-conditional in the benchmark project; parallel `Release` and
-`ReleaseLean` restores can race on the same shared `obj` assets for the same
-reason. The final verification used sequential forced restores for both
-benchmark configurations. These stale-asset cases are tracked in
-`docs/feature-work/issue-tracker.md` as `FMS-Issue-008`.
+warnings or errors when restore was allowed to refresh the
+configuration-specific package graph. Focused curve/range/RNG tests passed after
+allowing restore to regenerate WSL-local NuGet assets; the initial
+`--no-restore` run failed on stale Windows fallback package folders. A later
+`Release --no-restore` benchmark build also failed after a `ReleaseLean` restore
+because MemoryPack is configuration-conditional in the benchmark project;
+parallel `Release` and `ReleaseLean` restores can race on the same shared `obj`
+assets for the same reason. The final verification used sequential forced
+restores for both benchmark configurations. These stale-asset cases are tracked
+in `docs/feature-work/issue-tracker.md` as `FMS-Issue-008`.
 
 ## Phase 6: Regression Guardrails And Reporting
 
@@ -434,19 +453,19 @@ benchmark configurations. These stale-asset cases are tracked in
   `docs/feature-work` or `docs/wiki`
 
 - [x] Document how to compare current branch benchmark results against a stored
-  baseline.
-- [x] Decide whether CI should only compile benchmarks or also run a small
-  smoke benchmark job.
+      baseline.
+- [x] Decide whether CI should only compile benchmarks or also run a small smoke
+      benchmark job.
 - [x] Avoid raw timing thresholds in CI until runner variance is understood.
 - [x] Prefer artifact comparison or explicit BenchmarkDotNet comparison support
-  over single-run timing gates.
+      over single-run timing gates.
 - [x] Define a lightweight review checklist for benchmark findings that covers
-  timing deltas, allocation deltas, complexity class, branch/data-movement
-  costs, and semantic risk.
+      timing deltas, allocation deltas, complexity class, branch/data-movement
+      costs, and semantic risk.
 - [x] Add release-note guidance for performance improvements that includes
-  environment, baseline, and measured delta.
+      environment, baseline, and measured delta.
 - [x] Confirm optimized paths remain deterministic across `Release` and
-  `ReleaseLean`.
+      `ReleaseLean`.
 
 Verification:
 

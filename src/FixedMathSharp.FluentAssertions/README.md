@@ -1,6 +1,7 @@
 # FixedMathSharp.FluentAssertions
 
-`FixedMathSharp.FluentAssertions` adds custom FluentAssertions helpers for `FixedMathSharp` types.
+`FixedMathSharp.FluentAssertions` adds custom FluentAssertions helpers for
+`FixedMathSharp` types.
 
 Main library:
 [FixedMathSharp on GitHub](https://github.com/mrdav30/FixedMathSharp)

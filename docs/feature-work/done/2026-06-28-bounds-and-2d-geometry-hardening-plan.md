@@ -1,51 +1,91 @@
 # Bounds And 2D Geometry Hardening Battle Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development before production or test changes, and use superpowers:verification-before-completion before claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> superpowers:test-driven-development before production or test changes, and use
+> superpowers:verification-before-completion before claiming a phase is
+> complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Status:** Done.
 
-**Goal:** Make FixedMathSharp's bounds and geometry APIs explicit, allocation-free on hot paths, and reusable by Gravitas, GridForge, Trailblazer, and future deterministic LSF packages without pulling physics-specific behavior into the math layer.
+**Goal:** Make FixedMathSharp's bounds and geometry APIs explicit,
+allocation-free on hot paths, and reusable by Gravitas, GridForge, Trailblazer,
+and future deterministic LSF packages without pulling physics-specific behavior
+into the math layer.
 
-**Architecture:** Split dimensional ownership cleanly: `FixedBoundBox` owns 3D AABB behavior, while `FixedBoundArea` becomes a true `Vector2d` AABB. Remove the old 3D `FixedBoundArea` meaning instead of patching it with more 3D parity. Add 2D circle, segment, ray, and triangle primitives around the new area type, add explicit 3D segment and triangle parity for shared spatial math, and remove hidden mutable array state from 3D bounds structs.
+**Architecture:** Split dimensional ownership cleanly: `FixedBoundBox` owns 3D
+AABB behavior, while `FixedBoundArea` becomes a true `Vector2d` AABB. Remove the
+old 3D `FixedBoundArea` meaning instead of patching it with more 3D parity. Add
+2D circle, segment, ray, and triangle primitives around the new area type, add
+explicit 3D segment and triangle parity for shared spatial math, and remove
+hidden mutable array state from 3D bounds structs.
 
-**Tech Stack:** `netstandard2.1`, `net8.0`, `Fixed64`, `Vector2d`, `Vector3d`, MemoryPack standard package support, ReleaseLean shims, xUnit v3, BenchmarkDotNet.
+**Tech Stack:** `netstandard2.1`, `net8.0`, `Fixed64`, `Vector2d`, `Vector3d`,
+MemoryPack standard package support, ReleaseLean shims, xUnit v3,
+BenchmarkDotNet.
 
 ---
 
 ## Context
 
-Gravitas now has first-class 2D, 3D, and mixed-dimension physics. That exposed several lower-stack geometry gaps:
+Gravitas now has first-class 2D, 3D, and mixed-dimension physics. That exposed
+several lower-stack geometry gaps:
 
-- The former 3D-shaped `FixedBoundArea` was described as lightweight area math, but it stored `Vector3d` corners and overlapped heavily with `FixedBoundBox`.
-- 3D callers that need volume bounds should use `FixedBoundBox`. Flat 3D footprints should be modeled by higher-level systems as a 2D area plus explicit layer or elevation state.
-- The prior `FixedBoundBox` public `(center, size)` constructor made construction intent harder to read at call sites that needed explicit min/max or center/scope behavior.
-- The prior `FixedBoundBox.Vertices` property hid a mutable cached `Vector3d[]` inside a struct, which was surprising for value semantics and allocated when callers only needed corner enumeration.
-- There is no true `Vector2d`-based AABB/circle/segment/ray/triangle geometry layer for pure 2D packages to share.
-- There are no explicit 3D segment or triangle primitives even though downstream geometry code already needs reusable finite-segment and triangle projection helpers.
-- Gravitas, GridForge, and Trailblazer should not duplicate planar math just because the current FixedMathSharp bounds surface is 3D-shaped.
+- The former 3D-shaped `FixedBoundArea` was described as lightweight area math,
+  but it stored `Vector3d` corners and overlapped heavily with `FixedBoundBox`.
+- 3D callers that need volume bounds should use `FixedBoundBox`. Flat 3D
+  footprints should be modeled by higher-level systems as a 2D area plus
+  explicit layer or elevation state.
+- The prior `FixedBoundBox` public `(center, size)` constructor made
+  construction intent harder to read at call sites that needed explicit min/max
+  or center/scope behavior.
+- The prior `FixedBoundBox.Vertices` property hid a mutable cached `Vector3d[]`
+  inside a struct, which was surprising for value semantics and allocated when
+  callers only needed corner enumeration.
+- There is no true `Vector2d`-based AABB/circle/segment/ray/triangle geometry
+  layer for pure 2D packages to share.
+- There are no explicit 3D segment or triangle primitives even though downstream
+  geometry code already needs reusable finite-segment and triangle projection
+  helpers.
+- Gravitas, GridForge, and Trailblazer should not duplicate planar math just
+  because the current FixedMathSharp bounds surface is 3D-shaped.
 
 ## Design Rules
 
 - `FixedBoundBox` is the 3D AABB type.
 - `FixedBoundArea` is the 2D AABB type.
 - There should be no 3D `FixedBoundArea` compatibility layer after this plan.
-- Prefer named factories over ambiguous overloads. A call site should read as min/max, center/size, or center/scope without checking constructor docs.
-- Normalize min/max inputs at API boundaries unless an explicitly internal raw path is required for a measured hot path.
-- Treat `Intersects` as inclusive closed-bound overlap unless the method name says otherwise. Add strict variants where contact-at-boundary must be distinguishable.
-- Do not put physics concepts such as colliders, layers, body state, response, or inertia in FixedMathSharp.
-- Do not add a generic shape hierarchy unless benchmarks prove it is faster and clearer than explicit value-type overloads.
-- Keep new geometry structs small, readonly where practical, and compatible with Release and ReleaseLean.
-- Keep hot methods allocation-free. Public APIs that allocate should make that cost obvious in the name.
-- Preserve deterministic ordering for generated corners, triangle edges, segment endpoints, and benchmark fixtures.
+- Prefer named factories over ambiguous overloads. A call site should read as
+  min/max, center/size, or center/scope without checking constructor docs.
+- Normalize min/max inputs at API boundaries unless an explicitly internal raw
+  path is required for a measured hot path.
+- Treat `Intersects` as inclusive closed-bound overlap unless the method name
+  says otherwise. Add strict variants where contact-at-boundary must be
+  distinguishable.
+- Do not put physics concepts such as colliders, layers, body state, response,
+  or inertia in FixedMathSharp.
+- Do not add a generic shape hierarchy unless benchmarks prove it is faster and
+  clearer than explicit value-type overloads.
+- Keep new geometry structs small, readonly where practical, and compatible with
+  Release and ReleaseLean.
+- Keep hot methods allocation-free. Public APIs that allocate should make that
+  cost obvious in the name.
+- Preserve deterministic ordering for generated corners, triangle edges, segment
+  endpoints, and benchmark fixtures.
 
 ## Risks To Avoid
 
-- A compatibility adapter that keeps old 3D `FixedBoundArea` semantics alive beside better APIs.
-- A `FixedBoundTriangle` name that implies a triangle is an axis-aligned bound. Use `FixedTriangle2d` for triangle geometry.
-- Hidden array caches in structs. They behave poorly under copies and are easy to mutate through public accessors.
-- 2D APIs that accidentally mean X/Z, Y-up, screen-space, or engine-space. FixedMathSharp 2D geometry is plain `Vector2d` plane math.
-- A 3D segment API that duplicates or subtly diverges from `Vector3d.ClosestPointOnLineSegment(...)`.
-- Intersection semantics that differ silently between area, box, circle, sphere, ray, and triangle types.
+- A compatibility adapter that keeps old 3D `FixedBoundArea` semantics alive
+  beside better APIs.
+- A `FixedBoundTriangle` name that implies a triangle is an axis-aligned bound.
+  Use `FixedTriangle2d` for triangle geometry.
+- Hidden array caches in structs. They behave poorly under copies and are easy
+  to mutate through public accessors.
+- 2D APIs that accidentally mean X/Z, Y-up, screen-space, or engine-space.
+  FixedMathSharp 2D geometry is plain `Vector2d` plane math.
+- A 3D segment API that duplicates or subtly diverges from
+  `Vector3d.ClosestPointOnLineSegment(...)`.
+- Intersection semantics that differ silently between area, box, circle, sphere,
+  ray, and triangle types.
 
 ## Phase 1: Inventory And Guardrail Tests
 
@@ -59,20 +99,32 @@ Gravitas now has first-class 2D, 3D, and mixed-dimension physics. That exposed s
 - Review: `src/FixedMathSharp/Geometry/Primitives/FixedRay.cs`
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundBox.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundSphere.Tests.cs`
-- Modify: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundFrustum.Tests.cs`
+- Modify:
+  `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundFrustum.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedPlane.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedRay.Tests.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/SerializationBenchmarks.cs`
-- Modify: `tests/FixedMathSharp.Benchmarks/Support/BenchmarkCatalog.cs` if a bounds benchmark selector is missing.
+- Modify: `tests/FixedMathSharp.Benchmarks/Support/BenchmarkCatalog.cs` if a
+  bounds benchmark selector is missing.
 
-- [x] Add tests that document current inclusive boundary behavior for `FixedBoundBox.Contains` and `FixedBoundBox.Intersects`.
-- [x] Move existing 3D `FixedBoundArea` tests that represent actual 3D volumes to `FixedBoundBox` tests.
-- [x] Move existing 3D `FixedBoundArea` tests that represent flat footprints into new 2D `FixedBoundArea` test names that will be implemented in Phase 4.
-- [x] Add tests for swapped min/max inputs so the desired `FixedBoundBox` normalization behavior is locked before implementation.
-- [x] Add tests that expose the current `FixedBoundBox.Vertices` allocation/reference-mutability risk. The test should be removed or replaced when `Vertices` is deleted in Phase 3.
-- [x] Add or confirm a focused `bounds` benchmark catalog entry so later phases can measure construction, containment, intersection, corner copy, and union paths.
-- [x] Capture a short benchmark baseline before changing the hot-path implementation.
+- [x] Add tests that document current inclusive boundary behavior for
+      `FixedBoundBox.Contains` and `FixedBoundBox.Intersects`.
+- [x] Move existing 3D `FixedBoundArea` tests that represent actual 3D volumes
+      to `FixedBoundBox` tests.
+- [x] Move existing 3D `FixedBoundArea` tests that represent flat footprints
+      into new 2D `FixedBoundArea` test names that will be implemented in
+      Phase 4.
+- [x] Add tests for swapped min/max inputs so the desired `FixedBoundBox`
+      normalization behavior is locked before implementation.
+- [x] Add tests that expose the current `FixedBoundBox.Vertices`
+      allocation/reference-mutability risk. The test should be removed or
+      replaced when `Vertices` is deleted in Phase 3.
+- [x] Add or confirm a focused `bounds` benchmark catalog entry so later phases
+      can measure construction, containment, intersection, corner copy, and
+      union paths.
+- [x] Capture a short benchmark baseline before changing the hot-path
+      implementation.
 
 Verification:
 
@@ -88,8 +140,8 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - `FixedBoundBox.Contains(Vector3d)` is boundary-inclusive for all corners.
   `FixedBoundBox.Intersects(FixedBoundBox)` is currently strict for
   face/edge/corner touch unless the other box is fully contained. That behavior
-  is now explicit in tests and should be resolved deliberately during the
-  Phase 8 intersection semantics sweep.
+  is now explicit in tests and should be resolved deliberately during the Phase
+  8 intersection semantics sweep.
 - Swapped `SetMinMax` and serialized state inputs currently preserve inverted
   bounds. Phase 1 captured this as current-risk guardrail coverage so Phase 2
   can replace it with desired normalization behavior without mistaking the
@@ -97,10 +149,10 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Phase 1 captured that `FixedBoundBox.Vertices` exposed a mutable backing array
   and default structs allocated that array on first access. Phase 3 replaced
   those guardrails with `GetCorner`/`CopyCorners` coverage.
-- The benchmark catalog already exposes the `bounds` selector. Phase 1 added
-  box construction, `SetMinMax`, vertex-read, and union baselines. Short
-  in-process baseline on 2026-06-29 completed 37 bounds benchmarks; key new
-  baselines: `BoxConstructCenterSize` 20,385.9 ns, `BoxSetMinMax` 9,670.0 ns,
+- The benchmark catalog already exposes the `bounds` selector. Phase 1 added box
+  construction, `SetMinMax`, vertex-read, and union baselines. Short in-process
+  baseline on 2026-06-29 completed 37 bounds benchmarks; key new baselines:
+  `BoxConstructCenterSize` 20,385.9 ns, `BoxSetMinMax` 9,670.0 ns,
   `BoxReadVertices` 1,155.0 ns, `BoxUnion` 1,525.0 ns.
 
 ## Phase 2: 3D Bounds Cleanup And Old Area Removal
@@ -108,7 +160,8 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 **Files:**
 
 - Delete after migration: `src/FixedMathSharp/Geometry/Bounds/FixedBoundArea.cs`
-- Delete after migration: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundArea.Tests.cs`
+- Delete after migration:
+  `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundArea.Tests.cs`
 - Modify: `src/FixedMathSharp/Geometry/Bounds/FixedBoundBox.cs`
 - Modify: `src/FixedMathSharp/Geometry/Bounds/FixedBoundSphere.cs`
 - Modify: `src/FixedMathSharp/Geometry/Bounds/FixedBoundFrustum.cs`
@@ -116,24 +169,37 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedRay.cs`
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundBox.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundSphere.Tests.cs`
-- Modify: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundFrustum.Tests.cs`
+- Modify:
+  `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundFrustum.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedPlane.Tests.cs`
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedRay.Tests.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/SerializationBenchmarks.cs`
-- Review downstream after release: Gravitas, GridForge, Trailblazer, and any Unity adapter call sites that construct bounds directly.
+- Review downstream after release: Gravitas, GridForge, Trailblazer, and any
+  Unity adapter call sites that construct bounds directly.
 
 - [x] Add `FixedBoundBox.FromMinMax(Vector3d min, Vector3d max)`.
 - [x] Add `FixedBoundBox.FromCenterAndSize(Vector3d center, Vector3d size)`.
 - [x] Add `FixedBoundBox.FromCenterAndScope(Vector3d center, Vector3d scope)`.
-- [x] Replace the public `FixedBoundBox(Vector3d center, Vector3d size)` constructor with named factories in source, tests, benchmarks, and known local consumers. Keep the state constructor needed by serialization.
-- [x] Normalize min/max inputs in `FromMinMax`, `SetMinMax`, and state population so callers cannot create inverted boxes through public APIs.
-- [x] Normalize size/scope through absolute component values where negative extents are accepted. XML docs must state that behavior.
-- [x] Replace every `Contains(FixedBoundArea)` and `Intersects(FixedBoundArea)` overload in 3D types with `FixedBoundBox`-based coverage.
-- [x] Replace every `FixedRay.Intersects(FixedBoundArea)` and `FixedPlane.Intersects(FixedBoundArea)` path with `FixedBoundBox` coverage.
-- [x] Delete the old `FixedBoundArea` source file after all 3D call sites have moved to `FixedBoundBox`.
-- [x] Delete or migrate old `FixedBoundArea` serialization benchmarks. The new 2D `FixedBoundArea` serialization coverage is added in Phase 4.
-- [x] Update complexity exception entries that reference `FixedBoundFrustum.Contains(FixedBoundArea)` so they refer to the surviving `FixedBoundBox` path or are removed.
+- [x] Replace the public `FixedBoundBox(Vector3d center, Vector3d size)`
+      constructor with named factories in source, tests, benchmarks, and known
+      local consumers. Keep the state constructor needed by serialization.
+- [x] Normalize min/max inputs in `FromMinMax`, `SetMinMax`, and state
+      population so callers cannot create inverted boxes through public APIs.
+- [x] Normalize size/scope through absolute component values where negative
+      extents are accepted. XML docs must state that behavior.
+- [x] Replace every `Contains(FixedBoundArea)` and `Intersects(FixedBoundArea)`
+      overload in 3D types with `FixedBoundBox`-based coverage.
+- [x] Replace every `FixedRay.Intersects(FixedBoundArea)` and
+      `FixedPlane.Intersects(FixedBoundArea)` path with `FixedBoundBox`
+      coverage.
+- [x] Delete the old `FixedBoundArea` source file after all 3D call sites have
+      moved to `FixedBoundBox`.
+- [x] Delete or migrate old `FixedBoundArea` serialization benchmarks. The new
+      2D `FixedBoundArea` serialization coverage is added in Phase 4.
+- [x] Update complexity exception entries that reference
+      `FixedBoundFrustum.Contains(FixedBoundArea)` so they refer to the
+      surviving `FixedBoundBox` path or are removed.
 
 Verification:
 
@@ -166,13 +232,20 @@ exist only if they are intentionally waiting for the new 2D type in Phase 4.
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundBox.Tests.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 
-- [x] Remove the `_vertices` field and `_isDirty` corner-cache behavior from `FixedBoundBox`.
-- [x] Remove the public `Vertices` array property. Do not replace it with another hidden allocation path.
-- [x] Add `public Vector3d GetCorner(int index)` with deterministic index ordering matching the current documented near/far corner order.
-- [x] Add `public void CopyCorners(Span<Vector3d> destination)` and throw `ArgumentException` when `destination.Length < 8`.
-- [x] Update `FindClosestPointsBetweenBoxes` to use `GetCorner` or a stack/local span path instead of `b.Vertices[i]`.
-- [x] Add tests for all eight corner indexes, copy ordering, short span validation, and no externally mutable corner storage.
-- [x] Add a benchmark comparing `GetCorner`, `CopyCorners`, and the old baseline behavior captured in Phase 1.
+- [x] Remove the `_vertices` field and `_isDirty` corner-cache behavior from
+      `FixedBoundBox`.
+- [x] Remove the public `Vertices` array property. Do not replace it with
+      another hidden allocation path.
+- [x] Add `public Vector3d GetCorner(int index)` with deterministic index
+      ordering matching the current documented near/far corner order.
+- [x] Add `public void CopyCorners(Span<Vector3d> destination)` and throw
+      `ArgumentException` when `destination.Length < 8`.
+- [x] Update `FindClosestPointsBetweenBoxes` to use `GetCorner` or a stack/local
+      span path instead of `b.Vertices[i]`.
+- [x] Add tests for all eight corner indexes, copy ordering, short span
+      validation, and no externally mutable corner storage.
+- [x] Add a benchmark comparing `GetCorner`, `CopyCorners`, and the old baseline
+      behavior captured in Phase 1.
 
 Verification:
 
@@ -197,16 +270,27 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Create: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundArea.Tests.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/SerializationBenchmarks.cs`
-- Modify: `tests/FixedMathSharp.Benchmarks/Support/BenchmarkCatalog.cs` if needed.
+- Modify: `tests/FixedMathSharp.Benchmarks/Support/BenchmarkCatalog.cs` if
+  needed.
 
-- [x] Add a `FixedBoundArea` value type with `Vector2d Min`, `Vector2d Max`, `Vector2d Center`, `Vector2d Size`, and `Vector2d Scope`.
-- [x] Add named factories: `FromMinMax`, `FromCenterAndSize`, and `FromCenterAndScope`.
+- [x] Add a `FixedBoundArea` value type with `Vector2d Min`, `Vector2d Max`,
+      `Vector2d Center`, `Vector2d Size`, and `Vector2d Scope`.
+- [x] Add named factories: `FromMinMax`, `FromCenterAndSize`, and
+      `FromCenterAndScope`.
 - [x] Normalize min/max and extents consistently with the 3D bounds factories.
-- [x] Add `Contains(Vector2d point)`, `Contains(FixedBoundArea area)`, `Intersects(FixedBoundArea area)`, `IntersectsStrict(FixedBoundArea area)`, `ClampPoint`, `ProjectPoint`, and `Union`.
-- [x] Add `Deconstruct(out Vector2d min, out Vector2d max)` so consumers can unpack normalized bounds without reaching into internal storage.
-- [x] Add Release and ReleaseLean compatible serialization attributes following existing bounds patterns.
-- [x] Add tests for construction, normalization, boundary containment, strict vs inclusive intersection, union, clamp, projection, equality, hash behavior, JSON roundtrip, and MemoryPack roundtrip when MemoryPack is enabled.
-- [x] Add benchmark cases for 2D construction, contains, intersects, union, clamp, and serialization.
+- [x] Add `Contains(Vector2d point)`, `Contains(FixedBoundArea area)`,
+      `Intersects(FixedBoundArea area)`,
+      `IntersectsStrict(FixedBoundArea area)`, `ClampPoint`, `ProjectPoint`, and
+      `Union`.
+- [x] Add `Deconstruct(out Vector2d min, out Vector2d max)` so consumers can
+      unpack normalized bounds without reaching into internal storage.
+- [x] Add Release and ReleaseLean compatible serialization attributes following
+      existing bounds patterns.
+- [x] Add tests for construction, normalization, boundary containment, strict vs
+      inclusive intersection, union, clamp, projection, equality, hash behavior,
+      JSON roundtrip, and MemoryPack roundtrip when MemoryPack is enabled.
+- [x] Add benchmark cases for 2D construction, contains, intersects, union,
+      clamp, and serialization.
 
 Verification:
 
@@ -217,9 +301,8 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 **Phase 4 Notes:**
 
-- `FixedBoundArea` is a true `Vector2d` AABB with mutable `Min`/`Max`
-  ownership, named factories, normalized state, and no 3D compatibility
-  surface.
+- `FixedBoundArea` is a true `Vector2d` AABB with mutable `Min`/`Max` ownership,
+  named factories, normalized state, and no 3D compatibility surface.
 - The 2D API uses `Size` for total extent and `Scope` for half extent. A
   `Proportions` alias was intentionally not added to avoid duplicate public
   names for the same value.
@@ -242,13 +325,25 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundArea.Tests.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 
-- [x] Add a `FixedBoundCircle` value type with `Vector2d Center`, `Fixed64 Radius`, `Fixed64 RadiusSquared`, and `FixedBoundArea Bounds`.
-- [x] Normalize negative radius inputs to absolute radius, or reject them with `ArgumentOutOfRangeException`. Choose one policy and keep it consistent with `FixedBoundSphere`.
-- [x] Add `Contains(Vector2d point)`, `Contains(FixedBoundCircle circle)`, `Intersects(FixedBoundCircle circle)`, `Intersects(FixedBoundArea area)`, `ClampPoint`, and `ProjectPoint`.
-- [x] Add matching `FixedBoundArea.Contains(FixedBoundCircle circle)` and `FixedBoundArea.Intersects(FixedBoundCircle circle)` only if those overloads remove duplicated downstream code.
-- [x] Add strict overlap variants only where boundary-touch behavior matters to downstream callers. Do not add duplicate convenience APIs without a known use case.
-- [x] Add tests for zero-radius circles, touching circles, circle-area touch, containment, projection, equality, hash behavior, JSON roundtrip, and MemoryPack roundtrip when MemoryPack is enabled.
-- [x] Add benchmark cases for point containment, circle intersection, area intersection, and clamp/projection.
+- [x] Add a `FixedBoundCircle` value type with `Vector2d Center`,
+      `Fixed64 Radius`, `Fixed64 RadiusSquared`, and `FixedBoundArea Bounds`.
+- [x] Normalize negative radius inputs to absolute radius, or reject them with
+      `ArgumentOutOfRangeException`. Choose one policy and keep it consistent
+      with `FixedBoundSphere`.
+- [x] Add `Contains(Vector2d point)`, `Contains(FixedBoundCircle circle)`,
+      `Intersects(FixedBoundCircle circle)`, `Intersects(FixedBoundArea area)`,
+      `ClampPoint`, and `ProjectPoint`.
+- [x] Add matching `FixedBoundArea.Contains(FixedBoundCircle circle)` and
+      `FixedBoundArea.Intersects(FixedBoundCircle circle)` only if those
+      overloads remove duplicated downstream code.
+- [x] Add strict overlap variants only where boundary-touch behavior matters to
+      downstream callers. Do not add duplicate convenience APIs without a known
+      use case.
+- [x] Add tests for zero-radius circles, touching circles, circle-area touch,
+      containment, projection, equality, hash behavior, JSON roundtrip, and
+      MemoryPack roundtrip when MemoryPack is enabled.
+- [x] Add benchmark cases for point containment, circle intersection, area
+      intersection, and clamp/projection.
 
 Verification:
 
@@ -267,10 +362,10 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   `FixedBoundArea` size/scope normalization style. During this phase,
   `FixedBoundSphere` was also tightened so construction and radius assignment
   cannot retain a negative radius.
-- Review follow-up moved `FixedBoundSphere` to a matching
-  `BoundingSphereState` payload so sphere serialization uses the same explicit
-  state shape as `FixedBoundBox`, `FixedBoundArea`, and `FixedBoundCircle`
-  instead of mixing a serialized center field with a radius-backed property.
+- Review follow-up moved `FixedBoundSphere` to a matching `BoundingSphereState`
+  payload so sphere serialization uses the same explicit state shape as
+  `FixedBoundBox`, `FixedBoundArea`, and `FixedBoundCircle` instead of mixing a
+  serialized center field with a radius-backed property.
 - `FixedBoundArea.Contains(FixedBoundCircle)` and
   `FixedBoundArea.Intersects(FixedBoundCircle)` were added because downstream
   planar broad-phase/query callers naturally ask the area-side question and the
@@ -300,17 +395,29 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 - Create: `src/FixedMathSharp/Geometry/Primitives/FixedSegment2d.cs`
 - Create: `src/FixedMathSharp/Geometry/Primitives/FixedRay2d.cs`
-- Create: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedSegment2d.Tests.cs`
+- Create:
+  `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedSegment2d.Tests.cs`
 - Create: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedRay2d.Tests.cs`
-- Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs` or create `tests/FixedMathSharp.Benchmarks/Geometry2dBenchmarks.cs`.
-- Modify: `tests/FixedMathSharp.Benchmarks/Support/BenchmarkCatalog.cs` if a new geometry benchmark group is added.
+- Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs` or create
+  `tests/FixedMathSharp.Benchmarks/Geometry2dBenchmarks.cs`.
+- Modify: `tests/FixedMathSharp.Benchmarks/Support/BenchmarkCatalog.cs` if a new
+  geometry benchmark group is added.
 
-- [x] Add `FixedSegment2d` with `Start`, `End`, `Delta`, `Length`, `LengthSquared`, `Bounds`, `ClosestPoint(Vector2d point)`, and `DistanceSquared(Vector2d point)`.
-- [x] Add `FixedRay2d` with `Position`, `Direction`, `GetPoint(Fixed64 distance)`, and intersection helpers against `FixedBoundArea` and `FixedBoundCircle`.
-- [x] Match `FixedRay` normalization semantics where practical. If `FixedRay` permits unnormalized direction, document whether `FixedRay2d` does the same or intentionally normalizes.
-- [x] Guard zero-length ray directions and zero-length segments with explicit deterministic behavior covered by tests.
-- [x] Add tests for horizontal, vertical, diagonal, reversed, zero-length, and boundary-touch cases.
-- [x] Add benchmark coverage for segment closest-point, segment distance, ray-area intersection, and ray-circle intersection.
+- [x] Add `FixedSegment2d` with `Start`, `End`, `Delta`, `Length`,
+      `LengthSquared`, `Bounds`, `ClosestPoint(Vector2d point)`, and
+      `DistanceSquared(Vector2d point)`.
+- [x] Add `FixedRay2d` with `Position`, `Direction`,
+      `GetPoint(Fixed64 distance)`, and intersection helpers against
+      `FixedBoundArea` and `FixedBoundCircle`.
+- [x] Match `FixedRay` normalization semantics where practical. If `FixedRay`
+      permits unnormalized direction, document whether `FixedRay2d` does the
+      same or intentionally normalizes.
+- [x] Guard zero-length ray directions and zero-length segments with explicit
+      deterministic behavior covered by tests.
+- [x] Add tests for horizontal, vertical, diagonal, reversed, zero-length, and
+      boundary-touch cases.
+- [x] Add benchmark coverage for segment closest-point, segment distance,
+      ray-area intersection, and ray-circle intersection.
 
 Verification:
 
@@ -336,9 +443,8 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   Zero-direction rays return `0` only when the origin is inside or on the
   queried area/circle, otherwise `null`.
 - Short in-process benchmark rows completed with no managed allocation in the
-  summary: `Segment2dClosestPoint` 14.01 us,
-  `Segment2dDistanceSquared` 15.95 us, `Ray2dIntersectsArea` 31.26 us, and
-  `Ray2dIntersectsCircle` 12.18 us.
+  summary: `Segment2dClosestPoint` 14.01 us, `Segment2dDistanceSquared` 15.95
+  us, `Ray2dIntersectsArea` 31.26 us, and `Ray2dIntersectsCircle` 12.18 us.
 
 ## Phase 6b: 3D Segment Primitive
 
@@ -346,17 +452,35 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 - Create: `src/FixedMathSharp/Geometry/Primitives/FixedSegment.cs`
 - Create: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedSegment.Tests.cs`
-- Modify: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs` only if existing segment-helper coverage needs naming or edge-case cleanup.
-- Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs` or `tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs` for segment primitive benchmark coverage.
+- Modify: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs` only
+  if existing segment-helper coverage needs naming or edge-case cleanup.
+- Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs` or
+  `tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs` for segment primitive
+  benchmark coverage.
 
-- [x] Add `FixedSegment` with `Start`, `End`, `Delta`, `Length`, `LengthSquared`, `Bounds`, `ClosestPoint(Vector3d point)`, and `DistanceSquared(Vector3d point)`.
-- [x] Use `FixedBoundBox.FromMinMax(Start, End)` for `Bounds` so reversed endpoints produce normalized 3D AABB coverage without resurrecting 3D `FixedBoundArea`.
-- [x] Delegate closest-point projection to the existing `Vector3d.ClosestPointOnLineSegment(...)` helper so 3D segment primitive behavior stays aligned with current `Vector3d` math.
-- [x] Preserve ordered endpoint equality and deconstruction. Reversed endpoints should have the same `Bounds` but should not compare equal unless a measured caller needs unordered segment identity.
-- [x] Guard zero-length segments with explicit deterministic behavior: `ClosestPoint(point)` returns `Start`, `Length` and `LengthSquared` are zero, and `DistanceSquared(point)` equals squared point-to-start distance.
-- [x] Add JSON and MemoryPack roundtrip tests following `FixedSegment2d` and `FixedRay` primitive patterns.
-- [x] Add tests for horizontal, vertical, depth-axis, diagonal, reversed, zero-length, bounds, equality/hash, deconstruction, and serialization behavior.
-- [x] Add benchmark coverage for `FixedSegment.ClosestPoint` and `FixedSegment.DistanceSquared`. Keep the benchmark fixture deterministic and allocation-free after setup.
+- [x] Add `FixedSegment` with `Start`, `End`, `Delta`, `Length`,
+      `LengthSquared`, `Bounds`, `ClosestPoint(Vector3d point)`, and
+      `DistanceSquared(Vector3d point)`.
+- [x] Use `FixedBoundBox.FromMinMax(Start, End)` for `Bounds` so reversed
+      endpoints produce normalized 3D AABB coverage without resurrecting 3D
+      `FixedBoundArea`.
+- [x] Delegate closest-point projection to the existing
+      `Vector3d.ClosestPointOnLineSegment(...)` helper so 3D segment primitive
+      behavior stays aligned with current `Vector3d` math.
+- [x] Preserve ordered endpoint equality and deconstruction. Reversed endpoints
+      should have the same `Bounds` but should not compare equal unless a
+      measured caller needs unordered segment identity.
+- [x] Guard zero-length segments with explicit deterministic behavior:
+      `ClosestPoint(point)` returns `Start`, `Length` and `LengthSquared` are
+      zero, and `DistanceSquared(point)` equals squared point-to-start distance.
+- [x] Add JSON and MemoryPack roundtrip tests following `FixedSegment2d` and
+      `FixedRay` primitive patterns.
+- [x] Add tests for horizontal, vertical, depth-axis, diagonal, reversed,
+      zero-length, bounds, equality/hash, deconstruction, and serialization
+      behavior.
+- [x] Add benchmark coverage for `FixedSegment.ClosestPoint` and
+      `FixedSegment.DistanceSquared`. Keep the benchmark fixture deterministic
+      and allocation-free after setup.
 
 Verification:
 
@@ -378,8 +502,8 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Existing `Vector3d` segment helper tests did not need changes; the focused
   Phase 6b test run covered both `FixedSegmentTests` and `Vector3dTests`.
 - Short in-process benchmark rows completed with no managed allocation in the
-  summary: `Segment3dClosestPoint` 18.75 us and
-  `Segment3dDistanceSquared` 22.31 us.
+  summary: `Segment3dClosestPoint` 18.75 us and `Segment3dDistanceSquared` 22.31
+  us.
 
 ## Phase 7: Triangle Primitives
 
@@ -387,25 +511,46 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 - Create: `src/FixedMathSharp/Geometry/Primitives/FixedTriangle2d.cs`
 - Create: `src/FixedMathSharp/Geometry/Primitives/FixedTriangle.cs`
-- Create: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedTriangle2d.Tests.cs`
-- Create: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedTriangle.Tests.cs`
+- Create:
+  `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedTriangle2d.Tests.cs`
+- Create:
+  `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedTriangle.Tests.cs`
 - Modify: `src/FixedMathSharp/Numerics/Vectors/Vector2d.Statics.cs`
 - Modify: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector2d.Tests.cs`
-- Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs` or `tests/FixedMathSharp.Benchmarks/Geometry2dBenchmarks.cs`.
+- Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs` or
+  `tests/FixedMathSharp.Benchmarks/Geometry2dBenchmarks.cs`.
 
-- [x] Add `FixedTriangle2d` with vertices `A`, `B`, `C`, `SignedArea`, `Area`, `Bounds`, and deterministic edge access.
-- [x] Add `FixedTriangle` with vertices `A`, `B`, `C`, derived normal/area/bounds, and deterministic edge access.
-- [x] Add `Vector2d.BarycentricCoordinates(...)` parity with `Vector3d.BarycentricCoordinates(...)`.
-- [x] Add `GetPoint(Fixed64 weightB, Fixed64 weightC)` to both triangle primitives so known barycentric weights can reconstruct points through the vector helpers.
-- [x] Add `TryGetBarycentricWeights(...)` to `FixedTriangle2d` for exact planar weight solving.
-- [x] Add `TryGetProjectedBarycentricWeights(...)` to `FixedTriangle` so the public name makes the 3D off-plane projection semantics explicit.
-- [x] Add `Contains(Vector2d point)` using fixed-point same-side tests with explicit boundary-inclusive behavior.
-- [x] Add `Contains(Vector3d point)` using closest-point distance so containment remains plane-aware and boundary-inclusive.
-- [x] Add `ClosestPoint(Vector2d point)` using segment closest-point helpers for edge fallback.
-- [x] Add `ClosestPoint(Vector3d point)` using deterministic triangle-region projection with segment closest-point fallback for degenerate triangles.
-- [x] Add `Intersects(FixedBoundArea area)` and `Intersects(FixedBoundCircle circle)` only if Gravitas, GridForge, or Trailblazer will consume them immediately. Otherwise keep the first version focused on triangle ownership, area, bounds, and point containment.
-- [x] Add tests for clockwise, counter-clockwise, degenerate, edge-touch, vertex-touch, outside-near-edge, inside, barycentric interpolation, and barycentric weight solving cases.
-- [x] Add benchmarks for area, bounds, point containment, closest-point, point interpolation, and barycentric weight-solving behavior.
+- [x] Add `FixedTriangle2d` with vertices `A`, `B`, `C`, `SignedArea`, `Area`,
+      `Bounds`, and deterministic edge access.
+- [x] Add `FixedTriangle` with vertices `A`, `B`, `C`, derived
+      normal/area/bounds, and deterministic edge access.
+- [x] Add `Vector2d.BarycentricCoordinates(...)` parity with
+      `Vector3d.BarycentricCoordinates(...)`.
+- [x] Add `GetPoint(Fixed64 weightB, Fixed64 weightC)` to both triangle
+      primitives so known barycentric weights can reconstruct points through the
+      vector helpers.
+- [x] Add `TryGetBarycentricWeights(...)` to `FixedTriangle2d` for exact planar
+      weight solving.
+- [x] Add `TryGetProjectedBarycentricWeights(...)` to `FixedTriangle` so the
+      public name makes the 3D off-plane projection semantics explicit.
+- [x] Add `Contains(Vector2d point)` using fixed-point same-side tests with
+      explicit boundary-inclusive behavior.
+- [x] Add `Contains(Vector3d point)` using closest-point distance so containment
+      remains plane-aware and boundary-inclusive.
+- [x] Add `ClosestPoint(Vector2d point)` using segment closest-point helpers for
+      edge fallback.
+- [x] Add `ClosestPoint(Vector3d point)` using deterministic triangle-region
+      projection with segment closest-point fallback for degenerate triangles.
+- [x] Add `Intersects(FixedBoundArea area)` and
+      `Intersects(FixedBoundCircle circle)` only if Gravitas, GridForge, or
+      Trailblazer will consume them immediately. Otherwise keep the first
+      version focused on triangle ownership, area, bounds, and point
+      containment.
+- [x] Add tests for clockwise, counter-clockwise, degenerate, edge-touch,
+      vertex-touch, outside-near-edge, inside, barycentric interpolation, and
+      barycentric weight solving cases.
+- [x] Add benchmarks for area, bounds, point containment, closest-point, point
+      interpolation, and barycentric weight-solving behavior.
 
 Verification:
 
@@ -416,8 +561,8 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 **Phase 7 Notes:**
 
-- `FixedTriangle2d` owns ordered vertices, signed and absolute area,
-  centroid, normalized `FixedBoundArea` coverage, stable vertex/edge access,
+- `FixedTriangle2d` owns ordered vertices, signed and absolute area, centroid,
+  normalized `FixedBoundArea` coverage, stable vertex/edge access,
   boundary-inclusive point containment, closest-point projection, squared
   distance, and JSON/MemoryPack-compatible state.
 - `FixedTriangle` mirrors the 3D naming convention instead of using a
@@ -438,21 +583,21 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   triangles fall back to deterministic edge projection. The face-region closest
   point path guards a zero denominator and falls back to edges rather than
   dividing through a rounded-degenerate case.
-- Area/circle intersection overloads were intentionally not added yet because
-  no immediate downstream caller needs them. The reusable core surface is
-  triangle state, bounds, point containment, closest point, and distance.
+- Area/circle intersection overloads were intentionally not added yet because no
+  immediate downstream caller needs them. The reusable core surface is triangle
+  state, bounds, point containment, closest point, and distance.
 - Future Gravitas migration can replace local 3D `TriangleData` and
   `MixedTriangle` value structs with `FixedTriangle`, adding physics-specific
-  cached normals or bounds only if profiling proves the cache is worth the
-  extra state.
+  cached normals or bounds only if profiling proves the cache is worth the extra
+  state.
 - Short in-process benchmark rows completed with no managed allocation in the
   summary: `Triangle2dArea` 9.012 us, `Triangle2dBounds` 1.470 us,
   `Triangle2dContainsPoint` 20.117 us, `Triangle2dClosestPoint` 73.144 us,
   `Triangle2dGetPoint` 15.807 us, `Triangle2dBarycentricWeights` 32.073 us,
   `Triangle3dArea` 36.493 us, `Triangle3dBounds` 3.048 us,
   `Triangle3dContainsPoint` 35.925 us, `Triangle3dClosestPoint` 32.170 us,
-  `Triangle3dGetPoint` 18.921 us, and
-  `Triangle3dProjectedBarycentricWeights` 61.086 us.
+  `Triangle3dGetPoint` 18.921 us, and `Triangle3dProjectedBarycentricWeights`
+  61.086 us.
 
 ## Phase 8: Intersection Semantics Sweep
 
@@ -462,16 +607,20 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: `src/FixedMathSharp/Geometry/Bounds/FixedBoundSphere.cs`
 - Modify: `src/FixedMathSharp/Geometry/Bounds/FixedBoundArea.cs`
 - Modify: `src/FixedMathSharp/Geometry/Bounds/FixedBoundCircle.cs`
-- Modify: `src/FixedMathSharp/Geometry/Primitives/FixedRay.cs` only if ray semantics are inconsistent.
+- Modify: `src/FixedMathSharp/Geometry/Primitives/FixedRay.cs` only if ray
+  semantics are inconsistent.
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedRay2d.cs`
 - Modify: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 - Modify matching tests under `tests/FixedMathSharp.Tests/Geometry`.
 
 - [x] Audit every `Contains` and `Intersects` overload touched by this plan.
 - [x] Make inclusive closed-bound overlap the default for `Intersects`.
-- [x] Add `IntersectsStrict` only for bounds pairs where downstream systems need to distinguish touching from overlapping volume/area.
-- [x] Ensure strict methods use `<`/`>` and inclusive methods use `<=`/`>=` consistently across 2D and 3D.
-- [x] Add cross-type tests for box-sphere, 2D area-circle, and 2D ray-boundary cases.
+- [x] Add `IntersectsStrict` only for bounds pairs where downstream systems need
+      to distinguish touching from overlapping volume/area.
+- [x] Ensure strict methods use `<`/`>` and inclusive methods use `<=`/`>=`
+      consistently across 2D and 3D.
+- [x] Add cross-type tests for box-sphere, 2D area-circle, and 2D ray-boundary
+      cases.
 - [x] Update XML docs so boundary-touch behavior is stated on public APIs.
 
 Notes:
@@ -487,12 +636,24 @@ Notes:
 
 Verification completed:
 
-- `dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedBoundBoxTests|FullyQualifiedName~FixedBoundSphereTests|FullyQualifiedName~FixedBoundAreaTests|FullyQualifiedName~FixedBoundCircleTests|FullyQualifiedName~FixedRayTests|FullyQualifiedName~FixedRay2dTests"` passed.
+- `dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Debug --filter "FullyQualifiedName~FixedBoundBoxTests|FullyQualifiedName~FixedBoundSphereTests|FullyQualifiedName~FixedBoundAreaTests|FullyQualifiedName~FixedBoundCircleTests|FullyQualifiedName~FixedRayTests|FullyQualifiedName~FixedRay2dTests"`
+  passed.
 - `dotnet test FixedMathSharp.slnx --configuration Debug` passed.
 - `dotnet test FixedMathSharp.slnx --configuration Release` passed.
 - `dotnet test FixedMathSharp.slnx --configuration ReleaseLean` passed.
-- `dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i` completed all 64 bounds benchmarks before the benchmark-reporting fast-follow. Relevant intersection rows remained allocation-free as whole fixture-batch measurements (`BoxIntersectsBox` 697.8 ns, `BoxIntersectsSphere` 5.39 us, `SphereIntersectsSphere` 5.65 us, `SphereIntersectsBox` 10.95 us, `CircleIntersectsCircle` 3.98 us, `CircleIntersectsArea` 3.90 us).
-- Fast-follow benchmark cleanup added `SampledBenchmarkAttribute` so loop-style bounds benchmarks report per fixture operation through `OperationsPerInvoke`; point-cloud `CreateFromPoints` benchmarks intentionally remain end-to-end API measurements. Focused short-run verification passed with no managed allocation for sampled rows (`AreaIntersectsArea` 2.239 ns/op, `AreaIntersectsAreaStrict` 2.468 ns/op, `BoxIntersectsBox` 2.746 ns/op) and preserved `SphereCreateFromPointsArray` as an end-to-end 5.012 us row.
+- `dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i`
+  completed all 64 bounds benchmarks before the benchmark-reporting fast-follow.
+  Relevant intersection rows remained allocation-free as whole fixture-batch
+  measurements (`BoxIntersectsBox` 697.8 ns, `BoxIntersectsSphere` 5.39 us,
+  `SphereIntersectsSphere` 5.65 us, `SphereIntersectsBox` 10.95 us,
+  `CircleIntersectsCircle` 3.98 us, `CircleIntersectsArea` 3.90 us).
+- Fast-follow benchmark cleanup added `SampledBenchmarkAttribute` so loop-style
+  bounds benchmarks report per fixture operation through `OperationsPerInvoke`;
+  point-cloud `CreateFromPoints` benchmarks intentionally remain end-to-end API
+  measurements. Focused short-run verification passed with no managed allocation
+  for sampled rows (`AreaIntersectsArea` 2.239 ns/op, `AreaIntersectsAreaStrict`
+  2.468 ns/op, `BoxIntersectsBox` 2.746 ns/op) and preserved
+  `SphereCreateFromPointsArray` as an end-to-end 5.012 us row.
 
 Verification:
 
@@ -508,20 +669,33 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 - Modify: `AGENTS.md`
 - Modify: `docs/complexity-exceptions.md`
 - Create or modify: `docs/wiki/bounds-and-geometry.md`
-- Modify: `docs/feature-work/2026-06-28-bounds-and-2d-geometry-hardening-plan.md`
+- Modify:
+  `docs/feature-work/2026-06-28-bounds-and-2d-geometry-hardening-plan.md`
 - Review after package release: Gravitas bounds/query/collision call sites.
 - Review after package release: GridForge blocker and traversal call sites.
-- Review after package release: Trailblazer path, steering, or controller call sites.
+- Review after package release: Trailblazer path, steering, or controller call
+  sites.
 
-- [x] Document the public geometry model: 3D `FixedBoundBox`, 3D `FixedBoundSphere`, `FixedSegment`, `FixedTriangle`, 2D `FixedBoundArea`, 2D `FixedBoundCircle`, `FixedSegment2d`, `FixedRay2d`, and `FixedTriangle2d`.
-- [x] Document named factory usage and remove examples that call ambiguous constructors.
+- [x] Document the public geometry model: 3D `FixedBoundBox`, 3D
+      `FixedBoundSphere`, `FixedSegment`, `FixedTriangle`, 2D `FixedBoundArea`,
+      2D `FixedBoundCircle`, `FixedSegment2d`, `FixedRay2d`, and
+      `FixedTriangle2d`.
+- [x] Document named factory usage and remove examples that call ambiguous
+      constructors.
 - [x] Document boundary semantics for inclusive and strict intersection methods.
-- [x] Document that flat world footprints should be represented as `FixedBoundArea` plus explicit layer/elevation state in higher-level packages, not as a 3D area in FixedMathSharp.
-- [x] Document that physics-specific mesh, collider, shape-cast, and material behavior belongs in Gravitas, not FixedMathSharp.
+- [x] Document that flat world footprints should be represented as
+      `FixedBoundArea` plus explicit layer/elevation state in higher-level
+      packages, not as a 3D area in FixedMathSharp.
+- [x] Document that physics-specific mesh, collider, shape-cast, and material
+      behavior belongs in Gravitas, not FixedMathSharp.
 - [x] Run Debug, Release, and ReleaseLean tests.
-- [x] Run the bounds/geometry benchmark group and confirm no allocation regressions in hot paths.
-- [x] Search for stale direct `FixedBoundBox` construction, stale `Vertices` usage, stale 3D `FixedBoundArea` docs, and stale `Vector2d.Down` references.
-- [x] Mark this plan done only after downstream migration notes are either completed or moved into the consuming repo's feature-work docs.
+- [x] Run the bounds/geometry benchmark group and confirm no allocation
+      regressions in hot paths.
+- [x] Search for stale direct `FixedBoundBox` construction, stale `Vertices`
+      usage, stale 3D `FixedBoundArea` docs, and stale `Vector2d.Down`
+      references.
+- [x] Mark this plan done only after downstream migration notes are either
+      completed or moved into the consuming repo's feature-work docs.
 
 Verification:
 
@@ -551,22 +725,21 @@ rg -n "new FixedBoundBox\\([^\\)]*,|\\.Vertices\\b|Vector2d\\.Down|FixedBoundTri
   the same lower-stack shape.
 - Stale-reference search completed with no matches:
   `rg -n "new FixedBoundBox\([^\)]*,|\.Vertices\b|Vector2d\.Down|FixedBoundTriangle" src tests README.md AGENTS.md docs/wiki docs/complexity-exceptions.md tests/FixedMathSharp.Benchmarks/README.md`.
-- Release validation passed:
-  `dotnet restore`;
+- Release validation passed: `dotnet restore`;
   `dotnet build FixedMathSharp.slnx --configuration Debug --no-restore`;
   `dotnet test FixedMathSharp.slnx --configuration Debug --no-build`;
   `dotnet test FixedMathSharp.slnx --configuration Release --no-restore`;
   `dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore`;
-  and `dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore`.
+  and
+  `dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 --no-restore`.
 - Full short-run bounds benchmark validation completed all 64 rows:
   `dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i`.
-  Sampled hot-path rows reported `0 B` allocated, including
-  `BoxIntersectsBox` at 2.704 ns/op, `AreaIntersectsArea` at 2.247 ns/op,
-  `Ray2dIntersectsArea` at 115.248 ns/op, `Triangle2dClosestPoint` at
-  273.842 ns/op, and `Triangle3dClosestPoint` at 124.523 ns/op.
-  `SphereCreateFromPointsArray` and `SphereCreateFromPointsSpan` also reported
-  `0 B`; the intentionally adapter-style `SphereCreateFromPointsEnumerable`
-  row reported 12,456 B.
+  Sampled hot-path rows reported `0 B` allocated, including `BoxIntersectsBox`
+  at 2.704 ns/op, `AreaIntersectsArea` at 2.247 ns/op, `Ray2dIntersectsArea` at
+  115.248 ns/op, `Triangle2dClosestPoint` at 273.842 ns/op, and
+  `Triangle3dClosestPoint` at 124.523 ns/op. `SphereCreateFromPointsArray` and
+  `SphereCreateFromPointsSpan` also reported `0 B`; the intentionally
+  adapter-style `SphereCreateFromPointsEnumerable` row reported 12,456 B.
 
 ## Downstream Migration Shape
 
@@ -620,8 +793,16 @@ Trailblazer:
 
 ## Recommended First Implementation Slice
 
-Start with Phases 1 through 3 as one reviewable 3D cleanup slice. That locks down current 3D behavior, introduces explicit `FixedBoundBox` factories, removes old 3D `FixedBoundArea`, and removes the allocation-prone `FixedBoundBox.Vertices` shape before new 2D APIs are layered on top.
+Start with Phases 1 through 3 as one reviewable 3D cleanup slice. That locks
+down current 3D behavior, introduces explicit `FixedBoundBox` factories, removes
+old 3D `FixedBoundArea`, and removes the allocation-prone
+`FixedBoundBox.Vertices` shape before new 2D APIs are layered on top.
 
-Then implement Phases 4 through 7 as true planar geometry, with Phase 6b as the adjacent 3D segment parity pass. These phases are independent enough to review by type, but they should ship together if Gravitas, GridForge, or Trailblazer is waiting on a coherent geometry surface.
+Then implement Phases 4 through 7 as true planar geometry, with Phase 6b as the
+adjacent 3D segment parity pass. These phases are independent enough to review
+by type, but they should ship together if Gravitas, GridForge, or Trailblazer is
+waiting on a coherent geometry surface.
 
-Finish with Phase 8 and Phase 9 as a semantics and validation pass. The final package should leave downstream consumers with clearer APIs, fewer local geometry helpers, and no ambiguity about boundary-touch behavior.
+Finish with Phase 8 and Phase 9 as a semantics and validation pass. The final
+package should leave downstream consumers with clearer APIs, fewer local
+geometry helpers, and no ambiguity about boundary-touch behavior.

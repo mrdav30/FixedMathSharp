@@ -48,10 +48,10 @@ Fresh short-run benchmark samples after adding the helper:
 - `Vector4d.GetNormalized`: 76.340 us, 0 allocated.
 
 - [x] Only revisit if an exact deterministic reciprocal/multiply path can match
-  current per-component division raw results or if the public contract
-  intentionally changes.
+      current per-component division raw results or if the public contract
+      intentionally changes.
 - [x] Include exact 3-4-5 vectors, fractional vectors, huge vectors, tiny raw
-  vectors, and no-overshoot movement tests before benchmarking.
+      vectors, and no-overshoot movement tests before benchmarking.
 - [x] Keep any accepted approach allocation-free and verify `netstandard2.1`.
 
 ## Phase 1-b: Fast Helper Candidate Audit
@@ -73,9 +73,9 @@ public operator semantics.
   scalar/vector/matrix arithmetic unless local invariants prove overflow is
   impossible and saturating semantics are intentionally not needed.
 - Quaternion normalization and direction/axis normalization were tested with
-  `DivideByPositive`; correctness held, but the short benchmark result was not
-  a clear win versus the prior Phase 3 numbers. Runtime changes were rejected
-  for now; the exact quaternion normalization guardrail tests remain useful.
+  `DivideByPositive`; correctness held, but the short benchmark result was not a
+  clear win versus the prior Phase 3 numbers. Runtime changes were rejected for
+  now; the exact quaternion normalization guardrail tests remain useful.
 - Ray/sphere intersection has a strictly positive `Direction.SqrMagnitude`
   divisor after the zero-direction guard. Switching that final hit-parameter
   divide to `DivideByPositive` preserved exact behavior and measured as a small
@@ -84,8 +84,8 @@ public operator semantics.
   containment and outside-point guards. Switching those divides to
   `DivideByPositive` preserved exact behavior and gave the clearest win in this
   pass: `SphereCreateFromBoundingBox` moved from 92.206 us to 87.484 us.
-  `SphereTransform` was mixed/noisy at 105.448 us to 106.443 us, so the
-  accepted evidence is the direct merge-heavy benchmark plus exact tests.
+  `SphereTransform` was mixed/noisy at 105.448 us to 106.443 us, so the accepted
+  evidence is the direct merge-heavy benchmark plus exact tests.
 - Plane normalization should keep the existing single reciprocal plus multiply
   shape. Replacing it with per-component positive divides would add division
   work and could change raw multiplication/division rounding shape.
@@ -96,33 +96,33 @@ public operator semantics.
   methods are benchmarked directly.
 
 - [x] Add exact quaternion normalization guardrails matching component division
-  by magnitude.
+      by magnitude.
 - [x] Test `DivideByPositive` in quaternion normalization and direction/axis
-  normalization paths.
+      normalization paths.
 - [x] Reject quaternion runtime helper substitutions unless longer benchmarks
-  show a clear win.
+      show a clear win.
 - [x] Audit plane, ray, matrix extraction/decomposition, and bounds expansion
-  positive-divisor candidates.
+      positive-divisor candidates.
 - [x] Record any accepted helper substitutions with before/after benchmark
-  snippets and targeted correctness tests.
+      snippets and targeted correctness tests.
 
 ## Phase 2: Longer-Run Vector4d Normalization Confirmation
 
 **Status:** Completed on 2026-06-05
 
 **Why:** The fresh short run still shows `Vector4d` normalization paths as the
-largest vector normalization costs:
-`GetNormalized` 76.879 us, `Normal` 78.904 us, and `NormalizeInPlace` 82.420 us.
-The costs are expected because the path is square-root plus four fixed
-divisions, but the spread between `GetNormalized` and `NormalizeInPlace` should
-be treated as noise unless reproduced in a longer run.
+largest vector normalization costs: `GetNormalized` 76.879 us, `Normal` 78.904
+us, and `NormalizeInPlace` 82.420 us. The costs are expected because the path is
+square-root plus four fixed divisions, but the spread between `GetNormalized`
+and `NormalizeInPlace` should be treated as noise unless reproduced in a longer
+run.
 
 - [x] Re-run `Vector4d` normalization in a longer benchmark job before opening
-  runtime work.
+      runtime work.
 - [x] Do not trade away raw-value precision for the sake of reducing fixed
-  divisions.
+      divisions.
 - [x] Prefer new squared-length consumer APIs or guidance only when callers do
-  not need actual magnitude or normalized components.
+      not need actual magnitude or normalized components.
 
 **Outcome:** Medium-run confirmation collapsed the earlier short-run spread
 between the three public normalization entry points. No Vector4d runtime change
@@ -147,11 +147,11 @@ paths are not directly covered by the current benchmark suite. Add benchmarks
 before changing runtime code so helper substitutions stay evidence-driven.
 
 - [x] Add vector benchmarks for `Project`, `ProjectOnPlane`, `Angle`,
-  `ClosestPointOnLineSegment`, and `ClosestPointsOnTwoLines`.
+      `ClosestPointOnLineSegment`, and `ClosestPointsOnTwoLines`.
 - [x] Add matrix benchmarks for `ExtractRotation` and `Decompose`.
 - [x] Test `DivideByPositive` substitutions only after those baselines exist.
 - [x] Keep `FixedPlane.Normalize` on its reciprocal-plus-multiply shape unless a
-  benchmark proves another exact approach is faster.
+      benchmark proves another exact approach is faster.
 
 **Accepted substitutions:**
 
@@ -159,14 +159,14 @@ before changing runtime code so helper substitutions stay evidence-driven.
   `DivideByPositive(distance, normalLengthSquared)` after the positive squared
   normal-length guard. Short-run benchmark: 31.437 us to 30.545 us.
 - `Fixed4x4.Decompose` now builds its inverse scale with `DivideByPositive`
-  after replacing zero scale components with one. Short-run benchmark:
-  199.594 us to 184.942 us.
+  after replacing zero scale components with one. Short-run benchmark: 199.594
+  us to 184.942 us.
 
 **Rejected substitutions:**
 
 - `Vector3d.Project`: 29.315 us to 30.187 us; reverted.
-- `Vector3d.ProjectOnPlane(Vector3d vector, Vector3d planeNormal)`: 29.608 us
-  to 30.612 us; reverted.
+- `Vector3d.ProjectOnPlane(Vector3d vector, Vector3d planeNormal)`: 29.608 us to
+  30.612 us; reverted.
 - `Vector3d.Angle`: 198.672 us to 197.184 us; too small and noisy relative to
   the acos-heavy path, reverted.
 - `Vector3d.ClosestPointOnLineSegment`: 20.483 us to 22.362 us; reverted.

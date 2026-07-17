@@ -46,17 +46,17 @@ Fixed4x4 world = child.LocalMatrix * parent.LocalMatrix * grandParent.LocalMatri
 iteratively on every read. Traversal is allocation-free and linear in depth;
 there is no child list, matrix cache, dirty propagation, or scene-graph
 ownership. Nonuniform scale and rotation at different hierarchy levels may
-produce a sheared world matrix. `WorldRotation` deliberately composes the
-stored quaternion chain instead of decomposing that matrix, so scale,
-reflection, and shear do not change the reported orientation.
+produce a sheared world matrix. `WorldRotation` deliberately composes the stored
+quaternion chain instead of decomposing that matrix, so scale, reflection, and
+shear do not change the reported orientation.
 
 `LocalScale` remains the exact authored component value. `LossyScale` is a
 derived matrix view: basis magnitudes are preserved, including zero, and an odd
 reflection is canonicalized to negative X because a matrix cannot recover which
 authored axis originally carried the sign.
 
-Matrix import is explicit through `FixedTransform.TryCreateFromLocalMatrix`.
-It accepts only affine, nonsingular, orthogonal TRS matrices that pass strict
+Matrix import is explicit through `FixedTransform.TryCreateFromLocalMatrix`. It
+accepts only affine, nonsingular, orthogonal TRS matrices that pass strict
 decomposition and recomposition checks. Perspective, zero scale, shear,
 unrepresentable magnitudes, and non-round-trippable values return `false` and a
 null transform. Component construction is the lossless adapter path for signed

@@ -23,55 +23,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: |
-          8.0.x
-          10.0.x
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
-    - name: Cache NuGet packages
-      uses: actions/cache@v5
-      with:
-        path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
-        restore-keys: |
-          ${{ runner.os }}-nuget-
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
-    - name: Restore dependencies
-      run: dotnet restore FixedMathSharp.slnx --property:Configuration=Release
+      - name: Restore dependencies
+        run: dotnet restore FixedMathSharp.slnx --property:Configuration=Release
 
-    - name: Build tests
-      run: dotnet build tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Release --no-restore
+      - name: Build tests
+        run: dotnet build tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Release --no-restore
 
-    - name: Run tests with coverage
-      run: dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Release --no-build --collect:"XPlat Code Coverage" --settings tests/FixedMathSharp.Tests/coverlet.runsettings --results-directory artifacts/coverage
+      - name: Run tests with coverage
+        run: dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Release --no-build --collect:"XPlat Code Coverage" --settings tests/FixedMathSharp.Tests/coverlet.runsettings --results-directory artifacts/coverage
 
-    - name: Install ReportGenerator
-      run: dotnet tool install --global dotnet-reportgenerator-globaltool
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-    - name: Add ReportGenerator to PATH
-      run: echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+      - name: Add ReportGenerator to PATH
+        run: echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
 
-    - name: Generate coverage report
-      run: |
-        reportgenerator \
-          "-reports:artifacts/coverage/**/coverage.cobertura.xml" \
-          "-targetdir:artifacts/coverage-report" \
-          "-reporttypes:Html;MarkdownSummaryGithub;Badges;JsonSummary" \
-          "-filefilters:-**/MemoryPack.Generator/**;-**/*.g.cs;-**/obj/**"
+      - name: Generate coverage report
+        run: |
+          reportgenerator \
+            "-reports:artifacts/coverage/**/coverage.cobertura.xml" \
+            "-targetdir:artifacts/coverage-report" \
+            "-reporttypes:Html;MarkdownSummaryGithub;Badges;JsonSummary" \
+            "-filefilters:-**/MemoryPack.Generator/**;-**/*.g.cs;-**/obj/**"
 
-    - name: Add coverage summary to job
-      run: cat artifacts/coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Add coverage summary to job
+        run: cat artifacts/coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
 
-    - name: Upload coverage artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: coverage-report
-        path: artifacts/coverage-report
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: artifacts/coverage-report
 
   deploy:
     needs: coverage
@@ -81,20 +81,20 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-    - name: Configure Pages
-      uses: actions/configure-pages@v6
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
 
-    - name: Download coverage artifact
-      uses: actions/download-artifact@v8
-      with:
-        name: coverage-report
-        path: artifacts/coverage-report
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-report
+          path: artifacts/coverage-report
 
-    - name: Upload Pages artifact
-      uses: actions/upload-pages-artifact@v5
-      with:
-        path: artifacts/coverage-report
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: artifacts/coverage-report
 
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v5
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

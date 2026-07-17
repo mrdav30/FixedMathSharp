@@ -1,17 +1,16 @@
 # Public API Hardening Track
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use
-> superpowers:brainstorming before changing public API shape,
-> superpowers:test-driven-development before production or test changes,
-> performance-optimization-engineer before accepting performance-motivated
-> runtime changes, and superpowers:verification-before-completion before
-> claiming a phase is complete. Steps use checkbox (`- [ ]`) syntax for
-> tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:brainstorming
+> before changing public API shape, superpowers:test-driven-development before
+> production or test changes, performance-optimization-engineer before accepting
+> performance-motivated runtime changes, and
+> superpowers:verification-before-completion before claiming a phase is
+> complete. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Status:** Done
 
-**Goal:** Make FixedMathSharp's public API easier to discover, harder to
-misuse, and friendlier for v5.0.0 consumers while preserving deterministic,
+**Goal:** Make FixedMathSharp's public API easier to discover, harder to misuse,
+and friendlier for v5.0.0 consumers while preserving deterministic,
 low-allocation, high-performance behavior.
 
 **Architecture:** Keep one canonical implementation for every operation, then
@@ -51,13 +50,13 @@ use. This plan groups the public API cleanup work into nine focused tracks:
   other engine conditionals into public numeric APIs.
 - Do not create alternate implementations in extension classes. Extensions
   should forward to canonical static or instance implementations.
-- Do not accept a performance-motivated API unless it has benchmark evidence,
-  no managed allocations, and correctness tests covering representative fixed
-  raw values.
+- Do not accept a performance-motivated API unless it has benchmark evidence, no
+  managed allocations, and correctness tests covering representative fixed raw
+  values.
 - Do not preserve legacy API shapes solely for backwards compatibility. v5.0.0
   can break consumers when the new shape is meaningfully clearer or faster.
-- Keep `netstandard2.1` compatibility in mind; avoid APIs that would block
-  Unity package support unless guarded or isolated.
+- Keep `netstandard2.1` compatibility in mind; avoid APIs that would block Unity
+  package support unless guarded or isolated.
 - Track newly discovered correctness defects in
   `docs/feature-work/issue-tracker.md` instead of burying them in this plan.
 
@@ -75,16 +74,17 @@ use. This plan groups the public API cleanup work into nine focused tracks:
 - Modify: this plan and, if needed, `docs/feature-work/issue-tracker.md`
 
 - [x] Inventory public static, instance, operator, and extension methods for
-  scalar, vector, quaternion, and matrix types.
+      scalar, vector, quaternion, and matrix types.
 - [x] Classify each method as `canonical`, `forwarding convenience`,
-  `legacy/remove`, `rename`, `benchmark before deciding`, or `issue tracker`.
+      `legacy/remove`, `rename`, `benchmark before deciding`, or
+      `issue tracker`.
 - [x] Define ownership rules before runtime edits. Recommended baseline:
-  `FixedMath` owns deterministic math algorithms, `Fixed64` owns
-  representation/operators/parsing/conversion, and extension types own only
-  fluent forwarding wrappers.
+      `FixedMath` owns deterministic math algorithms, `Fixed64` owns
+      representation/operators/parsing/conversion, and extension types own only
+      fluent forwarding wrappers.
 - [x] Identify methods with unclear semantic ownership, especially scalar
-  interpolation, angle conversion, trigonometry wrappers, formatting helpers,
-  and `Fast*` helpers.
+      interpolation, angle conversion, trigonometry wrappers, formatting
+      helpers, and `Fast*` helpers.
 - [x] Record any suspected bugs in `docs/feature-work/issue-tracker.md`.
 
 Phase 1 result on 2026-06-06: completed.
@@ -98,14 +98,14 @@ review changes them:
   rounding, clamping, absolute/min/max, powers, logarithms, square root,
   trigonometry, angle conversion, and low-level special-case math helpers.
 - `FixedMath.Trigonometry.cs` should remain a partial implementation file for
-  `FixedMath`, not a separate public API identity. Consumers should discover
-  one scalar algorithm surface: `FixedMath`.
+  `FixedMath`, not a separate public API identity. Consumers should discover one
+  scalar algorithm surface: `FixedMath`.
 - `Fixed64` is the canonical home for Q32.32 representation, constants,
   constructors/conversions, parsing, operators, raw-value creation, comparison,
   equality, and serialization layout.
 - `Fixed64.Extensions` should contain fluent forwarding wrappers only. It should
-  not define alternate scalar algorithms, and every method intended to be
-  fluent must be extension-shaped.
+  not define alternate scalar algorithms, and every method intended to be fluent
+  must be extension-shaped.
 - `Vector2d`, `Vector3d`, and `Vector4d` own vector constants, fields,
   constructors, indexers, component properties, operators, instance mutation,
   static vector algorithms, conversion/deconstruction, comparison, and
@@ -118,9 +118,9 @@ review changes them:
   matrix conversion, direction conversion, and angular velocity helpers.
 - `FixedQuaternion.Extensions` should stay small: fuzzy comparison plus any
   receiver-shaped convenience wrappers that clearly improve call sites.
-- `Fixed3x3` and `Fixed4x4` own matrix storage, row-vector transform
-  semantics, factory methods, extraction/decomposition, inversion,
-  composition, operators, and matrix/vector transform algorithms.
+- `Fixed3x3` and `Fixed4x4` own matrix storage, row-vector transform semantics,
+  factory methods, extraction/decomposition, inversion, composition, operators,
+  and matrix/vector transform algorithms.
 - Matrix extension files should remain ref-returning or receiver-shaped
   conveniences that forward to canonical matrix methods. Keep factory methods
   off the extension surface.
@@ -137,18 +137,17 @@ Canonical:
   `RoundToPrecision`, `Min`, `Max`, `Squared`, `MoveTowards`, `Pow`, `Pow2`,
   `Log2`, `Ln`, `Sqrt`, `Sin`, `Cos`, `Tan`, `Asin`, `Acos`, `Atan`, `Atan2`,
   `RadToDeg`, and `DegToRad`.
-- `Fixed64`: constants, raw/value construction, explicit primitive
-  conversions, arithmetic/comparison operators, `Parse`, `TryParse`, `FromRaw`,
-  `ToInt`, `FromDouble`, `FromFraction`, and equality/comparison.
+- `Fixed64`: constants, raw/value construction, explicit primitive conversions,
+  arithmetic/comparison operators, `Parse`, `TryParse`, `FromRaw`, `ToInt`,
+  `FromDouble`, `FromFraction`, and equality/comparison.
 - Vectors: constants, fields, constructors, `Normalized`, `Magnitude`,
   `MagnitudeSquared`, indexers, `Set`, `*InPlace`, `NormalizeInPlace`,
-  `Distance`, `DistanceSquared`, `Dot`, `Cross`,
-  static interpolation/geometry helpers,
-  operators, conversion/deconstruction, and equality/comparison.
+  `Distance`, `DistanceSquared`, `Dot`, `Cross`, static interpolation/geometry
+  helpers, operators, conversion/deconstruction, and equality/comparison.
 - Quaternions: constants, fields, constructors, `Normalized`, `Magnitude`,
-  `EulerAngles`, `NormalizeInPlace`, `Conjugate`, `Inverse`, `Rotate`, factories,
-  interpolation, angle/dot helpers, operators, matrix/direction conversions,
-  and equality.
+  `EulerAngles`, `NormalizeInPlace`, `Conjugate`, `Inverse`, `Rotate`,
+  factories, interpolation, angle/dot helpers, operators, matrix/direction
+  conversions, and equality.
 - Matrices: fields, constructors, basis/transform properties, determinant,
   reset/set/decompose/extract methods, transform factories, projection
   factories, inversion, transform methods, operators, and equality.
@@ -160,17 +159,16 @@ Forwarding convenience:
 - `Fixed3x3Extensions.SetScale`, `Fixed3x3Extensions.SetGlobalScale`,
   `Fixed4x4Extensions.SetGlobalScale`, `Fixed4x4Extensions.SetTranslation`,
   `Fixed4x4Extensions.SetRotation`, and
-  `Fixed4x4Extensions.NormalizeRotationMatrix` are already `this ref`
-  extension shapes and should inform the Phase 2 vector `this ref` benchmark
-  spike.
+  `Fixed4x4Extensions.NormalizeRotationMatrix` are already `this ref` extension
+  shapes and should inform the Phase 2 vector `this ref` benchmark spike.
 
 Legacy/remove:
 
 - Public static vector `out` helpers should be treated as legacy unless Phase 2
-  benchmarks prove a clear reason to keep a specific one. Current public
-  vector `out` helpers include `Add`, `Subtract`, `Scale`, `Lerp`,
-  `SmoothStep`, `Clamp`, `Cross`, `Max`, `Min`, `Negate`, `Reflect`, and
-  `Transform` variants across `Vector2d`, `Vector3d`, and `Vector4d`.
+  benchmarks prove a clear reason to keep a specific one. Current public vector
+  `out` helpers include `Add`, `Subtract`, `Scale`, `Lerp`, `SmoothStep`,
+  `Clamp`, `Cross`, `Max`, `Min`, `Negate`, `Reflect`, and `Transform` variants
+  across `Vector2d`, `Vector3d`, and `Vector4d`.
 
 Rename/review:
 
@@ -190,14 +188,14 @@ Rename/review:
   `FromDouble`, `ToRawString`, and `ToInt`; `ToFormatted*` remains a later
   formatting/conversion ownership review target.
 - `GetHypotenuse` and `SinToCos` should be reviewed for naming and whether they
-  belong on the public `FixedMath` surface or as internal implementation
-  helpers with curated extension aliases.
+  belong on the public `FixedMath` surface or as internal implementation helpers
+  with curated extension aliases.
 
 Benchmark before deciding:
 
 - `this ref` vector extension methods for chained mutating workflows.
-- Public exposure and real consumer use of `FastAdd`, `FastSub`, `FastMul`,
-  and `FastMod`.
+- Public exposure and real consumer use of `FastAdd`, `FastSub`, `FastMul`, and
+  `FastMod`.
 - `ReadOnlySpan<T>` overloads for bounds construction, especially
   `FixedBoundSphere.CreateFromPoints(IEnumerable<Vector3d>)`.
 - Replacing distance-threshold helpers with squared-distance comparisons.
@@ -215,8 +213,8 @@ Issue tracker:
   language/API style is already present in the repo, but vectors still need
   benchmark and call-site proof.
 - Phase 3 should resolve scalar ownership before moving methods. `FixedMath`
-  should remain the algorithm surface because it mirrors `System.Math` and
-  keeps algorithm changes independent from `Fixed64` representation.
+  should remain the algorithm surface because it mirrors `System.Math` and keeps
+  algorithm changes independent from `Fixed64` representation.
 - Phase 4 should curate extension parity instead of adding wrappers for every
   public static method. Extension methods should read naturally with the first
   argument as the receiver.
@@ -231,8 +229,8 @@ dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Debug -f n
 ```
 
 Verification result on 2026-06-06: inventory command completed, the Debug
-`net8.0` library build passed with zero warnings/errors, placeholder scan
-found no stale plan text, and `git diff --check` passed.
+`net8.0` library build passed with zero warnings/errors, placeholder scan found
+no stale plan text, and `git diff --check` passed.
 
 ## Phase 2: Vector Mutating API And Legacy `out` Shape Cleanup
 
@@ -252,23 +250,23 @@ found no stale plan text, and `git diff --check` passed.
 - Modify: `tests/FixedMathSharp.Benchmarks/Vector4dBenchmarks.cs`
 
 - [x] Replace legacy public `Add(vector, vector, out vector)`,
-  `Subtract(vector, vector, out vector)`, `Scale(vector, vector, out vector)`,
-  and similar vector `out` helpers with canonical return-by-value statics and
-  instance `*InPlace` methods.
+      `Subtract(vector, vector, out vector)`,
+      `Scale(vector, vector, out vector)`, and similar vector `out` helpers with
+      canonical return-by-value statics and instance `*InPlace` methods.
 - [x] Add or standardize `MultiplyInPlace` and `DivideInPlace` naming if the
-  current `ScaleInPlace` terminology is incomplete for component-wise math.
+      current `ScaleInPlace` terminology is incomplete for component-wise math.
 - [x] Decide whether `ScaleInPlace` remains as an alias, is renamed, or is
-  removed for v5.0.0.
+      removed for v5.0.0.
 - [x] Benchmark return-by-value statics, instance `*InPlace`, and `this ref`
-  extension methods for representative chained vector workflows.
+      extension methods for representative chained vector workflows.
 - [x] Include chained mutation benchmarks such as add-subtract-scale-normalize
-  and multiply-divide-project style loops, not just single-operation
-  microbenchmarks.
+      and multiply-divide-project style loops, not just single-operation
+      microbenchmarks.
 - [x] Accept public `this ref` extension methods only if they improve either
-  measurable speed or meaningful call-site ergonomics without confusing value
-  type copy semantics.
+      measurable speed or meaningful call-site ergonomics without confusing
+      value type copy semantics.
 - [x] Remove rejected experiments cleanly and keep only the API shape that has
-  the best clarity/performance tradeoff.
+      the best clarity/performance tradeoff.
 
 Phase 2 result on 2026-06-06: completed.
 
@@ -287,19 +285,19 @@ Phase 2 result on 2026-06-06: completed.
   second scalar result, not a legacy vector-result destination.
 - Converted `Vector3d` spline, clamp, cross, min/max, negate, reflect, and
   transform helpers to return-value-only public shapes where applicable.
-- Updated vector benchmarks to cover operator add, static add/subtract,
-  in-place add/subtract, static/in-place multiply, static/in-place divide, and
-  chained return-by-value versus chained in-place assignment workflows, with
-  stale `AddScale` benchmark names moved to `AddMultiply`.
+- Updated vector benchmarks to cover operator add, static add/subtract, in-place
+  add/subtract, static/in-place multiply, static/in-place divide, and chained
+  return-by-value versus chained in-place assignment workflows, with stale
+  `AddScale` benchmark names moved to `AddMultiply`.
 - Measured a temporary benchmark-only `this ref` extension experiment and
-  removed it after the run. Short-run chained results were:
-  `Vector2d` return `30.119 us`, in-place assignment `28.361 us`, ref
-  extension `28.042 us`; `Vector3d` return `36.595 us`, in-place assignment
-  `36.060 us`, ref extension `36.889 us`; `Vector4d` return `48.156 us`,
-  in-place assignment `45.504 us`, ref extension `49.266 us`. All reported
-  zero managed allocations. The ref shape was not accepted because its only
-  win was a tiny 2D short-run result while 3D and 4D were slower, and public
-  `this ref` extensions would add value-type mutation ambiguity.
+  removed it after the run. Short-run chained results were: `Vector2d` return
+  `30.119 us`, in-place assignment `28.361 us`, ref extension `28.042 us`;
+  `Vector3d` return `36.595 us`, in-place assignment `36.060 us`, ref extension
+  `36.889 us`; `Vector4d` return `48.156 us`, in-place assignment `45.504 us`,
+  ref extension `49.266 us`. All reported zero managed allocations. The ref
+  shape was not accepted because its only win was a tiny 2D short-run result
+  while 3D and 4D were slower, and public `this ref` extensions would add
+  value-type mutation ambiguity.
 
 Verification:
 
@@ -337,18 +335,18 @@ passed.
 - Modify: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
 
 - [x] Make `FixedMath` the canonical public surface for deterministic scalar
-  algorithms such as `Abs`, `Clamp`, `Round`, `Sqrt`, `Sin`, `Cos`, `Pow`,
-  `Log2`, `Pow2`, and `Ln`.
-- [x] Keep `FixedMath.Trigonometry.cs` as a partial implementation file only;
-  do not create a second public class unless a later API review proves it is
-  clearer.
+      algorithms such as `Abs`, `Clamp`, `Round`, `Sqrt`, `Sin`, `Cos`, `Pow`,
+      `Log2`, `Pow2`, and `Ln`.
+- [x] Keep `FixedMath.Trigonometry.cs` as a partial implementation file only; do
+      not create a second public class unless a later API review proves it is
+      clearer.
 - [x] Keep `Fixed64` focused on value representation, constants, operators,
-  parsing, formatting, conversion, and type-specific helpers.
-- [x] Convert scalar extensions into consistent fluent forwarding wrappers.
-  Fix wrappers that are not actually extension-shaped, such as missing `this`
-  on scalar `Sin`.
+      parsing, formatting, conversion, and type-specific helpers.
+- [x] Convert scalar extensions into consistent fluent forwarding wrappers. Fix
+      wrappers that are not actually extension-shaped, such as missing `this` on
+      scalar `Sin`.
 - [x] Decide whether formatting helpers belong on `Fixed64`, extensions, or a
-  separate diagnostics/formatting surface.
+      separate diagnostics/formatting surface.
 - [x] Preserve raw-result correctness for all moved or renamed scalar methods.
 
 Phase 3 result on 2026-06-06: completed.
@@ -356,19 +354,19 @@ Phase 3 result on 2026-06-06: completed.
 - `FixedMath` now owns scalar interpolation algorithms in addition to the
   existing rounding, clamp, square root, power, logarithm, trigonometry, and
   angle conversion algorithms.
-- `Fixed64` no longer exposes public static scalar algorithm helpers for
-  `Lerp`, `SmoothStep`, `CubicInterpolate`, `CatmullRom`, `HermiteSpline`, or
-  `BarycentricCoordinate`; it stays focused on Q32.32 representation,
-  constants, construction/conversion, operators, parsing, comparison, equality,
-  and serialization layout.
+- `Fixed64` no longer exposes public static scalar algorithm helpers for `Lerp`,
+  `SmoothStep`, `CubicInterpolate`, `CatmullRom`, `HermiteSpline`, or
+  `BarycentricCoordinate`; it stays focused on Q32.32 representation, constants,
+  construction/conversion, operators, parsing, comparison, equality, and
+  serialization layout.
 - `Fixed64.Extensions` remains the fluent wrapper surface. Wrappers forward to
   `FixedMath`, scalar `Sin` is now extension-shaped, missing fluent wrappers
   were added for tangent/inverse tangent/power/log flows, and `ToDegree` was
   renamed to `ToDegrees`.
-- Human-readable formatting helpers remain in `Fixed64.Extensions` for now.
-  This keeps them out of the representation type while preserving convenient
-  call sites; a separate diagnostics/formatting surface can be reconsidered if
-  Phase 4 finds broader formatting API pressure.
+- Human-readable formatting helpers remain in `Fixed64.Extensions` for now. This
+  keeps them out of the representation type while preserving convenient call
+  sites; a separate diagnostics/formatting surface can be reconsidered if Phase
+  4 finds broader formatting API pressure.
 - Barycentric scalar and vector tests now verify the actual weight contract:
   `amount1` weights the second value/vertex, `amount2` weights the third
   value/vertex, and the first value/vertex receives the remaining weight.
@@ -390,8 +388,7 @@ focused scalar plus `Vector3d` tests passed with 945 tests, the full Debug
 solution test run passed with 945 tests, Release and ReleaseLean
 `netstandard2.1` builds passed with zero warnings/errors, the stale scalar API
 scan found no remaining `Fixed64` interpolation calls or old singular degree
-extension calls,
-and `git diff --check` passed.
+extension calls, and `git diff --check` passed.
 
 ## Phase 4: Curated Static, Instance, And Extension Parity
 
@@ -405,17 +402,17 @@ and `git diff --check` passed.
 - Modify: matching numeric test files under `tests/FixedMathSharp.Tests/`
 
 - [x] Add extension wrappers only for receiver-shaped operations where fluent
-  syntax is clearly readable, such as `value.Sqrt()`, `vector.Dot(other)`,
-  `matrix.TransformPoint(point)`, and `quaternion.Rotate(vector)`.
+      syntax is clearly readable, such as `value.Sqrt()`, `vector.Dot(other)`,
+      `matrix.TransformPoint(point)`, and `quaternion.Rotate(vector)`.
 - [x] Avoid extension wrappers for factories and convention-heavy operations
-  such as `FromEulerAngles`, `CreateLookAt`, `CreatePerspective`, or
-  `LookRotation`.
+      such as `FromEulerAngles`, `CreateLookAt`, `CreatePerspective`, or
+      `LookRotation`.
 - [x] Ensure every extension wrapper forwards to the canonical implementation
-  and does not repeat algorithm logic.
+      and does not repeat algorithm logic.
 - [x] Add tests only where the wrapper shape has meaningful behavior or guards;
-  otherwise rely on canonical implementation tests and compile coverage.
+      otherwise rely on canonical implementation tests and compile coverage.
 - [x] Update XML docs so consumers can discover the canonical method from the
-  wrapper.
+      wrapper.
 
 Phase 4 result on 2026-06-06: completed.
 
@@ -423,10 +420,10 @@ Phase 4 result on 2026-06-06: completed.
   selected `Vector3d` geometry operations, `Vector4d` interpolation/transform
   helpers, quaternion interpolation/log/dot/angle helpers, and matrix
   extraction/transform/interpolation helpers.
-- Removed legacy non-ref `ClampOneInPlace(this Vector*d)` extension shapes.
-  They were misleading because value-type extension receivers are copied unless
-  declared `this ref`, and the old helpers duplicated component logic instead
-  of forwarding through a canonical vector implementation.
+- Removed legacy non-ref `ClampOneInPlace(this Vector*d)` extension shapes. They
+  were misleading because value-type extension receivers are copied unless
+  declared `this ref`, and the old helpers duplicated component logic instead of
+  forwarding through a canonical vector implementation.
 - Added `Vector2d.Clamp(Vector2d, Vector2d, Vector2d)` so 2D clamp parity has a
   canonical static implementation matching `Vector3d` and `Vector4d`.
 - Changed `Fixed4x4.Decompose` to return out parameters in
@@ -452,12 +449,12 @@ dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj --
 git diff --check
 ```
 
-Verification result on 2026-06-06: focused vector/quaternion/matrix tests
-passed with 519 tests, the full Debug solution test run passed with 951 tests,
-Release and ReleaseLean `netstandard2.1` builds passed with zero
-warnings/errors, the Release `net8.0` benchmark project build passed with zero
-warnings/errors, the extension surface scan completed, the stale source/test
-scan found no `ClampOneInPlace`, static vector-extension `Sign` calls,
+Verification result on 2026-06-06: focused vector/quaternion/matrix tests passed
+with 519 tests, the full Debug solution test run passed with 951 tests, Release
+and ReleaseLean `netstandard2.1` builds passed with zero warnings/errors, the
+Release `net8.0` benchmark project build passed with zero warnings/errors, the
+extension surface scan completed, the stale source/test scan found no
+`ClampOneInPlace`, static vector-extension `Sign` calls,
 factory/convention-heavy extension wrappers, or old `Decompose` out-parameter
 ordering, and `git diff --check` passed.
 
@@ -473,17 +470,18 @@ ordering, and `git diff --check` passed.
 - Consider later: test files above roughly 1000 lines
 
 - [x] Split only files that have meaningful responsibility boundaries; avoid
-  one-method or two-method partial files.
+      one-method or two-method partial files.
 - [x] Prefer partials such as `*.Constants.cs`, `*.Properties.cs`,
-  `*.Instance.cs`, `*.Statics.cs`, `*.Operators.cs`, `*.Conversions.cs`,
-  `*.Serialization.cs`, and `*.Equality.cs` when those boundaries fit the type.
+      `*.Instance.cs`, `*.Statics.cs`, `*.Operators.cs`, `*.Conversions.cs`,
+      `*.Serialization.cs`, and `*.Equality.cs` when those boundaries fit the
+      type.
 - [x] Move code mechanically first, with no behavior changes in the same commit.
 - [x] Preserve XML docs, attributes, regions only where they still help, and
-  MemoryPack/System.Text.Json attributes exactly.
+      MemoryPack/System.Text.Json attributes exactly.
 - [x] Keep namespace and `partial` declarations consistent across all new files.
 
-Implementation result on 2026-06-06: split the oversized production structs
-into responsibility-based partials while leaving the front-door type files with
+Implementation result on 2026-06-06: split the oversized production structs into
+responsibility-based partials while leaving the front-door type files with
 fields, constructors, properties, and instance methods. New partials cover
 static operations, factories, decomposition, operators, conversions, equality,
 and focused helpers where those boundaries fit. The five original files now sit
@@ -500,11 +498,10 @@ dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration Release -f
 dotnet build src/FixedMathSharp/FixedMathSharp.csproj --configuration ReleaseLean -f netstandard2.1 --no-restore
 ```
 
-Verification result on 2026-06-06: the full Debug solution test run passed
-with 951 tests, Release and ReleaseLean `netstandard2.1` builds passed with
-zero warnings/errors, the touched production source files and their new
-partials were all below the roughly 1000-line threshold, and `git diff --check`
-passed.
+Verification result on 2026-06-06: the full Debug solution test run passed with
+951 tests, Release and ReleaseLean `netstandard2.1` builds passed with zero
+warnings/errors, the touched production source files and their new partials were
+all below the roughly 1000-line threshold, and `git diff --check` passed.
 
 ## Phase 6: Remove Redundant `this.` Qualifiers
 
@@ -515,13 +512,13 @@ passed.
 
 - [x] Remove `this.` where it only adds noise.
 - [x] Keep explicit member qualification when it prevents constructor parameter
-  confusion, especially around `m_rawValue`.
+      confusion, especially around `m_rawValue`.
 - [x] Do not mix this purely mechanical cleanup with semantic API changes.
 
-Implementation result on 2026-06-07: removed redundant source `this.`
-qualifiers from constructors and simple member calls while preserving
-`this.m_rawValue` in the internal `Fixed64(long m_rawValue)` constructor,
-where the qualifier disambiguates the parameter from the readonly field.
+Implementation result on 2026-06-07: removed redundant source `this.` qualifiers
+from constructors and simple member calls while preserving `this.m_rawValue` in
+the internal `Fixed64(long m_rawValue)` constructor, where the qualifier
+disambiguates the parameter from the readonly field.
 
 Verification:
 
@@ -540,15 +537,16 @@ dotnet build FixedMathSharp.slnx --configuration Debug --no-restore
 - Modify: README or wiki docs if public names change
 
 - [x] Normalize singular/plural and tense mismatches such as `ToDegree` versus
-  `ToDegrees`, `Lerped` versus `Lerp`, and `GetMagnitude` versus `Magnitude`.
+      `ToDegrees`, `Lerped` versus `Lerp`, and `GetMagnitude` versus
+      `Magnitude`.
 - [x] Prefer names that make mutability explicit: `NormalizeInPlace`,
-  `GetNormalized`, and `IsNormalized` should remain semantically distinct.
+      `GetNormalized`, and `IsNormalized` should remain semantically distinct.
 - [x] Decide whether `Scale` means scalar multiply, component-wise multiply, or
-  both; rename if that ambiguity hurts public discoverability.
+      both; rename if that ambiguity hurts public discoverability.
 - [x] Document any intentional deviations where a common game-math name is kept
-  for discoverability.
+      for discoverability.
 - [x] Update tests and benchmark names with the public API changes so future
-  reports read cleanly.
+      reports read cleanly.
 
 Implementation result on 2026-06-07: renamed the public value-returning
 normalization surface from `Normal` to `Normalized`, mutating normalization
@@ -568,8 +566,8 @@ dotnet test FixedMathSharp.slnx --configuration Debug --no-restore
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj --configuration Release -f net8.0 --no-restore
 ```
 
-Verification result on 2026-06-07: the full Debug solution test run passed
-with 951 tests, the Release `net8.0` benchmark project build passed with zero
+Verification result on 2026-06-07: the full Debug solution test run passed with
+951 tests, the Release `net8.0` benchmark project build passed with zero
 warnings/errors, Release and ReleaseLean `netstandard2.1` builds passed with
 zero warnings/errors, the `this.` scan now only reports the intentional
 `Fixed64(long m_rawValue)` field/parameter disambiguation, the stale public API
@@ -586,15 +584,15 @@ name scan only reports old names in Phase 7 rename-history notes, and
 - Modify: relevant benchmark files under `tests/FixedMathSharp.Benchmarks/`
 
 - [x] Decide whether public `FastAdd`, `FastSub`, `FastMul`, and `FastMod`
-  should remain public, become internal, or move behind clearer naming.
+      should remain public, become internal, or move behind clearer naming.
 - [x] Document that `Fast*` helpers skip overflow/saturation checks and are not
-  drop-in replacements for public operators.
+      drop-in replacements for public operators.
 - [x] Keep exact special-case helpers such as positive-divisor paths internal
-  unless a public API has a compelling consumer story.
+      unless a public API has a compelling consumer story.
 - [x] Benchmark each accepted `Fast*` use in real consumers; do not swap
-  operators for `Fast*` based on theoretical speed alone.
+      operators for `Fast*` based on theoretical speed alone.
 - [x] Add tests proving accepted fast paths preserve intended deterministic raw
-  results or explicitly document where they intentionally do not.
+      results or explicitly document where they intentionally do not.
 
 **Implementation Result:**
 
@@ -621,9 +619,9 @@ local benchmarks.
 A fast follow added an integer-operand shortcut to `FastMul`. The branch checks
 the raw fractional mask directly rather than routing through `Fixed64.IsInteger`
 so the hot path avoids an extra call shape while preserving the same invariant.
-Short benchmark results improved in all measured `FastMul` fixtures:
-fractional operands moved from `656.4 ns` to `599.3 ns`, integer-left operands
-from `569.2 ns` to `383.9 ns`, and integer-right operands from `698.4 ns` to
+Short benchmark results improved in all measured `FastMul` fixtures: fractional
+operands moved from `656.4 ns` to `599.3 ns`, integer-left operands from
+`569.2 ns` to `383.9 ns`, and integer-right operands from `698.4 ns` to
 `520.5 ns`, all with zero allocation. Focused tests lock the unchecked raw
 semantics for integer-left and integer-right operands.
 
@@ -653,17 +651,18 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 - Modify: matching benchmarks under `tests/FixedMathSharp.Benchmarks/`
 
 - [x] Add `ReadOnlySpan<T>` overloads where public APIs currently accept
-  `IEnumerable<T>` and can benefit from countable, allocation-free iteration,
-  starting with bounds construction APIs such as sphere-from-points workflows.
+      `IEnumerable<T>` and can benefit from countable, allocation-free
+      iteration, starting with bounds construction APIs such as
+      sphere-from-points workflows.
 - [x] Keep `IEnumerable<T>` overloads only where they remain useful
-  interoperability entry points, forwarding to optimized shared internals where
-  possible.
-- [x] Replace distance-threshold helpers with squared-distance comparisons
-  where callers only need `distance <= threshold`.
+      interoperability entry points, forwarding to optimized shared internals
+      where possible.
+- [x] Replace distance-threshold helpers with squared-distance comparisons where
+      callers only need `distance <= threshold`.
 - [x] Preserve existing behavior for invalid inputs, empty collections, and
-  degenerate geometry.
+      degenerate geometry.
 - [x] Benchmark span overloads and squared-distance changes independently so
-  collection-shape wins and math wins are not conflated.
+      collection-shape wins and math wins are not conflated.
 
 Result:
 
@@ -685,15 +684,15 @@ Result:
 
 Measured short-run results:
 
-| Benchmark | Mean | Allocated |
-| --- | ---: | ---: |
-| `BoundsBenchmarks.SphereCreateFromPointsArray` | 7.643 us | - |
-| `BoundsBenchmarks.SphereCreateFromPointsSpan` | 7.461 us | - |
-| `BoundsBenchmarks.SphereCreateFromPointsEnumerable` | 10.286 us | 12,456 B |
-| `Vector2dBenchmarks.DistanceThreshold` | 14.289 us | - |
-| `Vector2dBenchmarks.CheckDistance` | 3.262 us | - |
-| `Vector3dBenchmarks.DistanceThreshold` | 24.079 us | - |
-| `Vector3dBenchmarks.CheckDistance` | 4.494 us | - |
+| Benchmark                                           |      Mean | Allocated |
+| --------------------------------------------------- | --------: | --------: |
+| `BoundsBenchmarks.SphereCreateFromPointsArray`      |  7.643 us |         - |
+| `BoundsBenchmarks.SphereCreateFromPointsSpan`       |  7.461 us |         - |
+| `BoundsBenchmarks.SphereCreateFromPointsEnumerable` | 10.286 us |  12,456 B |
+| `Vector2dBenchmarks.DistanceThreshold`              | 14.289 us |         - |
+| `Vector2dBenchmarks.CheckDistance`                  |  3.262 us |         - |
+| `Vector3dBenchmarks.DistanceThreshold`              | 24.079 us |         - |
+| `Vector3dBenchmarks.CheckDistance`                  |  4.494 us |         - |
 
 Benchmark commands:
 
@@ -721,25 +720,25 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 - [x] Update README API guidance after the final public shape is known.
 - [x] Update `AGENTS.md` if the canonical ownership rules or public API policy
-  should guide future agents.
+      should guide future agents.
 - [x] Defer migration notes for removed or renamed v4 APIs until the release
-  note pass can review the full v4.0.1-to-v5.0.0 commit range.
+      note pass can review the full v4.0.1-to-v5.0.0 commit range.
 - [x] Move unresolved follow-up ideas into a new feature-work plan or the issue
-  tracker before marking this plan done.
-- [x] Move this plan to `docs/feature-work/done/` after all phases are
-  completed and verified.
+      tracker before marking this plan done.
+- [x] Move this plan to `docs/feature-work/done/` after all phases are completed
+      and verified.
 
 Result:
 
-- Added concise README guidance for the final public API shape: canonical
-  scalar algorithms live on `FixedMath`, representation and conversion live on
+- Added concise README guidance for the final public API shape: canonical scalar
+  algorithms live on `FixedMath`, representation and conversion live on
   `Fixed64`, mutation uses explicit `*InPlace` APIs, extensions are curated
   receiver-shaped conveniences, `Fast*` helpers are expert APIs, and span/array
   overloads are preferred for countable hot-path data.
-- Updated `AGENTS.md` so future work preserves the same ownership model,
-  avoids reintroducing vector-result `out` helpers, keeps convention-heavy
-  factories on owning types, and treats public `Fast*` helpers as documented
-  expert APIs that need benchmarked call-site proof.
+- Updated `AGENTS.md` so future work preserves the same ownership model, avoids
+  reintroducing vector-result `out` helpers, keeps convention-heavy factories on
+  owning types, and treats public `Fast*` helpers as documented expert APIs that
+  need benchmarked call-site proof.
 - Skipped migration notes by design. They should be generated later from the
   full release commit range rather than only this feature plan.
 - Extracted the remaining diagnostics and formatting ownership question into

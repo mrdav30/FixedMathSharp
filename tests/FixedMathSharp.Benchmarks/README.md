@@ -2,7 +2,10 @@
 
 This project is the BenchmarkDotNet scaffold for FixedMathSharp hot paths.
 
-The runner, alias catalog, deterministic fixture helpers, and first-pass hot-path benchmark classes are in place. The initial suite covers scalar arithmetic, fixed trigonometry, vector operations, quaternion rotations, matrix transforms, and bounds checks.
+The runner, alias catalog, deterministic fixture helpers, and first-pass
+hot-path benchmark classes are in place. The initial suite covers scalar
+arithmetic, fixed trigonometry, vector operations, quaternion rotations, matrix
+transforms, and bounds checks.
 
 ## Requirements
 
@@ -39,7 +42,8 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ### Run a selection by alias
 
-Aliases are derived from benchmark class names. `Benchmarks` or `Benchmark` is stripped, and the remaining words are joined with `-`.
+Aliases are derived from benchmark class names. `Benchmarks` or `Benchmark` is
+stripped, and the remaining words are joined with `-`.
 
 For a class named `Vector3dBenchmarks`, the selection alias is `vector3d`:
 
@@ -86,25 +90,39 @@ Do not treat short-run numbers as canonical measurements, and do not use broad
 Start with hot paths that can be isolated and repeated deterministically:
 
 - `Fixed64` arithmetic, division, square root, and trigonometry.
-- `Vector2d`, `Vector3d`, and `Vector4d` arithmetic, dot/cross products, normalization, distance, interpolation, and transforms.
-- `FixedQuaternion` creation, multiplication, interpolation, and vector rotation.
-- `Fixed3x3` and `Fixed4x4` creation, multiplication, inversion, and point/vector transforms.
+- `Vector2d`, `Vector3d`, and `Vector4d` arithmetic, dot/cross products,
+  normalization, distance, interpolation, and transforms.
+- `FixedQuaternion` creation, multiplication, interpolation, and vector
+  rotation.
+- `Fixed3x3` and `Fixed4x4` creation, multiplication, inversion, and
+  point/vector transforms.
 - Bounds containment/intersection checks and projection/clamping helpers.
-- Serialization roundtrips for standard builds when payload size and allocation behavior matter.
-- Diagnostics formatting when repeated display, logging, or editor polling
-  needs the allocation-free `TryFormat` path.
+- Serialization roundtrips for standard builds when payload size and allocation
+  behavior matter.
+- Diagnostics formatting when repeated display, logging, or editor polling needs
+  the allocation-free `TryFormat` path.
 
 ## Authoring Guidelines
 
 - Put benchmark classes in the `FixedMathSharp.Benchmarks` namespace.
 - Prefer one benchmark class per subsystem or scenario group.
-- Apply `[MemoryDiagnoser]` to benchmark classes unless there is a specific reason not to.
-- Use deterministic fixtures and fixed seeds. Do not use ambient randomness in measured paths.
-- Reset or dispose context between benchmark cases so measurements do not depend on previous cases.
-- Capture both throughput and allocation impact when changing hot-path arithmetic, normalization, transforms, bounds dispatch, serialization, or fixture generation.
-- For loop-style bounds benchmarks that iterate over `BenchmarkFixtures.SampleCount`, use the local `SampledBenchmarkAttribute` so BenchmarkDotNet reports cost per fixture operation instead of the whole sampled batch. Keep end-to-end API benchmarks, such as point-cloud construction, as normal `[Benchmark]` rows.
+- Apply `[MemoryDiagnoser]` to benchmark classes unless there is a specific
+  reason not to.
+- Use deterministic fixtures and fixed seeds. Do not use ambient randomness in
+  measured paths.
+- Reset or dispose context between benchmark cases so measurements do not depend
+  on previous cases.
+- Capture both throughput and allocation impact when changing hot-path
+  arithmetic, normalization, transforms, bounds dispatch, serialization, or
+  fixture generation.
+- For loop-style bounds benchmarks that iterate over
+  `BenchmarkFixtures.SampleCount`, use the local `SampledBenchmarkAttribute` so
+  BenchmarkDotNet reports cost per fixture operation instead of the whole
+  sampled batch. Keep end-to-end API benchmarks, such as point-cloud
+  construction, as normal `[Benchmark]` rows.
 
-Keep support helpers specific. Remove copied template helpers when they stop serving a FixedMathSharp benchmark scenario.
+Keep support helpers specific. Remove copied template helpers when they stop
+serving a FixedMathSharp benchmark scenario.
 
 ## Baseline Artifacts
 
@@ -114,7 +132,9 @@ Before starting optimization work, capture a baseline:
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all --exporters json
 ```
 
-BenchmarkDotNet writes results to `BenchmarkDotNet.Artifacts/results/` by default. Archive the JSON or markdown reports before changing algorithms so regressions can be compared against known results.
+BenchmarkDotNet writes results to `BenchmarkDotNet.Artifacts/results/` by
+default. Archive the JSON or markdown reports before changing algorithms so
+regressions can be compared against known results.
 
 ### Comparing Results
 
@@ -186,8 +206,8 @@ change, with correctness tests passing for FixedMath and FixedTrigonometry.
 ## CI Guidance
 
 CI should at minimum compile the benchmark project in `Release`. The normal
-`FixedMathSharp.slnx` build already includes `tests/FixedMathSharp.Benchmarks`; use this
-direct command when isolating benchmark compilation locally:
+`FixedMathSharp.slnx` build already includes `tests/FixedMathSharp.Benchmarks`;
+use this direct command when isolating benchmark compilation locally:
 
 ```bash
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj --configuration Release

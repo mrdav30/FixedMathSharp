@@ -3,14 +3,14 @@ name: build-and-test
 on:
   push:
     branches-ignore:
-      - 'dependabot/**'
-      - 'gh-pages'
+      - "dependabot/**"
+      - "gh-pages"
     tags-ignore:
-      - 'v*'
+      - "v*"
   pull_request:
     branches:
-      - 'main'
-      - 'develop'
+      - "main"
+      - "develop"
 
 jobs:
   validate-dotnet:
@@ -23,45 +23,45 @@ jobs:
         configuration: [Release, ReleaseLean]
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-        persist-credentials: false
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: |
-          8.0.x
-          10.0.x
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
-    - name: Setup GitVersion
-      uses: gittools/actions/gitversion/setup@v4
-      with:
-        versionSpec: '6.4.x'
+      - name: Setup GitVersion
+        uses: gittools/actions/gitversion/setup@v4
+        with:
+          versionSpec: "6.4.x"
 
-    - name: Execute GitVersion
-      id: gitversion
-      uses: gittools/actions/gitversion/execute@v4
+      - name: Execute GitVersion
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v4
 
-    - name: Cache NuGet packages
-      uses: actions/cache@v5
-      with:
-        path: ~/.nuget/packages
-        key: ${{ runner.os }}-${{ matrix.configuration }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ matrix.configuration }}-nuget-
-          ${{ runner.os }}-nuget-
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-${{ matrix.configuration }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.configuration }}-nuget-
+            ${{ runner.os }}-nuget-
 
-    - name: Restore dependencies
-      run: dotnet restore FixedMathSharp.slnx --property:Configuration=${{ matrix.configuration }}
+      - name: Restore dependencies
+        run: dotnet restore FixedMathSharp.slnx --property:Configuration=${{ matrix.configuration }}
 
-    - name: Build Solution
-      run: |
-        echo "Version: ${{ steps.gitversion.outputs.fullSemVer }}"
-        echo "Assembly Version: ${{ steps.gitversion.outputs.assemblySemFileVer }}"
-        dotnet build FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-restore
+      - name: Build Solution
+        run: |
+          echo "Version: ${{ steps.gitversion.outputs.fullSemVer }}"
+          echo "Assembly Version: ${{ steps.gitversion.outputs.assemblySemFileVer }}"
+          dotnet build FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-restore
 
-    - name: Run Tests
-      run: dotnet test FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-build --verbosity normal
+      - name: Run Tests
+        run: dotnet test FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-build --verbosity normal

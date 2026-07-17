@@ -135,24 +135,23 @@ constraints, and CCD.
     overlap is not mislabeled as a unique intersection. `FixedSegment` owns
     full-domain point projection, point distance, and finite closest-pair
     queries while preserving the documented Q32.32-resolution degeneracy and
-    near-parallel policies. The misleading
-    `Vector3d.ClosestPointsOnTwoLines` surface is deleted rather than forwarded;
-    no intersection-classification hierarchy or public wide-number type is
-    introduced.
+    near-parallel policies. The misleading `Vector3d.ClosestPointsOnTwoLines`
+    surface is deleted rather than forwarded; no intersection-classification
+    hierarchy or public wide-number type is introduced.
 16. `FixedTriangle2d` reuses the internal `Signed192` geometry core for exact
     orientation, degeneracy, containment, barycentric solving, and closest-edge
     ordering across the complete raw coordinate domain. `SignedArea`, `Area`,
     and barycentric weights retain their existing public `Fixed64` shapes with
     one final round-half-to-even/saturation decision. `Centroid` reuses
     `FixedMath.Average`, and `GetPoint` routes through the hardened shared
-    `FixedMath.BarycentricCoordinate`; no public wide-number or predicate type is
-    added.
+    `FixedMath.BarycentricCoordinate`; no public wide-number or predicate type
+    is added.
 17. Matrix scale extraction never claims to recover authored components.
-    `ExtractScaleMagnitudes` returns unsigned basis lengths;
-    `ExtractLossyScale` returns the same magnitudes with reflected handedness
-    canonicalized to negative X. Strict `Fixed4x4.Decompose` rejects
-    perspective, shear, singular scale, unrepresentable magnitude, and
-    non-round-trippable rotation rather than silently inventing TRS values.
+    `ExtractScaleMagnitudes` returns unsigned basis lengths; `ExtractLossyScale`
+    returns the same magnitudes with reflected handedness canonicalized to
+    negative X. Strict `Fixed4x4.Decompose` rejects perspective, shear, singular
+    scale, unrepresentable magnitude, and non-round-trippable rotation rather
+    than silently inventing TRS values.
 18. `FixedTransform.LocalScale` remains a general math/host value and preserves
     signed or zero authored scale. Gravitas collider scale represents physical
     dimensions, not reflection: every consumed authored local-scale component
@@ -161,8 +160,8 @@ constraints, and CCD.
     validated before body registration or shape math; Gravitas does not silently
     take absolute values or attempt mesh winding reflection in this release.
 19. `Signed192` and `Signed320` become top-level internal readonly structs under
-    `Numerics/Wide`; they remain fixed-shape two's-complement storage, not public
-    arbitrary-precision numbers. `WideArithmetic` owns limb operations,
+    `Numerics/Wide`; they remain fixed-shape two's-complement storage, not
+    public arbitrary-precision numbers. `WideArithmetic` owns limb operations,
     `WideGeometry` owns exact coordinate products and geometry predicates, and
     `Fixed64.WideConversion` owns only Q32.32 rounding, saturation, ratios, and
     interpolation. No generic word collection, operator surface, interface, or
@@ -271,24 +270,24 @@ constraints, and CCD.
   allocation-free five-word solver is justified before downstream adoption.
 - `FixedTriangle2d` still subtracts full-domain endpoints through saturating
   vector operators before signed-area, containment, and barycentric cross
-  products. Its closest-edge selection also compares public saturated
-  distances, its centroid sums before dividing, and its shared barycentric point
-  helper chains saturating differences/products. These are the same
-  intermediate-loss class already solved for segments and projections.
+  products. Its closest-edge selection also compares public saturated distances,
+  its centroid sums before dividing, and its shared barycentric point helper
+  chains saturating differences/products. These are the same intermediate-loss
+  class already solved for segments and projections.
 - `Fixed64.WideGeometry.cs` has grown to 1,286 lines, exceeding this
   repository's roughly 1,000-line source warning. It mixes fixed-limb storage,
   general two's-complement arithmetic, geometry products and thresholds, and
   Q32.32 conversion inside the `Fixed64` partial. The behavior is proven, but
   the ownership now obscures which code is scalar conversion versus reusable
   internal wide infrastructure.
-- `FixedTriangle` still uses saturating vector subtraction, cross products,
-  dot products, squared magnitudes, Gram determinants, and public squared
-  distances for its normal, area, degeneracy, projected barycentrics,
-  closest-point regions, and edge selection. `Centroid` also sums before
-  dividing. Unlike 2D, full-domain 3D area and normalization additionally need
-  an exact roughly 260-bit squared-normal magnitude and deterministic wide
-  square-root/ratio conversion; simply reusing saturated `UnnormalizedNormal`
-  would lose direction.
+- `FixedTriangle` still uses saturating vector subtraction, cross products, dot
+  products, squared magnitudes, Gram determinants, and public squared distances
+  for its normal, area, degeneracy, projected barycentrics, closest-point
+  regions, and edge selection. `Centroid` also sums before dividing. Unlike 2D,
+  full-domain 3D area and normalization additionally need an exact roughly
+  260-bit squared-normal magnitude and deterministic wide square-root/ratio
+  conversion; simply reusing saturated `UnnormalizedNormal` would lose
+  direction.
 
 ---
 
@@ -1119,8 +1118,7 @@ Task 6 result:
 **Files:**
 
 - Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
+- Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
 - Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
 - Modify: `src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs`
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedSegment.cs`
@@ -1129,8 +1127,7 @@ Task 6 result:
   evidence requires a registered exception.
 - Test: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
 - Test: `tests/FixedMathSharp.Tests/Numerics/Vectors/Vector3d.Tests.cs`
-- Test:
-  `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedSegment.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedSegment.Tests.cs`
 - Benchmark: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 - Benchmark: `tests/FixedMathSharp.Benchmarks/Vector3dBenchmarks.cs`
 
@@ -1138,8 +1135,8 @@ Task 6 result:
 
 - Consumes: Task 1's round-half-to-even policy, Task 3's full-width product
   accumulation, and Task 6's signed 65-bit endpoint differences, `Signed192`
-  geometry core, exact distance machinery, unit-interval ratios, and
-  full-domain interpolation.
+  geometry core, exact distance machinery, unit-interval ratios, and full-domain
+  interpolation.
 - Produces: no new public API. The following existing surfaces gain a
   full-domain intermediate-arithmetic contract:
 
@@ -1161,14 +1158,14 @@ public partial struct FixedSegment
 }
 ```
 
-- Endpoint differences, three-term dot products, determinant/numerator
-  products, parameter classification, and interpolation are evaluated without
-  an early saturating `Fixed64` conversion. Public squared distance retains one
-  final round-half-to-even/saturation conversion.
+- Endpoint differences, three-term dot products, determinant/numerator products,
+  parameter classification, and interpolation are evaluated without an early
+  saturating `Fixed64` conversion. Public squared distance retains one final
+  round-half-to-even/saturation conversion.
 - A direction is point-degenerate when its exact total squared length rounds to
   zero in Q32.32: `sum(deltaRaw^2) <= 2^31`, including the round-half-to-even
-  tie. This preserves the intended resolution rule without retaining the
-  current coordinate-dependent per-component rounding artifact. The existing
+  tie. This preserves the intended resolution rule without retaining the current
+  coordinate-dependent per-component rounding artifact. The existing
   `abs(determinant) < Fixed64.Epsilon` near-parallel rule remains public policy,
   but compares the exact Q128.128 determinant against
   `Fixed64.Epsilon.m_rawValue << 96` before any scalar conversion.
@@ -1181,8 +1178,8 @@ public partial struct FixedSegment
   internal allocation-free five-word operations needed for roughly 261-bit
   signed values and ratio conversion.
 - This task does not redefine `FixedSegment.Delta`, general vector subtraction,
-  arbitrary-precision arithmetic, 3D triangle predicates, or ray quadratics.
-  No public wide integer, rational, or alternate segment type is added.
+  arbitrary-precision arithmetic, 3D triangle predicates, or ray quadratics. No
+  public wide integer, rational, or alternate segment type is added.
 
 - [x] **Step 1: Capture ordinary-input baselines** for the existing
       `Segment3dClosestPoint`, `Segment3dDistanceSquared`,
@@ -1200,11 +1197,12 @@ public partial struct FixedSegment
       whose final point or distance fits despite ordinary intermediate
       saturation.
 - [x] **Step 4: Add closest-pair red tests** for crossing, skew, parallel,
-      near-parallel, collinear, endpoint-clamped, reversed, and swapped segments;
-      exact and Q32.32-resolution point segments in either position; cancelling
-      determinants; smallest distinguishable determinant thresholds; parameter
-      rounding ties; and endpoint differences spanning the complete raw domain.
-      Compare points and exact squared separation with the `BigInteger` oracle.
+      near-parallel, collinear, endpoint-clamped, reversed, and swapped
+      segments; exact and Q32.32-resolution point segments in either position;
+      cancelling determinants; smallest distinguishable determinant thresholds;
+      parameter rounding ties; and endpoint differences spanning the complete
+      raw domain. Compare points and exact squared separation with the
+      `BigInteger` oracle.
 - [x] **Step 5: Run the focused vector and segment tests and confirm** the
       extreme projection, distance, determinant, parameter, and interpolation
       cases expose current saturating intermediates.
@@ -1216,9 +1214,9 @@ public partial struct FixedSegment
       `Int128` branch.
 - [x] **Step 7: Harden point projection and point distance.** Classify the exact
       projection ratio before conversion, interpolate each coordinate through
-      `FixedMath.Lerp`, and compute `FixedSegment.DistanceSquared` from the exact
-      three-component raw difference sum before one public conversion. Do not
-      broaden this into unrelated vector distance APIs.
+      `FixedMath.Lerp`, and compute `FixedSegment.DistanceSquared` from the
+      exact three-component raw difference sum before one public conversion. Do
+      not broaden this into unrelated vector distance APIs.
 - [x] **Step 8: Harden `FixedSegment.GetClosestPoints`.** Compute exact wide
       squared lengths, direction dot products, start-difference dots,
       determinant, and parameter numerators. Apply the exact-total
@@ -1251,8 +1249,8 @@ five-word signed solver value only where determinant products require it,
 preserves exact existing endpoints at zero-separation contacts, and performs one
 guard/sticky round-half-to-even conversion at each public parameter or distance
 boundary. The shared 64-by-64-bit product uses the exact .NET 8 `Math.BigMul`
-intrinsic with the existing manual `netstandard2.1` limb fallback; no public wide
-integer, `BigInteger` runtime dependency, allocation, `Int128` branch, or
+intrinsic with the existing manual `netstandard2.1` limb fallback; no public
+wide integer, `BigInteger` runtime dependency, allocation, `Int128` branch, or
 ordinary-semantics solver was introduced.
 
 Focused validation passed 259/259 tests in `Release` and 256/256 in
@@ -1369,14 +1367,14 @@ public class FixedTransform
 **Task 8 result:** `FixedTransform` now owns explicit position, normalized
 rotation, and scale components rather than a hidden mutable matrix. Component
 construction and assignment preserve signed and zero scale exactly, while the
-matrix constructor performs the established `Fixed4x4.Decompose` extraction
-once and retains its documented sign-canonicalization, zero-scale, and non-TRS
+matrix constructor performs the established `Fixed4x4.Decompose` extraction once
+and retains its documented sign-canonicalization, zero-scale, and non-TRS
 limitations. The misleading `LossyScale` alias is removed.
 
 The new planar constructor and `PositionXZ`, `RotationXZRadians`, and `ScaleXZ`
 properties provide an explicit X/Z bridge. Position and scale setters preserve
-their existing Y components, planar rotation matches `Vector2d.Rotate` through
-a normalized negated-Y quaternion, and rotation extraction uses projected local
+their existing Y components, planar rotation matches `Vector2d.Rotate` through a
+normalized negated-Y quaternion, and rotation extraction uses projected local
 right so it remains scale-independent and deterministic for pitch/roll inputs.
 No plane abstraction, second transform type, translation helper, matrix cache,
 or downstream workaround was introduced.
@@ -1386,13 +1384,13 @@ validation passed 1,300 FixedMathSharp plus 7 Chronicler tests in `Release`, and
 1,279 plus 7 in `ReleaseLean`, while building both `net8.0` and
 `netstandard2.1`. Fresh full-project coverage remained 99.6% line and 99%
 branch; all 19 `FixedTransform` methods reached 100% line and branch coverage.
-No benchmark was required by the approved task scope. A fresh independent
-review found no Critical or Important issues. Four known Gravitas `LossyScale`
-callers remain intentionally deferred to Task 13, where they will move to Task
-8A's genuine hierarchy-derived scale contract. Because Chronicler hashes the
-exposed transform components directly, adopting this breaking package version
-is also an intentional replay/hash compatibility boundary for hosts whose prior
-state depended on matrix-canonicalized scale or rotation values.
+No benchmark was required by the approved task scope. A fresh independent review
+found no Critical or Important issues. Four known Gravitas `LossyScale` callers
+remain intentionally deferred to Task 13, where they will move to Task 8A's
+genuine hierarchy-derived scale contract. Because Chronicler hashes the exposed
+transform components directly, adopting this breaking package version is also an
+intentional replay/hash compatibility boundary for hosts whose prior state
+depended on matrix-canonicalized scale or rotation values.
 
 ---
 
@@ -1402,47 +1400,30 @@ state depended on matrix-canonicalized scale or rotation values.
 
 **Files:**
 
-- Modify:
-  `src/FixedMathSharp/Numerics/Matrices/FixedTransform.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Matrices/Fixed3x3.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Matrices/Fixed3x3.Extensions.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Factories.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Decomposition.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Extensions.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.Conversions.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
-- Modify:
-  `src/FixedMathSharp.FluentAssertions/FixedAssertions.cs`
+- Modify: `src/FixedMathSharp/Numerics/Matrices/FixedTransform.cs`
+- Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed3x3.cs`
+- Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed3x3.Extensions.cs`
+- Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.cs`
+- Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Factories.cs`
+- Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Decomposition.cs`
+- Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Extensions.cs`
+- Modify: `src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.Conversions.cs`
+- Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
+- Modify: `src/FixedMathSharp.FluentAssertions/FixedAssertions.cs`
 - Modify:
   `src/FixedMathSharp.Chronicler/FixedMathChronicleHashWriterExtensions.cs`
 - Modify: `docs/wiki/coordinate-conventions.md`
 - Modify: `docs/complexity-exceptions.md` only if fresh metrics require a
   registered exception.
-- Test:
-  `tests/FixedMathSharp.Tests/Numerics/Matrices/FixedTransform.Tests.cs`
-- Test:
-  `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed3x3.Tests.cs`
-- Test:
-  `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed4x4.Tests.cs`
-- Test:
-  `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
-- Test:
-  `tests/FixedMathSharp.Tests/FixedAssertions.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Matrices/FixedTransform.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed3x3.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Matrices/Fixed4x4.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/FixedAssertions.Tests.cs`
 - Test:
   `tests/FixedMathSharp.Chronicler.Tests/FixedMathChronicleHashWriterExtensionsTests.cs`
-- Benchmark:
-  `tests/FixedMathSharp.Benchmarks/Matrix4x4Benchmarks.cs`
-- Benchmark:
-  `tests/FixedMathSharp.Benchmarks/QuaternionBenchmarks.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/Matrix4x4Benchmarks.cs`
+- Benchmark: `tests/FixedMathSharp.Benchmarks/QuaternionBenchmarks.cs`
 - Benchmark: create
   `tests/FixedMathSharp.Benchmarks/FixedTransformBenchmarks.cs` only if the
   existing matrix benchmark fixture cannot express parent-depth traversal
@@ -1507,35 +1488,34 @@ public class FixedTransform
 - Local position, normalized rotation, and exact signed/zero scale are the only
   stored transform values. The old ambiguous `Position`, `Rotation`, `Scale`,
   `EulerAngles`, and planar aliases are removed rather than retained as legacy
-  forwarding APIs. `Parent` becomes read-only; the permissive matrix
-  constructor is removed.
+  forwarding APIs. `Parent` becomes read-only; the permissive matrix constructor
+  is removed.
 - `LocalMatrix` rebuilds directly through `Fixed4x4.CreateTransform`.
   `LocalToWorldMatrix` iteratively multiplies child-local through ancestor-local
   matrices in row-vector order. No recursion, child collection, scene graph,
   matrix cache, dirty propagation, or engine adapter abstraction is added.
 - `WorldPosition` is composed-matrix translation. `WorldRotation` is the
   normalized parent-to-child quaternion product independent of scale/shear.
-  `LossyScale` is the composed matrix's canonical signed basis magnitude:
-  zero axes remain zero, and a reflected basis assigns its single negative sign
-  to X because authored negative-axis allocation is not recoverable from a
-  matrix.
+  `LossyScale` is the composed matrix's canonical signed basis magnitude: zero
+  axes remain zero, and a reflected basis assigns its single negative sign to X
+  because authored negative-axis allocation is not recoverable from a matrix.
 - Parent changes reject self/ancestor cycles. `SetParentKeepingLocal` changes
   only the parent reference. `TrySetParentKeepingWorld` commits atomically only
   when the prospective parent is invertible and the resulting local matrix
-  passes strict TRS decomposition. World-position/pose mutation follows the
-  same no-partial-mutation rule.
+  passes strict TRS decomposition. World-position/pose mutation follows the same
+  no-partial-mutation rule.
 - `TryCreateFromLocalMatrix` accepts only affine, nonsingular, orthogonal TRS
   input under absolute `Fixed64.Epsilon` normalized-basis and recomposition
   checks. Perspective, shear, zero-scale/singular, unrepresentable-magnitude,
   and non-round-trippable matrices return `false` with a null transform.
-  Component construction remains the lossless engine adapter path for signed
-  and zero local scale.
+  Component construction remains the lossless engine adapter path for signed and
+  zero local scale.
 - `FixedQuaternion.ToMatrix3x3` owns magnitude-independent quaternion-to-matrix
   conversion: every nonzero common scaling of a quaternion produces the same
   orthogonal rotation basis, while zero maps to identity. Full-domain component
-  scaling keeps the norm calculation representable. Matrix factories delegate
-  to that one conversion root instead of applying a stricter private
-  normalization policy.
+  scaling keeps the norm calculation representable. Matrix factories delegate to
+  that one conversion root instead of applying a stricter private normalization
+  policy.
 - World-to-local access uses the existing affine inverse only as a candidate,
   then verifies both multiplication orders against identity before reporting
   success. Extreme but mathematically invertible inputs may conservatively
@@ -1550,11 +1530,11 @@ public static Vector3d ExtractLossyScale(Fixed4x4 matrix);
 public readonly Vector3d LossyScale { get; }
 ```
 
-  The ambiguous `ExtractScale`, `Fixed4x4.Scale`, diagonal-only
-  `ExtractLossyScale`, and duplicate `Fixed3x3.SetLossyScale` APIs are removed.
-  Magnitude extraction is nonnegative; lossy extraction applies the canonical
-  negative-X reflection convention. `Fixed4x4.Decompose` keeps its existing
-  Boolean signature but finally returns `false` for non-TRS input.
+The ambiguous `ExtractScale`, `Fixed4x4.Scale`, diagonal-only
+`ExtractLossyScale`, and duplicate `Fixed3x3.SetLossyScale` APIs are removed.
+Magnitude extraction is nonnegative; lossy extraction applies the canonical
+negative-X reflection convention. `Fixed4x4.Decompose` keeps its existing
+Boolean signature but finally returns `false` for non-TRS input.
 
 - [x] **Step 1: Capture the existing matrix baseline and API inventory.** Run
       the current `Matrix4x4Benchmarks.Decompose` row, record median and
@@ -1564,24 +1544,24 @@ public readonly Vector3d LossyScale { get; }
 - [x] **Step 2: Add matrix-scale red tests.** Cover identity, rotation-only,
       nonuniform positive scale, each single negative axis, even/odd negative
       counts, zero axes, shear, and values near both `Fixed64` limits for both
-      `Fixed3x3` and `Fixed4x4`. Compare handedness with a test-only `BigInteger`
-      triple-product oracle and prove diagonal entries are not scale.
+      `Fixed3x3` and `Fixed4x4`. Compare handedness with a test-only
+      `BigInteger` triple-product oracle and prove diagonal entries are not
+      scale.
 - [x] **Step 3: Add strict-decomposition red tests.** Accept ordinary affine
       TRS, extreme translation, representable tiny/large scale, and canonical
-      single-reflection inputs. Reject
-      perspective, all shear directions, non-affine homogeneous rows,
-      singular/zero-scale bases, unrepresentable basis magnitudes, and
-      orthogonality just outside the documented tolerance. Require neutral out
-      values on every failure and successful normalized-space recomposition
-      within `Fixed64.Epsilon`.
+      single-reflection inputs. Reject perspective, all shear directions,
+      non-affine homogeneous rows, singular/zero-scale bases, unrepresentable
+      basis magnitudes, and orthogonality just outside the documented tolerance.
+      Require neutral out values on every failure and successful
+      normalized-space recomposition within `Fixed64.Epsilon`.
 - [x] **Step 4: Add local-component and API red tests.** Cover renamed 3D/XZ
       properties, exact signed/zero local scale, normalized local rotation,
       `LocalMatrix`, parent construction, strict matrix creation, and removal of
       all ambiguous aliases and the matrix constructor.
 - [x] **Step 5: Add hierarchy-read red tests.** Cover root, one-parent, and
       multi-level translation/rotation/nonuniform-scale chains; row-vector
-      multiplication order; normalized quaternion world rotation; sheared
-      world matrices; canonical `LossyScale`; world X/Z projection; and depth
+      multiplication order; normalized quaternion world rotation; sheared world
+      matrices; canonical `LossyScale`; world X/Z projection; and depth
       traversal without recursion or allocation.
 - [x] **Step 6: Add reparenting red tests.** Cover keep-local attach/detach,
       exact keep-world attach/detach, unchanged-parent no-ops, self/ancestor
@@ -1589,11 +1569,11 @@ public readonly Vector3d LossyScale { get; }
       matrices, and atomic failure without component or parent mutation.
 - [x] **Step 7: Add world-mutation and inverse red tests.** Cover root and
       nested `TrySetWorldPosition`/`TrySetWorldPose`, normalized relative
-      rotation, invertible nonuniform parents, singular parents, unchanged
-      local state after failure, and `TryGetWorldToLocalMatrix` round trips.
-      Include an extreme matrix whose ordinary affine inversion saturates and
-      require conservative failure unless both inverse multiplication orders
-      verify against identity.
+      rotation, invertible nonuniform parents, singular parents, unchanged local
+      state after failure, and `TryGetWorldToLocalMatrix` round trips. Include
+      an extreme matrix whose ordinary affine inversion saturates and require
+      conservative failure unless both inverse multiplication orders verify
+      against identity.
 - [x] **Step 8: Add Chronicler red tests.** Hash only local position, rotation,
       and scale in stable order. Prove derived matrices, world views, and parent
       object identity are excluded, while a local-component change alters the
@@ -1611,13 +1591,13 @@ public readonly Vector3d LossyScale { get; }
       `BigInteger`.
 - [x] **Step 11: Make decomposition strict.** Validate exact affine layout,
       nonzero representable basis magnitudes, scale-relative orthogonality,
-      canonical reflection, normalized rotation, and deterministic
-      recomposition before returning success. Make `ToMatrix3x3` itself
-      magnitude-independent through a full-domain scale-relative non-unit
-      quaternion formula so direct conversion and every owning `Fixed4x4`
-      rotation/TRS boundary share one truthful root. Preserve the public
-      tolerance-based `IsNormalized`/`Normalized` hot-path contract, and do not
-      weaken decomposition tolerance to accept a drifted basis. Route
+      canonical reflection, normalized rotation, and deterministic recomposition
+      before returning success. Make `ToMatrix3x3` itself magnitude-independent
+      through a full-domain scale-relative non-unit quaternion formula so direct
+      conversion and every owning `Fixed4x4` rotation/TRS boundary share one
+      truthful root. Preserve the public tolerance-based
+      `IsNormalized`/`Normalized` hot-path contract, and do not weaken
+      decomposition tolerance to accept a drifted basis. Route
       `TryCreateFromLocalMatrix` and keep-world reparenting through this single
       contract. Validate every candidate world-to-local inverse in both
       multiplication orders before use; do not retain a permissive fallback or
@@ -1676,8 +1656,8 @@ zero to identity. A proven ordinary band of `[1/2, 2]` preserves normalized
 rotation performance while tiny and extreme inputs use scale-relative
 coordinates. Final matrix-phase verification passed 1,365 `Release` and 1,344
 `ReleaseLean` tests plus clean `netstandard2.1` core/FluentAssertions builds.
-All six benchmark rows remained allocation-free; versus the broken baseline,
-the corrected final rows measured 162.275 ns ordinary conversion, 1.064 us
+All six benchmark rows remained allocation-free; versus the broken baseline, the
+corrected final rows measured 162.275 ns ordinary conversion, 1.064 us
 full-domain conversion, 116.507 us `CreateRotation`, 154.317 us
 `CreateTransform`, 321.523 us strict `Decompose`, and 285.202 us Euler
 conversion on the recorded machine. Independent review passed with no Critical
@@ -1690,16 +1670,15 @@ strict matrix import, read-only parent identity, explicit keep-local/keep-world
 reparenting, verified world-to-local access, and atomic world position/pose
 mutation. Every derived position or matrix mutation that can lose
 representability forward-verifies its achieved world state before commit, so a
-representable inverse cannot hide a saturated target conversion. Quaternion
-pose composition stays within normalized rotational arithmetic and avoids a
-redundant unreachable verification branch. Chronicler hashes only local
-position, local rotation, and local
-scale; parent identity and derived world views remain outside deterministic
-state identity. Final transform-phase verification passed 1,378 `Release` and
-1,357 `ReleaseLean` FixedMathSharp tests plus 8 Chronicler tests in each
-configuration. Root/depth-eight reads, lossy scale, successful reparenting, and
-failed reparenting remained allocation-free; coherent non-null successful
-reparenting measured 2.281 us in the recorded short-run environment.
+representable inverse cannot hide a saturated target conversion. Quaternion pose
+composition stays within normalized rotational arithmetic and avoids a redundant
+unreachable verification branch. Chronicler hashes only local position, local
+rotation, and local scale; parent identity and derived world views remain
+outside deterministic state identity. Final transform-phase verification passed
+1,378 `Release` and 1,357 `ReleaseLean` FixedMathSharp tests plus 8 Chronicler
+tests in each configuration. Root/depth-eight reads, lossy scale, successful
+reparenting, and failed reparenting remained allocation-free; coherent non-null
+successful reparenting measured 2.281 us in the recorded short-run environment.
 Independent phase review passed with no Critical or Important findings.
 
 Task 8A final closeout completed on 2026-07-16. The broad independent review
@@ -1718,8 +1697,8 @@ Task 8A changed production contract reached 100% line and branch coverage. The
 remaining unrelated legacy gaps stay assigned to Task 15. Final independent
 re-review returned approved with no Critical or Important findings. The first
 strict full-matrix validation benchmark measured 389.975 us; reusing the
-already-computed rotation matrix instead of converting the same quaternion
-twice reduced the final `Decompose` median to 346.802 us. The affected coherent
+already-computed rotation matrix instead of converting the same quaternion twice
+reduced the final `Decompose` median to 346.802 us. The affected coherent
 successful-reparent row measured 2.450 us. Both remained allocation-free.
 
 ---
@@ -1731,10 +1710,8 @@ successful-reparent row measured 2.450 us. Both remained allocation-free.
 **Files:**
 
 - Modify: `src/FixedMathSharp/Core/FixedMath.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
-- Modify:
-  `src/FixedMathSharp/Geometry/Primitives/FixedTriangle2d.cs`
+- Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
+- Modify: `src/FixedMathSharp/Geometry/Primitives/FixedTriangle2d.cs`
 - Modify: `docs/wiki/bounds-and-geometry.md`
 - Modify: `docs/complexity-exceptions.md` only if fresh coverage/complexity
   evidence requires a registered exception.
@@ -1781,14 +1758,14 @@ public partial struct FixedTriangle2d
 }
 ```
 
-- `SignedArea` evaluates the exact endpoint-difference cross product, divides
-  by two, and performs one final round-half-to-even/saturation conversion.
-  `Area` remains its nonnegative saturating magnitude.
+- `SignedArea` evaluates the exact endpoint-difference cross product, divides by
+  two, and performs one final round-half-to-even/saturation conversion. `Area`
+  remains its nonnegative saturating magnitude.
 - `Centroid` averages each raw component without an intermediate three-value
   sum. `GetPoint` uses the shared full-domain barycentric-coordinate root rather
   than a triangle-local workaround.
-- `IsDegenerate` preserves its `abs(area) <= Fixed64.Epsilon` contract using
-  the exact wide magnitude. Barycentric solving preserves its existing
+- `IsDegenerate` preserves its `abs(area) <= Fixed64.Epsilon` contract using the
+  exact wide magnitude. Barycentric solving preserves its existing
   `abs(doubled area) <= Fixed64.Epsilon` failure threshold and writes three zero
   outputs on failure.
 - Barycentric weights are solved from three direct exact area numerators. Each
@@ -1814,20 +1791,20 @@ public partial struct FixedTriangle2d
       ratios, barycentric interpolation, and raw squared-distance ordering. Keep
       all arbitrary-precision arithmetic in tests.
 - [x] **Step 3: Add centroid and interpolation red tests.** Cover permutations
-      containing `Fixed64.MinValue`/`MaxValue`, exact thirds, raw rounding cases,
-      full-domain barycentric cancellation whose final coordinate fits, and
-      final-only positive/negative saturation.
+      containing `Fixed64.MinValue`/`MaxValue`, exact thirds, raw rounding
+      cases, full-domain barycentric cancellation whose final coordinate fits,
+      and final-only positive/negative saturation.
 - [x] **Step 4: Add signed-area and degeneracy red tests** for both winding
       orders, 65-bit endpoint differences, cancelling products with the smallest
       nonzero determinant, round-half-to-even area ties, positive/negative final
       saturation, and exact values immediately below/at/above the documented
       area epsilon threshold.
 - [x] **Step 5: Add barycentric-solve red tests** for clockwise and
-      counter-clockwise full-domain triangles, interior/boundary/exterior points,
-      negative and greater-than-one weights, denominator sign reversal, exact
-      ratio ties, final weight saturation, and degenerate values immediately
-      below/at/above the doubled-area epsilon threshold. Assert default outputs
-      on failure.
+      counter-clockwise full-domain triangles, interior/boundary/exterior
+      points, negative and greater-than-one weights, denominator sign reversal,
+      exact ratio ties, final weight saturation, and degenerate values
+      immediately below/at/above the doubled-area epsilon threshold. Assert
+      default outputs on failure.
 - [x] **Step 6: Add containment red tests** using extreme coordinates where
       ordinary `B - A` or `point - A` saturates, near-cancelling orientations,
       both windings, inclusive epsilon edges/vertices, exterior points, and
@@ -1863,9 +1840,9 @@ public partial struct FixedTriangle2d
       closest-edge ordering.
 - [x] **Step 14: Run focused and full validation** in `Release` and
       `ReleaseLean`, then fresh exact coverage. Cover every wide sign,
-      comparison, conversion, carry, guard/sticky, saturation, epsilon,
-      winding, degeneracy, and tie-order branch; update the complexity register
-      only from the fresh report.
+      comparison, conversion, carry, guard/sticky, saturation, epsilon, winding,
+      degeneracy, and tie-order branch; update the complexity register only from
+      the fresh report.
 - [x] **Step 15: Rerun the five existing triangle benchmark rows.** Require zero
       allocations and measure ordinary inputs against the legacy reduced-domain
       baseline. Optimize shared word operations, but do not restore chained
@@ -1876,8 +1853,8 @@ public partial struct FixedTriangle2d
       commit message.
 
 Task 9 baseline was captured on 2026-07-16 from the five existing short-run
-rows, all at 0 B: area 31.958 ns, containment 58.284 ns, closest point
-144.839 ns, `GetPoint` 53.644 ns, and barycentric weights 136.669 ns.
+rows, all at 0 B: area 31.958 ns, containment 58.284 ns, closest point 144.839
+ns, `GetPoint` 53.644 ns, and barycentric weights 136.669 ns.
 
 Task 9 implementation completed on 2026-07-16. The shared wide core now owns
 single-conversion barycentric accumulation, signed scaled conversion, general
@@ -1894,11 +1871,11 @@ An independent review then found two signed-limit defects that the first oracle
 set missed: scaled conversion could discard a nonzero high word or wrap while
 rounding, and a positive ratio rounding to raw `2^63` could become
 `Fixed64.MinValue`. Public triangle regressions and direct `BigInteger` cases
-reproduced both failures before the shared roots were corrected. The final
-tests cover high-word overflow, pre/post-round signed limits, guarded-quotient
-carry, and both saturation signs. The unreachable zero-input bit-length branch
-was removed rather than covered artificially, and centroid expectations now
-come from an independent exact-average oracle.
+reproduced both failures before the shared roots were corrected. The final tests
+cover high-word overflow, pre/post-round signed limits, guarded-quotient carry,
+and both saturation signs. The unreachable zero-input bit-length branch was
+removed rather than covered artificially, and centroid expectations now come
+from an independent exact-average oracle.
 
 Final `Release` validation passed 1,393 FixedMathSharp and 8 Chronicler tests;
 `ReleaseLean` passed 1,372 and 8. Both target frameworks, benchmark projects,
@@ -1914,8 +1891,8 @@ barycentric weights 215.880 ns. Area, containment, and closest point improved
 over the legacy baseline. Shared base/product accumulation and an exact
 unit-interval ratio dispatch recovered 9.0% and 30.8% from the first correct
 `GetPoint` and weight implementations. The final interpolation and weight rows
-remain 24.7% and 57.9% slower than the legacy reduced-domain implementation:
-the new contract performs one final interpolation rounding and three direct,
+remain 24.7% and 57.9% slower than the legacy reduced-domain implementation: the
+new contract performs one final interpolation rounding and three direct,
 independently rounded ratios instead of chained rounding and two ratios plus a
 saturating subtraction. Measured 64-by-32 multiplication, common-power
 cancellation, and direct-helper variants all regressed and were removed. A
@@ -1934,22 +1911,18 @@ complexity was not justified by the remaining nanosecond-scale cost.
 - Create: `src/FixedMathSharp/Numerics/Wide/Signed320.cs`
 - Create: `src/FixedMathSharp/Numerics/Wide/WideArithmetic.cs`
 - Create: `src/FixedMathSharp/Numerics/Wide/WideGeometry.cs`
-- Create:
-  `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideConversion.cs`
-- Delete:
-  `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
+- Create: `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideConversion.cs`
+- Delete: `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
 - Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.cs`
 - Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.Operators.cs`
 - Modify: `src/FixedMathSharp/Numerics/Vectors/Vector2d.Statics.cs`
 - Modify: `src/FixedMathSharp/Numerics/Vectors/Vector3d.Statics.cs`
 - Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed3x3.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Decomposition.cs`
+- Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.Decomposition.cs`
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedSegment2d.cs`
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedSegment.cs`
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedTriangle2d.cs`
-- Modify:
-  `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+- Modify: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
 - Modify:
   `tests/FixedMathSharp.Tests/Numerics/Matrices/MatrixScaleContract.Tests.cs`
 - Verify focused internal-call tests returned by:
@@ -1967,8 +1940,8 @@ rg -l "Fixed64\.(Signed192|Signed320|GetDifference|GetTripleProductSign|CompareM
 - Consumes: the committed Task 6, Task 7, and Task 9 fixed-width arithmetic and
   their complete behavioral/coverage suites.
 - Produces: no public API or behavioral change. Existing internal callers use
-  top-level `Signed192` and `Signed320` values plus focused static owners instead
-  of treating general fixed-limb arithmetic as nested `Fixed64` state.
+  top-level `Signed192` and `Signed320` values plus focused static owners
+  instead of treating general fixed-limb arithmetic as nested `Fixed64` state.
 - `Signed192` and `Signed320` remain minimal internal readonly structs with the
   same words, constructor order, `IsZero`, and `Sign` semantics. Do not add
   operators, interfaces, spans, arrays, generic word counts, parsing,
@@ -1987,8 +1960,8 @@ rg -l "Fixed64\.(Signed192|Signed320|GetDifference|GetTripleProductSign|CompareM
   to `WideGeometry`.
 - Keep the proven `Fixed64.Multiply64To128` and
   `Fixed64.RoundGuardedQuotientToEven` scalar roots where they already serve
-  ordinary operators. Promote only the minimum access needed by the new
-  internal owners; do not duplicate them.
+  ordinary operators. Promote only the minimum access needed by the new internal
+  owners; do not duplicate them.
 
 - [x] **Step 1: Capture a clean green baseline before moving code.** Run the
       complete `Release` and `ReleaseLean` solutions, fresh exact coverage/CRAP,
@@ -2042,12 +2015,12 @@ Task 10 implementation completed on 2026-07-16. The nested `Signed192` and
 `Signed320` storage values moved verbatim to top-level internal structs;
 fixed-limb operations now have one `WideArithmetic` owner; exact coordinate
 products and geometry thresholds now have one `WideGeometry` owner; and the
-remaining `Fixed64.WideConversion` partial contains only operations whose
-result is Q32.32. Callers and internal-focused tests reference those owners
-directly. No public API, algorithm, constant, branch order, allocation,
-target-specific implementation, or compatibility forwarding layer was added.
-The deleted 1,286-line mixed-ownership partial is replaced by focused files of
-598, 333, 563, 30, and 34 lines, all below the repository warning threshold.
+remaining `Fixed64.WideConversion` partial contains only operations whose result
+is Q32.32. Callers and internal-focused tests reference those owners directly.
+No public API, algorithm, constant, branch order, allocation, target-specific
+implementation, or compatibility forwarding layer was added. The deleted
+1,286-line mixed-ownership partial is replaced by focused files of 598, 333,
+563, 30, and 34 lines, all below the repository warning threshold.
 
 The clean baseline and final validation match exactly: `Release` passed 1,393
 FixedMathSharp plus 8 Chronicler tests, while `ReleaseLean` passed 1,372 plus 8;
@@ -2059,20 +2032,20 @@ line coverage, and the complexity register now records the focused owners.
 
 All twelve identical short benchmark rows remained at 0 B. Final medians were
 21.445 ns (2D closest point), 26.717 ns (2D squared distance), 36.496 ns (2D
-unique intersection repeat), 304.212 ns (2D closest pair), 26.788 ns (3D
-closest point), 36.583 ns (3D squared distance), 9.972 ns (2D triangle area),
-28.913 ns (2D containment), 131.560 ns (2D triangle closest point), 66.497 ns
-(`GetPoint`), 207.484 ns (barycentric weights), and 75.162 us (3D closest
-pair). Every row was neutral or faster than its immediate baseline after one
-measured ownership-boundary correction: disassembly showed the relocated exact
-2D cross product remained behind two hot calls, so its existing behavior gained
-one targeted `AggressiveInlining` hint. Speculative hints on threshold helpers
-were measured, showed no benefit, and were removed.
+unique intersection repeat), 304.212 ns (2D closest pair), 26.788 ns (3D closest
+point), 36.583 ns (3D squared distance), 9.972 ns (2D triangle area), 28.913 ns
+(2D containment), 131.560 ns (2D triangle closest point), 66.497 ns
+(`GetPoint`), 207.484 ns (barycentric weights), and 75.162 us (3D closest pair).
+Every row was neutral or faster than its immediate baseline after one measured
+ownership-boundary correction: disassembly showed the relocated exact 2D cross
+product remained behind two hot calls, so its existing behavior gained one
+targeted `AggressiveInlining` hint. Speculative hints on threshold helpers were
+measured, showed no benefit, and were removed.
 
-A fresh independent reviewer normalized and compared every relocated method
-body against the committed implementation and found the ownership split exact.
-Their only note was an encoding-only UTF-8 BOM change in `Fixed64.Tests.cs`; the
-BOM was restored, the reviewer verified the resolution, and the final review is
+A fresh independent reviewer normalized and compared every relocated method body
+against the committed implementation and found the ownership split exact. Their
+only note was an encoding-only UTF-8 BOM change in `Fixed64.Tests.cs`; the BOM
+was restored, the reviewer verified the resolution, and the final review is
 approved with no remaining findings. All Task 10 changes remain unstaged for
 owner review.
 
@@ -2086,23 +2059,20 @@ owner review.
 
 - Modify: `src/FixedMathSharp/Numerics/Wide/WideArithmetic.cs`
 - Modify: `src/FixedMathSharp/Numerics/Wide/WideGeometry.cs`
-- Modify:
-  `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideConversion.cs`
+- Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideConversion.cs`
 - Modify: `src/FixedMathSharp/Geometry/Primitives/FixedTriangle.cs`
 - Modify: `docs/wiki/bounds-and-geometry.md`
 - Modify: `docs/complexity-exceptions.md` only from fresh metrics.
-- Test:
-  `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
-- Test:
-  `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedTriangle.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
+- Test: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedTriangle.Tests.cs`
 - Benchmark: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 
 **Interfaces:**
 
 - Consumes: Task 5's scale-relative vector normalization, Task 7's exact
   three-component dots and `Signed320` determinant arithmetic, Task 9's
-  full-domain barycentric interpolation/conversion policy, and Task 10's
-  focused internal wide owners.
+  full-domain barycentric interpolation/conversion policy, and Task 10's focused
+  internal wide owners.
 - Produces: no new public API. The existing `FixedTriangle` surface gains a
   complete raw-coordinate intermediate contract:
 
@@ -2132,22 +2102,22 @@ public partial struct FixedTriangle
   round-half-to-even and signed saturation; winding reversal negates the exact
   components before conversion.
 - Compute squared-normal magnitude as the exact nonnegative sum of three
-  `Signed192` component squares in `Signed320`. `Area` obtains the integer square
-  root plus remainder, divides by two at the Q32.32 boundary, rounds once to
-  even, and positively saturates. `IsDegenerate` compares the exact squared
+  `Signed192` component squares in `Signed320`. `Area` obtains the integer
+  square root plus remainder, divides by two at the Q32.32 boundary, rounds once
+  to even, and positively saturates. `IsDegenerate` compares the exact squared
   magnitude to the existing epsilon contract before any public conversion.
 - `Normal` derives direction from the exact cross components, not the saturated
   `UnnormalizedNormal`. Retain 63 significant bits under one common
   deterministic scale to obtain each initial raw candidate, then select that
   candidate or its adjacent raw value by exactly comparing the squared
   round-half-to-even midpoint against the `Signed320` squared magnitude. The
-  comparison uses six fixed local limbs in `WideArithmetic`; do not add a
-  public or general-purpose 384-bit number type. Final components must match the
+  comparison uses six fixed local limbs in `WideArithmetic`; do not add a public
+  or general-purpose 384-bit number type. Final components must match the
   test-only exact `crossComponent / sqrt(squaredMagnitude)` oracle.
 - Projected barycentric solving uses exact `Signed192` dot values and
   `Signed320` Gram denominator/numerators. Convert all three weights
-  independently through a new internal signed `Signed320` ratio overload; do
-  not calculate `weightA` through saturating `Fixed64` subtraction. Preserve the
+  independently through a new internal signed `Signed320` ratio overload; do not
+  calculate `weightA` through saturating `Fixed64` subtraction. Preserve the
   existing `abs(denominator) <= Fixed64.Epsilon` failure threshold and three
   zero outputs.
 - `ClosestPoint` retains the current vertex/edge/face Voronoi-region algorithm,
@@ -2170,8 +2140,8 @@ public partial struct FixedTriangle
       differences, all three signed cross components, their roughly 260-bit
       squared sum, integer square root/remainder, final area and normalized
       component conversion, `Signed320` Gram products/ratios, and exact
-      three-component squared-distance ordering. Keep arbitrary precision out
-      of production.
+      three-component squared-distance ordering. Keep arbitrary precision out of
+      production.
 - [x] **Step 3: Add centroid and unnormalized-normal red tests.** Cover vertex
       permutations containing `MinValue`/`MaxValue`, exact thirds, both
       windings, independent component cancellation, 65-bit differences, and
@@ -2207,10 +2177,10 @@ public partial struct FixedTriangle
       `FixedMath.Average`; compute unnormalized normal, normal, area, and
       degeneracy from the shared exact cross/squared-magnitude state. Document
       public rounding, saturation, winding, and zero-normal behavior.
-- [x] **Step 10: Harden projected weights and closest-point regions.** Use
-      exact Gram numerators/denominator and independent final ratios; replace
-      every saturating region predicate and degenerate edge-distance comparison
-      with the shared wide operations. Reuse full-domain interpolation for the
+- [x] **Step 10: Harden projected weights and closest-point regions.** Use exact
+      Gram numerators/denominator and independent final ratios; replace every
+      saturating region predicate and degenerate edge-distance comparison with
+      the shared wide operations. Reuse full-domain interpolation for the
       returned point.
 - [x] **Step 11: Run focused and complete validation** in `Release` and
       `ReleaseLean`, then fresh exact coverage/CRAP. Cover every new word,
@@ -2218,13 +2188,13 @@ public partial struct FixedTriangle
       region, degeneracy, and stable-tie branch; register only fully covered
       methods above the complexity threshold.
 - [x] **Step 12: Rerun all seven 3D triangle benchmark rows.** Require 0 B and
-      optimize shared word operations if ordinary inputs regress materially.
-      Do not restore saturating predicates or approximate the exact normal merely
+      optimize shared word operations if ordinary inputs regress materially. Do
+      not restore saturating predicates or approximate the exact normal merely
       to match the legacy timings.
 - [x] **Step 13: Update geometry documentation** with exact intermediate
       ownership, unnormalized/public conversion behavior, normal/area rounding,
-      projected barycentric failure semantics, closest-region/tie order, and
-      the explicit ray-quadratic exclusion.
+      projected barycentric failure semantics, closest-region/tie order, and the
+      explicit ray-quadratic exclusion.
 - [x] **Step 14: Independent review and owner checkpoint.** Have a fresh agent
       review the complete source/test/docs diff, leave every change unstaged,
       and provide a non-breaking feature commit message.
@@ -2253,11 +2223,11 @@ branches. Every Task 11 production line and branch is covered: `FixedTriangle`
 has only its pre-existing `Equals(object)` false branch outstanding, and
 `Fixed64.WideConversion` only the pre-existing `Signed192` exact-negative-limit
 branch. The new `Signed320` ratio has complexity 52 at 100% line/branch;
-`FixedTriangle.ClosestPoint` is 32 at 100%/100%; the full and common-width square
-roots are 15 and 14 at 100%/100%; and normalized midpoint conversion plus all
-coordinate-product fast/fallback paths are 100%/100%. The refreshed CRAP report
-analyzes 1,482 methods and records four scores above 30, all in the exception
-register.
+`FixedTriangle.ClosestPoint` is 32 at 100%/100%; the full and common-width
+square roots are 15 and 14 at 100%/100%; and normalized midpoint conversion plus
+all coordinate-product fast/fallback paths are 100%/100%. The refreshed CRAP
+report analyzes 1,482 methods and records four scores above 30, all in the
+exception register.
 
 All seven final ShortRun rows remained at 0 B. Final means were 348.71 ns
 (`Area`), 32.03 ns (`UnnormalizedNormal`), 1,258.88 ns (`Normal`), 163.58 ns
@@ -2267,14 +2237,14 @@ and three independent Gram ratios carry a deliberate ordinary-input premium;
 `GetPoint` remained neutral. Before accepting that cost, a measured optimization
 pass added a proven 192-bit root path, reused component squares and five shared
 Voronoi basis dots, removed discarded normal-square work, and selected raw
-product fast paths only when all endpoint differences fit. Those changes cut
-the first exact implementation from 447.34 to 348.71 ns for area, 84.28 to
-32.03 ns for unnormalized normal, 1,411.70 to 1,258.88 ns for normal, 192.97 to
-163.58 ns for containment, 174.19 to 160.18 ns for closest point, and 412.43 to
-396.27 ns for projected weights without weakening the full-domain contract.
+product fast paths only when all endpoint differences fit. Those changes cut the
+first exact implementation from 447.34 to 348.71 ns for area, 84.28 to 32.03 ns
+for unnormalized normal, 1,411.70 to 1,258.88 ns for normal, 192.97 to 163.58 ns
+for containment, 174.19 to 160.18 ns for closest point, and 412.43 to 396.27 ns
+for projected weights without weakening the full-domain contract.
 
-The fresh independent review found one remaining split-rounding defect after
-the initial verification: `DistanceSquared` still delegated to component-wise
+The fresh independent review found one remaining split-rounding defect after the
+initial verification: `DistanceSquared` still delegated to component-wise
 `Vector3d.DistanceSquared`, allowing three separately rounded squares to move a
 point across the inclusive containment boundary. The raw
 `(46_341, 46_341, 1_047_551)` regression reproduced 257 instead of the exact
@@ -2387,15 +2357,16 @@ internal static bool TryResolveVelocityDelta(
 - Replaced the arithmetic-driven CCD mobility cutoff with fused,
   component-atomic velocity-delta resolution. Both participant deltas are
   computed before either body mutates; zero mobility succeeds with zero delta,
-  representable near-singular responses such as `65536` are retained, and
-  final overflow returns `default` without partial component output. Each
+  representable near-singular responses such as `65536` are retained, and final
+  overflow returns `default` without partial component output. Each
   participant's response normal is projected through that body's mobility
-  constraints before fusion, so discarded frozen-axis components cannot cause
-  a false overflow rejection. Full 2D/3D body regressions distinguish that
+  constraints before fusion, so discarded frozen-axis components cannot cause a
+  false overflow rejection. Full 2D/3D body regressions distinguish that
   representable frozen-axis response from genuine overflow on an allowed
   component and prove the latter cannot apply a one-sided impulse.
 - Fresh local-source verification passed all 2,657 Gravitas `Release` tests and
-  all 2,618 `ReleaseLean` tests, with both `netstandard2.1` library builds clean.
+  all 2,618 `ReleaseLean` tests, with both `netstandard2.1` library builds
+  clean.
 
 ---
 
@@ -2445,9 +2416,9 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
   consumers validate authored scale ancestry and use the genuine `LossyScale`
   world approximation.
 - `FixedTransform.LocalScale` permits signed/zero authored scale, but Gravitas
-  admits only strictly positive authored local scale throughout the ancestry
-  and strictly positive canonical world scale on every consumed collider axis.
-  This rejects even reflection pairs that canonical `LossyScale` cannot expose.
+  admits only strictly positive authored local scale throughout the ancestry and
+  strictly positive canonical world scale on every consumed collider axis. This
+  rejects even reflection pairs that canonical `LossyScale` cannot expose.
   Invalid standalone or compound scale fails explicitly before body
   registration, bounds, radius, inertia, mesh, or partition state is built; no
   component-wise absolute-value fallback is used.
@@ -2476,8 +2447,8 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
       initialization, and runtime scale rebuilds. Require one explicit failure
       contract before body registration or shape/partition mutation; retain
       positive nonuniform-scale behavior. Prove `FixedTransform.LocalScale`
-      still stores the rejected signed value so the policy boundary is
-      Gravitas, not hidden math loss.
+      still stores the rejected signed value so the policy boundary is Gravitas,
+      not hidden math loss.
 - [x] **Step 5: Replace manual X/Z transform projection** in 2D body/collider
       host paths with `WorldPositionXZ` and `WorldRotationXZRadians`. Preserve
       host Y elevation and do not alter mixed-slab ownership. Route every
@@ -2512,13 +2483,13 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
       physical policy beside the caller rather than adding another general
       geometry wrapper.
 - [x] **Step 11: Run focused 2D, 3D, mixed, segment, triangle, mesh-contact,
-      scale, constraint, and
-      serialization tests in `Release` and `ReleaseLean`.** Confirm no
-      `PlanarSegmentGeometry`, `GetSafeQuaternionLog`, or manual `EulerAngles.Y`
-      2D host mapping remains, no ambiguous `Position`/`Rotation`/`Scale`
-      `FixedTransform` access remains, and every `LossyScale` caller validates
-      strictly positive authored ancestry and canonical world scale before body
-      registration or shape mutation.
+      scale, constraint, and serialization tests in `Release` and
+      `ReleaseLean`.** Confirm no `PlanarSegmentGeometry`,
+      `GetSafeQuaternionLog`, or manual `EulerAngles.Y` 2D host mapping remains,
+      no ambiguous `Position`/`Rotation`/`Scale` `FixedTransform` access
+      remains, and every `LossyScale` caller validates strictly positive
+      authored ancestry and canonical world scale before body registration or
+      shape mutation.
 - [x] **Step 12: Run the existing 2D simulation, mixed collision/query, and 3D
       constraint benchmark rows.** Require zero allocation regression and no
       material slowdown from value-type segment construction or planar
@@ -2526,8 +2497,8 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 - [x] **Step 13: Update coordinate documentation** with the explicit X/Z
       local/world property names, positive-angle basis, Y preservation,
       canonical Gravitas scalar rotation range, and the distinction between
-      general signed local transform scale, hierarchy-derived lossy world
-      scale, and strictly positive physics-collider dimensions.
+      general signed local transform scale, hierarchy-derived lossy world scale,
+      and strictly positive physics-collider dimensions.
 - [x] **Step 14: Owner review checkpoint.** Leave all Gravitas changes unstaged
       and provide a proposed commit message.
 
@@ -2535,8 +2506,8 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 
 - Deleted `PlanarSegmentGeometry` and the misleading 3D line helper usage;
   collision and query callers now consume `FixedSegment2d` and `FixedSegment`
-  directly while retaining only the tested capsule-axis collapse policy owned
-  by physics.
+  directly while retaining only the tested capsule-axis collapse policy owned by
+  physics.
 - Migrated host synchronization to explicit world/local `FixedTransform`
   contracts. Positive planar rotation now matches `Vector2d.Rotate`, dynamic
   publication and kinematic readback preserve world Y through atomic world-pose
@@ -2552,19 +2523,19 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 - Removed Gravitas's solver-local quaternion-log repair and now consumes the
   hardened FixedMathSharp implementation directly. The remaining twist limit is
   expressed as the decimal raw-unit policy value `4_096`.
-- Benchmarking exposed unnecessary root-matrix composition in the new
-  transform boundary. FixedMathSharp now fast-paths root world position,
-  normalized rotation, and nonnegative lossy scale without weakening canonical
-  signed/zero or hierarchy semantics. Median root reads improved from
-  `155.396 ns`, `22.276 ns`, and `336.891 ns` to `1.624 ns`, `1.617 ns`, and
-  `1.730 ns`, respectively, at `0 B`. Gravitas's representative final rows were
-  allocation-free for 2D integration, mixed sweeps, and mixed response; the
-  3D constraint row retained its existing `10 B` signal and improved from a
+- Benchmarking exposed unnecessary root-matrix composition in the new transform
+  boundary. FixedMathSharp now fast-paths root world position, normalized
+  rotation, and nonnegative lossy scale without weakening canonical signed/zero
+  or hierarchy semantics. Median root reads improved from `155.396 ns`,
+  `22.276 ns`, and `336.891 ns` to `1.624 ns`, `1.617 ns`, and `1.730 ns`,
+  respectively, at `0 B`. Gravitas's representative final rows were
+  allocation-free for 2D integration, mixed sweeps, and mixed response; the 3D
+  constraint row retained its existing `10 B` signal and improved from a
   `6.231 ms` to `5.372 ms` median within this task's before/after run.
 - The post-review ancestry admission/rebuild gate retained the hot-path signal:
-  2D integration medians were `63.247 us` for 64 bodies and `1.251 ms` for
-  1,024 bodies at `0 B`; the 32-link 3D constraint median was `4.978 ms` with
-  the existing amortized allocation signal reduced to `2 B` in the short run.
+  2D integration medians were `63.247 us` for 64 bodies and `1.251 ms` for 1,024
+  bodies at `0 B`; the 32-link 3D constraint median was `4.978 ms` with the
+  existing amortized allocation signal reduced to `2 B` in the short run.
 - Fresh FixedMathSharp verification passed 1,403 standard plus 8 Chronicler
   tests and 1,382 Lean plus 8 Lean Chronicler tests. Fresh Gravitas verification
   passed all 2,657 `Release` and 2,618 `ReleaseLean` tests, and both libraries
@@ -2778,10 +2749,9 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
   Q32.32 conversion. `FixedSegment2d` owns unique intersection and closest-pair
   geometry, while `FixedSegment` owns full-domain 3D point projection, point
   distance, and symmetric finite closest pairs including tiny deltas whose
-  ordinary squared length resolves to zero.
-  `Vector3d.ClosestPointsOnTwoLines` is removed, and Gravitas contains no
-  `PlanarSegmentGeometry` or private equivalent wrapper where those primitives
-  apply.
+  ordinary squared length resolves to zero. `Vector3d.ClosestPointsOnTwoLines`
+  is removed, and Gravitas contains no `PlanarSegmentGeometry` or private
+  equivalent wrapper where those primitives apply.
 - `FixedTriangle2d` computes centroid/interpolation without premature
   saturation, classifies signed area, degeneracy, containment, and barycentric
   ratios from exact wide intermediates, and orders closest edges by exact raw
@@ -2793,10 +2763,10 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
   `Fixed64.WideConversion` owns Q32.32 conversion. No production source file
   exceeds the repository's roughly 1,000-line warning due to unrelated wide
   responsibilities remaining combined.
-- `FixedTriangle` computes its cross components, squared-normal magnitude,
-  area, normal, degeneracy, projected barycentric ratios, closest-point region
-  decisions, and edge-distance ordering from exact wide intermediates across
-  the complete raw coordinate domain. Public values retain deterministic
+- `FixedTriangle` computes its cross components, squared-normal magnitude, area,
+  normal, degeneracy, projected barycentric ratios, closest-point region
+  decisions, and edge-distance ordering from exact wide intermediates across the
+  complete raw coordinate domain. Public values retain deterministic
   round-half-to-even/saturating behavior, and stable degenerate/tie ordering is
   documented and tested.
 - Gravitas authoritative planar rotation uses the single half-open `[-Pi, Pi)`
