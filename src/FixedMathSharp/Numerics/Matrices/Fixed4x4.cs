@@ -411,10 +411,6 @@ public partial struct Fixed4x4 : IEquatable<Fixed4x4>, IFormattable
             - M14 * (M21 * minor2 - M22 * cofactor1 + M23 * cofactor2);
     }
 
-    /// <inheritdoc cref="Fixed4x4.ResetScaleToIdentity(Fixed4x4)" />
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Fixed4x4 ResetScaleToIdentity() => this = ResetScaleToIdentity(this);
-
     /// <summary>
     /// Sets the translation, scale, and rotation components onto the matrix.
     /// </summary>

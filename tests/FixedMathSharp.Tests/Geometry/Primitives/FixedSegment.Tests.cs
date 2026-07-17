@@ -361,6 +361,7 @@ public class FixedSegmentTests
         Assert.Equal(new Vector3d(1, 2, 3), start);
         Assert.Equal(new Vector3d(4, 5, 6), end);
         Assert.True(segment == same);
+        Assert.True(segment.Equals((object)same));
         Assert.False(segment != same);
         Assert.Equal(segment.GetHashCode(), same.GetHashCode());
         Assert.Equal(segment.Bounds, reversed.Bounds);

@@ -409,6 +409,7 @@ public class FixedSegment2dTests
         Assert.Equal(new Vector2d(1, 2), start);
         Assert.Equal(new Vector2d(3, 4), end);
         Assert.True(segment == same);
+        Assert.True(segment.Equals((object)same));
         Assert.False(segment != same);
         Assert.Equal(segment.GetHashCode(), same.GetHashCode());
         Assert.NotEqual(segment, reversed);

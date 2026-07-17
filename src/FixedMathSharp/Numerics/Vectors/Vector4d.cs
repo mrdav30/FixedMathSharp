@@ -609,7 +609,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
             return true;
         }
 
-        magnitude = mag != Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
+        magnitude = FixedMath.Sqrt(mag);
         return true;
     }
 

@@ -174,6 +174,12 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void Normalize_ZeroVector_ReturnsZeroVector()
+    {
+        Assert.Equal(Vector3d.Zero, Vector3d.Zero.Normalized);
+    }
+
+    [Fact]
     public void NormalizeInPlace_ProducesUnitVector()
     {
         var vector = new Vector3d(0, 0, 5);

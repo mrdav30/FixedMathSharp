@@ -132,20 +132,11 @@ public partial struct FixedBoundCircle : IEquatable<FixedBoundCircle>
     }
 
     /// <summary>
-    /// Gets or sets the current normalized state of the circle.
+    /// Gets the current normalized state of the circle.
     /// </summary>
     [JsonInclude]
     [MemoryPackInclude]
-    public BoundingCircleState State
-    {
-        get => new(Center, Radius);
-
-        internal set
-        {
-            Center = value.Center;
-            Radius = value.Radius;
-        }
-    }
+    public BoundingCircleState State => new(Center, Radius);
 
     #endregion
 

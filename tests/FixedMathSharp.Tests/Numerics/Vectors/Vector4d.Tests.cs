@@ -169,6 +169,15 @@ public class Vector4dTests
     }
 
     [Fact]
+    public void TryGetMagnitude_WhenSquaredSumCarriesBeyond128Bits_ReturnsFalse()
+    {
+        Assert.False(Vector4d.TryGetMagnitude(
+            new Vector4d(Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue),
+            out Fixed64 magnitude));
+        Assert.Equal(Fixed64.MaxValue, magnitude);
+    }
+
+    [Fact]
     public void CompareMagnitudeSquared_OrdersVectorsAcrossUnsigned128Overflow()
     {
         var shorter = new Vector4d(

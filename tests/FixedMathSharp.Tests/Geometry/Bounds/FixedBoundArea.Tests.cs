@@ -267,6 +267,7 @@ public class FixedBoundAreaTests
         var b = FixedBoundArea.FromMinMax(new Vector2d(-1, -1), new Vector2d(3, 5));
 
         Assert.True(a.Equals(b));
+        Assert.True(a.Equals((object)b));
         Assert.True(a == b);
         Assert.False(a != b);
         Assert.Equal(a.GetHashCode(), b.GetHashCode());

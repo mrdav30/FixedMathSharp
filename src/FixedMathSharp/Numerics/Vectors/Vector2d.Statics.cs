@@ -221,7 +221,7 @@ public partial struct Vector2d
             return true;
         }
 
-        magnitude = mag.Abs() > Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
+        magnitude = FixedMath.Sqrt(mag);
         return true;
     }
 

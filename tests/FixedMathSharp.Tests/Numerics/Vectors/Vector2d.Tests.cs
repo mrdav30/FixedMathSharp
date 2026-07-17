@@ -153,6 +153,11 @@ public class Vector2dTests
         Assert.True(Vector2d.CompareMagnitudeSquared(shorter, longer) < 0);
         Assert.True(Vector2d.CompareMagnitudeSquared(longer, shorter) > 0);
         Assert.Equal(0, Vector2d.CompareMagnitudeSquared(longer, -longer));
+
+        var oneRaw = new Vector2d(Fixed64.FromRaw(1), Fixed64.Zero);
+        var twoRaw = new Vector2d(Fixed64.FromRaw(2), Fixed64.Zero);
+        Assert.True(Vector2d.CompareMagnitudeSquared(oneRaw, twoRaw) < 0);
+        Assert.True(Vector2d.CompareMagnitudeSquared(twoRaw, oneRaw) > 0);
     }
 
     [Fact]

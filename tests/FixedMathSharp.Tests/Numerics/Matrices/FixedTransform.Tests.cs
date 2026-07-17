@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -151,25 +150,6 @@ public sealed class FixedTransformTests
     }
 
     [Fact]
-    public void FixedTransform_RemovesAmbiguousApiAndPermissiveMatrixConstructor()
-    {
-        Type type = typeof(FixedTransform);
-        string[] removedProperties =
-        {
-            "Position", "Rotation", "Scale", "EulerAngles",
-            "PositionXZ", "RotationXZRadians", "ScaleXZ",
-        };
-
-        foreach (string propertyName in removedProperties)
-            Assert.Null(type.GetProperty(propertyName));
-
-        PropertyInfo? parent = type.GetProperty(nameof(FixedTransform.Parent));
-        Assert.NotNull(parent);
-        Assert.Null(parent.SetMethod);
-        Assert.Null(type.GetConstructor(new[] { typeof(Fixed4x4), typeof(FixedTransform) }));
-    }
-
-    [Fact]
     public void FixedTransform_RootWorldViews_MatchLocalComponents()
     {
         Vector3d position = new((Fixed64)3, (Fixed64)(-2), (Fixed64)7);
@@ -196,6 +176,23 @@ public sealed class FixedTransformTests
         Assert.Equal(position, transform.WorldPosition);
         Assert.Equal(transform.LocalRotation, transform.WorldRotation);
         Assert.Equal(scale, transform.LossyScale);
+    }
+
+    [Fact]
+    public void FixedTransform_NegativeYOrZRootScale_CanonicalizesReflectionToX()
+    {
+        var negativeY = new FixedTransform(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d(2, -3, 4));
+        var negativeZ = new FixedTransform(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d(2, 3, -4));
+
+        var canonicalScale = new Vector3d(-2, 3, 4);
+        Assert.Equal(canonicalScale, negativeY.LossyScale);
+        Assert.Equal(canonicalScale, negativeZ.LossyScale);
     }
 
     [Fact]

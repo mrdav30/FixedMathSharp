@@ -244,47 +244,6 @@ public class Fixed3x3Tests
     }
 
     [Fact]
-    public void Fixed3x3_SetGlobalScale_WorksWithoutRotation()
-    {
-        var initialScale = new Vector3d(2, 2, 2);
-        var globalScale = new Vector3d(4, 4, 4);
-
-        var matrix = Fixed3x3.Identity;
-        matrix.SetScale(initialScale);
-
-        matrix.SetGlobalScale(globalScale);
-
-        var extractedScale = Fixed3x3.ExtractScaleMagnitudes(matrix);
-        Assert.Equal(globalScale, extractedScale);
-    }
-
-    [Fact]
-    public void Fixed3x3_SetGlobalScale_WorksWithRotation()
-    {
-        var rotationMatrix = new Fixed3x3(
-            new Vector3d(0, 1, 0),   // Rotated X-axis
-            new Vector3d(-1, 0, 0),  // Rotated Y-axis
-            new Vector3d(0, 0, 1)    // Z-axis unchanged
-        );
-        var initialScale = new Vector3d(2, 2, 2);
-        var globalScale = new Vector3d(4, 4, 4);
-
-        // Apply initial scale
-        rotationMatrix.SetScale(initialScale);
-
-        // Set global scale
-        rotationMatrix.SetGlobalScale(globalScale);
-
-        // Extract final scale
-        var extractedScale = Fixed3x3.ExtractLossyScale(rotationMatrix);
-
-        Assert.True(
-            extractedScale.FuzzyEqual(globalScale, Fixed64.FromDouble(0.01)),
-            $"Extracted scale {extractedScale} does not match expected {globalScale}."
-        );
-    }
-
-    [Fact]
     public void Fixed3x3_ReceiverShapedExtensions_MatchStaticImplementations()
     {
         var matrix = Fixed3x3.CreateScale(new Vector3d(2, 3, 4));

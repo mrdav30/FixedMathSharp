@@ -201,24 +201,6 @@ public partial struct Fixed4x4
     }
 
     /// <summary>
-    /// Sets the scale component of the 4x4 matrix by assigning the provided scale vector to the matrix's diagonal elements.
-    /// </summary>
-    /// <param name="matrix">The matrix to modify. Typically an identity or transformation matrix.</param>
-    /// <param name="scale">The new scale vector to apply along the X, Y, and Z axes.</param>
-    /// <remarks>
-    /// Best used for applying scale to an identity matrix or resetting the scale on an existing matrix.
-    /// For non-uniform scaling in combination with rotation, use <see cref="ApplyScaleToRotation"/>.
-    /// </remarks>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 SetScale(Fixed4x4 matrix, Vector3d scale)
-    {
-        matrix.M11 = scale.X;
-        matrix.M22 = scale.Y;
-        matrix.M33 = scale.Z;
-        return matrix;
-    }
-
-    /// <summary>
     /// Applies non-uniform scaling to the 4x4 matrix by multiplying the scale vector with the rotation matrix's basis vectors.
     /// </summary>
     /// <param name="matrix">The matrix to modify. Should already contain a valid rotation component.</param>
@@ -242,36 +224,6 @@ public partial struct Fixed4x4
         matrix.M33 *= scale.Z;
 
         return matrix;
-    }
-
-    /// <summary>
-    /// Resets the scaling part of the matrix to identity (1,1,1).
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed4x4 ResetScaleToIdentity(Fixed4x4 matrix)
-    {
-        matrix.M11 = Fixed64.One;  // X scale
-        matrix.M22 = Fixed64.One;  // Y scale
-        matrix.M33 = Fixed64.One;  // Z scale
-
-        return matrix;
-    }
-
-    /// <summary>
-    /// Sets the global scale of an object using a 4x4 transformation matrix.
-    /// </summary>
-    /// <param name="matrix">The transformation matrix representing the object's global state.</param>
-    /// <param name="globalScale">The desired global scale as a vector.</param>
-    /// <remarks>
-    /// The method extracts translation and rotation, then rebuilds the transform with the requested
-    /// scale so component mutation does not silently drop position or distort rotation.
-    /// </remarks>
-    public static Fixed4x4 SetGlobalScale(Fixed4x4 matrix, Vector3d globalScale)
-    {
-        Vector3d translation = ExtractTranslation(matrix);
-        FixedQuaternion rotation = ExtractRotation(matrix);
-
-        return CreateTransform(translation, rotation, globalScale);
     }
 
     /// <summary>

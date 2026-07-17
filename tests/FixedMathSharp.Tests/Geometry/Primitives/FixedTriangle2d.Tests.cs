@@ -428,6 +428,7 @@ public class FixedTriangle2dTests
         Assert.Equal(new Vector2d(3, 4), b);
         Assert.Equal(new Vector2d(5, 6), c);
         Assert.True(triangle == same);
+        Assert.True(triangle.Equals((object)same));
         Assert.False(triangle != same);
         Assert.Equal(triangle.GetHashCode(), same.GetHashCode());
         Assert.NotEqual(triangle, reordered);

@@ -145,17 +145,20 @@ public class FixedRay2dTests
         var ray = new FixedRay2d(new Vector2d(1, 2), Vector2d.Forward);
         var same = new FixedRay2d(new Vector2d(1, 2), Vector2d.Forward);
         var different = new FixedRay2d(new Vector2d(1, 2), Vector2d.Right);
+        var differentPosition = new FixedRay2d(new Vector2d(2, 2), Vector2d.Forward);
 
         ray.Deconstruct(out Vector2d position, out Vector2d direction);
 
         Assert.Equal(new Vector2d(1, 2), position);
         Assert.Equal(Vector2d.Forward, direction);
         Assert.True(ray == same);
+        Assert.True(ray.Equals((object)same));
         Assert.False(ray != same);
         Assert.Equal(ray.GetHashCode(), same.GetHashCode());
         Assert.NotEqual(ray, different);
         Assert.False(ray == different);
         Assert.True(ray != different);
+        Assert.False(ray.Equals(differentPosition));
         Assert.False(ray.Equals("not a ray"));
     }
 

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Reflection;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -622,19 +621,6 @@ public class MatrixScaleContractTests
         Assert.Equal(Vector3d.One, scale);
         Assert.False(FixedTransform.TryCreateFromLocalMatrix(matrix, out FixedTransform? transform));
         Assert.Null(transform);
-    }
-
-    [Fact]
-    public void MatrixScaleApi_ExposesOnlyExplicitNames()
-    {
-        BindingFlags publicStatic = BindingFlags.Public | BindingFlags.Static;
-
-        Assert.DoesNotContain(typeof(Fixed3x3).GetMethods(publicStatic), method => method.Name is "ExtractScale" or "SetLossyScale");
-        Assert.DoesNotContain(typeof(Fixed4x4).GetMethods(publicStatic), method => method.Name == "ExtractScale");
-        Assert.DoesNotContain(typeof(Fixed3x3Extensions).GetMethods(publicStatic), method => method.Name is "ExtractScale" or "SetLossyScale");
-        Assert.DoesNotContain(typeof(Fixed4x4Extensions).GetMethods(publicStatic), method => method.Name == "ExtractScale");
-        Assert.Null(typeof(Fixed4x4).GetProperty("Scale"));
-        Assert.NotNull(typeof(Fixed4x4).GetProperty("LossyScale"));
     }
 
     private static void AssertNormalizedBasisReconstructed(

@@ -740,52 +740,23 @@ public class Fixed4x4Tests
     }
 
     [Fact]
-    public void FixedMatrix4x4_SetGlobalScale_WorksWithoutRotation()
+    public void FixedMatrix4x4_ApplyScaleToRotation_ScalesOnlyBasisRows()
     {
-        var initialScale = new Vector3d(2, 2, 2);
-        var globalScale = new Vector3d(4, 4, 4);
+        Fixed4x4 matrix = Fixed4x4.FromRows(
+            new Vector4d(0, 0, -1, 0),
+            new Vector4d(0, 1, 0, 0),
+            new Vector4d(1, 0, 0, 0),
+            new Vector4d(5, 6, 7, 1));
 
-        var matrix = Fixed4x4.Identity;
-        matrix.SetTransform(Vector3d.Zero, FixedQuaternion.Identity, initialScale);
+        Fixed4x4 scaled = Fixed4x4.ApplyScaleToRotation(matrix, new Vector3d(2, 3, 4));
 
-        // Apply global scaling
-        matrix.SetGlobalScale(globalScale);
-
-        // Extract the final scale
-        Assert.Equal(globalScale, matrix.LossyScale);
-    }
-
-    [Fact]
-    public void FixedMatrix4x4_SetGlobalScale_WorksWithRotation()
-    {
-        var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi); // 90 degrees Y-axis
-        var initialScale = new Vector3d(2, 2, 2);
-        var globalScale = new Vector3d(4, 4, 4);
-
-        var matrix = Fixed4x4.Identity;
-        matrix.SetTransform(Vector3d.Zero, rotation, initialScale);
-
-        // Apply global scaling
-        matrix.SetGlobalScale(globalScale);
-
-        var extractedScale = matrix.LossyScale;
-
-        Assert.True(extractedScale.FuzzyEqual(globalScale, Fixed64.FromDouble(0.0001)));
-        Assert.True(matrix.Rotation.FuzzyEqual(rotation, Fixed64.FromDouble(0.0001)) ||
-                    matrix.Rotation.FuzzyEqual(rotation * -Fixed64.One, Fixed64.FromDouble(0.0001)));
-    }
-
-    [Fact]
-    public void FixedMatrix4x4_SetScale_UpdatesDiagonalComponents()
-    {
-        var matrix = Fixed4x4.CreateTranslation(new Vector3d(5, 6, 7));
-
-        var updated = Fixed4x4.SetScale(matrix, new Vector3d(2, 3, 4));
-
-        Assert.Equal(new Fixed64(2), updated.M11);
-        Assert.Equal(new Fixed64(3), updated.M22);
-        Assert.Equal(new Fixed64(4), updated.M33);
-        Assert.Equal(new Vector3d(5, 6, 7), updated.Translation);
+        Assert.Equal(
+            Fixed4x4.FromRows(
+                new Vector4d(0, 0, -2, 0),
+                new Vector4d(0, 3, 0, 0),
+                new Vector4d(4, 0, 0, 0),
+                new Vector4d(5, 6, 7, 1)),
+            scaled);
     }
 
     [Fact]
@@ -804,28 +775,12 @@ public class Fixed4x4Tests
     }
 
     [Fact]
-    public void FixedMatrix4x4_SetGlobalScale_PreservesTranslationAndRotation()
-    {
-        var translation = new Vector3d(5, 6, 7);
-        var rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)15, (Fixed64)30, (Fixed64)45);
-        var matrix = Fixed4x4.CreateTransform(translation, rotation, new Vector3d(2, 3, 4));
-
-        var updated = Fixed4x4.SetGlobalScale(matrix, new Vector3d(8, 9, 10));
-
-        Assert.Equal(translation, updated.Translation);
-        Assert.True(updated.LossyScale.FuzzyEqual(new Vector3d(8, 9, 10), Fixed64.FromDouble(0.0001)));
-        Assert.True(updated.Rotation.FuzzyEqual(rotation, Fixed64.FromDouble(0.0001)) ||
-                    updated.Rotation.FuzzyEqual(rotation * -Fixed64.One, Fixed64.FromDouble(0.0001)));
-    }
-
-    [Fact]
     public void FixedMatrix4x4_SetTranslationAndRotationExtensions_UpdateMatrixInPlace()
     {
-        var matrix = Fixed4x4.CreateTransform(new Vector3d(1, 1, 1), FixedQuaternion.Identity, new Vector3d(2, 2, 2));
+        var matrix = Fixed4x4.CreateTransform(new Vector3d(1, 1, 1), FixedQuaternion.Identity, new Vector3d(3, 4, 5));
         var rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
 
         matrix.SetTranslation(new Vector3d(7, 8, 9));
-        matrix.SetScale(new Vector3d(3, 4, 5));
         var updated = matrix.SetRotation(rotation);
 
         Assert.Equal(new Vector3d(7, 8, 9), matrix.Translation);

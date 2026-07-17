@@ -194,6 +194,7 @@ public class FixedBoundCircleTests
         var b = new FixedBoundCircle(new Vector2d(1, 2), new Fixed64(-4));
 
         Assert.True(a.Equals(b));
+        Assert.True(a.Equals((object)b));
         Assert.True(a == b);
         Assert.False(a != b);
         Assert.Equal(a.GetHashCode(), b.GetHashCode());

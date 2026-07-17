@@ -383,7 +383,7 @@ public partial struct Vector3d
             return true;
         }
 
-        magnitude = mag != Fixed64.Zero ? FixedMath.Sqrt(mag) : Fixed64.Zero;
+        magnitude = FixedMath.Sqrt(mag);
         return true;
     }
 

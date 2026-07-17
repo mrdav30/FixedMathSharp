@@ -40,14 +40,6 @@ public static class Fixed4x4Extensions
         out FixedQuaternion rotation,
         out Vector3d scale) => Fixed4x4.Decompose(matrix, out translation, out rotation, out scale);
 
-    /// <inheritdoc cref="Fixed4x4.SetGlobalScale(Fixed4x4, Vector3d)" />
-    public static Fixed4x4 SetGlobalScale(this ref Fixed4x4 matrix, Vector3d globalScale) =>
-        matrix = Fixed4x4.SetGlobalScale(matrix, globalScale);
-
-    /// <inheritdoc cref="Fixed4x4.SetScale(Fixed4x4, Vector3d)" />
-    public static Fixed4x4 SetScale(this ref Fixed4x4 matrix, Vector3d scale) =>
-        matrix = Fixed4x4.SetScale(matrix, scale);
-
     /// <inheritdoc cref="Fixed4x4.SetTranslation(Fixed4x4, Vector3d)" />
     public static Fixed4x4 SetTranslation(this ref Fixed4x4 matrix, Vector3d position) =>
         matrix = Fixed4x4.SetTranslation(matrix, position);

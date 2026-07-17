@@ -228,10 +228,6 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
     /// <inheritdoc cref="GetNormalized(Fixed3x3)" />
     public Fixed3x3 NormalizeInPlace() => this = GetNormalized(this);
 
-    /// <inheritdoc cref="ResetScaleToIdentity(Fixed3x3)" />
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Fixed3x3 ResetScaleToIdentity() => this = ResetScaleToIdentity(this);
-
     /// <summary>
     /// Calculates the determinant of a 3x3 matrix.
     /// </summary>
@@ -404,62 +400,6 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
         matrix.M31 = z.X; matrix.M32 = z.Y; matrix.M33 = z.Z;
 
         return matrix;
-    }
-
-    /// <summary>
-    /// Resets the scaling part of the matrix to identity (1,1,1).
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Fixed3x3 ResetScaleToIdentity(Fixed3x3 matrix)
-    {
-        matrix.M11 = Fixed64.One;  // Reset scale on X-axis
-        matrix.M22 = Fixed64.One;  // Reset scale on Y-axis
-        matrix.M33 = Fixed64.One;  // Reset scale on Z-axis
-        return matrix;
-    }
-
-    /// <summary>
-    /// Applies the provided local scale to the matrix by modifying the diagonal elements.
-    /// </summary>
-    /// <param name="matrix">The matrix to set the scale against.</param>
-    /// <param name="localScale">A Vector3d representing the local scale to apply.</param>
-    public static Fixed3x3 SetScale(Fixed3x3 matrix, Vector3d localScale)
-    {
-        matrix.M11 = localScale.X; // Apply scale on X-axis
-        matrix.M22 = localScale.Y; // Apply scale on Y-axis
-        matrix.M33 = localScale.Z; // Apply scale on Z-axis
-
-        return matrix;
-    }
-
-    /// <summary>
-    /// Sets the global scale of an object using FixedMatrix3x3.
-    /// Similar to SetGlobalScale for FixedMatrix4x4, but for a 3x3 matrix.
-    /// </summary>
-    /// <param name="matrix">The transformation matrix (3x3) representing the object's global state.</param>
-    /// <param name="globalScale">The desired global scale represented as a Vector3d.</param>
-    /// <remarks>
-    /// The method extracts the current global scale from the matrix and computes the new local scale 
-    /// by dividing the desired global scale by the current global scale. 
-    /// The new local scale is then applied to the matrix.
-    /// </remarks>
-    public static Fixed3x3 SetGlobalScale(Fixed3x3 matrix, Vector3d globalScale)
-    {
-        // normalize the matrix to avoid drift in the rotation component
-        matrix.NormalizeInPlace();
-
-        // Reset the local scaling portion of the matrix
-        matrix.ResetScaleToIdentity();
-
-        // Compute the new local scale by dividing the desired global scale by the current global scale
-        Vector3d newLocalScale = new(
-            globalScale.X / Fixed64.One,
-            globalScale.Y / Fixed64.One,
-            globalScale.Z / Fixed64.One
-        );
-
-        // Apply the new local scale to the matrix
-        return matrix.SetScale(newLocalScale);
     }
 
     /// <summary>

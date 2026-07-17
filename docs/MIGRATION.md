@@ -203,14 +203,20 @@ view fits the consuming system.
 Matrix scale APIs now distinguish unsigned basis magnitudes from a canonical
 signed lossy view:
 
-| v6.x surface                    | v7.x replacement                       |
-| ------------------------------- | -------------------------------------- |
-| `Fixed3x3.ExtractScale(...)`    | `Fixed3x3.ExtractScaleMagnitudes(...)` |
-| `matrix3x3.ExtractScale()`      | `matrix3x3.ExtractScaleMagnitudes()`   |
-| `Fixed4x4.ExtractScale(...)`    | `Fixed4x4.ExtractScaleMagnitudes(...)` |
-| `matrix4x4.ExtractScale()`      | `matrix4x4.ExtractScaleMagnitudes()`   |
-| `Fixed4x4.Scale`                | `Fixed4x4.LossyScale`                  |
-| `Fixed3x3.SetLossyScale(scale)` | `Fixed3x3.CreateScale(scale)`          |
+| v6.x surface                                | v7.x replacement                                 |
+| ------------------------------------------- | ------------------------------------------------ |
+| `Fixed3x3.ExtractScale(...)`                | `Fixed3x3.ExtractScaleMagnitudes(...)`           |
+| `matrix3x3.ExtractScale()`                  | `matrix3x3.ExtractScaleMagnitudes()`             |
+| `Fixed4x4.ExtractScale(...)`                | `Fixed4x4.ExtractScaleMagnitudes(...)`           |
+| `matrix4x4.ExtractScale()`                  | `matrix4x4.ExtractScaleMagnitudes()`             |
+| `Fixed4x4.Scale`                            | `Fixed4x4.LossyScale`                            |
+| `Fixed3x3.SetLossyScale(scale)`             | `Fixed3x3.CreateScale(scale)`                    |
+| `Fixed3x3.SetScale(...)`                    | `Fixed3x3.CreateScale(...)` for pure scale       |
+| `Fixed3x3.ResetScaleToIdentity(...)`        | Own rotation and scale components explicitly    |
+| `Fixed3x3.SetGlobalScale(...)`              | Own rotation and scale components explicitly    |
+| `Fixed4x4.SetScale(...)`                    | Checked `Decompose` + `CreateTransform`          |
+| `Fixed4x4.ResetScaleToIdentity(...)`        | Checked `Decompose` + `CreateTransform`          |
+| `Fixed4x4.SetGlobalScale(...)`              | Checked `Decompose` + `CreateTransform`          |
 
 `ExtractScaleMagnitudes` always returns nonnegative basis magnitudes.
 `ExtractLossyScale` and `Fixed4x4.LossyScale` now derive basis magnitudes and
@@ -218,15 +224,28 @@ assign an odd reflection's canonical negative sign to X. They no longer return
 the matrix diagonal. If a caller genuinely needs diagonal entries, read `M11`,
 `M22`, and `M33` explicitly and do not label them scale.
 
+`SetScale` and `ResetScaleToIdentity` only overwrote diagonal entries and
+corrupted rotated bases. Construct a pure scale matrix with `CreateScale`.
+`SetGlobalScale` was also removed: a matrix value has no parent or global
+context, and these mutation APIs had no failure channel for reflections, shear,
+or singular rows. For 3x3 transforms, keep authored rotation and scale as
+explicit components instead. `Fixed3x3.GetNormalized` is not a general
+reflected-scale remover.
+
 `Fixed4x4.Decompose(...)` keeps its Boolean signature but now returns `false`
 for matrices that are not valid affine orthogonal TRS values. Check the result:
 
 ```csharp
 if (!Fixed4x4.Decompose(matrix, out Vector3d translation,
-        out FixedQuaternion rotation, out Vector3d scale))
+        out FixedQuaternion rotation, out _))
 {
-    // Handle non-TRS input explicitly.
+    throw new InvalidOperationException("Matrix is not a valid affine TRS value.");
 }
+
+Fixed4x4 rebuilt = Fixed4x4.CreateTransform(
+    translation,
+    rotation,
+    desiredScale); // Use Vector3d.One to remove scale.
 ```
 
 ### Full-Domain Segment And Triangle Geometry

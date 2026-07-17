@@ -520,6 +520,7 @@ public class FixedTriangleTests
         Assert.Equal(new Vector3d(4, 5, 6), b);
         Assert.Equal(new Vector3d(7, 8, 9), c);
         Assert.True(triangle == same);
+        Assert.True(triangle.Equals((object)same));
         Assert.False(triangle != same);
         Assert.Equal(triangle.GetHashCode(), same.GetHashCode());
         Assert.NotEqual(triangle, reordered);

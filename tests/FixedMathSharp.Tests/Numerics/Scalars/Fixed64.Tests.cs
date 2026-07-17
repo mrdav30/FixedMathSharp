@@ -678,6 +678,7 @@ public class Fixed64Tests
             (BigInteger.One << 64, BigInteger.One << 33),
             (-((BigInteger.One << 64) - 1), BigInteger.One << 33),
             (-(BigInteger.One << 64), BigInteger.One << 33),
+            (-(BigInteger.One << 64), (BigInteger.One << 33) + 1),
             (-((BigInteger.One << 64) + 1), BigInteger.One << 33),
         };
 
@@ -1923,18 +1924,6 @@ public class Fixed64Tests
         Assert.True(comparer.Equals(new Fixed64(2), new Fixed64(2)));
         Assert.False(comparer.Equals(new Fixed64(2), new Fixed64(3)));
         Assert.Equal(new Fixed64(2).GetHashCode(), comparer.GetHashCode(new Fixed64(2)));
-    }
-
-    [Fact]
-    public void CountLeadingZeroes_InternalHelper_ReturnsExpectedCounts()
-    {
-        var method = typeof(Fixed64).GetMethod(
-            "CountLeadingZeroes",
-            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-
-        Assert.NotNull(method);
-        Assert.Equal(63, (int)method!.Invoke(null, new object[] { 1UL })!);
-        Assert.Equal(0, (int)method.Invoke(null, new object[] { 0x8000000000000000UL })!);
     }
 
     [Fact]

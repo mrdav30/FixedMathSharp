@@ -169,20 +169,11 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     }
 
     /// <summary>
-    /// Gets or sets the current normalized state of the sphere.
+    /// Gets the current normalized state of the sphere.
     /// </summary>
     [JsonInclude]
     [MemoryPackInclude]
-    public BoundingSphereState State
-    {
-        get => new(Center, Radius);
-
-        internal set
-        {
-            Center = value.Center;
-            Radius = value.Radius;
-        }
-    }
+    public BoundingSphereState State => new(Center, Radius);
 
     #endregion
 
