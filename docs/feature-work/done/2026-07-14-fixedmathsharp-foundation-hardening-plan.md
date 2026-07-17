@@ -1,4 +1,4 @@
-# FixedMathSharp Foundation Hardening Implementation Plan
+# FixedMathSharp Foundation Hardening Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` (recommended) or
@@ -30,6 +30,10 @@ policy such as GJK scaling, solver thresholds, and contact-cache compatibility.
 `FixedTriangle`, and `FixedTransform`, internal `Signed192`/`Signed320` limb
 arithmetic, xUnit v3, BenchmarkDotNet, Gravitas 2D/3D/mixed collision, queries,
 constraints, and CCD.
+
+**Status:** Complete on 2026-07-17. Tasks 1 through 15 were reviewed and
+committed. Sequential package releases and temporary project-reference cleanup
+remain tracked by Gravitas's issue tracker rather than reopening this plan.
 
 ## Global Constraints
 
@@ -175,7 +179,11 @@ constraints, and CCD.
     quadratics remain a separate future problem and are not pulled into this
     task.
 
-## Current Review Findings
+## Historical Review Findings (Resolved)
+
+Tasks 1 through 15 closed the findings below. Scale-sensitive relative-CCD
+quadratic saturation remains separately tracked in Gravitas's issue tracker and
+was not part of this plan.
 
 - `Fixed64.operator /` has claimed round-half-to-even behavior since the initial
   repository commit, but it increments every guarded quotient with a low bit of
@@ -1396,7 +1404,7 @@ depended on matrix-canonicalized scale or rotation values.
 
 ### Task 8A: Engine-Neutral FixedTransform Hierarchy Contract
 
-**Status:** Complete on 2026-07-16; awaiting owner review.
+**Status:** Complete and committed on 2026-07-16 as `a1b5579`.
 
 **Files:**
 
@@ -2045,15 +2053,15 @@ measured, showed no benefit, and were removed.
 A fresh independent reviewer normalized and compared every relocated method body
 against the committed implementation and found the ownership split exact. Their
 only note was an encoding-only UTF-8 BOM change in `Fixed64.Tests.cs`; the BOM
-was restored, the reviewer verified the resolution, and the final review is
-approved with no remaining findings. All Task 10 changes remain unstaged for
-owner review.
+was restored, the reviewer verified the resolution, and the final review was
+approved with no remaining findings. The owner reviewed and committed Task 10 as
+`fe3928f`.
 
 ---
 
 ### Task 11: Full-Domain FixedTriangle Geometry
 
-**Status:** Complete on 2026-07-16; awaiting owner review and commit.
+**Status:** Complete and committed on 2026-07-16 as `f42fd2c`.
 
 **Files:**
 
@@ -2258,6 +2266,8 @@ approved the complete unstaged diff with no remaining findings.
 
 ### Task 12: Gravitas Consumes FixedMathSharp Arithmetic
 
+**Status:** Complete and committed on 2026-07-16 as part of Gravitas `1d1f29f`.
+
 **Files:**
 
 - Delete: `src/Gravitas/Support/FixedVectorDifference.cs`
@@ -2371,6 +2381,9 @@ internal static bool TryResolveVelocityDelta(
 ---
 
 ### Task 13: Gravitas Consumes FixedMathSharp Geometry And Planar Contracts
+
+**Status:** Complete and committed on 2026-07-16 through FixedMathSharp
+`bd10d15` and Gravitas `1d1f29f`.
 
 **Files:**
 
@@ -2575,8 +2588,8 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 - Triangle sweep-source misuse and circle-slab target-normal misuse now throw
   `InvalidOperationException` through `SwiftThrowHelper` in every build instead
   of disappearing in Release or falling through to a null dereference.
-- Query-cone and general convex support now share one support-direction resolver,
-  whose existing zero-direction regression enforces the deterministic
+- Query-cone and general convex support now share one support-direction
+  resolver, whose existing zero-direction regression enforces the deterministic
   `Vector3d.Right` tie-break.
 - The 25 focused query/support tests pass in both `Release` and `ReleaseLean`.
   Runtime-source scans contain no `Debug.Assert`, `Debug.Fail`, `Trace.Assert`,
@@ -2589,7 +2602,7 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 
 ### Task 15: Re-Achieve 100% FixedMathSharp Coverage
 
-**Status:** Implementation complete on 2026-07-17; awaiting owner review.
+**Status:** Complete and committed on 2026-07-17 as `d00d3e4`.
 
 **Files:**
 
@@ -2663,7 +2676,7 @@ dotnet test FixedMathSharp.slnx --configuration Release --no-restore
 dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 ```
 
-- [ ] **Step 9: Owner review checkpoint.** Leave all coverage tests, justified
+- [x] **Step 9: Owner review checkpoint.** Leave all coverage tests, justified
       dead-code removals, documentation, and generated artifacts unstaged and
       report the final test/line/branch/method/CRAP counts with a proposed
       commit message. Return to the Gravitas repository with `Pop-Location`
@@ -2674,8 +2687,8 @@ branches, and 5 uncovered methods. Focused exact tests plus removal of proven
 stale branches closed every gap. A semantic audit also removed the misleading
 `Fixed3x3` and `Fixed4x4` `ResetScaleToIdentity` pairs plus both
 `SetGlobalScale` and both `SetScale` static/ref-extension surfaces, documented
-explicit component ownership for v7 migration. The final Debug run passed
-1,398 FixedMathSharp plus 8 Chronicler tests and reports 8,679/8,679 lines,
+explicit component ownership for v7 migration. The final Debug run passed 1,398
+FixedMathSharp plus 8 Chronicler tests and reports 8,679/8,679 lines,
 2,924/2,924 branches, and 1,469/1,469 ReportGenerator methods. The CRAP analyzer
 scored 1,465 unique method identities; no method is uncovered, and the only
 scores above 30 are the four registered, fully covered complexity floors at 52,
@@ -2683,71 +2696,33 @@ scores above 30 are the four registered, fully covered complexity floors at 52,
 the redundant `CountLeadingZeroes` implementation-pinning test after public
 `BigInteger`-oracle paths recorded about 169,813 helper visits with full branch
 coverage. Release passed 1,398 plus 8 tests; ReleaseLean passed 1,377 plus 8
-tests. All changes and generated artifacts remain unstaged for owner review.
+tests. The owner reviewed and committed the complete Task 15 change as
+`d00d3e4`.
 
 ---
 
-### Task 16: Cross-Stack Validation And Documentation Closure
+### Task 16: Documentation Closure
 
-**Files:**
+**Status:** Complete on 2026-07-17.
 
-- Modify: `docs/feature-work/issue-tracker.md`
-- Modify: `docs/feature-work/feature-work-overview.md`
-- Modify: `../FixedMathSharp/docs/complexity-exceptions.md` only if a new method
-  exceeds the registered complexity threshold after coverage/CRAP analysis.
-- Modify: relevant FixedMathSharp XML documentation for every new public API.
-- Temporarily modify, then restore: dependency, test, and benchmark project
-  references in `../SwiftCollections`, `../GridForge`, and Gravitas.
-
-- [ ] **Step 1: Confirm Task 15's final merged artifact** still reports exact
-      100% line, branch, and method coverage, then run clean FixedMathSharp
-      `Release` and `ReleaseLean` package builds/tests from the reviewed tree.
-- [ ] **Step 2: Run the focused FixedMathSharp benchmark rows** for scalar
-      division, fused multiply-divide, vector `Try*`, magnitude/normalization,
-      degree/radian conversion, quaternion construction/log, projection, segment
-      geometry, 2D/3D triangle geometry, and `Vector2d.IsNormalized`. Record
-      medians and allocations.
-- [ ] **Step 3: Validate SwiftCollections, GridForge, and Gravitas** through
-      explicit local project references in each library, test, and benchmark
-      project that requires them. Treat this as source-integration evidence, not
-      package-release evidence.
-- [ ] **Step 4: Complete the owner-controlled FixedMathSharp release
-      checkpoint.** After local-source validation is accepted, restore any
-      consumer package links needed for a clean FixedMathSharp package build,
-      rerun its package-only `Release`/`ReleaseLean`/coverage gates, commit the
-      reviewed changes, and release the new FixedMathSharp package before
-      advancing a downstream manifest.
-- [ ] **Step 5: Advance the lower consumers sequentially against released
-      packages.** Replace SwiftCollections local links with the released
-      FixedMathSharp version, restore/build/test/benchmark its package-only
-      solution, then complete its owner release checkpoint. Repeat for GridForge
-      against the released FixedMathSharp and SwiftCollections versions, but do
-      not release GridForge until ordered issue 1,
-      `GridForge Reuses Grid Spawn Tokens Across Pooled Generations`, is fixed
-      and independently verified in its own reviewed change. Do not validate a
-      later package against an unreleased local dependency and call that release
+- [x] Confirm Task 15's final exact coverage artifact and full `Release` and
+      `ReleaseLean` results.
+- [x] Confirm every changed hot path has focused benchmark evidence in its
+      owning task. Do not repeat the entire historical benchmark matrix when no
+      implementation changed after those measurements.
+- [x] Update Gravitas's overview and issue tracker to mark this plan complete
+      while retaining sequential release and package-reference cleanup there.
+- [x] Request independent final review of the completed plan and documentation
       closure.
-- [ ] **Step 6: Restore Gravitas package references and run package-only
-      gates.** Remove every Gravitas local project link, update package
-      references to the released FixedMathSharp, SwiftCollections, and GridForge
-      versions, and restore from packages. Then run full `Release`,
-      `ReleaseLean`, exact coverage, replay, and the existing convex-sweep, 2D
-      simulation, mixed collision, and constraint benchmark rows. Require 100%
-      line and branch coverage, deterministic replay, and zero allocation
-      regression.
-- [ ] **Step 7: Update the issue tracker resolution record** with the arithmetic
-      ownership correction, division-rounding RCA, exact reciprocal identities,
-      full-domain quaternion normalization/conversion, quaternion-log endpoint
-      repair, multi-turn quaternion contract, component-backed transform and
-      explicit X/Z parity, focused internal wide ownership, full-domain segment
-      and 2D/3D triangle geometry, odd-raw GJK regression, final test counts,
-      coverage artifact, and benchmark evidence. Remove the previous claim that
-      the staged downstream arithmetic was already the final ownership boundary.
-- [ ] **Step 8: Request independent final review** of correctness, determinism,
-      API ownership, hot-path cost, and documentation consistency.
-- [ ] **Step 9: Move this plan to `docs/feature-work/done/`** and update the
-      overview only after all source-linked validation, sequential releases,
-      package-only gates, and independent review pass.
+- [x] Move this plan to `docs/feature-work/done/`.
+
+**Result:** FixedMathSharp's implementation, coverage, complexity, migration,
+and task-local benchmark evidence are complete. Downstream source integration
+was verified during Tasks 12 and 13. The owner-controlled FixedMathSharp,
+SwiftCollections, GridForge, and Gravitas package releases are operational
+follow-through, not unfinished FixedMathSharp implementation. Gravitas's local
+project references remain unstaged as requested; the issue tracker owns their
+sequential replacement with released packages and the package-only gates.
 
 ## Exit Criteria
 
@@ -2819,5 +2794,7 @@ tests. All changes and generated artifacts remain unstaged for owner review.
 - FixedMathSharp re-achieves 100% reachable line, branch, and method coverage
   without behavioral exclusions or hollow tests; Gravitas retains its 100% line
   and branch gates, and all measured hot paths remain allocation-free.
-- All temporary local project references remain unstaged and are removed before
-  package-only release validation.
+- Temporary local project references are release scaffolding owned by the
+  downstream release workflow and must be removed before each package-only
+  release validation; their temporary presence does not keep this implementation
+  plan open.

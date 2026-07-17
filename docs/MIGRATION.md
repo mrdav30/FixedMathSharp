@@ -203,20 +203,20 @@ view fits the consuming system.
 Matrix scale APIs now distinguish unsigned basis magnitudes from a canonical
 signed lossy view:
 
-| v6.x surface                                | v7.x replacement                                 |
-| ------------------------------------------- | ------------------------------------------------ |
-| `Fixed3x3.ExtractScale(...)`                | `Fixed3x3.ExtractScaleMagnitudes(...)`           |
-| `matrix3x3.ExtractScale()`                  | `matrix3x3.ExtractScaleMagnitudes()`             |
-| `Fixed4x4.ExtractScale(...)`                | `Fixed4x4.ExtractScaleMagnitudes(...)`           |
-| `matrix4x4.ExtractScale()`                  | `matrix4x4.ExtractScaleMagnitudes()`             |
-| `Fixed4x4.Scale`                            | `Fixed4x4.LossyScale`                            |
-| `Fixed3x3.SetLossyScale(scale)`             | `Fixed3x3.CreateScale(scale)`                    |
-| `Fixed3x3.SetScale(...)`                    | `Fixed3x3.CreateScale(...)` for pure scale       |
-| `Fixed3x3.ResetScaleToIdentity(...)`        | Own rotation and scale components explicitly    |
-| `Fixed3x3.SetGlobalScale(...)`              | Own rotation and scale components explicitly    |
-| `Fixed4x4.SetScale(...)`                    | Checked `Decompose` + `CreateTransform`          |
-| `Fixed4x4.ResetScaleToIdentity(...)`        | Checked `Decompose` + `CreateTransform`          |
-| `Fixed4x4.SetGlobalScale(...)`              | Checked `Decompose` + `CreateTransform`          |
+| v6.x surface                         | v7.x replacement                             |
+| ------------------------------------ | -------------------------------------------- |
+| `Fixed3x3.ExtractScale(...)`         | `Fixed3x3.ExtractScaleMagnitudes(...)`       |
+| `matrix3x3.ExtractScale()`           | `matrix3x3.ExtractScaleMagnitudes()`         |
+| `Fixed4x4.ExtractScale(...)`         | `Fixed4x4.ExtractScaleMagnitudes(...)`       |
+| `matrix4x4.ExtractScale()`           | `matrix4x4.ExtractScaleMagnitudes()`         |
+| `Fixed4x4.Scale`                     | `Fixed4x4.LossyScale`                        |
+| `Fixed3x3.SetLossyScale(scale)`      | `Fixed3x3.CreateScale(scale)`                |
+| `Fixed3x3.SetScale(...)`             | `Fixed3x3.CreateScale(...)` for pure scale   |
+| `Fixed3x3.ResetScaleToIdentity(...)` | Own rotation and scale components explicitly |
+| `Fixed3x3.SetGlobalScale(...)`       | Own rotation and scale components explicitly |
+| `Fixed4x4.SetScale(...)`             | Checked `Decompose` + `CreateTransform`      |
+| `Fixed4x4.ResetScaleToIdentity(...)` | Checked `Decompose` + `CreateTransform`      |
+| `Fixed4x4.SetGlobalScale(...)`       | Checked `Decompose` + `CreateTransform`      |
 
 `ExtractScaleMagnitudes` always returns nonnegative basis magnitudes.
 `ExtractLossyScale` and `Fixed4x4.LossyScale` now derive basis magnitudes and
