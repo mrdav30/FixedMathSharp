@@ -2545,6 +2545,8 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 
 ### Task 14: Remove Release-Only Assertion Behavior
 
+**Status:** Complete on 2026-07-16.
+
 **Files:**
 
 - Modify: `src/Gravitas/Queries/3D/Sweeps/ConvexShape.cs`
@@ -2557,16 +2559,31 @@ rg -l "PlanarSegmentGeometry|ClosestPointsOnSegments|ClosestPointsOnTwoLines|Los
 - Produces: identical debug and release behavior for invalid internal shape use;
   no new public API.
 
-- [ ] **Step 1: Add tests** proving triangle shapes cannot be used as sweep
+- [x] **Step 1: Add tests** proving triangle shapes cannot be used as sweep
       sources and circle slabs cannot be used as target-normal providers.
-- [ ] **Step 2: Replace both tagged-union `Debug.Assert` guards** with
+- [x] **Step 2: Replace both tagged-union `Debug.Assert` guards** with
       `SwiftThrowHelper.ThrowIfTrue` and remove `System.Diagnostics`.
-- [ ] **Step 3: Make zero-direction cone support deterministic** by selecting
+- [x] **Step 3: Make zero-direction cone support deterministic** by selecting
       `Vector3d.Right`, matching the existing general support-mapping fallback,
       then remove the cone `Debug.Assert`.
-- [ ] **Step 4: Run the focused tests in `Release` and `ReleaseLean`.**
-- [ ] **Step 5: Confirm `rg -n "Debug\\.Assert" src/Gravitas` returns no
+- [x] **Step 4: Run the focused tests in `Release` and `ReleaseLean`.**
+- [x] **Step 5: Confirm `rg -n "Debug\\.Assert" src/Gravitas` returns no
       matches.**
+
+**Result:**
+
+- Triangle sweep-source misuse and circle-slab target-normal misuse now throw
+  `InvalidOperationException` through `SwiftThrowHelper` in every build instead
+  of disappearing in Release or falling through to a null dereference.
+- Query-cone and general convex support now share one support-direction resolver,
+  whose existing zero-direction regression enforces the deterministic
+  `Vector3d.Right` tie-break.
+- The 25 focused query/support tests pass in both `Release` and `ReleaseLean`.
+  Runtime-source scans contain no `Debug.Assert`, `Debug.Fail`, `Trace.Assert`,
+  `Trace.Fail`, `#if DEBUG`, or `[Conditional("DEBUG")]` assertion behavior.
+- Fresh full verification passes all 2,659 `Release` and 2,620 `ReleaseLean`
+  Gravitas tests. Standard and Lean `netstandard2.1` builds complete with zero
+  warnings and zero errors.
 
 ---
 
