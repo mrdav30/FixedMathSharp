@@ -353,7 +353,13 @@ public partial struct Vector2d
         return parameter;
     }
 
-    internal static int CompareDistanceSquared(
+    /// <summary>
+    /// Compares the exact squared distances between two pairs of points without fixed-point saturation.
+    /// </summary>
+    /// <returns>A negative value when the left distance is shorter, zero when the
+    /// distances are equal, or a positive value when the left distance is longer.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CompareDistanceSquared(
         Vector2d leftStart,
         Vector2d leftEnd,
         Vector2d rightStart,
@@ -368,6 +374,17 @@ public partial struct Vector2d
 
         return WideArithmetic.CompareMagnitude(leftDistance, rightDistance);
     }
+
+    /// <summary>
+    /// Returns the exact orientation sign of the ordered points without fixed-point saturation.
+    /// </summary>
+    /// <returns><c>1</c> for a counter-clockwise turn, <c>-1</c> for a clockwise
+    /// turn, or <c>0</c> when the points are exactly collinear.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int OrientationSign(Vector2d origin, Vector2d first, Vector2d second) =>
+        WideGeometry.GetDifferenceCrossProduct2D(
+            first.X, origin.X, first.Y, origin.Y,
+            second.X, origin.X, second.Y, origin.Y).Sign;
 
     /// <summary>
     /// Calculates the forward direction vector in 2D based on a yaw (angle).

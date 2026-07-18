@@ -149,6 +149,31 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void CompareDistanceSquared_OrdersFullDomainDifferencesWithoutSaturation()
+    {
+        Vector3d query = new(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue);
+        Vector3d nearer = Vector3d.One;
+        Vector3d farther = new(Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue);
+
+        Assert.True(Vector3d.CompareDistanceSquared(query, nearer, query, farther) < 0);
+        Assert.True(Vector3d.CompareDistanceSquared(query, farther, query, nearer) > 0);
+        Assert.Equal(0, Vector3d.CompareDistanceSquared(query, nearer, nearer, query));
+    }
+
+    [Fact]
+    public void ScalarTripleProductSign_PreservesSubScalarProducts()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1);
+        Vector3d first = new(oneRaw, Fixed64.Zero, Fixed64.Zero);
+        Vector3d second = new(Fixed64.Zero, oneRaw, Fixed64.Zero);
+        Vector3d third = new(Fixed64.Zero, Fixed64.Zero, oneRaw);
+
+        Assert.Equal(1, Vector3d.ScalarTripleProductSign(first, second, third));
+        Assert.Equal(-1, Vector3d.ScalarTripleProductSign(first, third, second));
+        Assert.Equal(0, Vector3d.ScalarTripleProductSign(first, second, Vector3d.Zero));
+    }
+
+    [Fact]
     public void Distance_NearUnit_PreservesOrdinarySquareRootResult()
     {
         Fixed64 nearUnit = Fixed64.FromRaw(Fixed64.One.m_rawValue - 1);

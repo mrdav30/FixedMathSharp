@@ -161,6 +161,30 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void CompareDistanceSquared_OrdersFullDomainDifferencesWithoutSaturation()
+    {
+        Vector2d query = new(Fixed64.MaxValue, Fixed64.MaxValue);
+        Vector2d nearer = Vector2d.One;
+        Vector2d farther = new(Fixed64.MinValue, Fixed64.MinValue);
+
+        Assert.True(Vector2d.CompareDistanceSquared(query, nearer, query, farther) < 0);
+        Assert.True(Vector2d.CompareDistanceSquared(query, farther, query, nearer) > 0);
+        Assert.Equal(0, Vector2d.CompareDistanceSquared(query, nearer, nearer, query));
+    }
+
+    [Fact]
+    public void OrientationSign_ClassifiesFullDomainTurnsExactly()
+    {
+        Vector2d origin = new(Fixed64.MinValue, Fixed64.MinValue);
+        Vector2d right = new(Fixed64.MaxValue, Fixed64.MinValue);
+        Vector2d up = new(Fixed64.MinValue, Fixed64.MaxValue);
+
+        Assert.Equal(1, Vector2d.OrientationSign(origin, right, up));
+        Assert.Equal(-1, Vector2d.OrientationSign(origin, up, right));
+        Assert.Equal(0, Vector2d.OrientationSign(origin, right, right));
+    }
+
+    [Fact]
     public void Distance_NearUnit_PreservesOrdinarySquareRootResult()
     {
         Fixed64 nearUnit = Fixed64.FromRaw(Fixed64.One.m_rawValue + 1);

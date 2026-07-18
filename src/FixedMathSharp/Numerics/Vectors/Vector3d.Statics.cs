@@ -405,6 +405,37 @@ public partial struct Vector3d
             Fixed64.Zero);
 
     /// <summary>
+    /// Compares the exact squared distances between two pairs of points without fixed-point saturation.
+    /// </summary>
+    /// <returns>A negative value when the left distance is shorter, zero when the
+    /// distances are equal, or a positive value when the left distance is longer.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CompareDistanceSquared(
+        Vector3d leftStart,
+        Vector3d leftEnd,
+        Vector3d rightStart,
+        Vector3d rightEnd) =>
+        WideGeometry.CompareSquaredDistance3D(
+            leftStart.X, leftEnd.X,
+            leftStart.Y, leftEnd.Y,
+            leftStart.Z, leftEnd.Z,
+            rightStart.X, rightEnd.X,
+            rightStart.Y, rightEnd.Y,
+            rightStart.Z, rightEnd.Z);
+
+    /// <summary>
+    /// Returns the exact sign of the scalar triple product without fixed-point saturation.
+    /// </summary>
+    /// <returns><c>1</c> for a positive product, <c>-1</c> for a negative product,
+    /// or <c>0</c> when the vectors are exactly coplanar.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int ScalarTripleProductSign(Vector3d first, Vector3d second, Vector3d third) =>
+        WideGeometry.GetTripleProductSign(
+            first.X, first.Y, first.Z,
+            second.X, second.Y, second.Z,
+            third.X, third.Y, third.Z);
+
+    /// <summary>
     /// Returns a new <see cref="Vector3d"/> where each component is the absolute value of the corresponding input component.
     /// </summary>
     /// <param name="value">The input vector.</param>
