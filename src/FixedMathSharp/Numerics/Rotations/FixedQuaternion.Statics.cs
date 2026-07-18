@@ -458,20 +458,14 @@ public partial struct FixedQuaternion
     /// <returns>The angle in degrees between the two rotations.</returns>
     public static Fixed64 Angle(FixedQuaternion a, FixedQuaternion b)
     {
-        // Calculate the dot product of the two quaternions
-        Fixed64 dot = Dot(a, b);
-
-        // Ensure the dot product is in the range of [-1, 1] to avoid floating-point inaccuracies
-        dot = FixedMath.Clamp(dot, -Fixed64.One, Fixed64.One);
-
-        // Calculate the angle between the two quaternions using the inverse cosine (arccos)
-        // arccos(dot(a, b)) gives us the angle in radians, so we convert it to degrees
-        Fixed64 angleInRadians = FixedMath.Acos(dot);
-
-        // Convert the angle from radians to degrees
-        Fixed64 angleInDegrees = FixedMath.RadToDeg(angleInRadians);
-
-        return angleInDegrees;
+        FixedQuaternion normalizedA = a.Normalized;
+        FixedQuaternion normalizedB = b.Normalized;
+        FixedQuaternion relative = normalizedA.Conjugate() * normalizedB;
+        _ = Vector3d.TryGetMagnitude(
+            new Vector3d(relative.X, relative.Y, relative.Z),
+            out Fixed64 vectorMagnitude);
+        Fixed64 halfAngle = FixedMath.Atan2(vectorMagnitude, relative.W.Abs());
+        return FixedMath.RadToDeg(halfAngle * Fixed64.Two);
     }
 
     /// <summary>

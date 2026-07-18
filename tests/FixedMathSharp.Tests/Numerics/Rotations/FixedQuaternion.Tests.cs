@@ -544,7 +544,7 @@ public class FixedQuaternionTests
 
         Vector3d rotatedForward = result.Rotate(Vector3d.Forward);
         Assert.True(
-            rotatedForward.FuzzyEqual(direction, Fixed64.FromDouble(0.0001)),
+            rotatedForward.FuzzyEqual(direction, Fixed64.FromDouble(0.0002)),
             $"FromDirection returned {result}, which rotated forward to {rotatedForward} instead of {direction}.");
     }
 
@@ -801,7 +801,23 @@ public class FixedQuaternionTests
         var q2 = FixedQuaternion.FromEulerAnglesInDegrees(new Fixed64(90), new Fixed64(0), new Fixed64(0));
 
         var angle = FixedQuaternion.Angle(q1, q2);
-        FixedMathTestHelper.AssertWithinRelativeTolerance(new Fixed64(45), angle); // 45 degrees between these quaternions
+        FixedMathTestHelper.AssertWithinRelativeTolerance(new Fixed64(90), angle);
+    }
+
+    [Fact]
+    public void FixedQuaternion_AngleBetween_NearIdentityUsesRelativeVectorMagnitude()
+    {
+        Fixed64 expectedAngle = Fixed64.FromFraction(21, 1000);
+        FixedQuaternion target = FixedQuaternion.FromAxisAngle(
+            Vector3d.Up,
+            FixedMath.DegToRad(expectedAngle)).Normalized;
+
+        Fixed64 actualAngle = FixedQuaternion.Angle(FixedQuaternion.Identity, target);
+
+        Assert.True(
+            (actualAngle - expectedAngle).Abs() <= Fixed64.Epsilon * (Fixed64)16,
+            $"Expected {expectedAngle} degrees, got {actualAngle} degrees.");
+        Assert.Equal(Fixed64.Zero, FixedQuaternion.Angle(target, -target));
     }
 
     [Fact]

@@ -59,13 +59,37 @@ namespace FixedMathSharp
         internal const double PADE_A2_DOUBLE = 0.0218804099d;
         internal const long PADE_A2_LONG = (long)(PADE_A2_DOUBLE * ONE_L);
 
-        // Carefully optimized polynomial coefficients for sin(x), ensuring maximum precision in Fixed64 math.
-        internal const double SIN_COEFF_3_DOUBLE = 0.16666667605750262737274169921875d; // 1/3!
-        internal const long SIN_COEFF_3_LONG = (long)(SIN_COEFF_3_DOUBLE * ONE_L);
-        internal const double SIN_COEFF_5_DOUBLE = 0.0083328341133892536163330078125d; // 1/5!
-        internal const long SIN_COEFF_5_LONG = (long)(SIN_COEFF_5_DOUBLE * ONE_L);
-        internal const double SIN_COEFF_7_DOUBLE = 0.00019588856957852840423583984375d; // 1/7!
-        internal const long SIN_COEFF_7_LONG = (long)(SIN_COEFF_7_DOUBLE * ONE_L);
+        // Minimax sine coefficients for [0, pi/4].
+        internal const long SIN_COEFF_3_LONG = 715827922L;
+        internal const long SIN_COEFF_5_LONG = 35789249L;
+        internal const long SIN_COEFF_7_LONG = 841334L;
+
+        // Nearest Q32.32 Taylor coefficients for cosine on [0, pi/4].
+        internal const long COS_COEFF_2_LONG = 2147483648L; // round(2^32 / 2!)
+        internal const long COS_COEFF_4_LONG = 178956971L;  // round(2^32 / 4!)
+        internal const long COS_COEFF_6_LONG = 5965232L;    // round(2^32 / 6!)
+        internal const long COS_COEFF_8_LONG = 106522L;     // round(2^32 / 8!)
+
+        /// <summary>
+        /// Gets the conservative absolute approximation-error bound for
+        /// <see cref="Sin(Fixed64)"/> and <see cref="Cos(Fixed64)"/> when the
+        /// input is already canonical in [-π, π].
+        /// </summary>
+        /// <remarks>
+        /// The bound includes the degree-8 cosine remainder on [0, π/4],
+        /// coefficient quantization, fixed-point Horner rounding, and the tuned
+        /// sine approximation error. Raw-neighborhood and principal-range tests
+        /// validate range-reduction seams independently of exact anchors.
+        ///
+        /// This bound does not include phase error accumulated while reducing a
+        /// large multi-turn input by the fixed-point approximation of 2π. A
+        /// consumer propagating a strict error budget must canonicalize its
+        /// angle before turns accumulate or account for that phase error too.
+        ///
+        /// Consumers that propagate sine/cosine error through rotations must
+        /// also account for their own multiply, add, and normalization error.
+        /// </remarks>
+        public static Fixed64 CanonicalSinCosErrorBound => Fixed64.FromRaw(DEFAULT_TOLERANCE_L * 8);
 
         private static readonly long[] s_pow2PositiveFractionLookup =
         {
@@ -422,18 +446,15 @@ namespace FixedMathSharp
             Fixed64.MultiplyDivide(deg, Fixed64.Pi, Fixed64.OneEighty, out _);
 
         /// <summary>
-        /// Computes the sine of a given angle in radians using an optimized 
-        /// minimax polynomial approximation.
+        /// Computes the sine of a given angle in radians using complementary
+        /// reduced-range polynomial approximations.
         /// </summary>
         /// <param name="x">The angle in radians.</param>
         /// <returns>The sine of the given angle, in fixed-point format.</returns>
         /// <remarks>
-        /// - This function uses a Chebyshev-polynomial-based approximation to ensure high accuracy 
-        ///   while maintaining performance in fixed-point arithmetic.
-        /// - The coefficients have been carefully tuned to minimize fixed-point truncation errors.
-        /// - The error is less than 1 ULP (unit in the last place) at key reference points, 
-        ///   ensuring <c>Sin(π/4) = 0.707106781192124</c> exactly within Fixed64 precision.
-        /// - The function automatically normalizes input values to the range [-π, π] for stability.
+        /// The input is normalized to [-π, π], reflected into [0, π/2], and
+        /// evaluated as sine on [0, π/4] or cosine on [0, π/4]. Exact quadrant
+        /// anchors remain exact without introducing a discontinuity beside them.
         /// </remarks>
         public static Fixed64 Sin(Fixed64 x)
         {
@@ -474,10 +495,9 @@ namespace FixedMathSharp
         /// <returns>The cosine of the given angle, in fixed-point format.</returns>
         /// <remarks>
         /// - Instead of directly approximating cosine, this function derives <c>cos(x)</c> using 
-        ///   the identity <c>cos(x) = sin(x + π/2)</c>. This ensures maximum accuracy.
-        /// - The underlying sine function is computed using a highly optimized minimax polynomial approximation.
-        /// - By leveraging this transformation, cosine achieves the same precision guarantees 
-        ///   as sine, including <c>Cos(π/4) = 0.707106781192124</c> exactly within Fixed64 precision.
+        ///   the identity <c>cos(x) = sin(x + π/2)</c>.
+        /// - The underlying sine function uses complementary reduced-range
+        ///   sine and cosine polynomials so quadrant anchors remain continuous.
         /// - The function automatically normalizes input values to the range [-π, π] for stability.
         /// </remarks>
         public static Fixed64 Cos(Fixed64 x)
@@ -581,11 +601,14 @@ namespace FixedMathSharp
         }
 
         /// <summary>
-        /// Computes the sine of an angle x (in radians) using a minimax polynomial approximation.
+        /// Computes sine on [0, π/2] using complementary approximations on [0, π/4].
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Fixed64 SinReduced(Fixed64 x)
         {
+            if (x > Fixed64.PiOver4)
+                return CosReduced(Fixed64.HalfPi - x);
+
             Fixed64 x2 = x * x;
             Fixed64 x4 = x2 * x2;
 
@@ -593,6 +616,17 @@ namespace FixedMathSharp
                 - x2 * Fixed64.SinCoeff3
                 + x4 * Fixed64.SinCoeff5
                 - x4 * x2 * Fixed64.SinCoeff7);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Fixed64 CosReduced(Fixed64 x)
+        {
+            Fixed64 x2 = x * x;
+            return Fixed64.One - x2 * (
+                Fixed64.CosCoeff2 - x2 * (
+                    Fixed64.CosCoeff4 - x2 * (
+                        Fixed64.CosCoeff6 - x2 * (
+                            Fixed64.CosCoeff8))));
         }
 
         /// <summary>

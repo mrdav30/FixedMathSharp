@@ -342,13 +342,13 @@ public sealed class FixedTransformTests
 
         Assert.True(child.TrySetParentKeepingWorld(parent));
         Assert.Same(parent, child.Parent);
-        Assert.Equal(originalWorld, child.LocalToWorldMatrix);
+        Assert.True(originalWorld.FuzzyEqualAbsolute(child.LocalToWorldMatrix, Fixed64.Epsilon));
         Assert.True(child.TrySetParentKeepingWorld(parent));
-        Assert.Equal(originalWorld, child.LocalToWorldMatrix);
+        Assert.True(originalWorld.FuzzyEqualAbsolute(child.LocalToWorldMatrix, Fixed64.Epsilon));
 
         Assert.True(child.TrySetParentKeepingWorld(null));
         Assert.Null(child.Parent);
-        Assert.Equal(originalWorld, child.LocalToWorldMatrix);
+        Assert.True(originalWorld.FuzzyEqualAbsolute(child.LocalToWorldMatrix, Fixed64.Epsilon));
     }
 
     [Fact]

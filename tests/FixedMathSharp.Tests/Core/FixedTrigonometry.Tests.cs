@@ -488,6 +488,109 @@ public class FixedTrigonometryTests
     }
 
     [Fact]
+    public void SinAndCos_NearQuadrantBoundaries_ShouldRemainContinuousWithinDefaultTolerance()
+    {
+        Fixed64 offset = Fixed64.MinIncrement;
+
+        AssertNear(Fixed64.One, FixedMath.Sin(Fixed64.HalfPi - offset));
+        AssertNear(Fixed64.One, FixedMath.Sin(Fixed64.HalfPi + offset));
+        AssertNear(-Fixed64.One, FixedMath.Sin(-Fixed64.HalfPi - offset));
+        AssertNear(-Fixed64.One, FixedMath.Sin(-Fixed64.HalfPi + offset));
+        AssertNear(Fixed64.One, FixedMath.Cos(-offset));
+        AssertNear(Fixed64.One, FixedMath.Cos(offset));
+
+        static void AssertNear(Fixed64 expected, Fixed64 actual)
+        {
+            Fixed64 error = (expected - actual).Abs();
+            Assert.True(
+                error <= Fixed64.Epsilon,
+                $"Expected {actual} to be within {Fixed64.Epsilon} of {expected}; error was {error} ({error.m_rawValue} raw).");
+        }
+    }
+
+    [Fact]
+    public void SinAndCos_SampledPrincipalRange_ShouldStayWithinPublishedErrorBound()
+    {
+        Fixed64 tolerance = FixedMath.CanonicalSinCosErrorBound;
+        Fixed64 maxSinError = Fixed64.Zero;
+        Fixed64 maxCosError = Fixed64.Zero;
+        Fixed64 maxSinAngle = Fixed64.Zero;
+        Fixed64 maxCosAngle = Fixed64.Zero;
+
+        for (int halfDegrees = -360; halfDegrees <= 360; halfDegrees++)
+        {
+            Fixed64 angle = FixedMath.DegToRad(Fixed64.FromFraction(halfDegrees, 2));
+            double angleDouble = Fixed64.ToDouble(angle.m_rawValue);
+            Fixed64 sinError = (Fixed64.FromDouble(Math.Sin(angleDouble)) - FixedMath.Sin(angle)).Abs();
+            Fixed64 cosError = (Fixed64.FromDouble(Math.Cos(angleDouble)) - FixedMath.Cos(angle)).Abs();
+            if (sinError > maxSinError)
+            {
+                maxSinError = sinError;
+                maxSinAngle = angle;
+            }
+
+            if (cosError > maxCosError)
+            {
+                maxCosError = cosError;
+                maxCosAngle = angle;
+            }
+        }
+
+        Assert.True(
+            maxSinError <= tolerance,
+            $"Maximum sine error {maxSinError} at {maxSinAngle} exceeded {tolerance}.");
+        Assert.True(
+            maxCosError <= tolerance,
+            $"Maximum cosine error {maxCosError} at {maxCosAngle} exceeded {tolerance}.");
+    }
+
+    [Fact]
+    public void SinAndCos_RawNeighborhoodsAroundReductionSeams_ShouldStayWithinPublishedErrorBound()
+    {
+        Fixed64[] seams =
+        {
+            -Fixed64.TwoPi,
+            -Fixed64.Pi,
+            -Fixed64.HalfPi,
+            -Fixed64.PiOver4,
+            Fixed64.Zero,
+            Fixed64.PiOver4,
+            Fixed64.HalfPi,
+            Fixed64.Pi,
+            Fixed64.TwoPi
+        };
+
+        foreach (Fixed64 seam in seams)
+        {
+            Fixed64 tolerance = FixedMath.CanonicalSinCosErrorBound;
+            if (seam.Abs() == Fixed64.TwoPi)
+            {
+                Fixed64 singleTurnPhaseError = (
+                    Fixed64.FromDouble(Math.PI * 2)
+                    - Fixed64.TwoPi).Abs();
+                tolerance += singleTurnPhaseError;
+            }
+
+            for (long rawOffset = -1_024; rawOffset <= 1_024; rawOffset++)
+            {
+                Fixed64 angle = Fixed64.FromRaw(seam.m_rawValue + rawOffset);
+                double angleDouble = Fixed64.ToDouble(angle.m_rawValue);
+                Fixed64 expectedSin = Fixed64.FromDouble(Math.Sin(angleDouble));
+                Fixed64 expectedCos = Fixed64.FromDouble(Math.Cos(angleDouble));
+                Fixed64 sinError = (expectedSin - FixedMath.Sin(angle)).Abs();
+                Fixed64 cosError = (expectedCos - FixedMath.Cos(angle)).Abs();
+
+                Assert.True(
+                    sinError <= tolerance,
+                    $"Sine error {sinError.m_rawValue} raw exceeded {tolerance.m_rawValue} raw at {angle.m_rawValue} raw.");
+                Assert.True(
+                    cosError <= tolerance,
+                    $"Cosine error {cosError.m_rawValue} raw exceeded {tolerance.m_rawValue} raw at {angle.m_rawValue} raw.");
+            }
+        }
+    }
+
+    [Fact]
     public void Sin_NormalizesAnglesOutsidePrincipalRange()
     {
         var positiveAngle = Fixed64.Pi + Fixed64.PiOver4;

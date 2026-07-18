@@ -121,12 +121,22 @@ component ranges. Quaternion construction and conversion are also more robust:
   both `Acos` endpoints.
 - `FixedQuaternion.ToMatrix3x3` is independent of a nonzero quaternion's common
   scale; zero still maps to identity.
+- `FixedQuaternion.Angle` now returns the full shortest physical rotation in
+  degrees and treats `q` and `-q` as the same rotation. v6 returned the
+  quaternion half-angle; remove downstream `* 2` corrections.
 - `FixedMath.DegToRad` and `RadToDeg` retain full-domain intermediates and round
   once at the public boundary.
+- `FixedMath.Sin` and `Cos` use complementary reduced-range polynomials around
+  quadrant boundaries. Values adjacent to `0` and `±Pi/2` no longer jump away
+  from their exact anchors by the former degree-7 endpoint error.
+  `FixedMath.CanonicalSinCosErrorBound` publishes the conservative approximation
+  bound for canonical `[-Pi, Pi]` inputs. It intentionally excludes phase error
+  accumulated while reducing large multi-turn angles.
 
 Ordinary inputs generally retain their expected meaning, but raw results can
-change where v6 saturated, underflowed, or rounded an intermediate. Refresh
-golden numeric and replay expectations rather than adding downstream clamps.
+change where v6 saturated, underflowed, rounded an intermediate, or evaluated
+trigonometry in the outer half of a quadrant. Refresh golden numeric and replay
+expectations rather than adding downstream clamps.
 
 ### FixedTransform Local And World Contract
 

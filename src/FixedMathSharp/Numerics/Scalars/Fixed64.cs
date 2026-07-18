@@ -128,9 +128,13 @@ public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqua
     internal static Fixed64 PadeA1 => new(FixedMath.PADE_A1_LONG);
     internal static Fixed64 PadeA2 => new(FixedMath.PADE_A2_LONG);
 
-    internal static Fixed64 SinCoeff3 => new(FixedMath.SIN_COEFF_3_LONG); // 1/3!
-    internal static Fixed64 SinCoeff5 => new(FixedMath.SIN_COEFF_5_LONG); // 1/5!
-    internal static Fixed64 SinCoeff7 => new(FixedMath.SIN_COEFF_7_LONG); // 1/7!
+    internal static Fixed64 SinCoeff3 => new(FixedMath.SIN_COEFF_3_LONG); // Tuned minimax coefficient.
+    internal static Fixed64 SinCoeff5 => new(FixedMath.SIN_COEFF_5_LONG); // Tuned minimax coefficient.
+    internal static Fixed64 SinCoeff7 => new(FixedMath.SIN_COEFF_7_LONG); // Tuned minimax coefficient.
+    internal static Fixed64 CosCoeff2 => new(FixedMath.COS_COEFF_2_LONG); // 1/2!
+    internal static Fixed64 CosCoeff4 => new(FixedMath.COS_COEFF_4_LONG); // 1/4!
+    internal static Fixed64 CosCoeff6 => new(FixedMath.COS_COEFF_6_LONG); // 1/6!
+    internal static Fixed64 CosCoeff8 => new(FixedMath.COS_COEFF_8_LONG); // 1/8!
 
     /// <inheritdoc cref="FixedMath.MIN_INCREMENT_L" />
     public static Fixed64 MinIncrement => new(FixedMath.MIN_INCREMENT_L);
