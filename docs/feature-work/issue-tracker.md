@@ -85,7 +85,7 @@ Verification reached 100% FixedMathSharp coverage (9,408/9,408 lines,
 Lean tests plus 8 Chronicler tests in both configurations passing. First-hit
 and interval benchmark rows remained allocation free, and an independent
 review reported no findings. Full execution detail is retained in
-[`2026-07-18-full-domain-radial-query-plan.md`](2026-07-18-full-domain-radial-query-plan.md).
+[`2026-07-18-full-domain-radial-query-plan.md`](done/2026-07-18-full-domain-radial-query-plan.md).
 
 ### FMS-Issue-012: Full in-process bounds benchmark can crash in frustum segment after prior rows
 

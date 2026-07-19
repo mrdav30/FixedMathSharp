@@ -6,7 +6,7 @@
 > superpowers:verification-before-completion. Steps use checkbox (`- [ ]`)
 > syntax for tracking.
 
-**Status:** In progress
+**Status:** Complete on 2026-07-18
 
 **Goal:** Make circle/sphere predicates, bounded ray intervals, and sphere
 cross-sections exact across the complete finite Q32.32 input domain, then move
@@ -211,8 +211,8 @@ regressions cover rounded side/cap endpoints, opposite-domain vertical
 separation, and the `400000 / 60000 / 100000` extreme crossing without forcing
 broad-phase enumeration across an artificial giant world. Release passed 2,790
 tests and ReleaseLean passed 2,751 tests; focused mixed steady-state allocation
-remained 0 B. Gravitas ShortRun medians were 1.425/1.669 us for sphere segments and
-3.326/4.217 us for mixed circle slabs at scales 1 and 100,000 respectively,
+remained 0 B. Gravitas ShortRun medians were 1.425/1.669 us for sphere segments
+and 3.326/4.217 us for mixed circle slabs at scales 1 and 100,000 respectively,
 all at 0 B. Finite-axis projections and conic quadratics remain explicit active
 issues.
 
@@ -223,7 +223,7 @@ issues.
 - [x] Re-achieve 100% FixedMathSharp line/branch/method coverage without
       coverage-only or API-shape tests.
 - [x] Obtain an independent correctness/performance review.
-- [ ] Commit FixedMathSharp and Gravitas independently, excluding Gravitas
+- [x] Commit FixedMathSharp and Gravitas independently, excluding Gravitas
       local-link project files.
 
 **Closure evidence (2026-07-18):** Debug coverage passed 1,460 core plus 8
@@ -231,7 +231,10 @@ Chronicler tests and reached exactly 9,408/9,408 lines, 3,064/3,064 branches,
 and 1,528/1,528 ReportGenerator methods. Release passed the same 1,460 plus 8;
 ReleaseLean passed 1,439 plus 8. The only CRAP scores above 30 remain the four
 fully covered complexity floors already registered in
-`docs/complexity-exceptions.md`.
+`docs/complexity-exceptions.md`. FixedMathSharp committed the final slab
+projection hardening as `38344d2`; Gravitas committed its breaking explicit
+bounds migration as `01749ec`. The three Gravitas local-link project files
+remain unstaged validation scaffolding.
 
 ## Explicit Follow-Ups
 
