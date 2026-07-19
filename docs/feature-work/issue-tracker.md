@@ -36,7 +36,18 @@ and tests.
 
 ## Active Issues
 
-- None currently.
+- **FMS-Issue-013: Full-domain radial predicates and bounded query intervals**
+  is being executed through
+  [`2026-07-18-full-domain-radial-query-plan.md`](2026-07-18-full-domain-radial-query-plan.md).
+- **FMS-Issue-014: Finite-segment capsule/cylinder projections need dedicated
+  wide ownership.** Exact circle/sphere intervals cannot repair perpendicular
+  vectors or quadratic coefficients that were already narrowed downstream.
+  Design an allocation-free lower-stack primitive before migrating Gravitas
+  mixed capsule edges and 3D mesh triangle edges.
+- **FMS-Issue-015: Sphere construction and merge paths are not full-domain.**
+  `CreateFromPoints`, `CreateFromFrustum`, `CreateMerged`, and radius expansion
+  still contain saturating endpoint differences, squared-distance ordering, or
+  radius updates. Resolve separately from containment/intersection predicates.
 
 ## Performance Investigation Queue
 
