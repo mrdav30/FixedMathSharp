@@ -145,6 +145,50 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void GetDirection_NormalizesFullDomainEndpointDifference()
+    {
+        var start = new Vector2d(Fixed64.MinValue, Fixed64.MinValue);
+        var end = new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue);
+
+        Assert.Equal(new Vector2d(1, 1).Normalized, Vector2d.GetDirection(start, end));
+        Assert.Equal(Vector2d.Right, Vector2d.GetDirection(start, new Vector2d(Fixed64.MaxValue, start.Y)));
+        Assert.Equal(Vector2d.Zero, Vector2d.GetDirection(start, start));
+    }
+
+    [Fact]
+    public void TryGetDistance_PreservesRoundedAndFullDomainEndpointContracts()
+    {
+        Fixed64 oneRaw = Fixed64.MinIncrement;
+        Fixed64 smallestComponentWhoseRawSquareExceedsMaxRaw = Fixed64.FromRaw(3_037_000_500L);
+        Vector2d nearUnit = new(Fixed64.One, Fixed64.FromFraction(1, 65536));
+
+        Assert.True(Vector2d.TryGetDistance(Vector2d.Zero, nearUnit, out Fixed64 rounded));
+        Assert.Equal(Fixed64.One, rounded);
+        Assert.False(Vector2d.TryGetDistance(
+            new Vector2d(Fixed64.MinValue, Fixed64.MinValue),
+            new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue),
+            out Fixed64 unrepresentable));
+        Assert.Equal(Fixed64.MaxValue, unrepresentable);
+        Assert.False(Vector2d.TryGetDistance(
+            Vector2d.Zero,
+            new Vector2d(Fixed64.MaxValue, smallestComponentWhoseRawSquareExceedsMaxRaw),
+            out Fixed64 roundsPastMaximum));
+        Assert.Equal(Fixed64.MaxValue, roundsPastMaximum);
+        Assert.True(Vector2d.TryGetDistance(Vector2d.Zero, new Vector2d(oneRaw, oneRaw), out Fixed64 minimum));
+        Assert.Equal(oneRaw, minimum);
+    }
+
+    [Fact]
+    public void Lerp_InterpolatesAcrossTheFullScalarDomain()
+    {
+        var start = new Vector2d(Fixed64.MinValue, Fixed64.MaxValue);
+        var end = new Vector2d(Fixed64.MaxValue, Fixed64.MinValue);
+
+        Assert.Equal(Vector2d.Zero, Vector2d.Lerp(start, end, Fixed64.Half));
+        Assert.Equal(Vector2d.Zero, start.Lerp(end, Fixed64.Half));
+    }
+
+    [Fact]
     public void CompareMagnitudeSquared_OrdersVectorsAcrossScalarMagnitudeRange()
     {
         var shorter = new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue - Fixed64.One);

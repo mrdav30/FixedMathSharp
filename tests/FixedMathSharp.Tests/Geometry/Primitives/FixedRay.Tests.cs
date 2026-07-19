@@ -1,5 +1,6 @@
 using FixedMathSharp.Bounds;
 using MemoryPack;
+using System;
 using System.Text.Json;
 using Xunit;
 
@@ -152,6 +153,155 @@ public class FixedRayTests
         Fixed64? hit = ray.Intersects(sphere);
 
         Assert.Equal(Fixed64.FromDouble(4.5), hit);
+    }
+
+    [Fact]
+    public void Intersects_BoundingSphere_OrdersExtremeRangeQuadraticWithoutSaturation()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        var crossing = new FixedRay(
+            new Vector3d((Fixed64)(-100_000), Fixed64.Zero, Fixed64.Zero),
+            new Vector3d((Fixed64)200_000, Fixed64.Zero, Fixed64.Zero));
+        var miss = new FixedRay(
+            new Vector3d((Fixed64)(-100_000), (Fixed64)2, Fixed64.Zero),
+            new Vector3d((Fixed64)200_000, Fixed64.Zero, Fixed64.Zero));
+
+        Assert.Equal(Fixed64.FromFraction(99_999, 200_000), crossing.Intersects(sphere));
+        Assert.Null(miss.Intersects(sphere));
+    }
+
+    [Fact]
+    public void Intersects_BoundingSphere_TreatsOneRawDirectionAsMotion()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        var ray = new FixedRay(
+            new Vector3d(-Fixed64.One - oneRaw, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(oneRaw, Fixed64.Zero, Fixed64.Zero));
+
+        Assert.Equal(Fixed64.One, ray.Intersects(sphere));
+    }
+
+    [Fact]
+    public void Intersects_BoundingSphere_OrdersUnrepresentableOffsetWithinBound()
+    {
+        var sphere = new FixedBoundSphere(new Vector3d(-1, 0, 0), Fixed64.One);
+        var ray = new FixedRay(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(-Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero));
+
+        Assert.Equal(Fixed64.One, ray.Intersects(sphere, Fixed64.One));
+        Assert.Null(ray.Intersects(sphere, Fixed64.One - Fixed64.FromRaw(1L)));
+    }
+
+    [Fact]
+    public void Intersects_BoundingSphere_ExpandsRadiusWithoutSaturatingTheSum()
+    {
+        var sphere = new FixedBoundSphere(new Vector3d(-1, 0, 0), Fixed64.MaxValue);
+        var ray = new FixedRay(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            Vector3d.Zero);
+
+        Assert.Null(ray.Intersects(sphere, Fixed64.Zero));
+        Assert.Equal(
+            Fixed64.Zero,
+            ray.Intersects(sphere, Fixed64.One, Fixed64.One));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ray.Intersects(sphere, -Fixed64.One, Fixed64.One));
+    }
+
+    [Fact]
+    public void Intersects_BoundingSphere_BoundedExpansionCoversFastAndInvalidBounds()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        var ray = new FixedRay(new Vector3d(-5, 0, 0), Vector3d.Right);
+
+        Assert.Equal((Fixed64)3, ray.Intersects(sphere, Fixed64.One, (Fixed64)3));
+        Assert.Null(ray.Intersects(sphere, Fixed64.One, (Fixed64)2));
+        Assert.Equal((Fixed64)4, ray.Intersects(sphere, Fixed64.Zero, (Fixed64)4));
+        Assert.Null(ray.Intersects(sphere, -Fixed64.One));
+        Assert.Null(ray.Intersects(sphere, Fixed64.One, -Fixed64.One));
+    }
+
+    [Fact]
+    public void Intersects_BoundingSphere_RoundsWideRootsHalfToEven()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        var sphere = new FixedBoundSphere(Vector3d.Zero, (Fixed64)65);
+        var evenLower = new FixedRay(
+            new Vector3d(-(Fixed64)65 - oneRaw, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(2, 0, 0));
+        var oddLower = new FixedRay(
+            new Vector3d(-(Fixed64)65 - Fixed64.FromRaw(3L), Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(2, 0, 0));
+
+        Assert.Equal(Fixed64.Zero, evenLower.Intersects(sphere));
+        Assert.Equal(Fixed64.FromRaw(2L), oddLower.Intersects(sphere));
+    }
+
+    [Fact]
+    public void Intersects_BoundingSphere_RoundsWideRootsOnEitherSideOfMidpoint()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, (Fixed64)65);
+        var belowMidpoint = new FixedRay(
+            new Vector3d(-(Fixed64)65 - Fixed64.FromRaw(1L), Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(3, 0, 0));
+        var aboveMidpoint = new FixedRay(
+            new Vector3d(-(Fixed64)65 - Fixed64.FromRaw(2L), Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(3, 0, 0));
+
+        Assert.Equal(Fixed64.Zero, belowMidpoint.Intersects(sphere));
+        Assert.Equal(Fixed64.FromRaw(1L), aboveMidpoint.Intersects(sphere));
+    }
+
+    [Fact]
+    public void Intersects_BoundingSphere_RoundsWideTangentAndSubRawParameters()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, (Fixed64)65);
+        var tangent = new FixedRay(
+            new Vector3d(-100, 65, 0),
+            new Vector3d(199, 0, 0));
+        var subRaw = new FixedRay(
+            new Vector3d(-Fixed64.FromRaw(1L), Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero));
+
+        Assert.Equal(Fixed64.FromFraction(100, 199), tangent.Intersects(sphere));
+        Assert.Equal(Fixed64.Zero, subRaw.Intersects(new FixedBoundSphere(Vector3d.Zero, Fixed64.Zero)));
+    }
+
+    [Fact]
+    public void Intersects_BoundingSphere_PreservesExactRootAcrossEquivalentScale()
+    {
+        const long positionX = -21_474_923_131L;
+        const long positionY = 4_294_881_327L;
+        const long directionX = 4_295_022_249L;
+        const long directionY = 2_228L;
+        const long radius = 8_589_994_090L;
+        var ray = new FixedRay(
+            new Vector3d(Fixed64.FromRaw(positionX), Fixed64.FromRaw(positionY), Fixed64.Zero),
+            new Vector3d(Fixed64.FromRaw(directionX), Fixed64.FromRaw(directionY), Fixed64.Zero));
+        var scaledRay = new FixedRay(
+            new Vector3d(Fixed64.FromRaw(positionX * 100), Fixed64.FromRaw(positionY * 100), Fixed64.Zero),
+            new Vector3d(Fixed64.FromRaw(directionX * 100), Fixed64.FromRaw(directionY * 100), Fixed64.Zero));
+
+        Fixed64? hit = ray.Intersects(new FixedBoundSphere(Vector3d.Zero, Fixed64.FromRaw(radius)));
+        Fixed64? scaledHit = scaledRay.Intersects(
+            new FixedBoundSphere(Vector3d.Zero, Fixed64.FromRaw(radius * 100)));
+
+        Assert.Equal(Fixed64.FromRaw(14_035_527_845L), hit);
+        Assert.Equal(hit, scaledHit);
+    }
+
+    [Fact]
+    public void Intersects_BoundingSphere_RejectsExactRootBeyondRepresentableBound()
+    {
+        var ray = new FixedRay(
+            new Vector3d(Fixed64.FromRaw(-17_179_869_185L), Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.FromRaw(17_179_869_184L), Fixed64.Zero, Fixed64.Zero));
+
+        Assert.Null(ray.Intersects(
+            new FixedBoundSphere(Vector3d.Zero, Fixed64.Zero),
+            Fixed64.One));
     }
 
     [Fact]

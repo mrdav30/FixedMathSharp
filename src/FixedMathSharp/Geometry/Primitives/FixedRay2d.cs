@@ -85,27 +85,38 @@ public partial struct FixedRay2d : IEquatable<FixedRay2d>
     /// <summary>
     /// Finds the first forward intersection with the specified bounding circle, including boundary-only contact.
     /// </summary>
-    public Fixed64? Intersects(FixedBoundCircle circle)
-    {
-        Fixed64 directionLengthSquared = Direction.MagnitudeSquared;
-        if (directionLengthSquared == Fixed64.Zero)
-            return circle.Contains(Position) ? Fixed64.Zero : null;
+    public Fixed64? Intersects(FixedBoundCircle circle) =>
+        WideRayIntersection.Intersects(Position, Direction, circle, Fixed64.MaxValue);
 
-        Vector2d offset = Position - circle.Center;
-        Fixed64 c = Vector2d.Dot(offset, offset) - circle.RadiusSquared;
-        if (c <= Fixed64.Zero)
-            return Fixed64.Zero;
+    /// <summary>
+    /// Finds the first forward intersection with the specified bounding circle
+    /// at or before <paramref name="maxParameter"/>.
+    /// </summary>
+    /// <remarks>
+    /// Offset differences, quadratic products, the discriminant, and root
+    /// ordering are evaluated without fixed-point saturation. The returned
+    /// parameter uses deterministic round-half-to-even conversion.
+    /// </remarks>
+    public Fixed64? Intersects(FixedBoundCircle circle, Fixed64 maxParameter) =>
+        WideRayIntersection.Intersects(Position, Direction, circle, maxParameter);
 
-        Fixed64 b = Vector2d.Dot(offset, Direction);
-        if (b > Fixed64.Zero)
-            return null;
-
-        Fixed64 discriminant = (b * b) - (directionLengthSquared * c);
-        if (discriminant < Fixed64.Zero)
-            return null;
-
-        return FixedMath.FastDiv(-b - FixedMath.Sqrt(discriminant), directionLengthSquared);
-    }
+    /// <summary>
+    /// Finds the first forward intersection with the specified bounding circle,
+    /// expanded by <paramref name="radiusExpansion"/>, at or before
+    /// <paramref name="maxParameter"/>.
+    /// </summary>
+    /// <remarks>
+    /// The two radii are combined in wide arithmetic, so their sum may exceed
+    /// <see cref="Fixed64.MaxValue"/> without saturation.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radiusExpansion"/> is negative.
+    /// </exception>
+    public Fixed64? Intersects(
+        FixedBoundCircle circle,
+        Fixed64 radiusExpansion,
+        Fixed64 maxParameter) =>
+        WideRayIntersection.Intersects(Position, Direction, circle, radiusExpansion, maxParameter);
 
     /// <summary>
     /// Deconstructs the ray into origin and direction.

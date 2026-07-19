@@ -323,6 +323,19 @@ public partial struct Vector3d
         );
     }
 
+    /// <summary>
+    /// Returns the normalized direction from <paramref name="start"/> toward
+    /// <paramref name="end"/> across the complete coordinate domain.
+    /// </summary>
+    /// <remarks>
+    /// Equal endpoints return <see cref="Zero"/>. Endpoint differences are
+    /// evaluated exactly even when a component cannot be represented by
+    /// <see cref="Fixed64"/>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d GetDirection(Vector3d start, Vector3d end) =>
+        WideGeometry.GetDirection(start, end);
+
     private static Vector3d GetScaleNormalized(Vector3d value)
     {
         Fixed64 scale = FixedMath.Max(value.X.Abs(), FixedMath.Max(value.Y.Abs(), value.Z.Abs()));
@@ -386,6 +399,18 @@ public partial struct Vector3d
         magnitude = FixedMath.Sqrt(mag);
         return true;
     }
+
+    /// <summary>
+    /// Attempts to return the distance between two endpoints without saturating
+    /// any component difference.
+    /// </summary>
+    /// <param name="start">The first endpoint.</param>
+    /// <param name="end">The second endpoint.</param>
+    /// <param name="distance">The rounded distance, or <see cref="Fixed64.MaxValue"/> when it is not representable.</param>
+    /// <returns><see langword="true"/> when the distance fits in <see cref="Fixed64"/>; otherwise, <see langword="false"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryGetDistance(Vector3d start, Vector3d end, out Fixed64 distance) =>
+        WideGeometry.TryGetDistance(start, end, out distance);
 
     /// <summary>
     /// Compares the exact squared magnitudes of two vectors without fixed-point saturation.

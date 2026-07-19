@@ -138,6 +138,40 @@ change where v6 saturated, underflowed, rounded an intermediate, or evaluated
 trigonometry in the outer half of a quadrant. Refresh golden numeric and replay
 expectations rather than adding downstream clamps.
 
+### Full-Domain Directions, Interpolation, And Radial Rays
+
+`Vector2d.GetDirection(start, end)` and `Vector3d.GetDirection(start, end)` now
+normalize endpoint differences without first narrowing them to one `Fixed64`
+component. Equal endpoints return zero. Use these helpers when world-coordinate
+endpoints can span more than one representable scalar even though the resulting
+unit direction is representable.
+
+`Vector2d.TryGetDistance(start, end, out distance)` and
+`Vector3d.TryGetDistance(start, end, out distance)` provide the corresponding
+full-domain endpoint-distance contract. They round the final Euclidean distance
+to the nearest representable `Fixed64`; when that positive distance cannot be
+represented, they return `false` and set `distance` to `Fixed64.MaxValue`.
+
+`Vector2d.Lerp` and its in-place form now match the existing full-domain scalar
+and 3D interpolation contract: each component retains the complete endpoint
+difference until the final nearest-even result. Raw values can therefore change
+where the v6 implementation saturated `end - start` or rounded two weighted
+products independently.
+
+`FixedRay.Intersects(FixedBoundSphere)` and
+`FixedRay2d.Intersects(FixedBoundCircle)` now evaluate offset differences,
+quadratic products, discriminants, and first-root ordering without saturation.
+New overloads bound the accepted ray parameter and can expand the target radius
+in wide arithmetic:
+
+```csharp
+Fixed64? hit = ray.Intersects(targetSphere, sourceRadius, maxParameter);
+```
+
+The expansion must be nonnegative. Its exact sum with the target radius may
+exceed `Fixed64.MaxValue`; this is useful for Minkowski-expanded sweeps without
+pre-saturating the geometry decision.
+
 ### FixedTransform Local And World Contract
 
 `FixedTransform` no longer hides one mutable matrix behind ambiguous component

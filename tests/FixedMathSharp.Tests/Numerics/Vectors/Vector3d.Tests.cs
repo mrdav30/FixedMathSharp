@@ -118,6 +118,36 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void GetDirection_NormalizesFullDomainEndpointDifference()
+    {
+        var start = new Vector3d(Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue);
+        var end = new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue);
+
+        Assert.Equal(new Vector3d(1, 1, 1).Normalized, Vector3d.GetDirection(start, end));
+        Assert.Equal(
+            Vector3d.Right,
+            Vector3d.GetDirection(start, new Vector3d(Fixed64.MaxValue, start.Y, start.Z)));
+        Assert.Equal(Vector3d.Zero, Vector3d.GetDirection(start, start));
+    }
+
+    [Fact]
+    public void TryGetDistance_PreservesRoundedAndFullDomainEndpointContracts()
+    {
+        Fixed64 oneRaw = Fixed64.MinIncrement;
+        Vector3d nearUnit = new(Fixed64.One, Fixed64.FromFraction(1, 65536), Fixed64.Zero);
+
+        Assert.True(Vector3d.TryGetDistance(Vector3d.Zero, nearUnit, out Fixed64 rounded));
+        Assert.Equal(Fixed64.One, rounded);
+        Assert.False(Vector3d.TryGetDistance(
+            new Vector3d(Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue),
+            new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue),
+            out Fixed64 unrepresentable));
+        Assert.Equal(Fixed64.MaxValue, unrepresentable);
+        Assert.True(Vector3d.TryGetDistance(Vector3d.Zero, new Vector3d(oneRaw, oneRaw, oneRaw), out Fixed64 minimum));
+        Assert.Equal(oneRaw * (Fixed64)2, minimum);
+    }
+
+    [Fact]
     public void TryGetMagnitude_MaximumAxisLength_IsRepresentable()
     {
         Assert.True(Vector3d.TryGetMagnitude(

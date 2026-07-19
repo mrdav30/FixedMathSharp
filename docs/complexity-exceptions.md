@@ -11,10 +11,10 @@ complexity review threshold.
   score cannot fall below its cyclomatic complexity, so documented complexity
   floors are reviewed rather than mechanically refactored.
 - Current status: the latest full-project run, excluding generated serializer
-  sources, covers 8,679/8,679 lines, 2,924/2,924 branches, and 1,469/1,469
-  ReportGenerator methods. The CRAP analyzer scored 1,465 unique method
+  sources, covers 9,017/9,017 lines, 2,986/2,986 branches, and 1,504/1,504
+  ReportGenerator methods. The CRAP analyzer scored 1,498 unique method
   identities; every method is fully covered and the only scores above 30 are the
-  four registered complexity floors at 52, 48, 44, and 32. Per-method coverage
+  five registered complexity floors at 52, 48, 44, 32, and 32. Per-method coverage
   is recorded below and should be refreshed whenever a listed implementation
   changes.
 
@@ -31,6 +31,7 @@ behavior changes, or the implementation becomes harder to reason about.
 | `FixedMathSharp`                  | `Fixed64.GetSignedRatio(Signed320, Signed320)`                                      |         52 | 100% line / 100% branch | Full-domain Gram ratios require explicit sign, fixed five-word alignment/division, guard/sticky rounding, signed limits, and final saturation.                                          | A shared fixed-limb divider preserves every signed boundary with lower complexity and neutral or faster measured cost.   |
 | `FixedMathSharp`                  | `Fixed64.GetSignedRatio(Signed192, Signed192)`                                      |         48 | 100% line / 100% branch | General signed wide ratios require explicit sign, exact unit-interval dispatch, signed-limit, fixed-limb quotient, guard/sticky, and saturation.                                        | A shared fixed-limb division primitive preserves the complete signed contract with lower complexity and neutral cost.    |
 | `FixedMathSharp`                  | `FixedSegment.SolveClosestParameters(...)`                                          |         44 | 100% line / 100% branch | Exact determinant classification, coupled finite-segment clamps, and endpoint-candidate state form one allocation-free solver decision path.                                            | A lower-complexity state representation preserves exact policy and measures neutral or faster on the closest-pair row.   |
+| `FixedMathSharp`                  | `WideRayIntersection.Solve(...)`                                                    |         32 | 100% line / 100% branch | The full-domain first-root solver keeps overlap, motion, discriminant, bounded-root existence, an analytic seed, exact bracketing, and nearest-even midpoint classification in one allocation-free decision path. | A reusable fixed-width root primitive preserves bounded first-root semantics and ordinary-path benchmark cost.           |
 | `FixedMathSharp`                  | `FixedTriangle.ClosestPoint(Vector3d)`                                              |         32 | 100% line / 100% branch | Exact Gram degeneracy, six stable Voronoi regions, full-domain interpolation, and deterministic collapsed-edge fallback form one solver decision tree.                                  | Another exact primitive can share the region state or reduce branches without allocations or ordinary-input regression.  |
 | `FixedMathSharp.FluentAssertions` | `FixedAssertionHelpers.AreComponentApproximatelyEqual(Fixed4x4, Fixed4x4, Fixed64)` |         30 | 100% line / 100% branch | Fixed-shape assertion over all matrix components. The explicit checks keep assertion intent clear and avoid allocations in test helpers.                                                | Assertion diagnostics degrade, matrix shape changes, or repeated assertion logic grows further.                          |
 | `FixedMathSharp`                  | `Fixed4x4.Equals(Fixed4x4)`                                                         |         30 | 100% line / 100% branch | Direct 4x4 value comparison avoids loops, allocations, and indexer overhead on a hot value type.                                                                                        | Equality semantics change or a generated/source-shared component comparison becomes available without runtime cost.      |

@@ -161,6 +161,19 @@ public partial struct Vector2d
         );
     }
 
+    /// <summary>
+    /// Returns the normalized direction from <paramref name="start"/> toward
+    /// <paramref name="end"/> across the complete coordinate domain.
+    /// </summary>
+    /// <remarks>
+    /// Equal endpoints return <see cref="Zero"/>. Endpoint differences are
+    /// evaluated exactly even when a component cannot be represented by
+    /// <see cref="Fixed64"/>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector2d GetDirection(Vector2d start, Vector2d end) =>
+        WideGeometry.GetDirection(start, end);
+
     private static Vector2d GetScaleNormalized(Vector2d value)
     {
         Fixed64 scale = FixedMath.Max(value.X.Abs(), value.Y.Abs());
@@ -226,6 +239,18 @@ public partial struct Vector2d
     }
 
     /// <summary>
+    /// Attempts to return the distance between two endpoints without saturating
+    /// either component difference.
+    /// </summary>
+    /// <param name="start">The first endpoint.</param>
+    /// <param name="end">The second endpoint.</param>
+    /// <param name="distance">The rounded distance, or <see cref="Fixed64.MaxValue"/> when it is not representable.</param>
+    /// <returns><see langword="true"/> when the distance fits in <see cref="Fixed64"/>; otherwise, <see langword="false"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryGetDistance(Vector2d start, Vector2d end, out Fixed64 distance) =>
+        WideGeometry.TryGetDistance(start, end, out distance);
+
+    /// <summary>
     /// Compares the exact squared magnitudes of two vectors without fixed-point saturation.
     /// </summary>
     /// <returns>A negative value when <paramref name="left"/> is shorter, zero when the
@@ -270,7 +295,9 @@ public partial struct Vector2d
     public static Vector2d Lerp(Vector2d a, Vector2d b, Fixed64 amount)
     {
         amount = FixedMath.Clamp01(amount);
-        return new Vector2d(a.X + (b.X - a.X) * amount, a.Y + (b.Y - a.Y) * amount);
+        return new Vector2d(
+            FixedMath.Lerp(a.X, b.X, amount),
+            FixedMath.Lerp(a.Y, b.Y, amount));
     }
 
     /// <summary>

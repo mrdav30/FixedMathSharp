@@ -1,5 +1,6 @@
 using FixedMathSharp.Bounds;
 using MemoryPack;
+using System;
 using System.Text.Json;
 using Xunit;
 
@@ -117,6 +118,169 @@ public class FixedRay2dTests
 
         Assert.Equal(Fixed64.FromDouble(4.5), nonUnit.Intersects(circle));
         Assert.Equal(new Fixed64(5), tangent.Intersects(circle));
+    }
+
+    [Fact]
+    public void Intersects_Circle_OrdersExtremeRangeQuadraticWithoutSaturation()
+    {
+        var circle = new FixedBoundCircle(Vector2d.Zero, Fixed64.One);
+        var crossing = new FixedRay2d(
+            new Vector2d((Fixed64)(-100_000), Fixed64.Zero),
+            new Vector2d((Fixed64)200_000, Fixed64.Zero));
+        var miss = new FixedRay2d(
+            new Vector2d((Fixed64)(-100_000), (Fixed64)2),
+            new Vector2d((Fixed64)200_000, Fixed64.Zero));
+
+        Assert.Equal(Fixed64.FromFraction(99_999, 200_000), crossing.Intersects(circle));
+        Assert.Null(miss.Intersects(circle));
+    }
+
+    [Fact]
+    public void Intersects_Circle_TreatsOneRawDirectionAsMotion()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        var circle = new FixedBoundCircle(Vector2d.Zero, Fixed64.One);
+        var ray = new FixedRay2d(
+            new Vector2d(-Fixed64.One - oneRaw, Fixed64.Zero),
+            new Vector2d(oneRaw, Fixed64.Zero));
+
+        Assert.Equal(Fixed64.One, ray.Intersects(circle));
+    }
+
+    [Fact]
+    public void Intersects_Circle_OrdersUnrepresentableOffsetWithinBound()
+    {
+        var circle = new FixedBoundCircle(new Vector2d(-1, 0), Fixed64.One);
+        var ray = new FixedRay2d(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            new Vector2d(-Fixed64.MaxValue, Fixed64.Zero));
+
+        Assert.Equal(Fixed64.One, ray.Intersects(circle, Fixed64.One));
+        Assert.Null(ray.Intersects(circle, Fixed64.One - Fixed64.FromRaw(1L)));
+    }
+
+    [Fact]
+    public void Intersects_Circle_ExpandsRadiusWithoutSaturatingTheSum()
+    {
+        var circle = new FixedBoundCircle(new Vector2d(-1, 0), Fixed64.MaxValue);
+        var ray = new FixedRay2d(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            Vector2d.Zero);
+
+        Assert.Null(ray.Intersects(circle, Fixed64.Zero));
+        Assert.Equal(
+            Fixed64.Zero,
+            ray.Intersects(circle, Fixed64.One, Fixed64.One));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ray.Intersects(circle, -Fixed64.One, Fixed64.One));
+    }
+
+    [Fact]
+    public void Intersects_Circle_BoundedExpansionCoversFastAndInvalidBounds()
+    {
+        var circle = new FixedBoundCircle(Vector2d.Zero, Fixed64.One);
+        var ray = new FixedRay2d(new Vector2d(-5, 0), Vector2d.Right);
+
+        Assert.Equal((Fixed64)3, ray.Intersects(circle, Fixed64.One, (Fixed64)3));
+        Assert.Null(ray.Intersects(circle, Fixed64.One, (Fixed64)2));
+        Assert.Equal((Fixed64)4, ray.Intersects(circle, Fixed64.Zero, (Fixed64)4));
+        Assert.Null(ray.Intersects(circle, -Fixed64.One));
+        Assert.Null(ray.Intersects(circle, Fixed64.One, -Fixed64.One));
+    }
+
+    [Fact]
+    public void Intersects_Circle_RoundsWideRootsHalfToEven()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        var circle = new FixedBoundCircle(Vector2d.Zero, (Fixed64)65);
+        var evenLower = new FixedRay2d(
+            new Vector2d(-(Fixed64)65 - oneRaw, Fixed64.Zero),
+            new Vector2d(2, 0));
+        var oddLower = new FixedRay2d(
+            new Vector2d(-(Fixed64)65 - Fixed64.FromRaw(3L), Fixed64.Zero),
+            new Vector2d(2, 0));
+
+        Assert.Equal(Fixed64.Zero, evenLower.Intersects(circle));
+        Assert.Equal(Fixed64.FromRaw(2L), oddLower.Intersects(circle));
+    }
+
+    [Fact]
+    public void Intersects_Circle_RoundsWideRootsOnEitherSideOfMidpoint()
+    {
+        var circle = new FixedBoundCircle(Vector2d.Zero, (Fixed64)65);
+        var belowMidpoint = new FixedRay2d(
+            new Vector2d(-(Fixed64)65 - Fixed64.FromRaw(1L), Fixed64.Zero),
+            new Vector2d(3, 0));
+        var aboveMidpoint = new FixedRay2d(
+            new Vector2d(-(Fixed64)65 - Fixed64.FromRaw(2L), Fixed64.Zero),
+            new Vector2d(3, 0));
+
+        Assert.Equal(Fixed64.Zero, belowMidpoint.Intersects(circle));
+        Assert.Equal(Fixed64.FromRaw(1L), aboveMidpoint.Intersects(circle));
+    }
+
+    [Fact]
+    public void Intersects_Circle_RoundsWideTangentAndSubRawParameters()
+    {
+        var circle = new FixedBoundCircle(Vector2d.Zero, (Fixed64)65);
+        var tangent = new FixedRay2d(
+            new Vector2d(-100, 65),
+            new Vector2d(199, 0));
+        var subRaw = new FixedRay2d(
+            new Vector2d(-Fixed64.FromRaw(1L), Fixed64.Zero),
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero));
+
+        Assert.Equal(Fixed64.FromFraction(100, 199), tangent.Intersects(circle));
+        Assert.Equal(Fixed64.Zero, subRaw.Intersects(new FixedBoundCircle(Vector2d.Zero, Fixed64.Zero)));
+    }
+
+    [Fact]
+    public void Intersects_Circle_PreservesExactRootAcrossEquivalentScale()
+    {
+        const long positionX = -21_474_923_131L;
+        const long positionY = 4_294_881_327L;
+        const long directionX = 4_295_022_249L;
+        const long directionY = 2_228L;
+        const long radius = 8_589_994_090L;
+        var ray = new FixedRay2d(
+            new Vector2d(Fixed64.FromRaw(positionX), Fixed64.FromRaw(positionY)),
+            new Vector2d(Fixed64.FromRaw(directionX), Fixed64.FromRaw(directionY)));
+        var scaledRay = new FixedRay2d(
+            new Vector2d(Fixed64.FromRaw(positionX * 100), Fixed64.FromRaw(positionY * 100)),
+            new Vector2d(Fixed64.FromRaw(directionX * 100), Fixed64.FromRaw(directionY * 100)));
+
+        Fixed64? hit = ray.Intersects(new FixedBoundCircle(Vector2d.Zero, Fixed64.FromRaw(radius)));
+        Fixed64? scaledHit = scaledRay.Intersects(
+            new FixedBoundCircle(Vector2d.Zero, Fixed64.FromRaw(radius * 100)));
+
+        Assert.Equal(Fixed64.FromRaw(14_035_527_845L), hit);
+        Assert.Equal(hit, scaledHit);
+    }
+
+    [Fact]
+    public void Intersects_Circle_RejectsExactRootBeyondRepresentableBound()
+    {
+        var ray = new FixedRay2d(
+            new Vector2d(Fixed64.FromRaw(-17_179_869_185L), Fixed64.Zero),
+            new Vector2d(Fixed64.FromRaw(17_179_869_184L), Fixed64.Zero));
+
+        Assert.Null(ray.Intersects(
+            new FixedBoundCircle(Vector2d.Zero, Fixed64.Zero),
+            Fixed64.One));
+    }
+
+    [Fact]
+    public void Intersects_Circle_RefinesFloorSquareRootSeedExactly()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        var ray = new FixedRay2d(
+            new Vector2d(Fixed64.FromRaw(-20L), Fixed64.FromRaw(-20L)),
+            new Vector2d(oneRaw, oneRaw));
+
+        Fixed64? hit = ray.Intersects(
+            new FixedBoundCircle(Vector2d.Zero, oneRaw));
+
+        Assert.Equal(Fixed64.FromRaw(82_862_345_420L), hit);
     }
 
     [Fact]

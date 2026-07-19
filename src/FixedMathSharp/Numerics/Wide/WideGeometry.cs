@@ -15,6 +15,115 @@ namespace FixedMathSharp;
 internal static class WideGeometry
 {
     /// <summary>
+    /// Attempts to return the rounded distance between two 2D endpoints without
+    /// narrowing their component differences.
+    /// </summary>
+    internal static bool TryGetDistance(Vector2d start, Vector2d end, out Fixed64 distance)
+    {
+        Signed192 squaredDistance = GetDifferenceDotProduct2D(
+            end.X, start.X, end.Y, start.Y,
+            end.X, start.X, end.Y, start.Y);
+        return TryRoundDistance(squaredDistance, out distance);
+    }
+
+    /// <summary>
+    /// Attempts to return the rounded distance between two 3D endpoints without
+    /// narrowing their component differences.
+    /// </summary>
+    internal static bool TryGetDistance(Vector3d start, Vector3d end, out Fixed64 distance)
+    {
+        Signed192 squaredDistance = GetDifferenceDotProduct3D(
+            end.X, start.X, end.Y, start.Y, end.Z, start.Z,
+            end.X, start.X, end.Y, start.Y, end.Z, start.Z);
+        return TryRoundDistance(squaredDistance, out distance);
+    }
+
+    /// <summary>
+    /// Returns the normalized direction between two 2D endpoints without
+    /// narrowing their component differences.
+    /// </summary>
+    internal static Vector2d GetDirection(Vector2d start, Vector2d end)
+    {
+        Signed192 x = GetDifference(end.X, start.X);
+        Signed192 y = GetDifference(end.Y, start.Y);
+        Signed320 squaredMagnitude = GetSquaredMagnitude(
+            x,
+            y,
+            default,
+            out Signed320 xSquare,
+            out Signed320 ySquare,
+            out _);
+        if (squaredMagnitude.IsZero)
+            return Vector2d.Zero;
+
+        Signed192 magnitude = WideArithmetic.GetFloorSquareRoot(squaredMagnitude, out Signed192 remainder);
+        Signed192 ceilingMagnitude = remainder.IsZero
+            ? magnitude
+            : WideArithmetic.AddSigned192(magnitude, WideArithmetic.FromSignedRaw(1L));
+        return new Vector2d(
+            Fixed64.NormalizeWideComponent(x, xSquare, ceilingMagnitude, squaredMagnitude),
+            Fixed64.NormalizeWideComponent(y, ySquare, ceilingMagnitude, squaredMagnitude));
+    }
+
+    /// <summary>
+    /// Returns the normalized direction between two 3D endpoints without
+    /// narrowing their component differences.
+    /// </summary>
+    internal static Vector3d GetDirection(Vector3d start, Vector3d end)
+    {
+        Signed192 x = GetDifference(end.X, start.X);
+        Signed192 y = GetDifference(end.Y, start.Y);
+        Signed192 z = GetDifference(end.Z, start.Z);
+        Signed320 squaredMagnitude = GetSquaredMagnitude(
+            x,
+            y,
+            z,
+            out Signed320 xSquare,
+            out Signed320 ySquare,
+            out Signed320 zSquare);
+        if (squaredMagnitude.IsZero)
+            return Vector3d.Zero;
+
+        Signed192 magnitude = WideArithmetic.GetFloorSquareRoot(squaredMagnitude, out Signed192 remainder);
+        Signed192 ceilingMagnitude = remainder.IsZero
+            ? magnitude
+            : WideArithmetic.AddSigned192(magnitude, WideArithmetic.FromSignedRaw(1L));
+        return new Vector3d(
+            Fixed64.NormalizeWideComponent(x, xSquare, ceilingMagnitude, squaredMagnitude),
+            Fixed64.NormalizeWideComponent(y, ySquare, ceilingMagnitude, squaredMagnitude),
+            Fixed64.NormalizeWideComponent(z, zSquare, ceilingMagnitude, squaredMagnitude));
+    }
+
+    private static bool TryRoundDistance(Signed192 squaredDistance, out Fixed64 distance)
+    {
+        Signed192 root = WideArithmetic.GetFloorSquareRoot(
+            WideArithmetic.ExtendToSigned320(squaredDistance),
+            out Signed192 remainder);
+        WideArithmetic.GetMagnitude(root, out ulong high, out ulong middle, out ulong low);
+        if (high != 0UL || middle != 0UL || low > (ulong)long.MaxValue)
+        {
+            distance = Fixed64.MaxValue;
+            return false;
+        }
+
+        // For integer n = root^2 + remainder, sqrt(n) rounds upward exactly
+        // when remainder is at least root + 1. A half-way tie is impossible.
+        if (WideArithmetic.CompareMagnitude(remainder, root) > 0)
+        {
+            if (low == (ulong)long.MaxValue)
+            {
+                distance = Fixed64.MaxValue;
+                return false;
+            }
+
+            low++;
+        }
+
+        distance = Fixed64.FromRaw((long)low);
+        return true;
+    }
+
+    /// <summary>
     /// Returns the exact dot product of two two-dimensional endpoint differences.
     /// </summary>
     internal static Signed192 GetDifferenceDotProduct2D(
@@ -460,6 +569,12 @@ internal static class WideGeometry
 
         sumHigh = unchecked(sumHigh + productHigh + carryHigh);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Signed192 GetDifference(Fixed64 end, Fixed64 start) =>
+        WideArithmetic.SubtractSigned192(
+            WideArithmetic.FromSignedRaw(end.m_rawValue),
+            WideArithmetic.FromSignedRaw(start.m_rawValue));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Signed192 GetRawCrossComponent(

@@ -466,8 +466,8 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
         }
         else if (amount > Fixed64.Zero)
         {
-            X = targetx * amount + X * (Fixed64.One - amount);
-            Y = targety * amount + Y * (Fixed64.One - amount);
+            X = FixedMath.Lerp(X, targetx, amount);
+            Y = FixedMath.Lerp(Y, targety, amount);
         }
         return this;
     }

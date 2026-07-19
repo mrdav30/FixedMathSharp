@@ -81,28 +81,38 @@ public partial struct FixedRay : IEquatable<FixedRay>
     /// <summary>
     /// Finds the first forward intersection with the specified bounding sphere.
     /// </summary>
-    public Fixed64? Intersects(FixedBoundSphere sphere)
-    {
-        Fixed64 directionLengthSquared = Direction.MagnitudeSquared;
-        if (directionLengthSquared == Fixed64.Zero)
-            return sphere.Contains(Position) ? Fixed64.Zero : null;
+    public Fixed64? Intersects(FixedBoundSphere sphere) =>
+        WideRayIntersection.Intersects(Position, Direction, sphere, Fixed64.MaxValue);
 
-        Vector3d offset = Position - sphere.Center;
-        Fixed64 c = Vector3d.Dot(offset, offset) - sphere.RadiusSquared;
-        if (c <= Fixed64.Zero)
-            return Fixed64.Zero;
+    /// <summary>
+    /// Finds the first forward intersection with the specified bounding sphere
+    /// at or before <paramref name="maxParameter"/>.
+    /// </summary>
+    /// <remarks>
+    /// Offset differences, quadratic products, the discriminant, and root
+    /// ordering are evaluated without fixed-point saturation. The returned
+    /// parameter uses deterministic round-half-to-even conversion.
+    /// </remarks>
+    public Fixed64? Intersects(FixedBoundSphere sphere, Fixed64 maxParameter) =>
+        WideRayIntersection.Intersects(Position, Direction, sphere, maxParameter);
 
-        Fixed64 b = Vector3d.Dot(offset, Direction);
-        if (b > Fixed64.Zero)
-            return null;
-
-        Fixed64 discriminant = (b * b) - (directionLengthSquared * c);
-        if (discriminant < Fixed64.Zero)
-            return null;
-
-        Fixed64 t = FixedMath.FastDiv(-b - FixedMath.Sqrt(discriminant), directionLengthSquared);
-        return t;
-    }
+    /// <summary>
+    /// Finds the first forward intersection with the specified bounding sphere,
+    /// expanded by <paramref name="radiusExpansion"/>, at or before
+    /// <paramref name="maxParameter"/>.
+    /// </summary>
+    /// <remarks>
+    /// The two radii are combined in wide arithmetic, so their sum may exceed
+    /// <see cref="Fixed64.MaxValue"/> without saturation.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radiusExpansion"/> is negative.
+    /// </exception>
+    public Fixed64? Intersects(
+        FixedBoundSphere sphere,
+        Fixed64 radiusExpansion,
+        Fixed64 maxParameter) =>
+        WideRayIntersection.Intersects(Position, Direction, sphere, radiusExpansion, maxParameter);
 
     /// <summary>
     /// Finds the first forward intersection with the specified frustum.
