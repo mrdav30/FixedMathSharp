@@ -36,9 +36,6 @@ and tests.
 
 ## Active Issues
 
-- **FMS-Issue-013: Full-domain radial predicates and bounded query intervals**
-  is being executed through
-  [`2026-07-18-full-domain-radial-query-plan.md`](2026-07-18-full-domain-radial-query-plan.md).
 - **FMS-Issue-014: Finite-segment capsule/cylinder projections need dedicated
   wide ownership.** Exact circle/sphere intervals cannot repair perpendicular
   vectors or quadratic coefficients that were already narrowed downstream.
@@ -57,6 +54,38 @@ confirmed runtime defect. Current queue:
 - None currently.
 
 ## Resolved Issues
+
+### FMS-Issue-013: Full-domain radial predicates and bounded query intervals
+
+**Discovered:** 2026-07-18
+
+**Resolved:** 2026-07-18
+
+**Source:** relative CCD exact-root migration and Gravitas interval-consumer
+audit
+
+**Resolution:**
+
+Circle/sphere, vector-distance, and centered-extent predicates now compare in
+wide integer space across the complete finite endpoint domain. `FixedRay2d` and
+`FixedRay` expose exact closed bounded entry/exit intervals with separate radius
+expansion, and `FixedMath.TryGetCircleCrossSectionRadius` owns exact sphere-slice
+reduction. `FixedMath.TryGetSphereSlabCrossSectionRadius` additionally keeps
+opposite-domain center separation exact before selecting the nearest plane in a
+finite slab. The misleading public `RadiusSquared` properties were removed.
+
+The corresponding Gravitas sphere-segment and mixed circle-slab/cross-section
+consumers now retain actual radius ownership and use these APIs. Finite-axis
+capsule/cylinder/mesh-edge projection remains `FMS-Issue-014`; full-domain
+sphere construction/merge remains `FMS-Issue-015`; conic quadratics remain a
+Gravitas issue.
+
+Verification reached 100% FixedMathSharp coverage (9,408/9,408 lines,
+3,064/3,064 branches, and 1,528/1,528 methods), with 1,460 standard and 1,439
+Lean tests plus 8 Chronicler tests in both configurations passing. First-hit
+and interval benchmark rows remained allocation free, and an independent
+review reported no findings. Full execution detail is retained in
+[`2026-07-18-full-domain-radial-query-plan.md`](2026-07-18-full-domain-radial-query-plan.md).
 
 ### FMS-Issue-012: Full in-process bounds benchmark can crash in frustum segment after prior rows
 

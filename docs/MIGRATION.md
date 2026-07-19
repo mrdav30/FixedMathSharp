@@ -196,6 +196,10 @@ signed plane offset. It retains the difference of squares and square root in
 wide arithmetic through the final nearest-even radius, returning `false` only
 when the plane does not intersect the sphere. Negative source radii throw.
 
+Use `FixedMath.TryGetSphereSlabCrossSectionRadius` when projecting a sphere
+through a centered finite slab. It keeps opposite-domain center separation and
+the slab offset exact before reducing to the nearest cross-section radius.
+
 ### FixedTransform Local And World Contract
 
 `FixedTransform` no longer hides one mutable matrix behind ambiguous component

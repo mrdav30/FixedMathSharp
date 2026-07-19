@@ -12,6 +12,32 @@ namespace FixedMathSharp;
 /// </summary>
 internal static class WideRadialGeometry
 {
+    internal static bool TryGetSphereSlabCrossSectionRadius(
+        Fixed64 sphereCenter,
+        Fixed64 sphereRadius,
+        Fixed64 slabCenter,
+        Fixed64 slabHalfThickness,
+        out Fixed64 crossSectionRadius)
+    {
+        ulong centerDistance = sphereCenter.m_rawValue >= slabCenter.m_rawValue
+            ? unchecked((ulong)sphereCenter.m_rawValue - (ulong)slabCenter.m_rawValue)
+            : unchecked((ulong)slabCenter.m_rawValue - (ulong)sphereCenter.m_rawValue);
+        ulong halfThickness = (ulong)slabHalfThickness.m_rawValue;
+        ulong offset = centerDistance > halfThickness
+            ? centerDistance - halfThickness
+            : 0UL;
+        if (offset > (ulong)sphereRadius.m_rawValue)
+        {
+            crossSectionRadius = Fixed64.Zero;
+            return false;
+        }
+
+        return TryGetCircleCrossSectionRadius(
+            sphereRadius,
+            Fixed64.FromRaw((long)offset),
+            out crossSectionRadius);
+    }
+
     internal static bool TryGetCircleCrossSectionRadius(
         Fixed64 radius,
         Fixed64 offset,

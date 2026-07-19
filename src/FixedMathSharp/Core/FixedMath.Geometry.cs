@@ -39,4 +39,46 @@ public static partial class FixedMath
             offset,
             out crossSectionRadius);
     }
+
+    /// <summary>
+    /// Attempts to get the largest circular sphere cross-section that lies
+    /// within a centered finite slab.
+    /// </summary>
+    /// <param name="sphereCenter">The sphere-center coordinate on the slab axis.</param>
+    /// <param name="sphereRadius">The non-negative sphere radius.</param>
+    /// <param name="slabCenter">The slab-center coordinate on the same axis.</param>
+    /// <param name="slabHalfThickness">The non-negative slab half-thickness.</param>
+    /// <param name="crossSectionRadius">
+    /// The nearest-even radius at the slab plane closest to the sphere center,
+    /// or zero when the slab and sphere do not intersect.
+    /// </param>
+    /// <returns><see langword="true"/> when the slab intersects or is tangent to the sphere; otherwise, <see langword="false"/>.</returns>
+    /// <remarks>
+    /// Center separation, slab projection, the difference of squares, and the
+    /// square root remain exact until the final deterministic
+    /// <see cref="Fixed64"/> conversion.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="sphereRadius"/> or <paramref name="slabHalfThickness"/> is negative.
+    /// </exception>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryGetSphereSlabCrossSectionRadius(
+        Fixed64 sphereCenter,
+        Fixed64 sphereRadius,
+        Fixed64 slabCenter,
+        Fixed64 slabHalfThickness,
+        out Fixed64 crossSectionRadius)
+    {
+        if (sphereRadius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(sphereRadius), "Sphere radius must be non-negative.");
+        if (slabHalfThickness < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(slabHalfThickness), "Slab half-thickness must be non-negative.");
+
+        return WideRadialGeometry.TryGetSphereSlabCrossSectionRadius(
+            sphereCenter,
+            sphereRadius,
+            slabCenter,
+            slabHalfThickness,
+            out crossSectionRadius);
+    }
 }

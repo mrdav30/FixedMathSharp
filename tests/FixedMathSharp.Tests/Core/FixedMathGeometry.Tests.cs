@@ -59,4 +59,71 @@ public class FixedMathGeometryTests
             out Fixed64 minimumOffset));
         Assert.Equal(Fixed64.Zero, minimumOffset);
     }
+
+    [Fact]
+    public void TryGetSphereSlabCrossSectionRadius_UsesNearestPlaneInsideSlab()
+    {
+        Assert.True(FixedMath.TryGetSphereSlabCrossSectionRadius(
+            (Fixed64)4,
+            (Fixed64)5,
+            Fixed64.Zero,
+            Fixed64.One,
+            out Fixed64 projectedRadius));
+        Assert.Equal((Fixed64)4, projectedRadius);
+
+        Assert.True(FixedMath.TryGetSphereSlabCrossSectionRadius(
+            (Fixed64)(-4),
+            (Fixed64)5,
+            Fixed64.Zero,
+            Fixed64.One,
+            out Fixed64 mirroredProjectedRadius));
+        Assert.Equal((Fixed64)4, mirroredProjectedRadius);
+
+        Assert.True(FixedMath.TryGetSphereSlabCrossSectionRadius(
+            Fixed64.One,
+            (Fixed64)5,
+            Fixed64.Zero,
+            Fixed64.One,
+            out Fixed64 insideRadius));
+        Assert.Equal((Fixed64)5, insideRadius);
+    }
+
+    [Fact]
+    public void TryGetSphereSlabCrossSectionRadius_PreservesOppositeDomainSeparation()
+    {
+        Assert.False(FixedMath.TryGetSphereSlabCrossSectionRadius(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.MinValue,
+            Fixed64.One,
+            out Fixed64 missedRadius));
+        Assert.Equal(Fixed64.Zero, missedRadius);
+
+        Assert.True(FixedMath.TryGetSphereSlabCrossSectionRadius(
+            (Fixed64)6,
+            (Fixed64)5,
+            Fixed64.Zero,
+            Fixed64.One,
+            out Fixed64 tangentRadius));
+        Assert.Equal(Fixed64.Zero, tangentRadius);
+    }
+
+    [Fact]
+    public void TryGetSphereSlabCrossSectionRadius_RejectsNegativeDimensions()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            FixedMath.TryGetSphereSlabCrossSectionRadius(
+                Fixed64.Zero,
+                -Fixed64.One,
+                Fixed64.Zero,
+                Fixed64.One,
+                out _));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            FixedMath.TryGetSphereSlabCrossSectionRadius(
+                Fixed64.Zero,
+                Fixed64.One,
+                Fixed64.Zero,
+                -Fixed64.One,
+                out _));
+    }
 }
