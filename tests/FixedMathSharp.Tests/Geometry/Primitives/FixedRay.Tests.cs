@@ -383,6 +383,144 @@ public class FixedRayTests
     }
 
     [Fact]
+    public void TryGetIntersectionInterval_SphereReturnsOrderedClippedParameters()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        var ray = new FixedRay(new Vector3d(-10, 0, 0), new Vector3d(2, 0, 0));
+
+        Assert.True(ray.TryGetIntersectionInterval(sphere, (Fixed64)10, out Fixed64 entry, out Fixed64 exit));
+        Assert.Equal(Fixed64.FromFraction(9, 2), entry);
+        Assert.Equal(Fixed64.FromFraction(11, 2), exit);
+
+        Assert.True(ray.TryGetIntersectionInterval(sphere, (Fixed64)5, out entry, out exit));
+        Assert.Equal(Fixed64.FromFraction(9, 2), entry);
+        Assert.Equal((Fixed64)5, exit);
+
+        Assert.False(ray.TryGetIntersectionInterval(sphere, (Fixed64)4, out entry, out exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal(Fixed64.Zero, exit);
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_SpherePreservesClosedBoundaryAndZeroDirectionSemantics()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+
+        Assert.True(new FixedRay(Vector3d.Zero, Vector3d.Zero)
+            .TryGetIntersectionInterval(sphere, (Fixed64)3, out Fixed64 entry, out Fixed64 exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal((Fixed64)3, exit);
+
+        Assert.True(new FixedRay(Vector3d.Right, Vector3d.Right)
+            .TryGetIntersectionInterval(sphere, (Fixed64)3, out entry, out exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal(Fixed64.Zero, exit);
+
+        Assert.True(new FixedRay(Vector3d.Right, Vector3d.Left)
+            .TryGetIntersectionInterval(sphere, (Fixed64)3, out entry, out exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal((Fixed64)2, exit);
+
+        Assert.False(new FixedRay((Fixed64)2 * Vector3d.Right, Vector3d.Zero)
+            .TryGetIntersectionInterval(sphere, (Fixed64)3, out _, out _));
+        Assert.False(new FixedRay(Vector3d.Zero, Vector3d.Right)
+            .TryGetIntersectionInterval(sphere, -Fixed64.One, out _, out _));
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_SphereHandlesTangencyAndExactBoundBeforeRounding()
+    {
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+        var tangent = new FixedRay(new Vector3d(-5, 1, 0), Vector3d.Right);
+
+        Assert.True(tangent.TryGetIntersectionInterval(sphere, (Fixed64)10, out Fixed64 entry, out Fixed64 exit));
+        Assert.Equal((Fixed64)5, entry);
+        Assert.Equal(entry, exit);
+
+        var justBeyond = new FixedRay(
+            new Vector3d(Fixed64.FromRaw(-17_179_869_185L), Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.FromRaw(17_179_869_184L), Fixed64.Zero, Fixed64.Zero));
+        var justInside = new FixedRay(
+            new Vector3d(Fixed64.FromRaw(-17_179_869_183L), Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.FromRaw(17_179_869_184L), Fixed64.Zero, Fixed64.Zero));
+        var point = new FixedBoundSphere(Vector3d.Zero, Fixed64.Zero);
+
+        Assert.False(justBeyond.TryGetIntersectionInterval(point, Fixed64.One, out _, out _));
+        Assert.True(justInside.TryGetIntersectionInterval(point, Fixed64.One, out entry, out exit));
+        Assert.Equal(Fixed64.One, entry);
+        Assert.Equal(entry, exit);
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_SphereExpandsRadiusWithoutSaturating()
+    {
+        var sphere = new FixedBoundSphere(new Vector3d(-1, 0, 0), Fixed64.MaxValue);
+        var ray = new FixedRay(new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero), Vector3d.Zero);
+
+        Assert.False(ray.TryGetIntersectionInterval(sphere, Fixed64.One, out _, out _));
+        Assert.True(ray.TryGetIntersectionInterval(
+            sphere,
+            Fixed64.One,
+            Fixed64.One,
+            out Fixed64 entry,
+            out Fixed64 exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal(Fixed64.One, exit);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ray.TryGetIntersectionInterval(sphere, -Fixed64.One, Fixed64.One, out _, out _));
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_SphereRoundsBothRootsToEven()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        var sphere = new FixedBoundSphere(Vector3d.Zero, (Fixed64)65);
+        var evenCandidates = new FixedRay(
+            new Vector3d(-(Fixed64)65 - oneRaw, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(2, 0, 0));
+        var oddCandidates = new FixedRay(
+            new Vector3d(-(Fixed64)65 - Fixed64.FromRaw(3L), Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(2, 0, 0));
+
+        Assert.True(evenCandidates.TryGetIntersectionInterval(sphere, (Fixed64)100, out Fixed64 entry, out Fixed64 exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal((Fixed64)65, exit);
+
+        Assert.True(oddCandidates.TryGetIntersectionInterval(sphere, (Fixed64)100, out entry, out exit));
+        Assert.Equal(Fixed64.FromRaw(2L), entry);
+        Assert.Equal((Fixed64)65 + Fixed64.FromRaw(2L), exit);
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_SpherePreservesScaleAndSubRawOverlap()
+    {
+        var scaledSphere = new FixedBoundSphere(Vector3d.Zero, (Fixed64)100_000);
+        var scaledRay = new FixedRay(
+            new Vector3d(-1_000_000, 0, 0),
+            new Vector3d(200_000, 0, 0));
+
+        Assert.True(scaledRay.TryGetIntersectionInterval(
+            scaledSphere,
+            (Fixed64)10,
+            out Fixed64 entry,
+            out Fixed64 exit));
+        Assert.Equal(Fixed64.FromFraction(9, 2), entry);
+        Assert.Equal(Fixed64.FromFraction(11, 2), exit);
+
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        var subRawSphere = new FixedBoundSphere(new Vector3d(oneRaw, Fixed64.Zero, Fixed64.Zero), oneRaw);
+        var subRawRay = new FixedRay(Vector3d.Zero, new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero));
+
+        Assert.True(subRawRay.TryGetIntersectionInterval(
+            subRawSphere,
+            Fixed64.One,
+            out entry,
+            out exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal(Fixed64.Zero, exit);
+    }
+
+    [Fact]
     public void Equality_UsesPositionAndDirection()
     {
         var ray = new FixedRay(Vector3d.Zero, Vector3d.Forward);

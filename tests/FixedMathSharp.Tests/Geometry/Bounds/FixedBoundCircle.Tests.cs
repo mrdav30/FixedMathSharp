@@ -17,7 +17,6 @@ public class FixedBoundCircleTests
 
         Assert.Equal(new Vector2d(2, -3), circle.Center);
         Assert.Equal(new Fixed64(5), circle.Radius);
-        Assert.Equal(new Fixed64(25), circle.RadiusSquared);
         Assert.Equal(FixedBoundArea.FromMinMax(new Vector2d(-3, -8), new Vector2d(7, 2)), circle.Bounds);
     }
 
@@ -29,7 +28,6 @@ public class FixedBoundCircleTests
         circle.Radius = new Fixed64(-3);
 
         Assert.Equal(new Fixed64(3), circle.Radius);
-        Assert.Equal(new Fixed64(9), circle.RadiusSquared);
         Assert.Equal(FixedBoundArea.FromMinMax(new Vector2d(-3, -3), new Vector2d(3, 3)), circle.Bounds);
     }
 
@@ -145,6 +143,35 @@ public class FixedBoundCircleTests
     }
 
     [Fact]
+    public void RadialPredicates_LargeSquaredValues_PreserveExactClassification()
+    {
+        var pointBound = new FixedBoundCircle(Vector2d.Zero, (Fixed64)100_000);
+        var containedCandidate = new FixedBoundCircle(new Vector2d(250_000, 0), (Fixed64)100_000);
+        var disjointCandidate = new FixedBoundCircle(new Vector2d(300_000, 0), (Fixed64)100_000);
+        var strictOverlap = new FixedBoundCircle(new Vector2d(199_999, 0), (Fixed64)100_000);
+        var minimumDomain = new FixedBoundCircle(
+            new Vector2d(Fixed64.MinValue, Fixed64.Zero),
+            Fixed64.MaxValue);
+        var maximumDomain = new FixedBoundCircle(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            Fixed64.MaxValue);
+        var distantArea = FixedBoundArea.FromMinMax(
+            new Vector2d(200_000, 0),
+            new Vector2d(200_001, 1));
+
+        Assert.False(pointBound.Contains(new Vector2d(200_000, 0)));
+        Assert.True(pointBound.ContainsStrict(new Vector2d(99_999, 0)));
+        Assert.False(pointBound.ContainsStrict(new Vector2d(100_000, 0)));
+        Assert.Equal(
+            FixedEnclosureType.Intersects,
+            new FixedBoundCircle(Vector2d.Zero, (Fixed64)300_000).Contains(containedCandidate));
+        Assert.Equal(FixedEnclosureType.Disjoint, pointBound.Contains(disjointCandidate));
+        Assert.True(pointBound.IntersectsStrict(strictOverlap));
+        Assert.Equal(FixedEnclosureType.Disjoint, minimumDomain.Contains(maximumDomain));
+        Assert.False(pointBound.Intersects(distantArea));
+    }
+
+    [Fact]
     public void ZeroRadiusCircle_BehavesAsBoundaryInclusivePoint()
     {
         var circle = new FixedBoundCircle(new Vector2d(1, 1), Fixed64.Zero);
@@ -153,6 +180,7 @@ public class FixedBoundCircleTests
         var areaMissingPoint = FixedBoundArea.FromMinMax(new Vector2d(2, 2), new Vector2d(3, 3));
 
         Assert.True(circle.Contains(new Vector2d(1, 1)));
+        Assert.False(circle.ContainsStrict(new Vector2d(1, 1)));
         Assert.False(circle.Contains(new Vector2d(1, 2)));
         Assert.Equal(FixedBoundArea.FromMinMax(new Vector2d(1, 1), new Vector2d(1, 1)), circle.Bounds);
         Assert.Equal(FixedEnclosureType.Contains, circle.Contains(samePoint));

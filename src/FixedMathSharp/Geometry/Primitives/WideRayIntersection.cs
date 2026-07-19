@@ -37,6 +37,48 @@ internal static class WideRayIntersection
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryGetInterval(
+        Vector2d position,
+        Vector2d direction,
+        FixedBoundCircle circle,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit) =>
+        TryGetIntervalWide(
+            position,
+            direction,
+            circle.Center,
+            WideArithmetic.FromSignedRaw(circle.Radius.m_rawValue),
+            maxParameter,
+            out entry,
+            out exit);
+
+    public static bool TryGetInterval(
+        Vector2d position,
+        Vector2d direction,
+        FixedBoundCircle circle,
+        Fixed64 radiusExpansion,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit)
+    {
+        if (radiusExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radiusExpansion), "Radius expansion must be non-negative.");
+
+        Signed192 expandedRadius = WideArithmetic.AddSigned192(
+            WideArithmetic.FromSignedRaw(circle.Radius.m_rawValue),
+            WideArithmetic.FromSignedRaw(radiusExpansion.m_rawValue));
+        return TryGetIntervalWide(
+            position,
+            direction,
+            circle.Center,
+            expandedRadius,
+            maxParameter,
+            out entry,
+            out exit);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64? Intersects(
         Vector2d position,
         Vector2d direction,
@@ -85,6 +127,33 @@ internal static class WideRayIntersection
             maxParameter);
     }
 
+    private static bool TryGetIntervalWide(
+        Vector2d position,
+        Vector2d direction,
+        Vector2d center,
+        Signed192 radius,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit)
+    {
+        Signed192 directionLengthSquared = WideGeometry.GetDifferenceDotProduct2D(
+            direction.X, Fixed64.Zero, direction.Y, Fixed64.Zero,
+            direction.X, Fixed64.Zero, direction.Y, Fixed64.Zero);
+        Signed192 projection = WideGeometry.GetDifferenceDotProduct2D(
+            position.X, center.X, position.Y, center.Y,
+            direction.X, Fixed64.Zero, direction.Y, Fixed64.Zero);
+        Signed192 distanceSquared = WideGeometry.GetDifferenceDotProduct2D(
+            position.X, center.X, position.Y, center.Y,
+            position.X, center.X, position.Y, center.Y);
+        return TrySolveInterval(
+            directionLengthSquared,
+            projection,
+            WideArithmetic.SubtractSigned192(distanceSquared, GetRadiusSquared(radius)),
+            maxParameter,
+            out entry,
+            out exit);
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64? Intersects(
         Vector3d position,
@@ -101,6 +170,48 @@ internal static class WideRayIntersection
             sphere.Center,
             WideArithmetic.FromSignedRaw(sphere.Radius.m_rawValue),
             maxParameter);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryGetInterval(
+        Vector3d position,
+        Vector3d direction,
+        FixedBoundSphere sphere,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit) =>
+        TryGetIntervalWide(
+            position,
+            direction,
+            sphere.Center,
+            WideArithmetic.FromSignedRaw(sphere.Radius.m_rawValue),
+            maxParameter,
+            out entry,
+            out exit);
+
+    public static bool TryGetInterval(
+        Vector3d position,
+        Vector3d direction,
+        FixedBoundSphere sphere,
+        Fixed64 radiusExpansion,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit)
+    {
+        if (radiusExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radiusExpansion), "Radius expansion must be non-negative.");
+
+        Signed192 expandedRadius = WideArithmetic.AddSigned192(
+            WideArithmetic.FromSignedRaw(sphere.Radius.m_rawValue),
+            WideArithmetic.FromSignedRaw(radiusExpansion.m_rawValue));
+        return TryGetIntervalWide(
+            position,
+            direction,
+            sphere.Center,
+            expandedRadius,
+            maxParameter,
+            out entry,
+            out exit);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -152,6 +263,254 @@ internal static class WideRayIntersection
             maxParameter);
     }
 
+    private static bool TryGetIntervalWide(
+        Vector3d position,
+        Vector3d direction,
+        Vector3d center,
+        Signed192 radius,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit)
+    {
+        Signed192 directionLengthSquared = WideGeometry.GetDifferenceDotProduct3D(
+            direction.X, Fixed64.Zero, direction.Y, Fixed64.Zero, direction.Z, Fixed64.Zero,
+            direction.X, Fixed64.Zero, direction.Y, Fixed64.Zero, direction.Z, Fixed64.Zero);
+        Signed192 projection = WideGeometry.GetDifferenceDotProduct3D(
+            position.X, center.X, position.Y, center.Y, position.Z, center.Z,
+            direction.X, Fixed64.Zero, direction.Y, Fixed64.Zero, direction.Z, Fixed64.Zero);
+        Signed192 distanceSquared = WideGeometry.GetDifferenceDotProduct3D(
+            position.X, center.X, position.Y, center.Y, position.Z, center.Z,
+            position.X, center.X, position.Y, center.Y, position.Z, center.Z);
+        return TrySolveInterval(
+            directionLengthSquared,
+            projection,
+            WideArithmetic.SubtractSigned192(distanceSquared, GetRadiusSquared(radius)),
+            maxParameter,
+            out entry,
+            out exit);
+    }
+
+    private static bool TrySolveInterval(
+        Signed192 directionLengthSquared,
+        Signed192 projection,
+        Signed192 constant,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit)
+    {
+        entry = default;
+        exit = default;
+        if (maxParameter < Fixed64.Zero)
+            return false;
+
+        if (directionLengthSquared.IsZero)
+        {
+            if (constant.Sign > 0)
+                return false;
+
+            exit = maxParameter;
+            return true;
+        }
+
+        Signed320 discriminant = WideArithmetic.MultiplySubtract(
+            projection,
+            projection,
+            directionLengthSquared,
+            constant);
+        Signed192 squareRoot = default;
+        bool hasSquareRoot = false;
+        if (constant.Sign > 0)
+        {
+            if (projection.Sign >= 0 || maxParameter == Fixed64.Zero || discriminant.Sign < 0)
+                return false;
+
+            squareRoot = WideArithmetic.GetFloorSquareRoot(discriminant, out _);
+            hasSquareRoot = true;
+            Fixed64? first = SolveEntry(
+                directionLengthSquared,
+                projection,
+                constant,
+                squareRoot,
+                maxParameter);
+            if (!first.HasValue)
+                return false;
+
+            entry = first.Value;
+        }
+
+        long maxRaw = maxParameter.m_rawValue;
+        Signed192 maxNumerator = WideArithmetic.FromSignedRaw(maxRaw);
+        Signed320 valueAtMax = EvaluatePolynomial(
+            directionLengthSquared,
+            projection,
+            constant,
+            maxNumerator,
+            RawScale);
+        if (valueAtMax.Sign <= 0)
+        {
+            exit = maxParameter;
+            return true;
+        }
+
+        if (discriminant.IsZero)
+        {
+            exit = entry;
+            return true;
+        }
+
+        Signed192 negativeProjection = WideArithmetic.SubtractSigned192(default, projection);
+        if (!hasSquareRoot)
+            squareRoot = WideArithmetic.GetFloorSquareRoot(discriminant, out _);
+
+        long approximateRaw = GetFloorRatioRaw(
+            WideArithmetic.AddSigned192(negativeProjection, squareRoot),
+            directionLengthSquared);
+        long floorRootRaw = FindFloorUpperRoot(
+            directionLengthSquared,
+            projection,
+            constant,
+            approximateRaw,
+            maxRaw,
+            out bool exactRoot);
+        exit = RoundUpperRoot(
+            directionLengthSquared,
+            projection,
+            constant,
+            floorRootRaw,
+            exactRoot);
+        return true;
+    }
+
+    private static long FindFloorUpperRoot(
+        Signed192 directionLengthSquared,
+        Signed192 projection,
+        Signed192 constant,
+        long approximateRaw,
+        long maxRaw,
+        out bool exactRoot)
+    {
+        long lowRaw = Math.Max(0L, Math.Min(approximateRaw, maxRaw - 1L));
+        long highRaw = maxRaw;
+        long step = 1L;
+
+        while (highRaw - lowRaw > 1L)
+        {
+            long remaining = highRaw - lowRaw;
+            long candidateRaw = lowRaw + Math.Min(step, remaining);
+            if (!IsAtOrBeforeUpperRoot(
+                    directionLengthSquared,
+                    projection,
+                    constant,
+                    WideArithmetic.FromSignedRaw(candidateRaw),
+                    RawScale))
+            {
+                highRaw = candidateRaw;
+                break;
+            }
+
+            lowRaw = candidateRaw;
+            // Replacing the exact discriminant root by its floor can undershoot
+            // the upper root by fewer than 2^32 parameter raw units, so this
+            // doubling cannot overflow before the bracket is found.
+            step <<= 1;
+        }
+
+        while (highRaw - lowRaw > 1L)
+        {
+            long middleRaw = lowRaw + ((highRaw - lowRaw) >> 1);
+            if (IsAtOrBeforeUpperRoot(
+                    directionLengthSquared,
+                    projection,
+                    constant,
+                    WideArithmetic.FromSignedRaw(middleRaw),
+                    RawScale))
+            {
+                lowRaw = middleRaw;
+            }
+            else
+            {
+                highRaw = middleRaw;
+            }
+        }
+
+        Signed192 low = WideArithmetic.FromSignedRaw(lowRaw);
+        Signed320 lowValue = EvaluatePolynomial(
+            directionLengthSquared,
+            projection,
+            constant,
+            low,
+            RawScale);
+        Signed320 lowDerivative = EvaluateDerivative(
+            directionLengthSquared,
+            projection,
+            low,
+            RawScale);
+        exactRoot = lowValue.IsZero && lowDerivative.Sign >= 0;
+        return lowRaw;
+    }
+
+    private static Fixed64 RoundUpperRoot(
+        Signed192 directionLengthSquared,
+        Signed192 projection,
+        Signed192 constant,
+        long floorRootRaw,
+        bool exactRoot)
+    {
+        if (exactRoot)
+            return Fixed64.FromRaw(floorRootRaw);
+
+        Signed192 floorRoot = WideArithmetic.FromSignedRaw(floorRootRaw);
+        Signed192 midpointNumerator = WideArithmetic.AddSigned192(
+            WideArithmetic.AddSigned192(floorRoot, floorRoot),
+            WideArithmetic.FromSignedRaw(1L));
+        Signed320 midpointValue = EvaluatePolynomial(
+            directionLengthSquared,
+            projection,
+            constant,
+            midpointNumerator,
+            DoubleRawScale);
+        Signed320 midpointDerivative = EvaluateDerivative(
+            directionLengthSquared,
+            projection,
+            midpointNumerator,
+            DoubleRawScale);
+
+        if (midpointValue.IsZero && midpointDerivative.Sign >= 0)
+        {
+            return Fixed64.FromRaw((floorRootRaw & 1L) == 0L
+                ? floorRootRaw
+                : floorRootRaw + 1L);
+        }
+
+        bool roundUp = midpointDerivative.Sign <= 0 || midpointValue.Sign <= 0;
+        return Fixed64.FromRaw(roundUp ? floorRootRaw + 1L : floorRootRaw);
+    }
+
+    private static bool IsAtOrBeforeUpperRoot(
+        Signed192 directionLengthSquared,
+        Signed192 projection,
+        Signed192 constant,
+        Signed192 timeNumerator,
+        Signed192 timeDenominator) =>
+        // Every probed candidate is strictly greater than the analytic upper
+        // seed, whose floor cannot precede the vertex floor. Candidates are
+        // therefore on the nondecreasing side of the quadratic.
+        EvaluatePolynomial(
+            directionLengthSquared,
+            projection,
+            constant,
+            timeNumerator,
+            timeDenominator).Sign <= 0;
+
+    private static Signed320 EvaluateDerivative(
+        Signed192 directionLengthSquared,
+        Signed192 projection,
+        Signed192 timeNumerator,
+        Signed192 timeDenominator) =>
+        WideArithmetic.AddSigned320(
+            WideArithmetic.MultiplySigned192(directionLengthSquared, timeNumerator),
+            WideArithmetic.MultiplySigned192(projection, timeDenominator));
+
     private static Fixed64? Solve(
         Signed192 directionLengthSquared,
         Signed192 projection,
@@ -171,8 +530,23 @@ internal static class WideRayIntersection
         if (discriminant.Sign < 0)
             return null;
 
-        Signed192 negativeProjection = WideArithmetic.SubtractSigned192(default, projection);
         Signed192 squareRoot = WideArithmetic.GetFloorSquareRoot(discriminant, out _);
+        return SolveEntry(
+            directionLengthSquared,
+            projection,
+            constant,
+            squareRoot,
+            maxParameter);
+    }
+
+    private static Fixed64? SolveEntry(
+        Signed192 directionLengthSquared,
+        Signed192 projection,
+        Signed192 constant,
+        Signed192 squareRoot,
+        Fixed64 maxParameter)
+    {
+        Signed192 negativeProjection = WideArithmetic.SubtractSigned192(default, projection);
         long approximateRaw = GetFloorRatioRaw(
             constant,
             WideArithmetic.AddSigned192(negativeProjection, squareRoot));

@@ -22,6 +22,9 @@ Use this guide when upgrading from any v6.x package.
 - Audit chained multiply/divide calculations that rely on an intermediate
   saturated result; use `TryMultiplyDivide` when the mathematical expression
   requires one final rounding step.
+- Replace `FixedBoundCircle.RadiusSquared` and
+  `FixedBoundSphere.RadiusSquared` callers with the actual `Radius` or the
+  bound's exact containment/intersection methods.
 - Re-record deterministic golden values, replay hashes, and serialized expected
   outputs that depend on division, normalization, transforms, segments, or
   triangles. Do not silently compare v6 and v7 simulation hashes as though the
@@ -158,11 +161,22 @@ difference until the final nearest-even result. Raw values can therefore change
 where the v6 implementation saturated `end - start` or rounded two weighted
 products independently.
 
+Circle/sphere point, pair, area, and box predicates now compare exact wide
+squared distances against exact radius sums. `Vector2d.CheckDistance` and
+`Vector3d.CheckDistance` use the same full-domain contract. Inclusive, strict,
+zero-radius, and negative-threshold behavior is unchanged, but classifications
+can change where v6 saturated a distance, radius sum, square, or derived bound.
+
+`FixedBoundCircle.RadiusSquared` and `FixedBoundSphere.RadiusSquared` were
+removed. A `Fixed64` cannot represent the square of every valid radius, so
+those properties could not honor their advertised domain. Keep the actual
+radius and use the exact bound predicates when making spatial decisions.
+
 `FixedRay.Intersects(FixedBoundSphere)` and
 `FixedRay2d.Intersects(FixedBoundCircle)` now evaluate offset differences,
 quadratic products, discriminants, and first-root ordering without saturation.
-New overloads bound the accepted ray parameter and can expand the target radius
-in wide arithmetic:
+New first-hit overloads bound the accepted ray parameter and can expand the
+target radius in wide arithmetic:
 
 ```csharp
 Fixed64? hit = ray.Intersects(targetSphere, sourceRadius, maxParameter);
@@ -171,6 +185,16 @@ Fixed64? hit = ray.Intersects(targetSphere, sourceRadius, maxParameter);
 The expansion must be nonnegative. Its exact sum with the target radius may
 exceed `Fixed64.MaxValue`; this is useful for Minkowski-expanded sweeps without
 pre-saturating the geometry decision.
+
+Callers that need both radial roots can use `TryGetIntersectionInterval` on the
+same ray types. These methods return the closed overlap interval clipped to an
+explicit non-negative maximum parameter and offer overloads that retain radius
+expansion exactly instead of pre-adding two saturating `Fixed64` radii.
+
+Use `FixedMath.TryGetCircleCrossSectionRadius` when reducing a sphere at a
+signed plane offset. It retains the difference of squares and square root in
+wide arithmetic through the final nearest-even radius, returning `false` only
+when the plane does not intersect the sphere. Negative source radii throw.
 
 ### FixedTransform Local And World Contract
 

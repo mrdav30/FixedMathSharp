@@ -207,6 +207,23 @@ public class FixedBoundBoxTests
     }
 
     [Fact]
+    public void SpherePredicates_LargeValuesAvoidSquaredAndExtentSaturation()
+    {
+        var distantSphere = new FixedBoundSphere(new Vector3d(200_000, 0, 0), (Fixed64)100_000);
+        var unitBox = FixedBoundBox.FromMinMax(Vector3d.Zero, Vector3d.One);
+        Fixed64 centerX = Fixed64.MaxValue - Fixed64.One;
+        var limitBox = FixedBoundBox.FromMinMax(
+            new Vector3d(Fixed64.Zero, (Fixed64)(-20), (Fixed64)(-20)),
+            new Vector3d(Fixed64.MaxValue, (Fixed64)20, (Fixed64)20));
+        var crossingLimit = new FixedBoundSphere(
+            new Vector3d(centerX, Fixed64.Zero, Fixed64.Zero),
+            (Fixed64)10);
+
+        Assert.False(unitBox.Intersects(distantSphere));
+        Assert.Equal(FixedEnclosureType.Intersects, limitBox.Contains(crossingLimit));
+    }
+
+    [Fact]
     public void Intersects_WithBoundingFrustum_ReturnsTrueOnlyWhenOverlapping()
     {
         var frustum = new FixedBoundFrustum(Fixed4x4.Identity);

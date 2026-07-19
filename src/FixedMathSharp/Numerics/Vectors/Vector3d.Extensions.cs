@@ -43,7 +43,7 @@ public static partial class Vector3dExtensions
         if (factor < Fixed64.Zero)
             return false;
 
-        return Vector3d.DistanceSquared(me, other) <= factor * factor;
+        return WideGeometry.CompareDistanceToRadiusSum(me, other, factor, Fixed64.Zero) <= 0;
     }
 
     /// <inheritdoc cref="Vector3d.Distance(Vector3d, Vector3d)" />

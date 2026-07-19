@@ -37,7 +37,7 @@ public static partial class Vector2dExtensions
         if (factor < Fixed64.Zero)
             return false;
 
-        return Vector2d.DistanceSquared(me, other) <= factor * factor;
+        return WideGeometry.CompareDistanceToRadiusSum(me, other, factor, Fixed64.Zero) <= 0;
     }
 
     /// <inheritdoc cref="Vector2d.Rotate(Vector2d, Fixed64)" />

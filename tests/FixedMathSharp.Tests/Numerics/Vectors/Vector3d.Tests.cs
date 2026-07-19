@@ -1325,6 +1325,16 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void V3CheckDistance_LargeSquaredValues_PreservesDistanceOrdering()
+    {
+        var thresholdPoint = new Vector3d(100_000, 0, 0);
+        var outsidePoint = new Vector3d(200_000, 0, 0);
+
+        Assert.True(Vector3d.Zero.CheckDistance(thresholdPoint, (Fixed64)100_000));
+        Assert.False(Vector3d.Zero.CheckDistance(outsidePoint, (Fixed64)100_000));
+    }
+
+    [Fact]
     public void V3DistanceSquared_CalculatesCorrectly()
     {
         var vector1 = new Vector3d(0, 0, 0);

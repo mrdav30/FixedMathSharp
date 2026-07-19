@@ -158,17 +158,6 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     }
 
     /// <summary>
-    /// The squared radius of the sphere.
-    /// </summary>
-    [JsonIgnore]
-    [MemoryPackIgnore]
-    public Fixed64 RadiusSquared
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Radius * Radius;
-    }
-
-    /// <summary>
     /// Gets the current normalized state of the sphere.
     /// </summary>
     [JsonInclude]
@@ -302,20 +291,22 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
 
         Vector3d center = (min + max) * Fixed64.Half;
         Fixed64 radius = Vector3d.Distance(max, center);
-        Fixed64 sqRadius = radius * radius;
-
         for (int i = 0; i < points.Count; i++)
         {
             Vector3d diff = points[i] - center;
-            Fixed64 sqDistance = diff.MagnitudeSquared;
-            if (sqDistance <= sqRadius)
+            if (WideGeometry.CompareDistanceToRadiusSum(
+                center,
+                points[i],
+                radius,
+                Fixed64.Zero) <= 0)
                 continue;
 
+            Fixed64 sqDistance = diff.MagnitudeSquared;
             Fixed64 distance = FixedMath.Sqrt(sqDistance);
             Fixed64 newRadius = (radius + distance) * Fixed64.Half;
             center += diff * FixedMath.FastDiv(distance - radius, Fixed64.Two * distance);
             radius = newRadius;
-            sqRadius = EnsureRadiusContainsPoint(points[i], center, ref radius);
+            EnsureRadiusContainsPoint(points[i], center, ref radius);
         }
 
         return new FixedBoundSphere(center, radius);
@@ -368,21 +359,23 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
 
         Vector3d center = (min + max) * Fixed64.Half;
         Fixed64 radius = Vector3d.Distance(max, center);
-        Fixed64 sqRadius = radius * radius;
-
         for (int i = 0; i < points.Length; i++)
         {
             Vector3d point = points[i];
             Vector3d diff = point - center;
-            Fixed64 sqDistance = diff.MagnitudeSquared;
-            if (sqDistance <= sqRadius)
+            if (WideGeometry.CompareDistanceToRadiusSum(
+                center,
+                point,
+                radius,
+                Fixed64.Zero) <= 0)
                 continue;
 
+            Fixed64 sqDistance = diff.MagnitudeSquared;
             Fixed64 distance = FixedMath.Sqrt(sqDistance);
             Fixed64 newRadius = (radius + distance) * Fixed64.Half;
             center += diff * FixedMath.FastDiv(distance - radius, Fixed64.Two * distance);
             radius = newRadius;
-            sqRadius = EnsureRadiusContainsPoint(point, center, ref radius);
+            EnsureRadiusContainsPoint(point, center, ref radius);
         }
 
         return new FixedBoundSphere(center, radius);
@@ -432,44 +425,38 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
 
         Vector3d center = (min + max) * Fixed64.Half;
         Fixed64 radius = Vector3d.Distance(max, center);
-        Fixed64 sqRadius = radius * radius;
-
         for (int i = 0; i < FixedBoundFrustum.CornerCount; i++)
         {
             Vector3d point = frustum.GetCorner(i);
             Vector3d diff = point - center;
-            Fixed64 sqDistance = diff.MagnitudeSquared;
-            if (sqDistance <= sqRadius)
+            if (WideGeometry.CompareDistanceToRadiusSum(
+                center,
+                point,
+                radius,
+                Fixed64.Zero) <= 0)
                 continue;
 
+            Fixed64 sqDistance = diff.MagnitudeSquared;
             Fixed64 distance = FixedMath.Sqrt(sqDistance);
             Fixed64 newRadius = (radius + distance) * Fixed64.Half;
             center += diff * FixedMath.FastDiv(distance - radius, Fixed64.Two * distance);
             radius = newRadius;
-            sqRadius = EnsureRadiusContainsPoint(point, center, ref radius);
+            EnsureRadiusContainsPoint(point, center, ref radius);
         }
 
         return new FixedBoundSphere(center, radius);
     }
 
-    private static Fixed64 EnsureRadiusContainsPoint(Vector3d point, Vector3d center, ref Fixed64 radius)
+    private static void EnsureRadiusContainsPoint(Vector3d point, Vector3d center, ref Fixed64 radius)
     {
-        Fixed64 sqRadius = radius * radius;
-        Fixed64 sqDistance = Vector3d.DistanceSquared(point, center);
+        if (WideGeometry.CompareDistanceToRadiusSum(center, point, radius, Fixed64.Zero) <= 0)
+            return;
 
-        if (sqDistance <= sqRadius)
-            return sqRadius;
-
-        radius = FixedMath.Sqrt(sqDistance);
-        sqRadius = radius * radius;
-
-        if (sqRadius < sqDistance)
+        radius = Vector3d.Distance(point, center);
+        if (WideGeometry.CompareDistanceToRadiusSum(center, point, radius, Fixed64.Zero) > 0)
         {
             radius += Fixed64.MinIncrement;
-            sqRadius = radius * radius;
         }
-
-        return sqRadius;
     }
 
     #endregion
@@ -483,8 +470,20 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <returns>True if the point is inside the sphere, otherwise false.</returns>
     public bool Contains(Vector3d point)
     {
-        return Vector3d.DistanceSquared(Center, point) <= RadiusSquared;
+        return WideGeometry.CompareDistanceToRadiusSum(Center, point, Radius, Fixed64.Zero) <= 0;
     }
+
+    /// <summary>
+    /// Returns whether the point lies strictly inside this sphere.
+    /// </summary>
+    /// <remarks>
+    /// Boundary points and every point tested against a zero-radius sphere
+    /// return <see langword="false"/>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool ContainsStrict(Vector3d point) =>
+        Radius > Fixed64.Zero
+        && WideGeometry.CompareDistanceToRadiusSum(Center, point, Radius, Fixed64.Zero) < 0;
 
     /// <summary>
     /// Tests a bounding box against this sphere.
@@ -499,14 +498,16 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// </summary>
     public FixedEnclosureType Contains(FixedBoundSphere sphere)
     {
-        Fixed64 sqDistance = Vector3d.DistanceSquared(Center, sphere.Center);
-        Fixed64 combinedRadius = Radius + sphere.Radius;
-
-        if (sqDistance > combinedRadius * combinedRadius)
+        if (WideGeometry.CompareDistanceToRadiusSum(Center, sphere.Center, Radius, sphere.Radius) > 0)
             return FixedEnclosureType.Disjoint;
 
         Fixed64 radiusDifference = Radius - sphere.Radius;
-        if (radiusDifference >= Fixed64.Zero && sqDistance <= radiusDifference * radiusDifference)
+        if (radiusDifference >= Fixed64.Zero
+            && WideGeometry.CompareDistanceToRadiusSum(
+                Center,
+                sphere.Center,
+                radiusDifference,
+                Fixed64.Zero) <= 0)
             return FixedEnclosureType.Contains;
 
         return FixedEnclosureType.Intersects;
@@ -560,10 +561,9 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IntersectsStrict(FixedBoundSphere sphere)
     {
-        Fixed64 combinedRadius = Radius + sphere.Radius;
         return Radius > Fixed64.Zero
             && sphere.Radius > Fixed64.Zero
-            && Vector3d.DistanceSquared(Center, sphere.Center) < combinedRadius * combinedRadius;
+            && WideGeometry.CompareDistanceToRadiusSum(Center, sphere.Center, Radius, sphere.Radius) < 0;
     }
 
     /// <summary>
@@ -661,7 +661,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
             FixedMath.Clamp(Center.Y, min.Y, max.Y),
             FixedMath.Clamp(Center.Z, min.Z, max.Z));
 
-        return Vector3d.DistanceSquared(Center, closest) <= RadiusSquared
+        return WideGeometry.CompareDistanceToRadiusSum(Center, closest, Radius, Fixed64.Zero) <= 0
             ? FixedEnclosureType.Intersects
             : FixedEnclosureType.Disjoint;
     }

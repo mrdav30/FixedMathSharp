@@ -165,6 +165,37 @@ public class FixedBoundAreaTests
     }
 
     [Fact]
+    public void Contains_CircleNearScalarLimit_DoesNotUseSaturatedDerivedBounds()
+    {
+        Fixed64 centerX = Fixed64.MaxValue - Fixed64.One;
+        var area = FixedBoundArea.FromMinMax(
+            new Vector2d(Fixed64.Zero, (Fixed64)(-20)),
+            new Vector2d(Fixed64.MaxValue, (Fixed64)20));
+        var crossing = new FixedBoundCircle(new Vector2d(centerX, Fixed64.Zero), (Fixed64)10);
+
+        Assert.Equal(FixedEnclosureType.Intersects, area.Contains(crossing));
+    }
+
+    [Fact]
+    public void Contains_CircleCrossingEachExtent_RemainsIntersection()
+    {
+        var area = FixedBoundArea.FromMinMax(new Vector2d(-10, -10), new Vector2d(10, 10));
+
+        Assert.Equal(
+            FixedEnclosureType.Intersects,
+            area.Contains(new FixedBoundCircle(new Vector2d(-11, 0), (Fixed64)2)));
+        Assert.Equal(
+            FixedEnclosureType.Intersects,
+            area.Contains(new FixedBoundCircle(new Vector2d(11, 0), (Fixed64)2)));
+        Assert.Equal(
+            FixedEnclosureType.Intersects,
+            area.Contains(new FixedBoundCircle(new Vector2d(-9, 0), (Fixed64)2)));
+        Assert.Equal(
+            FixedEnclosureType.Intersects,
+            area.Contains(new FixedBoundCircle(new Vector2d(9, 0), (Fixed64)2)));
+    }
+
+    [Fact]
     public void Intersects_IsBoundaryInclusive()
     {
         var area = FixedBoundArea.FromMinMax(new Vector2d(-2, -2), new Vector2d(2, 2));

@@ -463,6 +463,25 @@ public class BoundsBenchmarks
     }
 
     [SampledBenchmark]
+    public Fixed64 Ray2dCircleIntersectionInterval()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _rays2d.Length; i++)
+        {
+            if (_rays2d[i].TryGetIntersectionInterval(
+                    _circles[i],
+                    Fixed64.MaxValue,
+                    out Fixed64 entry,
+                    out Fixed64 exit))
+            {
+                accumulator += entry + exit;
+            }
+        }
+
+        return accumulator;
+    }
+
+    [SampledBenchmark]
     public Fixed64 BoxConstructCenterSize()
     {
         Fixed64 accumulator = Fixed64.Zero;
@@ -824,6 +843,25 @@ public class BoundsBenchmarks
             Fixed64? hit = _rays[i].Intersects(_spheres[i]);
             if (hit.HasValue)
                 accumulator += hit.Value;
+        }
+
+        return accumulator;
+    }
+
+    [SampledBenchmark]
+    public Fixed64 RaySphereIntersectionInterval()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _rays.Length; i++)
+        {
+            if (_rays[i].TryGetIntersectionInterval(
+                    _spheres[i],
+                    Fixed64.MaxValue,
+                    out Fixed64 entry,
+                    out Fixed64 exit))
+            {
+                accumulator += entry + exit;
+            }
         }
 
         return accumulator;

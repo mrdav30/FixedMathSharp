@@ -15,6 +15,61 @@ namespace FixedMathSharp;
 internal static class WideGeometry
 {
     /// <summary>
+    /// Compares an exact 2D distance with the exact sum of two non-negative radii.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static int CompareDistanceToRadiusSum(
+        Vector2d first,
+        Vector2d second,
+        Fixed64 firstRadius,
+        Fixed64 secondRadius)
+    {
+        Signed192 squaredDistance = GetDifferenceDotProduct2D(
+            first.X, second.X, first.Y, second.Y,
+            first.X, second.X, first.Y, second.Y);
+        return WideArithmetic.CompareMagnitude(
+            squaredDistance,
+            GetSquaredRadiusSum(firstRadius, secondRadius));
+    }
+
+    /// <summary>
+    /// Compares an exact 3D distance with the exact sum of two non-negative radii.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static int CompareDistanceToRadiusSum(
+        Vector3d first,
+        Vector3d second,
+        Fixed64 firstRadius,
+        Fixed64 secondRadius)
+    {
+        Signed192 squaredDistance = GetDifferenceDotProduct3D(
+            first.X, second.X, first.Y, second.Y, first.Z, second.Z,
+            first.X, second.X, first.Y, second.Y, first.Z, second.Z);
+        return WideArithmetic.CompareMagnitude(
+            squaredDistance,
+            GetSquaredRadiusSum(firstRadius, secondRadius));
+    }
+
+    /// <summary>
+    /// Returns whether an axis interval contains the centered extent of a non-negative radius.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static bool ContainsCenteredExtent(
+        Fixed64 min,
+        Fixed64 max,
+        Fixed64 center,
+        Fixed64 radius)
+    {
+        if (center < min || center > max)
+            return false;
+
+        ulong radiusRaw = (ulong)radius.m_rawValue;
+        ulong minimumClearance = unchecked((ulong)center.m_rawValue - (ulong)min.m_rawValue);
+        ulong maximumClearance = unchecked((ulong)max.m_rawValue - (ulong)center.m_rawValue);
+        return minimumClearance >= radiusRaw && maximumClearance >= radiusRaw;
+    }
+
+    /// <summary>
     /// Attempts to return the rounded distance between two 2D endpoints without
     /// narrowing their component differences.
     /// </summary>
@@ -121,6 +176,14 @@ internal static class WideGeometry
 
         distance = Fixed64.FromRaw((long)low);
         return true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Signed192 GetSquaredRadiusSum(Fixed64 firstRadius, Fixed64 secondRadius)
+    {
+        ulong radiusSum = unchecked((ulong)firstRadius.m_rawValue + (ulong)secondRadius.m_rawValue);
+        Fixed64.Multiply64To128(radiusSum, radiusSum, out ulong middle, out ulong low);
+        return new Signed192(0UL, middle, low);
     }
 
     /// <summary>

@@ -90,16 +90,29 @@ because it would expose numeric machinery instead of geometry intent.
 - Test: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundArea.Tests.cs`
 - Test: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundBox.Tests.cs`
 
-- [ ] Add failing extreme-domain point, pair, strict-overlap, closest-point,
+- [x] Add failing extreme-domain point, pair, strict-overlap, closest-point,
       and centered-extent containment regressions in both dimensions.
-- [ ] Add internal exact distance-versus-combined-radius and centered-extent
+- [x] Add internal exact distance-versus-combined-radius and centered-extent
       predicates.
-- [ ] Route existing public predicates through them while preserving inclusive,
+- [x] Route existing public predicates through them while preserving inclusive,
       strict, zero-radius, and negative-threshold behavior.
-- [ ] Remove `FixedBoundCircle.RadiusSquared` and
+- [x] Remove `FixedBoundCircle.RadiusSquared` and
       `FixedBoundSphere.RadiusSquared`; update migration/docs and downstream
       callers to retain actual radius ownership.
-- [ ] Run focused tests and existing predicate benchmarks with zero allocation.
+- [x] Run focused tests and existing predicate benchmarks with zero allocation.
+
+**Completion summary (2026-07-18):** Existing vector, circle/sphere, area, and
+box predicates now compare exact endpoint-difference squares with exact radius
+sums, including the one-raw-unit separation at opposite scalar limits. Centered
+extent containment no longer consumes saturated derived bounds. The misleading
+public squared-radius properties were removed and the v7 migration guide now
+directs callers to retain actual radius ownership. Exact predicate admission
+also exposed and corrected an ordinary tilted-frustum construction drift by
+using the same comparator for construction admission and final radius
+correction; full-domain sphere construction/update arithmetic remains deferred
+to `FMS-Issue-015`. The six focused regressions, all 408 affected vector/bound
+tests, and the seven existing predicate benchmark rows passed; BenchmarkDotNet
+reported zero managed allocation for every measured row.
 
 ## Task 2: Exact Bounded Entry/Exit Intervals
 
@@ -112,34 +125,50 @@ because it would expose numeric machinery instead of geometry intent.
 - Test: `tests/FixedMathSharp.Tests/Geometry/Primitives/FixedRay.Tests.cs`
 - Benchmark: `tests/FixedMathSharp.Benchmarks/BoundsBenchmarks.cs`
 
-- [ ] Add failing interval tests for ordinary/non-unit crossings, clipping,
+- [x] Add failing interval tests for ordinary/non-unit crossings, clipping,
       starts-inside, full containment, tangency, zero direction, exact boundary
       motion, radius-sum overflow, sub-raw intervals, half-even entry/exit
       roots, equivalent scaling, and exact roots just inside/outside the bound.
-- [ ] Refactor coefficient/discriminant ownership so the first-root and
+- [x] Refactor coefficient/discriminant ownership so the first-root and
       interval solvers share exact setup without forcing first-hit callers to
       refine an unused exit.
-- [ ] Implement ordered lower- and upper-root correction with exact polynomial
+- [x] Implement ordered lower- and upper-root correction with exact polynomial
       and derivative evaluation in `Signed320`.
-- [ ] Expose the two bounded interval overloads on both public ray types.
-- [ ] Add 2D and 3D interval benchmark rows and prove the existing first-root
+- [x] Expose the two bounded interval overloads on both public ray types.
+- [x] Add 2D and 3D interval benchmark rows and prove the existing first-root
       rows do not materially regress.
+
+**Completion summary (2026-07-18):** `FixedRay2d` and `FixedRay` now expose
+closed bounded entry/exit intervals with exact radius expansion, root clipping,
+and independent nearest-even conversion. Regressions cover non-unit and
+scale-equivalent motion, starts inside, zero motion, outward/inward boundaries,
+tangency, exact bounded admission, radius-sum overflow, irrational correction,
+half-even endpoints, and non-empty sub-raw intervals. ShortRun medians were
+183.8 ns/112.4 ns for the unchanged 2D/3D first-hit rows and 340.2 ns/127.4 ns
+for the corresponding interval rows; every row allocated 0 B.
 
 ## Task 3: Exact Sphere Cross-Section Radius
 
 **Files:**
 
 - Create: `src/FixedMathSharp/Core/FixedMath.Geometry.cs`
-- Modify: `src/FixedMathSharp/Numerics/Wide/WideGeometry.cs`
+- Create: `src/FixedMathSharp/Numerics/Wide/WideRadialGeometry.cs`
 - Test: `tests/FixedMathSharp.Tests/Core/FixedMathGeometry.Tests.cs`
 
-- [ ] Add failing tests for ordinary `3-4-5`, signed offsets, tangent/outside,
+- [x] Add failing tests for ordinary `3-4-5`, signed offsets, tangent/outside,
       negative-radius rejection, `100000/60000 -> 80000`, and maximum-raw
       difference-of-squares rounding.
-- [ ] Implement `FixedMath.TryGetCircleCrossSectionRadius(radius, offset, out
+- [x] Implement `FixedMath.TryGetCircleCrossSectionRadius(radius, offset, out
       crossSectionRadius)` with a wide difference of squares and exact
       nearest-even square root.
-- [ ] Document zero-allocation domain and failure behavior.
+- [x] Document zero-allocation domain and failure behavior.
+
+**Completion summary (2026-07-18):** `FixedMath` now owns exact sphere-slice
+reduction through `TryGetCircleCrossSectionRadius`. The difference of squares
+and integer root remain wide through nearest conversion, including the
+`100000/60000 -> 80000` regression, maximum-raw near-tangent rounding, signed
+offsets, tangency, misses, and the otherwise unrepresentable absolute value of
+`Fixed64.MinValue`.
 
 ## Task 4: Gravitas Circle/Sphere Consumer Migration
 

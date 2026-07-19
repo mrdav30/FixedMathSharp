@@ -115,6 +115,50 @@ public partial struct FixedRay : IEquatable<FixedRay>
         WideRayIntersection.Intersects(Position, Direction, sphere, radiusExpansion, maxParameter);
 
     /// <summary>
+    /// Gets the closed parameter interval where this ray overlaps the sphere,
+    /// clipped to <c>[0, <paramref name="maxParameter"/>]</c>.
+    /// </summary>
+    /// <remarks>
+    /// Direction need not be normalized. Exact root clipping precedes
+    /// deterministic round-half-to-even conversion of both endpoints.
+    /// </remarks>
+    public bool TryGetIntersectionInterval(
+        FixedBoundSphere sphere,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit) =>
+        WideRayIntersection.TryGetInterval(
+            Position,
+            Direction,
+            sphere,
+            maxParameter,
+            out entry,
+            out exit);
+
+    /// <summary>
+    /// Gets the closed parameter interval where this ray overlaps the sphere
+    /// expanded by <paramref name="radiusExpansion"/>, clipped to
+    /// <c>[0, <paramref name="maxParameter"/>]</c>.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radiusExpansion"/> is negative.
+    /// </exception>
+    public bool TryGetIntersectionInterval(
+        FixedBoundSphere sphere,
+        Fixed64 radiusExpansion,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit) =>
+        WideRayIntersection.TryGetInterval(
+            Position,
+            Direction,
+            sphere,
+            radiusExpansion,
+            maxParameter,
+            out entry,
+            out exit);
+
+    /// <summary>
     /// Finds the first forward intersection with the specified frustum.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

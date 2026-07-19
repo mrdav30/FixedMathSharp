@@ -304,6 +304,186 @@ public class FixedRay2dTests
     }
 
     [Fact]
+    public void TryGetIntersectionInterval_CircleReturnsOrderedClippedParameters()
+    {
+        var circle = new FixedBoundCircle(Vector2d.Zero, Fixed64.One);
+        var ray = new FixedRay2d(new Vector2d(-10, 0), new Vector2d(2, 0));
+
+        Assert.True(ray.TryGetIntersectionInterval(circle, (Fixed64)10, out Fixed64 entry, out Fixed64 exit));
+        Assert.Equal(Fixed64.FromFraction(9, 2), entry);
+        Assert.Equal(Fixed64.FromFraction(11, 2), exit);
+
+        Assert.True(ray.TryGetIntersectionInterval(circle, (Fixed64)5, out entry, out exit));
+        Assert.Equal(Fixed64.FromFraction(9, 2), entry);
+        Assert.Equal((Fixed64)5, exit);
+
+        Assert.False(ray.TryGetIntersectionInterval(circle, (Fixed64)4, out entry, out exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal(Fixed64.Zero, exit);
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_CirclePreservesClosedBoundaryAndZeroDirectionSemantics()
+    {
+        var circle = new FixedBoundCircle(Vector2d.Zero, Fixed64.One);
+
+        Assert.True(new FixedRay2d(Vector2d.Zero, Vector2d.Zero)
+            .TryGetIntersectionInterval(circle, (Fixed64)3, out Fixed64 entry, out Fixed64 exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal((Fixed64)3, exit);
+
+        Assert.True(new FixedRay2d(Vector2d.Right, Vector2d.Right)
+            .TryGetIntersectionInterval(circle, (Fixed64)3, out entry, out exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal(Fixed64.Zero, exit);
+
+        Assert.True(new FixedRay2d(Vector2d.Right, Vector2d.Left)
+            .TryGetIntersectionInterval(circle, (Fixed64)3, out entry, out exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal((Fixed64)2, exit);
+
+        Assert.False(new FixedRay2d((Fixed64)2 * Vector2d.Right, Vector2d.Zero)
+            .TryGetIntersectionInterval(circle, (Fixed64)3, out _, out _));
+        Assert.False(new FixedRay2d(Vector2d.Zero, Vector2d.Right)
+            .TryGetIntersectionInterval(circle, -Fixed64.One, out _, out _));
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_CircleHandlesTangencyAndExactBoundBeforeRounding()
+    {
+        var circle = new FixedBoundCircle(Vector2d.Zero, Fixed64.One);
+        var tangent = new FixedRay2d(new Vector2d(-5, 1), Vector2d.Right);
+
+        Assert.True(tangent.TryGetIntersectionInterval(circle, (Fixed64)10, out Fixed64 entry, out Fixed64 exit));
+        Assert.Equal((Fixed64)5, entry);
+        Assert.Equal(entry, exit);
+
+        var justBeyond = new FixedRay2d(
+            new Vector2d(Fixed64.FromRaw(-17_179_869_185L), Fixed64.Zero),
+            new Vector2d(Fixed64.FromRaw(17_179_869_184L), Fixed64.Zero));
+        var justInside = new FixedRay2d(
+            new Vector2d(Fixed64.FromRaw(-17_179_869_183L), Fixed64.Zero),
+            new Vector2d(Fixed64.FromRaw(17_179_869_184L), Fixed64.Zero));
+        var point = new FixedBoundCircle(Vector2d.Zero, Fixed64.Zero);
+
+        Assert.False(justBeyond.TryGetIntersectionInterval(point, Fixed64.One, out _, out _));
+        Assert.True(justInside.TryGetIntersectionInterval(point, Fixed64.One, out entry, out exit));
+        Assert.Equal(Fixed64.One, entry);
+        Assert.Equal(entry, exit);
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_CircleExpandsRadiusWithoutSaturating()
+    {
+        var circle = new FixedBoundCircle(new Vector2d(-1, 0), Fixed64.MaxValue);
+        var ray = new FixedRay2d(new Vector2d(Fixed64.MaxValue, Fixed64.Zero), Vector2d.Zero);
+
+        Assert.False(ray.TryGetIntersectionInterval(circle, Fixed64.One, out _, out _));
+        Assert.True(ray.TryGetIntersectionInterval(
+            circle,
+            Fixed64.One,
+            Fixed64.One,
+            out Fixed64 entry,
+            out Fixed64 exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal(Fixed64.One, exit);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ray.TryGetIntersectionInterval(circle, -Fixed64.One, Fixed64.One, out _, out _));
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_CircleRoundsBothRootsToEven()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        var circle = new FixedBoundCircle(Vector2d.Zero, (Fixed64)65);
+        var evenCandidates = new FixedRay2d(
+            new Vector2d(-(Fixed64)65 - oneRaw, Fixed64.Zero),
+            new Vector2d(2, 0));
+        var oddCandidates = new FixedRay2d(
+            new Vector2d(-(Fixed64)65 - Fixed64.FromRaw(3L), Fixed64.Zero),
+            new Vector2d(2, 0));
+
+        Assert.True(evenCandidates.TryGetIntersectionInterval(circle, (Fixed64)100, out Fixed64 entry, out Fixed64 exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal((Fixed64)65, exit);
+
+        Assert.True(oddCandidates.TryGetIntersectionInterval(circle, (Fixed64)100, out entry, out exit));
+        Assert.Equal(Fixed64.FromRaw(2L), entry);
+        Assert.Equal((Fixed64)65 + Fixed64.FromRaw(2L), exit);
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_CirclePreservesScaleAndSubRawOverlap()
+    {
+        var scaledCircle = new FixedBoundCircle(Vector2d.Zero, (Fixed64)100_000);
+        var scaledRay = new FixedRay2d(
+            new Vector2d(-1_000_000, 0),
+            new Vector2d(200_000, 0));
+
+        Assert.True(scaledRay.TryGetIntersectionInterval(
+            scaledCircle,
+            (Fixed64)10,
+            out Fixed64 entry,
+            out Fixed64 exit));
+        Assert.Equal(Fixed64.FromFraction(9, 2), entry);
+        Assert.Equal(Fixed64.FromFraction(11, 2), exit);
+
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        var subRawCircle = new FixedBoundCircle(new Vector2d(oneRaw, Fixed64.Zero), oneRaw);
+        var subRawRay = new FixedRay2d(Vector2d.Zero, new Vector2d(Fixed64.MaxValue, Fixed64.Zero));
+
+        Assert.True(subRawRay.TryGetIntersectionInterval(
+            subRawCircle,
+            Fixed64.One,
+            out entry,
+            out exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal(Fixed64.Zero, exit);
+
+        var fractionalSubRawCircle = new FixedBoundCircle(
+            new Vector2d(Fixed64.Zero, Fixed64.FromRaw(1L)),
+            Fixed64.FromRaw(2L));
+        var fractionalSubRawRay = new FixedRay2d(
+            new Vector2d(Fixed64.FromRaw(-6L), Fixed64.Zero),
+            new Vector2d(8, 0));
+
+        Assert.True(fractionalSubRawRay.TryGetIntersectionInterval(
+            fractionalSubRawCircle,
+            Fixed64.One,
+            out entry,
+            out exit));
+        Assert.Equal(Fixed64.FromRaw(1L), entry);
+        Assert.Equal(entry, exit);
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_CircleCorrectsIrrationalUpperRoot()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        var circle = new FixedBoundCircle(new Vector2d(Fixed64.Zero, oneRaw), Fixed64.FromRaw(2L));
+        var ray = new FixedRay2d(new Vector2d(Fixed64.FromRaw(-3L), Fixed64.Zero), new Vector2d(oneRaw, Fixed64.Zero));
+
+        Assert.True(ray.TryGetIntersectionInterval(circle, (Fixed64)10, out Fixed64 entry, out Fixed64 exit));
+        // The exact roots are 3 +/- sqrt(3); these are their independently
+        // rounded nearest-even Q32.32 representations.
+        Assert.Equal(Fixed64.FromRaw(5_445_800_314L), entry);
+        Assert.Equal(Fixed64.FromRaw(20_324_003_462L), exit);
+    }
+
+    [Fact]
+    public void TryGetIntersectionInterval_CircleRejectsUnavailableForwardIntervals()
+    {
+        var circle = new FixedBoundCircle(Vector2d.Zero, Fixed64.One);
+
+        Assert.False(new FixedRay2d(new Vector2d(2, 0), Vector2d.Right)
+            .TryGetIntersectionInterval(circle, (Fixed64)10, out _, out _));
+        Assert.False(new FixedRay2d(new Vector2d(-2, 0), Vector2d.Right)
+            .TryGetIntersectionInterval(circle, Fixed64.Zero, out _, out _));
+        Assert.False(new FixedRay2d(new Vector2d(-2, 2), Vector2d.Right)
+            .TryGetIntersectionInterval(circle, (Fixed64)10, out _, out _));
+    }
+
+    [Fact]
     public void EqualityDeconstructAndHashCode_UsePositionAndDirection()
     {
         var ray = new FixedRay2d(new Vector2d(1, 2), Vector2d.Forward);

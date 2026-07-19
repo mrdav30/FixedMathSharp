@@ -244,7 +244,8 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedEnclosureType Contains(FixedBoundCircle circle)
     {
-        if (Contains(circle.Bounds) == FixedEnclosureType.Contains)
+        if (WideGeometry.ContainsCenteredExtent(Min.X, Max.X, circle.Center.X, circle.Radius)
+            && WideGeometry.ContainsCenteredExtent(Min.Y, Max.Y, circle.Center.Y, circle.Radius))
             return FixedEnclosureType.Contains;
 
         return Intersects(circle)

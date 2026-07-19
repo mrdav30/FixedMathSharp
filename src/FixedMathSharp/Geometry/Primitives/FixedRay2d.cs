@@ -119,6 +119,50 @@ public partial struct FixedRay2d : IEquatable<FixedRay2d>
         WideRayIntersection.Intersects(Position, Direction, circle, radiusExpansion, maxParameter);
 
     /// <summary>
+    /// Gets the closed parameter interval where this ray overlaps the circle,
+    /// clipped to <c>[0, <paramref name="maxParameter"/>]</c>.
+    /// </summary>
+    /// <remarks>
+    /// Direction need not be normalized. Exact root clipping precedes
+    /// deterministic round-half-to-even conversion of both endpoints.
+    /// </remarks>
+    public bool TryGetIntersectionInterval(
+        FixedBoundCircle circle,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit) =>
+        WideRayIntersection.TryGetInterval(
+            Position,
+            Direction,
+            circle,
+            maxParameter,
+            out entry,
+            out exit);
+
+    /// <summary>
+    /// Gets the closed parameter interval where this ray overlaps the circle
+    /// expanded by <paramref name="radiusExpansion"/>, clipped to
+    /// <c>[0, <paramref name="maxParameter"/>]</c>.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radiusExpansion"/> is negative.
+    /// </exception>
+    public bool TryGetIntersectionInterval(
+        FixedBoundCircle circle,
+        Fixed64 radiusExpansion,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit) =>
+        WideRayIntersection.TryGetInterval(
+            Position,
+            Direction,
+            circle,
+            radiusExpansion,
+            maxParameter,
+            out entry,
+            out exit);
+
+    /// <summary>
     /// Deconstructs the ray into origin and direction.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

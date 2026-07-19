@@ -110,17 +110,6 @@ public partial struct FixedBoundCircle : IEquatable<FixedBoundCircle>
     }
 
     /// <summary>
-    /// The squared radius of the circle.
-    /// </summary>
-    [JsonIgnore]
-    [MemoryPackIgnore]
-    public Fixed64 RadiusSquared
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Radius * Radius;
-    }
-
-    /// <summary>
     /// The normalized axis-aligned area that contains the circle.
     /// </summary>
     [JsonIgnore]
@@ -148,8 +137,20 @@ public partial struct FixedBoundCircle : IEquatable<FixedBoundCircle>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(Vector2d point)
     {
-        return Vector2d.DistanceSquared(Center, point) <= RadiusSquared;
+        return WideGeometry.CompareDistanceToRadiusSum(Center, point, Radius, Fixed64.Zero) <= 0;
     }
+
+    /// <summary>
+    /// Returns whether the point lies strictly inside this circle.
+    /// </summary>
+    /// <remarks>
+    /// Boundary points and every point tested against a zero-radius circle
+    /// return <see langword="false"/>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool ContainsStrict(Vector2d point) =>
+        Radius > Fixed64.Zero
+        && WideGeometry.CompareDistanceToRadiusSum(Center, point, Radius, Fixed64.Zero) < 0;
 
     /// <summary>
     /// Classifies another circle against this circle using boundary-inclusive overlap.
@@ -157,14 +158,16 @@ public partial struct FixedBoundCircle : IEquatable<FixedBoundCircle>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedEnclosureType Contains(FixedBoundCircle circle)
     {
-        Fixed64 sqDistance = Vector2d.DistanceSquared(Center, circle.Center);
-        Fixed64 combinedRadius = Radius + circle.Radius;
-
-        if (sqDistance > combinedRadius * combinedRadius)
+        if (WideGeometry.CompareDistanceToRadiusSum(Center, circle.Center, Radius, circle.Radius) > 0)
             return FixedEnclosureType.Disjoint;
 
         Fixed64 radiusDifference = Radius - circle.Radius;
-        if (radiusDifference >= Fixed64.Zero && sqDistance <= radiusDifference * radiusDifference)
+        if (radiusDifference >= Fixed64.Zero
+            && WideGeometry.CompareDistanceToRadiusSum(
+                Center,
+                circle.Center,
+                radiusDifference,
+                Fixed64.Zero) <= 0)
             return FixedEnclosureType.Contains;
 
         return FixedEnclosureType.Intersects;
@@ -182,7 +185,11 @@ public partial struct FixedBoundCircle : IEquatable<FixedBoundCircle>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(FixedBoundArea area)
     {
-        return Vector2d.DistanceSquared(Center, area.ClampPoint(Center)) <= RadiusSquared;
+        return WideGeometry.CompareDistanceToRadiusSum(
+            Center,
+            area.ClampPoint(Center),
+            Radius,
+            Fixed64.Zero) <= 0;
     }
 
     /// <summary>
@@ -191,10 +198,9 @@ public partial struct FixedBoundCircle : IEquatable<FixedBoundCircle>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IntersectsStrict(FixedBoundCircle circle)
     {
-        Fixed64 combinedRadius = Radius + circle.Radius;
         return Radius > Fixed64.Zero
             && circle.Radius > Fixed64.Zero
-            && Vector2d.DistanceSquared(Center, circle.Center) < combinedRadius * combinedRadius;
+            && WideGeometry.CompareDistanceToRadiusSum(Center, circle.Center, Radius, circle.Radius) < 0;
     }
 
     /// <summary>
@@ -206,7 +212,11 @@ public partial struct FixedBoundCircle : IEquatable<FixedBoundCircle>
         return Radius > Fixed64.Zero
             && area.Min.X < area.Max.X
             && area.Min.Y < area.Max.Y
-            && Vector2d.DistanceSquared(Center, area.ClampPoint(Center)) < RadiusSquared;
+            && WideGeometry.CompareDistanceToRadiusSum(
+                Center,
+                area.ClampPoint(Center),
+                Radius,
+                Fixed64.Zero) < 0;
     }
 
     /// <summary>

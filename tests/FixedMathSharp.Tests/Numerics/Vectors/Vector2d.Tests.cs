@@ -861,6 +861,16 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void V2CheckDistance_LargeSquaredValues_PreservesDistanceOrdering()
+    {
+        var thresholdPoint = new Vector2d(100_000, 0);
+        var outsidePoint = new Vector2d(200_000, 0);
+
+        Assert.True(Vector2d.Zero.CheckDistance(thresholdPoint, (Fixed64)100_000));
+        Assert.False(Vector2d.Zero.CheckDistance(outsidePoint, (Fixed64)100_000));
+    }
+
+    [Fact]
     public void V2DistanceSquared_CalculatesCorrectly()
     {
         var vector1 = new Vector2d(0, 0);

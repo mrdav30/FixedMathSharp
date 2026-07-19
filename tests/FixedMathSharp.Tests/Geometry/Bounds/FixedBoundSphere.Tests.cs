@@ -43,7 +43,6 @@ public class FixedBoundSphereTests
         sphere.Radius = new Fixed64(-3);
 
         Assert.Equal(new Fixed64(3), sphere.Radius);
-        Assert.Equal(new Fixed64(9), sphere.RadiusSquared);
         Assert.Equal(new Vector3d(-3, -3, -3), sphere.Min);
         Assert.Equal(new Vector3d(3, 3, 3), sphere.Max);
     }
@@ -207,6 +206,35 @@ public class FixedBoundSphereTests
         Assert.True(sphere.IntersectsStrict(overlapping));
         Assert.False(sphere.Intersects(disjoint));
         Assert.False(sphere.IntersectsStrict(zeroSizeInside));
+    }
+
+    [Fact]
+    public void RadialPredicates_LargeSquaredValues_PreserveExactClassification()
+    {
+        var pointBound = new FixedBoundSphere(Vector3d.Zero, (Fixed64)100_000);
+        var containedCandidate = new FixedBoundSphere(new Vector3d(250_000, 0, 0), (Fixed64)100_000);
+        var disjointCandidate = new FixedBoundSphere(new Vector3d(300_000, 0, 0), (Fixed64)100_000);
+        var strictOverlap = new FixedBoundSphere(new Vector3d(199_999, 0, 0), (Fixed64)100_000);
+        var minimumDomain = new FixedBoundSphere(
+            new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
+            Fixed64.MaxValue);
+        var maximumDomain = new FixedBoundSphere(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            Fixed64.MaxValue);
+        var distantBox = FixedBoundBox.FromMinMax(
+            new Vector3d(200_000, 0, 0),
+            new Vector3d(200_001, 1, 1));
+
+        Assert.False(pointBound.Contains(new Vector3d(200_000, 0, 0)));
+        Assert.True(pointBound.ContainsStrict(new Vector3d(99_999, 0, 0)));
+        Assert.False(pointBound.ContainsStrict(new Vector3d(100_000, 0, 0)));
+        Assert.Equal(
+            FixedEnclosureType.Intersects,
+            new FixedBoundSphere(Vector3d.Zero, (Fixed64)300_000).Contains(containedCandidate));
+        Assert.Equal(FixedEnclosureType.Disjoint, pointBound.Contains(disjointCandidate));
+        Assert.True(pointBound.IntersectsStrict(strictOverlap));
+        Assert.Equal(FixedEnclosureType.Disjoint, minimumDomain.Contains(maximumDomain));
+        Assert.Equal(FixedEnclosureType.Disjoint, pointBound.Contains(distantBox));
     }
 
     [Fact]
@@ -662,6 +690,7 @@ public class FixedBoundSphereTests
 
         // The distance between centers is less than or equal to the sum of radii, so they intersect
         Assert.True(sphere1.Intersects(sphere2));
+        Assert.False(sphere1.ContainsStrict(Vector3d.Zero));
     }
 
     [Fact]

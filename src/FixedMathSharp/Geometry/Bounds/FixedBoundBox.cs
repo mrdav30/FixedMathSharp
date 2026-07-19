@@ -282,7 +282,9 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public FixedEnclosureType Contains(FixedBoundSphere sphere)
     {
-        if (Contains(sphere.Min) && Contains(sphere.Max))
+        if (WideGeometry.ContainsCenteredExtent(Min.X, Max.X, sphere.Center.X, sphere.Radius)
+            && WideGeometry.ContainsCenteredExtent(Min.Y, Max.Y, sphere.Center.Y, sphere.Radius)
+            && WideGeometry.ContainsCenteredExtent(Min.Z, Max.Z, sphere.Center.Z, sphere.Radius))
             return FixedEnclosureType.Contains;
 
         return Intersects(sphere) ? FixedEnclosureType.Intersects : FixedEnclosureType.Disjoint;
@@ -374,7 +376,11 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IntersectsSphere(FixedBoundSphere sphere)
     {
-        return Vector3d.DistanceSquared(sphere.Center, ClampPoint(sphere.Center)) <= sphere.RadiusSquared;
+        return WideGeometry.CompareDistanceToRadiusSum(
+            sphere.Center,
+            ClampPoint(sphere.Center),
+            sphere.Radius,
+            Fixed64.Zero) <= 0;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -382,7 +388,11 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     {
         return HasPositiveVolume()
             && sphere.Radius > Fixed64.Zero
-            && Vector3d.DistanceSquared(sphere.Center, ClampPoint(sphere.Center)) < sphere.RadiusSquared;
+            && WideGeometry.CompareDistanceToRadiusSum(
+                sphere.Center,
+                ClampPoint(sphere.Center),
+                sphere.Radius,
+                Fixed64.Zero) < 0;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
