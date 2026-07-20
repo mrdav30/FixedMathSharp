@@ -43,6 +43,12 @@ public class BoundsBenchmarks
     private readonly Vector3d[] _pointsB = BenchmarkFixtures.VectorsB;
     private readonly Vector2d[] _points2d = BenchmarkFixtures.Vector2sA;
     private readonly FixedRay2d[] _rays2d = CreateRays2d();
+    private readonly FixedBoundSphere _fullDomainMergeLeft = new(
+        new Vector3d(-1_400_000_000, 0, 0),
+        Fixed64.Zero);
+    private readonly FixedBoundSphere _fullDomainMergeRight = new(
+        new Vector3d(1_600_000_000, 0, 0),
+        Fixed64.Zero);
     private readonly Vector3d[] _spherePointCloud = CreateSpherePointCloud();
     private readonly FixedRay[] _rays = CreateRays();
     private readonly FixedBoundSphere[] _spheres = CreateSpheres();
@@ -687,6 +693,12 @@ public class BoundsBenchmarks
     public FixedBoundSphere SphereCreateFromPointsEnumerable()
     {
         return FixedBoundSphere.CreateFromPoints(EnumerateSpherePointCloud());
+    }
+
+    [Benchmark]
+    public FixedBoundSphere SphereCreateMergedFullDomain()
+    {
+        return FixedBoundSphere.CreateMerged(_fullDomainMergeLeft, _fullDomainMergeRight);
     }
 
     [SampledBenchmark]

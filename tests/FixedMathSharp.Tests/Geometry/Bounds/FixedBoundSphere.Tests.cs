@@ -284,7 +284,51 @@ public class FixedBoundSphereTests
         FixedBoundSphere sphere = FixedBoundSphere.CreateFromBoundingBox(box);
 
         Assert.Equal(box.Center, sphere.Center);
-        Assert.Equal(Vector3d.Distance(box.Center, box.Max), sphere.Radius);
+        Fixed64 roundedDistance = Vector3d.Distance(box.Center, box.Max);
+        Fixed64 conservativeAdjustment = sphere.Radius - roundedDistance;
+        Assert.True(conservativeAdjustment >= Fixed64.Zero);
+        Assert.True(conservativeAdjustment <= Fixed64.MinIncrement);
+        Assert.True(sphere.Contains(box.Max));
+    }
+
+    [Fact]
+    public void CreateFromBoundingBox_PreservesRepresentableMidpointNearPositiveLimit()
+    {
+        FixedBoundBox box = FixedBoundBox.FromMinMax(
+            new Vector3d(1_500_000_000, 0, 0),
+            new Vector3d(2_000_000_000, 0, 0));
+
+        FixedBoundSphere sphere = FixedBoundSphere.CreateFromBoundingBox(box);
+
+        Assert.Equal(new Vector3d(1_750_000_000, 0, 0), sphere.Center);
+        Assert.Equal(new Fixed64(250_000_000), sphere.Radius);
+    }
+
+    [Fact]
+    public void CreateFromBoundingBox_RoundsCenterOnceAndRadiusOutwardInRawUnits()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        Fixed64 twoRaw = Fixed64.FromRaw(2L);
+        FixedBoundBox box = FixedBoundBox.FromMinMax(
+            new Vector3d(oneRaw, -oneRaw, Fixed64.Zero),
+            new Vector3d(twoRaw, oneRaw, Fixed64.Zero));
+
+        FixedBoundSphere sphere = FixedBoundSphere.CreateFromBoundingBox(box);
+
+        Assert.Equal(new Vector3d(twoRaw, Fixed64.Zero, Fixed64.Zero), sphere.Center);
+        Assert.Equal(twoRaw, sphere.Radius);
+        for (int cornerIndex = 0; cornerIndex < FixedBoundBox.CornerCount; cornerIndex++)
+            Assert.True(sphere.Contains(box.GetCorner(cornerIndex)));
+    }
+
+    [Fact]
+    public void CreateFromBoundingBox_ThrowsWhenContainingRadiusIsNotRepresentable()
+    {
+        FixedBoundBox box = FixedBoundBox.FromMinMax(
+            new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero));
+
+        Assert.Throws<OverflowException>(() => FixedBoundSphere.CreateFromBoundingBox(box));
     }
 
     [Fact]
@@ -498,6 +542,111 @@ public class FixedBoundSphereTests
     }
 
     [Fact]
+    public void CreateFromPoints_OrdersSaturatedCandidateDistancesExactly()
+    {
+        Vector3d[] points =
+        {
+            new(-750_000_000, 0, 0),
+            new(750_000_000, 0, 0),
+            new(0, -800_000_000, 0),
+            new(0, 800_000_000, 0)
+        };
+
+        FixedBoundSphere sphere = FixedBoundSphere.CreateFromPoints(points);
+
+        Assert.Equal(Vector3d.Zero, sphere.Center);
+        Assert.Equal(new Fixed64(800_000_000), sphere.Radius);
+    }
+
+    [Fact]
+    public void CreateFromPoints_ExpandsWithoutNarrowingLargeDistances()
+    {
+        Vector3d[] points =
+        {
+            Vector3d.Zero,
+            new(-1_000_000_000, 0, 0),
+            new(1_000_000_000, 0, 0),
+            new(0, 1_800_000_000, 0)
+        };
+
+        FixedBoundSphere sphere = FixedBoundSphere.CreateFromPoints(points);
+
+        Assert.Equal(new Vector3d(0, 400_000_000, 0), sphere.Center);
+        Assert.Equal(new Fixed64(1_400_000_000), sphere.Radius);
+        foreach (Vector3d point in points)
+            Assert.True(sphere.Contains(point));
+    }
+
+    [Fact]
+    public void CreateFromPoints_PreservesSubUnitDiagonalDistance()
+    {
+        Fixed64 oneRaw = Fixed64.MinIncrement;
+        Vector3d[] points =
+        {
+            new(-oneRaw, -oneRaw, Fixed64.Zero),
+            new(oneRaw, oneRaw, Fixed64.Zero)
+        };
+
+        FixedBoundSphere sphere = FixedBoundSphere.CreateFromPoints(points);
+
+        Assert.Equal(Vector3d.Zero, sphere.Center);
+        Assert.Equal(Fixed64.FromRaw(2L), sphere.Radius);
+        Assert.All(points, point => Assert.True(sphere.Contains(point)));
+    }
+
+    [Fact]
+    public void CreateFromPoints_UsesFartherComponentWhenExtremePairSecondaryAxisIsReversed()
+    {
+        Vector3d[] points =
+        {
+            new(Fixed64.FromRaw(-10L), Fixed64.FromRaw(4L), Fixed64.Zero),
+            new(Fixed64.FromRaw(10L), Fixed64.FromRaw(-5L), Fixed64.Zero)
+        };
+
+        FixedBoundSphere sphere = FixedBoundSphere.CreateFromPoints(points);
+
+        Assert.Equal(Vector3d.Zero, sphere.Center);
+        Assert.Equal(Fixed64.FromRaw(12L), sphere.Radius);
+        Assert.All(points, point => Assert.True(sphere.Contains(point)));
+    }
+
+    [Fact]
+    public void CreateFromPoints_SeedsFromActualEndpointNearMaximumRadius()
+    {
+        const long firstMagnitude = 6_521_908_912_666_291_105L;
+        const long secondMagnitude = 6_521_908_912_666_491_104L;
+        Vector3d[] points =
+        {
+            new(
+                Fixed64.FromRaw(-firstMagnitude),
+                Fixed64.FromRaw(-(secondMagnitude + 1L)),
+                Fixed64.Zero),
+            new(
+                Fixed64.FromRaw(firstMagnitude + 1L),
+                Fixed64.FromRaw(secondMagnitude),
+                Fixed64.Zero)
+        };
+
+        FixedBoundSphere sphere = FixedBoundSphere.CreateFromPoints(points);
+
+        Assert.Equal(Vector3d.Zero, sphere.Center);
+        Assert.Equal(Fixed64.MaxValue, sphere.Radius);
+        Assert.All(points, point => Assert.True(sphere.Contains(point)));
+    }
+
+    [Fact]
+    public void CreateFromPoints_ThrowsWhenDeterministicRadiusIsNotRepresentable()
+    {
+        Vector3d[] points =
+        {
+            new(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
+            new(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero)
+        };
+
+        Assert.Throws<OverflowException>(() => FixedBoundSphere.CreateFromPoints(points));
+    }
+
+    [Fact]
     public void CreateFromPoints_NullInput_Throws()
     {
         Assert.Throws<ArgumentNullException>(() => FixedBoundSphere.CreateFromPoints(null!));
@@ -555,6 +704,109 @@ public class FixedBoundSphereTests
         Assert.Equal(largerOffset, FixedBoundSphere.CreateMerged(small, largerOffset));
         Assert.Equal(largerSameCenter, FixedBoundSphere.CreateMerged(small, largerSameCenter));
         Assert.Equal(largerSameCenter, FixedBoundSphere.CreateMerged(largerSameCenter, small));
+    }
+
+    [Fact]
+    public void CreateMerged_PreservesRepresentableResultAcrossUnrepresentableCenterDistance()
+    {
+        var left = new FixedBoundSphere(new Vector3d(-1_500_000_000, 0, 0), Fixed64.Zero);
+        var right = new FixedBoundSphere(new Vector3d(1_500_000_000, 0, 0), Fixed64.Zero);
+
+        FixedBoundSphere merged = FixedBoundSphere.CreateMerged(left, right);
+
+        Assert.Equal(Vector3d.Zero, merged.Center);
+        Assert.Equal(new Fixed64(1_500_000_000), merged.Radius);
+    }
+
+    [Fact]
+    public void CreateMerged_InterpolatesAcrossFullUnsignedRawDenominator()
+    {
+        var left = new FixedBoundSphere(new Vector3d(-1_400_000_000, 0, 0), Fixed64.Zero);
+        var right = new FixedBoundSphere(new Vector3d(1_600_000_000, 0, 0), Fixed64.Zero);
+
+        FixedBoundSphere merged = FixedBoundSphere.CreateMerged(left, right);
+
+        Assert.Equal(new Vector3d(100_000_000, 0, 0), merged.Center);
+        Assert.Equal(new Fixed64(1_500_000_000), merged.Radius);
+        Assert.Equal(FixedEnclosureType.Contains, merged.Contains(left));
+        Assert.Equal(FixedEnclosureType.Contains, merged.Contains(right));
+    }
+
+    [Fact]
+    public void CreateMerged_DelaysRadiusSaturationUntilAfterHalving()
+    {
+        var left = new FixedBoundSphere(
+            new Vector3d(-500_000_000, 0, 0),
+            new Fixed64(1_500_000_000));
+        var right = new FixedBoundSphere(
+            new Vector3d(500_000_000, 0, 0),
+            new Fixed64(1_500_000_000));
+
+        FixedBoundSphere merged = FixedBoundSphere.CreateMerged(left, right);
+
+        Assert.Equal(Vector3d.Zero, merged.Center);
+        Assert.Equal(new Fixed64(2_000_000_000), merged.Radius);
+    }
+
+    [Fact]
+    public void CreateMerged_UsesRepresentableLatticeCenterNearMaximumRadius()
+    {
+        var left = new FixedBoundSphere(
+            Vector3d.Zero,
+            Fixed64.FromRaw(long.MaxValue - 2L));
+        var right = new FixedBoundSphere(
+            new Vector3d(Fixed64.MinIncrement, Fixed64.MinIncrement, Fixed64.Zero),
+            Fixed64.FromRaw(long.MaxValue - 1L));
+
+        FixedBoundSphere merged = FixedBoundSphere.CreateMerged(left, right);
+
+        Assert.Equal(Fixed64.MaxValue, merged.Radius);
+        Assert.Equal(FixedEnclosureType.Contains, merged.Contains(left));
+        Assert.Equal(FixedEnclosureType.Contains, merged.Contains(right));
+    }
+
+    [Fact]
+    public void CreateMerged_RoundsHalfwayCenterUsingFinalRawParity()
+    {
+        var left = new FixedBoundSphere(
+            new Vector3d(Fixed64.FromRaw(1L), Fixed64.Zero, Fixed64.Zero),
+            Fixed64.Zero);
+        var right = new FixedBoundSphere(
+            new Vector3d(Fixed64.FromRaw(2L), Fixed64.Zero, Fixed64.Zero),
+            Fixed64.Zero);
+
+        FixedBoundSphere merged = FixedBoundSphere.CreateMerged(left, right);
+
+        Assert.Equal(new Vector3d(Fixed64.FromRaw(2L), Fixed64.Zero, Fixed64.Zero), merged.Center);
+        Assert.Equal(Fixed64.MinIncrement, merged.Radius);
+        Assert.Equal(FixedEnclosureType.Contains, merged.Contains(left));
+        Assert.Equal(FixedEnclosureType.Contains, merged.Contains(right));
+    }
+
+    [Fact]
+    public void CreateMerged_ThrowsWhenContainingRadiusIsNotRepresentable()
+    {
+        var left = new FixedBoundSphere(
+            new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
+            Fixed64.Zero);
+        var right = new FixedBoundSphere(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            Fixed64.Zero);
+
+        Assert.Throws<OverflowException>(() => FixedBoundSphere.CreateMerged(left, right));
+    }
+
+    [Fact]
+    public void CreateMerged_ThrowsWhenDeterministicLatticeCenterRequiresUnrepresentableRadius()
+    {
+        var left = new FixedBoundSphere(
+            new Vector3d(Fixed64.FromRaw(-9L), Fixed64.FromRaw(-9L), Fixed64.Zero),
+            Fixed64.FromRaw(long.MaxValue - 9L));
+        var right = new FixedBoundSphere(
+            new Vector3d(Fixed64.FromRaw(-5L), Fixed64.FromRaw(5L), Fixed64.Zero),
+            Fixed64.FromRaw(long.MaxValue - 6L));
+
+        Assert.Throws<OverflowException>(() => FixedBoundSphere.CreateMerged(left, right));
     }
 
     #endregion

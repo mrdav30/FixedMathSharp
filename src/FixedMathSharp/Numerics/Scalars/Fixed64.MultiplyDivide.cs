@@ -279,10 +279,11 @@ public partial struct Fixed64
         remainder = high;
         for (int bit = 63; bit >= 0; bit--)
         {
+            bool carry = (remainder & (1UL << 63)) != 0UL;
             remainder = (remainder << 1) | ((low >> bit) & 1UL);
-            if (remainder >= divisor)
+            if (carry || remainder >= divisor)
             {
-                remainder -= divisor;
+                remainder = unchecked(remainder - divisor);
                 quotient |= 1UL << bit;
             }
         }

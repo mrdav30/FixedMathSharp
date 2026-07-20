@@ -171,10 +171,18 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Creates a bounding sphere that contains the specified axis-aligned bounding box.
     /// </summary>
+    /// <exception cref="OverflowException">
+    /// Thrown when this construction requires an unrepresentable radius.
+    /// </exception>
     public static FixedBoundSphere CreateFromBoundingBox(FixedBoundBox box)
     {
-        Vector3d center = (box.Min + box.Max) * Fixed64.Half;
-        Fixed64 radius = Vector3d.Distance(center, box.Max);
+        Vector3d center = Vector3d.Midpoint(box.Min, box.Max);
+        Vector3d farthestCorner = new(
+            GetFartherEndpoint(box.Min.X, box.Max.X, center.X),
+            GetFartherEndpoint(box.Min.Y, box.Max.Y, center.Y),
+            GetFartherEndpoint(box.Min.Z, box.Max.Z, center.Z));
+        if (!TryGetRequiredRadius(center, farthestCorner, Fixed64.Zero, out Fixed64 radius))
+            throw CreateUnrepresentableRadiusException();
 
         return new FixedBoundSphere(center, radius);
     }
@@ -182,6 +190,9 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Creates a bounding sphere that contains the specified frustum.
     /// </summary>
+    /// <exception cref="OverflowException">
+    /// Thrown when this construction requires an unrepresentable radius.
+    /// </exception>
     public static FixedBoundSphere CreateFromFrustum(FixedBoundFrustum frustum)
     {
         return CreateFromFrustumCorners(frustum);
@@ -190,6 +201,9 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Creates a bounding sphere that contains the specified points.
     /// </summary>
+    /// <exception cref="OverflowException">
+    /// Thrown when this construction requires an unrepresentable radius.
+    /// </exception>
     public static FixedBoundSphere CreateFromPoints(IEnumerable<Vector3d> points)
     {
         if (points is null)
@@ -208,6 +222,9 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Creates a bounding sphere that contains the specified points.
     /// </summary>
+    /// <exception cref="OverflowException">
+    /// Thrown when this construction requires an unrepresentable radius.
+    /// </exception>
     public static FixedBoundSphere CreateFromPoints(Vector3d[] points)
     {
         if (points is null)
@@ -219,29 +236,94 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     /// <summary>
     /// Creates a bounding sphere that contains the specified points.
     /// </summary>
+    /// <exception cref="OverflowException">
+    /// Thrown when this construction requires an unrepresentable radius.
+    /// </exception>
     public static FixedBoundSphere CreateFromPoints(ReadOnlySpan<Vector3d> points)
     {
         return CreateFromPointSpan(points);
     }
 
     /// <summary>
-    /// Creates the smallest sphere that contains the two specified spheres.
+    /// Creates a deterministic sphere that contains the two specified spheres.
     /// </summary>
+    /// <exception cref="OverflowException">
+    /// Thrown when this construction cannot produce a containing sphere with a
+    /// representable radius.
+    /// </exception>
     public static FixedBoundSphere CreateMerged(FixedBoundSphere original, FixedBoundSphere additional)
     {
-        Vector3d centerOffset = additional.Center - original.Center;
-        Fixed64 distance = centerOffset.Magnitude;
-
-        if (distance + additional.Radius <= original.Radius)
+        if (ContainsSphere(original, additional))
             return original;
 
-        if (distance + original.Radius <= additional.Radius)
+        if (ContainsSphere(additional, original))
             return additional;
 
-        Fixed64 radius = (distance + original.Radius + additional.Radius) * Fixed64.Half;
-        Vector3d center = original.Center + centerOffset * FixedMath.FastDiv(radius - original.Radius, distance);
+        return MergeNonContaining(original, additional);
+    }
 
-        return new FixedBoundSphere(center, radius);
+    private static FixedBoundSphere MergeNonContaining(
+        FixedBoundSphere original,
+        FixedBoundSphere additional)
+    {
+
+        GetDistanceRoot(original.Center, additional.Center, out Signed192 distanceFloor, out Signed192 distanceRemainder);
+        if (!TryGetMergedRadius(
+                distanceFloor,
+                distanceRemainder,
+                original.Radius,
+                additional.Radius,
+                out Fixed64 radius))
+        {
+            throw CreateUnrepresentableRadiusException();
+        }
+
+        Signed192 firstGap = WideArithmetic.FromSignedRaw(
+            (radius - original.Radius).m_rawValue);
+        Signed192 secondGap = WideArithmetic.FromSignedRaw(
+            (radius - additional.Radius).m_rawValue);
+        Signed192 gapSum = WideArithmetic.AddSigned192(firstGap, secondGap);
+        Vector3d center = new(
+            WideGeometry.InterpolateCoordinate(
+                original.Center.X,
+                additional.Center.X,
+                firstGap,
+                gapSum),
+            WideGeometry.InterpolateCoordinate(
+                original.Center.Y,
+                additional.Center.Y,
+                firstGap,
+                gapSum),
+            WideGeometry.InterpolateCoordinate(
+                original.Center.Z,
+                additional.Center.Z,
+                firstGap,
+                gapSum));
+
+        var merged = new FixedBoundSphere(center, radius);
+        bool containsOriginal = ContainsSphere(merged, original);
+        bool containsAdditional = ContainsSphere(merged, additional);
+        if (containsOriginal & containsAdditional)
+            return merged;
+
+        bool originalRadiusRepresentable = TryGetRequiredRadius(
+            center,
+            original.Center,
+            original.Radius,
+            out Fixed64 originalRequired);
+        bool additionalRadiusRepresentable = TryGetRequiredRadius(
+            center,
+            additional.Center,
+            additional.Radius,
+            out Fixed64 additionalRequired);
+        if (!(originalRadiusRepresentable & additionalRadiusRepresentable))
+        {
+            throw CreateUnrepresentableRadiusException();
+        }
+
+        return new FixedBoundSphere(
+            center,
+            originalRequired >= additionalRequired ? originalRequired : additionalRequired);
     }
 
     private static FixedBoundSphere CreateFromPointList(IReadOnlyList<Vector3d> points)
@@ -268,48 +350,11 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
             if (point.Z > maxZ.Z) maxZ = point;
         }
 
-        Fixed64 sqDistX = Vector3d.DistanceSquared(maxX, minX);
-        Fixed64 sqDistY = Vector3d.DistanceSquared(maxY, minY);
-        Fixed64 sqDistZ = Vector3d.DistanceSquared(maxZ, minZ);
-
-        Vector3d min = minX;
-        Vector3d max = maxX;
-        Fixed64 largestDistance = sqDistX;
-
-        if (sqDistY > largestDistance)
-        {
-            min = minY;
-            max = maxY;
-            largestDistance = sqDistY;
-        }
-
-        if (sqDistZ > largestDistance)
-        {
-            min = minZ;
-            max = maxZ;
-        }
-
-        Vector3d center = (min + max) * Fixed64.Half;
-        Fixed64 radius = Vector3d.Distance(max, center);
+        FixedBoundSphere sphere = CreateFromExtremePairs(minX, maxX, minY, maxY, minZ, maxZ);
         for (int i = 0; i < points.Count; i++)
-        {
-            Vector3d diff = points[i] - center;
-            if (WideGeometry.CompareDistanceToRadiusSum(
-                center,
-                points[i],
-                radius,
-                Fixed64.Zero) <= 0)
-                continue;
+            ExpandToContain(ref sphere, points[i]);
 
-            Fixed64 sqDistance = diff.MagnitudeSquared;
-            Fixed64 distance = FixedMath.Sqrt(sqDistance);
-            Fixed64 newRadius = (radius + distance) * Fixed64.Half;
-            center += diff * FixedMath.FastDiv(distance - radius, Fixed64.Two * distance);
-            radius = newRadius;
-            EnsureRadiusContainsPoint(points[i], center, ref radius);
-        }
-
-        return new FixedBoundSphere(center, radius);
+        return sphere;
     }
 
     private static FixedBoundSphere CreateFromPointSpan(ReadOnlySpan<Vector3d> points)
@@ -336,49 +381,11 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
             if (point.Z > maxZ.Z) maxZ = point;
         }
 
-        Fixed64 sqDistX = Vector3d.DistanceSquared(maxX, minX);
-        Fixed64 sqDistY = Vector3d.DistanceSquared(maxY, minY);
-        Fixed64 sqDistZ = Vector3d.DistanceSquared(maxZ, minZ);
-
-        Vector3d min = minX;
-        Vector3d max = maxX;
-        Fixed64 largestDistance = sqDistX;
-
-        if (sqDistY > largestDistance)
-        {
-            min = minY;
-            max = maxY;
-            largestDistance = sqDistY;
-        }
-
-        if (sqDistZ > largestDistance)
-        {
-            min = minZ;
-            max = maxZ;
-        }
-
-        Vector3d center = (min + max) * Fixed64.Half;
-        Fixed64 radius = Vector3d.Distance(max, center);
+        FixedBoundSphere sphere = CreateFromExtremePairs(minX, maxX, minY, maxY, minZ, maxZ);
         for (int i = 0; i < points.Length; i++)
-        {
-            Vector3d point = points[i];
-            Vector3d diff = point - center;
-            if (WideGeometry.CompareDistanceToRadiusSum(
-                center,
-                point,
-                radius,
-                Fixed64.Zero) <= 0)
-                continue;
+            ExpandToContain(ref sphere, points[i]);
 
-            Fixed64 sqDistance = diff.MagnitudeSquared;
-            Fixed64 distance = FixedMath.Sqrt(sqDistance);
-            Fixed64 newRadius = (radius + distance) * Fixed64.Half;
-            center += diff * FixedMath.FastDiv(distance - radius, Fixed64.Two * distance);
-            radius = newRadius;
-            EnsureRadiusContainsPoint(point, center, ref radius);
-        }
-
-        return new FixedBoundSphere(center, radius);
+        return sphere;
     }
 
     private static FixedBoundSphere CreateFromFrustumCorners(FixedBoundFrustum frustum)
@@ -402,62 +409,165 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
             if (point.Z > maxZ.Z) maxZ = point;
         }
 
-        Fixed64 sqDistX = Vector3d.DistanceSquared(maxX, minX);
-        Fixed64 sqDistY = Vector3d.DistanceSquared(maxY, minY);
-        Fixed64 sqDistZ = Vector3d.DistanceSquared(maxZ, minZ);
+        FixedBoundSphere sphere = CreateFromExtremePairs(minX, maxX, minY, maxY, minZ, maxZ);
+        for (int i = 0; i < FixedBoundFrustum.CornerCount; i++)
+            ExpandToContain(ref sphere, frustum.GetCorner(i));
 
+        return sphere;
+    }
+
+    private static FixedBoundSphere CreateFromExtremePairs(
+        Vector3d minX,
+        Vector3d maxX,
+        Vector3d minY,
+        Vector3d maxY,
+        Vector3d minZ,
+        Vector3d maxZ)
+    {
         Vector3d min = minX;
         Vector3d max = maxX;
-        Fixed64 largestDistance = sqDistX;
-
-        if (sqDistY > largestDistance)
+        if (Vector3d.CompareDistanceSquared(minY, maxY, min, max) > 0)
         {
             min = minY;
             max = maxY;
-            largestDistance = sqDistY;
         }
-
-        if (sqDistZ > largestDistance)
+        if (Vector3d.CompareDistanceSquared(minZ, maxZ, min, max) > 0)
         {
             min = minZ;
             max = maxZ;
         }
 
-        Vector3d center = (min + max) * Fixed64.Half;
-        Fixed64 radius = Vector3d.Distance(max, center);
-        for (int i = 0; i < FixedBoundFrustum.CornerCount; i++)
+        Vector3d center = Vector3d.Midpoint(min, max);
+        Vector3d farthest = Vector3d.CompareDistanceSquared(center, min, center, max) > 0
+            ? min
+            : max;
+        if (!TryGetRequiredRadius(center, farthest, Fixed64.Zero, out Fixed64 radius))
         {
-            Vector3d point = frustum.GetCorner(i);
-            Vector3d diff = point - center;
-            if (WideGeometry.CompareDistanceToRadiusSum(
-                center,
-                point,
-                radius,
-                Fixed64.Zero) <= 0)
-                continue;
-
-            Fixed64 sqDistance = diff.MagnitudeSquared;
-            Fixed64 distance = FixedMath.Sqrt(sqDistance);
-            Fixed64 newRadius = (radius + distance) * Fixed64.Half;
-            center += diff * FixedMath.FastDiv(distance - radius, Fixed64.Two * distance);
-            radius = newRadius;
-            EnsureRadiusContainsPoint(point, center, ref radius);
+            throw CreateUnrepresentableRadiusException();
         }
 
         return new FixedBoundSphere(center, radius);
     }
 
-    private static void EnsureRadiusContainsPoint(Vector3d point, Vector3d center, ref Fixed64 radius)
+    private static void ExpandToContain(ref FixedBoundSphere sphere, Vector3d point)
     {
-        if (WideGeometry.CompareDistanceToRadiusSum(center, point, radius, Fixed64.Zero) <= 0)
+        if (sphere.Contains(point))
             return;
 
-        radius = Vector3d.Distance(point, center);
-        if (WideGeometry.CompareDistanceToRadiusSum(center, point, radius, Fixed64.Zero) > 0)
-        {
-            radius += Fixed64.MinIncrement;
-        }
+        sphere = MergeNonContaining(sphere, new FixedBoundSphere(point, Fixed64.Zero));
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool ContainsSphere(FixedBoundSphere outer, FixedBoundSphere inner)
+    {
+        if (outer.Radius < inner.Radius)
+            return false;
+
+        return WideGeometry.CompareDistanceToRadiusSum(
+            outer.Center,
+            inner.Center,
+            outer.Radius - inner.Radius,
+            Fixed64.Zero) <= 0;
+    }
+
+    private static bool TryGetMergedRadius(
+        Signed192 distanceFloor,
+        Signed192 distanceRemainder,
+        Fixed64 firstRadius,
+        Fixed64 secondRadius,
+        out Fixed64 radius)
+    {
+        Signed192 sum = WideArithmetic.AddSigned192(
+            distanceFloor,
+            WideArithmetic.FromSignedRaw(firstRadius.m_rawValue));
+        sum = WideArithmetic.AddSigned192(
+            sum,
+            WideArithmetic.FromSignedRaw(secondRadius.m_rawValue));
+        bool roundUp = (sum.Low & 1UL) != 0UL || !distanceRemainder.IsZero;
+        WideArithmetic.GetMagnitude(sum, out ulong high, out ulong middle, out ulong low);
+        WideArithmetic.ShiftRightOne(ref high, ref middle, ref low);
+        if (roundUp)
+        {
+            Signed192 rounded = WideArithmetic.AddSigned192(
+                new Signed192(high, middle, low),
+                WideArithmetic.FromSignedRaw(1L));
+            high = rounded.High;
+            middle = rounded.Middle;
+            low = rounded.Low;
+        }
+
+        return TryCreatePositiveRaw(high, middle, low, out radius);
+    }
+
+    private static bool TryGetRequiredRadius(
+        Vector3d center,
+        Vector3d enclosedCenter,
+        Fixed64 enclosedRadius,
+        out Fixed64 radius)
+    {
+        GetDistanceRoot(center, enclosedCenter, out Signed192 distanceFloor, out Signed192 distanceRemainder);
+        if (!distanceRemainder.IsZero)
+        {
+            distanceFloor = WideArithmetic.AddSigned192(
+                distanceFloor,
+                WideArithmetic.FromSignedRaw(1L));
+        }
+
+        Signed192 required = WideArithmetic.AddSigned192(
+            distanceFloor,
+            WideArithmetic.FromSignedRaw(enclosedRadius.m_rawValue));
+        WideArithmetic.GetMagnitude(required, out ulong high, out ulong middle, out ulong low);
+        return TryCreatePositiveRaw(high, middle, low, out radius);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void GetDistanceRoot(
+        Vector3d first,
+        Vector3d second,
+        out Signed192 floor,
+        out Signed192 remainder)
+    {
+        Signed192 squaredDistance = WideGeometry.GetDifferenceDotProduct3D(
+            first.X, second.X, first.Y, second.Y, first.Z, second.Z,
+            first.X, second.X, first.Y, second.Y, first.Z, second.Z);
+        floor = WideArithmetic.GetFloorSquareRoot(
+            WideArithmetic.ExtendToSigned320(squaredDistance),
+            out remainder);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryCreatePositiveRaw(
+        ulong high,
+        ulong middle,
+        ulong low,
+        out Fixed64 value)
+    {
+        if ((high | middle | (low >> 63)) != 0UL)
+        {
+            value = default;
+            return false;
+        }
+
+        value = Fixed64.FromRaw((long)low);
+        return true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Fixed64 GetFartherEndpoint(Fixed64 first, Fixed64 second, Fixed64 center)
+    {
+        ulong firstDistance = GetRawDistance(first.m_rawValue, center.m_rawValue);
+        ulong secondDistance = GetRawDistance(second.m_rawValue, center.m_rawValue);
+        return firstDistance > secondDistance ? first : second;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong GetRawDistance(long first, long second) =>
+        first >= second
+            ? unchecked((ulong)first - (ulong)second)
+            : unchecked((ulong)second - (ulong)first);
+
+    private static OverflowException CreateUnrepresentableRadiusException() =>
+        new("A containing sphere produced for the supplied geometry requires an unrepresentable radius.");
 
     #endregion
 

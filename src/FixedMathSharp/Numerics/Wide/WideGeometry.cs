@@ -94,6 +94,30 @@ internal static class WideGeometry
     }
 
     /// <summary>
+    /// Interpolates one coordinate from an exact nonnegative numerator and
+    /// denominator with one final round-half-to-even conversion.
+    /// </summary>
+    internal static Fixed64 InterpolateCoordinate(
+        Fixed64 start,
+        Fixed64 end,
+        Signed192 numerator,
+        Signed192 denominator)
+    {
+        if (start == end)
+            return start;
+
+        Signed192 remaining = WideArithmetic.SubtractSigned192(denominator, numerator);
+        Signed320 weighted = WideArithmetic.AddSigned320(
+            WideArithmetic.MultiplySigned192(
+                WideArithmetic.FromSignedRaw(start.m_rawValue),
+                remaining),
+            WideArithmetic.MultiplySigned192(
+                WideArithmetic.FromSignedRaw(end.m_rawValue),
+                numerator));
+        return Fixed64.GetSignedRawRatio(weighted, denominator);
+    }
+
+    /// <summary>
     /// Returns the normalized direction between two 2D endpoints without
     /// narrowing their component differences.
     /// </summary>

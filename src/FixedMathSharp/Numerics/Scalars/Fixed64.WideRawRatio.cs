@@ -12,6 +12,45 @@ namespace FixedMathSharp;
 public partial struct Fixed64
 {
     /// <summary>
+    /// Converts an exact signed five-word ratio with a positive single-word
+    /// denominator to a raw integer with round-half-to-even.
+    /// </summary>
+    /// <remarks>
+    /// The caller owns the invariant that the quotient is representable.
+    /// </remarks>
+    internal static Fixed64 GetSignedRawRatio(Signed320 numerator, Signed192 denominator)
+    {
+        int numeratorSign = numerator.Sign;
+        if (numeratorSign == 0)
+            return Zero;
+
+        WideArithmetic.GetMagnitude(
+            denominator,
+            out _,
+            out _,
+            out ulong denominatorLow);
+        WideArithmetic.GetMagnitude(
+            numerator,
+            out _,
+            out _,
+            out _,
+            out ulong word1,
+            out ulong word0);
+
+        ulong quotient = Divide128By64(
+            word1,
+            word0,
+            denominatorLow,
+            out ulong remainder);
+        int midpointComparison = remainder.CompareTo(denominatorLow - remainder);
+        if (midpointComparison > 0 || (midpointComparison == 0 && (quotient & 1UL) != 0UL))
+            quotient++;
+
+        long raw = numeratorSign < 0 ? unchecked(-(long)quotient) : (long)quotient;
+        return new Fixed64(raw);
+    }
+
+    /// <summary>
     /// Converts an exact signed nine-word ratio directly to a raw integer with
     /// round-half-to-even. Unlike <c>GetSignedRatio</c>, this method does not
     /// apply an additional Q32.32 scale.
@@ -68,7 +107,19 @@ public partial struct Fixed64
         Span<ulong> denominatorMinusRemainder = stackalloc ulong[9];
         denominatorMagnitude.CopyTo(denominatorMinusRemainder);
         SubtractMagnitude(denominatorMinusRemainder, remainder);
-        int midpointComparison = CompareMagnitude(remainder, denominatorMinusRemainder);
+        return TryCreateRawRatioResult(
+            quotient,
+            CompareMagnitude(remainder, denominatorMinusRemainder),
+            negative,
+            out result);
+    }
+
+    private static bool TryCreateRawRatioResult(
+        ulong quotient,
+        int midpointComparison,
+        bool negative,
+        out Fixed64 result)
+    {
         if (midpointComparison > 0 || (midpointComparison == 0 && (quotient & 1UL) != 0UL))
         {
             quotient++;

@@ -15,15 +15,11 @@ internal static partial class WideArithmetic
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static Signed576 ExtendToSigned576(Signed320 value)
     {
-        ulong extension = value.Sign < 0 ? ulong.MaxValue : 0UL;
+        ulong extension = unchecked((ulong)((long)value.Word4 >> 63));
         return new Signed576(
             extension, extension, extension, extension,
             value.Word4, value.Word3, value.Word2, value.Word1, value.Word0);
     }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static Signed576 ExtendToSigned576(Signed192 value) =>
-        ExtendToSigned576(ExtendToSigned320(value));
 
     internal static void GetMagnitude(Signed576 value, Span<ulong> magnitude)
     {

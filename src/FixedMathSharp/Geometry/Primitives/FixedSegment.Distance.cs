@@ -291,10 +291,12 @@ public partial struct FixedSegment
         if (distance == totalDistance)
             return End;
 
+        Signed192 distanceRaw = WideArithmetic.FromSignedRaw(distance.m_rawValue);
+        Signed192 totalDistanceRaw = WideArithmetic.FromSignedRaw(totalDistance.m_rawValue);
         return new Vector3d(
-            GetCoordinateAtDistance(Start.X, End.X, distance, totalDistance),
-            GetCoordinateAtDistance(Start.Y, End.Y, distance, totalDistance),
-            GetCoordinateAtDistance(Start.Z, End.Z, distance, totalDistance));
+            WideGeometry.InterpolateCoordinate(Start.X, End.X, distanceRaw, totalDistanceRaw),
+            WideGeometry.InterpolateCoordinate(Start.Y, End.Y, distanceRaw, totalDistanceRaw),
+            WideGeometry.InterpolateCoordinate(Start.Z, End.Z, distanceRaw, totalDistanceRaw));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -314,31 +316,4 @@ public partial struct FixedSegment
             throw new ArgumentException("Zero total distance requires a zero-length segment.", nameof(totalDistance));
     }
 
-    private static Fixed64 GetCoordinateAtDistance(
-        Fixed64 start,
-        Fixed64 end,
-        Fixed64 distance,
-        Fixed64 totalDistance)
-    {
-        if (start == end)
-            return start;
-
-        Signed192 distanceRaw = WideArithmetic.FromSignedRaw(distance.m_rawValue);
-        Signed192 remainingRaw = WideArithmetic.FromSignedRaw(
-            totalDistance.m_rawValue - distance.m_rawValue);
-        Signed320 numerator = WideArithmetic.AddSigned320(
-            WideArithmetic.MultiplySigned192(
-                WideArithmetic.FromSignedRaw(start.m_rawValue),
-                remainingRaw),
-            WideArithmetic.MultiplySigned192(
-                WideArithmetic.FromSignedRaw(end.m_rawValue),
-                distanceRaw));
-        Signed576 denominator = WideArithmetic.ExtendToSigned576(
-            WideArithmetic.FromSignedRaw(totalDistance.m_rawValue));
-        Fixed64.TryGetSignedRawRatio(
-            WideArithmetic.ExtendToSigned576(numerator),
-            denominator,
-            out Fixed64 coordinate);
-        return coordinate;
-    }
 }

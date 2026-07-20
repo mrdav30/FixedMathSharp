@@ -61,6 +61,19 @@ distances only when the direction is normalized by the caller.
 `GetPoint(parameter)` uses a fused multiply-add per coordinate, so reconstruction
 does not saturate or round the direction product before adding the origin.
 
+`FixedBoundSphere.CreateFromBoundingBox`, `CreateFromFrustum`,
+`CreateFromPoints`, and `CreateMerged` retain endpoint differences, distance
+ordering, roots, radius sums, and center interpolation in exact wide arithmetic.
+Successful construction always returns a sphere that contains the supplied
+geometry; radii round outward when the exact distance lies between raw values.
+The point and frustum factories retain deterministic Ritter-style construction,
+and merge centers must lie on the Q32.32 coordinate lattice, so these APIs do
+not promise a mathematically minimum sphere. They throw `OverflowException`
+when the selected deterministic construction requires an unrepresentable
+radius instead of returning a saturated under-bound sphere. `FixedBoundCircle`
+has no corresponding point-cloud or merge factory, so there is no 2D
+construction contract to mirror.
+
 ## Boundary Semantics
 
 Default containment and intersection methods are boundary-inclusive:

@@ -568,6 +568,22 @@ public sealed partial class FiniteAxisIntersectionTests
     }
 
     [Fact]
+    public void GetPointAtDistance_RoundsHalfwayCoordinatesUsingFinalRawParity()
+    {
+        Fixed64 odd = Fixed64.FromRaw(1L);
+        Fixed64 even = Fixed64.FromRaw(2L);
+        var ascending2d = new FixedSegment2d(new Vector2d(odd, odd), new Vector2d(even, even));
+        var descending2d = new FixedSegment2d(new Vector2d(odd, odd), Vector2d.Zero);
+        var ascending3d = new FixedSegment(new Vector3d(odd, odd, odd), new Vector3d(even, even, even));
+        var descending3d = new FixedSegment(new Vector3d(odd, odd, odd), Vector3d.Zero);
+
+        Assert.Equal(new Vector2d(even, even), ascending2d.GetPointAtDistance(Fixed64.Half, Fixed64.One));
+        Assert.Equal(Vector2d.Zero, descending2d.GetPointAtDistance(Fixed64.Half, Fixed64.One));
+        Assert.Equal(new Vector3d(even, even, even), ascending3d.GetPointAtDistance(Fixed64.Half, Fixed64.One));
+        Assert.Equal(Vector3d.Zero, descending3d.GetPointAtDistance(Fixed64.Half, Fixed64.One));
+    }
+
+    [Fact]
     public void GetPointAtDistance_RejectsInvalidDistanceDomain()
     {
         var segment2d = new FixedSegment2d(Vector2d.Zero, Vector2d.One);

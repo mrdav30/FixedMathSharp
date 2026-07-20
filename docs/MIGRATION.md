@@ -31,6 +31,9 @@ Use this guide when upgrading from any v6.x package.
 - Replace `FixedBoundCircle.RadiusSquared` and
   `FixedBoundSphere.RadiusSquared` callers with the actual `Radius` or the
   bound's exact containment/intersection methods.
+- Handle `OverflowException` from bounding-sphere factories when their
+  deterministic containing radius is not representable; v6 could silently
+  return a saturated sphere that did not contain its input.
 - Re-record deterministic golden values, replay hashes, and serialized expected
   outputs that depend on division, normalization, transforms, segments, or
   triangles. Do not silently compare v6 and v7 simulation hashes as though the
@@ -251,6 +254,28 @@ when the plane does not intersect the sphere. Negative source radii throw.
 Use `FixedMath.TryGetSphereSlabCrossSectionRadius` when projecting a sphere
 through a centered finite slab. It keeps opposite-domain center separation and
 the slab offset exact before reducing to the nearest cross-section radius.
+
+### Full-Domain Bounding-Sphere Construction
+
+`FixedBoundSphere.CreateFromBoundingBox`, `CreateFromFrustum`,
+`CreateFromPoints`, and `CreateMerged` now keep construction arithmetic wide
+until the final Q32.32 center and radius. Extreme-pair ordering no longer
+collapses when multiple squared distances saturate, same-sign endpoint
+midpoints no longer saturate before halving, and merge radius sums are halved
+before representability is decided.
+
+Successful factories return a deterministic sphere that contains every supplied
+point or bound. Non-integral required radii round outward rather than to nearest,
+which can increase a v7 radius by one raw unit relative to a rounded Euclidean
+distance. If the chosen deterministic construction needs a radius outside the
+`Fixed64` range, the factory throws `OverflowException`; it never returns a
+saturated under-bound result.
+
+`CreateFromPoints` and `CreateFromFrustum` remain deterministic Ritter-style
+builders, and a merged center must be selected from the Q32.32 coordinate
+lattice. These methods therefore promise containment, not a mathematically
+minimum enclosing sphere. Refresh golden values that previously depended on
+intermediate saturation or nearest-radius rounding.
 
 ### FixedTransform Local And World Contract
 

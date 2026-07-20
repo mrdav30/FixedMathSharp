@@ -1,28 +1,5 @@
 # Feature Work Issue Tracker
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use
-> superpowers:systematic-debugging before implementing fixes, use
-> superpowers:test-driven-development for runtime behavior changes, and use
-> superpowers:verification-before-completion before claiming an issue is fixed.
-> Steps use checkbox (`- [ ]`) syntax for tracking.
-
-**Status:** Active
-
-**Goal:** Keep bugs, correctness risks, documentation defects, and
-feature-work-discovered issues separate from feature design plans so each fix
-can be triaged, tested, and committed independently.
-
-**Architecture:** This document is intentionally undated. Each tracked item has
-its own discovery date, source, status, affected files, and recommended
-verification. Feature plans may reference this tracker instead of carrying bug
-fixes inside API or design phases.
-
-**Tech Stack:** `netstandard2.1` and `net8.0` runtime targets, xUnit,
-BenchmarkDotNet when performance evidence is needed, FixedMathSharp core runtime
-and tests.
-
----
-
 ## Tracker Rules
 
 - Add new items when feature work uncovers a suspected bug, stale doc, test
@@ -33,28 +10,83 @@ and tests.
   verification evidence.
 - Do not use this tracker as a substitute for tests, benchmarks, or release
   notes.
+- Performance issues should stay in
+  [`benchmark-signal-hardening-backlog.md`](benchmark-signal-hardening-backlog.md)
+  unless they become a confirmed runtime defect. Do not add performance issues
+  here until they have been investigated and confirmed as runtime defects.
 
 ## Active Issues
 
-- **FMS-Issue-015: Sphere construction and merge paths are not full-domain.**
-  `CreateFromPoints`, `CreateFromFrustum`, `CreateMerged`, and radius expansion
-  still contain saturating endpoint differences, squared-distance ordering, or
-  radius updates. Resolve separately from containment/intersection predicates.
+- **FMS-Issue-016: Derived area and box center/extent paths are not full-domain.**
+  `FixedBoundArea.Center`, `FixedBoundBox.Center`, and resize/recenter paths
+  still use saturating `Min + Max` or `Max - Min` arithmetic before halving.
+  Same-sign bounds can therefore report the wrong center, while bounds wider
+  than one scalar can report a narrowed size or scope. Resolve the 2D/3D API
+  contract together instead of fixing only the getter exposed by the sphere
+  construction audit.
 
 ## Performance Investigation Queue
 
 Performance issues should stay in the benchmark plan unless they become a
 confirmed runtime defect. Current queue:
 
-- Benchmark a single-limb-denominator fast path for
-  `Fixed64.TryGetSignedRawRatio`. The current exact signed 576-bit conversion
-  always uses the generic fixed-limb shift/subtract divider. A candidate path
-  can divide numerator limbs from most to least significant when the
-  denominator occupies one 64-bit word, but it must preserve the existing
-  guard/sticky half-even rounding, signed limits, and explicit failure contract
-  and show a material win before replacing the generic path.
+- Benchmark any proposed single-limb-denominator path for the general
+  `Fixed64.TryGetSignedRawRatio(Signed576, Signed576, ...)` contract before
+  replacing its fixed-limb divider. Exact coordinate interpolation now owns a
+  narrower `Signed320 / Signed192` path whose positive single-word denominator
+  and representable quotient are construction invariants; it reduced the
+  existing segment reconstruction benchmark from roughly 514/759 nanoseconds
+  to about 121/118 nanoseconds at unit/100,000 scale. Do not generalize those
+  invariants to arbitrary signed 576-bit callers without separate evidence.
 
 ## Resolved Issues
+
+### FMS-Issue-015: Sphere construction and merge paths were not full-domain
+
+**Discovered:** 2026-07-18
+
+**Resolved:** 2026-07-20
+
+**Source:** exact radial predicate migration and downstream Gravitas release audit
+
+**Resolution:**
+
+`FixedBoundSphere.CreateFromBoundingBox`, `CreateFromFrustum`,
+`CreateFromPoints`, and `CreateMerged` now retain midpoint, exact squared-
+distance ordering, Euclidean roots, radius sums, and coordinate interpolation
+without narrowing or saturation before the final Q32.32 result. Required radii
+round outward, every successful construction is revalidated for containment,
+and an unrepresentable deterministic result throws `OverflowException` instead
+of returning a saturated under-bound sphere. Point/frustum construction remains
+deterministic Ritter-style rather than a minimum-enclosing-sphere solve, and
+merge centers remain constrained to the Q32.32 lattice, so the public contract
+promises containment rather than mathematical minimality.
+
+Extreme-pair seeding compares the exact squared distances from the midpoint to
+the two actual endpoints. Reversed secondary axes therefore cannot select the
+nearer endpoint, and combining coordinate-wise extrema cannot create a
+fictional corner that falsely requires an unrepresentable radius.
+
+The shared exact coordinate interpolation path now preserves final-result
+half-even parity, including odd-origin ties, and uses a specialized
+single-word-denominator ratio only where its internal invariants prove the
+quotient representable. Its 128/64 division retains the shifted remainder's
+carry for denominators across the complete unsigned raw domain.
+`FixedSegment2d` and `FixedSegment` reuse that helper, removing their duplicate
+weighted-coordinate implementations. `FixedBoundCircle` has no point-cloud or
+merge factory, so no 2D construction API required a parallel implementation.
+
+Verification passed 1,640 core and 8 Chronicler tests in `Release`, 1,619 core
+and 8 Chronicler tests in `ReleaseLean`, and restored exact 100% coverage:
+13,826/13,826 lines, 3,930/3,930 branches, and 1,801/1,801 methods. Ordinary
+1,024-point array/span construction measured about 8.77/8.80 microseconds with
+zero managed allocation versus the former saturated approximation's roughly
+4.84/4.60 microseconds. Asymmetric full-domain merge measured about 321
+nanoseconds with zero allocation. The existing segment reconstruction rows
+improved from about 514/759 nanoseconds to about 121/118 nanoseconds at
+unit/100,000 scale, also with zero allocation. The audit additionally exposed
+the separate full-domain
+derived-center/extent gap tracked as `FMS-Issue-016`.
 
 ### FMS-Issue-014: Finite-segment capsule/cylinder projections need dedicated wide ownership
 
@@ -71,19 +103,18 @@ intervals, and `FixedSegment` additionally owns finite-cylinder and separately
 expanded affine-cylinder intervals. Endpoint differences, radial projection,
 quadratic roots, and axial clipping remain in exact wide integer arithmetic
 until one final half-to-even Q32.32 conversion. Bounded rays return parameters;
-authored segments return physical distances and reconstruct points directly
-from the original chord. Authored radius and
-sweep expansion remain separate, exact inclusive-start and strict-end
-containment are available to downstream reducers, collapsed capsule axes use
-the sphere/circle limit, and collapsed cylinder axes are rejected because they
-cannot retain a flat-cap normal.
+authored segments return physical distances and reconstruct points directly from
+the original chord. Authored radius and sweep expansion remain separate, exact
+inclusive-start and strict-end containment are available to downstream reducers,
+collapsed capsule axes use the sphere/circle limit, and collapsed cylinder axes
+are rejected because they cannot retain a flat-cap normal.
 
 Bounded `FixedRay2d` and `FixedRay` overloads solve directly in
 `[0, maxParameter]`, while authored-segment physical-distance overloads preserve
 the original chord without normalization and narrow only once into
 `[0, totalDistance]`. `GetPoint` uses fused multiply-add reconstruction and
-`GetPointAtDistance` reconstructs against that same exact authored chord. A
-zero distance budget is valid only for a zero-length segment, so point-query
+`GetPointAtDistance` reconstructs against that same exact authored chord. A zero
+distance budget is valid only for a zero-length segment, so point-query
 classification remains explicit without accepting an invalid nondegenerate
 sweep.
 
@@ -98,20 +129,19 @@ Verification reached 100% FixedMathSharp coverage (13,691/13,691 lines,
 Chronicler tests; ReleaseLean passed 1,602 core and 8 Chronicler tests. Coverage
 closure also retained the public normalization repair path after deterministic
 raw-boundary regressions proved ordinary rounded division can miss the squared-
-magnitude tolerance immediately above the scale-safe cutoff. Common
-finite-axis benchmarks measured approximately 2.3-2.9 microseconds and the
-arbitrary-raw cylinder stress row measured approximately 8.9 microseconds.
-Fresh warmed centered-capsule point-distance rows measured approximately
-4.0-4.8 microseconds across normal and 100,000-unit inputs. A downstream
-reconstruction review also removed exact wide division for coordinates that do
-not change along a segment. The existing axis-aligned reconstruction benchmark
-improved from 569.6 to 513.7 nanoseconds at unit scale and from 828.8 to 758.3
-nanoseconds at 100,000-unit scale, with no allocation. A separate Dry
-cold-start smoke run exercised all eight scale variants of the new authored-
-segment distance-interval and reconstruction rows; its timings are not used as
-throughput evidence, but `MemoryDiagnoser` reported zero managed allocation for
-every row. Complexity exceptions and migration/geometry documentation record
-the resulting contracts.
+magnitude tolerance immediately above the scale-safe cutoff. Common finite-axis
+benchmarks measured approximately 2.3-2.9 microseconds and the arbitrary-raw
+cylinder stress row measured approximately 8.9 microseconds. Fresh warmed
+centered-capsule point-distance rows measured approximately 4.0-4.8 microseconds
+across normal and 100,000-unit inputs. A downstream reconstruction review also
+removed exact wide division for coordinates that do not change along a segment.
+The existing axis-aligned reconstruction benchmark improved from 569.6 to 513.7
+nanoseconds at unit scale and from 828.8 to 758.3 nanoseconds at 100,000-unit
+scale, with no allocation. A separate Dry cold-start smoke run exercised all
+eight scale variants of the new authored- segment distance-interval and
+reconstruction rows; its timings are not used as throughput evidence, but
+`MemoryDiagnoser` reported zero managed allocation for every row. Complexity
+exceptions and migration/geometry documentation record the resulting contracts.
 
 ### FMS-Issue-013: Full-domain radial predicates and bounded query intervals
 
@@ -127,10 +157,11 @@ audit
 Circle/sphere, vector-distance, and centered-extent predicates now compare in
 wide integer space across the complete finite endpoint domain. `FixedRay2d` and
 `FixedRay` expose exact closed bounded entry/exit intervals with separate radius
-expansion, and `FixedMath.TryGetCircleCrossSectionRadius` owns exact sphere-slice
-reduction. `FixedMath.TryGetSphereSlabCrossSectionRadius` additionally keeps
-opposite-domain center separation exact before selecting the nearest plane in a
-finite slab. The misleading public `RadiusSquared` properties were removed.
+expansion, and `FixedMath.TryGetCircleCrossSectionRadius` owns exact
+sphere-slice reduction. `FixedMath.TryGetSphereSlabCrossSectionRadius`
+additionally keeps opposite-domain center separation exact before selecting the
+nearest plane in a finite slab. The misleading public `RadiusSquared` properties
+were removed.
 
 The corresponding Gravitas sphere-segment and mixed circle-slab/cross-section
 consumers now retain actual radius ownership and use these APIs. Finite-axis
@@ -140,9 +171,9 @@ Gravitas issue.
 
 Verification reached 100% FixedMathSharp coverage (9,408/9,408 lines,
 3,064/3,064 branches, and 1,528/1,528 methods), with 1,460 standard and 1,439
-Lean tests plus 8 Chronicler tests in both configurations passing. First-hit
-and interval benchmark rows remained allocation free, and an independent
-review reported no findings. Full execution detail is retained in
+Lean tests plus 8 Chronicler tests in both configurations passing. First-hit and
+interval benchmark rows remained allocation free, and an independent review
+reported no findings. Full execution detail is retained in
 [`2026-07-18-full-domain-radial-query-plan.md`](done/2026-07-18-full-domain-radial-query-plan.md).
 
 ### FMS-Issue-012: Full in-process bounds benchmark can crash in frustum segment after prior rows
