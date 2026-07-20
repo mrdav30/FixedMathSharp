@@ -36,11 +36,6 @@ and tests.
 
 ## Active Issues
 
-- **FMS-Issue-014: Finite-segment capsule/cylinder projections need dedicated
-  wide ownership.** Exact circle/sphere intervals cannot repair perpendicular
-  vectors or quadratic coefficients that were already narrowed downstream.
-  Design an allocation-free lower-stack primitive before migrating Gravitas
-  mixed capsule edges and 3D mesh triangle edges.
 - **FMS-Issue-015: Sphere construction and merge paths are not full-domain.**
   `CreateFromPoints`, `CreateFromFrustum`, `CreateMerged`, and radius expansion
   still contain saturating endpoint differences, squared-distance ordering, or
@@ -51,9 +46,72 @@ and tests.
 Performance issues should stay in the benchmark plan unless they become a
 confirmed runtime defect. Current queue:
 
-- None currently.
+- Benchmark a single-limb-denominator fast path for
+  `Fixed64.TryGetSignedRawRatio`. The current exact signed 576-bit conversion
+  always uses the generic fixed-limb shift/subtract divider. A candidate path
+  can divide numerator limbs from most to least significant when the
+  denominator occupies one 64-bit word, but it must preserve the existing
+  guard/sticky half-even rounding, signed limits, and explicit failure contract
+  and show a material win before replacing the generic path.
 
 ## Resolved Issues
+
+### FMS-Issue-014: Finite-segment capsule/cylinder projections need dedicated wide ownership
+
+**Discovered:** 2026-07-18
+
+**Resolved:** 2026-07-19
+
+**Source:** full-domain radial interval consumer audit
+
+**Resolution:**
+
+`FixedSegment2d` and `FixedSegment` now own allocation-free finite-axis capsule
+intervals, and `FixedSegment` additionally owns finite-cylinder and separately
+expanded affine-cylinder intervals. Endpoint differences, radial projection,
+quadratic roots, and axial clipping remain in exact wide integer arithmetic
+until one final half-to-even Q32.32 conversion. Bounded rays return parameters;
+authored segments return physical distances and reconstruct points directly
+from the original chord. Authored radius and
+sweep expansion remain separate, exact inclusive-start and strict-end
+containment are available to downstream reducers, collapsed capsule axes use
+the sphere/circle limit, and collapsed cylinder axes are rejected because they
+cannot retain a flat-cap normal.
+
+Bounded `FixedRay2d` and `FixedRay` overloads solve directly in
+`[0, maxParameter]`, while authored-segment physical-distance overloads preserve
+the original chord without normalization and narrow only once into
+`[0, totalDistance]`. `GetPoint` uses fused multiply-add reconstruction and
+`GetPointAtDistance` reconstructs against that same exact authored chord. A
+zero distance budget is valid only for a zero-length segment, so point-query
+classification remains explicit without accepting an invalid nondegenerate
+sweep.
+
+Gravitas migrated 2D capsule raycasts and sweeps, 3D capsule/cylinder raycasts,
+swept-sphere capsule and mesh-edge projections, and the corresponding mixed
+finite-axis reducers to these segment-owned contracts. The migration also
+removed the downstream normalized-axis quadratics that originally lost full-
+domain information.
+
+Verification reached 100% FixedMathSharp coverage (13,691/13,691 lines,
+3,908/3,908 branches, and 1,777/1,777 methods). Release passed 1,623 core and 8
+Chronicler tests; ReleaseLean passed 1,602 core and 8 Chronicler tests. Coverage
+closure also retained the public normalization repair path after deterministic
+raw-boundary regressions proved ordinary rounded division can miss the squared-
+magnitude tolerance immediately above the scale-safe cutoff. Common
+finite-axis benchmarks measured approximately 2.3-2.9 microseconds and the
+arbitrary-raw cylinder stress row measured approximately 8.9 microseconds.
+Fresh warmed centered-capsule point-distance rows measured approximately
+4.0-4.8 microseconds across normal and 100,000-unit inputs. A downstream
+reconstruction review also removed exact wide division for coordinates that do
+not change along a segment. The existing axis-aligned reconstruction benchmark
+improved from 569.6 to 513.7 nanoseconds at unit scale and from 828.8 to 758.3
+nanoseconds at 100,000-unit scale, with no allocation. A separate Dry
+cold-start smoke run exercised all eight scale variants of the new authored-
+segment distance-interval and reconstruction rows; its timings are not used as
+throughput evidence, but `MemoryDiagnoser` reported zero managed allocation for
+every row. Complexity exceptions and migration/geometry documentation record
+the resulting contracts.
 
 ### FMS-Issue-013: Full-domain radial predicates and bounded query intervals
 

@@ -245,13 +245,15 @@ public class MatrixScaleContractTests
     }
 
     [Fact]
-    public void PublicQuaternionNormalization_RemainsTolerantForNearUnitInput()
+    public void PublicQuaternionNormalization_RepairsNearUnitInputOutsideSquaredTolerance()
     {
         FixedQuaternion input = CreateTolerantNearUnitQuaternion();
-        Fixed3x3 directMatrix = input.Normalized.ToMatrix3x3();
+        FixedQuaternion normalized = input.Normalized;
+        Fixed3x3 directMatrix = normalized.ToMatrix3x3();
 
-        Assert.True(input.IsNormalized());
-        Assert.Equal(input, input.Normalized);
+        Assert.False(input.IsNormalized());
+        Assert.True(normalized.IsNormalized());
+        Assert.NotEqual(input, normalized);
         AssertProperRotationMatrix(directMatrix);
     }
 
@@ -457,12 +459,14 @@ public class MatrixScaleContractTests
 
     [Theory]
     [MemberData(nameof(NearUnitQuaternionMatrixCases))]
-    public void QuaternionMatrixBoundaries_StrictlyNormalizeTolerantNearUnitInput(
+    public void QuaternionMatrixBoundaries_StrictlyNormalizeNearUnitInputOutsideSquaredTolerance(
         string apiName,
         FixedQuaternion input,
         Fixed4x4 matrix)
     {
-        Assert.True(input.IsNormalized());
+        Assert.False(input.IsNormalized());
+        Assert.True(input.Normalized.IsNormalized());
+        Assert.NotEqual(input, input.Normalized);
         Assert.Equal(
             -Fixed64.Epsilon.m_rawValue,
             input.Magnitude.m_rawValue - Fixed64.One.m_rawValue);

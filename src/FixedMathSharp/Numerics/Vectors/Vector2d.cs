@@ -409,7 +409,11 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector2d NormalizeInPlace(out Fixed64 mag)
     {
-        bool magnitudeIsRepresentable = TryGetMagnitude(this, out mag);
+        Vector2d source = this;
+        bool magnitudeIsRepresentable = TryGetMagnitude(
+            source,
+            out mag,
+            out bool isNormalized);
 
         // If magnitude is zero, return a zero vector to avoid divide-by-zero errors
         if (mag == Fixed64.Zero)
@@ -419,17 +423,21 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
             return this;
         }
 
-        // If already normalized, return as-is
-        if (mag == Fixed64.One)
+        if (isNormalized)
             return this;
 
-        if (!magnitudeIsRepresentable || mag <= FixedMath.ScaleSafeMagnitudeThreshold)
-            return this = GetNormalized(this);
+        if (!magnitudeIsRepresentable || mag == Fixed64.One)
+            return this = WideGeometry.GetNormalized(source);
+
+        if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
+            return this = GetScaleNormalized(source);
 
         X = FixedMath.FastDiv(X, mag);
         Y = FixedMath.FastDiv(Y, mag);
 
-        return this;
+        return IsNormalized()
+            ? this
+            : this = WideGeometry.GetNormalized(source);
     }
 
     /// <summary>

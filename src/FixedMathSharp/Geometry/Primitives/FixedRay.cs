@@ -58,6 +58,16 @@ public partial struct FixedRay : IEquatable<FixedRay>
     #region Methods
 
     /// <summary>
+    /// Gets the point at the specified ray parameter with one final
+    /// round-half-to-even conversion per coordinate.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector3d GetPoint(Fixed64 parameter) => new(
+        Fixed64.MultiplyAdd(Direction.X, parameter, Position.X),
+        Fixed64.MultiplyAdd(Direction.Y, parameter, Position.Y),
+        Fixed64.MultiplyAdd(Direction.Z, parameter, Position.Z));
+
+    /// <summary>
     /// Finds the first forward intersection with the specified plane.
     /// </summary>
     public Fixed64? Intersects(FixedPlane plane)

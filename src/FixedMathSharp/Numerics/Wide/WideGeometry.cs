@@ -101,6 +101,20 @@ internal static class WideGeometry
     {
         Signed192 x = GetDifference(end.X, start.X);
         Signed192 y = GetDifference(end.Y, start.Y);
+        return GetNormalized(x, y);
+    }
+
+    /// <summary>
+    /// Returns the nearest representable normalized direction for a nonzero 2D
+    /// vector using its exact raw components.
+    /// </summary>
+    internal static Vector2d GetNormalized(Vector2d value) =>
+        GetNormalized(
+            WideArithmetic.FromSignedRaw(value.X.m_rawValue),
+            WideArithmetic.FromSignedRaw(value.Y.m_rawValue));
+
+    internal static Vector2d GetNormalized(Signed192 x, Signed192 y)
+    {
         Signed320 squaredMagnitude = GetSquaredMagnitude(
             x,
             y,
@@ -110,6 +124,14 @@ internal static class WideGeometry
             out _);
         if (squaredMagnitude.IsZero)
             return Vector2d.Zero;
+
+        if (Max(GetMagnitudeBitLength(x), GetMagnitudeBitLength(y))
+            <= FixedMath.SHIFT_AMOUNT_I + 1)
+        {
+            return Vector2d.GetScaleNormalized(new Vector2d(
+                Fixed64.FromRaw(unchecked((long)x.Low)),
+                Fixed64.FromRaw(unchecked((long)y.Low))));
+        }
 
         Signed192 magnitude = WideArithmetic.GetFloorSquareRoot(squaredMagnitude, out Signed192 remainder);
         Signed192 ceilingMagnitude = remainder.IsZero
@@ -121,6 +143,22 @@ internal static class WideGeometry
     }
 
     /// <summary>
+    /// Returns the nearest representable normalized direction for exact 2D
+    /// components wider than the public scalar domain.
+    /// </summary>
+    internal static Vector2d GetNormalized(Signed320 x, Signed320 y)
+    {
+        Signed320 largest = WideArithmetic.CompareMagnitude(x, y) >= 0 ? x : y;
+        if (largest.IsZero)
+            return Vector2d.Zero;
+
+        Signed320 scale = GetPositiveMagnitude(largest);
+        return Vector2d.GetScaleNormalized(new Vector2d(
+            Fixed64.GetSignedRatio(x, scale),
+            Fixed64.GetSignedRatio(y, scale)));
+    }
+
+    /// <summary>
     /// Returns the normalized direction between two 3D endpoints without
     /// narrowing their component differences.
     /// </summary>
@@ -129,6 +167,21 @@ internal static class WideGeometry
         Signed192 x = GetDifference(end.X, start.X);
         Signed192 y = GetDifference(end.Y, start.Y);
         Signed192 z = GetDifference(end.Z, start.Z);
+        return GetNormalized(x, y, z);
+    }
+
+    /// <summary>
+    /// Returns the nearest representable normalized direction for a nonzero 3D
+    /// vector using its exact raw components.
+    /// </summary>
+    internal static Vector3d GetNormalized(Vector3d value) =>
+        GetNormalized(
+            WideArithmetic.FromSignedRaw(value.X.m_rawValue),
+            WideArithmetic.FromSignedRaw(value.Y.m_rawValue),
+            WideArithmetic.FromSignedRaw(value.Z.m_rawValue));
+
+    internal static Vector3d GetNormalized(Signed192 x, Signed192 y, Signed192 z)
+    {
         Signed320 squaredMagnitude = GetSquaredMagnitude(
             x,
             y,
@@ -139,6 +192,17 @@ internal static class WideGeometry
         if (squaredMagnitude.IsZero)
             return Vector3d.Zero;
 
+        if (Max(
+                Max(GetMagnitudeBitLength(x), GetMagnitudeBitLength(y)),
+                GetMagnitudeBitLength(z))
+            <= FixedMath.SHIFT_AMOUNT_I + 1)
+        {
+            return Vector3d.GetScaleNormalized(new Vector3d(
+                Fixed64.FromRaw(unchecked((long)x.Low)),
+                Fixed64.FromRaw(unchecked((long)y.Low)),
+                Fixed64.FromRaw(unchecked((long)z.Low))));
+        }
+
         Signed192 magnitude = WideArithmetic.GetFloorSquareRoot(squaredMagnitude, out Signed192 remainder);
         Signed192 ceilingMagnitude = remainder.IsZero
             ? magnitude
@@ -148,6 +212,90 @@ internal static class WideGeometry
             Fixed64.NormalizeWideComponent(y, ySquare, ceilingMagnitude, squaredMagnitude),
             Fixed64.NormalizeWideComponent(z, zSquare, ceilingMagnitude, squaredMagnitude));
     }
+
+    /// <summary>
+    /// Returns the nearest representable normalized direction for exact 3D
+    /// components wider than the public scalar domain.
+    /// </summary>
+    internal static Vector3d GetNormalized(Signed320 x, Signed320 y, Signed320 z)
+    {
+        Signed320 largest = WideArithmetic.CompareMagnitude(x, y) >= 0 ? x : y;
+        if (WideArithmetic.CompareMagnitude(z, largest) > 0)
+            largest = z;
+        if (largest.IsZero)
+            return Vector3d.Zero;
+
+        Signed320 scale = GetPositiveMagnitude(largest);
+        return Vector3d.GetScaleNormalized(new Vector3d(
+            Fixed64.GetSignedRatio(x, scale),
+            Fixed64.GetSignedRatio(y, scale),
+            Fixed64.GetSignedRatio(z, scale)));
+    }
+
+    /// <summary>
+    /// Returns the nearest representable normalized direction for a nonzero 4D
+    /// vector using its exact raw components.
+    /// </summary>
+    internal static Vector4d GetNormalized(Vector4d value)
+    {
+        Signed192 x = WideArithmetic.FromSignedRaw(value.X.m_rawValue);
+        Signed192 y = WideArithmetic.FromSignedRaw(value.Y.m_rawValue);
+        Signed192 z = WideArithmetic.FromSignedRaw(value.Z.m_rawValue);
+        Signed192 w = WideArithmetic.FromSignedRaw(value.W.m_rawValue);
+        Signed320 squaredMagnitude = GetSquaredMagnitude(
+            x,
+            y,
+            z,
+            out Signed320 xSquare,
+            out Signed320 ySquare,
+            out Signed320 zSquare);
+        Signed320 wSquare = WideArithmetic.MultiplySigned192(w, w);
+        squaredMagnitude = WideArithmetic.AddSigned320(squaredMagnitude, wSquare);
+        if (squaredMagnitude.IsZero)
+            return Vector4d.Zero;
+
+        Signed192 magnitude = WideArithmetic.GetFloorSquareRoot(squaredMagnitude, out Signed192 remainder);
+        Signed192 ceilingMagnitude = remainder.IsZero
+            ? magnitude
+            : WideArithmetic.AddSigned192(magnitude, WideArithmetic.FromSignedRaw(1L));
+        return new Vector4d(
+            Fixed64.NormalizeWideComponent(x, xSquare, ceilingMagnitude, squaredMagnitude),
+            Fixed64.NormalizeWideComponent(y, ySquare, ceilingMagnitude, squaredMagnitude),
+            Fixed64.NormalizeWideComponent(z, zSquare, ceilingMagnitude, squaredMagnitude),
+            Fixed64.NormalizeWideComponent(w, wSquare, ceilingMagnitude, squaredMagnitude));
+    }
+
+    /// <summary>
+    /// Returns the nearest representable unit quaternion for nonzero raw
+    /// components. The zero quaternion retains its public identity fallback.
+    /// </summary>
+    internal static FixedQuaternion GetNormalized(FixedQuaternion value)
+    {
+        Vector4d normalized = GetNormalized(new Vector4d(value.X, value.Y, value.Z, value.W));
+        return normalized.IsZero
+            ? FixedQuaternion.Identity
+            : new FixedQuaternion(normalized.X, normalized.Y, normalized.Z, normalized.W);
+    }
+
+    private static int GetMagnitudeBitLength(Signed192 value)
+    {
+        WideArithmetic.GetMagnitude(value, out ulong high, out ulong middle, out ulong low);
+        return WideArithmetic.GetBitLength(high, middle, low);
+    }
+
+    private static Signed320 GetPositiveMagnitude(Signed320 value)
+    {
+        WideArithmetic.GetMagnitude(
+            value,
+            out ulong word4,
+            out ulong word3,
+            out ulong word2,
+            out ulong word1,
+            out ulong word0);
+        return new Signed320(word4, word3, word2, word1, word0);
+    }
+
+    private static int Max(int left, int right) => left >= right ? left : right;
 
     private static bool TryRoundDistance(Signed192 squaredDistance, out Fixed64 distance)
     {

@@ -139,26 +139,41 @@ public partial struct Vector2d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d GetNormalized(Vector2d value)
     {
-        bool magnitudeIsRepresentable = TryGetMagnitude(value, out Fixed64 mag);
+        bool magnitudeIsRepresentable = TryGetMagnitude(
+            value,
+            out Fixed64 mag,
+            out bool isNormalized);
 
         if (mag == Fixed64.Zero)
             return new Vector2d(Fixed64.Zero, Fixed64.Zero);
 
-        if (!magnitudeIsRepresentable)
-            return GetNormalized(value * Fixed64.Half);
+        if (isNormalized)
+            return value;
+
+        if (!magnitudeIsRepresentable || mag == Fixed64.One)
+            return WideGeometry.GetNormalized(value);
 
         if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
             return GetScaleNormalized(value);
 
-        // If already normalized, return as-is
-        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
-            return value;
-
-        // Normalize it exactly
-        return new Vector2d(
+        var normalized = new Vector2d(
             FixedMath.FastDiv(value.X, mag),
-            FixedMath.FastDiv(value.Y, mag)
-        );
+            FixedMath.FastDiv(value.Y, mag));
+        return normalized.IsNormalized()
+            ? normalized
+            : WideGeometry.GetNormalized(value);
+    }
+
+    internal static Vector2d GetScaleNormalized(Vector2d value)
+    {
+        Fixed64 scale = FixedMath.Max(value.X.Abs(), value.Y.Abs());
+        Vector2d scaled = value / scale;
+        Fixed64 scaledMagnitude = FixedMath.GetScaledMagnitude(
+            scaled.X,
+            scaled.Y,
+            Fixed64.Zero,
+            Fixed64.Zero);
+        return scaled / scaledMagnitude;
     }
 
     /// <summary>
@@ -173,18 +188,6 @@ public partial struct Vector2d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d GetDirection(Vector2d start, Vector2d end) =>
         WideGeometry.GetDirection(start, end);
-
-    private static Vector2d GetScaleNormalized(Vector2d value)
-    {
-        Fixed64 scale = FixedMath.Max(value.X.Abs(), value.Y.Abs());
-        Vector2d scaled = value / scale;
-        Fixed64 scaledMagnitude = FixedMath.GetScaledMagnitude(
-            scaled.X,
-            scaled.Y,
-            Fixed64.Zero,
-            Fixed64.Zero);
-        return scaled / scaledMagnitude;
-    }
 
     /// <summary>
     /// Returns the magnitude (length) of the given vector.
@@ -205,9 +208,17 @@ public partial struct Vector2d
     /// <param name="magnitude">The magnitude, or <see cref="Fixed64.MaxValue"/> when it is not representable.</param>
     /// <returns><see langword="true"/> when the magnitude fits in <see cref="Fixed64"/>; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool TryGetMagnitude(Vector2d vector, out Fixed64 magnitude)
+    public static bool TryGetMagnitude(Vector2d vector, out Fixed64 magnitude) =>
+        TryGetMagnitude(vector, out magnitude, out _);
+
+    private static bool TryGetMagnitude(
+        Vector2d vector,
+        out Fixed64 magnitude,
+        out bool isNormalized)
     {
         Fixed64 mag = (vector.X * vector.X) + (vector.Y * vector.Y);
+        isNormalized = mag != Fixed64.Zero
+            && FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon;
 
         if (mag == Fixed64.MaxValue)
             return FixedMath.TryGetScaledMagnitude(
@@ -227,8 +238,7 @@ public partial struct Vector2d
             return true;
         }
 
-        // If rounding error pushed magnitude slightly above 1, clamp it
-        if (mag > Fixed64.One && mag <= Fixed64.One + Fixed64.Epsilon)
+        if (isNormalized)
         {
             magnitude = Fixed64.One;
             return true;

@@ -15,12 +15,14 @@ public partial struct FixedQuaternion
     #region Quaternion Operations
 
     /// <summary>
-    /// Checks if this vector has been normalized by checking if the magnitude is close to 1.
+    /// Checks whether this nonzero quaternion's squared magnitude is within
+    /// epsilon of one.
     /// </summary>
     public bool IsNormalized()
     {
-        Fixed64 mag = GetMagnitude(this);
-        return FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon;
+        Fixed64 squaredMagnitude = GetNormalizationSquaredMagnitude(this);
+        return squaredMagnitude != Fixed64.Zero
+            && FixedMath.Abs(squaredMagnitude - Fixed64.One) <= Fixed64.Epsilon;
     }
 
     /// <summary>
@@ -35,14 +37,21 @@ public partial struct FixedQuaternion
     public static Fixed64 GetMagnitude(FixedQuaternion q)
         => Fixed64.GetRoundedMagnitude(q.X, q.Y, q.Z, q.W);
 
-    private static Fixed64 GetNormalizationMagnitude(FixedQuaternion q)
+    private static Fixed64 GetNormalizationSquaredMagnitude(FixedQuaternion q) =>
+        (q.X * q.X) + (q.Y * q.Y) + (q.Z * q.Z) + (q.W * q.W);
+
+    private static Fixed64 GetNormalizationMagnitude(
+        FixedQuaternion q,
+        out bool isNormalized)
     {
-        Fixed64 mag = (q.X * q.X) + (q.Y * q.Y) + (q.Z * q.Z) + (q.W * q.W);
+        Fixed64 mag = GetNormalizationSquaredMagnitude(q);
+        isNormalized = mag != Fixed64.Zero
+            && FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon;
 
         if (mag == Fixed64.MaxValue || mag <= FixedMath.ScaleSafeMagnitudeSquaredThreshold)
             return FixedMath.GetScaledMagnitude(q.X, q.Y, q.Z, q.W);
 
-        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
+        if (isNormalized)
             return Fixed64.One;
 
         return FixedMath.Sqrt(mag);
@@ -54,26 +63,29 @@ public partial struct FixedQuaternion
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedQuaternion GetNormalized(FixedQuaternion q)
     {
-        Fixed64 mag = GetNormalizationMagnitude(q);
+        Fixed64 mag = GetNormalizationMagnitude(q, out bool isNormalized);
 
         // If magnitude is zero, return identity quaternion (to avoid divide by zero)
         if (mag == Fixed64.Zero)
             return Identity;
 
-        if (mag == Fixed64.MaxValue || mag <= FixedMath.ScaleSafeMagnitudeThreshold)
-            return GetScaleNormalized(q);
-
-        // If already normalized, return as-is
-        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
+        if (isNormalized)
             return q;
 
-        // Normalize it exactly
-        return new FixedQuaternion(
+        if (mag == Fixed64.MaxValue || mag == Fixed64.One)
+            return WideGeometry.GetNormalized(q);
+
+        if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
+            return GetScaleNormalized(q);
+
+        var normalized = new FixedQuaternion(
             q.X / mag,
             q.Y / mag,
             q.Z / mag,
-            q.W / mag
-        );
+            q.W / mag);
+        return normalized.IsNormalized()
+            ? normalized
+            : WideGeometry.GetNormalized(q);
     }
 
     private static FixedQuaternion GetScaleNormalized(FixedQuaternion q)

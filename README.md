@@ -176,8 +176,20 @@ Fixed64 edgeDistanceSquared = pathEdge.DistanceSquared(new Vector2d(0, 2));
 
 if (hitDistance.HasValue)
 {
-    Vector3d hitPoint = ray.Position + (ray.Direction * hitDistance.Value);
+    Vector3d hitPoint = ray.GetPoint(hitDistance.Value);
     Console.WriteLine(hitPoint);
+}
+
+FixedSegment sweep = new FixedSegment(new Vector3d(-10, 0, 0), new Vector3d(10, 0, 0));
+if (sweep.TryGetCapsuleIntersectionDistanceInterval(
+        new FixedSegment(Vector3d.Zero, Vector3d.Up),
+        Fixed64.One,
+        new Fixed64(20),
+        out Fixed64 entryDistance,
+        out _))
+{
+    Vector3d entryPoint = sweep.GetPointAtDistance(entryDistance, new Fixed64(20));
+    Console.WriteLine(entryPoint);
 }
 ```
 

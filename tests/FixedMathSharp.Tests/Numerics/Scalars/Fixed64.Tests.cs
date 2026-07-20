@@ -1029,6 +1029,44 @@ public class Fixed64Tests
     }
 
     [Fact]
+    public void TryGetSignedRatio_ReportsFinalHalfEvenRepresentabilityAcrossSigned320Domain()
+    {
+        BigInteger scale = BigInteger.One << FixedMath.SHIFT_AMOUNT_I;
+        BigInteger denominator = scale * 2;
+        BigInteger positiveLimit = long.MaxValue;
+        BigInteger negativeLimitMagnitude = BigInteger.One << 63;
+        BigInteger signed320Minimum = -(BigInteger.One << 319);
+
+        Assert.True(Fixed64.TryGetSignedRatio(
+            ToSigned320(BigInteger.Zero), ToSigned320(denominator), out Fixed64 zero));
+        Assert.Equal(Fixed64.Zero, zero);
+        Assert.False(Fixed64.TryGetSignedRatio(ToSigned320(BigInteger.One), default, out _));
+
+        Assert.True(Fixed64.TryGetSignedRatio(
+            ToSigned320(positiveLimit * 2), ToSigned320(denominator), out Fixed64 maximum));
+        Assert.Equal(Fixed64.MaxValue, maximum);
+        Assert.False(Fixed64.TryGetSignedRatio(
+            ToSigned320(positiveLimit * 2 + 1), ToSigned320(denominator), out _));
+
+        Assert.True(Fixed64.TryGetSignedRatio(
+            ToSigned320(-(negativeLimitMagnitude * 2 + 1)),
+            ToSigned320(denominator),
+            out Fixed64 minimum));
+        Assert.Equal(Fixed64.MinValue, minimum);
+        Assert.False(Fixed64.TryGetSignedRatio(
+            ToSigned320(-(negativeLimitMagnitude * 2 + 2)),
+            ToSigned320(denominator),
+            out _));
+
+        Assert.True(Fixed64.TryGetSignedRatio(
+            ToSigned320(BigInteger.One), ToSigned320(signed320Minimum), out Fixed64 tiny));
+        Assert.Equal(Fixed64.Zero, tiny);
+        Assert.True(Fixed64.TryGetSignedRatio(
+            ToSigned320(signed320Minimum), ToSigned320(signed320Minimum), out Fixed64 one));
+        Assert.Equal(Fixed64.One, one);
+    }
+
+    [Fact]
     public void WideSquaredDistanceConversion_MatchesNearestEvenAndSaturationOracle()
     {
         BigInteger[] values =

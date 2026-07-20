@@ -63,7 +63,9 @@ public partial struct FixedRay2d : IEquatable<FixedRay2d>
     /// Gets the point at the specified ray parameter.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector2d GetPoint(Fixed64 distance) => Position + (Direction * distance);
+    public Vector2d GetPoint(Fixed64 parameter) => new(
+        Fixed64.MultiplyAdd(Direction.X, parameter, Position.X),
+        Fixed64.MultiplyAdd(Direction.Y, parameter, Position.Y));
 
     /// <summary>
     /// Finds the first forward intersection with the specified bounding area, including boundary-only contact.

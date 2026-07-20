@@ -58,6 +58,8 @@ sanitize the inputs first.
 through construction, assignment, and serialized state load. `FixedRay` and
 `FixedRay2d` do not normalize direction; returned ray parameters are physical
 distances only when the direction is normalized by the caller.
+`GetPoint(parameter)` uses a fused multiply-add per coordinate, so reconstruction
+does not saturate or round the direction product before adding the origin.
 
 ## Boundary Semantics
 
@@ -101,6 +103,28 @@ bool hasUniqueIntersection = segment2d.TryGetUniqueIntersection(
     other2d,
     out Fixed64 segmentParameter);
 (Vector2d firstPoint2d, Vector2d secondPoint2d) = segment2d.GetClosestPoints(other2d);
+
+bool crossesCapsule2d = segment2d.TryGetCapsuleIntersectionInterval(
+    capsuleAxis2d,
+    capsuleRadius,
+    out Fixed64 capsuleEntry2d,
+    out Fixed64 capsuleExit2d);
+
+bool crossesCylinder = segment.TryGetFiniteCylinderIntersectionInterval(
+    cylinderAxis,
+    cylinderRadius,
+    out Fixed64 cylinderEntry,
+    out Fixed64 cylinderExit);
+
+bool crossesCenteredCylinder = segment.TryGetFiniteCylinderIntersectionInterval(
+    cylinderCenter,
+    normalizedCylinderAxis,
+    cylinderHalfLength,
+    cylinderRadius,
+    radialExpansion,
+    axialExpansion,
+    out Fixed64 centeredCylinderEntry,
+    out Fixed64 centeredCylinderExit);
 ```
 
 Reversed endpoints produce the same bounds but are not equal. This keeps
@@ -136,6 +160,71 @@ saturates positive results outside the `Fixed64` range to `Fixed64.MaxValue`.
 `FixedSegment.Delta`, `Length`, and `LengthSquared` retain ordinary public
 saturating vector-arithmetic behavior. They are convenient value properties, not
 aliases for the wider intermediate contract of the query methods.
+
+Finite-axis interval queries likewise own endpoint differences, perpendicular
+projection, radial roots, and axial clipping before narrowing. Capsule methods
+exist on `FixedSegment2d` and `FixedSegment`; finite-cylinder methods exist on
+`FixedSegment`. They return the closed query-parameter interval in `[0, 1]`,
+with final parameters rounded half to even. Expanded overloads keep the authored
+radius and nonnegative radius expansion separate so callers do not saturate a
+combined radius first.
+
+The endpoint-classification overloads report inclusive start containment and
+strict end containment from the same wide inputs, independently of rounded
+parameters. A zero-length capsule axis reduces to a circle or sphere. A
+zero-length cylinder axis is rejected because an endpoint pair cannot retain a
+flat-cap normal. The affine cylinder overload additionally accepts the positive
+authored `axisHalfLength` plus separate radial and axial expansions; that half
+length must describe the supplied unexpanded cap-center axis. This lets a
+swept-radius caller expand both cap planes without first constructing a
+potentially saturated full length or expanded endpoints.
+
+The same capsule families are available directly on `FixedRay2d` and
+`FixedRay`; finite-cylinder families are available on `FixedRay`. Ray methods
+require an explicit nonnegative maximum parameter and solve directly in the
+closed interval `[0, maxParameter]`. They do not convert a long ray to a unit
+segment parameter, so a normalized direction returns physical-distance values
+without losing raw-unit ordering during a later rescale. Direction is otherwise
+unconstrained, and returned values retain ordinary ray-parameter semantics.
+Advanced overloads report inclusive origin containment and strict containment
+at the bounded maximum independently of rounded interval endpoints.
+
+When a finite authored path—not a ray—is the source of truth, use the matching
+segment physical-distance interval APIs. They retain the exact original chord
+components and map parameter `[0, 1]` to caller-supplied
+`[0, totalDistance]` only at the final half-to-even conversion. This avoids the
+information loss of normalizing a long chord whose small transverse component
+is still physically meaningful. `GetPointAtDistance(distance, totalDistance)`
+reconstructs a returned hit with the same exact chord contract, rejects values
+outside that closed range, and returns exact authored endpoints at zero and the
+total distance. A zero total distance is valid only when both authored endpoints
+are equal; this lets overlap workers classify and reconstruct a point query
+without a separate downstream branch.
+
+For centers near the scalar-domain boundary, prefer the centered capsule and
+cylinder overloads. Their axis direction must already be normalized, and their
+physical half-length remains separate from the center. Capsule half-length may
+be zero and then uses the circle/sphere limit; cylinder half-length must stay
+positive. The wide solvers define conceptual endpoints and cap planes
+parametrically and never construct `center +/- direction * halfLength`, so a
+saturated coordinate cannot shorten or rotate the axis.
+
+The matching centered-axis helpers keep closest-feature selection exact as
+well. `ContainsPointInCenteredCapsule` compares an optional radial expansion in
+wide arithmetic and accepts explicit strict mode when surface contact must be
+excluded. `ContainsPointInCenteredFiniteCylinder` provides the same exact
+inclusive/strict choice for the radial side and flat caps.
+`GetDirectionFromCenteredAxis` returns the normalized radial
+direction, or zero for a point on the axis. Callers that need a surface point
+can supply that direction (or an explicit deterministic on-axis direction) to
+`TryGetSurfacePointOnCenteredCapsule`; it fuses the conceptual axis point and
+radial offset before one final half-to-even coordinate conversion. It returns
+`false` only when the final surface point itself is outside the scalar domain.
+`GetDistanceToCenteredCapsule` and `TryGetDistanceToCenteredCapsule` instead
+return the exact closest gap without requiring that surface point to be
+representable. Inside and boundary points return zero; positive gaps use one
+final half-to-even conversion. An unrepresentable result saturates to
+`Fixed64.MaxValue`, and the `Try` form additionally returns `false`.
 
 Triangles also preserve ordered vertices:
 

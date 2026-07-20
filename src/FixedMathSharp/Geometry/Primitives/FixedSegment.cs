@@ -138,6 +138,470 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     }
 
     /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a capsule.
+    /// </summary>
+    /// <remarks>
+    /// The capsule is described by its finite center-line segment and radius.
+    /// Returned parameters are clamped to [0, 1]. A zero-length capsule axis is
+    /// treated as a sphere.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="radius"/> is negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        FixedSegment capsuleAxis,
+        Fixed64 radius,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter) =>
+        TryGetCapsuleIntersectionInterval(
+            capsuleAxis,
+            radius,
+            Fixed64.Zero,
+            out entryParameter,
+            out exitParameter);
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a radially
+    /// expanded capsule.
+    /// </summary>
+    /// <remarks>
+    /// The authored radius and sweep expansion remain separate until the exact
+    /// finite-axis solve. Returned parameters are clamped to [0, 1]. A zero-length
+    /// capsule axis is treated as a sphere.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="radius"/> or <paramref name="radiusExpansion"/>
+    /// is negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        FixedSegment capsuleAxis,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter) =>
+        TryGetCapsuleIntersectionInterval(
+            capsuleAxis,
+            radius,
+            radiusExpansion,
+            out entryParameter,
+            out exitParameter,
+            out _,
+            out _);
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a capsule
+    /// and reports exact endpoint containment.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="startContained"/> is inclusive of the capsule boundary.
+    /// <paramref name="endContainedStrict"/> is true only for the mathematical
+    /// interior. Both classifications use the wide solve inputs rather than rounded
+    /// parameters or reconstructed points. A zero-length capsule axis is treated as
+    /// a sphere.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="radius"/> or <paramref name="radiusExpansion"/>
+    /// is negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        FixedSegment capsuleAxis,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (radiusExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radiusExpansion));
+
+        return WideFiniteAxisIntersection.TryGetCapsuleInterval(
+            this,
+            capsuleAxis,
+            radius,
+            radiusExpansion,
+            out entryParameter,
+            out exitParameter,
+            out startContained,
+            out endContainedStrict);
+    }
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a
+    /// centered capsule.
+    /// </summary>
+    /// <remarks>
+    /// The normalized axis defines the conceptual center-line endpoints as
+    /// <c>center +/- axisDirection * axisHalfLength</c> without constructing or
+    /// narrowing either endpoint.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="axisHalfLength"/> or
+    /// <paramref name="radius"/> is negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter) =>
+        TryGetCapsuleIntersectionInterval(
+            center,
+            axisDirection,
+            axisHalfLength,
+            radius,
+            Fixed64.Zero,
+            out entryParameter,
+            out exitParameter);
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a
+    /// centered, radially expanded capsule.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="axisHalfLength"/>,
+    /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> is
+    /// negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter) =>
+        TryGetCapsuleIntersectionInterval(
+            center,
+            axisDirection,
+            axisHalfLength,
+            radius,
+            radiusExpansion,
+            out entryParameter,
+            out exitParameter,
+            out _,
+            out _);
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a
+    /// centered, radially expanded capsule and reports exact endpoint
+    /// containment.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="startContained"/> includes the capsule boundary;
+    /// <paramref name="endContainedStrict"/> excludes it. The side projection,
+    /// conceptual spherical caps, and containment classifications remain wide
+    /// until the final deterministic parameter conversion.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="axisHalfLength"/>,
+    /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> is
+    /// negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        if (!axisDirection.IsNormalized())
+            throw new ArgumentException("Capsule axis direction must be normalized.", nameof(axisDirection));
+        if (axisHalfLength < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (radiusExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radiusExpansion));
+
+        return WideFiniteAxisIntersection.TryGetCapsuleInterval(
+            this,
+            center,
+            axisDirection,
+            axisHalfLength,
+            radius,
+            radiusExpansion,
+            out entryParameter,
+            out exitParameter,
+            out startContained,
+            out endContainedStrict);
+    }
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a finite cylinder.
+    /// </summary>
+    /// <remarks>
+    /// The cylinder is described by the centers of its flat end caps and its
+    /// radius. Returned parameters are clamped to [0, 1].
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="cylinderAxis"/> has zero length because the
+    /// segment alone cannot retain a flat-cap normal.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="radius"/> is negative.
+    /// </exception>
+    public readonly bool TryGetFiniteCylinderIntersectionInterval(
+        FixedSegment cylinderAxis,
+        Fixed64 radius,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter) =>
+        TryGetFiniteCylinderIntersectionInterval(
+            cylinderAxis,
+            radius,
+            Fixed64.Zero,
+            out entryParameter,
+            out exitParameter);
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a radially
+    /// expanded finite cylinder.
+    /// </summary>
+    /// <remarks>
+    /// The authored radius and radial expansion remain separate until the exact
+    /// finite-axis solve. Returned parameters are clamped to [0, 1].
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="cylinderAxis"/> has zero length.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="radius"/> or <paramref name="radiusExpansion"/>
+    /// is negative.
+    /// </exception>
+    public readonly bool TryGetFiniteCylinderIntersectionInterval(
+        FixedSegment cylinderAxis,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter) =>
+        TryGetFiniteCylinderIntersectionInterval(
+            cylinderAxis,
+            radius,
+            radiusExpansion,
+            out entryParameter,
+            out exitParameter,
+            out _,
+            out _);
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a finite
+    /// cylinder and reports exact endpoint containment.
+    /// </summary>
+    /// <remarks>
+    /// The cylinder is described by its flat-cap centers and radius.
+    /// <paramref name="startContained"/> includes side and cap boundaries, while
+    /// <paramref name="endContainedStrict"/> excludes every boundary. Both flags
+    /// are evaluated from the wide axial projection and radial polynomial constant,
+    /// independently of rounded interval parameters.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="cylinderAxis"/> has zero length.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="radius"/> or <paramref name="radiusExpansion"/>
+    /// is negative.
+    /// </exception>
+    public readonly bool TryGetFiniteCylinderIntersectionInterval(
+        FixedSegment cylinderAxis,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        if (cylinderAxis.Start == cylinderAxis.End)
+            throw new ArgumentException("A finite cylinder axis must have nonzero length.", nameof(cylinderAxis));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (radiusExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radiusExpansion));
+
+        return WideFiniteAxisIntersection.TryGetFiniteCylinderInterval(
+            this,
+            cylinderAxis,
+            radius,
+            radiusExpansion,
+            out entryParameter,
+            out exitParameter,
+            out startContained,
+            out endContainedStrict);
+    }
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects an
+    /// affinely expanded finite cylinder.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="cylinderAxis"/> contains the unexpanded flat-cap centers.
+    /// <paramref name="axisHalfLength"/> is their positive authored half-length.
+    /// Axial expansion
+    /// extends that endpoint parameterization by
+    /// <c>axialExpansion / (2 * axisHalfLength)</c> at each end without constructing or
+    /// narrowing expanded endpoints. Radial and axial expansions remain separate.
+    /// Returned query-segment parameters are rounded half-to-even and clamped to
+    /// the closed interval [0, 1].
+    /// </remarks>
+    /// <returns>
+    /// <see langword="true"/> when the closed query segment intersects the
+    /// expanded finite cylinder; otherwise <see langword="false"/>.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="cylinderAxis"/> has zero length.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="axisHalfLength"/> is not positive, or when
+    /// <paramref name="radius"/>, <paramref name="radiusExpansion"/>, or
+    /// <paramref name="axialExpansion"/> is negative.
+    /// </exception>
+    public readonly bool TryGetFiniteCylinderIntersectionInterval(
+        FixedSegment cylinderAxis,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        Fixed64 axialExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter)
+    {
+        if (cylinderAxis.Start == cylinderAxis.End)
+            throw new ArgumentException("A finite cylinder axis must have nonzero length.", nameof(cylinderAxis));
+        if (axisHalfLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (radiusExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radiusExpansion));
+        if (axialExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axialExpansion));
+
+        return WideFiniteAxisIntersection.TryGetFiniteCylinderInterval(
+            this,
+            cylinderAxis,
+            axisHalfLength,
+            radius,
+            radiusExpansion,
+            axialExpansion,
+            out entryParameter,
+            out exitParameter);
+    }
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a
+    /// centered, affinely expanded finite cylinder.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="axisDirection"/> must be normalized. The authored flat
+    /// caps are defined parametrically by
+    /// <c>center +/- axisDirection * axisHalfLength</c>; neither cap is
+    /// constructed or narrowed. <paramref name="axialExpansion"/> extends the
+    /// physical half-length, while <paramref name="radiusExpansion"/> expands
+    /// only the radial surface. Returned parameters use deterministic
+    /// round-half-to-even conversion and are clamped to [0, 1].
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="axisHalfLength"/> is not positive, or when
+    /// <paramref name="radius"/>, <paramref name="radiusExpansion"/>, or
+    /// <paramref name="axialExpansion"/> is negative.
+    /// </exception>
+    public readonly bool TryGetFiniteCylinderIntersectionInterval(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        Fixed64 axialExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter) =>
+        TryGetFiniteCylinderIntersectionInterval(
+            center,
+            axisDirection,
+            axisHalfLength,
+            radius,
+            radiusExpansion,
+            axialExpansion,
+            out entryParameter,
+            out exitParameter,
+            out _,
+            out _);
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a
+    /// centered, affinely expanded finite cylinder and reports exact endpoint
+    /// containment.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="startContained"/> includes side and cap boundaries;
+    /// <paramref name="endContainedStrict"/> excludes every boundary. The
+    /// normalized axis defines authored caps parametrically as
+    /// <c>center +/- axisDirection * axisHalfLength</c> without constructing
+    /// either endpoint. Interval and containment calculations remain wide until
+    /// the final deterministic parameter conversion.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="axisHalfLength"/> is not positive, or when
+    /// <paramref name="radius"/>, <paramref name="radiusExpansion"/>, or
+    /// <paramref name="axialExpansion"/> is negative.
+    /// </exception>
+    public readonly bool TryGetFiniteCylinderIntersectionInterval(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        Fixed64 axialExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        if (!axisDirection.IsNormalized())
+            throw new ArgumentException("Finite cylinder axis direction must be normalized.", nameof(axisDirection));
+        if (axisHalfLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (radiusExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radiusExpansion));
+        if (axialExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axialExpansion));
+
+        return WideFiniteAxisIntersection.TryGetFiniteCylinderInterval(
+            this,
+            center,
+            axisDirection,
+            axisHalfLength,
+            radius,
+            radiusExpansion,
+            axialExpansion,
+            out entryParameter,
+            out exitParameter,
+            out startContained,
+            out endContainedStrict);
+    }
+
+    /// <summary>
     /// Returns the closest finite points on this segment and another segment.
     /// </summary>
     /// <remarks>

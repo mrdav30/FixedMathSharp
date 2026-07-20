@@ -290,7 +290,7 @@ internal static class WideRayIntersection
             out exit);
     }
 
-    private static bool TrySolveInterval(
+    internal static bool TrySolveInterval(
         Signed192 directionLengthSquared,
         Signed192 projection,
         Signed192 constant,

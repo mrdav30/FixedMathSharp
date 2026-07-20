@@ -394,22 +394,32 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// </summary>
     public Vector4d NormalizeInPlace(out Fixed64 mag)
     {
-        bool magnitudeIsRepresentable = TryGetMagnitude(this, out mag);
+        Vector4d source = this;
+        bool magnitudeIsRepresentable = TryGetMagnitude(
+            source,
+            out mag,
+            out bool isNormalized);
 
         if (mag == Fixed64.Zero)
             return this = Zero;
 
-        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
+        if (isNormalized)
             return this;
 
-        if (!magnitudeIsRepresentable || mag <= FixedMath.ScaleSafeMagnitudeThreshold)
-            return this = GetNormalized(this);
+        if (!magnitudeIsRepresentable || mag == Fixed64.One)
+            return this = WideGeometry.GetNormalized(source);
 
-        return this = new Vector4d(
+        if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
+            return this = GetScaleNormalized(source);
+
+        this = new Vector4d(
             FixedMath.FastDiv(X, mag),
             FixedMath.FastDiv(Y, mag),
             FixedMath.FastDiv(Z, mag),
             FixedMath.FastDiv(W, mag));
+        return IsNormalized()
+            ? this
+            : this = WideGeometry.GetNormalized(source);
     }
 
     /// <summary>
@@ -542,25 +552,31 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// </summary>
     public static Vector4d GetNormalized(Vector4d value)
     {
-        bool magnitudeIsRepresentable = TryGetMagnitude(value, out Fixed64 mag);
+        bool magnitudeIsRepresentable = TryGetMagnitude(
+            value,
+            out Fixed64 mag,
+            out bool isNormalized);
 
         if (mag == Fixed64.Zero)
             return Zero;
 
-        if (!magnitudeIsRepresentable)
-            return GetNormalized(value * Fixed64.Half);
+        if (isNormalized)
+            return value;
+
+        if (!magnitudeIsRepresentable || mag == Fixed64.One)
+            return WideGeometry.GetNormalized(value);
 
         if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
             return GetScaleNormalized(value);
 
-        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
-            return value;
-
-        return new Vector4d(
+        var normalized = new Vector4d(
             FixedMath.FastDiv(value.X, mag),
             FixedMath.FastDiv(value.Y, mag),
             FixedMath.FastDiv(value.Z, mag),
             FixedMath.FastDiv(value.W, mag));
+        return normalized.IsNormalized()
+            ? normalized
+            : WideGeometry.GetNormalized(value);
     }
 
     private static Vector4d GetScaleNormalized(Vector4d value)
@@ -590,9 +606,17 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
     /// <param name="magnitude">The magnitude, or <see cref="Fixed64.MaxValue"/> when it is not representable.</param>
     /// <returns><see langword="true"/> when the magnitude fits in <see cref="Fixed64"/>; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool TryGetMagnitude(Vector4d vector, out Fixed64 magnitude)
+    public static bool TryGetMagnitude(Vector4d vector, out Fixed64 magnitude) =>
+        TryGetMagnitude(vector, out magnitude, out _);
+
+    private static bool TryGetMagnitude(
+        Vector4d vector,
+        out Fixed64 magnitude,
+        out bool isNormalized)
     {
         Fixed64 mag = (vector.X * vector.X) + (vector.Y * vector.Y) + (vector.Z * vector.Z) + (vector.W * vector.W);
+        isNormalized = mag != Fixed64.Zero
+            && FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon;
 
         if (mag == Fixed64.MaxValue)
             return FixedMath.TryGetScaledMagnitude(vector.X, vector.Y, vector.Z, vector.W, out magnitude);
@@ -603,7 +627,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
             return true;
         }
 
-        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
+        if (isNormalized)
         {
             magnitude = Fixed64.One;
             return true;

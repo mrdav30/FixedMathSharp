@@ -21,6 +21,9 @@ public partial struct Fixed64
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static int CountLeadingZeroes(ulong x)
     {
+        if (x == 0UL)
+            return 64;
+
         int result = 0;
         while ((x & 0xF000000000000000) == 0) { result += 4; x <<= 4; }
         while ((x & 0x8000000000000000) == 0) { result += 1; x <<= 1; }

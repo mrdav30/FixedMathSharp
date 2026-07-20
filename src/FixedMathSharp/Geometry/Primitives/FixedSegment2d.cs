@@ -121,6 +121,207 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     }
 
     /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a capsule.
+    /// </summary>
+    /// <remarks>
+    /// The capsule is described by its finite center-line segment and radius.
+    /// Returned parameters are clamped to [0, 1]. A zero-length capsule axis is
+    /// treated as a circle.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="radius"/> is negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        FixedSegment2d capsuleAxis,
+        Fixed64 radius,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter) =>
+        TryGetCapsuleIntersectionInterval(
+            capsuleAxis,
+            radius,
+            Fixed64.Zero,
+            out entryParameter,
+            out exitParameter);
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a radially
+    /// expanded capsule.
+    /// </summary>
+    /// <remarks>
+    /// The authored radius and sweep expansion remain separate until the exact
+    /// finite-axis solve. Returned parameters are clamped to [0, 1]. A zero-length
+    /// capsule axis is treated as a circle.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="radius"/> or <paramref name="radiusExpansion"/>
+    /// is negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        FixedSegment2d capsuleAxis,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter) =>
+        TryGetCapsuleIntersectionInterval(
+            capsuleAxis,
+            radius,
+            radiusExpansion,
+            out entryParameter,
+            out exitParameter,
+            out _,
+            out _);
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a capsule
+    /// and reports exact endpoint containment.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="startContained"/> is inclusive of the capsule boundary.
+    /// <paramref name="endContainedStrict"/> is true only for the mathematical
+    /// interior. Both classifications use the wide solve inputs rather than rounded
+    /// parameters or reconstructed points. A zero-length capsule axis is treated as
+    /// a circle.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="radius"/> or <paramref name="radiusExpansion"/>
+    /// is negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        FixedSegment2d capsuleAxis,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (radiusExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radiusExpansion));
+
+        return WideFiniteAxisIntersection.TryGetCapsuleInterval(
+            this,
+            capsuleAxis,
+            radius,
+            radiusExpansion,
+            out entryParameter,
+            out exitParameter,
+            out startContained,
+            out endContainedStrict);
+    }
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a
+    /// centered capsule.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="axisHalfLength"/> or
+    /// <paramref name="radius"/> is negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        Vector2d center,
+        Vector2d axisDirection,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter) =>
+        TryGetCapsuleIntersectionInterval(
+            center,
+            axisDirection,
+            axisHalfLength,
+            radius,
+            Fixed64.Zero,
+            out entryParameter,
+            out exitParameter);
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a
+    /// centered, radially expanded capsule.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="axisHalfLength"/>,
+    /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> is
+    /// negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        Vector2d center,
+        Vector2d axisDirection,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter) =>
+        TryGetCapsuleIntersectionInterval(
+            center,
+            axisDirection,
+            axisHalfLength,
+            radius,
+            radiusExpansion,
+            out entryParameter,
+            out exitParameter,
+            out _,
+            out _);
+
+    /// <summary>
+    /// Finds the closed parameter interval where this segment intersects a
+    /// centered, radially expanded capsule and reports exact endpoint
+    /// containment.
+    /// </summary>
+    /// <remarks>
+    /// The normalized axis defines the conceptual center-line endpoints as
+    /// <c>center +/- axisDirection * axisHalfLength</c> without constructing or
+    /// narrowing either endpoint. <paramref name="startContained"/> includes the
+    /// boundary; <paramref name="endContainedStrict"/> excludes it.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="axisHalfLength"/>,
+    /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> is
+    /// negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionInterval(
+        Vector2d center,
+        Vector2d axisDirection,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        if (!axisDirection.IsNormalized())
+            throw new ArgumentException("Capsule axis direction must be normalized.", nameof(axisDirection));
+        if (axisHalfLength < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (radiusExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radiusExpansion));
+
+        return WideFiniteAxisIntersection.TryGetCapsuleInterval(
+            this,
+            center,
+            axisDirection,
+            axisHalfLength,
+            radius,
+            radiusExpansion,
+            out entryParameter,
+            out exitParameter,
+            out startContained,
+            out endContainedStrict);
+    }
+
+    /// <summary>
     /// Attempts to find the unique intersection point shared by this segment and another segment.
     /// </summary>
     /// <remarks>

@@ -585,6 +585,75 @@ public partial struct Fixed64
     }
 
     /// <summary>
+    /// Converts an arbitrary signed five-word ratio to Q32.32 when its final
+    /// round-half-to-even result is representable.
+    /// </summary>
+    internal static bool TryGetSignedRatio(
+        Signed320 numerator,
+        Signed320 denominator,
+        out Fixed64 result)
+    {
+        int numeratorSign = numerator.Sign;
+        int denominatorSign = denominator.Sign;
+        if (denominatorSign == 0)
+        {
+            result = default;
+            return false;
+        }
+        if (numeratorSign == 0)
+        {
+            result = Zero;
+            return true;
+        }
+
+        WideArithmetic.GetMagnitude(
+            numerator,
+            out ulong numeratorWord4,
+            out ulong numeratorWord3,
+            out ulong numeratorWord2,
+            out ulong numeratorWord1,
+            out ulong numeratorWord0);
+        WideArithmetic.GetMagnitude(
+            denominator,
+            out ulong denominatorWord4,
+            out ulong denominatorWord3,
+            out ulong denominatorWord2,
+            out ulong denominatorWord1,
+            out ulong denominatorWord0);
+        Signed320 numeratorMagnitude = new(
+            numeratorWord4, numeratorWord3, numeratorWord2, numeratorWord1, numeratorWord0);
+        Signed320 denominatorMagnitude = new(
+            denominatorWord4, denominatorWord3, denominatorWord2, denominatorWord1, denominatorWord0);
+        Signed320 twiceScale = WideArithmetic.ExtendToSigned320(
+            WideArithmetic.FromSignedRaw(FixedMath.ONE_L * 2L));
+        bool negative = numeratorSign != denominatorSign;
+        Signed192 roundedLimit = negative
+            ? new Signed192(0UL, 1UL, 1UL)             // 2 * 2^63 + 1
+            : new Signed192(0UL, 0UL, ulong.MaxValue); // 2 * (2^63 - 1) + 1
+        Signed576 scaledNumerator = GetNonNegativeProduct(numeratorMagnitude, twiceScale);
+        Signed576 scaledLimit = GetNonNegativeProduct(
+            denominatorMagnitude,
+            WideArithmetic.ExtendToSigned320(roundedLimit));
+        int comparison = WideArithmetic.CompareNonNegative(scaledNumerator, scaledLimit);
+        if (comparison > 0 || (!negative && comparison == 0))
+        {
+            result = default;
+            return false;
+        }
+
+        result = GetSignedRatio(numerator, denominator);
+        return true;
+    }
+
+    private static Signed576 GetNonNegativeProduct(Signed320 leftMagnitude, Signed320 right)
+    {
+        Signed576 product = WideArithmetic.MultiplySigned320(leftMagnitude, right);
+        return product.Sign < 0
+            ? WideArithmetic.SubtractSigned576(default, product)
+            : product;
+    }
+
+    /// <summary>
     /// Converts an exact ratio proven by this method to lie in [0, 1] to Q32.32.
     /// </summary>
     internal static bool TryGetUnitIntervalRatio(

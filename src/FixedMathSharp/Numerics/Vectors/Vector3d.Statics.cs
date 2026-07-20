@@ -299,28 +299,43 @@ public partial struct Vector3d
     /// <returns>A normalized (unit) vector with the same direction.</returns>
     public static Vector3d GetNormalized(Vector3d value)
     {
-        bool magnitudeIsRepresentable = TryGetMagnitude(value, out Fixed64 mag);
+        bool magnitudeIsRepresentable = TryGetMagnitude(
+            value,
+            out Fixed64 mag,
+            out bool isNormalized);
 
         // If magnitude is zero, return a zero vector to avoid divide-by-zero errors
         if (mag == Fixed64.Zero)
             return new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
 
-        if (!magnitudeIsRepresentable)
-            return GetNormalized(value * Fixed64.Half);
+        if (isNormalized)
+            return value;
+
+        if (!magnitudeIsRepresentable || mag == Fixed64.One)
+            return WideGeometry.GetNormalized(value);
 
         if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
             return GetScaleNormalized(value);
 
-        // If already normalized, return as-is
-        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
-            return value;
-
-        // Normalize it exactly
-        return new Vector3d(
+        var normalized = new Vector3d(
             FixedMath.FastDiv(value.X, mag),
             FixedMath.FastDiv(value.Y, mag),
-            FixedMath.FastDiv(value.Z, mag)
-        );
+            FixedMath.FastDiv(value.Z, mag));
+        return normalized.IsNormalized()
+            ? normalized
+            : WideGeometry.GetNormalized(value);
+    }
+
+    internal static Vector3d GetScaleNormalized(Vector3d value)
+    {
+        Fixed64 scale = FixedMath.Max(value.X.Abs(), FixedMath.Max(value.Y.Abs(), value.Z.Abs()));
+        Vector3d scaled = value / scale;
+        Fixed64 scaledMagnitude = FixedMath.GetScaledMagnitude(
+            scaled.X,
+            scaled.Y,
+            scaled.Z,
+            Fixed64.Zero);
+        return scaled / scaledMagnitude;
     }
 
     /// <summary>
@@ -335,18 +350,6 @@ public partial struct Vector3d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d GetDirection(Vector3d start, Vector3d end) =>
         WideGeometry.GetDirection(start, end);
-
-    private static Vector3d GetScaleNormalized(Vector3d value)
-    {
-        Fixed64 scale = FixedMath.Max(value.X.Abs(), FixedMath.Max(value.Y.Abs(), value.Z.Abs()));
-        Vector3d scaled = value / scale;
-        Fixed64 scaledMagnitude = FixedMath.GetScaledMagnitude(
-            scaled.X,
-            scaled.Y,
-            scaled.Z,
-            Fixed64.Zero);
-        return scaled / scaledMagnitude;
-    }
 
     /// <summary>
     /// Returns the magnitude (length) of this vector.
@@ -367,9 +370,17 @@ public partial struct Vector3d
     /// <param name="magnitude">The magnitude, or <see cref="Fixed64.MaxValue"/> when it is not representable.</param>
     /// <returns><see langword="true"/> when the magnitude fits in <see cref="Fixed64"/>; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool TryGetMagnitude(Vector3d vector, out Fixed64 magnitude)
+    public static bool TryGetMagnitude(Vector3d vector, out Fixed64 magnitude) =>
+        TryGetMagnitude(vector, out magnitude, out _);
+
+    private static bool TryGetMagnitude(
+        Vector3d vector,
+        out Fixed64 magnitude,
+        out bool isNormalized)
     {
         Fixed64 mag = (vector.X * vector.X) + (vector.Y * vector.Y) + (vector.Z * vector.Z);
+        isNormalized = mag != Fixed64.Zero
+            && FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon;
 
         if (mag == Fixed64.MaxValue)
             return FixedMath.TryGetScaledMagnitude(
@@ -389,8 +400,7 @@ public partial struct Vector3d
             return true;
         }
 
-        // Clamp tiny drift around 1 in either direction.
-        if (FixedMath.Abs(mag - Fixed64.One) <= Fixed64.Epsilon)
+        if (isNormalized)
         {
             magnitude = Fixed64.One;
             return true;

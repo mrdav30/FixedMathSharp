@@ -22,6 +22,12 @@ Use this guide when upgrading from any v6.x package.
 - Audit chained multiply/divide calculations that rely on an intermediate
   saturated result; use `TryMultiplyDivide` when the mathematical expression
   requires one final rounding step.
+- Replace `ray.Position + ray.Direction * parameter` reconstruction with
+  `ray.GetPoint(parameter)` so each coordinate rounds and saturates once.
+- Replace normalize-then-ray finite-axis sweeps with the segment physical-distance
+  interval APIs when the authored chord contains small components that must not
+  round away during normalization. Reconstruct those hits with
+  `segment.GetPointAtDistance(distance, totalDistance)`.
 - Replace `FixedBoundCircle.RadiusSquared` and
   `FixedBoundSphere.RadiusSquared` callers with the actual `Radius` or the
   bound's exact containment/intersection methods.
@@ -98,6 +104,35 @@ if (!Fixed64.TryMultiplyDivide(first, second, third, divisor, out result))
 These are opt-in APIs. Existing operators retain their public saturating
 contract.
 
+`Fixed64.MultiplyAdd(left, right, addend)` provides the corresponding fused
+multiply-add contract. It rounds once and saturates only the final result;
+`TryMultiplyAdd` reports an unrepresentable final value with `false` and a
+default result. `FixedRay.GetPoint(parameter)` and `FixedRay2d.GetPoint(parameter)`
+use this contract per coordinate. The argument is a ray parameter, not always a
+physical distance, because ray directions are not normalized by construction.
+
+### Exact Chord Physical-Distance Intervals
+
+`FixedSegment2d` and `FixedSegment` now expose
+`TryGetCapsuleIntersectionDistanceInterval`; `FixedSegment` also exposes
+`TryGetFiniteCylinderIntersectionDistanceInterval`. These methods preserve the
+original endpoint differences through the exact finite-axis solve, then map the
+closed segment parameter range to the caller-supplied nonnegative `totalDistance`
+with one final round-half-to-even conversion. This is stronger than normalizing
+the chord and calling a bounded-ray method: a small but representable transverse
+component cannot disappear before collision classification.
+
+Centered capsule and centered finite-cylinder overloads retain the existing
+inclusive-start and strict-end containment flags. Endpoint-authored capsule and
+cylinder overloads provide the same classification. Affine cylinder overloads
+retain separate authored half-length, radial expansion, and axial expansion.
+
+Use `GetPointAtDistance(distance, totalDistance)` to reconstruct a returned hit
+from the same exact chord. It rejects negative total distance and distances
+outside `[0, totalDistance]`; zero total distance is accepted only for a
+zero-length segment and reconstructs its single point. Nondegenerate endpoints
+are returned bit-for-bit, while interior coordinates are fused and rounded once.
+
 ### Exact Projection, Magnitude, And Rotation Behavior
 
 v7 adds full-domain helpers for calculations that must make decisions before
@@ -116,6 +151,11 @@ public saturation:
 Vector and quaternion magnitude/normalization paths now preserve complete finite
 component ranges. Quaternion construction and conversion are also more robust:
 
+- Nonzero vector and quaternion normalization results now satisfy the matching
+  `IsNormalized()` predicate. Inputs already admitted by that predicate are
+  preserved, while tiny and full-domain components normalize through a
+  scale-safe exact fallback when ordinary Q32.32 magnitude arithmetic cannot
+  retain enough information.
 - Nonzero axis and direction inputs normalize scale-safely.
 - Zero-axis axis-angle construction returns `FixedQuaternion.Identity`.
 - Radian and degree constructors accept the complete finite `Fixed64` domain;
@@ -147,7 +187,9 @@ expectations rather than adding downstream clamps.
 normalize endpoint differences without first narrowing them to one `Fixed64`
 component. Equal endpoints return zero. Use these helpers when world-coordinate
 endpoints can span more than one representable scalar even though the resulting
-unit direction is representable.
+unit direction is representable. Very small representable differences also keep
+their component ratio; for example, raw deltas `(1, 2)` no longer quantize the
+magnitude first and return a non-unit direction.
 
 `Vector2d.TryGetDistance(start, end, out distance)` and
 `Vector3d.TryGetDistance(start, end, out distance)` provide the corresponding
@@ -190,6 +232,16 @@ Callers that need both radial roots can use `TryGetIntersectionInterval` on the
 same ray types. These methods return the closed overlap interval clipped to an
 explicit non-negative maximum parameter and offer overloads that retain radius
 expansion exactly instead of pre-adding two saturating `Fixed64` radii.
+
+Bounded capsule and finite-cylinder traversal now has the same direct ray-space
+contract. Use `TryGetCapsuleIntersectionInterval` on `FixedRay2d` or `FixedRay`,
+and `TryGetFiniteCylinderIntersectionInterval` on `FixedRay`. These methods clip
+directly to `[0, maxParameter]`; they do not normalize a long traversal into a
+segment parameter and multiply the rounded result back into distance. A
+normalized direction therefore preserves physical-distance raw units even on a
+very long ray. Endpoint-axis, centered-axis, radial-expansion, and 3D affine
+cylinder forms mirror the segment families. Advanced overloads report inclusive
+origin containment and strict containment at the maximum parameter.
 
 Use `FixedMath.TryGetCircleCrossSectionRadius` when reducing a sphere at a
 signed plane offset. It retains the difference of squares and square root in
@@ -351,6 +403,99 @@ var first = new FixedSegment(firstStart, firstEnd);
 var second = new FixedSegment(secondStart, secondEnd);
 (Vector3d firstPoint, Vector3d secondPoint) = first.GetClosestPoints(second);
 ```
+
+Finite-axis intersections should also move to the segment-owned interval APIs
+instead of normalizing an axis or building quadratic coefficients downstream:
+
+```csharp
+bool capsuleHit = query.TryGetCapsuleIntersectionInterval(
+    capsuleAxis,
+    capsuleRadius,
+    out Fixed64 capsuleEntry,
+    out Fixed64 capsuleExit);
+
+bool centeredCapsuleHit = query.TryGetCapsuleIntersectionInterval(
+    capsuleCenter,
+    normalizedCapsuleAxis,
+    capsuleHalfLength,
+    capsuleRadius,
+    radiusExpansion,
+    out Fixed64 centeredCapsuleEntry,
+    out Fixed64 centeredCapsuleExit);
+
+bool cylinderHit = query.TryGetFiniteCylinderIntersectionInterval(
+    cylinderAxis,
+    cylinderRadius,
+    out Fixed64 cylinderEntry,
+    out Fixed64 cylinderExit);
+
+bool centeredCylinderHit = query.TryGetFiniteCylinderIntersectionInterval(
+    cylinderCenter,
+    normalizedCylinderAxis,
+    cylinderHalfLength,
+    cylinderRadius,
+    radialExpansion,
+    axialExpansion,
+    out Fixed64 centeredEntry,
+    out Fixed64 centeredExit);
+```
+
+Expanded overloads accept authored radius and expansion separately. The affine
+finite-cylinder overload also accepts the positive authored axis half-length
+and a separate axial expansion, avoiding a narrowed combined radius, full axis
+length, or expanded cap center. Capsule zero axes reduce to a circle or sphere;
+cylinder zero axes throw because the segment cannot retain a cap normal.
+Returned closed `[0, 1]` parameters are rounded half to even, so deterministic
+query goldens produced by an older downstream quadratic should be regenerated.
+
+When the original query is a ray plus a finite travel budget, keep it in ray
+space instead of constructing a segment solely to reuse these methods:
+
+```csharp
+bool rayCapsuleHit = ray.TryGetCapsuleIntersectionInterval(
+    capsuleCenter,
+    normalizedCapsuleAxis,
+    capsuleHalfLength,
+    capsuleRadius,
+    radiusExpansion,
+    maxParameter,
+    out Fixed64 entryDistance,
+    out Fixed64 exitDistance,
+    out bool originContained,
+    out bool maximumContainedStrict);
+```
+
+With a normalized ray direction the two returned parameters are physical
+distances. With any other direction they remain ordinary ray parameters.
+Use the centered capsule or cylinder overload when a physical center and
+normalized axis are the source of truth, especially near `Fixed64.MinValue` or
+`Fixed64.MaxValue`. Neither contract constructs cap centers, so scalar
+saturation cannot silently shorten or rotate the finite axis. A centered
+capsule accepts zero half-length as the circle/sphere limit; a centered cylinder
+requires a positive half-length. Invalid zero or non-unit axis directions are
+rejected.
+
+Centered capsule containment, closest-feature direction, and surface
+reconstruction are available through
+`ContainsPointInCenteredCapsule`, `GetDirectionFromCenteredAxis`, and
+`TryGetSurfacePointOnCenteredCapsule`. The surface helper accepts an explicit
+normalized radial direction so callers can choose the otherwise non-unique
+on-axis result. It fuses the conceptual axis point and radial offset before one
+final half-to-even conversion, returning `false` only when the final surface
+coordinate cannot be represented.
+
+Centered capsule containment has explicit `strict` overloads in 2D and 3D;
+strict mode excludes the cylindrical side and both rounded-cap boundaries while
+retaining the optional radial-expansion contract. Centered finite cylinders
+provide the matching `ContainsPointInCenteredFiniteCylinder(..., strict)`
+helper, where strict mode also excludes both flat caps.
+
+`GetDistanceToCenteredCapsule` and `TryGetDistanceToCenteredCapsule` provide
+the matching exact distance contract without reconstructing a surface point.
+They return zero for points inside or on the capsule and round a positive gap
+half to even only at the final `Fixed64` conversion. The `Get` form saturates
+an unrepresentable final distance to `Fixed64.MaxValue`; the `Try` form returns
+`false` and also writes `Fixed64.MaxValue`.
 
 `FixedSegment`, `FixedSegment2d`, `FixedTriangle`, and `FixedTriangle2d` now use
 one final nearest-even conversion and final-only saturation for their hardened

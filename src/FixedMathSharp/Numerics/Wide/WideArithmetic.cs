@@ -13,7 +13,7 @@ namespace FixedMathSharp;
 /// <summary>
 /// Owns fixed-width limb arithmetic used by exact deterministic geometry.
 /// </summary>
-internal static class WideArithmetic
+internal static partial class WideArithmetic
 {
     /// <summary>
     /// Compares unsigned magnitudes of signed wide values.
