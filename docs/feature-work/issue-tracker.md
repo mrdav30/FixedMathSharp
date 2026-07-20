@@ -17,13 +17,7 @@
 
 ## Active Issues
 
-- **FMS-Issue-016: Derived area and box center/extent paths are not full-domain.**
-  `FixedBoundArea.Center`, `FixedBoundBox.Center`, and resize/recenter paths
-  still use saturating `Min + Max` or `Max - Min` arithmetic before halving.
-  Same-sign bounds can therefore report the wrong center, while bounds wider
-  than one scalar can report a narrowed size or scope. Resolve the 2D/3D API
-  contract together instead of fixing only the getter exposed by the sphere
-  construction audit.
+None.
 
 ## Performance Investigation Queue
 
@@ -40,6 +34,56 @@ confirmed runtime defect. Current queue:
   invariants to arbitrary signed 576-bit callers without separate evidence.
 
 ## Resolved Issues
+
+### FMS-Issue-016: Derived area and box center/extent paths were not full-domain
+
+**Discovered:** 2026-07-20
+
+**Resolved:** 2026-07-20
+
+**Source:** sphere-construction full-domain audit and downstream bounds-consumer audit
+
+`FixedBoundArea` and `FixedBoundBox` now derive centers with exact nearest-even
+midpoints, derive scopes with a conservative ceiling after the exact endpoint
+difference, and expose exact full sizes only when that public `Fixed64` result
+is representable. An inherently unrepresentable size or scope throws instead
+of silently returning a saturated under-estimate. Centered construction,
+resize, and recenter operations validate both endpoints before committing, so
+failed changes are atomic; odd-raw centered sizes expand outward by one raw
+unit when necessary to preserve the requested lattice center without
+under-bounding. Explicit `FromCenterAndSizeClippedToDomain` and
+`FromCenterAndScopeClippedToDomain` factories cover the separate spatial-proxy
+contract where the intended shape may extend outside the representable
+coordinate domain.
+
+The same audit hardened `FixedRange.Length` and `MidPoint`, reduced
+SwiftCollections' `FixedBoundVolume` to one canonical `FixedBoundBox`, taught
+`SwiftFixedOctree` to compare child spans in unsigned raw arithmetic without
+materializing an unrepresentable full size, and moved fixed-BVH insertion cost
+to exact 192-bit union-volume growth. `FixedBoundCircle.Bounds` now explicitly
+clips its representable-domain intersection. GridForge grid centers and
+Gravitas mesh/slab reference centers use the shared exact midpoint, while
+Gravitas broad-phase proxies opt into the explicit clipped contract. Focused
+regressions cover same-sign scalar faces, opposite faces, raw midpoint ties,
+unrepresentable sizes with representable scopes, full-domain intervals and BVH
+unions, atomic failures, circle/proxy clipping, serialization, octree/mesh
+behavior, and mixed mesh-slab hit points.
+
+The final FixedMathSharp Debug coverage run passed 1,655 tests and reported
+13,855/13,855 lines, 3,952/3,952 branches, and 1,808/1,808 methods. The
+allocation-free bounds benchmark improved centered area construction from
+about 63.16 to 35.72 nanoseconds, centered box construction from about 72.50
+to 45.94 nanoseconds, and box min/max mutation from about 36.65 to 2.80
+nanoseconds; direct min/max construction remained effectively flat. The
+downstream canonical `FixedBoundVolume` layout improved copy-plus-center access
+from about 44.24 to 2.37 nanoseconds. Repeated center/size/volume metadata reads
+increased from about 2.84 to 8.83 nanoseconds, still with zero managed
+allocation; the smaller single-source struct was retained because query trees
+copy volumes far more often than they repeatedly rematerialize all metadata.
+The new exact volume-expansion cost measured about 10.46 nanoseconds versus
+17.15 nanoseconds for the reconstructed chained/saturating formula; its
+full-domain clamped case measured about 10.27 nanoseconds, all with zero managed
+allocation.
 
 ### FMS-Issue-015: Sphere construction and merge paths were not full-domain
 

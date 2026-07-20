@@ -1,5 +1,6 @@
 using FixedMathSharp.Bounds;
 using MemoryPack;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -107,6 +108,115 @@ public class FixedBoundAreaTests
         Assert.Equal(new Vector2d(6, 8), area.Size);
         Assert.Equal(new Vector2d(-2, -2), area.Min);
         Assert.Equal(new Vector2d(4, 6), area.Max);
+    }
+
+    [Fact]
+    public void DerivedMetadata_FullDomainAndRawUnitSpans_RemainsExactOrFailsHonestly()
+    {
+        Fixed64 sameSignMin = Fixed64.FromRaw(long.MaxValue - 3);
+        Fixed64 sameSignMax = Fixed64.FromRaw(long.MaxValue - 1);
+        var sameSign = FixedBoundArea.FromMinMax(
+            new Vector2d(sameSignMin, Fixed64.FromRaw(1)),
+            new Vector2d(sameSignMax, Fixed64.FromRaw(2)));
+
+        Assert.Equal(
+            new Vector2d(Fixed64.FromRaw(long.MaxValue - 2), Fixed64.FromRaw(2)),
+            sameSign.Center);
+        Assert.Equal(new Vector2d(Fixed64.FromRaw(2), Fixed64.MinIncrement), sameSign.Size);
+        Assert.Equal(new Vector2d(Fixed64.MinIncrement, Fixed64.MinIncrement), sameSign.Scope);
+
+        Fixed64 quarterDomain = Fixed64.FromRaw(1L << 62);
+        var wide = FixedBoundArea.FromMinMax(
+            new Vector2d(-quarterDomain, Fixed64.Zero),
+            new Vector2d(quarterDomain, Fixed64.One));
+
+        Assert.Equal(new Vector2d(Fixed64.Zero, Fixed64.Half), wide.Center);
+        Assert.Equal(new Vector2d(quarterDomain, Fixed64.Half), wide.Scope);
+        Assert.Throws<OverflowException>(() => _ = wide.Size);
+
+        var fullDomain = FixedBoundArea.FromMinMax(
+            new Vector2d(Fixed64.MinValue, Fixed64.Zero),
+            new Vector2d(Fixed64.MaxValue, Fixed64.One));
+        fullDomain.Center = fullDomain.Center;
+
+        Assert.Equal(Fixed64.Zero, fullDomain.Center.X);
+        Assert.Throws<OverflowException>(() => _ = fullDomain.Scope);
+    }
+
+    [Fact]
+    public void Center_Setter_RawUnitSpan_PreservesRequestedCenterWithConservativeScope()
+    {
+        var area = FixedBoundArea.FromMinMax(
+            new Vector2d(Fixed64.FromRaw(1), Fixed64.FromRaw(3)),
+            new Vector2d(Fixed64.FromRaw(2), Fixed64.FromRaw(6)));
+
+        area.Center = new Vector2d(Fixed64.FromRaw(11), Fixed64.FromRaw(20));
+
+        Assert.Equal(
+            new Vector2d(Fixed64.FromRaw(10), Fixed64.FromRaw(18)),
+            area.Min);
+        Assert.Equal(
+            new Vector2d(Fixed64.FromRaw(12), Fixed64.FromRaw(22)),
+            area.Max);
+        Assert.Equal(new Vector2d(Fixed64.FromRaw(11), Fixed64.FromRaw(20)), area.Center);
+    }
+
+    [Fact]
+    public void CenterAndSizeMutators_UnrepresentableEndpoint_ThrowWithoutMutation()
+    {
+        var area = FixedBoundArea.FromCenterAndSize(Vector2d.Zero, new Vector2d(4, 6));
+        FixedBoundArea original = area;
+
+        Assert.Throws<OverflowException>(() => area.Center = new Vector2d(Fixed64.MaxValue, Fixed64.Zero));
+        Assert.Equal(original, area);
+
+        area = FixedBoundArea.FromCenterAndSize(
+            new Vector2d(Fixed64.MaxValue - Fixed64.One, Fixed64.Zero),
+            new Vector2d(2, 2));
+        original = area;
+
+        Assert.Throws<OverflowException>(() => area.Size = new Vector2d(4, 2));
+        Assert.Equal(original, area);
+    }
+
+    [Fact]
+    public void CenteredFactories_UnrepresentableEndpointOrMagnitude_Throw()
+    {
+        Assert.Throws<OverflowException>(() => FixedBoundArea.FromCenterAndSize(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            new Vector2d(2, 2)));
+        Assert.Throws<OverflowException>(() => FixedBoundArea.FromCenterAndSize(
+            new Vector2d(Fixed64.MinValue, Fixed64.Zero),
+            new Vector2d(2, 2)));
+        Assert.Throws<OverflowException>(() => FixedBoundArea.FromCenterAndScope(
+            Vector2d.Zero,
+            new Vector2d(Fixed64.MinValue, Fixed64.One)));
+
+        FixedBoundArea rawUnit = FixedBoundArea.FromCenterAndSize(
+            new Vector2d(Fixed64.FromRaw(10), Fixed64.Zero),
+            new Vector2d(Fixed64.MinIncrement, Fixed64.MinValue));
+
+        Assert.Equal(Fixed64.FromRaw(9), rawUnit.Min.X);
+        Assert.Equal(Fixed64.FromRaw(11), rawUnit.Max.X);
+        Assert.Equal(Fixed64.FromRaw(1L << 62), rawUnit.Scope.Y);
+        Assert.Throws<OverflowException>(() => _ = rawUnit.Size);
+    }
+
+    [Fact]
+    public void ClippedCenteredFactories_ExplicitlyIntersectWithScalarDomain()
+    {
+        FixedBoundArea fromSize = FixedBoundArea.FromCenterAndSizeClippedToDomain(
+            new Vector2d(Fixed64.MaxValue, Fixed64.MinValue),
+            new Vector2d(2, 2));
+        FixedBoundArea fromScope = FixedBoundArea.FromCenterAndScopeClippedToDomain(
+            new Vector2d(Fixed64.MaxValue, Fixed64.MinValue),
+            new Vector2d(-Fixed64.One, -Fixed64.One));
+
+        var expected = FixedBoundArea.FromMinMax(
+            new Vector2d(Fixed64.MaxValue - Fixed64.One, Fixed64.MinValue),
+            new Vector2d(Fixed64.MaxValue, Fixed64.MinValue + Fixed64.One));
+        Assert.Equal(expected, fromSize);
+        Assert.Equal(expected, fromScope);
     }
 
     [Fact]
@@ -342,6 +452,22 @@ public class FixedBoundAreaTests
         var deserializedValue = JsonSerializer.Deserialize<FixedBoundArea>(json, jsonOptions);
 
         Assert.Equal(originalValue, deserializedValue);
+    }
+
+    [Fact]
+    public void JsonSerialization_FullDomainState_PreservesExactDerivedCenter()
+    {
+        var originalValue = FixedBoundArea.FromMinMax(
+            new Vector2d(Fixed64.FromRaw(long.MaxValue - 3), Fixed64.MinValue),
+            new Vector2d(Fixed64.FromRaw(long.MaxValue - 1), Fixed64.MaxValue));
+
+        byte[] json = JsonSerializer.SerializeToUtf8Bytes(originalValue);
+        FixedBoundArea deserializedValue = JsonSerializer.Deserialize<FixedBoundArea>(json);
+
+        Assert.Equal(originalValue, deserializedValue);
+        Assert.Equal(
+            new Vector2d(Fixed64.FromRaw(long.MaxValue - 2), Fixed64.Zero),
+            deserializedValue.Center);
     }
 
 #if !FIXEDMATHSHARP_DISABLE_MEMORYPACK

@@ -28,6 +28,10 @@ public class BoundsBenchmarks
 {
     private readonly FixedBoundArea[] _areas = CreateAreas();
     private readonly FixedBoundBox[] _boxes = CreateBoxes();
+    private readonly FixedBoundBox _fullDomainBox = FixedBoundBox.FromMinMax(
+        new Vector3d(Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue),
+        new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue));
+    private readonly FixedBoundBox _unitBox = FixedBoundBox.FromMinMax(Vector3d.Zero, Vector3d.One);
     private readonly FixedBoundCircle[] _circles = CreateCircles();
     private readonly FixedSegment2d[] _segments2d = CreateSegments2d();
     private readonly FixedSegment[] _segments3d = CreateSegments3d();
@@ -535,6 +539,20 @@ public class BoundsBenchmarks
 
         return accumulator;
     }
+
+    [SampledBenchmark]
+    public long BoxVolumeExpansionCost()
+    {
+        long accumulator = 0L;
+        for (int i = 0; i < _boxes.Length; i++)
+            accumulator ^= _boxes[i].GetVolumeExpansionCost(_boxes[(i + 1) % _boxes.Length]);
+
+        return accumulator;
+    }
+
+    [Benchmark]
+    public long BoxFullDomainVolumeExpansionCost() =>
+        _unitBox.GetVolumeExpansionCost(_fullDomainBox);
 
     [SampledBenchmark]
     public int BoxContainsPoint()

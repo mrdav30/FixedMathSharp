@@ -97,56 +97,77 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     public Vector3d Max { get; private set; }
 
     /// <summary>
-    /// The center of the bounding box.
+    /// The center of the bounding box, rounded to the nearest-even Q32.32 lattice point.
     /// </summary>
+    /// <remarks>
+    /// Assigning a different center preserves a conservative half-extent. An
+    /// odd raw-unit span can therefore expand by one raw unit so the assigned
+    /// center remains exact and the previous box is not under-represented.
+    /// </remarks>
+    /// <exception cref="OverflowException">
+    /// An assigned center would place an endpoint outside the scalar domain.
+    /// </exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d Center
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (Min + Max) * Fixed64.Half;
+        get => Vector3d.Midpoint(Min, Max);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            Vector3d half = (Max - Min) * Fixed64.Half;
-            Min = value - half;
-            Max = value + half;
+            if (value != Center)
+                SetCenterAndHalfSize(value, Scope);
         }
     }
 
     /// <summary>
-    /// The total size of the box. This is always twice the scope.
+    /// The exact total size of the box.
     /// </summary>
     /// <remarks>
-    /// Assigned values are normalized by absolute component value.
+    /// Assigned values are normalized by absolute component value and divided
+    /// outward. An odd raw-unit size therefore expands by one raw unit. Reading
+    /// this property throws rather than returning a saturated value when an
+    /// exact component span is not representable by <see cref="Fixed64"/>.
     /// </remarks>
+    /// <exception cref="OverflowException">
+    /// A component span is not representable, or an assigned size would place
+    /// an endpoint outside the scalar domain.
+    /// </exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d Proportions
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Max - Min;
+        get => new(
+            WideGeometry.GetIntervalSize(Min.X, Max.X),
+            WideGeometry.GetIntervalSize(Min.Y, Max.Y),
+            WideGeometry.GetIntervalSize(Min.Z, Max.Z));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            Vector3d half = Vector3d.Abs(value) * Fixed64.Half;
-            Vector3d center = (Min + Max) * Fixed64.Half;
-            Min = center - half;
-            Max = center + half;
+            SetCenterAndHalfSize(Center, GetHalfSize(value));
         }
     }
 
     /// <summary>
-    /// The range (half-size) of the bounding box in all directions. Always half of the total size.
+    /// The smallest representable half-extent that conservatively contains the
+    /// box around <see cref="Center"/>.
     /// </summary>
+    /// <exception cref="OverflowException">
+    /// A conservative half-extent is outside the representable scalar domain.
+    /// </exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector3d Scope
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (Max - Min) * Fixed64.Half;
+        get => new(
+            WideGeometry.GetIntervalScope(Min.X, Max.X),
+            WideGeometry.GetIntervalScope(Min.Y, Max.Y),
+            WideGeometry.GetIntervalScope(Min.Z, Max.Z));
     }
 
     /// <summary>
@@ -183,12 +204,18 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     /// Creates a bounding box from a center point and total size.
     /// </summary>
     /// <remarks>
-    /// Negative size components are normalized by absolute value.
+    /// Negative size components are normalized by absolute value. Odd raw-unit
+    /// sizes are divided outward and therefore expand by one raw unit.
     /// </remarks>
+    /// <exception cref="OverflowException">
+    /// The centered box would place an endpoint outside the scalar domain.
+    /// </exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedBoundBox FromCenterAndSize(Vector3d center, Vector3d size)
     {
-        return FromCenterAndScope(center, size * Fixed64.Half);
+        var box = default(FixedBoundBox);
+        box.SetCenterAndHalfSize(center, GetHalfSize(size));
+        return box;
     }
 
     /// <summary>
@@ -197,15 +224,54 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     /// <remarks>
     /// Negative scope components are normalized by absolute value.
     /// </remarks>
+    /// <exception cref="OverflowException">
+    /// A scope magnitude is not representable, or the centered box would place
+    /// an endpoint outside the scalar domain.
+    /// </exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedBoundBox FromCenterAndScope(Vector3d center, Vector3d scope)
     {
-        Vector3d normalizedScope = Vector3d.Abs(scope);
-        return new FixedBoundBox
-        {
-            Min = center - normalizedScope,
-            Max = center + normalizedScope
-        };
+        var box = default(FixedBoundBox);
+        box.SetCenterAndHalfSize(center, GetScopeMagnitude(scope));
+        return box;
+    }
+
+    /// <summary>
+    /// Creates the representable-domain intersection of a box described by a
+    /// center point and total size.
+    /// </summary>
+    /// <remarks>
+    /// Negative size components are normalized by absolute value and odd raw-
+    /// unit sizes divide outward. Endpoints outside the scalar domain are
+    /// explicitly clipped to <see cref="Fixed64.MinValue"/> or
+    /// <see cref="Fixed64.MaxValue"/>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedBoundBox FromCenterAndSizeClippedToDomain(Vector3d center, Vector3d size)
+    {
+        var box = default(FixedBoundBox);
+        box.SetCenterAndHalfSizeClippedToDomain(center, GetHalfSize(size));
+        return box;
+    }
+
+    /// <summary>
+    /// Creates the representable-domain intersection of a box described by a
+    /// center point and half-size scope.
+    /// </summary>
+    /// <remarks>
+    /// Negative scope components are normalized by absolute value. Endpoints
+    /// outside the scalar domain are explicitly clipped to
+    /// <see cref="Fixed64.MinValue"/> or <see cref="Fixed64.MaxValue"/>.
+    /// </remarks>
+    /// <exception cref="OverflowException">
+    /// A scope magnitude is not representable.
+    /// </exception>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedBoundBox FromCenterAndScopeClippedToDomain(Vector3d center, Vector3d scope)
+    {
+        var box = default(FixedBoundBox);
+        box.SetCenterAndHalfSizeClippedToDomain(center, GetScopeMagnitude(scope));
+        return box;
     }
 
     #endregion
@@ -215,26 +281,29 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     /// <summary>
     /// Orients the bounding box with the given center and size.
     /// </summary>
+    /// <exception cref="OverflowException">
+    /// The requested bounds would place an endpoint outside the scalar domain.
+    /// </exception>
     public void Orient(Vector3d center, Vector3d? size)
     {
-        Vector3d half = size.HasValue
-            ? Vector3d.Abs(size.Value) * Fixed64.Half
-            : (Max - Min) * Fixed64.Half;
+        if (size.HasValue)
+        {
+            SetCenterAndHalfSize(center, GetHalfSize(size.Value));
+            return;
+        }
 
-        Min = center - half;
-        Max = center + half;
+        Center = center;
     }
 
     /// <summary>
     /// Resizes the bounding box to the specified size, keeping the same center.
     /// </summary>
+    /// <exception cref="OverflowException">
+    /// The requested size would place an endpoint outside the scalar domain.
+    /// </exception>
     public void Resize(Vector3d size)
     {
-        Vector3d half = Vector3d.Abs(size) * Fixed64.Half;
-        Vector3d center = (Min + Max) * Fixed64.Half;
-
-        Min = center - half;
-        Max = center + half;
+        SetCenterAndHalfSize(Center, GetHalfSize(size));
     }
 
     /// <summary>
@@ -252,11 +321,13 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     /// <remarks>
     /// Negative scope components are normalized by absolute value.
     /// </remarks>
+    /// <exception cref="OverflowException">
+    /// A scope magnitude is not representable, or the requested bounds would
+    /// place an endpoint outside the scalar domain.
+    /// </exception>
     public void SetBoundingBox(Vector3d center, Vector3d scope)
     {
-        Vector3d normalizedScope = Vector3d.Abs(scope);
-        Min = center - normalizedScope;
-        Max = center + normalizedScope;
+        SetCenterAndHalfSize(center, GetScopeMagnitude(scope));
     }
 
     /// <summary>
@@ -535,6 +606,21 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
         destination[7] = new Vector3d(Max.X, Max.Y, Max.Z);
     }
 
+    /// <summary>
+    /// Gets the exact additional volume required for this box's union with
+    /// <paramref name="other"/>, floored to integer world units and clamped to
+    /// <see cref="long.MaxValue"/>.
+    /// </summary>
+    /// <remarks>
+    /// The three endpoint spans and both volumes remain in exact unsigned
+    /// 192-bit arithmetic. This metric is suitable for spatial-index insertion
+    /// heuristics even when either box has an unrepresentable
+    /// <see cref="Proportions"/> component.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public long GetVolumeExpansionCost(FixedBoundBox other) =>
+        WideGeometry.GetVolumeExpansionCost(Min, Max, other.Min, other.Max);
+
     #endregion
 
     #region Static Ops
@@ -606,6 +692,47 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
             return hash;
         }
     }
+
+    #endregion
+
+    #region Helpers
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SetCenterAndHalfSize(Vector3d center, Vector3d halfSize)
+    {
+        if (!Vector3d.TrySubtract(center, halfSize, out Vector3d min)
+            || !Vector3d.TryAdd(center, halfSize, out Vector3d max))
+        {
+            throw CreateUnrepresentableBoundsException();
+        }
+
+        Min = min;
+        Max = max;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SetCenterAndHalfSizeClippedToDomain(Vector3d center, Vector3d halfSize)
+    {
+        Vector3d min = center - halfSize;
+        Vector3d max = center + halfSize;
+        Min = min;
+        Max = max;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector3d GetHalfSize(Vector3d size) => new(
+        WideGeometry.GetHalfSizeMagnitude(size.X),
+        WideGeometry.GetHalfSizeMagnitude(size.Y),
+        WideGeometry.GetHalfSizeMagnitude(size.Z));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector3d GetScopeMagnitude(Vector3d scope) => new(
+        WideGeometry.GetExtentMagnitude(scope.X),
+        WideGeometry.GetExtentMagnitude(scope.Y),
+        WideGeometry.GetExtentMagnitude(scope.Z));
+
+    private static OverflowException CreateUnrepresentableBoundsException() =>
+        new("The centered box places at least one endpoint outside the representable Fixed64 range.");
 
     #endregion
 }

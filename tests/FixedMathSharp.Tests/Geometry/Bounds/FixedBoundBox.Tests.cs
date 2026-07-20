@@ -63,6 +63,46 @@ public class FixedBoundBoxTests
         Assert.Equal(new Vector3d(2, 3, 4), box.Scope);
     }
 
+    [Fact]
+    public void DerivedMetadata_FullDomainAndRawUnitSpans_RemainsExactOrFailsHonestly()
+    {
+        Fixed64 sameSignMin = Fixed64.FromRaw(long.MaxValue - 3);
+        Fixed64 sameSignMax = Fixed64.FromRaw(long.MaxValue - 1);
+        var sameSign = FixedBoundBox.FromMinMax(
+            new Vector3d(sameSignMin, Fixed64.FromRaw(1), Fixed64.FromRaw(3)),
+            new Vector3d(sameSignMax, Fixed64.FromRaw(2), Fixed64.FromRaw(6)));
+
+        Assert.Equal(
+            new Vector3d(
+                Fixed64.FromRaw(long.MaxValue - 2),
+                Fixed64.FromRaw(2),
+                Fixed64.FromRaw(4)),
+            sameSign.Center);
+        Assert.Equal(
+            new Vector3d(Fixed64.FromRaw(2), Fixed64.MinIncrement, Fixed64.FromRaw(3)),
+            sameSign.Proportions);
+        Assert.Equal(
+            new Vector3d(Fixed64.MinIncrement, Fixed64.MinIncrement, Fixed64.FromRaw(2)),
+            sameSign.Scope);
+
+        Fixed64 quarterDomain = Fixed64.FromRaw(1L << 62);
+        var wide = FixedBoundBox.FromMinMax(
+            new Vector3d(-quarterDomain, Fixed64.Zero, -Fixed64.One),
+            new Vector3d(quarterDomain, Fixed64.One, Fixed64.One));
+
+        Assert.Equal(new Vector3d(Fixed64.Zero, Fixed64.Half, Fixed64.Zero), wide.Center);
+        Assert.Equal(new Vector3d(quarterDomain, Fixed64.Half, Fixed64.One), wide.Scope);
+        Assert.Throws<OverflowException>(() => _ = wide.Proportions);
+
+        var fullDomain = FixedBoundBox.FromMinMax(
+            new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MaxValue, Fixed64.One, Fixed64.One));
+        fullDomain.Center = fullDomain.Center;
+
+        Assert.Equal(Fixed64.Zero, fullDomain.Center.X);
+        Assert.Throws<OverflowException>(() => _ = fullDomain.Scope);
+    }
+
     #endregion
 
     #region Test: Containment
@@ -548,6 +588,91 @@ public class FixedBoundBoxTests
     }
 
     [Fact]
+    public void Center_Setter_RawUnitSpan_PreservesRequestedCenterWithConservativeScope()
+    {
+        var box = FixedBoundBox.FromMinMax(
+            new Vector3d(Fixed64.FromRaw(1), Fixed64.FromRaw(3), Fixed64.FromRaw(5)),
+            new Vector3d(Fixed64.FromRaw(2), Fixed64.FromRaw(6), Fixed64.FromRaw(10)));
+
+        box.Center = new Vector3d(
+            Fixed64.FromRaw(11),
+            Fixed64.FromRaw(20),
+            Fixed64.FromRaw(30));
+
+        Assert.Equal(
+            new Vector3d(Fixed64.FromRaw(10), Fixed64.FromRaw(18), Fixed64.FromRaw(27)),
+            box.Min);
+        Assert.Equal(
+            new Vector3d(Fixed64.FromRaw(12), Fixed64.FromRaw(22), Fixed64.FromRaw(33)),
+            box.Max);
+        Assert.Equal(
+            new Vector3d(Fixed64.FromRaw(11), Fixed64.FromRaw(20), Fixed64.FromRaw(30)),
+            box.Center);
+    }
+
+    [Fact]
+    public void CenterResizeAndOrient_UnrepresentableEndpoint_ThrowWithoutMutation()
+    {
+        var box = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(4, 6, 8));
+        FixedBoundBox original = box;
+
+        Assert.Throws<OverflowException>(() => box.Center = new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero));
+        Assert.Equal(original, box);
+
+        box = FixedBoundBox.FromCenterAndSize(
+            new Vector3d(Fixed64.MaxValue - Fixed64.One, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(2, 2, 2));
+        original = box;
+
+        Assert.Throws<OverflowException>(() => box.Resize(new Vector3d(4, 2, 2)));
+        Assert.Equal(original, box);
+        Assert.Throws<OverflowException>(() => box.Orient(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            null));
+        Assert.Equal(original, box);
+    }
+
+    [Fact]
+    public void CenteredFactories_UnrepresentableEndpointOrMagnitude_Throw()
+    {
+        Assert.Throws<OverflowException>(() => FixedBoundBox.FromCenterAndSize(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(2, 2, 2)));
+        Assert.Throws<OverflowException>(() => FixedBoundBox.FromCenterAndSize(
+            new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(2, 2, 2)));
+        Assert.Throws<OverflowException>(() => FixedBoundBox.FromCenterAndScope(
+            Vector3d.Zero,
+            new Vector3d(Fixed64.MinValue, Fixed64.One, Fixed64.One)));
+
+        FixedBoundBox rawUnit = FixedBoundBox.FromCenterAndSize(
+            new Vector3d(Fixed64.FromRaw(10), Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MinIncrement, Fixed64.MinValue, Fixed64.MinIncrement));
+
+        Assert.Equal(Fixed64.FromRaw(9), rawUnit.Min.X);
+        Assert.Equal(Fixed64.FromRaw(11), rawUnit.Max.X);
+        Assert.Equal(Fixed64.FromRaw(1L << 62), rawUnit.Scope.Y);
+        Assert.Throws<OverflowException>(() => _ = rawUnit.Proportions);
+    }
+
+    [Fact]
+    public void ClippedCenteredFactories_ExplicitlyIntersectWithScalarDomain()
+    {
+        FixedBoundBox fromSize = FixedBoundBox.FromCenterAndSizeClippedToDomain(
+            new Vector3d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.Zero),
+            new Vector3d(2, 2, 2));
+        FixedBoundBox fromScope = FixedBoundBox.FromCenterAndScopeClippedToDomain(
+            new Vector3d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.Zero),
+            new Vector3d(-Fixed64.One, -Fixed64.One, -Fixed64.One));
+
+        var expected = FixedBoundBox.FromMinMax(
+            new Vector3d(Fixed64.MaxValue - Fixed64.One, Fixed64.MinValue, -Fixed64.One),
+            new Vector3d(Fixed64.MaxValue, Fixed64.MinValue + Fixed64.One, Fixed64.One));
+        Assert.Equal(expected, fromSize);
+        Assert.Equal(expected, fromScope);
+    }
+
+    [Fact]
     public void Proportions_Setter_ResizesBoundsWithoutChangingCenter()
     {
         var box = FixedBoundBox.FromCenterAndSize(new Vector3d(1, 2, 3), new Vector3d(4, 4, 4));
@@ -677,6 +802,27 @@ public class FixedBoundBoxTests
     }
 
     [Fact]
+    public void GetVolumeExpansionCost_UsesExactFullDomainVolumeAndClampsOnlyThePublicMetric()
+    {
+        var unit = FixedBoundBox.FromMinMax(Vector3d.Zero, new Vector3d(2, 2, 2));
+        var contained = FixedBoundBox.FromMinMax(Vector3d.Zero, Vector3d.One);
+        var expanded = FixedBoundBox.FromMinMax(Vector3d.Zero, new Vector3d(3, 3, 3));
+        var point = FixedBoundBox.FromMinMax(Vector3d.Zero, Vector3d.Zero);
+        var largeRepresentableCost = FixedBoundBox.FromMinMax(
+            Vector3d.Zero,
+            new Vector3d((Fixed64)2_000_000, (Fixed64)2_000_000, (Fixed64)2));
+        var fullDomain = FixedBoundBox.FromMinMax(
+            new Vector3d(Fixed64.MinValue, Fixed64.MinValue, Fixed64.MinValue),
+            new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue));
+
+        Assert.Equal(0L, unit.GetVolumeExpansionCost(contained));
+        Assert.Equal(19L, unit.GetVolumeExpansionCost(expanded));
+        Assert.Equal(8_000_000_000_000L, point.GetVolumeExpansionCost(largeRepresentableCost));
+        Assert.Equal(long.MaxValue, unit.GetVolumeExpansionCost(fullDomain));
+        Assert.Equal(0L, fullDomain.GetVolumeExpansionCost(unit));
+    }
+
+    [Fact]
     public void FindClosestPointsBetweenBoxes_ReturnsClosestPointOnFirstBoxSurface()
     {
         var a = FixedBoundBox.FromCenterAndSize(new Vector3d(0, 0, 0), new Vector3d(2, 2, 2));
@@ -706,6 +852,22 @@ public class FixedBoundBoxTests
 
         // Check that deserialized values match the original
         Assert.Equal(originalValue, deserializedValue);
+    }
+
+    [Fact]
+    public void JsonSerialization_FullDomainState_PreservesExactDerivedCenter()
+    {
+        var originalValue = FixedBoundBox.FromMinMax(
+            new Vector3d(Fixed64.FromRaw(long.MaxValue - 3), Fixed64.MinValue, -Fixed64.One),
+            new Vector3d(Fixed64.FromRaw(long.MaxValue - 1), Fixed64.MaxValue, Fixed64.One));
+
+        byte[] json = JsonSerializer.SerializeToUtf8Bytes(originalValue);
+        FixedBoundBox deserializedValue = JsonSerializer.Deserialize<FixedBoundBox>(json);
+
+        Assert.Equal(originalValue, deserializedValue);
+        Assert.Equal(
+            new Vector3d(Fixed64.FromRaw(long.MaxValue - 2), Fixed64.Zero, Fixed64.Zero),
+            deserializedValue.Center);
     }
 
     [Fact]

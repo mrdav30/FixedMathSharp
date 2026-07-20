@@ -277,6 +277,47 @@ lattice. These methods therefore promise containment, not a mathematically
 minimum enclosing sphere. Refresh golden values that previously depended on
 intermediate saturation or nearest-radius rounding.
 
+### Full-Domain Derived Bounds
+
+`FixedBoundArea` and `FixedBoundBox` now derive centers and extents without
+saturating endpoint addition or subtraction. `Center` uses a nearest-even
+Q32.32 midpoint. `Size` / `Proportions` return the exact endpoint span and throw
+`OverflowException` when a positive component cannot fit in `Fixed64`.
+`Scope` rounds an odd raw-unit span outward so it never under-represents the
+stored endpoints; only a half-extent outside the positive scalar domain throws.
+
+This also changes centered construction and mutation at raw-unit boundaries:
+
+- odd raw-unit sizes expand by one raw unit when divided into symmetric
+  half-extents;
+- recentering an odd-span bound can expand that axis by one raw unit so the
+  requested lattice center remains exact;
+- `Fixed64.MinValue` is valid as a size component because its magnitude can be
+  halved before representability is decided, but it is not valid as a scope
+  component because its positive magnitude is unrepresentable; and
+- centered factories, center/size setters, `Resize`, `Orient`, and
+  `SetBoundingBox` validate all endpoints before committing. They throw
+  `OverflowException` without partially mutating an existing bound when an
+  endpoint would leave the scalar domain.
+
+Code that intentionally models only the representable portion of geometry
+extending beyond the Q32.32 coordinate domain must opt into
+`FromCenterAndSizeClippedToDomain` or
+`FromCenterAndScopeClippedToDomain`. The explicit name distinguishes domain
+clipping from an exact centered bound; the ordinary factories no longer clip
+silently. `FixedBoundCircle.Bounds` deliberately uses the clipped contract so
+a circle crossing a scalar face still returns the AABB of its representable
+domain intersection.
+
+Audit callers that assumed every stored min/max interval had a representable
+full-size vector, or that expected odd raw-unit sizes to round inward.
+`FixedRange.MidPoint` now uses the same full-domain midpoint contract, and
+`FixedRange.Length` throws rather than saturating an unrepresentable signed
+endpoint difference. Spatial indexes should use
+`FixedBoundBox.GetVolumeExpansionCost` instead of multiplying derived
+`Proportions`: it retains both union volumes in exact unsigned 192-bit
+arithmetic and clamps only the final integer heuristic to `long.MaxValue`.
+
 ### FixedTransform Local And World Contract
 
 `FixedTransform` no longer hides one mutable matrix behind ambiguous component

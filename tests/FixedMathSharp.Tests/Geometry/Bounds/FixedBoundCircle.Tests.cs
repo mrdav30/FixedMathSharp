@@ -32,6 +32,20 @@ public class FixedBoundCircleTests
     }
 
     [Fact]
+    public void Bounds_CircleCrossingScalarFace_ReturnsRepresentableDomainIntersection()
+    {
+        var circle = new FixedBoundCircle(
+            new Vector2d(Fixed64.MaxValue, Fixed64.MinValue),
+            Fixed64.One);
+
+        Assert.Equal(
+            FixedBoundArea.FromMinMax(
+                new Vector2d(Fixed64.MaxValue - Fixed64.One, Fixed64.MinValue),
+                new Vector2d(Fixed64.MaxValue, Fixed64.MinValue + Fixed64.One)),
+            circle.Bounds);
+    }
+
+    [Fact]
     public void State_WithNegativeRadius_NormalizesRadius()
     {
         var state = new FixedBoundCircle.BoundingCircleState(new Vector2d(4, 5), new Fixed64(-6));

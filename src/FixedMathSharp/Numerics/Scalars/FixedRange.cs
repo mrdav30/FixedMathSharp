@@ -82,25 +82,35 @@ public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
     #region Properties
 
     /// <summary>
-    /// The length of the range, computed as Max - Min.
+    /// The exact signed length of the range, computed as <see cref="Max"/> minus
+    /// <see cref="Min"/>.
     /// </summary>
+    /// <exception cref="OverflowException">
+    /// The signed endpoint difference is outside the representable scalar domain.
+    /// </exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 Length
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Max - Min;
+        get
+        {
+            if (!Fixed64.TrySubtract(Max, Min, out Fixed64 length))
+                throw new OverflowException("The range length is outside the representable Fixed64 domain.");
+
+            return length;
+        }
     }
 
     /// <summary>
-    /// The midpoint of the range.
+    /// The nearest-even Q32.32 midpoint of the range.
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Fixed64 MidPoint
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (Min + Max) * Fixed64.Half;
+        get => FixedMath.Midpoint(Min, Max);
     }
 
     #endregion

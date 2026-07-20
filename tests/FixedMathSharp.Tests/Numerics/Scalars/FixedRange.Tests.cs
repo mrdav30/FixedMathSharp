@@ -1,4 +1,5 @@
 ﻿using MemoryPack;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -39,6 +40,25 @@ public class FixedRangeTests
     {
         var range = new FixedRange(new Fixed64(-5), new Fixed64(15));
         Assert.Equal(new Fixed64(5), range.MidPoint); // Midpoint = (-5 + 15) / 2 = 5
+    }
+
+    [Fact]
+    public void FixedRange_DerivedMetadata_UsesExactFullDomainContract()
+    {
+        var sameSign = new FixedRange(
+            Fixed64.FromRaw(long.MaxValue - 3),
+            Fixed64.FromRaw(long.MaxValue - 1));
+
+        Assert.Equal(Fixed64.FromRaw(long.MaxValue - 2), sameSign.MidPoint);
+        Assert.Equal(Fixed64.FromRaw(2), sameSign.Length);
+
+        Fixed64 quarterDomain = Fixed64.FromRaw(1L << 62);
+        var wide = new FixedRange(-quarterDomain, quarterDomain);
+        var reversedWide = new FixedRange(quarterDomain, -quarterDomain, enforceOrder: false);
+
+        Assert.Equal(Fixed64.Zero, wide.MidPoint);
+        Assert.Throws<OverflowException>(() => _ = wide.Length);
+        Assert.Equal(Fixed64.MinValue, reversedWide.Length);
     }
 
     [Fact]

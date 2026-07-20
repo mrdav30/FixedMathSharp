@@ -15,6 +15,99 @@ namespace FixedMathSharp;
 internal static class WideGeometry
 {
     /// <summary>
+    /// Returns the exact representable size of a normalized scalar interval.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Fixed64 GetIntervalSize(Fixed64 min, Fixed64 max)
+    {
+        ulong span = unchecked((ulong)max.m_rawValue - (ulong)min.m_rawValue);
+        if (span > long.MaxValue)
+            throw new System.OverflowException("The interval size is outside the representable Fixed64 range.");
+
+        return Fixed64.FromRaw((long)span);
+    }
+
+    /// <summary>
+    /// Returns the smallest representable half-extent that contains both ends
+    /// of a normalized scalar interval around its lattice midpoint.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Fixed64 GetIntervalScope(Fixed64 min, Fixed64 max)
+    {
+        ulong span = unchecked((ulong)max.m_rawValue - (ulong)min.m_rawValue);
+        ulong scope = (span >> 1) + (span & 1UL);
+        if (scope > long.MaxValue)
+            throw new System.OverflowException("The interval scope is outside the representable Fixed64 range.");
+
+        return Fixed64.FromRaw((long)scope);
+    }
+
+    /// <summary>
+    /// Returns the representable absolute magnitude of a scalar extent.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Fixed64 GetExtentMagnitude(Fixed64 extent)
+    {
+        if (extent == Fixed64.MinValue)
+            throw new System.OverflowException("The extent magnitude is outside the representable Fixed64 range.");
+
+        return extent.Abs();
+    }
+
+    /// <summary>
+    /// Returns the smallest scalar half-extent whose symmetric interval covers
+    /// the requested size magnitude, including the minimum scalar input.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Fixed64 GetHalfSizeMagnitude(Fixed64 size)
+    {
+        ulong magnitude = size.m_rawValue < 0L
+            ? unchecked(0UL - (ulong)size.m_rawValue)
+            : (ulong)size.m_rawValue;
+        ulong half = (magnitude >> 1) + (magnitude & 1UL);
+        return Fixed64.FromRaw((long)half);
+    }
+
+    /// <summary>
+    /// Returns an exact full-domain AABB union-volume growth metric.
+    /// </summary>
+    internal static long GetVolumeExpansionCost(
+        Vector3d min,
+        Vector3d max,
+        Vector3d otherMin,
+        Vector3d otherMax)
+    {
+        Signed192 volume = GetIntervalVolume(min, max);
+        Vector3d unionMin = Vector3d.Min(min, otherMin);
+        Vector3d unionMax = Vector3d.Max(max, otherMax);
+        Signed192 unionVolume = GetIntervalVolume(unionMin, unionMax);
+        Signed192 growth = WideArithmetic.SubtractSigned192(unionVolume, volume);
+
+        // Q32.32 axis spans produce a Q96.96 product. Shifting by 96 floors
+        // the exact volume to integer world units. Any remaining bit above the
+        // signed 63-bit result range maps to the public metric's upper bound.
+        if (growth.High > 0x0000_0000_7FFF_FFFFUL) // 2,147,483,647: highest 31-bit word that fits after the 96-bit shift.
+            return long.MaxValue;
+
+        ulong floor = (growth.High << 32) | (growth.Middle >> 32);
+        return (long)floor;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Signed192 GetIntervalVolume(Vector3d min, Vector3d max)
+    {
+        ulong x = unchecked((ulong)max.X.m_rawValue - (ulong)min.X.m_rawValue);
+        ulong y = unchecked((ulong)max.Y.m_rawValue - (ulong)min.Y.m_rawValue);
+        ulong z = unchecked((ulong)max.Z.m_rawValue - (ulong)min.Z.m_rawValue);
+        Fixed64.Multiply64To128(x, y, out ulong productHigh, out ulong productLow);
+        Fixed64.Multiply64To128(productLow, z, out ulong lowHigh, out ulong low);
+        Fixed64.Multiply64To128(productHigh, z, out ulong high, out ulong highLow);
+        return WideArithmetic.AddSigned192(
+            new Signed192(0UL, lowHigh, low),
+            new Signed192(high, highLow, 0UL));
+    }
+
+    /// <summary>
     /// Compares an exact 2D distance with the exact sum of two non-negative radii.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -110,14 +110,15 @@ public partial struct FixedBoundCircle : IEquatable<FixedBoundCircle>
     }
 
     /// <summary>
-    /// The normalized axis-aligned area that contains the circle.
+    /// The normalized axis-aligned representable-domain intersection that
+    /// contains every representable point of the circle.
     /// </summary>
     [JsonIgnore]
     [MemoryPackIgnore]
     public FixedBoundArea Bounds
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => FixedBoundArea.FromCenterAndScope(Center, new Vector2d(Radius, Radius));
+        get => FixedBoundArea.FromCenterAndScopeClippedToDomain(Center, new Vector2d(Radius, Radius));
     }
 
     /// <summary>

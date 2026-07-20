@@ -54,6 +54,41 @@ FixedBoundArea sensorArea = FixedBoundArea.FromCenterAndScope(center2d, halfExte
 This keeps public bounds state canonical without asking every caller to sort or
 sanitize the inputs first.
 
+Derived centers use a full-domain nearest-even midpoint. Exact `Size` /
+`Proportions` components are returned only when the endpoint span fits in a
+positive `Fixed64`; wider spans throw `OverflowException` rather than reporting
+a saturated under-size. `Scope` is the smallest representable half-extent that
+conservatively contains both endpoints around the lattice center, so odd raw-
+unit spans round outward. The complete scalar interval from
+`Fixed64.MinValue` through `Fixed64.MaxValue` has neither a representable size
+nor scope and throws for both derived properties.
+
+Centered size construction follows the same conservative rule: an odd raw-unit
+size expands by one raw unit. Recenter, resize, and centered factory operations
+validate every endpoint before committing; an out-of-domain result throws
+`OverflowException` and leaves an existing bound unchanged.
+
+Use `FromCenterAndSizeClippedToDomain` or
+`FromCenterAndScopeClippedToDomain` only when the desired result is explicitly
+the intersection between a mathematical centered bound and the representable
+Q32.32 coordinate domain. These named factories saturate only the out-of-domain
+endpoints and keep the ordinary centered factories strict.
+
+`FixedBoundCircle.Bounds` is an intentional clipped consumer: when a circle
+crosses a scalar face, its derived area contains every representable point of
+the circle instead of throwing or pretending to encode coordinates outside the
+Q32.32 domain.
+
+`FixedRange` follows the same scalar foundation: `MidPoint` is full-domain and
+nearest-even, while `Length` returns the exact signed endpoint difference or
+throws `OverflowException` when that difference is not representable.
+
+`FixedBoundBox.GetVolumeExpansionCost` is the full-domain insertion heuristic
+for spatial indexes. It compares the exact Q96.96 volume growth in unsigned
+192-bit arithmetic, floors only the final integer result, and clamps that
+public `long` metric at `long.MaxValue`. It does not require `Proportions` to be
+representable.
+
 `FixedBoundCircle` and `FixedBoundSphere` normalize radius by absolute value
 through construction, assignment, and serialized state load. `FixedRay` and
 `FixedRay2d` do not normalize direction; returned ray parameters are physical

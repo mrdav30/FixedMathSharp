@@ -87,53 +87,77 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     public Vector2d Max { get; private set; }
 
     /// <summary>
-    /// The center of the area.
+    /// The center of the area, rounded to the nearest-even Q32.32 lattice point.
     /// </summary>
+    /// <remarks>
+    /// Assigning a different center preserves a conservative half-extent. An
+    /// odd raw-unit span can therefore expand by one raw unit so the assigned
+    /// center remains exact and the previous area is not under-represented.
+    /// </remarks>
+    /// <exception cref="OverflowException">
+    /// An assigned center would place an endpoint outside the scalar domain.
+    /// </exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector2d Center
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (Min + Max) * Fixed64.Half;
+        get => new(
+            FixedMath.Midpoint(Min.X, Max.X),
+            FixedMath.Midpoint(Min.Y, Max.Y));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            Vector2d half = (Max - Min) * Fixed64.Half;
-            Min = value - half;
-            Max = value + half;
+            if (value != Center)
+                SetCenterAndHalfSize(value, Scope);
         }
     }
 
     /// <summary>
-    /// The total width and height of the area. Assigned values are normalized by absolute component value.
+    /// The exact total width and height of the area.
     /// </summary>
+    /// <remarks>
+    /// Assigned values are normalized by absolute component value and divided
+    /// outward. An odd raw-unit size therefore expands by one raw unit. Reading
+    /// this property throws rather than returning a saturated value when an
+    /// exact component span is not representable by <see cref="Fixed64"/>.
+    /// </remarks>
+    /// <exception cref="OverflowException">
+    /// A component span is not representable, or an assigned size would place
+    /// an endpoint outside the scalar domain.
+    /// </exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector2d Size
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Max - Min;
+        get => new(
+            WideGeometry.GetIntervalSize(Min.X, Max.X),
+            WideGeometry.GetIntervalSize(Min.Y, Max.Y));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            Vector2d half = Vector2d.Abs(value) * Fixed64.Half;
-            Vector2d center = (Min + Max) * Fixed64.Half;
-            Min = center - half;
-            Max = center + half;
+            SetCenterAndHalfSize(Center, GetHalfSize(value));
         }
     }
 
     /// <summary>
-    /// The half-size of the area in both axes.
+    /// The smallest representable half-extent that conservatively contains the
+    /// area around <see cref="Center"/>.
     /// </summary>
+    /// <exception cref="OverflowException">
+    /// A conservative half-extent is outside the representable scalar domain.
+    /// </exception>
     [JsonIgnore]
     [MemoryPackIgnore]
     public Vector2d Scope
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (Max - Min) * Fixed64.Half;
+        get => new(
+            WideGeometry.GetIntervalScope(Min.X, Max.X),
+            WideGeometry.GetIntervalScope(Min.Y, Max.Y));
     }
 
     /// <summary>
@@ -170,12 +194,18 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// Creates an area from a center point and total size.
     /// </summary>
     /// <remarks>
-    /// Negative size components are normalized by absolute value.
+    /// Negative size components are normalized by absolute value. Odd raw-unit
+    /// sizes are divided outward and therefore expand by one raw unit.
     /// </remarks>
+    /// <exception cref="OverflowException">
+    /// The centered area would place an endpoint outside the scalar domain.
+    /// </exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedBoundArea FromCenterAndSize(Vector2d center, Vector2d size)
     {
-        return FromCenterAndScope(center, size * Fixed64.Half);
+        var area = default(FixedBoundArea);
+        area.SetCenterAndHalfSize(center, GetHalfSize(size));
+        return area;
     }
 
     /// <summary>
@@ -184,15 +214,54 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     /// <remarks>
     /// Negative scope components are normalized by absolute value.
     /// </remarks>
+    /// <exception cref="OverflowException">
+    /// A scope magnitude is not representable, or the centered area would
+    /// place an endpoint outside the scalar domain.
+    /// </exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FixedBoundArea FromCenterAndScope(Vector2d center, Vector2d scope)
     {
-        Vector2d normalizedScope = Vector2d.Abs(scope);
-        return new FixedBoundArea
-        {
-            Min = center - normalizedScope,
-            Max = center + normalizedScope
-        };
+        var area = default(FixedBoundArea);
+        area.SetCenterAndHalfSize(center, GetScopeMagnitude(scope));
+        return area;
+    }
+
+    /// <summary>
+    /// Creates the representable-domain intersection of an area described by a
+    /// center point and total size.
+    /// </summary>
+    /// <remarks>
+    /// Negative size components are normalized by absolute value and odd raw-
+    /// unit sizes divide outward. Endpoints outside the scalar domain are
+    /// explicitly clipped to <see cref="Fixed64.MinValue"/> or
+    /// <see cref="Fixed64.MaxValue"/>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedBoundArea FromCenterAndSizeClippedToDomain(Vector2d center, Vector2d size)
+    {
+        var area = default(FixedBoundArea);
+        area.SetCenterAndHalfSizeClippedToDomain(center, GetHalfSize(size));
+        return area;
+    }
+
+    /// <summary>
+    /// Creates the representable-domain intersection of an area described by a
+    /// center point and half-size scope.
+    /// </summary>
+    /// <remarks>
+    /// Negative scope components are normalized by absolute value. Endpoints
+    /// outside the scalar domain are explicitly clipped to
+    /// <see cref="Fixed64.MinValue"/> or <see cref="Fixed64.MaxValue"/>.
+    /// </remarks>
+    /// <exception cref="OverflowException">
+    /// A scope magnitude is not representable.
+    /// </exception>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FixedBoundArea FromCenterAndScopeClippedToDomain(Vector2d center, Vector2d scope)
+    {
+        var area = default(FixedBoundArea);
+        area.SetCenterAndHalfSizeClippedToDomain(center, GetScopeMagnitude(scope));
+        return area;
     }
 
     #endregion
@@ -392,6 +461,41 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
     {
         return new Vector2d(FixedMath.Max(a.X, b.X), FixedMath.Max(a.Y, b.Y));
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SetCenterAndHalfSize(Vector2d center, Vector2d halfSize)
+    {
+        if (!Vector2d.TrySubtract(center, halfSize, out Vector2d min)
+            || !Vector2d.TryAdd(center, halfSize, out Vector2d max))
+        {
+            throw CreateUnrepresentableBoundsException();
+        }
+
+        Min = min;
+        Max = max;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SetCenterAndHalfSizeClippedToDomain(Vector2d center, Vector2d halfSize)
+    {
+        Vector2d min = center - halfSize;
+        Vector2d max = center + halfSize;
+        Min = min;
+        Max = max;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector2d GetHalfSize(Vector2d size) => new(
+        WideGeometry.GetHalfSizeMagnitude(size.X),
+        WideGeometry.GetHalfSizeMagnitude(size.Y));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector2d GetScopeMagnitude(Vector2d scope) => new(
+        WideGeometry.GetExtentMagnitude(scope.X),
+        WideGeometry.GetExtentMagnitude(scope.Y));
+
+    private static OverflowException CreateUnrepresentableBoundsException() =>
+        new("The centered area places at least one endpoint outside the representable Fixed64 range.");
 
     #endregion
 }
