@@ -172,6 +172,32 @@ internal static partial class WideArithmetic
     }
 
     /// <summary>
+    /// Multiplies a signed nine-word value by a signed three-word value whose
+    /// proven product fits in nine words.
+    /// </summary>
+    internal static Signed576 MultiplySigned576(Signed576 left, Signed192 right)
+    {
+        Span<ulong> leftMagnitude = stackalloc ulong[9];
+        Span<ulong> rightMagnitude = stackalloc ulong[3];
+        GetMagnitude(left, leftMagnitude);
+        GetMagnitude(right, out rightMagnitude[2], out rightMagnitude[1], out rightMagnitude[0]);
+        Span<ulong> product = stackalloc ulong[12];
+        product.Clear();
+        MultiplyMagnitudes(leftMagnitude, rightMagnitude, product);
+
+        if (left.Sign * right.Sign < 0)
+        {
+            ulong carry = 1UL;
+            for (int index = 0; index < 9; index++)
+                product[index] = AddSignedWord(~product[index], 0UL, ref carry);
+        }
+
+        return new Signed576(
+            product[8], product[7], product[6], product[5], product[4],
+            product[3], product[2], product[1], product[0]);
+    }
+
+    /// <summary>
     /// Returns the exact floor of the square root after applying the Q32.32
     /// parameter scale: <c>floor(sqrt(value * 2^64))</c>. The caller must
     /// prove <paramref name="value"/> is nonnegative and less than 2^523 so

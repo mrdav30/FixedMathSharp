@@ -158,6 +158,62 @@ public sealed class WideFiniteAxisArithmeticTests
     }
 
     [Fact]
+    public void ConicProvenFitProducts_MatchBigIntegerAcrossHighWordsAndSigns()
+    {
+        BigInteger left = (BigInteger.One << 430) + (BigInteger.One << 257) + 1;
+        BigInteger narrow = (BigInteger.One << 120) + (BigInteger.One << 65) + 3;
+        BigInteger medium = (BigInteger.One << 250) + (BigInteger.One << 129) + 5;
+
+        AssertSigned576(
+            left * narrow,
+            WideArithmetic.MultiplySigned576(ToSigned576(left), ToSigned192(narrow)));
+        AssertSigned576(
+            -(left * narrow),
+            WideArithmetic.MultiplySigned576(ToSigned576(-left), ToSigned192(narrow)));
+        AssertSigned704(
+            left * medium,
+            WideArithmetic.MultiplySigned576ToSigned704(ToSigned576(left), ToSigned320(medium)));
+        AssertSigned704(
+            -(left * medium),
+            WideArithmetic.MultiplySigned576ToSigned704(ToSigned576(left), ToSigned320(-medium)));
+    }
+
+    [Fact]
+    public void Signed832_MultiplySubtractAndProductSquareRoot_MatchBigIntegerOracle()
+    {
+        BigInteger left = (BigInteger.One << 410) + (BigInteger.One << 321) + 1;
+        BigInteger right = (BigInteger.One << 368) + (BigInteger.One << 129) + 3;
+        BigInteger product = left * right;
+        Signed832 actualProduct = WideArithmetic.MultiplySigned576ToSigned832(
+            ToSigned576(left),
+            ToSigned576(right));
+        AssertSigned832(product, actualProduct);
+        AssertSigned832(
+            -product,
+            WideArithmetic.MultiplySigned576ToSigned832(ToSigned576(-left), ToSigned576(right)));
+
+        BigInteger minuend = (BigInteger.One << 810) + (BigInteger.One << 705);
+        BigInteger subtrahend = (BigInteger.One << 769) + (BigInteger.One << 641) + 1;
+        AssertSigned832(
+            minuend - subtrahend,
+            WideArithmetic.SubtractSigned832(ToSigned832(minuend), ToSigned832(subtrahend)));
+        AssertSigned832(
+            -minuend - subtrahend,
+            WideArithmetic.SubtractSigned832(ToSigned832(-minuend), ToSigned832(subtrahend)));
+
+        BigInteger factor = (BigInteger.One << 120) + 7;
+        AssertSigned576(
+            IntegerSquareRoot(product * factor),
+            WideArithmetic.GetFloorSquareRootOfProduct(actualProduct, ToSigned192(factor)));
+        AssertSigned576(
+            BigInteger.Zero,
+            WideArithmetic.GetFloorSquareRootOfProduct(default, ToSigned192(factor)));
+        AssertSigned576(
+            BigInteger.Zero,
+            WideArithmetic.GetFloorSquareRootOfProduct(actualProduct, default));
+    }
+
+    [Fact]
     public void WideNormalization_SelectsTheLargestMagnitudeAcrossEveryAxis()
     {
         Assert.Equal(
@@ -229,6 +285,12 @@ public sealed class WideFiniteAxisArithmeticTests
         return new Signed320(words[4], words[3], words[2], words[1], words[0]);
     }
 
+    private static Signed192 ToSigned192(BigInteger value)
+    {
+        ulong[] words = ToTwosComplementWords(value, 3);
+        return new Signed192(words[2], words[1], words[0]);
+    }
+
     private static Signed576 ToSigned576(BigInteger value)
     {
         ulong[] words = ToTwosComplementWords(value, 9);
@@ -239,6 +301,14 @@ public sealed class WideFiniteAxisArithmeticTests
     {
         ulong[] words = ToTwosComplementWords(value, 11);
         return new Signed704(words[10], words[9], words[8], words[7], words[6], words[5], words[4], words[3], words[2], words[1], words[0]);
+    }
+
+    private static Signed832 ToSigned832(BigInteger value)
+    {
+        ulong[] words = ToTwosComplementWords(value, 13);
+        return new Signed832(
+            words[12], words[11], words[10], words[9], words[8], words[7], words[6],
+            words[5], words[4], words[3], words[2], words[1], words[0]);
     }
 
     private static ulong[] ToTwosComplementWords(BigInteger value, int wordCount)
@@ -277,6 +347,24 @@ public sealed class WideFiniteAxisArithmeticTests
         {
             value.Word0, value.Word1, value.Word2, value.Word3, value.Word4, value.Word5,
             value.Word6, value.Word7, value.Word8, value.Word9, value.Word10
+        };
+        return FromTwosComplementWords(words, value.Sign);
+    }
+
+    private static void AssertSigned832(BigInteger expected, Signed832 actual)
+    {
+        Assert.Equal(expected, ToBigInteger(actual));
+        Assert.Equal(expected.Sign, actual.Sign);
+        Assert.Equal(expected.IsZero, actual.IsZero);
+    }
+
+    private static BigInteger ToBigInteger(Signed832 value)
+    {
+        ulong[] words =
+        {
+            value.Word0, value.Word1, value.Word2, value.Word3, value.Word4,
+            value.Word5, value.Word6, value.Word7, value.Word8, value.Word9,
+            value.Word10, value.Word11, value.Word12
         };
         return FromTwosComplementWords(words, value.Sign);
     }

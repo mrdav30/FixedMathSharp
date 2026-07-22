@@ -13,6 +13,23 @@ namespace FixedMathSharp;
 internal static partial class WideArithmetic
 {
     /// <summary>
+    /// Multiplies a signed nine-word value by a signed five-word value whose
+    /// proven product fits in eleven words.
+    /// </summary>
+    internal static Signed704 MultiplySigned576ToSigned704(Signed576 left, Signed320 right)
+    {
+        Span<ulong> leftMagnitude = stackalloc ulong[9];
+        Span<ulong> rightMagnitude = stackalloc ulong[5];
+        GetMagnitude(left, leftMagnitude);
+        CopyMagnitude(right, rightMagnitude);
+        Span<ulong> product = stackalloc ulong[14];
+        product.Clear();
+        MultiplyMagnitudes(leftMagnitude, rightMagnitude, product);
+        ApplySigned704Sign(product, left.Sign * right.Sign < 0);
+        return CreateSigned704(product);
+    }
+
+    /// <summary>
     /// Multiplies a nonnegative nine-word value by a nonnegative three-word
     /// value whose proven product fits in eleven words.
     /// </summary>
@@ -130,6 +147,21 @@ internal static partial class WideArithmetic
         GetMagnitude(value, out destination[4], out destination[3], out destination[2], out destination[1], out destination[0]);
     }
 
+    private static Signed704 CreateSigned704(ReadOnlySpan<ulong> words) =>
+        new(
+            words[10], words[9], words[8], words[7], words[6], words[5],
+            words[4], words[3], words[2], words[1], words[0]);
+
+    private static void ApplySigned704Sign(Span<ulong> words, bool negative)
+    {
+        if (!negative)
+            return;
+
+        ulong carry = 1UL;
+        for (int index = 0; index < 11; index++)
+            words[index] = AddSignedWord(~words[index], 0UL, ref carry);
+    }
+
     private static void MultiplyMagnitudes(
         ReadOnlySpan<ulong> left,
         ReadOnlySpan<ulong> right,
@@ -166,6 +198,14 @@ internal static partial class WideArithmetic
         return 64 - Fixed64.CountLeadingZeroes(value.Word0);
     }
 
+    private static int GetBitLength(ReadOnlySpan<ulong> value)
+    {
+        int index = value.Length - 1;
+        while (value[index] == 0UL)
+            index--;
+        return (index * 64) + 64 - Fixed64.CountLeadingZeroes(value[index]);
+    }
+
     private static ulong GetBitPair(Signed704 value, int pairIndex)
     {
         int bitIndex = pairIndex << 1;
@@ -185,6 +225,12 @@ internal static partial class WideArithmetic
             _ => value.Word10,
         };
         return (word >> shift) & 3UL;
+    }
+
+    private static ulong GetBitPair(ReadOnlySpan<ulong> value, int pairIndex)
+    {
+        int bitIndex = pairIndex << 1;
+        return (value[bitIndex >> 6] >> (bitIndex & 63)) & 3UL;
     }
 
     private static void ShiftLeftMagnitude(Span<ulong> value, int bits)

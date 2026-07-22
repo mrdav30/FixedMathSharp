@@ -568,33 +568,6 @@ namespace FixedMathSharp
             return Fixed64.FromRaw(from.m_rawValue);
         }
 
-        /// <summary>
-        /// Adds two <see cref="long"/> values and checks for overflow.
-        /// If an overflow occurs during addition, the <paramref name="overflow"/> parameter is set to true.
-        /// </summary>
-        /// <param name="x">The first operand to add.</param>
-        /// <param name="y">The second operand to add.</param>
-        /// <param name="overflow">
-        /// A reference parameter that is set to true if an overflow is detected during the addition.
-        /// The existing value of <paramref name="overflow"/> is preserved if already true.
-        /// </param>
-        /// <returns>The sum of <paramref name="x"/> and <paramref name="y"/>.</returns>
-        /// <remarks>
-        /// Overflow is detected by checking for a change in the sign bit that indicates a wrap-around.
-        /// Additionally, a special check is performed for adding <see cref="Fixed64.MinValue"/> and -1, 
-        /// as this is a known edge case for overflow.
-        /// </remarks>
-        public static long AddOverflowHelper(long x, long y, ref bool overflow)
-        {
-            long sum = x + y;
-            // Check for overflow using sign bit changes
-            overflow |= ((x ^ y ^ sum) & MIN_VALUE_L) != 0;
-            // Special check for the case when x is long.Fixed64.MinValue and y is negative
-            if (x == long.MinValue && y == -1)
-                overflow = true;
-            return sum;
-        }
-
         #endregion
     }
 }

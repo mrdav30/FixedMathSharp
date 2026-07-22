@@ -309,6 +309,37 @@ public class FixedBoundFrustumTests
     }
 
     [Fact]
+    public void BoxSphereAndRayClassification_RespectEveryFrustumPlane()
+    {
+        var frustum = new FixedBoundFrustum(Fixed4x4.Identity);
+        Vector3d[] outsideCenters =
+        {
+            new(Fixed64.Zero, Fixed64.Zero, -Fixed64.One),
+            new(Fixed64.Zero, Fixed64.Zero, Fixed64.Two),
+            new((Fixed64)(-2), Fixed64.Zero, Fixed64.Half),
+            new(Fixed64.Two, Fixed64.Zero, Fixed64.Half),
+            new(Fixed64.Zero, Fixed64.Two, Fixed64.Half),
+            new(Fixed64.Zero, (Fixed64)(-2), Fixed64.Half)
+        };
+
+        foreach (Vector3d center in outsideCenters)
+        {
+            FixedBoundBox box = FixedBoundBox.FromCenterAndScope(
+                center,
+                new Vector3d(
+                    Fixed64.FromFraction(1, 4),
+                    Fixed64.FromFraction(1, 4),
+                    Fixed64.FromFraction(1, 4)));
+            var sphere = new FixedBoundSphere(center, Fixed64.FromFraction(1, 4));
+            var ray = new FixedRay(center, Vector3d.Zero);
+
+            Assert.Equal(FixedEnclosureType.Disjoint, frustum.Contains(box));
+            Assert.Equal(FixedEnclosureType.Disjoint, frustum.Contains(sphere));
+            Assert.Null(frustum.Intersects(ray));
+        }
+    }
+
+    [Fact]
     public void Constructor_PlaneArray_ValidatesLengthAndCopiesPlanes()
     {
         FixedPlane[] planes =

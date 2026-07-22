@@ -591,6 +591,41 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void ProjectNonNegativeDifferenceParameter_NearUnitAxisReturnsParametricDistance()
+    {
+        Fixed64 length = (Fixed64)1_000_000_000;
+        var direction = new Vector3d(
+            Fixed64.One - Fixed64.Epsilon * Fixed64.Half,
+            Fixed64.Zero,
+            Fixed64.Zero);
+        Assert.True(new FixedRay(Vector3d.Zero, direction).TryGetPoint(length, out Vector3d target));
+
+        Fixed64 result = Vector3d.ProjectNonNegativeDifferenceParameter(
+            target,
+            Vector3d.Zero,
+            direction);
+
+        Assert.Equal(length, result);
+    }
+
+    [Fact]
+    public void ProjectNonNegativeDifferenceParameter_DegenerateNegativeAndOverflowingResultsAreDefined()
+    {
+        Assert.Equal(Fixed64.Zero, Vector3d.ProjectNonNegativeDifferenceParameter(
+            Vector3d.One,
+            Vector3d.Zero,
+            Vector3d.Zero));
+        Assert.Equal(Fixed64.Zero, Vector3d.ProjectNonNegativeDifferenceParameter(
+            -Vector3d.One,
+            Vector3d.Zero,
+            Vector3d.One));
+        Assert.Equal(Fixed64.MaxValue, Vector3d.ProjectNonNegativeDifferenceParameter(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            Vector3d.Zero,
+            new Vector3d(Fixed64.MinIncrement, Fixed64.Zero, Fixed64.Zero)));
+    }
+
+    [Fact]
     public void MultiplyInPlace_Overloads_ModifyVectorCorrectly()
     {
         var vector = new Vector3d(2, 3, 4);
@@ -761,6 +796,25 @@ public class Vector3dTests
         var planeNormal = new Vector3d(0, 1, 0); // Y-plane.
         var result = Vector3d.ProjectOnPlane(v1, planeNormal);
         Assert.Equal(new Vector3d(1, 0, 1), result);
+    }
+
+    [Fact]
+    public void GetNormalizedProjectionOnPlane_NearUnitNormalRemainsExactlyOrthogonalInPlane()
+    {
+        var normal = new Vector3d(
+            Fixed64.FromFraction(3, 5),
+            Fixed64.FromFraction(4, 5) + Fixed64.MinIncrement,
+            Fixed64.Zero);
+        Vector3d expected = new Vector3d(normal.Y, -normal.X, Fixed64.Zero).Normalized;
+
+        Vector3d result = Vector3d.GetNormalizedProjectionOnPlane(Vector3d.Right, normal);
+
+        Assert.True((result.X - expected.X).Abs() <= Fixed64.MinIncrement);
+        Assert.True((result.Y - expected.Y).Abs() <= Fixed64.MinIncrement);
+        Assert.Equal(Fixed64.Zero, result.Z);
+        Assert.True(Vector3d.Dot(result, normal).Abs() <= Fixed64.MinIncrement);
+        Assert.True(result.IsNormalized());
+        Assert.Equal(Vector3d.Right, Vector3d.GetNormalizedProjectionOnPlane(Vector3d.Right, Vector3d.Zero));
     }
 
     #endregion

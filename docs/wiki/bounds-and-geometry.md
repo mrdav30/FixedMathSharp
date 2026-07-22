@@ -15,7 +15,7 @@ Use 3D types for volume and spatial math:
 - `FixedRay`: 3D ray intersection primitive.
 - `FixedPlane`: 3D plane classification primitive.
 - `FixedSegment`: finite 3D segment with closest-point, closest-pair, distance,
-  and bounds.
+  finite-axis and finite-cone intervals, and bounds.
 - `FixedTriangle`: ordered 3D triangle with area, normal, bounds, closest-point,
   containment, interpolation, and projected barycentric helpers.
 
@@ -74,6 +74,12 @@ the intersection between a mathematical centered bound and the representable
 Q32.32 coordinate domain. These named factories saturate only the out-of-domain
 endpoints and keep the ordinary centered factories strict.
 
+`FixedBoundBox.FromFiniteConeClippedToDomain` applies that same spatial-proxy
+contract to an apex, base center, accepted normalized axis, and radius. It
+retains the axis's exact fixed-point squared length, computes the least outward
+raw disk extent per coordinate, and clips only conceptual coordinates outside
+the representable domain. Cardinal axes use a constant-time fast path.
+
 `FixedBoundCircle.Bounds` is an intentional clipped consumer: when a circle
 crosses a scalar face, its derived area contains every representable point of
 the circle instead of throwing or pretending to encode coordinates outside the
@@ -95,6 +101,8 @@ through construction, assignment, and serialized state load. `FixedRay` and
 distances only when the direction is normalized by the caller.
 `GetPoint(parameter)` uses a fused multiply-add per coordinate, so reconstruction
 does not saturate or round the direction product before adding the origin.
+`TryGetPoint(parameter, out point)` uses the same fused calculation but returns
+`false` instead of saturating when any final coordinate is not representable.
 
 `FixedBoundSphere.CreateFromBoundingBox`, `CreateFromFrustum`,
 `CreateFromPoints`, and `CreateMerged` retain endpoint differences, distance
@@ -226,6 +234,31 @@ authored `axisHalfLength` plus separate radial and axial expansions; that half
 length must describe the supplied unexpanded cap-center axis. This lets a
 swept-radius caller expand both cap planes without first constructing a
 potentially saturated full length or expanded endpoints.
+
+Finite-cone methods on `FixedSegment` accept either an apex plus normalized
+apex-to-base direction and parametric height, or a center plus normalized
+base-to-apex direction and full parametric height. The conceptual endpoint is
+formed by scaling the supplied near-unit fixed axis; the solver carries that
+axis's exact squared raw length instead of pretending every accepted normalized
+vector has a mathematically exact unit length. The centered form also doubles
+its axial coordinate in wide arithmetic, so an odd raw-unit height is not
+rounded away. They return the closed segment interval across the side, apex,
+flat base, and rim as one convex-volume result. Endpoint
+classification and point-containment overloads use the same inclusive-boundary
+and strict-interior contract as the finite-axis families. Axial clipping,
+conic coefficients, discriminant evaluation, and root selection remain in
+fixed-width wide arithmetic until the final half-even conversion. Use the
+physical-distance overload when the segment length is available and distinct
+spatial hits must not be collapsed by a very long chord's Q32.32 parameter.
+Point-interval overloads instead return deterministic high-resolution lattice
+witnesses through exact authored-chord interpolation, which is preferable when
+the consumer needs hit positions rather than segment parameters.
+
+`Vector3d.ProjectNonNegativeDifferenceParameter` and
+`GetNormalizedProjectionOnPlane` provide the corresponding q-aware consumer
+operations. They retain exact endpoint differences and the supplied axis norm,
+so an accepted near-unit fixed vector is not silently treated as a
+mathematically exact unit vector before the final projection result is narrowed.
 
 The same capsule families are available directly on `FixedRay2d` and
 `FixedRay`; finite-cylinder families are available on `FixedRay`. Ray methods

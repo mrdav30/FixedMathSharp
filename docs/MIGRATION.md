@@ -17,7 +17,9 @@ Use this guide when upgrading from any v6.x package.
 - Update package references to `FixedMathSharp` v7.x, or `FixedMathSharp.Lean`
   v7.x if you use the Lean package.
 - Rebuild first and migrate removed `FixedTransform`, matrix-scale, and
-  `Vector3d.ClosestPointsOnTwoLines` usages.
+  `Vector3d.ClosestPointsOnTwoLines` usages. Replace any direct use of the
+  removed `FixedMath.AddOverflowHelper`; it was an unused low-level helper, not
+  part of the fixed-point arithmetic contract.
 - Decide explicitly whether each transform access is local or world space.
 - Audit chained multiply/divide calculations that rely on an intermediate
   saturated result; use `TryMultiplyDivide` when the mathematical expression
@@ -106,6 +108,15 @@ if (!Fixed64.TryMultiplyDivide(first, second, third, divisor, out result))
 
 These are opt-in APIs. Existing operators retain their public saturating
 contract.
+
+`FixedMath.AddOverflowHelper` has been removed. For checked integral code, use
+the language's `checked` context. A caller that deliberately needs the former
+wrapped-sum-plus-flag behavior can keep that policy locally:
+
+```csharp
+long sum = unchecked(left + right);
+overflow |= ((left ^ sum) & (right ^ sum)) < 0;
+```
 
 `Fixed64.MultiplyAdd(left, right, addend)` provides the corresponding fused
 multiply-add contract. It rounds once and saturates only the final result;
@@ -591,6 +602,7 @@ rg -n "\.(Position|Rotation|Scale|EulerAngles|PositionXZ|RotationXZRadians|Scale
 rg -n "\.Parent\s*=" src tests
 rg -n "ExtractScale|SetLossyScale|\.Scale\b" src tests
 rg -n "ClosestPointsOnTwoLines" src tests
+rg -n "AddOverflowHelper" src tests
 rg -n "WriteTransform" src tests
 ```
 

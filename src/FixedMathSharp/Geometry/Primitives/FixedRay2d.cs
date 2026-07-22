@@ -68,6 +68,33 @@ public partial struct FixedRay2d : IEquatable<FixedRay2d>
         Fixed64.MultiplyAdd(Direction.Y, parameter, Position.Y));
 
     /// <summary>
+    /// Attempts to get the point at the specified ray parameter with one final
+    /// round-half-to-even conversion per coordinate.
+    /// </summary>
+    /// <param name="parameter">The parametric distance along the ray direction.</param>
+    /// <param name="point">
+    /// The point when every final coordinate is representable; otherwise,
+    /// <see langword="default"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when every final coordinate is representable;
+    /// otherwise, <see langword="false"/>.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly bool TryGetPoint(Fixed64 parameter, out Vector2d point)
+    {
+        if (!Fixed64.TryMultiplyAdd(Direction.X, parameter, Position.X, out Fixed64 x)
+            || !Fixed64.TryMultiplyAdd(Direction.Y, parameter, Position.Y, out Fixed64 y))
+        {
+            point = default;
+            return false;
+        }
+
+        point = new Vector2d(x, y);
+        return true;
+    }
+
+    /// <summary>
     /// Finds the first forward intersection with the specified bounding area, including boundary-only contact.
     /// </summary>
     public Fixed64? Intersects(FixedBoundArea area)

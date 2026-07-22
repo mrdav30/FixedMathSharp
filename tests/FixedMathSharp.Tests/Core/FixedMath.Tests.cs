@@ -756,38 +756,4 @@ public class FixedMathTests
 
     #endregion
 
-    #region Test: AddOverflowHelper Method
-
-    [Fact]
-    public void AddOverflowHelper_NoOverflow_ReturnsCorrectSum()
-    {
-        bool overflow = false;
-        long x = 10;
-        long y = 20;
-        var result = FixedMath.AddOverflowHelper(x, y, ref overflow);
-        Assert.Equal(30, result);
-        Assert.False(overflow);
-    }
-
-    [Fact]
-    public void AddOverflowHelper_PositiveOverflow_SetsOverflowFlag()
-    {
-        bool overflow = false;
-        long x = long.MaxValue;
-        long y = 1;
-        _ = FixedMath.AddOverflowHelper(x, y, ref overflow);
-        Assert.True(overflow);
-    }
-
-    [Fact]
-    public void AddOverflowHelper_NegativeOverflow_SetsOverflowFlag()
-    {
-        bool overflow = false;
-        long x = long.MinValue;
-        long y = -1;
-        _ = FixedMath.AddOverflowHelper(x, y, ref overflow);
-        Assert.True(overflow);
-    }
-
-    #endregion
 }

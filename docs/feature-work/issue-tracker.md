@@ -19,21 +19,50 @@
 
 None.
 
-## Performance Investigation Queue
-
-Performance issues should stay in the benchmark plan unless they become a
-confirmed runtime defect. Current queue:
-
-- Benchmark any proposed single-limb-denominator path for the general
-  `Fixed64.TryGetSignedRawRatio(Signed576, Signed576, ...)` contract before
-  replacing its fixed-limb divider. Exact coordinate interpolation now owns a
-  narrower `Signed320 / Signed192` path whose positive single-word denominator
-  and representable quotient are construction invariants; it reduced the
-  existing segment reconstruction benchmark from roughly 514/759 nanoseconds
-  to about 121/118 nanoseconds at unit/100,000 scale. Do not generalize those
-  invariants to arbitrary signed 576-bit callers without separate evidence.
-
 ## Resolved Issues
+
+### FMS-Issue-017: Finite-cone segment intersections were not full-domain
+
+**Discovered:** 2026-07-18
+
+**Resolved:** 2026-07-21
+
+**Source:** downstream Gravitas conic-query audit
+
+FixedMathSharp now owns one allocation-free finite-cone segment reducer instead
+of leaving consumers to build conic quadratics from saturating `Fixed64`
+intermediates. Apex-authored and centered APIs provide closed parameter and
+physical-distance intervals plus matching inclusive/strict point containment.
+Accepted near-unit axes retain their exact squared raw length through axial and
+radial classification, while the centered form uses a doubled axial coordinate
+to preserve odd raw heights. Constant, linear, positive, and negative polynomial
+classification stays in fixed-width wide arithmetic through discriminant and
+root selection, with one final nearest-even Q32.32 conversion. The closed convex
+interval owns side, apex, flat-base, and rim contact without a second feature
+solver or a deduplication collection. Companion contracts provide exact-or-false
+ray point reconstruction, q-aware axial projection and radial- plane
+normalization for accepted near-unit axes, and conservative finite-cone bounds
+clipped to the representable coordinate domain. The bounds reducer derives the
+least outward raw disk extent directly from the exact axis norm.
+
+Focused regressions cover extreme crossings, tangent versus one-raw-unit miss,
+opposite-lobe rejection, generator and axis-dominant chords, starts inside,
+authored endpoint identity for above- and below-unit non-cardinal axes,
+zero-radius generators, long-chord parameter collapse versus physical distance
+and high-resolution lattice witnesses, strict/inclusive containment, invalid
+input, and exact midpoint correction for roots within less than one raw unit of
+a half-even boundary. Gravitas consumes the centered distance interval for
+cone-collider raycasts and the apex point interval for concave-mesh edge
+reduction. The distinct case where a cone intersects a triangle face interior
+without an edge crossing remains a downstream cone/triangle hardening issue.
+
+Verification passed 1,689 core and 8 Chronicler tests in `Release`, 1,668 core
+and 8 Chronicler tests in `ReleaseLean`, and restored exact 100% coverage:
+12,523/12,523 lines, 4,090/4,090 branches, and 1,887/1,887 ReportGenerator
+methods. The downstream warmed 64-target Gravitas rows measured about 867.8
+microseconds for cone-collider raycasts, 3.798 milliseconds for cone-volume
+overlap against concave meshes, and 1.260 milliseconds for the oblique
+long/narrow bounds case, with zero managed allocation.
 
 ### FMS-Issue-016: Derived area and box center/extent paths were not full-domain
 
@@ -41,17 +70,18 @@ confirmed runtime defect. Current queue:
 
 **Resolved:** 2026-07-20
 
-**Source:** sphere-construction full-domain audit and downstream bounds-consumer audit
+**Source:** sphere-construction full-domain audit and downstream bounds-consumer
+audit
 
 `FixedBoundArea` and `FixedBoundBox` now derive centers with exact nearest-even
 midpoints, derive scopes with a conservative ceiling after the exact endpoint
 difference, and expose exact full sizes only when that public `Fixed64` result
-is representable. An inherently unrepresentable size or scope throws instead
-of silently returning a saturated under-estimate. Centered construction,
-resize, and recenter operations validate both endpoints before committing, so
-failed changes are atomic; odd-raw centered sizes expand outward by one raw
-unit when necessary to preserve the requested lattice center without
-under-bounding. Explicit `FromCenterAndSizeClippedToDomain` and
+is representable. An inherently unrepresentable size or scope throws instead of
+silently returning a saturated under-estimate. Centered construction, resize,
+and recenter operations validate both endpoints before committing, so failed
+changes are atomic; odd-raw centered sizes expand outward by one raw unit when
+necessary to preserve the requested lattice center without under-bounding.
+Explicit `FromCenterAndSizeClippedToDomain` and
 `FromCenterAndScopeClippedToDomain` factories cover the separate spatial-proxy
 contract where the intended shape may extend outside the representable
 coordinate domain.
@@ -61,29 +91,28 @@ SwiftCollections' `FixedBoundVolume` to one canonical `FixedBoundBox`, taught
 `SwiftFixedOctree` to compare child spans in unsigned raw arithmetic without
 materializing an unrepresentable full size, and moved fixed-BVH insertion cost
 to exact 192-bit union-volume growth. `FixedBoundCircle.Bounds` now explicitly
-clips its representable-domain intersection. GridForge grid centers and
-Gravitas mesh/slab reference centers use the shared exact midpoint, while
-Gravitas broad-phase proxies opt into the explicit clipped contract. Focused
-regressions cover same-sign scalar faces, opposite faces, raw midpoint ties,
-unrepresentable sizes with representable scopes, full-domain intervals and BVH
-unions, atomic failures, circle/proxy clipping, serialization, octree/mesh
-behavior, and mixed mesh-slab hit points.
+clips its representable-domain intersection. GridForge grid centers and Gravitas
+mesh/slab reference centers use the shared exact midpoint, while Gravitas
+broad-phase proxies opt into the explicit clipped contract. Focused regressions
+cover same-sign scalar faces, opposite faces, raw midpoint ties, unrepresentable
+sizes with representable scopes, full-domain intervals and BVH unions, atomic
+failures, circle/proxy clipping, serialization, octree/mesh behavior, and mixed
+mesh-slab hit points.
 
 The final FixedMathSharp Debug coverage run passed 1,655 tests and reported
 13,855/13,855 lines, 3,952/3,952 branches, and 1,808/1,808 methods. The
-allocation-free bounds benchmark improved centered area construction from
-about 63.16 to 35.72 nanoseconds, centered box construction from about 72.50
-to 45.94 nanoseconds, and box min/max mutation from about 36.65 to 2.80
-nanoseconds; direct min/max construction remained effectively flat. The
-downstream canonical `FixedBoundVolume` layout improved copy-plus-center access
-from about 44.24 to 2.37 nanoseconds. Repeated center/size/volume metadata reads
-increased from about 2.84 to 8.83 nanoseconds, still with zero managed
-allocation; the smaller single-source struct was retained because query trees
-copy volumes far more often than they repeatedly rematerialize all metadata.
-The new exact volume-expansion cost measured about 10.46 nanoseconds versus
-17.15 nanoseconds for the reconstructed chained/saturating formula; its
-full-domain clamped case measured about 10.27 nanoseconds, all with zero managed
-allocation.
+allocation-free bounds benchmark improved centered area construction from about
+63.16 to 35.72 nanoseconds, centered box construction from about 72.50 to 45.94
+nanoseconds, and box min/max mutation from about 36.65 to 2.80 nanoseconds;
+direct min/max construction remained effectively flat. The downstream canonical
+`FixedBoundVolume` layout improved copy-plus-center access from about 44.24 to
+2.37 nanoseconds. Repeated center/size/volume metadata reads increased from
+about 2.84 to 8.83 nanoseconds, still with zero managed allocation; the smaller
+single-source struct was retained because query trees copy volumes far more
+often than they repeatedly rematerialize all metadata. The new exact
+volume-expansion cost measured about 10.46 nanoseconds versus 17.15 nanoseconds
+for the reconstructed chained/saturating formula; its full-domain clamped case
+measured about 10.27 nanoseconds, all with zero managed allocation.
 
 ### FMS-Issue-015: Sphere construction and merge paths were not full-domain
 
@@ -91,7 +120,8 @@ allocation.
 
 **Resolved:** 2026-07-20
 
-**Source:** exact radial predicate migration and downstream Gravitas release audit
+**Source:** exact radial predicate migration and downstream Gravitas release
+audit
 
 **Resolution:**
 
@@ -99,24 +129,24 @@ allocation.
 `CreateFromPoints`, and `CreateMerged` now retain midpoint, exact squared-
 distance ordering, Euclidean roots, radius sums, and coordinate interpolation
 without narrowing or saturation before the final Q32.32 result. Required radii
-round outward, every successful construction is revalidated for containment,
-and an unrepresentable deterministic result throws `OverflowException` instead
-of returning a saturated under-bound sphere. Point/frustum construction remains
+round outward, every successful construction is revalidated for containment, and
+an unrepresentable deterministic result throws `OverflowException` instead of
+returning a saturated under-bound sphere. Point/frustum construction remains
 deterministic Ritter-style rather than a minimum-enclosing-sphere solve, and
 merge centers remain constrained to the Q32.32 lattice, so the public contract
 promises containment rather than mathematical minimality.
 
 Extreme-pair seeding compares the exact squared distances from the midpoint to
 the two actual endpoints. Reversed secondary axes therefore cannot select the
-nearer endpoint, and combining coordinate-wise extrema cannot create a
-fictional corner that falsely requires an unrepresentable radius.
+nearer endpoint, and combining coordinate-wise extrema cannot create a fictional
+corner that falsely requires an unrepresentable radius.
 
 The shared exact coordinate interpolation path now preserves final-result
 half-even parity, including odd-origin ties, and uses a specialized
 single-word-denominator ratio only where its internal invariants prove the
 quotient representable. Its 128/64 division retains the shifted remainder's
-carry for denominators across the complete unsigned raw domain.
-`FixedSegment2d` and `FixedSegment` reuse that helper, removing their duplicate
+carry for denominators across the complete unsigned raw domain. `FixedSegment2d`
+and `FixedSegment` reuse that helper, removing their duplicate
 weighted-coordinate implementations. `FixedBoundCircle` has no point-cloud or
 merge factory, so no 2D construction API required a parallel implementation.
 
@@ -129,8 +159,7 @@ zero managed allocation versus the former saturated approximation's roughly
 nanoseconds with zero allocation. The existing segment reconstruction rows
 improved from about 514/759 nanoseconds to about 121/118 nanoseconds at
 unit/100,000 scale, also with zero allocation. The audit additionally exposed
-the separate full-domain
-derived-center/extent gap tracked as `FMS-Issue-016`.
+the separate full-domain derived-center/extent gap tracked as `FMS-Issue-016`.
 
 ### FMS-Issue-014: Finite-segment capsule/cylinder projections need dedicated wide ownership
 
@@ -209,9 +238,9 @@ were removed.
 
 The corresponding Gravitas sphere-segment and mixed circle-slab/cross-section
 consumers now retain actual radius ownership and use these APIs. Finite-axis
-capsule/cylinder/mesh-edge projection remains `FMS-Issue-014`; full-domain
-sphere construction/merge remains `FMS-Issue-015`; conic quadratics remain a
-Gravitas issue.
+capsule/cylinder/mesh-edge projection was later resolved as `FMS-Issue-014`,
+full-domain sphere construction/merge as `FMS-Issue-015`, and finite-cone
+segment reduction as `FMS-Issue-017`.
 
 Verification reached 100% FixedMathSharp coverage (9,408/9,408 lines,
 3,064/3,064 branches, and 1,528/1,528 methods), with 1,460 standard and 1,439

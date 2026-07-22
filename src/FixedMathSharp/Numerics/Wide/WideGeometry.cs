@@ -12,7 +12,7 @@ namespace FixedMathSharp;
 /// <summary>
 /// Owns exact coordinate products and fixed-point geometry policy.
 /// </summary>
-internal static class WideGeometry
+internal static partial class WideGeometry
 {
     /// <summary>
     /// Returns the exact representable size of a normalized scalar interval.
@@ -420,7 +420,9 @@ internal static class WideGeometry
             WideArithmetic.ExtendToSigned320(squaredDistance),
             out Signed192 remainder);
         WideArithmetic.GetMagnitude(root, out ulong high, out ulong middle, out ulong low);
-        if (high != 0UL || middle != 0UL || low > (ulong)long.MaxValue)
+        // A 2D/3D Fixed64 endpoint difference cannot produce a distance root
+        // beyond the middle word; only its representable low-word limit varies.
+        if (middle != 0UL || low > (ulong)long.MaxValue)
         {
             distance = Fixed64.MaxValue;
             return false;

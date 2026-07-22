@@ -100,9 +100,11 @@ public class DiagnosticsFormattingTests
         Assert.True(value.TryFormat(destination, out int charsWritten, "0.00", CultureInfo.InvariantCulture));
         Assert.Equal(expected, new string(destination[..charsWritten]));
 
-        Span<char> tooSmall = stackalloc char[4];
-
-        Assert.False(value.TryFormat(tooSmall, out charsWritten, "0.00", CultureInfo.InvariantCulture));
-        Assert.Equal(0, charsWritten);
+        for (int length = 0; length < expected.Length; length++)
+        {
+            var tooSmall = new char[length];
+            Assert.False(value.TryFormat(tooSmall, out charsWritten, "0.00", CultureInfo.InvariantCulture));
+            Assert.Equal(0, charsWritten);
+        }
     }
 }

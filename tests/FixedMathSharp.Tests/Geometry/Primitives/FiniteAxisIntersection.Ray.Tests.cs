@@ -500,5 +500,22 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.Equal(
             new Vector3d(expected, Fixed64.Zero, -expected),
             ray3d.GetPoint(parameter));
+        Assert.True(ray2d.TryGetPoint(parameter, out Vector2d point2d));
+        Assert.Equal(new Vector2d(expected, Fixed64.Zero), point2d);
+        Assert.True(ray3d.TryGetPoint(parameter, out Vector3d point3d));
+        Assert.Equal(new Vector3d(expected, Fixed64.Zero, -expected), point3d);
+
+        Assert.False(new FixedRay2d(Vector2d.Zero, new Vector2d(Fixed64.MaxValue, Fixed64.Zero))
+            .TryGetPoint(Fixed64.Two, out point2d));
+        Assert.Equal(default, point2d);
+        Assert.False(new FixedRay(Vector3d.Zero, new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero))
+            .TryGetPoint(Fixed64.Two, out point3d));
+        Assert.Equal(default, point3d);
+        Assert.False(new FixedRay(Vector3d.Zero, new Vector3d(Fixed64.Zero, Fixed64.MaxValue, Fixed64.Zero))
+            .TryGetPoint(Fixed64.Two, out point3d));
+        Assert.Equal(default, point3d);
+        Assert.False(new FixedRay(Vector3d.Zero, new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.MaxValue))
+            .TryGetPoint(Fixed64.Two, out point3d));
+        Assert.Equal(default, point3d);
     }
 }

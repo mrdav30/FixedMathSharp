@@ -129,6 +129,25 @@ public partial struct Vector3d
             direction.Z);
 
     /// <summary>
+    /// Projects <paramref name="target"/> minus <paramref name="source"/> onto
+    /// <paramref name="direction"/> and returns the nonnegative parametric
+    /// coordinate along that direction.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="ProjectNonNegativeDifference"/>, this method divides
+    /// the exact dot product by the direction's exact squared length. The
+    /// direction therefore need not have an exactly unit squared length.
+    /// Zero and negative projections return zero; an unrepresentable positive
+    /// parameter saturates to <see cref="Fixed64.MaxValue"/>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 ProjectNonNegativeDifferenceParameter(
+        Vector3d target,
+        Vector3d source,
+        Vector3d direction) =>
+        WideGeometry.GetNonNegativeDifferenceProjectionParameter(target, source, direction);
+
+    /// <summary>
     /// Multiplies two vectors component-wise.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -652,6 +671,21 @@ public partial struct Vector3d
                 vector.Z - planeNormal.Z * dot / sqrMag);
         }
     }
+
+    /// <summary>
+    /// Returns the normalized direction of a vector projected onto a plane.
+    /// </summary>
+    /// <remarks>
+    /// The rejection is formed exactly with full-domain intermediates before
+    /// returning its nearest representable normalized direction. A zero normal
+    /// returns the normalized input vector; a zero projection returns
+    /// <see cref="Zero"/>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3d GetNormalizedProjectionOnPlane(
+        Vector3d vector,
+        Vector3d planeNormal) =>
+        WideGeometry.GetNormalizedProjectionOnPlane(vector, planeNormal);
 
     /// <summary>
     /// Projects a point onto a plane defined by a normal and a distance from the origin.

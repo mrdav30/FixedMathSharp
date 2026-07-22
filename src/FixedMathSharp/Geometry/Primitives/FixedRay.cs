@@ -68,6 +68,34 @@ public partial struct FixedRay : IEquatable<FixedRay>
         Fixed64.MultiplyAdd(Direction.Z, parameter, Position.Z));
 
     /// <summary>
+    /// Attempts to get the point at the specified ray parameter with one final
+    /// round-half-to-even conversion per coordinate.
+    /// </summary>
+    /// <param name="parameter">The parametric distance along the ray direction.</param>
+    /// <param name="point">
+    /// The point when every final coordinate is representable; otherwise,
+    /// <see langword="default"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when every final coordinate is representable;
+    /// otherwise, <see langword="false"/>.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly bool TryGetPoint(Fixed64 parameter, out Vector3d point)
+    {
+        if (!Fixed64.TryMultiplyAdd(Direction.X, parameter, Position.X, out Fixed64 x)
+            || !Fixed64.TryMultiplyAdd(Direction.Y, parameter, Position.Y, out Fixed64 y)
+            || !Fixed64.TryMultiplyAdd(Direction.Z, parameter, Position.Z, out Fixed64 z))
+        {
+            point = default;
+            return false;
+        }
+
+        point = new Vector3d(x, y, z);
+        return true;
+    }
+
+    /// <summary>
     /// Finds the first forward intersection with the specified plane.
     /// </summary>
     public Fixed64? Intersects(FixedPlane plane)

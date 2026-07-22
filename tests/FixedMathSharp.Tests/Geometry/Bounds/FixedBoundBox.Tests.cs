@@ -1,6 +1,7 @@
 using FixedMathSharp.Bounds;
 using MemoryPack;
 using System;
+using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -9,6 +10,115 @@ namespace FixedMathSharp.Tests.Bounds;
 
 public class FixedBoundBoxTests
 {
+    [Fact]
+    public void FromFiniteConeClippedToDomain_NearUnitAxisConservativelyContainsBaseDiskSupports()
+    {
+        var axis = new Vector3d(
+            Fixed64.FromFraction(3, 5),
+            Fixed64.FromFraction(4, 5) + Fixed64.MinIncrement,
+            Fixed64.Zero);
+        var apex = new Vector3d(-Fixed64.One, Fixed64.Zero, Fixed64.Zero);
+        var baseCenter = new Vector3d(Fixed64.One, Fixed64.Two, (Fixed64)3);
+
+        FixedBoundBox box = FixedBoundBox.FromFiniteConeClippedToDomain(
+            apex,
+            baseCenter,
+            axis,
+            Fixed64.One);
+
+        Vector3d xSupport = baseCenter
+            + Vector3d.GetNormalizedProjectionOnPlane(Vector3d.Right, axis);
+        Vector3d ySupport = baseCenter
+            + Vector3d.GetNormalizedProjectionOnPlane(Vector3d.Up, axis);
+        Vector3d zSupport = baseCenter
+            + Vector3d.GetNormalizedProjectionOnPlane(Vector3d.Forward, axis);
+        Assert.True(box.Contains(apex));
+        Assert.True(box.Contains(xSupport));
+        Assert.True(box.Contains(ySupport));
+        Assert.True(box.Contains(zSupport));
+        Assert.True(box.Max.X > baseCenter.X + Fixed64.FromFraction(4, 5));
+    }
+
+    [Fact]
+    public void FromFiniteConeClippedToDomain_ValidatesGeometryAndClipsScalarLimits()
+    {
+        Assert.Throws<ArgumentException>(() => FixedBoundBox.FromFiniteConeClippedToDomain(
+            Vector3d.Zero,
+            Vector3d.Zero,
+            Vector3d.Zero,
+            Fixed64.One));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FixedBoundBox.FromFiniteConeClippedToDomain(
+            Vector3d.Zero,
+            Vector3d.Right,
+            Vector3d.Right,
+            -Fixed64.One));
+
+        FixedBoundBox point = FixedBoundBox.FromFiniteConeClippedToDomain(
+            Vector3d.Zero,
+            Vector3d.One,
+            Vector3d.Right,
+            Fixed64.Zero);
+        Assert.Equal(Vector3d.Zero, point.Min);
+        Assert.Equal(Vector3d.One, point.Max);
+
+        FixedBoundBox clipped = FixedBoundBox.FromFiniteConeClippedToDomain(
+            Vector3d.Zero,
+            new Vector3d(Fixed64.Zero, Fixed64.MaxValue, Fixed64.Zero),
+            Vector3d.Right,
+            Fixed64.One);
+        Assert.Equal(Fixed64.MaxValue, clipped.Max.Y);
+    }
+
+    [Fact]
+    public void FromFiniteConeClippedToDomain_LargeRadiusUsesLeastOutwardRawExtents()
+    {
+        Fixed64 radius = (Fixed64)2_000_000_000;
+        var axes = new[]
+        {
+            new Vector3d(
+                Fixed64.FromFraction(3, 5),
+                Fixed64.FromFraction(4, 5) + Fixed64.MinIncrement,
+                Fixed64.Zero),
+            new Vector3d(
+                Fixed64.FromFraction(3, 5),
+                Fixed64.FromFraction(4, 5) - Fixed64.MinIncrement,
+                Fixed64.Zero)
+        };
+
+        foreach (Vector3d axis in axes)
+        {
+            FixedBoundBox box = FixedBoundBox.FromFiniteConeClippedToDomain(
+                Vector3d.Zero,
+                Vector3d.Zero,
+                axis,
+                radius);
+
+            AssertLeastOutwardDiskExtent(box.Max.X, radius, axis, axis.X);
+            AssertLeastOutwardDiskExtent(box.Max.Y, radius, axis, axis.Y);
+            AssertLeastOutwardDiskExtent(box.Max.Z, radius, axis, axis.Z);
+        }
+    }
+
+    private static void AssertLeastOutwardDiskExtent(
+        Fixed64 extent,
+        Fixed64 radius,
+        Vector3d axis,
+        Fixed64 component)
+    {
+        BigInteger x = axis.X.m_rawValue;
+        BigInteger y = axis.Y.m_rawValue;
+        BigInteger z = axis.Z.m_rawValue;
+        BigInteger q = x * x + y * y + z * z;
+        BigInteger componentRaw = component.m_rawValue;
+        BigInteger capacity = q - componentRaw * componentRaw;
+        BigInteger radiusRaw = radius.m_rawValue;
+        BigInteger target = radiusRaw * radiusRaw * capacity;
+        BigInteger extentRaw = extent.m_rawValue;
+
+        Assert.True(extentRaw * extentRaw * q >= target);
+        if (extentRaw > BigInteger.Zero)
+            Assert.True((extentRaw - BigInteger.One) * (extentRaw - BigInteger.One) * q < target);
+    }
     #region Test: Constructor and Property
 
     [Fact]
