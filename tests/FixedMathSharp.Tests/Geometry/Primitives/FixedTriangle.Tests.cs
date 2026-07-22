@@ -240,6 +240,48 @@ public class FixedTriangleTests
     }
 
     [Fact]
+    public void ContainsProjection_ClassifiesOffPlaneInteriorBoundaryAndExteriorPoints()
+    {
+        var triangle = new FixedTriangle(
+            new Vector3d(1, 2, 3),
+            new Vector3d(9, 2, 3),
+            new Vector3d(1, 10, 3));
+
+        Assert.True(triangle.ContainsProjection(new Vector3d(3, 6, 13)));
+        Assert.True(triangle.ContainsProjection(new Vector3d(5, 6, -20)));
+        Assert.False(triangle.ContainsProjection(new Vector3d(0, 3, 3)));
+        Assert.False(triangle.ContainsProjection(new Vector3d(9, 10, 3)));
+    }
+
+    [Fact]
+    public void ContainsProjection_FullRawDomainRetainsExactBarycentricSigns()
+    {
+        var triangle = new FixedTriangle(
+            RawVector(long.MinValue, long.MinValue, 0L),
+            RawVector(long.MaxValue, long.MinValue, 0L),
+            RawVector(long.MinValue, long.MaxValue, 0L));
+        FixedTriangle reversed = new(triangle.A, triangle.C, triangle.B);
+        Vector3d interior = RawVector(long.MinValue + 1L, long.MinValue + 1L, long.MaxValue);
+        Vector3d exterior = RawVector(long.MaxValue, long.MaxValue, long.MinValue);
+
+        Assert.True(triangle.ContainsProjection(interior));
+        Assert.True(reversed.ContainsProjection(interior));
+        Assert.False(triangle.ContainsProjection(exterior));
+        Assert.False(reversed.ContainsProjection(exterior));
+    }
+
+    [Fact]
+    public void ContainsProjection_DegenerateTriangleHasNoProjectedFace()
+    {
+        var line = new FixedTriangle(
+            new Vector3d(0, 0, 0),
+            new Vector3d(4, 0, 0),
+            new Vector3d(8, 0, 0));
+
+        Assert.False(line.ContainsProjection(new Vector3d(2, 10, 0)));
+    }
+
+    [Fact]
     public void TryGetProjectedBarycentricWeights_FullRawDomain_MatchesExactGramRatioOracles()
     {
         var extreme = new FixedTriangle(

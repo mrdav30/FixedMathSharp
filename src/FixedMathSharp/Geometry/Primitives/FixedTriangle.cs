@@ -286,6 +286,39 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
     }
 
     /// <summary>
+    /// Determines whether the supplied point projects within or onto this
+    /// triangle without requiring the point to lie on its plane.
+    /// </summary>
+    /// <remarks>
+    /// The projected barycentric signs are classified from exact wide
+    /// numerators. Degenerate triangles have no projected face and return false.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool ContainsProjection(Vector3d point)
+    {
+        Signed192 abAb = GetDifferenceDot(B, A, B, A);
+        Signed192 abAc = GetDifferenceDot(B, A, C, A);
+        Signed192 acAc = GetDifferenceDot(C, A, C, A);
+        Signed320 denominator = WideArithmetic.MultiplySubtract(abAb, acAc, abAc, abAc);
+        if (WideGeometry.IsQ128MagnitudeAtMostEpsilon(denominator))
+            return false;
+
+        Signed192 apAb = GetDifferenceDot(point, A, B, A);
+        Signed192 apAc = GetDifferenceDot(point, A, C, A);
+        Signed320 numeratorB = WideArithmetic.MultiplySubtract(acAc, apAb, abAc, apAc);
+        if (numeratorB.Sign < 0)
+            return false;
+
+        Signed320 numeratorC = WideArithmetic.MultiplySubtract(abAb, apAc, abAc, apAb);
+        if (numeratorC.Sign < 0)
+            return false;
+
+        return WideArithmetic.SubtractSigned320(
+            WideArithmetic.SubtractSigned320(denominator, numeratorB),
+            numeratorC).Sign >= 0;
+    }
+
+    /// <summary>
     /// Determines whether the point is within the inclusive squared-distance
     /// epsilon of this triangle.
     /// </summary>

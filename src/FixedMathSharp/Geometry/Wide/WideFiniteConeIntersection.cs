@@ -34,6 +34,43 @@ internal static class WideFiniteConeIntersection
             out startContained,
             out endContainedStrict);
 
+    internal static bool TrySolveUnitPolynomial(
+        Signed576 coefficient,
+        Signed576 projection,
+        Signed576 constant,
+        Fixed64 outputScale,
+        out Fixed64 entry,
+        out Fixed64 exit) =>
+        TrySolveBoundedPolynomial(
+            new ConeData(default, default, default, coefficient, projection, constant),
+            new RationalBound(default, One),
+            new RationalBound(One, One),
+            outputScale,
+            out entry,
+            out exit);
+
+    internal static int GetPolynomialSignAtScaledParameter(
+        Signed576 coefficient,
+        Signed576 projection,
+        Signed576 constant,
+        Fixed64 parameter,
+        Fixed64 scale) =>
+        Evaluate(
+            new ConeData(default, default, default, coefficient, projection, constant),
+            WideArithmetic.FromSignedRaw(parameter.m_rawValue),
+            WideArithmetic.FromSignedRaw(scale.m_rawValue)).Sign;
+
+    internal static int GetPolynomialSignAtRationalParameter(
+        Signed576 coefficient,
+        Signed576 projection,
+        Signed576 constant,
+        Signed192 numerator,
+        Signed192 denominator) =>
+        Evaluate(
+            new ConeData(default, default, default, coefficient, projection, constant),
+            numerator,
+            denominator).Sign;
+
     internal static bool TryGetApexDistanceInterval(
         FixedSegment query,
         Vector3d apex,

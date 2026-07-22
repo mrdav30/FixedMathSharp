@@ -17,7 +17,8 @@ Use 3D types for volume and spatial math:
 - `FixedSegment`: finite 3D segment with closest-point, closest-pair, distance,
   finite-axis and finite-cone intervals, and bounds.
 - `FixedTriangle`: ordered 3D triangle with area, normal, bounds, closest-point,
-  containment, interpolation, and projected barycentric helpers.
+  containment, interpolation, projected barycentric helpers, and finite-cone
+  intersection reduction.
 
 Use 2D types for plane math:
 
@@ -313,7 +314,14 @@ Triangles also preserve ordered vertices:
 FixedTriangle triangle = new(a3d, b3d, c3d);
 Vector3d point = triangle.GetPoint(weightB, weightC);
 bool inside = triangle.Contains(point);
+bool projectionInside = triangle.ContainsProjection(offPlanePoint);
 Vector3d closest = triangle.ClosestPoint(point);
+bool intersectsCone = triangle.TryGetFiniteConeIntersectionMinimumAxialPoint(
+    apex,
+    normalizedApexToBaseDirection,
+    coneHeight,
+    baseRadius,
+    out Vector3d conePoint);
 ```
 
 `FixedTriangle2d.TryGetBarycentricWeights(...)` solves planar barycentric
@@ -351,9 +359,19 @@ component without a potentially saturating three-value sum.
 Projected barycentric weights use exact Gram numerators and denominator. A Gram
 denominator at or below the inclusive `Fixed64.Epsilon` threshold returns
 `false` and three zero weights; successful A, B, and C weights are rounded and
-saturated independently. Closest-point Voronoi predicates also remain exact, and
-degenerate edge candidates preserve stable AB, BC, CA tie order. `Contains`
+saturated independently. `ContainsProjection` classifies those exact
+numerators directly, includes projected edges, and returns `false` for a
+degenerate projected face. Closest-point Voronoi predicates also remain exact,
+and degenerate edge candidates preserve stable AB, BC, CA tie order. `Contains`
 remains the inclusive squared-distance epsilon predicate.
+
+`TryGetFiniteConeIntersectionMinimumAxialPoint` reduces the three stable edges
+and the triangle face against an apex-authored finite cone. The normalized axis
+keeps its exact fixed-point squared length; plane, conic, and half-space
+predicates stay in fixed-width wide arithmetic. The returned point is the
+deterministic maximum-scale lattice witness for the earliest admitted
+candidate, rounded only at the public coordinate boundary. AB, BC, CA, then
+face order resolves exact ties. Degenerate triangles retain edge-only behavior.
 
 This full-domain triangle contract does not change general `Vector3d` cross,
 dot, magnitude, or distance operations, and it does not extend to ray
