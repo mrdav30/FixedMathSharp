@@ -236,6 +236,18 @@ length must describe the supplied unexpanded cap-center axis. This lets a
 swept-radius caller expand both cap planes without first constructing a
 potentially saturated full length or expanded endpoints.
 
+`FixedSegment.TryGetSweptSphereFiniteCylinderIntersectionDistance`
+and its interval overload instead solve the exact Minkowski sum of a centered
+finite cylinder and a sphere. The boundary keeps the expanded cylindrical side
+and cap faces, but rounds each cap rim rather than filling the corners of an
+independently expanded radius and half-height. Use this contract for an exact
+swept-sphere-versus-cylinder query; use affine expansion only when a sharp-rim
+cylinder is the intended volume. The solver retains the accepted axis's exact
+squared raw length, wide side/cap/rim arithmetic, repeated-root tangencies, and
+full-domain chord interpolation through one final round-half-to-even physical-
+distance conversion. The entry-only overload skips refining the toroidal-rim
+exit root when the caller needs only the first contact.
+
 Finite-cone methods on `FixedSegment` accept either an apex plus normalized
 apex-to-base direction and parametric height, or a center plus normalized
 base-to-apex direction and full parametric height. The conceptual endpoint is

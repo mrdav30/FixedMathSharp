@@ -228,6 +228,127 @@ public partial struct FixedSegment
     }
 
     /// <summary>
+    /// Finds the first physical distance where this segment intersects the
+    /// exact spherical dilation of a centered finite cylinder.
+    /// </summary>
+    /// <param name="center">Cylinder center.</param>
+    /// <param name="axisDirection">Normalized cylinder axis direction.</param>
+    /// <param name="axisHalfLength">Positive unexpanded cylinder half-length.</param>
+    /// <param name="radius">Nonnegative unexpanded cylinder radius.</param>
+    /// <param name="sphericalExpansion">Nonnegative spherical dilation radius.</param>
+    /// <param name="totalDistance">Nonnegative physical length represented by this segment.</param>
+    /// <param name="distance">First intersection distance when one exists.</param>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="axisDirection"/> is not normalized, or when
+    /// <paramref name="totalDistance"/> is zero for a non-point segment.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when the half-length is not positive, or when the radius,
+    /// expansion, or total distance is negative.
+    /// </exception>
+    public readonly bool TryGetSweptSphereFiniteCylinderIntersectionDistance(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        Fixed64 sphericalExpansion,
+        Fixed64 totalDistance,
+        out Fixed64 distance)
+    {
+        ValidateSphericallyExpandedFiniteCylinderArguments(
+            axisDirection,
+            axisHalfLength,
+            radius,
+            sphericalExpansion,
+            totalDistance);
+        return WideFiniteAxisIntersection.TryGetSphericallyExpandedFiniteCylinderFirstDistance(
+            this,
+            center,
+            axisDirection,
+            axisHalfLength,
+            radius,
+            sphericalExpansion,
+            totalDistance,
+            out distance);
+    }
+
+    /// <summary>
+    /// Finds the physical-distance interval where this segment intersects the
+    /// exact spherical dilation of a centered finite cylinder.
+    /// </summary>
+    /// <remarks>
+    /// Unlike affine radial and axial expansion, spherical dilation preserves
+    /// the cylinder's rounded cap rims. Final distances use round-half-to-even.
+    /// </remarks>
+    /// <param name="center">Cylinder center.</param>
+    /// <param name="axisDirection">Normalized cylinder axis direction.</param>
+    /// <param name="axisHalfLength">Positive unexpanded cylinder half-length.</param>
+    /// <param name="radius">Nonnegative unexpanded cylinder radius.</param>
+    /// <param name="sphericalExpansion">Nonnegative spherical dilation radius.</param>
+    /// <param name="totalDistance">Nonnegative physical length represented by this segment.</param>
+    /// <param name="entryDistance">First intersection distance when an interval exists.</param>
+    /// <param name="exitDistance">Last intersection distance when an interval exists.</param>
+    /// <param name="startContained">Whether the segment start lies in the closed dilation.</param>
+    /// <param name="endContainedStrict">Whether the segment end lies strictly inside the dilation.</param>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="axisDirection"/> is not normalized, or when
+    /// <paramref name="totalDistance"/> is zero for a non-point segment.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when the half-length is not positive, or when the radius,
+    /// expansion, or total distance is negative.
+    /// </exception>
+    public readonly bool TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        Fixed64 sphericalExpansion,
+        Fixed64 totalDistance,
+        out Fixed64 entryDistance,
+        out Fixed64 exitDistance,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        ValidateSphericallyExpandedFiniteCylinderArguments(
+            axisDirection,
+            axisHalfLength,
+            radius,
+            sphericalExpansion,
+            totalDistance);
+
+        return WideFiniteAxisIntersection.TryGetSphericallyExpandedFiniteCylinderDistanceInterval(
+            this,
+            center,
+            axisDirection,
+            axisHalfLength,
+            radius,
+            sphericalExpansion,
+            totalDistance,
+            out entryDistance,
+            out exitDistance,
+            out startContained,
+            out endContainedStrict);
+    }
+
+    private readonly void ValidateSphericallyExpandedFiniteCylinderArguments(
+        Vector3d axisDirection,
+        Fixed64 axisHalfLength,
+        Fixed64 radius,
+        Fixed64 sphericalExpansion,
+        Fixed64 totalDistance)
+    {
+        ValidateTotalDistance(totalDistance);
+        ValidateCenteredAxis(axisDirection, axisHalfLength);
+        if (axisHalfLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (sphericalExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(sphericalExpansion));
+    }
+
+    /// <summary>
     /// Finds the physical-distance interval where this segment intersects an
     /// affinely expanded finite cylinder whose unexpanded cap centers are
     /// supplied by <paramref name="cylinderAxis"/>.

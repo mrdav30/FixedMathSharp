@@ -30,6 +30,10 @@ Use this guide when upgrading from any v6.x package.
   interval APIs when the authored chord contains small components that must not
   round away during normalization. Reconstruct those hits with
   `segment.GetPointAtDistance(distance, totalDistance)`.
+- Replace separate radial and axial finite-cylinder expansion with
+  `TryGetSweptSphereFiniteCylinderIntersectionDistance` when the
+  intended volume is the exact swept-sphere Minkowski sum rather than a
+  sharp-rim affine proxy.
 - Replace `FixedBoundCircle.RadiusSquared` and
   `FixedBoundSphere.RadiusSquared` callers with the actual `Radius` or the
   bound's exact containment/intersection methods.
@@ -140,6 +144,16 @@ Centered capsule and centered finite-cylinder overloads retain the existing
 inclusive-start and strict-end containment flags. Endpoint-authored capsule and
 cylinder overloads provide the same classification. Affine cylinder overloads
 retain separate authored half-length, radial expansion, and axial expansion.
+
+For swept spheres, `FixedSegment` now also exposes
+`TryGetSweptSphereFiniteCylinderIntersectionDistance` and
+`TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval`. These
+methods solve the rounded side, cap, and circular-rim boundary of the exact
+finite-cylinder/sphere Minkowski sum. They are not aliases for independently
+expanding cylinder radius and half-height, which produces a larger sharp-rim
+volume. The entry-only form avoids refining the toroidal-rim exit root when a
+query needs only its first contact; both forms retain exact wide intermediates
+through one final round-half-to-even physical-distance conversion.
 
 Use `GetPointAtDistance(distance, totalDistance)` to reconstruct a returned hit
 from the same exact chord. It rejects negative total distance and distances
