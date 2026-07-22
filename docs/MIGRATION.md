@@ -155,6 +155,13 @@ volume. The entry-only form avoids refining the toroidal-rim exit root when a
 query needs only its first contact; both forms retain exact wide intermediates
 through one final round-half-to-even physical-distance conversion.
 
+`FixedSegment.TryGetSweptSphereBoxIntersectionDistance` provides the equivalent
+entry-only contract for a `FixedBoundBox`. Use it when the intended volume is
+the exact box/sphere Minkowski sum: independently expanding the three box
+extents creates sharp edge and corner regions that can report early or false
+contacts. The method preserves the authored chord through exact box-feature
+transitions and narrows only the final physical distance.
+
 Use `GetPointAtDistance(distance, totalDistance)` to reconstruct a returned hit
 from the same exact chord. It rejects negative total distance and distances
 outside `[0, totalDistance]`; zero total distance is accepted only for a

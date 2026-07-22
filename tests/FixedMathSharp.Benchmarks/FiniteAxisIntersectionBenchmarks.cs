@@ -40,6 +40,10 @@ public class FiniteAxisIntersectionBenchmarks
     private Fixed64 _radialExpansion;
     private Fixed64 _axialExpansion;
     private Fixed64 _arbitraryRawRadius;
+    private FixedSegment _roundedBoxQuery;
+    private FixedBoundBox _roundedBox;
+    private Fixed64 _roundedBoxExpansion;
+    private Fixed64 _roundedBoxLength;
 
     [Params(1, 100_000)]
     public int Scale { get; set; }
@@ -104,6 +108,12 @@ public class FiniteAxisIntersectionBenchmarks
         _boundedRay3D = new FixedRay(_query3D.Start, Vector3d.Right);
         _boundedRayMaximum = (Fixed64)4 * scale;
         _pointParameter = scale;
+        _roundedBoxQuery = new FixedSegment(
+            new Vector3d(doubleScale, scale * Fixed64.FromFraction(4, 5), Fixed64.Zero),
+            new Vector3d(Fixed64.Zero, scale * Fixed64.FromFraction(4, 5), Fixed64.Zero));
+        _roundedBox = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, Vector3d.One * scale);
+        _roundedBoxExpansion = scale * Fixed64.Half;
+        _roundedBoxLength = doubleScale;
 
         if (!Capsule2DIntersectionInterval()
             || !Capsule3DIntersectionInterval()
@@ -125,7 +135,8 @@ public class FiniteAxisIntersectionBenchmarks
             || !BoundedRayFiniteCylinderIntersectionInterval()
             || !CenteredCapsule2DDistanceInterval()
             || !CenteredCapsule3DDistanceInterval()
-            || !FiniteCylinderDistanceInterval())
+            || !FiniteCylinderDistanceInterval()
+            || !SweptSphereBoxFirstDistance())
         {
             throw new InvalidOperationException("Finite-axis benchmark scenarios must intersect their targets.");
         }
@@ -360,6 +371,14 @@ public class FiniteAxisIntersectionBenchmarks
             out _,
             out _,
             out _,
+            out _);
+
+    [Benchmark]
+    public bool SweptSphereBoxFirstDistance() =>
+        _roundedBoxQuery.TryGetSweptSphereBoxIntersectionDistance(
+            _roundedBox,
+            _roundedBoxExpansion,
+            _roundedBoxLength,
             out _);
 
     [Benchmark]

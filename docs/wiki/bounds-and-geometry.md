@@ -248,6 +248,14 @@ full-domain chord interpolation through one final round-half-to-even physical-
 distance conversion. The entry-only overload skips refining the toroidal-rim
 exit root when the caller needs only the first contact.
 
+`FixedSegment.TryGetSweptSphereBoxIntersectionDistance` provides the matching
+first-contact query for the exact spherical dilation of a `FixedBoundBox`.
+Unlike expanding each box extent by the sphere radius, the represented boundary
+keeps planar faces and rounds its edges and corners. The allocation-free solver
+retains full-domain authored chord differences, exact feature-transition
+ordering, and wide squared-distance quadratics until one final round-half-to-even
+conversion into the caller-supplied physical-distance range.
+
 Finite-cone methods on `FixedSegment` accept either an apex plus normalized
 apex-to-base direction and parametric height, or a center plus normalized
 base-to-apex direction and full parametric height. The conceptual endpoint is

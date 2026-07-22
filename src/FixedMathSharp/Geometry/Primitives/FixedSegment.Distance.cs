@@ -273,6 +273,38 @@ public partial struct FixedSegment
     }
 
     /// <summary>
+    /// Finds the first physical distance where this segment intersects the
+    /// exact spherical dilation of an axis-aligned box.
+    /// </summary>
+    /// <param name="box">Unexpanded axis-aligned box.</param>
+    /// <param name="sphericalExpansion">Nonnegative spherical dilation radius.</param>
+    /// <param name="totalDistance">Nonnegative physical length represented by this segment.</param>
+    /// <param name="distance">First intersection distance when one exists.</param>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="totalDistance"/> is zero for a non-point segment.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when the expansion or total distance is negative.
+    /// </exception>
+    public readonly bool TryGetSweptSphereBoxIntersectionDistance(
+        FixedBoundBox box,
+        Fixed64 sphericalExpansion,
+        Fixed64 totalDistance,
+        out Fixed64 distance)
+    {
+        ValidateTotalDistance(totalDistance);
+        if (sphericalExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(sphericalExpansion));
+
+        return WideFiniteAxisIntersection.TryGetSphericallyExpandedBoxFirstDistance(
+            this,
+            box,
+            sphericalExpansion,
+            totalDistance,
+            out distance);
+    }
+
+    /// <summary>
     /// Finds the physical-distance interval where this segment intersects the
     /// exact spherical dilation of a centered finite cylinder.
     /// </summary>
