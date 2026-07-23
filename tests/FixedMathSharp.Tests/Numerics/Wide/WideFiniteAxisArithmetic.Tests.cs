@@ -214,6 +214,80 @@ public sealed class WideFiniteAxisArithmeticTests
     }
 
     [Fact]
+    public void AdaptiveWideOperations_MatchBigIntegerForDeterministicSparseOperands()
+    {
+        ulong state = 0x9E3779B97F4A7C15UL;
+        for (int iteration = 0; iteration < 64; iteration++)
+        {
+            int firstShift = (iteration % 4) * 64;
+            int secondShift = ((iteration * 3) % 4) * 64;
+            BigInteger first = ((BigInteger)(NextUInt64(ref state) & 0x1FFFFFFFFFFFFFFFUL) << firstShift)
+                + (NextUInt64(ref state) & 0xFFFFUL);
+            BigInteger second = ((BigInteger)(NextUInt64(ref state) & 0x1FFFFFFFFFFFFFFFUL) << secondShift)
+                + (NextUInt64(ref state) & 0xFFFFUL);
+            if ((iteration & 1) != 0)
+                first = -first;
+            if ((iteration & 2) != 0)
+                second = -second;
+
+            AssertSigned576(
+                first * second,
+                WideArithmetic.MultiplySigned320(ToSigned320(first), ToSigned320(second)));
+
+            BigInteger nonnegative = BigInteger.Abs(first * second) + iteration + 1;
+            AssertSigned320(
+                IntegerSquareRoot(nonnegative << 64),
+                WideArithmetic.GetFloorSquareRootScaledByFixed64(ToSigned576(nonnegative)));
+
+            int denominatorShift = (iteration % 8) * 64;
+            BigInteger denominator = (((BigInteger)(NextUInt64(ref state) | 1UL)) << denominatorShift) + 1;
+            long quotient = (long)(NextUInt64(ref state) & 0x3FFFFFFFUL);
+            BigInteger remainder = denominator >> 1;
+            BigInteger numerator = (denominator * quotient) + remainder;
+            BigInteger expected = BigInteger.DivRem(numerator, denominator, out BigInteger actualRemainder);
+            int midpoint = (actualRemainder << 1).CompareTo(denominator);
+            if (midpoint > 0 || (midpoint == 0 && !expected.IsEven))
+                expected++;
+            AssertRawRatio((long)expected, numerator, denominator);
+        }
+    }
+
+    [Fact]
+    public void LowerWidthDispatchBoundaries_MatchBigIntegerOracle()
+    {
+        BigInteger narrow = (BigInteger.One << 158) + (BigInteger.One << 64) + 1;
+        BigInteger narrowPeer = (BigInteger.One << 159) - 1;
+        BigInteger widerProductPeer = (BigInteger.One << 160) + 3;
+        AssertSigned576(
+            narrow * narrowPeer,
+            WideArithmetic.MultiplySigned320(ToSigned320(narrow), ToSigned320(narrowPeer)));
+        AssertSigned576(
+            -(narrow * widerProductPeer),
+            WideArithmetic.MultiplySigned320(ToSigned320(-narrow), ToSigned320(widerProductPeer)));
+        AssertSigned576(
+            narrow * narrowPeer,
+            WideArithmetic.MultiplySigned576(ToSigned576(narrow), ToSigned192(narrowPeer)));
+        AssertSigned576(
+            -(widerProductPeer * narrowPeer),
+            WideArithmetic.MultiplySigned576(ToSigned576(-widerProductPeer), ToSigned192(narrowPeer)));
+
+        BigInteger narrowRadicand = (BigInteger.One << 254) + (BigInteger.One << 127) + 1;
+        BigInteger wideRadicand = (BigInteger.One << 255) + (BigInteger.One << 129) + 1;
+        AssertSigned320(
+            IntegerSquareRoot(narrowRadicand << 64),
+            WideArithmetic.GetFloorSquareRootScaledByFixed64(ToSigned576(narrowRadicand)));
+        AssertSigned320(
+            IntegerSquareRoot(wideRadicand << 64),
+            WideArithmetic.GetFloorSquareRootScaledByFixed64(ToSigned576(wideRadicand)));
+
+        BigInteger denominator192 = (BigInteger.One << 190) + 3;
+        BigInteger denominator320 = (BigInteger.One << 192) + 5;
+        AssertRawRatio(7, (denominator192 * 7) + (denominator192 >> 2), denominator192);
+        AssertRawRatio(-9, -((denominator320 * 9) + (denominator320 >> 2)), denominator320);
+        AssertRawRatio(11, ((BigInteger.One << 321) + 7) * 11, (BigInteger.One << 321) + 7);
+    }
+
+    [Fact]
     public void WideNormalization_SelectsTheLargestMagnitudeAcrossEveryAxis()
     {
         Assert.Equal(
@@ -247,6 +321,14 @@ public sealed class WideFiniteAxisArithmeticTests
         }
 
         return low;
+    }
+
+    private static ulong NextUInt64(ref ulong state)
+    {
+        state ^= state >> 12;
+        state ^= state << 25;
+        state ^= state >> 27;
+        return state * 2685821657736338717UL;
     }
 
     private static void AssertRawRatio(long expectedRaw, BigInteger numerator, BigInteger denominator)

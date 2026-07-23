@@ -74,13 +74,55 @@ public partial struct Fixed64
         }
 
         bool negative = numeratorSign != denominatorSign;
+        if (WideArithmetic.TryNarrowSigned192(numerator, out Signed192 numerator192)
+            && WideArithmetic.TryNarrowSigned192(denominator, out Signed192 denominator192))
+        {
+            Span<ulong> narrowRemainder = stackalloc ulong[3];
+            Span<ulong> narrowDenominator = stackalloc ulong[3];
+            WideArithmetic.GetMagnitude(
+                numerator192,
+                out narrowRemainder[2], out narrowRemainder[1], out narrowRemainder[0]);
+            WideArithmetic.GetMagnitude(
+                denominator192,
+                out narrowDenominator[2], out narrowDenominator[1], out narrowDenominator[0]);
+            return TryGetSignedRawRatioCore(narrowRemainder, narrowDenominator, negative, out result);
+        }
+        if (WideArithmetic.TryNarrowSigned320(numerator, out Signed320 numerator320)
+            && WideArithmetic.TryNarrowSigned320(denominator, out Signed320 denominator320))
+        {
+            Span<ulong> mediumRemainder = stackalloc ulong[5];
+            Span<ulong> mediumDenominator = stackalloc ulong[5];
+            WideArithmetic.GetMagnitude(
+                numerator320,
+                out mediumRemainder[4], out mediumRemainder[3], out mediumRemainder[2],
+                out mediumRemainder[1], out mediumRemainder[0]);
+            WideArithmetic.GetMagnitude(
+                denominator320,
+                out mediumDenominator[4], out mediumDenominator[3], out mediumDenominator[2],
+                out mediumDenominator[1], out mediumDenominator[0]);
+            return TryGetSignedRawRatioCore(mediumRemainder, mediumDenominator, negative, out result);
+        }
+
         Span<ulong> remainder = stackalloc ulong[9];
         Span<ulong> denominatorMagnitude = stackalloc ulong[9];
         WideArithmetic.GetMagnitude(numerator, remainder);
         WideArithmetic.GetMagnitude(denominator, denominatorMagnitude);
+        return TryGetSignedRawRatioCore(remainder, denominatorMagnitude, negative, out result);
+    }
 
-        int quotientBit = GetMagnitudeBitLength(remainder)
-            - GetMagnitudeBitLength(denominatorMagnitude);
+    private static bool TryGetSignedRawRatioCore(
+        Span<ulong> remainder,
+        Span<ulong> denominatorMagnitude,
+        bool negative,
+        out Fixed64 result)
+    {
+        int remainderLength = GetActiveMagnitudeLength(remainder);
+        int denominatorLength = GetActiveMagnitudeLength(denominatorMagnitude);
+        int activeLength = Math.Max(remainderLength, denominatorLength);
+        Span<ulong> activeRemainder = remainder[..activeLength];
+        Span<ulong> activeDenominator = denominatorMagnitude[..activeLength];
+        int quotientBit = GetMagnitudeBitLength(remainder[..remainderLength])
+            - GetMagnitudeBitLength(denominatorMagnitude[..denominatorLength]);
         if (quotientBit > 63)
         {
             result = default;
@@ -90,13 +132,14 @@ public partial struct Fixed64
         ulong quotient = 0UL;
         if (quotientBit >= 0)
         {
-            Span<ulong> shiftedDenominator = stackalloc ulong[9];
-            ShiftLeftMagnitude(denominatorMagnitude, quotientBit, shiftedDenominator);
+            Span<ulong> shiftedDenominatorStorage = stackalloc ulong[9];
+            Span<ulong> shiftedDenominator = shiftedDenominatorStorage[..activeLength];
+            ShiftLeftMagnitude(activeDenominator, quotientBit, shiftedDenominator);
             for (int bit = quotientBit; bit >= 0; bit--)
             {
-                if (CompareMagnitude(remainder, shiftedDenominator) >= 0)
+                if (CompareMagnitude(activeRemainder, shiftedDenominator) >= 0)
                 {
-                    SubtractMagnitude(remainder, shiftedDenominator);
+                    SubtractMagnitude(activeRemainder, shiftedDenominator);
                     quotient |= 1UL << bit;
                 }
 
@@ -104,12 +147,13 @@ public partial struct Fixed64
             }
         }
 
-        Span<ulong> denominatorMinusRemainder = stackalloc ulong[9];
-        denominatorMagnitude.CopyTo(denominatorMinusRemainder);
-        SubtractMagnitude(denominatorMinusRemainder, remainder);
+        Span<ulong> denominatorMinusRemainderStorage = stackalloc ulong[9];
+        Span<ulong> denominatorMinusRemainder = denominatorMinusRemainderStorage[..activeLength];
+        activeDenominator.CopyTo(denominatorMinusRemainder);
+        SubtractMagnitude(denominatorMinusRemainder, activeRemainder);
         return TryCreateRawRatioResult(
             quotient,
-            CompareMagnitude(remainder, denominatorMinusRemainder),
+            CompareMagnitude(activeRemainder, denominatorMinusRemainder),
             negative,
             out result);
     }
@@ -144,15 +188,16 @@ public partial struct Fixed64
 
     private static int GetMagnitudeBitLength(ReadOnlySpan<ulong> value)
     {
-        if (value[8] != 0UL) return 576 - CountLeadingZeroes(value[8]);
-        if (value[7] != 0UL) return 512 - CountLeadingZeroes(value[7]);
-        if (value[6] != 0UL) return 448 - CountLeadingZeroes(value[6]);
-        if (value[5] != 0UL) return 384 - CountLeadingZeroes(value[5]);
-        if (value[4] != 0UL) return 320 - CountLeadingZeroes(value[4]);
-        if (value[3] != 0UL) return 256 - CountLeadingZeroes(value[3]);
-        if (value[2] != 0UL) return 192 - CountLeadingZeroes(value[2]);
-        if (value[1] != 0UL) return 128 - CountLeadingZeroes(value[1]);
-        return 64 - CountLeadingZeroes(value[0]);
+        int index = value.Length - 1;
+        return (index * 64) + 64 - CountLeadingZeroes(value[index]);
+    }
+
+    private static int GetActiveMagnitudeLength(ReadOnlySpan<ulong> value)
+    {
+        int length = value.Length;
+        while (length > 1 && value[length - 1] == 0UL)
+            length--;
+        return length;
     }
 
     private static void ShiftLeftMagnitude(

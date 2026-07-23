@@ -85,12 +85,18 @@ internal static partial class WideArithmetic
         product.Clear();
         MultiplyMagnitudes(valueMagnitude, factorMagnitude, product);
 
-        Span<ulong> root = stackalloc ulong[9];
-        Span<ulong> remainder = stackalloc ulong[9];
-        Span<ulong> candidate = stackalloc ulong[9];
-        root.Clear();
+        int productBitLength = GetBitLength(product);
+        int rootBitLength = (productBitLength + 1) >> 1;
+        int activeWords = System.Math.Min(9, (rootBitLength + 64) >> 6);
+        Span<ulong> rootStorage = stackalloc ulong[9];
+        Span<ulong> remainderStorage = stackalloc ulong[9];
+        Span<ulong> candidateStorage = stackalloc ulong[9];
+        Span<ulong> root = rootStorage[..activeWords];
+        Span<ulong> remainder = remainderStorage[..activeWords];
+        Span<ulong> candidate = candidateStorage[..activeWords];
+        rootStorage.Clear();
         remainder.Clear();
-        for (int pairIndex = (GetBitLength(product) - 1) >> 1; pairIndex >= 0; pairIndex--)
+        for (int pairIndex = (productBitLength - 1) >> 1; pairIndex >= 0; pairIndex--)
         {
             ShiftLeftMagnitude(remainder, 2);
             remainder[0] |= GetBitPair(product, pairIndex);
@@ -106,8 +112,8 @@ internal static partial class WideArithmetic
         }
 
         return new Signed576(
-            root[8], root[7], root[6], root[5], root[4],
-            root[3], root[2], root[1], root[0]);
+            rootStorage[8], rootStorage[7], rootStorage[6], rootStorage[5], rootStorage[4],
+            rootStorage[3], rootStorage[2], rootStorage[1], rootStorage[0]);
     }
 
     private static Signed832 CreateSigned832(ReadOnlySpan<ulong> words) =>

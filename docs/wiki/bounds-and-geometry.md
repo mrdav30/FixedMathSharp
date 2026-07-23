@@ -19,6 +19,8 @@ Use 3D types for volume and spatial math:
 - `FixedTriangle`: ordered 3D triangle with area, normal, bounds, closest-point,
   containment, interpolation, projected barycentric helpers, and finite-cone
   intersection reduction.
+- `FixedSlabProjection`: full-domain X/Z support for centered capsules,
+  cylinders, and cones after intersection with a closed world-Y slab.
 
 Use 2D types for plane math:
 
@@ -89,6 +91,35 @@ Q32.32 domain.
 `FixedRange` follows the same scalar foundation: `MidPoint` is full-domain and
 nearest-even, while `Length` returns the exact signed endpoint difference or
 throws `OverflowException` when that difference is not representable.
+
+## Finite-Slab Projection
+
+`FixedSlabProjection` returns the planar support point of a centered finite 3D
+shape after clipping it to an inclusive world-Y interval. Use it when a
+higher-level spatial system needs the exact X/Z silhouette of a capsule,
+cylinder, or cone inside a finite vertical layer:
+
+```csharp
+bool intersectsLayer = FixedSlabProjection.TryGetCylinderSupport(
+    center,
+    normalizedAxis,
+    halfLength,
+    radius,
+    new FixedRange(layerMinY, layerMaxY),
+    Vector2d.Right,
+    out Vector2d rightmostPoint);
+```
+
+Axes and planar support directions must be normalized. Lengths and radii must
+be nonnegative, and cylinders and cones require positive length. The methods
+return `false` when the clipped shape is empty or its winning support point is
+outside the representable `Fixed64` coordinate domain. Intermediate candidate
+construction, comparison, and selection remain exact across the full input
+domain; only the final support point is narrowed.
+
+This is a stateless geometry primitive, not a collider or sweep API. Physics
+packages remain responsible for support iteration, query tolerances, contact
+generation, and hit ownership.
 
 `FixedBoundBox.GetVolumeExpansionCost` is the full-domain insertion heuristic
 for spatial indexes. It compares the exact Q96.96 volume growth in unsigned

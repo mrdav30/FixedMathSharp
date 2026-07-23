@@ -167,13 +167,23 @@ internal static partial class WideArithmetic
         ReadOnlySpan<ulong> right,
         Span<ulong> product)
     {
-        for (int leftIndex = 0; leftIndex < left.Length; leftIndex++)
+        int leftLength = GetActiveLength(left);
+        int rightLength = GetActiveLength(right);
+        for (int leftIndex = 0; leftIndex < leftLength; leftIndex++)
         {
-            for (int rightIndex = 0; rightIndex < right.Length; rightIndex++)
+            ulong leftWord = left[leftIndex];
+            if (leftWord == 0UL)
+                continue;
+
+            for (int rightIndex = 0; rightIndex < rightLength; rightIndex++)
             {
+                ulong rightWord = right[rightIndex];
+                if (rightWord == 0UL)
+                    continue;
+
                 Fixed64.Multiply64To128(
-                    left[leftIndex],
-                    right[rightIndex],
+                    leftWord,
+                    rightWord,
                     out ulong high,
                     out ulong low);
                 int productIndex = leftIndex + rightIndex;
@@ -181,6 +191,14 @@ internal static partial class WideArithmetic
                 AddWord(product, productIndex + 1, high);
             }
         }
+    }
+
+    private static int GetActiveLength(ReadOnlySpan<ulong> value)
+    {
+        int length = value.Length;
+        while (length > 0 && value[length - 1] == 0UL)
+            length--;
+        return length;
     }
 
     private static int GetBitLength(Signed704 value)

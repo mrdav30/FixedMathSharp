@@ -228,6 +228,8 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
   triangle primitives for deterministic 2D plane math.
 - `FixedSegment`, `FixedTriangle`: finite-segment and triangle primitives for
   deterministic 3D geometry.
+- `FixedSlabProjection`: full-domain X/Z support for centered capsules,
+  cylinders, and cones clipped to a closed world-Y interval.
 - `FixedCurve`, `FixedCurveKey`, `FixedRange`: interpolation and range helpers.
 - `DeterministicRandom`: repeatable random streams for simulations and
   procedural generation.

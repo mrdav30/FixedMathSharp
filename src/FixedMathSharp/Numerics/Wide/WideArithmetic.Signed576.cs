@@ -21,6 +21,36 @@ internal static partial class WideArithmetic
             value.Word4, value.Word3, value.Word2, value.Word1, value.Word0);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static bool TryNarrowSigned320(Signed576 value, out Signed320 result)
+    {
+        ulong extension = (value.Word4 & (1UL << 63)) != 0UL ? ulong.MaxValue : 0UL;
+        if (value.Word8 != extension || value.Word7 != extension
+            || value.Word6 != extension || value.Word5 != extension)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Signed320(value.Word4, value.Word3, value.Word2, value.Word1, value.Word0);
+        return true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static bool TryNarrowSigned192(Signed576 value, out Signed192 result)
+    {
+        ulong extension = (value.Word2 & (1UL << 63)) != 0UL ? ulong.MaxValue : 0UL;
+        if (value.Word8 != extension || value.Word7 != extension || value.Word6 != extension
+            || value.Word5 != extension || value.Word4 != extension || value.Word3 != extension)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Signed192(value.Word2, value.Word1, value.Word0);
+        return true;
+    }
+
     internal static void GetMagnitude(Signed576 value, Span<ulong> magnitude)
     {
         magnitude[0] = value.Word0;
@@ -103,6 +133,13 @@ internal static partial class WideArithmetic
     /// </remarks>
     internal static Signed576 MultiplySigned320(Signed320 left, Signed320 right)
     {
+        if (TryNarrowSigned192(left, out Signed192 narrowLeft)
+            && TryNarrowSigned192(right, out Signed192 narrowRight)
+            && GetMagnitudeBitLength(narrowLeft) + GetMagnitudeBitLength(narrowRight) <= 319)
+        {
+            return ExtendToSigned576(MultiplySigned192(narrowLeft, narrowRight));
+        }
+
         GetMagnitude(
             left,
             out ulong leftWord4,
@@ -137,20 +174,7 @@ internal static partial class WideArithmetic
         Span<ulong> product = stackalloc ulong[9];
         product.Clear();
 
-        for (int leftIndex = 0; leftIndex < leftMagnitude.Length; leftIndex++)
-        {
-            for (int rightIndex = 0; rightIndex < rightMagnitude.Length; rightIndex++)
-            {
-                Fixed64.Multiply64To128(
-                    leftMagnitude[leftIndex],
-                    rightMagnitude[rightIndex],
-                    out ulong high,
-                    out ulong low);
-                int productIndex = leftIndex + rightIndex;
-                AddWord(product, productIndex, low);
-                AddWord(product, productIndex + 1, high);
-            }
-        }
+        MultiplyMagnitudes(leftMagnitude, rightMagnitude, product);
 
         if (left.Sign * right.Sign < 0)
         {
@@ -177,6 +201,12 @@ internal static partial class WideArithmetic
     /// </summary>
     internal static Signed576 MultiplySigned576(Signed576 left, Signed192 right)
     {
+        if (TryNarrowSigned192(left, out Signed192 narrowLeft)
+            && GetMagnitudeBitLength(narrowLeft) + GetMagnitudeBitLength(right) <= 319)
+            return ExtendToSigned576(MultiplySigned192(narrowLeft, right));
+        if (TryNarrowSigned320(left, out Signed320 mediumLeft))
+            return MultiplySigned320(mediumLeft, ExtendToSigned320(right));
+
         Span<ulong> leftMagnitude = stackalloc ulong[9];
         Span<ulong> rightMagnitude = stackalloc ulong[3];
         GetMagnitude(left, leftMagnitude);
@@ -208,12 +238,26 @@ internal static partial class WideArithmetic
         if (value.IsZero)
             return default;
 
-        Span<ulong> root = stackalloc ulong[5];
-        Span<ulong> remainder = stackalloc ulong[5];
-        Span<ulong> candidate = stackalloc ulong[5];
-        root.Clear();
+        if ((value.Word8 | value.Word7 | value.Word6 | value.Word5 | value.Word4) == 0UL
+            && (value.Word3 & (1UL << 63)) == 0UL)
+        {
+            Signed320 shifted = new(value.Word3, value.Word2, value.Word1, value.Word0, 0UL);
+            Signed192 narrowRoot = GetFloorSquareRoot(shifted, out _);
+            return ExtendToSigned320(narrowRoot);
+        }
+
+        int bitLength = GetBitLength(value);
+        int rootBitLength = ((bitLength + 1) >> 1) + FixedMath.SHIFT_AMOUNT_I;
+        int activeWords = System.Math.Min(5, (rootBitLength + 64) >> 6);
+        Span<ulong> rootStorage = stackalloc ulong[5];
+        Span<ulong> remainderStorage = stackalloc ulong[5];
+        Span<ulong> candidateStorage = stackalloc ulong[5];
+        Span<ulong> root = rootStorage[..activeWords];
+        Span<ulong> remainder = remainderStorage[..activeWords];
+        Span<ulong> candidate = candidateStorage[..activeWords];
+        rootStorage.Clear();
         remainder.Clear();
-        int pairIndex = (GetBitLength(value) - 1) >> 1;
+        int pairIndex = (bitLength - 1) >> 1;
         for (; pairIndex >= -FixedMath.SHIFT_AMOUNT_I; pairIndex--)
         {
             ShiftLeft(remainder, 2);
@@ -231,7 +275,7 @@ internal static partial class WideArithmetic
             root[0]++;
         }
 
-        return new Signed320(root[4], root[3], root[2], root[1], root[0]);
+        return new Signed320(rootStorage[4], rootStorage[3], rootStorage[2], rootStorage[1], rootStorage[0]);
     }
 
     private static int GetBitLength(Signed576 value)
@@ -246,13 +290,19 @@ internal static partial class WideArithmetic
             return 384 - Fixed64.CountLeadingZeroes(value.Word5);
         if (value.Word4 != 0UL)
             return 320 - Fixed64.CountLeadingZeroes(value.Word4);
-        if (value.Word3 != 0UL)
-            return 256 - Fixed64.CountLeadingZeroes(value.Word3);
-        if (value.Word2 != 0UL)
-            return 192 - Fixed64.CountLeadingZeroes(value.Word2);
-        if (value.Word1 != 0UL)
-            return 128 - Fixed64.CountLeadingZeroes(value.Word1);
-        return 64 - Fixed64.CountLeadingZeroes(value.Word0);
+        // Values below 2^255 use the Signed320 restoring-square-root path.
+        // Reaching this wide path therefore proves Word3's high bit is set.
+        return 256 - Fixed64.CountLeadingZeroes(value.Word3);
+    }
+
+    private static int GetMagnitudeBitLength(Signed192 value)
+    {
+        GetMagnitude(value, out ulong high, out ulong middle, out ulong low);
+        if (high != 0UL)
+            return 128 + 64 - Fixed64.CountLeadingZeroes(high);
+        if (middle != 0UL)
+            return 64 + 64 - Fixed64.CountLeadingZeroes(middle);
+        return low == 0UL ? 0 : 64 - Fixed64.CountLeadingZeroes(low);
     }
 
     private static ulong GetBitPair(Signed576 value, int pairIndex)
