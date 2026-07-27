@@ -219,6 +219,65 @@ public class QuaternionBenchmarks
         return accumulator;
     }
 
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector3d TryTransformPointRotated()
+    {
+        Vector3d result = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+            _ = _left[i].TryTransformPoint(_vectors[i], _axes[i], out result);
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector3d TryTransformPointIdentity()
+    {
+        Vector3d result = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            _ = FixedQuaternion.Identity.TryTransformPoint(
+                _vectors[i],
+                _axes[i],
+                out result);
+        }
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector3d TryGetRelativeOffsetRotated()
+    {
+        Vector3d result = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            _ = _left[i].TryGetRelativeOffset(
+                _vectors[i],
+                _axes[i],
+                Vector3d.One,
+                _vectors[(i + 1) & (BenchmarkFixtures.SampleCount - 1)],
+                out result);
+        }
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector3d TryGetRelativeOffsetIdentity()
+    {
+        Vector3d result = Vector3d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            _ = FixedQuaternion.Identity.TryGetRelativeOffset(
+                _vectors[i],
+                _axes[i],
+                Vector3d.One,
+                _vectors[(i + 1) & (BenchmarkFixtures.SampleCount - 1)],
+                out result);
+        }
+
+        return result;
+    }
+
     private static FixedQuaternion[] CreateFullDomainMatrixInputs()
     {
         var inputs = new FixedQuaternion[BenchmarkFixtures.SampleCount];

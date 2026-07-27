@@ -7,13 +7,18 @@
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Provides high-precision containment tests for points against finite cylinder
+/// and capsule shapes, using wide (multi-word) arithmetic to avoid overflow
+/// and precision loss when checking axial and radial bounds.
+/// </content>
 internal static partial class WideFiniteAxisIntersection
 {
     internal static bool ContainsPointInCenteredFiniteCylinder(
         Vector3d point,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         bool strict)
     {
@@ -28,13 +33,44 @@ internal static partial class WideFiniteAxisIntersection
             center,
             axisDirection,
             Vector3d.Zero);
-        Signed192 rawRadius = WideArithmetic.FromSignedRaw(radius.m_rawValue);
+        Signed192 rawRadius = Signed192.Signed(radius.m_rawValue);
         return IsCenteredFiniteCylinderPointContained(
             distanceSquared,
             axisProjection,
             axisLengthSquared,
             GetSquaredRadius(rawRadius),
-            GetCenteredAxialExtent(axisLengthSquared, axisHalfLength, Fixed64.Zero),
+            GetCenteredAxialExtent(axisLengthSquared, axisLength, Fixed64.Zero),
+            strict);
+    }
+
+    internal static bool ContainsPointInCenteredFiniteCylinder(
+        Vector3d point,
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Fixed64 axialTolerance,
+        Fixed64 radialTolerance,
+        bool strict)
+    {
+        Signed192 axisLengthSquared = GetDot(
+            axisDirection,
+            Vector3d.Zero,
+            axisDirection,
+            Vector3d.Zero);
+        Signed192 distanceSquared = GetDot(point, center, point, center);
+        Signed192 axisProjection = GetDot(
+            point,
+            center,
+            axisDirection,
+            Vector3d.Zero);
+        Signed192 expandedRadius = GetExpandedRadius(radius, radialTolerance);
+        return IsCenteredFiniteCylinderPointContained(
+            distanceSquared,
+            axisProjection,
+            axisLengthSquared,
+            GetSquaredRadius(expandedRadius),
+            GetCenteredAxialExtent(axisLengthSquared, axisLength, axialTolerance),
             strict);
     }
 
@@ -92,7 +128,7 @@ internal static partial class WideFiniteAxisIntersection
         Signed320 axialExtent,
         bool strict)
     {
-        Signed320 scaledProjection = WideArithmetic.MultiplySigned192(ParameterScale, axisProjection);
+        Signed320 scaledProjection = WideArithmetic.MultiplySigned192(DoubleParameterScale, axisProjection);
         Signed320 minimumProjection = WideArithmetic.SubtractSigned320(default, axialExtent);
         int minimumSign = WideArithmetic.SubtractSigned320(scaledProjection, minimumProjection).Sign;
         int maximumSign = WideArithmetic.SubtractSigned320(scaledProjection, axialExtent).Sign;

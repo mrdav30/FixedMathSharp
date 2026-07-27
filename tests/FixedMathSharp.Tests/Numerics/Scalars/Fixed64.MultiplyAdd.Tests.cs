@@ -1,4 +1,3 @@
-using System;
 using System.Numerics;
 using Xunit;
 
@@ -89,24 +88,24 @@ public sealed class Fixed64MultiplyAddTests
         };
 
         foreach (long leftRaw in values)
-        foreach (long rightRaw in values)
-        foreach (long addendRaw in values)
-        {
-            (bool expectedSuccess, long expectedRaw) = MultiplyAddOracle(
-                leftRaw,
-                rightRaw,
-                addendRaw);
-            bool actualSuccess = Fixed64.TryMultiplyAdd(
-                Fixed64.FromRaw(leftRaw),
-                Fixed64.FromRaw(rightRaw),
-                Fixed64.FromRaw(addendRaw),
-                out Fixed64 actual);
+            foreach (long rightRaw in values)
+                foreach (long addendRaw in values)
+                {
+                    (bool expectedSuccess, long expectedRaw) = MultiplyAddOracle(
+                        leftRaw,
+                        rightRaw,
+                        addendRaw);
+                    bool actualSuccess = Fixed64.TryMultiplyAdd(
+                        Fixed64.FromRaw(leftRaw),
+                        Fixed64.FromRaw(rightRaw),
+                        Fixed64.FromRaw(addendRaw),
+                        out Fixed64 actual);
 
-            Assert.Equal(expectedSuccess, actualSuccess);
-            Assert.Equal(
-                expectedSuccess ? Fixed64.FromRaw(expectedRaw) : default,
-                actual);
-        }
+                    Assert.Equal(expectedSuccess, actualSuccess);
+                    Assert.Equal(
+                        expectedSuccess ? Fixed64.FromRaw(expectedRaw) : default,
+                        actual);
+                }
     }
 
     private static (bool Success, long Raw) MultiplyAddOracle(

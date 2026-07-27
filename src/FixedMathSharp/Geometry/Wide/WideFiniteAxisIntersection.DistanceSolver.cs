@@ -7,6 +7,10 @@
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Solves bounded quadratic intersection problems and converts the resulting
+/// parametric roots into actual distances along a segment of a given length.
+/// </content>
 internal static partial class WideFiniteAxisIntersection
 {
     private static bool TrySolveUnitQuadraticAtDistance(
@@ -17,7 +21,7 @@ internal static partial class WideFiniteAxisIntersection
         out Fixed64 entryDistance,
         out Fixed64 exitDistance)
     {
-        Signed320 one = WideArithmetic.ExtendToSigned320(One);
+        Signed320 one = Scale320;
         return TrySolveBoundedQuadraticAtDistance(
             coefficient,
             projection,
@@ -123,8 +127,8 @@ internal static partial class WideFiniteAxisIntersection
         Signed576 scaledSquareRoot,
         Fixed64 segmentLength)
     {
-        Signed320 lengthRaw = WideArithmetic.ExtendToSigned320(
-            WideArithmetic.FromSignedRaw(segmentLength.m_rawValue));
+        Signed320 lengthRaw = Signed320.ExtendValue(
+            Signed192.Signed(segmentLength.m_rawValue));
         Signed576 negativeScaledProjection = WideArithmetic.SubtractSigned576(
             default,
             WideArithmetic.MultiplySigned320(projection, lengthRaw));
@@ -133,18 +137,18 @@ internal static partial class WideFiniteAxisIntersection
             scaledSquareRoot);
         Fixed64.TryGetSignedRawRatio(
             numerator,
-            WideArithmetic.ExtendToSigned576(coefficient),
+            Signed576.ExtendValue(coefficient),
             out Fixed64 candidate);
 
         long upperRaw = candidate.m_rawValue;
         if (upperRaw == 0L)
             return Fixed64.Zero;
 
-        Signed320 upper = WideArithmetic.ExtendToSigned320(
-            WideArithmetic.FromSignedRaw(upperRaw));
+        Signed320 upper = Signed320.ExtendValue(
+            Signed192.Signed(upperRaw));
         Signed320 midpoint = WideArithmetic.SubtractSigned320(
             WideArithmetic.AddSigned320(upper, upper),
-            WideArithmetic.ExtendToSigned320(One));
+            Scale320);
         Signed320 doubleLength = WideArithmetic.AddSigned320(lengthRaw, lengthRaw);
         Signed704 value = EvaluatePolynomial(
             coefficient,
@@ -167,8 +171,8 @@ internal static partial class WideFiniteAxisIntersection
         Signed576 scaledSquareRoot,
         Fixed64 segmentLength)
     {
-        Signed320 lengthRaw = WideArithmetic.ExtendToSigned320(
-            WideArithmetic.FromSignedRaw(segmentLength.m_rawValue));
+        Signed320 lengthRaw = Signed320.ExtendValue(
+            Signed192.Signed(segmentLength.m_rawValue));
         Signed576 negativeScaledProjection = WideArithmetic.SubtractSigned576(
             default,
             WideArithmetic.MultiplySigned320(projection, lengthRaw));
@@ -177,18 +181,18 @@ internal static partial class WideFiniteAxisIntersection
             scaledSquareRoot);
         Fixed64.TryGetSignedRawRatio(
             numerator,
-            WideArithmetic.ExtendToSigned576(coefficient),
+            Signed576.ExtendValue(coefficient),
             out Fixed64 candidate);
 
         long lowerRaw = candidate.m_rawValue;
         if (lowerRaw == segmentLength.m_rawValue)
             return segmentLength;
 
-        Signed320 lower = WideArithmetic.ExtendToSigned320(
-            WideArithmetic.FromSignedRaw(lowerRaw));
+        Signed320 lower = Signed320.ExtendValue(
+            Signed192.Signed(lowerRaw));
         Signed320 midpoint = WideArithmetic.AddSigned320(
             WideArithmetic.AddSigned320(lower, lower),
-            WideArithmetic.ExtendToSigned320(One));
+            Scale320);
         Signed320 doubleLength = WideArithmetic.AddSigned320(lengthRaw, lengthRaw);
         Signed704 value = EvaluatePolynomial(
             coefficient,
@@ -206,11 +210,11 @@ internal static partial class WideFiniteAxisIntersection
 
     private static Fixed64 RoundAtDistance(RationalBound320 value, Fixed64 segmentLength)
     {
-        Signed320 lengthRaw = WideArithmetic.ExtendToSigned320(
-            WideArithmetic.FromSignedRaw(segmentLength.m_rawValue));
+        Signed320 lengthRaw = Signed320.ExtendValue(
+            Signed192.Signed(segmentLength.m_rawValue));
         Fixed64.TryGetSignedRawRatio(
             WideArithmetic.MultiplySigned320(value.Numerator, lengthRaw),
-            WideArithmetic.ExtendToSigned576(value.Denominator),
+            Signed576.ExtendValue(value.Denominator),
             out Fixed64 distance);
         return distance;
     }

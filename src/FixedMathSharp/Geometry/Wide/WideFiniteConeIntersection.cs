@@ -10,11 +10,62 @@ namespace FixedMathSharp.Bounds;
 /// <summary>
 /// Owns exact full-domain finite-cone containment and segment reduction.
 /// </summary>
-internal static class WideFiniteConeIntersection
+internal static partial class WideFiniteConeIntersection
 {
-    private static readonly Signed192 One = WideArithmetic.FromSignedRaw(1L);
-    private static readonly Signed192 Four = WideArithmetic.FromSignedRaw(4L);
+    private static readonly Signed192 One = Signed192.Signed(1L);
+    private static readonly Signed192 Four = Signed192.Signed(4L);
     private static readonly Signed192 AxisScaleSquared = new(0UL, 1UL, 0UL);
+
+    #region Nested Types
+
+    private readonly struct RationalBound
+    {
+        internal readonly Signed192 Numerator;
+        internal readonly Signed192 Denominator;
+
+        internal RationalBound(Signed192 numerator, Signed192 denominator)
+        {
+            Numerator = numerator;
+            Denominator = denominator;
+        }
+    }
+
+    private readonly struct ConeData
+    {
+        internal readonly Signed192 StartAxial;
+        internal readonly Signed192 AxialVelocity;
+        internal readonly Signed192 MaximumAxial;
+        internal readonly Signed576 Coefficient;
+        internal readonly Signed576 Projection;
+        internal readonly Signed576 Constant;
+
+        internal ConeData(
+            Signed192 startAxial,
+            Signed192 axialVelocity,
+            Signed192 maximumAxial,
+            Signed576 coefficient,
+            Signed576 projection,
+            Signed576 constant)
+        {
+            StartAxial = startAxial;
+            AxialVelocity = axialVelocity;
+            MaximumAxial = maximumAxial;
+            Coefficient = coefficient;
+            Projection = projection;
+            Constant = constant;
+        }
+
+        internal ConeData NegatedPolynomial() =>
+            new(
+                StartAxial,
+                AxialVelocity,
+                MaximumAxial,
+                WideArithmetic.SubtractSigned576(default, Coefficient),
+                WideArithmetic.SubtractSigned576(default, Projection),
+                WideArithmetic.SubtractSigned576(default, Constant));
+    }
+
+    #endregion
 
     internal static bool TryGetApexInterval(
         FixedSegment query,
@@ -57,8 +108,8 @@ internal static class WideFiniteConeIntersection
         Fixed64 scale) =>
         Evaluate(
             new ConeData(default, default, default, coefficient, projection, constant),
-            WideArithmetic.FromSignedRaw(parameter.m_rawValue),
-            WideArithmetic.FromSignedRaw(scale.m_rawValue)).Sign;
+            Signed192.Signed(parameter.m_rawValue),
+            Signed192.Signed(scale.m_rawValue)).Sign;
 
     internal static int GetPolynomialSignAtRationalParameter(
         Signed576 coefficient,
@@ -135,7 +186,7 @@ internal static class WideFiniteConeIntersection
         Fixed64 baseRadius,
         bool strict)
     {
-        Signed192 heightRaw = WideArithmetic.FromSignedRaw(height.m_rawValue);
+        Signed192 heightRaw = Signed192.Signed(height.m_rawValue);
         Signed192 axisLengthSquared = GetDot(
             apexToBaseDirection,
             Vector3d.Zero,
@@ -170,7 +221,7 @@ internal static class WideFiniteConeIntersection
         Fixed64 baseRadius,
         bool strict)
     {
-        Signed192 heightRaw = WideArithmetic.FromSignedRaw(height.m_rawValue);
+        Signed192 heightRaw = Signed192.Signed(height.m_rawValue);
         Signed192 axisLengthSquared = GetDot(
             baseToApexDirection,
             Vector3d.Zero,
@@ -183,7 +234,7 @@ internal static class WideFiniteConeIntersection
             : GetAxisHeightProduct(axisLengthSquared, heightRaw);
         Signed192 axial = exactUnitAxis
             ? WideArithmetic.SubtractSigned192(GetHalfScaledRaw(heightRaw), axisProjection)
-            : WideArithmetic.SubtractSigned192(maximumAxial, Double(GetScaledRaw(axisProjection)));
+            : WideArithmetic.SubtractSigned192(maximumAxial, WideArithmetic.Double(GetScaledRaw(axisProjection)));
         return ContainsPoint(
             point,
             center,
@@ -191,7 +242,7 @@ internal static class WideFiniteConeIntersection
             axisLengthSquared,
             axisProjection,
             axial,
-            exactUnitAxis ? maximumAxial : Double(maximumAxial),
+            exactUnitAxis ? maximumAxial : WideArithmetic.Double(maximumAxial),
             exactUnitAxis ? One : Four,
             exactUnitAxis,
             baseRadius,
@@ -214,7 +265,7 @@ internal static class WideFiniteConeIntersection
         Signed192 distanceSquared = GetDot(point, origin, point, origin);
         Signed320 radial = GetRadialTerm(distanceSquared, axisProjection, axisLengthSquared);
         Signed320 heightSquared = WideArithmetic.MultiplySigned192(heightRaw, heightRaw);
-        Signed192 radiusRaw = WideArithmetic.FromSignedRaw(baseRadius.m_rawValue);
+        Signed192 radiusRaw = Signed192.Signed(baseRadius.m_rawValue);
         Signed320 radiusSquared = WideArithmetic.MultiplySigned192(radiusRaw, radiusRaw);
         Signed576 polynomial = SubtractConeTerms(
             heightSquared,
@@ -267,8 +318,8 @@ internal static class WideFiniteConeIntersection
         out Fixed64 entry,
         out Fixed64 exit)
     {
-        Signed704 lowerValue = Evaluate(data, lower.Numerator, lower.Denominator);
-        Signed704 upperValue = Evaluate(data, upper.Numerator, upper.Denominator);
+        Signed832 lowerValue = Evaluate(data, lower.Numerator, lower.Denominator);
+        Signed832 upperValue = Evaluate(data, upper.Numerator, upper.Denominator);
         bool lowerContained = lowerValue.Sign <= 0;
         bool upperContained = upperValue.Sign <= 0;
 
@@ -342,7 +393,7 @@ internal static class WideFiniteConeIntersection
             return false;
         }
 
-        Signed192 outputScaleRaw = WideArithmetic.FromSignedRaw(outputScale.m_rawValue);
+        Signed192 outputScaleRaw = Signed192.Signed(outputScale.m_rawValue);
         Signed192 outputScaleSquared = SquareRaw(outputScale.m_rawValue);
         Signed576 scaledSquareRoot = WideArithmetic.GetFloorSquareRootOfProduct(
             discriminant,
@@ -370,7 +421,7 @@ internal static class WideFiniteConeIntersection
 
     private static Fixed64 RoundLinearRoot(ConeData data, Fixed64 outputScale)
     {
-        Signed192 outputScaleRaw = WideArithmetic.FromSignedRaw(outputScale.m_rawValue);
+        Signed192 outputScaleRaw = Signed192.Signed(outputScale.m_rawValue);
         Signed576 numerator = WideArithmetic.MultiplySigned576(
             WideArithmetic.SubtractSigned576(default, data.Constant),
             outputScaleRaw);
@@ -393,12 +444,12 @@ internal static class WideFiniteConeIntersection
         _ = Fixed64.TryGetSignedRawRatio(numerator, normalized.Coefficient, out Fixed64 candidate);
 
         long upperRaw = candidate.m_rawValue;
-        Signed192 upper = WideArithmetic.FromSignedRaw(upperRaw);
+        Signed192 upper = Signed192.Signed(upperRaw);
         Signed192 midpoint = WideArithmetic.SubtractSigned192(
             WideArithmetic.AddSigned192(upper, upper),
             One);
         Signed192 doubleScale = WideArithmetic.AddSigned192(outputScaleRaw, outputScaleRaw);
-        Signed704 value = Evaluate(normalized, midpoint, doubleScale);
+        Signed832 value = Evaluate(normalized, midpoint, doubleScale);
         if (value.IsZero)
             return candidate;
 
@@ -419,12 +470,12 @@ internal static class WideFiniteConeIntersection
         _ = Fixed64.TryGetSignedRawRatio(numerator, normalized.Coefficient, out Fixed64 candidate);
 
         long lowerRaw = candidate.m_rawValue;
-        Signed192 lower = WideArithmetic.FromSignedRaw(lowerRaw);
+        Signed192 lower = Signed192.Signed(lowerRaw);
         Signed192 midpoint = WideArithmetic.AddSigned192(
             WideArithmetic.AddSigned192(lower, lower),
             One);
         Signed192 doubleScale = WideArithmetic.AddSigned192(outputScaleRaw, outputScaleRaw);
-        Signed704 value = Evaluate(normalized, midpoint, doubleScale);
+        Signed832 value = Evaluate(normalized, midpoint, doubleScale);
         if (value.IsZero)
             return candidate;
 
@@ -472,7 +523,7 @@ internal static class WideFiniteConeIntersection
         Fixed64 height,
         Fixed64 baseRadius)
     {
-        Signed192 heightRaw = WideArithmetic.FromSignedRaw(height.m_rawValue);
+        Signed192 heightRaw = Signed192.Signed(height.m_rawValue);
         return CreateData(
             query,
             apex,
@@ -489,7 +540,7 @@ internal static class WideFiniteConeIntersection
         Fixed64 height,
         Fixed64 baseRadius)
     {
-        Signed192 heightRaw = WideArithmetic.FromSignedRaw(height.m_rawValue);
+        Signed192 heightRaw = Signed192.Signed(height.m_rawValue);
         return CreateData(
             query,
             center,
@@ -537,13 +588,13 @@ internal static class WideFiniteConeIntersection
             Signed192 scaledStartAxisProjection = GetScaledRaw(startAxisProjection);
             Signed192 scaledDirectionAxisProjection = GetScaledRaw(directionAxisProjection);
             startAxial = centered
-                ? WideArithmetic.SubtractSigned192(maximumAxisHeight, Double(scaledStartAxisProjection))
+                ? WideArithmetic.SubtractSigned192(maximumAxisHeight, WideArithmetic.Double(scaledStartAxisProjection))
                 : scaledStartAxisProjection;
             axialVelocity = centered
-                ? WideArithmetic.SubtractSigned192(default, Double(scaledDirectionAxisProjection))
+                ? WideArithmetic.SubtractSigned192(default, WideArithmetic.Double(scaledDirectionAxisProjection))
                 : scaledDirectionAxisProjection;
             maximumAxial = centered
-                ? Double(maximumAxisHeight)
+                ? WideArithmetic.Double(maximumAxisHeight)
                 : maximumAxisHeight;
             radialScale = centered ? Four : One;
         }
@@ -562,7 +613,7 @@ internal static class WideFiniteConeIntersection
             startAxisProjection,
             axisLengthSquared);
         Signed320 heightSquared = WideArithmetic.MultiplySigned192(heightRaw, heightRaw);
-        Signed192 radiusRaw = WideArithmetic.FromSignedRaw(baseRadius.m_rawValue);
+        Signed192 radiusRaw = Signed192.Signed(baseRadius.m_rawValue);
         Signed320 radiusSquared = WideArithmetic.MultiplySigned192(radiusRaw, radiusRaw);
         Signed320 axialVelocitySquared = WideArithmetic.MultiplySigned192(axialVelocity, axialVelocity);
         Signed320 axialProduct = WideArithmetic.MultiplySigned192(startAxial, axialVelocity);
@@ -628,27 +679,33 @@ internal static class WideFiniteConeIntersection
         return WideArithmetic.SubtractSigned576(radial, axial);
     }
 
-    private static Signed704 Evaluate(ConeData data, Signed192 numerator, Signed192 denominator)
+    private static Signed832 Evaluate(ConeData data, Signed192 numerator, Signed192 denominator)
     {
+        // Rigid-frame coefficients have fewer than 390 magnitude bits after
+        // their common quaternion-denominator factor is removed. Clipped
+        // rational bounds have at most 132-bit magnitudes, so every homogenized
+        // term and their sum fit below 656 bits. Signed832 also retains the
+        // wider legacy conic intermediates without the former eleven-word
+        // truncation.
         Signed320 numeratorSquared = WideArithmetic.MultiplySigned192(numerator, numerator);
         Signed320 numeratorDenominator = WideArithmetic.MultiplySigned192(numerator, denominator);
         Signed320 denominatorSquared = WideArithmetic.MultiplySigned192(denominator, denominator);
-        Signed704 first = WideArithmetic.MultiplySigned576ToSigned704(data.Coefficient, numeratorSquared);
-        Signed704 second = WideArithmetic.MultiplySigned576ToSigned704(data.Projection, numeratorDenominator);
-        Signed704 third = WideArithmetic.MultiplySigned576ToSigned704(data.Constant, denominatorSquared);
-        return WideArithmetic.AddSigned704(
-            WideArithmetic.AddSigned704(first, WideArithmetic.AddSigned704(second, second)),
+        Signed832 first = WideArithmetic.MultiplySigned576ToSigned832(data.Coefficient, numeratorSquared);
+        Signed832 second = WideArithmetic.MultiplySigned576ToSigned832(data.Projection, numeratorDenominator);
+        Signed832 third = WideArithmetic.MultiplySigned576ToSigned832(data.Constant, denominatorSquared);
+        return WideArithmetic.AddSigned832(
+            WideArithmetic.AddSigned832(first, WideArithmetic.AddSigned832(second, second)),
             third);
     }
 
-    private static Signed704 EvaluateDerivative(ConeData data, RationalBound bound) =>
-        WideArithmetic.AddSigned704(
-            WideArithmetic.MultiplySigned576ToSigned704(
+    private static Signed832 EvaluateDerivative(ConeData data, RationalBound bound) =>
+        WideArithmetic.AddSigned832(
+            WideArithmetic.MultiplySigned576ToSigned832(
                 data.Coefficient,
-                WideArithmetic.ExtendToSigned320(bound.Numerator)),
-            WideArithmetic.MultiplySigned576ToSigned704(
+                Signed320.ExtendValue(bound.Numerator)),
+            WideArithmetic.MultiplySigned576ToSigned832(
                 data.Projection,
-                WideArithmetic.ExtendToSigned320(bound.Denominator)));
+                Signed320.ExtendValue(bound.Denominator)));
 
     private static bool IsContained(
         Signed192 axial,
@@ -670,8 +727,7 @@ internal static class WideFiniteConeIntersection
     }
 
     private static Signed192 GetScaledRaw(Signed192 value) =>
-        new(
-            (value.High << FixedMath.SHIFT_AMOUNT_I) | (value.Middle >> FixedMath.SHIFT_AMOUNT_I),
+        new((value.High << FixedMath.SHIFT_AMOUNT_I) | (value.Middle >> FixedMath.SHIFT_AMOUNT_I),
             (value.Middle << FixedMath.SHIFT_AMOUNT_I) | (value.Low >> FixedMath.SHIFT_AMOUNT_I),
             value.Low << FixedMath.SHIFT_AMOUNT_I);
 
@@ -699,9 +755,6 @@ internal static class WideFiniteConeIntersection
         axisLengthSquared.High == AxisScaleSquared.High
         && axisLengthSquared.Middle == AxisScaleSquared.Middle
         && axisLengthSquared.Low == AxisScaleSquared.Low;
-
-    private static Signed192 Double(Signed192 value) =>
-        WideArithmetic.AddSigned192(value, value);
 
     private static Signed192 SquareRaw(long raw)
     {
@@ -731,10 +784,10 @@ internal static class WideFiniteConeIntersection
     {
         Signed320 numerator = WideArithmetic.MultiplySigned192(
             value.Numerator,
-            WideArithmetic.FromSignedRaw(outputScale.m_rawValue));
+            Signed192.Signed(outputScale.m_rawValue));
         _ = Fixed64.TryGetSignedRawRatio(
-            WideArithmetic.ExtendToSigned576(numerator),
-            WideArithmetic.ExtendToSigned576(WideArithmetic.ExtendToSigned320(value.Denominator)),
+            Signed576.ExtendValue(numerator),
+            Signed576.ExtendValue(Signed320.ExtendValue(value.Denominator)),
             out Fixed64 result);
         return result;
     }
@@ -747,51 +800,4 @@ internal static class WideFiniteConeIntersection
         WideGeometry.GetDifferenceDotProduct3D(
             leftEnd.X, leftStart.X, leftEnd.Y, leftStart.Y, leftEnd.Z, leftStart.Z,
             rightEnd.X, rightStart.X, rightEnd.Y, rightStart.Y, rightEnd.Z, rightStart.Z);
-
-    private readonly struct RationalBound
-    {
-        internal readonly Signed192 Numerator;
-        internal readonly Signed192 Denominator;
-
-        internal RationalBound(Signed192 numerator, Signed192 denominator)
-        {
-            Numerator = numerator;
-            Denominator = denominator;
-        }
-    }
-
-    private readonly struct ConeData
-    {
-        internal readonly Signed192 StartAxial;
-        internal readonly Signed192 AxialVelocity;
-        internal readonly Signed192 MaximumAxial;
-        internal readonly Signed576 Coefficient;
-        internal readonly Signed576 Projection;
-        internal readonly Signed576 Constant;
-
-        internal ConeData(
-            Signed192 startAxial,
-            Signed192 axialVelocity,
-            Signed192 maximumAxial,
-            Signed576 coefficient,
-            Signed576 projection,
-            Signed576 constant)
-        {
-            StartAxial = startAxial;
-            AxialVelocity = axialVelocity;
-            MaximumAxial = maximumAxial;
-            Coefficient = coefficient;
-            Projection = projection;
-            Constant = constant;
-        }
-
-        internal ConeData NegatedPolynomial() =>
-            new(
-                StartAxial,
-                AxialVelocity,
-                MaximumAxial,
-                WideArithmetic.SubtractSigned576(default, Coefficient),
-                WideArithmetic.SubtractSigned576(default, Projection),
-                WideArithmetic.SubtractSigned576(default, Constant));
-    }
 }

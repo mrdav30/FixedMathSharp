@@ -225,6 +225,126 @@ public sealed class FixedTransformTests
     }
 
     [Fact]
+    public void FixedTransform_StrictHierarchyReads_ReturnExactComposedMatrixAndLossyScale()
+    {
+        var grandParent = new FixedTransform(
+            new Vector3d(4, 1, -3),
+            FixedQuaternion.Identity,
+            new Vector3d(2, 3, 4));
+        var parent = new FixedTransform(
+            new Vector3d(-2, 5, 1),
+            FixedQuaternion.Identity,
+            new Vector3d(3, 2, 1),
+            grandParent);
+        var child = new FixedTransform(
+            new Vector3d(1, -1, 2),
+            FixedQuaternion.Identity,
+            new Vector3d(2, 1, 3),
+            parent);
+        Fixed4x4 expectedMatrix = child.LocalMatrix * parent.LocalMatrix * grandParent.LocalMatrix;
+        Vector3d expectedLossyScale = Fixed4x4.ExtractLossyScale(expectedMatrix);
+
+        Assert.True(child.TryGetLocalToWorldMatrix(out Fixed4x4 matrix));
+        Assert.Equal(expectedMatrix, matrix);
+        Assert.True(child.TryGetLossyScale(out Vector3d lossyScale));
+        Assert.Equal(expectedLossyScale, lossyScale);
+    }
+
+    [Fact]
+    public void FixedTransform_StrictHierarchyReads_FailAtomicallyForUnrepresentableComposition()
+    {
+        var parent = new FixedTransform(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d((Fixed64)2, Fixed64.One, Fixed64.One));
+        var child = new FixedTransform(
+            new Vector3d(3, 4, 5),
+            FixedQuaternion.Identity,
+            new Vector3d(Fixed64.MaxValue, Fixed64.One, Fixed64.One),
+            parent);
+        Vector3d parentPosition = parent.LocalPosition;
+        FixedQuaternion parentRotation = parent.LocalRotation;
+        Vector3d parentScale = parent.LocalScale;
+        Vector3d childPosition = child.LocalPosition;
+        FixedQuaternion childRotation = child.LocalRotation;
+        Vector3d childScale = child.LocalScale;
+
+        Assert.False(child.TryGetLocalToWorldMatrix(out Fixed4x4 matrix));
+        Assert.Equal(Fixed4x4.Zero, matrix);
+        Assert.False(child.TryGetLossyScale(out Vector3d lossyScale));
+        Assert.Equal(Vector3d.Zero, lossyScale);
+        Assert.Equal(parentPosition, parent.LocalPosition);
+        Assert.Equal(parentRotation, parent.LocalRotation);
+        Assert.Equal(parentScale, parent.LocalScale);
+        Assert.Equal(childPosition, child.LocalPosition);
+        Assert.Equal(childRotation, child.LocalRotation);
+        Assert.Equal(childScale, child.LocalScale);
+    }
+
+    [Fact]
+    public void FixedTransform_StrictReads_RejectSaturatedRootLocalTrs()
+    {
+        var root = new FixedTransform(
+            Vector3d.Zero,
+            FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.Pi),
+            new Vector3d(Fixed64.MinValue, Fixed64.One, Fixed64.One));
+
+        Assert.Equal(Fixed64.MaxValue, root.LocalMatrix.M11);
+        Assert.False(root.TryGetLocalToWorldMatrix(out Fixed4x4 matrix));
+        Assert.Equal(Fixed4x4.Zero, matrix);
+        Assert.False(root.TryGetLossyScale(out Vector3d scale));
+        Assert.Equal(Vector3d.Zero, scale);
+    }
+
+    [Fact]
+    public void FixedTransform_StrictHierarchyReads_RejectSaturatedAncestorLocalTrs()
+    {
+        var parent = new FixedTransform(
+            Vector3d.Zero,
+            FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.Pi),
+            new Vector3d(Fixed64.MinValue, Fixed64.One, Fixed64.One));
+        var child = new FixedTransform(
+            Vector3d.One,
+            FixedQuaternion.Identity,
+            Vector3d.One,
+            parent);
+
+        Assert.False(child.TryGetLocalToWorldMatrix(out Fixed4x4 matrix));
+        Assert.Equal(Fixed4x4.Zero, matrix);
+    }
+
+    [Fact]
+    public void FixedTransform_TryGetLossyScale_PreservesCanonicalReflection()
+    {
+        var transform = new FixedTransform(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d((Fixed64)(-2), (Fixed64)3, (Fixed64)4));
+
+        Assert.True(transform.TryGetLossyScale(out Vector3d scale));
+        Assert.Equal(new Vector3d((Fixed64)(-2), (Fixed64)3, (Fixed64)4), scale);
+    }
+
+    [Fact]
+    public void FixedTransform_TryGetLossyScale_RejectsUnrepresentableComposedBasisMagnitude()
+    {
+        var parent = new FixedTransform(
+            Vector3d.Zero,
+            FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver4),
+            new Vector3d(Fixed64.FromDouble(1.1), Fixed64.One, Fixed64.One));
+        var child = new FixedTransform(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d(Fixed64.MaxValue, Fixed64.One, Fixed64.One),
+            parent);
+
+        Assert.True(child.TryGetLocalToWorldMatrix(out Fixed4x4 matrix));
+        Assert.False(Vector3d.TryGetMagnitude(new Vector3d(matrix.M11, matrix.M12, matrix.M13), out _));
+        Assert.False(child.TryGetLossyScale(out Vector3d scale));
+        Assert.Equal(Vector3d.Zero, scale);
+    }
+
+    [Fact]
     public void FixedTransform_ScaleInducedShear_UsesComposedCanonicalLossyScale()
     {
         var parent = new FixedTransform(

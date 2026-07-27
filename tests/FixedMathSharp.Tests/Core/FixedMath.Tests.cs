@@ -1,6 +1,6 @@
 ﻿using System;
-using Xunit;
 using System.Numerics;
+using Xunit;
 
 namespace FixedMathSharp.Tests;
 

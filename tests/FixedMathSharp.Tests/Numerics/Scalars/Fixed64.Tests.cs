@@ -1,4 +1,5 @@
-﻿using MemoryPack;
+﻿using FixedMathSharp.Bounds;
+using MemoryPack;
 using System;
 using System.Globalization;
 using System.Numerics;
@@ -1667,6 +1668,116 @@ public class Fixed64Tests
             out Fixed64 negativeResult));
         Assert.Equal(default, negativeResult);
         Assert.Equal(Fixed64.MinValue, Fixed64.MinValue - Fixed64.MinIncrement);
+    }
+
+    [Fact]
+    public void TryAddSubtract_ExactResultsIgnoreIntermediateOverflow()
+    {
+        Assert.True(Fixed64.TryAddSubtract(
+            Fixed64.Three,
+            Fixed64.Two,
+            Fixed64.One,
+            out Fixed64 ordinaryResult));
+        Assert.Equal((Fixed64)4, ordinaryResult);
+
+        Assert.True(Fixed64.TryAddSubtract(
+            Fixed64.MaxValue,
+            Fixed64.One,
+            Fixed64.One,
+            out Fixed64 positiveCancellation));
+        Assert.Equal(Fixed64.MaxValue, positiveCancellation);
+
+        Assert.True(Fixed64.TryAddSubtract(
+            Fixed64.MinValue,
+            -Fixed64.One,
+            -Fixed64.One,
+            out Fixed64 negativeCancellation));
+        Assert.Equal(Fixed64.MinValue, negativeCancellation);
+    }
+
+    [Fact]
+    public void TryAddSubtract_FinalOverflow_ReturnsFalseAndDefault()
+    {
+        Assert.False(Fixed64.TryAddSubtract(
+            Fixed64.MaxValue,
+            Fixed64.One,
+            Fixed64.Zero,
+            out Fixed64 positiveResult));
+        Assert.Equal(default, positiveResult);
+
+        Assert.False(Fixed64.TryAddSubtract(
+            Fixed64.MinValue,
+            -Fixed64.One,
+            Fixed64.Zero,
+            out Fixed64 negativeResult));
+        Assert.Equal(default, negativeResult);
+    }
+
+    [Fact]
+    public void TryAddSubtract_RawDomainBoundariesMatchBigIntegerOracle()
+    {
+        long[] rawValues =
+        {
+            long.MinValue,
+            long.MinValue + 1,
+            -FixedMath.ONE_L,
+            -1,
+            0,
+            1,
+            FixedMath.ONE_L,
+            long.MaxValue - 1,
+            long.MaxValue
+        };
+
+        foreach (long firstRaw in rawValues)
+        {
+            foreach (long secondRaw in rawValues)
+            {
+                foreach (long subtrahendRaw in rawValues)
+                {
+                    BigInteger expected = (BigInteger)firstRaw + secondRaw - subtrahendRaw;
+                    bool representable = expected >= long.MinValue && expected <= long.MaxValue;
+                    bool succeeded = Fixed64.TryAddSubtract(
+                        Fixed64.FromRaw(firstRaw),
+                        Fixed64.FromRaw(secondRaw),
+                        Fixed64.FromRaw(subtrahendRaw),
+                        out Fixed64 result);
+
+                    Assert.Equal(representable, succeeded);
+                    Assert.Equal(
+                        representable ? Fixed64.FromRaw((long)expected) : default,
+                        result);
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void TrySubtractSums_IgnoresIntermediateOverflowAndRejectsFinalOverflow()
+    {
+        Assert.True(Fixed64.TrySubtractSums(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            out Fixed64 cancelled));
+        Assert.Equal(Fixed64.Zero, cancelled);
+
+        Assert.True(Fixed64.TrySubtractSums(
+            Fixed64.MaxValue,
+            Fixed64.One,
+            Fixed64.MaxValue,
+            Fixed64.Zero,
+            out Fixed64 one));
+        Assert.Equal(Fixed64.One, one);
+
+        Assert.False(Fixed64.TrySubtractSums(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.MinValue,
+            Fixed64.MinValue,
+            out Fixed64 overflow));
+        Assert.Equal(default, overflow);
     }
 
     [Fact]

@@ -1,5 +1,5 @@
-using System;
 using FixedMathSharp.Bounds;
+using System;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
@@ -13,33 +13,33 @@ public sealed partial class FiniteAxisIntersectionTests
             new Vector3d(Fixed64.One, Fixed64.Zero, Fixed64.Zero),
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One));
         Assert.False(FixedSegment.ContainsPointInCenteredFiniteCylinder(
             new Vector3d(Fixed64.One, Fixed64.Zero, Fixed64.Zero),
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             strict: true));
         Assert.True(FixedSegment.ContainsPointInCenteredFiniteCylinder(
             new Vector3d(Fixed64.Zero, Fixed64.One, Fixed64.Zero),
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One));
         Assert.False(FixedSegment.ContainsPointInCenteredFiniteCylinder(
             new Vector3d(Fixed64.Zero, Fixed64.One, Fixed64.Zero),
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             strict: true));
         Assert.True(FixedSegment.ContainsPointInCenteredFiniteCylinder(
             new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Zero),
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             strict: true));
     }
@@ -54,14 +54,14 @@ public sealed partial class FiniteAxisIntersectionTests
             new Vector3d(Fixed64.MaxValue, (Fixed64)7, Fixed64.Zero),
             center,
             axis,
-            (Fixed64)10,
+            (Fixed64)20,
             (Fixed64)2,
             strict: true));
         Assert.False(FixedSegment.ContainsPointInCenteredFiniteCylinder(
             new Vector3d(Fixed64.MaxValue, (Fixed64)9, Fixed64.Zero),
             center,
             axis,
-            (Fixed64)10,
+            (Fixed64)20,
             (Fixed64)2));
     }
 
@@ -86,7 +86,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetFiniteCylinderIntersectionInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.Zero,
             Fixed64.Zero,
@@ -123,7 +123,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetFiniteCylinderIntersectionInterval(
             new Vector3d(Fixed64.Zero, centerY, Fixed64.Zero),
             Vector3d.Up,
-            Fixed64.Two,
+            (Fixed64)4,
             Fixed64.One,
             Fixed64.Zero,
             Fixed64.One,
@@ -146,7 +146,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(tangent.TryGetFiniteCylinderIntersectionInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.Zero,
             Fixed64.Zero,
@@ -157,7 +157,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.False(miss.TryGetFiniteCylinderIntersectionInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.Zero,
             Fixed64.Zero,
@@ -175,7 +175,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetFiniteCylinderIntersectionInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.Zero,
             Fixed64.Zero,
@@ -202,7 +202,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(axial.TryGetFiniteCylinderIntersectionInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.Zero,
             Fixed64.Zero,
@@ -213,7 +213,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.False(disjoint.TryGetFiniteCylinderIntersectionInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.Zero,
             Fixed64.Zero,
@@ -237,7 +237,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetFiniteCylinderIntersectionInterval(
             center,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.Zero,
             Fixed64.Zero,
             Fixed64.Zero,

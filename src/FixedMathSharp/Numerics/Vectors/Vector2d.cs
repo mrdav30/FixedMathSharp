@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using FixedMathSharp.Bounds;
 using MemoryPack;
 using System;
 using System.Collections.Generic;
@@ -450,6 +451,22 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
         return squaredMagnitude != Fixed64.Zero
             && FixedMath.Abs(squaredMagnitude - Fixed64.One) <= Fixed64.Epsilon;
     }
+
+    /// <summary>
+    /// Attempts to return this vector's magnitude rounded outward to the
+    /// smallest containing Q32.32 value.
+    /// </summary>
+    /// <returns>
+    /// <see langword="false"/> only when the final ceiling exceeds the
+    /// positive <see cref="Fixed64"/> domain.
+    /// </returns>
+    public readonly bool TryGetMagnitudeCeiling(
+        out Fixed64 magnitude) =>
+        WideGeometry.TryGetMagnitudeCeiling(
+            X,
+            Y,
+            Fixed64.Zero,
+            out magnitude);
 
     /// <summary>
     /// Linearly interpolates this vector toward the target vector by the specified amount.

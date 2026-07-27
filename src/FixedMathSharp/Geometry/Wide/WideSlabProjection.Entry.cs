@@ -5,35 +5,39 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-namespace FixedMathSharp;
+namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Entry points for computing exact wide-precision 2D support points of
+/// capsule, cylinder, and cone slab projections along a given direction.
+/// </content>
 internal static partial class WideSlabProjection
 {
     internal static bool TryGetCapsuleSupport(
         Vector3d center,
         Vector3d axis,
-        Fixed64 halfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         FixedRange slab,
         Vector2d direction,
         out Vector2d support)
     {
         Signed192 directionLength = GetPlanarDirectionLength(direction);
-        if (TryAdmitCapsuleSupport(center, axis, halfLength, radius, slab, direction, directionLength, out support))
+        if (TryAdmitCapsuleSupport(center, axis, axisLength, radius, slab, direction, directionLength, out support))
             return true;
 
         bool found = false;
         WidePlanarCandidate best = default;
-        AddSphereEndpoint(center, axis, halfLength, radius, -1, slab, direction, directionLength, ref found, ref best);
-        AddSphereEndpoint(center, axis, halfLength, radius, 1, slab, direction, directionLength, ref found, ref best);
-        AddSpherePlaneCandidate(center, axis, halfLength, radius, -1, slab.Min, direction, directionLength, ref found, ref best);
-        AddSpherePlaneCandidate(center, axis, halfLength, radius, 1, slab.Min, direction, directionLength, ref found, ref best);
-        AddCapsuleSideCandidate(center, axis, halfLength, radius, slab.Min, direction, ref found, ref best);
+        AddSphereEndpoint(center, axis, axisLength, radius, -1, slab, direction, directionLength, ref found, ref best);
+        AddSphereEndpoint(center, axis, axisLength, radius, 1, slab, direction, directionLength, ref found, ref best);
+        AddSpherePlaneCandidate(center, axis, axisLength, radius, -1, slab.Min, direction, directionLength, ref found, ref best);
+        AddSpherePlaneCandidate(center, axis, axisLength, radius, 1, slab.Min, direction, directionLength, ref found, ref best);
+        AddCapsuleSideCandidate(center, axis, axisLength, radius, slab.Min, direction, ref found, ref best);
         if (slab.Max != slab.Min)
         {
-            AddSpherePlaneCandidate(center, axis, halfLength, radius, -1, slab.Max, direction, directionLength, ref found, ref best);
-            AddSpherePlaneCandidate(center, axis, halfLength, radius, 1, slab.Max, direction, directionLength, ref found, ref best);
-            AddCapsuleSideCandidate(center, axis, halfLength, radius, slab.Max, direction, ref found, ref best);
+            AddSpherePlaneCandidate(center, axis, axisLength, radius, -1, slab.Max, direction, directionLength, ref found, ref best);
+            AddSpherePlaneCandidate(center, axis, axisLength, radius, 1, slab.Max, direction, directionLength, ref found, ref best);
+            AddCapsuleSideCandidate(center, axis, axisLength, radius, slab.Max, direction, ref found, ref best);
         }
 
         return TryCreateResult(found, best, out support);
@@ -42,28 +46,28 @@ internal static partial class WideSlabProjection
     internal static bool TryGetCylinderSupport(
         Vector3d center,
         Vector3d axis,
-        Fixed64 halfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         FixedRange slab,
         Vector2d direction,
         out Vector2d support)
     {
         Signed192 axisLengthSquared = GetAxisLengthSquared(axis);
-        if (TryAdmitCylinderSupport(center, axis, halfLength, radius, slab, direction, axisLengthSquared, out support))
+        if (TryAdmitCylinderSupport(center, axis, axisLength, radius, slab, direction, axisLengthSquared, out support))
             return true;
 
         bool found = false;
         WidePlanarCandidate best = default;
-        AddDiskEndpoint(center, axis, halfLength, radius, -1, slab, direction, axisLengthSquared, ref found, ref best);
-        AddDiskEndpoint(center, axis, halfLength, radius, 1, slab, direction, axisLengthSquared, ref found, ref best);
-        AddDiskPlaneCandidates(center, axis, halfLength, radius, -1, slab.Min, direction, axisLengthSquared, ref found, ref best);
-        AddDiskPlaneCandidates(center, axis, halfLength, radius, 1, slab.Min, direction, axisLengthSquared, ref found, ref best);
-        AddCapsuleSideCandidate(center, axis, halfLength, radius, slab.Min, direction, ref found, ref best);
+        AddDiskEndpoint(center, axis, axisLength, radius, -1, slab, direction, axisLengthSquared, ref found, ref best);
+        AddDiskEndpoint(center, axis, axisLength, radius, 1, slab, direction, axisLengthSquared, ref found, ref best);
+        AddDiskPlaneCandidates(center, axis, axisLength, radius, -1, slab.Min, direction, axisLengthSquared, ref found, ref best);
+        AddDiskPlaneCandidates(center, axis, axisLength, radius, 1, slab.Min, direction, axisLengthSquared, ref found, ref best);
+        AddCapsuleSideCandidate(center, axis, axisLength, radius, slab.Min, direction, ref found, ref best);
         if (slab.Max != slab.Min)
         {
-            AddDiskPlaneCandidates(center, axis, halfLength, radius, -1, slab.Max, direction, axisLengthSquared, ref found, ref best);
-            AddDiskPlaneCandidates(center, axis, halfLength, radius, 1, slab.Max, direction, axisLengthSquared, ref found, ref best);
-            AddCapsuleSideCandidate(center, axis, halfLength, radius, slab.Max, direction, ref found, ref best);
+            AddDiskPlaneCandidates(center, axis, axisLength, radius, -1, slab.Max, direction, axisLengthSquared, ref found, ref best);
+            AddDiskPlaneCandidates(center, axis, axisLength, radius, 1, slab.Max, direction, axisLengthSquared, ref found, ref best);
+            AddCapsuleSideCandidate(center, axis, axisLength, radius, slab.Max, direction, ref found, ref best);
         }
 
         return TryCreateResult(found, best, out support);
@@ -94,7 +98,7 @@ internal static partial class WideSlabProjection
     private static bool TryAdmitCapsuleSupport(
         Vector3d center,
         Vector3d axis,
-        Fixed64 halfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         FixedRange slab,
         Vector2d direction,
@@ -105,16 +109,16 @@ internal static partial class WideSlabProjection
         bool found = false;
         WidePlanarCandidate best = default;
         if (dot.Sign <= 0)
-            AddSphereEndpoint(center, axis, halfLength, radius, -1, slab, direction, directionLength, ref found, ref best);
+            AddSphereEndpoint(center, axis, axisLength, radius, -1, slab, direction, directionLength, ref found, ref best);
         if (dot.Sign >= 0)
-            AddSphereEndpoint(center, axis, halfLength, radius, 1, slab, direction, directionLength, ref found, ref best);
+            AddSphereEndpoint(center, axis, axisLength, radius, 1, slab, direction, directionLength, ref found, ref best);
         return TryCreateResult(found, best, out support);
     }
 
     private static bool TryAdmitCylinderSupport(
         Vector3d center,
         Vector3d axis,
-        Fixed64 halfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         FixedRange slab,
         Vector2d direction,
@@ -131,9 +135,9 @@ internal static partial class WideSlabProjection
         bool found = false;
         WidePlanarCandidate best = default;
         if (dot.Sign <= 0)
-            AddDiskEndpoint(center, axis, halfLength, radius, -1, slab, direction, axisLengthSquared, ref found, ref best);
+            AddDiskEndpoint(center, axis, axisLength, radius, -1, slab, direction, axisLengthSquared, ref found, ref best);
         if (dot.Sign >= 0)
-            AddDiskEndpoint(center, axis, halfLength, radius, 1, slab, direction, axisLengthSquared, ref found, ref best);
+            AddDiskEndpoint(center, axis, axisLength, radius, 1, slab, direction, axisLengthSquared, ref found, ref best);
         return TryCreateResult(found, best, out support);
     }
 
@@ -174,14 +178,14 @@ internal static partial class WideSlabProjection
     {
         Signed192 dot = GetPlanarDot(axis, direction);
         Signed320 gx = WideArithmetic.SubtractSigned320(
-            WideArithmetic.MultiplySigned192(axisLengthSquared, Raw(direction.X)),
-            WideArithmetic.MultiplySigned192(Raw(axis.X), dot));
+            WideArithmetic.MultiplySigned192(axisLengthSquared, Signed192.Raw(direction.X)),
+            WideArithmetic.MultiplySigned192(Signed192.Raw(axis.X), dot));
         Signed320 gy = WideArithmetic.SubtractSigned320(
             default,
-            WideArithmetic.MultiplySigned192(Raw(axis.Y), dot));
+            WideArithmetic.MultiplySigned192(Signed192.Raw(axis.Y), dot));
         Signed320 gz = WideArithmetic.SubtractSigned320(
-            WideArithmetic.MultiplySigned192(axisLengthSquared, Raw(direction.Y)),
-            WideArithmetic.MultiplySigned192(Raw(axis.Z), dot));
+            WideArithmetic.MultiplySigned192(axisLengthSquared, Signed192.Raw(direction.Y)),
+            WideArithmetic.MultiplySigned192(Signed192.Raw(axis.Z), dot));
         return !SumSquares(gx, gy, gz).IsZero;
     }
 }

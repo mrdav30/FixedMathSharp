@@ -9,6 +9,11 @@ using System;
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Implements a wide-precision root solver for rounded-cylinder (capsule-like) torus
+/// intersection tests, using a Sturm sequence built over arbitrary-precision integer
+/// coefficients to isolate and count roots within a bounded segment length.                                                                                                                                                                                                                                
+/// </content>
 internal static partial class WideFiniteAxisIntersection
 {
     private const int RoundedCylinderPolynomialCount = 5;
@@ -350,7 +355,7 @@ internal static partial class WideFiniteAxisIntersection
             crossSquared,
             1,
             termSum,
-            GetRoundedCylinderWideLength(termSum) == 0 ? (sbyte)0 : (sbyte)1,
+            1,
             difference,
             out sbyte differenceSign);
         if (differenceSign <= 0)

@@ -9,10 +9,11 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Defines arithmetic and comparison operators for <see cref="Vector3d"/>.
+/// </content>
 public partial struct Vector3d
 {
-    #region Operators
-
     /// <summary>
     /// Adds two Vector3d instances component-wise.
     /// </summary>
@@ -358,6 +359,4 @@ public partial struct Vector3d
         left.X <= right.X
         && left.Y <= right.Y
         && left.Z <= right.Z;
-
-    #endregion
 }

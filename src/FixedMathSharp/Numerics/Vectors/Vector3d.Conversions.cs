@@ -11,10 +11,11 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Conversion, deconstruction, and formatting utilities for <see cref="Vector3d"/>.
+/// </content>
 public partial struct Vector3d
 {
-    #region Conversion
-
     /// <summary>
     /// Returns a string that represents the current object in the format "(x, y, z)".
     /// </summary>
@@ -141,6 +142,4 @@ public partial struct Vector3d
         new(FixedMath.DegToRad(degrees.X),
             FixedMath.DegToRad(degrees.Y),
             FixedMath.DegToRad(degrees.Z));
-
-    #endregion
 }

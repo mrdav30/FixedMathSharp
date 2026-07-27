@@ -264,6 +264,57 @@ public partial struct FixedBoundArea : IEquatable<FixedBoundArea>
         return area;
     }
 
+    /// <summary>
+    /// Creates the representable-domain intersection of bounds described by a
+    /// center and normalized center-relative minimum and maximum offsets.
+    /// </summary>
+    /// <remarks>
+    /// Each endpoint is formed by one final saturating add, which is the
+    /// explicit clipping operation. Asymmetric offsets are preserved.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// A minimum offset component exceeds the matching maximum component.
+    /// </exception>
+    public static FixedBoundArea FromCenterAndOffsetsClippedToDomain(
+        Vector2d center,
+        Vector2d minimumOffset,
+        Vector2d maximumOffset)
+    {
+        if (minimumOffset.X > maximumOffset.X
+            || minimumOffset.Y > maximumOffset.Y)
+        {
+            throw new ArgumentException(
+                "Minimum offsets must not exceed maximum offsets.",
+                nameof(minimumOffset));
+        }
+
+        return FromMinMax(
+            center + minimumOffset,
+            center + maximumOffset);
+    }
+
+    /// <summary>
+    /// Creates the representable-domain intersection of bounds around rotated
+    /// local offsets without materializing any transformed point.
+    /// </summary>
+    public static FixedBoundArea FromRotatedOffsetsClippedToDomain(
+        Vector2d origin,
+        Fixed64 rotation,
+        ReadOnlySpan<Vector2d> localOffsets)
+    {
+        if (localOffsets.IsEmpty)
+        {
+            throw new ArgumentException(
+                "At least one local offset is required.",
+                nameof(localOffsets));
+        }
+
+        return WideConvex2dRelations.GetBoundsClippedToDomain(
+            origin,
+            rotation,
+            localOffsets);
+    }
+
     #endregion
 
     #region Mutators

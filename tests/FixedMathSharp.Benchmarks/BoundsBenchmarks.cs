@@ -33,6 +33,7 @@ public class BoundsBenchmarks
         new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue));
     private readonly FixedBoundBox _unitBox = FixedBoundBox.FromMinMax(Vector3d.Zero, Vector3d.One);
     private readonly FixedBoundCircle[] _circles = CreateCircles();
+    private readonly FixedOrientedBox[] _orientedBoxes = CreateOrientedBoxes();
     private readonly FixedSegment2d[] _segments2d = CreateSegments2d();
     private readonly FixedSegment[] _segments3d = CreateSegments3d();
     private readonly FixedTriangle2d[] _triangles2d = CreateTriangles2d();
@@ -604,6 +605,62 @@ public class BoundsBenchmarks
     }
 
     [SampledBenchmark]
+    public Fixed64 OrientedBoxBounds()
+    {
+        Fixed64 accumulator = Fixed64.Zero;
+        for (int i = 0; i < _orientedBoxes.Length; i++)
+        {
+            FixedBoundBox bounds = _orientedBoxes[i].GetBoundsClippedToDomain();
+            accumulator += bounds.Min.X + bounds.Max.Z;
+        }
+
+        return accumulator;
+    }
+
+    [SampledBenchmark]
+    public int OrientedBoxContainsPoint()
+    {
+        int count = 0;
+        for (int i = 0; i < _orientedBoxes.Length; i++)
+        {
+            if (_orientedBoxes[i].Contains(_points[(i + 37) & (BenchmarkFixtures.SampleCount - 1)]))
+                count++;
+        }
+
+        return count;
+    }
+
+    [SampledBenchmark]
+    public Vector3d OrientedBoxClosestPointOnSurface()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _orientedBoxes.Length; i++)
+        {
+            _orientedBoxes[i].TryGetClosestPointOnSurface(
+                _points[(i + 53) & (BenchmarkFixtures.SampleCount - 1)],
+                out Vector3d closestPoint);
+            accumulator += closestPoint;
+        }
+
+        return accumulator;
+    }
+
+    [SampledBenchmark]
+    public Vector3d OrientedBoxMaterializeLocalCorner()
+    {
+        Vector3d accumulator = Vector3d.Zero;
+        for (int i = 0; i < _orientedBoxes.Length; i++)
+        {
+            _orientedBoxes[i].TryMaterializeLocalPoint(
+                _orientedBoxes[i].GetLocalCorner(i & (FixedOrientedBox.CornerCount - 1)),
+                out Vector3d worldPoint);
+            accumulator += worldPoint;
+        }
+
+        return accumulator;
+    }
+
+    [SampledBenchmark]
     public Vector3d BoxGetCorner()
     {
         Vector3d accumulator = Vector3d.Zero;
@@ -986,6 +1043,26 @@ public class BoundsBenchmarks
         }
 
         return circles;
+    }
+
+    private static FixedOrientedBox[] CreateOrientedBoxes()
+    {
+        var boxes = new FixedOrientedBox[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < boxes.Length; i++)
+        {
+            Vector3d center = BenchmarkFixtures.VectorsA[i] * Fixed64.Quarter;
+            FixedQuaternion orientation = FixedQuaternion.FromEulerAnglesInDegrees(
+                (Fixed64)(i % 17),
+                (Fixed64)(i % 29),
+                (Fixed64)(i % 43));
+            Vector3d halfExtents = new(
+                Fixed64.One + Fixed64.FromFraction(i % 5, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 7, 8),
+                Fixed64.One + Fixed64.FromFraction(i % 3, 8));
+            boxes[i] = new FixedOrientedBox(center, orientation, halfExtents);
+        }
+
+        return boxes;
     }
 
     private static FixedSegment2d[] CreateSegments2d()

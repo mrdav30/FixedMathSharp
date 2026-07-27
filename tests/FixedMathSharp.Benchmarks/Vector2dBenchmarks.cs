@@ -7,6 +7,7 @@ public class Vector2dBenchmarks
 {
     private readonly Vector2d[] _left = BenchmarkFixtures.Vector2sA;
     private readonly Vector2d[] _right = BenchmarkFixtures.Vector2sB;
+    private readonly Fixed64[] _angles = BenchmarkFixtures.Angles;
     private static readonly Fixed64 s_checkDistanceThreshold = new Fixed64(16);
     private static readonly Fixed64 s_two = new Fixed64(2);
     private static readonly Vector2d s_extremeCandidate = new(Fixed64.MaxValue, Fixed64.MaxValue);
@@ -70,6 +71,74 @@ public class Vector2dBenchmarks
         }
 
         return accumulator;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector2d TryTransformPointRotated()
+    {
+        Vector2d result = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            _ = Vector2d.TryTransformPoint(
+                _left[i],
+                _right[i],
+                _angles[i],
+                out result);
+        }
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector2d TryTransformPointIdentity()
+    {
+        Vector2d result = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            _ = Vector2d.TryTransformPoint(
+                _left[i],
+                _right[i],
+                Fixed64.Zero,
+                out result);
+        }
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector2d TryGetRelativeOffsetRotated()
+    {
+        Vector2d result = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            _ = Vector2d.TryGetRelativeOffset(
+                _left[i],
+                _right[i],
+                Vector2d.One,
+                _left[(i + 1) & (BenchmarkFixtures.SampleCount - 1)],
+                _angles[i],
+                out result);
+        }
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector2d TryGetRelativeOffsetIdentity()
+    {
+        Vector2d result = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            _ = Vector2d.TryGetRelativeOffset(
+                _left[i],
+                _right[i],
+                Vector2d.One,
+                _left[(i + 1) & (BenchmarkFixtures.SampleCount - 1)],
+                Fixed64.Zero,
+                out result);
+        }
+
+        return result;
     }
 
     [Benchmark]

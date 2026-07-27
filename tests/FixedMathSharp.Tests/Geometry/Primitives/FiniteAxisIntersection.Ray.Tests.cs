@@ -1,5 +1,5 @@
-using System;
 using FixedMathSharp.Bounds;
+using System;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
@@ -201,7 +201,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(ray.TryGetCapsuleIntersectionInterval(
             new Vector3d((Fixed64)2, Fixed64.Zero, Fixed64.Zero),
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.Zero,
             Fixed64.One,
@@ -217,7 +217,7 @@ public sealed partial class FiniteAxisIntersectionTests
     }
 
     [Fact]
-    public void BoundedRayFiniteCylinder_EndpointCenteredAndAffineFamiliesAgree()
+    public void BoundedRayFiniteCylinder_EndpointAndCenteredFamiliesAgree()
     {
         var ray = new FixedRay(
             new Vector3d((Fixed64)(-3), Fixed64.Zero, Fixed64.Zero),
@@ -238,7 +238,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(ray.TryGetFiniteCylinderIntersectionInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.Zero,
             Fixed64.Zero,
@@ -247,22 +247,10 @@ public sealed partial class FiniteAxisIntersectionTests
             out Fixed64 centeredExit,
             out _,
             out _));
-        Assert.True(ray.TryGetFiniteCylinderIntersectionInterval(
-            axis,
-            Fixed64.One,
-            Fixed64.One,
-            Fixed64.Zero,
-            Fixed64.Zero,
-            (Fixed64)6,
-            out Fixed64 affineEntry,
-            out Fixed64 affineExit));
-
         Assert.Equal((Fixed64)2, endpointEntry);
         Assert.Equal((Fixed64)4, endpointExit);
         Assert.Equal(endpointEntry, centeredEntry);
         Assert.Equal(endpointExit, centeredExit);
-        Assert.Equal(endpointEntry, affineEntry);
-        Assert.Equal(endpointExit, affineExit);
         Assert.False(originContained);
         Assert.False(maximumContainedStrict);
     }
@@ -296,11 +284,11 @@ public sealed partial class FiniteAxisIntersectionTests
         var sideRay2d = new FixedRay2d(new Vector2d((Fixed64)(-2), Fixed64.Zero), Vector2d.Right);
         var sideRay3d = new FixedRay(new Vector3d((Fixed64)(-2), Fixed64.Zero, Fixed64.Zero), Vector3d.Right);
         Assert.True(sideRay2d.TryGetCapsuleIntersectionInterval(
-            Vector2d.Zero, Vector2d.Forward, Fixed64.One, Fixed64.One,
+            Vector2d.Zero, Vector2d.Forward, Fixed64.Two, Fixed64.One,
             Fixed64.Zero, (Fixed64)2 + Fixed64.Half,
             out _, out _, out _, out bool centeredSide2d));
         Assert.True(sideRay3d.TryGetCapsuleIntersectionInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One,
             Fixed64.Zero, (Fixed64)2 + Fixed64.Half,
             out _, out _, out _, out bool centeredSide3d));
         Assert.True(centeredSide2d);
@@ -313,7 +301,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(originOnCap);
         Assert.False(maximumOnCapStrict);
         Assert.True(capBoundaryRay.TryGetFiniteCylinderIntersectionInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One,
             Fixed64.Zero, Fixed64.Zero, Fixed64.Two,
             out _, out _, out bool centeredOriginOnCap, out bool centeredMaximumOnCapStrict));
         Assert.True(centeredOriginOnCap);
@@ -330,7 +318,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.False(lowerCapMaximumContainedStrict);
 
         Assert.True(lowerCapArrivalRay.TryGetFiniteCylinderIntersectionInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One,
             Fixed64.Zero, Fixed64.Zero, Fixed64.One,
             out Fixed64 centeredLowerCapEntry, out Fixed64 centeredLowerCapExit,
             out bool centeredLowerCapOriginContained, out bool centeredLowerCapMaximumContainedStrict));
@@ -348,16 +336,13 @@ public sealed partial class FiniteAxisIntersectionTests
         var axis = new FixedSegment(-Vector3d.Up, Vector3d.Up);
 
         Assert.False(ray2d.TryGetCapsuleIntersectionInterval(
-            Vector2d.Zero, Vector2d.Forward, Fixed64.One, Fixed64.Half,
+            Vector2d.Zero, Vector2d.Forward, Fixed64.Two, Fixed64.Half,
             Fixed64.One, out _, out _));
         Assert.False(ray3d.TryGetCapsuleIntersectionInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.Half,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.Half,
             Fixed64.One, out _, out _));
         Assert.False(ray3d.TryGetFiniteCylinderIntersectionInterval(
-            axis, Fixed64.One, Fixed64.One, Fixed64.Zero,
-            Fixed64.Zero, (Fixed64)6, out _, out _));
-        Assert.False(ray3d.TryGetFiniteCylinderIntersectionInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One,
             Fixed64.Zero, Fixed64.Zero, (Fixed64)6,
             out _, out _, out _, out _));
     }
@@ -429,25 +414,6 @@ public sealed partial class FiniteAxisIntersectionTests
             axis3d, Fixed64.One, -Fixed64.One, Fixed64.One, out _, out _, out _, out _));
         Assert.False(ray3d.TryGetFiniteCylinderIntersectionInterval(
             axis3d, Fixed64.One, Fixed64.Zero, -Fixed64.One, out _, out _, out _, out _));
-
-        Assert.Throws<ArgumentException>(() => ray3d.TryGetFiniteCylinderIntersectionInterval(
-            collapsed3d, Fixed64.One, Fixed64.One, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.One, out _, out _));
-        Assert.Throws<ArgumentOutOfRangeException>(() => ray3d.TryGetFiniteCylinderIntersectionInterval(
-            axis3d, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.One, out _, out _));
-        Assert.Throws<ArgumentOutOfRangeException>(() => ray3d.TryGetFiniteCylinderIntersectionInterval(
-            axis3d, Fixed64.One, -Fixed64.One, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.One, out _, out _));
-        Assert.Throws<ArgumentOutOfRangeException>(() => ray3d.TryGetFiniteCylinderIntersectionInterval(
-            axis3d, Fixed64.One, Fixed64.One, -Fixed64.One,
-            Fixed64.Zero, Fixed64.One, out _, out _));
-        Assert.Throws<ArgumentOutOfRangeException>(() => ray3d.TryGetFiniteCylinderIntersectionInterval(
-            axis3d, Fixed64.One, Fixed64.One, Fixed64.Zero,
-            -Fixed64.One, Fixed64.One, out _, out _));
-        Assert.False(ray3d.TryGetFiniteCylinderIntersectionInterval(
-            axis3d, Fixed64.One, Fixed64.One, Fixed64.Zero,
-            Fixed64.Zero, -Fixed64.One, out _, out _));
 
         Assert.Throws<ArgumentException>(() => ray3d.TryGetFiniteCylinderIntersectionInterval(
             Vector3d.Zero, Vector3d.One, Fixed64.One, Fixed64.One,

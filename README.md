@@ -63,7 +63,8 @@ Use floating point when you need:
 - **Coordinate convention helpers** with `Axis3d` and `CoordinateConvention3d`
   for explicit signed-axis adapter boundaries.
 - **Geometry and bounds** with 2D areas, circles, rays, segments, and triangles
-  plus 3D boxes, spheres, frustums, planes, rays, segments, and triangles.
+  plus 3D axis-aligned and oriented boxes, spheres, frustums, planes, rays,
+  segments, triangles, and rigid point anchors for full-domain relations.
 - **Curves and ranges** with `FixedCurve`, `FixedCurveKey`, and `FixedRange`.
 - **Deterministic RNG** with `DeterministicRandom` streams derived from seeds,
   feature keys, and indices.
@@ -222,6 +223,11 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
   clamping, and projection queries.
 - `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`: 3D containment,
   intersection, clamping, and projection queries.
+- `FixedOrientedBox`: canonical center/orientation/half-extent geometry with
+  analytical clipped bounds and exact concrete relation helpers.
+- `FixedPointAnchor`, `FixedPointAnchor2d`: rigid-frame point representations
+  that preserve relative geometry when an intermediate or absolute coordinate
+  is outside the scalar domain.
 - `FixedPlane`, `FixedRay`: geometric primitives for plane classification and 3D
   ray intersections.
 - `FixedSegment2d`, `FixedRay2d`, `FixedTriangle2d`: finite-segment, ray, and

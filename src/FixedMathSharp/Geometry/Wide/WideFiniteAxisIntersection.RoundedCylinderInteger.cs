@@ -9,6 +9,10 @@ using System;
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Signed wide-integer arithmetic helpers (add, subtract, multiply, shift, compare)
+/// used to evaluate rounded-cylinder intersection polynomial coefficients.
+/// </content>
 internal static partial class WideFiniteAxisIntersection
 {
     private static void ImportRoundedCylinderCoefficient(

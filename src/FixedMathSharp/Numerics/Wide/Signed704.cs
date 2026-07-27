@@ -5,6 +5,8 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System.Runtime.CompilerServices;
+
 namespace FixedMathSharp;
 
 /// <summary>
@@ -54,4 +56,35 @@ internal readonly struct Signed704
         (Word10 | Word9 | Word8 | Word7 | Word6 | Word5 | Word4 | Word3 | Word2 | Word1 | Word0) == 0UL;
 
     internal int Sign => IsZero ? 0 : (Word10 & (1UL << 63)) != 0UL ? -1 : 1;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed704 ExtendValue(Signed576 value)
+    {
+        ulong extension = unchecked((ulong)((long)value.Word8 >> 63));
+        return new Signed704(
+            extension,
+            extension,
+            value.Word8,
+            value.Word7,
+            value.Word6,
+            value.Word5,
+            value.Word4,
+            value.Word3,
+            value.Word2,
+            value.Word1,
+            value.Word0);
+    }
+
+    internal bool Equals(Signed704 other) =>
+        ((Word10 ^ other.Word10)
+         | (Word9 ^ other.Word9)
+         | (Word8 ^ other.Word8)
+         | (Word7 ^ other.Word7)
+         | (Word6 ^ other.Word6)
+         | (Word5 ^ other.Word5)
+         | (Word4 ^ other.Word4)
+         | (Word3 ^ other.Word3)
+         | (Word2 ^ other.Word2)
+         | (Word1 ^ other.Word1)
+         | (Word0 ^ other.Word0)) == 0UL;
 }

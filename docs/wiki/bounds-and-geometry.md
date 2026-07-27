@@ -62,20 +62,20 @@ Derived centers use a full-domain nearest-even midpoint. Exact `Size` /
 positive `Fixed64`; wider spans throw `OverflowException` rather than reporting
 a saturated under-size. `Scope` is the smallest representable half-extent that
 conservatively contains both endpoints around the lattice center, so odd raw-
-unit spans round outward. The complete scalar interval from
-`Fixed64.MinValue` through `Fixed64.MaxValue` has neither a representable size
-nor scope and throws for both derived properties.
+unit spans round outward. The complete scalar interval from `Fixed64.MinValue`
+through `Fixed64.MaxValue` has neither a representable size nor scope and throws
+for both derived properties.
 
 Centered size construction follows the same conservative rule: an odd raw-unit
 size expands by one raw unit. Recenter, resize, and centered factory operations
 validate every endpoint before committing; an out-of-domain result throws
 `OverflowException` and leaves an existing bound unchanged.
 
-Use `FromCenterAndSizeClippedToDomain` or
-`FromCenterAndScopeClippedToDomain` only when the desired result is explicitly
-the intersection between a mathematical centered bound and the representable
-Q32.32 coordinate domain. These named factories saturate only the out-of-domain
-endpoints and keep the ordinary centered factories strict.
+Use `FromCenterAndSizeClippedToDomain` or `FromCenterAndScopeClippedToDomain`
+only when the desired result is explicitly the intersection between a
+mathematical centered bound and the representable Q32.32 coordinate domain.
+These named factories saturate only the out-of-domain endpoints and keep the
+ordinary centered factories strict.
 
 `FixedBoundBox.FromFiniteConeClippedToDomain` applies that same spatial-proxy
 contract to an apex, base center, accepted normalized axis, and radius. It
@@ -92,6 +92,83 @@ Q32.32 domain.
 nearest-even, while `Length` returns the exact signed endpoint difference or
 throws `OverflowException` when that difference is not representable.
 
+## Oriented Boxes
+
+`FixedOrientedBox` owns canonical oriented-box geometry without caching world
+corners, normals, or axes:
+
+```csharp
+FixedOrientedBox box = new(
+    center,
+    normalizedOrientation,
+    positiveHalfExtents);
+
+FixedBoundBox broadPhaseBounds = box.GetBoundsClippedToDomain();
+Vector3d localSupport = box.GetLocalSupportPoint(worldDirection);
+
+if (box.TryMaterializeLocalPoint(localSupport, out Vector3d worldSupport))
+{
+    // Use the representable world-space witness.
+}
+```
+
+The constructor requires a normalized quaternion and strictly positive
+half-extents. `default(FixedOrientedBox)` is invalid. Each operation derives one
+scale-invariant rational rotation basis directly from the stored quaternion's
+raw components. Classification, support, clamping, and bounds use that exact
+conceptual basis. `GetAxes` rounds each rational coefficient to its nearest-even
+`Fixed64` value only for callers that need representable vectors; those rounded
+views are not fed back into geometry queries. Negating all four quaternion
+components therefore leaves every geometric result unchanged. Value equality
+remains structural, so quaternion sign variants are distinct stored states even
+though their geometry is identical.
+
+Corners and support points are center-relative local features. Corner index bits
+select positive X, Y, and Z respectively, matching `FixedBoundBox`; support ties
+retain the lower corner index. Closest-surface and nearest-normal ties select X,
+then Y, then Z, with zero selecting the positive face. Outside normal queries
+select the first violated axis in that same order, matching the point's nearest
+clamped face, edge, or corner feature.
+
+Projection, local clamping, face selection, analytical bounds, and
+local-to-world materialization retain exact wide intermediates through their
+final conversion. Bounds floor their exact minimum endpoints, ceil their exact
+maximum endpoints, and clip only conceptual scalar endpoints outside the Q32.32
+domain. Materialization rounds each conceptual coordinate once to the
+nearest-even lattice value, is atomic, and returns `false` when any selected
+world coordinate is not representable. A conceptual face or corner can lie
+between lattice points, so materializing that boundary point is not a promise
+that the rounded witness will classify as contained; inset local points should
+be used when containment after materialization is required.
+
+## Rigid Point Anchors
+
+`FixedPointAnchor` and `FixedPointAnchor2d` retain a conceptual point in a rigid
+local frame:
+
+```text
+origin + rotation * (localPoint + localDisplacement)
+```
+
+The two local terms remain separate. This matters for features such as a capsule
+cap-center displacement plus radial support: each term and the final world point
+may be representable even when adding the local terms first is not.
+
+Use `TryGetPoint` only when an absolute point is required. Relative geometry
+should use `TryGetOffsetFrom` or `TryGetLocalPointIn`; the 3D anchor also
+provides scaled and projected-offset helpers. These operations let origin and
+feature cancellation occur before the one final half-even narrowing. The 2D
+inverse-frame operation divides by the exact squared norm of the represented
+sine/cosine pair; it does not assume quantized trigonometric values still form a
+mathematically unit basis. Re-expression in another non-cardinal frame therefore
+returns the nearest representable local lattice point, while same-frame recovery
+remains exact.
+
+Full-domain contact relations return `FixedContactAnchors`. Multi-contact
+relations return one primary anchor pair plus compact `FixedContactLocalPoints`
+entries that reuse the primary rigid frames, normal, depth, and depth-clamping
+state.
+
 ## Finite-Slab Projection
 
 `FixedSlabProjection` returns the planar support point of a centered finite 3D
@@ -103,38 +180,54 @@ cylinder, or cone inside a finite vertical layer:
 bool intersectsLayer = FixedSlabProjection.TryGetCylinderSupport(
     center,
     normalizedAxis,
-    halfLength,
+    axisLength,
     radius,
     new FixedRange(layerMinY, layerMaxY),
     Vector2d.Right,
     out Vector2d rightmostPoint);
 ```
 
-Axes and planar support directions must be normalized. Lengths and radii must
-be nonnegative, and cylinders and cones require positive length. The methods
-return `false` when the clipped shape is empty or its winning support point is
-outside the representable `Fixed64` coordinate domain. Intermediate candidate
+Axes and planar support directions must be normalized. Lengths and radii must be
+nonnegative, and cylinders and cones require positive length. The methods return
+`false` when the clipped shape is empty or its winning support point is outside
+the representable `Fixed64` coordinate domain. Intermediate candidate
 construction, comparison, and selection remain exact across the full input
 domain; only the final support point is narrowed.
 
-This is a stateless geometry primitive, not a collider or sweep API. Physics
-packages remain responsible for support iteration, query tolerances, contact
-generation, and hit ownership.
+`FixedSlabProjection` itself is a stateless support primitive rather than a
+collider API. Physics packages remain responsible for candidate ownership, query
+tolerances, and response.
+
+`FixedTriangle.TryGetFiniteSlabProjectedCircleContact` and
+`TryGetFiniteSlabProjectedCircleSweep` provide the matching exact
+triangle-boundary relation. They retain rigid triangle vertices, finite-Y
+clipping intersections, and planar edge crossings as rational values until the
+final distance and triangle-local anchor conversions. This avoids deforming a
+triangle when its conceptual world vertices cannot be materialized.
+
+For static embedded-volume contact, `FixedTriangle.TryGetCircleSlabContact` and
+`TryGetCenteredCapsuleSlabContact` test the complete finite extrusion rather
+than only its X/Z projection. They return canonical rigid-frame anchors, an
+oriented minimum-translation normal, and a depth with explicit clamping state.
+The slab support is retained exactly; the triangle anchor uses the full-domain
+relative closest-point relation so face contacts remain tangentially coherent
+instead of selecting an arbitrary tied vertex.
 
 `FixedBoundBox.GetVolumeExpansionCost` is the full-domain insertion heuristic
 for spatial indexes. It compares the exact Q96.96 volume growth in unsigned
-192-bit arithmetic, floors only the final integer result, and clamps that
-public `long` metric at `long.MaxValue`. It does not require `Proportions` to be
+192-bit arithmetic, floors only the final integer result, and clamps that public
+`long` metric at `long.MaxValue`. It does not require `Proportions` to be
 representable.
 
 `FixedBoundCircle` and `FixedBoundSphere` normalize radius by absolute value
 through construction, assignment, and serialized state load. `FixedRay` and
 `FixedRay2d` do not normalize direction; returned ray parameters are physical
 distances only when the direction is normalized by the caller.
-`GetPoint(parameter)` uses a fused multiply-add per coordinate, so reconstruction
-does not saturate or round the direction product before adding the origin.
-`TryGetPoint(parameter, out point)` uses the same fused calculation but returns
-`false` instead of saturating when any final coordinate is not representable.
+`GetPoint(parameter)` uses a fused multiply-add per coordinate, so
+reconstruction does not saturate or round the direction product before adding
+the origin. `TryGetPoint(parameter, out point)` uses the same fused calculation
+but returns `false` instead of saturating when any final coordinate is not
+representable.
 
 `FixedBoundSphere.CreateFromBoundingBox`, `CreateFromFrustum`,
 `CreateFromPoints`, and `CreateMerged` retain endpoint differences, distance
@@ -143,11 +236,11 @@ Successful construction always returns a sphere that contains the supplied
 geometry; radii round outward when the exact distance lies between raw values.
 The point and frustum factories retain deterministic Ritter-style construction,
 and merge centers must lie on the Q32.32 coordinate lattice, so these APIs do
-not promise a mathematically minimum sphere. They throw `OverflowException`
-when the selected deterministic construction requires an unrepresentable
-radius instead of returning a saturated under-bound sphere. `FixedBoundCircle`
-has no corresponding point-cloud or merge factory, so there is no 2D
-construction contract to mirror.
+not promise a mathematically minimum sphere. They throw `OverflowException` when
+the selected deterministic construction requires an unrepresentable radius
+instead of returning a saturated under-bound sphere. `FixedBoundCircle` has no
+corresponding point-cloud or merge factory, so there is no 2D construction
+contract to mirror.
 
 ## Boundary Semantics
 
@@ -207,7 +300,7 @@ bool crossesCylinder = segment.TryGetFiniteCylinderIntersectionInterval(
 bool crossesCenteredCylinder = segment.TryGetFiniteCylinderIntersectionInterval(
     cylinderCenter,
     normalizedCylinderAxis,
-    cylinderHalfLength,
+    cylinderAxisLength,
     cylinderRadius,
     radialExpansion,
     axialExpansion,
@@ -261,17 +354,15 @@ The endpoint-classification overloads report inclusive start containment and
 strict end containment from the same wide inputs, independently of rounded
 parameters. A zero-length capsule axis reduces to a circle or sphere. A
 zero-length cylinder axis is rejected because an endpoint pair cannot retain a
-flat-cap normal. The affine cylinder overload additionally accepts the positive
-authored `axisHalfLength` plus separate radial and axial expansions; that half
-length must describe the supplied unexpanded cap-center axis. This lets a
-swept-radius caller expand both cap planes without first constructing a
-potentially saturated full length or expanded endpoints.
+flat-cap normal. Centered cylinder overloads accept the positive full axis
+length plus separate radial and axial expansions. They expand both cap planes
+without first constructing potentially saturated endpoints.
 
-`FixedSegment.TryGetSweptSphereFiniteCylinderIntersectionDistance`
-and its interval overload instead solve the exact Minkowski sum of a centered
-finite cylinder and a sphere. The boundary keeps the expanded cylindrical side
-and cap faces, but rounds each cap rim rather than filling the corners of an
-independently expanded radius and half-height. Use this contract for an exact
+`FixedSegment.TryGetSweptSphereFiniteCylinderIntersectionDistance` and its
+interval overload instead solve the exact Minkowski sum of a centered finite
+cylinder and a sphere. The boundary keeps the expanded cylindrical side and cap
+faces, but rounds each cap rim rather than filling the corners of an
+independently expanded radius and height. Use this contract for an exact
 swept-sphere-versus-cylinder query; use affine expansion only when a sharp-rim
 cylinder is the intended volume. The solver retains the accepted axis's exact
 squared raw length, wide side/cap/rim arithmetic, repeated-root tangencies, and
@@ -284,8 +375,8 @@ first-contact query for the exact spherical dilation of a `FixedBoundBox`.
 Unlike expanding each box extent by the sphere radius, the represented boundary
 keeps planar faces and rounds its edges and corners. The allocation-free solver
 retains full-domain authored chord differences, exact feature-transition
-ordering, and wide squared-distance quadratics until one final round-half-to-even
-conversion into the caller-supplied physical-distance range.
+ordering, and wide squared-distance quadratics until one final
+round-half-to-even conversion into the caller-supplied physical-distance range.
 
 Finite-cone methods on `FixedSegment` accept either an apex plus normalized
 apex-to-base direction and parametric height, or a center plus normalized
@@ -295,16 +386,16 @@ axis's exact squared raw length instead of pretending every accepted normalized
 vector has a mathematically exact unit length. The centered form also doubles
 its axial coordinate in wide arithmetic, so an odd raw-unit height is not
 rounded away. They return the closed segment interval across the side, apex,
-flat base, and rim as one convex-volume result. Endpoint
-classification and point-containment overloads use the same inclusive-boundary
-and strict-interior contract as the finite-axis families. Axial clipping,
-conic coefficients, discriminant evaluation, and root selection remain in
-fixed-width wide arithmetic until the final half-even conversion. Use the
-physical-distance overload when the segment length is available and distinct
-spatial hits must not be collapsed by a very long chord's Q32.32 parameter.
-Point-interval overloads instead return deterministic high-resolution lattice
-witnesses through exact authored-chord interpolation, which is preferable when
-the consumer needs hit positions rather than segment parameters.
+flat base, and rim as one convex-volume result. Endpoint classification and
+point-containment overloads use the same inclusive-boundary and strict-interior
+contract as the finite-axis families. Axial clipping, conic coefficients,
+discriminant evaluation, and root selection remain in fixed-width wide
+arithmetic until the final half-even conversion. Use the physical-distance
+overload when the segment length is available and distinct spatial hits must not
+be collapsed by a very long chord's Q32.32 parameter. Point-interval overloads
+instead return deterministic high-resolution lattice witnesses through exact
+authored-chord interpolation, which is preferable when the consumer needs hit
+positions rather than segment parameters.
 
 `Vector3d.ProjectNonNegativeDifferenceParameter` and
 `GetNormalizedProjectionOnPlane` provide the corresponding q-aware consumer
@@ -312,44 +403,45 @@ operations. They retain exact endpoint differences and the supplied axis norm,
 so an accepted near-unit fixed vector is not silently treated as a
 mathematically exact unit vector before the final projection result is narrowed.
 
-The same capsule families are available directly on `FixedRay2d` and
-`FixedRay`; finite-cylinder families are available on `FixedRay`. Ray methods
-require an explicit nonnegative maximum parameter and solve directly in the
-closed interval `[0, maxParameter]`. They do not convert a long ray to a unit
-segment parameter, so a normalized direction returns physical-distance values
-without losing raw-unit ordering during a later rescale. Direction is otherwise
-unconstrained, and returned values retain ordinary ray-parameter semantics.
-Advanced overloads report inclusive origin containment and strict containment
-at the bounded maximum independently of rounded interval endpoints.
+The same capsule families are available directly on `FixedRay2d` and `FixedRay`;
+finite-cylinder families are available on `FixedRay`. Ray methods require an
+explicit nonnegative maximum parameter and solve directly in the closed interval
+`[0, maxParameter]`. They do not convert a long ray to a unit segment parameter,
+so a normalized direction returns physical-distance values without losing
+raw-unit ordering during a later rescale. Direction is otherwise unconstrained,
+and returned values retain ordinary ray-parameter semantics. Advanced overloads
+report inclusive origin containment and strict containment at the bounded
+maximum independently of rounded interval endpoints.
 
 When a finite authored path—not a ray—is the source of truth, use the matching
 segment physical-distance interval APIs. They retain the exact original chord
-components and map parameter `[0, 1]` to caller-supplied
-`[0, totalDistance]` only at the final half-to-even conversion. This avoids the
-information loss of normalizing a long chord whose small transverse component
-is still physically meaningful. `GetPointAtDistance(distance, totalDistance)`
-reconstructs a returned hit with the same exact chord contract, rejects values
-outside that closed range, and returns exact authored endpoints at zero and the
-total distance. A zero total distance is valid only when both authored endpoints
-are equal; this lets overlap workers classify and reconstruct a point query
-without a separate downstream branch.
+components and map parameter `[0, 1]` to caller-supplied `[0, totalDistance]`
+only at the final half-to-even conversion. This avoids the information loss of
+normalizing a long chord whose small transverse component is still physically
+meaningful. `GetPointAtDistance(distance, totalDistance)` reconstructs a
+returned hit with the same exact chord contract, rejects values outside that
+closed range, and returns exact authored endpoints at zero and the total
+distance. A zero total distance is valid only when both authored endpoints are
+equal; this lets overlap workers classify and reconstruct a point query without
+a separate downstream branch.
 
 For centers near the scalar-domain boundary, prefer the centered capsule and
 cylinder overloads. Their axis direction must already be normalized, and their
-physical half-length remains separate from the center. Capsule half-length may
-be zero and then uses the circle/sphere limit; cylinder half-length must stay
+full physical axis length remains separate from the center. Capsule length may
+be zero and then uses the circle/sphere limit; cylinder length must stay
 positive. The wide solvers define conceptual endpoints and cap planes
-parametrically and never construct `center +/- direction * halfLength`, so a
-saturated coordinate cannot shorten or rotate the axis.
+parametrically as `center +/- direction * (axisLength / 2)` and never construct
+them as `Fixed64` coordinates, so a saturated coordinate cannot shorten or
+rotate the axis.
 
-The matching centered-axis helpers keep closest-feature selection exact as
-well. `ContainsPointInCenteredCapsule` compares an optional radial expansion in
-wide arithmetic and accepts explicit strict mode when surface contact must be
+The matching centered-axis helpers keep closest-feature selection exact as well.
+`ContainsPointInCenteredCapsule` compares an optional radial expansion in wide
+arithmetic and accepts explicit strict mode when surface contact must be
 excluded. `ContainsPointInCenteredFiniteCylinder` provides the same exact
 inclusive/strict choice for the radial side and flat caps.
-`GetDirectionFromCenteredAxis` returns the normalized radial
-direction, or zero for a point on the axis. Callers that need a surface point
-can supply that direction (or an explicit deterministic on-axis direction) to
+`GetDirectionFromCenteredAxis` returns the normalized radial direction, or zero
+for a point on the axis. Callers that need a surface point can supply that
+direction (or an explicit deterministic on-axis direction) to
 `TryGetSurfacePointOnCenteredCapsule`; it fuses the conceptual axis point and
 radial offset before one final half-to-even coordinate conversion. It returns
 `false` only when the final surface point itself is outside the scalar domain.
@@ -358,6 +450,34 @@ return the exact closest gap without requiring that surface point to be
 representable. Inside and boundary points return zero; positive gaps use one
 final half-to-even conversion. An unrepresentable result saturates to
 `Fixed64.MaxValue`, and the `Try` form additionally returns `false`.
+`TryGetClosestPointsBetweenCenteredAxes` performs the same full-domain
+closest-feature solve for two 2D or 3D centered axes and narrows only the two
+selected world points. It returns `false` with zero outputs if either witness is
+outside the scalar domain.
+
+`TryGetCenteredAxisEndpoint` materializes one explicitly selected conceptual
+endpoint only when a caller needs a world point. The matching capsule support
+overloads exist in 2D and 3D; finite-cylinder and finite-cone support overloads
+are 3D. They accept any search-direction magnitude, retain the center, axial,
+and radial terms until one final half-even conversion, and return `false` with a
+zero output when the selected point is outside the scalar domain. Axial ties
+select the negative endpoint, cylinder directions parallel to the axis select
+the cap center, and cone apex/base ties select the base.
+
+The `TryGetCentered*CapsuleSlabAxisPenetration` family compares a 3D capsule,
+finite cylinder, or finite cone with a planar capsule extruded through a world-Y
+slab on one normalized projection axis. Center, axial, radial, and slab terms
+remain separate through the overlap decision, so scalar-face placement cannot
+saturate before separation or oriented-depth selection. The methods return the
+minimum oriented overlap along that axis, clamp only an unrepresentable final
+positive depth, and return `false` for separation.
+
+`FixedBoundArea.FromCenteredCapsuleClippedToDomain` and
+`FixedBoundBox.FromCenteredCapsuleClippedToDomain` derive tight analytical 2D
+and 3D axis-aligned bounds from the full axis length.
+`FixedBoundBox.FromCenteredFiniteCylinderClippedToDomain` provides the matching
+3D finite-cylinder bound. These factories round extents outward and clip only
+the final bounds to the representable coordinate domain.
 
 Triangles also preserve ordered vertices:
 
@@ -410,19 +530,19 @@ component without a potentially saturating three-value sum.
 Projected barycentric weights use exact Gram numerators and denominator. A Gram
 denominator at or below the inclusive `Fixed64.Epsilon` threshold returns
 `false` and three zero weights; successful A, B, and C weights are rounded and
-saturated independently. `ContainsProjection` classifies those exact
-numerators directly, includes projected edges, and returns `false` for a
-degenerate projected face. Closest-point Voronoi predicates also remain exact,
-and degenerate edge candidates preserve stable AB, BC, CA tie order. `Contains`
+saturated independently. `ContainsProjection` classifies those exact numerators
+directly, includes projected edges, and returns `false` for a degenerate
+projected face. Closest-point Voronoi predicates also remain exact, and
+degenerate edge candidates preserve stable AB, BC, CA tie order. `Contains`
 remains the inclusive squared-distance epsilon predicate.
 
 `TryGetFiniteConeIntersectionMinimumAxialPoint` reduces the three stable edges
 and the triangle face against an apex-authored finite cone. The normalized axis
 keeps its exact fixed-point squared length; plane, conic, and half-space
 predicates stay in fixed-width wide arithmetic. The returned point is the
-deterministic maximum-scale lattice witness for the earliest admitted
-candidate, rounded only at the public coordinate boundary. AB, BC, CA, then
-face order resolves exact ties. Degenerate triangles retain edge-only behavior.
+deterministic maximum-scale lattice witness for the earliest admitted candidate,
+rounded only at the public coordinate boundary. AB, BC, CA, then face order
+resolves exact ties. Degenerate triangles retain edge-only behavior.
 
 This full-domain triangle contract does not change general `Vector3d` cross,
 dot, magnitude, or distance operations, and it does not extend to ray

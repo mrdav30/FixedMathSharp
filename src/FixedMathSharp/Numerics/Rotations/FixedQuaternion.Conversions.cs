@@ -9,6 +9,10 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Conversion methods for <see cref="FixedQuaternion"/>, including Euler angles,
+/// direction vectors, 3x3 rotation matrices, and component deconstruction.
+/// </content>
 public partial struct FixedQuaternion
 {
     #region Conversion

@@ -11,6 +11,9 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Provides equality comparison, hash code generation, and string formatting for <see cref="Fixed4x4"/>.
+/// </content>
 public partial struct Fixed4x4
 {
     #region Equality and HashCode Overrides

@@ -587,6 +587,51 @@ public class Vector2dTests
     }
 
     [Fact]
+    public void TryAddSubtract_UsesExactComponentsAndFailsAtomically()
+    {
+        Assert.True(Vector2d.TryAddSubtract(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Three),
+            new Vector2d(Fixed64.One, Fixed64.Two),
+            new Vector2d(Fixed64.One, Fixed64.One),
+            out Vector2d exact));
+        Assert.Equal(new Vector2d(Fixed64.MaxValue, (Fixed64)4), exact);
+
+        Assert.False(Vector2d.TryAddSubtract(
+            new Vector2d(Fixed64.MaxValue, Fixed64.One),
+            new Vector2d(Fixed64.One, Fixed64.One),
+            Vector2d.Zero,
+            out Vector2d firstFailed));
+        Assert.Equal(default, firstFailed);
+
+        Assert.False(Vector2d.TryAddSubtract(
+            new Vector2d(Fixed64.One, Fixed64.MaxValue),
+            new Vector2d(Fixed64.One, Fixed64.One),
+            Vector2d.Zero,
+            out Vector2d finalFailed));
+        Assert.Equal(default, finalFailed);
+    }
+
+    [Fact]
+    public void TrySubtractSums_UsesExactComponentsAndFailsAtomically()
+    {
+        Assert.True(Vector2d.TrySubtractSums(
+            new Vector2d(Fixed64.MaxValue, Fixed64.MinValue),
+            new Vector2d(Fixed64.MaxValue, Fixed64.MinValue),
+            new Vector2d(Fixed64.MaxValue, Fixed64.MinValue),
+            new Vector2d(Fixed64.MaxValue, Fixed64.MinValue),
+            out Vector2d cancelled));
+        Assert.Equal(Vector2d.Zero, cancelled);
+
+        Assert.False(Vector2d.TrySubtractSums(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            new Vector2d(Fixed64.MinValue, Fixed64.Zero),
+            new Vector2d(Fixed64.MinValue, Fixed64.Zero),
+            out Vector2d overflow));
+        Assert.Equal(default, overflow);
+    }
+
+    [Fact]
     public void CompareProjection_FullDomain_ReturnsExactSignAndCancellation()
     {
         var maximum = new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue);
@@ -888,6 +933,290 @@ public class Vector2dTests
         var result = vector.Rotate(angle);
 
         Assert.True(result.FuzzyEqual(new Vector2d(0, 1), Fixed64.FromDouble(0.0001))); // Should rotate to (0, 1)
+    }
+
+    [Fact]
+    public void TryRotate_RoundsEachCompleteComponentAndFailsAtomically()
+    {
+        Assert.True(new Vector2d(Fixed64.MaxValue, Fixed64.Zero).TryRotate(
+            Fixed64.Zero,
+            out Vector2d identity));
+        Assert.Equal(new Vector2d(Fixed64.MaxValue, Fixed64.Zero), identity);
+
+        Assert.False(Vector2d.TryRotate(
+            new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue),
+            Fixed64.PiOver4,
+            out Vector2d overflow));
+        Assert.Equal(default, overflow);
+    }
+
+    [Fact]
+    public void ExactPointOperations_DeferRotationNarrowingAndFailAtomically()
+    {
+        Vector2d localPoint = new(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue);
+        Assert.False(Vector2d.TryRotate(
+            localPoint,
+            Fixed64.PiOver4,
+            out _));
+
+        Assert.True(Vector2d.TryTransformPoint(
+            new Vector2d(
+                Fixed64.Zero,
+                -Fixed64.MaxValue),
+            localPoint,
+            Fixed64.PiOver4,
+            out Vector2d transformed));
+        Assert.True(transformed.X.Abs() <= Fixed64.Epsilon);
+        Assert.True(transformed.Y > Fixed64.Zero);
+        Assert.True(transformed.Y < Fixed64.MaxValue);
+
+        Assert.True(Vector2d.TryGetRelativeOffset(
+            new Vector2d(
+                Fixed64.Zero,
+                Fixed64.MaxValue),
+            new Vector2d(
+                Fixed64.Zero,
+                Fixed64.MaxValue),
+            Vector2d.Zero,
+            localPoint,
+            Fixed64.PiOver4,
+            out Vector2d relative));
+        Assert.True(relative.X.Abs() <= Fixed64.Epsilon);
+        Assert.True(relative.Y > Fixed64.Zero);
+        Assert.True(relative.Y < Fixed64.MaxValue);
+
+        Assert.True(Vector2d.TryGetRelativeOffset(
+            new Vector2d(Fixed64.Zero, Fixed64.MaxValue),
+            localPoint,
+            Fixed64.PiOver4,
+            new Vector2d(Fixed64.Zero, Fixed64.MaxValue),
+            localPoint,
+            Fixed64.PiOver4,
+            out Vector2d transformedRelative));
+        Assert.Equal(Vector2d.Zero, transformedRelative);
+
+        Assert.True(Vector2d.TryTransformPoint(
+            Vector2d.One,
+            Vector2d.One,
+            Fixed64.Zero,
+            out Vector2d identityPoint));
+        Assert.Equal(Vector2d.One * Fixed64.Two, identityPoint);
+        Assert.True(Vector2d.TryGetRelativeOffset(
+            Vector2d.One,
+            Vector2d.One,
+            Vector2d.One,
+            Vector2d.One,
+            Fixed64.Zero,
+            out Vector2d identityRelative));
+        Assert.Equal(Vector2d.Zero, identityRelative);
+        Assert.True(Vector2d.TryGetRelativeOffset(
+            Vector2d.One,
+            Vector2d.One,
+            Fixed64.Zero,
+            Vector2d.One,
+            Vector2d.One,
+            Fixed64.Zero,
+            out Vector2d twoFrameIdentityRelative));
+        Assert.Equal(Vector2d.Zero, twoFrameIdentityRelative);
+
+        Assert.False(Vector2d.TryTransformPoint(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            Vector2d.Right,
+            Fixed64.Zero,
+            out Vector2d transformOverflow));
+        Assert.Equal(default, transformOverflow);
+        Assert.False(Vector2d.TryGetRelativeOffset(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            new Vector2d(Fixed64.MinValue, Fixed64.Zero),
+            new Vector2d(-Fixed64.MaxValue, Fixed64.Zero),
+            Fixed64.Zero,
+            out Vector2d relativeOverflow));
+        Assert.Equal(default, relativeOverflow);
+
+        Assert.False(Vector2d.TryTransformPoint(
+            new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue),
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            Fixed64.PiOver4,
+            out Vector2d rotatedTransformOverflow));
+        Assert.Equal(default, rotatedTransformOverflow);
+        Assert.False(Vector2d.TryGetRelativeOffset(
+            new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue),
+            new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue),
+            new Vector2d(Fixed64.MinValue, Fixed64.MinValue),
+            Vector2d.Zero,
+            Fixed64.PiOver4,
+            out Vector2d rotatedRelativeOverflow));
+        Assert.Equal(default, rotatedRelativeOverflow);
+        Assert.False(Vector2d.TryGetRelativeOffset(
+            new Vector2d(Fixed64.MaxValue, Fixed64.MaxValue),
+            localPoint,
+            Fixed64.PiOver4,
+            new Vector2d(Fixed64.MinValue, Fixed64.MinValue),
+            -localPoint,
+            -Fixed64.PiOver4,
+            out Vector2d twoFrameOverflow));
+        Assert.Equal(default, twoFrameOverflow);
+    }
+
+    [Fact]
+    public void ThreeTermPointTransform_DefersAllNarrowingAndFailsAtomically()
+    {
+        Vector2d localPoint = new(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue);
+
+        Assert.True(Vector2d.TryTransformPoint(
+            new Vector2d(Fixed64.Zero, -Fixed64.MaxValue),
+            new Vector2d(Fixed64.Zero, -Fixed64.MaxValue),
+            localPoint,
+            Fixed64.PiOver4,
+            out Vector2d rotatedCancellation));
+        Assert.True(rotatedCancellation.X.Abs() <= Fixed64.Epsilon);
+        Assert.True(rotatedCancellation.Y < Fixed64.Zero);
+        Assert.True(rotatedCancellation.Y > Fixed64.MinValue);
+
+        Assert.True(Vector2d.TryTransformPoint(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            new Vector2d(-Fixed64.MaxValue, Fixed64.Zero),
+            Fixed64.Zero,
+            out Vector2d identityCancellation));
+        Assert.Equal(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            identityCancellation);
+
+        Assert.False(Vector2d.TryTransformPoint(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            Fixed64.Zero,
+            out Vector2d overflow));
+        Assert.Equal(default, overflow);
+    }
+
+    [Fact]
+    public void ExactPointOperations_DoNotAllocateAfterWarmup()
+    {
+        Vector2d origin = new(Fixed64.One, Fixed64.Two);
+        Vector2d localPoint = new(
+            Fixed64.FromFraction(1, 4),
+            Fixed64.FromFraction(3, 4));
+        Assert.True(Vector2d.TryTransformPoint(
+            origin,
+            localPoint,
+            Fixed64.PiOver4,
+            out Vector2d transformed));
+        Assert.True(Vector2d.TryTransformPoint(
+            origin,
+            Vector2d.One,
+            localPoint,
+            Fixed64.PiOver4,
+            out transformed));
+        Assert.True(Vector2d.TryGetRelativeOffset(
+            origin,
+            localPoint,
+            Vector2d.One,
+            localPoint,
+            Fixed64.PiOver4,
+            out Vector2d relative));
+        Assert.True(Vector2d.TryGetRelativeOffset(
+            origin,
+            localPoint,
+            Fixed64.PiOver4,
+            Vector2d.One,
+            localPoint,
+            -Fixed64.PiOver4,
+            out relative));
+        Assert.True(Vector2d.TryTransformPoint(
+            origin,
+            localPoint,
+            Fixed64.Zero,
+            out transformed));
+        Assert.True(Vector2d.TryTransformPoint(
+            origin,
+            Vector2d.One,
+            localPoint,
+            Fixed64.Zero,
+            out transformed));
+        Assert.True(Vector2d.TryGetRelativeOffset(
+            origin,
+            localPoint,
+            Vector2d.One,
+            localPoint,
+            Fixed64.Zero,
+            out relative));
+        Assert.True(Vector2d.TryGetRelativeOffset(
+            origin,
+            localPoint,
+            Fixed64.Zero,
+            Vector2d.One,
+            localPoint,
+            Fixed64.Zero,
+            out relative));
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int iteration = 0; iteration < 32; iteration++)
+        {
+            _ = Vector2d.TryTransformPoint(
+                origin,
+                localPoint,
+                Fixed64.PiOver4,
+                out transformed);
+            _ = Vector2d.TryTransformPoint(
+                origin,
+                Vector2d.One,
+                localPoint,
+                Fixed64.PiOver4,
+                out transformed);
+            _ = Vector2d.TryGetRelativeOffset(
+                origin,
+                localPoint,
+                Vector2d.One,
+                localPoint,
+                Fixed64.PiOver4,
+                out relative);
+            _ = Vector2d.TryGetRelativeOffset(
+                origin,
+                localPoint,
+                Fixed64.PiOver4,
+                Vector2d.One,
+                localPoint,
+                -Fixed64.PiOver4,
+                out relative);
+            _ = Vector2d.TryTransformPoint(
+                origin,
+                localPoint,
+                Fixed64.Zero,
+                out transformed);
+            _ = Vector2d.TryTransformPoint(
+                origin,
+                Vector2d.One,
+                localPoint,
+                Fixed64.Zero,
+                out transformed);
+            _ = Vector2d.TryGetRelativeOffset(
+                origin,
+                localPoint,
+                Vector2d.One,
+                localPoint,
+                Fixed64.Zero,
+                out relative);
+            _ = Vector2d.TryGetRelativeOffset(
+                origin,
+                localPoint,
+                Fixed64.Zero,
+                Vector2d.One,
+                localPoint,
+                Fixed64.Zero,
+                out relative);
+        }
+
+        Assert.Equal(
+            0L,
+            GC.GetAllocatedBytesForCurrentThread() - before);
     }
 
     [Fact]

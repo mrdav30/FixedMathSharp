@@ -9,6 +9,9 @@ using System;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Internal helper methods for constructing and validating <see cref="Fixed4x4"/> matrices.
+/// </content>
 public partial struct Fixed4x4
 {
     #region Private Helpers

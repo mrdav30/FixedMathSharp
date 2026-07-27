@@ -5,11 +5,15 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-namespace FixedMathSharp;
+namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Cone-specific support computations for wide slab projection, including
+/// vertical and rotated cone lateral/cap support queries using exact
+/// wide-precision arithmetic.
+/// </content>
 internal static partial class WideSlabProjection
 {
-
     private static bool TryGetVerticalConeSupport(
         Vector3d center,
         Vector3d axis,
@@ -21,8 +25,8 @@ internal static partial class WideSlabProjection
     {
         Signed320 apexY = GetConeEndpointNumerator(center.Y, axis.Y, height, 1);
         Signed320 baseY = GetConeEndpointNumerator(center.Y, axis.Y, height, -1);
-        Signed320 lower = Multiply(Raw(slab.Min), Double(Scale));
-        Signed320 upper = Multiply(Raw(slab.Max), Double(Scale));
+        Signed320 lower = WideArithmetic.MultiplySigned192(Signed192.Raw(slab.Min), WideArithmetic.Double(Scale));
+        Signed320 upper = WideArithmetic.MultiplySigned192(Signed192.Raw(slab.Max), WideArithmetic.Double(Scale));
         bool pointsUp = axis.Y.m_rawValue >= 0L;
         Signed320 selectedY = pointsUp ? Maximum(baseY, lower) : Minimum(baseY, upper);
         bool outsideCone = pointsUp
@@ -37,20 +41,20 @@ internal static partial class WideSlabProjection
         Signed320 axial = axis.Y.m_rawValue >= 0L
             ? WideArithmetic.SubtractSigned320(apexY, selectedY)
             : WideArithmetic.SubtractSigned320(selectedY, apexY);
-        Signed576 radiusNumerator = Multiply(axial, Raw(radius));
+        Signed576 radiusNumerator = WideArithmetic.MultiplySigned320(axial, Signed192.Raw(radius));
         Signed320 heightDenominator = WideArithmetic.AddSigned320(
-            Multiply(Raw(height), Raw(axis.Y.Abs())),
-            Multiply(Raw(height), Raw(axis.Y.Abs())));
+            WideArithmetic.MultiplySigned192(Signed192.Raw(height), Signed192.Raw(axis.Y.Abs())),
+            WideArithmetic.MultiplySigned192(Signed192.Raw(height), Signed192.Raw(axis.Y.Abs())));
         Signed576 planarRadiusNumerator = radiusNumerator;
-        Signed576 planarRadiusDenominator = WideArithmetic.ExtendToSigned576(heightDenominator);
+        Signed576 planarRadiusDenominator = Signed576.ExtendValue(heightDenominator);
         Signed192 directionLength = GetPlanarDirectionLength(direction);
-        Signed576 denominator = Multiply(planarRadiusDenominator, directionLength);
+        Signed576 denominator = WideArithmetic.MultiplySigned576(planarRadiusDenominator, directionLength);
         Signed576 x = WideArithmetic.AddSigned576(
-            Multiply(denominator, Raw(center.X)),
-            Multiply(Multiply(planarRadiusNumerator, Raw(direction.X)), Scale));
+            WideArithmetic.MultiplySigned576(denominator, Signed192.Raw(center.X)),
+            WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned576(planarRadiusNumerator, Signed192.Raw(direction.X)), Scale));
         Signed576 z = WideArithmetic.AddSigned576(
-            Multiply(denominator, Raw(center.Z)),
-            Multiply(Multiply(planarRadiusNumerator, Raw(direction.Y)), Scale));
+            WideArithmetic.MultiplySigned576(denominator, Signed192.Raw(center.Z)),
+            WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned576(planarRadiusNumerator, Signed192.Raw(direction.Y)), Scale));
         return TryCreateResult(true, new WidePlanarCandidate(x, z, denominator), out support);
     }
 
@@ -89,15 +93,15 @@ internal static partial class WideSlabProjection
         ref WidePlanarCandidate best)
     {
         Signed320 y = GetConeEndpointNumerator(center.Y, axis.Y, height, 1);
-        Signed192 denominator = Double(Scale);
+        Signed192 denominator = WideArithmetic.Double(Scale);
         if (!IsInRange(y, denominator, slab))
             return;
 
         KeepBest(
             new WidePlanarCandidate(
-                WideArithmetic.ExtendToSigned576(GetConeEndpointNumerator(center.X, axis.X, height, 1)),
-                WideArithmetic.ExtendToSigned576(GetConeEndpointNumerator(center.Z, axis.Z, height, 1)),
-                WideArithmetic.ExtendToSigned576(WideArithmetic.ExtendToSigned320(denominator))),
+                Signed576.ExtendValue(GetConeEndpointNumerator(center.X, axis.X, height, 1)),
+                Signed576.ExtendValue(GetConeEndpointNumerator(center.Z, axis.Z, height, 1)),
+                Signed576.ExtendValue(Signed320.ExtendValue(denominator))),
             direction,
             ref found,
             ref best);
@@ -118,7 +122,7 @@ internal static partial class WideSlabProjection
         Signed320 baseX = GetConeEndpointNumerator(center.X, axis.X, height, -1);
         Signed320 baseY = GetConeEndpointNumerator(center.Y, axis.Y, height, -1);
         Signed320 baseZ = GetConeEndpointNumerator(center.Z, axis.Z, height, -1);
-        AddDiskAtRationalCenter(baseX, baseY, baseZ, Double(Scale), axis, radius, slab, direction, axisLengthSquared, ref found, ref best);
+        AddDiskAtRationalCenter(baseX, baseY, baseZ, WideArithmetic.Double(Scale), axis, radius, slab, direction, axisLengthSquared, ref found, ref best);
     }
 
     private static void AddConeBasePlaneCandidate(
@@ -157,13 +161,13 @@ internal static partial class WideSlabProjection
             if (!projection.IsZero)
             {
                 Signed576 doubleProjection = WideArithmetic.AddSigned576(projection, projection);
-                Signed576 absoluteProjection = Absolute(doubleProjection);
+                Signed576 absoluteProjection = WideArithmetic.Absolute(doubleProjection);
                 Signed576 y = WideArithmetic.SubtractSigned576(default, constant);
                 if (doubleProjection.Sign < 0)
                     y = WideArithmetic.SubtractSigned576(default, y);
                 AddConeLateralNormal(center, axis, height, radius, slab, direction,
-                    Multiply(absoluteProjection, Raw(direction.X)), y,
-                    Multiply(absoluteProjection, Raw(direction.Y)), ref found, ref best);
+                    WideArithmetic.MultiplySigned576(absoluteProjection, Signed192.Raw(direction.X)), y,
+                    WideArithmetic.MultiplySigned576(absoluteProjection, Signed192.Raw(direction.Y)), ref found, ref best);
             }
             return;
         }
@@ -175,24 +179,24 @@ internal static partial class WideSlabProjection
             return;
 
         Signed576 squareRoot = WideArithmetic.GetFloorSquareRootOfProduct(discriminant, ScaleSquared);
-        Signed576 scaledProjection = Multiply(projection, Scale);
-        Signed576 scaledCoefficient = Multiply(coefficient, Scale);
-        Signed576 absoluteCoefficient = Absolute(scaledCoefficient);
+        Signed576 scaledProjection = WideArithmetic.MultiplySigned576(projection, Scale);
+        Signed576 scaledCoefficient = WideArithmetic.MultiplySigned576(coefficient, Scale);
+        Signed576 absoluteCoefficient = WideArithmetic.Absolute(scaledCoefficient);
         Signed576 negativeProjection = WideArithmetic.SubtractSigned576(default, scaledProjection);
         Signed576 firstY = WideArithmetic.SubtractSigned576(negativeProjection, squareRoot);
         if (coefficient.Sign < 0)
             firstY = WideArithmetic.SubtractSigned576(default, firstY);
         AddConeLateralNormal(center, axis, height, radius, slab, direction,
-            Multiply(absoluteCoefficient, Raw(direction.X)), firstY,
-            Multiply(absoluteCoefficient, Raw(direction.Y)), ref found, ref best);
+            WideArithmetic.MultiplySigned576(absoluteCoefficient, Signed192.Raw(direction.X)), firstY,
+            WideArithmetic.MultiplySigned576(absoluteCoefficient, Signed192.Raw(direction.Y)), ref found, ref best);
         if (!squareRoot.IsZero)
         {
             Signed576 secondY = WideArithmetic.AddSigned576(negativeProjection, squareRoot);
             if (coefficient.Sign < 0)
                 secondY = WideArithmetic.SubtractSigned576(default, secondY);
             AddConeLateralNormal(center, axis, height, radius, slab, direction,
-                Multiply(absoluteCoefficient, Raw(direction.X)), secondY,
-                Multiply(absoluteCoefficient, Raw(direction.Y)), ref found, ref best);
+                WideArithmetic.MultiplySigned576(absoluteCoefficient, Signed192.Raw(direction.X)), secondY,
+                WideArithmetic.MultiplySigned576(absoluteCoefficient, Signed192.Raw(direction.Y)), ref found, ref best);
         }
     }
 
@@ -208,24 +212,27 @@ internal static partial class WideSlabProjection
         Signed192 q = GetAxisLengthSquared(axis);
         Signed192 s = GetPlanarDot(axis, direction);
         Signed192 d = GetPlanarDirectionLengthSquared(direction);
-        Signed320 heightSquared = WideArithmetic.MultiplySigned192(Raw(height), Raw(height));
-        Signed320 radiusSquared = WideArithmetic.MultiplySigned192(Raw(radius), Raw(radius));
-        Signed320 k = Narrow(WideArithmetic.AddSigned576(
-            Multiply(WideArithmetic.ExtendToSigned576(heightSquared), q),
-            Multiply(WideArithmetic.ExtendToSigned576(radiusSquared), ScaleSquared)));
-        Signed320 axisYSquared = WideArithmetic.MultiplySigned192(Raw(axis.Y), Raw(axis.Y));
-        Signed576 radiusQScaleSquared = Multiply(
-            Multiply(WideArithmetic.ExtendToSigned576(radiusSquared), q), ScaleSquared);
+        Signed320 heightSquared = WideArithmetic.MultiplySigned192(Signed192.Raw(height), Signed192.Raw(height));
+        Signed320 radiusSquared = WideArithmetic.MultiplySigned192(Signed192.Raw(radius), Signed192.Raw(radius));
+        Signed320 k = Signed320.NarrowValue(WideArithmetic.AddSigned576(
+            WideArithmetic.MultiplySigned576(Signed576.ExtendValue(heightSquared), q),
+            WideArithmetic.MultiplySigned576(Signed576.ExtendValue(radiusSquared), ScaleSquared)));
+        Signed320 axisYSquared = WideArithmetic.MultiplySigned192(Signed192.Raw(axis.Y), Signed192.Raw(axis.Y));
+        Signed576 radiusQScaleSquared = WideArithmetic.MultiplySigned576(
+            WideArithmetic.MultiplySigned576(Signed576.ExtendValue(radiusSquared), q), ScaleSquared);
 
         coefficient = WideArithmetic.SubtractSigned576(
             WideArithmetic.MultiplySigned320(k, axisYSquared),
             radiusQScaleSquared);
         projection = WideArithmetic.MultiplySigned320(
             k,
-            WideArithmetic.MultiplySigned192(s, Raw(axis.Y)));
+            WideArithmetic.MultiplySigned192(s, Signed192.Raw(axis.Y)));
         constant = WideArithmetic.SubtractSigned576(
             WideArithmetic.MultiplySigned320(k, WideArithmetic.MultiplySigned192(s, s)),
-            Multiply(Multiply(Multiply(WideArithmetic.ExtendToSigned576(radiusSquared), q), d), ScaleSquared));
+            WideArithmetic.MultiplySigned576(
+                WideArithmetic.MultiplySigned576(
+                    WideArithmetic.MultiplySigned576(Signed576.ExtendValue(radiusSquared), q), d),
+                ScaleSquared));
     }
 
     private static void AddConeLateralNormal(
@@ -246,9 +253,9 @@ internal static partial class WideSlabProjection
             return;
 
         Signed192 q = GetAxisLengthSquared(axis);
-        Signed576 gx = WideArithmetic.SubtractSigned576(Multiply(nx, q), Multiply(axial, Raw(axis.X)));
-        Signed576 gy = WideArithmetic.SubtractSigned576(Multiply(ny, q), Multiply(axial, Raw(axis.Y)));
-        Signed576 gz = WideArithmetic.SubtractSigned576(Multiply(nz, q), Multiply(axial, Raw(axis.Z)));
+        Signed576 gx = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned576(nx, q), WideArithmetic.MultiplySigned576(axial, Signed192.Raw(axis.X)));
+        Signed576 gy = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned576(ny, q), WideArithmetic.MultiplySigned576(axial, Signed192.Raw(axis.Y)));
+        Signed576 gz = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned576(nz, q), WideArithmetic.MultiplySigned576(axial, Signed192.Raw(axis.Z)));
         Signed832 radialSquared = Add(
             Add(
                 WideArithmetic.MultiplySigned576ToSigned832(gx, gx),
@@ -257,21 +264,21 @@ internal static partial class WideSlabProjection
         Signed576 radialLength = WideArithmetic.GetFloorSquareRootOfProduct(radialSquared, ScaleSquared);
         ReduceDirection(gx, gy, gz, radialLength,
             out Signed192 reducedX, out Signed192 reducedY, out Signed192 reducedZ, out Signed192 reducedLength);
-        Signed192 doubleScale = Double(Scale);
+        Signed192 doubleScale = WideArithmetic.Double(Scale);
         Signed320 apexX = GetConeEndpointNumerator(center.X, axis.X, height, 1);
         Signed320 apexY = GetConeEndpointNumerator(center.Y, axis.Y, height, 1);
         Signed320 apexZ = GetConeEndpointNumerator(center.Z, axis.Z, height, 1);
         Signed320 baseX = GetConeEndpointNumerator(center.X, axis.X, height, -1);
         Signed320 baseY = GetConeEndpointNumerator(center.Y, axis.Y, height, -1);
         Signed320 baseZ = GetConeEndpointNumerator(center.Z, axis.Z, height, -1);
-        Signed192 radialScale = Double(Narrow192(Multiply(
-            WideArithmetic.ExtendToSigned576(WideArithmetic.ExtendToSigned320(Raw(radius))), ScaleSquared)));
-        Signed576 rimX = WideArithmetic.AddSigned576(Multiply(baseX, reducedLength), WideArithmetic.ExtendToSigned576(Multiply(reducedX, radialScale)));
-        Signed576 rimY = WideArithmetic.AddSigned576(Multiply(baseY, reducedLength), WideArithmetic.ExtendToSigned576(Multiply(reducedY, radialScale)));
-        Signed576 rimZ = WideArithmetic.AddSigned576(Multiply(baseZ, reducedLength), WideArithmetic.ExtendToSigned576(Multiply(reducedZ, radialScale)));
-        Signed576 apexScaleX = Multiply(apexX, reducedLength);
-        Signed576 apexScaleY = Multiply(apexY, reducedLength);
-        Signed576 apexScaleZ = Multiply(apexZ, reducedLength);
+        Signed192 radialScale = WideArithmetic.Double(Signed192.NarrowValue(WideArithmetic.MultiplySigned576(
+            Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(radius))), ScaleSquared)));
+        Signed576 rimX = WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned320(baseX, reducedLength), Signed576.ExtendValue(WideArithmetic.MultiplySigned192(reducedX, radialScale)));
+        Signed576 rimY = WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned320(baseY, reducedLength), Signed576.ExtendValue(WideArithmetic.MultiplySigned192(reducedY, radialScale)));
+        Signed576 rimZ = WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned320(baseZ, reducedLength), Signed576.ExtendValue(WideArithmetic.MultiplySigned192(reducedZ, radialScale)));
+        Signed576 apexScaleX = WideArithmetic.MultiplySigned320(apexX, reducedLength);
+        Signed576 apexScaleY = WideArithmetic.MultiplySigned320(apexY, reducedLength);
+        Signed576 apexScaleZ = WideArithmetic.MultiplySigned320(apexZ, reducedLength);
         Signed576 ux = WideArithmetic.SubtractSigned576(rimX, apexScaleX);
         Signed576 uy = WideArithmetic.SubtractSigned576(rimY, apexScaleY);
         Signed576 uz = WideArithmetic.SubtractSigned576(rimZ, apexScaleZ);
@@ -298,15 +305,15 @@ internal static partial class WideSlabProjection
         ref bool found,
         ref WidePlanarCandidate best)
     {
-        Signed320 planeOffset = WideArithmetic.SubtractSigned320(Multiply(Raw(plane), doubleScale), apexY);
-        Signed576 scaledPlaneOffset = Multiply(WideArithmetic.ExtendToSigned576(planeOffset), radialLength);
+        Signed320 planeOffset = WideArithmetic.SubtractSigned320(WideArithmetic.MultiplySigned192(Signed192.Raw(plane), doubleScale), apexY);
+        Signed576 scaledPlaneOffset = WideArithmetic.MultiplySigned576(Signed576.ExtendValue(planeOffset), radialLength);
         if (!IsUnitInterval(scaledPlaneOffset, uy))
             return;
 
-        Signed192 planeOffsetNarrow = Narrow(planeOffset);
-        Signed576 candidateX = WideArithmetic.AddSigned576(Multiply(uy, Narrow(apexX)), Multiply(ux, planeOffsetNarrow));
-        Signed576 candidateZ = WideArithmetic.AddSigned576(Multiply(uy, Narrow(apexZ)), Multiply(uz, planeOffsetNarrow));
-        Signed576 candidateDenominator = Multiply(uy, doubleScale);
+        Signed192 planeOffsetNarrow = Signed192.NarrowValue(planeOffset);
+        Signed576 candidateX = WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned576(uy, Signed192.NarrowValue(apexX)), WideArithmetic.MultiplySigned576(ux, planeOffsetNarrow));
+        Signed576 candidateZ = WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned576(uy, Signed192.NarrowValue(apexZ)), WideArithmetic.MultiplySigned576(uz, planeOffsetNarrow));
+        Signed576 candidateDenominator = WideArithmetic.MultiplySigned576(uy, doubleScale);
         Normalize(ref candidateX, ref candidateZ, ref candidateDenominator);
         KeepBest(new WidePlanarCandidate(candidateX, candidateZ, candidateDenominator), direction, ref found, ref best);
     }
@@ -321,38 +328,38 @@ internal static partial class WideSlabProjection
         ulong parameter,
         out WidePlanarCandidate candidate)
     {
-        Signed192 maximum = Signed(long.MaxValue);
-        Signed192 parameterValue = Signed((long)parameter);
-        Signed192 doubleScale = Double(Scale);
-        Signed320 centerDenominator = Multiply(doubleScale, maximum);
+        Signed192 maximum = Signed192.Signed(long.MaxValue);
+        Signed192 parameterValue = Signed192.Signed((long)parameter);
+        Signed192 doubleScale = WideArithmetic.Double(Scale);
+        Signed320 centerDenominator = WideArithmetic.MultiplySigned192(doubleScale, maximum);
         Signed192 axialWeight = WideArithmetic.SubtractSigned192(
             maximum,
             WideArithmetic.AddSigned192(parameterValue, parameterValue));
         Signed320 centerX = GetConeDiskCenterNumerator(center.X, axis.X, height, maximum, axialWeight);
         Signed320 centerY = GetConeDiskCenterNumerator(center.Y, axis.Y, height, maximum, axialWeight);
         Signed320 centerZ = GetConeDiskCenterNumerator(center.Z, axis.Z, height, maximum, axialWeight);
-        Signed320 radiusNumerator = Multiply(Raw(radius), parameterValue);
+        Signed320 radiusNumerator = WideArithmetic.MultiplySigned192(Signed192.Raw(radius), parameterValue);
         Signed192 q = GetAxisLengthSquared(axis);
         Signed192 planarAxisSquared = WideArithmetic.SubtractSigned192(
             q,
-            Narrow(WideArithmetic.MultiplySigned192(Raw(axis.Y), Raw(axis.Y))));
-        Signed320 k = Narrow(WideArithmetic.SubtractSigned576(
-            Multiply(WideArithmetic.ExtendToSigned576(centerDenominator), Raw(plane)),
-            WideArithmetic.ExtendToSigned576(centerY)));
+            Signed192.NarrowValue(WideArithmetic.MultiplySigned192(Signed192.Raw(axis.Y), Signed192.Raw(axis.Y))));
+        Signed320 k = Signed320.NarrowValue(WideArithmetic.SubtractSigned576(
+            WideArithmetic.MultiplySigned576(Signed576.ExtendValue(centerDenominator), Signed192.Raw(plane)),
+            Signed576.ExtendValue(centerY)));
 
-        Signed192 radiusNarrow = Narrow(radiusNumerator);
-        Signed192 centerDenominatorNarrow = Narrow(centerDenominator);
-        Signed192 kNarrow = Narrow(k);
+        Signed192 radiusNarrow = Signed192.NarrowValue(radiusNumerator);
+        Signed192 centerDenominatorNarrow = Signed192.NarrowValue(centerDenominator);
+        Signed192 kNarrow = Signed192.NarrowValue(k);
         Signed320 radiusSquared = WideArithmetic.MultiplySigned192(radiusNarrow, radiusNarrow);
         Signed320 centerDenominatorSquared = WideArithmetic.MultiplySigned192(
             centerDenominatorNarrow,
             centerDenominatorNarrow);
-        Signed576 first = Multiply(
+        Signed576 first = WideArithmetic.MultiplySigned576(
             WideArithmetic.MultiplySigned320(radiusSquared, centerDenominatorSquared),
             planarAxisSquared);
         Signed320 kSquared = WideArithmetic.MultiplySigned192(kNarrow, kNarrow);
-        Signed320 qParameterSquared = Narrow(Multiply(
-            WideArithmetic.ExtendToSigned576(WideArithmetic.MultiplySigned192(maximum, maximum)),
+        Signed320 qParameterSquared = Signed320.NarrowValue(WideArithmetic.MultiplySigned576(
+            Signed576.ExtendValue(WideArithmetic.MultiplySigned192(maximum, maximum)),
             q));
         Signed576 second = WideArithmetic.MultiplySigned320(kSquared, qParameterSquared);
         Signed576 radicand = WideArithmetic.SubtractSigned576(first, second);
@@ -363,24 +370,24 @@ internal static partial class WideSlabProjection
         }
 
         Signed320 root = WideArithmetic.GetFloorSquareRootScaledByFixed64(radicand);
-        Signed320 denominator320 = Narrow(Multiply(
-            Multiply(
-                Multiply(WideArithmetic.ExtendToSigned576(centerDenominator), maximum),
+        Signed320 denominator320 = Signed320.NarrowValue(WideArithmetic.MultiplySigned576(
+            WideArithmetic.MultiplySigned576(
+                WideArithmetic.MultiplySigned576(Signed576.ExtendValue(centerDenominator), maximum),
                 planarAxisSquared),
             Scale));
-        Signed576 denominatorWide = WideArithmetic.ExtendToSigned576(denominator320);
-        Signed576 common = Multiply(Multiply(
-            WideArithmetic.ExtendToSigned576(WideArithmetic.ExtendToSigned320(maximum)),
+        Signed576 denominatorWide = Signed576.ExtendValue(denominator320);
+        Signed576 common = WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned576(
+            Signed576.ExtendValue(Signed320.ExtendValue(maximum)),
             planarAxisSquared), Scale);
-        Signed576 x = Multiply(WideArithmetic.ExtendToSigned576(centerX), Narrow192(common));
-        Signed576 z = Multiply(WideArithmetic.ExtendToSigned576(centerZ), Narrow192(common));
-        Signed576 particularScale = Multiply(Multiply(
-            WideArithmetic.ExtendToSigned576(WideArithmetic.ExtendToSigned320(maximum)),
-            Scale), Raw(axis.Y));
-        x = WideArithmetic.SubtractSigned576(x, Multiply(Multiply(particularScale, Raw(axis.X)), kNarrow));
-        z = WideArithmetic.SubtractSigned576(z, Multiply(Multiply(particularScale, Raw(axis.Z)), kNarrow));
-        Signed576 tangentX = Multiply(WideArithmetic.ExtendToSigned576(root), Raw(-axis.Z));
-        Signed576 tangentZ = Multiply(WideArithmetic.ExtendToSigned576(root), Raw(axis.X));
+        Signed576 x = WideArithmetic.MultiplySigned576(Signed576.ExtendValue(centerX), Signed192.NarrowValue(common));
+        Signed576 z = WideArithmetic.MultiplySigned576(Signed576.ExtendValue(centerZ), Signed192.NarrowValue(common));
+        Signed576 particularScale = WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned576(
+            Signed576.ExtendValue(Signed320.ExtendValue(maximum)),
+            Scale), Signed192.Raw(axis.Y));
+        x = WideArithmetic.SubtractSigned576(x, WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned576(particularScale, Signed192.Raw(axis.X)), kNarrow));
+        z = WideArithmetic.SubtractSigned576(z, WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned576(particularScale, Signed192.Raw(axis.Z)), kNarrow));
+        Signed576 tangentX = WideArithmetic.MultiplySigned576(Signed576.ExtendValue(root), Signed192.Raw(-axis.Z));
+        Signed576 tangentZ = WideArithmetic.MultiplySigned576(Signed576.ExtendValue(root), Signed192.Raw(axis.X));
         WidePlanarCandidate firstCandidate = new(
             WideArithmetic.AddSigned576(x, tangentX),
             WideArithmetic.AddSigned576(z, tangentZ),
@@ -402,9 +409,9 @@ internal static partial class WideSlabProjection
         Signed192 maximum,
         Signed192 axialWeight) =>
         WideArithmetic.AddSigned320(
-            Narrow(Multiply(Multiply(
-                WideArithmetic.ExtendToSigned576(WideArithmetic.ExtendToSigned320(Raw(center))),
-                Double(Scale)), maximum)),
-            Narrow(Multiply(WideArithmetic.MultiplySigned192(Raw(axis), Raw(height)), axialWeight)));
+            Signed320.NarrowValue(WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned576(
+                Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(center))),
+                WideArithmetic.Double(Scale)), maximum)),
+            Signed320.NarrowValue(WideArithmetic.MultiplySigned320(WideArithmetic.MultiplySigned192(Signed192.Raw(axis), Signed192.Raw(height)), axialWeight)));
 
 }

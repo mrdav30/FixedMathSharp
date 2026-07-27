@@ -7,6 +7,12 @@
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Root-solving helpers for the finite-axis intersection quadratic:
+/// rounds candidate roots to exact fixed-point precision and evaluates
+/// the polynomial/derivative using wide integer arithmetic to determine
+/// correct rounding direction near the roots.
+/// </content>
 internal static partial class WideFiniteAxisIntersection
 {
     private static Fixed64 RoundLowerRoot(
@@ -29,7 +35,7 @@ internal static partial class WideFiniteAxisIntersection
             return Fixed64.Zero;
 
         long lowerRaw = upperRaw - 1L;
-        Signed192 midpoint = WideArithmetic.FromSignedRaw((upperRaw * 2L) - 1L);
+        Signed192 midpoint = Signed192.Signed((upperRaw * 2L) - 1L);
         Signed576 value = EvaluatePolynomial(
             radialCoefficient,
             radialProjection,
@@ -67,7 +73,7 @@ internal static partial class WideFiniteAxisIntersection
             return maxParameter;
 
         long upperRaw = lowerRaw + 1L;
-        Signed192 midpoint = WideArithmetic.FromSignedRaw((lowerRaw * 2L) + 1L);
+        Signed192 midpoint = Signed192.Signed((lowerRaw * 2L) + 1L);
         Signed576 value = EvaluatePolynomial(
             radialCoefficient,
             radialProjection,
@@ -120,10 +126,10 @@ internal static partial class WideFiniteAxisIntersection
         WideArithmetic.AddSigned576(
             WideArithmetic.MultiplySigned320(
                 radialCoefficient,
-                WideArithmetic.ExtendToSigned320(numerator)),
+                Signed320.ExtendValue(numerator)),
             WideArithmetic.MultiplySigned320(
                 radialProjection,
-                WideArithmetic.ExtendToSigned320(denominator)));
+                Signed320.ExtendValue(denominator)));
 
     private static Signed704 EvaluatePolynomial(
         Signed320 radialCoefficient,

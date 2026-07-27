@@ -5,8 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System;
-
 namespace FixedMathSharp.Bounds;
 
 /// <summary>
@@ -14,10 +12,38 @@ namespace FixedMathSharp.Bounds;
 /// </summary>
 internal static partial class WideFiniteAxisIntersection
 {
-    private static readonly Signed192 One = WideArithmetic.FromSignedRaw(1L);
-    private static readonly Signed192 ParameterScale = WideArithmetic.FromSignedRaw(FixedMath.ONE_L);
-    private static readonly Signed192 DoubleParameterScale =
-        WideArithmetic.FromSignedRaw(FixedMath.ONE_L * 2L);
+    private static readonly Signed192 Scale = Signed192.Signed(1L);
+    private static readonly Signed320 Scale320 = Signed320.ExtendValue(Scale);
+    private static readonly Signed192 ParameterScale = Signed192.Signed(FixedMath.ONE_L);
+    private static readonly Signed192 DoubleParameterScale = Signed192.Signed(FixedMath.ONE_L * 2L);
+
+    #region Nested Types
+
+    private readonly struct RationalBound
+    {
+        internal readonly Signed192 Numerator;
+        internal readonly Signed192 Denominator;
+
+        internal RationalBound(Signed192 numerator, Signed192 denominator)
+        {
+            Numerator = numerator;
+            Denominator = denominator;
+        }
+    }
+
+    private readonly struct RationalBound320
+    {
+        internal readonly Signed320 Numerator;
+        internal readonly Signed320 Denominator;
+
+        internal RationalBound320(Signed320 numerator, Signed320 denominator)
+        {
+            Numerator = numerator;
+            Denominator = denominator;
+        }
+    }
+
+    #endregion
 
     internal static bool TryGetCapsuleInterval(
         FixedSegment2d query,
@@ -220,7 +246,7 @@ internal static partial class WideFiniteAxisIntersection
         FixedSegment query,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 axialExpansion,
@@ -241,7 +267,7 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 squaredRadius = GetSquaredRadius(expandedRadius);
         Signed320 axialExtent = GetCenteredAxialExtent(
             axisLengthSquared,
-            axisHalfLength,
+            axisLength,
             axialExpansion);
 
         startContained = IsCenteredFiniteCylinderPointContained(
@@ -280,56 +306,6 @@ internal static partial class WideFiniteAxisIntersection
             startAxisProjection,
             startDirectionProjection,
             expandedRadius,
-            lower,
-            upper,
-            Fixed64.One,
-            out entry,
-            out exit);
-    }
-
-    internal static bool TryGetFiniteCylinderInterval(
-        FixedSegment query,
-        FixedSegment axis,
-        Fixed64 axisHalfLength,
-        Fixed64 radius,
-        Fixed64 radiusExpansion,
-        Fixed64 axialExpansion,
-        out Fixed64 entry,
-        out Fixed64 exit)
-    {
-        Signed192 queryLengthSquared = GetDot(query.End, query.Start, query.End, query.Start);
-        Signed192 axisLengthSquared = GetDot(axis.End, axis.Start, axis.End, axis.Start);
-        Signed192 startDistanceSquared = GetDot(query.Start, axis.Start, query.Start, axis.Start);
-        Signed192 directionsDot = GetDot(query.End, query.Start, axis.End, axis.Start);
-        Signed192 startAxisProjection = GetDot(query.Start, axis.Start, axis.End, axis.Start);
-        Signed192 startDirectionProjection = GetDot(query.Start, axis.Start, query.End, query.Start);
-
-        Signed192 authoredAxisLength = WideArithmetic.AddSigned192(
-            WideArithmetic.FromSignedRaw(axisHalfLength.m_rawValue),
-            WideArithmetic.FromSignedRaw(axisHalfLength.m_rawValue));
-        if (!TryGetExpandedAxialInterval(
-                startAxisProjection,
-                directionsDot,
-                axisLengthSquared,
-                authoredAxisLength,
-                WideArithmetic.FromSignedRaw(axialExpansion.m_rawValue),
-                Fixed64.One,
-                out RationalBound320 lower,
-                out RationalBound320 upper))
-        {
-            entry = default;
-            exit = default;
-            return false;
-        }
-
-        return TryGetFiniteAxisInterval(
-            queryLengthSquared,
-            axisLengthSquared,
-            startDistanceSquared,
-            directionsDot,
-            startAxisProjection,
-            startDirectionProjection,
-            GetExpandedRadius(radius, radiusExpansion),
             lower,
             upper,
             Fixed64.One,
@@ -518,7 +494,7 @@ internal static partial class WideFiniteAxisIntersection
         out RationalBound upper)
     {
         RationalBound maximum = GetMaximumBound(maxParameter);
-        lower = new RationalBound(default, One);
+        lower = new RationalBound(default, Scale);
         upper = maximum;
 
         if (velocity.IsZero)
@@ -546,51 +522,6 @@ internal static partial class WideFiniteAxisIntersection
         return true;
     }
 
-    private static bool TryGetExpandedAxialInterval(
-        Signed192 projection,
-        Signed192 velocity,
-        Signed192 axisLengthSquared,
-        Signed192 authoredAxisLength,
-        Signed192 axialExpansion,
-        Fixed64 maxParameter,
-        out RationalBound320 lower,
-        out RationalBound320 upper)
-    {
-        Signed320 scaledProjection = WideArithmetic.MultiplySigned192(authoredAxisLength, projection);
-        Signed320 scaledVelocity = WideArithmetic.MultiplySigned192(authoredAxisLength, velocity);
-        Signed320 projectionExpansion = WideArithmetic.MultiplySigned192(axialExpansion, axisLengthSquared);
-        Signed320 scaledAxisLengthSquared = WideArithmetic.MultiplySigned192(authoredAxisLength, axisLengthSquared);
-        RationalBound320 maximum = GetMaximumBound320(maxParameter);
-        lower = new RationalBound320(default, WideArithmetic.ExtendToSigned320(One));
-        upper = maximum;
-
-        Signed320 minimumProjection = WideArithmetic.SubtractSigned320(default, projectionExpansion);
-        Signed320 maximumProjection = WideArithmetic.AddSigned320(scaledAxisLengthSquared, projectionExpansion);
-        if (scaledVelocity.IsZero)
-        {
-            return WideArithmetic.SubtractSigned320(scaledProjection, minimumProjection).Sign >= 0
-                && WideArithmetic.SubtractSigned320(scaledProjection, maximumProjection).Sign <= 0;
-        }
-
-        RationalBound320 first = Normalize(
-            WideArithmetic.SubtractSigned320(minimumProjection, scaledProjection),
-            scaledVelocity);
-        RationalBound320 second = Normalize(
-            WideArithmetic.SubtractSigned320(maximumProjection, scaledProjection),
-            scaledVelocity);
-        if (Compare(first, second) > 0)
-            (first, second) = (second, first);
-
-        if (second.Numerator.Sign < 0 || Compare(first, maximum) > 0)
-            return false;
-
-        if (first.Numerator.Sign > 0)
-            lower = first;
-        if (Compare(second, maximum) < 0)
-            upper = second;
-        return true;
-    }
-
     private static bool TryGetCenteredAxialInterval(
         Signed192 projection,
         Signed192 velocity,
@@ -599,11 +530,11 @@ internal static partial class WideFiniteAxisIntersection
         out RationalBound320 lower,
         out RationalBound320 upper)
     {
-        Signed320 scaledProjection = WideArithmetic.MultiplySigned192(ParameterScale, projection);
-        Signed320 scaledVelocity = WideArithmetic.MultiplySigned192(ParameterScale, velocity);
+        Signed320 scaledProjection = WideArithmetic.MultiplySigned192(DoubleParameterScale, projection);
+        Signed320 scaledVelocity = WideArithmetic.MultiplySigned192(DoubleParameterScale, velocity);
         Signed320 minimumProjection = WideArithmetic.SubtractSigned320(default, axialExtent);
         RationalBound320 maximum = GetMaximumBound320(maxParameter);
-        lower = new RationalBound320(default, WideArithmetic.ExtendToSigned320(One));
+        lower = new RationalBound320(default, Signed320.ExtendValue(Scale));
         upper = maximum;
 
         if (scaledVelocity.IsZero)
@@ -633,14 +564,25 @@ internal static partial class WideFiniteAxisIntersection
 
     private static Signed320 GetCenteredAxialExtent(
         Signed192 axisLengthSquared,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
+        Fixed64 axialExpansion) =>
+        GetCenteredAxialExtent(
+            axisLengthSquared,
+            Signed192.Signed(axisLength.m_rawValue),
+            axialExpansion);
+
+    private static Signed320 GetCenteredAxialExtent(
+        Signed192 axisLengthSquared,
+        Signed192 axisLength,
         Fixed64 axialExpansion) =>
         WideArithmetic.AddSigned320(
             WideArithmetic.MultiplySigned192(
-                WideArithmetic.FromSignedRaw(axisHalfLength.m_rawValue),
+                axisLength,
                 axisLengthSquared),
             WideArithmetic.MultiplySigned192(
-                WideArithmetic.FromSignedRaw(axialExpansion.m_rawValue),
+                WideArithmetic.AddSigned192(
+                    Signed192.Signed(axialExpansion.m_rawValue),
+                    Signed192.Signed(axialExpansion.m_rawValue)),
                 axisLengthSquared));
 
     private static RationalBound Normalize(Signed192 numerator, Signed192 denominator)
@@ -676,13 +618,13 @@ internal static partial class WideFiniteAxisIntersection
             WideArithmetic.MultiplySigned320(right.Numerator, left.Denominator)).Sign;
 
     private static RationalBound GetMaximumBound(Fixed64 maxParameter) =>
-        new(WideArithmetic.FromSignedRaw(maxParameter.m_rawValue), ParameterScale);
+        new(Signed192.Signed(maxParameter.m_rawValue), ParameterScale);
 
     private static RationalBound320 GetMaximumBound320(Fixed64 maxParameter) =>
         new(
-            WideArithmetic.ExtendToSigned320(
-                WideArithmetic.FromSignedRaw(maxParameter.m_rawValue)),
-            WideArithmetic.ExtendToSigned320(ParameterScale));
+            Signed320.ExtendValue(
+                Signed192.Signed(maxParameter.m_rawValue)),
+            Signed320.ExtendValue(ParameterScale));
 
     private static Fixed64 Round(RationalBound value) =>
         Fixed64.GetSignedRatio(value.Numerator, value.Denominator);
@@ -732,8 +674,8 @@ internal static partial class WideFiniteAxisIntersection
 
     private static Signed192 GetExpandedRadius(Fixed64 radius, Fixed64 radiusExpansion) =>
         WideArithmetic.AddSigned192(
-            WideArithmetic.FromSignedRaw(radius.m_rawValue),
-            WideArithmetic.FromSignedRaw(radiusExpansion.m_rawValue));
+            Signed192.Signed(radius.m_rawValue),
+            Signed192.Signed(radiusExpansion.m_rawValue));
 
     private static Signed192 GetSquaredRadius(Signed192 radius)
     {
@@ -801,27 +743,102 @@ internal static partial class WideFiniteAxisIntersection
             exit = candidateExit;
     }
 
-    private readonly struct RationalBound
+    private static bool TrySolveBoundedQuadratic(
+        Signed320 coefficient,
+        Signed320 projection,
+        Signed320 constant,
+        RationalBound320 lower,
+        RationalBound320 upper,
+        Fixed64 maxParameter,
+        out Fixed64 entry,
+        out Fixed64 exit)
     {
-        internal readonly Signed192 Numerator;
-        internal readonly Signed192 Denominator;
+        entry = default;
+        exit = default;
 
-        internal RationalBound(Signed192 numerator, Signed192 denominator)
+        if (coefficient.IsZero)
         {
-            Numerator = numerator;
-            Denominator = denominator;
+            if (constant.Sign > 0)
+                return false;
+
+            entry = Round(lower);
+            exit = Round(upper);
+            return true;
         }
-    }
 
-    private readonly struct RationalBound320
-    {
-        internal readonly Signed320 Numerator;
-        internal readonly Signed320 Denominator;
+        Signed704 lowerValue = EvaluatePolynomial(
+            coefficient,
+            projection,
+            constant,
+            lower.Numerator,
+            lower.Denominator);
+        Signed704 upperValue = EvaluatePolynomial(
+            coefficient,
+            projection,
+            constant,
+            upper.Numerator,
+            upper.Denominator);
+        int lowerDerivative = EvaluateDerivative(
+            coefficient,
+            projection,
+            lower.Numerator,
+            lower.Denominator).Sign;
+        int upperDerivative = EvaluateDerivative(
+            coefficient,
+            projection,
+            upper.Numerator,
+            upper.Denominator).Sign;
 
-        internal RationalBound320(Signed320 numerator, Signed320 denominator)
+        if ((lowerValue.Sign > 0 && lowerDerivative >= 0)
+            || (upperValue.Sign > 0 && upperDerivative <= 0))
         {
-            Numerator = numerator;
-            Denominator = denominator;
+            return false;
         }
+
+        if (lowerValue.Sign <= 0 && upperValue.Sign <= 0)
+        {
+            entry = Round(lower);
+            exit = Round(upper);
+            return true;
+        }
+
+        if (TryGetNarrowRadialCoefficients(
+                coefficient,
+                projection,
+                constant,
+                out Signed192 narrowCoefficient,
+                out Signed192 narrowProjection,
+                out Signed192 narrowConstant))
+        {
+            if (!WideRayIntersection.TrySolveInterval(
+                    narrowCoefficient,
+                    narrowProjection,
+                    narrowConstant,
+                    maxParameter,
+                    out Fixed64 radialEntry,
+                    out Fixed64 radialExit))
+            {
+                return false;
+            }
+
+            entry = lowerValue.Sign <= 0 ? Round(lower) : radialEntry;
+            exit = upperValue.Sign <= 0 ? Round(upper) : radialExit;
+            return true;
+        }
+
+        Signed576 discriminant = WideArithmetic.SubtractSigned576(
+            WideArithmetic.MultiplySigned320(projection, projection),
+            WideArithmetic.MultiplySigned320(coefficient, constant));
+        if (discriminant.Sign < 0)
+            return false;
+
+        Signed320 scaledSquareRoot = WideArithmetic.GetFloorSquareRootScaledByFixed64(discriminant);
+        entry = lowerValue.Sign <= 0
+            ? Round(lower)
+            : RoundLowerRoot(coefficient, projection, constant, scaledSquareRoot);
+        exit = upperValue.Sign <= 0
+            ? Round(upper)
+            : RoundUpperRoot(coefficient, projection, constant, scaledSquareRoot, maxParameter);
+        return true;
     }
 }

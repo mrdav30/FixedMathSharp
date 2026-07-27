@@ -1,6 +1,6 @@
+using FixedMathSharp.Bounds;
 using System;
 using System.Numerics;
-using FixedMathSharp.Bounds;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
@@ -11,11 +11,12 @@ public sealed partial class FiniteAxisIntersectionTests
     public void CenteredCapsule_RepresentableAxisMatchesEndpointContract()
     {
         Vector3d axisDirection = new Vector3d(Fixed64.One, Fixed64.One, Fixed64.Zero).Normalized;
-        Fixed64 halfLength = (Fixed64)2;
+        Fixed64 endpointOffset = (Fixed64)2;
+        Fixed64 axisLength = (Fixed64)4;
         var center = new Vector3d((Fixed64)3, (Fixed64)(-2), Fixed64.One);
         var capsuleAxis = new FixedSegment(
-            center - axisDirection * halfLength,
-            center + axisDirection * halfLength);
+            center - axisDirection * endpointOffset,
+            center + axisDirection * endpointOffset);
         var query = new FixedSegment(
             new Vector3d((Fixed64)(-2), (Fixed64)(-2), Fixed64.One),
             new Vector3d((Fixed64)8, (Fixed64)(-2), Fixed64.One));
@@ -31,7 +32,7 @@ public sealed partial class FiniteAxisIntersectionTests
         bool centeredHit = query.TryGetCapsuleIntersectionInterval(
             center,
             axisDirection,
-            halfLength,
+            axisLength,
             Fixed64.One,
             Fixed64.Half,
             out Fixed64 centeredEntry,
@@ -50,11 +51,12 @@ public sealed partial class FiniteAxisIntersectionTests
     public void CenteredCapsule2d_RepresentableAxisMatchesEndpointContract()
     {
         Vector2d axisDirection = new Vector2d(Fixed64.One, Fixed64.One).Normalized;
-        Fixed64 halfLength = (Fixed64)2;
+        Fixed64 endpointOffset = (Fixed64)2;
+        Fixed64 axisLength = (Fixed64)4;
         var center = new Vector2d((Fixed64)3, (Fixed64)(-2));
         var capsuleAxis = new FixedSegment2d(
-            center - axisDirection * halfLength,
-            center + axisDirection * halfLength);
+            center - axisDirection * endpointOffset,
+            center + axisDirection * endpointOffset);
         var query = new FixedSegment2d(
             new Vector2d((Fixed64)(-2), (Fixed64)(-2)),
             new Vector2d((Fixed64)8, (Fixed64)(-2)));
@@ -70,7 +72,7 @@ public sealed partial class FiniteAxisIntersectionTests
         bool centeredHit = query.TryGetCapsuleIntersectionInterval(
             center,
             axisDirection,
-            halfLength,
+            axisLength,
             Fixed64.One,
             Fixed64.Half,
             out Fixed64 centeredEntry,
@@ -86,7 +88,7 @@ public sealed partial class FiniteAxisIntersectionTests
     }
 
     [Fact]
-    public void CenteredCapsule_ZeroHalfLengthMatchesCenteredSphereContract()
+    public void CenteredCapsule_ZeroLengthMatchesCenteredSphereContract()
     {
         var center = new Vector3d((Fixed64)2, (Fixed64)(-1), (Fixed64)3);
         var query = new FixedSegment(center + Vector3d.Left * (Fixed64)2, center + Vector3d.Right * (Fixed64)2);
@@ -119,7 +121,7 @@ public sealed partial class FiniteAxisIntersectionTests
     }
 
     [Fact]
-    public void CenteredCapsule2d_ZeroHalfLengthMatchesCenteredCircleContract()
+    public void CenteredCapsule2d_ZeroLengthMatchesCenteredCircleContract()
     {
         var center = new Vector2d((Fixed64)2, (Fixed64)(-1));
         var query = new FixedSegment2d(center + Vector2d.Left * (Fixed64)2, center + Vector2d.Right * (Fixed64)2);
@@ -198,7 +200,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.False(query.TryGetCapsuleIntersectionInterval(
             center,
             axisDirection,
-            (Fixed64)10,
+            (Fixed64)20,
             Fixed64.One,
             Fixed64.Zero,
             out _,
@@ -233,7 +235,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.False(query.TryGetCapsuleIntersectionInterval(
             center,
             axisDirection,
-            (Fixed64)10,
+            (Fixed64)20,
             Fixed64.One,
             Fixed64.Zero,
             out _,
@@ -255,7 +257,7 @@ public sealed partial class FiniteAxisIntersectionTests
             point,
             center,
             axisDirection,
-            (Fixed64)10);
+            (Fixed64)20);
 
         Assert.True(direction.IsNormalized());
         Assert.True(direction.X < Fixed64.Zero);
@@ -274,7 +276,7 @@ public sealed partial class FiniteAxisIntersectionTests
             point,
             center,
             axisDirection,
-            (Fixed64)10);
+            (Fixed64)20);
 
         Assert.True(direction.IsNormalized());
         Assert.True(direction.X < Fixed64.Zero);
@@ -288,12 +290,12 @@ public sealed partial class FiniteAxisIntersectionTests
                 Vector3d.Up,
                 Vector3d.Zero,
                 Vector3d.Up,
-                (Fixed64)2));
+                (Fixed64)4));
         Assert.Equal(Vector2d.Zero, FixedSegment2d.GetDirectionFromCenteredAxis(
                 Vector2d.Forward,
                 Vector2d.Zero,
                 Vector2d.Forward,
-                (Fixed64)2));
+                (Fixed64)4));
     }
 
     [Fact]
@@ -305,20 +307,20 @@ public sealed partial class FiniteAxisIntersectionTests
         var extremeCenter = new Vector2d(Fixed64.MaxValue - (Fixed64)5, Fixed64.Zero);
         var extremePoint = new Vector2d(Fixed64.MaxValue - Fixed64.One, (Fixed64)8);
         Vector2d moderateNormal = FixedSegment2d.GetDirectionFromCenteredAxis(
-            moderatePoint, moderateCenter, axis, (Fixed64)10);
+            moderatePoint, moderateCenter, axis, (Fixed64)20);
         Vector2d extremeNormal = FixedSegment2d.GetDirectionFromCenteredAxis(
-            extremePoint, extremeCenter, axis, (Fixed64)10);
+            extremePoint, extremeCenter, axis, (Fixed64)20);
 
         Assert.False(FixedSegment2d.ContainsPointInCenteredCapsule(
-            extremePoint, extremeCenter, axis, (Fixed64)10, (Fixed64)2));
+            extremePoint, extremeCenter, axis, (Fixed64)20, (Fixed64)2));
         Assert.True(FixedSegment2d.ContainsPointInCenteredCapsule(
-            extremePoint, extremeCenter, axis, (Fixed64)10, (Fixed64)2, Fixed64.One));
+            extremePoint, extremeCenter, axis, (Fixed64)20, (Fixed64)2, Fixed64.One));
         Assert.Equal(moderateNormal, extremeNormal);
         Assert.True(FixedSegment2d.TryGetSurfacePointOnCenteredCapsule(
             moderatePoint,
             moderateCenter,
             axis,
-            (Fixed64)10,
+            (Fixed64)20,
             (Fixed64)2,
             moderateNormal,
             out Vector2d moderateSurface));
@@ -326,7 +328,7 @@ public sealed partial class FiniteAxisIntersectionTests
             extremePoint,
             extremeCenter,
             axis,
-            (Fixed64)10,
+            (Fixed64)20,
             (Fixed64)2,
             extremeNormal,
             out Vector2d extremeSurface));
@@ -338,12 +340,12 @@ public sealed partial class FiniteAxisIntersectionTests
             new Vector3d(moderatePoint.X, moderatePoint.Y, Fixed64.Zero),
             new Vector3d(moderateCenter.X, moderateCenter.Y, Fixed64.Zero),
             axis3D,
-            (Fixed64)10);
+            (Fixed64)20);
         Assert.True(FixedSegment.TryGetSurfacePointOnCenteredCapsule(
             new Vector3d(extremePoint.X, extremePoint.Y, Fixed64.Zero),
             new Vector3d(extremeCenter.X, extremeCenter.Y, Fixed64.Zero),
             axis3D,
-            (Fixed64)10,
+            (Fixed64)20,
             (Fixed64)2,
             new Vector3d(extremeNormal.X, extremeNormal.Y, Fixed64.Zero),
             out Vector3d extremeSurface3D));
@@ -351,16 +353,16 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.Equal(new Vector3d(moderateNormal.X, moderateNormal.Y, Fixed64.Zero), moderateNormal3D);
 
         Assert.True(FixedSegment2d.TryGetDistanceToCenteredCapsule(
-            moderatePoint, moderateCenter, axis, (Fixed64)10, (Fixed64)2, out Fixed64 moderateDistance));
+            moderatePoint, moderateCenter, axis, (Fixed64)20, (Fixed64)2, out Fixed64 moderateDistance));
         Assert.True(FixedSegment2d.TryGetDistanceToCenteredCapsule(
-            extremePoint, extremeCenter, axis, (Fixed64)10, (Fixed64)2, out Fixed64 extremeDistance));
+            extremePoint, extremeCenter, axis, (Fixed64)20, (Fixed64)2, out Fixed64 extremeDistance));
         Assert.Equal(moderateDistance, extremeDistance);
         Assert.True(moderateDistance > Fixed64.Zero);
         Assert.True(FixedSegment.TryGetDistanceToCenteredCapsule(
             new Vector3d(extremePoint.X, extremePoint.Y, Fixed64.Zero),
             new Vector3d(extremeCenter.X, extremeCenter.Y, Fixed64.Zero),
             axis3D,
-            (Fixed64)10,
+            (Fixed64)20,
             (Fixed64)2,
             out Fixed64 extremeDistance3D));
         Assert.Equal(extremeDistance, extremeDistance3D);
@@ -377,7 +379,7 @@ public sealed partial class FiniteAxisIntersectionTests
             point,
             Vector2d.Zero,
             axis,
-            (Fixed64)1_000_000_000,
+            (Fixed64)2_000_000_000,
             radius,
             out Fixed64 actual));
 
@@ -557,7 +559,7 @@ public sealed partial class FiniteAxisIntersectionTests
             point3D,
             center3D,
             axis3D,
-            (Fixed64)10,
+            (Fixed64)20,
             Fixed64.One,
             Fixed64.Zero));
 
@@ -568,7 +570,7 @@ public sealed partial class FiniteAxisIntersectionTests
             point2D,
             center2D,
             axis2D,
-            (Fixed64)10,
+            (Fixed64)20,
             Fixed64.One,
             Fixed64.Zero));
 
@@ -576,7 +578,7 @@ public sealed partial class FiniteAxisIntersectionTests
             new Vector2d(Fixed64.One, Fixed64.Zero),
             Vector2d.Zero,
             Vector2d.Forward,
-            (Fixed64)2,
+            (Fixed64)4,
             Fixed64.One,
             Fixed64.Zero));
     }

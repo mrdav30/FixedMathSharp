@@ -1,12 +1,91 @@
+using FixedMathSharp.Bounds;
 using System;
 using System.Numerics;
-using FixedMathSharp.Bounds;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
 
 public sealed partial class FiniteAxisIntersectionTests
 {
+    [Fact]
+    public void SweptSphereCenteredCylinderHalfAxisLength_MatchesFullLengthContract()
+    {
+        var query = new FixedSegment(
+            new Vector3d(Fixed64.Zero, (Fixed64)3, Fixed64.Zero),
+            new Vector3d(Fixed64.Zero, (Fixed64)(-3), Fixed64.Zero));
+
+        Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistance(
+            Vector3d.Zero,
+            Vector3d.Up,
+            Fixed64.One,
+            Fixed64.Half,
+            Fixed64.Half,
+            (Fixed64)6,
+            out Fixed64 fullLengthDistance));
+        Assert.True(query.TryGetSweptSphereCenteredFiniteCylinderIntersectionDistanceFromHalfAxisLength(
+            Vector3d.Zero,
+            Vector3d.Up,
+            Fixed64.Half,
+            Fixed64.Half,
+            Fixed64.Half,
+            (Fixed64)6,
+            out Fixed64 halfLengthDistance));
+
+        Assert.Equal((Fixed64)2, fullLengthDistance);
+        Assert.Equal(fullLengthDistance, halfLengthDistance);
+    }
+
+    [Fact]
+    public void SweptSphereCenteredCylinderHalfAxisLength_RetainsUnrepresentableFullLength()
+    {
+        Fixed64 halfAxisLength = (Fixed64)1_400_000_000;
+        Assert.False(Fixed64.TryAdd(
+            halfAxisLength,
+            halfAxisLength,
+            out _));
+        var query = new FixedSegment(
+            new Vector3d(
+                (Fixed64)(-1_000_000_000),
+                (Fixed64)2_000_000_000,
+                Fixed64.Zero),
+            new Vector3d(
+                (Fixed64)(-1_000_000_000),
+                (Fixed64)1_800_000_000,
+                Fixed64.Zero));
+
+        Assert.True(query.TryGetSweptSphereCenteredFiniteCylinderIntersectionDistanceFromHalfAxisLength(
+            new Vector3d(
+                (Fixed64)(-1_000_000_000),
+                (Fixed64)(-500_000_000),
+                Fixed64.Zero),
+            Vector3d.Up,
+            halfAxisLength,
+            (Fixed64)1_400_000_000,
+            (Fixed64)1_000_000_000,
+            (Fixed64)200_000_000,
+            out Fixed64 distance));
+
+        Assert.Equal((Fixed64)100_000_000, distance);
+    }
+
+    [Fact]
+    public void SweptSphereCenteredCylinderHalfAxisLength_PreservesExtremeOffAxisEntry()
+    {
+        var query = new FixedSegment(
+            new Vector3d((Fixed64)(-200_000), Fixed64.Zero, (Fixed64)60_000),
+            new Vector3d((Fixed64)200_000, Fixed64.Zero, (Fixed64)60_000));
+
+        Assert.True(query.TryGetSweptSphereCenteredFiniteCylinderIntersectionDistanceFromHalfAxisLength(
+            Vector3d.Zero,
+            Vector3d.Up,
+            Fixed64.Half,
+            (Fixed64)99_999,
+            Fixed64.One,
+            (Fixed64)400_000,
+            out Fixed64 distance));
+        Assert.Equal((Fixed64)120_000, distance);
+    }
+
     [Fact]
     public void SphericallyExpandedCylinder_DiagonalRimMissAndEndpointTangent_AreDistinct()
     {
@@ -23,7 +102,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.False(miss.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.Half,
+            Fixed64.One,
             Fixed64.Half,
             Fixed64.Half,
             missLength,
@@ -34,7 +113,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(tangent.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.Half,
+            Fixed64.One,
             Fixed64.Half,
             Fixed64.Half,
             tangentLength,
@@ -48,6 +127,30 @@ public sealed partial class FiniteAxisIntersectionTests
     }
 
     [Fact]
+    public void SphericallyExpandedCylinder_CapPlaneOuterRadiusTangencyReturnsSinglePoint()
+    {
+        var query = new FixedSegment(
+            new Vector3d(-Fixed64.One, Fixed64.One, Fixed64.Two),
+            new Vector3d(Fixed64.One, Fixed64.One, Fixed64.Two));
+
+        Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
+            Vector3d.Zero,
+            Vector3d.Up,
+            Fixed64.Two,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.Two,
+            out Fixed64 entry,
+            out Fixed64 exit,
+            out bool startContained,
+            out bool endContainedStrict));
+        Assert.Equal(Fixed64.One, entry);
+        Assert.Equal(entry, exit);
+        Assert.False(startContained);
+        Assert.False(endContainedStrict);
+    }
+
+    [Fact]
     public void SphericallyExpandedCylinder_RimCrossing_ReturnsHalfEvenInterval()
     {
         Fixed64 y = Fixed64.FromFraction(9, 10);
@@ -58,7 +161,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.Half,
+            Fixed64.One,
             Fixed64.Half,
             Fixed64.Half,
             Fixed64.Two,
@@ -86,7 +189,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)3,
+            (Fixed64)6,
             (Fixed64)2,
             (Fixed64)5,
             (Fixed64)10,
@@ -110,7 +213,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)3,
+            (Fixed64)6,
             (Fixed64)2,
             (Fixed64)5,
             (Fixed64)20,
@@ -135,7 +238,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             (Fixed64)3,
             (Fixed64)4,
             (Fixed64)20,
@@ -159,7 +262,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)3,
+            (Fixed64)6,
             (Fixed64)3,
             (Fixed64)5,
             (Fixed64)7,
@@ -183,7 +286,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)3,
+            (Fixed64)6,
             Fixed64.One,
             Fixed64.One,
             (Fixed64)10,
@@ -207,7 +310,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)3,
+            (Fixed64)6,
             (Fixed64)3,
             (Fixed64)5,
             (Fixed64)20,
@@ -233,7 +336,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)20,
+            (Fixed64)40,
             Fixed64.One,
             (Fixed64)15,
             totalDistance,
@@ -250,7 +353,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(reverse.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)20,
+            (Fixed64)40,
             Fixed64.One,
             (Fixed64)15,
             totalDistance,
@@ -276,7 +379,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)20,
+            (Fixed64)40,
             Fixed64.One,
             Fixed64.One,
             totalDistance,
@@ -293,7 +396,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(reverse.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)20,
+            (Fixed64)40,
             Fixed64.One,
             Fixed64.One,
             totalDistance,
@@ -317,7 +420,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)20,
+            (Fixed64)40,
             (Fixed64)15,
             Fixed64.One,
             (Fixed64)20,
@@ -341,7 +444,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)3,
+            (Fixed64)6,
             (Fixed64)2,
             (Fixed64)5,
             (Fixed64)10,
@@ -366,7 +469,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.False(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)3,
+            (Fixed64)6,
             (Fixed64)2,
             (Fixed64)5,
             totalDistance,
@@ -390,7 +493,7 @@ public sealed partial class FiniteAxisIntersectionTests
             new Vector3d(Fixed64.Two, Fixed64.Two, Fixed64.Zero));
 
         Assert.True(interior.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One, Fixed64.One, Fixed64.One,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Fixed64.One, Fixed64.One,
             out Fixed64 interiorEntry, out Fixed64 interiorExit,
             out bool interiorStartContained, out bool interiorEndContainedStrict));
         Assert.Equal(Fixed64.Zero, interiorEntry);
@@ -399,7 +502,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(interiorEndContainedStrict);
 
         Assert.True(boundary.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One, Fixed64.One, Fixed64.One,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Fixed64.One, Fixed64.One,
             out Fixed64 boundaryEntry, out Fixed64 boundaryExit,
             out bool boundaryStartContained, out bool boundaryEndContainedStrict));
         Assert.Equal(Fixed64.Zero, boundaryEntry);
@@ -408,11 +511,11 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.False(boundaryEndContainedStrict);
 
         Assert.False(roundedCornerMiss.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One, Fixed64.One, Fixed64.One,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Fixed64.One, Fixed64.One,
             out _, out _, out _, out _));
 
         Assert.True(boundary.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One, Fixed64.One, Fixed64.Zero,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Fixed64.One, Fixed64.Zero,
             out boundaryEntry, out boundaryExit,
             out boundaryStartContained, out boundaryEndContainedStrict));
         Assert.Equal(Fixed64.Zero, boundaryEntry);
@@ -436,7 +539,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Fixed64 expectedRoot = Fixed64.FromRaw(expectedRootRaw);
 
         Assert.True(entering.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One, Fixed64.One, totalDistance,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Fixed64.One, totalDistance,
             out Fixed64 entry, out Fixed64 enteringExit,
             out bool enteringStartContained, out bool enteringEndContainedStrict));
         Assert.Equal(expectedRoot, entry);
@@ -445,7 +548,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(enteringEndContainedStrict);
 
         Assert.True(exiting.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One, Fixed64.One, totalDistance,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Fixed64.One, totalDistance,
             out Fixed64 exitingEntry, out Fixed64 exit,
             out bool exitingStartContained, out bool exitingEndContainedStrict));
         Assert.Equal(Fixed64.Zero, exitingEntry);
@@ -473,7 +576,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.False(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            radius,
+            radius + radius,
             radius,
             Fixed64.FromRaw(1L),
             totalDistance,
@@ -495,7 +598,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            radius,
+            radius + radius,
             radius,
             radius,
             totalDistance,
@@ -511,7 +614,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            radius,
+            radius + radius,
             radius,
             radius,
             totalDistance,
@@ -534,7 +637,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            radius,
+            radius + radius,
             radius,
             radius,
             Fixed64.FromRaw(1L),
@@ -558,7 +661,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            (Fixed64)3,
+            (Fixed64)6,
             (Fixed64)2,
             Fixed64.One,
             Fixed64.One,
@@ -583,7 +686,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistance(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.Half,
+            Fixed64.One,
             Fixed64.Half,
             Fixed64.Half,
             Fixed64.Two,
@@ -591,7 +694,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.Half,
+            Fixed64.One,
             Fixed64.Half,
             Fixed64.Half,
             Fixed64.Two,
@@ -612,7 +715,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.Half,
+            Fixed64.One,
             Fixed64.Zero,
             Fixed64.Half,
             (Fixed64)4,
@@ -634,7 +737,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.Half,
+            Fixed64.One,
             Fixed64.Half,
             Fixed64.Zero,
             (Fixed64)4,
@@ -644,6 +747,16 @@ public sealed partial class FiniteAxisIntersectionTests
             out _));
         Assert.Equal(Fixed64.FromFraction(3, 2), entry);
         Assert.Equal(Fixed64.FromFraction(5, 2), exit);
+
+        Assert.True(query.TryGetSweptSphereCenteredFiniteCylinderIntersectionDistanceFromHalfAxisLength(
+            Vector3d.Zero,
+            Vector3d.Up,
+            Fixed64.Half,
+            Fixed64.Half,
+            Fixed64.Zero,
+            (Fixed64)4,
+            out Fixed64 halfAxisDistance));
+        Assert.Equal(entry, halfAxisDistance);
     }
 
     [Fact]
@@ -659,7 +772,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             center,
             Vector3d.Up,
-            Fixed64.Half,
+            Fixed64.One,
             Fixed64.Half,
             Fixed64.Half,
             Fixed64.Two,
@@ -694,7 +807,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetSweptSphereFiniteCylinderIntersectionDistance(
             Vector3d.Zero,
             axis,
-            Fixed64.Half,
+            Fixed64.One,
             Fixed64.Half,
             Fixed64.Half,
             Fixed64.Two,
@@ -716,7 +829,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.False(query.TryGetSweptSphereFiniteCylinderIntersectionDistance(
             center,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.One,
             (Fixed64)4,
@@ -735,6 +848,24 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.Throws<ArgumentOutOfRangeException>(() => query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
             Vector3d.Zero, Vector3d.Up, Fixed64.One, -Fixed64.One, Fixed64.One, Fixed64.One, out _, out _, out _, out _));
         Assert.Throws<ArgumentOutOfRangeException>(() => query.TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One, -Fixed64.One, Fixed64.One, out _, out _, out _, out _));
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, -Fixed64.One, Fixed64.One, out _, out _, out _, out _));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            query.TryGetSweptSphereCenteredFiniteCylinderIntersectionDistanceFromHalfAxisLength(
+                Vector3d.Zero,
+                Vector3d.Up,
+                Fixed64.Half,
+                -Fixed64.One,
+                Fixed64.One,
+                Fixed64.One,
+                out _));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            query.TryGetSweptSphereCenteredFiniteCylinderIntersectionDistanceFromHalfAxisLength(
+                Vector3d.Zero,
+                Vector3d.Up,
+                Fixed64.Half,
+                Fixed64.One,
+                -Fixed64.One,
+                Fixed64.One,
+                out _));
     }
 }

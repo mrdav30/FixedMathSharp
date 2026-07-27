@@ -12,8 +12,8 @@ namespace FixedMathSharp.Bounds;
 /// </summary>
 internal static class WideTriangleConeIntersection
 {
-    private static readonly Signed192 Scale = WideArithmetic.FromSignedRaw(Fixed64.One.m_rawValue);
-    private static readonly Signed192 MaximumParameter = WideArithmetic.FromSignedRaw(Fixed64.MaxValue.m_rawValue);
+    private static readonly Signed192 Scale = Signed192.Signed(Fixed64.One.m_rawValue);
+    private static readonly Signed192 MaximumParameter = Signed192.Signed(Fixed64.MaxValue.m_rawValue);
 
     internal static bool TryGetFaceMinimumAxialPoint(
         FixedTriangle triangle,
@@ -31,10 +31,10 @@ internal static class WideTriangleConeIntersection
     {
         Signed192 q = GetDot(axisDirection, Vector3d.Zero, axisDirection, Vector3d.Zero);
         Signed320 bWide = GetDot(normalX, normalY, normalZ, axisDirection, Vector3d.Zero);
-        Signed192 b = NarrowProvenSigned192(bWide);
+        Signed192 b = Signed192.NarrowValue(bWide);
         Signed320 c = GetDot(normalX, normalY, normalZ, triangle.A, apex);
         Signed576 p = WideArithmetic.SubtractSigned576(
-            WideArithmetic.MultiplySigned576(WideArithmetic.ExtendToSigned576(normalSquared), q),
+            WideArithmetic.MultiplySigned576(Signed576.ExtendValue(normalSquared), q),
             WideArithmetic.MultiplySigned320(bWide, bWide));
 
         if (p.IsZero)
@@ -156,8 +156,8 @@ internal static class WideTriangleConeIntersection
             GetWitnessCoordinate(apex.Z, vZ, wZ, c, p, height, entry));
         axialParameter = Fixed64.GetSignedRawRatio(
             WideArithmetic.MultiplySigned192(
-                WideArithmetic.FromSignedRaw(height.m_rawValue),
-                WideArithmetic.FromSignedRaw(entry.m_rawValue)),
+                Signed192.Signed(height.m_rawValue),
+                Signed192.Signed(entry.m_rawValue)),
             MaximumParameter);
         return true;
     }
@@ -247,12 +247,12 @@ internal static class WideTriangleConeIntersection
                 out Signed320 axisNumerator))
         {
             numerator = WideArithmetic.MultiplySigned576(
-                WideArithmetic.ExtendToSigned576(axisNumerator),
+                Signed576.ExtendValue(axisNumerator),
                 Scale);
-            denominator = WideArithmetic.ExtendToSigned576(
+            denominator = Signed576.ExtendValue(
                 WideArithmetic.MultiplySigned192(
                     axisDenominator,
-                    WideArithmetic.FromSignedRaw(height.m_rawValue)));
+                    Signed192.Signed(height.m_rawValue)));
             return true;
         }
 
@@ -270,8 +270,8 @@ internal static class WideTriangleConeIntersection
             return false;
         }
 
-        numerator = WideArithmetic.ExtendToSigned576(
-            WideArithmetic.ExtendToSigned320(WideArithmetic.FromSignedRaw(1L)));
+        numerator = Signed576.ExtendValue(
+            Signed320.ExtendValue(Signed192.Signed(1L)));
         denominator = numerator;
         return true;
     }
@@ -316,18 +316,18 @@ internal static class WideTriangleConeIntersection
         out Signed576 projection,
         out Signed576 constant)
     {
-        Signed192 heightRaw = WideArithmetic.FromSignedRaw(height.m_rawValue);
-        Signed192 radiusRaw = WideArithmetic.FromSignedRaw(baseRadius.m_rawValue);
+        Signed192 heightRaw = Signed192.Signed(height.m_rawValue);
+        Signed192 radiusRaw = Signed192.Signed(baseRadius.m_rawValue);
         Signed576 bSquared = WideArithmetic.MultiplySigned320(b, b);
-        Signed576 firstCoefficient = Multiply(bSquared, q, heightRaw, heightRaw);
-        Signed576 secondCoefficient = Multiply(p, radiusRaw, radiusRaw, Scale, Scale);
+        Signed576 firstCoefficient = WideArithmetic.MultiplySigned576(bSquared, q, heightRaw, heightRaw);
+        Signed576 secondCoefficient = WideArithmetic.MultiplySigned576(p, radiusRaw, radiusRaw, Scale, Scale);
         coefficient = WideArithmetic.SubtractSigned576(firstCoefficient, secondCoefficient);
 
         Signed576 bc = WideArithmetic.MultiplySigned320(b, c);
         projection = WideArithmetic.SubtractSigned576(
             default,
-            Multiply(bc, q, Scale, heightRaw));
-        constant = Multiply(WideArithmetic.MultiplySigned320(c, c), q, Scale, Scale);
+            WideArithmetic.MultiplySigned576(bc, q, Scale, heightRaw));
+        constant = WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(c, c), q, Scale, Scale);
     }
 
     private static void GetLowerRootLatticeBracket(
@@ -445,11 +445,11 @@ internal static class WideTriangleConeIntersection
             GetAxisPlaneCoordinate(apex.Y, axisDirection.Y, denominator, numerator),
             GetAxisPlaneCoordinate(apex.Z, axisDirection.Z, denominator, numerator));
         Signed576 axialNumerator = WideArithmetic.MultiplySigned576(
-            WideArithmetic.ExtendToSigned576(numerator),
+            Signed576.ExtendValue(numerator),
             Scale);
         _ = Fixed64.TryGetSignedRawRatio(
             axialNumerator,
-            WideArithmetic.ExtendToSigned576(WideArithmetic.ExtendToSigned320(denominator)),
+            Signed576.ExtendValue(Signed320.ExtendValue(denominator)),
             out axialParameter);
         return true;
     }
@@ -478,12 +478,12 @@ internal static class WideTriangleConeIntersection
             return false;
 
         Signed576 scaledNumerator = WideArithmetic.MultiplySigned576(
-            WideArithmetic.ExtendToSigned576(numerator),
+            Signed576.ExtendValue(numerator),
             Scale);
-        Signed576 maximumNumerator = WideArithmetic.ExtendToSigned576(
+        Signed576 maximumNumerator = Signed576.ExtendValue(
             WideArithmetic.MultiplySigned192(
                 denominator,
-                WideArithmetic.FromSignedRaw(height.m_rawValue)));
+                Signed192.Signed(height.m_rawValue)));
         return WideArithmetic.CompareNonNegative(scaledNumerator, maximumNumerator) <= 0;
     }
 
@@ -522,7 +522,7 @@ internal static class WideTriangleConeIntersection
             out Signed320 hO,
             out Signed320 l);
         Signed576 first = WideArithmetic.MultiplySigned576(
-            WideArithmetic.ExtendToSigned576(hO),
+            Signed576.ExtendValue(hO),
             denominator);
         Signed576 second = WideArithmetic.MultiplySigned320(numerator, l);
         return WideArithmetic.AddSigned576(first, second).Sign;
@@ -572,22 +572,22 @@ internal static class WideTriangleConeIntersection
             axisDirection,
             out Signed320 hO,
             out Signed320 l);
-        Signed192 scaleParameter = WideArithmetic.FromSignedRaw(Fixed64.MaxValue.m_rawValue);
-        Signed192 parameter = WideArithmetic.FromSignedRaw(scaledParameter.m_rawValue);
-        Signed192 heightRaw = WideArithmetic.FromSignedRaw(height.m_rawValue);
+        Signed192 scaleParameter = Signed192.Signed(Fixed64.MaxValue.m_rawValue);
+        Signed192 parameter = Signed192.Signed(scaledParameter.m_rawValue);
+        Signed192 heightRaw = Signed192.Signed(height.m_rawValue);
 
-        Signed576 pScale = Multiply(p, scaleParameter, Scale);
+        Signed576 pScale = WideArithmetic.MultiplySigned576(p, scaleParameter, Scale);
         Signed704 first = WideArithmetic.MultiplySigned576ToSigned704(pScale, hO);
 
         Signed576 negativeBC = WideArithmetic.SubtractSigned576(
             default,
             WideArithmetic.MultiplySigned320(b, c));
         Signed704 second = WideArithmetic.MultiplySigned576ToSigned704(
-            Multiply(negativeBC, scaleParameter, Scale),
+            WideArithmetic.MultiplySigned576(negativeBC, scaleParameter, Scale),
             l);
 
         Signed576 normalEdge = WideArithmetic.MultiplySigned320(normalSquared, l);
-        Signed192 qHeight = NarrowProvenSigned192(
+        Signed192 qHeight = Signed192.NarrowValue(
             WideArithmetic.MultiplySigned192(q, heightRaw));
         Signed320 qHeightParameter = WideArithmetic.MultiplySigned192(qHeight, parameter);
         Signed704 third = WideArithmetic.MultiplySigned576ToSigned704(
@@ -609,16 +609,16 @@ internal static class WideTriangleConeIntersection
         out Signed320 hO,
         out Signed320 l)
     {
-        Signed192 edgeX = Difference(edgeEnd.X, edgeStart.X);
-        Signed192 edgeY = Difference(edgeEnd.Y, edgeStart.Y);
-        Signed192 edgeZ = Difference(edgeEnd.Z, edgeStart.Z);
+        Signed192 edgeX = WideArithmetic.Difference(edgeEnd.X, edgeStart.X);
+        Signed192 edgeY = WideArithmetic.Difference(edgeEnd.Y, edgeStart.Y);
+        Signed192 edgeZ = WideArithmetic.Difference(edgeEnd.Z, edgeStart.Z);
         GetCross(
             edgeX,
             edgeY,
             edgeZ,
-            Difference(apex.X, edgeStart.X),
-            Difference(apex.Y, edgeStart.Y),
-            Difference(apex.Z, edgeStart.Z),
+            WideArithmetic.Difference(apex.X, edgeStart.X),
+            WideArithmetic.Difference(apex.Y, edgeStart.Y),
+            WideArithmetic.Difference(apex.Z, edgeStart.Z),
             out Signed192 originCrossX,
             out Signed192 originCrossY,
             out Signed192 originCrossZ);
@@ -626,9 +626,9 @@ internal static class WideTriangleConeIntersection
             edgeX,
             edgeY,
             edgeZ,
-            WideArithmetic.FromSignedRaw(axisDirection.X.m_rawValue),
-            WideArithmetic.FromSignedRaw(axisDirection.Y.m_rawValue),
-            WideArithmetic.FromSignedRaw(axisDirection.Z.m_rawValue),
+            Signed192.Signed(axisDirection.X.m_rawValue),
+            Signed192.Signed(axisDirection.Y.m_rawValue),
+            Signed192.Signed(axisDirection.Z.m_rawValue),
             out Signed192 axisCrossX,
             out Signed192 axisCrossY,
             out Signed192 axisCrossZ);
@@ -648,14 +648,14 @@ internal static class WideTriangleConeIntersection
         Signed576 baseValue = WideArithmetic.AddSigned576(
             WideArithmetic.MultiplySigned576(
                 p,
-                WideArithmetic.FromSignedRaw(apexCoordinate.m_rawValue)),
+                Signed192.Signed(apexCoordinate.m_rawValue)),
             WideArithmetic.MultiplySigned320(c, v));
-        Signed576 first = Multiply(baseValue, MaximumParameter, Scale);
-        Signed576 second = Multiply(
+        Signed576 first = WideArithmetic.MultiplySigned576(baseValue, MaximumParameter, Scale);
+        Signed576 second = WideArithmetic.MultiplySigned576(
             w,
-            WideArithmetic.FromSignedRaw(scaledParameter.m_rawValue),
-            WideArithmetic.FromSignedRaw(height.m_rawValue));
-        Signed576 denominator = Multiply(p, MaximumParameter, Scale);
+            Signed192.Signed(scaledParameter.m_rawValue),
+            Signed192.Signed(height.m_rawValue));
+        Signed576 denominator = WideArithmetic.MultiplySigned576(p, MaximumParameter, Scale);
         _ = Fixed64.TryGetSignedRawRatio(
             WideArithmetic.AddSigned576(first, second),
             denominator,
@@ -669,16 +669,16 @@ internal static class WideTriangleConeIntersection
         Signed192 denominator,
         Signed320 numerator)
     {
-        Signed576 first = WideArithmetic.ExtendToSigned576(
+        Signed576 first = Signed576.ExtendValue(
             WideArithmetic.MultiplySigned192(
                 denominator,
-                WideArithmetic.FromSignedRaw(apexCoordinate.m_rawValue)));
+                Signed192.Signed(apexCoordinate.m_rawValue)));
         Signed576 second = WideArithmetic.MultiplySigned576(
-            WideArithmetic.ExtendToSigned576(numerator),
-            WideArithmetic.FromSignedRaw(axisCoordinate.m_rawValue));
+            Signed576.ExtendValue(numerator),
+            Signed192.Signed(axisCoordinate.m_rawValue));
         _ = Fixed64.TryGetSignedRawRatio(
             WideArithmetic.AddSigned576(first, second),
-            WideArithmetic.ExtendToSigned576(WideArithmetic.ExtendToSigned320(denominator)),
+            Signed576.ExtendValue(Signed320.ExtendValue(denominator)),
             out Fixed64 coordinate);
         return coordinate;
     }
@@ -692,7 +692,7 @@ internal static class WideTriangleConeIntersection
             WideArithmetic.MultiplySigned192(q, normal),
             WideArithmetic.MultiplySigned192(
                 b,
-                WideArithmetic.FromSignedRaw(axis.m_rawValue)));
+                Signed192.Signed(axis.m_rawValue)));
 
     private static Signed576 GetStationaryDirectionComponent(
         Signed576 p,
@@ -702,7 +702,7 @@ internal static class WideTriangleConeIntersection
         WideArithmetic.SubtractSigned576(
             WideArithmetic.MultiplySigned576(
                 p,
-                WideArithmetic.FromSignedRaw(axis.m_rawValue)),
+                Signed192.Signed(axis.m_rawValue)),
             WideArithmetic.MultiplySigned320(b, v));
 
     private static Signed192 GetDot(
@@ -724,9 +724,9 @@ internal static class WideTriangleConeIntersection
             leftX,
             leftY,
             leftZ,
-            Difference(rightEnd.X, rightStart.X),
-            Difference(rightEnd.Y, rightStart.Y),
-            Difference(rightEnd.Z, rightStart.Z));
+            WideArithmetic.Difference(rightEnd.X, rightStart.X),
+            WideArithmetic.Difference(rightEnd.Y, rightStart.Y),
+            WideArithmetic.Difference(rightEnd.Z, rightStart.Z));
 
     private static Signed320 GetDot(
         Signed192 leftX,
@@ -752,40 +752,8 @@ internal static class WideTriangleConeIntersection
         out Signed192 y,
         out Signed192 z)
     {
-        x = NarrowProvenSigned192(WideArithmetic.MultiplySubtract(leftY, rightZ, leftZ, rightY));
-        y = NarrowProvenSigned192(WideArithmetic.MultiplySubtract(leftZ, rightX, leftX, rightZ));
-        z = NarrowProvenSigned192(WideArithmetic.MultiplySubtract(leftX, rightY, leftY, rightX));
+        x = Signed192.NarrowValue(WideArithmetic.MultiplySubtract(leftY, rightZ, leftZ, rightY));
+        y = Signed192.NarrowValue(WideArithmetic.MultiplySubtract(leftZ, rightX, leftX, rightZ));
+        z = Signed192.NarrowValue(WideArithmetic.MultiplySubtract(leftX, rightY, leftY, rightX));
     }
-
-    private static Signed192 Difference(Fixed64 end, Fixed64 start) =>
-        WideArithmetic.SubtractSigned192(
-            WideArithmetic.FromSignedRaw(end.m_rawValue),
-            WideArithmetic.FromSignedRaw(start.m_rawValue));
-
-    private static Signed192 NarrowProvenSigned192(Signed320 value) =>
-        new(value.Word2, value.Word1, value.Word0);
-
-    private static Signed576 Multiply(Signed576 value, Signed192 first, Signed192 second) =>
-        WideArithmetic.MultiplySigned576(
-            WideArithmetic.MultiplySigned576(value, first),
-            second);
-
-    private static Signed576 Multiply(
-        Signed576 value,
-        Signed192 first,
-        Signed192 second,
-        Signed192 third) =>
-        WideArithmetic.MultiplySigned576(
-            Multiply(value, first, second),
-            third);
-
-    private static Signed576 Multiply(
-        Signed576 value,
-        Signed192 first,
-        Signed192 second,
-        Signed192 third,
-        Signed192 fourth) =>
-        WideArithmetic.MultiplySigned576(
-            Multiply(value, first, second, third),
-            fourth);
 }

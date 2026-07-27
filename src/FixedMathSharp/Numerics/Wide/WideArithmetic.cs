@@ -15,275 +15,6 @@ namespace FixedMathSharp;
 /// </summary>
 internal static partial class WideArithmetic
 {
-    /// <summary>
-    /// Compares unsigned magnitudes of signed wide values.
-    /// </summary>
-    internal static int CompareMagnitude(Signed192 left, Signed192 right)
-    {
-        GetMagnitude(left, out ulong leftHigh, out ulong leftMiddle, out ulong leftLow);
-        GetMagnitude(right, out ulong rightHigh, out ulong rightMiddle, out ulong rightLow);
-        return CompareUnsigned(
-            leftHigh,
-            leftMiddle,
-            leftLow,
-            rightHigh,
-            rightMiddle,
-            rightLow);
-    }
-
-    /// <summary>
-    /// Returns whether a wide magnitude is at most a positive raw threshold
-    /// shifted into the value's scale.
-    /// </summary>
-    internal static bool IsMagnitudeAtMost(Signed192 value, ulong rawThreshold, int leftShift)
-    {
-        Signed192 threshold = new(
-            0UL,
-            rawThreshold >> (64 - leftShift),
-            rawThreshold << leftShift);
-        return CompareMagnitude(value, threshold) <= 0;
-    }
-
-    /// <summary>
-    /// Adds exact three-word values without scalar conversion.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static Signed192 AddSigned192(Signed192 left, Signed192 right)
-    {
-        ulong low = unchecked(left.Low + right.Low);
-        ulong carry = low < left.Low ? 1UL : 0UL;
-        ulong middle = unchecked(left.Middle + right.Middle + carry);
-        carry = middle < left.Middle || (carry != 0UL && middle == left.Middle) ? 1UL : 0UL;
-        return new Signed192(unchecked(left.High + right.High + carry), middle, low);
-    }
-
-    /// <summary>
-    /// Subtracts exact three-word values without scalar conversion.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static Signed192 SubtractSigned192(Signed192 left, Signed192 right)
-    {
-        ulong borrow = 0UL;
-        ulong low = SubtractWord(left.Low, right.Low, ref borrow);
-        ulong middle = SubtractWord(left.Middle, right.Middle, ref borrow);
-        return new Signed192(unchecked(left.High - right.High - borrow), middle, low);
-    }
-
-    /// <summary>
-    /// Returns the exact signed result of <c>(first * second) - (third * fourth)</c>.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static Signed320 MultiplySubtract(
-        Signed192 first,
-        Signed192 second,
-        Signed192 third,
-        Signed192 fourth)
-    {
-        if (TryGetSigned95Magnitude(first, out ulong firstMiddle, out ulong firstLow)
-            && TryGetSigned95Magnitude(second, out ulong secondMiddle, out ulong secondLow)
-            && TryGetSigned95Magnitude(third, out ulong thirdMiddle, out ulong thirdLow)
-            && TryGetSigned95Magnitude(fourth, out ulong fourthMiddle, out ulong fourthLow))
-        {
-            Signed192 narrowFirstProduct = MultiplySigned95(
-                firstMiddle,
-                firstLow,
-                secondMiddle,
-                secondLow,
-                first.Sign * second.Sign < 0);
-            Signed192 narrowSecondProduct = MultiplySigned95(
-                thirdMiddle,
-                thirdLow,
-                fourthMiddle,
-                fourthLow,
-                third.Sign * fourth.Sign < 0);
-            return ExtendToSigned320(SubtractSigned192(narrowFirstProduct, narrowSecondProduct));
-        }
-
-        Signed320 firstProduct = MultiplySigned192(first, second);
-        Signed320 secondProduct = MultiplySigned192(third, fourth);
-
-        ulong word0 = unchecked(firstProduct.Word0 - secondProduct.Word0);
-        ulong borrow = firstProduct.Word0 < secondProduct.Word0 ? 1UL : 0UL;
-        ulong word1 = SubtractWord(firstProduct.Word1, secondProduct.Word1, ref borrow);
-        ulong word2 = SubtractWord(firstProduct.Word2, secondProduct.Word2, ref borrow);
-        ulong word3 = SubtractWord(firstProduct.Word3, secondProduct.Word3, ref borrow);
-        ulong word4 = unchecked(firstProduct.Word4 - secondProduct.Word4 - borrow);
-        return new Signed320(word4, word3, word2, word1, word0);
-    }
-
-    /// <summary>
-    /// Sign-extends an exact three-word value to five words.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static Signed320 ExtendToSigned320(Signed192 value)
-    {
-        ulong extension = value.Sign < 0 ? ulong.MaxValue : 0UL;
-        return new Signed320(extension, extension, value.High, value.Middle, value.Low);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static Signed192 FromSignedRaw(long value)
-    {
-        ulong extension = value < 0L ? ulong.MaxValue : 0UL;
-        return new Signed192(extension, extension, unchecked((ulong)value));
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static Signed320 AddSigned320(Signed320 left, Signed320 right)
-    {
-        ulong word0 = unchecked(left.Word0 + right.Word0);
-        ulong carry = word0 < left.Word0 ? 1UL : 0UL;
-        ulong word1 = unchecked(left.Word1 + right.Word1 + carry);
-        carry = word1 < left.Word1 || (carry != 0UL && word1 == left.Word1) ? 1UL : 0UL;
-        ulong word2 = unchecked(left.Word2 + right.Word2 + carry);
-        carry = word2 < left.Word2 || (carry != 0UL && word2 == left.Word2) ? 1UL : 0UL;
-        ulong word3 = unchecked(left.Word3 + right.Word3 + carry);
-        // The high bit of the standard carry expression includes the incoming carry encoded in word3.
-        carry = ((left.Word3 & right.Word3) | ((left.Word3 | right.Word3) & ~word3)) >> 63;
-        return new Signed320(unchecked(left.Word4 + right.Word4 + carry), word3, word2, word1, word0);
-    }
-
-    /// <summary>
-    /// Subtracts exact five-word values without scalar conversion.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static Signed320 SubtractSigned320(Signed320 left, Signed320 right)
-    {
-        ulong borrow = 0UL;
-        ulong word0 = SubtractWord(left.Word0, right.Word0, ref borrow);
-        ulong word1 = SubtractWord(left.Word1, right.Word1, ref borrow);
-        ulong word2 = SubtractWord(left.Word2, right.Word2, ref borrow);
-        ulong word3 = SubtractWord(left.Word3, right.Word3, ref borrow);
-        return new Signed320(unchecked(left.Word4 - right.Word4 - borrow), word3, word2, word1, word0);
-    }
-
-    /// <summary>
-    /// Compares unsigned magnitudes of signed five-word values.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static int CompareMagnitude(Signed320 left, Signed320 right)
-    {
-        GetMagnitude(
-            left,
-            out ulong leftWord4,
-            out ulong leftWord3,
-            out ulong leftWord2,
-            out ulong leftWord1,
-            out ulong leftWord0);
-        GetMagnitude(
-            right,
-            out ulong rightWord4,
-            out ulong rightWord3,
-            out ulong rightWord2,
-            out ulong rightWord1,
-            out ulong rightWord0);
-        return CompareUnsigned(
-            leftWord4,
-            leftWord3,
-            leftWord2,
-            leftWord1,
-            leftWord0,
-            rightWord4,
-            rightWord3,
-            rightWord2,
-            rightWord1,
-            rightWord0);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool TryNarrowSigned192(Signed320 value, out Signed192 result)
-    {
-        ulong extension = (value.Word2 & (1UL << 63)) != 0UL ? ulong.MaxValue : 0UL;
-        if (value.Word4 != extension || value.Word3 != extension)
-        {
-            result = default;
-            return false;
-        }
-
-        result = new Signed192(value.Word2, value.Word1, value.Word0);
-        return true;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static Signed320 MultiplySigned192(Signed192 left, Signed192 right)
-    {
-        GetMagnitude(left, out ulong leftHigh, out ulong leftMiddle, out ulong leftLow);
-        GetMagnitude(right, out ulong rightHigh, out ulong rightMiddle, out ulong rightLow);
-
-        MultiplyUnsigned128(
-            leftMiddle,
-            leftLow,
-            rightMiddle,
-            rightLow,
-            out ulong word3,
-            out ulong word2,
-            out ulong word1,
-            out ulong word0);
-
-        ulong word4 = 0UL;
-        if ((leftHigh | rightHigh) != 0UL)
-        {
-            AddProductAt2(ref word4, ref word3, ref word2, leftLow, rightHigh);
-            AddProductAt2(ref word4, ref word3, ref word2, leftHigh, rightLow);
-            AddProductAt3(ref word4, ref word3, leftMiddle, rightHigh);
-            AddProductAt3(ref word4, ref word3, leftHigh, rightMiddle);
-            word4 = unchecked(word4 + (leftHigh * rightHigh));
-        }
-
-        if (left.Sign * right.Sign < 0)
-        {
-            word0 = unchecked(~word0 + 1UL);
-            word1 = unchecked(~word1 + (word0 == 0UL ? 1UL : 0UL));
-            word2 = unchecked(~word2 + (word1 == 0UL && word0 == 0UL ? 1UL : 0UL));
-            word3 = unchecked(~word3 + (word2 == 0UL && word1 == 0UL && word0 == 0UL ? 1UL : 0UL));
-            word4 = unchecked(~word4 + (word3 == 0UL && word2 == 0UL && word1 == 0UL && word0 == 0UL ? 1UL : 0UL));
-        }
-
-        return new Signed320(word4, word3, word2, word1, word0);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void GetMagnitude(
-        Signed192 value,
-        out ulong high,
-        out ulong middle,
-        out ulong low)
-    {
-        high = value.High;
-        middle = value.Middle;
-        low = value.Low;
-        if (value.Sign >= 0)
-            return;
-
-        low = unchecked(~low + 1UL);
-        middle = unchecked(~middle + (low == 0UL ? 1UL : 0UL));
-        high = unchecked(~high + (middle == 0UL && low == 0UL ? 1UL : 0UL));
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void GetMagnitude(
-        Signed320 value,
-        out ulong word4,
-        out ulong word3,
-        out ulong word2,
-        out ulong word1,
-        out ulong word0)
-    {
-        word4 = value.Word4;
-        word3 = value.Word3;
-        word2 = value.Word2;
-        word1 = value.Word1;
-        word0 = value.Word0;
-        if (value.Sign >= 0)
-            return;
-
-        word0 = unchecked(~word0 + 1UL);
-        word1 = unchecked(~word1 + (word0 == 0UL ? 1UL : 0UL));
-        word2 = unchecked(~word2 + (word1 == 0UL && word0 == 0UL ? 1UL : 0UL));
-        word3 = unchecked(~word3 + (word2 == 0UL && word1 == 0UL && word0 == 0UL ? 1UL : 0UL));
-        word4 = unchecked(~word4 + (word3 == 0UL && word2 == 0UL && word1 == 0UL && word0 == 0UL ? 1UL : 0UL));
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static int CompareUnsigned(
         ulong leftHigh,
@@ -326,397 +57,6 @@ internal static partial class WideArithmetic
         if (leftWord0 != rightWord0)
             return leftWord0 < rightWord0 ? -1 : 1;
         return 0;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void ShiftLeftOne(ref ulong high, ref ulong middle, ref ulong low)
-    {
-        high = (high << 1) | (middle >> 63);
-        middle = (middle << 1) | (low >> 63);
-        low <<= 1;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void ShiftLeft(
-        ulong high,
-        ulong middle,
-        ulong low,
-        int bits,
-        out ulong shiftedHigh,
-        out ulong shiftedMiddle,
-        out ulong shiftedLow)
-    {
-        if (bits == 0)
-        {
-            shiftedHigh = high;
-            shiftedMiddle = middle;
-            shiftedLow = low;
-            return;
-        }
-
-        shiftedHigh = (high << bits) | (middle >> (64 - bits));
-        shiftedMiddle = (middle << bits) | (low >> (64 - bits));
-        shiftedLow = low << bits;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void ShiftRightOne(ref ulong high, ref ulong middle, ref ulong low)
-    {
-        low = (low >> 1) | (middle << 63);
-        middle = (middle >> 1) | (high << 63);
-        high >>= 1;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static int GetBitLength(ulong high, ulong middle, ulong low)
-    {
-        if (high != 0UL)
-            return 192 - Fixed64.CountLeadingZeroes(high);
-        if (middle != 0UL)
-            return 128 - Fixed64.CountLeadingZeroes(middle);
-        return 64 - Fixed64.CountLeadingZeroes(low);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static int GetBitLength(
-        ulong word4,
-        ulong word3,
-        ulong word2,
-        ulong word1,
-        ulong word0)
-    {
-        if (word4 != 0UL)
-            return 320 - Fixed64.CountLeadingZeroes(word4);
-        if (word3 != 0UL)
-            return 256 - Fixed64.CountLeadingZeroes(word3);
-        if (word2 != 0UL)
-            return 192 - Fixed64.CountLeadingZeroes(word2);
-        if (word1 != 0UL)
-            return 128 - Fixed64.CountLeadingZeroes(word1);
-        return 64 - Fixed64.CountLeadingZeroes(word0);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void ShiftLeft(
-        ulong word4,
-        ulong word3,
-        ulong word2,
-        ulong word1,
-        ulong word0,
-        int bits,
-        out ulong shiftedWord4,
-        out ulong shiftedWord3,
-        out ulong shiftedWord2,
-        out ulong shiftedWord1,
-        out ulong shiftedWord0)
-    {
-        if (bits == 0)
-        {
-            shiftedWord4 = word4;
-            shiftedWord3 = word3;
-            shiftedWord2 = word2;
-            shiftedWord1 = word1;
-            shiftedWord0 = word0;
-            return;
-        }
-
-        shiftedWord4 = (word4 << bits) | (word3 >> (64 - bits));
-        shiftedWord3 = (word3 << bits) | (word2 >> (64 - bits));
-        shiftedWord2 = (word2 << bits) | (word1 >> (64 - bits));
-        shiftedWord1 = (word1 << bits) | (word0 >> (64 - bits));
-        shiftedWord0 = word0 << bits;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void ShiftLeftOne(
-        ref ulong word4,
-        ref ulong word3,
-        ref ulong word2,
-        ref ulong word1,
-        ref ulong word0)
-    {
-        word4 = (word4 << 1) | (word3 >> 63);
-        word3 = (word3 << 1) | (word2 >> 63);
-        word2 = (word2 << 1) | (word1 >> 63);
-        word1 = (word1 << 1) | (word0 >> 63);
-        word0 <<= 1;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void ShiftRightOne(
-        ref ulong word4,
-        ref ulong word3,
-        ref ulong word2,
-        ref ulong word1,
-        ref ulong word0)
-    {
-        word0 = (word0 >> 1) | (word1 << 63);
-        word1 = (word1 >> 1) | (word2 << 63);
-        word2 = (word2 >> 1) | (word3 << 63);
-        word3 = (word3 >> 1) | (word4 << 63);
-        word4 >>= 1;
-    }
-
-    /// <summary>
-    /// Returns the floor square root and exact remainder of a nonnegative five-word value.
-    /// </summary>
-    internal static Signed192 GetFloorSquareRoot(Signed320 value, out Signed192 remainder)
-    {
-        if (value.IsZero)
-        {
-            remainder = default;
-            return default;
-        }
-
-        if (value.Word4 == 0UL && value.Word3 == 0UL)
-            return GetFloorSquareRoot192(value.Word2, value.Word1, value.Word0, out remainder);
-
-        int pairIndex = (GetBitLength(value.Word4, value.Word3, value.Word2, value.Word1, value.Word0) - 1) >> 1;
-        ulong rootHigh = 0UL;
-        ulong rootMiddle = 0UL;
-        ulong rootLow = 0UL;
-        ulong remainderHigh = 0UL;
-        ulong remainderMiddle = 0UL;
-        ulong remainderLow = 0UL;
-
-        for (; pairIndex >= 0; pairIndex--)
-        {
-            int pairShift = (pairIndex & 31) << 1;
-            ulong pair = (pairIndex >> 5) switch
-            {
-                4 => (value.Word4 >> pairShift) & 3UL,
-                3 => (value.Word3 >> pairShift) & 3UL,
-                2 => (value.Word2 >> pairShift) & 3UL,
-                1 => (value.Word1 >> pairShift) & 3UL,
-                _ => (value.Word0 >> pairShift) & 3UL,
-            };
-
-            remainderHigh = (remainderHigh << 2) | (remainderMiddle >> 62);
-            remainderMiddle = (remainderMiddle << 2) | (remainderLow >> 62);
-            remainderLow = (remainderLow << 2) | pair;
-            rootHigh = (rootHigh << 1) | (rootMiddle >> 63);
-            rootMiddle = (rootMiddle << 1) | (rootLow >> 63);
-            rootLow <<= 1;
-
-            ulong candidateHigh = (rootHigh << 1) | (rootMiddle >> 63);
-            ulong candidateMiddle = (rootMiddle << 1) | (rootLow >> 63);
-            ulong candidateLow = (rootLow << 1) | 1UL;
-            if (CompareUnsigned(
-                remainderHigh,
-                remainderMiddle,
-                remainderLow,
-                candidateHigh,
-                candidateMiddle,
-                candidateLow) < 0)
-            {
-                continue;
-            }
-
-            SubtractUnsigned(
-                ref remainderHigh,
-                ref remainderMiddle,
-                ref remainderLow,
-                candidateHigh,
-                candidateMiddle,
-                candidateLow);
-            // The preceding shift leaves rootLow even, so this increment cannot overflow.
-            rootLow++;
-        }
-
-        remainder = new Signed192(remainderHigh, remainderMiddle, remainderLow);
-        return new Signed192(rootHigh, rootMiddle, rootLow);
-    }
-
-    /// <summary>
-    /// Shifts a nonnegative three-word value into a 64-bit normalized prefix.
-    /// </summary>
-    /// <remarks>
-    /// Triangle normalization calls this with 0 through 67 discarded bits,
-    /// which guarantees that the returned prefix fits in 64 bits.
-    /// </remarks>
-    internal static ulong ShiftRightToUInt64(Signed192 value, int bits, out bool discarded)
-    {
-        GetMagnitude(value, out ulong high, out ulong middle, out ulong low);
-        if (bits == 0)
-        {
-            discarded = false;
-            return low;
-        }
-
-        if (bits < 64)
-        {
-            discarded = (low & ((1UL << bits) - 1UL)) != 0UL;
-            return (middle << (64 - bits)) | (low >> bits);
-        }
-
-        int upperShift = bits - 64;
-        discarded = low != 0UL
-            || (upperShift != 0 && (middle & ((1UL << upperShift) - 1UL)) != 0UL);
-        return upperShift == 0
-            ? middle
-            : (high << (64 - upperShift)) | (middle >> upperShift);
-    }
-
-    /// <summary>
-    /// Compares a normalized component square with the squared midpoint between
-    /// adjacent Q32.32 raw candidates.
-    /// </summary>
-    internal static int CompareNormalizedComponentToMidpoint(
-        Signed320 componentSquare,
-        Signed320 squaredMagnitude,
-        ulong lowerCandidateRaw)
-    {
-        ulong doubledMidpoint = (lowerCandidateRaw << 1) + 1UL;
-        Fixed64.Multiply64To128(
-            doubledMidpoint,
-            doubledMidpoint,
-            out ulong multiplierHigh,
-            out ulong multiplierLow);
-
-        if (TryNarrowSigned192(squaredMagnitude, out Signed192 narrowSquaredMagnitude))
-        {
-            Signed320 rightNarrow = MultiplySigned192(
-                narrowSquaredMagnitude,
-                new Signed192(0UL, multiplierHigh, multiplierLow));
-            return CompareUnsigned(
-                (componentSquare.Word3 << 2) | (componentSquare.Word2 >> 62),
-                (componentSquare.Word2 << 2) | (componentSquare.Word1 >> 62),
-                (componentSquare.Word1 << 2) | (componentSquare.Word0 >> 62),
-                componentSquare.Word0 << 2,
-                0UL,
-                rightNarrow.Word4,
-                rightNarrow.Word3,
-                rightNarrow.Word2,
-                rightNarrow.Word1,
-                rightNarrow.Word0);
-        }
-
-        Span<ulong> left = stackalloc ulong[6];
-        left.Clear();
-        left[1] = componentSquare.Word0 << 2;
-        left[2] = (componentSquare.Word1 << 2) | (componentSquare.Word0 >> 62);
-        left[3] = (componentSquare.Word2 << 2) | (componentSquare.Word1 >> 62);
-        left[4] = (componentSquare.Word3 << 2) | (componentSquare.Word2 >> 62);
-        left[5] = (componentSquare.Word4 << 2) | (componentSquare.Word3 >> 62);
-        Span<ulong> right = stackalloc ulong[6];
-        right.Clear();
-        Span<ulong> magnitude = stackalloc ulong[5]
-        {
-            squaredMagnitude.Word0,
-            squaredMagnitude.Word1,
-            squaredMagnitude.Word2,
-            squaredMagnitude.Word3,
-            squaredMagnitude.Word4,
-        };
-
-        for (int index = 0; index < magnitude.Length; index++)
-        {
-            Fixed64.Multiply64To128(magnitude[index], multiplierLow, out ulong high, out ulong low);
-            AddWord(right, index, low);
-            AddWord(right, index + 1, high);
-            if (multiplierHigh == 0UL)
-                continue;
-
-            Fixed64.Multiply64To128(magnitude[index], multiplierHigh, out high, out low);
-            AddWord(right, index + 1, low);
-            if (index + 2 < right.Length)
-                AddWord(right, index + 2, high);
-        }
-
-        for (int index = left.Length - 1; index >= 0; index--)
-        {
-            if (left[index] != right[index])
-                return left[index] < right[index] ? -1 : 1;
-        }
-
-        return 0;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Signed192 GetFloorSquareRoot192(
-        ulong valueHigh,
-        ulong valueMiddle,
-        ulong valueLow,
-        out Signed192 remainder)
-    {
-        int pairIndex = (GetBitLength(valueHigh, valueMiddle, valueLow) - 1) >> 1;
-        ulong rootHigh = 0UL;
-        ulong rootLow = 0UL;
-        ulong remainderHigh = 0UL;
-        ulong remainderLow = 0UL;
-
-        for (; pairIndex >= 0; pairIndex--)
-        {
-            int pairShift = (pairIndex & 31) << 1;
-            ulong pair = pairIndex >= 64
-                ? (valueHigh >> pairShift) & 3UL
-                : pairIndex >= 32
-                    ? (valueMiddle >> pairShift) & 3UL
-                    : (valueLow >> pairShift) & 3UL;
-
-            remainderHigh = (remainderHigh << 2) | (remainderLow >> 62);
-            remainderLow = (remainderLow << 2) | pair;
-            rootHigh = (rootHigh << 1) | (rootLow >> 63);
-            rootLow <<= 1;
-
-            ulong candidateHigh = (rootHigh << 1) | (rootLow >> 63);
-            ulong candidateLow = (rootLow << 1) | 1UL;
-            if (remainderHigh < candidateHigh
-                || (remainderHigh == candidateHigh && remainderLow < candidateLow))
-            {
-                continue;
-            }
-
-            ulong originalRemainderLow = remainderLow;
-            remainderLow -= candidateLow;
-            remainderHigh -= candidateHigh + (originalRemainderLow < candidateLow ? 1UL : 0UL);
-            rootLow++;
-        }
-
-        remainder = new Signed192(0UL, remainderHigh, remainderLow);
-        return new Signed192(0UL, rootHigh, rootLow);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void SubtractUnsigned(
-        ref ulong high,
-        ref ulong middle,
-        ref ulong low,
-        ulong subtractHigh,
-        ulong subtractMiddle,
-        ulong subtractLow)
-    {
-        ulong originalLow = low;
-        low -= subtractLow;
-        ulong borrow = originalLow < subtractLow ? 1UL : 0UL;
-
-        ulong middleSubtrahend = subtractMiddle + borrow;
-        ulong middleOverflow = middleSubtrahend < subtractMiddle ? 1UL : 0UL;
-        ulong originalMiddle = middle;
-        middle -= middleSubtrahend;
-        borrow = middleOverflow | (originalMiddle < middleSubtrahend ? 1UL : 0UL);
-        high -= subtractHigh + borrow;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void SubtractUnsigned(
-        ref ulong word4,
-        ref ulong word3,
-        ref ulong word2,
-        ref ulong word1,
-        ref ulong word0,
-        ulong subtractWord4,
-        ulong subtractWord3,
-        ulong subtractWord2,
-        ulong subtractWord1,
-        ulong subtractWord0)
-    {
-        ulong borrow = 0UL;
-        word0 = SubtractWord(word0, subtractWord0, ref borrow);
-        word1 = SubtractWord(word1, subtractWord1, ref borrow);
-        word2 = SubtractWord(word2, subtractWord2, ref borrow);
-        word3 = SubtractWord(word3, subtractWord3, ref borrow);
-        word4 = unchecked(word4 - subtractWord4 - borrow);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -878,7 +218,7 @@ internal static partial class WideArithmetic
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void AccumulateWord(ref ulong word, ulong add, ref ulong carry)
+    internal static void AccumulateWord(ref ulong word, ulong add, ref ulong carry)
     {
         ulong previous = word;
         word = unchecked(word + add);
@@ -887,7 +227,7 @@ internal static partial class WideArithmetic
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static ulong SubtractWord(ulong value, ulong subtract, ref ulong borrow)
+    internal static ulong SubtractWord(ulong value, ulong subtract, ref ulong borrow)
     {
         ulong subtrahend = unchecked(subtract + borrow);
         ulong overflow = subtrahend < subtract ? 1UL : 0UL;
@@ -897,7 +237,7 @@ internal static partial class WideArithmetic
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void AddWord(Span<ulong> words, int index, ulong value)
+    internal static void AddWord(Span<ulong> words, int index, ulong value)
     {
         while (value != 0UL && index < words.Length)
         {
@@ -906,5 +246,444 @@ internal static partial class WideArithmetic
             value = words[index] < previous ? 1UL : 0UL;
             index++;
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static ulong AddSignedWord(ulong left, ulong right, ref ulong carry)
+    {
+        ulong sum = unchecked(left + right);
+        ulong result = unchecked(sum + carry);
+        carry = sum < left || result < sum ? 1UL : 0UL;
+        return result;
+    }
+
+    internal static bool IsZeroMagnitude(ReadOnlySpan<ulong> value)
+    {
+        for (int index = 0; index < value.Length; index++)
+        {
+            if (value[index] != 0UL)
+                return false;
+        }
+
+        return true;
+    }
+
+    #region Multiquadratic Comparison
+
+    private const int MaximumLinearRadicalCount = 6;
+
+    /// <summary>
+    /// Gets the exact sign of a signed sum of nonnegative square roots.
+    /// </summary>
+    /// <remarks>
+    /// Each radicand occupies <paramref name="radicandWordCount"/> words in
+    /// little-endian order. Equal radicands are merged before the
+    /// multiquadratic basis is built.
+    /// </remarks>
+    internal static int GetLinearRadicalSumSign(
+        ReadOnlySpan<ulong> radicands,
+        int radicandWordCount,
+        ReadOnlySpan<int> signs)
+    {
+        int termCount = signs.Length;
+        Span<ulong> uniqueRadicands = stackalloc ulong[
+            MaximumLinearRadicalCount * radicandWordCount];
+        Span<int> coefficients =
+            stackalloc int[MaximumLinearRadicalCount];
+        uniqueRadicands.Clear();
+        coefficients.Clear();
+        int uniqueCount = 0;
+        for (int termIndex = 0; termIndex < termCount; termIndex++)
+        {
+            int sign = signs[termIndex];
+            ReadOnlySpan<ulong> radicand = radicands.Slice(
+                termIndex * radicandWordCount,
+                radicandWordCount);
+            if (sign == 0 || IsZeroMagnitude(radicand))
+                continue;
+
+            int existingIndex = -1;
+            for (int candidateIndex = 0;
+                 candidateIndex < uniqueCount;
+                 candidateIndex++)
+            {
+                if (CompareMagnitudeEqualLength(
+                        radicand,
+                        uniqueRadicands.Slice(
+                            candidateIndex * radicandWordCount,
+                            radicandWordCount)) == 0)
+                {
+                    existingIndex = candidateIndex;
+                    break;
+                }
+            }
+
+            if (existingIndex >= 0)
+            {
+                coefficients[existingIndex] += sign;
+                continue;
+            }
+
+            radicand.CopyTo(uniqueRadicands.Slice(
+                uniqueCount * radicandWordCount,
+                radicandWordCount));
+            coefficients[uniqueCount] = sign;
+            uniqueCount++;
+        }
+
+        int compactedCount = 0;
+        for (int index = 0; index < uniqueCount; index++)
+        {
+            int coefficient = coefficients[index];
+            if (coefficient == 0)
+                continue;
+            if (compactedCount != index)
+            {
+                uniqueRadicands.Slice(
+                        index * radicandWordCount,
+                        radicandWordCount)
+                    .CopyTo(uniqueRadicands.Slice(
+                        compactedCount * radicandWordCount,
+                        radicandWordCount));
+            }
+            coefficients[compactedCount] = coefficient;
+            compactedCount++;
+        }
+        uniqueCount = compactedCount;
+        if (uniqueCount == 0)
+            return 0;
+
+        int basisCount = 1 << uniqueCount;
+        Span<ulong> basisMagnitudes =
+            stackalloc ulong[basisCount];
+        Span<int> basisSigns =
+            stackalloc int[basisCount];
+        basisMagnitudes.Clear();
+        basisSigns.Clear();
+        for (int index = 0; index < uniqueCount; index++)
+        {
+            int coefficient = coefficients[index];
+            int basisIndex = 1 << index;
+            basisMagnitudes[basisIndex] =
+                unchecked((ulong)Math.Abs(coefficient));
+            basisSigns[basisIndex] = Math.Sign(coefficient);
+        }
+
+        return GetMultiquadraticSign(
+            basisMagnitudes,
+            basisSigns,
+            coefficientWordCount: 1,
+            uniqueRadicands,
+            radicandWordCount,
+            uniqueCount,
+            uniqueCount);
+    }
+
+    private static int GetMultiquadraticSign(
+        ReadOnlySpan<ulong> coefficientMagnitudes,
+        ReadOnlySpan<int> coefficientSigns,
+        int coefficientWordCount,
+        ReadOnlySpan<ulong> radicands,
+        int radicandWordCount,
+        int radicalCount,
+        int totalRadicalCount)
+    {
+        if (radicalCount == 0)
+            return coefficientSigns[0];
+
+        int halfBasisCount = 1 << (radicalCount - 1);
+        int halfWordCount =
+            halfBasisCount * coefficientWordCount;
+        int firstSign = GetMultiquadraticSign(
+            coefficientMagnitudes.Slice(0, halfWordCount),
+            coefficientSigns.Slice(0, halfBasisCount),
+            coefficientWordCount,
+            radicands,
+            radicandWordCount,
+            radicalCount - 1,
+            totalRadicalCount);
+        int secondSign = GetMultiquadraticSign(
+            coefficientMagnitudes.Slice(
+                halfWordCount,
+                halfWordCount),
+            coefficientSigns.Slice(
+                halfBasisCount,
+                halfBasisCount),
+            coefficientWordCount,
+            radicands,
+            radicandWordCount,
+            radicalCount - 1,
+            totalRadicalCount);
+        if (firstSign == 0)
+            return secondSign;
+        if (secondSign == 0 || firstSign == secondSign)
+            return firstSign;
+
+        int eliminatedCount =
+            totalRadicalCount - radicalCount + 1;
+        int maximumRadicandDegree =
+            1 << (eliminatedCount - 1);
+        int nextCoefficientWordCount =
+            maximumRadicandDegree * radicandWordCount
+            + (maximumRadicandDegree << 2)
+            + 1;
+        Span<ulong> differenceMagnitudes = stackalloc ulong[
+            halfBasisCount * nextCoefficientWordCount];
+        Span<int> differenceSigns =
+            stackalloc int[halfBasisCount];
+        differenceMagnitudes.Clear();
+        differenceSigns.Clear();
+        BuildMultiquadraticSquaredDifference(
+            coefficientMagnitudes.Slice(0, halfWordCount),
+            coefficientSigns.Slice(0, halfBasisCount),
+            coefficientMagnitudes.Slice(
+                halfWordCount,
+                halfWordCount),
+            coefficientSigns.Slice(
+                halfBasisCount,
+                halfBasisCount),
+            coefficientWordCount,
+            radicands,
+            radicandWordCount,
+            radicalCount,
+            differenceMagnitudes,
+            differenceSigns,
+            nextCoefficientWordCount);
+        int squaredDifferenceSign = GetMultiquadraticSign(
+            differenceMagnitudes,
+            differenceSigns,
+            nextCoefficientWordCount,
+            radicands,
+            radicandWordCount,
+            radicalCount - 1,
+            totalRadicalCount);
+        if (squaredDifferenceSign == 0)
+            return 0;
+        return squaredDifferenceSign > 0
+            ? firstSign
+            : secondSign;
+    }
+
+    private static void BuildMultiquadraticSquaredDifference(
+        ReadOnlySpan<ulong> firstMagnitudes,
+        ReadOnlySpan<int> firstSigns,
+        ReadOnlySpan<ulong> secondMagnitudes,
+        ReadOnlySpan<int> secondSigns,
+        int coefficientWordCount,
+        ReadOnlySpan<ulong> radicands,
+        int radicandWordCount,
+        int radicalCount,
+        Span<ulong> resultMagnitudes,
+        Span<int> resultSigns,
+        int resultWordCount)
+    {
+        AddMultiquadraticSquare(
+            firstMagnitudes,
+            firstSigns,
+            coefficientWordCount,
+            radicands,
+            radicandWordCount,
+            radicalCount - 1,
+            extraRadicandIndex: -1,
+            resultMagnitudes,
+            resultSigns,
+            resultWordCount,
+            resultSign: 1);
+        AddMultiquadraticSquare(
+            secondMagnitudes,
+            secondSigns,
+            coefficientWordCount,
+            radicands,
+            radicandWordCount,
+            radicalCount - 1,
+            extraRadicandIndex: radicalCount - 1,
+            resultMagnitudes,
+            resultSigns,
+            resultWordCount,
+            resultSign: -1);
+    }
+
+    private static void AddMultiquadraticSquare(
+        ReadOnlySpan<ulong> coefficientMagnitudes,
+        ReadOnlySpan<int> coefficientSigns,
+        int coefficientWordCount,
+        ReadOnlySpan<ulong> radicands,
+        int radicandWordCount,
+        int remainingRadicalCount,
+        int extraRadicandIndex,
+        Span<ulong> resultMagnitudes,
+        Span<int> resultSigns,
+        int resultWordCount,
+        int resultSign)
+    {
+        int basisCount = 1 << remainingRadicalCount;
+        Span<ulong> firstProduct =
+            stackalloc ulong[resultWordCount];
+        Span<ulong> secondProduct =
+            stackalloc ulong[resultWordCount];
+        for (int firstIndex = 0;
+             firstIndex < basisCount;
+             firstIndex++)
+        {
+            int firstCoefficientSign =
+                coefficientSigns[firstIndex];
+            if (firstCoefficientSign == 0)
+                continue;
+            ReadOnlySpan<ulong> firstCoefficient =
+                coefficientMagnitudes.Slice(
+                    firstIndex * coefficientWordCount,
+                    coefficientWordCount);
+            for (int secondIndex = 0;
+                 secondIndex < basisCount;
+                 secondIndex++)
+            {
+                int secondCoefficientSign =
+                    coefficientSigns[secondIndex];
+                if (secondCoefficientSign == 0)
+                    continue;
+                ReadOnlySpan<ulong> secondCoefficient =
+                    coefficientMagnitudes.Slice(
+                        secondIndex * coefficientWordCount,
+                        coefficientWordCount);
+                MultiplyMagnitudes(
+                    firstCoefficient,
+                    secondCoefficient,
+                    firstProduct);
+                Span<ulong> product = firstProduct;
+                Span<ulong> scratch = secondProduct;
+                int commonRadicals =
+                    firstIndex & secondIndex;
+                for (int radicalIndex = 0;
+                     radicalIndex < remainingRadicalCount;
+                     radicalIndex++)
+                {
+                    if ((commonRadicals
+                            & (1 << radicalIndex)) == 0)
+                    {
+                        continue;
+                    }
+                    MultiplyMagnitudes(
+                        product,
+                        radicands.Slice(
+                            radicalIndex * radicandWordCount,
+                            radicandWordCount),
+                        scratch);
+                    Span<ulong> temporary = product;
+                    product = scratch;
+                    scratch = temporary;
+                }
+                if (extraRadicandIndex >= 0)
+                {
+                    MultiplyMagnitudes(
+                        product,
+                        radicands.Slice(
+                            extraRadicandIndex
+                            * radicandWordCount,
+                            radicandWordCount),
+                        scratch);
+                    Span<ulong> temporary = product;
+                    product = scratch;
+                    scratch = temporary;
+                }
+
+                int targetIndex =
+                    firstIndex ^ secondIndex;
+                AddSignedMagnitude(
+                    product,
+                    firstCoefficientSign
+                    * secondCoefficientSign
+                    * resultSign,
+                    resultMagnitudes.Slice(
+                        targetIndex * resultWordCount,
+                        resultWordCount),
+                    ref resultSigns[targetIndex]);
+            }
+        }
+    }
+
+    #endregion
+
+    private static void AddSignedMagnitude(
+        ReadOnlySpan<ulong> addend,
+        int addendSign,
+        Span<ulong> result,
+        ref int resultSign)
+    {
+        // Compaction admits only nonzero coefficients and radicands, so their
+        // exact fixed-width product is nonzero.
+        if (resultSign == 0)
+        {
+            addend.CopyTo(result);
+            resultSign = addendSign;
+            return;
+        }
+        if (resultSign == addendSign)
+        {
+            AddMagnitudeInto(addend, result);
+            return;
+        }
+
+        int comparison =
+            CompareMagnitudeEqualLength(result, addend);
+        if (comparison == 0)
+        {
+            result.Clear();
+            resultSign = 0;
+            return;
+        }
+        if (comparison > 0)
+        {
+            SubtractEqualMagnitudes(
+                result,
+                addend,
+                result);
+            return;
+        }
+
+        Span<ulong> difference =
+            stackalloc ulong[result.Length];
+        SubtractEqualMagnitudes(
+            addend,
+            result,
+            difference);
+        difference.CopyTo(result);
+        resultSign = addendSign;
+    }
+
+    internal static void AddMagnitudeInto(
+        ReadOnlySpan<ulong> addend,
+        Span<ulong> result)
+    {
+        ulong carry = 0UL;
+        for (int index = 0; index < result.Length; index++)
+        {
+            ulong value = index < addend.Length
+                ? addend[index]
+                : 0UL;
+            result[index] =
+                AddSignedWord(result[index], value, ref carry);
+        }
+    }
+
+    private static void AddEqualMagnitudes(
+        ReadOnlySpan<ulong> left,
+        ReadOnlySpan<ulong> right,
+        Span<ulong> result)
+    {
+        ulong carry = 0UL;
+        for (int index = 0; index < result.Length; index++)
+            result[index] =
+                AddSignedWord(left[index], right[index], ref carry);
+    }
+
+    internal static void SubtractEqualMagnitudes(
+        ReadOnlySpan<ulong> larger,
+        ReadOnlySpan<ulong> smaller,
+        Span<ulong> result)
+    {
+        ulong borrow = 0UL;
+        for (int index = 0; index < result.Length; index++)
+            result[index] =
+                SubtractWord(larger[index], smaller[index], ref borrow);
     }
 }

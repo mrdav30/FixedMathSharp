@@ -60,6 +60,9 @@ public class FixedTransformBenchmarks
     public Fixed4x4 DepthEightWorldMatrix() => _depthEight.LocalToWorldMatrix;
 
     [Benchmark]
+    public bool TryDepthEightWorldMatrix() => _depthEight.TryGetLocalToWorldMatrix(out _);
+
+    [Benchmark]
     public Vector3d DepthEightLossyScale() => _depthEight.LossyScale;
 
     [Benchmark]

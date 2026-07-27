@@ -7,11 +7,66 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using FixedMathSharp.Bounds;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Geometry helpers for barycentric interpolation and sphere/slab cross-section calculations.
+/// </content>
 public static partial class FixedMath
 {
+    /// <summary>
+    /// Performs barycentric interpolation between three scalar coordinates from a triangle.
+    /// </summary>
+    /// <param name="coordA">The coordinate of the first vertex.</param>
+    /// <param name="coordB">The coordinate of the second vertex.</param>
+    /// <param name="coordC">The coordinate of the third vertex.</param>
+    /// <param name="weightB">The barycentric weight for the second vertex.</param>
+    /// <param name="weightC">The barycentric weight for the third vertex.</param>
+    /// <returns>The interpolated scalar coordinate.</returns>
+    /// <remarks>
+    /// Endpoint differences, both weighted terms, and the base coordinate
+    /// are accumulated before one final round-half-to-even conversion.
+    /// Results outside the <see cref="Fixed64"/> range saturate.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 BarycentricCoordinate(
+        Fixed64 coordA,
+        Fixed64 coordB,
+        Fixed64 coordC,
+        Fixed64 weightB,
+        Fixed64 weightC
+    ) => Fixed64.BarycentricCoordinateFullDomain(coordA, coordB, coordC, weightB, weightC);
+
+    /// <summary>
+    /// Returns the second-order scalar product sum for three barycentric vertices.
+    /// </summary>
+    /// <remarks>
+    /// Computes <c>a * a + b * b + c * c + a * b + a * c + b * c</c>.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 SumSquaredBarycentricProducts(Fixed64 a, Fixed64 b, Fixed64 c) =>
+        (a * a) + (b * b) + (c * c) + (a * b) + (a * c) + (b * c);
+
+    /// <summary>
+    /// Returns the cross scalar product sum for two sets of three barycentric vertices.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Fixed64 SumBarycentricProducts(
+        Fixed64 firstA,
+        Fixed64 firstB,
+        Fixed64 firstC,
+        Fixed64 secondA,
+        Fixed64 secondB,
+        Fixed64 secondC)
+    {
+        Fixed64 firstSum = firstA + firstB + firstC;
+        Fixed64 secondSum = secondA + secondB + secondC;
+        Fixed64 matchingProducts = (firstA * secondA) + (firstB * secondB) + (firstC * secondC);
+        return firstSum * secondSum + matchingProducts;
+    }
+
     /// <summary>
     /// Attempts to get the radius of a circular sphere cross-section at the
     /// specified signed distance from the sphere center.

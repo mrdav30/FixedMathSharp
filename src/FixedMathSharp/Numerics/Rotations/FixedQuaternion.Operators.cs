@@ -9,6 +9,10 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Operator overloads for <see cref="FixedQuaternion"/>, including multiplication, scaling, addition,
+/// subtraction, negation, and equality comparisons.
+/// </content>
 public partial struct FixedQuaternion
 {
     #region Operators

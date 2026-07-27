@@ -234,27 +234,27 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     /// </summary>
     /// <remarks>
     /// The normalized axis defines the conceptual center-line endpoints as
-    /// <c>center +/- axisDirection * axisHalfLength</c> without constructing or
+    /// <c>center +/- axisDirection * (axisLength / 2)</c> without constructing or
     /// narrowing either endpoint.
     /// </remarks>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/> or
+    /// Thrown when <paramref name="axisLength"/> or
     /// <paramref name="radius"/> is negative.
     /// </exception>
     public readonly bool TryGetCapsuleIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         out Fixed64 entryParameter,
         out Fixed64 exitParameter) =>
         TryGetCapsuleIntersectionInterval(
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             Fixed64.Zero,
             out entryParameter,
@@ -268,14 +268,14 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/>,
+    /// Thrown when <paramref name="axisLength"/>,
     /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> is
     /// negative.
     /// </exception>
     public readonly bool TryGetCapsuleIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         out Fixed64 entryParameter,
@@ -283,7 +283,7 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
         TryGetCapsuleIntersectionInterval(
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             radiusExpansion,
             out entryParameter,
@@ -306,14 +306,14 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/>,
+    /// Thrown when <paramref name="axisLength"/>,
     /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> is
     /// negative.
     /// </exception>
     public readonly bool TryGetCapsuleIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         out Fixed64 entryParameter,
@@ -323,8 +323,8 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     {
         if (!axisDirection.IsNormalized())
             throw new ArgumentException("Capsule axis direction must be normalized.", nameof(axisDirection));
-        if (axisHalfLength < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (axisLength < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
         if (radius < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(radius));
         if (radiusExpansion < Fixed64.Zero)
@@ -334,7 +334,7 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
             this,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             radiusExpansion,
             out entryParameter,
@@ -445,87 +445,30 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     }
 
     /// <summary>
-    /// Finds the closed parameter interval where this segment intersects an
-    /// affinely expanded finite cylinder.
-    /// </summary>
-    /// <remarks>
-    /// <paramref name="cylinderAxis"/> contains the unexpanded flat-cap centers.
-    /// <paramref name="axisHalfLength"/> is their positive authored half-length.
-    /// Axial expansion
-    /// extends that endpoint parameterization by
-    /// <c>axialExpansion / (2 * axisHalfLength)</c> at each end without constructing or
-    /// narrowing expanded endpoints. Radial and axial expansions remain separate.
-    /// Returned query-segment parameters are rounded half-to-even and clamped to
-    /// the closed interval [0, 1].
-    /// </remarks>
-    /// <returns>
-    /// <see langword="true"/> when the closed query segment intersects the
-    /// expanded finite cylinder; otherwise <see langword="false"/>.
-    /// </returns>
-    /// <exception cref="ArgumentException">
-    /// Thrown when <paramref name="cylinderAxis"/> has zero length.
-    /// </exception>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/> is not positive, or when
-    /// <paramref name="radius"/>, <paramref name="radiusExpansion"/>, or
-    /// <paramref name="axialExpansion"/> is negative.
-    /// </exception>
-    public readonly bool TryGetFiniteCylinderIntersectionInterval(
-        FixedSegment cylinderAxis,
-        Fixed64 axisHalfLength,
-        Fixed64 radius,
-        Fixed64 radiusExpansion,
-        Fixed64 axialExpansion,
-        out Fixed64 entryParameter,
-        out Fixed64 exitParameter)
-    {
-        if (cylinderAxis.Start == cylinderAxis.End)
-            throw new ArgumentException("A finite cylinder axis must have nonzero length.", nameof(cylinderAxis));
-        if (axisHalfLength <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
-        if (radius < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(radius));
-        if (radiusExpansion < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(radiusExpansion));
-        if (axialExpansion < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axialExpansion));
-
-        return WideFiniteAxisIntersection.TryGetFiniteCylinderInterval(
-            this,
-            cylinderAxis,
-            axisHalfLength,
-            radius,
-            radiusExpansion,
-            axialExpansion,
-            out entryParameter,
-            out exitParameter);
-    }
-
-    /// <summary>
     /// Finds the closed parameter interval where this segment intersects a
     /// centered, affinely expanded finite cylinder.
     /// </summary>
     /// <remarks>
     /// <paramref name="axisDirection"/> must be normalized. The authored flat
     /// caps are defined parametrically by
-    /// <c>center +/- axisDirection * axisHalfLength</c>; neither cap is
-    /// constructed or narrowed. <paramref name="axialExpansion"/> extends the
-    /// physical half-length, while <paramref name="radiusExpansion"/> expands
-    /// only the radial surface. Returned parameters use deterministic
+    /// <c>center +/- axisDirection * (axisLength / 2)</c>; neither cap is
+    /// constructed or narrowed. <paramref name="axialExpansion"/> extends each
+    /// cap outward, while <paramref name="radiusExpansion"/> expands only the
+    /// radial surface. Returned parameters use deterministic
     /// round-half-to-even conversion and are clamped to [0, 1].
     /// </remarks>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/> is not positive, or when
+    /// Thrown when <paramref name="axisLength"/> is not positive, or when
     /// <paramref name="radius"/>, <paramref name="radiusExpansion"/>, or
     /// <paramref name="axialExpansion"/> is negative.
     /// </exception>
     public readonly bool TryGetFiniteCylinderIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 axialExpansion,
@@ -534,7 +477,7 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
         TryGetFiniteCylinderIntersectionInterval(
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             radiusExpansion,
             axialExpansion,
@@ -552,7 +495,7 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     /// <paramref name="startContained"/> includes side and cap boundaries;
     /// <paramref name="endContainedStrict"/> excludes every boundary. The
     /// normalized axis defines authored caps parametrically as
-    /// <c>center +/- axisDirection * axisHalfLength</c> without constructing
+    /// <c>center +/- axisDirection * (axisLength / 2)</c> without constructing
     /// either endpoint. Interval and containment calculations remain wide until
     /// the final deterministic parameter conversion.
     /// </remarks>
@@ -560,14 +503,14 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/> is not positive, or when
+    /// Thrown when <paramref name="axisLength"/> is not positive, or when
     /// <paramref name="radius"/>, <paramref name="radiusExpansion"/>, or
     /// <paramref name="axialExpansion"/> is negative.
     /// </exception>
     public readonly bool TryGetFiniteCylinderIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 axialExpansion,
@@ -578,8 +521,8 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     {
         if (!axisDirection.IsNormalized())
             throw new ArgumentException("Finite cylinder axis direction must be normalized.", nameof(axisDirection));
-        if (axisHalfLength <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (axisLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
         if (radius < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(radius));
         if (radiusExpansion < Fixed64.Zero)
@@ -591,7 +534,7 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
             this,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             radiusExpansion,
             axialExpansion,

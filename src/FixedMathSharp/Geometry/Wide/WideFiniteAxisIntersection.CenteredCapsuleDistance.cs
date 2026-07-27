@@ -7,18 +7,23 @@
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// High-precision distance computations between a point and a centered capsule
+/// (a finite axis segment with a radius), using wide integer arithmetic to
+/// avoid overflow and rounding error in intermediate squared-distance terms.
+/// </content>
 internal static partial class WideFiniteAxisIntersection
 {
     internal static bool TryGetDistanceToCenteredCapsule(
         Vector2d point,
         Vector2d center,
         Vector2d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         out Fixed64 distance)
     {
         GetClosestCenteredAxisRatio(
-            point, center, axisDirection, axisHalfLength, out Signed192 numerator, out Signed192 denominator);
+            point, center, axisDirection, axisLength, out Signed192 numerator, out Signed192 denominator);
         Signed320 x = GetCenteredAxisOffsetComponent(
             point.X, center.X, axisDirection.X, numerator, denominator);
         Signed320 y = GetCenteredAxisOffsetComponent(
@@ -36,12 +41,12 @@ internal static partial class WideFiniteAxisIntersection
         Vector3d point,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         out Fixed64 distance)
     {
         GetClosestCenteredAxisRatio(
-            point, center, axisDirection, axisHalfLength, out Signed192 numerator, out Signed192 denominator);
+            point, center, axisDirection, axisLength, out Signed192 numerator, out Signed192 denominator);
         Signed320 x = GetCenteredAxisOffsetComponent(
             point.X, center.X, axisDirection.X, numerator, denominator);
         Signed320 y = GetCenteredAxisOffsetComponent(
@@ -66,7 +71,7 @@ internal static partial class WideFiniteAxisIntersection
         out Fixed64 distance)
     {
         Signed320 radiusAxis = WideArithmetic.MultiplySigned192(
-            WideArithmetic.FromSignedRaw(radius.m_rawValue),
+            Signed192.Signed(radius.m_rawValue),
             axisDenominator);
         Signed576 radiusAxisSquared = WideArithmetic.MultiplySigned320(radiusAxis, radiusAxis);
         if (WideArithmetic.CompareNonNegative(
@@ -80,7 +85,7 @@ internal static partial class WideFiniteAxisIntersection
         Signed320 scaledAxisDistance = WideArithmetic.GetFloorSquareRootScaledByFixed64(
             squaredAxisDistanceNumerator);
         Signed320 radiusDistance = MultiplyThreeToSigned320(
-            WideArithmetic.FromSignedRaw(radius.m_rawValue),
+            Signed192.Signed(radius.m_rawValue),
             axisDenominator,
             ParameterScale);
         Signed320 approximateSurfaceDistance = WideArithmetic.SubtractSigned320(

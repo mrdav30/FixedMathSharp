@@ -6,6 +6,7 @@ namespace FixedMathSharp.Benchmarks;
 public class Matrix4x4Benchmarks
 {
     private readonly Fixed4x4[] _matrices = BenchmarkFixtures.Matrices;
+    private readonly Fixed4x4[] _strictMatrices = CreateStrictMatrices();
     private readonly Fixed4x4[] _perspectiveMatrices = BenchmarkFixtures.PerspectiveMatrices;
     private readonly FixedQuaternion[] _rotations = BenchmarkFixtures.RotationsA;
     private readonly Vector3d[] _points = BenchmarkFixtures.VectorsA;
@@ -83,6 +84,19 @@ public class Matrix4x4Benchmarks
     }
 
     [Benchmark]
+    public Fixed4x4 TryMultiply()
+    {
+        Fixed4x4 accumulator = Fixed4x4.Identity;
+        for (int i = 0; i < _strictMatrices.Length; i++)
+        {
+            if (!Fixed4x4.TryMultiply(accumulator, _strictMatrices[i], out accumulator))
+                return Fixed4x4.Zero;
+        }
+
+        return accumulator;
+    }
+
+    [Benchmark]
     public Vector3d TransformPoint()
     {
         Vector3d accumulator = Vector3d.Zero;
@@ -146,5 +160,14 @@ public class Matrix4x4Benchmarks
         }
 
         return accumulator;
+    }
+
+    private static Fixed4x4[] CreateStrictMatrices()
+    {
+        var matrices = new Fixed4x4[BenchmarkFixtures.SampleCount];
+        for (int i = 0; i < matrices.Length; i++)
+            matrices[i] = Fixed4x4.CreateRotation(BenchmarkFixtures.RotationsA[i]);
+
+        return matrices;
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using FixedMathSharp.Bounds;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -13,7 +14,7 @@ public sealed class FixedSlabProjectionTests
         bool found = FixedSlabProjection.TryGetCapsuleSupport(
             new Vector3d((Fixed64)2, Fixed64.Zero, (Fixed64)3),
             Vector3d.Up,
-            (Fixed64)2,
+            (Fixed64)4,
             Fixed64.One,
             new FixedRange(-Fixed64.Half, Fixed64.Half),
             Vector2d.Right,
@@ -29,7 +30,7 @@ public sealed class FixedSlabProjectionTests
         bool found = FixedSlabProjection.TryGetCylinderSupport(
             Vector3d.Zero,
             Vector3d.Right,
-            (Fixed64)2,
+            (Fixed64)4,
             Fixed64.One,
             new FixedRange(-Fixed64.Half, Fixed64.Half),
             Vector2d.Right,
@@ -44,12 +45,12 @@ public sealed class FixedSlabProjectionTests
     public void UnclippedWinnerAdmission_PreservesEndpointTiesAndShapeKinds()
     {
         Assert.True(FixedSlabProjection.TryGetCapsuleSupport(
-            Vector3d.Zero, Vector3d.Forward, (Fixed64)2, Fixed64.One,
+            Vector3d.Zero, Vector3d.Forward, (Fixed64)4, Fixed64.One,
             WideSlab, Vector2d.Right, out Vector2d capsule));
         Assert.Equal(new Vector2d(Fixed64.One, (Fixed64)(-2)), capsule);
 
         Assert.True(FixedSlabProjection.TryGetCylinderSupport(
-            Vector3d.Zero, Vector3d.Right, (Fixed64)2, Fixed64.One,
+            Vector3d.Zero, Vector3d.Right, (Fixed64)4, Fixed64.One,
             WideSlab, Vector2d.Forward, out Vector2d cylinder));
         Assert.Equal(new Vector2d((Fixed64)(-2), Fixed64.One), cylinder);
 
@@ -63,23 +64,23 @@ public sealed class FixedSlabProjectionTests
     public void UnclippedWinnerAdmission_SelectsNegativeAxisEndpoint()
     {
         Assert.True(FixedSlabProjection.TryGetCapsuleSupport(
-            Vector3d.Zero, Vector3d.Left, (Fixed64)2, Fixed64.One,
+            Vector3d.Zero, Vector3d.Left, (Fixed64)4, Fixed64.One,
             WideSlab, Vector2d.Right, out Vector2d capsule));
         Assert.Equal(new Vector2d((Fixed64)3, Fixed64.Zero), capsule);
 
         Fixed64 diagonal = FixedMath.Sqrt(Fixed64.Half);
         Assert.True(FixedSlabProjection.TryGetCylinderSupport(
-            Vector3d.Zero, new Vector3d(-diagonal, Fixed64.Zero, diagonal), (Fixed64)2, Fixed64.One,
+            Vector3d.Zero, new Vector3d(-diagonal, Fixed64.Zero, diagonal), (Fixed64)4, Fixed64.One,
             WideSlab, Vector2d.Right, out Vector2d cylinder));
         Assert.True(cylinder.X > Fixed64.Zero);
 
         Assert.True(FixedSlabProjection.TryGetCapsuleSupport(
-            Vector3d.Zero, Vector3d.Backward, (Fixed64)2, Fixed64.One,
+            Vector3d.Zero, Vector3d.Backward, (Fixed64)4, Fixed64.One,
             WideSlab, Vector2d.Right, out Vector2d reversedTie));
         Assert.Equal(new Vector2d(Fixed64.One, (Fixed64)(-2)), reversedTie);
 
         Assert.True(FixedSlabProjection.TryGetCylinderSupport(
-            Vector3d.Zero, Vector3d.Left, (Fixed64)2, Fixed64.One,
+            Vector3d.Zero, Vector3d.Left, (Fixed64)4, Fixed64.One,
             WideSlab, Vector2d.Forward, out Vector2d reversedCylinderTie));
         Assert.Equal(new Vector2d((Fixed64)(-2), Fixed64.One), reversedCylinderTie);
     }
@@ -92,12 +93,12 @@ public sealed class FixedSlabProjectionTests
         FixedRange plane = new(Fixed64.Zero, Fixed64.Zero);
 
         Assert.True(FixedSlabProjection.TryGetCapsuleSupport(
-            Vector3d.Zero, axis, (Fixed64)2, Fixed64.One,
+            Vector3d.Zero, axis, (Fixed64)4, Fixed64.One,
             plane, Vector2d.Right, out Vector2d capsule));
         Assert.True(capsule.X < ((Fixed64)2 * diagonal) + Fixed64.One);
 
         Assert.True(FixedSlabProjection.TryGetCylinderSupport(
-            Vector3d.Zero, axis, (Fixed64)2, Fixed64.Zero,
+            Vector3d.Zero, axis, (Fixed64)4, Fixed64.Zero,
             plane, Vector2d.Right, out Vector2d cylinder));
         Assert.Equal(Vector2d.Zero, cylinder);
 
@@ -272,7 +273,7 @@ public sealed class FixedSlabProjectionTests
     public void Supports_PreserveFullDomainCenteredAxisArithmetic()
     {
         Vector3d center = new(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero);
-        Vector2d expected = new(Fixed64.FromRaw(-1L), Fixed64.Zero);
+        Vector2d expected = new(Fixed64.FromRaw(-4611686018427387904L), Fixed64.Zero);
 
         Assert.True(FixedSlabProjection.TryGetCapsuleSupport(
             center, Vector3d.Right, Fixed64.MaxValue, Fixed64.Zero,
@@ -300,10 +301,10 @@ public sealed class FixedSlabProjectionTests
         FixedRange slab = new((Fixed64)60000, (Fixed64)60000);
         bool found = cylinder
             ? FixedSlabProjection.TryGetCylinderSupport(
-                center, Vector3d.Right, Fixed64.One, (Fixed64)100000,
+                center, Vector3d.Right, Fixed64.Two, (Fixed64)100000,
                 slab, Vector2d.Forward, out Vector2d support)
             : FixedSlabProjection.TryGetCapsuleSupport(
-                center, Vector3d.Right, Fixed64.One, (Fixed64)100000,
+                center, Vector3d.Right, Fixed64.Two, (Fixed64)100000,
                 slab, Vector2d.Forward, out support);
 
         Assert.True(found);
@@ -312,10 +313,10 @@ public sealed class FixedSlabProjectionTests
 
         found = cylinder
             ? FixedSlabProjection.TryGetCylinderSupport(
-                center, Vector3d.Right, Fixed64.One, (Fixed64)100000,
+                center, Vector3d.Right, Fixed64.Two, (Fixed64)100000,
                 slab, Vector2d.Right, out support)
             : FixedSlabProjection.TryGetCapsuleSupport(
-                center, Vector3d.Right, Fixed64.One, (Fixed64)100000,
+                center, Vector3d.Right, Fixed64.Two, (Fixed64)100000,
                 slab, Vector2d.Right, out support);
 
         Assert.True(found);
@@ -353,11 +354,11 @@ public sealed class FixedSlabProjectionTests
             miss, Vector2d.Right, out _));
 
         Assert.True(FixedSlabProjection.TryGetCylinderSupport(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One,
             new FixedRange(Fixed64.One, Fixed64.One), Vector2d.Right, out Vector2d cylinder));
         Assert.Equal(new Vector2d(Fixed64.One, Fixed64.Zero), cylinder);
         Assert.False(FixedSlabProjection.TryGetCylinderSupport(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One,
             miss, Vector2d.Right, out _));
 
         Assert.True(FixedSlabProjection.TryGetConeSupport(
@@ -382,7 +383,7 @@ public sealed class FixedSlabProjectionTests
         Assert.True(FixedSlabProjection.TryGetCapsuleSupport(
             Vector3d.Zero,
             new Vector3d(diagonal, -diagonal, Fixed64.Zero),
-            (Fixed64)2,
+            (Fixed64)4,
             Fixed64.One,
             new FixedRange(Fixed64.Zero, Fixed64.Zero),
             Vector2d.Right,
@@ -396,17 +397,17 @@ public sealed class FixedSlabProjectionTests
         Vector3d center = new(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero);
 
         Assert.False(FixedSlabProjection.TryGetCapsuleSupport(
-            center, Vector3d.Up, Fixed64.One, Fixed64.One,
+            center, Vector3d.Up, Fixed64.Two, Fixed64.One,
             WideSlab, Vector2d.Right, out Vector2d capsule));
         Assert.Equal(Vector2d.Zero, capsule);
 
         Assert.False(FixedSlabProjection.TryGetCylinderSupport(
-            center, Vector3d.Up, Fixed64.One, Fixed64.One,
+            center, Vector3d.Up, Fixed64.Two, Fixed64.One,
             WideSlab, Vector2d.Right, out Vector2d cylinder));
         Assert.Equal(Vector2d.Zero, cylinder);
 
         Assert.False(FixedSlabProjection.TryGetCylinderSupport(
-            center, Vector3d.Up, Fixed64.One, Fixed64.One,
+            center, Vector3d.Up, Fixed64.Two, Fixed64.One,
             new FixedRange(Fixed64.One, Fixed64.One), Vector2d.Right, out cylinder));
         Assert.Equal(Vector2d.Zero, cylinder);
 
@@ -431,13 +432,13 @@ public sealed class FixedSlabProjectionTests
         FixedRange inverted = new(Fixed64.One, Fixed64.Zero, enforceOrder: false);
 
         Assert.Throws<ArgumentException>(() => FixedSlabProjection.TryGetCapsuleSupport(
-            Vector3d.Zero, Vector3d.Zero, Fixed64.One, Fixed64.One,
+            Vector3d.Zero, Vector3d.Zero, Fixed64.Two, Fixed64.One,
             WideSlab, Vector2d.Right, out _));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSlabProjection.TryGetCapsuleSupport(
             Vector3d.Zero, Vector3d.Up, -Fixed64.One, Fixed64.One,
             WideSlab, Vector2d.Right, out _));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSlabProjection.TryGetCapsuleSupport(
-            Vector3d.Zero, Vector3d.Up, Fixed64.One, -Fixed64.One,
+            Vector3d.Zero, Vector3d.Up, Fixed64.Two, -Fixed64.One,
             WideSlab, Vector2d.Right, out _));
 
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSlabProjection.TryGetCylinderSupport(

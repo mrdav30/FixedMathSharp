@@ -131,7 +131,7 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
             Signed192 magnitude = WideArithmetic.GetFloorSquareRoot(squaredMagnitude, out Signed192 remainder);
             Signed192 ceilingMagnitude = remainder.IsZero
                 ? magnitude
-                : WideArithmetic.AddSigned192(magnitude, WideArithmetic.FromSignedRaw(1L));
+                : WideArithmetic.AddSigned192(magnitude, Signed192.Signed(1L));
             return new Vector3d(
                 Fixed64.NormalizeWideComponent(x, xSquare, ceilingMagnitude, squaredMagnitude),
                 Fixed64.NormalizeWideComponent(y, ySquare, ceilingMagnitude, squaredMagnitude),
@@ -283,6 +283,40 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
         weightB = Fixed64.GetSignedRatio(numeratorB, denominator);
         weightC = Fixed64.GetSignedRatio(numeratorC, denominator);
         return true;
+    }
+
+    /// <summary>
+    /// Gets the closest point on this triangle to a point carried by another
+    /// rigid frame without materializing either absolute world point.
+    /// </summary>
+    /// <remarks>
+    /// The returned anchor remains in the triangle's rigid frame. Voronoi
+    /// predicates retain the complete relative-frame displacement until the
+    /// final local barycentric conversion.
+    /// </remarks>
+    public FixedPointAnchor GetClosestPointAnchor(
+        Vector3d triangleOrigin,
+        FixedQuaternion triangleRotation,
+        in FixedPointAnchor point)
+    {
+        if (!triangleRotation.IsNormalized())
+        {
+            throw new ArgumentException(
+                "Triangle rotation must be normalized.",
+                nameof(triangleRotation));
+        }
+        if (!point.Rotation.IsNormalized())
+        {
+            throw new ArgumentException(
+                "Point rotation must be normalized.",
+                nameof(point));
+        }
+
+        return WideOrientedBox.GetClosestPointOnTriangle(
+            this,
+            triangleOrigin,
+            triangleRotation,
+            point);
     }
 
     /// <summary>

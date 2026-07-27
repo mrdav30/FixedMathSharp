@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp;
+namespace FixedMathSharp.Bounds;
 
 /// <summary>
 /// Provides planar support points for centered finite shapes clipped to a
@@ -22,15 +22,15 @@ public static class FixedSlabProjection
     public static bool TryGetCapsuleSupport(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         FixedRange slabY,
         Vector2d direction,
         out Vector2d support)
     {
-        Validate(axisDirection, axisHalfLength, nameof(axisHalfLength), radius, slabY, direction, requirePositiveLength: false);
+        Validate(axisDirection, axisLength, nameof(axisLength), radius, slabY, direction, requirePositiveLength: false);
         return WideSlabProjection.TryGetCapsuleSupport(
-            center, axisDirection, axisHalfLength, radius, slabY, direction, out support);
+            center, axisDirection, axisLength, radius, slabY, direction, out support);
     }
 
     /// <summary>
@@ -40,15 +40,15 @@ public static class FixedSlabProjection
     public static bool TryGetCylinderSupport(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         FixedRange slabY,
         Vector2d direction,
         out Vector2d support)
     {
-        Validate(axisDirection, axisHalfLength, nameof(axisHalfLength), radius, slabY, direction, requirePositiveLength: true);
+        Validate(axisDirection, axisLength, nameof(axisLength), radius, slabY, direction, requirePositiveLength: true);
         return WideSlabProjection.TryGetCylinderSupport(
-            center, axisDirection, axisHalfLength, radius, slabY, direction, out support);
+            center, axisDirection, axisLength, radius, slabY, direction, out support);
     }
 
     /// <summary>

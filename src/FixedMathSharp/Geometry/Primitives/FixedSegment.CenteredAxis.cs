@@ -9,8 +9,453 @@ using System;
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Contains methods for computing the distance, support, and point containment 
+/// of centered 3D capsules, finite cylinders, and finite cones without narrowing their conceptual axes.
+/// </content>
 public partial struct FixedSegment
 {
+    /// <summary>
+    /// Attempts to return the rounded distance from a point to a conceptual
+    /// centered finite axis without materializing its endpoints.
+    /// </summary>
+    /// <returns>
+    /// True when the final distance is representable; otherwise false and
+    /// <paramref name="distance"/> is <see cref="Fixed64.MaxValue"/>.
+    /// </returns>
+    public static bool TryGetDistanceToCenteredAxis(
+        Vector3d point,
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisLength,
+        out Fixed64 distance)
+    {
+        ValidateCenteredAxis(axisDirection, axisLength);
+        return WideFiniteAxisIntersection.TryGetDistanceToCenteredAxis(
+            point,
+            center,
+            axisDirection,
+            axisLength,
+            out distance);
+    }
+
+    /// <summary>
+    /// Attempts to return the rounded distance between two conceptual
+    /// centered finite axes without materializing either pair of endpoints.
+    /// </summary>
+    /// <returns>
+    /// True when the final distance is representable; otherwise false and
+    /// <paramref name="distance"/> is <see cref="Fixed64.MaxValue"/>.
+    /// </returns>
+    public static bool TryGetDistanceBetweenCenteredAxes(
+        Vector3d firstCenter,
+        Vector3d firstAxisDirection,
+        Fixed64 firstAxisLength,
+        Vector3d secondCenter,
+        Vector3d secondAxisDirection,
+        Fixed64 secondAxisLength,
+        out Fixed64 distance)
+    {
+        ValidateCenteredAxis(
+            firstAxisDirection,
+            firstAxisLength,
+            nameof(firstAxisDirection),
+            nameof(firstAxisLength));
+        ValidateCenteredAxis(
+            secondAxisDirection,
+            secondAxisLength,
+            nameof(secondAxisDirection),
+            nameof(secondAxisLength));
+        return WideFiniteAxisIntersection.TryGetDistanceBetweenCenteredAxes(
+            firstCenter,
+            firstAxisDirection,
+            firstAxisLength,
+            secondCenter,
+            secondAxisDirection,
+            secondAxisLength,
+            out distance);
+    }
+
+    /// <summary>
+    /// Returns whether two conceptual centered capsules overlap, including
+    /// exact tangency, without narrowing their axis distance or radius sum.
+    /// </summary>
+    public static bool DoCenteredCapsulesOverlap(
+        Vector3d firstCenter,
+        Vector3d firstAxisDirection,
+        Fixed64 firstAxisLength,
+        Fixed64 firstRadius,
+        Vector3d secondCenter,
+        Vector3d secondAxisDirection,
+        Fixed64 secondAxisLength,
+        Fixed64 secondRadius)
+    {
+        ValidateCenteredAxis(
+            firstAxisDirection,
+            firstAxisLength,
+            nameof(firstAxisDirection),
+            nameof(firstAxisLength));
+        if (firstRadius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(firstRadius));
+        ValidateCenteredAxis(
+            secondAxisDirection,
+            secondAxisLength,
+            nameof(secondAxisDirection),
+            nameof(secondAxisLength));
+        if (secondRadius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(secondRadius));
+
+        return WideFiniteAxisIntersection.DoCenteredCapsulesOverlap(
+            firstCenter,
+            firstAxisDirection,
+            firstAxisLength,
+            firstRadius,
+            secondCenter,
+            secondAxisDirection,
+            secondAxisLength,
+            secondRadius);
+    }
+
+    /// <summary>
+    /// Attempts to materialize one endpoint of a conceptual centered finite
+    /// axis from its normalized direction and full length.
+    /// </summary>
+    /// <remarks>
+    /// The endpoint is rounded only after combining its center and half-length
+    /// contribution. Failure is atomic.
+    /// </remarks>
+    public static bool TryGetCenteredAxisEndpoint(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisLength,
+        bool positive,
+        out Vector3d endpoint)
+    {
+        ValidateCenteredAxis(axisDirection, axisLength);
+        return WideFiniteAxisIntersection.TryGetCenteredAxisEndpoint(
+            center,
+            axisDirection,
+            axisLength,
+            positive,
+            out endpoint);
+    }
+
+    /// <summary>
+    /// Attempts to materialize the support point of a conceptual centered
+    /// capsule in a world-space direction.
+    /// </summary>
+    /// <remarks>
+    /// The direction need not be normalized. A zero direction and an exact
+    /// axial tie select the axis center.
+    /// </remarks>
+    public static bool TryGetCenteredCapsuleSupport(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector3d direction,
+        out Vector3d support)
+    {
+        ValidateCenteredAxis(axisDirection, axisLength);
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+
+        return WideFiniteAxisIntersection.TryGetCenteredCapsuleSupport(
+            center,
+            axisDirection,
+            axisLength,
+            radius,
+            direction,
+            out support);
+    }
+
+    /// <summary>
+    /// Attempts to return the support offset of a conceptual centered capsule
+    /// relative to its center.
+    /// </summary>
+    /// <remarks>
+    /// The direction need not be normalized. A zero direction and an exact
+    /// axial tie select the axis center.
+    /// </remarks>
+    public static bool TryGetCenteredCapsuleSupportOffset(
+        Vector3d axisDirection,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector3d direction,
+        out Vector3d supportOffset)
+    {
+        ValidateCenteredAxis(axisDirection, axisLength);
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+
+        return WideFiniteAxisIntersection.TryGetCenteredCapsuleSupport(
+            Vector3d.Zero,
+            axisDirection,
+            axisLength,
+            radius,
+            direction,
+            out supportOffset);
+    }
+
+    /// <summary>
+    /// Returns the support anchor of a centered capsule whose local positive Y
+    /// axis is its conceptual center axis.
+    /// </summary>
+    /// <remarks>
+    /// The rigid frame remains authoritative, so support construction does not
+    /// feed the rounded derived world axis back into the geometry. The
+    /// direction need not be normalized. A zero direction and an exact axial
+    /// tie select the axis center.
+    /// </remarks>
+    public static FixedPointAnchor GetCenteredCapsuleSupportAnchor(
+        Vector3d center,
+        FixedQuaternion rotation,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector3d direction)
+    {
+        if (!rotation.IsNormalized())
+        {
+            throw new ArgumentException(
+                "Capsule rotation must be normalized.",
+                nameof(rotation));
+        }
+        if (axisLength < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+
+        return WideGeometry.GetCenteredCapsuleSupportAnchor(
+            center,
+            rotation,
+            axisLength,
+            radius,
+            direction);
+    }
+
+    /// <summary>
+    /// Attempts to materialize the support point of a conceptual centered
+    /// finite cylinder in a world-space direction.
+    /// </summary>
+    /// <remarks>
+    /// The direction need not be normalized. A zero direction and an exact
+    /// axial tie select the negative cap center. A direction parallel to the
+    /// axis selects the cap center rather than an arbitrary rim point.
+    /// </remarks>
+    public static bool TryGetCenteredFiniteCylinderSupport(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector3d direction,
+        out Vector3d support)
+    {
+        if (!axisDirection.IsNormalized())
+            throw new ArgumentException("Finite cylinder axis direction must be normalized.", nameof(axisDirection));
+        if (axisLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+
+        return WideFiniteAxisIntersection.TryGetCenteredFiniteCylinderSupport(
+            center,
+            axisDirection,
+            axisLength,
+            radius,
+            direction,
+            out support);
+    }
+
+    /// <summary>
+    /// Attempts to return the support offset of a conceptual centered finite
+    /// cylinder relative to its center.
+    /// </summary>
+    public static bool TryGetCenteredFiniteCylinderSupportOffset(
+        Vector3d axisDirection,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector3d direction,
+        out Vector3d supportOffset)
+    {
+        if (!axisDirection.IsNormalized())
+            throw new ArgumentException("Finite cylinder axis direction must be normalized.", nameof(axisDirection));
+        if (axisLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+
+        return WideFiniteAxisIntersection.TryGetCenteredFiniteCylinderSupport(
+            Vector3d.Zero,
+            axisDirection,
+            axisLength,
+            radius,
+            direction,
+            out supportOffset);
+    }
+
+    /// <summary>
+    /// Returns the support anchor of a centered finite cylinder whose local
+    /// positive Y axis is its conceptual center axis.
+    /// </summary>
+    /// <remarks>
+    /// The rigid frame remains authoritative. Axial full-length/2 and radial
+    /// direction-times-radius terms remain exact through final world-point or
+    /// relative-offset materialization.
+    /// </remarks>
+    public static FixedPointAnchor GetCenteredFiniteCylinderSupportAnchor(
+        Vector3d center,
+        FixedQuaternion rotation,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector3d direction)
+    {
+        if (!rotation.IsNormalized())
+        {
+            throw new ArgumentException(
+                "Finite cylinder rotation must be normalized.",
+                nameof(rotation));
+        }
+        if (axisLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+
+        return WideGeometry.GetCenteredCylinderSupportAnchor(
+            center,
+            rotation,
+            axisLength,
+            radius,
+            direction);
+    }
+
+    /// <summary>
+    /// Attempts to materialize the support point of a conceptual centered
+    /// finite cone in a world-space direction.
+    /// </summary>
+    /// <remarks>
+    /// The axis points from the base toward the apex. The direction need not
+    /// be normalized. Equal apex and base projections, including a zero
+    /// direction, select the base.
+    /// </remarks>
+    public static bool TryGetCenteredFiniteConeSupport(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 height,
+        Fixed64 radius,
+        Vector3d direction,
+        out Vector3d support)
+    {
+        if (!axisDirection.IsNormalized())
+            throw new ArgumentException("Finite cone axis direction must be normalized.", nameof(axisDirection));
+        if (height <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(height));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+
+        return WideFiniteAxisIntersection.TryGetCenteredFiniteConeSupport(
+            center,
+            axisDirection,
+            height,
+            radius,
+            direction,
+            out support);
+    }
+
+    /// <summary>
+    /// Attempts to return the support offset of a conceptual centered finite
+    /// cone relative to its center.
+    /// </summary>
+    public static bool TryGetCenteredFiniteConeSupportOffset(
+        Vector3d axisDirection,
+        Fixed64 height,
+        Fixed64 radius,
+        Vector3d direction,
+        out Vector3d supportOffset)
+    {
+        if (!axisDirection.IsNormalized())
+            throw new ArgumentException("Finite cone axis direction must be normalized.", nameof(axisDirection));
+        if (height <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(height));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+
+        return WideFiniteAxisIntersection.TryGetCenteredFiniteConeSupport(
+            Vector3d.Zero,
+            axisDirection,
+            height,
+            radius,
+            direction,
+            out supportOffset);
+    }
+
+    /// <summary>
+    /// Returns the support point of a centered finite cone as a local point in
+    /// its rigid frame without materializing an absolute world coordinate.
+    /// </summary>
+    /// <remarks>
+    /// The cone's local positive Y axis points from the base toward the apex.
+    /// The direction need not be normalized. Equal apex and base projections,
+    /// including a zero direction, select the base.
+    /// </remarks>
+    public static FixedPointAnchor GetCenteredFiniteConeSupportAnchor(
+        Vector3d center,
+        FixedQuaternion rotation,
+        Fixed64 height,
+        Fixed64 radius,
+        Vector3d direction)
+    {
+        if (!rotation.IsNormalized())
+        {
+            throw new ArgumentException(
+                "Finite cone rotation must be normalized.",
+                nameof(rotation));
+        }
+        if (height <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(height));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+
+        return WideGeometry.GetCenteredConeSupportAnchor(
+            center,
+            rotation,
+            height,
+            radius,
+            direction);
+    }
+
+    /// <summary>
+    /// Returns the support point of a centered finite cone in a deterministic
+    /// canonical axis frame without materializing an absolute world
+    /// coordinate.
+    /// </summary>
+    public static FixedPointAnchor GetCenteredFiniteConeSupportAnchor(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 height,
+        Fixed64 radius,
+        Vector3d direction)
+    {
+        if (!axisDirection.IsNormalized())
+        {
+            throw new ArgumentException(
+                "Finite cone axis direction must be normalized.",
+                nameof(axisDirection));
+        }
+        if (height <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(height));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+
+        FixedQuaternion rotation =
+            WideGeometry.GetCanonicalAxisRotation(axisDirection);
+        return WideGeometry.GetCenteredConeSupportAnchor(
+            center,
+            rotation,
+            height,
+            radius,
+            direction);
+    }
+
     /// <summary>
     /// Returns whether a point lies in a centered finite cylinder whose flat
     /// caps are defined without constructing scalar coordinates.
@@ -18,7 +463,7 @@ public partial struct FixedSegment
     /// <param name="point">The point to classify.</param>
     /// <param name="center">The cylinder center.</param>
     /// <param name="axisDirection">The normalized cap-normal direction.</param>
-    /// <param name="axisHalfLength">The positive physical half-length.</param>
+    /// <param name="axisLength">The positive full physical axis length.</param>
     /// <param name="radius">The nonnegative radial extent.</param>
     /// <param name="strict">
     /// <see langword="true"/> to exclude the side and both flat caps;
@@ -28,21 +473,21 @@ public partial struct FixedSegment
     /// <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="axisHalfLength"/> is not positive or
+    /// <paramref name="axisLength"/> is not positive or
     /// <paramref name="radius"/> is negative.
     /// </exception>
     public static bool ContainsPointInCenteredFiniteCylinder(
         Vector3d point,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         bool strict = false)
     {
         if (!axisDirection.IsNormalized())
             throw new ArgumentException("Finite cylinder axis direction must be normalized.", nameof(axisDirection));
-        if (axisHalfLength <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (axisLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
         if (radius < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(radius));
 
@@ -50,8 +495,58 @@ public partial struct FixedSegment
             point,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
+            strict);
+    }
+
+    /// <summary>
+    /// Returns whether a point lies in a centered finite cylinder after
+    /// independently expanding its flat caps and radial side.
+    /// </summary>
+    /// <param name="point">The point to classify.</param>
+    /// <param name="center">The cylinder center.</param>
+    /// <param name="axisDirection">The normalized cylinder axis.</param>
+    /// <param name="axisLength">The positive full cylinder length.</param>
+    /// <param name="radius">The nonnegative cylinder radius.</param>
+    /// <param name="axialTolerance">
+    /// The nonnegative distance added beyond each flat cap.
+    /// </param>
+    /// <param name="radialTolerance">
+    /// The nonnegative distance added to the radial extent.
+    /// </param>
+    /// <param name="strict">
+    /// <see langword="true"/> to exclude every expanded boundary.
+    /// </param>
+    public static bool ContainsPointInCenteredFiniteCylinder(
+        Vector3d point,
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Fixed64 axialTolerance,
+        Fixed64 radialTolerance,
+        bool strict = false)
+    {
+        if (!axisDirection.IsNormalized())
+            throw new ArgumentException("Finite cylinder axis direction must be normalized.", nameof(axisDirection));
+        if (axisLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (axialTolerance < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axialTolerance));
+        if (radialTolerance < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radialTolerance));
+
+        return WideFiniteAxisIntersection.ContainsPointInCenteredFiniteCylinder(
+            point,
+            center,
+            axisDirection,
+            axisLength,
+            radius,
+            axialTolerance,
+            radialTolerance,
             strict);
     }
 
@@ -68,21 +563,21 @@ public partial struct FixedSegment
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/> or <paramref name="radius"/>
+    /// Thrown when <paramref name="axisLength"/> or <paramref name="radius"/>
     /// is negative.
     /// </exception>
     public static Fixed64 GetDistanceToCenteredCapsule(
         Vector3d point,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius)
     {
         TryGetDistanceToCenteredCapsule(
             point,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             out Fixed64 distance);
         return distance;
@@ -102,18 +597,18 @@ public partial struct FixedSegment
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/> or <paramref name="radius"/>
+    /// Thrown when <paramref name="axisLength"/> or <paramref name="radius"/>
     /// is negative.
     /// </exception>
     public static bool TryGetDistanceToCenteredCapsule(
         Vector3d point,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         out Fixed64 distance)
     {
-        ValidateCenteredAxis(axisDirection, axisHalfLength);
+        ValidateCenteredAxis(axisDirection, axisLength);
         if (radius < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(radius));
 
@@ -121,7 +616,7 @@ public partial struct FixedSegment
             point,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             out distance);
     }
@@ -133,20 +628,20 @@ public partial struct FixedSegment
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/> or <paramref name="radius"/>
+    /// Thrown when <paramref name="axisLength"/> or <paramref name="radius"/>
     /// is negative.
     /// </exception>
     public static bool ContainsPointInCenteredCapsule(
         Vector3d point,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius) =>
         ContainsPointInCenteredCapsule(
             point,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             Fixed64.Zero,
             strict: false);
@@ -159,14 +654,14 @@ public partial struct FixedSegment
         Vector3d point,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         bool strict) =>
         ContainsPointInCenteredCapsule(
             point,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             Fixed64.Zero,
             strict);
@@ -179,21 +674,21 @@ public partial struct FixedSegment
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/>, <paramref name="radius"/>,
+    /// Thrown when <paramref name="axisLength"/>, <paramref name="radius"/>,
     /// or <paramref name="radiusExpansion"/> is negative.
     /// </exception>
     public static bool ContainsPointInCenteredCapsule(
         Vector3d point,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion) =>
         ContainsPointInCenteredCapsule(
             point,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             radiusExpansion,
             strict: false);
@@ -206,12 +701,12 @@ public partial struct FixedSegment
         Vector3d point,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         bool strict)
     {
-        ValidateCenteredAxis(axisDirection, axisHalfLength);
+        ValidateCenteredAxis(axisDirection, axisLength);
         if (radius < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(radius));
         if (radiusExpansion < Fixed64.Zero)
@@ -221,56 +716,10 @@ public partial struct FixedSegment
             point,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             radiusExpansion,
             strict);
-    }
-
-    /// <summary>
-    /// Attempts to return the selected point on a conceptual centered capsule
-    /// surface without narrowing its axis point before applying the radial offset.
-    /// </summary>
-    /// <remarks>
-    /// <paramref name="surfaceDirection"/> must be the nonzero result of
-    /// <see cref="GetDirectionFromCenteredAxis"/>, or a caller-selected normalized
-    /// direction perpendicular to the axis when that method returns zero.
-    /// </remarks>
-    /// <returns>
-    /// True when every final surface coordinate is representable; otherwise
-    /// false and <paramref name="surfacePoint"/> is zero.
-    /// </returns>
-    /// <exception cref="ArgumentException">
-    /// Thrown when <paramref name="axisDirection"/> is zero or not normalized,
-    /// or when <paramref name="surfaceDirection"/> is not normalized.
-    /// </exception>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/> or <paramref name="radius"/>
-    /// is negative.
-    /// </exception>
-    public static bool TryGetSurfacePointOnCenteredCapsule(
-        Vector3d point,
-        Vector3d center,
-        Vector3d axisDirection,
-        Fixed64 axisHalfLength,
-        Fixed64 radius,
-        Vector3d surfaceDirection,
-        out Vector3d surfacePoint)
-    {
-        ValidateCenteredAxis(axisDirection, axisHalfLength);
-        if (radius < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(radius));
-        if (!surfaceDirection.IsNormalized())
-            throw new ArgumentException("Surface direction must be normalized.", nameof(surfaceDirection));
-
-        return WideFiniteAxisIntersection.TryGetSurfacePointOnCenteredCapsule(
-            point,
-            center,
-            axisDirection,
-            axisHalfLength,
-            radius,
-            surfaceDirection,
-            out surfacePoint);
     }
 
     /// <summary>
@@ -280,35 +729,141 @@ public partial struct FixedSegment
     /// </summary>
     /// <remarks>
     /// The conceptual endpoints are
-    /// <c>center +/- axisDirection * axisHalfLength</c>. They are never
+    /// <c>center +/- axisDirection * (axisLength / 2)</c>. They are never
     /// constructed or narrowed before the closest-feature decision.
     /// </remarks>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/> is negative.
+    /// Thrown when <paramref name="axisLength"/> is negative.
     /// </exception>
     public static Vector3d GetDirectionFromCenteredAxis(
         Vector3d point,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength)
+        Fixed64 axisLength)
     {
-        ValidateCenteredAxis(axisDirection, axisHalfLength);
+        ValidateCenteredAxis(axisDirection, axisLength);
 
         return WideFiniteAxisIntersection.GetDirectionFromCenteredAxis(
             point,
             center,
             axisDirection,
-            axisHalfLength);
+            axisLength);
     }
 
-    private static void ValidateCenteredAxis(Vector3d axisDirection, Fixed64 axisHalfLength)
+    /// <summary>
+    /// Attempts to return the closest points on two conceptual centered finite
+    /// axes described by normalized directions and full lengths.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when both final world points are representable;
+    /// otherwise <see langword="false"/> and both outputs are zero.
+    /// </returns>
+    public static bool TryGetClosestPointsBetweenCenteredAxes(
+        Vector3d firstCenter,
+        Vector3d firstAxisDirection,
+        Fixed64 firstAxisLength,
+        Vector3d secondCenter,
+        Vector3d secondAxisDirection,
+        Fixed64 secondAxisLength,
+        out Vector3d firstPoint,
+        out Vector3d secondPoint)
     {
-        if (!axisDirection.IsNormalized())
-            throw new ArgumentException("Axis direction must be normalized.", nameof(axisDirection));
-        if (axisHalfLength < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        ValidateCenteredAxis(
+            firstAxisDirection,
+            firstAxisLength,
+            nameof(firstAxisDirection),
+            nameof(firstAxisLength));
+        ValidateCenteredAxis(
+            secondAxisDirection,
+            secondAxisLength,
+            nameof(secondAxisDirection),
+            nameof(secondAxisLength));
+        return WideFiniteAxisIntersection.TryGetClosestPointsBetweenCenteredAxes(
+            firstCenter,
+            firstAxisDirection,
+            firstAxisLength,
+            secondCenter,
+            secondAxisDirection,
+            secondAxisLength,
+            out firstPoint,
+            out secondPoint);
     }
+
+    /// <summary>
+    /// Attempts to return the closest offsets on two conceptual centered
+    /// finite axes, each relative to its own center.
+    /// </summary>
+    /// <remarks>
+    /// This relation remains usable when either absolute closest point would
+    /// exceed the public scalar coordinate range.
+    /// </remarks>
+    public static bool TryGetClosestOffsetsBetweenCenteredAxes(
+        Vector3d firstCenter,
+        Vector3d firstAxisDirection,
+        Fixed64 firstAxisLength,
+        Vector3d secondCenter,
+        Vector3d secondAxisDirection,
+        Fixed64 secondAxisLength,
+        out Vector3d firstCenterOffset,
+        out Vector3d secondCenterOffset)
+    {
+        ValidateCenteredAxis(
+            firstAxisDirection,
+            firstAxisLength,
+            nameof(firstAxisDirection),
+            nameof(firstAxisLength));
+        ValidateCenteredAxis(
+            secondAxisDirection,
+            secondAxisLength,
+            nameof(secondAxisDirection),
+            nameof(secondAxisLength));
+        return WideFiniteAxisIntersection.TryGetClosestOffsetsBetweenCenteredAxes(
+            firstCenter,
+            firstAxisDirection,
+            firstAxisLength,
+            secondCenter,
+            secondAxisDirection,
+            secondAxisLength,
+            out firstCenterOffset,
+            out secondCenterOffset);
+    }
+
+    /// <summary>
+    /// Returns the normalized direction from the closest point on the first
+    /// conceptual centered axis to the closest point on the second.
+    /// </summary>
+    /// <remarks>
+    /// Coincident closest points return zero. The direction is resolved from
+    /// the exact wide relation without materializing either world point.
+    /// </remarks>
+    public static Vector3d GetClosestDirectionBetweenCenteredAxes(
+        Vector3d firstCenter,
+        Vector3d firstAxisDirection,
+        Fixed64 firstAxisLength,
+        Vector3d secondCenter,
+        Vector3d secondAxisDirection,
+        Fixed64 secondAxisLength)
+    {
+        ValidateCenteredAxis(
+            firstAxisDirection,
+            firstAxisLength,
+            nameof(firstAxisDirection),
+            nameof(firstAxisLength));
+        ValidateCenteredAxis(
+            secondAxisDirection,
+            secondAxisLength,
+            nameof(secondAxisDirection),
+            nameof(secondAxisLength));
+        return WideFiniteAxisIntersection.GetClosestDirectionBetweenCenteredAxes(
+            firstCenter,
+            firstAxisDirection,
+            firstAxisLength,
+            secondCenter,
+            secondAxisDirection,
+            secondAxisLength);
+    }
+
 }

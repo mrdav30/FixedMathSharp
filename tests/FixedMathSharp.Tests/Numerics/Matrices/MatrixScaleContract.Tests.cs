@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using FixedMathSharp.Bounds;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -399,18 +400,18 @@ public class MatrixScaleContractTests
         };
 
         foreach (Fixed64 x in components)
-        foreach (Fixed64 y in components)
-        foreach (Fixed64 z in components)
-        foreach (Fixed64 w in components)
-        {
-            FixedQuaternion input = new(x, y, z, w);
-            if (input == FixedQuaternion.Zero)
-                continue;
+            foreach (Fixed64 y in components)
+                foreach (Fixed64 z in components)
+                    foreach (Fixed64 w in components)
+                    {
+                        FixedQuaternion input = new(x, y, z, w);
+                        if (input == FixedQuaternion.Zero)
+                            continue;
 
-            Fixed3x3 actual = input.ToMatrix3x3();
-            AssertMatrixWithin(ToScaleRelativeMatrixOracle(input), actual, input.ToString());
-            AssertProperRotationMatrix(actual, input.ToString());
-        }
+                        Fixed3x3 actual = input.ToMatrix3x3();
+                        AssertMatrixWithin(ToScaleRelativeMatrixOracle(input), actual, input.ToString());
+                        AssertProperRotationMatrix(actual, input.ToString());
+                    }
     }
 
     [Fact]

@@ -10,8 +10,34 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Arithmetic helpers for <see cref="Signed704"/>, including magnitude extraction,
+/// signed multiplication producing an eleven-word result, and square root computation.
+/// </content>
 internal static partial class WideArithmetic
 {
+    internal static void GetMagnitude(Signed704 value, Span<ulong> magnitude)
+    {
+        magnitude.Clear();
+        magnitude[0] = value.Word0;
+        magnitude[1] = value.Word1;
+        magnitude[2] = value.Word2;
+        magnitude[3] = value.Word3;
+        magnitude[4] = value.Word4;
+        magnitude[5] = value.Word5;
+        magnitude[6] = value.Word6;
+        magnitude[7] = value.Word7;
+        magnitude[8] = value.Word8;
+        magnitude[9] = value.Word9;
+        magnitude[10] = value.Word10;
+        if (value.Sign >= 0)
+            return;
+
+        ulong carry = 1UL;
+        for (int index = 0; index < 11; index++)
+            magnitude[index] = AddSignedWord(~magnitude[index], 0UL, ref carry);
+    }
+
     /// <summary>
     /// Multiplies a signed nine-word value by a signed five-word value whose
     /// proven product fits in eleven words.
@@ -23,7 +49,6 @@ internal static partial class WideArithmetic
         GetMagnitude(left, leftMagnitude);
         CopyMagnitude(right, rightMagnitude);
         Span<ulong> product = stackalloc ulong[14];
-        product.Clear();
         MultiplyMagnitudes(leftMagnitude, rightMagnitude, product);
         ApplySigned704Sign(product, left.Sign * right.Sign < 0);
         return CreateSigned704(product);
@@ -40,7 +65,6 @@ internal static partial class WideArithmetic
         GetMagnitude(left, leftMagnitude);
         GetMagnitude(right, out rightMagnitude[2], out rightMagnitude[1], out rightMagnitude[0]);
         Span<ulong> product = stackalloc ulong[12];
-        product.Clear();
         MultiplyMagnitudes(leftMagnitude, rightMagnitude, product);
         return new Signed704(
             product[10], product[9], product[8], product[7], product[6], product[5],
@@ -98,6 +122,54 @@ internal static partial class WideArithmetic
         return new Signed704(word10, word9, word8, word7, word6, word5, word4, word3, word2, word1, word0);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed704 SubtractSigned704(Signed704 left, Signed704 right)
+    {
+        ulong borrow = 0UL;
+        ulong word0 = SubtractWord(left.Word0, right.Word0, ref borrow);
+        ulong word1 = SubtractWord(left.Word1, right.Word1, ref borrow);
+        ulong word2 = SubtractWord(left.Word2, right.Word2, ref borrow);
+        ulong word3 = SubtractWord(left.Word3, right.Word3, ref borrow);
+        ulong word4 = SubtractWord(left.Word4, right.Word4, ref borrow);
+        ulong word5 = SubtractWord(left.Word5, right.Word5, ref borrow);
+        ulong word6 = SubtractWord(left.Word6, right.Word6, ref borrow);
+        ulong word7 = SubtractWord(left.Word7, right.Word7, ref borrow);
+        ulong word8 = SubtractWord(left.Word8, right.Word8, ref borrow);
+        ulong word9 = SubtractWord(left.Word9, right.Word9, ref borrow);
+        ulong word10 = unchecked(left.Word10 - right.Word10 - borrow);
+        return new Signed704(
+            word10,
+            word9,
+            word8,
+            word7,
+            word6,
+            word5,
+            word4,
+            word3,
+            word2,
+            word1,
+            word0);
+    }
+
+    internal static int CompareNonNegative(
+        Signed704 left,
+        Signed704 right)
+    {
+        if (left.Word10 != right.Word10) return left.Word10 < right.Word10 ? -1 : 1;
+        if (left.Word9 != right.Word9) return left.Word9 < right.Word9 ? -1 : 1;
+        if (left.Word8 != right.Word8) return left.Word8 < right.Word8 ? -1 : 1;
+        if (left.Word7 != right.Word7) return left.Word7 < right.Word7 ? -1 : 1;
+        if (left.Word6 != right.Word6) return left.Word6 < right.Word6 ? -1 : 1;
+        if (left.Word5 != right.Word5) return left.Word5 < right.Word5 ? -1 : 1;
+        if (left.Word4 != right.Word4) return left.Word4 < right.Word4 ? -1 : 1;
+        if (left.Word3 != right.Word3) return left.Word3 < right.Word3 ? -1 : 1;
+        if (left.Word2 != right.Word2) return left.Word2 < right.Word2 ? -1 : 1;
+        if (left.Word1 != right.Word1) return left.Word1 < right.Word1 ? -1 : 1;
+        return left.Word0 == right.Word0
+            ? 0
+            : left.Word0 < right.Word0 ? -1 : 1;
+    }
+
     /// <summary>
     /// Multiplies three five-word finite-axis factors whose proven combined
     /// magnitude is below 650 bits.
@@ -115,10 +187,8 @@ internal static partial class WideArithmetic
         CopyMagnitude(third, thirdMagnitude);
 
         Span<ulong> firstProduct = stackalloc ulong[10];
-        firstProduct.Clear();
         MultiplyMagnitudes(firstMagnitude, secondMagnitude, firstProduct);
         Span<ulong> product = stackalloc ulong[15];
-        product.Clear();
         MultiplyMagnitudes(firstProduct, thirdMagnitude, product);
 
         if (first.Sign * second.Sign * third.Sign < 0)
@@ -162,11 +232,12 @@ internal static partial class WideArithmetic
             words[index] = AddSignedWord(~words[index], 0UL, ref carry);
     }
 
-    private static void MultiplyMagnitudes(
+    internal static void MultiplyMagnitudes(
         ReadOnlySpan<ulong> left,
         ReadOnlySpan<ulong> right,
         Span<ulong> product)
     {
+        product.Clear();
         int leftLength = GetActiveLength(left);
         int rightLength = GetActiveLength(right);
         for (int leftIndex = 0; leftIndex < leftLength; leftIndex++)

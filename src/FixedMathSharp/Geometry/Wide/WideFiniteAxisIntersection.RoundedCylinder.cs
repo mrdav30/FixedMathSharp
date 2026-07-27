@@ -7,13 +7,149 @@
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Rounded-cylinder (capsule-swept torus/cylinder) intersection tests for wide, high-precision
+/// finite-axis geometry, using extended-width fixed-point arithmetic for numerical robustness.
+/// </content>
 internal static partial class WideFiniteAxisIntersection
 {
+    #region Nested Types
+
+    private readonly struct RoundedCylinderBaseData
+    {
+        internal readonly Signed192 AxisLengthSquared;
+        internal readonly Signed192 G0;
+        internal readonly Signed192 G1;
+        internal readonly Signed192 G2;
+        internal readonly Signed192 StartAxisProjection;
+        internal readonly Signed192 DirectionAxisProjection;
+        internal readonly Signed320 Q0;
+        internal readonly Signed320 Q1;
+        internal readonly Signed320 Q2;
+        internal readonly Signed192 Radius;
+        internal readonly Signed192 Expansion;
+
+        internal RoundedCylinderBaseData(
+            Signed192 axisLengthSquared,
+            Signed192 g0,
+            Signed192 g1,
+            Signed192 g2,
+            Signed192 startAxisProjection,
+            Signed192 directionAxisProjection,
+            Signed320 q0,
+            Signed320 q1,
+            Signed320 q2,
+            Signed192 radius,
+            Signed192 expansion)
+        {
+            AxisLengthSquared = axisLengthSquared;
+            G0 = g0;
+            G1 = g1;
+            G2 = g2;
+            StartAxisProjection = startAxisProjection;
+            DirectionAxisProjection = directionAxisProjection;
+            Q0 = q0;
+            Q1 = q1;
+            Q2 = q2;
+            Radius = radius;
+            Expansion = expansion;
+        }
+    }
+
+    private readonly struct RoundedCylinderTorusPolynomial
+    {
+        internal readonly Signed320 N0;
+        internal readonly Signed320 N1;
+        internal readonly Signed320 N2;
+        internal readonly Signed576 H0;
+        internal readonly Signed576 H1;
+        internal readonly Signed576 H2;
+        internal readonly Signed576 H3;
+        internal readonly Signed576 H4;
+
+        internal RoundedCylinderTorusPolynomial(
+            Signed320 n0,
+            Signed320 n1,
+            Signed320 n2,
+            Signed576 h0,
+            Signed576 h1,
+            Signed576 h2,
+            Signed576 h3,
+            Signed576 h4)
+        {
+            N0 = n0;
+            N1 = n1;
+            N2 = n2;
+            H0 = h0;
+            H1 = h1;
+            H2 = h2;
+            H3 = h3;
+            H4 = h4;
+        }
+    }
+
+    private readonly struct RoundedCylinderQuadraticBound
+    {
+        internal static readonly RoundedCylinderQuadraticBound Zero = new(
+            default,
+            Scale320,
+            default,
+            0);
+        internal static readonly RoundedCylinderQuadraticBound One = new(
+            Scale320,
+            Scale320,
+            default,
+            0);
+
+        internal readonly Signed320 Numerator;
+        internal readonly Signed320 Denominator;
+        internal readonly Signed576 Discriminant;
+        internal readonly int RadicalSign;
+
+        internal RoundedCylinderQuadraticBound(
+            Signed320 numerator,
+            Signed320 denominator,
+            Signed576 discriminant,
+            int radicalSign)
+        {
+            Numerator = numerator;
+            Denominator = denominator;
+            Discriminant = discriminant;
+            RadicalSign = radicalSign;
+        }
+    }
+
+    #endregion
+
+    internal static bool DoesCenteredFiniteCylinderOverlapSphere(
+        Vector3d cylinderCenter,
+        Vector3d cylinderAxisDirection,
+        Fixed64 cylinderAxisLength,
+        Fixed64 cylinderRadius,
+        Vector3d sphereCenter,
+        Fixed64 sphereRadius)
+    {
+        _ = TryGetSphericallyExpandedFiniteCylinderDistanceIntervalWithFullAxisLength(
+            new FixedSegment(sphereCenter, sphereCenter),
+            cylinderCenter,
+            cylinderAxisDirection,
+            cylinderAxisLength,
+            cylinderRadius,
+            sphereRadius,
+            Fixed64.Zero,
+            calculateExit: false,
+            out _,
+            out _,
+            out bool contained,
+            out _);
+        return contained;
+    }
+
     internal static bool TryGetSphericallyExpandedFiniteCylinderDistanceInterval(
         FixedSegment query,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 sphericalExpansion,
         Fixed64 segmentLength,
@@ -21,11 +157,11 @@ internal static partial class WideFiniteAxisIntersection
         out Fixed64 exit,
         out bool startContained,
         out bool endContainedStrict) =>
-        TryGetSphericallyExpandedFiniteCylinderDistanceInterval(
+        TryGetSphericallyExpandedFiniteCylinderDistanceIntervalWithFullAxisLength(
             query,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             sphericalExpansion,
             segmentLength,
@@ -39,16 +175,16 @@ internal static partial class WideFiniteAxisIntersection
         FixedSegment query,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 sphericalExpansion,
         Fixed64 segmentLength,
         out Fixed64 distance) =>
-        TryGetSphericallyExpandedFiniteCylinderDistanceInterval(
+        TryGetSphericallyExpandedFiniteCylinderDistanceIntervalWithFullAxisLength(
             query,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             sphericalExpansion,
             segmentLength,
@@ -58,11 +194,41 @@ internal static partial class WideFiniteAxisIntersection
             out _,
             out _);
 
-    private static bool TryGetSphericallyExpandedFiniteCylinderDistanceInterval(
+    internal static bool TryGetSphericallyExpandedFiniteCylinderFirstDistanceFromHalfAxisLength(
         FixedSegment query,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 halfAxisLength,
+        Fixed64 radius,
+        Fixed64 sphericalExpansion,
+        Fixed64 segmentLength,
+        out Fixed64 distance)
+    {
+        Signed192 halfAxisLengthRaw =
+            Signed192.Signed(halfAxisLength.m_rawValue);
+        Signed192 fullAxisLength = WideArithmetic.AddSigned192(
+            halfAxisLengthRaw,
+            halfAxisLengthRaw);
+        return TryGetSphericallyExpandedFiniteCylinderDistanceInterval(
+            query,
+            center,
+            axisDirection,
+            fullAxisLength,
+            radius,
+            sphericalExpansion,
+            segmentLength,
+            calculateExit: false,
+            out distance,
+            out _,
+            out _,
+            out _);
+    }
+
+    private static bool TryGetSphericallyExpandedFiniteCylinderDistanceIntervalWithFullAxisLength(
+        FixedSegment query,
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 sphericalExpansion,
         Fixed64 segmentLength,
@@ -78,7 +244,7 @@ internal static partial class WideFiniteAxisIntersection
                 query,
                 center,
                 axisDirection,
-                axisHalfLength,
+                axisLength,
                 radius,
                 Fixed64.Zero,
                 Fixed64.Zero,
@@ -95,9 +261,55 @@ internal static partial class WideFiniteAxisIntersection
                 query,
                 center,
                 axisDirection,
-                axisHalfLength,
+                axisLength,
                 Fixed64.Zero,
                 sphericalExpansion,
+                segmentLength,
+                out entry,
+                out exit,
+                out startContained,
+                out endContainedStrict);
+        }
+
+        return TryGetSphericallyExpandedFiniteCylinderDistanceInterval(
+            query,
+            center,
+            axisDirection,
+            Signed192.Signed(axisLength.m_rawValue),
+            radius,
+            sphericalExpansion,
+            segmentLength,
+            calculateExit,
+            out entry,
+            out exit,
+            out startContained,
+            out endContainedStrict);
+    }
+
+    private static bool TryGetSphericallyExpandedFiniteCylinderDistanceInterval(
+        FixedSegment query,
+        Vector3d center,
+        Vector3d axisDirection,
+        Signed192 axisLength,
+        Fixed64 radius,
+        Fixed64 sphericalExpansion,
+        Fixed64 segmentLength,
+        bool calculateExit,
+        out Fixed64 entry,
+        out Fixed64 exit,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        if (sphericalExpansion == Fixed64.Zero)
+        {
+            return TryGetFiniteCylinderDistanceInterval(
+                query,
+                center,
+                axisDirection,
+                axisLength,
+                radius,
+                Fixed64.Zero,
+                Fixed64.Zero,
                 segmentLength,
                 out entry,
                 out exit,
@@ -109,7 +321,7 @@ internal static partial class WideFiniteAxisIntersection
             query,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             sphericalExpansion,
             Fixed64.Zero,
@@ -128,7 +340,7 @@ internal static partial class WideFiniteAxisIntersection
         Merge(
             TryGetRoundedCylinderCapCoreDistanceInterval(
                 baseData,
-                axisHalfLength,
+                axisLength,
                 baseData.Radius,
                 segmentLength,
                 positiveCap: false,
@@ -144,7 +356,7 @@ internal static partial class WideFiniteAxisIntersection
         Merge(
             TryGetRoundedCylinderCapCoreDistanceInterval(
                 baseData,
-                axisHalfLength,
+                axisLength,
                 baseData.Radius,
                 segmentLength,
                 positiveCap: true,
@@ -161,12 +373,12 @@ internal static partial class WideFiniteAxisIntersection
         bool negativeEndContainedStrict = false;
         if (RoundedCylinderRimBoundsIntersect(
                 baseData,
-                axisHalfLength,
+                axisLength,
                 segmentLength,
                 positiveCap: false))
         {
             MergeRoundedCylinderRimInterval(
-                CreateRoundedCylinderTorusPolynomial(baseData, axisHalfLength, positiveCap: false),
+                CreateRoundedCylinderTorusPolynomial(baseData, axisLength, positiveCap: false),
                 segmentLength,
                 ref found,
                 ref entry,
@@ -180,12 +392,12 @@ internal static partial class WideFiniteAxisIntersection
         bool positiveEndContainedStrict = false;
         if (RoundedCylinderRimBoundsIntersect(
                 baseData,
-                axisHalfLength,
+                axisLength,
                 segmentLength,
                 positiveCap: true))
         {
             MergeRoundedCylinderRimInterval(
-                CreateRoundedCylinderTorusPolynomial(baseData, axisHalfLength, positiveCap: true),
+                CreateRoundedCylinderTorusPolynomial(baseData, axisLength, positiveCap: true),
                 segmentLength,
                 ref found,
                 ref entry,
@@ -210,7 +422,7 @@ internal static partial class WideFiniteAxisIntersection
 
     private static bool TryGetRoundedCylinderCapCoreDistanceInterval(
         RoundedCylinderBaseData data,
-        Fixed64 axisHalfLength,
+        Signed192 axisLength,
         Signed192 radialRadius,
         Fixed64 segmentLength,
         bool positiveCap,
@@ -226,20 +438,22 @@ internal static partial class WideFiniteAxisIntersection
         Signed320 radial2 = data.Q2;
 
         Signed320 scaledStartProjection = WideArithmetic.MultiplySigned192(
-            ParameterScale,
+            DoubleParameterScale,
             data.StartAxisProjection);
         Signed320 scaledDirectionProjection = WideArithmetic.MultiplySigned192(
-            ParameterScale,
+            DoubleParameterScale,
             data.DirectionAxisProjection);
         Signed320 capProjection = WideArithmetic.MultiplySigned192(
-            WideArithmetic.FromSignedRaw(axisHalfLength.m_rawValue),
+            axisLength,
             data.AxisLengthSquared);
         Signed320 z0 = positiveCap
             ? WideArithmetic.SubtractSigned320(scaledStartProjection, capProjection)
             : WideArithmetic.AddSigned320(scaledStartProjection, capProjection);
         Signed320 z1 = scaledDirectionProjection;
         Signed320 expansionSquared = WideArithmetic.MultiplySigned192(data.Expansion, data.Expansion);
-        Signed320 scaleSquared = WideArithmetic.MultiplySigned192(ParameterScale, ParameterScale);
+        Signed320 scaleSquared = WideArithmetic.MultiplySigned192(
+            DoubleParameterScale,
+            DoubleParameterScale);
         Signed320 axialLimit = MultiplyToSigned320(
             MultiplyToSigned320(expansionSquared, scaleSquared),
             data.AxisLengthSquared);
@@ -323,12 +537,12 @@ internal static partial class WideFiniteAxisIntersection
 
     private static bool RoundedCylinderRimBoundsIntersect(
         RoundedCylinderBaseData data,
-        Fixed64 axisHalfLength,
+        Signed192 axisLength,
         Fixed64 segmentLength,
         bool positiveCap) =>
         TryGetRoundedCylinderCapCoreDistanceInterval(
             data,
-            axisHalfLength,
+            axisLength,
             WideArithmetic.AddSigned192(data.Radius, data.Expansion),
             segmentLength,
             positiveCap,
@@ -453,18 +667,19 @@ internal static partial class WideFiniteAxisIntersection
             q0,
             q1,
             q2,
-            WideArithmetic.FromSignedRaw(radius.m_rawValue),
-            WideArithmetic.FromSignedRaw(sphericalExpansion.m_rawValue));
+            Signed192.Signed(radius.m_rawValue),
+            Signed192.Signed(sphericalExpansion.m_rawValue));
     }
 
     private static RoundedCylinderTorusPolynomial CreateRoundedCylinderTorusPolynomial(
         RoundedCylinderBaseData data,
-        Fixed64 axisHalfLength,
+        Signed192 axisLength,
         bool positiveCap)
     {
-        Signed192 halfLengthRaw = WideArithmetic.FromSignedRaw(axisHalfLength.m_rawValue);
-        Signed320 scaleSquared = WideArithmetic.MultiplySigned192(ParameterScale, ParameterScale);
-        Signed320 heightSquared = WideArithmetic.MultiplySigned192(halfLengthRaw, halfLengthRaw);
+        Signed320 scaleSquared = WideArithmetic.MultiplySigned192(
+            DoubleParameterScale,
+            DoubleParameterScale);
+        Signed320 heightSquared = WideArithmetic.MultiplySigned192(axisLength, axisLength);
         Signed320 radiusSquared = WideArithmetic.MultiplySigned192(data.Radius, data.Radius);
         Signed320 expansionSquared = WideArithmetic.MultiplySigned192(data.Expansion, data.Expansion);
         Signed320 radiusDifference = WideArithmetic.SubtractSigned320(radiusSquared, expansionSquared);
@@ -473,12 +688,12 @@ internal static partial class WideFiniteAxisIntersection
             MultiplyToSigned320(radiusDifference, scaleSquared));
 
         Signed320 axial0 = MultiplyThreeToSigned320(
-            ParameterScale,
-            halfLengthRaw,
+            DoubleParameterScale,
+            axisLength,
             data.StartAxisProjection);
         Signed320 axial1 = MultiplyThreeToSigned320(
-            ParameterScale,
-            halfLengthRaw,
+            DoubleParameterScale,
+            axisLength,
             data.DirectionAxisProjection);
         if (positiveCap)
         {
@@ -525,13 +740,10 @@ internal static partial class WideFiniteAxisIntersection
         WideArithmetic.MultiplySigned576(value, axisLengthSquared);
 
     private static Signed320 MultiplyToSigned320(Signed320 left, Signed192 right) =>
-        Narrow(WideArithmetic.MultiplySigned576(WideArithmetic.ExtendToSigned576(left), right));
+        Signed320.NarrowValue(WideArithmetic.MultiplySigned576(Signed576.ExtendValue(left), right));
 
     private static Signed320 MultiplyToSigned320(Signed320 left, Signed320 right) =>
-        Narrow(WideArithmetic.MultiplySigned320(left, right));
-
-    private static Signed320 Narrow(Signed576 value)
-        => new(value.Word4, value.Word3, value.Word2, value.Word1, value.Word0);
+        Signed320.NarrowValue(WideArithmetic.MultiplySigned320(left, right));
 
     private static Signed320 Twice(Signed320 value) => WideArithmetic.AddSigned320(value, value);
 
@@ -551,107 +763,4 @@ internal static partial class WideFiniteAxisIntersection
                 WideArithmetic.AddSigned576(third, fourth)),
             fifth);
 
-    private readonly struct RoundedCylinderBaseData
-    {
-        internal readonly Signed192 AxisLengthSquared;
-        internal readonly Signed192 G0;
-        internal readonly Signed192 G1;
-        internal readonly Signed192 G2;
-        internal readonly Signed192 StartAxisProjection;
-        internal readonly Signed192 DirectionAxisProjection;
-        internal readonly Signed320 Q0;
-        internal readonly Signed320 Q1;
-        internal readonly Signed320 Q2;
-        internal readonly Signed192 Radius;
-        internal readonly Signed192 Expansion;
-
-        internal RoundedCylinderBaseData(
-            Signed192 axisLengthSquared,
-            Signed192 g0,
-            Signed192 g1,
-            Signed192 g2,
-            Signed192 startAxisProjection,
-            Signed192 directionAxisProjection,
-            Signed320 q0,
-            Signed320 q1,
-            Signed320 q2,
-            Signed192 radius,
-            Signed192 expansion)
-        {
-            AxisLengthSquared = axisLengthSquared;
-            G0 = g0;
-            G1 = g1;
-            G2 = g2;
-            StartAxisProjection = startAxisProjection;
-            DirectionAxisProjection = directionAxisProjection;
-            Q0 = q0;
-            Q1 = q1;
-            Q2 = q2;
-            Radius = radius;
-            Expansion = expansion;
-        }
-    }
-
-    private readonly struct RoundedCylinderTorusPolynomial
-    {
-        internal readonly Signed320 N0;
-        internal readonly Signed320 N1;
-        internal readonly Signed320 N2;
-        internal readonly Signed576 H0;
-        internal readonly Signed576 H1;
-        internal readonly Signed576 H2;
-        internal readonly Signed576 H3;
-        internal readonly Signed576 H4;
-
-        internal RoundedCylinderTorusPolynomial(
-            Signed320 n0,
-            Signed320 n1,
-            Signed320 n2,
-            Signed576 h0,
-            Signed576 h1,
-            Signed576 h2,
-            Signed576 h3,
-            Signed576 h4)
-        {
-            N0 = n0;
-            N1 = n1;
-            N2 = n2;
-            H0 = h0;
-            H1 = h1;
-            H2 = h2;
-            H3 = h3;
-            H4 = h4;
-        }
-    }
-
-    private readonly struct RoundedCylinderQuadraticBound
-    {
-        internal static readonly RoundedCylinderQuadraticBound Zero = new(
-            default,
-            WideArithmetic.ExtendToSigned320(WideFiniteAxisIntersection.One),
-            default,
-            0);
-        internal static readonly RoundedCylinderQuadraticBound One = new(
-            WideArithmetic.ExtendToSigned320(WideFiniteAxisIntersection.One),
-            WideArithmetic.ExtendToSigned320(WideFiniteAxisIntersection.One),
-            default,
-            0);
-
-        internal readonly Signed320 Numerator;
-        internal readonly Signed320 Denominator;
-        internal readonly Signed576 Discriminant;
-        internal readonly int RadicalSign;
-
-        internal RoundedCylinderQuadraticBound(
-            Signed320 numerator,
-            Signed320 denominator,
-            Signed576 discriminant,
-            int radicalSign)
-        {
-            Numerator = numerator;
-            Denominator = denominator;
-            Discriminant = discriminant;
-            RadicalSign = radicalSign;
-        }
-    }
 }

@@ -15,8 +15,8 @@ namespace FixedMathSharp.Bounds;
 /// </summary>
 internal static class WideRayIntersection
 {
-    private static readonly Signed192 RawScale = WideArithmetic.FromSignedRaw(FixedMath.ONE_L);
-    private static readonly Signed192 DoubleRawScale = WideArithmetic.FromSignedRaw(FixedMath.ONE_L * 2L);
+    private static readonly Signed192 RawScale = Signed192.Signed(FixedMath.ONE_L);
+    private static readonly Signed192 DoubleRawScale = Signed192.Signed(FixedMath.ONE_L * 2L);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fixed64? Intersects(
@@ -32,7 +32,7 @@ internal static class WideRayIntersection
             position,
             direction,
             circle.Center,
-            WideArithmetic.FromSignedRaw(circle.Radius.m_rawValue),
+            Signed192.Signed(circle.Radius.m_rawValue),
             maxParameter);
     }
 
@@ -48,7 +48,7 @@ internal static class WideRayIntersection
             position,
             direction,
             circle.Center,
-            WideArithmetic.FromSignedRaw(circle.Radius.m_rawValue),
+            Signed192.Signed(circle.Radius.m_rawValue),
             maxParameter,
             out entry,
             out exit);
@@ -66,8 +66,8 @@ internal static class WideRayIntersection
             throw new ArgumentOutOfRangeException(nameof(radiusExpansion), "Radius expansion must be non-negative.");
 
         Signed192 expandedRadius = WideArithmetic.AddSigned192(
-            WideArithmetic.FromSignedRaw(circle.Radius.m_rawValue),
-            WideArithmetic.FromSignedRaw(radiusExpansion.m_rawValue));
+            Signed192.Signed(circle.Radius.m_rawValue),
+            Signed192.Signed(radiusExpansion.m_rawValue));
         return TryGetIntervalWide(
             position,
             direction,
@@ -94,8 +94,8 @@ internal static class WideRayIntersection
             return null;
 
         Signed192 expandedRadius = WideArithmetic.AddSigned192(
-            WideArithmetic.FromSignedRaw(circle.Radius.m_rawValue),
-            WideArithmetic.FromSignedRaw(radiusExpansion.m_rawValue));
+            Signed192.Signed(circle.Radius.m_rawValue),
+            Signed192.Signed(radiusExpansion.m_rawValue));
         return IntersectsWide(
             position,
             direction,
@@ -168,7 +168,7 @@ internal static class WideRayIntersection
             position,
             direction,
             sphere.Center,
-            WideArithmetic.FromSignedRaw(sphere.Radius.m_rawValue),
+            Signed192.Signed(sphere.Radius.m_rawValue),
             maxParameter);
     }
 
@@ -184,7 +184,7 @@ internal static class WideRayIntersection
             position,
             direction,
             sphere.Center,
-            WideArithmetic.FromSignedRaw(sphere.Radius.m_rawValue),
+            Signed192.Signed(sphere.Radius.m_rawValue),
             maxParameter,
             out entry,
             out exit);
@@ -202,8 +202,8 @@ internal static class WideRayIntersection
             throw new ArgumentOutOfRangeException(nameof(radiusExpansion), "Radius expansion must be non-negative.");
 
         Signed192 expandedRadius = WideArithmetic.AddSigned192(
-            WideArithmetic.FromSignedRaw(sphere.Radius.m_rawValue),
-            WideArithmetic.FromSignedRaw(radiusExpansion.m_rawValue));
+            Signed192.Signed(sphere.Radius.m_rawValue),
+            Signed192.Signed(radiusExpansion.m_rawValue));
         return TryGetIntervalWide(
             position,
             direction,
@@ -230,8 +230,8 @@ internal static class WideRayIntersection
             return null;
 
         Signed192 expandedRadius = WideArithmetic.AddSigned192(
-            WideArithmetic.FromSignedRaw(sphere.Radius.m_rawValue),
-            WideArithmetic.FromSignedRaw(radiusExpansion.m_rawValue));
+            Signed192.Signed(sphere.Radius.m_rawValue),
+            Signed192.Signed(radiusExpansion.m_rawValue));
         return IntersectsWide(
             position,
             direction,
@@ -339,7 +339,7 @@ internal static class WideRayIntersection
         }
 
         long maxRaw = maxParameter.m_rawValue;
-        Signed192 maxNumerator = WideArithmetic.FromSignedRaw(maxRaw);
+        Signed192 maxNumerator = Signed192.Signed(maxRaw);
         Signed320 valueAtMax = EvaluatePolynomial(
             directionLengthSquared,
             projection,
@@ -401,7 +401,7 @@ internal static class WideRayIntersection
                     directionLengthSquared,
                     projection,
                     constant,
-                    WideArithmetic.FromSignedRaw(candidateRaw),
+                    Signed192.Signed(candidateRaw),
                     RawScale))
             {
                 highRaw = candidateRaw;
@@ -422,7 +422,7 @@ internal static class WideRayIntersection
                     directionLengthSquared,
                     projection,
                     constant,
-                    WideArithmetic.FromSignedRaw(middleRaw),
+                    Signed192.Signed(middleRaw),
                     RawScale))
             {
                 lowRaw = middleRaw;
@@ -433,7 +433,7 @@ internal static class WideRayIntersection
             }
         }
 
-        Signed192 low = WideArithmetic.FromSignedRaw(lowRaw);
+        Signed192 low = Signed192.Signed(lowRaw);
         Signed320 lowValue = EvaluatePolynomial(
             directionLengthSquared,
             projection,
@@ -459,10 +459,10 @@ internal static class WideRayIntersection
         if (exactRoot)
             return Fixed64.FromRaw(floorRootRaw);
 
-        Signed192 floorRoot = WideArithmetic.FromSignedRaw(floorRootRaw);
+        Signed192 floorRoot = Signed192.Signed(floorRootRaw);
         Signed192 midpointNumerator = WideArithmetic.AddSigned192(
             WideArithmetic.AddSigned192(floorRoot, floorRoot),
-            WideArithmetic.FromSignedRaw(1L));
+            Signed192.Signed(1L));
         Signed320 midpointValue = EvaluatePolynomial(
             directionLengthSquared,
             projection,
@@ -554,14 +554,14 @@ internal static class WideRayIntersection
         Signed320 derivativeAtMax = WideArithmetic.SubtractSigned320(
             WideArithmetic.MultiplySigned192(
                 directionLengthSquared,
-                WideArithmetic.FromSignedRaw(maxRaw)),
+                Signed192.Signed(maxRaw)),
             WideArithmetic.MultiplySigned192(negativeProjection, RawScale));
         if (derivativeAtMax.Sign < 0
             && EvaluatePolynomial(
                 directionLengthSquared,
                 projection,
                 constant,
-                WideArithmetic.FromSignedRaw(maxRaw),
+                Signed192.Signed(maxRaw),
                 RawScale).Sign > 0)
         {
             return null;
@@ -573,7 +573,7 @@ internal static class WideRayIntersection
             directionLengthSquared,
             projection,
             constant,
-            WideArithmetic.FromSignedRaw(highRaw),
+            Signed192.Signed(highRaw),
             RawScale);
 
         long floorRootRaw;
@@ -597,10 +597,10 @@ internal static class WideRayIntersection
         if (exactRoot || floorRootRaw == maxRaw)
             return Fixed64.FromRaw(floorRootRaw);
 
-        Signed192 floorRoot = WideArithmetic.FromSignedRaw(floorRootRaw);
+        Signed192 floorRoot = Signed192.Signed(floorRootRaw);
         Signed192 midpointNumerator = WideArithmetic.AddSigned192(
             WideArithmetic.AddSigned192(floorRoot, floorRoot),
-            WideArithmetic.FromSignedRaw(1L));
+            Signed192.Signed(1L));
         Signed320 midpointValue = EvaluatePolynomial(
             directionLengthSquared,
             projection,
@@ -636,7 +636,7 @@ internal static class WideRayIntersection
             directionLengthSquared,
             projection,
             constant,
-            WideArithmetic.FromSignedRaw(candidateRaw),
+            Signed192.Signed(candidateRaw),
             RawScale);
         if (candidateValue.IsZero)
         {
@@ -666,7 +666,7 @@ internal static class WideRayIntersection
                 directionLengthSquared,
                 projection,
                 constant,
-                WideArithmetic.FromSignedRaw(nextRaw),
+                Signed192.Signed(nextRaw),
                 RawScale);
             if (nextValue.Sign > 0)
             {
@@ -685,7 +685,7 @@ internal static class WideRayIntersection
                 directionLengthSquared,
                 projection,
                 constant,
-                WideArithmetic.FromSignedRaw(middleRaw),
+                Signed192.Signed(middleRaw),
                 RawScale);
             if (middleValue.Sign > 0)
                 lowRaw = middleRaw;
@@ -709,14 +709,14 @@ internal static class WideRayIntersection
 
         Signed320 represented = WideArithmetic.MultiplySigned192(
             denominator,
-            WideArithmetic.FromSignedRaw(raw));
+            Signed192.Signed(raw));
         Signed320 exact = WideArithmetic.MultiplySigned192(numerator, RawScale);
         return WideArithmetic.CompareMagnitude(represented, exact) > 0 ? raw - 1L : raw;
     }
 
     private static Signed192 GetRadiusSquared(Signed192 radius)
     {
-        _ = WideArithmetic.TryNarrowSigned192(
+        _ = Signed192.TryNarrowSigned(
             WideArithmetic.MultiplySigned192(radius, radius),
             out Signed192 radiusSquared);
         return radiusSquared;
@@ -729,13 +729,13 @@ internal static class WideRayIntersection
         Signed192 timeNumerator,
         Signed192 timeDenominator)
     {
-        _ = WideArithmetic.TryNarrowSigned192(
+        _ = Signed192.TryNarrowSigned(
             WideArithmetic.MultiplySigned192(timeNumerator, timeNumerator),
             out Signed192 timeSquared);
-        _ = WideArithmetic.TryNarrowSigned192(
+        _ = Signed192.TryNarrowSigned(
             WideArithmetic.MultiplySigned192(timeNumerator, timeDenominator),
             out Signed192 timeProduct);
-        _ = WideArithmetic.TryNarrowSigned192(
+        _ = Signed192.TryNarrowSigned(
             WideArithmetic.MultiplySigned192(timeDenominator, timeDenominator),
             out Signed192 denominatorSquared);
 

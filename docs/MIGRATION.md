@@ -142,15 +142,16 @@ component cannot disappear before collision classification.
 
 Centered capsule and centered finite-cylinder overloads retain the existing
 inclusive-start and strict-end containment flags. Endpoint-authored capsule and
-cylinder overloads provide the same classification. Affine cylinder overloads
-retain separate authored half-length, radial expansion, and axial expansion.
+cylinder overloads provide the same classification. Centered cylinder
+overloads retain separate authored full axis length, radial expansion, and
+axial expansion.
 
 For swept spheres, `FixedSegment` now also exposes
 `TryGetSweptSphereFiniteCylinderIntersectionDistance` and
 `TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval`. These
 methods solve the rounded side, cap, and circular-rim boundary of the exact
 finite-cylinder/sphere Minkowski sum. They are not aliases for independently
-expanding cylinder radius and half-height, which produces a larger sharp-rim
+expanding cylinder radius and height, which produces a larger sharp-rim
 volume. The entry-only form avoids refining the toroidal-rim exit root when a
 query needs only its first contact; both forms retain exact wide intermediates
 through one final round-half-to-even physical-distance conversion.
@@ -350,6 +351,42 @@ endpoint difference. Spatial indexes should use
 `Proportions`: it retains both union volumes in exact unsigned 192-bit
 arithmetic and clamps only the final integer heuristic to `long.MaxValue`.
 
+### Canonical Oriented Boxes
+
+`FixedOrientedBox` is the new invariant-bearing 3D oriented-box primitive. It
+stores only a center, normalized orientation, and strictly positive local
+half-extents. Construction rejects non-normalized quaternions and non-positive
+half-extents; `default(FixedOrientedBox)` is deliberately invalid.
+
+The public feature API stays center-relative. `GetLocalCorner` and
+`GetLocalSupportPoint` select stable local features, while
+`TryMaterializeLocalPoint` performs the one final exact local-to-world
+conversion only when a world-space witness is actually needed.
+`GetBoundsClippedToDomain` computes analytical extents without materializing or
+deforming saturated world corners.
+
+`Contains`, `TryGetClosestPointOnSurface`, and `GetNearestFaceNormal` use one
+exact scale-invariant rational basis derived from the stored quaternion's raw
+components. `GetAxes` exposes nearest-even `Fixed64` views of those conceptual
+axes; the rounded views are not reused for classification. Support ties retain
+the lower corner index, and nearest-face ties select X, then Y, then Z.
+Equality remains structural: `q` and `-q` produce identical geometry but remain
+distinct stored orientations.
+
+Materialization rounds a conceptual local-to-world result once to its nearest
+even Q32.32 lattice point. Because a conceptual face or corner can lie between
+lattice points, a rounded boundary witness is not guaranteed to classify as
+contained. Use an inset local point when the materialized result must remain
+strictly inside.
+
+Both the standard and Lean packages expose the same oriented-box API.
+`FixedOrientedBox` supports constructor-validated JSON serialization but is
+intentionally not MemoryPack-annotated: MemoryPack serializes unmanaged structs
+as raw memory and therefore cannot enforce the constructor invariant. It also
+does not advertise field-based binary serialization for the same reason.
+Persist authored center/orientation/half-extents in a validated DTO when a
+binary payload is required.
+
 ### FixedTransform Local And World Contract
 
 `FixedTransform` no longer hides one mutable matrix behind ambiguous component
@@ -446,6 +483,23 @@ assign an odd reflection's canonical negative sign to X. They no longer return
 the matrix diagonal. If a caller genuinely needs diagonal entries, read `M11`,
 `M22`, and `M33` explicitly and do not label them scale.
 
+Callers that cannot accept a saturated basis magnitude should use
+`Fixed4x4.TryExtractLossyScale`. It preserves the same canonical reflection
+contract, accepts singular, sheared, and non-affine bases, and returns `false`
+with zero only when a final row magnitude is not representable.
+`FixedTransform.TryGetLossyScale` combines this with strict hierarchy
+composition. `Fixed4x4.TryTransformAffinePoint` similarly rejects non-affine
+matrices and computes each row-vector point coordinate with one exact
+round-half-to-even conversion, returning zero atomically when any coordinate is
+not representable.
+
+For rigid-frame geometry that also applies a local scale, use
+`FixedQuaternion.TryTransformScaledPoint` in 3D or
+`Vector2d.TryTransformScaledPoint` in 2D. Their overloads retain
+`origin + rotation * (localPoint * scale)` as one wide operation and return
+`false` only when a final coordinate is outside the scalar domain; they avoid
+the intermediate saturation of separately scaling, rotating, and translating.
+
 `SetScale` and `ResetScaleToIdentity` only overwrote diagonal entries and
 corrupted rotated bases. Construct a pure scale matrix with `CreateScale`.
 `SetGlobalScale` was also removed: a matrix value has no parent or global
@@ -515,7 +569,7 @@ bool capsuleHit = query.TryGetCapsuleIntersectionInterval(
 bool centeredCapsuleHit = query.TryGetCapsuleIntersectionInterval(
     capsuleCenter,
     normalizedCapsuleAxis,
-    capsuleHalfLength,
+    capsuleAxisLength,
     capsuleRadius,
     radiusExpansion,
     out Fixed64 centeredCapsuleEntry,
@@ -530,7 +584,7 @@ bool cylinderHit = query.TryGetFiniteCylinderIntersectionInterval(
 bool centeredCylinderHit = query.TryGetFiniteCylinderIntersectionInterval(
     cylinderCenter,
     normalizedCylinderAxis,
-    cylinderHalfLength,
+    cylinderAxisLength,
     cylinderRadius,
     radialExpansion,
     axialExpansion,
@@ -538,10 +592,10 @@ bool centeredCylinderHit = query.TryGetFiniteCylinderIntersectionInterval(
     out Fixed64 centeredExit);
 ```
 
-Expanded overloads accept authored radius and expansion separately. The affine
-finite-cylinder overload also accepts the positive authored axis half-length
-and a separate axial expansion, avoiding a narrowed combined radius, full axis
-length, or expanded cap center. Capsule zero axes reduce to a circle or sphere;
+Expanded overloads accept authored radius and expansion separately. The
+centered finite-cylinder overload accepts the positive full authored axis
+length and a separate axial expansion, avoiding a narrowed combined radius or
+expanded cap center. Capsule zero lengths reduce to a circle or sphere;
 cylinder zero axes throw because the segment cannot retain a cap normal.
 Returned closed `[0, 1]` parameters are rounded half to even, so deterministic
 query goldens produced by an older downstream quadratic should be regenerated.
@@ -553,7 +607,7 @@ space instead of constructing a segment solely to reuse these methods:
 bool rayCapsuleHit = ray.TryGetCapsuleIntersectionInterval(
     capsuleCenter,
     normalizedCapsuleAxis,
-    capsuleHalfLength,
+    capsuleAxisLength,
     capsuleRadius,
     radiusExpansion,
     maxParameter,
@@ -569,9 +623,15 @@ Use the centered capsule or cylinder overload when a physical center and
 normalized axis are the source of truth, especially near `Fixed64.MinValue` or
 `Fixed64.MaxValue`. Neither contract constructs cap centers, so scalar
 saturation cannot silently shorten or rotate the finite axis. A centered
-capsule accepts zero half-length as the circle/sphere limit; a centered cylinder
-requires a positive half-length. Invalid zero or non-unit axis directions are
+capsule accepts zero length as the circle/sphere limit; a centered cylinder
+requires a positive full length. Invalid zero or non-unit axis directions are
 rejected.
+
+`FixedBoundArea.FromCenteredCapsuleClippedToDomain` and
+`FixedBoundBox.FromCenteredCapsuleClippedToDomain` derive tight analytical 2D
+and 3D axis-aligned bounds from that full-length capsule contract. Exact
+conceptual endpoints are rounded outward and clipped only at the final scalar
+domain boundary.
 
 Centered capsule containment, closest-feature direction, and surface
 reconstruction are available through
@@ -581,6 +641,13 @@ normalized radial direction so callers can choose the otherwise non-unique
 on-axis result. It fuses the conceptual axis point and radial offset before one
 final half-to-even conversion, returning `false` only when the final surface
 coordinate cannot be represented.
+
+Callers that previously cached cap centers or reconstructed convex support
+points should keep center, normalized axis, full length, and radius as the
+canonical state. Use `TryGetCenteredAxisEndpoint` for an explicitly selected
+cap and the centered capsule, finite-cylinder, or finite-cone `Try*Support`
+helper for a final support witness. These helpers preserve odd raw lengths and
+return `false` atomically when the selected world point is not representable.
 
 Centered capsule containment has explicit `strict` overloads in 2D and 3D;
 strict mode excludes the cylindrical side and both rounded-cap boundaries while

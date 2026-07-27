@@ -9,6 +9,11 @@ using System;
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Narrowing helpers that reduce wide 320-bit radial coefficients down to
+/// 192-bit values when their magnitude and common shift allow it, enabling
+/// cheaper downstream arithmetic in the narrow intersection solver.
+/// </content>
 internal static partial class WideFiniteAxisIntersection
 {
     // Squaring two values below 2^159 and subtracting their products stays
@@ -44,9 +49,9 @@ internal static partial class WideFiniteAxisIntersection
             return false;
         }
 
-        bool coefficientFits = WideArithmetic.TryNarrowSigned192(coefficient, out narrowCoefficient);
-        bool projectionFits = WideArithmetic.TryNarrowSigned192(projection, out narrowProjection);
-        bool constantFits = WideArithmetic.TryNarrowSigned192(constant, out narrowConstant);
+        bool coefficientFits = Signed192.TryNarrowSigned(coefficient, out narrowCoefficient);
+        bool projectionFits = Signed192.TryNarrowSigned(projection, out narrowProjection);
+        bool constantFits = Signed192.TryNarrowSigned(constant, out narrowConstant);
         return coefficientFits && projectionFits && constantFits;
     }
 

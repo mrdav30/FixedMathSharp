@@ -9,10 +9,12 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Static helper operations for <see cref="Fixed64"/>, including sign/integer checks,
+/// leading-zero counting, and exact wide-precision product comparisons.
+/// </content>
 public partial struct Fixed64
 {
-    #region Static Operations
-
     /// <summary>
     /// Counts the leading zeros in a 64-bit unsigned integer.
     /// </summary>
@@ -52,5 +54,52 @@ public partial struct Fixed64
         return ((ulong)value.m_rawValue & FixedMath.MAX_SHIFTED_AMOUNT_UI) == 0;
     }
 
-    #endregion
+    /// <summary>
+    /// Compares the exact mathematical product <paramref name="leftFirst"/> *
+    /// <paramref name="leftSecond"/> with <paramref name="rightFirst"/> *
+    /// <paramref name="rightSecond"/> without rounding or saturation.
+    /// </summary>
+    /// <returns>
+    /// A negative value when the left product is smaller, zero when the exact
+    /// products are equal, or a positive value when the left product is larger.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CompareProducts(
+        Fixed64 leftFirst,
+        Fixed64 leftSecond,
+        Fixed64 rightFirst,
+        Fixed64 rightSecond) =>
+        WideArithmetic.SubtractSigned192(
+            GetExactTwoFactorProduct(leftFirst, leftSecond),
+            GetExactTwoFactorProduct(rightFirst, rightSecond)).Sign;
+
+    /// <summary>
+    /// Compares the exact four-factor mathematical product
+    /// <paramref name="leftFirst"/> * <paramref name="leftSecond"/> *
+    /// <paramref name="leftThird"/> * <paramref name="leftFourth"/> with
+    /// <paramref name="rightFirst"/> * <paramref name="rightSecond"/> *
+    /// <paramref name="rightThird"/> * <paramref name="rightFourth"/> without
+    /// rounding or saturation.
+    /// </summary>
+    /// <returns>
+    /// A negative value when the left product is smaller, zero when the exact
+    /// products are equal, or a positive value when the left product is larger.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CompareProducts(
+        Fixed64 leftFirst,
+        Fixed64 leftSecond,
+        Fixed64 leftThird,
+        Fixed64 leftFourth,
+        Fixed64 rightFirst,
+        Fixed64 rightSecond,
+        Fixed64 rightThird,
+        Fixed64 rightFourth) =>
+        WideArithmetic.SubtractSigned320(
+            WideArithmetic.MultiplySigned192(
+                GetExactTwoFactorProduct(leftFirst, leftSecond),
+                GetExactTwoFactorProduct(leftThird, leftFourth)),
+            WideArithmetic.MultiplySigned192(
+                GetExactTwoFactorProduct(rightFirst, rightSecond),
+                GetExactTwoFactorProduct(rightThird, rightFourth))).Sign;
 }

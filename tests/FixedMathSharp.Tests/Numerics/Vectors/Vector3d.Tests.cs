@@ -503,6 +503,72 @@ public class Vector3dTests
     }
 
     [Fact]
+    public void TryAddSubtract_UsesExactComponentsAndFailsAtomically()
+    {
+        Assert.True(Vector3d.TryAddSubtract(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Three, Fixed64.MinValue),
+            new Vector3d(Fixed64.One, Fixed64.Two, -Fixed64.One),
+            new Vector3d(Fixed64.One, Fixed64.One, -Fixed64.One),
+            out Vector3d exact));
+        Assert.Equal(
+            new Vector3d(Fixed64.MaxValue, (Fixed64)4, Fixed64.MinValue),
+            exact);
+
+        Assert.False(Vector3d.TryAddSubtract(
+            new Vector3d(Fixed64.MaxValue, Fixed64.One, Fixed64.One),
+            new Vector3d(Fixed64.One, Fixed64.One, Fixed64.One),
+            Vector3d.Zero,
+            out Vector3d firstFailed));
+        Assert.Equal(default, firstFailed);
+
+        Assert.False(Vector3d.TryAddSubtract(
+            new Vector3d(Fixed64.One, Fixed64.MaxValue, Fixed64.One),
+            new Vector3d(Fixed64.One, Fixed64.One, Fixed64.One),
+            Vector3d.Zero,
+            out Vector3d middleFailed));
+        Assert.Equal(default, middleFailed);
+
+        Assert.False(Vector3d.TryAddSubtract(
+            new Vector3d(Fixed64.One, Fixed64.One, Fixed64.MinValue),
+            new Vector3d(Fixed64.One, Fixed64.One, -Fixed64.One),
+            Vector3d.Zero,
+            out Vector3d finalFailed));
+        Assert.Equal(default, finalFailed);
+    }
+
+    [Fact]
+    public void TrySubtractSums_UsesExactComponentsAndFailsAtomically()
+    {
+        Assert.True(Vector3d.TrySubtractSums(
+            new Vector3d(
+                Fixed64.MaxValue,
+                Fixed64.MinValue,
+                Fixed64.MaxValue),
+            new Vector3d(
+                Fixed64.MaxValue,
+                Fixed64.MinValue,
+                Fixed64.MaxValue),
+            new Vector3d(
+                Fixed64.MaxValue,
+                Fixed64.MinValue,
+                Fixed64.MaxValue),
+            new Vector3d(
+                Fixed64.MaxValue,
+                Fixed64.MinValue,
+                Fixed64.MaxValue),
+            out Vector3d cancelled));
+        Assert.Equal(Vector3d.Zero, cancelled);
+
+        Assert.False(Vector3d.TrySubtractSums(
+            new Vector3d(Fixed64.Zero, Fixed64.MaxValue, Fixed64.Zero),
+            new Vector3d(Fixed64.Zero, Fixed64.MaxValue, Fixed64.Zero),
+            new Vector3d(Fixed64.Zero, Fixed64.MinValue, Fixed64.Zero),
+            new Vector3d(Fixed64.Zero, Fixed64.MinValue, Fixed64.Zero),
+            out Vector3d overflow));
+        Assert.Equal(default, overflow);
+    }
+
+    [Fact]
     public void CompareProjection_ThreeExtremeTermsBeyondSigned128_ReturnsExactSign()
     {
         var maximum = new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue);

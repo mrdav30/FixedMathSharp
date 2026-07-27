@@ -915,6 +915,309 @@ public class FixedQuaternionTests
     }
 
     [Fact]
+    public void FixedQuaternion_TryRotate_UsesExactScaleInvariantBasis()
+    {
+        var quaternion = new FixedQuaternion(
+            Fixed64.Zero,
+            Fixed64.Zero,
+            Fixed64.One,
+            Fixed64.One);
+
+        Assert.True(quaternion.TryRotate(Vector3d.Right, out Vector3d rotated));
+        Assert.True(rotated.FuzzyEqual(Vector3d.Up, Fixed64.FromRaw(2)));
+
+        Assert.True(FixedQuaternion.Zero.TryRotate(
+            new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue),
+            out Vector3d zero));
+        Assert.Equal(Vector3d.Zero, zero);
+
+        FixedQuaternion diagonal = FixedQuaternion.FromAxisAngle(
+            Vector3d.Forward,
+            Fixed64.PiOver4);
+        Assert.False(diagonal.TryRotate(
+            new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.Zero),
+            out Vector3d overflow));
+        Assert.Equal(default, overflow);
+    }
+
+    [Fact]
+    public void FixedQuaternion_ExactPointOperations_DeferNarrowingAndFailAtomically()
+    {
+        var rotation = new FixedQuaternion(
+            Fixed64.Zero,
+            Fixed64.Zero,
+            Fixed64.One,
+            Fixed64.Two);
+        var localPoint = new Vector3d(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.Zero);
+        Assert.False(rotation.TryRotate(localPoint, out _));
+        Assert.True(Fixed64.TryMultiplyDivide(
+            Fixed64.MaxValue,
+            Fixed64.One,
+            (Fixed64)5,
+            out Fixed64 oneFifth));
+        Assert.True(Fixed64.TryMultiplyDivide(
+            Fixed64.MaxValue,
+            (Fixed64)2,
+            (Fixed64)5,
+            out Fixed64 twoFifths));
+        Assert.True(Fixed64.TryMultiplyDivide(
+            Fixed64.MaxValue,
+            (Fixed64)3,
+            (Fixed64)5,
+            out Fixed64 threeFifths));
+
+        Assert.True(rotation.TryTransformPoint(
+            new Vector3d(
+                Fixed64.Zero,
+                -Fixed64.MaxValue,
+                Fixed64.Zero),
+            localPoint,
+            out Vector3d transformed));
+        Assert.Equal(new Vector3d(
+            -oneFifth,
+            twoFifths,
+            Fixed64.Zero), transformed);
+
+        Assert.True(rotation.TryGetRelativeOffset(
+            new Vector3d(
+                Fixed64.Zero,
+                Fixed64.MaxValue,
+                Fixed64.Zero),
+            new Vector3d(
+                Fixed64.Zero,
+                Fixed64.MaxValue,
+                Fixed64.Zero),
+            Vector3d.Zero,
+            localPoint,
+            out Vector3d relative));
+        Assert.Equal(new Vector3d(
+            oneFifth,
+            threeFifths,
+            Fixed64.Zero), relative);
+
+        Assert.True(FixedQuaternion.Identity.TryTransformPoint(
+            Vector3d.One,
+            Vector3d.One,
+            out Vector3d identityPoint));
+        Assert.Equal(Vector3d.One * Fixed64.Two, identityPoint);
+        Assert.True(FixedQuaternion.Identity.TryGetRelativeOffset(
+            Vector3d.One,
+            Vector3d.One,
+            Vector3d.One,
+            Vector3d.One,
+            out Vector3d identityRelative));
+        Assert.Equal(Vector3d.Zero, identityRelative);
+
+        Assert.False(FixedQuaternion.Identity.TryTransformPoint(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            Vector3d.Right,
+            out Vector3d transformOverflow));
+        Assert.Equal(default, transformOverflow);
+        Assert.False(FixedQuaternion.Identity.TryGetRelativeOffset(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(-Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            out Vector3d relativeOverflow));
+        Assert.Equal(default, relativeOverflow);
+        Assert.False(rotation.TryGetRelativeOffset(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
+            Vector3d.Zero,
+            out Vector3d rotatedRelativeOverflow));
+        Assert.Equal(default, rotatedRelativeOverflow);
+    }
+
+    [Fact]
+    public void FixedQuaternion_ExactPointOperations_PreserveZeroQuaternionContract()
+    {
+        Vector3d origin = new(
+            Fixed64.MaxValue,
+            Fixed64.MinValue,
+            Fixed64.One);
+
+        Assert.True(FixedQuaternion.Zero.TryTransformPoint(
+            origin,
+            new Vector3d(
+                Fixed64.MaxValue,
+                Fixed64.MaxValue,
+                Fixed64.MaxValue),
+            out Vector3d transformed));
+        Assert.Equal(origin, transformed);
+
+        Assert.True(FixedQuaternion.Zero.TryGetRelativeOffset(
+            origin,
+            new Vector3d(
+                Fixed64.MinValue,
+                Fixed64.MaxValue,
+                Fixed64.Zero),
+            Vector3d.Zero,
+            new Vector3d(
+                Fixed64.MaxValue,
+                Fixed64.MaxValue,
+                Fixed64.MaxValue),
+            out Vector3d relative));
+        Assert.Equal(new Vector3d(
+            -Fixed64.MinIncrement,
+            -Fixed64.MinIncrement,
+            Fixed64.One), relative);
+    }
+
+    [Fact]
+    public void FixedQuaternion_ThreeTermPointTransform_DefersAllNarrowingAndFailsAtomically()
+    {
+        var rotation = new FixedQuaternion(
+            Fixed64.Zero,
+            Fixed64.Zero,
+            Fixed64.One,
+            Fixed64.Two);
+        var localPoint = new Vector3d(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.Zero);
+        Assert.True(Fixed64.TryMultiplyDivide(
+            Fixed64.MaxValue,
+            Fixed64.One,
+            (Fixed64)5,
+            out Fixed64 oneFifth));
+        Assert.True(Fixed64.TryMultiplyDivide(
+            Fixed64.MaxValue,
+            (Fixed64)3,
+            (Fixed64)5,
+            out Fixed64 threeFifths));
+
+        Assert.True(rotation.TryTransformPoint(
+            new Vector3d(Fixed64.Zero, -Fixed64.MaxValue, Fixed64.Zero),
+            new Vector3d(Fixed64.Zero, -Fixed64.MaxValue, Fixed64.Zero),
+            localPoint,
+            out Vector3d rotatedCancellation));
+        Assert.Equal(
+            new Vector3d(-oneFifth, -threeFifths, Fixed64.Zero),
+            rotatedCancellation);
+
+        Assert.True(FixedQuaternion.Identity.TryTransformPoint(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(-Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            out Vector3d identityCancellation));
+        Assert.Equal(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            identityCancellation);
+
+        Assert.True(FixedQuaternion.Zero.TryTransformPoint(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
+            localPoint,
+            out Vector3d zeroRotation));
+        Assert.Equal(
+            new Vector3d(-Fixed64.MinIncrement, Fixed64.Zero, Fixed64.Zero),
+            zeroRotation);
+
+        Assert.False(FixedQuaternion.Identity.TryTransformPoint(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            out Vector3d overflow));
+        Assert.Equal(default, overflow);
+    }
+
+    [Fact]
+    public void FixedQuaternion_ExactPointOperations_DoNotAllocateAfterWarmup()
+    {
+        FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(
+            Vector3d.Up,
+            Fixed64.PiOver4);
+        Vector3d origin = new(Fixed64.One, Fixed64.Two, (Fixed64)3);
+        Vector3d localPoint = new(
+            Fixed64.FromFraction(1, 4),
+            Fixed64.FromFraction(1, 2),
+            Fixed64.FromFraction(3, 4));
+        Assert.True(rotation.TryTransformPoint(
+            origin,
+            localPoint,
+            out Vector3d transformed));
+        Assert.True(rotation.TryTransformPoint(
+            origin,
+            Vector3d.One,
+            localPoint,
+            out transformed));
+        Assert.True(rotation.TryGetRelativeOffset(
+            origin,
+            localPoint,
+            Vector3d.One,
+            localPoint,
+            out Vector3d relative));
+        Assert.True(FixedQuaternion.Identity.TryTransformPoint(
+            origin,
+            localPoint,
+            out transformed));
+        Assert.True(FixedQuaternion.Identity.TryTransformPoint(
+            origin,
+            Vector3d.One,
+            localPoint,
+            out transformed));
+        Assert.True(FixedQuaternion.Zero.TryTransformPoint(
+            origin,
+            Vector3d.One,
+            localPoint,
+            out transformed));
+        Assert.True(FixedQuaternion.Identity.TryGetRelativeOffset(
+            origin,
+            localPoint,
+            Vector3d.One,
+            localPoint,
+            out relative));
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int iteration = 0; iteration < 32; iteration++)
+        {
+            _ = rotation.TryTransformPoint(
+                origin,
+                localPoint,
+                out transformed);
+            _ = rotation.TryTransformPoint(
+                origin,
+                Vector3d.One,
+                localPoint,
+                out transformed);
+            _ = rotation.TryGetRelativeOffset(
+                origin,
+                localPoint,
+                Vector3d.One,
+                localPoint,
+                out relative);
+            _ = FixedQuaternion.Identity.TryTransformPoint(
+                origin,
+                localPoint,
+                out transformed);
+            _ = FixedQuaternion.Identity.TryTransformPoint(
+                origin,
+                Vector3d.One,
+                localPoint,
+                out transformed);
+            _ = FixedQuaternion.Zero.TryTransformPoint(
+                origin,
+                Vector3d.One,
+                localPoint,
+                out transformed);
+            _ = FixedQuaternion.Identity.TryGetRelativeOffset(
+                origin,
+                localPoint,
+                Vector3d.One,
+                localPoint,
+                out relative);
+        }
+
+        Assert.Equal(
+            0L,
+            GC.GetAllocatedBytesForCurrentThread() - before);
+    }
+
+    [Fact]
     public void FixedQuaternion_Rotated_WorksCorrectly()
     {
         var quaternion = FixedQuaternion.Identity;

@@ -9,6 +9,9 @@ using System;
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Contains methods for finding the first distance where a ray reaches a finite axis-aligned capsule or cylinder.
+/// </content>
 public partial struct FixedRay
 {
     /// <summary>
@@ -71,13 +74,13 @@ public partial struct FixedRay
     public readonly bool TryGetCapsuleIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 maxParameter,
         out Fixed64 entryParameter,
         out Fixed64 exitParameter) =>
         TryGetCapsuleIntersectionInterval(
-            center, axisDirection, axisHalfLength, radius, Fixed64.Zero, maxParameter,
+            center, axisDirection, axisLength, radius, Fixed64.Zero, maxParameter,
             out entryParameter, out exitParameter, out _, out _);
 
     /// <summary>
@@ -87,7 +90,7 @@ public partial struct FixedRay
     public readonly bool TryGetCapsuleIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 maxParameter,
@@ -96,7 +99,7 @@ public partial struct FixedRay
         out bool originContained,
         out bool maximumContainedStrict)
     {
-        ValidateCenteredCapsule(axisDirection, axisHalfLength, radius, radiusExpansion);
+        ValidateCenteredCapsule(axisDirection, axisLength, radius, radiusExpansion);
         if (!ValidateMaximum(
                 maxParameter,
                 out entryParameter,
@@ -108,7 +111,7 @@ public partial struct FixedRay
         }
 
         return WideFiniteAxisIntersection.TryGetCapsuleInterval(
-            this, maxParameter, center, axisDirection, axisHalfLength, radius, radiusExpansion,
+            this, maxParameter, center, axisDirection, axisLength, radius, radiusExpansion,
             out entryParameter, out exitParameter,
             out originContained, out maximumContainedStrict);
     }
@@ -164,45 +167,13 @@ public partial struct FixedRay
     }
 
     /// <summary>
-    /// Gets the closed parameter interval where this ray overlaps an affinely
-    /// expanded finite cylinder.
-    /// </summary>
-    public readonly bool TryGetFiniteCylinderIntersectionInterval(
-        FixedSegment cylinderAxis,
-        Fixed64 axisHalfLength,
-        Fixed64 radius,
-        Fixed64 radiusExpansion,
-        Fixed64 axialExpansion,
-        Fixed64 maxParameter,
-        out Fixed64 entryParameter,
-        out Fixed64 exitParameter)
-    {
-        if (cylinderAxis.Start == cylinderAxis.End)
-            throw new ArgumentException("A finite cylinder axis must have nonzero length.", nameof(cylinderAxis));
-        if (axisHalfLength <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
-        ValidateCylinderExpansions(radius, radiusExpansion, axialExpansion);
-        if (maxParameter < Fixed64.Zero)
-        {
-            entryParameter = default;
-            exitParameter = default;
-            return false;
-        }
-
-        return WideFiniteAxisIntersection.TryGetFiniteCylinderInterval(
-            this, maxParameter, cylinderAxis, axisHalfLength,
-            radius, radiusExpansion, axialExpansion,
-            out entryParameter, out exitParameter);
-    }
-
-    /// <summary>
     /// Gets the closed parameter interval where this ray overlaps a centered,
     /// affinely expanded finite cylinder.
     /// </summary>
     public readonly bool TryGetFiniteCylinderIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 axialExpansion,
@@ -210,7 +181,7 @@ public partial struct FixedRay
         out Fixed64 entryParameter,
         out Fixed64 exitParameter) =>
         TryGetFiniteCylinderIntersectionInterval(
-            center, axisDirection, axisHalfLength,
+            center, axisDirection, axisLength,
             radius, radiusExpansion, axialExpansion, maxParameter,
             out entryParameter, out exitParameter, out _, out _);
 
@@ -221,7 +192,7 @@ public partial struct FixedRay
     public readonly bool TryGetFiniteCylinderIntersectionInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 axialExpansion,
@@ -233,8 +204,8 @@ public partial struct FixedRay
     {
         if (!axisDirection.IsNormalized())
             throw new ArgumentException("Finite cylinder axis direction must be normalized.", nameof(axisDirection));
-        if (axisHalfLength <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (axisLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
         ValidateCylinderExpansions(radius, radiusExpansion, axialExpansion);
         if (!ValidateMaximum(
                 maxParameter,
@@ -247,7 +218,7 @@ public partial struct FixedRay
         }
 
         return WideFiniteAxisIntersection.TryGetFiniteCylinderInterval(
-            this, maxParameter, center, axisDirection, axisHalfLength,
+            this, maxParameter, center, axisDirection, axisLength,
             radius, radiusExpansion, axialExpansion,
             out entryParameter, out exitParameter,
             out originContained, out maximumContainedStrict);
@@ -255,14 +226,14 @@ public partial struct FixedRay
 
     private static void ValidateCenteredCapsule(
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion)
     {
         if (!axisDirection.IsNormalized())
             throw new ArgumentException("Capsule axis direction must be normalized.", nameof(axisDirection));
-        if (axisHalfLength < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (axisLength < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
         if (radius < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(radius));
         if (radiusExpansion < Fixed64.Zero)

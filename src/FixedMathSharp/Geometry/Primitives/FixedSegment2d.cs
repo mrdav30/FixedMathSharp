@@ -219,20 +219,20 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/> or
+    /// Thrown when <paramref name="axisLength"/> or
     /// <paramref name="radius"/> is negative.
     /// </exception>
     public readonly bool TryGetCapsuleIntersectionInterval(
         Vector2d center,
         Vector2d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         out Fixed64 entryParameter,
         out Fixed64 exitParameter) =>
         TryGetCapsuleIntersectionInterval(
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             Fixed64.Zero,
             out entryParameter,
@@ -246,14 +246,14 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/>,
+    /// Thrown when <paramref name="axisLength"/>,
     /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> is
     /// negative.
     /// </exception>
     public readonly bool TryGetCapsuleIntersectionInterval(
         Vector2d center,
         Vector2d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         out Fixed64 entryParameter,
@@ -261,7 +261,7 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
         TryGetCapsuleIntersectionInterval(
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             radiusExpansion,
             out entryParameter,
@@ -276,7 +276,7 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// </summary>
     /// <remarks>
     /// The normalized axis defines the conceptual center-line endpoints as
-    /// <c>center +/- axisDirection * axisHalfLength</c> without constructing or
+    /// <c>center +/- axisDirection * (axisLength / 2)</c> without constructing or
     /// narrowing either endpoint. <paramref name="startContained"/> includes the
     /// boundary; <paramref name="endContainedStrict"/> excludes it.
     /// </remarks>
@@ -284,14 +284,14 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Thrown when <paramref name="axisDirection"/> is zero or not normalized.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="axisHalfLength"/>,
+    /// Thrown when <paramref name="axisLength"/>,
     /// <paramref name="radius"/> or <paramref name="radiusExpansion"/> is
     /// negative.
     /// </exception>
     public readonly bool TryGetCapsuleIntersectionInterval(
         Vector2d center,
         Vector2d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         out Fixed64 entryParameter,
@@ -301,8 +301,8 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     {
         if (!axisDirection.IsNormalized())
             throw new ArgumentException("Capsule axis direction must be normalized.", nameof(axisDirection));
-        if (axisHalfLength < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (axisLength < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
         if (radius < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(radius));
         if (radiusExpansion < Fixed64.Zero)
@@ -312,7 +312,7 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
             this,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             radiusExpansion,
             out entryParameter,

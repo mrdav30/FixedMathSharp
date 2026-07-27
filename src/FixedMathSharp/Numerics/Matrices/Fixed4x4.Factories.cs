@@ -10,6 +10,10 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Factory methods for constructing <see cref="Fixed4x4"/> matrices, including
+/// translation, rotation, scale, and other common transformation matrices.
+/// </content>
 public partial struct Fixed4x4
 {
     #region Static Matrix Generators and Transformations

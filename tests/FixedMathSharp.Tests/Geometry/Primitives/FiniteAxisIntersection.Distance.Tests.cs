@@ -1,6 +1,6 @@
+using FixedMathSharp.Bounds;
 using System;
 using System.Numerics;
-using FixedMathSharp.Bounds;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
@@ -114,22 +114,10 @@ public sealed partial class FiniteAxisIntersectionTests
             out Fixed64 centeredExit,
             out _,
             out _));
-        Assert.True(query.TryGetFiniteCylinderIntersectionDistanceInterval(
-            axis,
-            Fixed64.One,
-            Fixed64.One,
-            Fixed64.Zero,
-            Fixed64.Zero,
-            (Fixed64)6,
-            out Fixed64 affineEntry,
-            out Fixed64 affineExit));
-
         Assert.Equal((Fixed64)2, endpointEntry);
         Assert.Equal((Fixed64)4, endpointExit);
         Assert.Equal(endpointEntry, centeredEntry);
         Assert.Equal(endpointExit, centeredExit);
-        Assert.Equal(endpointEntry, affineEntry);
-        Assert.Equal(endpointExit, affineExit);
         Assert.False(startContained);
         Assert.False(endContainedStrict);
     }
@@ -287,21 +275,6 @@ public sealed partial class FiniteAxisIntersectionTests
             Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One,
             Fixed64.Zero, -Fixed64.One, Fixed64.One, out _, out _, out _, out _));
 
-        Assert.Throws<ArgumentException>(() => query3d.TryGetFiniteCylinderIntersectionDistanceInterval(
-            collapsed3d, Fixed64.One, Fixed64.One, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.One, out _, out _));
-        Assert.Throws<ArgumentOutOfRangeException>(() => query3d.TryGetFiniteCylinderIntersectionDistanceInterval(
-            axis3d, Fixed64.Zero, Fixed64.One, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.One, out _, out _));
-        Assert.Throws<ArgumentOutOfRangeException>(() => query3d.TryGetFiniteCylinderIntersectionDistanceInterval(
-            axis3d, Fixed64.One, -Fixed64.One, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.One, out _, out _));
-        Assert.Throws<ArgumentOutOfRangeException>(() => query3d.TryGetFiniteCylinderIntersectionDistanceInterval(
-            axis3d, Fixed64.One, Fixed64.One, -Fixed64.One,
-            Fixed64.Zero, Fixed64.One, out _, out _));
-        Assert.Throws<ArgumentOutOfRangeException>(() => query3d.TryGetFiniteCylinderIntersectionDistanceInterval(
-            axis3d, Fixed64.One, Fixed64.One, Fixed64.Zero,
-            -Fixed64.One, Fixed64.One, out _, out _));
     }
 
     [Fact]
@@ -319,9 +292,6 @@ public sealed partial class FiniteAxisIntersectionTests
             Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One,
             Fixed64.Zero, Fixed64.Zero, (Fixed64)6,
             out _, out _, out _, out _));
-        Assert.False(query.TryGetFiniteCylinderIntersectionDistanceInterval(
-            axis, Fixed64.One, Fixed64.One, Fixed64.Zero,
-            Fixed64.Zero, (Fixed64)6, out _, out _));
     }
 
     [Fact]

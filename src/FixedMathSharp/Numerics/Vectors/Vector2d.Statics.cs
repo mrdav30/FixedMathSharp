@@ -5,15 +5,18 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
 using System.Runtime.CompilerServices;
+using FixedMathSharp.Bounds;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Static utility methods for <see cref="Vector2d"/>, including arithmetic helpers
+/// and safe (non-saturating) operation variants.
+/// </content>
 public partial struct Vector2d
 {
-    #region Static Operations
-
-
     /// <summary>
     /// Adds two vectors component-wise.
     /// </summary>
@@ -67,6 +70,71 @@ public partial struct Vector2d
     {
         if (!Fixed64.TrySubtract(left.X, right.X, out Fixed64 x)
             || !Fixed64.TrySubtract(left.Y, right.Y, out Fixed64 y))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector2d(x, y);
+        return true;
+    }
+
+    /// <summary>
+    /// Attempts to add two vectors and subtract a third component-wise without intermediate saturation.
+    /// </summary>
+    /// <param name="firstAddend">The first addend.</param>
+    /// <param name="secondAddend">The second addend.</param>
+    /// <param name="subtrahend">The vector to subtract from the exact component-wise sum.</param>
+    /// <param name="result">
+    /// The exact component-wise result when every component is representable; otherwise, <see langword="default"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when every exact component is representable; otherwise, <see langword="false"/>.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryAddSubtract(
+        Vector2d firstAddend,
+        Vector2d secondAddend,
+        Vector2d subtrahend,
+        out Vector2d result)
+    {
+        if (!Fixed64.TryAddSubtract(firstAddend.X, secondAddend.X, subtrahend.X, out Fixed64 x)
+            || !Fixed64.TryAddSubtract(firstAddend.Y, secondAddend.Y, subtrahend.Y, out Fixed64 y))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector2d(x, y);
+        return true;
+    }
+
+    /// <summary>
+    /// Attempts to compute <c>(firstLeft + firstRight) -
+    /// (secondLeft + secondRight)</c> component-wise without intermediate
+    /// saturation.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TrySubtractSums(
+        Vector2d firstLeft,
+        Vector2d firstRight,
+        Vector2d secondLeft,
+        Vector2d secondRight,
+        out Vector2d result)
+    {
+        bool representable = Fixed64.TrySubtractSums(
+                firstLeft.X,
+                firstRight.X,
+                secondLeft.X,
+                secondRight.X,
+                out Fixed64 x)
+            & Fixed64.TrySubtractSums(
+                firstLeft.Y,
+                firstRight.Y,
+                secondLeft.Y,
+                secondRight.Y,
+                out Fixed64 y);
+        if (!representable)
         {
             result = default;
             return false;
@@ -175,6 +243,80 @@ public partial struct Vector2d
             Fixed64.Zero);
         return scaled / scaledMagnitude;
     }
+
+    /// <summary>
+    /// Attempts to transform a component-scaled local point by a rotation and
+    /// world origin with one final round-half-to-even conversion per
+    /// component.
+    /// </summary>
+    public static bool TryTransformScaledPoint(
+        Vector2d origin,
+        Vector2d localPoint,
+        Vector2d scale,
+        Fixed64 angleInRadians,
+        out Vector2d result) =>
+        TryTransformScaledPoint(
+            origin,
+            localPoint,
+            scale,
+            Vector2d.Zero,
+            angleInRadians,
+            out result);
+
+    /// <summary>
+    /// Attempts to transform a component-scaled local point plus an unscaled
+    /// local displacement by a rotation and world origin with one final
+    /// round-half-to-even conversion per component.
+    /// </summary>
+    /// <remarks>
+    /// Computes
+    /// <c>origin + Rotate(scale * localPoint + localDisplacement)</c> without
+    /// narrowing the scaled point, local sum, or rotated offset independently.
+    /// </remarks>
+    public static bool TryTransformScaledPoint(
+        Vector2d origin,
+        Vector2d localPoint,
+        Vector2d scale,
+        Vector2d localDisplacement,
+        Fixed64 angleInRadians,
+        out Vector2d result) =>
+        WideVector2dTransform.TryTransformScaledPoint(
+            origin,
+            localPoint,
+            scale,
+            localDisplacement,
+            angleInRadians,
+            out result);
+
+    /// <summary>
+    /// Attempts to compose two component-scaled offsets in a shared frame and
+    /// one rotated inner-frame displacement with one final round-half-to-even
+    /// conversion per component.
+    /// </summary>
+    /// <remarks>
+    /// Computes
+    /// <c>outerScale * outerLocalPoint
+    /// + innerFrameScale * innerFrameOffset
+    /// + Rotate(innerLocalDisplacement)</c>
+    /// without narrowing either scaled offset or the rotated displacement
+    /// independently.
+    /// </remarks>
+    public static bool TryComposeScaledLocalPoints(
+        Vector2d outerLocalPoint,
+        Vector2d outerScale,
+        Vector2d innerFrameOffset,
+        Vector2d innerFrameScale,
+        Vector2d innerLocalDisplacement,
+        Fixed64 innerAngleInRadians,
+        out Vector2d result) =>
+        WideVector2dTransform.TryComposeScaledLocalPoints(
+            outerLocalPoint,
+            outerScale,
+            innerFrameOffset,
+            innerFrameScale,
+            innerLocalDisplacement,
+            innerAngleInRadians,
+            out result);
 
     /// <summary>
     /// Returns the normalized direction from <paramref name="start"/> toward
@@ -292,6 +434,23 @@ public partial struct Vector2d
     /// <returns>A vector where each component is -1, 0, or 1 based on the sign of the input.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d Sign(Vector2d value) => new(value.X.Sign(), value.Y.Sign());
+
+    /// <summary>
+    /// Attempts to calculate the exact non-negative weighted average with one
+    /// final round-half-to-even conversion per component.
+    /// </summary>
+    /// <remarks>
+    /// Zero-weight values are ignored. The operation returns
+    /// <see langword="false"/> only when the total weight is zero.
+    /// </remarks>
+    public static bool TryGetWeightedAverage(
+        ReadOnlySpan<Vector2d> values,
+        ReadOnlySpan<Fixed64> weights,
+        out Vector2d average)
+    {
+        WideWeightedAverage.ValidateInputs(values.Length, weights);
+        return WideWeightedAverage.TryGet(values, weights, out average);
+    }
 
     /// <summary>
     /// Creates a vector from a given angle in radians.
@@ -474,5 +633,173 @@ public partial struct Vector2d
         );
     }
 
-    #endregion
+    /// <summary>
+    /// Attempts to rotate a vector by the specified angle with one final
+    /// round-half-to-even conversion per component.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when both final components are representable;
+    /// otherwise, <see langword="false"/> and <paramref name="result"/> is
+    /// <see langword="default"/>.
+    /// </returns>
+    public static bool TryRotate(
+        Vector2d vector,
+        Fixed64 angleInRadians,
+        out Vector2d result)
+    {
+        Fixed64 cosine = FixedMath.Cos(angleInRadians);
+        Fixed64 sine = FixedMath.Sin(angleInRadians);
+        bool representable = Fixed64.TrySubtractProducts(
+                vector.X,
+                cosine,
+                vector.Y,
+                sine,
+                out Fixed64 x)
+            & Fixed64.TryAddProducts(
+                vector.X,
+                sine,
+                vector.Y,
+                cosine,
+                out Fixed64 y);
+        if (!representable)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector2d(x, y);
+        return true;
+    }
+
+    /// <summary>
+    /// Attempts to transform a local point by a rotation and origin with one
+    /// final round-half-to-even conversion per component.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when both final world components are
+    /// representable; otherwise, <see langword="false"/> and
+    /// <paramref name="result"/> is <see langword="default"/>.
+    /// </returns>
+    public static bool TryTransformPoint(
+        Vector2d origin,
+        Vector2d localPoint,
+        Fixed64 angleInRadians,
+        out Vector2d result)
+    {
+        if (angleInRadians == Fixed64.Zero)
+            return TryAdd(origin, localPoint, out result);
+
+        return WideVector2dTransform.TryTransformPoint(
+            origin,
+            localPoint,
+            angleInRadians,
+            out result);
+    }
+
+    /// <summary>
+    /// Attempts to transform a local point by a rotation and add two origins
+    /// with one final round-half-to-even conversion per component.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when both final world components are
+    /// representable; otherwise, <see langword="false"/> and
+    /// <paramref name="result"/> is <see langword="default"/>.
+    /// </returns>
+    public static bool TryTransformPoint(
+        Vector2d firstOrigin,
+        Vector2d secondOrigin,
+        Vector2d localPoint,
+        Fixed64 angleInRadians,
+        out Vector2d result) =>
+        WideVector2dTransform.TryTransformPoint(
+            firstOrigin,
+            secondOrigin,
+            localPoint,
+            angleInRadians,
+            out result);
+
+    /// <summary>
+    /// Attempts to obtain the exact relative offset
+    /// <c>firstOrigin + firstOffset - secondOrigin - Rotate(secondLocalPoint)</c>.
+    /// </summary>
+    /// <remarks>
+    /// No rotated point or intermediate sum is narrowed independently.
+    /// </remarks>
+    /// <returns>
+    /// <see langword="true"/> when both final components are representable;
+    /// otherwise, <see langword="false"/> and <paramref name="result"/> is
+    /// <see langword="default"/>.
+    /// </returns>
+    public static bool TryGetRelativeOffset(
+        Vector2d firstOrigin,
+        Vector2d firstOffset,
+        Vector2d secondOrigin,
+        Vector2d secondLocalPoint,
+        Fixed64 angleInRadians,
+        out Vector2d result)
+    {
+        if (angleInRadians == Fixed64.Zero)
+        {
+            return TrySubtractSums(
+                firstOrigin,
+                firstOffset,
+                secondOrigin,
+                secondLocalPoint,
+                out result);
+        }
+
+        return WideVector2dTransform.TryGetRelativeOffset(
+            firstOrigin,
+            firstOffset,
+            secondOrigin,
+            secondLocalPoint,
+            angleInRadians,
+            out result);
+    }
+
+    /// <summary>
+    /// Attempts to obtain the exact relative offset between two transformed
+    /// local points.
+    /// </summary>
+    /// <remarks>
+    /// The computed relation is
+    /// <c>firstOrigin + Rotate(firstLocalPoint, firstAngleInRadians)
+    /// - secondOrigin - Rotate(secondLocalPoint, secondAngleInRadians)</c>.
+    /// Neither rotated point nor any intermediate sum is narrowed
+    /// independently.
+    /// </remarks>
+    /// <returns>
+    /// <see langword="true"/> when both final components are representable;
+    /// otherwise, <see langword="false"/> and <paramref name="result"/> is
+    /// <see langword="default"/>.
+    /// </returns>
+    public static bool TryGetRelativeOffset(
+        Vector2d firstOrigin,
+        Vector2d firstLocalPoint,
+        Fixed64 firstAngleInRadians,
+        Vector2d secondOrigin,
+        Vector2d secondLocalPoint,
+        Fixed64 secondAngleInRadians,
+        out Vector2d result)
+    {
+        if (firstAngleInRadians == Fixed64.Zero
+            && secondAngleInRadians == Fixed64.Zero)
+        {
+            return TrySubtractSums(
+                firstOrigin,
+                firstLocalPoint,
+                secondOrigin,
+                secondLocalPoint,
+                out result);
+        }
+
+        return WideVector2dTransform.TryGetRelativeOffset(
+            firstOrigin,
+            firstLocalPoint,
+            firstAngleInRadians,
+            secondOrigin,
+            secondLocalPoint,
+            secondAngleInRadians,
+            out result);
+    }
 }

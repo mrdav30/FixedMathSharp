@@ -9,10 +9,11 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Operator overloads for <see cref="Vector2d"/>, including arithmetic, negation, and equality operators.
+/// </content>
 public partial struct Vector2d
 {
-    #region Operators
-
     /// <summary>
     /// Adds two Vector2d instances component-wise.
     /// </summary>
@@ -148,6 +149,4 @@ public partial struct Vector2d
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(Vector2d left, Vector2d right) => !left.Equals(right);
-
-    #endregion
 }

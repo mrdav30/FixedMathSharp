@@ -11,10 +11,11 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Conversion, formatting, and deconstruction utilities for <see cref="Vector2d"/>.
+/// </content>
 public partial struct Vector2d
 {
-    #region Conversion
-
     /// <summary>
     /// Returns a string representation of this vector.
     /// </summary>
@@ -133,6 +134,4 @@ public partial struct Vector2d
     public static Vector2d ToRadians(Vector2d degrees) =>
         new(FixedMath.DegToRad(degrees.X),
             FixedMath.DegToRad(degrees.Y));
-
-    #endregion
 }

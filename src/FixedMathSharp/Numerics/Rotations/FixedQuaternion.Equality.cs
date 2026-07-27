@@ -11,6 +11,9 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Equality, hashing, and string formatting for <see cref="FixedQuaternion"/>.
+/// </content>
 public partial struct FixedQuaternion
 {
     #region Equality and HashCode Overrides

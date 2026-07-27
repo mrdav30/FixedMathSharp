@@ -9,6 +9,13 @@ using System;
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Provides finite-cone intersection queries for <see cref="FixedTriangle"/>, computing the
+/// intersection point with the smallest axial parameter (closest to the apex along the cone's
+/// axis) among the triangle's three edges and its face. Edge candidates are evaluated first via
+/// <see cref="FixedSegment"/> intersection tests, followed by an exact wide-precision face test
+/// to correctly resolve degenerate and boundary cases.
+/// </content>
 public partial struct FixedTriangle
 {
     /// <summary>

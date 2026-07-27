@@ -1,6 +1,6 @@
+using FixedMathSharp.Bounds;
 using System;
 using System.Runtime.CompilerServices;
-using FixedMathSharp.Bounds;
 
 namespace FixedMathSharp.Chronicler;
 

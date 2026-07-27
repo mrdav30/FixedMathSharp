@@ -11,6 +11,9 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Conversion operators between Fixed64 and other numeric types (int, long, float, double, decimal, etc.).
+/// </content>
 public partial struct Fixed64
 {
     #region Explicit and Implicit Conversions

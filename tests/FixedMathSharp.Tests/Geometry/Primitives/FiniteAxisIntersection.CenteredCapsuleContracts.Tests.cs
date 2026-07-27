@@ -1,5 +1,5 @@
-using System;
 using FixedMathSharp.Bounds;
+using System;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
@@ -17,22 +17,22 @@ public sealed partial class FiniteAxisIntersectionTests
         var interior3d = new Vector3d(interior2d.X, interior2d.Y, Fixed64.Zero);
 
         Assert.True(FixedSegment2d.ContainsPointInCenteredCapsule(
-            side2d, Vector2d.Zero, Vector2d.Forward, Fixed64.One, Fixed64.One));
+            side2d, Vector2d.Zero, Vector2d.Forward, Fixed64.Two, Fixed64.One));
         Assert.False(FixedSegment2d.ContainsPointInCenteredCapsule(
-            side2d, Vector2d.Zero, Vector2d.Forward, Fixed64.One, Fixed64.One, strict: true));
+            side2d, Vector2d.Zero, Vector2d.Forward, Fixed64.Two, Fixed64.One, strict: true));
         Assert.False(FixedSegment2d.ContainsPointInCenteredCapsule(
-            tip2d, Vector2d.Zero, Vector2d.Forward, Fixed64.One, Fixed64.One, strict: true));
+            tip2d, Vector2d.Zero, Vector2d.Forward, Fixed64.Two, Fixed64.One, strict: true));
         Assert.True(FixedSegment2d.ContainsPointInCenteredCapsule(
-            interior2d, Vector2d.Zero, Vector2d.Forward, Fixed64.One, Fixed64.One, strict: true));
+            interior2d, Vector2d.Zero, Vector2d.Forward, Fixed64.Two, Fixed64.One, strict: true));
 
         Assert.True(FixedSegment.ContainsPointInCenteredCapsule(
-            side3d, Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One));
+            side3d, Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One));
         Assert.False(FixedSegment.ContainsPointInCenteredCapsule(
-            side3d, Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One, strict: true));
+            side3d, Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, strict: true));
         Assert.False(FixedSegment.ContainsPointInCenteredCapsule(
-            tip3d, Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One, strict: true));
+            tip3d, Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, strict: true));
         Assert.True(FixedSegment.ContainsPointInCenteredCapsule(
-            interior3d, Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One, strict: true));
+            interior3d, Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, strict: true));
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed partial class FiniteAxisIntersectionTests
             boundary2d,
             Vector2d.Zero,
             Vector2d.Forward,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.One,
             strict: false));
@@ -53,7 +53,7 @@ public sealed partial class FiniteAxisIntersectionTests
             boundary2d,
             Vector2d.Zero,
             Vector2d.Forward,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.One,
             strict: true));
@@ -61,7 +61,7 @@ public sealed partial class FiniteAxisIntersectionTests
             boundary3d,
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.One,
             strict: false));
@@ -69,7 +69,7 @@ public sealed partial class FiniteAxisIntersectionTests
             boundary3d,
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.One,
             strict: true));
@@ -85,7 +85,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetCapsuleIntersectionInterval(
             Vector2d.Zero,
             Vector2d.Forward,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             out Fixed64 entry,
             out Fixed64 exit));
@@ -95,7 +95,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.True(query.TryGetCapsuleIntersectionInterval(
             Vector2d.Zero,
             Vector2d.Forward,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Fixed64.One,
             out entry,
@@ -110,15 +110,15 @@ public sealed partial class FiniteAxisIntersectionTests
         var query = new FixedSegment2d(Vector2d.Zero, Vector2d.One);
 
         Assert.Throws<ArgumentException>(() => query.TryGetCapsuleIntersectionInterval(
-            Vector2d.Zero, Vector2d.Zero, Fixed64.One, Fixed64.One, out _, out _));
+            Vector2d.Zero, Vector2d.Zero, Fixed64.Two, Fixed64.One, out _, out _));
         Assert.Throws<ArgumentOutOfRangeException>(() => query.TryGetCapsuleIntersectionInterval(
             Vector2d.Zero, Vector2d.Forward, -Fixed64.One, Fixed64.One, out _, out _));
         Assert.Throws<ArgumentOutOfRangeException>(() => query.TryGetCapsuleIntersectionInterval(
-            Vector2d.Zero, Vector2d.Forward, Fixed64.One, -Fixed64.One, out _, out _));
+            Vector2d.Zero, Vector2d.Forward, Fixed64.Two, -Fixed64.One, out _, out _));
         Assert.Throws<ArgumentOutOfRangeException>(() => query.TryGetCapsuleIntersectionInterval(
             Vector2d.Zero,
             Vector2d.Forward,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             -Fixed64.One,
             out _,
@@ -129,20 +129,20 @@ public sealed partial class FiniteAxisIntersectionTests
     public void CenteredCapsuleHelpers2d_RejectInvalidGeometryContracts()
     {
         Assert.Throws<ArgumentException>(() => FixedSegment2d.GetDirectionFromCenteredAxis(
-            Vector2d.One, Vector2d.Zero, Vector2d.Zero, Fixed64.One));
+            Vector2d.One, Vector2d.Zero, Vector2d.Zero, Fixed64.Two));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSegment2d.GetDirectionFromCenteredAxis(
             Vector2d.One, Vector2d.Zero, Vector2d.Forward, -Fixed64.One));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSegment2d.TryGetDistanceToCenteredCapsule(
-            Vector2d.One, Vector2d.Zero, Vector2d.Forward, Fixed64.One, -Fixed64.One, out _));
+            Vector2d.One, Vector2d.Zero, Vector2d.Forward, Fixed64.Two, -Fixed64.One, out _));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSegment2d.ContainsPointInCenteredCapsule(
-            Vector2d.One, Vector2d.Zero, Vector2d.Forward, Fixed64.One, -Fixed64.One));
+            Vector2d.One, Vector2d.Zero, Vector2d.Forward, Fixed64.Two, -Fixed64.One));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSegment2d.ContainsPointInCenteredCapsule(
-            Vector2d.One, Vector2d.Zero, Vector2d.Forward, Fixed64.One, Fixed64.One, -Fixed64.One));
+            Vector2d.One, Vector2d.Zero, Vector2d.Forward, Fixed64.Two, Fixed64.One, -Fixed64.One));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSegment2d.TryGetSurfacePointOnCenteredCapsule(
             Vector2d.One,
             Vector2d.Zero,
             Vector2d.Forward,
-            Fixed64.One,
+            Fixed64.Two,
             -Fixed64.One,
             Vector2d.Right,
             out _));
@@ -150,7 +150,7 @@ public sealed partial class FiniteAxisIntersectionTests
             Vector2d.One,
             Vector2d.Zero,
             Vector2d.Forward,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Vector2d.Zero,
             out _));
@@ -160,20 +160,20 @@ public sealed partial class FiniteAxisIntersectionTests
     public void CenteredCapsuleHelpers3d_RejectInvalidGeometryContracts()
     {
         Assert.Throws<ArgumentException>(() => FixedSegment.GetDirectionFromCenteredAxis(
-            Vector3d.One, Vector3d.Zero, Vector3d.Zero, Fixed64.One));
+            Vector3d.One, Vector3d.Zero, Vector3d.Zero, Fixed64.Two));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSegment.GetDirectionFromCenteredAxis(
             Vector3d.One, Vector3d.Zero, Vector3d.Up, -Fixed64.One));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSegment.TryGetDistanceToCenteredCapsule(
-            Vector3d.One, Vector3d.Zero, Vector3d.Up, Fixed64.One, -Fixed64.One, out _));
+            Vector3d.One, Vector3d.Zero, Vector3d.Up, Fixed64.Two, -Fixed64.One, out _));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSegment.ContainsPointInCenteredCapsule(
-            Vector3d.One, Vector3d.Zero, Vector3d.Up, Fixed64.One, -Fixed64.One));
+            Vector3d.One, Vector3d.Zero, Vector3d.Up, Fixed64.Two, -Fixed64.One));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSegment.ContainsPointInCenteredCapsule(
-            Vector3d.One, Vector3d.Zero, Vector3d.Up, Fixed64.One, Fixed64.One, -Fixed64.One));
+            Vector3d.One, Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, -Fixed64.One));
         Assert.Throws<ArgumentOutOfRangeException>(() => FixedSegment.TryGetSurfacePointOnCenteredCapsule(
             Vector3d.One,
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             -Fixed64.One,
             Vector3d.Right,
             out _));
@@ -181,7 +181,7 @@ public sealed partial class FiniteAxisIntersectionTests
             Vector3d.One,
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Vector3d.Zero,
             out _));
@@ -194,7 +194,7 @@ public sealed partial class FiniteAxisIntersectionTests
             new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
             new Vector2d(Fixed64.MaxValue - Fixed64.One, Fixed64.Zero),
             Vector2d.Right,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Vector2d.Right,
             out Vector2d surface2d));
@@ -203,7 +203,7 @@ public sealed partial class FiniteAxisIntersectionTests
             new Vector2d(Fixed64.Zero, Fixed64.MaxValue),
             new Vector2d(Fixed64.Zero, Fixed64.MaxValue - Fixed64.One),
             Vector2d.Forward,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Vector2d.Forward,
             out surface2d));
@@ -224,7 +224,7 @@ public sealed partial class FiniteAxisIntersectionTests
             new Vector2d((Fixed64)(-2), Fixed64.Zero),
             Vector2d.Zero,
             Vector2d.Right,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             Vector2d.Left,
             out Vector2d negativeCapSurface));
@@ -234,12 +234,12 @@ public sealed partial class FiniteAxisIntersectionTests
             new Vector3d((Fixed64)2, Fixed64.Zero, Fixed64.Zero),
             Vector3d.Zero,
             Vector3d.Right,
-            Fixed64.One));
+            Fixed64.Two));
         Assert.True(FixedSegment.ContainsPointInCenteredCapsule(
             Vector3d.Zero,
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One));
     }
 
@@ -295,7 +295,7 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.False(query3d.TryGetCapsuleIntersectionInterval(
             Vector3d.Zero,
             Vector3d.Up,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.Zero,
             out _,
             out _));
@@ -313,7 +313,7 @@ public sealed partial class FiniteAxisIntersectionTests
             point,
             center,
             axis,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.One,
             axis,
             out surface);
@@ -328,7 +328,7 @@ public sealed partial class FiniteAxisIntersectionTests
         return query.TryGetCapsuleIntersectionInterval(
             Vector2d.Zero,
             Vector2d.Forward,
-            Fixed64.One,
+            Fixed64.Two,
             Fixed64.Zero,
             out entry,
             out _);

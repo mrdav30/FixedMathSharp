@@ -9,10 +9,11 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Equality, hashing, and comparison logic for <see cref="Vector3d"/>.
+/// </content>
 public partial struct Vector3d
 {
-    #region Equality and HashCode Overrides
-
     /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj) => obj is Vector3d other && Equals(other);
@@ -45,6 +46,4 @@ public partial struct Vector3d
     /// <paramref name="other"/>; or a value greater than zero if this instance is greater than <paramref
     /// name="other"/>, as determined by their squared magnitudes.</returns>
     public int CompareTo(Vector3d other) => MagnitudeSquared.CompareTo(other.MagnitudeSquared);
-
-    #endregion
 }

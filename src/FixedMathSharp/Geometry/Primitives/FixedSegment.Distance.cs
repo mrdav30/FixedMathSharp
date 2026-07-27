@@ -10,6 +10,11 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Distance and intersection-interval queries for <see cref="FixedSegment"/>,
+/// including capsule intersection tests against endpoint-authored and
+/// centered capsules.
+/// </content>
 public partial struct FixedSegment
 {
     /// <summary>
@@ -72,7 +77,7 @@ public partial struct FixedSegment
     public readonly bool TryGetCapsuleIntersectionDistanceInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 totalDistance,
         out Fixed64 entryDistance,
@@ -80,7 +85,7 @@ public partial struct FixedSegment
         TryGetCapsuleIntersectionDistanceInterval(
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             Fixed64.Zero,
             totalDistance,
@@ -97,7 +102,7 @@ public partial struct FixedSegment
     public readonly bool TryGetCapsuleIntersectionDistanceInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 totalDistance,
@@ -107,7 +112,7 @@ public partial struct FixedSegment
         out bool endContainedStrict)
     {
         ValidateTotalDistance(totalDistance);
-        ValidateCenteredAxis(axisDirection, axisHalfLength);
+        ValidateCenteredAxis(axisDirection, axisLength);
         if (radius < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(radius));
         if (radiusExpansion < Fixed64.Zero)
@@ -117,7 +122,7 @@ public partial struct FixedSegment
             this,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             radiusExpansion,
             totalDistance,
@@ -190,7 +195,7 @@ public partial struct FixedSegment
     public readonly bool TryGetFiniteCylinderIntersectionDistanceInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 axialExpansion,
@@ -203,8 +208,8 @@ public partial struct FixedSegment
         ValidateTotalDistance(totalDistance);
         if (!axisDirection.IsNormalized())
             throw new ArgumentException("Finite cylinder axis direction must be normalized.", nameof(axisDirection));
-        if (axisHalfLength <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        if (axisLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
         if (radius < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(radius));
         if (radiusExpansion < Fixed64.Zero)
@@ -216,7 +221,7 @@ public partial struct FixedSegment
             this,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             radiusExpansion,
             axialExpansion,
@@ -233,7 +238,7 @@ public partial struct FixedSegment
     /// </summary>
     /// <param name="center">Cylinder center.</param>
     /// <param name="axisDirection">Normalized cylinder axis direction.</param>
-    /// <param name="axisHalfLength">Positive unexpanded cylinder half-length.</param>
+    /// <param name="axisLength">Positive unexpanded cylinder axis length.</param>
     /// <param name="radius">Nonnegative unexpanded cylinder radius.</param>
     /// <param name="sphericalExpansion">Nonnegative spherical dilation radius.</param>
     /// <param name="totalDistance">Nonnegative physical length represented by this segment.</param>
@@ -243,13 +248,13 @@ public partial struct FixedSegment
     /// <paramref name="totalDistance"/> is zero for a non-point segment.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when the half-length is not positive, or when the radius,
+    /// Thrown when the axis length is not positive, or when the radius,
     /// expansion, or total distance is negative.
     /// </exception>
     public readonly bool TryGetSweptSphereFiniteCylinderIntersectionDistance(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 sphericalExpansion,
         Fixed64 totalDistance,
@@ -257,7 +262,7 @@ public partial struct FixedSegment
     {
         ValidateSphericallyExpandedFiniteCylinderArguments(
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             sphericalExpansion,
             totalDistance);
@@ -265,11 +270,64 @@ public partial struct FixedSegment
             this,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             sphericalExpansion,
             totalDistance,
             out distance);
+    }
+
+    /// <summary>
+    /// Finds the first physical distance where this segment intersects the
+    /// exact spherical dilation of a centered finite cylinder described by
+    /// its nonnegative half-axis length.
+    /// </summary>
+    /// <remarks>
+    /// This explicit half-axis contract retains the conceptual full length in
+    /// wide arithmetic, so half lengths greater than
+    /// <see cref="Fixed64.MaxValue"/> / 2 remain valid.
+    /// </remarks>
+    /// <param name="center">Cylinder center.</param>
+    /// <param name="axisDirection">Normalized cylinder axis direction.</param>
+    /// <param name="halfAxisLength">Nonnegative distance from the center to either flat cap.</param>
+    /// <param name="radius">Nonnegative unexpanded cylinder radius.</param>
+    /// <param name="sphericalExpansion">Nonnegative spherical dilation radius.</param>
+    /// <param name="totalDistance">Nonnegative physical length represented by this segment.</param>
+    /// <param name="distance">First intersection distance when one exists.</param>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="axisDirection"/> is not normalized, or when
+    /// <paramref name="totalDistance"/> is zero for a non-point segment.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when the half-axis length, radius, expansion, or total distance
+    /// is negative.
+    /// </exception>
+    public readonly bool TryGetSweptSphereCenteredFiniteCylinderIntersectionDistanceFromHalfAxisLength(
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 halfAxisLength,
+        Fixed64 radius,
+        Fixed64 sphericalExpansion,
+        Fixed64 totalDistance,
+        out Fixed64 distance)
+    {
+        ValidateTotalDistance(totalDistance);
+        ValidateCenteredAxis(axisDirection, halfAxisLength);
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (sphericalExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(sphericalExpansion));
+
+        return WideFiniteAxisIntersection
+            .TryGetSphericallyExpandedFiniteCylinderFirstDistanceFromHalfAxisLength(
+                this,
+                center,
+                axisDirection,
+                halfAxisLength,
+                radius,
+                sphericalExpansion,
+                totalDistance,
+                out distance);
     }
 
     /// <summary>
@@ -305,6 +363,40 @@ public partial struct FixedSegment
     }
 
     /// <summary>
+    /// Finds the first physical distance where this segment intersects the
+    /// exact spherical dilation of an oriented box.
+    /// </summary>
+    /// <param name="box">Unexpanded oriented box.</param>
+    /// <param name="sphericalExpansion">Nonnegative spherical dilation radius.</param>
+    /// <param name="totalDistance">Nonnegative physical length represented by this segment.</param>
+    /// <param name="distance">First intersection distance when one exists.</param>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="totalDistance"/> is zero for a non-point segment.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when the expansion or total distance is negative.
+    /// </exception>
+    public readonly bool TryGetSweptSphereOrientedBoxIntersectionDistance(
+        FixedOrientedBox box,
+        Fixed64 sphericalExpansion,
+        Fixed64 totalDistance,
+        out Fixed64 distance)
+    {
+        ValidateTotalDistance(totalDistance);
+        if (sphericalExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(sphericalExpansion));
+
+        return WideOrientedBox.TryGetSweptSphereIntersectionDistance(
+            box.Center,
+            box.Orientation,
+            box.HalfExtents,
+            this,
+            sphericalExpansion,
+            totalDistance,
+            out distance);
+    }
+
+    /// <summary>
     /// Finds the physical-distance interval where this segment intersects the
     /// exact spherical dilation of a centered finite cylinder.
     /// </summary>
@@ -314,7 +406,7 @@ public partial struct FixedSegment
     /// </remarks>
     /// <param name="center">Cylinder center.</param>
     /// <param name="axisDirection">Normalized cylinder axis direction.</param>
-    /// <param name="axisHalfLength">Positive unexpanded cylinder half-length.</param>
+    /// <param name="axisLength">Positive unexpanded cylinder axis length.</param>
     /// <param name="radius">Nonnegative unexpanded cylinder radius.</param>
     /// <param name="sphericalExpansion">Nonnegative spherical dilation radius.</param>
     /// <param name="totalDistance">Nonnegative physical length represented by this segment.</param>
@@ -327,13 +419,13 @@ public partial struct FixedSegment
     /// <paramref name="totalDistance"/> is zero for a non-point segment.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when the half-length is not positive, or when the radius,
+    /// Thrown when the axis length is not positive, or when the radius,
     /// expansion, or total distance is negative.
     /// </exception>
     public readonly bool TryGetSweptSphereFiniteCylinderIntersectionDistanceInterval(
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 sphericalExpansion,
         Fixed64 totalDistance,
@@ -344,7 +436,7 @@ public partial struct FixedSegment
     {
         ValidateSphericallyExpandedFiniteCylinderArguments(
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             sphericalExpansion,
             totalDistance);
@@ -353,7 +445,7 @@ public partial struct FixedSegment
             this,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             sphericalExpansion,
             totalDistance,
@@ -365,58 +457,19 @@ public partial struct FixedSegment
 
     private readonly void ValidateSphericallyExpandedFiniteCylinderArguments(
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 sphericalExpansion,
         Fixed64 totalDistance)
     {
         ValidateTotalDistance(totalDistance);
-        ValidateCenteredAxis(axisDirection, axisHalfLength);
-        if (axisHalfLength <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
+        ValidateCenteredAxis(axisDirection, axisLength);
+        if (axisLength <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(axisLength));
         if (radius < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(radius));
         if (sphericalExpansion < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(sphericalExpansion));
-    }
-
-    /// <summary>
-    /// Finds the physical-distance interval where this segment intersects an
-    /// affinely expanded finite cylinder whose unexpanded cap centers are
-    /// supplied by <paramref name="cylinderAxis"/>.
-    /// </summary>
-    public readonly bool TryGetFiniteCylinderIntersectionDistanceInterval(
-        FixedSegment cylinderAxis,
-        Fixed64 axisHalfLength,
-        Fixed64 radius,
-        Fixed64 radiusExpansion,
-        Fixed64 axialExpansion,
-        Fixed64 totalDistance,
-        out Fixed64 entryDistance,
-        out Fixed64 exitDistance)
-    {
-        ValidateTotalDistance(totalDistance);
-        if (cylinderAxis.Start == cylinderAxis.End)
-            throw new ArgumentException("A finite cylinder axis must have nonzero length.", nameof(cylinderAxis));
-        if (axisHalfLength <= Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axisHalfLength));
-        if (radius < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(radius));
-        if (radiusExpansion < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(radiusExpansion));
-        if (axialExpansion < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(axialExpansion));
-
-        return WideFiniteAxisIntersection.TryGetFiniteCylinderDistanceInterval(
-            this,
-            cylinderAxis,
-            axisHalfLength,
-            radius,
-            radiusExpansion,
-            axialExpansion,
-            totalDistance,
-            out entryDistance,
-            out exitDistance);
     }
 
     /// <summary>
@@ -444,8 +497,8 @@ public partial struct FixedSegment
         if (distance == totalDistance)
             return End;
 
-        Signed192 distanceRaw = WideArithmetic.FromSignedRaw(distance.m_rawValue);
-        Signed192 totalDistanceRaw = WideArithmetic.FromSignedRaw(totalDistance.m_rawValue);
+        Signed192 distanceRaw = Signed192.Signed(distance.m_rawValue);
+        Signed192 totalDistanceRaw = Signed192.Signed(totalDistance.m_rawValue);
         return new Vector3d(
             WideGeometry.InterpolateCoordinate(Start.X, End.X, distanceRaw, totalDistanceRaw),
             WideGeometry.InterpolateCoordinate(Start.Y, End.Y, distanceRaw, totalDistanceRaw),

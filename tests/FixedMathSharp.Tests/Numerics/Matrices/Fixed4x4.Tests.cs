@@ -71,6 +71,134 @@ public class Fixed4x4Tests
     }
 
     [Fact]
+    public void FixedMatrix4x4_TryMultiply_MatchesOperatorForRepresentableAffineAndFullMatrices()
+    {
+        var affineLeft = Fixed4x4.CreateScale(new Vector3d(2, 3, 4));
+        var affineRight = Fixed4x4.CreateTranslation(new Vector3d(5, 7, 11));
+        var fullLeft = new Fixed4x4(
+            new Fixed64(1), new Fixed64(2), new Fixed64(3), new Fixed64(4),
+            new Fixed64(5), new Fixed64(6), new Fixed64(7), new Fixed64(8),
+            new Fixed64(9), new Fixed64(10), new Fixed64(11), new Fixed64(12),
+            new Fixed64(13), new Fixed64(14), new Fixed64(15), new Fixed64(16));
+        var fullRight = new Fixed4x4(
+            new Fixed64(2), new Fixed64(3), new Fixed64(5), new Fixed64(7),
+            new Fixed64(11), new Fixed64(13), new Fixed64(17), new Fixed64(19),
+            new Fixed64(23), new Fixed64(29), new Fixed64(31), new Fixed64(37),
+            new Fixed64(41), new Fixed64(43), new Fixed64(47), new Fixed64(53));
+
+        Assert.True(Fixed4x4.TryMultiply(affineLeft, affineRight, out Fixed4x4 affineResult));
+        Assert.Equal(affineLeft * affineRight, affineResult);
+        Assert.True(Fixed4x4.TryMultiply(fullLeft, fullRight, out Fixed4x4 fullResult));
+        Assert.Equal(fullLeft * fullRight, fullResult);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_TryMultiply_PreservesRepresentableCancellationAcrossOverflowingProducts()
+    {
+        var left = new Fixed4x4(
+            Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+        var right = new Fixed4x4(
+            Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            -Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+
+        Assert.True(Fixed4x4.TryMultiply(left, right, out Fixed4x4 result));
+        Assert.Equal(Fixed64.Zero, result.M11);
+        Assert.Equal(Fixed64.One, result.M44);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_TryMultiply_ReturnsFalseWithoutPartialMatrixWhenACellIsUnrepresentable()
+    {
+        Fixed4x4 left = Fixed4x4.CreateScale(new Vector3d(Fixed64.MaxValue, Fixed64.One, Fixed64.One));
+        Fixed4x4 right = Fixed4x4.CreateScale(new Vector3d((Fixed64)2, Fixed64.One, Fixed64.One));
+
+        Assert.False(Fixed4x4.TryMultiply(left, right, out Fixed4x4 result));
+        Assert.Equal(Fixed4x4.Zero, result);
+    }
+
+    [Theory]
+    [InlineData(10_737_418_239L, 2L)]
+    [InlineData(10_737_418_240L, 2L)]
+    [InlineData(15_032_385_536L, 4L)]
+    [InlineData(10_737_418_241L, 3L)]
+    [InlineData(-10_737_418_239L, -2L)]
+    [InlineData(-10_737_418_240L, -2L)]
+    [InlineData(-15_032_385_536L, -4L)]
+    [InlineData(-10_737_418_241L, -3L)]
+    public void FixedMatrix4x4_TryMultiply_RoundsExactProductSumsToNearestEven(long rightRaw, long expectedRaw)
+    {
+        Fixed4x4 left = Fixed4x4.Identity;
+        Fixed4x4 right = Fixed4x4.Identity;
+        left.M11 = Fixed64.FromRaw(1L);
+        right.M11 = Fixed64.FromRaw(rightRaw);
+
+        Assert.True(Fixed4x4.TryMultiply(left, right, out Fixed4x4 result));
+        Assert.Equal(expectedRaw, result.M11.m_rawValue);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_TryMultiply_RejectsValueThatRoundsPastPositiveRawLimit()
+    {
+        Fixed4x4 left = Fixed4x4.Identity;
+        Fixed4x4 right = Fixed4x4.Identity;
+        left.M11 = Fixed64.MaxValue;
+        left.M12 = Fixed64.FromRaw(1L);
+        right.M21 = Fixed64.Half;
+
+        Assert.False(Fixed4x4.TryMultiply(left, right, out Fixed4x4 result));
+        Assert.Equal(Fixed4x4.Zero, result);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_TryMultiply_RejectsFourProductSumBeyond128Bits()
+    {
+        Fixed4x4 left = Fixed4x4.Zero;
+        left.M11 = Fixed64.MinValue;
+        left.M12 = Fixed64.MinValue;
+        left.M13 = Fixed64.MinValue;
+        left.M14 = Fixed64.MinValue;
+        Fixed4x4 right = Fixed4x4.Zero;
+        right.M11 = Fixed64.MinValue;
+        right.M21 = Fixed64.MinValue;
+        right.M31 = Fixed64.MinValue;
+        right.M41 = Fixed64.MinValue;
+
+        Assert.False(Fixed4x4.TryMultiply(left, right, out Fixed4x4 result));
+        Assert.Equal(Fixed4x4.Zero, result);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_TryMultiply_RejectsRoundingPastUnsignedAccumulatorLimit()
+    {
+        Fixed4x4 left = Fixed4x4.Zero;
+        left.M11 = Fixed64.MaxValue;
+        left.M12 = Fixed64.FromRaw(3L);
+        Fixed4x4 right = Fixed4x4.Zero;
+        right.M11 = Fixed64.Two;
+        right.M21 = Fixed64.Half;
+
+        Assert.False(Fixed4x4.TryMultiply(left, right, out Fixed4x4 result));
+        Assert.Equal(Fixed4x4.Zero, result);
+    }
+
+    [Fact]
+    public void FixedMatrix4x4_TryMultiply_PreservesExactMinimumRawCell()
+    {
+        Fixed4x4 left = Fixed4x4.Zero;
+        left.M11 = Fixed64.MinValue;
+        Fixed4x4 right = Fixed4x4.Zero;
+        right.M11 = Fixed64.One;
+
+        Assert.True(Fixed4x4.TryMultiply(left, right, out Fixed4x4 result));
+        Assert.Equal(Fixed64.MinValue, result.M11);
+    }
+
+    [Fact]
     public void FixedMatrix4x4_FromRows_MapsVectorRows()
     {
         var row0 = new Vector4d(1, 2, 3, 4);

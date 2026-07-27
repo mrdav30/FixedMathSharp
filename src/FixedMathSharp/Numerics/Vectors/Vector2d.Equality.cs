@@ -9,10 +9,11 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Equality, hashing, and comparison logic for <see cref="Vector2d"/>.
+/// </content>
 public partial struct Vector2d
 {
-    #region Equality, HashCode, and Comparable Overrides
-
     /// <summary>
     /// Are all components of this vector equal to zero?
     /// </summary>
@@ -70,6 +71,4 @@ public partial struct Vector2d
     /// <paramref name="other"/>; or a value greater than zero if this instance is greater than <paramref
     /// name="other"/>, as determined by their squared magnitudes.</returns>
     public int CompareTo(Vector2d other) => MagnitudeSquared.CompareTo(other.MagnitudeSquared);
-
-    #endregion
 }

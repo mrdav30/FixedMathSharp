@@ -10,6 +10,10 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Static utility methods for <see cref="Fixed4x4"/>, including interpolation, transposition,
+/// and component-wise arithmetic operations.
+/// </content>
 public partial struct Fixed4x4
 {
     #region Static Matrix Operators
@@ -228,6 +232,55 @@ public partial struct Fixed4x4
             );
 
         return FullTransformPoint(matrix, point);
+    }
+
+    /// <summary>
+    /// Attempts to transform a point by an affine matrix without intermediate saturation.
+    /// </summary>
+    /// <remarks>
+    /// FixedMathSharp applies matrices using the row-vector convention
+    /// <c>point * matrix</c>. Each result coordinate is accumulated exactly and
+    /// rounded half to even once. Non-affine matrices and unrepresentable final
+    /// coordinates fail with a zero result.
+    /// </remarks>
+    public static bool TryTransformAffinePoint(
+        Fixed4x4 matrix,
+        Vector3d point,
+        out Vector3d result)
+    {
+        if (!matrix.IsAffine)
+        {
+            result = Vector3d.Zero;
+            return false;
+        }
+
+        bool representable =
+            TryGetExactProductSum(
+                point.X, matrix.M11,
+                point.Y, matrix.M21,
+                point.Z, matrix.M31,
+                Fixed64.One, matrix.M41,
+                out Fixed64 x)
+            & TryGetExactProductSum(
+                point.X, matrix.M12,
+                point.Y, matrix.M22,
+                point.Z, matrix.M32,
+                Fixed64.One, matrix.M42,
+                out Fixed64 y)
+            & TryGetExactProductSum(
+                point.X, matrix.M13,
+                point.Y, matrix.M23,
+                point.Z, matrix.M33,
+                Fixed64.One, matrix.M43,
+                out Fixed64 z);
+        if (!representable)
+        {
+            result = Vector3d.Zero;
+            return false;
+        }
+
+        result = new Vector3d(x, y, z);
+        return true;
     }
 
     private static Vector3d FullTransformPoint(Fixed4x4 matrix, Vector3d point)

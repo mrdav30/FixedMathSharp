@@ -275,42 +275,43 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
     }
 
     /// <summary>
-    /// Creates the representable-domain intersection of the tight axis-aligned
-    /// bounds of a finite cone with a flat circular base.
+    /// Creates conservative target-frame bounds for a rotated source-frame
+    /// box, clipping only final target-frame endpoints to the scalar domain.
     /// </summary>
-    /// <param name="apex">The cone apex.</param>
-    /// <param name="baseCenter">The center of the cone's flat base.</param>
-    /// <param name="axisDirection">The normalized direction from apex to base.</param>
-    /// <param name="baseRadius">The nonnegative base radius.</param>
     /// <remarks>
-    /// Base-disk extents account for the exact squared length of a representably
-    /// normalized axis. They are rounded outward so broad-phase bounds cannot
-    /// omit a boundary point. Coordinates beyond the scalar domain are clipped.
+    /// Conceptually transforms every source local point as
+    /// <c>targetRotation^-1 * (sourceOrigin + sourceRotation * point - targetOrigin)</c>.
+    /// Source endpoints are normalized component-wise before the exact
+    /// projection. Intermediate world points are never materialized.
     /// </remarks>
-    /// <exception cref="ArgumentException">
-    /// <paramref name="axisDirection"/> is zero or not normalized.
-    /// </exception>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="baseRadius"/> is negative.
-    /// </exception>
-    public static FixedBoundBox FromFiniteConeClippedToDomain(
-        Vector3d apex,
-        Vector3d baseCenter,
-        Vector3d axisDirection,
-        Fixed64 baseRadius)
+    public static FixedBoundBox FromRelativeRotatedBoundsClippedToDomain(
+        Vector3d sourceOrigin,
+        FixedQuaternion sourceRotation,
+        Vector3d sourceLocalMin,
+        Vector3d sourceLocalMax,
+        Vector3d targetOrigin,
+        FixedQuaternion targetRotation)
     {
-        if (!axisDirection.IsNormalized())
-            throw new ArgumentException("Finite cone axis direction must be normalized.", nameof(axisDirection));
-        if (baseRadius < Fixed64.Zero)
-            throw new ArgumentOutOfRangeException(nameof(baseRadius));
+        if (!sourceRotation.IsNormalized())
+        {
+            throw new ArgumentException(
+                "Source rotation must be normalized.",
+                nameof(sourceRotation));
+        }
+        if (!targetRotation.IsNormalized())
+        {
+            throw new ArgumentException(
+                "Target rotation must be normalized.",
+                nameof(targetRotation));
+        }
 
-        Vector3d baseExtents = new(
-            GetFiniteConeDiskExtent(axisDirection, baseRadius, 0),
-            GetFiniteConeDiskExtent(axisDirection, baseRadius, 1),
-            GetFiniteConeDiskExtent(axisDirection, baseRadius, 2));
-        return FromMinMax(
-            Vector3d.Min(apex, baseCenter - baseExtents),
-            Vector3d.Max(apex, baseCenter + baseExtents));
+        return WideOrientedBox.GetRelativeRotatedBoundsClippedToDomain(
+            sourceOrigin,
+            sourceRotation,
+            sourceLocalMin,
+            sourceLocalMax,
+            targetOrigin,
+            targetRotation);
     }
 
     #endregion
@@ -742,7 +743,7 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
         if (!Vector3d.TrySubtract(center, halfSize, out Vector3d min)
             || !Vector3d.TryAdd(center, halfSize, out Vector3d max))
         {
-            throw CreateUnrepresentableBoundsException();
+            throw new OverflowException("The centered box places at least one endpoint outside the representable Fixed64 range.");
         }
 
         Min = min;
@@ -769,77 +770,6 @@ public partial struct FixedBoundBox : IEquatable<FixedBoundBox>
         WideGeometry.GetExtentMagnitude(scope.X),
         WideGeometry.GetExtentMagnitude(scope.Y),
         WideGeometry.GetExtentMagnitude(scope.Z));
-
-    private static Fixed64 GetFiniteConeDiskExtent(
-        Vector3d axisDirection,
-        Fixed64 radius,
-        int component)
-    {
-        if (radius == Fixed64.Zero)
-            return Fixed64.Zero;
-
-        Signed192 axisLengthSquared = WideGeometry.GetDifferenceDotProduct3D(
-            axisDirection.X, Fixed64.Zero,
-            axisDirection.Y, Fixed64.Zero,
-            axisDirection.Z, Fixed64.Zero,
-            axisDirection.X, Fixed64.Zero,
-            axisDirection.Y, Fixed64.Zero,
-            axisDirection.Z, Fixed64.Zero);
-        Fixed64 axisComponent = component switch
-        {
-            0 => axisDirection.X,
-            1 => axisDirection.Y,
-            _ => axisDirection.Z
-        };
-        Signed192 componentSquared = WideGeometry.GetDifferenceDotProduct3D(
-            axisComponent, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero,
-            axisComponent, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero,
-            Fixed64.Zero, Fixed64.Zero);
-        Signed192 capacity = WideArithmetic.SubtractSigned192(
-            axisLengthSquared,
-            componentSquared);
-        if (capacity.IsZero)
-            return Fixed64.Zero;
-        if (WideArithmetic.CompareMagnitude(capacity, axisLengthSquared) == 0)
-            return radius;
-
-        Signed192 radiusRaw = WideArithmetic.FromSignedRaw(radius.m_rawValue);
-        Signed320 radiusSquared = WideArithmetic.MultiplySigned192(radiusRaw, radiusRaw);
-        Signed576 target = WideArithmetic.MultiplySigned576(
-            WideArithmetic.ExtendToSigned576(radiusSquared),
-            capacity);
-        Signed320 capacityTimesAxisLengthSquared = WideArithmetic.MultiplySigned192(
-            capacity,
-            axisLengthSquared);
-        Signed576 radicand = WideArithmetic.MultiplySigned320(
-            radiusSquared,
-            capacityTimesAxisLengthSquared);
-        Signed320 scaledRoot = WideArithmetic.GetFloorSquareRootScaledByFixed64(radicand);
-        Signed320 scaledAxisLengthSquared = WideArithmetic.MultiplySigned192(
-            axisLengthSquared,
-            WideArithmetic.FromSignedRaw(FixedMath.ONE_L));
-        _ = Fixed64.TryGetSignedRawRatio(
-            WideArithmetic.ExtendToSigned576(scaledRoot),
-            WideArithmetic.ExtendToSigned576(scaledAxisLengthSquared),
-            out Fixed64 extent);
-
-        // The root ratio is within one raw unit of the exact ceiling. Correct
-        // it outward by testing the defining inequality E^2*q >= R^2*c.
-        Signed192 extentRaw = WideArithmetic.FromSignedRaw(extent.m_rawValue);
-        Signed576 represented = WideArithmetic.MultiplySigned576(
-            WideArithmetic.ExtendToSigned576(
-                WideArithmetic.MultiplySigned192(extentRaw, extentRaw)),
-            axisLengthSquared);
-        return WideArithmetic.CompareNonNegative(represented, target) >= 0
-            ? extent
-            : Fixed64.FromRaw(extent.m_rawValue + 1L);
-    }
-
-    private static OverflowException CreateUnrepresentableBoundsException() =>
-        new("The centered box places at least one endpoint outside the representable Fixed64 range.");
 
     #endregion
 }

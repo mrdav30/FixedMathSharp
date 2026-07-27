@@ -24,7 +24,7 @@ public class FiniteAxisIntersectionBenchmarks
     private Vector2d _wideCapsuleCenter2D;
     private Vector2d _wideCapsulePoint2D;
     private Vector2d _wideCapsuleDirection2D;
-    private Fixed64 _wideAxisHalfLength;
+    private Fixed64 _wideAxisLength;
     private Fixed64 _wideRadius;
     private Fixed64 _wideExpansion;
     private Vector3d _cylinderCenter;
@@ -36,7 +36,7 @@ public class FiniteAxisIntersectionBenchmarks
     private Fixed64 _boundedRayMaximum;
     private Fixed64 _pointParameter;
     private Fixed64 _radius;
-    private Fixed64 _axisHalfLength;
+    private Fixed64 _axisLength;
     private Fixed64 _radialExpansion;
     private Fixed64 _axialExpansion;
     private Fixed64 _arbitraryRawRadius;
@@ -44,6 +44,7 @@ public class FiniteAxisIntersectionBenchmarks
     private FixedBoundBox _roundedBox;
     private Fixed64 _roundedBoxExpansion;
     private Fixed64 _roundedBoxLength;
+    private FixedQuaternion _rigidRotation;
 
     [Params(1, 100_000)]
     public int Scale { get; set; }
@@ -54,7 +55,7 @@ public class FiniteAxisIntersectionBenchmarks
         Fixed64 scale = (Fixed64)Scale;
         Fixed64 doubleScale = scale * 2;
         _radius = scale * Fixed64.Half;
-        _axisHalfLength = scale;
+        _axisLength = doubleScale;
         _radialExpansion = scale * Fixed64.Quarter;
         _axialExpansion = scale * Fixed64.Half;
 
@@ -86,7 +87,7 @@ public class FiniteAxisIntersectionBenchmarks
         _wideCapsuleCenter2D = new Vector2d(Fixed64.MaxValue - (Fixed64)5 * scale, Fixed64.Zero);
         _wideCapsulePoint2D = new Vector2d(Fixed64.MaxValue - scale, (Fixed64)8 * scale);
         _wideCapsuleDirection2D = new Vector2d(Fixed64.One, Fixed64.One).Normalized;
-        _wideAxisHalfLength = (Fixed64)10 * scale;
+        _wideAxisLength = (Fixed64)20 * scale;
         _wideRadius = (Fixed64)2 * scale;
         _wideExpansion = scale;
         _cylinderAxis = _capsuleAxis3D;
@@ -114,6 +115,10 @@ public class FiniteAxisIntersectionBenchmarks
         _roundedBox = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, Vector3d.One * scale);
         _roundedBoxExpansion = scale * Fixed64.Half;
         _roundedBoxLength = doubleScale;
+        _rigidRotation = FixedQuaternion.FromEulerAnglesInDegrees(
+            (Fixed64)17,
+            (Fixed64)29,
+            (Fixed64)11);
 
         if (!Capsule2DIntersectionInterval()
             || !Capsule3DIntersectionInterval()
@@ -125,7 +130,6 @@ public class FiniteAxisIntersectionBenchmarks
             || !CenteredCapsule2DContainsWidePoint()
             || CenteredCapsule2DNormalAndSurface() == Vector2d.Zero
             || !FiniteCylinderIntersectionInterval()
-            || !AffineExpandedCylinderIntersectionInterval()
             || !CenteredExpandedCylinderIntersectionInterval()
             || !ArbitraryRawCylinderIntersectionInterval()
             || !BoundedRayCapsule2DIntersectionInterval()
@@ -135,6 +139,10 @@ public class FiniteAxisIntersectionBenchmarks
             || !BoundedRayFiniteCylinderIntersectionInterval()
             || !CenteredCapsule2DDistanceInterval()
             || !CenteredCapsule3DDistanceInterval()
+            || !CardinalRigidCapsule3DDistanceInterval()
+            || !RotatedRigidCapsule3DDistanceInterval()
+            || !RigidCylinder3DDistanceInterval()
+            || !RigidCone3DDistanceInterval()
             || !FiniteCylinderDistanceInterval()
             || !SweptSphereBoxFirstDistance())
         {
@@ -165,7 +173,7 @@ public class FiniteAxisIntersectionBenchmarks
         _query2D.TryGetCapsuleIntersectionInterval(
             _capsuleCenter2D,
             _capsuleDirection2D,
-            _axisHalfLength,
+            _axisLength,
             _radius,
             Fixed64.Zero,
             out _,
@@ -176,7 +184,7 @@ public class FiniteAxisIntersectionBenchmarks
         _query3D.TryGetCapsuleIntersectionInterval(
             _capsuleCenter3D,
             _capsuleDirection3D,
-            _axisHalfLength,
+            _axisLength,
             _radius,
             Fixed64.Zero,
             out _,
@@ -188,7 +196,7 @@ public class FiniteAxisIntersectionBenchmarks
             _distancePoint2D,
             _capsuleCenter2D,
             _distanceDirection2D,
-            _axisHalfLength,
+            _axisLength,
             _radius);
 
     [Benchmark]
@@ -197,7 +205,7 @@ public class FiniteAxisIntersectionBenchmarks
             _distancePoint3D,
             _capsuleCenter3D,
             _distanceDirection3D,
-            _axisHalfLength,
+            _axisLength,
             _radius);
 
     [Benchmark]
@@ -206,7 +214,7 @@ public class FiniteAxisIntersectionBenchmarks
             _wideCapsulePoint2D,
             _wideCapsuleCenter2D,
             _wideCapsuleDirection2D,
-            _wideAxisHalfLength,
+            _wideAxisLength,
             _wideRadius);
 
     [Benchmark]
@@ -215,7 +223,7 @@ public class FiniteAxisIntersectionBenchmarks
             _wideCapsulePoint2D,
             _wideCapsuleCenter2D,
             _wideCapsuleDirection2D,
-            _wideAxisHalfLength,
+            _wideAxisLength,
             _wideRadius,
             _wideExpansion);
 
@@ -226,12 +234,12 @@ public class FiniteAxisIntersectionBenchmarks
             _wideCapsulePoint2D,
             _wideCapsuleCenter2D,
             _wideCapsuleDirection2D,
-            _wideAxisHalfLength);
+            _wideAxisLength);
         return FixedSegment2d.TryGetSurfacePointOnCenteredCapsule(
             _wideCapsulePoint2D,
             _wideCapsuleCenter2D,
             _wideCapsuleDirection2D,
-            _wideAxisHalfLength,
+            _wideAxisLength,
             _wideRadius,
             direction,
             out Vector2d surfacePoint)
@@ -248,23 +256,13 @@ public class FiniteAxisIntersectionBenchmarks
             out _,
             out _);
 
-    [Benchmark]
-    public bool AffineExpandedCylinderIntersectionInterval() =>
-        _expandedCylinderQuery.TryGetFiniteCylinderIntersectionInterval(
-            _cylinderAxis,
-            _axisHalfLength,
-            _radius,
-            _radialExpansion,
-            _axialExpansion,
-            out _,
-            out _);
 
     [Benchmark]
     public bool CenteredExpandedCylinderIntersectionInterval() =>
         _expandedCylinderQuery.TryGetFiniteCylinderIntersectionInterval(
             _cylinderCenter,
             _cylinderDirection,
-            _axisHalfLength,
+            _axisLength,
             _radius,
             _radialExpansion,
             _axialExpansion,
@@ -303,7 +301,7 @@ public class FiniteAxisIntersectionBenchmarks
         _boundedRay2D.TryGetCapsuleIntersectionInterval(
             _capsuleCenter2D,
             _capsuleDirection2D,
-            _axisHalfLength,
+            _axisLength,
             _radius,
             _boundedRayMaximum,
             out _,
@@ -314,7 +312,7 @@ public class FiniteAxisIntersectionBenchmarks
         _boundedRay3D.TryGetCapsuleIntersectionInterval(
             _capsuleCenter3D,
             _capsuleDirection3D,
-            _axisHalfLength,
+            _axisLength,
             _radius,
             _boundedRayMaximum,
             out _,
@@ -338,7 +336,7 @@ public class FiniteAxisIntersectionBenchmarks
         _query2D.TryGetCapsuleIntersectionDistanceInterval(
             _capsuleCenter2D,
             _capsuleDirection2D,
-            _axisHalfLength,
+            _axisLength,
             _radius,
             Fixed64.Zero,
             _boundedRayMaximum,
@@ -352,9 +350,65 @@ public class FiniteAxisIntersectionBenchmarks
         _query3D.TryGetCapsuleIntersectionDistanceInterval(
             _capsuleCenter3D,
             _capsuleDirection3D,
-            _axisHalfLength,
+            _axisLength,
             _radius,
             Fixed64.Zero,
+            _boundedRayMaximum,
+            out _,
+            out _,
+            out _,
+            out _);
+
+    [Benchmark]
+    public bool CardinalRigidCapsule3DDistanceInterval() =>
+        _query3D.TryGetCapsuleIntersectionDistanceInterval(
+            _capsuleCenter3D,
+            FixedQuaternion.Identity,
+            _axisLength,
+            _radius,
+            Fixed64.Zero,
+            _boundedRayMaximum,
+            out _,
+            out _,
+            out _,
+            out _);
+
+    [Benchmark]
+    public bool RotatedRigidCapsule3DDistanceInterval() =>
+        _query3D.TryGetCapsuleIntersectionDistanceInterval(
+            _capsuleCenter3D,
+            _rigidRotation,
+            _axisLength,
+            _radius,
+            Fixed64.Zero,
+            _boundedRayMaximum,
+            out _,
+            out _,
+            out _,
+            out _);
+
+    [Benchmark]
+    public bool RigidCylinder3DDistanceInterval() =>
+        _query3D.TryGetFiniteCylinderIntersectionDistanceInterval(
+            _cylinderCenter,
+            _rigidRotation,
+            _axisLength,
+            _radius,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            _boundedRayMaximum,
+            out _,
+            out _,
+            out _,
+            out _);
+
+    [Benchmark]
+    public bool RigidCone3DDistanceInterval() =>
+        _query3D.TryGetCenteredFiniteConeIntersectionDistanceInterval(
+            _cylinderCenter,
+            _rigidRotation,
+            _axisLength,
+            _radius,
             _boundedRayMaximum,
             out _,
             out _,

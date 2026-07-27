@@ -10,49 +10,15 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Arithmetic helpers for <see cref="Signed576"/>: magnitude extraction, comparison,
+/// and exact addition/subtraction operating directly on the nine-word representation.
+/// </content>
 internal static partial class WideArithmetic
 {
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static Signed576 ExtendToSigned576(Signed320 value)
-    {
-        ulong extension = unchecked((ulong)((long)value.Word4 >> 63));
-        return new Signed576(
-            extension, extension, extension, extension,
-            value.Word4, value.Word3, value.Word2, value.Word1, value.Word0);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool TryNarrowSigned320(Signed576 value, out Signed320 result)
-    {
-        ulong extension = (value.Word4 & (1UL << 63)) != 0UL ? ulong.MaxValue : 0UL;
-        if (value.Word8 != extension || value.Word7 != extension
-            || value.Word6 != extension || value.Word5 != extension)
-        {
-            result = default;
-            return false;
-        }
-
-        result = new Signed320(value.Word4, value.Word3, value.Word2, value.Word1, value.Word0);
-        return true;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool TryNarrowSigned192(Signed576 value, out Signed192 result)
-    {
-        ulong extension = (value.Word2 & (1UL << 63)) != 0UL ? ulong.MaxValue : 0UL;
-        if (value.Word8 != extension || value.Word7 != extension || value.Word6 != extension
-            || value.Word5 != extension || value.Word4 != extension || value.Word3 != extension)
-        {
-            result = default;
-            return false;
-        }
-
-        result = new Signed192(value.Word2, value.Word1, value.Word0);
-        return true;
-    }
-
     internal static void GetMagnitude(Signed576 value, Span<ulong> magnitude)
     {
+        magnitude.Clear();
         magnitude[0] = value.Word0;
         magnitude[1] = value.Word1;
         magnitude[2] = value.Word2;
@@ -66,7 +32,7 @@ internal static partial class WideArithmetic
             return;
 
         ulong carry = 1UL;
-        for (int index = 0; index < magnitude.Length; index++)
+        for (int index = 0; index < 9; index++)
             magnitude[index] = AddSignedWord(~magnitude[index], 0UL, ref carry);
     }
 
@@ -105,6 +71,8 @@ internal static partial class WideArithmetic
         return new Signed576(word8, word7, word6, word5, word4, word3, word2, word1, word0);
     }
 
+    internal static Signed576 Double(Signed576 value) => AddSigned576(value, value);
+
     /// <summary>
     /// Subtracts exact nine-word values without scalar conversion.
     /// </summary>
@@ -124,6 +92,9 @@ internal static partial class WideArithmetic
         return new Signed576(word8, word7, word6, word5, word4, word3, word2, word1, word0);
     }
 
+    internal static Signed576 MultiplySigned320(Signed320 left, Signed192 right) =>
+        MultiplySigned576(Signed576.ExtendValue(left), right);
+
     /// <summary>
     /// Multiplies signed five-word values in the finite-axis domain exactly.
     /// </summary>
@@ -133,11 +104,11 @@ internal static partial class WideArithmetic
     /// </remarks>
     internal static Signed576 MultiplySigned320(Signed320 left, Signed320 right)
     {
-        if (TryNarrowSigned192(left, out Signed192 narrowLeft)
-            && TryNarrowSigned192(right, out Signed192 narrowRight)
+        if (Signed192.TryNarrowSigned(left, out Signed192 narrowLeft)
+            && Signed192.TryNarrowSigned(right, out Signed192 narrowRight)
             && GetMagnitudeBitLength(narrowLeft) + GetMagnitudeBitLength(narrowRight) <= 319)
         {
-            return ExtendToSigned576(MultiplySigned192(narrowLeft, narrowRight));
+            return Signed576.ExtendValue(MultiplySigned192(narrowLeft, narrowRight));
         }
 
         GetMagnitude(
@@ -172,8 +143,6 @@ internal static partial class WideArithmetic
             rightWord4,
         };
         Span<ulong> product = stackalloc ulong[9];
-        product.Clear();
-
         MultiplyMagnitudes(leftMagnitude, rightMagnitude, product);
 
         if (left.Sign * right.Sign < 0)
@@ -201,18 +170,17 @@ internal static partial class WideArithmetic
     /// </summary>
     internal static Signed576 MultiplySigned576(Signed576 left, Signed192 right)
     {
-        if (TryNarrowSigned192(left, out Signed192 narrowLeft)
+        if (Signed192.TryNarrowSigned(left, out Signed192 narrowLeft)
             && GetMagnitudeBitLength(narrowLeft) + GetMagnitudeBitLength(right) <= 319)
-            return ExtendToSigned576(MultiplySigned192(narrowLeft, right));
-        if (TryNarrowSigned320(left, out Signed320 mediumLeft))
-            return MultiplySigned320(mediumLeft, ExtendToSigned320(right));
+            return Signed576.ExtendValue(MultiplySigned192(narrowLeft, right));
+        if (Signed320.TryNarrowSigned(left, out Signed320 mediumLeft))
+            return MultiplySigned320(mediumLeft, Signed320.ExtendValue(right));
 
         Span<ulong> leftMagnitude = stackalloc ulong[9];
         Span<ulong> rightMagnitude = stackalloc ulong[3];
         GetMagnitude(left, leftMagnitude);
         GetMagnitude(right, out rightMagnitude[2], out rightMagnitude[1], out rightMagnitude[0]);
         Span<ulong> product = stackalloc ulong[12];
-        product.Clear();
         MultiplyMagnitudes(leftMagnitude, rightMagnitude, product);
 
         if (left.Sign * right.Sign < 0)
@@ -226,6 +194,30 @@ internal static partial class WideArithmetic
             product[8], product[7], product[6], product[5], product[4],
             product[3], product[2], product[1], product[0]);
     }
+
+    internal static Signed576 MultiplySigned576(Signed576 value, Signed192 first, Signed192 second) =>
+        MultiplySigned576(
+            MultiplySigned576(value, first),
+            second);
+
+    internal static Signed576 MultiplySigned576(
+        Signed576 value,
+        Signed192 first,
+        Signed192 second,
+        Signed192 third) =>
+        MultiplySigned576(
+            MultiplySigned576(value, first, second),
+            third);
+
+    internal static Signed576 MultiplySigned576(
+        Signed576 value,
+        Signed192 first,
+        Signed192 second,
+        Signed192 third,
+        Signed192 fourth) =>
+        MultiplySigned576(
+            MultiplySigned576(value, first, second, third),
+            fourth);
 
     /// <summary>
     /// Returns the exact floor of the square root after applying the Q32.32
@@ -243,7 +235,7 @@ internal static partial class WideArithmetic
         {
             Signed320 shifted = new(value.Word3, value.Word2, value.Word1, value.Word0, 0UL);
             Signed192 narrowRoot = GetFloorSquareRoot(shifted, out _);
-            return ExtendToSigned320(narrowRoot);
+            return Signed320.ExtendValue(narrowRoot);
         }
 
         int bitLength = GetBitLength(value);
@@ -276,6 +268,31 @@ internal static partial class WideArithmetic
         }
 
         return new Signed320(rootStorage[4], rootStorage[3], rootStorage[2], rootStorage[1], rootStorage[0]);
+    }
+
+    internal static Signed320 Negate(Signed320 value) => SubtractSigned320(default, value);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed576 Absolute(Signed576 value) =>
+        value.Sign < 0
+            ? SubtractSigned576(default, value)
+            : value;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed576 ClampToNonNegative(Signed576 value)
+    {
+        // Two's-complement sign masking keeps this hot-path clamp branchless.
+        ulong mask = ~unchecked((ulong)((long)value.Word8 >> 63));
+        return new Signed576(
+            value.Word8 & mask,
+            value.Word7 & mask,
+            value.Word6 & mask,
+            value.Word5 & mask,
+            value.Word4 & mask,
+            value.Word3 & mask,
+            value.Word2 & mask,
+            value.Word1 & mask,
+            value.Word0 & mask);
     }
 
     private static int GetBitLength(Signed576 value)
@@ -353,12 +370,25 @@ internal static partial class WideArithmetic
             value[index] = SubtractWord(value[index], subtract[index], ref borrow);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static ulong AddSignedWord(ulong left, ulong right, ref ulong carry)
+    private static Signed576 MultiplyNonNegativeToSigned576(
+        Signed576 left,
+        Signed576 right)
     {
-        ulong sum = unchecked(left + right);
-        ulong result = unchecked(sum + carry);
-        carry = sum < left || result < sum ? 1UL : 0UL;
-        return result;
+        Span<ulong> leftWords = stackalloc ulong[9];
+        Span<ulong> rightWords = stackalloc ulong[9];
+        Span<ulong> product = stackalloc ulong[18];
+        GetMagnitude(left, leftWords);
+        GetMagnitude(right, rightWords);
+        MultiplyMagnitudes(leftWords, rightWords, product);
+        return new Signed576(
+            product[8],
+            product[7],
+            product[6],
+            product[5],
+            product[4],
+            product[3],
+            product[2],
+            product[1],
+            product[0]);
     }
 }

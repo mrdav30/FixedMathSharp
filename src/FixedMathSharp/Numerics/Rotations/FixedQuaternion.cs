@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using FixedMathSharp.Bounds;
 using MemoryPack;
 using System;
 using System.Runtime.CompilerServices;
@@ -239,6 +240,137 @@ public partial struct FixedQuaternion : IEquatable<FixedQuaternion>, IFormattabl
         FixedQuaternion invQuat = normalizedQuat.Conjugate();
         FixedQuaternion rotatedVQuat = (normalizedQuat * vQuat) * invQuat;
         return new Vector3d(rotatedVQuat.X, rotatedVQuat.Y, rotatedVQuat.Z);
+    }
+
+    /// <summary>
+    /// Attempts to rotate a vector using the quaternion's exact
+    /// scale-invariant rational basis.
+    /// </summary>
+    /// <remarks>
+    /// Each result component is rounded once after the complete linear
+    /// combination. The zero quaternion preserves the legacy
+    /// <see cref="Rotate(Vector3d)"/> result of zero.
+    /// </remarks>
+    /// <returns>
+    /// <see langword="true"/> when every final component is representable;
+    /// otherwise, <see langword="false"/> and <paramref name="result"/> is
+    /// <see langword="default"/>.
+    /// </returns>
+    public bool TryRotate(Vector3d vector, out Vector3d result)
+    {
+        if (this == Zero)
+        {
+            result = Vector3d.Zero;
+            return true;
+        }
+
+        return WideOrientedBox.TryTransformLocalOffset(
+            this,
+            vector,
+            out result);
+    }
+
+    /// <summary>
+    /// Attempts to transform a local point by this rotation and a world origin
+    /// with one final round-half-to-even conversion per component.
+    /// </summary>
+    /// <remarks>
+    /// The zero quaternion preserves the legacy rotation contract and returns
+    /// <paramref name="origin"/>.
+    /// </remarks>
+    public bool TryTransformPoint(
+        Vector3d origin,
+        Vector3d localPoint,
+        out Vector3d result)
+    {
+        if (this == Zero)
+        {
+            result = origin;
+            return true;
+        }
+        if (this == Identity)
+            return Vector3d.TryAdd(origin, localPoint, out result);
+
+        return WideOrientedBox.TryMaterializeLocalPoint(
+            origin,
+            this,
+            localPoint,
+            out result);
+    }
+
+    /// <summary>
+    /// Attempts to transform a local point by this rotation and add two world
+    /// origins with one final round-half-to-even conversion per component.
+    /// </summary>
+    /// <remarks>
+    /// The zero quaternion preserves the legacy rotation contract and returns
+    /// the exact sum of the two origins.
+    /// </remarks>
+    public bool TryTransformPoint(
+        Vector3d firstOrigin,
+        Vector3d secondOrigin,
+        Vector3d localPoint,
+        out Vector3d result)
+    {
+        if (this == Zero)
+        {
+            return Vector3d.TrySubtractSums(
+                firstOrigin,
+                secondOrigin,
+                Vector3d.Zero,
+                Vector3d.Zero,
+                out result);
+        }
+
+        return WideOrientedBox.TryMaterializeLocalPoint(
+            firstOrigin,
+            secondOrigin,
+            this,
+            localPoint,
+            out result);
+    }
+
+    /// <summary>
+    /// Attempts to obtain the exact relative offset
+    /// <c>firstOrigin + firstOffset - secondOrigin - Rotate(secondLocalPoint)</c>.
+    /// </summary>
+    /// <remarks>
+    /// No rotated point or intermediate sum is narrowed independently. The
+    /// zero quaternion preserves the legacy zero-rotation-result contract.
+    /// </remarks>
+    public bool TryGetRelativeOffset(
+        Vector3d firstOrigin,
+        Vector3d firstOffset,
+        Vector3d secondOrigin,
+        Vector3d secondLocalPoint,
+        out Vector3d result)
+    {
+        if (this == Zero)
+        {
+            return Vector3d.TrySubtractSums(
+                firstOrigin,
+                firstOffset,
+                secondOrigin,
+                Vector3d.Zero,
+                out result);
+        }
+        if (this == Identity)
+        {
+            return Vector3d.TrySubtractSums(
+                firstOrigin,
+                firstOffset,
+                secondOrigin,
+                secondLocalPoint,
+                out result);
+        }
+
+        return WideOrientedBox.TryGetRelativeOffset(
+            this,
+            firstOrigin,
+            firstOffset,
+            secondOrigin,
+            secondLocalPoint,
+            out result);
     }
 
     /// <summary>

@@ -278,9 +278,9 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
             throw CreateUnrepresentableRadiusException();
         }
 
-        Signed192 firstGap = WideArithmetic.FromSignedRaw(
+        Signed192 firstGap = Signed192.Signed(
             (radius - original.Radius).m_rawValue);
-        Signed192 secondGap = WideArithmetic.FromSignedRaw(
+        Signed192 secondGap = Signed192.Signed(
             (radius - additional.Radius).m_rawValue);
         Signed192 gapSum = WideArithmetic.AddSigned192(firstGap, secondGap);
         Vector3d center = new(
@@ -479,10 +479,10 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     {
         Signed192 sum = WideArithmetic.AddSigned192(
             distanceFloor,
-            WideArithmetic.FromSignedRaw(firstRadius.m_rawValue));
+            Signed192.Signed(firstRadius.m_rawValue));
         sum = WideArithmetic.AddSigned192(
             sum,
-            WideArithmetic.FromSignedRaw(secondRadius.m_rawValue));
+            Signed192.Signed(secondRadius.m_rawValue));
         bool roundUp = (sum.Low & 1UL) != 0UL || !distanceRemainder.IsZero;
         WideArithmetic.GetMagnitude(sum, out ulong high, out ulong middle, out ulong low);
         WideArithmetic.ShiftRightOne(ref high, ref middle, ref low);
@@ -490,7 +490,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
         {
             Signed192 rounded = WideArithmetic.AddSigned192(
                 new Signed192(high, middle, low),
-                WideArithmetic.FromSignedRaw(1L));
+                Signed192.Signed(1L));
             high = rounded.High;
             middle = rounded.Middle;
             low = rounded.Low;
@@ -510,12 +510,12 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
         {
             distanceFloor = WideArithmetic.AddSigned192(
                 distanceFloor,
-                WideArithmetic.FromSignedRaw(1L));
+                Signed192.Signed(1L));
         }
 
         Signed192 required = WideArithmetic.AddSigned192(
             distanceFloor,
-            WideArithmetic.FromSignedRaw(enclosedRadius.m_rawValue));
+            Signed192.Signed(enclosedRadius.m_rawValue));
         WideArithmetic.GetMagnitude(required, out ulong high, out ulong middle, out ulong low);
         return TryCreatePositiveRaw(high, middle, low, out radius);
     }
@@ -531,7 +531,7 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
             first.X, second.X, first.Y, second.Y, first.Z, second.Z,
             first.X, second.X, first.Y, second.Y, first.Z, second.Z);
         floor = WideArithmetic.GetFloorSquareRoot(
-            WideArithmetic.ExtendToSigned320(squaredDistance),
+            Signed320.ExtendValue(squaredDistance),
             out remainder);
     }
 

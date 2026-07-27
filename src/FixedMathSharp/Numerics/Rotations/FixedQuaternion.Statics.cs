@@ -7,9 +7,14 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using FixedMathSharp.Bounds;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Static helper methods and operations for <see cref="FixedQuaternion"/>, including
+/// normalization, magnitude calculations, and related utility functions.
+/// </content>
 public partial struct FixedQuaternion
 {
     #region Quaternion Operations

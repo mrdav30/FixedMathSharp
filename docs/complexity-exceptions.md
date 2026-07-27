@@ -11,10 +11,10 @@ complexity review threshold.
   score cannot fall below its cyclomatic complexity, so documented complexity
   floors are reviewed rather than mechanically refactored.
 - Current status: the latest full-project run, excluding generated serializer
-  sources, covers 14,421/14,421 lines, 4,493/4,493 branches, and 2,001/2,001
-  ReportGenerator methods. The CRAP analyzer scored 1,995 unique method
-  identities; every method is fully covered and the only scores above 30 are the
-  seven registered complexity floors at 52, 48, 48, 44, 36, 32, and 32.
+  sources, covers 44,126/44,126 lines and 8,450/8,450 branches. The CRAP
+  analyzer scored 3,337 method identities; every method is fully covered and
+  the only scores above 30 are the ten registered complexity floors at 52, 48,
+  48, 44, 44, 38, 36, 32, 32, and 32.
   Per-method coverage is recorded below and should be refreshed whenever a
   listed implementation changes.
 
@@ -32,7 +32,10 @@ behavior changes, or the implementation becomes harder to reason about.
 | `FixedMathSharp`                  | `Fixed64.GetSignedRatio(Signed192, Signed192)`                                      |         48 | 100% line / 100% branch | General signed wide ratios require explicit sign, exact unit-interval dispatch, signed-limit, fixed-limb quotient, guard/sticky, and saturation.                                             | A shared fixed-limb division primitive preserves the complete signed contract with lower complexity and neutral cost.                          |
 | `FixedMathSharp`                  | `WideFiniteConeIntersection.TrySolveBoundedPolynomial(...)`                         |         48 | 100% line / 100% branch | Exact axial bounds feed one allocation-free constant, linear, positive-, and negative-quadratic interval classifier with discriminant, root correction, and endpoint rounding.               | A shared bounded-root state reduces branches without duplicating wide evaluation, weakening clipping, or regressing the cone-query benchmarks. |
 | `FixedMathSharp`                  | `FixedSegment.SolveClosestParameters(...)`                                          |         44 | 100% line / 100% branch | Exact determinant classification, coupled finite-segment clamps, and endpoint-candidate state form one allocation-free solver decision path.                                                 | A lower-complexity state representation preserves exact policy and measures neutral or faster on the closest-pair row.                         |
+| `FixedMathSharp`                  | `WideArithmetic.CompareNonNegative(Signed704, Signed704)`                           |         44 | 100% line / 100% branch | Eleven-word lexicographic comparison keeps full-domain radical, ratio, and polynomial ordering allocation-free and independent of target-specific wide-integer support.                       | A portable fixed-width value type or intrinsic provides identical limb ordering with lower complexity and neutral measured cost.               |
+| `FixedMathSharp`                  | `WideOrientedBox.TryGetRationalSegmentSweepDistance(...)`                           |         38 | 100% line / 100% branch | Exact rational segment sweeps retain degenerate features, bounded closest parameters, radical distance ordering, and nearest-even hit conversion in one allocation-free query path.          | A shared rational closest-feature result reduces decision state without weakening full-domain ordering or regressing the sweep benchmark.      |
 | `FixedMathSharp`                  | `FixedTriangle.ClosestPoint(Vector3d)`                                              |         32 | 100% line / 100% branch | Exact Gram degeneracy, six stable Voronoi regions, full-domain interpolation, and deterministic collapsed-edge fallback form one solver decision tree.                                       | Another exact primitive can share the region state or reduce branches without allocations or ordinary-input regression.                        |
+| `FixedMathSharp`                  | `WideOrientedBox.GetClosestTriangleLocalPoint(...)`                                 |         32 | 100% line / 100% branch | Exact triangle Voronoi selection in the oriented-box frame retains rational vertices, stable degenerate-edge ownership, and one final local-point narrowing without allocations.             | A shared wide triangle-region state reduces branches while preserving local feature ordering and measured triangle-query cost.                 |
 | `FixedMathSharp.FluentAssertions` | `FixedAssertionHelpers.AreComponentApproximatelyEqual(Fixed4x4, Fixed4x4, Fixed64)` |         30 | 100% line / 100% branch | Fixed-shape assertion over all matrix components. The explicit checks keep assertion intent clear and avoid allocations in test helpers.                                                     | Assertion diagnostics degrade, matrix shape changes, or repeated assertion logic grows further.                                                |
 | `FixedMathSharp`                  | `Fixed4x4.Equals(Fixed4x4)`                                                         |         30 | 100% line / 100% branch | Direct 4x4 value comparison avoids loops, allocations, and indexer overhead on a hot value type.                                                                                             | Equality semantics change or a generated/source-shared component comparison becomes available without runtime cost.                            |
 | `FixedMathSharp`                  | `FixedSegment.GetClosestPoints(FixedSegment)`                                       |         26 | 100% line / 100% branch | Full-domain setup, exact point-degeneracy handling, and bit-exact endpoint preservation remain at the public query boundary.                                                                 | Endpoint identity can move into a simpler shared primitive without extra wide products or an ordinary-input regression.                        |
@@ -127,6 +130,19 @@ behavior changes, or the implementation becomes harder to reason about.
 | `FixedMathSharp`                  | `Fixed64.CompareMagnitudeSquared(...)`                                              |         12 | 100% line / 100% branch | Exact squared-magnitude ordering compares overflow, high, and low words directly without projecting either sum back into Q32.32.                                                             | A reusable fixed-width magnitude value provides the same lexicographic order without extra construction or cost.                               |
 | `FixedMathSharp`                  | `CoordinateConvention3d.ctor(Axis3d, Axis3d, Axis3d)`                               |         12 | 100% line / 100% branch | The public constructor validates three defined signed axes and rejects every duplicate absolute-axis pairing before storing an immutable basis.                                              | Axis validation moves to a shared zero-overhead basis type with equally specific argument errors.                                              |
 | `FixedMathSharp`                  | `FixedTransform.TrySetParentKeepingWorld(FixedTransform?)`                          |         12 | 100% line / 100% branch | Atomic reparenting validates ancestry, inverse, decomposition, and world recomposition before committing any local or parent state.                                                          | A shared atomic transform mutation result reduces branches without exposing partial state or weakening verification.                           |
+
+## Fixed-Width Workspace Bounds
+
+The projected rigid-triangle finite-slab sweep keeps every triangle vertex and
+Y-plane clipping intersection rational until the final public witness and
+distance conversions. A rigid vertex numerator is below 192 bits over a
+126-bit quaternion-basis denominator. Exact finite-Y clipping raises a point to
+at most 386 numerator bits over 319 denominator bits. Cross-multiplying two
+clipped endpoints therefore needs at most 706 bits, the signed line violation
+needs at most 1,094 bits, and the squared half-step comparison needs fewer than
+2,252 bits. The implementation consequently uses a fixed 36-word stack
+workspace (2,304 bits), with no heap allocation or target-specific arbitrary
+precision dependency.
 
 ## Review Notes
 

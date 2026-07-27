@@ -5,6 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using FixedMathSharp.Bounds;
 using MemoryPack;
 using System;
 using System.Collections.Generic;
@@ -517,6 +518,22 @@ public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IE
         Fixed64 sqrMagnitude = MagnitudeSquared;
         return sqrMagnitude != Fixed64.Zero && FixedMath.Abs(sqrMagnitude - Fixed64.One) <= Fixed64.Epsilon;
     }
+
+    /// <summary>
+    /// Attempts to return this vector's magnitude rounded outward to the
+    /// smallest containing Q32.32 value.
+    /// </summary>
+    /// <returns>
+    /// <see langword="false"/> only when the final ceiling exceeds the
+    /// positive <see cref="Fixed64"/> domain.
+    /// </returns>
+    public readonly bool TryGetMagnitudeCeiling(
+        out Fixed64 magnitude) =>
+        WideGeometry.TryGetMagnitudeCeiling(
+            X,
+            Y,
+            Z,
+            out magnitude);
 
     /// <summary>
     /// Checks whether all components are strictly greater than <see cref="Fixed64.Epsilon"/>.

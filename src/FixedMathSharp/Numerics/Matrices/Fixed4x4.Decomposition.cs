@@ -6,9 +6,14 @@
 //=======================================================================
 
 using System.Runtime.CompilerServices;
+using FixedMathSharp.Bounds;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Provides methods for decomposing and extracting components (translation, rotation axes, and scale)
+/// from a <see cref="Fixed4x4"/> matrix.
+/// </content>
 public partial struct Fixed4x4
 {
     #region Decomposition, Extraction, and Setters
@@ -68,6 +73,45 @@ public partial struct Fixed4x4
         }
 
         return scale;
+    }
+
+    /// <summary>
+    /// Attempts to extract canonical signed lossy scale from the matrix basis rows.
+    /// </summary>
+    /// <remarks>
+    /// This operation accepts affine, non-affine, singular, and sheared matrices.
+    /// It fails only when at least one basis-row magnitude is outside the
+    /// representable <see cref="Fixed64"/> range. A reflected basis assigns its
+    /// one recoverable negative sign to X. Every failure writes zero.
+    /// </remarks>
+    public static bool TryExtractLossyScale(Fixed4x4 matrix, out Vector3d scale)
+    {
+        bool representable =
+            Vector3d.TryGetMagnitude(
+                new Vector3d(matrix.M11, matrix.M12, matrix.M13),
+                out Fixed64 scaleX)
+            & Vector3d.TryGetMagnitude(
+                new Vector3d(matrix.M21, matrix.M22, matrix.M23),
+                out Fixed64 scaleY)
+            & Vector3d.TryGetMagnitude(
+                new Vector3d(matrix.M31, matrix.M32, matrix.M33),
+                out Fixed64 scaleZ);
+        if (!representable)
+        {
+            scale = Vector3d.Zero;
+            return false;
+        }
+
+        scale = new Vector3d(scaleX, scaleY, scaleZ);
+        if (WideGeometry.GetTripleProductSign(
+            matrix.M11, matrix.M12, matrix.M13,
+            matrix.M21, matrix.M22, matrix.M23,
+            matrix.M31, matrix.M32, matrix.M33) < 0)
+        {
+            scale.X = -scale.X;
+        }
+
+        return true;
     }
 
     /// <summary>

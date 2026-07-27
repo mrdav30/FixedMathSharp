@@ -7,6 +7,9 @@
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Distance-interval computations for capsule/segment vs. finite-axis intersection tests.
+/// </content>
 internal static partial class WideFiniteAxisIntersection
 {
     internal static bool TryGetCapsuleDistanceInterval(
@@ -167,7 +170,7 @@ internal static partial class WideFiniteAxisIntersection
         FixedSegment2d query,
         Vector2d center,
         Vector2d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 segmentLength,
@@ -185,14 +188,14 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 startAxisProjection = GetDot(query.Start, center, axisDirection, Vector2d.Zero);
         Signed192 endAxisProjection = GetDot(query.End, center, axisDirection, Vector2d.Zero);
         Signed192 startDirectionProjection = GetDot(query.Start, center, query.End, query.Start);
-        Signed320 axialExtent = GetCenteredAxialExtent(axisLengthSquared, axisHalfLength, Fixed64.Zero);
+        Signed320 axialExtent = GetCenteredAxialExtent(axisLengthSquared, axisLength, Fixed64.Zero);
 
         startContained = IsCenteredCapsulePointContained(
-            query.Start, center, axisDirection, axisHalfLength,
+            query.Start, center, axisDirection, axisLength,
             startDistanceSquared, startAxisProjection, axisLengthSquared,
             squaredRadius, expandedRadius, axialExtent, strict: false);
         endContainedStrict = IsCenteredCapsulePointContained(
-            query.End, center, axisDirection, axisHalfLength,
+            query.End, center, axisDirection, axisLength,
             GetDot(query.End, center, query.End, center), endAxisProjection,
             axisLengthSquared, squaredRadius, expandedRadius, axialExtent, strict: true);
 
@@ -213,8 +216,8 @@ internal static partial class WideFiniteAxisIntersection
                 expandedRadius, lower, upper, segmentLength, out entry, out exit);
         }
 
-        MergeCenteredCapDistanceInterval(query, center, axisDirection, axisHalfLength, expandedRadius, segmentLength, false, ref found, ref entry, ref exit);
-        MergeCenteredCapDistanceInterval(query, center, axisDirection, axisHalfLength, expandedRadius, segmentLength, true, ref found, ref entry, ref exit);
+        MergeCenteredCapDistanceInterval(query, center, axisDirection, axisLength, expandedRadius, segmentLength, false, ref found, ref entry, ref exit);
+        MergeCenteredCapDistanceInterval(query, center, axisDirection, axisLength, expandedRadius, segmentLength, true, ref found, ref entry, ref exit);
         return found;
     }
 
@@ -222,7 +225,7 @@ internal static partial class WideFiniteAxisIntersection
         FixedSegment query,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 segmentLength,
@@ -240,14 +243,14 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 startAxisProjection = GetDot(query.Start, center, axisDirection, Vector3d.Zero);
         Signed192 endAxisProjection = GetDot(query.End, center, axisDirection, Vector3d.Zero);
         Signed192 startDirectionProjection = GetDot(query.Start, center, query.End, query.Start);
-        Signed320 axialExtent = GetCenteredAxialExtent(axisLengthSquared, axisHalfLength, Fixed64.Zero);
+        Signed320 axialExtent = GetCenteredAxialExtent(axisLengthSquared, axisLength, Fixed64.Zero);
 
         startContained = IsCenteredCapsulePointContained(
-            query.Start, center, axisDirection, axisHalfLength,
+            query.Start, center, axisDirection, axisLength,
             startDistanceSquared, startAxisProjection, axisLengthSquared,
             squaredRadius, expandedRadius, axialExtent, strict: false);
         endContainedStrict = IsCenteredCapsulePointContained(
-            query.End, center, axisDirection, axisHalfLength,
+            query.End, center, axisDirection, axisLength,
             GetDot(query.End, center, query.End, center), endAxisProjection,
             axisLengthSquared, squaredRadius, expandedRadius, axialExtent, strict: true);
 
@@ -268,8 +271,8 @@ internal static partial class WideFiniteAxisIntersection
                 expandedRadius, lower, upper, segmentLength, out entry, out exit);
         }
 
-        MergeCenteredCapDistanceInterval(query, center, axisDirection, axisHalfLength, expandedRadius, segmentLength, false, ref found, ref entry, ref exit);
-        MergeCenteredCapDistanceInterval(query, center, axisDirection, axisHalfLength, expandedRadius, segmentLength, true, ref found, ref entry, ref exit);
+        MergeCenteredCapDistanceInterval(query, center, axisDirection, axisLength, expandedRadius, segmentLength, false, ref found, ref entry, ref exit);
+        MergeCenteredCapDistanceInterval(query, center, axisDirection, axisLength, expandedRadius, segmentLength, true, ref found, ref entry, ref exit);
         return found;
     }
 
@@ -311,7 +314,34 @@ internal static partial class WideFiniteAxisIntersection
         FixedSegment query,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        Fixed64 axialExpansion,
+        Fixed64 segmentLength,
+        out Fixed64 entry,
+        out Fixed64 exit,
+        out bool startContained,
+        out bool endContainedStrict) =>
+        TryGetFiniteCylinderDistanceInterval(
+            query,
+            center,
+            axisDirection,
+            Signed192.Signed(axisLength.m_rawValue),
+            radius,
+            radiusExpansion,
+            axialExpansion,
+            segmentLength,
+            out entry,
+            out exit,
+            out startContained,
+            out endContainedStrict);
+
+    internal static bool TryGetFiniteCylinderDistanceInterval(
+        FixedSegment query,
+        Vector3d center,
+        Vector3d axisDirection,
+        Signed192 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 axialExpansion,
@@ -330,7 +360,7 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 startDirectionProjection = GetDot(query.Start, center, query.End, query.Start);
         Signed192 expandedRadius = GetExpandedRadius(radius, radiusExpansion);
         Signed192 squaredRadius = GetSquaredRadius(expandedRadius);
-        Signed320 axialExtent = GetCenteredAxialExtent(axisLengthSquared, axisHalfLength, axialExpansion);
+        Signed320 axialExtent = GetCenteredAxialExtent(axisLengthSquared, axisLength, axialExpansion);
         startContained = IsCenteredFiniteCylinderPointContained(
             startDistanceSquared, startAxisProjection, axisLengthSquared,
             squaredRadius, axialExtent, strict: false);
@@ -355,48 +385,6 @@ internal static partial class WideFiniteAxisIntersection
             queryLengthSquared, axisLengthSquared, startDistanceSquared,
             directionsDot, startAxisProjection, startDirectionProjection,
             expandedRadius, lower, upper, segmentLength, out entry, out exit);
-    }
-
-    internal static bool TryGetFiniteCylinderDistanceInterval(
-        FixedSegment query,
-        FixedSegment axis,
-        Fixed64 axisHalfLength,
-        Fixed64 radius,
-        Fixed64 radiusExpansion,
-        Fixed64 axialExpansion,
-        Fixed64 segmentLength,
-        out Fixed64 entry,
-        out Fixed64 exit)
-    {
-        Signed192 queryLengthSquared = GetDot(query.End, query.Start, query.End, query.Start);
-        Signed192 axisLengthSquared = GetDot(axis.End, axis.Start, axis.End, axis.Start);
-        Signed192 startDistanceSquared = GetDot(query.Start, axis.Start, query.Start, axis.Start);
-        Signed192 directionsDot = GetDot(query.End, query.Start, axis.End, axis.Start);
-        Signed192 startAxisProjection = GetDot(query.Start, axis.Start, axis.End, axis.Start);
-        Signed192 startDirectionProjection = GetDot(query.Start, axis.Start, query.End, query.Start);
-        Signed192 authoredAxisLength = WideArithmetic.AddSigned192(
-            WideArithmetic.FromSignedRaw(axisHalfLength.m_rawValue),
-            WideArithmetic.FromSignedRaw(axisHalfLength.m_rawValue));
-        if (!TryGetExpandedAxialInterval(
-                startAxisProjection,
-                directionsDot,
-                axisLengthSquared,
-                authoredAxisLength,
-                WideArithmetic.FromSignedRaw(axialExpansion.m_rawValue),
-                Fixed64.One,
-                out RationalBound320 lower,
-                out RationalBound320 upper))
-        {
-            entry = default;
-            exit = default;
-            return false;
-        }
-
-        return TryGetFiniteAxisDistanceInterval(
-            queryLengthSquared, axisLengthSquared, startDistanceSquared,
-            directionsDot, startAxisProjection, startDirectionProjection,
-            GetExpandedRadius(radius, radiusExpansion), lower, upper,
-            segmentLength, out entry, out exit);
     }
 
     private static bool TryGetFiniteAxisDistanceInterval(
@@ -433,11 +421,11 @@ internal static partial class WideFiniteAxisIntersection
             startDirectionProjection,
             radius,
             new RationalBound320(
-                WideArithmetic.ExtendToSigned320(lower.Numerator),
-                WideArithmetic.ExtendToSigned320(lower.Denominator)),
+                Signed320.ExtendValue(lower.Numerator),
+                Signed320.ExtendValue(lower.Denominator)),
             new RationalBound320(
-                WideArithmetic.ExtendToSigned320(upper.Numerator),
-                WideArithmetic.ExtendToSigned320(upper.Denominator)),
+                Signed320.ExtendValue(upper.Numerator),
+                Signed320.ExtendValue(upper.Denominator)),
             segmentLength,
             out entry,
             out exit);
@@ -486,9 +474,9 @@ internal static partial class WideFiniteAxisIntersection
         out Fixed64 entry,
         out Fixed64 exit) =>
         TrySolveUnitQuadraticAtDistance(
-            WideArithmetic.ExtendToSigned320(GetDot(end, start, end, start)),
-            WideArithmetic.ExtendToSigned320(GetDot(start, center, end, start)),
-            WideArithmetic.ExtendToSigned320(WideArithmetic.SubtractSigned192(
+            Signed320.ExtendValue(GetDot(end, start, end, start)),
+            Signed320.ExtendValue(GetDot(start, center, end, start)),
+            Signed320.ExtendValue(WideArithmetic.SubtractSigned192(
                 GetDot(start, center, start, center),
                 GetSquaredRadius(radius))),
             segmentLength,
@@ -504,9 +492,9 @@ internal static partial class WideFiniteAxisIntersection
         out Fixed64 entry,
         out Fixed64 exit) =>
         TrySolveUnitQuadraticAtDistance(
-            WideArithmetic.ExtendToSigned320(GetDot(end, start, end, start)),
-            WideArithmetic.ExtendToSigned320(GetDot(start, center, end, start)),
-            WideArithmetic.ExtendToSigned320(WideArithmetic.SubtractSigned192(
+            Signed320.ExtendValue(GetDot(end, start, end, start)),
+            Signed320.ExtendValue(GetDot(start, center, end, start)),
+            Signed320.ExtendValue(WideArithmetic.SubtractSigned192(
                 GetDot(start, center, start, center),
                 GetSquaredRadius(radius))),
             segmentLength,
@@ -517,7 +505,7 @@ internal static partial class WideFiniteAxisIntersection
         FixedSegment2d query,
         Vector2d center,
         Vector2d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Signed192 expandedRadius,
         Fixed64 segmentLength,
         bool positiveCap,
@@ -526,7 +514,7 @@ internal static partial class WideFiniteAxisIntersection
         ref Fixed64 exit)
     {
         GetCenteredCapPolynomial(
-            query, center, axisDirection, axisHalfLength, expandedRadius, positiveCap,
+            query, center, axisDirection, axisLength, expandedRadius, positiveCap,
             out Signed320 coefficient, out Signed320 projection, out Signed320 constant);
         Merge(
             TrySolveUnitQuadraticAtDistance(
@@ -539,7 +527,7 @@ internal static partial class WideFiniteAxisIntersection
         FixedSegment query,
         Vector3d center,
         Vector3d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Signed192 expandedRadius,
         Fixed64 segmentLength,
         bool positiveCap,
@@ -548,7 +536,7 @@ internal static partial class WideFiniteAxisIntersection
         ref Fixed64 exit)
     {
         GetCenteredCapPolynomial(
-            query, center, axisDirection, axisHalfLength, expandedRadius, positiveCap,
+            query, center, axisDirection, axisLength, expandedRadius, positiveCap,
             out Signed320 coefficient, out Signed320 projection, out Signed320 constant);
         Merge(
             TrySolveUnitQuadraticAtDistance(

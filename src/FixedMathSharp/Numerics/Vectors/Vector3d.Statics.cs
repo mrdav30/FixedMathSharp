@@ -6,10 +6,14 @@
 //=======================================================================
 
 using FixedMathSharp.Bounds;
+using System;
 using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Static factory methods and arithmetic operations for <see cref="Vector3d"/>.
+/// </content>
 public partial struct Vector3d
 {
     #region Static Operations
@@ -69,6 +73,78 @@ public partial struct Vector3d
         if (!Fixed64.TrySubtract(left.X, right.X, out Fixed64 x)
             || !Fixed64.TrySubtract(left.Y, right.Y, out Fixed64 y)
             || !Fixed64.TrySubtract(left.Z, right.Z, out Fixed64 z))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector3d(x, y, z);
+        return true;
+    }
+
+    /// <summary>
+    /// Attempts to add two vectors and subtract a third component-wise without intermediate saturation.
+    /// </summary>
+    /// <param name="firstAddend">The first addend.</param>
+    /// <param name="secondAddend">The second addend.</param>
+    /// <param name="subtrahend">The vector to subtract from the exact component-wise sum.</param>
+    /// <param name="result">
+    /// The exact component-wise result when every component is representable; otherwise, <see langword="default"/>.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when every exact component is representable; otherwise, <see langword="false"/>.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryAddSubtract(
+        Vector3d firstAddend,
+        Vector3d secondAddend,
+        Vector3d subtrahend,
+        out Vector3d result)
+    {
+        if (!Fixed64.TryAddSubtract(firstAddend.X, secondAddend.X, subtrahend.X, out Fixed64 x)
+            || !Fixed64.TryAddSubtract(firstAddend.Y, secondAddend.Y, subtrahend.Y, out Fixed64 y)
+            || !Fixed64.TryAddSubtract(firstAddend.Z, secondAddend.Z, subtrahend.Z, out Fixed64 z))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector3d(x, y, z);
+        return true;
+    }
+
+    /// <summary>
+    /// Attempts to compute <c>(firstLeft + firstRight) -
+    /// (secondLeft + secondRight)</c> component-wise without intermediate
+    /// saturation.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TrySubtractSums(
+        Vector3d firstLeft,
+        Vector3d firstRight,
+        Vector3d secondLeft,
+        Vector3d secondRight,
+        out Vector3d result)
+    {
+        bool representable = Fixed64.TrySubtractSums(
+                firstLeft.X,
+                firstRight.X,
+                secondLeft.X,
+                secondRight.X,
+                out Fixed64 x)
+            & Fixed64.TrySubtractSums(
+                firstLeft.Y,
+                firstRight.Y,
+                secondLeft.Y,
+                secondRight.Y,
+                out Fixed64 y)
+            & Fixed64.TrySubtractSums(
+                firstLeft.Z,
+                firstRight.Z,
+                secondLeft.Z,
+                secondRight.Z,
+                out Fixed64 z);
+        if (!representable)
         {
             result = default;
             return false;
@@ -358,6 +434,36 @@ public partial struct Vector3d
     }
 
     /// <summary>
+    /// Attempts to compose two component-scaled offsets in a shared frame and
+    /// one rotated inner-frame displacement with one final round-half-to-even
+    /// conversion per component.
+    /// </summary>
+    /// <remarks>
+    /// Computes
+    /// <c>outerScale * outerLocalPoint
+    /// + innerFrameScale * innerFrameOffset
+    /// + Rotate(innerLocalDisplacement)</c>
+    /// without narrowing either scaled offset or the rotated displacement
+    /// independently.
+    /// </remarks>
+    public static bool TryComposeScaledLocalPoints(
+        Vector3d outerLocalPoint,
+        Vector3d outerScale,
+        Vector3d innerFrameOffset,
+        Vector3d innerFrameScale,
+        Vector3d innerLocalDisplacement,
+        FixedQuaternion innerRotation,
+        out Vector3d result) =>
+        WideOrientedBox.TryComposeScaledLocalPoints(
+            outerLocalPoint,
+            outerScale,
+            innerFrameOffset,
+            innerFrameScale,
+            innerLocalDisplacement,
+            innerRotation,
+            out result);
+
+    /// <summary>
     /// Returns the normalized direction from <paramref name="start"/> toward
     /// <paramref name="end"/> across the complete coordinate domain.
     /// </summary>
@@ -504,6 +610,23 @@ public partial struct Vector3d
     /// <returns>A vector where each component is -1, 0, or 1 based on the sign of the input.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d Sign(Vector3d value) => new(value.X.Sign(), value.Y.Sign(), value.Z.Sign());
+
+    /// <summary>
+    /// Attempts to calculate the exact non-negative weighted average with one
+    /// final round-half-to-even conversion per component.
+    /// </summary>
+    /// <remarks>
+    /// Zero-weight values are ignored. The operation returns
+    /// <see langword="false"/> only when the total weight is zero.
+    /// </remarks>
+    public static bool TryGetWeightedAverage(
+        ReadOnlySpan<Vector3d> values,
+        ReadOnlySpan<Fixed64> weights,
+        out Vector3d average)
+    {
+        WideWeightedAverage.ValidateInputs(values.Length, weights);
+        return WideWeightedAverage.TryGet(values, weights, out average);
+    }
 
     /// <summary>
     /// Clamps each component of the given <see cref="Vector3d"/> within the specified min and max bounds.

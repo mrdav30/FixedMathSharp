@@ -220,6 +220,32 @@ public class FixedBoundAreaTests
     }
 
     [Fact]
+    public void CenterOffsetFactory_PreservesAsymmetryAndClipsOnlyFinalEndpoints()
+    {
+        FixedBoundArea area = FixedBoundArea.FromCenterAndOffsetsClippedToDomain(
+            new Vector2d(Fixed64.MaxValue, Fixed64.MinValue),
+            new Vector2d(-3, -2),
+            new Vector2d(5, 7));
+
+        Assert.Equal(
+            new Vector2d(Fixed64.MaxValue - (Fixed64)3, Fixed64.MinValue),
+            area.Min);
+        Assert.Equal(
+            new Vector2d(Fixed64.MaxValue, Fixed64.MinValue + (Fixed64)7),
+            area.Max);
+        Assert.Throws<ArgumentException>(() =>
+            FixedBoundArea.FromCenterAndOffsetsClippedToDomain(
+                Vector2d.Zero,
+                new Vector2d(2, 0),
+                new Vector2d(1, 0)));
+        Assert.Throws<ArgumentException>(() =>
+            FixedBoundArea.FromCenterAndOffsetsClippedToDomain(
+                Vector2d.Zero,
+                new Vector2d(0, 2),
+                new Vector2d(0, 1)));
+    }
+
+    [Fact]
     public void Deconstruct_ReturnsNormalizedMinAndMax()
     {
         var area = FixedBoundArea.FromMinMax(new Vector2d(5, 4), new Vector2d(-1, -2));

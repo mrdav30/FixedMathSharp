@@ -10,6 +10,11 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Distance-based operations for <see cref="FixedSegment2d"/>, including
+/// capsule intersection distance intervals and physical-distance point
+/// reconstruction along the segment.
+/// </content>
 public partial struct FixedSegment2d
 {
     /// <summary>
@@ -72,7 +77,7 @@ public partial struct FixedSegment2d
     public readonly bool TryGetCapsuleIntersectionDistanceInterval(
         Vector2d center,
         Vector2d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 totalDistance,
         out Fixed64 entryDistance,
@@ -80,7 +85,7 @@ public partial struct FixedSegment2d
         TryGetCapsuleIntersectionDistanceInterval(
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             Fixed64.Zero,
             totalDistance,
@@ -97,7 +102,7 @@ public partial struct FixedSegment2d
     public readonly bool TryGetCapsuleIntersectionDistanceInterval(
         Vector2d center,
         Vector2d axisDirection,
-        Fixed64 axisHalfLength,
+        Fixed64 axisLength,
         Fixed64 radius,
         Fixed64 radiusExpansion,
         Fixed64 totalDistance,
@@ -107,7 +112,7 @@ public partial struct FixedSegment2d
         out bool endContainedStrict)
     {
         ValidateTotalDistance(totalDistance);
-        ValidateCenteredAxis(axisDirection, axisHalfLength);
+        ValidateCenteredAxis(axisDirection, axisLength);
         if (radius < Fixed64.Zero)
             throw new ArgumentOutOfRangeException(nameof(radius));
         if (radiusExpansion < Fixed64.Zero)
@@ -117,7 +122,7 @@ public partial struct FixedSegment2d
             this,
             center,
             axisDirection,
-            axisHalfLength,
+            axisLength,
             radius,
             radiusExpansion,
             totalDistance,
@@ -152,8 +157,8 @@ public partial struct FixedSegment2d
         if (distance == totalDistance)
             return End;
 
-        Signed192 distanceRaw = WideArithmetic.FromSignedRaw(distance.m_rawValue);
-        Signed192 totalDistanceRaw = WideArithmetic.FromSignedRaw(totalDistance.m_rawValue);
+        Signed192 distanceRaw = Signed192.Signed(distance.m_rawValue);
+        Signed192 totalDistanceRaw = Signed192.Signed(totalDistance.m_rawValue);
         return new Vector2d(
             WideGeometry.InterpolateCoordinate(Start.X, End.X, distanceRaw, totalDistanceRaw),
             WideGeometry.InterpolateCoordinate(Start.Y, End.Y, distanceRaw, totalDistanceRaw));

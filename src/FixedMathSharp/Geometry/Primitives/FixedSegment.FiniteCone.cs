@@ -9,6 +9,9 @@ using System;
 
 namespace FixedMathSharp.Bounds;
 
+/// <content>
+/// Segment-vs-finite-cone intersection tests.
+/// </content>
 public partial struct FixedSegment
 {
     /// <summary>

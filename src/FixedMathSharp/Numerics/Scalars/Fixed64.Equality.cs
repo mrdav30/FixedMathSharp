@@ -9,10 +9,11 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
+/// <content>
+/// Provides equality comparison, hash code generation, and ordering logic for <see cref="Fixed64"/>.
+/// </content>
 public partial struct Fixed64
 {
-    #region Equality, HashCode, Comparable Overrides
-
     /// <summary>
     /// Determines whether this instance equals another object.
     /// </summary>
@@ -41,6 +42,4 @@ public partial struct Fixed64
     /// <param name="other">The Fixed64 to compare with.</param>
     /// <returns>-1 if less than, 0 if equal, 1 if greater than other.</returns>
     public int CompareTo(Fixed64 other) => m_rawValue.CompareTo(other.m_rawValue);
-
-    #endregion
 }
