@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Provides methods for testing point containment against a rotated capsule

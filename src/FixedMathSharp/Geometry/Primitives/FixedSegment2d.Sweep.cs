@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Sweep-based intersection tests for capsule shapes built on <see cref="FixedSegment2d"/> axes.

@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Support types and helpers for convex prism relations, including finite shape kinds,

@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Wide-oriented box rational segment sweep operations.

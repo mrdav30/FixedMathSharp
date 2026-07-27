@@ -8,7 +8,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <summary>
 /// Owns exact full-domain ray/circle and ray/sphere quadratic reduction.

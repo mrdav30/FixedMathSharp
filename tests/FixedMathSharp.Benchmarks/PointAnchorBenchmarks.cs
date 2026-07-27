@@ -1,5 +1,5 @@
 using BenchmarkDotNet.Attributes;
-using FixedMathSharp.Bounds;
+using FixedMathSharp.Geometry;
 
 namespace FixedMathSharp.Benchmarks;
 

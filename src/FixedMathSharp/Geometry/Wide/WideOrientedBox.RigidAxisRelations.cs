@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Provides high-precision (wide arithmetic) computations for rigid axis relations,

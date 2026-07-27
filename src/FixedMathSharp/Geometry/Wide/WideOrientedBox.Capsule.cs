@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Contains oriented-box vs capsule contact generation logic using wide (extended-precision) arithmetic.

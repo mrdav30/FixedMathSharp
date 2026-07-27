@@ -8,7 +8,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Distance and intersection-interval queries for <see cref="FixedSegment"/>,

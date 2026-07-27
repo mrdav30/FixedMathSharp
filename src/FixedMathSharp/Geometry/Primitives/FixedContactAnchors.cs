@@ -5,7 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <summary>
 /// Describes one 3D contact constraint using points retained in their rigid

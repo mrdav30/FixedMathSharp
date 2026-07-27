@@ -1,7 +1,7 @@
+using FixedMathSharp.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using FixedMathSharp.Bounds;
 using Xunit;
 
 namespace FixedMathSharp.Tests;

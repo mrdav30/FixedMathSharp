@@ -5,7 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Provides high-precision, wide-arithmetic computation of the closest point

@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Contains methods for computing the oriented penetration of a centered 3D capsule, finite cylinder, 

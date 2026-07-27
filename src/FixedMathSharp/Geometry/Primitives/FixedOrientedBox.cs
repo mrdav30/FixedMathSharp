@@ -9,7 +9,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <summary>
 /// Represents an immutable oriented box through canonical center, orientation,

@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Contains methods for computing the contact relation between two centered 3D capsules without narrowing either finite axis.

@@ -1,4 +1,4 @@
-using FixedMathSharp.Bounds;
+using FixedMathSharp.Geometry;
 using MemoryPack;
 using System;
 using System.Text.Json;

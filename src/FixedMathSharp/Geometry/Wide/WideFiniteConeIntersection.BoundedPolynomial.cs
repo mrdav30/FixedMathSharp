@@ -5,7 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Bounded-unit-interval overloads for evaluating and solving the cone polynomial

@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Contains methods for finding the first distance where a ray reaches a finite axis-aligned capsule or cylinder.

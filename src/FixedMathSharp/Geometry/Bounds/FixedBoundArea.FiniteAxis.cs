@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Contains methods for creating a representable-domain intersection of a centered capsule's tight axis-aligned bounds 

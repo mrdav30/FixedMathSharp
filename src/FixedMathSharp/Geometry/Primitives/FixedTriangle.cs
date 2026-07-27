@@ -10,7 +10,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <summary>
 /// Represents an ordered triangle in three-dimensional fixed-point space.

@@ -5,7 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Bounds;
+using FixedMathSharp.Geometry;
 using System;
 using System.Numerics;
 using Xunit;

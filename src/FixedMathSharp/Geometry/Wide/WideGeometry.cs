@@ -7,7 +7,7 @@
 
 using System.Runtime.CompilerServices;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <summary>
 /// Provides shared helper methods for computing support points, anchors, and axis-aligned

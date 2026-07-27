@@ -1,5 +1,5 @@
+using FixedMathSharp.Geometry;
 using System;
-using FixedMathSharp.Bounds;
 using Xunit;
 
 namespace FixedMathSharp.Tests;

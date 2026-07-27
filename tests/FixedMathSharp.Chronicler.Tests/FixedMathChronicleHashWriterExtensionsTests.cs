@@ -1,5 +1,5 @@
 using Chronicler;
-using FixedMathSharp.Bounds;
+using FixedMathSharp.Geometry;
 using System;
 using Xunit;
 

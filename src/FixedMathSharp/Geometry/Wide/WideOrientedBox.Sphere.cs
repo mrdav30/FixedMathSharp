@@ -5,7 +5,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Provides high-precision (wide arithmetic) contact generation and 
@@ -50,7 +50,7 @@ internal static partial class WideOrientedBox
         Signed192 extentZ = Signed192.NarrowValue(
             GetExtentNumerator(halfExtents.Z, basis.Denominator));
 
-        return Bounds.WideFiniteAxisIntersection
+        return Geometry.WideFiniteAxisIntersection
             .TryGetSphericallyExpandedProjectedBoxFirstDistance(
                 narrowStartX,
                 narrowStartY,

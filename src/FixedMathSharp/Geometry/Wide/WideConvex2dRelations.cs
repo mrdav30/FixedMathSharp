@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <summary>
 /// Contains methods for computing geometric relations between convex shapes in 2D space using wide fixed-point arithmetic.

@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Signed wide-integer arithmetic helpers (add, subtract, multiply, shift, compare)

@@ -1,5 +1,5 @@
 using BenchmarkDotNet.Attributes;
-using FixedMathSharp.Bounds;
+using FixedMathSharp.Geometry;
 #if !FIXEDMATHSHARP_DISABLE_MEMORYPACK
 using MemoryPack;
 #endif

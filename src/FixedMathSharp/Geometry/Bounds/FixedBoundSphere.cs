@@ -12,7 +12,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <summary>
 /// Represents a spherical bounding volume with fixed-point precision, optimized for fast, 

@@ -10,7 +10,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <summary>
 /// Represents a plane in 3D space using a normal vector and a distance from the origin.

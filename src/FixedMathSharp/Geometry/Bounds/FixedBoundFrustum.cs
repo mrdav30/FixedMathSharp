@@ -8,7 +8,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace FixedMathSharp.Bounds;
+namespace FixedMathSharp.Geometry;
 
 /// <summary>
 /// Represents a frustum bounded by six clipping planes.
