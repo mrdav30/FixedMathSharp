@@ -75,16 +75,4 @@ internal readonly struct Signed704
             value.Word0);
     }
 
-    internal bool Equals(Signed704 other) =>
-        ((Word10 ^ other.Word10)
-         | (Word9 ^ other.Word9)
-         | (Word8 ^ other.Word8)
-         | (Word7 ^ other.Word7)
-         | (Word6 ^ other.Word6)
-         | (Word5 ^ other.Word5)
-         | (Word4 ^ other.Word4)
-         | (Word3 ^ other.Word3)
-         | (Word2 ^ other.Word2)
-         | (Word1 ^ other.Word1)
-         | (Word0 ^ other.Word0)) == 0UL;
 }

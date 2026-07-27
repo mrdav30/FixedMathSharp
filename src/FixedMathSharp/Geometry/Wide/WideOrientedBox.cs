@@ -113,8 +113,6 @@ internal static partial class WideOrientedBox
     {
         internal readonly WideAxis3 Axis;
         internal readonly bool Negate;
-        internal readonly Fixed64 Depth;
-        internal readonly bool DepthIsClamped;
         internal readonly Signed576 ExactOverlap;
         internal readonly Signed576 ExactSquaredAxisLength;
         internal readonly Signed320 ExactCommonDenominator;
@@ -122,16 +120,12 @@ internal static partial class WideOrientedBox
         internal PointSpanPenetration(
             WideAxis3 axis,
             bool negate,
-            Fixed64 depth,
-            bool depthIsClamped,
             Signed576 exactOverlap,
             Signed576 exactSquaredAxisLength,
             Signed320 exactCommonDenominator)
         {
             Axis = axis;
             Negate = negate;
-            Depth = depth;
-            DepthIsClamped = depthIsClamped;
             ExactOverlap = exactOverlap;
             ExactSquaredAxisLength = exactSquaredAxisLength;
             ExactCommonDenominator = exactCommonDenominator;

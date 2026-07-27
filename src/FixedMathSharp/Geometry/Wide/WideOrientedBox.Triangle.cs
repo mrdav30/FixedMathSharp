@@ -131,6 +131,12 @@ internal static partial class WideOrientedBox
             triangle,
             triangleBasis,
             orientedAxis);
+        GetPointSpanDepth(
+            best.ExactOverlap,
+            best.ExactSquaredAxisLength,
+            best.ExactCommonDenominator,
+            out Fixed64 depth,
+            out bool depthIsClamped);
         contact = new FixedContactAnchors(
             new FixedPointAnchor(
                 boxCenter,
@@ -144,8 +150,8 @@ internal static partial class WideOrientedBox
                 triangleRotation,
                 triangleLocalPoint),
             contactNormal,
-            best.Depth,
-            best.DepthIsClamped);
+            depth,
+            depthIsClamped);
         return true;
     }
 
@@ -257,25 +263,16 @@ internal static partial class WideOrientedBox
         Signed320 commonDenominator = WideArithmetic.MultiplySigned192(
             boxBasis.Denominator,
             triangleBasis.Denominator);
-        GetPointSpanDepth(
-            overlap,
-            axis,
-            commonDenominator,
-            out Fixed64 depth,
-            out bool depthIsClamped,
-            out Signed576 squaredAxisLength);
+        Signed576 squaredAxisLength = GetSquaredLength(axis);
         if (ShouldReplacePointSpan(
             overlap,
             squaredAxisLength,
             commonDenominator,
-            depth,
             best))
         {
             best = new PointSpanPenetration(
                 axis,
                 negate,
-                depth,
-                depthIsClamped,
                 overlap,
                 squaredAxisLength,
                 commonDenominator);

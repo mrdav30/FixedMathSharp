@@ -47,6 +47,13 @@ public class OrientedBoxAnchorBenchmarks
             (Fixed64)19,
             (Fixed64)(-11)),
         new Vector3d(2, 1, 3));
+    private readonly FixedOrientedBox _otherBox = new(
+        new Vector3d(2, 0, 1),
+        FixedQuaternion.FromEulerAnglesInDegrees(
+            (Fixed64)(-10),
+            (Fixed64)40,
+            (Fixed64)20),
+        new Vector3d(1, 2, 1));
     private readonly FixedTriangle _triangle = new(
         new Vector3d(-3, 0, -3),
         new Vector3d(3, 0, -3),
@@ -68,6 +75,23 @@ public class OrientedBoxAnchorBenchmarks
             new Vector3d(0, 1, 0),
             _triangleRotation,
             _triangle,
+            out _);
+
+    [Benchmark]
+    public bool BoxPrimary() =>
+        _box.TryGetContact(_otherBox, out _);
+
+    [Benchmark]
+    public bool CapsulePrimary() =>
+        _box.TryGetCenteredCapsuleContact(
+            new Vector3d(
+                Fixed64.FromFraction(5, 4),
+                Fixed64.Zero,
+                Fixed64.Zero),
+            _triangleRotation,
+            Vector3d.Up,
+            Fixed64.Two,
+            Fixed64.Half,
             out _);
 
     [Benchmark]

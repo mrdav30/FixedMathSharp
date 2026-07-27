@@ -132,9 +132,6 @@ internal readonly struct FixedPointAnchorTerm3d :
             return hash;
         }
     }
-
-    public override bool Equals(object? obj) =>
-        obj is FixedPointAnchorTerm3d other && Equals(other);
 }
 
 /// <summary>
@@ -232,7 +229,4 @@ internal readonly struct FixedPointAnchorTerm2d :
             return hash;
         }
     }
-
-    public override bool Equals(object? obj) =>
-        obj is FixedPointAnchorTerm2d other && Equals(other);
 }

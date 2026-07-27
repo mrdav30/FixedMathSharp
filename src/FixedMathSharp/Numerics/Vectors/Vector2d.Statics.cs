@@ -453,6 +453,27 @@ public partial struct Vector2d
     }
 
     /// <summary>
+    /// Calculates the arithmetic mean with one final round-half-to-even
+    /// conversion per component.
+    /// </summary>
+    /// <param name="values">The non-empty sequence of vectors to average.</param>
+    /// <returns>The arithmetic mean of <paramref name="values"/>.</returns>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="values"/> is empty.
+    /// </exception>
+    public static Vector2d GetAverage(ReadOnlySpan<Vector2d> values)
+    {
+        if (values.IsEmpty)
+        {
+            throw new ArgumentException(
+                "At least one value is required.",
+                nameof(values));
+        }
+
+        return WideWeightedAverage.GetAverage(values);
+    }
+
+    /// <summary>
     /// Creates a vector from a given angle in radians.
     /// </summary>
     public static Vector2d CreateRotation(Fixed64 angle) => new(FixedMath.Cos(angle), FixedMath.Sin(angle));

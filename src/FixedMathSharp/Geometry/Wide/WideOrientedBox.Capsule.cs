@@ -20,8 +20,6 @@ internal static partial class WideOrientedBox
     {
         internal readonly CapsuleAxis3 Axis;
         internal readonly bool Negate;
-        internal readonly Fixed64 Depth;
-        internal readonly bool DepthIsClamped;
         internal readonly Signed704 WideRational;
         internal readonly Signed832 WideSquaredAxisLength;
         internal readonly int FeatureRank;
@@ -29,16 +27,12 @@ internal static partial class WideOrientedBox
         internal CapsulePenetration(
             CapsuleAxis3 axis,
             bool negate,
-            Fixed64 depth,
-            bool depthIsClamped,
             Signed704 rational,
             Signed832 squaredAxisLength,
             int featureRank)
         {
             Axis = axis;
             Negate = negate;
-            Depth = depth;
-            DepthIsClamped = depthIsClamped;
             WideRational = rational;
             WideSquaredAxisLength = squaredAxisLength;
             FeatureRank = featureRank;
@@ -82,12 +76,20 @@ internal static partial class WideOrientedBox
                 capsuleAxisLength,
                 capsuleRadius,
                 out RationalBasis basis,
+                out Signed192 commonDenominator,
                 out CapsulePenetration best))
         {
             contact = default;
             return false;
         }
 
+        GetWideCapsuleDepth(
+            best.WideRational,
+            best.WideSquaredAxisLength,
+            commonDenominator,
+            capsuleRadius,
+            out Fixed64 depth,
+            out bool depthIsClamped);
         CapsuleAxis3 orientedAxis = best.Negate ? -best.Axis : best.Axis;
         Vector3d normal = WideGeometry.GetNormalized(
             orientedAxis.X,
@@ -116,8 +118,8 @@ internal static partial class WideOrientedBox
                 boxLocalPoint),
             capsuleAnchor,
             normal,
-            best.Depth,
-            best.DepthIsClamped);
+            depth,
+            depthIsClamped);
         return true;
     }
 
@@ -153,6 +155,7 @@ internal static partial class WideOrientedBox
             capsuleAxisLength,
             capsuleRadius,
             out _,
+            out _,
             out _);
     }
 
@@ -187,6 +190,7 @@ internal static partial class WideOrientedBox
             capsuleAxisLength,
             capsuleRadius,
             out _,
+            out _,
             out _);
     }
 
@@ -200,6 +204,7 @@ internal static partial class WideOrientedBox
         Fixed64 capsuleAxisLength,
         Fixed64 capsuleRadius,
         out RationalBasis basis,
+        out Signed192 commonDenominator,
         out CapsulePenetration best)
     {
         basis = new RationalBasis(orientation);
@@ -214,7 +219,7 @@ internal static partial class WideOrientedBox
         // 170 signed bits, so this narrowing is exact.
         _ = Signed192.TryNarrowSigned(
             commonDenominatorWide,
-            out Signed192 commonDenominator);
+            out commonDenominator);
         Span<WideAxis3> boxAxes = stackalloc WideAxis3[3]
         {
             GetBasisAxis(basis, 2),

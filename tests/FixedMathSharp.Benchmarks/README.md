@@ -136,6 +136,34 @@ BenchmarkDotNet writes results to `BenchmarkDotNet.Artifacts/results/` by
 default. Archive the JSON or markdown reports before changing algorithms so
 regressions can be compared against known results.
 
+### 2026-07-27 Canonical Geometry Closure
+
+The Task 9 short in-process smoke repeated the Task 0 transform, matrix, and
+finite-axis selections and added the canonical anchor and rigid-shape relation
+rows:
+
+```bash
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed-transform matrix4x4 finite-axis-intersection bounds oriented-box-anchor point-anchor rigid-finite-shape-relation --filter "*TryDepthEightWorldMatrix*" "*TryMultiply*" "*RigidCapsule3DDistanceInterval*" "*OrientedBox*" "*Anchor*" "*RigidFiniteShape*" -j Short -i --exporters json
+```
+
+Against the matching Task 0 job, `TryDepthEightWorldMatrix` moved from
+3.445 us to 3.221 us and `TryMultiply` from 80.38 us to 72.94 us. The four
+finite-axis rows stayed within approximately -8.4% to +2.1% of baseline.
+Primary rows remained allocation-free; isolated 1-2 B in-process readings on
+two wide stress rows are treated as runner noise rather than release evidence.
+The authoritative allocation assertions and Release/ReleaseLean suites remain
+the release gates.
+
+The follow-up exact-contact comparison found that box, capsule, triangle, and
+convex-hull relations rounded every candidate depth before selecting the exact
+minimum. Retaining exact candidate terms and rounding only the winner reduced
+the same short in-process rows from `120.688` to `65.258 us` for box, `435.680`
+to `258.658 us` for capsule, `139.760` to `87.787 us` for triangle, and
+`627.073` to `375.193 us` for convex hull. All rows remained allocation-free.
+Artifacts are retained under
+`artifacts/benchmarks/task9-obb-depth-baseline-20260727` and
+`artifacts/benchmarks/task9-obb-depth-final-20260727`.
+
 ### Comparing Results
 
 Use full `Release` BenchmarkDotNet artifacts for performance claims. Short

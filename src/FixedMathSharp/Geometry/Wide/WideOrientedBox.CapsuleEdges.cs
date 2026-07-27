@@ -326,15 +326,8 @@ internal static partial class WideOrientedBox
             return false;
         }
 
-        GetWideCapsuleDepth(
-            rational,
-            squaredAxisLength,
-            commonDenominator,
-            capsuleRadius,
-            out Fixed64 depth,
-            out bool depthIsClamped);
-        bool shouldReplace = !best.HasValue || depth < best.Depth;
-        if (best.HasValue && depth == best.Depth)
+        bool shouldReplace = !best.HasValue;
+        if (best.HasValue)
         {
             int comparison = CompareWideCapsuleDepth(
                 rational,
@@ -349,8 +342,6 @@ internal static partial class WideOrientedBox
             best = new CapsulePenetration(
                 axis,
                 negate,
-                depth,
-                depthIsClamped,
                 rational,
                 squaredAxisLength,
                 featureRank);

@@ -21,23 +21,17 @@ internal static partial class WideOrientedBox
     {
         internal readonly WideAxis3 Axis;
         internal readonly bool Negate;
-        internal readonly Fixed64 Depth;
-        internal readonly bool DepthIsClamped;
         internal readonly Signed576 Overlap;
         internal readonly Signed576 SquaredAxisLength;
 
         internal BoxPenetration(
             WideAxis3 axis,
             bool negate,
-            Fixed64 depth,
-            bool depthIsClamped,
             Signed576 overlap,
             Signed576 squaredAxisLength)
         {
             Axis = axis;
             Negate = negate;
-            Depth = depth;
-            DepthIsClamped = depthIsClamped;
             Overlap = overlap;
             SquaredAxisLength = squaredAxisLength;
             HasValue = true;
@@ -59,6 +53,9 @@ internal static partial class WideOrientedBox
     {
         RationalBasis firstBasis = new(firstOrientation);
         RationalBasis secondBasis = new(secondOrientation);
+        Signed320 commonDenominator = WideArithmetic.MultiplySigned192(
+            firstBasis.Denominator,
+            secondBasis.Denominator);
         Span<WideAxis3> firstAxes = stackalloc WideAxis3[3]
         {
             GetBasisAxis(firstBasis, 0),
@@ -82,6 +79,7 @@ internal static partial class WideOrientedBox
                     secondCenter,
                     secondHalfExtents,
                     secondBasis,
+                    commonDenominator,
                     ref best)
                 || !TryKeepBoxAxis(
                     secondAxes[index],
@@ -91,6 +89,7 @@ internal static partial class WideOrientedBox
                     secondCenter,
                     secondHalfExtents,
                     secondBasis,
+                    commonDenominator,
                     ref best))
             {
                 contact = default;
@@ -110,6 +109,7 @@ internal static partial class WideOrientedBox
                         secondCenter,
                         secondHalfExtents,
                         secondBasis,
+                        commonDenominator,
                         ref best))
                 {
                     contact = default;
@@ -118,6 +118,12 @@ internal static partial class WideOrientedBox
             }
         }
 
+        Fixed64 depth =
+            WideArithmetic.GetRoundedNonNegativeNormalizedDepth(
+                best.Overlap,
+                best.SquaredAxisLength,
+                commonDenominator,
+                out bool depthIsClamped);
         WideAxis3 orientedAxis = best.Negate ? -best.Axis : best.Axis;
         Vector3d normal = WideGeometry.GetNormalized(
             Signed576.ExtendValue(orientedAxis.X),
@@ -152,8 +158,8 @@ internal static partial class WideOrientedBox
                 secondOrientation,
                 secondLocalPoint),
             normal,
-            best.Depth,
-            best.DepthIsClamped);
+            depth,
+            depthIsClamped);
         return true;
     }
 
@@ -165,6 +171,7 @@ internal static partial class WideOrientedBox
         Vector3d secondCenter,
         Vector3d secondHalfExtents,
         RationalBasis secondBasis,
+        Signed320 commonDenominator,
         ref BoxPenetration best)
     {
         if (axis.IsZero)
@@ -183,9 +190,6 @@ internal static partial class WideOrientedBox
             firstCenter,
             axis);
         bool negate = centerProjection.Sign < 0;
-        Signed320 commonDenominator = WideArithmetic.MultiplySigned192(
-            firstBasis.Denominator,
-            secondBasis.Denominator);
         Signed576 overlap = WideArithmetic.SubtractSigned576(
             WideArithmetic.AddSigned576(
                 WideArithmetic.MultiplySigned576(
@@ -200,29 +204,18 @@ internal static partial class WideOrientedBox
         if (overlap.Sign < 0)
             return false;
 
-        GetPolytopeDepth(
-            overlap,
-            axis,
-            commonDenominator,
-            out Fixed64 depth,
-            out bool depthIsClamped);
         Signed576 squaredAxisLength = GetSquaredLength(axis);
-        bool shouldReplace = !best.HasValue || depth < best.Depth;
-        if (best.HasValue && depth == best.Depth)
-        {
-            shouldReplace = CompareBoxDepth(
+        bool shouldReplace = !best.HasValue
+            || CompareBoxDepth(
                 overlap,
                 squaredAxisLength,
                 best.Overlap,
                 best.SquaredAxisLength) < 0;
-        }
         if (shouldReplace)
         {
             best = new BoxPenetration(
                 axis,
                 negate,
-                depth,
-                depthIsClamped,
                 overlap,
                 squaredAxisLength);
         }

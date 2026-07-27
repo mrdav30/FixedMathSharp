@@ -147,6 +147,12 @@ internal static partial class WideOrientedBox
             normal,
             boxOrientation,
             boxHalfExtents);
+        GetPointSpanDepth(
+            best.ExactOverlap,
+            best.ExactSquaredAxisLength,
+            best.ExactCommonDenominator,
+            out Fixed64 depth,
+            out bool depthIsClamped);
         contact = new FixedContactAnchors(
             new FixedPointAnchor(
                 boxCenter,
@@ -157,8 +163,8 @@ internal static partial class WideOrientedBox
                 hullOrientation,
                 hullLocalPoint),
             normal,
-            best.Depth,
-            best.DepthIsClamped);
+            depth,
+            depthIsClamped);
         return true;
     }
 
@@ -228,25 +234,16 @@ internal static partial class WideOrientedBox
         Signed320 commonDenominator = WideArithmetic.MultiplySigned192(
             boxBasis.Denominator,
             hullBasis.Denominator);
-        GetPointSpanDepth(
-            overlap,
-            axis,
-            commonDenominator,
-            out Fixed64 depth,
-            out bool depthIsClamped,
-            out Signed576 squaredAxisLength);
+        Signed576 squaredAxisLength = GetSquaredLength(axis);
         if (ShouldReplacePointSpan(
             overlap,
             squaredAxisLength,
             commonDenominator,
-            depth,
             best))
         {
             best = new PointSpanPenetration(
                 axis,
                 negate,
-                depth,
-                depthIsClamped,
                 overlap,
                 squaredAxisLength,
                 commonDenominator);
@@ -325,17 +322,11 @@ internal static partial class WideOrientedBox
 
     private static void GetPointSpanDepth(
         Signed576 overlap,
-        WideAxis3 axis,
+        Signed576 squaredAxisLength,
         Signed320 commonDenominator,
         out Fixed64 depth,
-        out bool depthIsClamped,
-        out Signed576 squaredAxisLength)
+        out bool depthIsClamped)
     {
-        squaredAxisLength = WideArithmetic.AddSigned576(
-            WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned320(axis.X, axis.X),
-                WideArithmetic.MultiplySigned320(axis.Y, axis.Y)),
-            WideArithmetic.MultiplySigned320(axis.Z, axis.Z));
         // Every nonzero hull SAT axis contains a normalized quaternion-basis
         // numerator; authored face and edge axes only add scale. This proves
         // the half-Q32 minimum required by the one-step rounding contract.
@@ -350,13 +341,10 @@ internal static partial class WideOrientedBox
         Signed576 overlap,
         Signed576 squaredAxisLength,
         Signed320 commonDenominator,
-        Fixed64 depth,
         in PointSpanPenetration best)
     {
-        if (!best.HasValue || depth < best.Depth)
+        if (!best.HasValue)
             return true;
-        if (depth > best.Depth)
-            return false;
         return WideArithmetic.CompareNonNegativeNormalizedDepths(
             overlap,
             squaredAxisLength,

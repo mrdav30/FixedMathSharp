@@ -5,6 +5,9 @@ fixed-point shape math only; physics concepts such as colliders, materials,
 shape casts, contact manifolds, body state, and broad-phase layers belong in
 higher-level.
 
+All bounds and geometry primitives on this page live in
+`FixedMathSharp.Geometry`.
+
 ## Dimensional Ownership
 
 Use 3D types for volume and spatial math:

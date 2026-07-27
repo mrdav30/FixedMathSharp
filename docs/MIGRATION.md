@@ -47,6 +47,16 @@ Use this guide when upgrading from any v6.x package.
 - Re-run deterministic replay, save/load, collision/query, transform-hierarchy,
   and broad-phase tests after the source migration compiles.
 
+### Geometry Namespace
+
+Bounds and geometry primitives now share the
+`FixedMathSharp.Geometry` namespace. Type names are unchanged; update the
+namespace import:
+
+```csharp
+using FixedMathSharp.Geometry;
+```
+
 ### Division Rounds Midpoints To Even
 
 `Fixed64` multiplication and division now share the same nearest-even rounding

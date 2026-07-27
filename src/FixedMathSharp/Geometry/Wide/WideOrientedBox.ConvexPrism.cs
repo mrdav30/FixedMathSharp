@@ -483,20 +483,6 @@ internal static partial class WideOrientedBox
         WideAxis3 axis,
         Signed320 commonDenominator,
         out Fixed64 depth,
-        out bool depthIsClamped) =>
-        GetPolytopeDepth(
-            overlap,
-            axis,
-            commonDenominator,
-            out depth,
-            out depthIsClamped,
-            out _);
-
-    private static void GetPolytopeDepth(
-        Signed576 overlap,
-        WideAxis3 axis,
-        Signed320 commonDenominator,
-        out Fixed64 depth,
         out bool depthIsClamped,
         out Signed576 squaredLength)
     {

@@ -18,6 +18,28 @@ internal static class WideWeightedAverage
     // A maximum-length span needs at most 159 signed bits for weighted
     // component products and 95 for the total Q32.32 weight.
 
+    internal static Vector2d GetAverage(ReadOnlySpan<Vector2d> values)
+    {
+        Signed192 totalX = default;
+        Signed192 totalY = default;
+        for (int i = 0; i < values.Length; i++)
+        {
+            totalX = WideArithmetic.AddSigned192(
+                totalX,
+                Signed192.Raw(values[i].X));
+            totalY = WideArithmetic.AddSigned192(
+                totalY,
+                Signed192.Raw(values[i].Y));
+        }
+
+        Signed576 denominator = Signed576.ExtendValue(
+            Signed320.ExtendValue(
+                Signed192.Signed(values.Length)));
+        return new Vector2d(
+            GetComponent(totalX, denominator),
+            GetComponent(totalY, denominator));
+    }
+
     internal static bool TryGet(
         ReadOnlySpan<Vector2d> values,
         ReadOnlySpan<Fixed64> weights,
@@ -124,6 +146,19 @@ internal static class WideWeightedAverage
         // reachable here.
         Fixed64.TryGetSignedRawRatio(
             Signed576.ExtendValue(numerator),
+            denominator,
+            out Fixed64 component);
+        return component;
+    }
+
+    private static Fixed64 GetComponent(
+        Signed192 numerator,
+        Signed576 denominator)
+    {
+        // An arithmetic mean is bounded by its representable inputs.
+        Fixed64.TryGetSignedRawRatio(
+            Signed576.ExtendValue(
+                Signed320.ExtendValue(numerator)),
             denominator,
             out Fixed64 component);
         return component;

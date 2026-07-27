@@ -117,6 +117,7 @@ AOT-sensitive code, prefer `FixedMathSharp.Lean`.
 
 ```csharp
 using FixedMathSharp;
+using FixedMathSharp.Geometry;
 
 Fixed64 speed = Fixed64.FromDouble(3.5);
 Fixed64 deltaTime = Fixed64.FromFraction(1, 60);
@@ -164,6 +165,8 @@ ChronicleHash hash = writer.ToHash();
 ### Bounds and Geometry
 
 ```csharp
+using FixedMathSharp.Geometry;
+
 FixedBoundBox room = FixedBoundBox.FromCenterAndSize(Vector3d.Zero, new Vector3d(10, 4, 10));
 FixedRay ray = new FixedRay(new Vector3d(-20, 0, 0), Vector3d.Right);
 FixedBoundArea footprint = FixedBoundArea.FromCenterAndSize(Vector2d.Zero, new Vector2d(6, 4));
