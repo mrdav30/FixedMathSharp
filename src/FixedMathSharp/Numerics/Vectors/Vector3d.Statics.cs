@@ -155,6 +155,197 @@ public partial struct Vector3d
     }
 
     /// <summary>
+    /// Attempts to calculate the cross product with one final
+    /// round-half-to-even conversion per component.
+    /// </summary>
+    public static bool TryCross(
+        Vector3d left,
+        Vector3d right,
+        out Vector3d result)
+    {
+        bool representable = Fixed64.TrySubtractProducts(
+                left.Y,
+                right.Z,
+                left.Z,
+                right.Y,
+                out Fixed64 x)
+            & Fixed64.TrySubtractProducts(
+                left.Z,
+                right.X,
+                left.X,
+                right.Z,
+                out Fixed64 y)
+            & Fixed64.TrySubtractProducts(
+                left.X,
+                right.Y,
+                left.Y,
+                right.X,
+                out Fixed64 z);
+        if (!representable)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector3d(x, y, z);
+        return true;
+    }
+
+    /// <summary>
+    /// Attempts to calculate the dot product with one final
+    /// round-half-to-even conversion.
+    /// </summary>
+    public static bool TryDot(
+        Vector3d left,
+        Vector3d right,
+        out Fixed64 result) =>
+        Fixed64.TryAddProducts(
+            left.X,
+            right.X,
+            left.Y,
+            right.Y,
+            left.Z,
+            right.Z,
+            out result);
+
+    /// <summary>
+    /// Attempts to combine two scaled vectors with one final
+    /// round-half-to-even conversion per component.
+    /// </summary>
+    public static bool TryLinearCombination(
+        Vector3d first,
+        Fixed64 firstScale,
+        Vector3d second,
+        Fixed64 secondScale,
+        out Vector3d result)
+    {
+        bool representable = Fixed64.TryAddProducts(
+                first.X,
+                firstScale,
+                second.X,
+                secondScale,
+                out Fixed64 x)
+            & Fixed64.TryAddProducts(
+                first.Y,
+                firstScale,
+                second.Y,
+                secondScale,
+                out Fixed64 y)
+            & Fixed64.TryAddProducts(
+                first.Z,
+                firstScale,
+                second.Z,
+                secondScale,
+                out Fixed64 z);
+        if (!representable)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector3d(x, y, z);
+        return true;
+    }
+
+    /// <summary>
+    /// Attempts to combine three scaled vectors with one final
+    /// round-half-to-even conversion per component.
+    /// </summary>
+    public static bool TryLinearCombination(
+        Vector3d first,
+        Fixed64 firstScale,
+        Vector3d second,
+        Fixed64 secondScale,
+        Vector3d third,
+        Fixed64 thirdScale,
+        out Vector3d result)
+    {
+        bool representable = Fixed64.TryAddProducts(
+                first.X,
+                firstScale,
+                second.X,
+                secondScale,
+                third.X,
+                thirdScale,
+                out Fixed64 x)
+            & Fixed64.TryAddProducts(
+                first.Y,
+                firstScale,
+                second.Y,
+                secondScale,
+                third.Y,
+                thirdScale,
+                out Fixed64 y)
+            & Fixed64.TryAddProducts(
+                first.Z,
+                firstScale,
+                second.Z,
+                secondScale,
+                third.Z,
+                thirdScale,
+                out Fixed64 z);
+        if (!representable)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector3d(x, y, z);
+        return true;
+    }
+
+    /// <summary>
+    /// Attempts to combine three scaled vectors, apply a final scale, and
+    /// round each completed component once.
+    /// </summary>
+    public static bool TryScaledLinearCombination(
+        Vector3d first,
+        Fixed64 firstScale,
+        Vector3d second,
+        Fixed64 secondScale,
+        Vector3d third,
+        Fixed64 thirdScale,
+        Fixed64 resultScale,
+        out Vector3d result)
+    {
+        bool representable = Fixed64.TryAddScaledProducts(
+                first.X,
+                firstScale,
+                second.X,
+                secondScale,
+                third.X,
+                thirdScale,
+                resultScale,
+                out Fixed64 x)
+            & Fixed64.TryAddScaledProducts(
+                first.Y,
+                firstScale,
+                second.Y,
+                secondScale,
+                third.Y,
+                thirdScale,
+                resultScale,
+                out Fixed64 y)
+            & Fixed64.TryAddScaledProducts(
+                first.Z,
+                firstScale,
+                second.Z,
+                secondScale,
+                third.Z,
+                thirdScale,
+                resultScale,
+                out Fixed64 z);
+        if (!representable)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector3d(x, y, z);
+        return true;
+    }
+
+    /// <summary>
     /// Compares the exact component-difference projections of two vectors.
     /// </summary>
     /// <param name="candidate">The candidate point.</param>

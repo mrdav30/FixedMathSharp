@@ -648,6 +648,15 @@ public sealed class FixedPointAnchorTests
             Vector3d.Up,
             Vector3d.Forward,
             out _);
+        _ = FixedLever.TryGetRelativePointVelocityProjection(
+            Vector3d.Zero,
+            Vector3d.Forward,
+            lever,
+            Vector3d.Zero,
+            Vector3d.Forward,
+            lever,
+            Vector3d.Up,
+            out _);
         _ = lever.TryGetCrossProductQuadraticForm(
             Vector3d.Up,
             Fixed3x3.Identity,
@@ -657,6 +666,25 @@ public sealed class FixedPointAnchorTests
             Fixed3x3.Identity,
             Fixed64.Half,
             Fixed64.One,
+            out _);
+        _ = lever.TryGetTransformedScaledCrossProductBySum(
+            Vector3d.Up,
+            Fixed3x3.Identity,
+            Fixed64.Half,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            out _);
+        _ = lever.TryGetTransformedWeightedCrossProduct(
+            Vector3d.Right,
+            Fixed64.One,
+            Vector3d.Up,
+            Fixed64.Half,
+            Vector3d.Forward,
+            -Fixed64.Half,
+            Fixed3x3.Identity,
             out _);
         long before = GC.GetAllocatedBytesForCurrentThread();
         for (int index = 0; index < 256; index++)
@@ -674,6 +702,15 @@ public sealed class FixedPointAnchorTests
                 Vector3d.Up,
                 Vector3d.Forward,
                 out _);
+            _ = FixedLever.TryGetRelativePointVelocityProjection(
+                Vector3d.Zero,
+                Vector3d.Forward,
+                lever,
+                Vector3d.Zero,
+                Vector3d.Forward,
+                lever,
+                Vector3d.Up,
+                out _);
             _ = lever.TryGetCrossProductQuadraticForm(
                 Vector3d.Up,
                 Fixed3x3.Identity,
@@ -683,6 +720,25 @@ public sealed class FixedPointAnchorTests
                 Fixed3x3.Identity,
                 Fixed64.Half,
                 Fixed64.One,
+                out _);
+            _ = lever.TryGetTransformedScaledCrossProductBySum(
+                Vector3d.Up,
+                Fixed3x3.Identity,
+                Fixed64.Half,
+                Fixed64.One,
+                Fixed64.One,
+                Fixed64.One,
+                Fixed64.Zero,
+                Fixed64.Zero,
+                out _);
+            _ = lever.TryGetTransformedWeightedCrossProduct(
+                Vector3d.Right,
+                Fixed64.One,
+                Vector3d.Up,
+                Fixed64.Half,
+                Vector3d.Forward,
+                -Fixed64.Half,
+                Fixed3x3.Identity,
                 out _);
         }
 
@@ -717,6 +773,31 @@ public sealed class FixedPointAnchorTests
             new Vector3d(1, -2, 3),
             out Fixed64 projection));
         Assert.Equal((Fixed64)15, projection);
+        Vector3d firstLinearVelocity = new(3, -1, 4);
+        Vector3d firstAngularVelocity = new(1, 2, -1);
+        Vector3d secondLinearVelocity = new(-2, 5, 1);
+        Vector3d secondAngularVelocity = new(-1, 1, 3);
+        Vector3d projectionAxis = Vector3d.Up;
+        Vector3d firstPointVelocity =
+            firstLinearVelocity
+            + Vector3d.Cross(firstAngularVelocity, vector);
+        Vector3d secondPointVelocity =
+            secondLinearVelocity
+            + Vector3d.Cross(secondAngularVelocity, vector);
+        Assert.True(FixedLever.TryGetRelativePointVelocityProjection(
+            firstLinearVelocity,
+            firstAngularVelocity,
+            lever,
+            secondLinearVelocity,
+            secondAngularVelocity,
+            lever,
+            projectionAxis,
+            out Fixed64 relativeVelocityProjection));
+        Assert.Equal(
+            Vector3d.Dot(
+                secondPointVelocity - firstPointVelocity,
+                projectionAxis),
+            relativeVelocityProjection);
         Assert.True(lever.TryGetCrossProductQuadraticForm(
             crossVector,
             transform,
@@ -751,6 +832,36 @@ public sealed class FixedPointAnchorTests
             (Fixed64)3,
             out Vector3d twiceScaledCross));
         Assert.Equal(transformedCross * Fixed64.Two, twiceScaledCross);
+        Assert.True(lever.TryGetTransformedScaledCrossProductBySum(
+            crossVector,
+            transform,
+            (Fixed64)3,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.Zero,
+            out Vector3d sumScaledCross));
+        Assert.Equal(
+            transformedCross * (Fixed64)3 / (Fixed64)3,
+            sumScaledCross);
+        Assert.True(lever.TryGetTransformedWeightedCrossProduct(
+            Vector3d.Right,
+            Fixed64.Two,
+            Vector3d.Up,
+            -Fixed64.One,
+            Vector3d.Forward,
+            Fixed64.Half,
+            transform,
+            out Vector3d weightedCross));
+        Assert.Equal(
+            transform.TransformDirection(
+                Vector3d.Cross(
+                    vector,
+                    Vector3d.Right * Fixed64.Two
+                    - Vector3d.Up
+                    + Vector3d.Forward * Fixed64.Half)),
+            weightedCross);
     }
 
     [Theory]
@@ -815,6 +926,235 @@ public sealed class FixedPointAnchorTests
     }
 
     [Fact]
+    public void RelativePointVelocityProjection_NarrowsOnlyTheFinalScalar()
+    {
+        FixedPointAnchor point = new(
+            new Vector3d(
+                Fixed64.MaxValue,
+                Fixed64.Zero,
+                Fixed64.Zero),
+            FixedQuaternion.Identity,
+            Vector3d.Right * Fixed64.MinIncrement);
+        FixedPointAnchor origin = new(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.Zero);
+        Assert.True(point.TryGetLeverFrom(origin, out FixedLever exactLever));
+        Assert.False(exactLever.TryGetCrossProductProjection(
+            Vector3d.Up,
+            Vector3d.Forward,
+            out _));
+        Assert.True(FixedLever.TryGetRelativePointVelocityProjection(
+            Vector3d.Zero,
+            Vector3d.Forward,
+            exactLever,
+            Vector3d.Zero,
+            Vector3d.Forward,
+            exactLever,
+            Vector3d.Up,
+            out Fixed64 cancelledAngular));
+        Assert.Equal(Fixed64.Zero, cancelledAngular);
+
+        Assert.True(origin.TryGetLeverFrom(origin, out FixedLever zeroLever));
+        Assert.True(FixedLever.TryGetRelativePointVelocityProjection(
+            Vector3d.Right * Fixed64.Two,
+            Vector3d.Zero,
+            exactLever,
+            Vector3d.Zero,
+            Vector3d.Zero,
+            zeroLever,
+            Vector3d.Right,
+            out Fixed64 ordinaryLinear));
+        Assert.Equal(-Fixed64.Two, ordinaryLinear);
+        Assert.True(FixedLever.TryGetRelativePointVelocityProjection(
+            new Vector3d(
+                Fixed64.MinValue,
+                Fixed64.Zero,
+                Fixed64.Zero),
+            Vector3d.Zero,
+            zeroLever,
+            new Vector3d(
+                Fixed64.MaxValue,
+                Fixed64.MaxValue,
+                Fixed64.Zero),
+            Vector3d.Zero,
+            zeroLever,
+            new Vector3d(
+                Fixed64.Half,
+                -Fixed64.One,
+                Fixed64.Zero),
+            out Fixed64 cancelledLinear));
+        Assert.Equal(Fixed64.Zero, cancelledLinear);
+
+        Assert.False(FixedLever.TryGetRelativePointVelocityProjection(
+            new Vector3d(
+                Fixed64.MinValue,
+                Fixed64.Zero,
+                Fixed64.Zero),
+            Vector3d.Zero,
+            zeroLever,
+            new Vector3d(
+                Fixed64.MaxValue,
+                Fixed64.Zero,
+                Fixed64.Zero),
+            Vector3d.Zero,
+            zeroLever,
+            Vector3d.Right,
+            out Fixed64 overflow));
+        Assert.Equal(default, overflow);
+    }
+
+    [Fact]
+    public void WeightedTransformedCrossProduct_NarrowsOnlyTheFinalVector()
+    {
+        FixedPointAnchor origin = new(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.Zero);
+        FixedPointAnchor point = new(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.Right * Fixed64.MinIncrement);
+        Assert.True(point.TryGetLeverFrom(origin, out FixedLever lever));
+
+        Assert.True(lever.TryGetTransformedWeightedCrossProduct(
+            Vector3d.Up,
+            Fixed64.MaxValue,
+            Vector3d.Up,
+            Fixed64.MaxValue,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            Fixed3x3.Identity,
+            out Vector3d recovered));
+        Assert.Equal(
+            Vector3d.Forward,
+            recovered);
+        FixedPointAnchor unitPoint = new(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.Right);
+        Assert.True(unitPoint.TryGetLeverFrom(
+            origin,
+            out FixedLever unitLever));
+        Assert.True(unitLever.TryGetTransformedWeightedCrossProduct(
+            Vector3d.Up,
+            Fixed64.MinValue,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            Fixed3x3.Identity,
+            out Vector3d minimumScalar));
+        Assert.Equal(
+            Vector3d.Forward * Fixed64.MinValue,
+            minimumScalar);
+
+        Assert.False(unitLever.TryGetTransformedWeightedCrossProduct(
+            Vector3d.Up,
+            Fixed64.MaxValue,
+            Vector3d.Up,
+            Fixed64.MaxValue,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            Fixed3x3.Identity,
+            out Vector3d overflow));
+        Assert.Equal(default, overflow);
+        Assert.False(default(FixedLever)
+            .TryGetTransformedWeightedCrossProduct(
+                Vector3d.Up,
+                Fixed64.One,
+                Vector3d.Zero,
+                Fixed64.Zero,
+                Vector3d.Zero,
+                Fixed64.Zero,
+                Fixed3x3.Identity,
+                out Vector3d invalid));
+        Assert.Equal(default, invalid);
+
+        Assert.True(unitLever.TryGetTransformedScaledCrossProductBySum(
+            Vector3d.Up,
+            Fixed3x3.Identity,
+            Fixed64.MaxValue,
+            Fixed64.One,
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            out Vector3d dividedByWideSum));
+        Assert.Equal(Vector3d.Forward * Fixed64.Half, dividedByWideSum);
+        Assert.False(unitLever.TryGetTransformedScaledCrossProductBySum(
+            Vector3d.Up,
+            Fixed3x3.Identity,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.One,
+            -Fixed64.One,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            out Vector3d zeroDivisor));
+        Assert.Equal(default, zeroDivisor);
+    }
+
+    [Fact]
+    public void RelativePointVelocityProjection_HandlesDifferentAnchorFrames()
+    {
+        FixedPointAnchor origin = new(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.Zero);
+        FixedPointAnchor firstPoint = new(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d(4, -3, 2));
+        FixedPointAnchor secondPoint = new(
+            Vector3d.Zero,
+            FixedQuaternion.FromAxisAngle(
+                Vector3d.Up,
+                Fixed64.PiOver4),
+            new Vector3d(1, 2, 3));
+        Assert.True(firstPoint.TryGetLeverFrom(
+            origin,
+            out FixedLever firstLever));
+        Assert.True(secondPoint.TryGetLeverFrom(
+            origin,
+            out FixedLever secondLever));
+        Assert.NotEqual(
+            firstLever.Denominator,
+            secondLever.Denominator);
+
+        Vector3d firstLinearVelocity = new(3, -1, 4);
+        Vector3d firstAngularVelocity = new(1, 2, -1);
+        Vector3d secondLinearVelocity = new(-2, 5, 1);
+        Vector3d secondAngularVelocity = new(-1, 1, 3);
+        Vector3d projectionAxis = Vector3d.Up;
+        Assert.True(firstLever.TryGetCrossProductProjection(
+            projectionAxis,
+            firstAngularVelocity,
+            out Fixed64 firstAngularProjection));
+        Assert.True(secondLever.TryGetCrossProductProjection(
+            projectionAxis,
+            secondAngularVelocity,
+            out Fixed64 secondAngularProjection));
+
+        Assert.True(FixedLever.TryGetRelativePointVelocityProjection(
+            firstLinearVelocity,
+            firstAngularVelocity,
+            firstLever,
+            secondLinearVelocity,
+            secondAngularVelocity,
+            secondLever,
+            projectionAxis,
+            out Fixed64 projection));
+        Assert.Equal(
+            Vector3d.Dot(
+                secondLinearVelocity - firstLinearVelocity,
+                projectionAxis)
+            + secondAngularProjection
+            - firstAngularProjection,
+            projection);
+    }
+
+    [Fact]
     public void ResponseProducts_RejectInvalidOrUnrepresentableResultsAtomically()
     {
         FixedPointAnchor point = new(
@@ -860,6 +1200,26 @@ public sealed class FixedPointAnchorTests
                 out Vector3d invalidTransformedCross));
         Assert.Equal(default, invalidTransformedCross);
         Assert.True(point.TryGetLeverFrom(origin, out FixedLever lever));
+        Assert.False(FixedLever.TryGetRelativePointVelocityProjection(
+            Vector3d.Zero,
+            Vector3d.Zero,
+            default,
+            Vector3d.Zero,
+            Vector3d.Zero,
+            lever,
+            Vector3d.Right,
+            out Fixed64 invalidFirstRelativeProjection));
+        Assert.Equal(default, invalidFirstRelativeProjection);
+        Assert.False(FixedLever.TryGetRelativePointVelocityProjection(
+            Vector3d.Zero,
+            Vector3d.Zero,
+            lever,
+            Vector3d.Zero,
+            Vector3d.Zero,
+            default,
+            Vector3d.Right,
+            out Fixed64 invalidSecondRelativeProjection));
+        Assert.Equal(default, invalidSecondRelativeProjection);
         Assert.False(lever.TryGetTransformedScaledCrossProduct(
             Vector3d.Up,
             Fixed3x3.Identity,

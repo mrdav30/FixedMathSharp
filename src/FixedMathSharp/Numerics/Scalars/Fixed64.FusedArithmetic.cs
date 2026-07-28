@@ -495,6 +495,44 @@ public partial struct Fixed64
     }
 
     /// <summary>
+    /// Attempts to multiply four values and divide by the exact sum of four
+    /// values with one final round-half-to-even operation.
+    /// </summary>
+    public static bool TryMultiplyDivideBySum(
+        Fixed64 first,
+        Fixed64 second,
+        Fixed64 third,
+        Fixed64 fourth,
+        Fixed64 firstDivisorTerm,
+        Fixed64 secondDivisorTerm,
+        Fixed64 thirdDivisorTerm,
+        Fixed64 fourthDivisorTerm,
+        out Fixed64 result)
+    {
+        Signed192 divisor = WideArithmetic.AddSigned192(
+            WideArithmetic.AddSigned192(
+                Signed192.Raw(firstDivisorTerm),
+                Signed192.Raw(secondDivisorTerm)),
+            WideArithmetic.AddSigned192(
+                Signed192.Raw(thirdDivisorTerm),
+                Signed192.Raw(fourthDivisorTerm)));
+        Signed576 numerator = WideArithmetic.MultiplySigned576(
+            Signed576.ExtendValue(
+                Signed320.ExtendValue(Signed192.Raw(first))),
+            Signed192.Raw(second),
+            Signed192.Raw(third),
+            Signed192.Raw(fourth));
+        Signed576 scaledDivisor = WideArithmetic.MultiplySigned576(
+            Signed576.ExtendValue(Signed320.ExtendValue(divisor)),
+            Signed192.One,
+            Signed192.One);
+        return TryGetSignedRawRatio(
+            numerator,
+            scaledDivisor,
+            out result);
+    }
+
+    /// <summary>
     /// Computes a fused three-factor multiply-divide and returns a saturated value
     /// when the exact result is not representable.
     /// </summary>

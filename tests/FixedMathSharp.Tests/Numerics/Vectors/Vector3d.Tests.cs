@@ -77,6 +77,141 @@ public class Vector3dTests
         Assert.Equal(Fixed64.One, Vector3d.CrossProduct(Vector3d.Right, Vector3d.Up));
     }
 
+    [Fact]
+    public void CheckedVectorProducts_NarrowOnlyTheirFinalResults()
+    {
+        Vector3d extreme = new(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.Zero);
+        Assert.True(Vector3d.TryCross(
+            extreme,
+            new Vector3d(
+                Fixed64.MaxValue,
+                Fixed64.MaxValue - Fixed64.MinIncrement,
+                Fixed64.Zero),
+            out Vector3d cross));
+        Assert.Equal(
+            new Vector3d(Fixed64.Zero, Fixed64.Zero, -Fixed64.Half),
+            cross);
+        Assert.False(Vector3d.TryCross(
+            Vector3d.Right * Fixed64.MaxValue,
+            Vector3d.Up * Fixed64.MaxValue,
+            out Vector3d crossOverflow));
+        Assert.Equal(default, crossOverflow);
+
+        Assert.True(Vector3d.TryDot(
+            extreme,
+            new Vector3d(Fixed64.Two, -Fixed64.Two, Fixed64.Zero),
+            out Fixed64 dot));
+        Assert.Equal(Fixed64.Zero, dot);
+        Assert.False(Vector3d.TryDot(
+            Vector3d.Right * Fixed64.MaxValue,
+            Vector3d.Right * Fixed64.Two,
+            out Fixed64 dotOverflow));
+        Assert.Equal(default, dotOverflow);
+    }
+
+    [Fact]
+    public void CheckedDirectionTransformAndLinearCombination_PreserveCancellation()
+    {
+        Fixed3x3 cancellingTransform = new(
+            Fixed64.Two, Fixed64.Zero, Fixed64.Zero,
+            -Fixed64.Two, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
+        Assert.True(Fixed3x3.TryTransformDirection(
+            cancellingTransform,
+            new Vector3d(
+                Fixed64.MaxValue,
+                Fixed64.MaxValue,
+                Fixed64.Zero),
+            out Vector3d transformed));
+        Assert.Equal(Vector3d.Zero, transformed);
+        Assert.False(Fixed3x3.TryTransformDirection(
+            new Fixed3x3(
+                Fixed64.Two, Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+                Fixed64.Zero, Fixed64.Zero, Fixed64.Zero),
+            Vector3d.Right * Fixed64.MaxValue,
+            out Vector3d transformOverflow));
+        Assert.Equal(default, transformOverflow);
+
+        Vector3d maximum = Vector3d.Right * Fixed64.MaxValue;
+        Assert.True(Vector3d.TryLinearCombination(
+            maximum,
+            Fixed64.Two,
+            maximum,
+            -Fixed64.Two,
+            out Vector3d twoTerm));
+        Assert.Equal(Vector3d.Zero, twoTerm);
+        Assert.True(Vector3d.TryLinearCombination(
+            maximum,
+            Fixed64.One,
+            maximum,
+            Fixed64.One,
+            maximum,
+            -Fixed64.One,
+            out Vector3d threeTerm));
+        Assert.Equal(maximum, threeTerm);
+        Assert.False(Vector3d.TryLinearCombination(
+            maximum,
+            Fixed64.Two,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            out Vector3d combinationOverflow));
+        Assert.Equal(default, combinationOverflow);
+        Assert.False(Vector3d.TryLinearCombination(
+            maximum,
+            Fixed64.Two,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            out Vector3d threeTermOverflow));
+        Assert.Equal(default, threeTermOverflow);
+
+        Assert.True(Vector3d.TryScaledLinearCombination(
+            maximum,
+            Fixed64.One,
+            maximum,
+            Fixed64.One,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            Fixed64.Half,
+            out Vector3d scaledCombination));
+        Assert.Equal(maximum, scaledCombination);
+        Assert.True(Vector3d.TryScaledLinearCombination(
+            new Vector3d(1, 2, 3),
+            Fixed64.Two,
+            new Vector3d(4, 5, 6),
+            -Fixed64.One,
+            new Vector3d(7, 8, 9),
+            Fixed64.Half,
+            Fixed64.Two,
+            out Vector3d ordinaryScaledCombination));
+        Assert.Equal(new Vector3d(3, 6, 9), ordinaryScaledCombination);
+        Assert.False(Vector3d.TryScaledLinearCombination(
+            maximum,
+            Fixed64.Two,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            Fixed64.One,
+            out Vector3d scaledCombinationOverflow));
+        Assert.Equal(default, scaledCombinationOverflow);
+        Assert.False(Vector3d.TryScaledLinearCombination(
+            maximum,
+            Fixed64.MaxValue,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            Fixed64.MaxValue,
+            out Vector3d wideScaledCombinationOverflow));
+        Assert.Equal(default, wideScaledCombinationOverflow);
+    }
+
     #endregion
 
     #region Test: Magnitude and Normalization

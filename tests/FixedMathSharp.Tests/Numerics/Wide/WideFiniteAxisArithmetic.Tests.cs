@@ -412,6 +412,18 @@ public sealed class WideFiniteAxisArithmeticTests
     }
 
     [Fact]
+    public void MagnitudeSpan_RawRatioHandlesZeroContracts()
+    {
+        Span<ulong> zero = stackalloc ulong[2];
+        Span<ulong> one = stackalloc ulong[2];
+        one[0] = 1UL;
+
+        Assert.False(Fixed64.TryGetSignedRawRatio(one, zero, negative: false, out _));
+        Assert.True(Fixed64.TryGetSignedRawRatio(zero, one, negative: false, out Fixed64 result));
+        Assert.Equal(Fixed64.Zero, result);
+    }
+
+    [Fact]
     public void ProductCombinationRejectsUnrepresentableExactSums()
     {
         Assert.False(Fixed64.TryAddProducts(

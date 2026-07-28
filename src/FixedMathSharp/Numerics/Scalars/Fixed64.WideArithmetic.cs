@@ -266,16 +266,83 @@ public partial struct Fixed64
     }
 
     internal static bool TryAddProducts(
-    Fixed64 firstLeft,
-    Fixed64 firstRight,
-    Fixed64 secondLeft,
-    Fixed64 secondRight,
-    out Fixed64 result) =>
-    TryRoundProductCombination(
-        GetExactTwoFactorProduct(firstLeft, firstRight),
-        GetExactTwoFactorProduct(secondLeft, secondRight),
-        subtract: false,
-        out result);
+        Fixed64 firstLeft,
+        Fixed64 firstRight,
+        Fixed64 secondLeft,
+        Fixed64 secondRight,
+        out Fixed64 result) =>
+        TryRoundProductCombination(
+            GetExactTwoFactorProduct(firstLeft, firstRight),
+            GetExactTwoFactorProduct(secondLeft, secondRight),
+            subtract: false,
+            out result);
+
+    internal static bool TryAddProducts(
+        Fixed64 firstLeft,
+        Fixed64 firstRight,
+        Fixed64 secondLeft,
+        Fixed64 secondRight,
+        Fixed64 thirdLeft,
+        Fixed64 thirdRight,
+        out Fixed64 result)
+    {
+        Signed192 numerator = WideArithmetic.AddSigned192(
+            WideArithmetic.AddSigned192(
+                GetExactTwoFactorProduct(firstLeft, firstRight),
+                GetExactTwoFactorProduct(secondLeft, secondRight)),
+            GetExactTwoFactorProduct(thirdLeft, thirdRight));
+        return TryRoundProductCombination(
+            numerator,
+            default,
+            subtract: false,
+            out result);
+    }
+
+    internal static bool TryAddScaledProducts(
+        Fixed64 firstLeft,
+        Fixed64 firstRight,
+        Fixed64 secondLeft,
+        Fixed64 secondRight,
+        Fixed64 thirdLeft,
+        Fixed64 thirdRight,
+        Fixed64 resultScale,
+        out Fixed64 result)
+    {
+        Signed192 products = WideArithmetic.AddSigned192(
+            WideArithmetic.AddSigned192(
+                GetExactTwoFactorProduct(firstLeft, firstRight),
+                GetExactTwoFactorProduct(secondLeft, secondRight)),
+            GetExactTwoFactorProduct(thirdLeft, thirdRight));
+        Signed320 scaled = WideArithmetic.MultiplySigned192(
+            products,
+            Signed192.Raw(resultScale));
+        bool negative = scaled.Sign < 0;
+        WideArithmetic.GetMagnitude(
+            scaled,
+            out ulong word4,
+            out ulong word3,
+            out ulong word2,
+            out ulong word1,
+            out ulong word0);
+        if ((word4 | word3 | word2) != 0UL)
+        {
+            result = default;
+            return false;
+        }
+
+        const ulong guardMask = 1UL << 63;
+        result = RoundAndApplySign(
+            word1,
+            (word0 & guardMask) != 0UL,
+            (word0 & (guardMask - 1UL)) != 0UL,
+            negative,
+            out bool representable);
+        if (representable)
+            return true;
+
+        result = default;
+        return false;
+    }
 
     internal static bool TrySubtractProducts(
         Fixed64 firstLeft,

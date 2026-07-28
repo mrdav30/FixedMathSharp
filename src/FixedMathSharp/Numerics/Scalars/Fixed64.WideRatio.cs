@@ -924,6 +924,45 @@ public partial struct Fixed64
             : MaxValue;
     }
 
+    internal static bool TryGetSignedRawRatio(
+        ReadOnlySpan<ulong> numeratorMagnitude,
+        ReadOnlySpan<ulong> denominatorMagnitude,
+        bool negative,
+        out Fixed64 result)
+    {
+        int denominatorLength =
+            GetActiveMagnitudeLength(denominatorMagnitude);
+        if (denominatorLength == 1
+            && denominatorMagnitude[0] == 0UL)
+        {
+            result = default;
+            return false;
+        }
+
+        int numeratorLength =
+            GetActiveMagnitudeLength(numeratorMagnitude);
+        if (numeratorLength == 1
+            && numeratorMagnitude[0] == 0UL)
+        {
+            result = Zero;
+            return true;
+        }
+
+        int length = Math.Max(numeratorLength, denominatorLength);
+        Span<ulong> remainder = stackalloc ulong[length];
+        Span<ulong> denominator = stackalloc ulong[length];
+        remainder.Clear();
+        denominator.Clear();
+        numeratorMagnitude[..numeratorLength].CopyTo(remainder);
+        denominatorMagnitude[..denominatorLength].CopyTo(denominator);
+        return TryGetSignedRawRatioCore(
+            remainder,
+            denominator,
+            negative,
+            roundToEven: true,
+            out result);
+    }
+
     private static bool TryGetSignedRawRatioCore(
         Span<ulong> remainder,
         Span<ulong> denominatorMagnitude,

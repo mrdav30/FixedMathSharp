@@ -216,6 +216,20 @@ public sealed class ScaledCompositeTransformTests
             Vector3d.One,
             rotation,
             out _);
+        _ = Vector3d.TryCross(Vector3d.Right, Vector3d.Up, out _);
+        _ = Vector3d.TryDot(Vector3d.Right, Vector3d.Up, out _);
+        _ = Fixed3x3.TryTransformDirection(
+            Fixed3x3.Identity,
+            Vector3d.One,
+            out _);
+        _ = Vector3d.TryLinearCombination(
+            Vector3d.Right,
+            Fixed64.One,
+            Vector3d.Up,
+            Fixed64.One,
+            Vector3d.Forward,
+            Fixed64.One,
+            out _);
         long before = GC.GetAllocatedBytesForCurrentThread();
 
         for (int iteration = 0; iteration < 64; iteration++)
@@ -248,6 +262,26 @@ public sealed class ScaledCompositeTransformTests
                 new Vector3d(4, 5, 6),
                 Vector3d.One,
                 rotation,
+                out _);
+            _ = Vector3d.TryCross(
+                Vector3d.Right,
+                Vector3d.Up,
+                out _);
+            _ = Vector3d.TryDot(
+                Vector3d.Right,
+                Vector3d.Up,
+                out _);
+            _ = Fixed3x3.TryTransformDirection(
+                Fixed3x3.Identity,
+                Vector3d.One,
+                out _);
+            _ = Vector3d.TryLinearCombination(
+                Vector3d.Right,
+                Fixed64.One,
+                Vector3d.Up,
+                Fixed64.One,
+                Vector3d.Forward,
+                Fixed64.One,
                 out _);
         }
 

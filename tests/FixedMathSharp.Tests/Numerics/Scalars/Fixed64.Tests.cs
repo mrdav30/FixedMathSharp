@@ -400,6 +400,56 @@ public class Fixed64Tests
     }
 
     [Fact]
+    public void TryMultiplyDivideBySum_NarrowsOnlyTheFinalRatio()
+    {
+        Assert.True(Fixed64.TryMultiplyDivideBySum(
+            Fixed64.MaxValue,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            out Fixed64 recovered));
+        Assert.Equal(Fixed64.Half, recovered);
+        Assert.True(Fixed64.TryMultiplyDivideBySum(
+            (Fixed64)3,
+            (Fixed64)4,
+            (Fixed64)5,
+            Fixed64.Half,
+            (Fixed64)2,
+            (Fixed64)3,
+            (Fixed64)4,
+            Fixed64.One,
+            out Fixed64 ordinary));
+        Assert.Equal((Fixed64)3, ordinary);
+
+        Assert.False(Fixed64.TryMultiplyDivideBySum(
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.One,
+            Fixed64.One,
+            -Fixed64.One,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            out Fixed64 zeroDivisor));
+        Assert.Equal(default, zeroDivisor);
+        Assert.False(Fixed64.TryMultiplyDivideBySum(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.One,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            out Fixed64 overflow));
+        Assert.Equal(default, overflow);
+    }
+
+    [Fact]
     public void TryMultiplyDivide_RawDomain_MatchesBigIntegerOracle()
     {
         (long Left, long Right, long Divisor)[] twoFactorBoundaries =

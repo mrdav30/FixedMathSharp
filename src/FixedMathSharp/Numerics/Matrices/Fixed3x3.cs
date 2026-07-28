@@ -504,6 +504,49 @@ public partial struct Fixed3x3 : IEquatable<Fixed3x3>, IFormattable
             direction.X * matrix.M13 + direction.Y * matrix.M23 + direction.Z * matrix.M33);
 
     /// <summary>
+    /// Attempts to transform a direction with one final round-half-to-even
+    /// conversion per component and no intermediate saturation.
+    /// </summary>
+    public static bool TryTransformDirection(
+        Fixed3x3 matrix,
+        Vector3d direction,
+        out Vector3d result)
+    {
+        bool representable = Fixed64.TryAddProducts(
+                direction.X,
+                matrix.M11,
+                direction.Y,
+                matrix.M21,
+                direction.Z,
+                matrix.M31,
+                out Fixed64 x)
+            & Fixed64.TryAddProducts(
+                direction.X,
+                matrix.M12,
+                direction.Y,
+                matrix.M22,
+                direction.Z,
+                matrix.M32,
+                out Fixed64 y)
+            & Fixed64.TryAddProducts(
+                direction.X,
+                matrix.M13,
+                direction.Y,
+                matrix.M23,
+                direction.Z,
+                matrix.M33,
+                out Fixed64 z);
+        if (!representable)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new Vector3d(x, y, z);
+        return true;
+    }
+
+    /// <summary>
     /// Transforms a direction from world space into the local space of the matrix.
     /// Ignores translation.
     /// </summary>
