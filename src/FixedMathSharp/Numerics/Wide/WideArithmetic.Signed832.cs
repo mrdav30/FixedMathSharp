@@ -154,6 +154,100 @@ internal static partial class WideArithmetic
         return CreateSigned832(product);
     }
 
+    /// <summary>
+    /// Multiplies a signed eleven-word value by a signed three-word factor
+    /// whose proven product fits in thirteen words.
+    /// </summary>
+    internal static Signed832 MultiplySigned704ToSigned832(
+        Signed704 left,
+        Signed192 right)
+    {
+        Span<ulong> leftMagnitude = stackalloc ulong[11];
+        Span<ulong> rightMagnitude = stackalloc ulong[3];
+        GetMagnitude(left, leftMagnitude);
+        GetMagnitude(
+            right,
+            out rightMagnitude[2],
+            out rightMagnitude[1],
+            out rightMagnitude[0]);
+        Span<ulong> product = stackalloc ulong[14];
+        MultiplyMagnitudes(leftMagnitude, rightMagnitude, product);
+        ApplySigned832Sign(product, left.Sign * right.Sign < 0);
+        return CreateSigned832(product);
+    }
+
+    /// <summary>
+    /// Multiplies a signed eleven-word value by a signed five-word factor
+    /// whose proven product fits in thirteen words.
+    /// </summary>
+    internal static Signed832 MultiplySigned704ToSigned832(
+        Signed704 left,
+        Signed320 right)
+    {
+        Span<ulong> leftMagnitude = stackalloc ulong[11];
+        Span<ulong> rightMagnitude = stackalloc ulong[5];
+        GetMagnitude(left, leftMagnitude);
+        CopyMagnitude(right, rightMagnitude);
+        Span<ulong> product = stackalloc ulong[16];
+        MultiplyMagnitudes(leftMagnitude, rightMagnitude, product);
+        ApplySigned832Sign(product, left.Sign * right.Sign < 0);
+        return CreateSigned832(product);
+    }
+
+    /// <summary>
+    /// Multiplies two signed eleven-word values and a signed three-word factor
+    /// whose proven combined product fits in thirteen words.
+    /// </summary>
+    internal static Signed832 MultiplySigned704ToSigned832(
+        Signed704 first,
+        Signed704 second,
+        Signed192 third)
+    {
+        Span<ulong> firstMagnitude = stackalloc ulong[11];
+        Span<ulong> secondMagnitude = stackalloc ulong[11];
+        Span<ulong> thirdMagnitude = stackalloc ulong[3];
+        GetMagnitude(first, firstMagnitude);
+        GetMagnitude(second, secondMagnitude);
+        GetMagnitude(
+            third,
+            out thirdMagnitude[2],
+            out thirdMagnitude[1],
+            out thirdMagnitude[0]);
+        Span<ulong> pairProduct = stackalloc ulong[22];
+        Span<ulong> product = stackalloc ulong[25];
+        MultiplyMagnitudes(
+            firstMagnitude,
+            secondMagnitude,
+            pairProduct);
+        MultiplyMagnitudes(pairProduct, thirdMagnitude, product);
+        ApplySigned832Sign(
+            product,
+            first.Sign * second.Sign * third.Sign < 0);
+        return CreateSigned832(product);
+    }
+
+    /// <summary>
+    /// Multiplies a signed thirteen-word value by a signed three-word factor
+    /// whose proven product still fits in thirteen words.
+    /// </summary>
+    internal static Signed832 MultiplySigned832(
+        Signed832 left,
+        Signed192 right)
+    {
+        Span<ulong> leftMagnitude = stackalloc ulong[13];
+        Span<ulong> rightMagnitude = stackalloc ulong[3];
+        GetMagnitude(left, leftMagnitude);
+        GetMagnitude(
+            right,
+            out rightMagnitude[2],
+            out rightMagnitude[1],
+            out rightMagnitude[0]);
+        Span<ulong> product = stackalloc ulong[16];
+        MultiplyMagnitudes(leftMagnitude, rightMagnitude, product);
+        ApplySigned832Sign(product, left.Sign * right.Sign < 0);
+        return CreateSigned832(product);
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static Signed832 SubtractSigned832(Signed832 left, Signed832 right)
     {

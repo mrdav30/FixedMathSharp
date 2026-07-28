@@ -120,6 +120,16 @@ public readonly struct FixedPointAnchor2d :
             out offset);
 
     /// <summary>
+    /// Preserves this point minus <paramref name="other"/> as an exact semantic
+    /// lever without narrowing it to <see cref="Vector2d"/>.
+    /// </summary>
+    public FixedLever2d GetLeverFrom(
+        in FixedPointAnchor2d other) =>
+        WideVector2dTransform.GetLever(
+            this,
+            other);
+
+    /// <summary>
     /// Attempts to express this conceptual point in another rotated frame
     /// without materializing the world-space point.
     /// </summary>

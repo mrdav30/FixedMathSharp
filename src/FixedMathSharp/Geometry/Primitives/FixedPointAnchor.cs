@@ -234,6 +234,26 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
     }
 
     /// <summary>
+    /// Attempts to preserve this point minus <paramref name="other"/> as an
+    /// exact semantic lever without narrowing it to <see cref="Vector3d"/>.
+    /// </summary>
+    public bool TryGetLeverFrom(
+        in FixedPointAnchor other,
+        out FixedLever lever)
+    {
+        if (!Rotation.IsNormalized() || !other.Rotation.IsNormalized())
+        {
+            lever = default;
+            return false;
+        }
+
+        lever = WideOrientedBox.GetLever(
+            this,
+            other);
+        return true;
+    }
+
+    /// <summary>
     /// Projects this point minus <paramref name="other"/> onto
     /// <paramref name="direction"/> and returns zero for nonpositive results,
     /// the positive projection floored to Q32.32, or

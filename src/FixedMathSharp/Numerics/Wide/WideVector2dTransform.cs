@@ -605,38 +605,28 @@ internal static partial class WideVector2dTransform
                 out result);
         }
 
-        Fixed64 firstCosine = FixedMath.Cos(firstAngleInRadians);
-        Fixed64 firstSine = FixedMath.Sin(firstAngleInRadians);
-        Fixed64 secondCosine = FixedMath.Cos(secondAngleInRadians);
-        Fixed64 secondSine = FixedMath.Sin(secondAngleInRadians);
-        GetExactCoordinates(
+        GetExactRelativeOffsetRatio(
             firstOrigin,
             firstLocalPoint,
             firstLocalDisplacement,
             firstExactLocalTerm,
-            firstCosine,
-            firstSine,
-            out Signed320 firstX,
-            out Signed320 firstY);
-        GetExactCoordinates(
+            firstAngleInRadians,
             secondOrigin,
             secondLocalPoint,
             secondLocalDisplacement,
             secondExactLocalTerm,
-            secondCosine,
-            secondSine,
-            out Signed320 secondX,
-            out Signed320 secondY);
-        Signed576 denominator = Signed576.ExtendValue(
-            GetExactAnchorDenominator());
+            secondAngleInRadians,
+            out Signed320 xNumerator,
+            out Signed320 yNumerator,
+            out Signed320 coordinateDenominator);
+        Signed576 denominator =
+            Signed576.ExtendValue(coordinateDenominator);
         bool representable = Fixed64.TryGetSignedRawRatio(
-                Signed576.ExtendValue(
-                    WideArithmetic.SubtractSigned320(firstX, secondX)),
+                Signed576.ExtendValue(xNumerator),
                 denominator,
                 out Fixed64 x)
             & Fixed64.TryGetSignedRawRatio(
-                Signed576.ExtendValue(
-                    WideArithmetic.SubtractSigned320(firstY, secondY)),
+                Signed576.ExtendValue(yNumerator),
                 denominator,
                 out Fixed64 y);
         result = representable ? new Vector2d(x, y) : default;
