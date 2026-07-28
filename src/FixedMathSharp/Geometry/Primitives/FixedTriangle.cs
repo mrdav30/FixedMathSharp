@@ -161,6 +161,27 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
     }
 
     /// <summary>
+    /// Gets the non-negative semantic surface-area weight with 32 fractional
+    /// guard bits beyond the scalar area view.
+    /// </summary>
+    [JsonIgnore]
+    [MemoryPackIgnore]
+    public FixedMassWeight AreaWeight
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            GetExactNormal(
+                out _,
+                out _,
+                out _,
+                out Signed320 squaredMagnitude);
+            return WideMassProperties.CreateTriangleAreaWeight(
+                squaredMagnitude);
+        }
+    }
+
+    /// <summary>
     /// The normalized axis-aligned box that contains all vertices.
     /// </summary>
     [JsonIgnore]
@@ -184,6 +205,36 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
             FixedMath.Average(A.Y, B.Y, C.Y),
             FixedMath.Average(A.Z, B.Z, C.Z));
     }
+
+    /// <summary>
+    /// Attempts to calculate wide uniform thin-shell mass properties for an
+    /// indexed triangle surface.
+    /// </summary>
+    /// <remarks>
+    /// Semantic triangle-area weights retain 32 fractional guard bits. First
+    /// and second moments remain wide until the final center and unit-mass
+    /// tensor are rounded to Q32.32.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="triangleIndices"/> does not contain complete index
+    /// triplets.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// An element of <paramref name="triangleIndices"/> is outside
+    /// <paramref name="vertices"/>.
+    /// </exception>
+    public static bool TryGetUniformShellMassProperties(
+        ReadOnlySpan<Vector3d> vertices,
+        ReadOnlySpan<int> triangleIndices,
+        out FixedMassWeight surfaceWeight,
+        out Vector3d centerOfMass,
+        out Fixed3x3 unitMassInertiaTensor) =>
+        WideTriangleMassProperties.TryCreateUniformShell(
+            vertices,
+            triangleIndices,
+            out surfaceWeight,
+            out centerOfMass,
+            out unitMassInertiaTensor);
 
     /// <summary>
     /// Returns true when the exact squared normal magnitude is at or below

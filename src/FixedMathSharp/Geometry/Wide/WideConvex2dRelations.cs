@@ -748,6 +748,20 @@ internal static partial class WideConvex2dRelations
         out Fixed64 area,
         out Vector2d centroid)
     {
+        bool result = TryGetMassWeightAndCentroid(
+            vertices,
+            out FixedMassWeight weight,
+            out centroid);
+        if (!weight.TryGetMeasure(out area))
+            area = Fixed64.MaxValue;
+        return result;
+    }
+
+    internal static bool TryGetMassWeightAndCentroid(
+        ReadOnlySpan<Vector2d> vertices,
+        out FixedMassWeight weight,
+        out Vector2d centroid)
+    {
         Vector2d anchor = vertices[0];
         Signed320 signedDoubleArea = default;
         Signed576 weightedX = default;
@@ -788,30 +802,13 @@ internal static partial class WideConvex2dRelations
         int areaSign = signedDoubleArea.Sign;
         if (areaSign == 0)
         {
-            area = Fixed64.Zero;
+            weight = FixedMassWeight.Zero;
             centroid = default;
             return false;
         }
 
-        Signed576 areaDenominator =
-            Signed576.ExtendValue(
-                Signed320.ExtendValue(
-                    WideArithmetic.AddSigned192(
-                        Signed192.One,
-                        Signed192.One)));
-        Signed576 absoluteArea = Signed576.ExtendValue(
-            areaSign < 0
-                ? WideArithmetic.SubtractSigned320(
-                    default,
-                    signedDoubleArea)
-                : signedDoubleArea);
-        if (!Fixed64.TryGetSignedRawRatio(
-                absoluteArea,
-                areaDenominator,
-                out area))
-        {
-            area = Fixed64.MaxValue;
-        }
+        weight = WideMassProperties.CreateAreaWeight(
+            signedDoubleArea);
 
         // The signed area can require more than one word. Multiplication by
         // three is therefore performed directly at the five-word width.

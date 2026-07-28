@@ -8,6 +8,38 @@ namespace FixedMathSharp.Tests;
 public sealed class WideFiniteAxisArithmeticTests
 {
     [Fact]
+    public void MassPointRatio_RoundsSixtyFourFractionBitsHalfToEven()
+    {
+        BigInteger denominator = BigInteger.One << 66;
+
+        AssertSigned320(
+            BigInteger.Zero,
+            WideArithmetic.GetSignedRatioWith64FractionBits(
+                ToSigned576(BigInteger.One),
+                ToSigned576(denominator)));
+        AssertSigned320(
+            BigInteger.Zero,
+            WideArithmetic.GetSignedRatioWith64FractionBits(
+                ToSigned576(BigInteger.One),
+                ToSigned576(BigInteger.One << 65)));
+        AssertSigned320(
+            new BigInteger(2),
+            WideArithmetic.GetSignedRatioWith64FractionBits(
+                ToSigned576(3),
+                ToSigned576(BigInteger.One << 65)));
+        AssertSigned320(
+            BigInteger.One,
+            WideArithmetic.GetSignedRatioWith64FractionBits(
+                ToSigned576(3),
+                ToSigned576(denominator)));
+        AssertSigned320(
+            -BigInteger.One,
+            WideArithmetic.GetSignedRatioWith64FractionBits(
+                ToSigned576(-3),
+                ToSigned576(denominator)));
+    }
+
+    [Fact]
     public void WideNormalization_PreservesDirectionsBeyondSigned320()
     {
         Signed576 large = ToSigned576(BigInteger.One << 400);

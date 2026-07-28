@@ -201,6 +201,58 @@ internal static partial class WideOrientedBox
         return true;
     }
 
+    internal static FixedMassPoint CreateMassPoint(
+        Vector3d outerLocalPoint,
+        Vector3d outerScale,
+        Vector3d innerFrameOffset,
+        Vector3d innerFrameScale,
+        Vector3d innerLocalDisplacement,
+        FixedQuaternion innerRotation)
+    {
+        RationalBasis basis = new(innerRotation);
+        Signed576 denominator = Signed576.ExtendValue(
+            WideArithmetic.MultiplySigned192(
+                basis.Denominator,
+                Signed192.One));
+        Signed320 x = WideArithmetic.GetSignedRatioWith64FractionBits(
+            GetComposedScaledLocalCoordinateNumerator(
+                outerLocalPoint.X,
+                outerScale.X,
+                basis.Xx,
+                basis.Yx,
+                basis.Zx,
+                basis.Denominator,
+                innerFrameOffset.X,
+                innerFrameScale.X,
+                innerLocalDisplacement),
+            denominator);
+        Signed320 y = WideArithmetic.GetSignedRatioWith64FractionBits(
+            GetComposedScaledLocalCoordinateNumerator(
+                outerLocalPoint.Y,
+                outerScale.Y,
+                basis.Xy,
+                basis.Yy,
+                basis.Zy,
+                basis.Denominator,
+                innerFrameOffset.Y,
+                innerFrameScale.Y,
+                innerLocalDisplacement),
+            denominator);
+        Signed320 z = WideArithmetic.GetSignedRatioWith64FractionBits(
+            GetComposedScaledLocalCoordinateNumerator(
+                outerLocalPoint.Z,
+                outerScale.Z,
+                basis.Xz,
+                basis.Yz,
+                basis.Zz,
+                basis.Denominator,
+                innerFrameOffset.Z,
+                innerFrameScale.Z,
+                innerLocalDisplacement),
+            denominator);
+        return new FixedMassPoint(x, y, z);
+    }
+
     private static bool TryComposeScaledLocalCoordinate(
         Fixed64 outerLocalPoint,
         Fixed64 outerScale,
@@ -213,6 +265,32 @@ internal static partial class WideOrientedBox
         Fixed64 innerFrameScale,
         Vector3d innerLocalDisplacement,
         out Fixed64 coordinate)
+    {
+        return Fixed64.TryGetSignedRawRatio(
+            GetComposedScaledLocalCoordinateNumerator(
+                outerLocalPoint,
+                outerScale,
+                axisX,
+                axisY,
+                axisZ,
+                rotationDenominator,
+                innerFrameOffset,
+                innerFrameScale,
+                innerLocalDisplacement),
+            denominator,
+            out coordinate);
+    }
+
+    private static Signed576 GetComposedScaledLocalCoordinateNumerator(
+        Fixed64 outerLocalPoint,
+        Fixed64 outerScale,
+        Signed192 axisX,
+        Signed192 axisY,
+        Signed192 axisZ,
+        Signed192 rotationDenominator,
+        Fixed64 innerFrameOffset,
+        Fixed64 innerFrameScale,
+        Vector3d innerLocalDisplacement)
     {
         Signed576 outerScaled = WideArithmetic.MultiplySigned320(
             WideArithmetic.MultiplySigned192(
@@ -235,17 +313,13 @@ internal static partial class WideOrientedBox
             WideArithmetic.MultiplySigned192(
                 Signed192.Raw(innerLocalDisplacement.Z),
                 axisZ));
-        Signed576 numerator = WideArithmetic.AddSigned576(
+        return WideArithmetic.AddSigned576(
             WideArithmetic.AddSigned576(
                 outerScaled,
                 innerScaled),
             WideArithmetic.MultiplySigned320(
                 displacement,
                 Signed320.ExtendValue(Signed192.One)));
-        return Fixed64.TryGetSignedRawRatio(
-            numerator,
-            denominator,
-            out coordinate);
     }
 
     private static bool TryMaterializeRationalOffset(

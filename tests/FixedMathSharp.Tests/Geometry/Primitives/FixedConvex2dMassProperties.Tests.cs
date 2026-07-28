@@ -66,6 +66,53 @@ public sealed class FixedConvex2dMassPropertiesTests
     }
 
     [Fact]
+    public void MassWeightAndCentroid_PreserveAreaRatiosBeyondScalarDomain()
+    {
+        Fixed64 extent = (Fixed64)1_000_000_000;
+        Vector2d[] first =
+        {
+            Vector2d.Zero,
+            new(extent, Fixed64.Zero),
+            new(extent, extent),
+            new(Fixed64.Zero, extent),
+        };
+        Vector2d[] second =
+        {
+            Vector2d.Zero,
+            new(extent * Fixed64.Two, Fixed64.Zero),
+            new(extent * Fixed64.Two, extent),
+            new(Fixed64.Zero, extent),
+        };
+
+        Assert.True(FixedConvex2dRelations.TryGetMassWeightAndCentroid(
+            first,
+            out FixedMassWeight firstWeight,
+            out Vector2d firstCentroid));
+        Assert.True(FixedConvex2dRelations.TryGetMassWeightAndCentroid(
+            second,
+            out FixedMassWeight secondWeight,
+            out Vector2d secondCentroid));
+        FixedMassWeight totalWeight = firstWeight.Add(secondWeight);
+        Assert.True(firstWeight.TryGetProportionalShare(
+            (Fixed64)3,
+            totalWeight,
+            out Fixed64 firstShare));
+        Assert.True(secondWeight.TryGetProportionalShare(
+            (Fixed64)3,
+            totalWeight,
+            out Fixed64 secondShare));
+
+        Assert.Equal(Fixed64.One, firstShare);
+        Assert.Equal(Fixed64.Two, secondShare);
+        Assert.Equal(
+            new Vector2d(extent * Fixed64.Half, extent * Fixed64.Half),
+            firstCentroid);
+        Assert.Equal(
+            new Vector2d(extent, extent * Fixed64.Half),
+            secondCentroid);
+    }
+
+    [Fact]
     public void AreaAndCentroid_RejectExactZeroArea()
     {
         Vector2d[] vertices =

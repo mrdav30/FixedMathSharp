@@ -161,6 +161,26 @@ public static partial class FixedConvex2dRelations
     }
 
     /// <summary>
+    /// Attempts to derive the semantic area weight and centroid of a
+    /// boundary-ordered convex polygon without scalar area narrowing.
+    /// </summary>
+    /// <returns>
+    /// <see langword="false"/> only when the polygon has exact zero signed
+    /// area or its final centroid is outside the scalar domain.
+    /// </returns>
+    public static bool TryGetMassWeightAndCentroid(
+        ReadOnlySpan<Vector2d> convexVertexOffsets,
+        out FixedMassWeight weight,
+        out Vector2d centroid)
+    {
+        ValidateVertexOffsets(convexVertexOffsets);
+        return WideConvex2dRelations.TryGetMassWeightAndCentroid(
+            convexVertexOffsets,
+            out weight,
+            out centroid);
+    }
+
+    /// <summary>
     /// Attempts to build up to two local-frame contact-anchor pairs between
     /// two rotated closed convex polygons.
     /// </summary>
