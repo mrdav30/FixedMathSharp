@@ -695,21 +695,8 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<ulong> second,
         Span<ulong> result)
     {
-        result.Clear();
-        ulong carry = 0UL;
-        for (int index = 0;
-            index < TriangleSweepMagnitudeWords;
-            index++)
-        {
-            ulong firstWord = first[index];
-            ulong secondWord = second[index];
-            ulong sum = unchecked(firstWord + secondWord);
-            ulong nextCarry = sum < firstWord ? 1UL : 0UL;
-            ulong withCarry = unchecked(sum + carry);
-            nextCarry |= withCarry < sum ? 1UL : 0UL;
-            result[index] = withCarry;
-            carry = nextCarry;
-        }
+        first.CopyTo(result);
+        WideArithmetic.AddMagnitudeInto(second, result);
     }
 
     private static void SubtractMagnitudes(
@@ -717,21 +704,10 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<ulong> subtrahend,
         Span<ulong> result)
     {
-        result.Clear();
-        ulong borrow = 0UL;
-        for (int index = 0;
-            index < TriangleSweepMagnitudeWords;
-            index++)
-        {
-            ulong left = minuend[index];
-            ulong right = subtrahend[index];
-            ulong difference = unchecked(left - right);
-            ulong nextBorrow = left < right ? 1UL : 0UL;
-            ulong withBorrow = unchecked(difference - borrow);
-            nextBorrow |= difference < borrow ? 1UL : 0UL;
-            result[index] = withBorrow;
-            borrow = nextBorrow;
-        }
+        WideArithmetic.SubtractEqualMagnitudes(
+            minuend,
+            subtrahend,
+            result);
     }
 
     private static int CompareMagnitudes(

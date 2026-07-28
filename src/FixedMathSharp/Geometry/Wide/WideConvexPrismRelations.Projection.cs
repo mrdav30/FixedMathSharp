@@ -259,23 +259,21 @@ internal static partial class WideConvexPrismRelations
         // upward correction within five raw units.
         while (true)
         {
-            if (approximation < Fixed64.MaxValue)
+            Signed192 upperMidpoint = new(
+                0UL,
+                0UL,
+                unchecked((ulong)approximation.m_rawValue << 1) | 1UL);
+            int upperComparison =
+                CompareProjectionDepthToTwiceRaw(
+                    depth,
+                    upperMidpoint);
+            if ((approximation < Fixed64.MaxValue)
+                & (upperComparison
+                    + (approximation.m_rawValue & 1L) > 0))
             {
-                Signed192 upperMidpoint = new(
-                    0UL,
-                    0UL,
-                    unchecked((ulong)approximation.m_rawValue << 1) | 1UL);
-                int upperComparison =
-                    CompareProjectionDepthToTwiceRaw(
-                        depth,
-                        upperMidpoint);
-                if (upperComparison
-                    + (approximation.m_rawValue & 1L) > 0)
-                {
-                    approximation = Fixed64.FromRaw(
-                        approximation.m_rawValue + 1L);
-                    continue;
-                }
+                approximation = Fixed64.FromRaw(
+                    approximation.m_rawValue + 1L);
+                continue;
             }
 
             isClamped = false;
@@ -610,10 +608,9 @@ internal static partial class WideConvexPrismRelations
         Span<ulong> remainder = stackalloc ulong[productWords];
         if (knownComparison == 0)
         {
-            return GetActiveLength(positiveBase)
-                * GetActiveLength(sameSideProduct) == 0
-                ? 0
-                : 1;
+            return Math.Sign(
+                GetActiveLength(positiveBase)
+                * GetActiveLength(sameSideProduct));
         }
 
         SubtractMagnitudes(fourOpposite, knownLeft, remainder);

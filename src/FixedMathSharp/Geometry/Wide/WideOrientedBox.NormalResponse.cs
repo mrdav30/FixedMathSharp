@@ -672,7 +672,6 @@ internal static partial class WideOrientedBox
     {
         result.Clear();
         result[0] = unchecked(first + second);
-        result[1] = result[0] < first ? 1UL : 0UL;
     }
 
     private static void SetMagnitude(
@@ -736,7 +735,7 @@ internal static partial class WideOrientedBox
         Span<ulong> result)
     {
         Span<ulong> temporary =
-            stackalloc ulong[MaxResponseWords];
+            stackalloc ulong[result.Length];
         WideArithmetic.MultiplyMagnitudes(first, second, temporary);
         WideArithmetic.MultiplyMagnitudes(temporary, third, result);
     }

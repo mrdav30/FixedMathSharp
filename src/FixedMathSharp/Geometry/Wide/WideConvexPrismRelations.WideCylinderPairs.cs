@@ -142,8 +142,7 @@ internal static partial class WideConvexPrismRelations
             secondPlaneSquared);
         if (!IsWideCylinderPairDepthNonNegative(depth))
             return false;
-        if (best.HasValue
-            && CompareWideCylinderPairDepth(
+        if (CompareWideCylinderPairDepth(
                 depth,
                 best.Depth) >= 0)
         {

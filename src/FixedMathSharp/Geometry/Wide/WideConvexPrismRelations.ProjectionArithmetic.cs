@@ -161,19 +161,8 @@ internal static partial class WideConvexPrismRelations
         ReadOnlySpan<ulong> right,
         Span<ulong> result)
     {
-        result.Clear();
-        ulong carry = 0UL;
-        for (int index = 0; index < result.Length; index++)
-        {
-            ulong leftWord = left[index];
-            ulong rightWord = right[index];
-            ulong sum = unchecked(leftWord + rightWord);
-            ulong firstCarry = sum < leftWord ? 1UL : 0UL;
-            ulong withCarry = unchecked(sum + carry);
-            ulong secondCarry = withCarry < sum ? 1UL : 0UL;
-            result[index] = withCarry;
-            carry = firstCarry | secondCarry;
-        }
+        left.CopyTo(result);
+        WideArithmetic.AddMagnitudeInto(right, result);
     }
 
     private static void SubtractMagnitudes(
@@ -181,17 +170,7 @@ internal static partial class WideConvexPrismRelations
         ReadOnlySpan<ulong> right,
         Span<ulong> result)
     {
-        result.Clear();
-        ulong borrow = 0UL;
-        for (int index = 0; index < result.Length; index++)
-        {
-            ulong leftWord = left[index];
-            ulong rightWord = right[index];
-            ulong subtrahend = unchecked(rightWord + borrow);
-            ulong overflow = subtrahend < rightWord ? 1UL : 0UL;
-            result[index] = unchecked(leftWord - subtrahend);
-            borrow = overflow | (leftWord < subtrahend ? 1UL : 0UL);
-        }
+        WideArithmetic.SubtractEqualMagnitudes(left, right, result);
     }
 
     private static void ShiftLeft(Span<ulong> value, int bits)

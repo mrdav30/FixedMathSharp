@@ -626,18 +626,18 @@ internal static partial class WideConvexPrismRelations
         {
             planarOffset = planarPoint;
         }
-        else if (!verticalNormal && !planarSupportTie)
-        {
-            planarOffset = new Vector2d(
-                fallbackPrismOffset.X,
-                fallbackPrismOffset.Z);
-        }
-        else
+        else if (verticalNormal | planarSupportTie)
         {
             planarOffset = FixedConvex2dRelations.GetClosestPointOffset(
                 planarPoint,
                 Vector2d.Zero,
                 prismOffsets);
+        }
+        else
+        {
+            planarOffset = new Vector2d(
+                fallbackPrismOffset.X,
+                fallbackPrismOffset.Z);
         }
 
         Fixed64 y = normalAxis.Y.IsZero

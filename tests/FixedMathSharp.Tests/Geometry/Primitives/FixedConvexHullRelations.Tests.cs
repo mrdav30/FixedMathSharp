@@ -700,6 +700,40 @@ public sealed class FixedConvexHullRelationsTests
     }
 
     [Fact]
+    public void ContainsPoint_IgnoresNonBoundaryTriangleEntries()
+    {
+        int[] triangles = new int[CubeTriangles.Length + 6];
+        triangles[0] = 0;
+        triangles[1] = 0;
+        triangles[2] = 0;
+        triangles[3] = 0;
+        triangles[4] = 6;
+        triangles[5] = 1;
+        CubeTriangles.CopyTo(triangles, 6);
+
+        Assert.True(FixedConvexHullRelations.ContainsPoint(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            CubePoints,
+            triangles,
+            Vector3d.Zero,
+            new FixedPointAnchor(
+                Vector3d.Zero,
+                FixedQuaternion.Identity,
+                Vector3d.Zero)));
+        Assert.False(FixedConvexHullRelations.ContainsPoint(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            CubePoints,
+            triangles,
+            Vector3d.Zero,
+            new FixedPointAnchor(
+                new Vector3d(2, 0, 0),
+                FixedQuaternion.Identity,
+                Vector3d.Zero)));
+    }
+
+    [Fact]
     public void Relations_RejectMalformedHullContracts()
     {
         Assert.Throws<ArgumentException>(() =>

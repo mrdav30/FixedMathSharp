@@ -13,8 +13,7 @@ namespace FixedMathSharp.Geometry;
 /// Retains the residual between rounded local feature components and their
 /// exact centered-axis construction over the shared 2*Q32.32 denominator.
 /// </summary>
-internal readonly struct FixedPointAnchorTerm3d :
-    IEquatable<FixedPointAnchorTerm3d>
+internal readonly struct FixedPointAnchorTerm3d : IEquatable<FixedPointAnchorTerm3d>
 {
     internal const long MaximumResidualMagnitude = 1L << 33;
 

@@ -271,6 +271,41 @@ public sealed class FixedConvex2dRelationsTests
     }
 
     [Fact]
+    public void ConvexContacts_IgnoreRepeatedBoundaryVertices()
+    {
+        Vector2d[] repeatedBoundaryVertex =
+        {
+            UnitBoxOffsets[0],
+            UnitBoxOffsets[0],
+            UnitBoxOffsets[1],
+            UnitBoxOffsets[2],
+            UnitBoxOffsets[3],
+        };
+        Span<FixedPointAnchor2d> firstContacts =
+            stackalloc FixedPointAnchor2d[2];
+        Span<FixedPointAnchor2d> secondContacts =
+            stackalloc FixedPointAnchor2d[2];
+
+        Assert.True(FixedConvex2dRelations.TryGetConvexContacts(
+            Vector2d.Zero,
+            Fixed64.Zero,
+            repeatedBoundaryVertex,
+            new Vector2d(Fixed64.FromFraction(3, 2), Fixed64.Zero),
+            Fixed64.Zero,
+            UnitBoxOffsets,
+            firstContacts,
+            secondContacts,
+            out int contactCount,
+            out Vector2d normal,
+            out Fixed64 depth,
+            out bool depthIsClamped));
+        Assert.Equal(2, contactCount);
+        Assert.Equal(Vector2d.Right, normal);
+        Assert.Equal(Fixed64.Half, depth);
+        Assert.False(depthIsClamped);
+    }
+
+    [Fact]
     public void ConvexContacts_PreservePointAndFaceSupportFeatures()
     {
         Vector2d[] rightTriangle =

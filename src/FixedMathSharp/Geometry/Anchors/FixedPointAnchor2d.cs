@@ -19,8 +19,7 @@ namespace FixedMathSharp.Geometry;
 /// APIs. Anchors with identical rounded public local components can therefore
 /// remain distinct when they identify different exact features.
 /// </remarks>
-public readonly struct FixedPointAnchor2d :
-    IEquatable<FixedPointAnchor2d>
+public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
 {
     /// <summary>
     /// Gets the point frame's world-space origin.

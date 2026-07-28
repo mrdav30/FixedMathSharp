@@ -90,8 +90,8 @@ internal static partial class WideOrientedBox
             Signed576 pointDelta = WideArithmetic.SubtractSigned576(
                 pointProjection,
                 faceProjectionCommon);
-            if (pointDelta.Sign != 0
-                && pointDelta.Sign != interiorDelta.Sign)
+            if ((pointDelta.Sign != 0)
+                & (pointDelta.Sign != interiorDelta.Sign))
             {
                 return false;
             }

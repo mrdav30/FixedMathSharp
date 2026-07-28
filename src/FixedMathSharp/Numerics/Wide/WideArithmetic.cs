@@ -603,14 +603,13 @@ internal static partial class WideArithmetic
 
     #endregion
 
-    private static void AddSignedMagnitude(
+    internal static void AddSignedMagnitude(
         ReadOnlySpan<ulong> addend,
         int addendSign,
         Span<ulong> result,
         ref int resultSign)
     {
-        // Compaction admits only nonzero coefficients and radicands, so their
-        // exact fixed-width product is nonzero.
+        // Callers provide a nonzero addend with the same width as the result.
         if (resultSign == 0)
         {
             addend.CopyTo(result);

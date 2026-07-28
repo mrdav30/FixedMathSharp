@@ -8,141 +8,6 @@
 namespace FixedMathSharp.Geometry;
 
 /// <summary>
-/// Describes one participant in an exact point-anchor normal response.
-/// </summary>
-public readonly struct FixedLeverResponseOperand3d
-{
-    /// <summary>
-    /// Creates a response operand.
-    /// </summary>
-    public FixedLeverResponseOperand3d(
-        in FixedLever lever,
-        Vector3d linearVelocity,
-        Vector3d angularVelocity,
-        Vector3d linearImpulseAxis,
-        Fixed64 inverseMass,
-        Fixed3x3 inverseInertia)
-    {
-        Lever = lever;
-        LinearVelocity = linearVelocity;
-        AngularVelocity = angularVelocity;
-        LinearImpulseAxis = linearImpulseAxis;
-        InverseMass = inverseMass;
-        InverseInertia = inverseInertia;
-    }
-
-    /// <summary>Gets the exact point lever.</summary>
-    public FixedLever Lever { get; }
-
-    /// <summary>Gets the point owner's linear velocity.</summary>
-    public Vector3d LinearVelocity { get; }
-
-    /// <summary>Gets the point owner's angular velocity.</summary>
-    public Vector3d AngularVelocity { get; }
-
-    /// <summary>
-    /// Gets the signed, mobility-projected response normal for this
-    /// participant.
-    /// </summary>
-    /// <remarks>
-    /// The first participant uses the negative response normal and the second
-    /// uses the positive response normal.
-    /// </remarks>
-    public Vector3d LinearImpulseAxis { get; }
-
-    /// <summary>Gets the effective inverse mass.</summary>
-    public Fixed64 InverseMass { get; }
-
-    /// <summary>Gets the constrained inverse inertia tensor.</summary>
-    public Fixed3x3 InverseInertia { get; }
-}
-
-/// <summary>
-/// Contains final velocity changes from an exact point-anchor normal response.
-/// </summary>
-public readonly struct FixedLeverNormalResponse3d
-{
-    private readonly Fixed64 _normalVelocity;
-    private readonly Fixed64 _appliedImpulse;
-    private readonly Fixed64 _accumulatedImpulse;
-    private readonly byte _projectionFlags;
-
-    internal FixedLeverNormalResponse3d(
-        bool isClosing,
-        bool hasAppliedImpulse,
-        Vector3d firstLinearVelocityDelta,
-        Vector3d firstAngularVelocityDelta,
-        Vector3d secondLinearVelocityDelta,
-        Vector3d secondAngularVelocityDelta,
-        bool hasNormalVelocity,
-        Fixed64 normalVelocity,
-        bool hasAppliedImpulseProjection,
-        Fixed64 appliedImpulse,
-        bool hasAccumulatedImpulse,
-        Fixed64 accumulatedImpulse)
-    {
-        IsClosing = isClosing;
-        HasAppliedImpulse = hasAppliedImpulse;
-        FirstLinearVelocityDelta = firstLinearVelocityDelta;
-        FirstAngularVelocityDelta = firstAngularVelocityDelta;
-        SecondLinearVelocityDelta = secondLinearVelocityDelta;
-        SecondAngularVelocityDelta = secondAngularVelocityDelta;
-        _normalVelocity = normalVelocity;
-        _appliedImpulse = appliedImpulse;
-        _accumulatedImpulse = accumulatedImpulse;
-        _projectionFlags = (byte)(
-            (hasNormalVelocity ? 1 : 0)
-            | (hasAppliedImpulseProjection ? 2 : 0)
-            | (hasAccumulatedImpulse ? 4 : 0));
-    }
-
-    /// <summary>Gets whether the exact relative normal velocity is negative.</summary>
-    public bool IsClosing { get; }
-
-    /// <summary>Gets whether the exact applied impulse is nonzero.</summary>
-    public bool HasAppliedImpulse { get; }
-
-    /// <summary>Gets the first participant's linear velocity change.</summary>
-    public Vector3d FirstLinearVelocityDelta { get; }
-
-    /// <summary>Gets the first participant's angular velocity change.</summary>
-    public Vector3d FirstAngularVelocityDelta { get; }
-
-    /// <summary>Gets the second participant's linear velocity change.</summary>
-    public Vector3d SecondLinearVelocityDelta { get; }
-
-    /// <summary>Gets the second participant's angular velocity change.</summary>
-    public Vector3d SecondAngularVelocityDelta { get; }
-
-    /// <summary>
-    /// Attempts to project the exact relative normal velocity to Q32.32.
-    /// </summary>
-    public bool TryGetNormalVelocity(out Fixed64 value)
-    {
-        value = _normalVelocity;
-        return (_projectionFlags & 1) != 0;
-    }
-
-    /// <summary>
-    /// Attempts to project the exact applied impulse to Q32.32.
-    /// </summary>
-    public bool TryGetAppliedImpulse(out Fixed64 value)
-    {
-        value = _appliedImpulse;
-        return (_projectionFlags & 2) != 0;
-    }
-
-    /// <summary>
-    /// Attempts to project the completed nonnegative impulse accumulator.
-    /// </summary>
-    public bool TryGetAccumulatedImpulse(out Fixed64 value)
-    {
-        value = _accumulatedImpulse;
-        return (_projectionFlags & 4) != 0;
-    }
-}
-
-/// <summary>
 /// Represents an exact directed displacement between two 3D point anchors.
 /// </summary>
 /// <remarks>
@@ -277,6 +142,68 @@ public readonly struct FixedLever
             positiveImpulseScale,
             negativeImpulseScale,
             includeAccumulator: true,
+            out response);
+
+    /// <summary>
+    /// Attempts to resolve one accumulated tangent impulse against a Coulomb
+    /// friction interval while retaining exact response ratios until the final
+    /// velocity changes.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="tangent"/> must be normalized and orthogonal to the
+    /// constraint normal. The normal and tangent operands must describe the
+    /// same participants. Friction coefficients must be nonnegative.
+    /// </remarks>
+    public static bool TryGetCoulombLineResponse(
+        in FixedLeverNormalConstraint3d normalConstraint,
+        in FixedLeverResponseOperand3d firstTangent,
+        in FixedLeverResponseOperand3d secondTangent,
+        Vector3d tangent,
+        Fixed64 accumulatedTangentImpulse,
+        Fixed64 staticFriction,
+        Fixed64 dynamicFriction,
+        out FixedLeverCoulombResponse3d response) =>
+        WideOrientedBox.TryGetCoulombLineResponse(
+            normalConstraint,
+            firstTangent,
+            secondTangent,
+            tangent,
+            accumulatedTangentImpulse,
+            staticFriction,
+            dynamicFriction,
+            out response);
+
+    /// <summary>
+    /// Attempts to resolve two orthogonal tangent impulses against a Coulomb
+    /// friction disk while retaining exact response ratios until the final
+    /// velocity changes.
+    /// </summary>
+    /// <remarks>
+    /// Both tangents must be normalized, mutually orthogonal, and orthogonal to
+    /// the constraint normal. All operands must describe the same two
+    /// participants. Friction coefficients must be nonnegative.
+    /// </remarks>
+    public static bool TryGetCoulombDiskResponse(
+        in FixedLeverNormalConstraint3d normalConstraint,
+        in FixedLeverResponseOperand3d primaryFirst,
+        in FixedLeverResponseOperand3d primarySecond,
+        Vector3d primaryTangent,
+        in FixedLeverResponseOperand3d secondaryFirst,
+        in FixedLeverResponseOperand3d secondarySecond,
+        Vector3d secondaryTangent,
+        Fixed64 staticFriction,
+        Fixed64 dynamicFriction,
+        out FixedLeverCoulombResponse3d response) =>
+        WideOrientedBox.TryGetCoulombDiskResponse(
+            normalConstraint,
+            primaryFirst,
+            primarySecond,
+            primaryTangent,
+            secondaryFirst,
+            secondarySecond,
+            secondaryTangent,
+            staticFriction,
+            dynamicFriction,
             out response);
 
     /// <summary>

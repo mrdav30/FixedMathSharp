@@ -137,8 +137,7 @@ internal static partial class WideConvexPrismRelations
             return false;
         }
 
-        if (best.HasValue
-            && CompareWideProjectionDepth(
+        if (CompareWideProjectionDepth(
                 depth,
                 best.ExactDepth) >= 0)
         {

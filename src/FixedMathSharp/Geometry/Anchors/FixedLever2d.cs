@@ -38,6 +38,16 @@ public readonly struct FixedLever2d
         WideVector2dTransform.TryGetLeverVector(this, out vector);
 
     /// <summary>
+    /// Embeds this exact 2D displacement in the X/Z plane.
+    /// </summary>
+    public FixedLever ToXZLever() =>
+        new(
+            Signed576.ExtendValue(XNumerator),
+            default,
+            Signed576.ExtendValue(YNumerator),
+            Signed576.ExtendValue(Denominator));
+
+    /// <summary>
     /// Attempts to evaluate the scalar cross product with
     /// <paramref name="vector"/>.
     /// </summary>

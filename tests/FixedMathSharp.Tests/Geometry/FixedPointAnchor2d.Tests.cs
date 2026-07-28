@@ -440,6 +440,47 @@ public sealed class FixedPointAnchor2dTests
         Assert.Equal(expectedSquare, squaredCross);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ExactLever_ToXZLeverPreservesFullDomainComponents(
+        bool positiveFace)
+    {
+        Fixed64 face = positiveFace
+            ? Fixed64.MaxValue
+            : Fixed64.MinValue;
+        Fixed64 outward = positiveFace
+            ? Fixed64.MinIncrement
+            : -Fixed64.MinIncrement;
+        FixedPointAnchor2d point = new(
+            new Vector2d(face, Fixed64.Zero),
+            Fixed64.Zero,
+            new Vector2d(outward, Fixed64.One));
+        FixedLever2d planar = point.GetLeverFrom(
+            new FixedPointAnchor2d(
+                Vector2d.Zero,
+                Fixed64.Zero,
+                Vector2d.Zero));
+
+        Assert.False(planar.TryGetVector(out _));
+        FixedLever spatial = planar.ToXZLever();
+        Assert.False(spatial.TryGetVector(out _));
+        Assert.True(spatial.TryGetTransformedScaledCrossProduct(
+            Vector3d.Up,
+            Fixed3x3.Identity,
+            Fixed64.MinIncrement,
+            Fixed64.One,
+            out Vector3d scaledCross));
+        Assert.True(planar.TryGetScaledCrossProduct(
+            Vector2d.Forward,
+            Fixed64.MinIncrement,
+            Fixed64.One,
+            out Fixed64 expected));
+        Assert.Equal(
+            new Vector3d(-Fixed64.MinIncrement, Fixed64.Zero, expected),
+            scaledCross);
+    }
+
     [Fact]
     public void ResponseProducts_RejectZeroDivisorAtomically()
     {

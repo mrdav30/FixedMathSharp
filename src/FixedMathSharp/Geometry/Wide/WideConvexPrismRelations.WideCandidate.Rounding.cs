@@ -375,10 +375,9 @@ internal static partial class WideConvexPrismRelations
             return 1;
         if (knownComparison == 0)
         {
-            return GetActiveLength(positiveBase)
-                * GetActiveLength(sameSideProduct) == 0
-                ? 0
-                : 1;
+            return Math.Sign(
+                GetActiveLength(positiveBase)
+                * GetActiveLength(sameSideProduct));
         }
 
         Span<ulong> remainder =

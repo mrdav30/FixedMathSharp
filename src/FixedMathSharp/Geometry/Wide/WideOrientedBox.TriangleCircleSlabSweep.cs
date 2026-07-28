@@ -896,10 +896,10 @@ internal static partial class WideOrientedBox
         {
             if (candidateDistance > bestDistance)
                 return;
-            if (candidateDistance == bestDistance
-                && WideArithmetic.CompareNonNegative(
+            if ((candidateDistance == bestDistance)
+                & (WideArithmetic.CompareNonNegative(
                     GetAbsoluteReferenceYOffset(candidateReferenceYOffset),
-                    GetAbsoluteReferenceYOffset(bestReferenceYOffset)) >= 0)
+                    GetAbsoluteReferenceYOffset(bestReferenceYOffset)) >= 0))
             {
                 return;
             }
