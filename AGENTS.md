@@ -183,6 +183,9 @@ deterministic.
   tooling/benchmark code.
 - Keep operations allocation-light; many hot methods use `m_rawValue` and
   `[MethodImpl(MethodImplOptions.AggressiveInlining)]`.
+- Put the type-level XML `<summary>` on the main declaration file. Secondary
+  partial declaration files use `<content>` to describe that file's
+  responsibility; do not repeat a `<summary>` that the SDK will ignore.
 - Keep production source files under roughly 1000 lines. When a file grows past
   that threshold, split it into meaningful partials such as `*.Statics.cs`,
   `*.Operators.cs`, `*.Conversions.cs`, or `*.Equality.cs`; avoid one-method or

@@ -215,7 +215,7 @@ internal static partial class WideOrientedBox
                 basis.Denominator,
                 Signed192.One));
         Signed320 x = WideArithmetic.GetSignedRatioWith64FractionBits(
-            GetComposedScaledLocalCoordinateNumerator(
+            WideRationalBasis3d.GetComposedScaledCoordinateNumerator(
                 outerLocalPoint.X,
                 outerScale.X,
                 basis.Xx,
@@ -227,7 +227,7 @@ internal static partial class WideOrientedBox
                 innerLocalDisplacement),
             denominator);
         Signed320 y = WideArithmetic.GetSignedRatioWith64FractionBits(
-            GetComposedScaledLocalCoordinateNumerator(
+            WideRationalBasis3d.GetComposedScaledCoordinateNumerator(
                 outerLocalPoint.Y,
                 outerScale.Y,
                 basis.Xy,
@@ -239,7 +239,7 @@ internal static partial class WideOrientedBox
                 innerLocalDisplacement),
             denominator);
         Signed320 z = WideArithmetic.GetSignedRatioWith64FractionBits(
-            GetComposedScaledLocalCoordinateNumerator(
+            WideRationalBasis3d.GetComposedScaledCoordinateNumerator(
                 outerLocalPoint.Z,
                 outerScale.Z,
                 basis.Xz,
@@ -267,7 +267,7 @@ internal static partial class WideOrientedBox
         out Fixed64 coordinate)
     {
         return Fixed64.TryGetSignedRawRatio(
-            GetComposedScaledLocalCoordinateNumerator(
+            WideRationalBasis3d.GetComposedScaledCoordinateNumerator(
                 outerLocalPoint,
                 outerScale,
                 axisX,
@@ -279,47 +279,6 @@ internal static partial class WideOrientedBox
                 innerLocalDisplacement),
             denominator,
             out coordinate);
-    }
-
-    private static Signed576 GetComposedScaledLocalCoordinateNumerator(
-        Fixed64 outerLocalPoint,
-        Fixed64 outerScale,
-        Signed192 axisX,
-        Signed192 axisY,
-        Signed192 axisZ,
-        Signed192 rotationDenominator,
-        Fixed64 innerFrameOffset,
-        Fixed64 innerFrameScale,
-        Vector3d innerLocalDisplacement)
-    {
-        Signed576 outerScaled = WideArithmetic.MultiplySigned320(
-            WideArithmetic.MultiplySigned192(
-                Signed192.Raw(outerLocalPoint),
-                Signed192.Raw(outerScale)),
-            Signed320.ExtendValue(rotationDenominator));
-        Signed576 innerScaled = WideArithmetic.MultiplySigned320(
-            WideArithmetic.MultiplySigned192(
-                Signed192.Raw(innerFrameOffset),
-                Signed192.Raw(innerFrameScale)),
-            Signed320.ExtendValue(rotationDenominator));
-        Signed320 displacement = WideArithmetic.AddSigned320(
-            WideArithmetic.AddSigned320(
-                WideArithmetic.MultiplySigned192(
-                    Signed192.Raw(innerLocalDisplacement.X),
-                    axisX),
-                WideArithmetic.MultiplySigned192(
-                    Signed192.Raw(innerLocalDisplacement.Y),
-                    axisY)),
-            WideArithmetic.MultiplySigned192(
-                Signed192.Raw(innerLocalDisplacement.Z),
-                axisZ));
-        return WideArithmetic.AddSigned576(
-            WideArithmetic.AddSigned576(
-                outerScaled,
-                innerScaled),
-            WideArithmetic.MultiplySigned320(
-                displacement,
-                Signed320.ExtendValue(Signed192.One)));
     }
 
     private static bool TryMaterializeRationalOffset(

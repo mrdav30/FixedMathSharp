@@ -580,7 +580,7 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void GetExactNormal(
+    internal void GetExactNormal(
         out Signed192 x,
         out Signed192 y,
         out Signed192 z,

@@ -85,6 +85,47 @@ internal readonly struct WideRationalBasis3d
             ww);
     }
 
+    internal static Signed576 GetComposedScaledCoordinateNumerator(
+        Fixed64 outerLocalPoint,
+        Fixed64 outerScale,
+        Signed192 axisX,
+        Signed192 axisY,
+        Signed192 axisZ,
+        Signed192 rotationDenominator,
+        Fixed64 innerFrameOffset,
+        Fixed64 innerFrameScale,
+        Vector3d innerLocalDisplacement)
+    {
+        Signed576 outerScaled = WideArithmetic.MultiplySigned320(
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(outerLocalPoint),
+                Signed192.Raw(outerScale)),
+            Signed320.ExtendValue(rotationDenominator));
+        Signed576 innerScaled = WideArithmetic.MultiplySigned320(
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(innerFrameOffset),
+                Signed192.Raw(innerFrameScale)),
+            Signed320.ExtendValue(rotationDenominator));
+        Signed320 displacement = WideArithmetic.AddSigned320(
+            WideArithmetic.AddSigned320(
+                WideArithmetic.MultiplySigned192(
+                    Signed192.Raw(innerLocalDisplacement.X),
+                    axisX),
+                WideArithmetic.MultiplySigned192(
+                    Signed192.Raw(innerLocalDisplacement.Y),
+                    axisY)),
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(innerLocalDisplacement.Z),
+                axisZ));
+        return WideArithmetic.AddSigned576(
+            WideArithmetic.AddSigned576(
+                outerScaled,
+                innerScaled),
+            WideArithmetic.MultiplySigned320(
+                displacement,
+                Signed320.ExtendValue(Signed192.One)));
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Signed192 Double(Signed192 value) =>
         WideArithmetic.AddSigned192(value, value);

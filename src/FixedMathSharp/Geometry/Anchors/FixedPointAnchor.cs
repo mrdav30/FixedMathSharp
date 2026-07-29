@@ -247,9 +247,7 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             return false;
         }
 
-        lever = WideLever3d.GetLever(
-            this,
-            other);
+        lever = new FixedLever(WideLever3d.GetValue(this, other));
         return true;
     }
 

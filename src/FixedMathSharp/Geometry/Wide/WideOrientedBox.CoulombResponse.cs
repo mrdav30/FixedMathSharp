@@ -430,10 +430,10 @@ internal static partial class WideOrientedBox
         _ = WideLever3d.TryGetRelativePointVelocityRatio(
             first.LinearVelocity,
             first.AngularVelocity,
-            first.Lever,
+            first.Lever.Value,
             second.LinearVelocity,
             second.AngularVelocity,
-            second.Lever,
+            second.Lever.Value,
             constraint.Normal,
             out Signed832 velocityNumerator,
             out Signed832 velocityDenominator);
@@ -525,10 +525,10 @@ internal static partial class WideOrientedBox
         _ = WideLever3d.TryGetRelativePointVelocityRatio(
             first.LinearVelocity,
             first.AngularVelocity,
-            first.Lever,
+            first.Lever.Value,
             second.LinearVelocity,
             second.AngularVelocity,
-            second.Lever,
+            second.Lever.Value,
             tangent,
             out Signed832 velocityNumerator,
             out Signed832 velocityDenominator);
@@ -939,14 +939,14 @@ internal static partial class WideOrientedBox
         out Vector3d result)
     {
         WideLever3d.GetTransformedCrossProduct(
-            lever,
+            lever.Value,
             primaryAxis,
             inverseInertia,
             out Signed832 primaryX,
             out Signed832 primaryY,
             out Signed832 primaryZ);
         WideLever3d.GetTransformedCrossProduct(
-            lever,
+            lever.Value,
             secondaryAxis,
             inverseInertia,
             out Signed832 secondaryX,

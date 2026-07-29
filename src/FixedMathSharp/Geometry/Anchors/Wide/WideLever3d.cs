@@ -13,7 +13,7 @@ namespace FixedMathSharp.Geometry;
 /// </summary>
 internal static class WideLever3d
 {
-    internal static FixedLever GetLever(
+    internal static WideLever3dValue GetValue(
         in FixedPointAnchor first,
         in FixedPointAnchor second)
     {
@@ -34,11 +34,11 @@ internal static class WideLever3d
             out Signed576 y,
             out Signed576 z,
             out Signed576 denominator);
-        return new FixedLever(x, y, z, denominator);
+        return new WideLever3dValue(x, y, z, denominator);
     }
 
     internal static bool TryGetLeverVector(
-        in FixedLever lever,
+        in WideLever3dValue lever,
         out Vector3d vector)
     {
         bool representable = Fixed64.TryGetSignedRawRatio(
@@ -58,7 +58,7 @@ internal static class WideLever3d
     }
 
     internal static bool TryGetCrossProductProjection(
-        in FixedLever lever,
+        in WideLever3dValue lever,
         Vector3d crossVector,
         Vector3d projectionVector,
         out Fixed64 projection)
@@ -83,10 +83,10 @@ internal static class WideLever3d
     internal static bool TryGetRelativePointVelocityProjection(
         Vector3d firstLinearVelocity,
         Vector3d firstAngularVelocity,
-        in FixedLever firstLever,
+        in WideLever3dValue firstLever,
         Vector3d secondLinearVelocity,
         Vector3d secondAngularVelocity,
-        in FixedLever secondLever,
+        in WideLever3dValue secondLever,
         Vector3d projectionAxis,
         out Fixed64 projection)
     {
@@ -115,10 +115,10 @@ internal static class WideLever3d
     internal static bool TryGetRelativePointVelocityRatio(
         Vector3d firstLinearVelocity,
         Vector3d firstAngularVelocity,
-        in FixedLever firstLever,
+        in WideLever3dValue firstLever,
         Vector3d secondLinearVelocity,
         Vector3d secondAngularVelocity,
-        in FixedLever secondLever,
+        in WideLever3dValue secondLever,
         Vector3d projectionAxis,
         out Signed832 numerator,
         out Signed832 denominator)
@@ -187,7 +187,7 @@ internal static class WideLever3d
     }
 
     internal static bool TryGetCrossProductQuadraticForm(
-        in FixedLever lever,
+        in WideLever3dValue lever,
         Vector3d crossVector,
         Fixed3x3 transform,
         out Fixed64 result)
@@ -206,7 +206,7 @@ internal static class WideLever3d
     }
 
     internal static void GetCrossProductQuadraticFormRatio(
-        in FixedLever lever,
+        in WideLever3dValue lever,
         Vector3d crossVector,
         Fixed3x3 transform,
         out Signed832 numerator,
@@ -267,7 +267,7 @@ internal static class WideLever3d
     }
 
     internal static bool TryGetTransformedScaledCrossProduct(
-        in FixedLever lever,
+        in WideLever3dValue lever,
         Vector3d crossVector,
         Fixed3x3 transform,
         Fixed64 firstMultiplier,
@@ -296,7 +296,7 @@ internal static class WideLever3d
     }
 
     internal static bool TryGetTransformedScaledCrossProductBySum(
-        in FixedLever lever,
+        in WideLever3dValue lever,
         Vector3d crossVector,
         Fixed3x3 transform,
         Fixed64 firstMultiplier,
@@ -368,7 +368,7 @@ internal static class WideLever3d
     }
 
     internal static bool TryGetTransformedWeightedCrossProduct(
-        in FixedLever lever,
+        in WideLever3dValue lever,
         Vector3d first,
         Fixed64 firstScale,
         Vector3d second,
@@ -466,7 +466,7 @@ internal static class WideLever3d
     }
 
     private static Signed704 GetCrossProductProjectionNumerator(
-        in FixedLever lever,
+        in WideLever3dValue lever,
         Vector3d crossVector,
         Vector3d projectionVector)
     {
@@ -535,7 +535,7 @@ internal static class WideLever3d
                 Signed192.Raw(coefficientZ)));
 
     internal static void GetTransformedCrossProduct(
-        in FixedLever lever,
+        in WideLever3dValue lever,
         Vector3d crossVector,
         Fixed3x3 transform,
         out Signed832 x,
@@ -574,7 +574,7 @@ internal static class WideLever3d
     }
 
     private static Signed832 GetTransformedCrossProductDenominator(
-        in FixedLever lever,
+        in WideLever3dValue lever,
         Signed192 divisor)
     {
         Signed320 fixedScaleSquared = WideArithmetic.MultiplySigned192(
