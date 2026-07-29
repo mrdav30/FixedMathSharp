@@ -51,8 +51,8 @@ internal static partial class WideOrientedBox
         Vector3d secondHalfExtents,
         out FixedContactAnchors contact)
     {
-        RationalBasis firstBasis = new(firstOrientation);
-        RationalBasis secondBasis = new(secondOrientation);
+        WideRationalBasis3d firstBasis = new(firstOrientation);
+        WideRationalBasis3d secondBasis = new(secondOrientation);
         Signed320 commonDenominator = WideArithmetic.MultiplySigned192(
             firstBasis.Denominator,
             secondBasis.Denominator);
@@ -167,10 +167,10 @@ internal static partial class WideOrientedBox
         WideAxis3 axis,
         Vector3d firstCenter,
         Vector3d firstHalfExtents,
-        RationalBasis firstBasis,
+        WideRationalBasis3d firstBasis,
         Vector3d secondCenter,
         Vector3d secondHalfExtents,
-        RationalBasis secondBasis,
+        WideRationalBasis3d secondBasis,
         Signed320 commonDenominator,
         ref BoxPenetration best)
     {
@@ -259,7 +259,7 @@ internal static partial class WideOrientedBox
         return WideArithmetic.CompareMagnitudeEqualLength(candidateScaled, currentScaled);
     }
 
-    private static WideAxis3 GetBasisAxis(RationalBasis basis, int index) =>
+    private static WideAxis3 GetBasisAxis(WideRationalBasis3d basis, int index) =>
         index switch
         {
             0 => new WideAxis3(

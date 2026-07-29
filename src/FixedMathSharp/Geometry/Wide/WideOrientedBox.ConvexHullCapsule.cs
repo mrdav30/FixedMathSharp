@@ -31,7 +31,7 @@ internal static partial class WideOrientedBox
         Fixed64 capsuleRadius,
         out FixedContactAnchors contact)
     {
-        RationalBasis hullBasis = new(hullRotation);
+        WideRationalBasis3d hullBasis = new(hullRotation);
         GetRotatedLocalAxisNumerators(
             capsuleRotation,
             capsuleLocalAxisDirection,
@@ -228,7 +228,7 @@ internal static partial class WideOrientedBox
     private static bool TryKeepHullCapsuleCandidate(
         HullCapsuleCandidate candidate,
         Vector3d hullOrigin,
-        RationalBasis hullBasis,
+        WideRationalBasis3d hullBasis,
         ReadOnlySpan<Vector3d> hullLocalPoints,
         ReadOnlySpan<int> triangleVertexIndices,
         ReadOnlySpan<int> edgeVertexPairs,
@@ -312,7 +312,7 @@ internal static partial class WideOrientedBox
     private static int EvaluateHullCapsuleCandidate(
         HullCapsuleCandidate candidate,
         Vector3d hullOrigin,
-        RationalBasis hullBasis,
+        WideRationalBasis3d hullBasis,
         ReadOnlySpan<Vector3d> hullLocalPoints,
         ReadOnlySpan<int> triangleVertexIndices,
         ReadOnlySpan<int> edgeVertexPairs,
@@ -486,7 +486,7 @@ internal static partial class WideOrientedBox
     private static CapsuleAxis3 BuildHullCapsuleCandidateAxis(
         HullCapsuleCandidate candidate,
         Vector3d hullOrigin,
-        RationalBasis hullBasis,
+        WideRationalBasis3d hullBasis,
         ReadOnlySpan<Vector3d> hullLocalPoints,
         ReadOnlySpan<int> triangleVertexIndices,
         ReadOnlySpan<int> edgeVertexPairs,
@@ -560,7 +560,7 @@ internal static partial class WideOrientedBox
     private static CapsuleAxis3 GetCapsuleEndpointToHullEdgeAxis(
         Vector3d hullOrigin,
         Vector3d capsuleCenter,
-        RationalBasis hullBasis,
+        WideRationalBasis3d hullBasis,
         Vector3d localStart,
         Vector3d localEnd,
         WideAxis3 capsuleAxis,

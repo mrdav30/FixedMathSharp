@@ -82,6 +82,58 @@ internal static partial class WideArithmetic
         return new Signed320(word4, word3, word2, word1, word0);
     }
 
+    /// <summary>
+    /// Returns the signed sum of two <see cref="Signed192"/> products.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed320 AddProducts(
+        Signed192 firstLeft,
+        Signed192 firstRight,
+        Signed192 secondLeft,
+        Signed192 secondRight) =>
+        AddSigned320(
+            MultiplySigned192(firstLeft, firstRight),
+            MultiplySigned192(secondLeft, secondRight));
+
+    /// <summary>
+    /// Returns the signed sum of three <see cref="Signed192"/> products.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed320 AddProducts(
+        Signed192 firstLeft,
+        Signed192 firstRight,
+        Signed192 secondLeft,
+        Signed192 secondRight,
+        Signed192 thirdLeft,
+        Signed192 thirdRight) =>
+        AddSigned320(
+            AddProducts(
+                firstLeft,
+                firstRight,
+                secondLeft,
+                secondRight),
+            MultiplySigned192(thirdLeft, thirdRight));
+
+    /// <summary>
+    /// Returns the signed dot product of two three-component
+    /// <see cref="Signed192"/> values.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed320 GetDotProduct3D(
+        Signed192 leftX,
+        Signed192 leftY,
+        Signed192 leftZ,
+        Signed192 rightX,
+        Signed192 rightY,
+        Signed192 rightZ) =>
+        AddProducts(
+            leftX,
+            rightX,
+            leftY,
+            rightY,
+            leftZ,
+            rightZ);
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static Signed320 AddSigned320(Signed320 left, Signed320 right)
     {

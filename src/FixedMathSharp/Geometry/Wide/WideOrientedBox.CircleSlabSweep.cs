@@ -68,7 +68,7 @@ internal static partial class WideOrientedBox
             return false;
         }
 
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         Signed192 lowerY = WideArithmetic.SubtractSigned192(
             Signed192.Raw(slabStartCenter.Y),
             Signed192.Raw(slabHalfThickness));
@@ -150,7 +150,7 @@ internal static partial class WideOrientedBox
         Fixed64 slabHalfThickness,
         Fixed64 radius)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         Signed192 lowerY = WideArithmetic.SubtractSigned192(
             Signed192.Raw(slabCenter.Y),
             Signed192.Raw(slabHalfThickness));
@@ -302,7 +302,7 @@ internal static partial class WideOrientedBox
     private static Fixed64 GetClosestProjectionVertexDistanceLowerBound(
         Vector3d center,
         Vector3d halfExtents,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Signed192 lowerY,
         Signed192 upperY,
         Vector2d point)
@@ -432,7 +432,7 @@ internal static partial class WideOrientedBox
     private static Fixed64 GetCircleSlabVerticalSeparationLowerBound(
         Vector3d center,
         Vector3d halfExtents,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Signed192 lowerY,
         Signed192 upperY)
     {

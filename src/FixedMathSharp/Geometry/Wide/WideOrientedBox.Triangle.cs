@@ -29,8 +29,8 @@ internal static partial class WideOrientedBox
             return false;
         }
 
-        RationalBasis boxBasis = new(boxOrientation);
-        RationalBasis triangleBasis = new(triangleRotation);
+        WideRationalBasis3d boxBasis = new(boxOrientation);
+        WideRationalBasis3d triangleBasis = new(triangleRotation);
         Span<WideAxis3> boxAxes = stackalloc WideAxis3[3]
         {
             GetBasisAxis(boxBasis, 0),
@@ -161,9 +161,9 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<WideAxis3> boxAxes,
         Vector3d boxCenter,
         Vector3d boxHalfExtents,
-        RationalBasis boxBasis,
+        WideRationalBasis3d boxBasis,
         Vector3d triangleOrigin,
-        RationalBasis triangleBasis,
+        WideRationalBasis3d triangleBasis,
         FixedTriangle triangle,
         ref PointSpanPenetration best)
     {
@@ -200,9 +200,9 @@ internal static partial class WideOrientedBox
         WideAxis3 axis,
         Vector3d boxCenter,
         Vector3d boxHalfExtents,
-        RationalBasis boxBasis,
+        WideRationalBasis3d boxBasis,
         Vector3d triangleOrigin,
-        RationalBasis triangleBasis,
+        WideRationalBasis3d triangleBasis,
         FixedTriangle triangle,
         ref PointSpanPenetration best)
     {
@@ -282,7 +282,7 @@ internal static partial class WideOrientedBox
 
     private static Vector3d GetTriangleSupportLocalPoint(
         FixedTriangle triangle,
-        RationalBasis triangleBasis,
+        WideRationalBasis3d triangleBasis,
         WideAxis3 boxToTriangleAxis)
     {
         Vector3d bestPoint = triangle.A;
@@ -307,7 +307,7 @@ internal static partial class WideOrientedBox
 
     private static void KeepTriangleSupportPoint(
         Vector3d candidate,
-        RationalBasis triangleBasis,
+        WideRationalBasis3d triangleBasis,
         WideAxis3 boxToTriangleAxis,
         ref Vector3d bestPoint,
         ref Signed576 bestProjection)
@@ -335,8 +335,8 @@ internal static partial class WideOrientedBox
         out int count)
     {
         count = 0;
-        RationalBasis boxBasis = new(boxOrientation);
-        RationalBasis triangleBasis = new(triangleRotation);
+        WideRationalBasis3d boxBasis = new(boxOrientation);
+        WideRationalBasis3d triangleBasis = new(triangleRotation);
         WideGeometry.GetDifferenceCrossProduct3D(
             triangle.B.X,
             triangle.A.X,
@@ -414,7 +414,7 @@ internal static partial class WideOrientedBox
     }
 
     private static int GetParallelTriangleFaceAxis(
-        RationalBasis boxBasis,
+        WideRationalBasis3d boxBasis,
         WideAxis3 triangleNormal,
         Vector3d primaryNormal)
     {

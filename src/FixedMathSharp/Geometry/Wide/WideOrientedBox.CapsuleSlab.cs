@@ -30,7 +30,7 @@ internal static partial class WideOrientedBox
             localCapsuleAxisDirection,
             capsuleFrameRotation,
             out Vector2d capsuleAxisDirection);
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         Signed320 commonDenominatorWide = WideArithmetic.MultiplySigned192(
             basis.Denominator,
             Signed192.Raw(Fixed64.Two));
@@ -227,7 +227,7 @@ internal static partial class WideOrientedBox
         WideAxis3 axis,
         Vector3d boxCenter,
         Vector3d halfExtents,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Signed192 commonDenominator,
         Vector3d slabCenter,
         Vector2d capsuleAxisDirection,
@@ -339,7 +339,7 @@ internal static partial class WideOrientedBox
     private static WideAxis3 GetCornerToCapsuleEndpointAxis(
         Vector3d boxCenter,
         Vector3d capsuleCenter,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d localCorner,
         Vector2d capsuleAxisDirection,
         Fixed64 capsuleAxisLength,

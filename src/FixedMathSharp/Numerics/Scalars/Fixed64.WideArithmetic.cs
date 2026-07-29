@@ -272,8 +272,8 @@ public partial struct Fixed64
         Fixed64 secondRight,
         out Fixed64 result) =>
         TryRoundProductCombination(
-            GetExactTwoFactorProduct(firstLeft, firstRight),
-            GetExactTwoFactorProduct(secondLeft, secondRight),
+            GetExactRawProduct(firstLeft, firstRight),
+            GetExactRawProduct(secondLeft, secondRight),
             subtract: false,
             out result);
 
@@ -288,9 +288,9 @@ public partial struct Fixed64
     {
         Signed192 numerator = WideArithmetic.AddSigned192(
             WideArithmetic.AddSigned192(
-                GetExactTwoFactorProduct(firstLeft, firstRight),
-                GetExactTwoFactorProduct(secondLeft, secondRight)),
-            GetExactTwoFactorProduct(thirdLeft, thirdRight));
+                GetExactRawProduct(firstLeft, firstRight),
+                GetExactRawProduct(secondLeft, secondRight)),
+            GetExactRawProduct(thirdLeft, thirdRight));
         return TryRoundProductCombination(
             numerator,
             default,
@@ -310,9 +310,9 @@ public partial struct Fixed64
     {
         Signed192 products = WideArithmetic.AddSigned192(
             WideArithmetic.AddSigned192(
-                GetExactTwoFactorProduct(firstLeft, firstRight),
-                GetExactTwoFactorProduct(secondLeft, secondRight)),
-            GetExactTwoFactorProduct(thirdLeft, thirdRight));
+                GetExactRawProduct(firstLeft, firstRight),
+                GetExactRawProduct(secondLeft, secondRight)),
+            GetExactRawProduct(thirdLeft, thirdRight));
         Signed320 scaled = WideArithmetic.MultiplySigned192(
             products,
             Signed192.Raw(resultScale));
@@ -351,8 +351,8 @@ public partial struct Fixed64
         Fixed64 secondRight,
         out Fixed64 result) =>
         TryRoundProductCombination(
-            GetExactTwoFactorProduct(firstLeft, firstRight),
-            GetExactTwoFactorProduct(secondLeft, secondRight),
+            GetExactRawProduct(firstLeft, firstRight),
+            GetExactRawProduct(secondLeft, secondRight),
             subtract: true,
             out result);
 

@@ -16,63 +16,6 @@ internal static partial class WideOrientedBox
 {
     #region Nested Types
 
-    private readonly struct RationalBasis
-    {
-        internal readonly Signed192 Denominator;
-        internal readonly Signed192 Xx;
-        internal readonly Signed192 Xy;
-        internal readonly Signed192 Xz;
-        internal readonly Signed192 Yx;
-        internal readonly Signed192 Yy;
-        internal readonly Signed192 Yz;
-        internal readonly Signed192 Zx;
-        internal readonly Signed192 Zy;
-        internal readonly Signed192 Zz;
-
-        internal RationalBasis(FixedQuaternion orientation)
-        {
-            Signed192 xx = Product(orientation.X, orientation.X);
-            Signed192 yy = Product(orientation.Y, orientation.Y);
-            Signed192 zz = Product(orientation.Z, orientation.Z);
-            Signed192 ww = Product(orientation.W, orientation.W);
-            Signed192 xy = Product(orientation.X, orientation.Y);
-            Signed192 xz = Product(orientation.X, orientation.Z);
-            Signed192 xw = Product(orientation.X, orientation.W);
-            Signed192 yz = Product(orientation.Y, orientation.Z);
-            Signed192 yw = Product(orientation.Y, orientation.W);
-            Signed192 zw = Product(orientation.Z, orientation.W);
-            Denominator = WideArithmetic.AddSigned192(
-                WideArithmetic.AddSigned192(xx, yy),
-                WideArithmetic.AddSigned192(zz, ww));
-
-            Xx = WideArithmetic.AddSigned192(
-                WideArithmetic.SubtractSigned192(
-                    WideArithmetic.SubtractSigned192(xx, yy),
-                    zz),
-                ww);
-            Xy = Double(WideArithmetic.AddSigned192(xy, zw));
-            Xz = Double(WideArithmetic.SubtractSigned192(xz, yw));
-            Yx = Double(WideArithmetic.SubtractSigned192(xy, zw));
-            Yy = WideArithmetic.AddSigned192(
-                WideArithmetic.SubtractSigned192(
-                    WideArithmetic.SubtractSigned192(yy, xx),
-                    zz),
-                ww);
-            Yz = Double(WideArithmetic.AddSigned192(yz, xw));
-            Zx = Double(WideArithmetic.AddSigned192(xz, yw));
-            Zy = Double(WideArithmetic.SubtractSigned192(yz, xw));
-            Zz = WideArithmetic.AddSigned192(
-                WideArithmetic.SubtractSigned192(
-                    WideArithmetic.SubtractSigned192(zz, xx),
-                    yy),
-                ww);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static Signed192 Double(Signed192 value) =>
-            WideArithmetic.AddSigned192(value, value);
-    }
-
     private readonly struct RadialPenetration
     {
         internal readonly WideAxis3 Axis;
@@ -143,7 +86,7 @@ internal static partial class WideOrientedBox
         out Vector3d axisY,
         out Vector3d axisZ)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         axisX = GetAxis(basis.Xx, basis.Xy, basis.Xz, basis.Denominator, false);
         axisY = GetAxis(basis.Yx, basis.Yy, basis.Yz, basis.Denominator, false);
         axisZ = GetAxis(basis.Zx, basis.Zy, basis.Zz, basis.Denominator, false);
@@ -154,7 +97,7 @@ internal static partial class WideOrientedBox
         FixedQuaternion orientation,
         Vector3d halfExtents)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         GetDirectionProjections(
             worldDirection,
             basis,
@@ -172,7 +115,7 @@ internal static partial class WideOrientedBox
         FixedQuaternion orientation,
         Vector3d halfExtents)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         Signed576 denominator = ToSigned576(basis.Denominator);
         Signed320 minimumNumerator = WideArithmetic.MultiplySigned192(
             Signed192.Signed(long.MinValue),
@@ -224,7 +167,7 @@ internal static partial class WideOrientedBox
         FixedQuaternion orientation,
         Vector3d halfExtents)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         GetPointProjections(
             point,
             center,
@@ -243,7 +186,7 @@ internal static partial class WideOrientedBox
         FixedQuaternion orientation,
         Vector3d halfExtents)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         GetPointProjections(
             point,
             center,
@@ -297,7 +240,7 @@ internal static partial class WideOrientedBox
         FixedQuaternion orientation,
         Vector3d halfExtents)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         GetPointProjections(
             point,
             center,
@@ -337,7 +280,7 @@ internal static partial class WideOrientedBox
         Vector3d localPoint,
         out Vector3d worldPoint)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         Signed576 denominator = ToSigned576(basis.Denominator);
         bool representable = TryMaterializeCoordinate(
             center.X,
@@ -383,7 +326,7 @@ internal static partial class WideOrientedBox
         Vector3d localPoint,
         out Vector3d worldPoint)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         Signed576 denominator = ToSigned576(basis.Denominator);
         bool representable = TryMaterializeCoordinate(
                 firstOrigin.X,
@@ -443,7 +386,7 @@ internal static partial class WideOrientedBox
         Vector3d localDisplacement,
         out Vector3d worldPoint)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         Signed320 scaledDenominator = WideArithmetic.MultiplySigned192(
             basis.Denominator,
             Signed192.One);
@@ -500,7 +443,7 @@ internal static partial class WideOrientedBox
         Vector3d secondLocalPoint,
         out Vector3d result)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         Signed576 denominator = ToSigned576(basis.Denominator);
         bool representable = TryGetRelativeOffsetCoordinate(
                 firstOrigin.X,
@@ -551,7 +494,7 @@ internal static partial class WideOrientedBox
         Vector3d halfExtents,
         out Vector3d centerOffset)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         Vector3d localSupport = GetLocalSupportPoint(
             worldDirection,
             orientation,
@@ -571,7 +514,7 @@ internal static partial class WideOrientedBox
         Vector3d worldDirection,
         out Vector3d difference)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         Vector3d localSupport = GetLocalSupportPoint(
             worldDirection,
             orientation,
@@ -630,8 +573,8 @@ internal static partial class WideOrientedBox
         Vector3d worldDirection,
         out Vector3d difference)
     {
-        RationalBasis basis = new(orientation);
-        RationalBasis otherBasis = new(otherOrientation);
+        WideRationalBasis3d basis = new(orientation);
+        WideRationalBasis3d otherBasis = new(otherOrientation);
         Vector3d localSupport = GetLocalSupportPoint(
             worldDirection,
             orientation,
@@ -706,7 +649,7 @@ internal static partial class WideOrientedBox
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void GetDirectionProjections(
         Vector3d direction,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         out Signed320 x,
         out Signed320 y,
         out Signed320 z)
@@ -714,16 +657,16 @@ internal static partial class WideOrientedBox
         Signed192 directionX = Signed192.Raw(direction.X);
         Signed192 directionY = Signed192.Raw(direction.Y);
         Signed192 directionZ = Signed192.Raw(direction.Z);
-        x = GetProjection(directionX, directionY, directionZ, basis.Xx, basis.Xy, basis.Xz);
-        y = GetProjection(directionX, directionY, directionZ, basis.Yx, basis.Yy, basis.Yz);
-        z = GetProjection(directionX, directionY, directionZ, basis.Zx, basis.Zy, basis.Zz);
+        x = WideArithmetic.GetDotProduct3D(directionX, directionY, directionZ, basis.Xx, basis.Xy, basis.Xz);
+        y = WideArithmetic.GetDotProduct3D(directionX, directionY, directionZ, basis.Yx, basis.Yy, basis.Yz);
+        z = WideArithmetic.GetDotProduct3D(directionX, directionY, directionZ, basis.Zx, basis.Zy, basis.Zz);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void GetPointProjections(
         Vector3d point,
         Vector3d center,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         out Signed320 x,
         out Signed320 y,
         out Signed320 z)
@@ -731,24 +674,10 @@ internal static partial class WideOrientedBox
         Signed192 differenceX = WideArithmetic.SubtractSigned192(Signed192.Raw(point.X), Signed192.Raw(center.X));
         Signed192 differenceY = WideArithmetic.SubtractSigned192(Signed192.Raw(point.Y), Signed192.Raw(center.Y));
         Signed192 differenceZ = WideArithmetic.SubtractSigned192(Signed192.Raw(point.Z), Signed192.Raw(center.Z));
-        x = GetProjection(differenceX, differenceY, differenceZ, basis.Xx, basis.Xy, basis.Xz);
-        y = GetProjection(differenceX, differenceY, differenceZ, basis.Yx, basis.Yy, basis.Yz);
-        z = GetProjection(differenceX, differenceY, differenceZ, basis.Zx, basis.Zy, basis.Zz);
+        x = WideArithmetic.GetDotProduct3D(differenceX, differenceY, differenceZ, basis.Xx, basis.Xy, basis.Xz);
+        y = WideArithmetic.GetDotProduct3D(differenceX, differenceY, differenceZ, basis.Yx, basis.Yy, basis.Yz);
+        z = WideArithmetic.GetDotProduct3D(differenceX, differenceY, differenceZ, basis.Zx, basis.Zy, basis.Zz);
     }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Signed320 GetProjection(
-        Signed192 x,
-        Signed192 y,
-        Signed192 z,
-        Signed192 axisX,
-        Signed192 axisY,
-        Signed192 axisZ) =>
-        WideArithmetic.AddSigned320(
-            WideArithmetic.AddSigned320(
-                WideArithmetic.MultiplySigned192(x, axisX),
-                WideArithmetic.MultiplySigned192(y, axisY)),
-            WideArithmetic.MultiplySigned192(z, axisZ));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsWithinExtent(
@@ -885,24 +814,4 @@ internal static partial class WideOrientedBox
     private static Signed576 ToSigned576(Signed192 value) =>
         Signed576.ExtendValue(Signed320.ExtendValue(value));
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Signed192 Product(Fixed64 left, Fixed64 right)
-    {
-        long leftRaw = left.m_rawValue;
-        long rightRaw = right.m_rawValue;
-        Fixed64.Multiply64To128(
-            Fixed64.AbsToUInt64(leftRaw),
-            Fixed64.AbsToUInt64(rightRaw),
-            out ulong middle,
-            out ulong low);
-        ulong high = 0UL;
-        if ((leftRaw < 0L) != (rightRaw < 0L))
-        {
-            low = unchecked(~low + 1UL);
-            middle = unchecked(~middle + (low == 0UL ? 1UL : 0UL));
-            high = (middle | low) == 0UL ? 0UL : ulong.MaxValue;
-        }
-
-        return new Signed192(high, middle, low);
-    }
 }

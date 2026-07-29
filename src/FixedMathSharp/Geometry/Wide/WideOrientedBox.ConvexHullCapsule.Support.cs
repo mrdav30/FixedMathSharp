@@ -47,7 +47,7 @@ internal static partial class WideOrientedBox
 
     private static void GetHullCapsuleProjectionInterval(
         ReadOnlySpan<Vector3d> points,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         CapsuleAxis3 axis,
         Span<ulong> minimum,
         out int minimumSign,
@@ -95,7 +95,7 @@ internal static partial class WideOrientedBox
 
     private static void BuildHullCapsuleLocalProjection(
         Vector3d point,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         CapsuleAxis3 axis,
         Span<ulong> result,
         out int resultSign)
@@ -232,7 +232,7 @@ internal static partial class WideOrientedBox
     private static FixedPointAnchor GetMatchedHullCapsuleSupportAnchor(
         Vector3d hullOrigin,
         FixedQuaternion hullRotation,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         ReadOnlySpan<Vector3d> points,
         ReadOnlySpan<int> triangleVertexIndices,
         ReadOnlySpan<int> edgeVertexPairs,
@@ -363,7 +363,7 @@ internal static partial class WideOrientedBox
 
     private static bool IsHullCapsuleSupportPoint(
         Vector3d point,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         CapsuleAxis3 orientedAxis,
         ReadOnlySpan<ulong> supportProjection,
         int supportProjectionSign)

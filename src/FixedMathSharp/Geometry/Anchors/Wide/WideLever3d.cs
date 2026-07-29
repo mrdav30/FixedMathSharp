@@ -1,5 +1,5 @@
 //=======================================================================
-// WideOrientedBox.PointAnchorResponse.cs
+// WideLever3d.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
@@ -7,16 +7,17 @@
 
 namespace FixedMathSharp.Geometry;
 
-/// <content>
-/// Exact point-anchor response products.
-/// </content>
-internal static partial class WideOrientedBox
+/// <summary>
+/// Provides methods for computing the lever between two anchors in 3D space, 
+/// as well as various operations on levers, such as cross products, projections, and transformations.
+/// </summary>
+internal static class WideLever3d
 {
     internal static FixedLever GetLever(
         in FixedPointAnchor first,
         in FixedPointAnchor second)
     {
-        GetExactRelativeOffsetRatio(
+        WidePointAnchor3d.GetExactRelativeOffsetRatio(
             first.Origin,
             first.Rotation,
             first.LocalPoint,
@@ -111,7 +112,7 @@ internal static partial class WideOrientedBox
             out projection);
     }
 
-    private static bool TryGetRelativePointVelocityRatio(
+    internal static bool TryGetRelativePointVelocityRatio(
         Vector3d firstLinearVelocity,
         Vector3d firstAngularVelocity,
         in FixedLever firstLever,
@@ -204,7 +205,7 @@ internal static partial class WideOrientedBox
             out result);
     }
 
-    private static void GetCrossProductQuadraticFormRatio(
+    internal static void GetCrossProductQuadraticFormRatio(
         in FixedLever lever,
         Vector3d crossVector,
         Fixed3x3 transform,
@@ -533,7 +534,7 @@ internal static partial class WideOrientedBox
                 z,
                 Signed192.Raw(coefficientZ)));
 
-    private static void GetTransformedCrossProduct(
+    internal static void GetTransformedCrossProduct(
         in FixedLever lever,
         Vector3d crossVector,
         Fixed3x3 transform,

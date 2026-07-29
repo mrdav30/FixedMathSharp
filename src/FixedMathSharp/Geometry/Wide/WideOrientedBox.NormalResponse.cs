@@ -40,7 +40,7 @@ internal static partial class WideOrientedBox
             || first.InverseMass < Fixed64.Zero
             || second.InverseMass < Fixed64.Zero
             || !normal.IsNormalized()
-            || !TryGetRelativePointVelocityRatio(
+            || !WideLever3d.TryGetRelativePointVelocityRatio(
                 first.LinearVelocity,
                 first.AngularVelocity,
                 first.Lever,
@@ -72,7 +72,8 @@ internal static partial class WideOrientedBox
             effectiveNumerator,
             effectiveDenominator);
 
-        bool denominatorTooSmall = IsZero(effectiveNumerator);
+        bool denominatorTooSmall =
+            WideArithmetic.IsZeroMagnitude(effectiveNumerator);
         if (denominatorTooSmall)
         {
             if (velocitySign < 0 && !includeAccumulator)
@@ -142,7 +143,8 @@ internal static partial class WideOrientedBox
             useImpulseRatio ? impulseNumerator : appliedNumerator;
         ReadOnlySpan<ulong> resolvedImpulseDenominator =
             useImpulseRatio ? impulseDenominator : appliedDenominator;
-        bool hasAppliedImpulse = !IsZero(resolvedImpulseNumerator);
+        bool hasAppliedImpulse =
+            !WideArithmetic.IsZeroMagnitude(resolvedImpulseNumerator);
         bool hasAppliedProjection = Fixed64.TryGetSignedRawRatio(
             resolvedImpulseNumerator,
             resolvedImpulseDenominator,
@@ -248,13 +250,13 @@ internal static partial class WideOrientedBox
                     Signed192.Raw(second.InverseMass)));
         }
 
-        GetCrossProductQuadraticFormRatio(
+        WideLever3d.GetCrossProductQuadraticFormRatio(
             first.Lever,
             normal,
             first.InverseInertia,
             out Signed832 firstAngularNumerator,
             out Signed832 firstAngularDenominator);
-        GetCrossProductQuadraticFormRatio(
+        WideLever3d.GetCrossProductQuadraticFormRatio(
             second.Lever,
             normal,
             second.InverseInertia,
@@ -402,7 +404,10 @@ internal static partial class WideOrientedBox
         {
             accumulatorMagnitude.CopyTo(appliedNumerator);
             appliedDenominator[0] = 1UL;
-            appliedSign = IsZero(accumulatorMagnitude) ? 0 : -1;
+            appliedSign = WideArithmetic.IsZeroMagnitude(
+                accumulatorMagnitude)
+                ? 0
+                : -1;
             hasAccumulatedProjection = true;
             accumulatedProjection = Fixed64.Zero;
             return;
@@ -444,7 +449,7 @@ internal static partial class WideOrientedBox
     {
         if (inverseMass == Fixed64.Zero
             || impulseAxis == Vector3d.Zero
-            || IsZero(impulseNumerator))
+            || WideArithmetic.IsZeroMagnitude(impulseNumerator))
         {
             result = Vector3d.Zero;
             return true;
@@ -531,13 +536,13 @@ internal static partial class WideOrientedBox
         int impulseSign,
         out Vector3d result)
     {
-        if (IsZero(impulseNumerator))
+        if (WideArithmetic.IsZeroMagnitude(impulseNumerator))
         {
             result = Vector3d.Zero;
             return true;
         }
 
-        GetTransformedCrossProduct(
+        WideLever3d.GetTransformedCrossProduct(
             lever,
             impulseAxis,
             inverseInertia,
@@ -653,16 +658,6 @@ internal static partial class WideOrientedBox
 
         SetMagnitude(numerator, numeratorMagnitude);
         SetMagnitude(denominator, denominatorMagnitude);
-    }
-
-    private static bool IsZero(ReadOnlySpan<ulong> value)
-    {
-        for (int index = 0; index < value.Length; index++)
-        {
-            if (value[index] != 0UL)
-                return false;
-        }
-        return true;
     }
 
     private static void SetUnsignedSum(

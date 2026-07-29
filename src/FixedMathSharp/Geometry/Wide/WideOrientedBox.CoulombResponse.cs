@@ -122,7 +122,10 @@ internal static partial class WideOrientedBox
                 clampedDenominator);
             clampedNumerator.CopyTo(accumulatedNumerator);
             clampedDenominator.CopyTo(accumulatedDenominator);
-            accumulatedSign = IsZero(clampedNumerator) ? 0 : desiredSign;
+            accumulatedSign = WideArithmetic.IsZeroMagnitude(
+                clampedNumerator)
+                ? 0
+                : desiredSign;
             SubtractFixedFromRatio(
                 clampedNumerator,
                 clampedDenominator,
@@ -172,7 +175,7 @@ internal static partial class WideOrientedBox
             accumulatedSign < 0,
             out Fixed64 accumulatedProjection);
         response = new FixedLeverCoulombResponse3d(
-            !IsZero(appliedNumerator),
+            !WideArithmetic.IsZeroMagnitude(appliedNumerator),
             firstLinear,
             firstAngular,
             secondLinear,
@@ -303,8 +306,10 @@ internal static partial class WideOrientedBox
                 dynamicDenominator);
         }
 
-        bool hasImpulse = !IsZero(magnitudeSquared)
-            && (withinStaticLimit || !IsZero(dynamicNumerator));
+        bool hasImpulse =
+            !WideArithmetic.IsZeroMagnitude(magnitudeSquared)
+            && (withinStaticLimit
+                || !WideArithmetic.IsZeroMagnitude(dynamicNumerator));
         if (!hasImpulse)
         {
             response = new FixedLeverCoulombResponse3d(
@@ -422,7 +427,7 @@ internal static partial class WideOrientedBox
         if (!inputsValid)
             return false;
 
-        _ = TryGetRelativePointVelocityRatio(
+        _ = WideLever3d.TryGetRelativePointVelocityRatio(
             first.LinearVelocity,
             first.AngularVelocity,
             first.Lever,
@@ -443,7 +448,8 @@ internal static partial class WideOrientedBox
             effectiveDenominator);
         int velocitySign =
             velocityNumerator.Sign * velocityDenominator.Sign;
-        if (velocitySign == 0 || IsZero(effectiveNumerator))
+        if (velocitySign == 0
+            || WideArithmetic.IsZeroMagnitude(effectiveNumerator))
         {
             SetMagnitude(constraint.AccumulatedImpulse, numerator);
             denominator[0] = 1UL;
@@ -516,7 +522,7 @@ internal static partial class WideOrientedBox
         numerator.Clear();
         denominator.Clear();
         sign = 0;
-        _ = TryGetRelativePointVelocityRatio(
+        _ = WideLever3d.TryGetRelativePointVelocityRatio(
             first.LinearVelocity,
             first.AngularVelocity,
             first.Lever,
@@ -537,7 +543,8 @@ internal static partial class WideOrientedBox
             effectiveDenominator);
         int velocitySign =
             velocityNumerator.Sign * velocityDenominator.Sign;
-        if (velocitySign == 0 || IsZero(effectiveNumerator))
+        if (velocitySign == 0
+            || WideArithmetic.IsZeroMagnitude(effectiveNumerator))
         {
             denominator[0] = 1UL;
             return;
@@ -931,14 +938,14 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<ulong> radicand,
         out Vector3d result)
     {
-        GetTransformedCrossProduct(
+        WideLever3d.GetTransformedCrossProduct(
             lever,
             primaryAxis,
             inverseInertia,
             out Signed832 primaryX,
             out Signed832 primaryY,
             out Signed832 primaryZ);
-        GetTransformedCrossProduct(
+        WideLever3d.GetTransformedCrossProduct(
             lever,
             secondaryAxis,
             inverseInertia,
@@ -1139,13 +1146,13 @@ internal static partial class WideOrientedBox
     {
         result.Clear();
         resultSign = 0;
-        if (firstSign != 0 & !IsZero(first))
+        if (firstSign != 0 & !WideArithmetic.IsZeroMagnitude(first))
             WideArithmetic.AddSignedMagnitude(
                 first,
                 firstSign,
                 result,
                 ref resultSign);
-        if (secondSign != 0 & !IsZero(second))
+        if (secondSign != 0 & !WideArithmetic.IsZeroMagnitude(second))
             WideArithmetic.AddSignedMagnitude(
                 second,
                 secondSign,
@@ -1160,7 +1167,7 @@ internal static partial class WideOrientedBox
         bool negative,
         out Fixed64 result)
     {
-        if (IsZero(numerator))
+        if (WideArithmetic.IsZeroMagnitude(numerator))
         {
             result = Fixed64.Zero;
             return true;

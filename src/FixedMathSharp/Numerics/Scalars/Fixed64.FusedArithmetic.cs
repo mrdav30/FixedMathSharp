@@ -119,8 +119,8 @@ public partial struct Fixed64
         out Fixed64 result)
     {
         Signed192 difference = WideArithmetic.SubtractSigned192(
-            GetExactTwoFactorProduct(minuendFirst, minuendSecond),
-            GetExactTwoFactorProduct(subtrahendFirst, subtrahendSecond));
+            GetExactRawProduct(minuendFirst, minuendSecond),
+            GetExactRawProduct(subtrahendFirst, subtrahendSecond));
         return TryRoundNonnegativeTwoFactorDifference(difference, out result);
     }
 
@@ -153,10 +153,10 @@ public partial struct Fixed64
     {
         Signed320 difference = WideArithmetic.SubtractSigned320(
             WideArithmetic.MultiplySigned192(
-                GetExactTwoFactorProduct(minuendFirst, minuendSecond),
+                GetExactRawProduct(minuendFirst, minuendSecond),
                 Signed192.Signed(minuendThird.m_rawValue)),
             WideArithmetic.MultiplySigned192(
-                GetExactTwoFactorProduct(subtrahendFirst, subtrahendSecond),
+                GetExactRawProduct(subtrahendFirst, subtrahendSecond),
                 Signed192.Signed(subtrahendThird.m_rawValue)));
         return TryRoundNonnegativeThreeFactorDifference(difference, out result);
     }
@@ -194,15 +194,16 @@ public partial struct Fixed64
     {
         Signed320 difference = WideArithmetic.SubtractSigned320(
             WideArithmetic.MultiplySigned192(
-                GetExactTwoFactorProduct(minuendFirst, minuendSecond),
-                GetExactTwoFactorProduct(minuendThird, minuendFourth)),
+                GetExactRawProduct(minuendFirst, minuendSecond),
+                GetExactRawProduct(minuendThird, minuendFourth)),
             WideArithmetic.MultiplySigned192(
-                GetExactTwoFactorProduct(subtrahendFirst, subtrahendSecond),
-                GetExactTwoFactorProduct(subtrahendThird, subtrahendFourth)));
+                GetExactRawProduct(subtrahendFirst, subtrahendSecond),
+                GetExactRawProduct(subtrahendThird, subtrahendFourth)));
         return TryRoundNonnegativeFourFactorDifference(difference, out result);
     }
 
-    private static Signed192 GetExactTwoFactorProduct(Fixed64 left, Fixed64 right)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed192 GetExactRawProduct(Fixed64 left, Fixed64 right)
     {
         long leftRaw = left.m_rawValue;
         long rightRaw = right.m_rawValue;

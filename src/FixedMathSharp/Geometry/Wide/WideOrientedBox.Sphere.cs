@@ -22,7 +22,7 @@ internal static partial class WideOrientedBox
         Fixed64 segmentLength,
         out Fixed64 distance)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         GetPointProjections(
             query.Start,
             center,
@@ -76,7 +76,7 @@ internal static partial class WideOrientedBox
         Fixed64 sphereRadius,
         out FixedContactAnchors contact)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         GetPointProjections(
             sphereCenter,
             center,
@@ -187,7 +187,7 @@ internal static partial class WideOrientedBox
     private static bool TryGetContainedSphereContact(
         Vector3d center,
         FixedQuaternion orientation,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d sphereCenter,
         FixedQuaternion sphereRotation,
         Fixed64 sphereRadius,
@@ -357,7 +357,7 @@ internal static partial class WideOrientedBox
                 directionZ);
         }
 
-        RationalBasis basis = new(rotation);
+        WideRationalBasis3d basis = new(rotation);
         Signed576 localX = GetProjectionNumerator(
             directionX,
             directionY,
@@ -411,7 +411,7 @@ internal static partial class WideOrientedBox
             WideArithmetic.MultiplySigned576(directionZ, axisZ));
 
     private static void GetRationalLocalOffsetNumerators(
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Signed320 localX,
         Signed320 localY,
         Signed320 localZ,

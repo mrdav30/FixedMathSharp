@@ -75,7 +75,7 @@ internal static partial class WideOrientedBox
                 capsuleAxisDenominator,
                 capsuleAxisLength,
                 capsuleRadius,
-                out RationalBasis basis,
+                out WideRationalBasis3d basis,
                 out Signed192 commonDenominator,
                 out CapsulePenetration best))
         {
@@ -203,11 +203,11 @@ internal static partial class WideOrientedBox
         Signed192 capsuleAxisDenominator,
         Fixed64 capsuleAxisLength,
         Fixed64 capsuleRadius,
-        out RationalBasis basis,
+        out WideRationalBasis3d basis,
         out Signed192 commonDenominator,
         out CapsulePenetration best)
     {
-        basis = new RationalBasis(orientation);
+        basis = new WideRationalBasis3d(orientation);
         Signed576 commonDenominatorWide = WideArithmetic.MultiplySigned576(
             Signed576.ExtendValue(
                 WideArithmetic.MultiplySigned192(
@@ -368,7 +368,7 @@ internal static partial class WideOrientedBox
         };
 
     private static Vector3d GetMatchedBoxSupportLocalPoint(
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d halfExtents,
         Vector3d boxCenter,
         FixedQuaternion boxRotation,
@@ -397,7 +397,7 @@ internal static partial class WideOrientedBox
                 basis.Zz));
 
     private static Vector3d GetMatchedBoxSupportLocalPoint(
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d halfExtents,
         Vector3d boxCenter,
         FixedQuaternion boxRotation,
@@ -519,7 +519,7 @@ internal static partial class WideOrientedBox
         if (!isFree && directionProjection.Sign < 0)
             return -extent;
 
-        GetProjectedOffsetRatio(
+        WidePointAnchor3d.GetProjectedOffsetRatio(
             targetAnchor,
             boxOrigin,
             boxAxis,
@@ -539,7 +539,7 @@ internal static partial class WideOrientedBox
         WideAxis3 axis,
         Vector3d boxCenter,
         Vector3d halfExtents,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Signed192 commonDenominator,
         Vector3d capsuleCenter,
         WideAxis3 capsuleAxis,

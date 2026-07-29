@@ -38,7 +38,7 @@ public readonly struct FixedLever
     /// Attempts to materialize the exact displacement as a Q32.32 vector.
     /// </summary>
     public bool TryGetVector(out Vector3d vector) =>
-        WideOrientedBox.TryGetLeverVector(this, out vector);
+        WideLever3d.TryGetLeverVector(this, out vector);
 
     /// <summary>
     /// Attempts to evaluate
@@ -48,7 +48,7 @@ public readonly struct FixedLever
         Vector3d crossVector,
         Vector3d projectionVector,
         out Fixed64 projection) =>
-        WideOrientedBox.TryGetCrossProductProjection(
+        WideLever3d.TryGetCrossProductProjection(
             this,
             crossVector,
             projectionVector,
@@ -77,7 +77,7 @@ public readonly struct FixedLever
         in FixedLever secondLever,
         Vector3d projectionAxis,
         out Fixed64 projection) =>
-        WideOrientedBox.TryGetRelativePointVelocityProjection(
+        WideLever3d.TryGetRelativePointVelocityProjection(
             firstLinearVelocity,
             firstAngularVelocity,
             firstLever,
@@ -218,7 +218,7 @@ public readonly struct FixedLever
         Vector3d crossVector,
         Fixed3x3 transform,
         out Fixed64 result) =>
-        WideOrientedBox.TryGetCrossProductQuadraticForm(
+        WideLever3d.TryGetCrossProductQuadraticForm(
             this,
             crossVector,
             transform,
@@ -256,7 +256,7 @@ public readonly struct FixedLever
         Fixed64 thirdDivisorTerm,
         Fixed64 fourthDivisorTerm,
         out Vector3d result) =>
-        WideOrientedBox.TryGetTransformedScaledCrossProductBySum(
+        WideLever3d.TryGetTransformedScaledCrossProductBySum(
             this,
             crossVector,
             transform,
@@ -280,7 +280,7 @@ public readonly struct FixedLever
         Fixed64 secondMultiplier,
         Fixed64 divisor,
         out Vector3d result) =>
-        WideOrientedBox.TryGetTransformedScaledCrossProduct(
+        WideLever3d.TryGetTransformedScaledCrossProduct(
             this,
             crossVector,
             transform,
@@ -302,7 +302,7 @@ public readonly struct FixedLever
         Fixed64 thirdScale,
         Fixed3x3 transform,
         out Vector3d result) =>
-        WideOrientedBox.TryGetTransformedWeightedCrossProduct(
+        WideLever3d.TryGetTransformedWeightedCrossProduct(
             this,
             first,
             firstScale,

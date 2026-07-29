@@ -1,0 +1,91 @@
+//=======================================================================
+// WideRationalBasis3d.cs
+//=======================================================================
+// MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
+// See LICENSE file in the project root for full license information.
+//=======================================================================
+
+using System.Runtime.CompilerServices;
+
+namespace FixedMathSharp.Geometry;
+
+/// <summary>
+/// Preserves a quaternion-derived rotation basis as exact rational
+/// numerators over one shared denominator.
+/// </summary>
+internal readonly struct WideRationalBasis3d
+{
+    internal readonly Signed192 Denominator;
+    internal readonly Signed192 Xx;
+    internal readonly Signed192 Xy;
+    internal readonly Signed192 Xz;
+    internal readonly Signed192 Yx;
+    internal readonly Signed192 Yy;
+    internal readonly Signed192 Yz;
+    internal readonly Signed192 Zx;
+    internal readonly Signed192 Zy;
+    internal readonly Signed192 Zz;
+
+    internal WideRationalBasis3d(FixedQuaternion orientation)
+    {
+        Signed192 xx = Fixed64.GetExactRawProduct(
+            orientation.X,
+            orientation.X);
+        Signed192 yy = Fixed64.GetExactRawProduct(
+            orientation.Y,
+            orientation.Y);
+        Signed192 zz = Fixed64.GetExactRawProduct(
+            orientation.Z,
+            orientation.Z);
+        Signed192 ww = Fixed64.GetExactRawProduct(
+            orientation.W,
+            orientation.W);
+        Signed192 xy = Fixed64.GetExactRawProduct(
+            orientation.X,
+            orientation.Y);
+        Signed192 xz = Fixed64.GetExactRawProduct(
+            orientation.X,
+            orientation.Z);
+        Signed192 xw = Fixed64.GetExactRawProduct(
+            orientation.X,
+            orientation.W);
+        Signed192 yz = Fixed64.GetExactRawProduct(
+            orientation.Y,
+            orientation.Z);
+        Signed192 yw = Fixed64.GetExactRawProduct(
+            orientation.Y,
+            orientation.W);
+        Signed192 zw = Fixed64.GetExactRawProduct(
+            orientation.Z,
+            orientation.W);
+        Denominator = WideArithmetic.AddSigned192(
+            WideArithmetic.AddSigned192(xx, yy),
+            WideArithmetic.AddSigned192(zz, ww));
+
+        Xx = WideArithmetic.AddSigned192(
+            WideArithmetic.SubtractSigned192(
+                WideArithmetic.SubtractSigned192(xx, yy),
+                zz),
+            ww);
+        Xy = Double(WideArithmetic.AddSigned192(xy, zw));
+        Xz = Double(WideArithmetic.SubtractSigned192(xz, yw));
+        Yx = Double(WideArithmetic.SubtractSigned192(xy, zw));
+        Yy = WideArithmetic.AddSigned192(
+            WideArithmetic.SubtractSigned192(
+                WideArithmetic.SubtractSigned192(yy, xx),
+                zz),
+            ww);
+        Yz = Double(WideArithmetic.AddSigned192(yz, xw));
+        Zx = Double(WideArithmetic.AddSigned192(xz, yw));
+        Zy = Double(WideArithmetic.SubtractSigned192(yz, xw));
+        Zz = WideArithmetic.AddSigned192(
+            WideArithmetic.SubtractSigned192(
+                WideArithmetic.SubtractSigned192(zz, xx),
+                yy),
+            ww);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Signed192 Double(Signed192 value) =>
+        WideArithmetic.AddSigned192(value, value);
+}

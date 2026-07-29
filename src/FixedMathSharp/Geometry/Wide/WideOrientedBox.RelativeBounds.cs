@@ -26,8 +26,8 @@ internal static partial class WideOrientedBox
             Vector3d.Min(sourceLocalMin, sourceLocalMax);
         sourceLocalMax = Vector3d.Max(sourceLocalMin, sourceLocalMax);
         sourceLocalMin = normalizedMinimum;
-        RationalBasis sourceBasis = new(sourceRotation);
-        RationalBasis targetBasis = new(targetRotation);
+        WideRationalBasis3d sourceBasis = new(sourceRotation);
+        WideRationalBasis3d targetBasis = new(targetRotation);
         Signed320 denominator = WideArithmetic.MultiplySigned192(
             sourceBasis.Denominator,
             targetBasis.Denominator);
@@ -86,7 +86,7 @@ internal static partial class WideOrientedBox
     }
 
     private static void GetRelativeBoundsCoordinate(
-        RationalBasis sourceBasis,
+        WideRationalBasis3d sourceBasis,
         Signed192 targetAxisX,
         Signed192 targetAxisY,
         Signed192 targetAxisZ,

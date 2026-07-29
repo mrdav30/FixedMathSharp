@@ -26,8 +26,8 @@ internal static partial class WideOrientedBox
         if (!point.Rotation.IsNormalized())
             return false;
 
-        RationalBasis hullBasis = new(hullRotation);
-        RationalBasis pointBasis = new(point.Rotation);
+        WideRationalBasis3d hullBasis = new(hullRotation);
+        WideRationalBasis3d pointBasis = new(point.Rotation);
         for (int index = 0; index < triangleVertexIndices.Length; index += 3)
         {
             Vector3d first = hullLocalPoints[triangleVertexIndices[index]];
@@ -113,8 +113,8 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<int> secondEdgeVertexPairs,
         out FixedContactAnchors contact)
     {
-        RationalBasis firstBasis = new(firstRotation);
-        RationalBasis secondBasis = new(secondRotation);
+        WideRationalBasis3d firstBasis = new(firstRotation);
+        WideRationalBasis3d secondBasis = new(secondRotation);
         var best = default(PointSpanPenetration);
 
         if (!TryKeepHullFaceAxes(
@@ -221,12 +221,12 @@ internal static partial class WideOrientedBox
     private static bool TryKeepHullFaceAxes(
         ReadOnlySpan<Vector3d> axisSourcePoints,
         ReadOnlySpan<int> axisSourceTriangles,
-        RationalBasis axisBasis,
+        WideRationalBasis3d axisBasis,
         Vector3d firstOrigin,
-        RationalBasis firstBasis,
+        WideRationalBasis3d firstBasis,
         ReadOnlySpan<Vector3d> firstPoints,
         Vector3d secondOrigin,
-        RationalBasis secondBasis,
+        WideRationalBasis3d secondBasis,
         ReadOnlySpan<Vector3d> secondPoints,
         ref PointSpanPenetration best)
     {
@@ -275,10 +275,10 @@ internal static partial class WideOrientedBox
     private static bool TryKeepHullPairAxis(
         WideAxis3 axis,
         Vector3d firstOrigin,
-        RationalBasis firstBasis,
+        WideRationalBasis3d firstBasis,
         ReadOnlySpan<Vector3d> firstPoints,
         Vector3d secondOrigin,
-        RationalBasis secondBasis,
+        WideRationalBasis3d secondBasis,
         ReadOnlySpan<Vector3d> secondPoints,
         ref PointSpanPenetration best)
     {
@@ -353,7 +353,7 @@ internal static partial class WideOrientedBox
 
     private static void GetHullProjectionInterval(
         ReadOnlySpan<Vector3d> points,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         WideAxis3 axis,
         Signed192 otherDenominator,
         out Signed576 minimum,
@@ -378,7 +378,7 @@ internal static partial class WideOrientedBox
     }
 
     private static WideAxis3 GetHullEdge(
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d start,
         Vector3d end) =>
         TransformLocalAxis(
@@ -388,7 +388,7 @@ internal static partial class WideOrientedBox
             WideArithmetic.SubtractSigned192(Signed192.Raw(end.Z), Signed192.Raw(start.Z)));
 
     private static Vector3d GetHullSupportLocalPoint(
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         ReadOnlySpan<Vector3d> points,
         WideAxis3 axis,
         bool maximize)

@@ -145,7 +145,7 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             return false;
         }
 
-        return WideOrientedBox.TryGetPoint(
+        return WidePointAnchor3d.TryGetPoint(
             Origin,
             Rotation,
             LocalPoint,
@@ -183,7 +183,7 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             return false;
         }
 
-        return WideOrientedBox.TryGetRelativeOffset(
+        return WidePointAnchor3d.TryGetRelativeOffset(
             Origin,
             Rotation,
             LocalPoint,
@@ -216,7 +216,7 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             return false;
         }
 
-        return WideOrientedBox.TryGetProjectedOffset(
+        return WidePointAnchor3d.TryGetProjectedOffset(
             Origin,
             Rotation,
             LocalPoint,
@@ -247,7 +247,7 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             return false;
         }
 
-        lever = WideOrientedBox.GetLever(
+        lever = WideLever3d.GetLever(
             this,
             other);
         return true;
@@ -282,7 +282,7 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
                 nameof(other));
         }
 
-        return WideOrientedBox.ProjectNonNegativeOffset(
+        return WidePointAnchor3d.ProjectNonNegativeOffset(
             Origin,
             Rotation,
             LocalPoint,
@@ -329,7 +329,7 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
                 nameof(second));
         }
 
-        return WideOrientedBox.CompareSquaredDistances(
+        return WidePointAnchor3d.CompareSquaredDistances(
             this,
             first,
             second);
@@ -355,7 +355,7 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             return false;
         }
 
-        return WideOrientedBox.TryGetLocalPointIn(
+        return WidePointAnchor3d.TryGetLocalPointIn(
             Origin,
             Rotation,
             LocalPoint,
@@ -404,7 +404,7 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             frameOrigin,
             frameRotation,
             localPoint);
-        if (!WideOrientedBox.RepresentsSamePoint(this, candidate))
+        if (!WidePointAnchor3d.RepresentsSamePoint(this, candidate))
         {
             anchor = default;
             return false;

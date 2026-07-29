@@ -76,7 +76,7 @@ internal static partial class WideOrientedBox
                 Vector3d.Zero),
             out Vector3d capCenterOffset);
 
-        RationalBasis basis = new(boxOrientation);
+        WideRationalBasis3d basis = new(boxOrientation);
         GetPointProjections(
             cylinderCenter,
             boxCenter,

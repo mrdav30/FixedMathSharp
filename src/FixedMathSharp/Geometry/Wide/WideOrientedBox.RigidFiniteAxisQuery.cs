@@ -79,7 +79,7 @@ internal static partial class WideOrientedBox
         out bool startContained,
         out bool endContainedStrict)
     {
-        RationalBasis basis = new(rotation);
+        WideRationalBasis3d basis = new(rotation);
         if (TryGetCardinalLocalYAxis(basis, out Vector3d axisDirection))
         {
             return WideFiniteAxisIntersection.TryGetCapsuleDistanceInterval(
@@ -190,7 +190,7 @@ internal static partial class WideOrientedBox
         out bool startContained,
         out bool endContainedStrict)
     {
-        RationalBasis basis = new(rotation);
+        WideRationalBasis3d basis = new(rotation);
         if (TryGetCardinalLocalYAxis(basis, out Vector3d axisDirection))
         {
             return WideFiniteAxisIntersection.TryGetFiniteCylinderDistanceInterval(
@@ -278,7 +278,7 @@ internal static partial class WideOrientedBox
         out bool startContained,
         out bool endContainedStrict)
     {
-        RationalBasis basis = new(rotation);
+        WideRationalBasis3d basis = new(rotation);
         if (TryGetCardinalLocalYAxis(basis, out Vector3d axisDirection))
         {
             return WideFiniteConeIntersection.TryGetCenteredDistanceInterval(
@@ -350,7 +350,7 @@ internal static partial class WideOrientedBox
     private static RigidLocalRay GetRigidLocalRay(
         FixedSegment query,
         Vector3d center,
-        RationalBasis basis)
+        WideRationalBasis3d basis)
     {
         GetRigidLocalPointNumerators(
             query.Start,
@@ -379,7 +379,7 @@ internal static partial class WideOrientedBox
     private static void GetRigidLocalPointNumerators(
         Vector3d point,
         Vector3d center,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         out Signed192 x,
         out Signed192 y,
         out Signed192 z)
@@ -417,7 +417,7 @@ internal static partial class WideOrientedBox
     }
 
     private static bool TryGetCardinalLocalYAxis(
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         out Vector3d axisDirection)
     {
         if (basis.Yy.IsZero

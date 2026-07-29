@@ -612,10 +612,10 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 velocityY = GetScaledDifference(query.End.Y, query.Start.Y);
         Signed192 scaledRadius = ScaleByCenteredAxis(expandedRadius);
 
-        coefficient = AddProducts(velocityX, velocityX, velocityY, velocityY);
-        projection = AddProducts(x, velocityX, y, velocityY);
+        coefficient = WideArithmetic.AddProducts(velocityX, velocityX, velocityY, velocityY);
+        projection = WideArithmetic.AddProducts(x, velocityX, y, velocityY);
         constant = WideArithmetic.SubtractSigned320(
-            AddProducts(x, x, y, y),
+            WideArithmetic.AddProducts(x, x, y, y),
             WideArithmetic.MultiplySigned192(scaledRadius, scaledRadius));
     }
 
@@ -653,10 +653,10 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 velocityZ = GetScaledDifference(query.End.Z, query.Start.Z);
         Signed192 scaledRadius = ScaleByCenteredAxis(expandedRadius);
 
-        coefficient = AddProducts(velocityX, velocityX, velocityY, velocityY, velocityZ, velocityZ);
-        projection = AddProducts(x, velocityX, y, velocityY, z, velocityZ);
+        coefficient = WideArithmetic.AddProducts(velocityX, velocityX, velocityY, velocityY, velocityZ, velocityZ);
+        projection = WideArithmetic.AddProducts(x, velocityX, y, velocityY, z, velocityZ);
         constant = WideArithmetic.SubtractSigned320(
-            AddProducts(x, x, y, y, z, z),
+            WideArithmetic.AddProducts(x, x, y, y, z, z),
             WideArithmetic.MultiplySigned192(scaledRadius, scaledRadius));
     }
 
@@ -682,7 +682,7 @@ internal static partial class WideFiniteAxisIntersection
             positiveCap);
         Signed192 scaledRadius = ScaleByCenteredAxis(expandedRadius);
         return WideArithmetic.SubtractSigned320(
-            AddProducts(x, x, y, y),
+            WideArithmetic.AddProducts(x, x, y, y),
             WideArithmetic.MultiplySigned192(scaledRadius, scaledRadius));
     }
 
@@ -714,7 +714,7 @@ internal static partial class WideFiniteAxisIntersection
             positiveCap);
         Signed192 scaledRadius = ScaleByCenteredAxis(expandedRadius);
         return WideArithmetic.SubtractSigned320(
-            AddProducts(x, x, y, y, z, z),
+            WideArithmetic.AddProducts(x, x, y, y, z, z),
             WideArithmetic.MultiplySigned192(scaledRadius, scaledRadius));
     }
 
@@ -864,26 +864,6 @@ internal static partial class WideFiniteAxisIntersection
         // component times a nonnegative Fixed64 full length uses at most 98 signed
         // bits. The upper two words are therefore sign extension.
         Signed192.NarrowValue(WideArithmetic.MultiplySigned192(value, DoubleParameterScale));
-
-    private static Signed320 AddProducts(
-        Signed192 left1,
-        Signed192 right1,
-        Signed192 left2,
-        Signed192 right2) =>
-        WideArithmetic.AddSigned320(
-            WideArithmetic.MultiplySigned192(left1, right1),
-            WideArithmetic.MultiplySigned192(left2, right2));
-
-    private static Signed320 AddProducts(
-        Signed192 left1,
-        Signed192 right1,
-        Signed192 left2,
-        Signed192 right2,
-        Signed192 left3,
-        Signed192 right3) =>
-        WideArithmetic.AddSigned320(
-            AddProducts(left1, right1, left2, right2),
-            WideArithmetic.MultiplySigned192(left3, right3));
 
     private static bool TrySolveUnitQuadratic(
         Signed320 coefficient,

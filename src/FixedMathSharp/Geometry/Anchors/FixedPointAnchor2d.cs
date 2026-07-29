@@ -90,7 +90,7 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     /// final round-half-to-even conversion per component.
     /// </summary>
     public bool TryGetPoint(out Vector2d point) =>
-        WideVector2dTransform.TryTransformCompositePoint(
+        WidePointAnchor2d.TryGetPoint(
             Origin,
             LocalPoint,
             LocalDisplacement,
@@ -105,7 +105,7 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     public bool TryGetOffsetFrom(
         in FixedPointAnchor2d other,
         out Vector2d offset) =>
-        WideVector2dTransform.TryGetRelativeOffset(
+        WidePointAnchor2d.TryGetRelativeOffset(
             Origin,
             LocalPoint,
             LocalDisplacement,
@@ -124,7 +124,7 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     /// </summary>
     public FixedLever2d GetLeverFrom(
         in FixedPointAnchor2d other) =>
-        WideVector2dTransform.GetLever(
+        WidePointAnchor2d.GetLever(
             this,
             other);
 
@@ -140,7 +140,7 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
     public int CompareSquaredDistance(
         in FixedPointAnchor2d first,
         in FixedPointAnchor2d second) =>
-        WideVector2dTransform.CompareSquaredDistances(
+        WidePointAnchor2d.CompareSquaredDistances(
             this,
             first,
             second);
@@ -153,7 +153,7 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
         Vector2d frameOrigin,
         Fixed64 frameRotation,
         out Vector2d localPoint) =>
-        WideVector2dTransform.TryGetLocalPointIn(
+        WidePointAnchor2d.TryGetLocalPointIn(
             Origin,
             LocalPoint,
             LocalDisplacement,
@@ -194,7 +194,7 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
             frameOrigin,
             frameRotation,
             localPoint);
-        if (!WideVector2dTransform.RepresentsSamePoint(
+        if (!WidePointAnchor2d.RepresentsSamePoint(
                 this,
                 candidate))
         {

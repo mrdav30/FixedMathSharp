@@ -40,7 +40,7 @@ internal static partial class WideOrientedBox
         out Fixed64 entry,
         out Fixed64 exit)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         GetPointProjections(
             rayOrigin,
             center,

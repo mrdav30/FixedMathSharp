@@ -19,7 +19,7 @@ internal static partial class WideOrientedBox
         Vector3d localDirection,
         Vector3d worldDirection)
     {
-        RationalBasis basis = new(rotation);
+        WideRationalBasis3d basis = new(rotation);
         WideAxis3 rotated = TransformLocalAxis(
             basis,
             Signed192.Raw(localDirection.X),
@@ -49,7 +49,7 @@ internal static partial class WideOrientedBox
         out Signed192 z,
         out Signed192 rotationDenominator)
     {
-        RationalBasis basis = new(rotation);
+        WideRationalBasis3d basis = new(rotation);
         WideAxis3 rotated = TransformLocalAxis(
             basis,
             Signed192.Raw(localDirection.X),
@@ -72,7 +72,7 @@ internal static partial class WideOrientedBox
         out Signed192 z,
         out Signed192 rotationDenominator)
     {
-        RationalBasis basis = new(rotation);
+        WideRationalBasis3d basis = new(rotation);
         Signed192 differenceX = WideArithmetic.SubtractSigned192(
             Signed192.Raw(point.X),
             Signed192.Raw(origin.X));

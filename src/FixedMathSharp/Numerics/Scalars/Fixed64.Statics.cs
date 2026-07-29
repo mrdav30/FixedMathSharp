@@ -1,4 +1,4 @@
-﻿//=======================================================================
+//=======================================================================
 // Fixed64.Statics.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
@@ -70,8 +70,8 @@ public partial struct Fixed64
         Fixed64 rightFirst,
         Fixed64 rightSecond) =>
         WideArithmetic.SubtractSigned192(
-            GetExactTwoFactorProduct(leftFirst, leftSecond),
-            GetExactTwoFactorProduct(rightFirst, rightSecond)).Sign;
+            GetExactRawProduct(leftFirst, leftSecond),
+            GetExactRawProduct(rightFirst, rightSecond)).Sign;
 
     /// <summary>
     /// Compares the exact four-factor mathematical product
@@ -97,9 +97,9 @@ public partial struct Fixed64
         Fixed64 rightFourth) =>
         WideArithmetic.SubtractSigned320(
             WideArithmetic.MultiplySigned192(
-                GetExactTwoFactorProduct(leftFirst, leftSecond),
-                GetExactTwoFactorProduct(leftThird, leftFourth)),
+                GetExactRawProduct(leftFirst, leftSecond),
+                GetExactRawProduct(leftThird, leftFourth)),
             WideArithmetic.MultiplySigned192(
-                GetExactTwoFactorProduct(rightFirst, rightSecond),
-                GetExactTwoFactorProduct(rightThird, rightFourth))).Sign;
+                GetExactRawProduct(rightFirst, rightSecond),
+                GetExactRawProduct(rightThird, rightFourth))).Sign;
 }

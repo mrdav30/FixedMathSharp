@@ -134,7 +134,7 @@ internal static partial class WideOrientedBox
             return false;
         }
 
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         Signed576 commonDenominatorWide = WideArithmetic.MultiplySigned576(
             Signed576.ExtendValue(
                 WideArithmetic.MultiplySigned192(
@@ -281,7 +281,7 @@ internal static partial class WideOrientedBox
         GetCenteredCylinderContactFeature(
             WideAxis3 orientedAxis,
             WideAxis3 cylinderAxis,
-            RationalBasis basis)
+            WideRationalBasis3d basis)
     {
         if (!AreParallel(orientedAxis, cylinderAxis))
             return default;
@@ -318,7 +318,7 @@ internal static partial class WideOrientedBox
     private static WideAxis3 GetCornerToAxisEndpointAxis3D(
         Vector3d boxCenter,
         Vector3d axisCenter,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d localCorner,
         WideAxis3 axis,
         Signed192 axisDenominator,
@@ -420,7 +420,7 @@ internal static partial class WideOrientedBox
         WideAxis3 axis,
         Vector3d boxCenter,
         Vector3d halfExtents,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Signed192 commonDenominator,
         Vector3d cylinderCenter,
         WideAxis3 cylinderAxis,

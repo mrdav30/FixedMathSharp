@@ -1,5 +1,5 @@
 //=======================================================================
-// WideOrientedBox.PointAnchorDistance.cs
+// WidePointAnchor3d.Distance.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
@@ -8,9 +8,9 @@
 namespace FixedMathSharp.Geometry;
 
 /// <content>
-/// Wide-oriented box point anchor distance operations.
+/// Exact three-dimensional point-anchor distance operations.
 /// </content>
-internal static partial class WideOrientedBox
+internal static partial class WidePointAnchor3d
 {
     internal static int CompareSquaredDistances(
         in FixedPointAnchor reference,
@@ -105,8 +105,8 @@ internal static partial class WideOrientedBox
         out Signed832 squaredNumerator,
         out Signed576 denominator)
     {
-        RationalBasis firstBasis = new(first.Rotation);
-        RationalBasis secondBasis = new(second.Rotation);
+        WideRationalBasis3d firstBasis = new(first.Rotation);
+        WideRationalBasis3d secondBasis = new(second.Rotation);
         Signed320 coordinateDenominator =
             WideArithmetic.MultiplySigned192(
                 firstBasis.Denominator,

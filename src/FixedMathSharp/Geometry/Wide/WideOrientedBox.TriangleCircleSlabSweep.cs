@@ -85,7 +85,7 @@ internal static partial class WideOrientedBox
         out Fixed64 distance,
         out FixedPointAnchor triangleContact)
     {
-        RationalBasis basis = new(triangleRotation);
+        WideRationalBasis3d basis = new(triangleRotation);
         Signed320 referenceYNumerator =
             WideArithmetic.MultiplySigned192(
                 Signed192.Raw(slabCenterY),
@@ -458,7 +458,7 @@ internal static partial class WideOrientedBox
 
     private static TriangleSweepVertex GetTriangleSweepVertex(
         Vector3d origin,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d localPoint,
         Signed320 referenceYNumerator)
     {

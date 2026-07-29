@@ -94,7 +94,7 @@ internal static partial class WideOrientedBox
     private static bool TryBuildCircleSlabProjectionConstraints(
         Vector3d center,
         Vector3d halfExtents,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Signed192 lowerY,
         Signed192 upperY,
         Span<SweepPlanarConstraint> constraints,
@@ -250,7 +250,7 @@ internal static partial class WideOrientedBox
     private static void BuildCircleSlabProjectionVertices(
         Vector3d center,
         Vector3d halfExtents,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Signed192 lowerY,
         Signed192 upperY,
         Span<SweepRationalPoint> vertices,
@@ -311,7 +311,7 @@ internal static partial class WideOrientedBox
 
     private static SweepBoxCorner GetSweepBoxCorner(
         Vector3d center,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d local) =>
         new(
             WideArithmetic.AddSigned320(

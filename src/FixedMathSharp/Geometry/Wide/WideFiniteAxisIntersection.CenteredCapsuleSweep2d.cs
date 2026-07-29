@@ -296,7 +296,7 @@ internal static partial class WideFiniteAxisIntersection
         if (normal == Vector2d.Zero)
             normal = WideGeometry.GetNormalized(velocityX, velocityY);
 
-        Signed320 velocityProjection = AddProducts(
+        Signed320 velocityProjection = WideArithmetic.AddProducts(
             Signed192.Signed(normal.X.m_rawValue),
             velocityX,
             Signed192.Signed(normal.Y.m_rawValue),
@@ -318,10 +318,10 @@ internal static partial class WideFiniteAxisIntersection
     {
         Signed192 x = WideArithmetic.SubtractSigned192(startX, circleX);
         Signed192 y = WideArithmetic.SubtractSigned192(startY, circleY);
-        Signed320 coefficient = AddProducts(velocityX, velocityX, velocityY, velocityY);
-        Signed320 projection = AddProducts(x, velocityX, y, velocityY);
+        Signed320 coefficient = WideArithmetic.AddProducts(velocityX, velocityX, velocityY, velocityY);
+        Signed320 projection = WideArithmetic.AddProducts(x, velocityX, y, velocityY);
         Signed320 constant = WideArithmetic.SubtractSigned320(
-            AddProducts(x, x, y, y),
+            WideArithmetic.AddProducts(x, x, y, y),
             WideArithmetic.MultiplySigned192(scaledRadius, scaledRadius));
         KeepFirstSweepRoot(
             Signed576.ExtendValue(coefficient),
@@ -353,7 +353,7 @@ internal static partial class WideFiniteAxisIntersection
             offsetX, deltaY, offsetY, deltaX);
         Signed320 velocityCross = WideArithmetic.MultiplySubtract(
             velocityX, deltaY, velocityY, deltaX);
-        Signed320 deltaSquared = AddProducts(deltaX, deltaX, deltaY, deltaY);
+        Signed320 deltaSquared = WideArithmetic.AddProducts(deltaX, deltaX, deltaY, deltaY);
         if (deltaSquared.IsZero)
             return;
 
@@ -410,7 +410,7 @@ internal static partial class WideFiniteAxisIntersection
             distance,
             out Signed192 pointX,
             out Signed192 pointY);
-        Signed320 projection = AddProducts(
+        Signed320 projection = WideArithmetic.AddProducts(
             WideArithmetic.SubtractSigned192(pointX, target.StartX),
             deltaX,
             WideArithmetic.SubtractSigned192(pointY, target.StartY),
@@ -461,8 +461,8 @@ internal static partial class WideFiniteAxisIntersection
             out Signed192 pointY);
         Signed192 deltaX = WideArithmetic.SubtractSigned192(target.EndX, target.StartX);
         Signed192 deltaY = WideArithmetic.SubtractSigned192(target.EndY, target.StartY);
-        Signed320 deltaSquared = AddProducts(deltaX, deltaX, deltaY, deltaY);
-        Signed320 projection = AddProducts(
+        Signed320 deltaSquared = WideArithmetic.AddProducts(deltaX, deltaX, deltaY, deltaY);
+        Signed320 projection = WideArithmetic.AddProducts(
             WideArithmetic.SubtractSigned192(pointX, target.StartX),
             deltaX,
             WideArithmetic.SubtractSigned192(pointY, target.StartY),

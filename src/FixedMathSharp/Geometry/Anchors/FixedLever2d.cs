@@ -34,8 +34,20 @@ public readonly struct FixedLever2d
     /// <summary>
     /// Attempts to materialize the exact displacement as a Q32.32 vector.
     /// </summary>
-    public bool TryGetVector(out Vector2d vector) =>
-        WideVector2dTransform.TryGetLeverVector(this, out vector);
+    public bool TryGetVector(out Vector2d vector)
+    {
+        Signed576 denominator = Signed576.ExtendValue(Denominator);
+        bool representable = Fixed64.TryGetSignedRawRatio(
+                Signed576.ExtendValue(XNumerator),
+                denominator,
+                out Fixed64 x)
+            & Fixed64.TryGetSignedRawRatio(
+                Signed576.ExtendValue(YNumerator),
+                denominator,
+                out Fixed64 y);
+        vector = representable ? new Vector2d(x, y) : default;
+        return representable;
+    }
 
     /// <summary>
     /// Embeds this exact 2D displacement in the X/Z plane.
@@ -54,8 +66,7 @@ public readonly struct FixedLever2d
     public bool TryGetCrossProduct(
         Vector2d vector,
         out Fixed64 crossProduct) =>
-        WideVector2dTransform.TryGetScaledCrossProduct(
-            this,
+        TryGetScaledCrossProduct(
             vector,
             Fixed64.One,
             Fixed64.One,
@@ -88,14 +99,27 @@ public readonly struct FixedLever2d
         Fixed64 firstMultiplier,
         Fixed64 secondMultiplier,
         Fixed64 divisor,
-        out Fixed64 crossProduct) =>
-        WideVector2dTransform.TryGetScaledCrossProduct(
-            this,
-            vector,
-            firstMultiplier,
-            secondMultiplier,
-            divisor,
+        out Fixed64 crossProduct)
+    {
+        Signed576 numerator = GetCrossProductNumerator(vector);
+        Signed576 denominator = WideArithmetic.MultiplySigned320(
+            Denominator,
+            Signed320.ExtendValue(Signed192.One));
+        Signed320 numeratorScale = WideArithmetic.MultiplySigned192(
+            Signed192.Raw(firstMultiplier),
+            Signed192.Raw(secondMultiplier));
+        Signed320 denominatorScale = WideArithmetic.MultiplySigned192(
+            Signed192.One,
+            Signed192.Raw(divisor));
+        return Fixed64.TryGetSignedRawRatio(
+            WideArithmetic.MultiplySigned576ToSigned704(
+                numerator,
+                numeratorScale),
+            WideArithmetic.MultiplySigned576ToSigned704(
+                denominator,
+                denominatorScale),
             out crossProduct);
+    }
 
     /// <summary>
     /// Attempts to evaluate the squared scalar cross product with
@@ -104,10 +128,41 @@ public readonly struct FixedLever2d
     public bool TryGetScaledSquaredCrossProduct(
         Vector2d vector,
         Fixed64 scale,
-        out Fixed64 squaredCrossProduct) =>
-        WideVector2dTransform.TryGetScaledSquaredCrossProduct(
-            this,
-            vector,
-            scale,
+        out Fixed64 squaredCrossProduct)
+    {
+        Signed576 crossNumerator = GetCrossProductNumerator(vector);
+        Signed576 crossDenominator = WideArithmetic.MultiplySigned320(
+            Denominator,
+            Signed320.ExtendValue(Signed192.One));
+        Signed832 numerator = WideArithmetic.MultiplySigned832(
+            WideArithmetic.MultiplySigned576ToSigned832(
+                crossNumerator,
+                crossNumerator),
+            Signed192.Raw(scale));
+        Signed832 denominator =
+            WideArithmetic.MultiplySigned576ToSigned832(
+                crossDenominator,
+                crossDenominator);
+        denominator = WideArithmetic.MultiplySigned832(
+            WideArithmetic.MultiplySigned832(
+                denominator,
+                Signed192.One),
+            Signed192.One);
+        return Fixed64.TryGetSignedRawRatio(
+            numerator,
+            denominator,
+            0,
             out squaredCrossProduct);
+    }
+
+    private Signed576 GetCrossProductNumerator(Vector2d vector) =>
+        WideArithmetic.SubtractSigned576(
+            WideArithmetic.MultiplySigned320(
+                XNumerator,
+                Signed320.ExtendValue(
+                    Signed192.Raw(vector.Y))),
+            WideArithmetic.MultiplySigned320(
+                YNumerator,
+                Signed320.ExtendValue(
+                    Signed192.Raw(vector.X))));
 }

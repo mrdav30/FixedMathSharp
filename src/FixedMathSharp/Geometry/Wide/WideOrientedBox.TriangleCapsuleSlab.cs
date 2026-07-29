@@ -37,7 +37,7 @@ internal static partial class WideOrientedBox
             localCapsuleAxisDirection,
             capsuleFrameRotation,
             out Vector2d capsuleAxisDirection);
-        RationalBasis triangleBasis = new(triangleRotation);
+        WideRationalBasis3d triangleBasis = new(triangleRotation);
         Signed320 commonDenominatorWide =
             WideArithmetic.MultiplySigned192(
                 triangleBasis.Denominator,
@@ -250,7 +250,7 @@ internal static partial class WideOrientedBox
     private static bool TryKeepTriangleCapsuleSlabAxis(
         WideAxis3 axis,
         Vector3d triangleOrigin,
-        RationalBasis triangleBasis,
+        WideRationalBasis3d triangleBasis,
         ReadOnlySpan<Vector3d> trianglePoints,
         Signed192 commonDenominator,
         Vector3d slabCenter,
@@ -412,7 +412,7 @@ internal static partial class WideOrientedBox
     private static WideAxis3 GetTriangleVertexToCapsuleEndpointAxis(
         Vector3d triangleOrigin,
         Vector3d capsuleCenter,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d localVertex,
         Vector2d capsuleAxisDirection,
         Fixed64 capsuleAxisLength,

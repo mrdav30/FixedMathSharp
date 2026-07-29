@@ -383,8 +383,8 @@ internal static partial class WideOrientedBox
         out Signed576 z,
         out Signed320 denominator)
     {
-        RationalBasis pointBasis = new(point.Rotation);
-        RationalBasis frameBasis = new(frameRotation);
+        WideRationalBasis3d pointBasis = new(point.Rotation);
+        WideRationalBasis3d frameBasis = new(frameRotation);
         denominator = WideArithmetic.MultiplySigned192(
             pointBasis.Denominator,
             frameBasis.Denominator);
@@ -453,14 +453,14 @@ internal static partial class WideOrientedBox
         Signed192 axisY,
         Signed192 axisZ) =>
         WideArithmetic.AddSigned320(
-            GetProjection(
+            WideArithmetic.GetDotProduct3D(
                 Signed192.Raw(point.LocalPoint.X),
                 Signed192.Raw(point.LocalPoint.Y),
                 Signed192.Raw(point.LocalPoint.Z),
                 axisX,
                 axisY,
                 axisZ),
-            GetProjection(
+            WideArithmetic.GetDotProduct3D(
                 Signed192.Raw(point.LocalDisplacement.X),
                 Signed192.Raw(point.LocalDisplacement.Y),
                 Signed192.Raw(point.LocalDisplacement.Z),
@@ -480,7 +480,7 @@ internal static partial class WideOrientedBox
         Signed192 frameAxisY,
         Signed192 frameAxisZ)
     {
-        Signed320 originProjection = GetProjection(
+        Signed320 originProjection = WideArithmetic.GetDotProduct3D(
             originX,
             originY,
             originZ,

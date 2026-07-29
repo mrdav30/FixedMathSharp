@@ -14,7 +14,7 @@ namespace FixedMathSharp.Geometry;
 internal static partial class WideOrientedBox
 {
     private static Vector3d GetRationalLocalPoint(
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Signed320 localX,
         Signed320 localY,
         Signed320 localZ)
@@ -149,7 +149,7 @@ internal static partial class WideOrientedBox
         FixedQuaternion innerRotation,
         out Vector3d result)
     {
-        RationalBasis basis = new(innerRotation);
+        WideRationalBasis3d basis = new(innerRotation);
         Signed320 scaledDenominator = WideArithmetic.MultiplySigned192(
             basis.Denominator,
             Signed192.One);
@@ -209,7 +209,7 @@ internal static partial class WideOrientedBox
         Vector3d innerLocalDisplacement,
         FixedQuaternion innerRotation)
     {
-        RationalBasis basis = new(innerRotation);
+        WideRationalBasis3d basis = new(innerRotation);
         Signed576 denominator = Signed576.ExtendValue(
             WideArithmetic.MultiplySigned192(
                 basis.Denominator,
@@ -323,7 +323,7 @@ internal static partial class WideOrientedBox
     }
 
     private static bool TryMaterializeRationalOffset(
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d localOffset,
         out Vector3d worldOffset)
     {
@@ -410,14 +410,14 @@ internal static partial class WideOrientedBox
         Signed576 denominatorWide,
         out Fixed64 coordinate)
     {
-        Signed320 supportNumerator = GetProjection(
+        Signed320 supportNumerator = WideArithmetic.GetDotProduct3D(
             Signed192.Raw(localSupport.X),
             Signed192.Raw(localSupport.Y),
             Signed192.Raw(localSupport.Z),
             axisX,
             axisY,
             axisZ);
-        Signed320 otherSupportNumerator = GetProjection(
+        Signed320 otherSupportNumerator = WideArithmetic.GetDotProduct3D(
             Signed192.Raw(otherLocalSupport.X),
             Signed192.Raw(otherLocalSupport.Y),
             Signed192.Raw(otherLocalSupport.Z),

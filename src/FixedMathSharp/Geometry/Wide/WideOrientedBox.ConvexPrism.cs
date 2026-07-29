@@ -99,7 +99,7 @@ internal static partial class WideOrientedBox
         Fixed64 prismHalfThickness,
         out FixedContactAnchors contact)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         var best = default(PolytopePenetration);
         WideAxis3 up = new(default, Signed320.One, default);
         if (!TryKeepConvexPrismAxis(
@@ -241,7 +241,7 @@ internal static partial class WideOrientedBox
         WideAxis3 axis,
         Vector3d boxCenter,
         Vector3d halfExtents,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d prismOrigin,
         Fixed64 prismRotation,
         ReadOnlySpan<Vector2d> prismLocalOffsets,
@@ -352,7 +352,7 @@ internal static partial class WideOrientedBox
     private static Signed576 GetBoxProjectionRadiusNumerator(
         WideAxis3 axis,
         Vector3d halfExtents,
-        RationalBasis basis) =>
+        WideRationalBasis3d basis) =>
         WideArithmetic.AddSigned576(
             WideArithmetic.AddSigned576(
                 WideArithmetic.MultiplySigned576(
@@ -503,7 +503,7 @@ internal static partial class WideOrientedBox
     }
 
     private static Vector3d GetLocalAxisSupportPoint(
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d halfExtents,
         WideAxis3 axis)
     {

@@ -26,8 +26,8 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<int> edgeVertexPairs,
         out FixedContactAnchors contact)
     {
-        RationalBasis boxBasis = new(boxOrientation);
-        RationalBasis hullBasis = new(hullOrientation);
+        WideRationalBasis3d boxBasis = new(boxOrientation);
+        WideRationalBasis3d hullBasis = new(hullOrientation);
         Span<WideAxis3> boxAxes = stackalloc WideAxis3[3]
         {
             GetBasisAxis(boxBasis, 0),
@@ -172,9 +172,9 @@ internal static partial class WideOrientedBox
         WideAxis3 axis,
         Vector3d boxCenter,
         Vector3d boxHalfExtents,
-        RationalBasis boxBasis,
+        WideRationalBasis3d boxBasis,
         Vector3d hullOrigin,
-        RationalBasis hullBasis,
+        WideRationalBasis3d hullBasis,
         ReadOnlySpan<Vector3d> hullLocalOffsets,
         ref PointSpanPenetration best)
     {
@@ -253,7 +253,7 @@ internal static partial class WideOrientedBox
 
     private static Signed576 GetTransformedOffsetProjection(
         Vector3d localOffset,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         WideAxis3 axis) =>
         WideArithmetic.AddSigned576(
             WideArithmetic.AddSigned576(
@@ -280,7 +280,7 @@ internal static partial class WideOrientedBox
                 Signed192.Raw(localOffset.Z)));
 
     private static WideAxis3 TransformLocalAxis(
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Signed192 localX,
         Signed192 localY,
         Signed192 localZ) =>
@@ -355,7 +355,7 @@ internal static partial class WideOrientedBox
     }
 
     private static Vector3d GetPointSpanSupportLocalPoint(
-        RationalBasis hullBasis,
+        WideRationalBasis3d hullBasis,
         ReadOnlySpan<Vector3d> hullLocalOffsets,
         WideAxis3 boxToHullAxis)
     {

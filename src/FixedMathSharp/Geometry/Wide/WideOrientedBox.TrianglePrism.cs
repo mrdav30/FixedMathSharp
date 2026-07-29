@@ -38,7 +38,7 @@ internal static partial class WideOrientedBox
             triangle.B,
             triangle.C,
         };
-        RationalBasis triangleBasis = new(triangleRotation);
+        WideRationalBasis3d triangleBasis = new(triangleRotation);
         var best = default(PolytopePenetration);
         WideAxis3 up = new(default, Signed320.One, default);
         WideAxis3 firstEdge = GetHullEdge(
@@ -207,7 +207,7 @@ internal static partial class WideOrientedBox
     private static bool TryKeepTrianglePrismAxis(
         WideAxis3 axis,
         Vector3d triangleOrigin,
-        RationalBasis triangleBasis,
+        WideRationalBasis3d triangleBasis,
         ReadOnlySpan<Vector3d> trianglePoints,
         Vector3d prismOrigin,
         Fixed64 prismRotation,

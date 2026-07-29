@@ -44,7 +44,7 @@ internal static partial class WideOrientedBox
     private static CapsuleAxis3 GetVertexToCapsuleAxis(
         Vector3d boxCenter,
         Vector3d capsuleCenter,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d localVertex,
         WideAxis3 capsuleAxis,
         Signed192 capsuleAxisDenominator,
@@ -94,7 +94,7 @@ internal static partial class WideOrientedBox
     private static CapsuleAxis3 GetCapsuleEndpointToBoxEdgeAxis(
         Vector3d boxCenter,
         Vector3d capsuleCenter,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d halfExtents,
         int edgeAxisIndex,
         int firstSign,
@@ -161,7 +161,7 @@ internal static partial class WideOrientedBox
     private static WideAxis3 GetCornerToAxisCenterAxis3D(
         Vector3d boxCenter,
         Vector3d axisCenter,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d localCorner,
         Signed192 axisDenominator) =>
         new(
@@ -269,7 +269,7 @@ internal static partial class WideOrientedBox
         CapsuleAxis3 axis,
         Vector3d boxCenter,
         Vector3d halfExtents,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Signed192 commonDenominator,
         Vector3d capsuleCenter,
         WideAxis3 capsuleAxis,
@@ -355,7 +355,7 @@ internal static partial class WideOrientedBox
     private static Signed576 GetCapsuleBoxRadius(
         CapsuleAxis3 axis,
         Vector3d halfExtents,
-        RationalBasis basis) =>
+        WideRationalBasis3d basis) =>
         WideArithmetic.AddSigned576(
             WideArithmetic.AddSigned576(
                 WideArithmetic.MultiplySigned576(
@@ -594,7 +594,7 @@ internal static partial class WideOrientedBox
             Signed576.ExtendValue(axis.Z));
 
     private static Vector3d GetMatchedBoxSupportLocalPoint(
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d halfExtents,
         Vector3d boxCenter,
         FixedQuaternion boxRotation,

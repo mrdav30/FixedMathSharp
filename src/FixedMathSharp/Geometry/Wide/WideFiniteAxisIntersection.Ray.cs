@@ -739,10 +739,10 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 velocityY = ScaleByCenteredAxis(
             Signed192.Signed(query.Direction.Y.m_rawValue));
         Signed192 scaledRadius = ScaleByCenteredAxis(radius);
-        coefficient = AddProducts(velocityX, velocityX, velocityY, velocityY);
-        projection = AddProducts(x, velocityX, y, velocityY);
+        coefficient = WideArithmetic.AddProducts(velocityX, velocityX, velocityY, velocityY);
+        projection = WideArithmetic.AddProducts(x, velocityX, y, velocityY);
         constant = WideArithmetic.SubtractSigned320(
-            AddProducts(x, x, y, y),
+            WideArithmetic.AddProducts(x, x, y, y),
             WideArithmetic.MultiplySigned192(scaledRadius, scaledRadius));
     }
 
@@ -770,11 +770,11 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 velocityZ = ScaleByCenteredAxis(
             Signed192.Signed(query.Direction.Z.m_rawValue));
         Signed192 scaledRadius = ScaleByCenteredAxis(radius);
-        coefficient = AddProducts(
+        coefficient = WideArithmetic.AddProducts(
             velocityX, velocityX, velocityY, velocityY, velocityZ, velocityZ);
-        projection = AddProducts(x, velocityX, y, velocityY, z, velocityZ);
+        projection = WideArithmetic.AddProducts(x, velocityX, y, velocityY, z, velocityZ);
         constant = WideArithmetic.SubtractSigned320(
-            AddProducts(x, x, y, y, z, z),
+            WideArithmetic.AddProducts(x, x, y, y, z, z),
             WideArithmetic.MultiplySigned192(scaledRadius, scaledRadius));
     }
 

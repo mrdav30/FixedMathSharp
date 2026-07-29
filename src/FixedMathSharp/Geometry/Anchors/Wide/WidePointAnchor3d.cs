@@ -1,5 +1,5 @@
 //=======================================================================
-// WideOrientedBox.PointAnchor.cs
+// WidePointAnchor3d.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
@@ -7,10 +7,11 @@
 
 namespace FixedMathSharp.Geometry;
 
-/// <content>
-/// Wide-oriented box point anchor operations.
-/// </content>
-internal static partial class WideOrientedBox
+/// <summary>
+/// Provides high-precision (wide/extended) arithmetic helpers for resolving anchored 3D points
+/// and their relative offsets under rotation, avoiding precision loss from repeated fixed-point operations.
+/// </summary>
+internal static partial class WidePointAnchor3d
 {
     internal static bool TryGetPoint(
         Vector3d origin,
@@ -19,8 +20,10 @@ internal static partial class WideOrientedBox
         Vector3d localDisplacement,
         out Vector3d point)
     {
-        RationalBasis basis = new(rotation);
-        Signed576 denominator = ToSigned576(basis.Denominator);
+        WideRationalBasis3d basis = new(rotation);
+        Signed576 denominator =
+            Signed576.ExtendValue(
+                Signed320.ExtendValue(basis.Denominator));
         bool representable = TryGetPointCoordinate(
             origin.X,
             basis.Xx,
@@ -73,8 +76,8 @@ internal static partial class WideOrientedBox
         Fixed64 scale,
         out Vector3d offset)
     {
-        RationalBasis firstBasis = new(firstRotation);
-        RationalBasis secondBasis = new(secondRotation);
+        WideRationalBasis3d firstBasis = new(firstRotation);
+        WideRationalBasis3d secondBasis = new(secondRotation);
         Signed320 denominator = WideArithmetic.MultiplySigned192(
             firstBasis.Denominator,
             secondBasis.Denominator);
@@ -155,8 +158,8 @@ internal static partial class WideOrientedBox
         FixedQuaternion frameRotation,
         out Vector3d localPoint)
     {
-        RationalBasis pointBasis = new(pointRotation);
-        RationalBasis frameBasis = new(frameRotation);
+        WideRationalBasis3d pointBasis = new(pointRotation);
+        WideRationalBasis3d frameBasis = new(frameRotation);
         Signed320 denominator = WideArithmetic.MultiplySigned192(
             pointBasis.Denominator,
             frameBasis.Denominator);
@@ -170,7 +173,7 @@ internal static partial class WideOrientedBox
         Signed192 originZ = WideArithmetic.SubtractSigned192(
             Signed192.Raw(pointOrigin.Z),
             Signed192.Raw(frameOrigin.Z));
-        Signed320 rotatedX = GetProjection(
+        Signed320 rotatedX = WideArithmetic.GetDotProduct3D(
             Signed192.Raw(pointLocalPoint.X),
             Signed192.Raw(pointLocalPoint.Y),
             Signed192.Raw(pointLocalPoint.Z),
@@ -179,14 +182,14 @@ internal static partial class WideOrientedBox
             pointBasis.Zx);
         rotatedX = WideArithmetic.AddSigned320(
             rotatedX,
-            GetProjection(
+            WideArithmetic.GetDotProduct3D(
                 Signed192.Raw(pointLocalDisplacement.X),
                 Signed192.Raw(pointLocalDisplacement.Y),
                 Signed192.Raw(pointLocalDisplacement.Z),
                 pointBasis.Xx,
                 pointBasis.Yx,
                 pointBasis.Zx));
-        Signed320 rotatedY = GetProjection(
+        Signed320 rotatedY = WideArithmetic.GetDotProduct3D(
             Signed192.Raw(pointLocalPoint.X),
             Signed192.Raw(pointLocalPoint.Y),
             Signed192.Raw(pointLocalPoint.Z),
@@ -195,14 +198,14 @@ internal static partial class WideOrientedBox
             pointBasis.Zy);
         rotatedY = WideArithmetic.AddSigned320(
             rotatedY,
-            GetProjection(
+            WideArithmetic.GetDotProduct3D(
                 Signed192.Raw(pointLocalDisplacement.X),
                 Signed192.Raw(pointLocalDisplacement.Y),
                 Signed192.Raw(pointLocalDisplacement.Z),
                 pointBasis.Xy,
                 pointBasis.Yy,
                 pointBasis.Zy));
-        Signed320 rotatedZ = GetProjection(
+        Signed320 rotatedZ = WideArithmetic.GetDotProduct3D(
             Signed192.Raw(pointLocalPoint.X),
             Signed192.Raw(pointLocalPoint.Y),
             Signed192.Raw(pointLocalPoint.Z),
@@ -211,7 +214,7 @@ internal static partial class WideOrientedBox
             pointBasis.Zz);
         rotatedZ = WideArithmetic.AddSigned320(
             rotatedZ,
-            GetProjection(
+            WideArithmetic.GetDotProduct3D(
                 Signed192.Raw(pointLocalDisplacement.X),
                 Signed192.Raw(pointLocalDisplacement.Y),
                 Signed192.Raw(pointLocalDisplacement.Z),
@@ -382,8 +385,8 @@ internal static partial class WideOrientedBox
         out Signed704 numerator,
         out Signed704 denominator)
     {
-        RationalBasis firstBasis = new(firstRotation);
-        RationalBasis secondBasis = new(secondRotation);
+        WideRationalBasis3d firstBasis = new(firstRotation);
+        WideRationalBasis3d secondBasis = new(secondRotation);
         Signed320 coordinateDenominator =
             WideArithmetic.MultiplySigned192(
                 firstBasis.Denominator,
@@ -468,14 +471,14 @@ internal static partial class WideOrientedBox
         Signed320 numerator = WideArithmetic.AddSigned320(
             WideArithmetic.MultiplySigned192(Signed192.Raw(origin), denominator),
             WideArithmetic.AddSigned320(
-                GetProjection(
+                WideArithmetic.GetDotProduct3D(
                     Signed192.Raw(localPoint.X),
                     Signed192.Raw(localPoint.Y),
                     Signed192.Raw(localPoint.Z),
                     axisX,
                     axisY,
                     axisZ),
-                GetProjection(
+                WideArithmetic.GetDotProduct3D(
                     Signed192.Raw(localDisplacement.X),
                     Signed192.Raw(localDisplacement.Y),
                     Signed192.Raw(localDisplacement.Z),
@@ -566,7 +569,7 @@ internal static partial class WideOrientedBox
         Vector3d secondLocalDisplacement,
         Signed320 denominator)
     {
-        Signed320 firstRotated = GetProjection(
+        Signed320 firstRotated = WideArithmetic.GetDotProduct3D(
             Signed192.Raw(firstLocalPoint.X),
             Signed192.Raw(firstLocalPoint.Y),
             Signed192.Raw(firstLocalPoint.Z),
@@ -575,14 +578,14 @@ internal static partial class WideOrientedBox
             firstAxisZ);
         firstRotated = WideArithmetic.AddSigned320(
             firstRotated,
-            GetProjection(
+            WideArithmetic.GetDotProduct3D(
                 Signed192.Raw(firstLocalDisplacement.X),
                 Signed192.Raw(firstLocalDisplacement.Y),
                 Signed192.Raw(firstLocalDisplacement.Z),
                 firstAxisX,
                 firstAxisY,
                 firstAxisZ));
-        Signed320 secondRotated = GetProjection(
+        Signed320 secondRotated = WideArithmetic.GetDotProduct3D(
             Signed192.Raw(secondLocalPoint.X),
             Signed192.Raw(secondLocalPoint.Y),
             Signed192.Raw(secondLocalPoint.Z),
@@ -591,7 +594,7 @@ internal static partial class WideOrientedBox
             secondAxisZ);
         secondRotated = WideArithmetic.AddSigned320(
             secondRotated,
-            GetProjection(
+            WideArithmetic.GetDotProduct3D(
                 Signed192.Raw(secondLocalDisplacement.X),
                 Signed192.Raw(secondLocalDisplacement.Y),
                 Signed192.Raw(secondLocalDisplacement.Z),
@@ -628,7 +631,7 @@ internal static partial class WideOrientedBox
         Signed576 denominator,
         out Fixed64 coordinate)
     {
-        Signed320 originProjection = GetProjection(
+        Signed320 originProjection = WideArithmetic.GetDotProduct3D(
             originX,
             originY,
             originZ,

@@ -25,7 +25,7 @@ internal static partial class WideOrientedBox
         Fixed64 radius,
         out FixedContactAnchors contact)
     {
-        RationalBasis basis = new(orientation);
+        WideRationalBasis3d basis = new(orientation);
         var best = default(RadialPenetration);
         WideAxis3 up = new(default, Signed320.One, default);
         if (!TryKeepCircleSlabAxis(
@@ -141,7 +141,7 @@ internal static partial class WideOrientedBox
         FixedQuaternion boxOrientation,
         Vector3d halfExtents,
         Vector3d slabCenter,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         WideAxis3 boxToSlabAxis)
     {
         var slabCenterAnchor = new FixedPointAnchor(
@@ -226,7 +226,7 @@ internal static partial class WideOrientedBox
         WideAxis3 axis,
         Vector3d boxCenter,
         Vector3d halfExtents,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d slabCenter,
         Fixed64 slabHalfThickness,
         Fixed64 radius,
@@ -383,7 +383,7 @@ internal static partial class WideOrientedBox
     private static WideAxis3 GetCornerToOriginAxis(
         Vector3d boxCenter,
         Vector3d otherOrigin,
-        RationalBasis basis,
+        WideRationalBasis3d basis,
         Vector3d localCorner)
     {
         Signed320 cornerX = GetLocalOffsetNumerator(
