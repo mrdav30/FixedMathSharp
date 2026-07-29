@@ -201,58 +201,6 @@ internal static partial class WideOrientedBox
         return true;
     }
 
-    internal static FixedMassPoint CreateMassPoint(
-        Vector3d outerLocalPoint,
-        Vector3d outerScale,
-        Vector3d innerFrameOffset,
-        Vector3d innerFrameScale,
-        Vector3d innerLocalDisplacement,
-        FixedQuaternion innerRotation)
-    {
-        WideRationalBasis3d basis = new(innerRotation);
-        Signed576 denominator = Signed576.ExtendValue(
-            WideArithmetic.MultiplySigned192(
-                basis.Denominator,
-                Signed192.One));
-        Signed320 x = WideArithmetic.GetSignedRatioWith64FractionBits(
-            WideRationalBasis3d.GetComposedScaledCoordinateNumerator(
-                outerLocalPoint.X,
-                outerScale.X,
-                basis.Xx,
-                basis.Yx,
-                basis.Zx,
-                basis.Denominator,
-                innerFrameOffset.X,
-                innerFrameScale.X,
-                innerLocalDisplacement),
-            denominator);
-        Signed320 y = WideArithmetic.GetSignedRatioWith64FractionBits(
-            WideRationalBasis3d.GetComposedScaledCoordinateNumerator(
-                outerLocalPoint.Y,
-                outerScale.Y,
-                basis.Xy,
-                basis.Yy,
-                basis.Zy,
-                basis.Denominator,
-                innerFrameOffset.Y,
-                innerFrameScale.Y,
-                innerLocalDisplacement),
-            denominator);
-        Signed320 z = WideArithmetic.GetSignedRatioWith64FractionBits(
-            WideRationalBasis3d.GetComposedScaledCoordinateNumerator(
-                outerLocalPoint.Z,
-                outerScale.Z,
-                basis.Xz,
-                basis.Yz,
-                basis.Zz,
-                basis.Denominator,
-                innerFrameOffset.Z,
-                innerFrameScale.Z,
-                innerLocalDisplacement),
-            denominator);
-        return new FixedMassPoint(x, y, z);
-    }
-
     private static bool TryComposeScaledLocalCoordinate(
         Fixed64 outerLocalPoint,
         Fixed64 outerScale,

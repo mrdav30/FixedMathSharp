@@ -748,27 +748,27 @@ internal static partial class WideConvex2dRelations
         out Fixed64 area,
         out Vector2d centroid)
     {
-        bool result = TryGetMassWeightAndCentroid(
-            vertices,
-            out FixedMassWeight weight,
-            out centroid);
-        if (!weight.TryGetMeasure(out area))
-            area = Fixed64.MaxValue;
-        return result;
-    }
-
-    internal static bool TryGetMassWeightAndCentroid(
-        ReadOnlySpan<Vector2d> vertices,
-        out FixedMassWeight weight,
-        out Vector2d centroid)
-    {
         bool result = TryGetSignedDoubleAreaAndCentroid(
             vertices,
             out Signed320 signedDoubleArea,
             out centroid);
-        weight = result
-            ? WideMassProperties.CreateAreaWeight(signedDoubleArea)
-            : FixedMassWeight.Zero;
+        Signed320 absoluteDoubleArea = signedDoubleArea.Sign < 0
+            ? WideArithmetic.SubtractSigned320(
+                default,
+                signedDoubleArea)
+            : signedDoubleArea;
+        Signed192 doubledFixedScale =
+            WideArithmetic.AddSigned192(
+                Signed192.One,
+                Signed192.One);
+        if (!Fixed64.TryGetSignedRawRatio(
+                Signed576.ExtendValue(absoluteDoubleArea),
+                Signed576.ExtendValue(
+                    Signed320.ExtendValue(doubledFixedScale)),
+                out area))
+        {
+            area = Fixed64.MaxValue;
+        }
         return result;
     }
 

@@ -1,6 +1,5 @@
 using BenchmarkDotNet.Attributes;
 using FixedMathSharp.Geometry;
-using System;
 
 namespace FixedMathSharp.Benchmarks;
 
@@ -34,59 +33,6 @@ public class PointAnchorBenchmarks
         -Fixed64.PiOver4,
         new Vector2d(-2, 4),
         new Vector2d(Fixed64.Half, -Fixed64.One));
-    private readonly FixedPointAnchor _scalarFaceAnchor = new(
-        new Vector3d(
-            Fixed64.MaxValue,
-            Fixed64.Zero,
-            Fixed64.Zero),
-        FixedQuaternion.Identity,
-        new Vector3d(
-            Fixed64.MinIncrement,
-            Fixed64.Zero,
-            Fixed64.Zero));
-    private readonly FixedPointAnchor _worldOrigin = new(
-        Vector3d.Zero,
-        FixedQuaternion.Identity,
-        Vector3d.Zero);
-    private readonly Vector3d _representableLeverVector;
-    private readonly FixedLever _representableLever;
-    private readonly FixedLever _scalarFaceLever;
-    private readonly FixedLever2d _scalarFaceLever2d =
-        new FixedPointAnchor2d(
-            new Vector2d(
-                Fixed64.MaxValue,
-                Fixed64.Zero),
-            Fixed64.Zero,
-            new Vector2d(
-                Fixed64.MinIncrement,
-                Fixed64.Zero))
-        .GetLeverFrom(default);
-    private readonly Fixed3x3 _tinyForwardScale = new(
-        Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
-        Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
-        Fixed64.Zero, Fixed64.Zero, Fixed64.MinIncrement);
-
-    public PointAnchorBenchmarks()
-    {
-        if (!_anchor.TryGetOffsetFrom(
-                _other,
-                out _representableLeverVector)
-            || !_anchor.TryGetLeverFrom(
-                _other,
-                out _representableLever))
-        {
-            throw new InvalidOperationException(
-                "The representable point-anchor fixture is invalid.");
-        }
-        if (!_scalarFaceAnchor.TryGetLeverFrom(
-                _worldOrigin,
-                out _scalarFaceLever))
-        {
-            throw new InvalidOperationException(
-                "The full-domain point-anchor fixture is invalid.");
-        }
-    }
-
     [Benchmark(Baseline = true)]
     public bool MaterializeWorldPoint() =>
         _anchor.TryGetPoint(out _);
@@ -123,52 +69,4 @@ public class PointAnchorBenchmarks
             _other2d.Rotation,
             out _);
 
-    [Benchmark]
-    public Fixed64 CompactCrossProjection() =>
-        Vector3d.Dot(
-            Vector3d.Cross(_representableLeverVector, Vector3d.Up),
-            Vector3d.Forward);
-
-    [Benchmark]
-    public bool ExactRepresentableCrossProjection() =>
-        _representableLever.TryGetCrossProductProjection(
-            Vector3d.Up,
-            Vector3d.Forward,
-            out _);
-
-    [Benchmark]
-    public bool CreateFullDomainLever() =>
-        _scalarFaceAnchor.TryGetLeverFrom(
-            _worldOrigin,
-            out _);
-
-    [Benchmark]
-    public bool FullDomainCrossProjection() =>
-        _scalarFaceLever.TryGetCrossProductProjection(
-            Vector3d.Up,
-            Vector3d.Forward * Fixed64.Half,
-            out _);
-
-    [Benchmark]
-    public bool FullDomainQuadraticForm() =>
-        _scalarFaceLever.TryGetCrossProductQuadraticForm(
-            Vector3d.Up,
-            _tinyForwardScale,
-            out _);
-
-    [Benchmark]
-    public bool FullDomainTransformedCross() =>
-        _scalarFaceLever.TryGetTransformedScaledCrossProduct(
-            Vector3d.Up,
-            Fixed3x3.Identity,
-            Fixed64.Half,
-            Fixed64.One,
-            out _);
-
-    [Benchmark]
-    public bool FullDomainSquaredCross2d() =>
-        _scalarFaceLever2d.TryGetScaledSquaredCrossProduct(
-            Vector2d.Forward,
-            Fixed64.MinIncrement,
-            out _);
 }

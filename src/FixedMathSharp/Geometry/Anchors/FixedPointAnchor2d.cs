@@ -119,16 +119,6 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
             out offset);
 
     /// <summary>
-    /// Preserves this point minus <paramref name="other"/> as an exact semantic
-    /// lever without narrowing it to <see cref="Vector2d"/>.
-    /// </summary>
-    public FixedLever2d GetLeverFrom(
-        in FixedPointAnchor2d other) =>
-        WidePointAnchor2d.GetLever(
-            this,
-            other);
-
-    /// <summary>
     /// Compares the exact squared distance from this point to two other
     /// anchored points.
     /// </summary>

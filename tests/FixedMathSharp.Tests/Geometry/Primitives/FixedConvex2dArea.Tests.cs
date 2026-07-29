@@ -1,5 +1,5 @@
 //=======================================================================
-// FixedConvex2dMassProperties.Tests.cs
+// FixedConvex2dArea.Tests.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
@@ -11,7 +11,7 @@ using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;
 
-public sealed class FixedConvex2dMassPropertiesTests
+public sealed class FixedConvex2dAreaTests
 {
     [Fact]
     public void AreaAndCentroid_PreserveExtremeSymmetricPolygon()
@@ -63,53 +63,6 @@ public sealed class FixedConvex2dMassPropertiesTests
         Assert.Equal(firstArea, secondArea);
         Assert.Equal(new Vector2d(Fixed64.One, Fixed64.Half), firstCentroid);
         Assert.Equal(firstCentroid, secondCentroid);
-    }
-
-    [Fact]
-    public void MassWeightAndCentroid_PreserveAreaRatiosBeyondScalarDomain()
-    {
-        Fixed64 extent = (Fixed64)1_000_000_000;
-        Vector2d[] first =
-        {
-            Vector2d.Zero,
-            new(extent, Fixed64.Zero),
-            new(extent, extent),
-            new(Fixed64.Zero, extent),
-        };
-        Vector2d[] second =
-        {
-            Vector2d.Zero,
-            new(extent * Fixed64.Two, Fixed64.Zero),
-            new(extent * Fixed64.Two, extent),
-            new(Fixed64.Zero, extent),
-        };
-
-        Assert.True(FixedConvex2dRelations.TryGetMassWeightAndCentroid(
-            first,
-            out FixedMassWeight firstWeight,
-            out Vector2d firstCentroid));
-        Assert.True(FixedConvex2dRelations.TryGetMassWeightAndCentroid(
-            second,
-            out FixedMassWeight secondWeight,
-            out Vector2d secondCentroid));
-        FixedMassWeight totalWeight = firstWeight.Add(secondWeight);
-        Assert.True(firstWeight.TryGetProportionalShare(
-            (Fixed64)3,
-            totalWeight,
-            out Fixed64 firstShare));
-        Assert.True(secondWeight.TryGetProportionalShare(
-            (Fixed64)3,
-            totalWeight,
-            out Fixed64 secondShare));
-
-        Assert.Equal(Fixed64.One, firstShare);
-        Assert.Equal(Fixed64.Two, secondShare);
-        Assert.Equal(
-            new Vector2d(extent * Fixed64.Half, extent * Fixed64.Half),
-            firstCentroid);
-        Assert.Equal(
-            new Vector2d(extent, extent * Fixed64.Half),
-            secondCentroid);
     }
 
     [Fact]

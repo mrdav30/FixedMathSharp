@@ -227,7 +227,7 @@ change where v6 saturated, underflowed, rounded an intermediate, or evaluated
 trigonometry in the outer half of a quadrant. Refresh golden numeric and replay
 expectations rather than adding downstream clamps.
 
-### Semantic Anchors And Mass Aggregation
+### Semantic Point Anchors
 
 `FixedPointAnchor` and `FixedPointAnchor2d` can now retain relative geometry
 after an offset or absolute point leaves the Q32.32 scalar domain. Prefer their
@@ -235,15 +235,14 @@ semantic operations over materializing an intermediate vector:
 
 - `CompareSquaredDistance(first, second)` ranks two candidates exactly from the
   reference anchor and preserves exact ties.
-- `GetLeverFrom`/`TryGetLeverFrom` retains a relative point for later cross,
-  quadratic, and fused-scale operations.
 - `TryGetPoint` and `TryGetOffsetFrom` remain the honest narrowing boundaries
   when a public point or vector is actually required.
+- `TryGetLocalPointIn` and `TryReframe` preserve rigid-frame cancellation
+  without first materializing an absolute world point.
 
-`FixedMassPoint`, `FixedMassPoint2d`, and `FixedMassWeight` provide the same
-contract for weighted centers, proportional shares, and parallel-axis terms.
-Use them when primitive or compound measures can exceed `Fixed64` even though
-the final aggregate remains representable. Raw wide integers remain internal.
+The public anchor contract deliberately excludes rigid-body lever,
+mass-property, and response policy. Simulation libraries should own those
+semantics while reusing FixedMathSharp's general geometry and arithmetic.
 
 ### Full-Domain Directions, Interpolation, And Radial Rays
 

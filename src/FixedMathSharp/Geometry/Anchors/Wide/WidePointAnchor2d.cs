@@ -217,27 +217,6 @@ internal static class WidePointAnchor2d
         return representable;
     }
 
-    internal static FixedLever2d GetLever(
-        in FixedPointAnchor2d first,
-        in FixedPointAnchor2d second)
-    {
-        GetExactRelativeOffsetRatio(
-            first.Origin,
-            first.LocalPoint,
-            first.LocalDisplacement,
-            first.ExactLocalTerm,
-            first.Rotation,
-            second.Origin,
-            second.LocalPoint,
-            second.LocalDisplacement,
-            second.ExactLocalTerm,
-            second.Rotation,
-            out Signed320 x,
-            out Signed320 y,
-            out Signed320 denominator);
-        return new FixedLever2d(x, y, denominator);
-    }
-
     internal static int CompareSquaredDistances(
         in FixedPointAnchor2d reference,
         in FixedPointAnchor2d first,

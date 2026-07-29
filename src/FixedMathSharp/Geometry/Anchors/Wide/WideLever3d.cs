@@ -37,49 +37,6 @@ internal static class WideLever3d
         return new WideLever3dValue(x, y, z, denominator);
     }
 
-    internal static bool TryGetLeverVector(
-        in WideLever3dValue lever,
-        out Vector3d vector)
-    {
-        bool representable = Fixed64.TryGetSignedRawRatio(
-                lever.XNumerator,
-                lever.Denominator,
-                out Fixed64 x)
-            & Fixed64.TryGetSignedRawRatio(
-                lever.YNumerator,
-                lever.Denominator,
-                out Fixed64 y)
-            & Fixed64.TryGetSignedRawRatio(
-                lever.ZNumerator,
-                lever.Denominator,
-                out Fixed64 z);
-        vector = representable ? new Vector3d(x, y, z) : default;
-        return representable;
-    }
-
-    internal static bool TryGetCrossProductProjection(
-        in WideLever3dValue lever,
-        Vector3d crossVector,
-        Vector3d projectionVector,
-        out Fixed64 projection)
-    {
-        Signed704 numerator = GetCrossProductProjectionNumerator(
-            lever,
-            crossVector,
-            projectionVector);
-        Signed320 fixedScaleSquared = WideArithmetic.MultiplySigned192(
-            Signed192.One,
-            Signed192.One);
-        Signed704 denominator =
-            WideArithmetic.MultiplySigned576ToSigned704(
-                lever.Denominator,
-                fixedScaleSquared);
-        return Fixed64.TryGetSignedRawRatio(
-            numerator,
-            denominator,
-            out projection);
-    }
-
     internal static bool TryGetRelativePointVelocityProjection(
         Vector3d firstLinearVelocity,
         Vector3d firstAngularVelocity,
@@ -285,45 +242,6 @@ internal static class WideLever3d
         Signed832 denominator = GetTransformedCrossProductDenominator(
             lever,
             Signed192.Raw(divisor));
-        return TryGetScaledVector(
-            transformedX,
-            transformedY,
-            transformedZ,
-            firstMultiplier,
-            secondMultiplier,
-            denominator,
-            out result);
-    }
-
-    internal static bool TryGetTransformedScaledCrossProductBySum(
-        in WideLever3dValue lever,
-        Vector3d crossVector,
-        Fixed3x3 transform,
-        Fixed64 firstMultiplier,
-        Fixed64 secondMultiplier,
-        Fixed64 firstDivisorTerm,
-        Fixed64 secondDivisorTerm,
-        Fixed64 thirdDivisorTerm,
-        Fixed64 fourthDivisorTerm,
-        out Vector3d result)
-    {
-        GetTransformedCrossProduct(
-            lever,
-            crossVector,
-            transform,
-            out Signed832 transformedX,
-            out Signed832 transformedY,
-            out Signed832 transformedZ);
-        Signed192 divisor = WideArithmetic.AddSigned192(
-            WideArithmetic.AddSigned192(
-                Signed192.Raw(firstDivisorTerm),
-                Signed192.Raw(secondDivisorTerm)),
-            WideArithmetic.AddSigned192(
-                Signed192.Raw(thirdDivisorTerm),
-                Signed192.Raw(fourthDivisorTerm)));
-        Signed832 denominator = GetTransformedCrossProductDenominator(
-            lever,
-            divisor);
         return TryGetScaledVector(
             transformedX,
             transformedY,

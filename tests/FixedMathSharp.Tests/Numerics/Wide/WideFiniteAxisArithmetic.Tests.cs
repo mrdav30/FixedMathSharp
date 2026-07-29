@@ -8,10 +8,15 @@ namespace FixedMathSharp.Tests;
 public sealed class WideFiniteAxisArithmeticTests
 {
     [Fact]
-    public void MassPointRatio_RoundsSixtyFourFractionBitsHalfToEven()
+    public void SignedRatioWithGuardBits_RoundsHalfToEvenAcrossWideShifts()
     {
         BigInteger denominator = BigInteger.One << 66;
 
+        AssertSigned320(
+            BigInteger.Zero,
+            WideArithmetic.GetSignedRatioWith64FractionBits(
+                default,
+                ToSigned576(BigInteger.One)));
         AssertSigned320(
             BigInteger.Zero,
             WideArithmetic.GetSignedRatioWith64FractionBits(
@@ -37,6 +42,11 @@ public sealed class WideFiniteAxisArithmeticTests
             WideArithmetic.GetSignedRatioWith64FractionBits(
                 ToSigned576(-3),
                 ToSigned576(denominator)));
+        AssertSigned320(
+            new BigInteger(5) << 64,
+            WideArithmetic.GetSignedRatioWith64FractionBits(
+                ToSigned576(5),
+                ToSigned576(BigInteger.One)));
     }
 
     [Fact]
@@ -453,6 +463,35 @@ public sealed class WideFiniteAxisArithmeticTests
         Assert.False(Fixed64.TryGetSignedRawRatio(one, zero, negative: false, out _));
         Assert.True(Fixed64.TryGetSignedRawRatio(zero, one, negative: false, out Fixed64 result));
         Assert.Equal(Fixed64.Zero, result);
+
+        Assert.True(Fixed64.TryGetSignedRawRatio(
+            one,
+            one,
+            negative: true,
+            out Fixed64 negativeOne));
+        Assert.Equal(Fixed64.FromRaw(-1L), negativeOne);
+
+        Span<ulong> wideNumerator = stackalloc ulong[3];
+        Span<ulong> wideDenominator = stackalloc ulong[2];
+        wideNumerator[0] = 5UL;
+        wideNumerator[1] = 1UL;
+        wideDenominator[0] = 3UL;
+        wideDenominator[1] = 1UL;
+        Assert.True(Fixed64.TryGetSignedRawRatio(
+            wideNumerator,
+            wideDenominator,
+            negative: false,
+            out Fixed64 roundedWide));
+        Assert.Equal(Fixed64.FromRaw(1L), roundedWide);
+
+        Span<ulong> largerDenominator = stackalloc ulong[3];
+        largerDenominator[2] = 1UL;
+        Assert.True(Fixed64.TryGetSignedRawRatio(
+            one,
+            largerDenominator,
+            negative: false,
+            out Fixed64 roundedZero));
+        Assert.Equal(Fixed64.Zero, roundedZero);
     }
 
     [Fact]

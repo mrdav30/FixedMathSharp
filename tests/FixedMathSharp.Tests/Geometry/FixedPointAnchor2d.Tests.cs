@@ -342,160 +342,6 @@ public sealed class FixedPointAnchor2dTests
     }
 
     [Fact]
-    public void ResponseProducts_MatchRepresentableVectorAlgebra()
-    {
-        FixedPointAnchor2d point = new(
-            new Vector2d(4, -3),
-            Fixed64.Zero,
-            Vector2d.Zero);
-        FixedPointAnchor2d origin = new(
-            Vector2d.Zero,
-            Fixed64.Zero,
-            Vector2d.Zero);
-        Vector2d crossVector = new(2, 1);
-
-        FixedLever2d lever = point.GetLeverFrom(origin);
-        Assert.True(lever.TryGetVector(out Vector2d vector));
-        Assert.Equal(new Vector2d(4, -3), vector);
-        Assert.True(lever.TryGetCrossProduct(
-            crossVector,
-            out Fixed64 cross));
-        Assert.Equal((Fixed64)10, cross);
-        Assert.True(lever.TryGetScaledCrossProduct(
-            crossVector,
-            (Fixed64)3,
-            Fixed64.Two,
-            out Fixed64 scaledCross));
-        Assert.Equal((Fixed64)15, scaledCross);
-        Assert.True(lever.TryGetScaledCrossProduct(
-            crossVector,
-            (Fixed64)3,
-            Fixed64.Two,
-            (Fixed64)3,
-            out Fixed64 twiceScaledCross));
-        Assert.Equal((Fixed64)20, twiceScaledCross);
-        Assert.True(lever.TryGetScaledSquaredCrossProduct(
-            crossVector,
-            Fixed64.Half,
-            out Fixed64 squaredCross));
-        Assert.Equal((Fixed64)50, squaredCross);
-        Assert.True(lever.TryGetScaledSquaredCrossProduct(
-            crossVector,
-            -Fixed64.Half,
-            out Fixed64 negativeSquaredCross));
-        Assert.Equal((Fixed64)(-50), negativeSquaredCross);
-        Assert.True(lever.TryGetScaledCrossProduct(
-            Vector2d.Zero,
-            Fixed64.One,
-            Fixed64.One,
-            out Fixed64 zeroCross));
-        Assert.Equal(Fixed64.Zero, zeroCross);
-    }
-
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void ResponseProducts_NarrowOnlyAfterExactFullDomainEvaluation(
-        bool positiveFace)
-    {
-        Fixed64 face = positiveFace
-            ? Fixed64.MaxValue
-            : Fixed64.MinValue;
-        Fixed64 outward = positiveFace
-            ? Fixed64.MinIncrement
-            : -Fixed64.MinIncrement;
-        FixedPointAnchor2d point = new(
-            new Vector2d(face, Fixed64.Zero),
-            Fixed64.Zero,
-            new Vector2d(outward, Fixed64.Zero));
-        FixedPointAnchor2d origin = new(
-            Vector2d.Zero,
-            Fixed64.Zero,
-            Vector2d.Zero);
-        Fixed64 expected = positiveFace
-            ? (Fixed64)1073741824
-            : (Fixed64)(-1073741824);
-        Fixed64 expectedSquare = positiveFace
-            ? (Fixed64)1073741824
-            : Fixed64.FromRaw(
-                ((Fixed64)1073741824).m_rawValue + 1L);
-
-        Assert.False(point.TryGetOffsetFrom(origin, out _));
-        FixedLever2d lever = point.GetLeverFrom(origin);
-        Assert.False(lever.TryGetVector(out _));
-        Assert.False(lever.TryGetCrossProduct(
-            Vector2d.Forward,
-            out Fixed64 overflow));
-        Assert.Equal(default, overflow);
-        Assert.True(lever.TryGetScaledCrossProduct(
-            Vector2d.Forward,
-            Fixed64.Half,
-            Fixed64.One,
-            out Fixed64 scaledCross));
-        Assert.Equal(expected, scaledCross);
-        Assert.True(lever.TryGetScaledSquaredCrossProduct(
-            Vector2d.Forward,
-            Fixed64.MinIncrement,
-            out Fixed64 squaredCross));
-        Assert.Equal(expectedSquare, squaredCross);
-    }
-
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void ExactLever_ToXZLeverPreservesFullDomainComponents(
-        bool positiveFace)
-    {
-        Fixed64 face = positiveFace
-            ? Fixed64.MaxValue
-            : Fixed64.MinValue;
-        Fixed64 outward = positiveFace
-            ? Fixed64.MinIncrement
-            : -Fixed64.MinIncrement;
-        FixedPointAnchor2d point = new(
-            new Vector2d(face, Fixed64.Zero),
-            Fixed64.Zero,
-            new Vector2d(outward, Fixed64.One));
-        FixedLever2d planar = point.GetLeverFrom(
-            new FixedPointAnchor2d(
-                Vector2d.Zero,
-                Fixed64.Zero,
-                Vector2d.Zero));
-
-        Assert.False(planar.TryGetVector(out _));
-        FixedLever spatial = planar.ToXZLever();
-        Assert.False(spatial.TryGetVector(out _));
-        Assert.True(spatial.TryGetTransformedScaledCrossProduct(
-            Vector3d.Up,
-            Fixed3x3.Identity,
-            Fixed64.MinIncrement,
-            Fixed64.One,
-            out Vector3d scaledCross));
-        Assert.True(planar.TryGetScaledCrossProduct(
-            Vector2d.Forward,
-            Fixed64.MinIncrement,
-            Fixed64.One,
-            out Fixed64 expected));
-        Assert.Equal(
-            new Vector3d(-Fixed64.MinIncrement, Fixed64.Zero, expected),
-            scaledCross);
-    }
-
-    [Fact]
-    public void ResponseProducts_RejectZeroDivisorAtomically()
-    {
-        Assert.False(default(FixedLever2d).TryGetVector(
-            out Vector2d invalidVector));
-        Assert.Equal(default, invalidVector);
-        Assert.False(default(FixedLever2d).TryGetScaledCrossProduct(
-            Vector2d.Forward,
-            Fixed64.One,
-            Fixed64.Zero,
-            out Fixed64 result));
-        Assert.Equal(default, result);
-    }
-
-    [Fact]
     public void ExactOperations_DoNotAllocateAfterWarmup()
     {
         FixedPointAnchor2d first = new(
@@ -514,18 +360,6 @@ public sealed class FixedPointAnchor2dTests
         _ = first.TryGetPoint(out _);
         _ = first.TryGetOffsetFrom(second, out _);
         _ = first.TryGetLocalPointIn(Vector2d.Zero, Fixed64.Zero, out _);
-        FixedLever2d lever = first.GetLeverFrom(second);
-        _ = lever.TryGetVector(out _);
-        _ = lever.TryGetCrossProduct(Vector2d.Forward, out _);
-        _ = lever.TryGetScaledCrossProduct(
-            Vector2d.Forward,
-            Fixed64.Half,
-            Fixed64.One,
-            out _);
-        _ = lever.TryGetScaledSquaredCrossProduct(
-            Vector2d.Forward,
-            Fixed64.Half,
-            out _);
         Assert.True(reframeSource.TryReframe(
             reframeOrigin,
             Fixed64.HalfPi,
@@ -539,18 +373,6 @@ public sealed class FixedPointAnchor2dTests
             _ = first.TryGetLocalPointIn(
                 Vector2d.Zero,
                 Fixed64.Zero,
-                out _);
-            lever = first.GetLeverFrom(second);
-            _ = lever.TryGetVector(out _);
-            _ = lever.TryGetCrossProduct(Vector2d.Forward, out _);
-            _ = lever.TryGetScaledCrossProduct(
-                Vector2d.Forward,
-                Fixed64.Half,
-                Fixed64.One,
-                out _);
-            _ = lever.TryGetScaledSquaredCrossProduct(
-                Vector2d.Forward,
-                Fixed64.Half,
                 out _);
             _ = reframeSource.TryReframe(
                 reframeOrigin,
