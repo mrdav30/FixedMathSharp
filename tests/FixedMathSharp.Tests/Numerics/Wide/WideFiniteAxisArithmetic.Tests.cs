@@ -615,7 +615,7 @@ public sealed class WideFiniteAxisArithmeticTests
     }
 
     [Fact]
-    public void Signed832_MultiplySubtractAndProductSquareRoot_MatchBigIntegerOracle()
+    public void Signed832_MultiplicationSubtractAndProductSquareRoot_MatchBigIntegerOracle()
     {
         BigInteger left = (BigInteger.One << 410) + (BigInteger.One << 321) + 1;
         BigInteger right = (BigInteger.One << 368) + (BigInteger.One << 129) + 3;
@@ -627,6 +627,36 @@ public sealed class WideFiniteAxisArithmeticTests
         AssertSigned832(
             -product,
             WideArithmetic.MultiplySigned576ToSigned832(ToSigned576(-left), ToSigned576(right)));
+
+        BigInteger wide = (BigInteger.One << 500) + (BigInteger.One << 257) + 11;
+        BigInteger narrow = (BigInteger.One << 120) + 7;
+        BigInteger medium = (BigInteger.One << 250) + (BigInteger.One << 129) + 5;
+        AssertSigned832(
+            wide * narrow,
+            WideArithmetic.MultiplySigned704ToSigned832(
+                ToSigned704(wide),
+                ToSigned192(narrow)));
+        AssertSigned832(
+            -(wide * medium),
+            WideArithmetic.MultiplySigned704ToSigned832(
+                ToSigned704(-wide),
+                ToSigned320(medium)));
+
+        BigInteger first = (BigInteger.One << 300) + 13;
+        BigInteger second = (BigInteger.One << 250) + 17;
+        AssertSigned832(
+            -(first * second * narrow),
+            WideArithmetic.MultiplySigned704ToSigned832(
+                ToSigned704(first),
+                ToSigned704(-second),
+                ToSigned192(narrow)));
+
+        BigInteger full = (BigInteger.One << 600) + (BigInteger.One << 383) + 19;
+        AssertSigned832(
+            -(full * narrow),
+            WideArithmetic.MultiplySigned832(
+                ToSigned832(full),
+                ToSigned192(-narrow)));
 
         BigInteger minuend = (BigInteger.One << 810) + (BigInteger.One << 705);
         BigInteger subtrahend = (BigInteger.One << 769) + (BigInteger.One << 641) + 1;
