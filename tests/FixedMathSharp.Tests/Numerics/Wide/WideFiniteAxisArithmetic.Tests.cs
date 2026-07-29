@@ -58,35 +58,35 @@ public sealed class WideFiniteAxisArithmeticTests
 
         Assert.Equal(
             Vector2d.GetScaleNormalized(new Vector2d(Fixed64.One, Fixed64.Half)),
-            WideGeometry.GetNormalized(large, half));
+            WideNormalization.GetNormalized(large, half));
         Assert.Equal(
             Vector2d.GetScaleNormalized(new Vector2d(Fixed64.Half, Fixed64.One)),
-            WideGeometry.GetNormalized(half, large));
+            WideNormalization.GetNormalized(half, large));
         Assert.Equal(
             Vector2d.Left,
-            WideGeometry.GetNormalized(negativeLarge, default));
+            WideNormalization.GetNormalized(negativeLarge, default));
         Assert.Equal(
             Vector2d.Zero,
-            WideGeometry.GetNormalized(default(Signed576), default(Signed576)));
+            WideNormalization.GetNormalized(default(Signed576), default(Signed576)));
 
         Assert.Equal(
             Vector3d.GetScaleNormalized(
                 new Vector3d(Fixed64.One, Fixed64.Half, Fixed64.Zero)),
-            WideGeometry.GetNormalized(large, half, default));
+            WideNormalization.GetNormalized(large, half, default));
         Assert.Equal(
             Vector3d.GetScaleNormalized(
                 new Vector3d(Fixed64.Half, Fixed64.One, Fixed64.Zero)),
-            WideGeometry.GetNormalized(half, large, default));
+            WideNormalization.GetNormalized(half, large, default));
         Assert.Equal(
             Vector3d.GetScaleNormalized(
                 new Vector3d(Fixed64.Zero, Fixed64.Half, Fixed64.One)),
-            WideGeometry.GetNormalized(default, half, large));
+            WideNormalization.GetNormalized(default, half, large));
         Assert.Equal(
             Vector3d.Left,
-            WideGeometry.GetNormalized(negativeLarge, default, default));
+            WideNormalization.GetNormalized(negativeLarge, default, default));
         Assert.Equal(
             Vector3d.Zero,
-            WideGeometry.GetNormalized(
+            WideNormalization.GetNormalized(
                 default(Signed576),
                 default(Signed576),
                 default(Signed576)));
@@ -815,18 +815,18 @@ public sealed class WideFiniteAxisArithmeticTests
     {
         Assert.Equal(
             new Vector2d(Fixed64.FromRaw(3), Fixed64.FromRaw(-4)).Normalized,
-            WideGeometry.GetNormalized(ToSigned320(3), ToSigned320(-4)));
+            WideNormalization.GetNormalized(ToSigned320(3), ToSigned320(-4)));
         Assert.Equal(
             new Vector2d(Fixed64.FromRaw(4), Fixed64.FromRaw(3)).Normalized,
-            WideGeometry.GetNormalized(ToSigned320(4), ToSigned320(3)));
+            WideNormalization.GetNormalized(ToSigned320(4), ToSigned320(3)));
         Assert.Equal(
             new Vector3d(Fixed64.FromRaw(3), Fixed64.FromRaw(4), Fixed64.FromRaw(12)).Normalized,
-            WideGeometry.GetNormalized(ToSigned320(3), ToSigned320(4), ToSigned320(12)));
+            WideNormalization.GetNormalized(ToSigned320(3), ToSigned320(4), ToSigned320(12)));
         Assert.Equal(
             new Vector3d(Fixed64.FromRaw(4), Fixed64.FromRaw(3), Fixed64.FromRaw(1)).Normalized,
-            WideGeometry.GetNormalized(ToSigned320(4), ToSigned320(3), ToSigned320(1)));
-        Assert.Equal(Vector4d.Zero, WideGeometry.GetNormalized(Vector4d.Zero));
-        Assert.Equal(FixedQuaternion.Identity, WideGeometry.GetNormalized(default(FixedQuaternion)));
+            WideNormalization.GetNormalized(ToSigned320(4), ToSigned320(3), ToSigned320(1)));
+        Assert.Equal(Vector4d.Zero, WideNormalization.GetNormalized(Vector4d.Zero));
+        Assert.Equal(FixedQuaternion.Identity, WideNormalization.GetNormalized(default(FixedQuaternion)));
     }
 
     private static BigInteger IntegerSquareRoot(BigInteger value)

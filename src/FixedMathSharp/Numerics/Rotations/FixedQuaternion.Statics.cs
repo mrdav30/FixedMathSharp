@@ -78,7 +78,7 @@ public partial struct FixedQuaternion
             return q;
 
         if (mag == Fixed64.MaxValue || mag == Fixed64.One)
-            return WideGeometry.GetNormalized(q);
+            return WideNormalization.GetNormalized(q);
 
         if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
             return GetScaleNormalized(q);
@@ -90,7 +90,7 @@ public partial struct FixedQuaternion
             q.W / mag);
         return normalized.IsNormalized()
             ? normalized
-            : WideGeometry.GetNormalized(q);
+            : WideNormalization.GetNormalized(q);
     }
 
     private static FixedQuaternion GetScaleNormalized(FixedQuaternion q)

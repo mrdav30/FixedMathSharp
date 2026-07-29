@@ -75,7 +75,8 @@ claims, serialization layout, or developer workflow changes:
 | [`src/FixedMathSharp/Numerics/Vectors`](src/FixedMathSharp/Numerics/Vectors)     | `Vector2d`, `Vector3d`, `Vector4d`, and vector extensions | Watch coordinate-convention assumptions.                                                                                                                                                                                             |
 | [`src/FixedMathSharp/Numerics/Rotations`](src/FixedMathSharp/Numerics/Rotations) | `FixedQuaternion` and rotation helpers                    | High-risk for convention, normalization, and determinism changes.                                                                                                                                                                    |
 | [`src/FixedMathSharp/Numerics/Matrices`](src/FixedMathSharp/Numerics/Matrices)   | `Fixed3x3`, `Fixed4x4`, and matrix extensions             | Keep transform storage and basis semantics explicit.                                                                                                                                                                                 |
-| [`src/FixedMathSharp/Geometry`](src/FixedMathSharp/Geometry)                     | Bounds and primitive geometry                             | Includes 2D `FixedBoundArea`, `FixedBoundCircle`, `FixedRay2d`, `FixedSegment2d`, `FixedTriangle2d`, and 3D `FixedBoundBox`, `FixedBoundSphere`, `FixedBoundFrustum`, `FixedRay`, `FixedPlane`, `FixedSegment`, and `FixedTriangle`. |
+| [`src/FixedMathSharp/Numerics/Wide`](src/FixedMathSharp/Numerics/Wide)           | Internal fixed-width arithmetic and normalization         | Own representation mechanics shared by exact numeric and geometry operations.                                                                                                                                                        |
+| [`src/FixedMathSharp/Geometry`](src/FixedMathSharp/Geometry)                     | Bounds and primitive geometry                             | Public anchors and bounds live in `Anchors` and `Bounds`; rays, relations, segments, and triangles are grouped under `Primitives`; exact internal algorithms are grouped under `Wide` by common, convex, finite-axis, and oriented-box ownership. |
 | [`src/FixedMathSharp.FluentAssertions`](src/FixedMathSharp.FluentAssertions)     | Test assertion helpers package                            | Keep helpers aligned with core API semantics.                                                                                                                                                                                        |
 | [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests)                       | xUnit v3 test project                                     | Add focused deterministic, edge-case, serialization, and regression coverage.                                                                                                                                                        |
 | [`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks)             | BenchmarkDotNet project                                   | Experimental performance lab and showcase for hot-path wins.                                                                                                                                                                         |
@@ -186,10 +187,11 @@ deterministic.
 - Put the type-level XML `<summary>` on the main declaration file. Secondary
   partial declaration files use `<content>` to describe that file's
   responsibility; do not repeat a `<summary>` that the SDK will ignore.
-- Keep production source files under roughly 1000 lines. When a file grows past
-  that threshold, split it into meaningful partials such as `*.Statics.cs`,
-  `*.Operators.cs`, `*.Conversions.cs`, or `*.Equality.cs`; avoid one-method or
-  two-method partials that make navigation worse.
+- Treat roughly 1,200 lines as a hard review warning, not a target or automatic
+  split point. Keep one cohesive owner together when extraction would add
+  forwarding or duplicate shared invariants; otherwise split by an independent
+  reason to change. Avoid one-method or two-method partials that make navigation
+  worse.
 - `FixedMath` and fixed trigonometry code are shared algorithm backbones.
   Extension classes are thin forwarding wrappers, not alternate implementations.
 - Public API ownership should stay intentional: `FixedMath` owns deterministic

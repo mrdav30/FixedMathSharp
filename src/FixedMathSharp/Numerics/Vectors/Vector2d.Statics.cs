@@ -219,7 +219,7 @@ public partial struct Vector2d
             return value;
 
         if (!magnitudeIsRepresentable || mag == Fixed64.One)
-            return WideGeometry.GetNormalized(value);
+            return WideNormalization.GetNormalized(value);
 
         if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
             return GetScaleNormalized(value);
@@ -229,7 +229,7 @@ public partial struct Vector2d
             FixedMath.FastDiv(value.Y, mag));
         return normalized.IsNormalized()
             ? normalized
-            : WideGeometry.GetNormalized(value);
+            : WideNormalization.GetNormalized(value);
     }
 
     internal static Vector2d GetScaleNormalized(Vector2d value)
@@ -329,7 +329,7 @@ public partial struct Vector2d
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2d GetDirection(Vector2d start, Vector2d end) =>
-        WideGeometry.GetDirection(start, end);
+        WideNormalization.GetDirection(start, end);
 
     /// <summary>
     /// Returns the magnitude (length) of the given vector.

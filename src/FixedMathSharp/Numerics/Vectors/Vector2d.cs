@@ -428,7 +428,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
             return this;
 
         if (!magnitudeIsRepresentable || mag == Fixed64.One)
-            return this = WideGeometry.GetNormalized(source);
+            return this = WideNormalization.GetNormalized(source);
 
         if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
             return this = GetScaleNormalized(source);
@@ -438,7 +438,7 @@ public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IE
 
         return IsNormalized()
             ? this
-            : this = WideGeometry.GetNormalized(source);
+            : this = WideNormalization.GetNormalized(source);
     }
 
     /// <summary>

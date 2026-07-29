@@ -598,7 +598,7 @@ public partial struct Vector3d
             return value;
 
         if (!magnitudeIsRepresentable || mag == Fixed64.One)
-            return WideGeometry.GetNormalized(value);
+            return WideNormalization.GetNormalized(value);
 
         if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
             return GetScaleNormalized(value);
@@ -609,7 +609,7 @@ public partial struct Vector3d
             FixedMath.FastDiv(value.Z, mag));
         return normalized.IsNormalized()
             ? normalized
-            : WideGeometry.GetNormalized(value);
+            : WideNormalization.GetNormalized(value);
     }
 
     internal static Vector3d GetScaleNormalized(Vector3d value)
@@ -665,7 +665,7 @@ public partial struct Vector3d
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3d GetDirection(Vector3d start, Vector3d end) =>
-        WideGeometry.GetDirection(start, end);
+        WideNormalization.GetDirection(start, end);
 
     /// <summary>
     /// Returns the magnitude (length) of this vector.
@@ -999,7 +999,7 @@ public partial struct Vector3d
     public static Vector3d GetNormalizedProjectionOnPlane(
         Vector3d vector,
         Vector3d planeNormal) =>
-        WideGeometry.GetNormalizedProjectionOnPlane(vector, planeNormal);
+        Geometry.WideGeometry.GetNormalizedProjectionOnPlane(vector, planeNormal);
 
     /// <summary>
     /// Projects a point onto a plane defined by a normal and a distance from the origin.

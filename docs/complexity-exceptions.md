@@ -6,13 +6,17 @@ complexity review threshold.
 ## Policy
 
 - Review threshold: cyclomatic complexity greater than 10.
+- Source-size warning: roughly 1,200 lines is a hard review warning, not a
+  target or automatic split point. Owner cohesion and an independent reason to
+  change determine whether code stays together or moves; file-count reduction
+  alone does not justify a partial, helper, or forwarding layer.
 - Risk threshold: a coverage-amplified or unregistered CRAP score greater than
   30 requires immediate test hardening or refactoring. A fully covered method's
   score cannot fall below its cyclomatic complexity, so documented complexity
   floors are reviewed rather than mechanically refactored.
 - Current status: the latest full-project run, excluding generated serializer
-  sources, covers 44,047/44,047 lines and 8,422/8,422 branches. The CRAP
-  analyzer scored 3,308 method identities; every method is fully covered and
+  sources, covers 44,256/44,256 lines and 8,399/8,399 branches. The CRAP
+  analyzer scored 3,323 method identities; every method is fully covered and
   the only scores above 30 are the ten registered complexity floors at 52, 48,
   48, 44, 44, 38, 36, 32, 32, and 32.
   Per-method coverage is recorded below and should be refreshed whenever a

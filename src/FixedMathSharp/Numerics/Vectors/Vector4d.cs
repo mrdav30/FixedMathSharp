@@ -408,7 +408,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
             return this;
 
         if (!magnitudeIsRepresentable || mag == Fixed64.One)
-            return this = WideGeometry.GetNormalized(source);
+            return this = WideNormalization.GetNormalized(source);
 
         if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
             return this = GetScaleNormalized(source);
@@ -420,7 +420,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
             FixedMath.FastDiv(W, mag));
         return IsNormalized()
             ? this
-            : this = WideGeometry.GetNormalized(source);
+            : this = WideNormalization.GetNormalized(source);
     }
 
     /// <summary>
@@ -565,7 +565,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
             return value;
 
         if (!magnitudeIsRepresentable || mag == Fixed64.One)
-            return WideGeometry.GetNormalized(value);
+            return WideNormalization.GetNormalized(value);
 
         if (mag <= FixedMath.ScaleSafeMagnitudeThreshold)
             return GetScaleNormalized(value);
@@ -577,7 +577,7 @@ public partial struct Vector4d : IEquatable<Vector4d>, IComparable<Vector4d>, IE
             FixedMath.FastDiv(value.W, mag));
         return normalized.IsNormalized()
             ? normalized
-            : WideGeometry.GetNormalized(value);
+            : WideNormalization.GetNormalized(value);
     }
 
     private static Vector4d GetScaleNormalized(Vector4d value)
