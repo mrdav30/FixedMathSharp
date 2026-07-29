@@ -167,6 +167,20 @@ mathematically unit basis. Re-expression in another non-cardinal frame therefore
 returns the nearest representable local lattice point, while same-frame recovery
 remains exact.
 
+Both anchor types expose `CompareSquaredDistance(first, second)` for exact
+nearest-feature ranking without materializing either candidate distance. A
+negative result means `first` is closer to the reference anchor, zero is an
+exact tie, and a positive result means `second` is closer. Use
+`GetLeverFrom`/`TryGetLeverFrom` when a relative point must continue into cross,
+quadratic, or scaled response arithmetic even though the equivalent public
+vector is outside the scalar domain.
+
+`FixedMassPoint`, `FixedMassPoint2d`, and `FixedMassWeight` provide the matching
+semantic aggregation boundary for geometry-derived centers and positive
+weights. They retain relative ratios through weighted averages,
+parallel-axis moments, and proportional shares, then narrow only the requested
+final point, tensor, or scalar result.
+
 Full-domain contact relations return `FixedContactAnchors`. Multi-contact
 relations return one primary anchor pair plus compact `FixedContactLocalPoints`
 entries that reuse the primary rigid frames, normal, depth, and depth-clamping

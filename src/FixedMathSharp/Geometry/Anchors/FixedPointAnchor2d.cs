@@ -129,6 +129,23 @@ public readonly struct FixedPointAnchor2d : IEquatable<FixedPointAnchor2d>
             other);
 
     /// <summary>
+    /// Compares the exact squared distance from this point to two other
+    /// anchored points.
+    /// </summary>
+    /// <returns>
+    /// A negative value when <paramref name="first"/> is closer, zero when the
+    /// distances are equal, or a positive value when
+    /// <paramref name="second"/> is closer.
+    /// </returns>
+    public int CompareSquaredDistance(
+        in FixedPointAnchor2d first,
+        in FixedPointAnchor2d second) =>
+        WideVector2dTransform.CompareSquaredDistances(
+            this,
+            first,
+            second);
+
+    /// <summary>
     /// Attempts to express this conceptual point in another rotated frame
     /// without materializing the world-space point.
     /// </summary>

@@ -35,6 +35,22 @@ internal static partial class WideVector2dTransform
         return new FixedLever2d(x, y, denominator);
     }
 
+    internal static int CompareSquaredDistances(
+        in FixedPointAnchor2d reference,
+        in FixedPointAnchor2d first,
+        in FixedPointAnchor2d second)
+    {
+        Signed576 firstSquaredDistance = GetSquaredDistanceNumerator(
+            reference,
+            first);
+        Signed576 secondSquaredDistance = GetSquaredDistanceNumerator(
+            reference,
+            second);
+        return WideArithmetic.CompareNonNegative(
+            firstSquaredDistance,
+            secondSquaredDistance);
+    }
+
     internal static bool TryGetLeverVector(
         in FixedLever2d lever,
         out Vector2d vector)
@@ -131,6 +147,31 @@ internal static partial class WideVector2dTransform
                 y,
                 Signed320.ExtendValue(
                     Signed192.Raw(vector.X))));
+
+    private static Signed576 GetSquaredDistanceNumerator(
+        in FixedPointAnchor2d reference,
+        in FixedPointAnchor2d point)
+    {
+        GetExactRelativeOffsetRatio(
+            point.Origin,
+            point.LocalPoint,
+            point.LocalDisplacement,
+            point.ExactLocalTerm,
+            point.Rotation,
+            reference.Origin,
+            reference.LocalPoint,
+            reference.LocalDisplacement,
+            reference.ExactLocalTerm,
+            reference.Rotation,
+            out Signed320 x,
+            out Signed320 y,
+            // Every point-anchor term uses the same fixed denominator, so the
+            // squared coordinate numerators can be compared directly.
+            out _);
+        return WideArithmetic.AddSigned576(
+            WideArithmetic.MultiplySigned320(x, x),
+            WideArithmetic.MultiplySigned320(y, y));
+    }
 
     private static void GetExactRelativeOffsetRatio(
         Vector2d firstOrigin,
