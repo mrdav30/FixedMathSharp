@@ -296,13 +296,7 @@ internal static class WideTriangleConeIntersection
     {
         System.Span<ulong> magnitude = stackalloc ulong[9];
         WideArithmetic.GetMagnitude(value, magnitude);
-        for (int index = magnitude.Length - 1; index >= 0; index--)
-        {
-            if (magnitude[index] != 0UL)
-                return (index << 6) + 64 - Fixed64.CountLeadingZeroes(magnitude[index]);
-        }
-
-        return 0;
+        return WideArithmetic.GetMagnitudeBitLength(magnitude);
     }
 
     private static void CreatePolynomial(

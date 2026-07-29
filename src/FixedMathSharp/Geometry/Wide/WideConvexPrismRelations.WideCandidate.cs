@@ -90,7 +90,7 @@ internal static partial class WideConvexPrismRelations
             stackalloc ulong[WideCandidateWords];
         Span<ulong> axialSum =
             stackalloc ulong[WideCandidateWords];
-        AddMagnitudes(
+        WideArithmetic.AddEqualMagnitudes(
             cylinderAxial,
             capsuleAxial,
             axialSum);
@@ -169,11 +169,11 @@ internal static partial class WideConvexPrismRelations
             stackalloc ulong[WideCandidateWords];
         Span<ulong> sum =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(axis.X, axis.X, xSquared);
-        MultiplyMagnitudes(axis.Y, axis.Y, ySquared);
-        MultiplyMagnitudes(axis.Z, axis.Z, zSquared);
-        AddMagnitudes(xSquared, ySquared, sum);
-        AddMagnitudes(sum, zSquared, result);
+        WideArithmetic.MultiplyMagnitudes(axis.X, axis.X, xSquared);
+        WideArithmetic.MultiplyMagnitudes(axis.Y, axis.Y, ySquared);
+        WideArithmetic.MultiplyMagnitudes(axis.Z, axis.Z, zSquared);
+        WideArithmetic.AddEqualMagnitudes(xSquared, ySquared, sum);
+        WideArithmetic.AddEqualMagnitudes(sum, zSquared, result);
     }
 
     private static void BuildWideDot(
@@ -210,9 +210,9 @@ internal static partial class WideConvexPrismRelations
             stackalloc ulong[WideCandidateWords];
         Span<ulong> xy =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(axis.X, xMagnitude, xTerm);
-        MultiplyMagnitudes(axis.Y, yMagnitude, yTerm);
-        MultiplyMagnitudes(axis.Z, zMagnitude, zTerm);
+        WideArithmetic.MultiplyMagnitudes(axis.X, xMagnitude, xTerm);
+        WideArithmetic.MultiplyMagnitudes(axis.Y, yMagnitude, yTerm);
+        WideArithmetic.MultiplyMagnitudes(axis.Z, zMagnitude, zTerm);
         CombineWideSignedMagnitudes(
             xTerm,
             axis.XSign * x.Sign,
@@ -249,11 +249,11 @@ internal static partial class WideConvexPrismRelations
             out denominatorMagnitude[0]);
         Span<ulong> withLength =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             alignment,
             lengthMagnitude,
             withLength);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             withLength,
             denominatorMagnitude,
             result);
@@ -287,15 +287,15 @@ internal static partial class WideConvexPrismRelations
             stackalloc ulong[WideCandidateWords];
         Span<ulong> secondProduct =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             projection,
             firstMagnitude,
             firstProduct);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             firstProduct,
             secondMagnitude,
             secondProduct);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             secondProduct,
             twiceMagnitude,
             result);
@@ -313,15 +313,15 @@ internal static partial class WideConvexPrismRelations
             stackalloc ulong[WideCandidateWords];
         Span<ulong> second =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             axisSquared,
             shapeAxisMagnitude,
             first);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             alignment,
             alignment,
             second);
-        SubtractMagnitudes(first, second, result);
+        WideArithmetic.SubtractEqualMagnitudes(first, second, result);
     }
 
     private static bool IsWideCylinderCapsuleProjectionNonNegative(
@@ -343,7 +343,7 @@ internal static partial class WideConvexPrismRelations
             capsule);
         BuildWideRationalRadicand(depth, rational);
         zero.Clear();
-        return CompareWideRadicalPairs(
+        return CompareRadicalPairs(
             disk,
             capsule,
             rational,
@@ -359,7 +359,7 @@ internal static partial class WideConvexPrismRelations
             stackalloc ulong[WideCandidateWords];
         BuildWideDiskRadicand(depth, disk);
         BuildWideRationalRadicand(depth, rational);
-        return CompareMagnitude(disk, rational) >= 0;
+        return WideArithmetic.CompareMagnitudeEqualLength(disk, rational) >= 0;
     }
 
     private static int CompareWideProjectionDepth(
@@ -415,11 +415,11 @@ internal static partial class WideConvexPrismRelations
             shapeAxisMagnitude);
         Span<ulong> square =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             depth.Rational,
             depth.Rational,
             square);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             square,
             shapeAxisMagnitude,
             result);
@@ -439,7 +439,7 @@ internal static partial class WideConvexPrismRelations
         WideArithmetic.GetMagnitude(
             otherAxisSquared,
             otherMagnitude);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             baseRadicand,
             otherMagnitude,
             result);
@@ -456,11 +456,11 @@ internal static partial class WideConvexPrismRelations
             coefficient);
         Span<ulong> coefficientSquared =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficient,
             coefficient,
             coefficientSquared);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficientSquared,
             depth.PlaneSquared,
             result);
@@ -480,7 +480,7 @@ internal static partial class WideConvexPrismRelations
         WideArithmetic.GetMagnitude(
             otherAxisSquared,
             otherMagnitude);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             baseRadicand,
             otherMagnitude,
             result);
@@ -504,15 +504,15 @@ internal static partial class WideConvexPrismRelations
             stackalloc ulong[WideCandidateWords];
         Span<ulong> withShapeAxis =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficient,
             coefficient,
             coefficientSquared);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficientSquared,
             shapeAxisMagnitude,
             withShapeAxis);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             withShapeAxis,
             depth.AxisSquared,
             result);
@@ -535,15 +535,15 @@ internal static partial class WideConvexPrismRelations
             stackalloc ulong[WideCandidateWords];
         Span<ulong> withShapeAxis =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             rationalMagnitude,
             rationalMagnitude,
             square);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             square,
             shapeAxisMagnitude,
             withShapeAxis);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             withShapeAxis,
             otherAxisSquared,
             result);
@@ -567,15 +567,15 @@ internal static partial class WideConvexPrismRelations
             stackalloc ulong[WideCandidateWords];
         Span<ulong> withPlane =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficient,
             coefficient,
             coefficientSquared);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficientSquared,
             planeMagnitude,
             withPlane);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             withPlane,
             otherAxisSquared,
             result);

@@ -1098,18 +1098,5 @@ internal static partial class WideArithmetic
         return comparison == 0 ? 0 : comparison > 0 ? 1 : -1;
     }
 
-    internal static int CompareMagnitudeEqualLength(
-        ReadOnlySpan<ulong> left,
-        ReadOnlySpan<ulong> right)
-    {
-        for (int index = left.Length - 1; index >= 0; index--)
-        {
-            if (left[index] != right[index])
-                return left[index] < right[index] ? -1 : 1;
-        }
-
-        return 0;
-    }
-
     #endregion
 }

@@ -632,12 +632,6 @@ internal static partial class WideGeometry
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Signed192 GetDifference(Fixed64 end, Fixed64 start) =>
-        WideArithmetic.SubtractSigned192(
-            Signed192.Signed(end.m_rawValue),
-            Signed192.Signed(start.m_rawValue));
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Signed192 GetRawCrossComponent(
         long leftFirst,
         long leftSecond,

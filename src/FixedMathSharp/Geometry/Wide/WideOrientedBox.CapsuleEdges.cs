@@ -479,17 +479,17 @@ internal static partial class WideOrientedBox
             out coefficient[2],
             out coefficient[1],
             out coefficient[0]);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficient,
             coefficient,
             coefficientSquared);
-        MultiplyMagnitudes(coefficientSquared, axis, left);
+        WideArithmetic.MultiplyMagnitudes(coefficientSquared, axis, left);
         WideArithmetic.GetMagnitude(rational, rationalMagnitude);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             rationalMagnitude,
             rationalMagnitude,
             right);
-        return CompareMagnitudes(left, right) >= 0;
+        return WideArithmetic.CompareMagnitudeEqualLength(left, right) >= 0;
     }
 
     private static void GetWideCapsuleDepth(

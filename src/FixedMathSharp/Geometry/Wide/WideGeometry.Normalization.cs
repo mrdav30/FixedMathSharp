@@ -19,8 +19,8 @@ internal static partial class WideGeometry
     /// </summary>
     internal static Vector2d GetDirection(Vector2d start, Vector2d end)
     {
-        Signed192 x = GetDifference(end.X, start.X);
-        Signed192 y = GetDifference(end.Y, start.Y);
+        Signed192 x = WideArithmetic.Difference(end.X, start.X);
+        Signed192 y = WideArithmetic.Difference(end.Y, start.Y);
         return GetNormalized(x, y);
     }
 
@@ -126,9 +126,9 @@ internal static partial class WideGeometry
     /// </summary>
     internal static Vector3d GetDirection(Vector3d start, Vector3d end)
     {
-        Signed192 x = GetDifference(end.X, start.X);
-        Signed192 y = GetDifference(end.Y, start.Y);
-        Signed192 z = GetDifference(end.Z, start.Z);
+        Signed192 x = WideArithmetic.Difference(end.X, start.X);
+        Signed192 y = WideArithmetic.Difference(end.Y, start.Y);
+        Signed192 z = WideArithmetic.Difference(end.Z, start.Z);
         return GetNormalized(x, y, z);
     }
 

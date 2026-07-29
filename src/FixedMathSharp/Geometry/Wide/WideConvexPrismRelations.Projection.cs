@@ -147,7 +147,7 @@ internal static partial class WideConvexPrismRelations
             Span<ulong> right = stackalloc ulong[40];
             BuildLocalCapsuleRadicand(depth, left);
             BuildRationalSquare(depth.Rational, right);
-            return CompareMagnitude(left, right) >= 0;
+            return WideArithmetic.CompareMagnitudeEqualLength(left, right) >= 0;
         }
 
         return IsDiskRadicalAtLeast(
@@ -435,7 +435,7 @@ internal static partial class WideConvexPrismRelations
             Signed192.Raw(radius));
         BuildProduct(coefficient, coefficient, planeSquared, radial);
         BuildProduct(threshold, threshold, shapeAxisSquared, rational);
-        return CompareMagnitude(radial, rational) >= 0;
+        return WideArithmetic.CompareMagnitudeEqualLength(radial, rational) >= 0;
     }
 
     private static Signed576 GetAxisProjection(
@@ -554,19 +554,19 @@ internal static partial class WideConvexPrismRelations
         int productWords = termWords * 2;
         Span<ulong> leftBase = stackalloc ulong[termWords];
         Span<ulong> rightBase = stackalloc ulong[termWords];
-        AddMagnitudes(leftFirst, leftSecond, leftBase);
-        AddMagnitudes(rightFirst, rightSecond, rightBase);
-        int baseComparison = CompareMagnitude(leftBase, rightBase);
+        WideArithmetic.AddEqualMagnitudes(leftFirst, leftSecond, leftBase);
+        WideArithmetic.AddEqualMagnitudes(rightFirst, rightSecond, rightBase);
+        int baseComparison = WideArithmetic.CompareMagnitudeEqualLength(leftBase, rightBase);
         Span<ulong> baseMagnitude = stackalloc ulong[termWords];
         if (baseComparison >= 0)
-            SubtractMagnitudes(leftBase, rightBase, baseMagnitude);
+            WideArithmetic.SubtractEqualMagnitudes(leftBase, rightBase, baseMagnitude);
         else
-            SubtractMagnitudes(rightBase, leftBase, baseMagnitude);
+            WideArithmetic.SubtractEqualMagnitudes(rightBase, leftBase, baseMagnitude);
 
         Span<ulong> leftProduct = stackalloc ulong[productWords];
         Span<ulong> rightProduct = stackalloc ulong[productWords];
-        MultiplyMagnitudes(leftFirst, leftSecond, leftProduct);
-        MultiplyMagnitudes(rightFirst, rightSecond, rightProduct);
+        WideArithmetic.MultiplyMagnitudes(leftFirst, leftSecond, leftProduct);
+        WideArithmetic.MultiplyMagnitudes(rightFirst, rightSecond, rightProduct);
         if (baseComparison >= 0)
         {
             return ComparePositiveRadicalDifference(
@@ -591,15 +591,15 @@ internal static partial class WideConvexPrismRelations
         Span<ulong> baseSquared = stackalloc ulong[productWords];
         Span<ulong> fourSame = stackalloc ulong[productWords];
         Span<ulong> fourOpposite = stackalloc ulong[productWords];
-        MultiplyMagnitudes(positiveBase, positiveBase, baseSquared);
+        WideArithmetic.MultiplyMagnitudes(positiveBase, positiveBase, baseSquared);
         sameSideProduct.CopyTo(fourSame);
         oppositeSideProduct.CopyTo(fourOpposite);
         ShiftLeft(fourSame, 2);
         ShiftLeft(fourOpposite, 2);
 
         Span<ulong> knownLeft = stackalloc ulong[productWords];
-        AddMagnitudes(baseSquared, fourSame, knownLeft);
-        int knownComparison = CompareMagnitude(
+        WideArithmetic.AddEqualMagnitudes(baseSquared, fourSame, knownLeft);
+        int knownComparison = WideArithmetic.CompareMagnitudeEqualLength(
             knownLeft,
             fourOpposite);
         if (knownComparison > 0)
@@ -609,16 +609,16 @@ internal static partial class WideConvexPrismRelations
         if (knownComparison == 0)
         {
             return Math.Sign(
-                GetActiveLength(positiveBase)
-                * GetActiveLength(sameSideProduct));
+                WideArithmetic.GetActiveMagnitudeLength(positiveBase)
+                * WideArithmetic.GetActiveMagnitudeLength(sameSideProduct));
         }
 
-        SubtractMagnitudes(fourOpposite, knownLeft, remainder);
+        WideArithmetic.SubtractEqualMagnitudes(fourOpposite, knownLeft, remainder);
         Span<ulong> crossSquared = stackalloc ulong[squaredWords];
         Span<ulong> remainderSquared = stackalloc ulong[squaredWords];
-        MultiplyMagnitudes(baseSquared, sameSideProduct, crossSquared);
+        WideArithmetic.MultiplyMagnitudes(baseSquared, sameSideProduct, crossSquared);
         ShiftLeft(crossSquared, 4);
-        MultiplyMagnitudes(remainder, remainder, remainderSquared);
-        return CompareMagnitude(crossSquared, remainderSquared);
+        WideArithmetic.MultiplyMagnitudes(remainder, remainder, remainderSquared);
+        return WideArithmetic.CompareMagnitudeEqualLength(crossSquared, remainderSquared);
     }
 }

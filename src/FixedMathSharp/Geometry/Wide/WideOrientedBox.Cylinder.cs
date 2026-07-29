@@ -550,14 +550,14 @@ internal static partial class WideOrientedBox
             out ratioDivisor[2],
             out ratioDivisor[1],
             out ratioDivisor[0]);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             ratioDivisor,
             ratioDivisor,
             ratioDivisorSquared);
-        MultiplyMagnitudes(radical, ratioDivisorSquared, left);
-        MultiplyMagnitudes(ratio, ratio, squared);
-        MultiplyMagnitudes(squared, radicalDivisor, right);
-        return CompareMagnitudes(left, right) >= 0;
+        WideArithmetic.MultiplyMagnitudes(radical, ratioDivisorSquared, left);
+        WideArithmetic.MultiplyMagnitudes(ratio, ratio, squared);
+        WideArithmetic.MultiplyMagnitudes(squared, radicalDivisor, right);
+        return WideArithmetic.CompareMagnitudeEqualLength(left, right) >= 0;
     }
 
     private static void GetCylinderDepth(

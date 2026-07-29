@@ -325,22 +325,22 @@ internal static partial class WideOrientedBox
             out denominatorMagnitude[2],
             out denominatorMagnitude[1],
             out denominatorMagnitude[0]);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             denominatorMagnitude,
             denominatorMagnitude,
             denominatorSquared);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             radicalMagnitude,
             denominatorSquared,
             left);
         WideArithmetic.GetMagnitude(
             ratioNumerator,
             numeratorMagnitude);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             numeratorMagnitude,
             numeratorMagnitude,
             right);
-        return CompareMagnitudes(left, right) >= 0;
+        return WideArithmetic.CompareMagnitudeEqualLength(left, right) >= 0;
     }
 
     private static void GetRadialDepth(

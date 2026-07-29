@@ -137,7 +137,7 @@ internal static class WideCenteredCapsule2dRelations
                     axisLength,
                     localNormal,
                     radius);
-            if (TryProjectAnchorOntoFeature(
+            if (WideConvex2dRelations.TryProjectAnchorOntoFeature(
                     firstCapsuleAnchor,
                     convexOrigin,
                     convexRotation,
@@ -145,7 +145,7 @@ internal static class WideCenteredCapsule2dRelations
                     featureEnd,
                     requireInteriorProjection: true,
                     out Vector2d firstConvexOffset)
-                && TryProjectAnchorOntoFeature(
+                && WideConvex2dRelations.TryProjectAnchorOntoFeature(
                     secondCapsuleAnchor,
                     convexOrigin,
                     convexRotation,
@@ -177,7 +177,7 @@ internal static class WideCenteredCapsule2dRelations
                 axisLength,
                 radius,
                 localNormal);
-        _ = TryProjectAnchorOntoFeature(
+        _ = WideConvex2dRelations.TryProjectAnchorOntoFeature(
             capsuleContact,
             convexOrigin,
             convexRotation,
@@ -242,7 +242,7 @@ internal static class WideCenteredCapsule2dRelations
 
         for (int i = 0; i < convexOriginOffsets.Length; i++)
         {
-            Vector2d edgeDirection = GetTransformedEdgeDirection(
+            Vector2d edgeDirection = WideConvex2dRelations.GetTransformedEdgeDirection(
                 convexRotation,
                 convexOriginOffsets[i],
                 convexOriginOffsets[(i + 1) % convexOriginOffsets.Length]);
@@ -544,11 +544,11 @@ internal static class WideCenteredCapsule2dRelations
 
         Vector2d previous = convexOriginOffsets[previousIndex];
         Vector2d next = convexOriginOffsets[nextIndex];
-        Vector2d previousDirection = GetTransformedEdgeDirection(
+        Vector2d previousDirection = WideConvex2dRelations.GetTransformedEdgeDirection(
             convexRotation,
             previous,
             featureStart);
-        Vector2d nextDirection = GetTransformedEdgeDirection(
+        Vector2d nextDirection = WideConvex2dRelations.GetTransformedEdgeDirection(
             convexRotation,
             featureStart,
             next);
@@ -560,23 +560,6 @@ internal static class WideCenteredCapsule2dRelations
         else
             featureEnd = next;
     }
-
-    private static bool TryProjectAnchorOntoFeature(
-        in FixedPointAnchor2d source,
-        Vector2d targetOrigin,
-        Fixed64 targetRotation,
-        Vector2d featureStart,
-        Vector2d featureEnd,
-        bool requireInteriorProjection,
-        out Vector2d targetOffset) =>
-        WideConvex2dRelations.TryProjectAnchorOntoFeature(
-            source,
-            targetOrigin,
-            targetRotation,
-            featureStart,
-            featureEnd,
-            requireInteriorProjection,
-            out targetOffset);
 
     private static bool TryKeepAxis(
         Vector2d center,
@@ -706,12 +689,4 @@ internal static class WideCenteredCapsule2dRelations
         return NarrowProven(projection);
     }
 
-    private static Vector2d GetTransformedEdgeDirection(
-        Fixed64 rotation,
-        Vector2d start,
-        Vector2d end) =>
-        WideConvex2dRelations.GetTransformedEdgeDirection(
-            rotation,
-            start,
-            end);
 }

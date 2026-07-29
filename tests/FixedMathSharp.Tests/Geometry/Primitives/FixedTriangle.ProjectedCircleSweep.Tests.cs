@@ -401,6 +401,29 @@ public sealed class FixedTriangleProjectedCircleSweepTests
     }
 
     [Fact]
+    public void FullDomainEdgeSweep_PreservesRationalSegmentDistance()
+    {
+        var triangle = new FixedTriangle(
+            new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.One));
+
+        Assert.True(triangle.TryGetFiniteSlabProjectedCircleSweep(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector2d(Fixed64.Zero, -Fixed64.Two),
+            Vector2d.Forward,
+            Fixed64.Two,
+            Fixed64.Half,
+            Fixed64.Zero,
+            Fixed64.Zero,
+            out Fixed64 distance,
+            out _));
+
+        Assert.Equal(Fixed64.FromFraction(3, 2), distance);
+    }
+
+    [Fact]
     public void ProjectedVerticalEdge_UsesNearestBoundaryWitnessAcrossWinding()
     {
         Fixed64 originY = Fixed64.MaxValue - (Fixed64)4;

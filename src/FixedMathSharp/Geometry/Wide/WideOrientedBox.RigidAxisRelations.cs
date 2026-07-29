@@ -367,7 +367,7 @@ internal static partial class WideOrientedBox
             return RigidSegmentLower;
         }
 
-        int comparison = CompareMagnitudes(numerator, denominator);
+        int comparison = WideArithmetic.CompareMagnitudeEqualLength(numerator, denominator);
         if (comparison < 0)
             return RigidSegmentInterior;
 
@@ -391,13 +391,13 @@ internal static partial class WideOrientedBox
             out axisDenominatorMagnitude[2],
             out axisDenominatorMagnitude[1],
             out axisDenominatorMagnitude[0]);
-        MultiplyMagnitudes(core, axisDenominatorMagnitude, numerator);
+        WideArithmetic.MultiplyMagnitudes(core, axisDenominatorMagnitude, numerator);
 
         Span<ulong> relationDenominatorMagnitude = stackalloc ulong[9];
         WideArithmetic.GetMagnitude(
             relationDenominator,
             relationDenominatorMagnitude);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             determinant,
             relationDenominatorMagnitude,
             denominator);
@@ -427,11 +427,11 @@ internal static partial class WideOrientedBox
         WideArithmetic.GetMagnitude(
             relationDenominator,
             relationDenominatorMagnitude);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             projectionMagnitude,
             axisDenominatorMagnitude,
             numerator);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             axisSquaredMagnitude,
             relationDenominatorMagnitude,
             denominator);
@@ -457,7 +457,7 @@ internal static partial class WideOrientedBox
             relationZ,
             relationSquared);
         Span<ulong> relationTerm = stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             relationSquared,
             determinant,
             relationTerm);
@@ -505,7 +505,7 @@ internal static partial class WideOrientedBox
         // An interior/interior closest pair has a strictly positive projected
         // correction. A zero parameter is classified as a cap before reaching
         // this branch.
-        SubtractMagnitudes(relationTerm, correction, left);
+        WideArithmetic.SubtractEqualMagnitudes(relationTerm, correction, left);
 
         Span<ulong> right = stackalloc ulong[TriangleSweepMagnitudeWords];
         GetRadiusThreshold(
@@ -513,7 +513,7 @@ internal static partial class WideOrientedBox
             relationDenominator,
             determinant,
             right);
-        return CompareMagnitudes(left, right) <= 0;
+        return WideArithmetic.CompareMagnitudeEqualLength(left, right) <= 0;
     }
 
     private static bool IsRigidPointLineWithinRadius(
@@ -534,16 +534,16 @@ internal static partial class WideOrientedBox
         Span<ulong> axisSquaredMagnitude = stackalloc ulong[9];
         WideArithmetic.GetMagnitude(axisSquared, axisSquaredMagnitude);
         Span<ulong> relationTerm = stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             relationSquared,
             axisSquaredMagnitude,
             relationTerm);
         Span<ulong> dotMagnitude = stackalloc ulong[11];
         WideArithmetic.GetMagnitude(axisDotDifference, dotMagnitude);
         Span<ulong> dotSquared = stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(dotMagnitude, dotMagnitude, dotSquared);
+        WideArithmetic.MultiplyMagnitudes(dotMagnitude, dotMagnitude, dotSquared);
         Span<ulong> left = stackalloc ulong[TriangleSweepMagnitudeWords];
-        SubtractMagnitudes(relationTerm, dotSquared, left);
+        WideArithmetic.SubtractEqualMagnitudes(relationTerm, dotSquared, left);
 
         Span<ulong> right = stackalloc ulong[TriangleSweepMagnitudeWords];
         GetRadiusThreshold(
@@ -551,7 +551,7 @@ internal static partial class WideOrientedBox
             relationDenominator,
             axisSquaredMagnitude,
             right);
-        return CompareMagnitudes(left, right) <= 0;
+        return WideArithmetic.CompareMagnitudeEqualLength(left, right) <= 0;
     }
 
     private static bool IsRigidPointWithinRadius(
@@ -574,7 +574,7 @@ internal static partial class WideOrientedBox
             relationDenominator,
             ReadOnlySpan<ulong>.Empty,
             right);
-        return CompareMagnitudes(left, right) <= 0;
+        return WideArithmetic.CompareMagnitudeEqualLength(left, right) <= 0;
     }
 
     private static void GetRadiusThreshold(
@@ -595,13 +595,13 @@ internal static partial class WideOrientedBox
             denominatorMagnitude);
         Span<ulong> radiusSquared = stackalloc ulong[6];
         Span<ulong> denominatorSquared = stackalloc ulong[18];
-        MultiplyMagnitudes(radiusMagnitude, radiusMagnitude, radiusSquared);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(radiusMagnitude, radiusMagnitude, radiusSquared);
+        WideArithmetic.MultiplyMagnitudes(
             denominatorMagnitude,
             denominatorMagnitude,
             denominatorSquared);
         Span<ulong> baseThreshold = stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             radiusSquared,
             denominatorSquared,
             baseThreshold);
@@ -611,7 +611,7 @@ internal static partial class WideOrientedBox
             return;
         }
 
-        MultiplyMagnitudes(baseThreshold, factor, result);
+        WideArithmetic.MultiplyMagnitudes(baseThreshold, factor, result);
     }
 
     private static void GetSquaredMagnitude(
@@ -641,11 +641,11 @@ internal static partial class WideOrientedBox
         WideArithmetic.GetMagnitude(second, secondMagnitude);
         WideArithmetic.GetMagnitude(third, thirdMagnitude);
         Span<ulong> firstProduct = stackalloc ulong[20];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             firstMagnitude,
             secondMagnitude,
             firstProduct);
-        MultiplyMagnitudes(firstProduct, thirdMagnitude, result);
+        WideArithmetic.MultiplyMagnitudes(firstProduct, thirdMagnitude, result);
     }
 
     private static void GetProductDifference(
@@ -666,11 +666,11 @@ internal static partial class WideOrientedBox
         WideArithmetic.GetMagnitude(secondRight, secondRightMagnitude);
         Span<ulong> first = stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> second = stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             firstLeftMagnitude,
             firstRightMagnitude,
             first);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             secondLeftMagnitude,
             secondRightMagnitude,
             second);
@@ -701,11 +701,11 @@ internal static partial class WideOrientedBox
         WideArithmetic.GetMagnitude(secondRight, secondRightMagnitude);
         Span<ulong> first = stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> second = stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             firstLeftMagnitude,
             firstRightMagnitude,
             first);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             secondLeftMagnitude,
             secondRightMagnitude,
             second);

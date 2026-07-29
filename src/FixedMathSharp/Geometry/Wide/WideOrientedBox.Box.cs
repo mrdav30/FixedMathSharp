@@ -246,17 +246,17 @@ internal static partial class WideOrientedBox
         WideArithmetic.GetMagnitude(
             currentSquaredAxisLength,
             currentAxis);
-        MultiplyMagnitudes(candidate, candidate, candidateSquared);
-        MultiplyMagnitudes(current, current, currentSquared);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(candidate, candidate, candidateSquared);
+        WideArithmetic.MultiplyMagnitudes(current, current, currentSquared);
+        WideArithmetic.MultiplyMagnitudes(
             candidateSquared,
             currentAxis,
             candidateScaled);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             currentSquared,
             candidateAxis,
             currentScaled);
-        return CompareMagnitudes(candidateScaled, currentScaled);
+        return WideArithmetic.CompareMagnitudeEqualLength(candidateScaled, currentScaled);
     }
 
     private static WideAxis3 GetBasisAxis(RationalBasis basis, int index) =>

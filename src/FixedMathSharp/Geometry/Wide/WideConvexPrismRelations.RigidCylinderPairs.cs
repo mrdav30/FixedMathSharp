@@ -511,7 +511,7 @@ internal static partial class WideConvexPrismRelations
     {
         Span<ulong> words = stackalloc ulong[11];
         WideArithmetic.GetMagnitude(rational, words);
-        MultiplyMagnitudes(words, words, result);
+        WideArithmetic.MultiplyMagnitudes(words, words, result);
         MultiplyCylinderPairBy(
             result,
             firstAxisSquared);
@@ -529,7 +529,7 @@ internal static partial class WideConvexPrismRelations
         Span<ulong> coefficientWords =
             stackalloc ulong[5];
         GetMagnitude(coefficient, coefficientWords);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficientWords,
             coefficientWords,
             result);
@@ -551,7 +551,7 @@ internal static partial class WideConvexPrismRelations
         WideArithmetic.GetMagnitude(
             depth.Rational,
             rationalWords);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             rationalWords,
             rationalWords,
             result);
@@ -596,7 +596,7 @@ internal static partial class WideConvexPrismRelations
         GetMagnitude(
             coefficient,
             coefficientWords);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficientWords,
             coefficientWords,
             result);
@@ -650,7 +650,7 @@ internal static partial class WideConvexPrismRelations
     {
         Span<ulong> product =
             stackalloc ulong[CylinderPairRadicandWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             value,
             factor,
             product);

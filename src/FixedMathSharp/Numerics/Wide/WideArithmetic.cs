@@ -237,18 +237,6 @@ internal static partial class WideArithmetic
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void AddWord(Span<ulong> words, int index, ulong value)
-    {
-        while (value != 0UL && index < words.Length)
-        {
-            ulong previous = words[index];
-            words[index] = unchecked(previous + value);
-            value = words[index] < previous ? 1UL : 0UL;
-            index++;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static ulong AddSignedWord(ulong left, ulong right, ref ulong carry)
     {
         ulong sum = unchecked(left + right);
@@ -649,40 +637,4 @@ internal static partial class WideArithmetic
         resultSign = addendSign;
     }
 
-    internal static void AddMagnitudeInto(
-        ReadOnlySpan<ulong> addend,
-        Span<ulong> result)
-    {
-        ulong carry = 0UL;
-        for (int index = 0; index < result.Length; index++)
-        {
-            ulong value = index < addend.Length
-                ? addend[index]
-                : 0UL;
-            result[index] =
-                AddSignedWord(result[index], value, ref carry);
-        }
-    }
-
-    private static void AddEqualMagnitudes(
-        ReadOnlySpan<ulong> left,
-        ReadOnlySpan<ulong> right,
-        Span<ulong> result)
-    {
-        ulong carry = 0UL;
-        for (int index = 0; index < result.Length; index++)
-            result[index] =
-                AddSignedWord(left[index], right[index], ref carry);
-    }
-
-    internal static void SubtractEqualMagnitudes(
-        ReadOnlySpan<ulong> larger,
-        ReadOnlySpan<ulong> smaller,
-        Span<ulong> result)
-    {
-        ulong borrow = 0UL;
-        for (int index = 0; index < result.Length; index++)
-            result[index] =
-                SubtractWord(larger[index], smaller[index], ref borrow);
-    }
 }

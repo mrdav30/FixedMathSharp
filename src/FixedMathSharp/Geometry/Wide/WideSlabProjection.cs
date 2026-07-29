@@ -5,6 +5,8 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
+
 namespace FixedMathSharp.Geometry;
 
 /// <summary>
@@ -120,9 +122,6 @@ internal static partial class WideSlabProjection
                 WideArithmetic.MultiplySigned576(y, Signed192.Raw(axis.Y))),
             WideArithmetic.MultiplySigned576(z, Signed192.Raw(axis.Z)));
 
-    private static Signed832 Add(Signed832 left, Signed832 right) =>
-        WideArithmetic.AddSigned832(left, right);
-
     private static bool IsUnitInterval(Signed576 numerator, Signed576 denominator)
     {
         int denominatorSign = denominator.Sign;
@@ -144,10 +143,10 @@ internal static partial class WideSlabProjection
     {
         // The extra zero word makes cross-word shifts branch-free at the
         // upper edge of a 576-bit magnitude.
-        System.Span<ulong> xMagnitude = stackalloc ulong[10];
-        System.Span<ulong> yMagnitude = stackalloc ulong[10];
-        System.Span<ulong> zMagnitude = stackalloc ulong[10];
-        System.Span<ulong> lengthMagnitude = stackalloc ulong[10];
+        Span<ulong> xMagnitude = stackalloc ulong[10];
+        Span<ulong> yMagnitude = stackalloc ulong[10];
+        Span<ulong> zMagnitude = stackalloc ulong[10];
+        Span<ulong> lengthMagnitude = stackalloc ulong[10];
         xMagnitude.Clear();
         yMagnitude.Clear();
         zMagnitude.Clear();
@@ -156,36 +155,17 @@ internal static partial class WideSlabProjection
         WideArithmetic.GetMagnitude(y, yMagnitude[..9]);
         WideArithmetic.GetMagnitude(z, zMagnitude[..9]);
         WideArithmetic.GetMagnitude(length, lengthMagnitude[..9]);
-        int shift = System.Math.Max(0,
-            System.Math.Max(
-                System.Math.Max(GetBitLength(xMagnitude), GetBitLength(yMagnitude)),
-                System.Math.Max(GetBitLength(zMagnitude), GetBitLength(lengthMagnitude))) - 190);
+        int shift = Math.Max(0,
+            Math.Max(
+                Math.Max(WideArithmetic.GetMagnitudeBitLength(xMagnitude), WideArithmetic.GetMagnitudeBitLength(yMagnitude)),
+                Math.Max(WideArithmetic.GetMagnitudeBitLength(zMagnitude), WideArithmetic.GetMagnitudeBitLength(lengthMagnitude))) - 190);
         reducedX = CreateReduced(xMagnitude, shift, x.Sign < 0);
         reducedY = CreateReduced(yMagnitude, shift, y.Sign < 0);
         reducedZ = CreateReduced(zMagnitude, shift, z.Sign < 0);
         reducedLength = CreateReduced(lengthMagnitude, shift, false);
     }
 
-    private static int GetBitLength(System.ReadOnlySpan<ulong> magnitude)
-    {
-        for (int index = magnitude.Length - 1; index >= 0; index--)
-        {
-            ulong word = magnitude[index];
-            if (word == 0UL)
-                continue;
-
-            int wordBits = 0;
-            while (word != 0UL)
-            {
-                wordBits++;
-                word >>= 1;
-            }
-            return (index * 64) + wordBits;
-        }
-        return 0;
-    }
-
-    private static Signed192 CreateReduced(System.ReadOnlySpan<ulong> magnitude, int shift, bool negative)
+    private static Signed192 CreateReduced(ReadOnlySpan<ulong> magnitude, int shift, bool negative)
     {
         int wordShift = shift >> 6;
         int bitShift = shift & 63;
@@ -196,7 +176,7 @@ internal static partial class WideSlabProjection
         return negative ? WideArithmetic.SubtractSigned192(default, value) : value;
     }
 
-    private static ulong GetShiftedWord(System.ReadOnlySpan<ulong> magnitude, int wordIndex, int bitShift)
+    private static ulong GetShiftedWord(ReadOnlySpan<ulong> magnitude, int wordIndex, int bitShift)
     {
         ulong value = magnitude[wordIndex] >> bitShift;
         int complementaryShift = (64 - bitShift) & 63;

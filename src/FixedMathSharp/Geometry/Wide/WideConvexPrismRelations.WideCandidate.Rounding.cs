@@ -144,7 +144,7 @@ internal static partial class WideConvexPrismRelations
                 rightFirst,
                 rightSecond);
         }
-        return CompareWideRadicalPairs(
+        return CompareRadicalPairs(
             leftFirst,
             leftSecond,
             rightFirst,
@@ -172,15 +172,15 @@ internal static partial class WideConvexPrismRelations
             stackalloc ulong[WideCandidateWords];
         Span<ulong> withShapeAxis =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficientMagnitude,
             coefficientMagnitude,
             square);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             square,
             shapeAxisMagnitude,
             withShapeAxis);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             withShapeAxis,
             depth.AxisSquared,
             result);
@@ -190,10 +190,10 @@ internal static partial class WideConvexPrismRelations
         WideCandidateAxis3 axis)
     {
         int maximumBitLength = Math.Max(
-            GetMagnitudeBitLength(axis.X),
+            WideArithmetic.GetMagnitudeBitLength(axis.X),
             Math.Max(
-                GetMagnitudeBitLength(axis.Y),
-                GetMagnitudeBitLength(axis.Z)));
+                WideArithmetic.GetMagnitudeBitLength(axis.Y),
+                WideArithmetic.GetMagnitudeBitLength(axis.Z)));
         int shift = Math.Max(0, maximumBitLength - 380);
         // The candidate is the first-minus-second closest-point residual.
         // Its admitted nonzero center projection against second-minus-first
@@ -255,22 +255,6 @@ internal static partial class WideConvexPrismRelations
             : positive;
     }
 
-    private static int GetMagnitudeBitLength(
-        ReadOnlySpan<ulong> magnitude)
-    {
-        int length = GetActiveLength(magnitude);
-        if (length == 0)
-            return 0;
-        ulong high = magnitude[length - 1];
-        int bits = (length - 1) << 6;
-        while (high != 0UL)
-        {
-            bits++;
-            high >>= 1;
-        }
-        return bits;
-    }
-
     private static void CopyPositiveRadicand(
         ReadOnlySpan<ulong> radicand,
         Span<ulong> first,
@@ -280,128 +264,6 @@ internal static partial class WideConvexPrismRelations
             radicand.CopyTo(first);
         else
             radicand.CopyTo(second);
-    }
-
-    private static int CompareWideRadicalPairs(
-        ReadOnlySpan<ulong> leftFirst,
-        ReadOnlySpan<ulong> leftSecond,
-        ReadOnlySpan<ulong> rightFirst,
-        ReadOnlySpan<ulong> rightSecond)
-    {
-        Span<ulong> leftBase =
-            stackalloc ulong[WideCandidateWords];
-        Span<ulong> rightBase =
-            stackalloc ulong[WideCandidateWords];
-        AddMagnitudes(
-            leftFirst,
-            leftSecond,
-            leftBase);
-        AddMagnitudes(
-            rightFirst,
-            rightSecond,
-            rightBase);
-        int baseComparison =
-            CompareMagnitude(leftBase, rightBase);
-        Span<ulong> baseMagnitude =
-            stackalloc ulong[WideCandidateWords];
-        if (baseComparison >= 0)
-        {
-            SubtractMagnitudes(
-                leftBase,
-                rightBase,
-                baseMagnitude);
-        }
-        else
-        {
-            SubtractMagnitudes(
-                rightBase,
-                leftBase,
-                baseMagnitude);
-        }
-
-        Span<ulong> leftProduct =
-            stackalloc ulong[WideCandidateWords * 2];
-        Span<ulong> rightProduct =
-            stackalloc ulong[WideCandidateWords * 2];
-        MultiplyMagnitudes(
-            leftFirst,
-            leftSecond,
-            leftProduct);
-        MultiplyMagnitudes(
-            rightFirst,
-            rightSecond,
-            rightProduct);
-        if (baseComparison >= 0)
-        {
-            return CompareWidePositiveRadicalDifference(
-                baseMagnitude,
-                leftProduct,
-                rightProduct);
-        }
-        return -CompareWidePositiveRadicalDifference(
-            baseMagnitude,
-            rightProduct,
-            leftProduct);
-    }
-
-    private static int CompareWidePositiveRadicalDifference(
-        ReadOnlySpan<ulong> positiveBase,
-        ReadOnlySpan<ulong> sameSideProduct,
-        ReadOnlySpan<ulong> oppositeSideProduct)
-    {
-        Span<ulong> baseSquared =
-            stackalloc ulong[WideCandidateWords * 2];
-        Span<ulong> fourSame =
-            stackalloc ulong[WideCandidateWords * 2];
-        Span<ulong> fourOpposite =
-            stackalloc ulong[WideCandidateWords * 2];
-        MultiplyMagnitudes(
-            positiveBase,
-            positiveBase,
-            baseSquared);
-        sameSideProduct.CopyTo(fourSame);
-        oppositeSideProduct.CopyTo(fourOpposite);
-        ShiftLeft(fourSame, 2);
-        ShiftLeft(fourOpposite, 2);
-        Span<ulong> knownLeft =
-            stackalloc ulong[WideCandidateWords * 2];
-        AddMagnitudes(
-            baseSquared,
-            fourSame,
-            knownLeft);
-        int knownComparison =
-            CompareMagnitude(knownLeft, fourOpposite);
-        if (knownComparison > 0)
-            return 1;
-        if (knownComparison == 0)
-        {
-            return Math.Sign(
-                GetActiveLength(positiveBase)
-                * GetActiveLength(sameSideProduct));
-        }
-
-        Span<ulong> remainder =
-            stackalloc ulong[WideCandidateWords * 2];
-        SubtractMagnitudes(
-            fourOpposite,
-            knownLeft,
-            remainder);
-        Span<ulong> crossSquared =
-            stackalloc ulong[WideCandidateWords * 4];
-        Span<ulong> remainderSquared =
-            stackalloc ulong[WideCandidateWords * 4];
-        MultiplyMagnitudes(
-            baseSquared,
-            sameSideProduct,
-            crossSquared);
-        ShiftLeft(crossSquared, 4);
-        MultiplyMagnitudes(
-            remainder,
-            remainder,
-            remainderSquared);
-        return CompareMagnitude(
-            crossSquared,
-            remainderSquared);
     }
 
     private static void CombineWideSignedMagnitudes(
@@ -426,12 +288,12 @@ internal static partial class WideConvexPrismRelations
         }
         if (leftSign == rightSign)
         {
-            AddMagnitudes(left, right, result);
+            WideArithmetic.AddEqualMagnitudes(left, right, result);
             resultSign = leftSign;
             return;
         }
 
-        int comparison = CompareMagnitude(left, right);
+        int comparison = WideArithmetic.CompareMagnitudeEqualLength(left, right);
         if (comparison == 0)
         {
             result.Clear();
@@ -440,12 +302,12 @@ internal static partial class WideConvexPrismRelations
         }
         if (comparison > 0)
         {
-            SubtractMagnitudes(left, right, result);
+            WideArithmetic.SubtractEqualMagnitudes(left, right, result);
             resultSign = leftSign;
         }
         else
         {
-            SubtractMagnitudes(right, left, result);
+            WideArithmetic.SubtractEqualMagnitudes(right, left, result);
             resultSign = rightSign;
         }
     }

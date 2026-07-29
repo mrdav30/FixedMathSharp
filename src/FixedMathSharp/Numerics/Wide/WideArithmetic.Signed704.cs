@@ -232,46 +232,6 @@ internal static partial class WideArithmetic
             words[index] = AddSignedWord(~words[index], 0UL, ref carry);
     }
 
-    internal static void MultiplyMagnitudes(
-        ReadOnlySpan<ulong> left,
-        ReadOnlySpan<ulong> right,
-        Span<ulong> product)
-    {
-        product.Clear();
-        int leftLength = GetActiveLength(left);
-        int rightLength = GetActiveLength(right);
-        for (int leftIndex = 0; leftIndex < leftLength; leftIndex++)
-        {
-            ulong leftWord = left[leftIndex];
-            if (leftWord == 0UL)
-                continue;
-
-            for (int rightIndex = 0; rightIndex < rightLength; rightIndex++)
-            {
-                ulong rightWord = right[rightIndex];
-                if (rightWord == 0UL)
-                    continue;
-
-                Fixed64.Multiply64To128(
-                    leftWord,
-                    rightWord,
-                    out ulong high,
-                    out ulong low);
-                int productIndex = leftIndex + rightIndex;
-                AddWord(product, productIndex, low);
-                AddWord(product, productIndex + 1, high);
-            }
-        }
-    }
-
-    private static int GetActiveLength(ReadOnlySpan<ulong> value)
-    {
-        int length = value.Length;
-        while (length > 0 && value[length - 1] == 0UL)
-            length--;
-        return length;
-    }
-
     private static int GetBitLength(Signed704 value)
     {
         if (value.Word10 != 0UL) return 704 - Fixed64.CountLeadingZeroes(value.Word10);

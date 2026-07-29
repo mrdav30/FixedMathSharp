@@ -386,15 +386,15 @@ internal static partial class WideOrientedBox
             stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> right =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             firstSquaredMagnitude,
             secondDenominatorMagnitude,
             left);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             secondSquaredMagnitude,
             firstDenominatorMagnitude,
             right);
-        return CompareMagnitudes(left, right);
+        return WideArithmetic.CompareMagnitudeEqualLength(left, right);
     }
 
     private static Fixed64 GetRationalPointDistanceLowerBound(

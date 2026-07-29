@@ -237,7 +237,7 @@ internal static partial class WideConvexPrismRelations
         GetMagnitude(
             thresholdCoefficient,
             coefficientWords);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficientWords,
             coefficientWords,
             threshold);

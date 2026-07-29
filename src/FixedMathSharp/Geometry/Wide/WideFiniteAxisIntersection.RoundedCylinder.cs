@@ -715,29 +715,30 @@ internal static partial class WideFiniteAxisIntersection
             MultiplyToSigned320(radiusSquared, scaleSquared),
             scaleSquared));
         Signed576 h0 = WideArithmetic.SubtractSigned576(
-            MultiplyByAxisLength(WideArithmetic.MultiplySigned320(n0, n0), data.AxisLengthSquared),
+            WideArithmetic.MultiplySigned576(
+                WideArithmetic.MultiplySigned320(n0, n0),
+                data.AxisLengthSquared),
             WideArithmetic.MultiplySigned320(rimScale, data.Q0));
         Signed576 h1 = WideArithmetic.SubtractSigned576(
-            Twice(MultiplyByAxisLength(WideArithmetic.MultiplySigned320(n0, n1), data.AxisLengthSquared)),
+            Twice(WideArithmetic.MultiplySigned576(
+                WideArithmetic.MultiplySigned320(n0, n1),
+                data.AxisLengthSquared)),
             WideArithmetic.MultiplySigned320(rimScale, data.Q1));
         Signed576 h2 = WideArithmetic.SubtractSigned576(
-            MultiplyByAxisLength(
+            WideArithmetic.MultiplySigned576(
                 WideArithmetic.AddSigned576(
                     WideArithmetic.MultiplySigned320(n1, n1),
                     Twice(WideArithmetic.MultiplySigned320(n0, n2))),
                 data.AxisLengthSquared),
             WideArithmetic.MultiplySigned320(rimScale, data.Q2));
-        Signed576 h3 = Twice(MultiplyByAxisLength(
+        Signed576 h3 = Twice(WideArithmetic.MultiplySigned576(
             WideArithmetic.MultiplySigned320(n1, n2),
             data.AxisLengthSquared));
-        Signed576 h4 = MultiplyByAxisLength(
+        Signed576 h4 = WideArithmetic.MultiplySigned576(
             WideArithmetic.MultiplySigned320(n2, n2),
             data.AxisLengthSquared);
         return new RoundedCylinderTorusPolynomial(n0, n1, n2, h0, h1, h2, h3, h4);
     }
-
-    private static Signed576 MultiplyByAxisLength(Signed576 value, Signed192 axisLengthSquared) =>
-        WideArithmetic.MultiplySigned576(value, axisLengthSquared);
 
     private static Signed320 MultiplyToSigned320(Signed320 left, Signed192 right) =>
         Signed320.NarrowValue(WideArithmetic.MultiplySigned576(Signed576.ExtendValue(left), right));

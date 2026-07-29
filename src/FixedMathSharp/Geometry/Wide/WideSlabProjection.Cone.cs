@@ -256,8 +256,8 @@ internal static partial class WideSlabProjection
         Signed576 gx = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned576(nx, q), WideArithmetic.MultiplySigned576(axial, Signed192.Raw(axis.X)));
         Signed576 gy = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned576(ny, q), WideArithmetic.MultiplySigned576(axial, Signed192.Raw(axis.Y)));
         Signed576 gz = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned576(nz, q), WideArithmetic.MultiplySigned576(axial, Signed192.Raw(axis.Z)));
-        Signed832 radialSquared = Add(
-            Add(
+        Signed832 radialSquared = WideArithmetic.AddSigned832(
+            WideArithmetic.AddSigned832(
                 WideArithmetic.MultiplySigned576ToSigned832(gx, gx),
                 WideArithmetic.MultiplySigned576ToSigned832(gy, gy)),
             WideArithmetic.MultiplySigned576ToSigned832(gz, gz));

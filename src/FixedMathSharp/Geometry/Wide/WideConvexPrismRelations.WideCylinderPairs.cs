@@ -90,7 +90,7 @@ internal static partial class WideConvexPrismRelations
             firstAxis.RotationDenominator,
             secondAxis.RotationDenominator,
             scaledCenter);
-        AddMagnitudes(
+        WideArithmetic.AddEqualMagnitudes(
             firstAxial,
             secondAxial,
             axialSum);
@@ -284,7 +284,7 @@ internal static partial class WideConvexPrismRelations
         WideCylinderPairDepth depth,
         Span<ulong> result)
     {
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             depth.Rational,
             depth.Rational,
             result);
@@ -309,7 +309,7 @@ internal static partial class WideConvexPrismRelations
                 ? depth.FirstRadius
                 : depth.SecondRadius,
             coefficient);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficient,
             coefficient,
             result);
@@ -330,7 +330,7 @@ internal static partial class WideConvexPrismRelations
         in CylinderPairDepth other,
         Span<ulong> result)
     {
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             depth.Rational,
             depth.Rational,
             result);
@@ -382,7 +382,7 @@ internal static partial class WideConvexPrismRelations
         WideArithmetic.GetMagnitude(
             depth.Rational,
             rationalWords);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             rationalWords,
             rationalWords,
             result);
@@ -417,7 +417,7 @@ internal static partial class WideConvexPrismRelations
                 ? depth.FirstRadius
                 : depth.SecondRadius,
             coefficient);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficient,
             coefficient,
             result);
@@ -493,7 +493,7 @@ internal static partial class WideConvexPrismRelations
     {
         Span<ulong> product =
             stackalloc ulong[WideCandidateWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             value,
             factor,
             product);
@@ -582,7 +582,7 @@ internal static partial class WideConvexPrismRelations
         Span<ulong> threshold = radicands.Slice(
             WideCandidateWords * 3,
             WideCandidateWords);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             coefficient,
             coefficient,
             threshold);

@@ -536,11 +536,11 @@ internal static partial class WideOrientedBox
             stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> axisTerm =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             relationMagnitude,
             axisSquaredMagnitude,
             relationTerm);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             axisMagnitude,
             dotMagnitude,
             axisTerm);
@@ -593,15 +593,15 @@ internal static partial class WideOrientedBox
             stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> firstCombined =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             relationMagnitude,
             determinant,
             relationTerm);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             firstAxisMagnitude,
             firstCore,
             firstTerm);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             secondAxisMagnitude,
             secondCore,
             secondTerm);

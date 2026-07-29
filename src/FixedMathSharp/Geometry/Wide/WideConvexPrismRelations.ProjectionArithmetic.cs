@@ -26,7 +26,7 @@ internal static partial class WideConvexPrismRelations
         Span<ulong> secondWords = stackalloc ulong[11];
         WideArithmetic.GetMagnitude(first, firstWords);
         WideArithmetic.GetMagnitude(second, secondWords);
-        MultiplyMagnitudes(firstWords, secondWords, result);
+        WideArithmetic.MultiplyMagnitudes(firstWords, secondWords, result);
     }
 
     private static void BuildProduct(
@@ -49,7 +49,7 @@ internal static partial class WideConvexPrismRelations
         Span<ulong> secondWords = stackalloc ulong[5];
         GetMagnitude(first, firstWords);
         GetMagnitude(second, secondWords);
-        MultiplyMagnitudes(firstWords, secondWords, result);
+        WideArithmetic.MultiplyMagnitudes(firstWords, secondWords, result);
         MultiplyBy(result, third);
     }
 
@@ -66,8 +66,8 @@ internal static partial class WideConvexPrismRelations
         GetMagnitude(second, secondWords);
         WideArithmetic.GetMagnitude(third, thirdWords);
         Span<ulong> intermediate = stackalloc ulong[40];
-        MultiplyMagnitudes(firstWords, secondWords, intermediate);
-        MultiplyMagnitudes(intermediate, thirdWords, result);
+        WideArithmetic.MultiplyMagnitudes(firstWords, secondWords, intermediate);
+        WideArithmetic.MultiplyMagnitudes(intermediate, thirdWords, result);
     }
 
     private static void BuildProduct(
@@ -81,7 +81,7 @@ internal static partial class WideConvexPrismRelations
         Span<ulong> secondWords = stackalloc ulong[5];
         GetMagnitude(first, firstWords);
         GetMagnitude(second, secondWords);
-        MultiplyMagnitudes(firstWords, secondWords, result);
+        WideArithmetic.MultiplyMagnitudes(firstWords, secondWords, result);
         MultiplyBy(result, third);
         MultiplyBy(result, fourth);
     }
@@ -109,7 +109,7 @@ internal static partial class WideConvexPrismRelations
         ReadOnlySpan<ulong> factor)
     {
         Span<ulong> product = stackalloc ulong[value.Length];
-        MultiplyMagnitudes(value, factor, product);
+        WideArithmetic.MultiplyMagnitudes(value, factor, product);
         product.CopyTo(value);
     }
 
@@ -123,55 +123,6 @@ internal static partial class WideConvexPrismRelations
             out result[2],
             out result[1],
             out result[0]);
-
-    private static void MultiplyMagnitudes(
-        ReadOnlySpan<ulong> left,
-        ReadOnlySpan<ulong> right,
-        Span<ulong> product)
-    {
-        product.Clear();
-        int leftLength = GetActiveLength(left);
-        int rightLength = GetActiveLength(right);
-        for (int leftIndex = 0; leftIndex < leftLength; leftIndex++)
-        {
-            ulong leftWord = left[leftIndex];
-            if (leftWord == 0UL)
-                continue;
-            for (int rightIndex = 0;
-                rightIndex < rightLength;
-                rightIndex++)
-            {
-                ulong rightWord = right[rightIndex];
-                if (rightWord == 0UL)
-                    continue;
-                Fixed64.Multiply64To128(
-                    leftWord,
-                    rightWord,
-                    out ulong high,
-                    out ulong low);
-                int productIndex = leftIndex + rightIndex;
-                WideArithmetic.AddWord(product, productIndex, low);
-                WideArithmetic.AddWord(product, productIndex + 1, high);
-            }
-        }
-    }
-
-    private static void AddMagnitudes(
-        ReadOnlySpan<ulong> left,
-        ReadOnlySpan<ulong> right,
-        Span<ulong> result)
-    {
-        left.CopyTo(result);
-        WideArithmetic.AddMagnitudeInto(right, result);
-    }
-
-    private static void SubtractMagnitudes(
-        ReadOnlySpan<ulong> left,
-        ReadOnlySpan<ulong> right,
-        Span<ulong> result)
-    {
-        WideArithmetic.SubtractEqualMagnitudes(left, right, result);
-    }
 
     private static void ShiftLeft(Span<ulong> value, int bits)
     {
@@ -187,29 +138,6 @@ internal static partial class WideConvexPrismRelations
         }
     }
 
-    private static int CompareMagnitude(
-        ReadOnlySpan<ulong> left,
-        ReadOnlySpan<ulong> right)
-    {
-        for (int index = left.Length - 1; index >= 0; index--)
-        {
-            ulong leftWord = left[index];
-            ulong rightWord = right[index];
-            if (leftWord == rightWord)
-                continue;
-            return leftWord < rightWord ? -1 : 1;
-        }
-        return 0;
-    }
-
-    private static int GetActiveLength(ReadOnlySpan<ulong> value)
-    {
-        int length = value.Length;
-        while (length > 0 && value[length - 1] == 0UL)
-            length--;
-        return length;
-    }
-
     private static bool IsZero(ReadOnlySpan<ulong> value) =>
-        GetActiveLength(value) == 0;
+        WideArithmetic.GetActiveMagnitudeLength(value) == 0;
 }

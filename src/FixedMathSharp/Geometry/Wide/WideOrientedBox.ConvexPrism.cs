@@ -97,25 +97,6 @@ internal static partial class WideOrientedBox
         Fixed64 prismRotation,
         ReadOnlySpan<Vector2d> prismLocalOffsets,
         Fixed64 prismHalfThickness,
-        out FixedContactAnchors contact) =>
-        TryGetConvexPrismContactCore(
-            center,
-            orientation,
-            halfExtents,
-            prismOrigin,
-            prismRotation,
-            prismLocalOffsets,
-            prismHalfThickness,
-            out contact);
-
-    private static bool TryGetConvexPrismContactCore(
-        Vector3d center,
-        FixedQuaternion orientation,
-        Vector3d halfExtents,
-        Vector3d prismOrigin,
-        Fixed64 prismRotation,
-        ReadOnlySpan<Vector2d> prismLocalOffsets,
-        Fixed64 prismHalfThickness,
         out FixedContactAnchors contact)
     {
         RationalBasis basis = new(orientation);

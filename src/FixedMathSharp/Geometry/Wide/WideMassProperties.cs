@@ -16,7 +16,7 @@ internal static class WideMassProperties
 {
     private static readonly Signed192 One = Signed192.One;
     private static readonly Signed320 Point3dDenominator =
-        Product(One, One);
+        WideArithmetic.MultiplySigned192(One, One);
     private static readonly Signed576 WeightMeasureDenominator =
         PowerOfOne(3);
     private static readonly Signed576 ParallelAxis2dDenominator =
@@ -83,7 +83,7 @@ internal static class WideMassProperties
                 default,
                 signedDoubleArea)
             : signedDoubleArea;
-        Signed320 halfScale = Product(
+        Signed320 halfScale = WideArithmetic.MultiplySigned192(
             Signed192.Raw(Fixed64.Half),
             One);
         return new FixedMassWeight(
@@ -182,8 +182,8 @@ internal static class WideMassProperties
 
     internal static FixedMassPoint2d CreatePoint(Vector2d point) =>
         new(
-            Product(Signed192.Raw(point.X), One),
-            Product(Signed192.Raw(point.Y), One));
+            WideArithmetic.MultiplySigned192(Signed192.Raw(point.X), One),
+            WideArithmetic.MultiplySigned192(Signed192.Raw(point.Y), One));
 
     internal static FixedMassPoint2d CreatePoint(
         Vector2d outerPoint,
@@ -196,35 +196,35 @@ internal static class WideMassProperties
         Fixed64 cosine = FixedMath.Cos(innerRotation);
         Fixed64 sine = FixedMath.Sin(innerRotation);
         Signed320 rotatedX = WideArithmetic.SubtractSigned320(
-            Product(
+            WideArithmetic.MultiplySigned192(
                 Signed192.Raw(innerDisplacement.X),
                 Signed192.Raw(cosine)),
-            Product(
+            WideArithmetic.MultiplySigned192(
                 Signed192.Raw(innerDisplacement.Y),
                 Signed192.Raw(sine)));
         Signed320 rotatedY = WideArithmetic.AddSigned320(
-            Product(
+            WideArithmetic.MultiplySigned192(
                 Signed192.Raw(innerDisplacement.X),
                 Signed192.Raw(sine)),
-            Product(
+            WideArithmetic.MultiplySigned192(
                 Signed192.Raw(innerDisplacement.Y),
                 Signed192.Raw(cosine)));
         return new FixedMassPoint2d(
             WideArithmetic.AddSigned320(
                 WideArithmetic.AddSigned320(
-                    Product(
+                    WideArithmetic.MultiplySigned192(
                         Signed192.Raw(outerPoint.X),
                         Signed192.Raw(outerScale.X)),
-                    Product(
+                    WideArithmetic.MultiplySigned192(
                         Signed192.Raw(innerOffset.X),
                         Signed192.Raw(innerScale.X))),
                 rotatedX),
             WideArithmetic.AddSigned320(
                 WideArithmetic.AddSigned320(
-                    Product(
+                    WideArithmetic.MultiplySigned192(
                         Signed192.Raw(outerPoint.Y),
                         Signed192.Raw(outerScale.Y)),
-                    Product(
+                    WideArithmetic.MultiplySigned192(
                         Signed192.Raw(innerOffset.Y),
                         Signed192.Raw(innerScale.Y))),
                 rotatedY));
@@ -523,10 +523,14 @@ internal static class WideMassProperties
 
         Signed320 dx = WideArithmetic.SubtractSigned320(
             point.XNumerator,
-            Product(Signed192.Raw(referencePoint.X), One));
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(referencePoint.X),
+                One));
         Signed320 dy = WideArithmetic.SubtractSigned320(
             point.YNumerator,
-            Product(Signed192.Raw(referencePoint.Y), One));
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(referencePoint.Y),
+                One));
         Signed576 squaredDistance = WideArithmetic.AddSigned576(
             WideArithmetic.MultiplySigned320(dx, dx),
             WideArithmetic.MultiplySigned320(dy, dy));
@@ -569,11 +573,6 @@ internal static class WideMassProperties
                 Signed192.Raw(mass)),
             denominator,
             out value);
-
-    private static Signed320 Product(
-        Signed192 first,
-        Signed192 second) =>
-        WideArithmetic.MultiplySigned192(first, second);
 
     private static Signed320 Product(
         Signed192 first,

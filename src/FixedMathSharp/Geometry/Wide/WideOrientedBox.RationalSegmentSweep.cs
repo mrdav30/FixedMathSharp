@@ -89,7 +89,7 @@ internal static partial class WideOrientedBox
             denominatorMagnitude);
         Span<ulong> velocity =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             velocityCore,
             denominatorMagnitude,
             velocity);
@@ -144,10 +144,10 @@ internal static partial class WideOrientedBox
             out maximumMagnitude[2],
             out maximumMagnitude[1],
             out maximumMagnitude[0]);
-        MultiplyMagnitudes(startCross, oneMagnitude, startAtUnit);
-        MultiplyMagnitudes(velocity, maximumMagnitude, velocityAtMaximum);
+        WideArithmetic.MultiplyMagnitudes(startCross, oneMagnitude, startAtUnit);
+        WideArithmetic.MultiplyMagnitudes(velocity, maximumMagnitude, velocityAtMaximum);
         bool closestBeyondMaximum =
-            CompareMagnitudes(startAtUnit, velocityAtMaximum) > 0;
+            WideArithmetic.CompareMagnitudeEqualLength(startAtUnit, velocityAtMaximum) > 0;
         if (closestBeyondMaximum
             && CompareRationalSegmentLineAt(
                 startCross,
@@ -278,12 +278,12 @@ internal static partial class WideOrientedBox
             stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> velocityTerm =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(startCross, oneMagnitude, startTerm);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(startCross, oneMagnitude, startTerm);
+        WideArithmetic.MultiplyMagnitudes(
             velocity,
             distanceMagnitude,
             velocityTerm);
-        return CompareMagnitudes(startTerm, velocityTerm);
+        return WideArithmetic.CompareMagnitudeEqualLength(startTerm, velocityTerm);
     }
 
     private static int CompareRationalSegmentLineAtHalf(
@@ -341,11 +341,11 @@ internal static partial class WideOrientedBox
             stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> line =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             startCross,
             timeDenominatorMagnitude,
             firstTerm);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             velocity,
             timeNumeratorMagnitude,
             secondTerm);
@@ -358,7 +358,7 @@ internal static partial class WideOrientedBox
             out _);
         Span<ulong> leftSquared =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(line, line, leftSquared);
+        WideArithmetic.MultiplyMagnitudes(line, line, leftSquared);
 
         Span<ulong> radiusMagnitude = stackalloc ulong[1]
         {
@@ -368,19 +368,19 @@ internal static partial class WideOrientedBox
             stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> scratch =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(edgeSquared, denominator, right);
-        MultiplyMagnitudes(right, denominator, scratch);
-        MultiplyMagnitudes(scratch, radiusMagnitude, right);
-        MultiplyMagnitudes(right, radiusMagnitude, scratch);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(edgeSquared, denominator, right);
+        WideArithmetic.MultiplyMagnitudes(right, denominator, scratch);
+        WideArithmetic.MultiplyMagnitudes(scratch, radiusMagnitude, right);
+        WideArithmetic.MultiplyMagnitudes(right, radiusMagnitude, scratch);
+        WideArithmetic.MultiplyMagnitudes(
             scratch,
             timeDenominatorMagnitude,
             right);
-        MultiplyMagnitudes(
+        WideArithmetic.MultiplyMagnitudes(
             right,
             timeDenominatorMagnitude,
             scratch);
-        return CompareMagnitudes(leftSquared, scratch);
+        return WideArithmetic.CompareMagnitudeEqualLength(leftSquared, scratch);
     }
 
     private static bool TryGetRationalSegmentParameter(
@@ -441,7 +441,7 @@ internal static partial class WideOrientedBox
             secondDenominator);
         Span<ulong> numerator =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(dot, secondDenominator, numerator);
+        WideArithmetic.MultiplyMagnitudes(dot, secondDenominator, numerator);
         Span<ulong> oneMagnitude = stackalloc ulong[3];
         WideArithmetic.GetMagnitude(
             SweepRawScale,
@@ -450,8 +450,8 @@ internal static partial class WideOrientedBox
             out oneMagnitude[0]);
         Span<ulong> denominator =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(edgeSquared, oneMagnitude, denominator);
-        if (CompareMagnitudes(numerator, denominator) > 0)
+        WideArithmetic.MultiplyMagnitudes(edgeSquared, oneMagnitude, denominator);
+        if (WideArithmetic.CompareMagnitudeEqualLength(numerator, denominator) > 0)
         {
             parameter = default;
             return false;
@@ -476,9 +476,9 @@ internal static partial class WideOrientedBox
             stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> zSquared =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(x, x, xSquared);
-        MultiplyMagnitudes(z, z, zSquared);
-        AddMagnitudes(xSquared, zSquared, result);
+        WideArithmetic.MultiplyMagnitudes(x, x, xSquared);
+        WideArithmetic.MultiplyMagnitudes(z, z, zSquared);
+        WideArithmetic.AddEqualMagnitudes(xSquared, zSquared, result);
     }
 
     private static void GetCrossMagnitude(
@@ -563,8 +563,8 @@ internal static partial class WideOrientedBox
             stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> secondTerm =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(firstX, secondZ, firstTerm);
-        MultiplyMagnitudes(firstZ, secondX, secondTerm);
+        WideArithmetic.MultiplyMagnitudes(firstX, secondZ, firstTerm);
+        WideArithmetic.MultiplyMagnitudes(firstZ, secondX, secondTerm);
         CombineSignedMagnitudes(
             firstTerm,
             firstXSign * secondZSign,
@@ -594,8 +594,8 @@ internal static partial class WideOrientedBox
             stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> secondTerm =
             stackalloc ulong[TriangleSweepMagnitudeWords];
-        MultiplyMagnitudes(firstXMag, secondXMag, firstTerm);
-        MultiplyMagnitudes(firstZMag, secondZMag, secondTerm);
+        WideArithmetic.MultiplyMagnitudes(firstXMag, secondXMag, firstTerm);
+        WideArithmetic.MultiplyMagnitudes(firstZMag, secondZMag, secondTerm);
         CombineSignedMagnitudes(
             firstTerm,
             firstX.Sign * secondX.Sign,
@@ -627,12 +627,12 @@ internal static partial class WideOrientedBox
         }
         if (firstSign == secondSign)
         {
-            AddMagnitudes(first, second, result);
+            WideArithmetic.AddEqualMagnitudes(first, second, result);
             sign = firstSign;
             return;
         }
 
-        int comparison = CompareMagnitudes(first, second);
+        int comparison = WideArithmetic.CompareMagnitudeEqualLength(first, second);
         if (comparison == 0)
         {
             result.Clear();
@@ -641,99 +641,13 @@ internal static partial class WideOrientedBox
         }
         if (comparison > 0)
         {
-            SubtractMagnitudes(first, second, result);
+            WideArithmetic.SubtractEqualMagnitudes(first, second, result);
             sign = firstSign;
             return;
         }
 
-        SubtractMagnitudes(second, first, result);
+        WideArithmetic.SubtractEqualMagnitudes(second, first, result);
         sign = secondSign;
-    }
-
-    private static void MultiplyMagnitudes(
-        ReadOnlySpan<ulong> first,
-        ReadOnlySpan<ulong> second,
-        Span<ulong> result)
-    {
-        result.Clear();
-        int firstLength = GetActiveMagnitudeLength(first);
-        int secondLength = GetActiveMagnitudeLength(second);
-        for (int firstIndex = 0; firstIndex < firstLength; firstIndex++)
-        {
-            for (int secondIndex = 0;
-                 secondIndex < secondLength;
-                 secondIndex++)
-            {
-                int resultIndex = firstIndex + secondIndex;
-                Fixed64.Multiply64To128(
-                    first[firstIndex],
-                    second[secondIndex],
-                    out ulong high,
-                    out ulong low);
-                AddMagnitudeWord(result, resultIndex, low);
-                AddMagnitudeWord(result, resultIndex + 1, high);
-            }
-        }
-    }
-
-    private static void AddMagnitudeWord(
-        Span<ulong> magnitude,
-        int index,
-        ulong value)
-    {
-        while (value != 0UL)
-        {
-            ulong previous = magnitude[index];
-            magnitude[index] = unchecked(previous + value);
-            value = magnitude[index] < previous ? 1UL : 0UL;
-            index++;
-        }
-    }
-
-    private static void AddMagnitudes(
-        ReadOnlySpan<ulong> first,
-        ReadOnlySpan<ulong> second,
-        Span<ulong> result)
-    {
-        first.CopyTo(result);
-        WideArithmetic.AddMagnitudeInto(second, result);
-    }
-
-    private static void SubtractMagnitudes(
-        ReadOnlySpan<ulong> minuend,
-        ReadOnlySpan<ulong> subtrahend,
-        Span<ulong> result)
-    {
-        WideArithmetic.SubtractEqualMagnitudes(
-            minuend,
-            subtrahend,
-            result);
-    }
-
-    private static int CompareMagnitudes(
-        ReadOnlySpan<ulong> first,
-        ReadOnlySpan<ulong> second)
-    {
-        for (int index = TriangleSweepMagnitudeWords - 1;
-            index >= 0;
-            index--)
-        {
-            ulong firstWord = first[index];
-            ulong secondWord = second[index];
-            if (firstWord != secondWord)
-                return firstWord < secondWord ? -1 : 1;
-        }
-
-        return 0;
-    }
-
-    private static int GetActiveMagnitudeLength(
-        ReadOnlySpan<ulong> value)
-    {
-        int length = value.Length;
-        while (length > 0 && value[length - 1] == 0UL)
-            length--;
-        return length;
     }
 
     private static void CopyMagnitude(

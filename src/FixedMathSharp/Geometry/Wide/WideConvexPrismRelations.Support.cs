@@ -404,7 +404,7 @@ internal static partial class WideConvexPrismRelations
             int sign,
             out Signed320 result)
         {
-            int length = GetActiveLength(magnitude);
+            int length = WideArithmetic.GetActiveMagnitudeLength(magnitude);
             if (length > 5
                 || (length == 5
                     && (magnitude[4] & (1UL << 63)) != 0UL))
