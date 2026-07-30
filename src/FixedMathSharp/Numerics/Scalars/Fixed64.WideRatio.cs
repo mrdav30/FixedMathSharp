@@ -992,9 +992,14 @@ public partial struct Fixed64
             ShiftLeftMagnitude(activeDenominator, quotientBit, shiftedDenominator);
             for (int bit = quotientBit; bit >= 0; bit--)
             {
-                if (CompareMagnitude(activeRemainder, shiftedDenominator) >= 0)
+                if (WideArithmetic.CompareMagnitudeEqualLength(
+                        activeRemainder,
+                        shiftedDenominator) >= 0)
                 {
-                    SubtractMagnitude(activeRemainder, shiftedDenominator);
+                    WideArithmetic.SubtractEqualMagnitudes(
+                        activeRemainder,
+                        shiftedDenominator,
+                        activeRemainder);
                     quotient |= 1UL << bit;
                 }
 
@@ -1010,10 +1015,11 @@ public partial struct Fixed64
             Span<ulong> denominatorMinusRemainder =
                 denominatorMinusRemainderStorage[..activeLength];
             activeDenominator.CopyTo(denominatorMinusRemainder);
-            SubtractMagnitude(
+            WideArithmetic.SubtractEqualMagnitudes(
                 denominatorMinusRemainder,
-                activeRemainder);
-            midpointComparison = CompareMagnitude(
+                activeRemainder,
+                denominatorMinusRemainder);
+            midpointComparison = WideArithmetic.CompareMagnitudeEqualLength(
                 activeRemainder,
                 denominatorMinusRemainder);
         }
@@ -1064,31 +1070,6 @@ public partial struct Fixed64
         while (length > 1 && value[length - 1] == 0UL)
             length--;
         return length;
-    }
-
-    private static int CompareMagnitude(ReadOnlySpan<ulong> left, ReadOnlySpan<ulong> right)
-    {
-        for (int index = left.Length - 1; index >= 0; index--)
-        {
-            if (left[index] != right[index])
-                return left[index] < right[index] ? -1 : 1;
-        }
-
-        return 0;
-    }
-
-    private static void SubtractMagnitude(Span<ulong> value, ReadOnlySpan<ulong> subtract)
-    {
-        ulong borrow = 0UL;
-        for (int index = 0; index < value.Length; index++)
-        {
-            ulong subtrahend = unchecked(subtract[index] + borrow);
-            ulong nextBorrow = subtrahend < subtract[index] || value[index] < subtrahend
-                ? 1UL
-                : 0UL;
-            value[index] = unchecked(value[index] - subtrahend);
-            borrow = nextBorrow;
-        }
     }
 
     private static void ShiftLeftMagnitude(

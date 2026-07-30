@@ -364,7 +364,7 @@ internal static partial class WideFiniteAxisIntersection
         MultiplyRoundedCylinderWide(difference, difference, differenceSquared);
         MultiplyRoundedCylinderWide(entryTerm, exitTerm, termProduct);
         MultiplyRoundedCylinderWideByWord(termProduct, 4UL, right);
-        return CompareRoundedCylinderWide(differenceSquared, right) <= 0;
+        return WideArithmetic.CompareMagnitudeEqualLength(differenceSquared, right) <= 0;
     }
 
     private static void GetRoundedCylinderRadicalSquare(

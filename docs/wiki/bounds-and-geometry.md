@@ -3,7 +3,7 @@
 FixedMathSharp geometry is dimension-explicit. The core package owns reusable
 fixed-point shape math only; physics concepts such as colliders, materials,
 shape casts, contact manifolds, body state, and broad-phase layers belong in
-higher-level.
+higher-level simulation packages.
 
 All bounds and geometry primitives on this page live in
 `FixedMathSharp.Geometry`.
@@ -175,6 +175,13 @@ contract stops at point materialization, relative offsets, frame
 re-expression, exact comparison, and supported projections. Domain-specific
 lever, mass-property, and response policy belongs in the consuming simulation
 library rather than FixedMathSharp's public geometry API.
+
+FixedMathSharp's internal fixed-width arithmetic exists to implement these
+reusable exact contracts without exposing raw wide representations. Gravitas is
+the sole intentional non-test friend of the runtime assembly: it composes those
+mechanics behind its own internal rigid-body response and mass-property types.
+That friendship is a coordinated package boundary, not a public extension
+mechanism for other libraries or host adapters.
 
 Full-domain contact relations return `FixedContactAnchors`. Multi-contact
 relations return one primary anchor pair plus compact `FixedContactLocalPoints`

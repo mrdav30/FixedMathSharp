@@ -8,7 +8,7 @@
 namespace FixedMathSharp.Geometry;
 
 /// <summary>
-/// Describes one 3D contact constraint using points retained in their rigid
+/// Describes one 3D contact relation using points retained in their rigid
 /// local frames.
 /// </summary>
 public readonly struct FixedContactAnchors

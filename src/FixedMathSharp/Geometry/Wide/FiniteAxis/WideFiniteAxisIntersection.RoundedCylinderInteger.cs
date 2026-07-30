@@ -76,14 +76,7 @@ internal static partial class WideFiniteAxisIntersection
             return;
         }
 
-        ulong carry = 0UL;
-        for (int index = 0; index < destination.Length; index++)
-        {
-            ulong sum = unchecked(left[index] + right[index]);
-            ulong result = unchecked(sum + carry);
-            carry = sum < left[index] || result < sum ? 1UL : 0UL;
-            destination[index] = result;
-        }
+        WideArithmetic.AddEqualMagnitudes(left, right, destination);
         destinationSign = leftSign;
     }
 
@@ -114,7 +107,7 @@ internal static partial class WideFiniteAxisIntersection
             return;
         }
 
-        int comparison = CompareRoundedCylinderWide(left, right);
+        int comparison = WideArithmetic.CompareMagnitudeEqualLength(left, right);
         if (comparison == 0)
         {
             destination.Clear();
@@ -124,17 +117,7 @@ internal static partial class WideFiniteAxisIntersection
 
         ReadOnlySpan<ulong> larger = comparison > 0 ? left : right;
         ReadOnlySpan<ulong> smaller = comparison > 0 ? right : left;
-        ulong borrow = 0UL;
-        for (int index = 0; index < destination.Length; index++)
-        {
-            ulong difference = unchecked(larger[index] - smaller[index]);
-            ulong result = unchecked(difference - borrow);
-            borrow = larger[index] < smaller[index]
-                || (borrow != 0UL && difference == 0UL)
-                ? 1UL
-                : 0UL;
-            destination[index] = result;
-        }
+        WideArithmetic.SubtractEqualMagnitudes(larger, smaller, destination);
         destinationSign = comparison > 0 ? leftSign : (sbyte)-leftSign;
     }
 
@@ -191,18 +174,6 @@ internal static partial class WideFiniteAxisIntersection
 
     private static sbyte MultiplyRoundedCylinderSigns(sbyte left, sbyte right) =>
         left == 0 || right == 0 ? (sbyte)0 : (sbyte)(left * right);
-
-    private static int CompareRoundedCylinderWide(
-        ReadOnlySpan<ulong> left,
-        ReadOnlySpan<ulong> right)
-    {
-        for (int index = left.Length - 1; index >= 0; index--)
-        {
-            if (left[index] != right[index])
-                return left[index] < right[index] ? -1 : 1;
-        }
-        return 0;
-    }
 
     private static int GetRoundedCylinderWideLength(ReadOnlySpan<ulong> value)
     {

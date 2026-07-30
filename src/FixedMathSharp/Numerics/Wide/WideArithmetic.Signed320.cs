@@ -300,13 +300,7 @@ internal static partial class WideArithmetic
                 AddWord(right, index + 2, high);
         }
 
-        for (int index = left.Length - 1; index >= 0; index--)
-        {
-            if (left[index] != right[index])
-                return left[index] < right[index] ? -1 : 1;
-        }
-
-        return 0;
+        return CompareMagnitudeEqualLength(left, right);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

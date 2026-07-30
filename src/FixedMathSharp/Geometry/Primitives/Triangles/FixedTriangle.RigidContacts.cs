@@ -102,7 +102,7 @@ public partial struct FixedTriangle
     /// <remarks>
     /// The returned triangle witness remains in the supplied triangle frame.
     /// The capsule witness remains in the supplied capsule frame so callers can
-    /// retain stable rigid-body identity independently of world pose.
+    /// retain stable rigid-frame feature identity independently of world pose.
     /// </remarks>
     public readonly bool TryGetCenteredCapsuleContact(
         Vector3d triangleOrigin,

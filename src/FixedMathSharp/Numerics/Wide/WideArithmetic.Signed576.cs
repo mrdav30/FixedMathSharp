@@ -260,10 +260,10 @@ internal static partial class WideArithmetic
             root.CopyTo(candidate);
             ShiftLeft(candidate, 1);
             candidate[0] |= 1UL;
-            if (CompareUnsigned(remainder, candidate) < 0)
+            if (CompareMagnitudeEqualLength(remainder, candidate) < 0)
                 continue;
 
-            SubtractUnsigned(remainder, candidate);
+            SubtractEqualMagnitudes(remainder, candidate, remainder);
             root[0]++;
         }
 
@@ -350,24 +350,6 @@ internal static partial class WideArithmetic
             value[index] = (value[index] << bits) | carry;
             carry = nextCarry;
         }
-    }
-
-    private static int CompareUnsigned(ReadOnlySpan<ulong> left, ReadOnlySpan<ulong> right)
-    {
-        for (int index = left.Length - 1; index >= 0; index--)
-        {
-            if (left[index] != right[index])
-                return left[index] < right[index] ? -1 : 1;
-        }
-
-        return 0;
-    }
-
-    private static void SubtractUnsigned(Span<ulong> value, ReadOnlySpan<ulong> subtract)
-    {
-        ulong borrow = 0UL;
-        for (int index = 0; index < value.Length; index++)
-            value[index] = SubtractWord(value[index], subtract[index], ref borrow);
     }
 
     private static Signed576 MultiplyNonNegativeToSigned576(

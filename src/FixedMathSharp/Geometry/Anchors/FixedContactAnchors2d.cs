@@ -8,7 +8,7 @@
 namespace FixedMathSharp.Geometry;
 
 /// <summary>
-/// Describes one planar contact constraint using points retained in their
+/// Describes one planar contact relation using points retained in their
 /// rigid local frames.
 /// </summary>
 public readonly struct FixedContactAnchors2d

@@ -443,7 +443,7 @@ public readonly struct FixedOrientedBox : IEquatable<FixedOrientedBox>
     /// <param name="triangleRotation">The triangle's local-to-world rotation.</param>
     /// <param name="triangle">The triangle in its rigid-frame coordinates.</param>
     /// <param name="contact">
-    /// The box-center-relative and triangle-origin-relative constraint.
+    /// The box-center-relative and triangle-origin-relative contact relation.
     /// </param>
     /// <returns>
     /// <see langword="true"/> when the shapes overlap and both relative
@@ -480,7 +480,7 @@ public readonly struct FixedOrientedBox : IEquatable<FixedOrientedBox>
     /// <remarks>
     /// <paramref name="faceContacts"/> must provide capacity for four
     /// contacts. <paramref name="contact"/> always contains the primary exact
-    /// constraint when the shapes overlap. <paramref name="faceContactCount"/>
+    /// contact relation when the shapes overlap. <paramref name="faceContactCount"/>
     /// is zero for non-face features.
     /// </remarks>
     public bool TryGetTriangleContact(
@@ -682,12 +682,12 @@ public readonly struct FixedOrientedBox : IEquatable<FixedOrientedBox>
     /// <summary>
     /// Attempts to construct an exact contact against a centered finite
     /// cylinder and, for a parallel cap-to-face feature, clips a stable
-    /// allocation-free manifold from the disk/rectangle intersection.
+    /// allocation-free contact set from the disk/rectangle intersection.
     /// </summary>
     /// <remarks>
     /// <paramref name="capFaceContacts"/> must provide capacity for four
     /// contacts. <paramref name="contact"/> always contains the primary exact
-    /// constraint when the shapes overlap. <paramref name="capFaceContactCount"/>
+    /// contact relation when the shapes overlap. <paramref name="capFaceContactCount"/>
     /// is zero for non-cap-face features, so callers should use the primary
     /// contact in that case.
     /// </remarks>
@@ -772,7 +772,7 @@ public readonly struct FixedOrientedBox : IEquatable<FixedOrientedBox>
 
     /// <summary>
     /// Attempts to construct an exact box-to-sphere contact using only
-    /// center-relative constraint offsets.
+    /// center-relative contact offsets.
     /// </summary>
     /// <param name="sphereCenter">The sphere center.</param>
     /// <param name="sphereRotation">
@@ -780,7 +780,7 @@ public readonly struct FixedOrientedBox : IEquatable<FixedOrientedBox>
     /// feature identity.
     /// </param>
     /// <param name="sphereRadius">The nonnegative sphere radius.</param>
-    /// <param name="contact">The relative contact constraint when overlapping.</param>
+    /// <param name="contact">The relative contact relation when overlapping.</param>
     /// <returns>
     /// <see langword="true"/> when the conceptual shapes overlap and both
     /// required relative offsets are representable.

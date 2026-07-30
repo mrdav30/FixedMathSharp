@@ -92,10 +92,10 @@ internal static partial class WideArithmetic
             root.CopyTo(candidate);
             ShiftLeftMagnitude(candidate, 1);
             candidate[0] |= 1UL;
-            if (CompareMagnitude(remainder, candidate) < 0)
+            if (CompareMagnitudeEqualLength(remainder, candidate) < 0)
                 continue;
 
-            SubtractMagnitude(remainder, candidate);
+            SubtractEqualMagnitudes(remainder, candidate, remainder);
             root[0]++;
         }
 
@@ -293,20 +293,4 @@ internal static partial class WideArithmetic
         }
     }
 
-    private static int CompareMagnitude(ReadOnlySpan<ulong> left, ReadOnlySpan<ulong> right)
-    {
-        for (int index = left.Length - 1; index >= 0; index--)
-        {
-            if (left[index] != right[index])
-                return left[index] < right[index] ? -1 : 1;
-        }
-        return 0;
-    }
-
-    private static void SubtractMagnitude(Span<ulong> value, ReadOnlySpan<ulong> subtract)
-    {
-        ulong borrow = 0UL;
-        for (int index = 0; index < value.Length; index++)
-            value[index] = SubtractWord(value[index], subtract[index], ref borrow);
-    }
 }

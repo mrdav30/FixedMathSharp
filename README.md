@@ -259,6 +259,14 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - 3D bounds use `FixedBoundBox`; 2D plane bounds use `FixedBoundArea`. Flat
   world footprints should pair `FixedBoundArea` with explicit layer or elevation
   state in higher-level packages.
+- FixedMathSharp owns reusable exact arithmetic and geometry. Raw fixed-width
+  wide representations remain internal implementation mechanics; rigid-body
+  lever, mass-property, impulse, and friction policy belongs in physics
+  packages.
+- Gravitas is the runtime assembly's sole intentional non-test friend so it can
+  compose those internals without exposing them. This is a one-way,
+  release-coupled boundary, not a public extension mechanism or a precedent for
+  other LSF libraries and host adapters.
 - Use named bound factories such as `FromMinMax`, `FromCenterAndSize`, and
   `FromCenterAndScope` so min/max, total size, and half-extent semantics stay
   visible at call sites.

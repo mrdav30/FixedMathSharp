@@ -215,6 +215,31 @@ deterministic.
   until an approved plan changes it. Engine-specific forward/back naming belongs
   at adapter boundaries.
 
+### Gravitas Internal Friendship Boundary
+
+FixedMathSharp intentionally grants `InternalsVisibleTo("Gravitas")`. This is a
+one-way, release-coupled internal ABI, not a public extension mechanism or a
+precedent for SwiftCollections, GridForge, Trailblazer, tests outside this
+repository, or host adapters.
+
+- FixedMathSharp owns reusable deterministic arithmetic, fixed-width wide
+  mechanics, rounding, vectors, matrices, quaternions, and computational
+  geometry whose contracts are meaningful without a physics engine.
+- Gravitas owns rigid-body semantics and policy: contacts, mass and inertia
+  interpretation, mobility, impulses, restitution, friction, solver
+  accumulation, warm starts, and CCD response.
+- Promote a private FixedMathSharp member to internal only for a current
+  Gravitas production use when the operation remains policy-neutral and its
+  width, sign, rounding, overflow, and failure contract is tested here.
+- Keep FixedMathSharp internals out of Gravitas public/protected signatures,
+  serialization metadata, XML documentation, tests, benchmarks, and host APIs.
+
+Changes to internals consumed by Gravitas are coordinated compatibility events
+even when neither public surface changes. Validate both repositories through
+their standard and Lean configurations at 100% reachable coverage, release
+FixedMathSharp first, and then validate Gravitas against the exact released
+package before releasing Gravitas.
+
 ## Serialization And Package Variants
 
 Serialization compatibility is intentional.

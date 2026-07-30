@@ -96,7 +96,7 @@ internal static partial class WideArithmetic
         MultiplyMagnitudes(rightNumeratorWords, leftDenominatorWords, rightOnce);
         MultiplyMagnitudes(leftOnce, rightDenominatorWords, leftScaled);
         MultiplyMagnitudes(rightOnce, leftDenominatorWords, rightScaled);
-        return CompareMagnitude(leftScaled, rightScaled);
+        return CompareMagnitudeEqualLength(leftScaled, rightScaled);
     }
 
     internal static int CompareNonNegativeProducts(
@@ -117,7 +117,7 @@ internal static partial class WideArithmetic
         Span<ulong> secondProduct = stackalloc ulong[26];
         MultiplyMagnitudes(firstLeftWords, firstRightWords, firstProduct);
         MultiplyMagnitudes(secondLeftWords, secondRightWords, secondProduct);
-        return CompareMagnitude(firstProduct, secondProduct);
+        return CompareMagnitudeEqualLength(firstProduct, secondProduct);
     }
 
     /// <summary>
@@ -315,10 +315,10 @@ internal static partial class WideArithmetic
             root.CopyTo(candidate);
             ShiftLeftMagnitude(candidate, 1);
             candidate[0] |= 1UL;
-            if (CompareMagnitude(remainder, candidate) < 0)
+            if (CompareMagnitudeEqualLength(remainder, candidate) < 0)
                 continue;
 
-            SubtractMagnitude(remainder, candidate);
+            SubtractEqualMagnitudes(remainder, candidate, remainder);
             root[0]++;
         }
 

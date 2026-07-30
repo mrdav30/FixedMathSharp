@@ -167,7 +167,7 @@ internal static partial class WideArithmetic
             rightScaledOnce,
             leftAxisWords,
             rightScaled);
-        return CompareMagnitude(leftScaled, rightScaled);
+        return CompareMagnitudeEqualLength(leftScaled, rightScaled);
     }
 
     private static int CompareNormalizedDepthToTwiceRaw(
