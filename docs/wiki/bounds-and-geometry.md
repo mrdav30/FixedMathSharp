@@ -437,12 +437,16 @@ segment physical-distance interval APIs. They retain the exact original chord
 components and map parameter `[0, 1]` to caller-supplied `[0, totalDistance]`
 only at the final half-to-even conversion. This avoids the information loss of
 normalizing a long chord whose small transverse component is still physically
-meaningful. `GetPointAtDistance(distance, totalDistance)` reconstructs a
-returned hit with the same exact chord contract, rejects values outside that
-closed range, and returns exact authored endpoints at zero and the total
-distance. A zero total distance is valid only when both authored endpoints are
-equal; this lets overlap workers classify and reconstruct a point query without
-a separate downstream branch.
+meaningful. `FixedSegment2d.TryGetCircleIntersectionDistanceInterval` and
+`FixedSegment.TryGetSphereIntersectionDistanceInterval` provide this contract
+directly for radial bounds; expanded overloads keep the bound radius and
+nonnegative expansion separate and report inclusive start containment plus
+strict end containment. `GetPointAtDistance(distance, totalDistance)`
+reconstructs a returned hit with the same exact chord contract, rejects values
+outside that closed range, and returns exact authored endpoints at zero and the
+total distance. A zero total distance is valid only when both authored
+endpoints are equal; this lets overlap workers classify and reconstruct a point
+query without a separate downstream branch.
 
 For centers near the scalar-domain boundary, prefer the centered capsule and
 cylinder overloads. Their axis direction must already be normalized, and their

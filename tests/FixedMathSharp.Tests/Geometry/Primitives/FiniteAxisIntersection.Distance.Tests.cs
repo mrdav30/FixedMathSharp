@@ -8,7 +8,7 @@ namespace FixedMathSharp.Tests.Bounds;
 public sealed partial class FiniteAxisIntersectionTests
 {
     [Fact]
-    public void CapsuleDistanceIntervals_PreserveOneRawPhysicalOrderingOnLongSegments()
+    public void RadialDistanceIntervals_PreserveOneRawPhysicalOrderingOnLongSegments()
     {
         var query2d = new FixedSegment2d(
             Vector2d.Zero,
@@ -25,19 +25,13 @@ public sealed partial class FiniteAxisIntersectionTests
             var center3d = new Vector3d(centerX, Fixed64.Zero, Fixed64.Zero);
             Fixed64 expectedEntry = (Fixed64)100 + Fixed64.FromRaw(centerOffsetRaw);
 
-            Assert.True(query2d.TryGetCapsuleIntersectionDistanceInterval(
-                center2d,
-                Vector2d.Forward,
-                Fixed64.Zero,
-                Fixed64.One,
+            Assert.True(query2d.TryGetCircleIntersectionDistanceInterval(
+                new FixedBoundCircle(center2d, Fixed64.One),
                 length,
                 out Fixed64 entry2d,
                 out _));
-            Assert.True(query3d.TryGetCapsuleIntersectionDistanceInterval(
-                center3d,
-                Vector3d.Up,
-                Fixed64.Zero,
-                Fixed64.One,
+            Assert.True(query3d.TryGetSphereIntersectionDistanceInterval(
+                new FixedBoundSphere(center3d, Fixed64.One),
                 length,
                 out Fixed64 entry3d,
                 out _));
@@ -48,7 +42,7 @@ public sealed partial class FiniteAxisIntersectionTests
     }
 
     [Fact]
-    public void CapsuleDistanceInterval_RetainsTwoRawTransverseChordAtHalfway()
+    public void RadialDistanceIntervals_RetainTwoRawTransverseChordAtHalfway()
     {
         var query2d = new FixedSegment2d(
             new Vector2d((Fixed64)(-100_000), Fixed64.Zero),
@@ -60,19 +54,13 @@ public sealed partial class FiniteAxisIntersectionTests
         var center3d = new Vector3d(center2d.X, center2d.Y, Fixed64.Zero);
         Fixed64 length = (Fixed64)200_000;
 
-        Assert.True(query2d.TryGetCapsuleIntersectionDistanceInterval(
-            center2d,
-            Vector2d.Forward,
-            Fixed64.Zero,
-            Fixed64.Zero,
+        Assert.True(query2d.TryGetCircleIntersectionDistanceInterval(
+            new FixedBoundCircle(center2d, Fixed64.Zero),
             length,
             out Fixed64 entry2d,
             out Fixed64 exit2d));
-        Assert.True(query3d.TryGetCapsuleIntersectionDistanceInterval(
-            center3d,
-            Vector3d.Up,
-            Fixed64.Zero,
-            Fixed64.Zero,
+        Assert.True(query3d.TryGetSphereIntersectionDistanceInterval(
+            new FixedBoundSphere(center3d, Fixed64.Zero),
             length,
             out Fixed64 entry3d,
             out Fixed64 exit3d));
@@ -81,6 +69,66 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.Equal(entry2d, exit2d);
         Assert.Equal(entry2d, entry3d);
         Assert.Equal(exit2d, exit3d);
+    }
+
+    [Fact]
+    public void RadialDistanceIntervals_HonorExpansionContainmentAndDistanceDomain()
+    {
+        var query2d = new FixedSegment2d(
+            new Vector2d((Fixed64)(-2), Fixed64.Zero),
+            new Vector2d((Fixed64)2, Fixed64.Zero));
+        var query3d = new FixedSegment(
+            new Vector3d((Fixed64)(-2), Fixed64.Zero, Fixed64.Zero),
+            new Vector3d((Fixed64)2, Fixed64.Zero, Fixed64.Zero));
+        var circle = new FixedBoundCircle(Vector2d.Zero, Fixed64.One);
+        var sphere = new FixedBoundSphere(Vector3d.Zero, Fixed64.One);
+
+        Assert.True(query2d.TryGetCircleIntersectionDistanceInterval(
+            circle, Fixed64.One, (Fixed64)4,
+            out Fixed64 entry2d, out Fixed64 exit2d,
+            out bool startContained2d, out bool endContainedStrict2d));
+        Assert.True(query3d.TryGetSphereIntersectionDistanceInterval(
+            sphere, Fixed64.One, (Fixed64)4,
+            out Fixed64 entry3d, out Fixed64 exit3d,
+            out bool startContained3d, out bool endContainedStrict3d));
+
+        Assert.Equal(Fixed64.Zero, entry2d);
+        Assert.Equal((Fixed64)4, exit2d);
+        Assert.Equal(entry2d, entry3d);
+        Assert.Equal(exit2d, exit3d);
+        Assert.True(startContained2d);
+        Assert.False(endContainedStrict2d);
+        Assert.True(startContained3d);
+        Assert.False(endContainedStrict3d);
+
+        Assert.True(new FixedSegment2d(query2d.Start, Vector2d.Zero)
+            .TryGetCircleIntersectionDistanceInterval(
+                circle, Fixed64.Zero, (Fixed64)2,
+                out _, out _, out bool startsOutside2d, out bool endsInside2d));
+        Assert.True(new FixedSegment(query3d.Start, Vector3d.Zero)
+            .TryGetSphereIntersectionDistanceInterval(
+                sphere, Fixed64.Zero, (Fixed64)2,
+                out _, out _, out bool startsOutside3d, out bool endsInside3d));
+        Assert.False(startsOutside2d);
+        Assert.True(endsInside2d);
+        Assert.False(startsOutside3d);
+        Assert.True(endsInside3d);
+
+        Assert.False(new FixedSegment2d(
+                new Vector2d(Fixed64.Zero, (Fixed64)2),
+                new Vector2d((Fixed64)2, (Fixed64)2))
+            .TryGetCircleIntersectionDistanceInterval(circle, Fixed64.One, out _, out _));
+        Assert.False(new FixedSegment(Vector3d.Up * (Fixed64)2, Vector3d.One * (Fixed64)2)
+            .TryGetSphereIntersectionDistanceInterval(sphere, Fixed64.One, out _, out _));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => query2d.TryGetCircleIntersectionDistanceInterval(
+            circle, -Fixed64.Epsilon, (Fixed64)4, out _, out _, out _, out _));
+        Assert.Throws<ArgumentOutOfRangeException>(() => query3d.TryGetSphereIntersectionDistanceInterval(
+            sphere, -Fixed64.Epsilon, (Fixed64)4, out _, out _, out _, out _));
+        Assert.Throws<ArgumentOutOfRangeException>(() => query2d.TryGetCircleIntersectionDistanceInterval(
+            circle, Fixed64.Zero, -Fixed64.Epsilon, out _, out _, out _, out _));
+        Assert.Throws<ArgumentException>(() => query3d.TryGetSphereIntersectionDistanceInterval(
+            sphere, Fixed64.Zero, Fixed64.Zero, out _, out _, out _, out _));
     }
 
     [Fact]

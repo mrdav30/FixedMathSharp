@@ -8,10 +8,70 @@
 namespace FixedMathSharp.Geometry;
 
 /// <content>
-/// Distance-interval computations for capsule/segment vs. finite-axis intersection tests.
+/// Physical-distance intervals for radial and finite-axis intersection tests.
 /// </content>
 internal static partial class WideFiniteAxisIntersection
 {
+    internal static bool TryGetCircleDistanceInterval(
+        FixedSegment2d query,
+        FixedBoundCircle circle,
+        Fixed64 radiusExpansion,
+        Fixed64 segmentLength,
+        out Fixed64 entry,
+        out Fixed64 exit,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        Signed192 expandedRadius = GetExpandedRadius(circle.Radius, radiusExpansion);
+        Signed192 squaredRadius = GetSquaredRadius(expandedRadius);
+        startContained = IsWithinRadius(
+            GetDot(query.Start, circle.Center, query.Start, circle.Center),
+            squaredRadius,
+            strict: false);
+        endContainedStrict = IsWithinRadius(
+            GetDot(query.End, circle.Center, query.End, circle.Center),
+            squaredRadius,
+            strict: true);
+        return TryGetCircleDistanceInterval(
+            query.Start,
+            query.End,
+            circle.Center,
+            expandedRadius,
+            segmentLength,
+            out entry,
+            out exit);
+    }
+
+    internal static bool TryGetSphereDistanceInterval(
+        FixedSegment query,
+        FixedBoundSphere sphere,
+        Fixed64 radiusExpansion,
+        Fixed64 segmentLength,
+        out Fixed64 entry,
+        out Fixed64 exit,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        Signed192 expandedRadius = GetExpandedRadius(sphere.Radius, radiusExpansion);
+        Signed192 squaredRadius = GetSquaredRadius(expandedRadius);
+        startContained = IsWithinRadius(
+            GetDot(query.Start, sphere.Center, query.Start, sphere.Center),
+            squaredRadius,
+            strict: false);
+        endContainedStrict = IsWithinRadius(
+            GetDot(query.End, sphere.Center, query.End, sphere.Center),
+            squaredRadius,
+            strict: true);
+        return TryGetSphereDistanceInterval(
+            query.Start,
+            query.End,
+            sphere.Center,
+            expandedRadius,
+            segmentLength,
+            out entry,
+            out exit);
+    }
+
     internal static bool TryGetCapsuleDistanceInterval(
         FixedSegment2d query,
         FixedSegment2d axis,

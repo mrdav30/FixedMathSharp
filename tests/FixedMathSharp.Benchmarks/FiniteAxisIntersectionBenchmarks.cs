@@ -8,8 +8,10 @@ namespace FixedMathSharp.Benchmarks;
 public class FiniteAxisIntersectionBenchmarks
 {
     private FixedSegment2d _query2D;
+    private FixedBoundCircle _circle;
     private FixedSegment2d _capsuleAxis2D;
     private FixedSegment _query3D;
+    private FixedBoundSphere _sphere;
     private FixedSegment _capsuleAxis3D;
     private FixedSegment _cylinderAxis;
     private FixedSegment _expandedCylinderQuery;
@@ -67,6 +69,7 @@ public class FiniteAxisIntersectionBenchmarks
             new Vector2d(Fixed64.Zero, scale));
         _capsuleCenter2D = Vector2d.Zero;
         _capsuleDirection2D = Vector2d.Forward;
+        _circle = new FixedBoundCircle(_capsuleCenter2D, _radius);
         _query3D = new FixedSegment(
             new Vector3d(-doubleScale, Fixed64.Zero, Fixed64.Zero),
             new Vector3d(doubleScale, Fixed64.Zero, Fixed64.Zero));
@@ -75,6 +78,7 @@ public class FiniteAxisIntersectionBenchmarks
             new Vector3d(Fixed64.Zero, scale, Fixed64.Zero));
         _capsuleCenter3D = Vector3d.Zero;
         _capsuleDirection3D = Vector3d.Up;
+        _sphere = new FixedBoundSphere(_capsuleCenter3D, _radius);
         _distancePoint2D = new Vector2d(
             scale * Fixed64.FromFraction(3, 2),
             -scale * Fixed64.Half);
@@ -120,7 +124,9 @@ public class FiniteAxisIntersectionBenchmarks
             (Fixed64)29,
             (Fixed64)11);
 
-        if (!Capsule2DIntersectionInterval()
+        if (!Circle2DDistanceInterval()
+            || !Sphere3DDistanceInterval()
+            || !Capsule2DIntersectionInterval()
             || !Capsule3DIntersectionInterval()
             || !CenteredCapsule2DIntersectionInterval()
             || !CenteredCapsule3DIntersectionInterval()
@@ -149,6 +155,22 @@ public class FiniteAxisIntersectionBenchmarks
             throw new InvalidOperationException("Finite-axis benchmark scenarios must intersect their targets.");
         }
     }
+
+    [Benchmark]
+    public bool Circle2DDistanceInterval() =>
+        _query2D.TryGetCircleIntersectionDistanceInterval(
+            _circle,
+            _boundedRayMaximum,
+            out _,
+            out _);
+
+    [Benchmark]
+    public bool Sphere3DDistanceInterval() =>
+        _query3D.TryGetSphereIntersectionDistanceInterval(
+            _sphere,
+            _boundedRayMaximum,
+            out _,
+            out _);
 
     [Benchmark]
     public bool Capsule2DIntersectionInterval() =>

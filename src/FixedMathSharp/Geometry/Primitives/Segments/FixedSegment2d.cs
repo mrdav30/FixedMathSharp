@@ -592,6 +592,52 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     #endregion
 
     /// <summary>
+    /// Finds the physical-distance interval where this segment intersects a
+    /// circle.
+    /// </summary>
+    public readonly bool TryGetCircleIntersectionDistanceInterval(
+        FixedBoundCircle circle,
+        Fixed64 totalDistance,
+        out Fixed64 entryDistance,
+        out Fixed64 exitDistance) =>
+        TryGetCircleIntersectionDistanceInterval(
+            circle,
+            Fixed64.Zero,
+            totalDistance,
+            out entryDistance,
+            out exitDistance,
+            out _,
+            out _);
+
+    /// <summary>
+    /// Finds the physical-distance interval where this segment intersects a
+    /// radially expanded circle and reports exact endpoint containment.
+    /// </summary>
+    public readonly bool TryGetCircleIntersectionDistanceInterval(
+        FixedBoundCircle circle,
+        Fixed64 radiusExpansion,
+        Fixed64 totalDistance,
+        out Fixed64 entryDistance,
+        out Fixed64 exitDistance,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        ValidateTotalDistance(totalDistance);
+        if (radiusExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radiusExpansion));
+
+        return WideFiniteAxisIntersection.TryGetCircleDistanceInterval(
+            this,
+            circle,
+            radiusExpansion,
+            totalDistance,
+            out entryDistance,
+            out exitDistance,
+            out startContained,
+            out endContainedStrict);
+    }
+
+    /// <summary>
     /// Finds the physical-distance interval where this segment intersects an
     /// endpoint-authored capsule.
     /// </summary>

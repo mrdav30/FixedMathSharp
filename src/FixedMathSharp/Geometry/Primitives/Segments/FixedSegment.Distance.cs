@@ -12,11 +12,56 @@ namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Distance and intersection-interval queries for <see cref="FixedSegment"/>,
-/// including capsule intersection tests against endpoint-authored and
-/// centered capsules.
+/// including sphere, capsule, and finite-axis intersection tests.
 /// </content>
 public partial struct FixedSegment
 {
+    /// <summary>
+    /// Finds the physical-distance interval where this segment intersects a
+    /// sphere.
+    /// </summary>
+    public readonly bool TryGetSphereIntersectionDistanceInterval(
+        FixedBoundSphere sphere,
+        Fixed64 totalDistance,
+        out Fixed64 entryDistance,
+        out Fixed64 exitDistance) =>
+        TryGetSphereIntersectionDistanceInterval(
+            sphere,
+            Fixed64.Zero,
+            totalDistance,
+            out entryDistance,
+            out exitDistance,
+            out _,
+            out _);
+
+    /// <summary>
+    /// Finds the physical-distance interval where this segment intersects a
+    /// radially expanded sphere and reports exact endpoint containment.
+    /// </summary>
+    public readonly bool TryGetSphereIntersectionDistanceInterval(
+        FixedBoundSphere sphere,
+        Fixed64 radiusExpansion,
+        Fixed64 totalDistance,
+        out Fixed64 entryDistance,
+        out Fixed64 exitDistance,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
+        ValidateTotalDistance(totalDistance);
+        if (radiusExpansion < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radiusExpansion));
+
+        return WideFiniteAxisIntersection.TryGetSphereDistanceInterval(
+            this,
+            sphere,
+            radiusExpansion,
+            totalDistance,
+            out entryDistance,
+            out exitDistance,
+            out startContained,
+            out endContainedStrict);
+    }
+
     /// <summary>
     /// Finds the physical-distance interval where this segment intersects an
     /// endpoint-authored capsule.
