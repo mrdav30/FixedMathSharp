@@ -12,6 +12,48 @@ namespace FixedMathSharp.Geometry;
 /// </content>
 internal static partial class WideFiniteAxisIntersection
 {
+    internal static bool TryGetCircleDirectionDistanceInterval(
+        Vector2d position,
+        Vector2d direction,
+        FixedBoundCircle circle,
+        Fixed64 radiusExpansion,
+        Fixed64 totalDistance,
+        out Fixed64 entryDistance,
+        out Fixed64 exitDistance)
+    {
+        Signed192 expandedRadius = GetExpandedRadius(circle.Radius, radiusExpansion);
+        return TrySolveUnitQuadraticAtDistance(
+            Signed320.ExtendValue(GetDirectionDot(direction, direction)),
+            Signed320.ExtendValue(GetDirectionDot(direction, position, circle.Center)),
+            Signed320.ExtendValue(WideArithmetic.SubtractSigned192(
+                GetDot(position, circle.Center, position, circle.Center),
+                GetSquaredRadius(expandedRadius))),
+            totalDistance,
+            out entryDistance,
+            out exitDistance);
+    }
+
+    internal static bool TryGetSphereDirectionDistanceInterval(
+        Vector3d position,
+        Vector3d direction,
+        FixedBoundSphere sphere,
+        Fixed64 radiusExpansion,
+        Fixed64 totalDistance,
+        out Fixed64 entryDistance,
+        out Fixed64 exitDistance)
+    {
+        Signed192 expandedRadius = GetExpandedRadius(sphere.Radius, radiusExpansion);
+        return TrySolveUnitQuadraticAtDistance(
+            Signed320.ExtendValue(GetDirectionDot(direction, direction)),
+            Signed320.ExtendValue(GetDirectionDot(direction, position, sphere.Center)),
+            Signed320.ExtendValue(WideArithmetic.SubtractSigned192(
+                GetDot(position, sphere.Center, position, sphere.Center),
+                GetSquaredRadius(expandedRadius))),
+            totalDistance,
+            out entryDistance,
+            out exitDistance);
+    }
+
     internal static bool TryGetCircleDistanceInterval(
         FixedSegment2d query,
         FixedBoundCircle circle,

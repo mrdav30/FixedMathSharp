@@ -8,6 +8,131 @@ namespace FixedMathSharp.Tests.Bounds;
 public sealed partial class FiniteAxisIntersectionTests
 {
     [Fact]
+    public void SphericallyExpandedFiniteCylinderDirectionFirstDistance_ShouldAvoidOverflowingSyntheticEndpoint()
+    {
+        Vector3d axis = Vector3d.Up;
+        Fixed64 halfAxisLength = Fixed64.One;
+        Fixed64 radius = Fixed64.FromFraction(1, 4);
+        Fixed64 expansion = Fixed64.FromFraction(1, 4);
+        Fixed64 totalDistance = (Fixed64)4;
+
+        Assert.True(WideFiniteAxisIntersection
+            .TryGetSphericallyExpandedFiniteCylinderFirstDistanceFromHalfAxisLength(
+                new FixedSegment(
+                    new Vector3d((Fixed64)(-2), Fixed64.Zero, Fixed64.Zero),
+                    new Vector3d((Fixed64)2, Fixed64.Zero, Fixed64.Zero)),
+                new Vector3d(-Fixed64.Half, Fixed64.Zero, Fixed64.Zero),
+                axis,
+                halfAxisLength,
+                radius,
+                expansion,
+                totalDistance,
+                out Fixed64 expectedDistance));
+
+        Vector3d position = new(Fixed64.MaxValue - Fixed64.Two, Fixed64.Zero, Fixed64.Zero);
+        Assert.True(WideFiniteAxisIntersection
+            .TryGetSphericallyExpandedFiniteCylinderDirectionFirstDistanceFromHalfAxisLength(
+                position,
+                new Vector3d((Fixed64)4, Fixed64.Zero, Fixed64.Zero),
+                new Vector3d(Fixed64.MaxValue - Fixed64.Half, Fixed64.Zero, Fixed64.Zero),
+                axis,
+                halfAxisLength,
+                radius,
+                expansion,
+                totalDistance,
+                out Fixed64 actualDistance));
+
+        Assert.Equal(Fixed64.One, expectedDistance);
+        Assert.Equal(expectedDistance, actualDistance);
+        Assert.True(WideFiniteAxisIntersection
+            .TryGetSphericallyExpandedFiniteCylinderDirectionFirstDistanceFromHalfAxisLength(
+                position,
+                new Vector3d((Fixed64)4, Fixed64.Zero, Fixed64.Zero),
+                new Vector3d(Fixed64.MaxValue - Fixed64.Half, Fixed64.Zero, Fixed64.Zero),
+                axis,
+                halfAxisLength,
+                Fixed64.Half,
+                Fixed64.Zero,
+                totalDistance,
+                out Fixed64 unexpandedDistance));
+        Assert.Equal(Fixed64.One, unexpandedDistance);
+        Assert.False(WideFiniteAxisIntersection
+            .TryGetSphericallyExpandedFiniteCylinderDirectionFirstDistanceFromHalfAxisLength(
+                new Vector3d(position.X, (Fixed64)4, position.Z),
+                new Vector3d((Fixed64)4, Fixed64.Zero, Fixed64.Zero),
+                new Vector3d(Fixed64.MaxValue - Fixed64.Half, Fixed64.Zero, Fixed64.Zero),
+                axis,
+                halfAxisLength,
+                radius,
+                expansion,
+                totalDistance,
+                out _));
+    }
+
+    [Fact]
+    public void RadialDirectionDistanceIntervals_DoNotConstructEndpointOrNormalizeChord()
+    {
+        Fixed64 startX = Fixed64.MaxValue - Fixed64.Two;
+        var start2d = new Vector2d(startX, Fixed64.Zero);
+        var start3d = new Vector3d(startX, Fixed64.Zero, Fixed64.Zero);
+        var direction2d = new Vector2d((Fixed64)4, Fixed64.Zero);
+        var direction3d = new Vector3d((Fixed64)4, Fixed64.Zero, Fixed64.Zero);
+
+        Assert.True(WideFiniteAxisIntersection.TryGetCircleDirectionDistanceInterval(
+            start2d,
+            direction2d,
+            new FixedBoundCircle(new Vector2d(Fixed64.MaxValue, Fixed64.Zero), Fixed64.One),
+            Fixed64.Zero,
+            (Fixed64)4,
+            out Fixed64 highEntry2d,
+            out Fixed64 highExit2d));
+        Assert.True(WideFiniteAxisIntersection.TryGetSphereDirectionDistanceInterval(
+            start3d,
+            direction3d,
+            new FixedBoundSphere(new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero), Fixed64.One),
+            Fixed64.Zero,
+            (Fixed64)4,
+            out Fixed64 highEntry3d,
+            out Fixed64 highExit3d));
+
+        Assert.Equal(Fixed64.One, highEntry2d);
+        Assert.Equal((Fixed64)3, highExit2d);
+        Assert.Equal(highEntry2d, highEntry3d);
+        Assert.Equal(highExit2d, highExit3d);
+
+        Fixed64 oneRaw = Fixed64.FromRaw(1L);
+        var transverseDirection2d = new Vector2d((Fixed64)200_000, Fixed64.FromRaw(2L));
+        var transverseDirection3d = new Vector3d(
+            transverseDirection2d.X,
+            transverseDirection2d.Y,
+            Fixed64.Zero);
+        var center2d = new Vector2d(Fixed64.Zero, oneRaw);
+        var center3d = new Vector3d(center2d.X, center2d.Y, Fixed64.Zero);
+
+        Assert.True(WideFiniteAxisIntersection.TryGetCircleDirectionDistanceInterval(
+            new Vector2d((Fixed64)(-100_000), Fixed64.Zero),
+            transverseDirection2d,
+            new FixedBoundCircle(center2d, Fixed64.Zero),
+            Fixed64.Zero,
+            (Fixed64)200_000,
+            out Fixed64 transverseEntry2d,
+            out Fixed64 transverseExit2d));
+        Assert.True(WideFiniteAxisIntersection.TryGetSphereDirectionDistanceInterval(
+            new Vector3d((Fixed64)(-100_000), Fixed64.Zero, Fixed64.Zero),
+            transverseDirection3d,
+            new FixedBoundSphere(center3d, Fixed64.Zero),
+            Fixed64.Zero,
+            (Fixed64)200_000,
+            out Fixed64 transverseEntry3d,
+            out Fixed64 transverseExit3d));
+
+        Assert.Equal((Fixed64)100_000, transverseEntry2d);
+        Assert.Equal(transverseEntry2d, transverseExit2d);
+        Assert.Equal(transverseEntry2d, transverseEntry3d);
+        Assert.Equal(transverseExit2d, transverseExit3d);
+    }
+
+    [Fact]
     public void RadialDistanceIntervals_PreserveOneRawPhysicalOrderingOnLongSegments()
     {
         var query2d = new FixedSegment2d(

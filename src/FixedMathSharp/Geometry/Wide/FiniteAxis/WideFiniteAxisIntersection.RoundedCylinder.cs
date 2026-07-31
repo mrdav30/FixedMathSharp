@@ -224,6 +224,73 @@ internal static partial class WideFiniteAxisIntersection
             out _);
     }
 
+    internal static bool TryGetSphericallyExpandedFiniteCylinderDirectionFirstDistanceFromHalfAxisLength(
+        Vector3d position,
+        Vector3d direction,
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 halfAxisLength,
+        Fixed64 radius,
+        Fixed64 sphericalExpansion,
+        Fixed64 totalDistance,
+        out Fixed64 distance)
+    {
+        Signed192 halfAxisLengthRaw =
+            Signed192.Signed(halfAxisLength.m_rawValue);
+        Signed192 fullAxisLength = WideArithmetic.AddSigned192(
+            halfAxisLengthRaw,
+            halfAxisLengthRaw);
+
+        if (sphericalExpansion == Fixed64.Zero)
+        {
+            return TryGetFiniteCylinderDirectionFirstDistance(
+                position,
+                direction,
+                center,
+                axisDirection,
+                fullAxisLength,
+                radius,
+                Fixed64.Zero,
+                Fixed64.Zero,
+                totalDistance,
+                out distance,
+                out _);
+        }
+
+        bool found = TryGetFiniteCylinderDirectionFirstDistance(
+            position,
+            direction,
+            center,
+            axisDirection,
+            fullAxisLength,
+            radius,
+            sphericalExpansion,
+            Fixed64.Zero,
+            totalDistance,
+            out distance,
+            out bool sideStartContained);
+        RoundedCylinderBaseData baseData = CreateRoundedCylinderBaseData(
+            position,
+            direction,
+            center,
+            axisDirection,
+            radius,
+            sphericalExpansion);
+        Fixed64 exit = default;
+        return MergeSphericallyExpandedFiniteCylinderRoundedIntervals(
+            baseData,
+            fullAxisLength,
+            totalDistance,
+            calculateExit: false,
+            ref found,
+            ref distance,
+            ref exit,
+            sideStartContained,
+            false,
+            out _,
+            out _);
+    }
+
     private static bool TryGetSphericallyExpandedFiniteCylinderDistanceIntervalWithFullAxisLength(
         FixedSegment query,
         Vector3d center,
@@ -337,6 +404,33 @@ internal static partial class WideFiniteAxisIntersection
             axisDirection,
             radius,
             sphericalExpansion);
+        return MergeSphericallyExpandedFiniteCylinderRoundedIntervals(
+            baseData,
+            axisLength,
+            segmentLength,
+            calculateExit,
+            ref found,
+            ref entry,
+            ref exit,
+            sideStartContained,
+            sideEndContainedStrict,
+            out startContained,
+            out endContainedStrict);
+    }
+
+    private static bool MergeSphericallyExpandedFiniteCylinderRoundedIntervals(
+        RoundedCylinderBaseData baseData,
+        Signed192 axisLength,
+        Fixed64 segmentLength,
+        bool calculateExit,
+        ref bool found,
+        ref Fixed64 entry,
+        ref Fixed64 exit,
+        bool sideStartContained,
+        bool sideEndContainedStrict,
+        out bool startContained,
+        out bool endContainedStrict)
+    {
         Merge(
             TryGetRoundedCylinderCapCoreDistanceInterval(
                 baseData,
@@ -623,6 +717,49 @@ internal static partial class WideFiniteAxisIntersection
         return strict ? h.Sign < 0 : h.Sign <= 0;
     }
 
+    private static bool TryGetFiniteCylinderDirectionFirstDistance(
+        Vector3d position,
+        Vector3d direction,
+        Vector3d center,
+        Vector3d axisDirection,
+        Signed192 axisLength,
+        Fixed64 radius,
+        Fixed64 radiusExpansion,
+        Fixed64 axialExpansion,
+        Fixed64 totalDistance,
+        out Fixed64 distance,
+        out bool startContained)
+    {
+        Signed192 queryLengthSquared = GetDirectionDot(direction, direction);
+        Signed192 axisLengthSquared = GetDot(
+            axisDirection, Vector3d.Zero, axisDirection, Vector3d.Zero);
+        Signed192 startDistanceSquared = GetDot(position, center, position, center);
+        Signed192 directionsDot = GetDirectionDot(direction, axisDirection);
+        Signed192 startAxisProjection = GetDot(
+            position, center, axisDirection, Vector3d.Zero);
+        Signed192 startDirectionProjection = GetDirectionDot(direction, position, center);
+        Signed192 expandedRadius = GetExpandedRadius(radius, radiusExpansion);
+        Signed192 squaredRadius = GetSquaredRadius(expandedRadius);
+        Signed320 axialExtent = GetCenteredAxialExtent(
+            axisLengthSquared, axisLength, axialExpansion);
+        startContained = IsCenteredFiniteCylinderPointContained(
+            startDistanceSquared, startAxisProjection, axisLengthSquared,
+            squaredRadius, axialExtent, strict: false);
+
+        if (!TryGetCenteredAxialInterval(
+                startAxisProjection, directionsDot, axialExtent, Fixed64.One,
+                out RationalBound320 lower, out RationalBound320 upper))
+        {
+            distance = default;
+            return false;
+        }
+
+        return TryGetFiniteAxisDistanceInterval(
+            queryLengthSquared, axisLengthSquared, startDistanceSquared,
+            directionsDot, startAxisProjection, startDirectionProjection,
+            expandedRadius, lower, upper, totalDistance, out distance, out _);
+    }
+
     private static RoundedCylinderBaseData CreateRoundedCylinderBaseData(
         FixedSegment query,
         Vector3d center,
@@ -641,6 +778,53 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 startAxisProjection = GetDot(query.Start, center, axisDirection, Vector3d.Zero);
         Signed192 directionAxisProjection = GetDot(query.End, query.Start, axisDirection, Vector3d.Zero);
 
+        return CreateRoundedCylinderBaseData(
+            axisLengthSquared,
+            startDistanceSquared,
+            directionLengthSquared,
+            startDirectionProjection,
+            startAxisProjection,
+            directionAxisProjection,
+            radius,
+            sphericalExpansion);
+    }
+
+    private static RoundedCylinderBaseData CreateRoundedCylinderBaseData(
+        Vector3d position,
+        Vector3d direction,
+        Vector3d center,
+        Vector3d axisDirection,
+        Fixed64 radius,
+        Fixed64 sphericalExpansion)
+    {
+        Signed192 axisLengthSquared = GetDot(
+            axisDirection, Vector3d.Zero, axisDirection, Vector3d.Zero);
+        Signed192 startDistanceSquared = GetDot(position, center, position, center);
+        Signed192 directionLengthSquared = GetDirectionDot(direction, direction);
+        Signed192 startDirectionProjection = GetDirectionDot(direction, position, center);
+        Signed192 startAxisProjection = GetDot(position, center, axisDirection, Vector3d.Zero);
+        Signed192 directionAxisProjection = GetDirectionDot(direction, axisDirection);
+        return CreateRoundedCylinderBaseData(
+            axisLengthSquared,
+            startDistanceSquared,
+            directionLengthSquared,
+            startDirectionProjection,
+            startAxisProjection,
+            directionAxisProjection,
+            radius,
+            sphericalExpansion);
+    }
+
+    private static RoundedCylinderBaseData CreateRoundedCylinderBaseData(
+        Signed192 axisLengthSquared,
+        Signed192 startDistanceSquared,
+        Signed192 directionLengthSquared,
+        Signed192 startDirectionProjection,
+        Signed192 startAxisProjection,
+        Signed192 directionAxisProjection,
+        Fixed64 radius,
+        Fixed64 sphericalExpansion)
+    {
         Signed320 q0 = WideArithmetic.MultiplySubtract(
             startDistanceSquared,
             axisLengthSquared,
