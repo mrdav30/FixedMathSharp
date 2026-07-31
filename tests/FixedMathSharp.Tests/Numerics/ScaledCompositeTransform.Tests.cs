@@ -109,6 +109,82 @@ public sealed class ScaledCompositeTransformTests
     }
 
     [Fact]
+    public void PlanarInverseTransform_RoundTripsAnisotropicMirroredScale()
+    {
+        Vector2d origin = new(10, 20);
+        Vector2d localPoint = new(3, -4);
+        Vector2d scale = new(-2, 3);
+
+        Assert.True(Vector2d.TryTransformScaledPoint(
+            origin,
+            localPoint,
+            scale,
+            Fixed64.HalfPi,
+            out Vector2d worldPoint));
+        Assert.Equal(new Vector2d(22, 14), worldPoint);
+        Assert.True(Vector2d.TryInverseTransformScaledPoint(
+            origin,
+            worldPoint,
+            scale,
+            Fixed64.HalfPi,
+            out Vector2d roundTrip));
+        Assert.Equal(localPoint, roundTrip);
+    }
+
+    [Fact]
+    public void PlanarInverseTransform_RetainsFullDomainSubtractionAndHalfEvenRounding()
+    {
+        Vector2d origin = new(Fixed64.MinValue, Fixed64.Zero);
+        Vector2d worldPoint = new(Fixed64.MaxValue, Fixed64.Zero);
+        Vector2d scale = new((Fixed64)3, Fixed64.One);
+        Fixed64 expectedX = Fixed64.FromRaw(6148914691236517205L);
+
+        Assert.True(Vector2d.TryInverseTransformScaledPoint(
+            origin,
+            worldPoint,
+            scale,
+            Fixed64.Zero,
+            out Vector2d fullDomain));
+        Assert.Equal(new Vector2d(expectedX, Fixed64.Zero), fullDomain);
+
+        Assert.True(Vector2d.TryInverseTransformScaledPoint(
+            Vector2d.Zero,
+            new Vector2d(Fixed64.FromRaw(1), Fixed64.Zero),
+            new Vector2d(Fixed64.Two, Fixed64.One),
+            Fixed64.Zero,
+            out Vector2d even));
+        Assert.Equal(Vector2d.Zero, even);
+
+        Assert.True(Vector2d.TryInverseTransformScaledPoint(
+            Vector2d.Zero,
+            new Vector2d(Fixed64.FromRaw(3), Fixed64.Zero),
+            new Vector2d(Fixed64.Two, Fixed64.One),
+            Fixed64.Zero,
+            out Vector2d odd));
+        Assert.Equal(new Vector2d(Fixed64.FromRaw(2), Fixed64.Zero), odd);
+    }
+
+    [Fact]
+    public void PlanarInverseTransform_RejectsSingularOrUnrepresentableResultsAtomically()
+    {
+        Assert.False(Vector2d.TryInverseTransformScaledPoint(
+            Vector2d.Zero,
+            Vector2d.One,
+            new Vector2d(Fixed64.Zero, Fixed64.One),
+            Fixed64.PiOver4,
+            out Vector2d singular));
+        Assert.Equal(default, singular);
+
+        Assert.False(Vector2d.TryInverseTransformScaledPoint(
+            new Vector2d(Fixed64.MinValue, Fixed64.Zero),
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            new Vector2d(Fixed64.MinIncrement, Fixed64.One),
+            Fixed64.Zero,
+            out Vector2d overflow));
+        Assert.Equal(default, overflow);
+    }
+
+    [Fact]
     public void PlanarLocalComposition_AdmitsCancellationAcrossBothScaledFrames()
     {
         Vector2d extreme = new(
@@ -301,6 +377,16 @@ public sealed class ScaledCompositeTransformTests
             new Vector3d(Fixed64.One, Fixed64.Zero, Fixed64.One),
             out Vector3d singular));
         Assert.Equal(default, singular);
+        Assert.False(FixedQuaternion.Identity.TryInverseTransformScaledPoint(
+            Vector3d.Zero,
+            Vector3d.One,
+            new Vector3d(Fixed64.Zero, Fixed64.One, Fixed64.One),
+            out singular));
+        Assert.False(FixedQuaternion.Identity.TryInverseTransformScaledPoint(
+            Vector3d.Zero,
+            Vector3d.One,
+            new Vector3d(Fixed64.One, Fixed64.One, Fixed64.Zero),
+            out singular));
 
         Assert.False(FixedQuaternion.Zero.TryInverseTransformScaledPoint(
             Vector3d.Zero,
@@ -348,6 +434,12 @@ public sealed class ScaledCompositeTransformTests
             new Vector2d(6, 7),
             new Vector2d(2, 3),
             Vector2d.One,
+            Fixed64.FromFraction(2, 3),
+            out _);
+        _ = Vector2d.TryInverseTransformScaledPoint(
+            new Vector2d(3, 4),
+            new Vector2d(6, 7),
+            new Vector2d(2, 3),
             Fixed64.FromFraction(2, 3),
             out _);
         _ = Vector2d.TryComposeScaledLocalPoints(
@@ -400,6 +492,12 @@ public sealed class ScaledCompositeTransformTests
                 new Vector2d(6, 7),
                 new Vector2d(2, 3),
                 Vector2d.One,
+                Fixed64.FromFraction(2, 3),
+                out _);
+            _ = Vector2d.TryInverseTransformScaledPoint(
+                new Vector2d(3, 4),
+                new Vector2d(6, 7),
+                new Vector2d(2, 3),
                 Fixed64.FromFraction(2, 3),
                 out _);
             _ = Vector2d.TryComposeScaledLocalPoints(

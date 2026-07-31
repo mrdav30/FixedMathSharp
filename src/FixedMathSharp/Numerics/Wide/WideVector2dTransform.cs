@@ -13,7 +13,7 @@ namespace FixedMathSharp;
 /// Provides methods for transforming two-dimensional points and 
 /// vectors using wide arithmetic to avoid overflow and maintain precision.
 /// </summary>
-internal static partial class WideVector2dTransform
+internal static class WideVector2dTransform
 {
     internal static bool TryTransformScaledPoint(
         Vector2d origin,
@@ -59,6 +59,58 @@ internal static partial class WideVector2dTransform
         }
 
         result = new Vector2d(x, y);
+        return true;
+    }
+
+    internal static bool TryInverseTransformScaledPoint(
+        Vector2d origin,
+        Vector2d worldPoint,
+        Vector2d scale,
+        Fixed64 angleInRadians,
+        out Vector2d localPoint)
+    {
+        Fixed64 cosine = FixedMath.Cos(angleInRadians);
+        Fixed64 sine = FixedMath.Sin(angleInRadians);
+        Signed192 offsetX = WideArithmetic.SubtractSigned192(
+            Signed192.Raw(worldPoint.X),
+            Signed192.Raw(origin.X));
+        Signed192 offsetY = WideArithmetic.SubtractSigned192(
+            Signed192.Raw(worldPoint.Y),
+            Signed192.Raw(origin.Y));
+        Signed320 projectionX = WideArithmetic.AddSigned320(
+            WideArithmetic.MultiplySigned192(
+                offsetX,
+                Signed192.Raw(cosine)),
+            WideArithmetic.MultiplySigned192(
+                offsetY,
+                Signed192.Raw(sine)));
+        Signed320 projectionY = WideArithmetic.SubtractSigned320(
+            WideArithmetic.MultiplySigned192(
+                offsetY,
+                Signed192.Raw(cosine)),
+            WideArithmetic.MultiplySigned192(
+                offsetX,
+                Signed192.Raw(sine)));
+        Signed320 rotationDenominator = WideArithmetic.AddSigned320(
+            Product(cosine, cosine),
+            Product(sine, sine));
+        bool representable = TryInverseTransformScaledCoordinate(
+                projectionX,
+                rotationDenominator,
+                scale.X,
+                out Fixed64 x)
+            & TryInverseTransformScaledCoordinate(
+                projectionY,
+                rotationDenominator,
+                scale.Y,
+                out Fixed64 y);
+        if (!representable)
+        {
+            localPoint = default;
+            return false;
+        }
+
+        localPoint = new Vector2d(x, y);
         return true;
     }
 
@@ -523,6 +575,20 @@ internal static partial class WideVector2dTransform
 
     private static Signed320 Product(Fixed64 left, Fixed64 right) =>
         WideArithmetic.MultiplySigned192(Signed192.Raw(left), Signed192.Raw(right));
+
+    private static bool TryInverseTransformScaledCoordinate(
+        Signed320 projection,
+        Signed320 rotationDenominator,
+        Fixed64 scale,
+        out Fixed64 result) =>
+        Fixed64.TryGetSignedRawRatio(
+            WideArithmetic.MultiplySigned320(
+                projection,
+                Product(Fixed64.One, Fixed64.One)),
+            WideArithmetic.MultiplySigned320(
+                rotationDenominator,
+                Signed320.ExtendValue(Signed192.Raw(scale))),
+            out result);
 
     private static bool TryRoundCoordinate(
         Signed320 numerator,

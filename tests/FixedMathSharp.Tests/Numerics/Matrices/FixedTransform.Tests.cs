@@ -687,6 +687,168 @@ public sealed class FixedTransformTests
         Assert.Equal(Fixed4x4.Identity, inverse);
     }
 
+    [Fact]
+    public void FixedTransform_PointTransforms_UseTheCompleteComposedAffineHierarchy()
+    {
+        var parent = new FixedTransform(
+            new Vector3d(4, -2, 7),
+            FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver4),
+            new Vector3d(2, 3, 4));
+        var child = new FixedTransform(
+            new Vector3d(-3, 5, 1),
+            FixedQuaternion.FromAxisAngle(Vector3d.Forward, Fixed64.PiOver6),
+            new Vector3d(3, 2, 1),
+            parent);
+        Vector3d localPoint = new(2, -1, 3);
+        Fixed4x4 worldMatrix = child.LocalToWorldMatrix;
+        Vector3d basisX = new(worldMatrix.M11, worldMatrix.M12, worldMatrix.M13);
+        Vector3d basisY = new(worldMatrix.M21, worldMatrix.M22, worldMatrix.M23);
+
+        Assert.True(FixedMath.Abs(Vector3d.Dot(basisX, basisY)) > Fixed64.Epsilon);
+        Assert.True(Fixed4x4.TryTransformAffinePoint(
+            worldMatrix,
+            localPoint,
+            out Vector3d expectedWorldPoint));
+        Assert.True(child.TryTransformPoint(localPoint, out Vector3d worldPoint));
+        Assert.Equal(expectedWorldPoint, worldPoint);
+        Assert.Equal(expectedWorldPoint, child.TransformPoint(localPoint));
+
+        Assert.True(child.TryInverseTransformPoint(worldPoint, out Vector3d roundTripped));
+        Assert.True(roundTripped.FuzzyEqualAbsolute(localPoint, Tolerance));
+        Assert.True(child.InverseTransformPoint(worldPoint).FuzzyEqualAbsolute(localPoint, Tolerance));
+    }
+
+    [Fact]
+    public void FixedTransform_PointTransformsXZ_PreservePlanarAffineShear()
+    {
+        var parent = new FixedTransform(
+            new Vector2d(4, -2),
+            Fixed64.PiOver4,
+            new Vector2d(2, 3));
+        var child = new FixedTransform(
+            new Vector2d(-3, 5),
+            Fixed64.PiOver6,
+            new Vector2d(3, 2),
+            parent);
+        Vector2d localPoint = new(2, -1);
+        Fixed4x4 worldMatrix = child.LocalToWorldMatrix;
+        Vector2d basisX = new(worldMatrix.M11, worldMatrix.M13);
+        Vector2d basisZ = new(worldMatrix.M31, worldMatrix.M33);
+
+        Assert.True(FixedMath.Abs(Vector2d.Dot(basisX, basisZ)) > Fixed64.Epsilon);
+        Assert.True(Fixed4x4.TryTransformAffinePoint(
+            worldMatrix,
+            localPoint.ToVector3d(Fixed64.Zero),
+            out Vector3d expectedWorldPoint3D));
+        Vector2d expectedWorldPoint = expectedWorldPoint3D.ToVector2d();
+
+        Assert.True(child.TryTransformPointXZ(localPoint, out Vector2d worldPoint));
+        Assert.Equal(expectedWorldPoint, worldPoint);
+        Assert.Equal(expectedWorldPoint, child.TransformPointXZ(localPoint));
+        Assert.True(child.TryInverseTransformPointXZ(worldPoint, out Vector2d roundTripped));
+        Assert.True(roundTripped.FuzzyEqualAbsolute(localPoint, Tolerance));
+        Assert.True(child.InverseTransformPointXZ(worldPoint).FuzzyEqualAbsolute(localPoint, Tolerance));
+    }
+
+    [Fact]
+    public void FixedTransform_PointTransformsXZ_RejectYAxisCouplingAtomically()
+    {
+        var pitch = new FixedTransform(
+            new Vector3d(3, 4, 5),
+            FixedQuaternion.FromAxisAngle(Vector3d.Right, Fixed64.PiOver4),
+            new Vector3d(2, 3, 4));
+        var roll = new FixedTransform(
+            new Vector3d(3, 4, 5),
+            FixedQuaternion.FromAxisAngle(Vector3d.Forward, Fixed64.PiOver4),
+            new Vector3d(2, 3, 4));
+
+        Assert.False(pitch.TryTransformPointXZ(Vector2d.One, out Vector2d worldPoint));
+        Assert.Equal(Vector2d.Zero, worldPoint);
+        Assert.False(pitch.TryInverseTransformPointXZ(Vector2d.One, out Vector2d localPoint));
+        Assert.Equal(Vector2d.Zero, localPoint);
+        Assert.False(roll.TryTransformPointXZ(Vector2d.One, out worldPoint));
+        Assert.False(roll.TryInverseTransformPointXZ(Vector2d.One, out localPoint));
+        Assert.Throws<InvalidOperationException>(() => pitch.TransformPointXZ(Vector2d.One));
+        Assert.Throws<InvalidOperationException>(() => pitch.InverseTransformPointXZ(Vector2d.One));
+    }
+
+    [Fact]
+    public void FixedTransform_PointTransforms_FailOnlyAtStrictRepresentationBoundaries()
+    {
+        var saturated = new FixedTransform(
+            Vector3d.Zero,
+            FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.Pi),
+            new Vector3d(Fixed64.MinValue, Fixed64.One, Fixed64.One));
+        var singular = new FixedTransform(
+            new Vector3d(3, 4, 5),
+            FixedQuaternion.Identity,
+            new Vector3d(Fixed64.Zero, Fixed64.One, Fixed64.One));
+        var planarSingular = new FixedTransform(
+            Vector2d.Zero,
+            Fixed64.Zero,
+            new Vector2d(Fixed64.Zero, Fixed64.One));
+        var finalOverflow = new FixedTransform(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            FixedQuaternion.Identity,
+            Vector3d.One);
+        var planarInverseOverflow = new FixedTransform(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            Fixed64.Zero,
+            Vector2d.One);
+
+        Assert.False(saturated.TryTransformPoint(Vector3d.One, out Vector3d saturatedPoint));
+        Assert.Equal(Vector3d.Zero, saturatedPoint);
+        Assert.False(saturated.TryGetWorldToLocalMatrix(out _));
+        Assert.False(saturated.TryTransformPointXZ(Vector2d.One, out Vector2d saturatedPlanarPoint));
+        Assert.Equal(Vector2d.Zero, saturatedPlanarPoint);
+        Assert.Throws<InvalidOperationException>(() => saturated.TransformPoint(Vector3d.One));
+
+        Assert.False(singular.TryInverseTransformPoint(Vector3d.One, out Vector3d singularPoint));
+        Assert.Equal(Vector3d.Zero, singularPoint);
+        Assert.Throws<InvalidOperationException>(() => singular.InverseTransformPoint(Vector3d.One));
+        Assert.False(planarSingular.TryInverseTransformPointXZ(
+            Vector2d.One,
+            out Vector2d singularPlanarPoint));
+        Assert.Equal(Vector2d.Zero, singularPlanarPoint);
+
+        Assert.False(finalOverflow.TryTransformPoint(Vector3d.Right, out Vector3d overflowPoint));
+        Assert.Equal(Vector3d.Zero, overflowPoint);
+        Assert.False(planarInverseOverflow.TryInverseTransformPointXZ(
+            new Vector2d(Fixed64.MinValue, Fixed64.Zero),
+            out Vector2d planarOverflowPoint));
+        Assert.Equal(Vector2d.Zero, planarOverflowPoint);
+    }
+
+    [Fact]
+    public void FixedTransform_PointTransforms_AreAllocationFreeAfterWarmup()
+    {
+        var transform = new FixedTransform(
+            new Vector2d(3, 4),
+            Fixed64.PiOver6,
+            new Vector2d(2, 5));
+        Vector3d point3D = new(6, 7, 8);
+        Vector2d pointXZ = new(6, 8);
+
+        for (int i = 0; i < 64; i++)
+        {
+            _ = transform.TryTransformPoint(point3D, out _);
+            _ = transform.TryInverseTransformPoint(point3D, out _);
+            _ = transform.TryTransformPointXZ(pointXZ, out _);
+            _ = transform.TryInverseTransformPointXZ(pointXZ, out _);
+        }
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 1_024; i++)
+        {
+            _ = transform.TryTransformPoint(point3D, out _);
+            _ = transform.TryInverseTransformPoint(point3D, out _);
+            _ = transform.TryTransformPointXZ(pointXZ, out _);
+            _ = transform.TryInverseTransformPointXZ(pointXZ, out _);
+        }
+
+        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+    }
+
     private static void AssertAnglesEquivalent(Fixed64 expected, Fixed64 actual)
     {
         Fixed64 difference = (actual - expected) % Fixed64.TwoPi;

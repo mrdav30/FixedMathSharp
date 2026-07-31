@@ -289,6 +289,29 @@ public partial struct Vector2d
             out result);
 
     /// <summary>
+    /// Attempts to transform a world point into a component-scaled local frame
+    /// with one final round-half-to-even conversion per component.
+    /// </summary>
+    /// <remarks>
+    /// Computes <c>InverseRotate(worldPoint - origin) / scale</c> without
+    /// narrowing the world offset, rotated projection, or scale division
+    /// independently. A zero scale component or unrepresentable final
+    /// coordinate returns false and a zero result.
+    /// </remarks>
+    public static bool TryInverseTransformScaledPoint(
+        Vector2d origin,
+        Vector2d worldPoint,
+        Vector2d scale,
+        Fixed64 angleInRadians,
+        out Vector2d localPoint) =>
+        WideVector2dTransform.TryInverseTransformScaledPoint(
+            origin,
+            worldPoint,
+            scale,
+            angleInRadians,
+            out localPoint);
+
+    /// <summary>
     /// Attempts to compose two component-scaled offsets in a shared frame and
     /// one rotated inner-frame displacement with one final round-half-to-even
     /// conversion per component.

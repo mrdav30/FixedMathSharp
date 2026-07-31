@@ -271,11 +271,145 @@ public class FixedTransform
     /// </summary>
     /// <remarks>
     /// The inverse candidate must multiply to identity in both orders within
-    /// <see cref="Fixed64.Epsilon"/>. Singular and saturated candidates return identity and false.
+    /// <see cref="FixedMath.CanonicalSinCosErrorBound"/>. Singular, saturated,
+    /// and unrepresentable candidates return identity and false.
     /// </remarks>
     public bool TryGetWorldToLocalMatrix(out Fixed4x4 matrix)
     {
-        return TryGetVerifiedInverse(LocalToWorldMatrix, out matrix);
+        if (!TryGetLocalToWorldMatrix(out Fixed4x4 world))
+        {
+            matrix = Fixed4x4.Identity;
+            return false;
+        }
+
+        return TryGetVerifiedInverse(world, out matrix);
+    }
+
+    /// <summary>
+    /// Transforms a point from local space to world space through the complete composed affine hierarchy.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// The composed transform or final world-space point is not representable.
+    /// </exception>
+    public Vector3d TransformPoint(Vector3d point)
+    {
+        if (!TryTransformPoint(point, out Vector3d result))
+            throw new InvalidOperationException(
+                "The composed transform or final world-space point is not representable.");
+
+        return result;
+    }
+
+    /// <summary>
+    /// Attempts to transform a point from local space to world space through the complete composed affine hierarchy.
+    /// </summary>
+    public bool TryTransformPoint(Vector3d point, out Vector3d result)
+    {
+        if (!TryGetLocalToWorldMatrix(out Fixed4x4 matrix))
+        {
+            result = default;
+            return false;
+        }
+
+        return Fixed4x4.TryTransformAffinePoint(matrix, point, out result);
+    }
+
+    /// <summary>
+    /// Transforms a point from world space to local space through the complete composed affine hierarchy.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// The composed transform is singular or unrepresentable, or the final local-space point is not representable.
+    /// </exception>
+    public Vector3d InverseTransformPoint(Vector3d point)
+    {
+        if (!TryInverseTransformPoint(point, out Vector3d result))
+            throw new InvalidOperationException(
+                "The composed transform is singular or unrepresentable, or the final local-space point is not representable.");
+
+        return result;
+    }
+
+    /// <summary>
+    /// Attempts to transform a point from world space to local space through the complete composed affine hierarchy.
+    /// </summary>
+    public bool TryInverseTransformPoint(Vector3d point, out Vector3d result)
+    {
+        if (!TryGetWorldToLocalMatrix(out Fixed4x4 matrix))
+        {
+            result = default;
+            return false;
+        }
+
+        return Fixed4x4.TryTransformAffinePoint(matrix, point, out result);
+    }
+
+    /// <summary>
+    /// Transforms a point from local X/Z space to world X/Z space through a plane-preserving affine hierarchy.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// The hierarchy couples X/Z with Y, or the composed transform or final world-space point is not representable.
+    /// </exception>
+    public Vector2d TransformPointXZ(Vector2d point)
+    {
+        if (!TryTransformPointXZ(point, out Vector2d result))
+            throw new InvalidOperationException(
+                "The hierarchy must preserve the X/Z plane and produce a representable world-space point.");
+
+        return result;
+    }
+
+    /// <summary>
+    /// Attempts to transform a point from local X/Z space to world X/Z space through a plane-preserving affine hierarchy.
+    /// </summary>
+    public bool TryTransformPointXZ(Vector2d point, out Vector2d result)
+    {
+        if (!TryGetPlanarXZMatrix(out Fixed4x4 matrix)
+            || !Fixed4x4.TryTransformAffinePoint(
+                matrix,
+                point.ToVector3d(Fixed64.Zero),
+                out Vector3d transformed))
+        {
+            result = default;
+            return false;
+        }
+
+        result = transformed.ToVector2d();
+        return true;
+    }
+
+    /// <summary>
+    /// Transforms a point from world X/Z space to local X/Z space through a plane-preserving affine hierarchy.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// The hierarchy couples X/Z with Y, is singular or unrepresentable, or the final local-space point is not representable.
+    /// </exception>
+    public Vector2d InverseTransformPointXZ(Vector2d point)
+    {
+        if (!TryInverseTransformPointXZ(point, out Vector2d result))
+            throw new InvalidOperationException(
+                "The hierarchy must preserve an invertible X/Z plane and produce a representable local-space point.");
+
+        return result;
+    }
+
+    /// <summary>
+    /// Attempts to transform a point from world X/Z space to local X/Z space through a plane-preserving affine hierarchy.
+    /// </summary>
+    public bool TryInverseTransformPointXZ(Vector2d point, out Vector2d result)
+    {
+        if (!TryGetPlanarXZMatrix(out Fixed4x4 matrix)
+            || !TryGetVerifiedInverse(matrix, out Fixed4x4 inverse)
+            || !Fixed4x4.TryTransformAffinePoint(
+                inverse,
+                point.ToVector3d(Fixed64.Zero),
+                out Vector3d transformed))
+        {
+            result = default;
+            return false;
+        }
+
+        result = transformed.ToVector2d();
+        return true;
     }
 
     /// <summary>
@@ -420,8 +554,14 @@ public class FixedTransform
     private static bool TryGetVerifiedInverse(Fixed4x4 world, out Fixed4x4 inverse)
     {
         if (Fixed4x4.Invert(world, out Fixed4x4 candidate)
-            && (world * candidate).FuzzyEqualAbsolute(Fixed4x4.Identity, Fixed64.Epsilon)
-            && (candidate * world).FuzzyEqualAbsolute(Fixed4x4.Identity, Fixed64.Epsilon))
+            && Fixed4x4.TryMultiply(world, candidate, out Fixed4x4 worldRoundTrip)
+            && Fixed4x4.TryMultiply(candidate, world, out Fixed4x4 localRoundTrip)
+            && worldRoundTrip.FuzzyEqualAbsolute(
+                Fixed4x4.Identity,
+                FixedMath.CanonicalSinCosErrorBound)
+            && localRoundTrip.FuzzyEqualAbsolute(
+                Fixed4x4.Identity,
+                FixedMath.CanonicalSinCosErrorBound))
         {
             inverse = candidate;
             return true;
@@ -429,6 +569,26 @@ public class FixedTransform
 
         inverse = Fixed4x4.Identity;
         return false;
+    }
+
+    private bool TryGetPlanarXZMatrix(out Fixed4x4 matrix)
+    {
+        if (!TryGetLocalToWorldMatrix(out Fixed4x4 world)
+            || ((world.M12 != Fixed64.Zero)
+                | (world.M21 != Fixed64.Zero)
+                | (world.M23 != Fixed64.Zero)
+                | (world.M32 != Fixed64.Zero)))
+        {
+            matrix = Fixed4x4.Zero;
+            return false;
+        }
+
+        matrix = new Fixed4x4(
+            world.M11, Fixed64.Zero, world.M13, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero,
+            world.M31, Fixed64.Zero, world.M33, Fixed64.Zero,
+            world.M41, Fixed64.Zero, world.M43, Fixed64.One);
+        return true;
     }
 
     private bool TryGetStrictLocalMatrix(out Fixed4x4 matrix)

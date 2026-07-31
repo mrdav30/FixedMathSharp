@@ -476,6 +476,12 @@ and `localScale`.
 read. `FixedTransform` does not own a scene graph, child collection, matrix
 cache, or engine object.
 
+Generic local/world point conversion now lives on `FixedTransform`.
+`TransformPoint` and `InverseTransformPoint` use the complete composed affine
+hierarchy; `TryTransformPoint` and `TryInverseTransformPoint` return `false`
+for unrepresentable or singular cases. The explicit `*PointXZ` variants are
+the planar bridge and reject hierarchy coupling with Y.
+
 The new `LocalPositionXZ`, `LocalRotationXZRadians`, `LocalScaleXZ`,
 `WorldPositionXZ`, and `WorldRotationXZRadians` helpers embed planar `(x, y)` as
 3D `(x, 0, y)`. Local position and scale setters preserve the existing Y

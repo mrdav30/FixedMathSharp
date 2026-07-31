@@ -106,6 +106,44 @@ public class Vector2dBenchmarks
     }
 
     [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector2d TryInverseTransformScaledPointRotated()
+    {
+        Vector2d result = Vector2d.Zero;
+        Vector2d scale = new(Fixed64.Two, (Fixed64)3);
+        for (int i = 0; i < _left.Length; i++)
+        {
+            _ = Vector2d.TryInverseTransformScaledPoint(
+                _left[i],
+                _right[i],
+                scale,
+                _angles[i],
+                out result);
+        }
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector2d TryInverseTransformScaledPointFullDomain()
+    {
+        Vector2d result = Vector2d.Zero;
+        Vector2d origin = new(Fixed64.MinValue, Fixed64.Zero);
+        Vector2d worldPoint = new(Fixed64.MaxValue, Fixed64.Zero);
+        Vector2d scale = new((Fixed64)3, Fixed64.One);
+        for (int i = 0; i < BenchmarkFixtures.SampleCount; i++)
+        {
+            _ = Vector2d.TryInverseTransformScaledPoint(
+                origin,
+                worldPoint,
+                scale,
+                Fixed64.Zero,
+                out result);
+        }
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
     public Vector2d TryGetRelativeOffsetRotated()
     {
         Vector2d result = Vector2d.Zero;

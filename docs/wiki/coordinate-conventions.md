@@ -68,6 +68,13 @@ multiplication orders. These operations are atomic: failure does not partially
 change local components or parent identity. Reparenting additionally rejects
 self and hierarchy cycles.
 
+`TransformPoint` and `InverseTransformPoint` convert through the complete
+composed affine hierarchy, including representable shear. Their `Try*`
+counterparts report singular, unrepresentable, or final-coordinate failures
+atomically. Use the explicit `*PointXZ` variants only for hierarchies that
+preserve the X/Z plane; they retain in-plane affine shear and reject any
+X/Z-to-Y coupling instead of silently projecting it away.
+
 ### X/Z Planar Helpers
 
 The X/Z bridge keeps the existing plane convention. A planar position `(x, y)`
