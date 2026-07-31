@@ -14,17 +14,37 @@ namespace FixedMathSharp.Geometry;
 internal readonly struct PlanarProjectionRelation
 {
     internal static readonly PlanarProjectionRelation Contained =
-        new(Fixed64.Zero, Vector2d.Zero);
+        new(
+            Fixed64.Zero,
+            Vector2d.Zero,
+            Vector2d.Zero,
+            isContained: true);
 
     internal PlanarProjectionRelation(
         Fixed64 distance,
-        Vector2d offset)
+        Vector2d offset,
+        Vector2d direction)
+        : this(distance, offset, direction, isContained: false)
+    {
+    }
+
+    private PlanarProjectionRelation(
+        Fixed64 distance,
+        Vector2d offset,
+        Vector2d direction,
+        bool isContained)
     {
         Distance = distance;
         Offset = offset;
+        Direction = direction;
+        IsContained = isContained;
     }
 
     internal Fixed64 Distance { get; }
 
     internal Vector2d Offset { get; }
+
+    internal Vector2d Direction { get; }
+
+    internal bool IsContained { get; }
 }

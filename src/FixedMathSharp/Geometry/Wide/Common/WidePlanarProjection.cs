@@ -72,6 +72,16 @@ internal static partial class WidePlanarProjection
             return false;
         }
 
+        if (WideGeometry.CompareDistanceToRadiusSum(
+                circleCenter,
+                projectedCenter,
+                Fixed64.Zero,
+                sphereRadius) <= 0)
+        {
+            relation = PlanarProjectionRelation.Contained;
+            return true;
+        }
+
         _ = WideFiniteAxisIntersection.TryGetDistanceToCenteredCapsule(
             circleCenter,
             projectedCenter,
@@ -79,17 +89,13 @@ internal static partial class WidePlanarProjection
             Fixed64.Zero,
             sphereRadius,
             out Fixed64 distance);
-        if (distance == Fixed64.Zero)
-        {
-            relation = PlanarProjectionRelation.Contained;
-            return true;
-        }
 
         Vector2d normal =
             WideNormalization.GetDirection(projectedCenter, circleCenter);
         relation = new PlanarProjectionRelation(
             distance,
-            -normal * distance);
+            -normal * distance,
+            -normal);
         return true;
     }
 
@@ -288,7 +294,10 @@ internal static partial class WidePlanarProjection
             axisDistance.X,
             axisDistance.Z);
         Vector2d offset = direction * distance;
-        relation = new PlanarProjectionRelation(distance, offset);
+        relation = new PlanarProjectionRelation(
+            distance,
+            offset,
+            direction);
         return true;
     }
 

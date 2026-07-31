@@ -155,6 +155,12 @@ internal static partial class WidePlanarProjection
         Fixed64 circleRadius,
         out PlanarProjectionRelation relation)
     {
+        if (distance.SquaredDistance.IsZero)
+        {
+            relation = PlanarProjectionRelation.Contained;
+            return true;
+        }
+
         if (!TryGetDistance(
                 distance,
                 circleRadius,
@@ -166,7 +172,10 @@ internal static partial class WidePlanarProjection
 
         relation = new PlanarProjectionRelation(
             result,
-            GetOffset(distance));
+            GetOffset(distance),
+            WideNormalization.GetNormalized(
+                distance.X,
+                distance.Z));
         return true;
     }
 

@@ -51,6 +51,7 @@ public sealed class WidePlanarProjectionTests
             out PlanarProjectionRelation contained));
         Assert.Equal(Fixed64.Zero, contained.Distance);
         Assert.Equal(Vector2d.Zero, contained.Offset);
+        Assert.True(contained.IsContained);
 
         Assert.True(WidePlanarProjection.TryGetSphereRelation(
             new Vector2d(Fixed64.MaxValue - (Fixed64)3, Fixed64.Zero),
@@ -60,6 +61,7 @@ public sealed class WidePlanarProjectionTests
             out PlanarProjectionRelation separated));
         Assert.Equal(Fixed64.One, separated.Distance);
         Assert.Equal(Vector2d.Right, separated.Offset);
+        Assert.False(separated.IsContained);
     }
 
     [Fact]
@@ -299,6 +301,8 @@ public sealed class WidePlanarProjectionTests
             out PlanarProjectionRelation relation));
         Assert.Equal(Fixed64.Zero, relation.Distance);
         Assert.Equal(Vector2d.Zero, relation.Offset);
+        Assert.False(relation.IsContained);
+        Assert.NotEqual(Vector2d.Zero, relation.Direction);
 
     }
 
@@ -641,6 +645,15 @@ public sealed class WidePlanarProjectionTests
             out PlanarProjectionRelation point));
         Assert.Equal(Fixed64.One, point.Distance);
         Assert.Equal(Vector2d.Left, point.Offset);
+
+        Assert.True(WidePlanarProjection.TryGetTriangleRelation(
+            Vector2d.Zero,
+            Fixed64.Zero,
+            projectedPoint,
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            out PlanarProjectionRelation pointContainment));
+        Assert.True(pointContainment.IsContained);
 
         Assert.True(WidePlanarProjection.TryGetTriangleRelation(
             new Vector2d(Fixed64.MaxValue, Fixed64.Zero),

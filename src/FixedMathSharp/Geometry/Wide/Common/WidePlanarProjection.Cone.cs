@@ -163,7 +163,8 @@ internal static partial class WidePlanarProjection
         Fixed64 distance = Fixed64.FromRaw(rounded);
         relation = new PlanarProjectionRelation(
             distance,
-            direction * distance);
+            direction * distance,
+            direction);
         return true;
     }
 
