@@ -181,6 +181,143 @@ public sealed class ScaledCompositeTransformTests
     }
 
     [Fact]
+    public void QuaternionInverseTransform_RetainsSubtractionAndDivisionUntilFinalCoordinate()
+    {
+        Vector3d scale = new((Fixed64)3, Fixed64.One, Fixed64.One);
+        Vector3d origin = new(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero);
+        Vector3d worldPoint = new(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero);
+        Fixed64 expectedX = Fixed64.FromRaw(6148914691236517205L);
+
+        Assert.True(FixedQuaternion.Identity.TryInverseTransformScaledPoint(
+            origin,
+            worldPoint,
+            scale,
+            out Vector3d localPoint));
+        Assert.Equal(new Vector3d(expectedX, Fixed64.Zero, Fixed64.Zero), localPoint);
+        Assert.True(FixedQuaternion.Identity.TryTransformScaledPoint(
+            origin,
+            localPoint,
+            scale,
+            out Vector3d roundTrip));
+        Assert.Equal(worldPoint, roundTrip);
+
+        Assert.True(FixedQuaternion.Identity.TryInverseTransformScaledPoint(
+            -origin,
+            -worldPoint,
+            scale,
+            out Vector3d mirrored));
+        Assert.Equal(new Vector3d(-expectedX, Fixed64.Zero, Fixed64.Zero), mirrored);
+
+        var halfTurnY = new FixedQuaternion(
+            Fixed64.Zero,
+            Fixed64.One,
+            Fixed64.Zero,
+            Fixed64.Zero);
+        Vector3d authoredLocal = new((Fixed64)5, (Fixed64)(-6), (Fixed64)7);
+        Vector3d mirroredScale = new((Fixed64)(-3), Fixed64.Two, (Fixed64)4);
+        Assert.True(halfTurnY.TryTransformScaledPoint(
+            new Vector3d(10, 20, 30),
+            authoredLocal,
+            mirroredScale,
+            out Vector3d mirroredWorld));
+        Assert.True(halfTurnY.TryInverseTransformScaledPoint(
+            new Vector3d(10, 20, 30),
+            mirroredWorld,
+            mirroredScale,
+            out Vector3d mirroredRoundTrip));
+        Assert.Equal(authoredLocal, mirroredRoundTrip);
+    }
+
+    [Fact]
+    public void QuaternionInverseTransform_RetainsRotationProjectionThroughScaleDivision()
+    {
+        var rotation = new FixedQuaternion(
+            Fixed64.Zero,
+            Fixed64.Zero,
+            Fixed64.One,
+            Fixed64.Two);
+        Vector3d worldPoint = new(
+            Fixed64.MaxValue,
+            Fixed64.MaxValue,
+            Fixed64.Zero);
+        Assert.True(Fixed64.TryMultiplyDivide(
+            Fixed64.MaxValue,
+            (Fixed64)7,
+            (Fixed64)10,
+            out Fixed64 expectedX));
+        Assert.True(Fixed64.TryMultiplyDivide(
+            Fixed64.MaxValue,
+            -Fixed64.One,
+            (Fixed64)5,
+            out Fixed64 expectedY));
+
+        Assert.True(rotation.TryInverseTransformScaledPoint(
+            Vector3d.Zero,
+            worldPoint,
+            new Vector3d(Fixed64.Two, Fixed64.One, Fixed64.One),
+            out Vector3d localPoint));
+        Assert.Equal(
+            new Vector3d(expectedX, expectedY, Fixed64.Zero),
+            localPoint);
+    }
+
+    [Fact]
+    public void QuaternionInverseTransform_UsesFinalHalfEvenRounding()
+    {
+        Vector3d scale = new(Fixed64.Two, Fixed64.One, Fixed64.One);
+
+        Assert.True(FixedQuaternion.Identity.TryInverseTransformScaledPoint(
+            Vector3d.Zero,
+            new Vector3d(Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.Zero),
+            scale,
+            out Vector3d even));
+        Assert.Equal(Vector3d.Zero, even);
+
+        Assert.True(FixedQuaternion.Identity.TryInverseTransformScaledPoint(
+            Vector3d.Zero,
+            new Vector3d(Fixed64.FromRaw(3), Fixed64.Zero, Fixed64.Zero),
+            scale,
+            out Vector3d odd));
+        Assert.Equal(
+            new Vector3d(Fixed64.FromRaw(2), Fixed64.Zero, Fixed64.Zero),
+            odd);
+    }
+
+    [Fact]
+    public void QuaternionInverseTransform_RejectsSingularOrUnrepresentableResultsAtomically()
+    {
+        Vector3d maximum = new(
+            Fixed64.MaxValue,
+            Fixed64.Zero,
+            Fixed64.Zero);
+        Vector3d minimum = new(
+            Fixed64.MinValue,
+            Fixed64.Zero,
+            Fixed64.Zero);
+
+        Assert.False(FixedQuaternion.Identity.TryInverseTransformScaledPoint(
+            Vector3d.Zero,
+            Vector3d.One,
+            new Vector3d(Fixed64.One, Fixed64.Zero, Fixed64.One),
+            out Vector3d singular));
+        Assert.Equal(default, singular);
+
+        Assert.False(FixedQuaternion.Zero.TryInverseTransformScaledPoint(
+            Vector3d.Zero,
+            Vector3d.One,
+            Vector3d.One,
+            out Vector3d zeroRotation));
+        Assert.Equal(default, zeroRotation);
+
+        Assert.False(FixedQuaternion.Identity.TryInverseTransformScaledPoint(
+            minimum,
+            maximum,
+            Vector3d.One,
+            out Vector3d overflow));
+        Assert.Equal(default, overflow);
+    }
+
+    [Fact]
     public void ScaledCompositeTransforms_DoNotAllocateAfterWarmup()
     {
         var rotation = FixedQuaternion.FromEulerAnglesInDegrees(
@@ -193,6 +330,19 @@ public sealed class ScaledCompositeTransformTests
             new Vector3d(2, 3, 4),
             Vector3d.One,
             out _);
+        _ = rotation.TryInverseTransformScaledPoint(
+            new Vector3d(3, 4, 5),
+            new Vector3d(6, 7, 8),
+            new Vector3d(2, 3, 4),
+            out _);
+        for (int iteration = 0; iteration < 32; iteration++)
+        {
+            _ = rotation.TryInverseTransformScaledPoint(
+                new Vector3d(3, 4, 5),
+                new Vector3d(6, 7, 8),
+                new Vector3d(2, 3, 4),
+                out _);
+        }
         _ = Vector2d.TryTransformScaledPoint(
             new Vector2d(3, 4),
             new Vector2d(6, 7),
@@ -239,6 +389,11 @@ public sealed class ScaledCompositeTransformTests
                 new Vector3d(6, 7, 8),
                 new Vector3d(2, 3, 4),
                 Vector3d.One,
+                out _);
+            _ = rotation.TryInverseTransformScaledPoint(
+                new Vector3d(3, 4, 5),
+                new Vector3d(6, 7, 8),
+                new Vector3d(2, 3, 4),
                 out _);
             _ = Vector2d.TryTransformScaledPoint(
                 new Vector2d(3, 4),

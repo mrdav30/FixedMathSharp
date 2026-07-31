@@ -526,6 +526,11 @@ For rigid-frame geometry that also applies a local scale, use
 `origin + rotation * (localPoint * scale)` as one wide operation and return
 `false` only when a final coordinate is outside the scalar domain; they avoid
 the intermediate saturation of separately scaling, rotating, and translating.
+The matching 3D inverse,
+`FixedQuaternion.TryInverseTransformScaledPoint`, retains world subtraction,
+inverse rotation, and component division through the same one-final-rounding
+contract. It returns `false` atomically for a zero quaternion, singular scale,
+or unrepresentable final local coordinate.
 
 `SetScale` and `ResetScaleToIdentity` only overwrote diagonal entries and
 corrupted rotated bases. Construct a pure scale matrix with `CreateScale`.

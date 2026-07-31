@@ -326,6 +326,19 @@ public sealed class FixedTransformTests
     }
 
     [Fact]
+    public void FixedTransform_TryGetLossyScale_PreservesNonnegativeRootScale()
+    {
+        Vector3d expected = new(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Half);
+        var transform = new FixedTransform(
+            new Vector3d(Fixed64.MinValue, Fixed64.MaxValue, Fixed64.Zero),
+            FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver4),
+            expected);
+
+        Assert.True(transform.TryGetLossyScale(out Vector3d scale));
+        Assert.Equal(expected, scale);
+    }
+
+    [Fact]
     public void FixedTransform_TryGetLossyScale_RejectsUnrepresentableComposedBasisMagnitude()
     {
         var parent = new FixedTransform(

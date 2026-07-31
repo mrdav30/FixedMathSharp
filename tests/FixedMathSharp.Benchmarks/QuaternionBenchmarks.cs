@@ -245,6 +245,42 @@ public class QuaternionBenchmarks
     }
 
     [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector3d TryInverseTransformScaledPointRotated()
+    {
+        Vector3d result = Vector3d.Zero;
+        Vector3d scale = new(Fixed64.Two, (Fixed64)3, (Fixed64)4);
+        for (int i = 0; i < _left.Length; i++)
+        {
+            _ = _left[i].TryInverseTransformScaledPoint(
+                _vectors[i],
+                _axes[i],
+                scale,
+                out result);
+        }
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector3d TryInverseTransformScaledPointFullDomain()
+    {
+        Vector3d result = Vector3d.Zero;
+        Vector3d origin = new(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero);
+        Vector3d worldPoint = new(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero);
+        Vector3d scale = new((Fixed64)3, Fixed64.One, Fixed64.One);
+        for (int i = 0; i < BenchmarkFixtures.SampleCount; i++)
+        {
+            _ = FixedQuaternion.Identity.TryInverseTransformScaledPoint(
+                origin,
+                worldPoint,
+                scale,
+                out result);
+        }
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
     public Vector3d TryGetRelativeOffsetRotated()
     {
         Vector3d result = Vector3d.Zero;

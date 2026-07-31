@@ -378,63 +378,6 @@ internal static partial class WideOrientedBox
             localOffset,
             out worldOffset);
 
-    internal static bool TryMaterializeScaledLocalPoint(
-        Vector3d center,
-        FixedQuaternion orientation,
-        Vector3d localPoint,
-        Vector3d scale,
-        Vector3d localDisplacement,
-        out Vector3d worldPoint)
-    {
-        WideRationalBasis3d basis = new(orientation);
-        Signed320 scaledDenominator = WideArithmetic.MultiplySigned192(
-            basis.Denominator,
-            Signed192.One);
-        Signed576 denominator =
-            Signed576.ExtendValue(scaledDenominator);
-        bool representable = TryMaterializeScaledCoordinate(
-                center.X,
-                basis.Xx,
-                basis.Yx,
-                basis.Zx,
-                scaledDenominator,
-                denominator,
-                localPoint,
-                scale,
-                localDisplacement,
-                out Fixed64 x)
-            & TryMaterializeScaledCoordinate(
-                center.Y,
-                basis.Xy,
-                basis.Yy,
-                basis.Zy,
-                scaledDenominator,
-                denominator,
-                localPoint,
-                scale,
-                localDisplacement,
-                out Fixed64 y)
-            & TryMaterializeScaledCoordinate(
-                center.Z,
-                basis.Xz,
-                basis.Yz,
-                basis.Zz,
-                scaledDenominator,
-                denominator,
-                localPoint,
-                scale,
-                localDisplacement,
-                out Fixed64 z);
-        if (!representable)
-        {
-            worldPoint = default;
-            return false;
-        }
-
-        worldPoint = new Vector3d(x, y, z);
-        return true;
-    }
-
     internal static bool TryGetRelativeOffset(
         FixedQuaternion orientation,
         Vector3d firstOrigin,

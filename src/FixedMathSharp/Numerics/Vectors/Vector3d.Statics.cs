@@ -645,7 +645,7 @@ public partial struct Vector3d
         Vector3d innerLocalDisplacement,
         FixedQuaternion innerRotation,
         out Vector3d result) =>
-        WideOrientedBox.TryComposeScaledLocalPoints(
+        WideVector3dTransform.TryComposeScaledLocalPoints(
             outerLocalPoint,
             outerScale,
             innerFrameOffset,

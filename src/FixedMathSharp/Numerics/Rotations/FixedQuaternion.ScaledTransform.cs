@@ -5,8 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Geometry;
-
 namespace FixedMathSharp;
 
 /// <content>
@@ -57,12 +55,56 @@ public partial struct FixedQuaternion
             return true;
         }
 
-        return WideOrientedBox.TryMaterializeScaledLocalPoint(
+        return WideVector3dTransform.TryTransformScaledPoint(
             origin,
             this,
             localPoint,
             scale,
             localDisplacement,
+            out result);
+    }
+
+    /// <summary>
+    /// Attempts to inverse-transform a world point by this rotation, a world
+    /// origin, and a component scale with one final round-half-to-even
+    /// conversion per local component.
+    /// </summary>
+    /// <remarks>
+    /// Computes <c>InverseRotate(worldPoint - origin) / scale</c> without
+    /// narrowing the world offset or rotated point independently. A zero
+    /// quaternion or any zero scale component returns <see langword="false"/>.
+    /// </remarks>
+    /// <param name="origin">The world-space origin of the scaled local frame.</param>
+    /// <param name="worldPoint">The world-space point to inverse-transform.</param>
+    /// <param name="scale">The component scale of the local frame.</param>
+    /// <param name="result">
+    /// The local-space point on success; otherwise zero.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when this quaternion is nonzero, every scale
+    /// component is nonzero, and every final local coordinate is representable;
+    /// otherwise <see langword="false"/>.
+    /// </returns>
+    public bool TryInverseTransformScaledPoint(
+        Vector3d origin,
+        Vector3d worldPoint,
+        Vector3d scale,
+        out Vector3d result)
+    {
+        if (this == Zero
+            || scale.X == Fixed64.Zero
+            || scale.Y == Fixed64.Zero
+            || scale.Z == Fixed64.Zero)
+        {
+            result = default;
+            return false;
+        }
+
+        return WideVector3dTransform.TryInverseTransformScaledPoint(
+            origin,
+            this,
+            worldPoint,
+            scale,
             out result);
     }
 }

@@ -231,6 +231,15 @@ public class FixedTransform
     /// <remarks>Failure returns zero and does not mutate this transform or any ancestor.</remarks>
     public bool TryGetLossyScale(out Vector3d scale)
     {
+        if (_parent == null
+            && _localScale.X >= Fixed64.Zero
+            && _localScale.Y >= Fixed64.Zero
+            && _localScale.Z >= Fixed64.Zero)
+        {
+            scale = _localScale;
+            return true;
+        }
+
         if (!TryGetLocalToWorldMatrix(out Fixed4x4 matrix))
         {
             scale = Vector3d.Zero;
