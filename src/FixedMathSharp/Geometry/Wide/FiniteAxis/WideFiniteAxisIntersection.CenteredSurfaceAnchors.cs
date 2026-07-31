@@ -25,6 +25,42 @@ internal static partial class WideFiniteAxisIntersection
         out Vector3d outwardNormal,
         out Fixed64 signedDistance)
     {
+        surfaceAnchor = GetClosestCenteredCapsuleSurfaceAnchor(
+            point,
+            center,
+            frameRotation,
+            localAxisDirection,
+            axisLength,
+            radius,
+            localFallbackRadialDirection,
+            out outwardNormal,
+            out bool contained);
+        if (TryGetSignedSurfaceDistance(
+                point,
+                surfaceAnchor,
+                contained,
+                out signedDistance))
+        {
+            return true;
+        }
+
+        surfaceAnchor = default;
+        outwardNormal = default;
+        signedDistance = default;
+        return false;
+    }
+
+    internal static FixedPointAnchor GetClosestCenteredCapsuleSurfaceAnchor(
+        Vector3d point,
+        Vector3d center,
+        FixedQuaternion frameRotation,
+        Vector3d localAxisDirection,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector3d localFallbackRadialDirection,
+        out Vector3d outwardNormal,
+        out bool contained)
+    {
         GetRigidLocalPointRelation(
             point,
             center,
@@ -48,35 +84,20 @@ internal static partial class WideFiniteAxisIntersection
             cap,
             relation,
             out FixedPointAnchor axisAnchor,
-            out surfaceAnchor);
+            out FixedPointAnchor surfaceAnchor);
 
         var pointAnchor = new FixedPointAnchor(
             point,
             FixedQuaternion.Identity,
             Vector3d.Zero);
-        bool representable = pointAnchor.TryGetOffsetFrom(
-            surfaceAnchor,
-            out Vector3d surfaceToPoint);
-        representable &= Vector3d.TryGetMagnitude(
-            surfaceToPoint,
-            out Fixed64 distance);
-        if (!representable)
-        {
-            surfaceAnchor = default;
-            outwardNormal = default;
-            signedDistance = default;
-            return false;
-        }
-
-        bool contained = axisAnchor.CompareSquaredDistance(
+        contained = axisAnchor.CompareSquaredDistance(
             pointAnchor,
             surfaceAnchor) <= 0;
-        signedDistance = contained ? -distance : distance;
         _ = frameRotation.TryRotate(
             localSurfaceDirection,
             out Vector3d rotatedNormal);
         outwardNormal = WideNormalization.GetNormalized(rotatedNormal);
-        return true;
+        return surfaceAnchor;
     }
 
     private static Vector3d GetLocalCapsuleSurfaceDirection(
@@ -171,6 +192,44 @@ internal static partial class WideFiniteAxisIntersection
         out Vector3d outwardNormal,
         out Fixed64 signedDistance)
     {
+        surfaceAnchor =
+            GetClosestCenteredFiniteCylinderSurfaceAnchor(
+                point,
+                center,
+                frameRotation,
+                localAxisDirection,
+                axisLength,
+                radius,
+                localFallbackRadialDirection,
+                out outwardNormal,
+                out bool contained);
+        if (TryGetSignedSurfaceDistance(
+                point,
+                surfaceAnchor,
+                contained,
+                out signedDistance))
+        {
+            return true;
+        }
+
+        surfaceAnchor = default;
+        outwardNormal = default;
+        signedDistance = default;
+        return false;
+    }
+
+    internal static FixedPointAnchor
+        GetClosestCenteredFiniteCylinderSurfaceAnchor(
+            Vector3d point,
+            Vector3d center,
+            FixedQuaternion frameRotation,
+            Vector3d localAxisDirection,
+            Fixed64 axisLength,
+            Fixed64 radius,
+            Vector3d localFallbackRadialDirection,
+            out Vector3d outwardNormal,
+            out bool contained)
+    {
         GetRigidLocalPointRelation(
             point,
             center,
@@ -184,7 +243,7 @@ internal static partial class WideFiniteAxisIntersection
         bool radialOutside = CompareSigned576(
             relation.RadialNumerator,
             radialBound) > 0;
-        bool contained =
+        contained =
             cap == 0
             && CompareSigned576(
                 relation.RadialNumerator,
@@ -230,30 +289,18 @@ internal static partial class WideFiniteAxisIntersection
                 sideAnchor,
                 capAnchor) <= 0;
         }
-        surfaceAnchor = side ? sideAnchor : capAnchor;
+        FixedPointAnchor surfaceAnchor =
+            side ? sideAnchor : capAnchor;
 
         var reference = new FixedPointAnchor(
             point,
             FixedQuaternion.Identity,
             Vector3d.Zero);
-        bool representable = reference.TryGetOffsetFrom(
-            surfaceAnchor,
-            out Vector3d surfaceToPoint);
-        representable &= Vector3d.TryGetMagnitude(
-            surfaceToPoint,
-            out Fixed64 distance);
-        if (!representable)
-        {
-            surfaceAnchor = default;
-            outwardNormal = default;
-            signedDistance = default;
-            return false;
-        }
-
-        signedDistance = contained ? -distance : distance;
         if (side && cap != 0 && radialOutside)
         {
-            outwardNormal = WideNormalization.GetNormalized(surfaceToPoint);
+            outwardNormal = WidePointAnchor3d.GetDirection(
+                reference,
+                surfaceAnchor);
         }
         else
         {
@@ -267,6 +314,31 @@ internal static partial class WideFiniteAxisIntersection
                 out Vector3d rotatedNormal);
             outwardNormal = WideNormalization.GetNormalized(rotatedNormal);
         }
+        return surfaceAnchor;
+    }
+
+    private static bool TryGetSignedSurfaceDistance(
+        Vector3d point,
+        in FixedPointAnchor surfaceAnchor,
+        bool contained,
+        out Fixed64 signedDistance)
+    {
+        var reference = new FixedPointAnchor(
+            point,
+            FixedQuaternion.Identity,
+            Vector3d.Zero);
+        if (!reference.TryGetOffsetFrom(
+                surfaceAnchor,
+                out Vector3d surfaceToPoint)
+            || !Vector3d.TryGetMagnitude(
+                surfaceToPoint,
+                out Fixed64 distance))
+        {
+            signedDistance = default;
+            return false;
+        }
+
+        signedDistance = contained ? -distance : distance;
         return true;
     }
 

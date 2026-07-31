@@ -25,6 +25,44 @@ internal static partial class WideFiniteAxisIntersection
         out Vector3d outwardNormal,
         out Fixed64 signedDistance)
     {
+        surfaceAnchor =
+            GetClosestCenteredFiniteConeSurfaceAnchor(
+                point,
+                center,
+                frameRotation,
+                localAxisDirection,
+                height,
+                radius,
+                localFallbackRadialDirection,
+                out outwardNormal,
+                out bool contained);
+        if (TryGetSignedSurfaceDistance(
+                point,
+                surfaceAnchor,
+                contained,
+                out signedDistance))
+        {
+            return true;
+        }
+
+        surfaceAnchor = default;
+        outwardNormal = default;
+        signedDistance = default;
+        return false;
+    }
+
+    internal static FixedPointAnchor
+        GetClosestCenteredFiniteConeSurfaceAnchor(
+            Vector3d point,
+            Vector3d center,
+            FixedQuaternion frameRotation,
+            Vector3d localAxisDirection,
+            Fixed64 height,
+            Fixed64 radius,
+            Vector3d localFallbackRadialDirection,
+            out Vector3d outwardNormal,
+            out bool contained)
+    {
         GetRigidLocalPointRelation(
             point,
             center,
@@ -42,34 +80,15 @@ internal static partial class WideFiniteAxisIntersection
             out Fixed64 surfaceRadius,
             out Fixed64 signedAxisLength,
             out bool side,
-            out bool contained);
+            out contained);
 
-        surfaceAnchor = CreateCenteredSurfaceAnchor(
+        FixedPointAnchor surfaceAnchor = CreateCenteredSurfaceAnchor(
             center,
             frameRotation,
             localAxisDirection,
             signedAxisLength,
             localRadialDirection,
             surfaceRadius);
-        var reference = new FixedPointAnchor(
-            point,
-            FixedQuaternion.Identity,
-            Vector3d.Zero);
-        bool representable = reference.TryGetOffsetFrom(
-            surfaceAnchor,
-            out Vector3d surfaceToPoint);
-        representable &= Vector3d.TryGetMagnitude(
-            surfaceToPoint,
-            out Fixed64 distance);
-        if (!representable)
-        {
-            surfaceAnchor = default;
-            outwardNormal = default;
-            signedDistance = default;
-            return false;
-        }
-
-        signedDistance = contained ? -distance : distance;
         Vector3d localNormal = side
             ? GetCenteredConeSideNormal(
                 localRadialDirection,
@@ -81,7 +100,7 @@ internal static partial class WideFiniteAxisIntersection
             localNormal,
             out Vector3d rotatedNormal);
         outwardNormal = WideNormalization.GetNormalized(rotatedNormal);
-        return true;
+        return surfaceAnchor;
     }
 
     private static void GetRigidCenteredConeMeridian(

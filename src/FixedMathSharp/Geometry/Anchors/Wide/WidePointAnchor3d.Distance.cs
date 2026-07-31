@@ -12,6 +12,30 @@ namespace FixedMathSharp.Geometry;
 /// </content>
 internal static partial class WidePointAnchor3d
 {
+    internal static Vector3d GetDirection(
+        in FixedPointAnchor first,
+        in FixedPointAnchor second)
+    {
+        GetExactRelativeOffsetRatio(
+            first.Origin,
+            first.Rotation,
+            first.LocalPoint,
+            first.LocalDisplacement,
+            first.LocalTranslation,
+            first.ExactLocalTerm,
+            second.Origin,
+            second.Rotation,
+            second.LocalPoint,
+            second.LocalDisplacement,
+            second.LocalTranslation,
+            second.ExactLocalTerm,
+            out Signed576 x,
+            out Signed576 y,
+            out Signed576 z,
+            out _);
+        return WideNormalization.GetNormalized(x, y, z);
+    }
+
     internal static int CompareSquaredDistances(
         in FixedPointAnchor reference,
         in FixedPointAnchor first,

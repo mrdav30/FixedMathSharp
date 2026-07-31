@@ -68,9 +68,12 @@ public sealed class CenteredFiniteSurfaceEdgeContractsTests
                 Fixed64.Two,
                 Fixed64.One,
                 Vector3d.Right,
-                out _,
-                out _,
-                out _));
+                out FixedPointAnchor capsule,
+                out Vector3d capsuleNormal,
+                out Fixed64 capsuleDistance));
+        Assert.Equal(default, capsule);
+        Assert.Equal(Vector3d.Zero, capsuleNormal);
+        Assert.Equal(Fixed64.Zero, capsuleDistance);
 
         Assert.False(
             FixedSegment.TryGetClosestCenteredCapsuleSurfaceAnchor(
@@ -87,6 +90,78 @@ public sealed class CenteredFiniteSurfaceEdgeContractsTests
                 out _,
                 out _,
                 out _));
+    }
+
+    [Fact]
+    public void AnchorOnlySelection_ShouldSurviveUnrepresentableSignedDistance()
+    {
+        Vector3d point = new(
+            Fixed64.MinValue,
+            Fixed64.Zero,
+            Fixed64.Zero);
+        Vector3d center = new(
+            Fixed64.MaxValue,
+            Fixed64.Zero,
+            Fixed64.Zero);
+
+        FixedPointAnchor capsule =
+            WideFiniteAxisIntersection
+                .GetClosestCenteredCapsuleSurfaceAnchor(
+                    point,
+                    center,
+                    FixedQuaternion.Identity,
+                    Vector3d.Up,
+                    Fixed64.Two,
+                    Fixed64.One,
+                    Vector3d.Right,
+                    out Vector3d capsuleNormal,
+                    out _);
+        Assert.True(capsule.TryGetPoint(out Vector3d capsulePoint));
+        Assert.Equal(
+            new Vector3d(
+                Fixed64.MaxValue - Fixed64.One,
+                Fixed64.Zero,
+                Fixed64.Zero),
+            capsulePoint);
+        Assert.Equal(Vector3d.Left, capsuleNormal);
+
+        FixedPointAnchor cylinder =
+            WideFiniteAxisIntersection
+                .GetClosestCenteredFiniteCylinderSurfaceAnchor(
+                    point,
+                    center,
+                    FixedQuaternion.Identity,
+                    Vector3d.Up,
+                    Fixed64.Two,
+                    Fixed64.One,
+                    Vector3d.Right,
+                    out Vector3d cylinderNormal,
+                    out _);
+        Assert.True(cylinder.TryGetPoint(out Vector3d cylinderPoint));
+        Assert.Equal(capsulePoint, cylinderPoint);
+        Assert.Equal(Vector3d.Left, cylinderNormal);
+
+        FixedPointAnchor cone =
+            WideFiniteAxisIntersection
+                .GetClosestCenteredFiniteConeSurfaceAnchor(
+                    point,
+                    center,
+                    FixedQuaternion.Identity,
+                    Vector3d.Up,
+                    Fixed64.Two,
+                    Fixed64.One,
+                    Vector3d.Right,
+                    out Vector3d coneNormal,
+                    out _);
+        Assert.True(cone.TryGetPoint(out Vector3d conePoint));
+        Assert.Equal(
+            new Vector3d(
+                Fixed64.MaxValue - Fixed64.One,
+                -Fixed64.One,
+                Fixed64.Zero),
+            conePoint);
+        Assert.True(coneNormal.IsNormalized());
+        Assert.True(coneNormal.X < Fixed64.Zero);
     }
 
     [Fact]
@@ -259,9 +334,12 @@ public sealed class CenteredFiniteSurfaceEdgeContractsTests
                 Fixed64.One,
                 Fixed64.Zero,
                 Vector3d.Right,
-                out _,
-                out _,
-                out _));
+                out FixedPointAnchor cylinder,
+                out Vector3d cylinderNormal,
+                out Fixed64 cylinderDistance));
+        Assert.Equal(default, cylinder);
+        Assert.Equal(Vector3d.Zero, cylinderNormal);
+        Assert.Equal(Fixed64.Zero, cylinderDistance);
     }
 
     [Theory]
@@ -312,9 +390,12 @@ public sealed class CenteredFiniteSurfaceEdgeContractsTests
                 (Fixed64)4,
                 (Fixed64)2,
                 Vector3d.Right,
-                out _,
-                out _,
-                out _));
+                out FixedPointAnchor cone,
+                out Vector3d coneNormal,
+                out Fixed64 coneDistance));
+        Assert.Equal(default, cone);
+        Assert.Equal(Vector3d.Zero, coneNormal);
+        Assert.Equal(Fixed64.Zero, coneDistance);
 
         Assert.False(
             FixedSegment.TryGetClosestCenteredFiniteConeSurfaceAnchor(
