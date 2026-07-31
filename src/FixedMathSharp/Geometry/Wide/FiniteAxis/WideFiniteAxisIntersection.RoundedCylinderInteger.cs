@@ -30,6 +30,22 @@ internal static partial class WideFiniteAxisIntersection
         signs[GetRoundedCylinderCoefficientIndex(polynomialIndex, coefficientIndex)] = (sbyte)value.Sign;
     }
 
+    private static void ImportRoundedCylinderCoefficient(
+        Signed832 value,
+        Span<ulong> coefficients,
+        Span<sbyte> signs,
+        int polynomialIndex,
+        int coefficientIndex)
+    {
+        Span<ulong> destination = GetRoundedCylinderCoefficient(
+            coefficients,
+            polynomialIndex,
+            coefficientIndex);
+        WideArithmetic.GetMagnitude(value, destination[..13]);
+        signs[GetRoundedCylinderCoefficientIndex(polynomialIndex, coefficientIndex)] =
+            (sbyte)value.Sign;
+    }
+
     private static Span<ulong> GetRoundedCylinderCoefficient(
         Span<ulong> coefficients,
         int polynomialIndex,

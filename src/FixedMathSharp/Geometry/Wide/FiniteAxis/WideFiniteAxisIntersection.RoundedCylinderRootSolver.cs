@@ -21,6 +21,109 @@ internal static partial class WideFiniteAxisIntersection
     // The largest factorized quartic subresultant transient is below 2,772 bits.
     private const int RoundedCylinderWideLimbCount = 44;
 
+    /// <summary>
+    /// Counts real roots for quartics whose coefficient growth is bounded by
+    /// the finite-axis and planar-projection derivations in this assembly.
+    /// </summary>
+    internal static int CountProjectionDomainQuarticRoots(
+        Signed832 constant,
+        Signed832 linear,
+        Signed832 quadratic,
+        Signed832 cubic,
+        Signed832 quartic)
+    {
+        int leadingSign = quartic.Sign;
+        if (leadingSign == 0)
+            throw new ArgumentOutOfRangeException(nameof(quartic));
+
+        if (leadingSign < 0)
+        {
+            constant = WideArithmetic.SubtractSigned832(default, constant);
+            linear = WideArithmetic.SubtractSigned832(default, linear);
+            quadratic = WideArithmetic.SubtractSigned832(default, quadratic);
+            cubic = WideArithmetic.SubtractSigned832(default, cubic);
+            quartic = WideArithmetic.SubtractSigned832(default, quartic);
+        }
+
+        Span<ulong> coefficients = stackalloc ulong[
+            RoundedCylinderPolynomialCount
+            * RoundedCylinderCoefficientCount
+            * RoundedCylinderWideLimbCount];
+        Span<sbyte> signs = stackalloc sbyte[
+            RoundedCylinderPolynomialCount * RoundedCylinderCoefficientCount];
+        Span<int> degrees = stackalloc int[RoundedCylinderPolynomialCount];
+        coefficients.Clear();
+        signs.Clear();
+        degrees.Clear();
+        ImportRoundedCylinderCoefficient(constant, coefficients, signs, 0, 0);
+        ImportRoundedCylinderCoefficient(linear, coefficients, signs, 0, 1);
+        ImportRoundedCylinderCoefficient(quadratic, coefficients, signs, 0, 2);
+        ImportRoundedCylinderCoefficient(cubic, coefficients, signs, 0, 3);
+        ImportRoundedCylinderCoefficient(quartic, coefficients, signs, 0, 4);
+        degrees[0] = 4;
+        for (int coefficientIndex = 1; coefficientIndex <= 4; coefficientIndex++)
+        {
+            int destinationIndex = coefficientIndex - 1;
+            MultiplyRoundedCylinderWideByWord(
+                GetRoundedCylinderCoefficient(
+                    coefficients,
+                    0,
+                    coefficientIndex),
+                (ulong)coefficientIndex,
+                GetRoundedCylinderCoefficient(
+                    coefficients,
+                    1,
+                    destinationIndex));
+            signs[GetRoundedCylinderCoefficientIndex(1, destinationIndex)] =
+                signs[GetRoundedCylinderCoefficientIndex(
+                    0,
+                    coefficientIndex)];
+        }
+        degrees[1] = 3;
+
+        int sequenceCount = BuildRoundedCylinderQuarticSturmSequence(
+            coefficients,
+            signs,
+            degrees);
+        return GetRoundedCylinderInfinityVariations(
+                   signs,
+                   degrees,
+                   sequenceCount,
+                   negative: true)
+               - GetRoundedCylinderInfinityVariations(
+                   signs,
+                   degrees,
+                   sequenceCount,
+                   negative: false);
+    }
+
+    private static int GetRoundedCylinderInfinityVariations(
+        ReadOnlySpan<sbyte> signs,
+        ReadOnlySpan<int> degrees,
+        int sequenceCount,
+        bool negative)
+    {
+        int variations = 0;
+        int previousSign = 0;
+        for (int polynomialIndex = 0;
+             polynomialIndex < sequenceCount;
+             polynomialIndex++)
+        {
+            int degree = degrees[polynomialIndex];
+            int sign = signs[
+                GetRoundedCylinderCoefficientIndex(
+                    polynomialIndex,
+                    degree)];
+            if (negative && (degree & 1) != 0)
+                sign = -sign;
+            if (previousSign != 0 && sign != previousSign)
+                variations++;
+            previousSign = sign;
+        }
+
+        return variations;
+    }
+
     private static bool TryGetRoundedCylinderRimDistanceInterval(
         RoundedCylinderTorusPolynomial polynomial,
         Fixed64 segmentLength,
