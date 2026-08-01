@@ -292,22 +292,40 @@ internal static partial class WideTriangleRelations
         out Signed576 maximum,
         out Signed576 sum)
     {
+        Signed576 localAxisX = WideRigidProjection.GetBasisAxisProjection(
+            axis,
+            basis.Xx,
+            basis.Xy,
+            basis.Xz);
+        Signed576 localAxisY = WideRigidProjection.GetBasisAxisProjection(
+            axis,
+            basis.Yx,
+            basis.Yy,
+            basis.Yz);
+        Signed576 localAxisZ = WideRigidProjection.GetBasisAxisProjection(
+            axis,
+            basis.Zx,
+            basis.Zy,
+            basis.Zz);
         Signed576 first = GetProjection(
             triangle.A,
-            basis,
-            axis,
+            localAxisX,
+            localAxisY,
+            localAxisZ,
             otherDenominator);
         minimum = first;
         maximum = first;
         Signed576 second = GetProjection(
             triangle.B,
-            basis,
-            axis,
+            localAxisX,
+            localAxisY,
+            localAxisZ,
             otherDenominator);
         Signed576 third = GetProjection(
             triangle.C,
-            basis,
-            axis,
+            localAxisX,
+            localAxisY,
+            localAxisZ,
             otherDenominator);
         WideRigidProjection.IncludeProjection(
             second,
@@ -324,14 +342,22 @@ internal static partial class WideTriangleRelations
 
     private static Signed576 GetProjection(
         Vector3d point,
-        WideRationalBasis3d basis,
-        WideAxis3 axis,
+        Signed576 localAxisX,
+        Signed576 localAxisY,
+        Signed576 localAxisZ,
         Signed192 otherDenominator) =>
         WideArithmetic.MultiplySigned576(
-            WideRigidProjection.GetTransformedLocalOffsetProjection(
-                point,
-                basis,
-                axis),
+            WideArithmetic.AddSigned576(
+                WideArithmetic.AddSigned576(
+                    WideArithmetic.MultiplySigned576(
+                        localAxisX,
+                        Signed192.Raw(point.X)),
+                    WideArithmetic.MultiplySigned576(
+                        localAxisY,
+                        Signed192.Raw(point.Y))),
+                WideArithmetic.MultiplySigned576(
+                    localAxisZ,
+                    Signed192.Raw(point.Z))),
             otherDenominator);
 
     private static WideAxis3 TransformLocalNormalCrossEdge(

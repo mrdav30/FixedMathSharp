@@ -136,12 +136,27 @@ internal static partial class WideArithmetic
     {
         Span<ulong> leftOverlapWords = stackalloc ulong[9];
         Span<ulong> rightOverlapWords = stackalloc ulong[9];
-        Span<ulong> leftCommonWords = stackalloc ulong[5];
-        Span<ulong> rightCommonWords = stackalloc ulong[5];
         Span<ulong> leftAxisWords = stackalloc ulong[9];
         Span<ulong> rightAxisWords = stackalloc ulong[9];
         GetMagnitude(leftOverlap, leftOverlapWords);
         GetMagnitude(rightOverlap, rightOverlapWords);
+        GetMagnitude(leftSquaredAxisLength, leftAxisWords);
+        GetMagnitude(rightSquaredAxisLength, rightAxisWords);
+
+        if (leftCommonDenominator.Sign > 0
+            && leftCommonDenominator.Equals(rightCommonDenominator))
+        {
+            return CompareSignedNormalizedMagnitudes(
+                leftOverlapWords,
+                leftOverlap.Sign,
+                leftAxisWords,
+                rightOverlapWords,
+                rightOverlap.Sign,
+                rightAxisWords);
+        }
+
+        Span<ulong> leftCommonWords = stackalloc ulong[5];
+        Span<ulong> rightCommonWords = stackalloc ulong[5];
         GetMagnitude(
             leftCommonDenominator,
             out leftCommonWords[4],
@@ -156,8 +171,6 @@ internal static partial class WideArithmetic
             out rightCommonWords[2],
             out rightCommonWords[1],
             out rightCommonWords[0]);
-        GetMagnitude(leftSquaredAxisLength, leftAxisWords);
-        GetMagnitude(rightSquaredAxisLength, rightAxisWords);
 
         Span<ulong> leftOverlapSquared = stackalloc ulong[18];
         Span<ulong> rightOverlapSquared = stackalloc ulong[18];

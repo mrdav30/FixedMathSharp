@@ -8,6 +8,29 @@ public sealed class WideNormalizedDepthRoundingTests
 {
     private static readonly BigInteger AxisScale = BigInteger.One << 32;
 
+    [Theory]
+    [InlineData(12L, 9L, 5L, 8L, 4L, 5L, 0)]
+    [InlineData(12L, 16L, 3L, 10L, 1L, 5L, -1)]
+    public void Comparison_PreservesEqualDenominatorCancellationAndUnequalFallback(
+        long leftOverlap,
+        long leftSquaredAxis,
+        long leftCommon,
+        long rightOverlap,
+        long rightSquaredAxis,
+        long rightCommon,
+        int expected)
+    {
+        int actual = WideArithmetic.CompareNonNegativeNormalizedDepths(
+            ToSigned576(leftOverlap),
+            ToSigned576(leftSquaredAxis),
+            ToSigned320(leftCommon),
+            ToSigned576(rightOverlap),
+            ToSigned576(rightSquaredAxis),
+            ToSigned320(rightCommon));
+
+        Assert.Equal(expected, Math.Sign(actual));
+    }
+
     [Fact]
     public void Rounding_TinyNonSquareAxisCannotUseSingleApproximationCorrection()
     {
