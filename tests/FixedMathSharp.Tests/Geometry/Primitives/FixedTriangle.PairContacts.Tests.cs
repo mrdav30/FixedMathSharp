@@ -253,6 +253,72 @@ public sealed class FixedTrianglePairContactsTests
     }
 
     [Fact]
+    public void PairContact_DistinctRotationsPreserveContactAndFrameOwnedAnchors()
+    {
+        var first = new FixedTriangle(
+            new Vector3d(0, 0, 0),
+            new Vector3d(4, 0, 0),
+            new Vector3d(0, 3, 0));
+        var second = new FixedTriangle(
+            new Vector3d(-Fixed64.One, -Fixed64.One, Fixed64.FromFraction(-1, 4)),
+            new Vector3d(-1, 0, 1),
+            new Vector3d(-1, -2, 1));
+        var halfTurn = new FixedQuaternion(
+            Fixed64.Zero,
+            Fixed64.Zero,
+            Fixed64.One,
+            Fixed64.Zero);
+
+        Assert.True(first.TryGetContact(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.Zero,
+            halfTurn,
+            second,
+            out FixedContactAnchors contact));
+        Assert.Equal(Vector3d.Forward, contact.Normal);
+        Assert.Equal(Fixed64.FromFraction(1, 4), contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        Assert.True(Vector3d.Distance(
+            new Vector3d(1, 1, 0),
+            contact.FirstAnchor.LocalPoint) <= Fixed64.Epsilon);
+        Assert.True(Vector3d.Distance(
+            new Vector3d(-1, -1, 0),
+            contact.SecondAnchor.LocalPoint) <= Fixed64.Epsilon);
+        Assert.Equal(FixedQuaternion.Identity, contact.FirstAnchor.Rotation);
+        Assert.Equal(halfTurn, contact.SecondAnchor.Rotation);
+
+        Assert.True(second.TryGetContact(
+            Vector3d.Zero,
+            halfTurn,
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            first,
+            out FixedContactAnchors reverse));
+        Assert.Equal(-contact.Normal, reverse.Normal);
+        Assert.Equal(contact.Depth, reverse.Depth);
+        Assert.Equal(contact.DepthIsClamped, reverse.DepthIsClamped);
+        Assert.Equal(halfTurn, reverse.FirstAnchor.Rotation);
+        Assert.Equal(FixedQuaternion.Identity, reverse.SecondAnchor.Rotation);
+        Assert.True(Vector3d.Distance(
+            new Vector3d(-Fixed64.One, -Fixed64.One, Fixed64.Zero),
+            reverse.FirstAnchor.LocalPoint) <= Fixed64.Epsilon,
+            $"Unexpected reversed first anchor: {reverse.FirstAnchor.LocalPoint}");
+        Assert.True(Vector3d.Distance(
+            new Vector3d(Fixed64.One, Fixed64.One, Fixed64.Zero),
+            reverse.SecondAnchor.LocalPoint) <= Fixed64.Epsilon,
+            $"Unexpected reversed second anchor: {reverse.SecondAnchor.LocalPoint}");
+
+        Assert.False(first.TryGetContact(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d(0, 0, 2),
+            halfTurn,
+            second,
+            out _));
+    }
+
+    [Fact]
     public void PairContact_RejectsFullDomainEdgeCrossSeparationInBothOrders()
     {
         Fixed64 scale = Fixed64.MaxValue / new Fixed64(3);
