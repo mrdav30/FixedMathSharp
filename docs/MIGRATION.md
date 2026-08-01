@@ -142,13 +142,16 @@ physical distance, because ray directions are not normalized by construction.
 ### Exact Chord Physical-Distance Intervals
 
 `FixedSegment2d` and `FixedSegment` now expose
+`TryGetCircleIntersectionDistanceInterval`,
+`TryGetSphereIntersectionDistanceInterval`, and
 `TryGetCapsuleIntersectionDistanceInterval`; `FixedSegment` also exposes
 `TryGetFiniteCylinderIntersectionDistanceInterval`. These methods preserve the
-original endpoint differences through the exact finite-axis solve, then map the
-closed segment parameter range to the caller-supplied nonnegative `totalDistance`
-with one final round-half-to-even conversion. This is stronger than normalizing
-the chord and calling a bounded-ray method: a small but representable transverse
-component cannot disappear before collision classification.
+original endpoint differences through the exact radial or finite-axis solve,
+then map the closed segment parameter range to the caller-supplied nonnegative
+`totalDistance` with one final round-half-to-even conversion. This is stronger
+than normalizing the chord and calling a bounded-ray method: a small but
+representable transverse component cannot disappear before collision
+classification.
 
 Centered capsule and centered finite-cylinder overloads retain the existing
 inclusive-start and strict-end containment flags. Endpoint-authored capsule and

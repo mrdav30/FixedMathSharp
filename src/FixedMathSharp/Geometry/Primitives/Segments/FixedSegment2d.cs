@@ -593,7 +593,7 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
 
     /// <summary>
     /// Finds the physical-distance interval where this segment intersects a
-    /// circle.
+    /// circle, mapped to the caller-supplied total distance.
     /// </summary>
     public readonly bool TryGetCircleIntersectionDistanceInterval(
         FixedBoundCircle circle,
@@ -613,6 +613,11 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     /// Finds the physical-distance interval where this segment intersects a
     /// radially expanded circle and reports exact endpoint containment.
     /// </summary>
+    /// <remarks>
+    /// The exact segment interval maps to <c>[0, totalDistance]</c> with one
+    /// final round-half-to-even conversion. Start containment is inclusive;
+    /// end containment is strict and is classified before distance rounding.
+    /// </remarks>
     public readonly bool TryGetCircleIntersectionDistanceInterval(
         FixedBoundCircle circle,
         Fixed64 radiusExpansion,

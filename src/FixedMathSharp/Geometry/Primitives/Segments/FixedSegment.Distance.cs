@@ -18,7 +18,7 @@ public partial struct FixedSegment
 {
     /// <summary>
     /// Finds the physical-distance interval where this segment intersects a
-    /// sphere.
+    /// sphere, mapped to the caller-supplied total distance.
     /// </summary>
     public readonly bool TryGetSphereIntersectionDistanceInterval(
         FixedBoundSphere sphere,
@@ -38,6 +38,11 @@ public partial struct FixedSegment
     /// Finds the physical-distance interval where this segment intersects a
     /// radially expanded sphere and reports exact endpoint containment.
     /// </summary>
+    /// <remarks>
+    /// The exact segment interval maps to <c>[0, totalDistance]</c> with one
+    /// final round-half-to-even conversion. Start containment is inclusive;
+    /// end containment is strict and is classified before distance rounding.
+    /// </remarks>
     public readonly bool TryGetSphereIntersectionDistanceInterval(
         FixedBoundSphere sphere,
         Fixed64 radiusExpansion,
