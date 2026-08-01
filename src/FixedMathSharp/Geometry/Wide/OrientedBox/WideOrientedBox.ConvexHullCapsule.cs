@@ -519,7 +519,7 @@ internal static partial class WideOrientedBox
                 out Signed192 normalX,
                 out Signed192 normalY,
                 out Signed192 normalZ);
-            return ToCapsuleAxis(TransformLocalAxis(
+            return ToCapsuleAxis(WideRigidProjection.TransformLocalAxis(
                 hullBasis,
                 normalX,
                 normalY,
@@ -531,7 +531,7 @@ internal static partial class WideOrientedBox
                 hullBasis,
                 hullLocalPoints[edgeVertexPairs[candidate.Index]],
                 hullLocalPoints[edgeVertexPairs[candidate.Index + 1]]);
-            return ToCapsuleAxis(Cross(edge, capsuleAxis));
+            return ToCapsuleAxis(WideAxis3.Cross(edge, capsuleAxis));
         }
         if (candidate.Kind == HullCapsuleCandidateKind.VertexCore)
         {
@@ -581,7 +581,7 @@ internal static partial class WideOrientedBox
             hullBasis,
             localStart,
             localEnd);
-        Signed576 edgeSquared = GetSquaredLength(edge);
+        Signed576 edgeSquared = edge.SquaredLength;
         if (edgeSquared.IsZero)
             return ToCapsuleAxis(startToEndpoint);
 

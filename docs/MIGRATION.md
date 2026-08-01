@@ -572,6 +572,13 @@ endpoint differences, predicates, ratios, and distance ordering until the final
 public conversion. This fixes extreme-coordinate and near-degenerate cases but
 can change raw results relative to v6.
 
+v7 also adds `FixedTriangle.TryGetContact(...)` for consumers replacing local
+rigid triangle SAT implementations. Supply each triangle's origin and normalized
+rotation; the result provides a first-to-second normal, one final half-even
+depth with explicit clamp state, and one anchor in each rigid frame. Exact
+touching is included, while exact-zero normals and negative interval overlap
+return `false`.
+
 New segment APIs replace downstream line/segment solvers:
 
 ```csharp

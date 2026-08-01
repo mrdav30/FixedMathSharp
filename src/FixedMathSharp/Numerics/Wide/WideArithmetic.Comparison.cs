@@ -23,14 +23,11 @@ internal static partial class WideArithmetic
     /// to the nearest raw Q32.32 value with ties to even.
     /// </summary>
     /// <remarks>
-    /// Geometry callers prove that a non-perfect-square axis has magnitude at
-    /// least one half of a Q32.32 scale unit. The scaled floor root is
-    /// therefore at least 2^63. For every representable positive raw result,
-    /// replacing the exact scaled root with its floor changes the quotient by
-    /// less than 2^63 / 2^63 = 1 raw unit. Nearest-even results can consequently
-    /// differ by at most one downward correction. Exact unit axes have no root
-    /// error. The admitted overlap and denominator products also fit the
-    /// signed workspaces used below.
+    /// Squared axis lengths at least <c>(2^31)^2</c> use a constant-time floor
+    /// root approximation whose error is less than one raw result unit, then
+    /// one exact midpoint correction. Smaller nonzero axes use an exact binary
+    /// search over the representable nonnegative raw domain. Both paths apply
+    /// exact clamping classification and nearest-even midpoint admission.
     /// </remarks>
     internal static Fixed64 GetRoundedNonNegativeNormalizedDepth(
         Signed576 overlap,
@@ -49,6 +46,42 @@ internal static partial class WideArithmetic
         {
             isClamped = true;
             return Fixed64.MaxValue;
+        }
+
+        Signed576 approximationThreshold = Signed576.ExtendValue(
+            Signed320.ExtendValue(Signed192.Signed(1L << 62)));
+        if (!squaredAxisLength.IsZero
+            && CompareNonNegative(
+                squaredAxisLength,
+                approximationThreshold) < 0)
+        {
+            long low = 0L;
+            long high = long.MaxValue;
+            while (low < high)
+            {
+                long candidate = (long)(
+                    ((ulong)low + (ulong)high + 1UL) >> 1);
+                Signed192 candidateLowerMidpoint = SubtractSigned192(
+                    AddSigned192(
+                        Signed192.Signed(candidate),
+                        Signed192.Signed(candidate)),
+                    Signed192.Signed(1L));
+                int candidateComparison = CompareNormalizedDepthToTwiceRaw(
+                    overlap,
+                    squaredAxisLength,
+                    commonDenominator,
+                    candidateLowerMidpoint);
+                bool roundsAtLeastCandidate = candidateComparison > 0
+                    || (candidateComparison == 0
+                        && (candidate & 1L) == 0L);
+                if (roundsAtLeastCandidate)
+                    low = candidate;
+                else
+                    high = candidate - 1L;
+            }
+
+            isClamped = false;
+            return Fixed64.FromRaw(low);
         }
 
         Signed320 scaledAxisLength =
@@ -176,23 +209,44 @@ internal static partial class WideArithmetic
         Signed320 commonDenominator,
         Signed192 twiceRaw)
     {
-        Signed576 twiceOverlap = AddSigned576(overlap, overlap);
-        Signed832 left = MultiplySigned576ToSigned832(
-            twiceOverlap,
-            twiceOverlap);
-        Signed576 thresholdAndBasisWide = MultiplySigned320(
-            Signed320.ExtendValue(twiceRaw),
-            commonDenominator);
-        _ = Signed320.TryNarrowSigned(
-            thresholdAndBasisWide,
-            out Signed320 thresholdAndBasis);
-        Signed576 thresholdSquared = MultiplySigned320(
-            thresholdAndBasis,
-            thresholdAndBasis);
-        Signed832 right = MultiplySigned576ToSigned832(
-            thresholdSquared,
-            squaredAxisLength);
-        return SubtractSigned832(left, right).Sign;
+        Span<ulong> overlapWords = stackalloc ulong[9];
+        Span<ulong> axisWords = stackalloc ulong[9];
+        Span<ulong> commonWords = stackalloc ulong[5];
+        Span<ulong> twiceRawWords = stackalloc ulong[3];
+        GetMagnitude(overlap, overlapWords);
+        GetMagnitude(squaredAxisLength, axisWords);
+        GetMagnitude(
+            commonDenominator,
+            out commonWords[4],
+            out commonWords[3],
+            out commonWords[2],
+            out commonWords[1],
+            out commonWords[0]);
+        GetMagnitude(
+            twiceRaw,
+            out twiceRawWords[2],
+            out twiceRawWords[1],
+            out twiceRawWords[0]);
+
+        Span<ulong> left = stackalloc ulong[25];
+        MultiplyMagnitudes(overlapWords, overlapWords, left);
+        ShiftLeftMagnitude(left, 2);
+
+        Span<ulong> commonSquared = stackalloc ulong[10];
+        Span<ulong> twiceRawSquared = stackalloc ulong[6];
+        Span<ulong> thresholdSquared = stackalloc ulong[16];
+        Span<ulong> right = stackalloc ulong[25];
+        MultiplyMagnitudes(commonWords, commonWords, commonSquared);
+        MultiplyMagnitudes(
+            twiceRawWords,
+            twiceRawWords,
+            twiceRawSquared);
+        MultiplyMagnitudes(
+            commonSquared,
+            twiceRawSquared,
+            thresholdSquared);
+        MultiplyMagnitudes(thresholdSquared, axisWords, right);
+        return CompareMagnitudeEqualLength(left, right);
     }
 
     #endregion

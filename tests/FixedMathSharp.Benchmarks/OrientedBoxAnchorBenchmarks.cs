@@ -58,6 +58,14 @@ public class OrientedBoxAnchorBenchmarks
         new Vector3d(-3, 0, -3),
         new Vector3d(3, 0, -3),
         new Vector3d(0, 0, 3));
+    private readonly FixedTriangle _trianglePairFirst = new(
+        new Vector3d(0, 0, 0),
+        new Vector3d(4, 0, 0),
+        new Vector3d(0, 4, 0));
+    private readonly FixedTriangle _trianglePairSecond = new(
+        new Vector3d(Fixed64.One, Fixed64.One, Fixed64.FromFraction(-1, 4)),
+        new Vector3d(1, 1, 1),
+        new Vector3d(3, 1, 1));
     private readonly FixedQuaternion _triangleRotation =
         FixedQuaternion.FromAxisAngle(Vector3d.Forward, Fixed64.PiOver4);
     private readonly Signed576 _leftRadialRational = ToSigned576(-2L);
@@ -68,6 +76,10 @@ public class OrientedBoxAnchorBenchmarks
     private readonly Signed832 _rightRadialNumerator = ToSigned832(7L);
     private readonly Signed576 _rightRadialDenominator = ToSigned576(11L);
     private readonly Signed576 _rightRadialAxisSquared = ToSigned576(3L);
+    private readonly Signed576 _trianglePairTinyOverlap = ToSigned576(long.MaxValue);
+    private readonly Signed576 _trianglePairTinyAxisSquared = ToSigned576(2L);
+    private readonly Signed320 _trianglePairTinyCommon =
+        Signed320.ExtendValue(Signed192.Signed(1L));
 
     [Benchmark(Baseline = true)]
     public bool TrianglePrimary() =>
@@ -185,6 +197,24 @@ public class OrientedBoxAnchorBenchmarks
             HullPoints,
             HullTriangles,
             HullEdges,
+            out _);
+
+    [Benchmark]
+    public bool TrianglePairPrimary() =>
+        _trianglePairFirst.TryGetContact(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            _trianglePairSecond,
+            out _);
+
+    [Benchmark]
+    public Fixed64 TrianglePairTinyAxisFallback() =>
+        WideArithmetic.GetRoundedNonNegativeNormalizedDepth(
+            _trianglePairTinyOverlap,
+            _trianglePairTinyAxisSquared,
+            _trianglePairTinyCommon,
             out _);
 
     private static Signed576 ToSigned576(long value) =>

@@ -1,5 +1,5 @@
 //=======================================================================
-// WideOrientedBox.TriangleClosestPoint.cs
+// WideTriangleRelations.ClosestPoint.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
@@ -8,12 +8,11 @@
 namespace FixedMathSharp.Geometry;
 
 /// <content>
-/// Provides high-precision, wide-arithmetic computation of the closest point
-/// on a triangle to a given point, transformed into the triangle's local space.
+/// Provides the exact closest-point reducer for rigid triangle frames.
 /// </content>
-internal static partial class WideOrientedBox
+internal static partial class WideTriangleRelations
 {
-    internal static FixedPointAnchor GetClosestPointOnTriangle(
+    internal static FixedPointAnchor GetClosestPointAnchor(
         FixedTriangle triangle,
         Vector3d triangleOrigin,
         FixedQuaternion triangleRotation,
@@ -33,7 +32,7 @@ internal static partial class WideOrientedBox
             pointY,
             pointZ,
             pointDenominator);
-        return new FixedPointAnchor(
+        return FixedPointAnchor.FromValidatedFrame(
             triangleOrigin,
             triangleRotation,
             closest);

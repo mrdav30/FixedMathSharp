@@ -243,7 +243,7 @@ internal static partial class WideOrientedBox
                     0,
                     ref best)
                 || !TryKeepCapsuleAxis(
-                    Cross(boxAxes[index], capsuleAxis),
+                    WideAxis3.Cross(boxAxes[index], capsuleAxis),
                     center,
                     halfExtents,
                     basis,
@@ -380,17 +380,17 @@ internal static partial class WideOrientedBox
             boxCenter,
             boxRotation,
             otherAnchor,
-            GetBasisProjection(
+            WideRigidProjection.GetBasisAxisProjection(
                 featureAxis,
                 basis.Xx,
                 basis.Xy,
                 basis.Xz),
-            GetBasisProjection(
+            WideRigidProjection.GetBasisAxisProjection(
                 featureAxis,
                 basis.Yx,
                 basis.Yy,
                 basis.Yz),
-            GetBasisProjection(
+            WideRigidProjection.GetBasisAxisProjection(
                 featureAxis,
                 basis.Zx,
                 basis.Zy,

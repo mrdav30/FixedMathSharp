@@ -559,6 +559,27 @@ projected face. Closest-point Voronoi predicates also remain exact, and
 degenerate edge candidates preserve stable AB, BC, CA tie order. `Contains`
 remains the inclusive squared-distance epsilon predicate.
 
+Rigid triangle pairs use the additive contact API:
+
+```csharp
+bool hit = first.TryGetContact(
+    firstOrigin,
+    firstRotation,
+    secondOrigin,
+    secondRotation,
+    second,
+    out FixedContactAnchors contact);
+```
+
+Both rotations must be normalized. The method returns `false` when either
+triangle has an exact-zero normal or a tested axis has negative overlap; exact
+touching is included and reports zero depth. The contact normal points from the
+first triangle toward the second. `FirstAnchor` and `SecondAnchor` remain in
+their respective input frames, so callers do not need representable absolute
+world witnesses. The winning exact depth is converted once with half-even
+rounding. If only that final positive depth exceeds the scalar domain, it is
+`Fixed64.MaxValue` and `DepthIsClamped` is `true`.
+
 `TryGetFiniteConeIntersectionMinimumAxialPoint` reduces the three stable edges
 and the triangle face against an apex-authored finite cone. The normalized axis
 keeps its exact fixed-point squared length; plane, conic, and half-space

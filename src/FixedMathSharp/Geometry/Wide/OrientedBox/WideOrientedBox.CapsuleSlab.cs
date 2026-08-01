@@ -243,7 +243,7 @@ internal static partial class WideOrientedBox
             axis,
             halfExtents,
             basis);
-        Signed576 centerProjection = GetDifferenceProjection(
+        Signed576 centerProjection = WideRigidProjection.GetWorldOriginDifferenceProjection(
             slabCenter,
             boxCenter,
             axis);
@@ -290,7 +290,7 @@ internal static partial class WideOrientedBox
             return false;
         }
 
-        Signed576 squaredAxisLength = GetSquaredAxisLength(axis);
+        Signed576 squaredAxisLength = axis.SquaredLength;
         GetRadialDepth(
             rational,
             radialSquared,

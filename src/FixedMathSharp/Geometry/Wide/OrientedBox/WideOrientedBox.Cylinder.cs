@@ -187,7 +187,7 @@ internal static partial class WideOrientedBox
                     cylinderRadius,
                     ref best)
                 || !TryKeepCylinderAxis(
-                    Cross(boxAxes[index], cylinderAxis),
+                    WideAxis3.Cross(boxAxes[index], cylinderAxis),
                     center,
                     halfExtents,
                     basis,
@@ -436,7 +436,7 @@ internal static partial class WideOrientedBox
             axis,
             halfExtents,
             basis);
-        Signed576 centerProjection = GetDifferenceProjection(
+        Signed576 centerProjection = WideRigidProjection.GetWorldOriginDifferenceProjection(
             cylinderCenter,
             boxCenter,
             axis);
@@ -463,8 +463,8 @@ internal static partial class WideOrientedBox
                     Signed192.Raw(cylinderAxisLength)),
                 basis.Denominator));
 
-        Signed576 cylinderAxisSquared = GetSquaredLength(cylinderAxis);
-        Signed576 projectionSquared = GetSquaredLength(axis);
+        Signed576 cylinderAxisSquared = cylinderAxis.SquaredLength;
+        Signed576 projectionSquared = axis.SquaredLength;
         Signed832 firstPlaneTerm = WideArithmetic.MultiplySigned576ToSigned832(
             projectionSquared,
             cylinderAxisSquared);

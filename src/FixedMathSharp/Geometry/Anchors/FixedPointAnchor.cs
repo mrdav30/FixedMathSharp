@@ -54,7 +54,9 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             rotation,
             localPoint,
             localDisplacement,
-            default)
+            Vector3d.Zero,
+            default,
+            validateRotation: true)
     { }
 
     internal FixedPointAnchor(
@@ -69,8 +71,22 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             localPoint,
             localDisplacement,
             Vector3d.Zero,
-            exactLocalTerm)
+            exactLocalTerm,
+            validateRotation: true)
     { }
+
+    internal static FixedPointAnchor FromValidatedFrame(
+        Vector3d origin,
+        FixedQuaternion rotation,
+        Vector3d localPoint) =>
+        new(
+            origin,
+            rotation,
+            localPoint,
+            Vector3d.Zero,
+            Vector3d.Zero,
+            default,
+            validateRotation: false);
 
     private FixedPointAnchor(
         Vector3d origin,
@@ -78,9 +94,10 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
         Vector3d localPoint,
         Vector3d localDisplacement,
         Vector3d localTranslation,
-        FixedPointAnchorTerm3d exactLocalTerm)
+        FixedPointAnchorTerm3d exactLocalTerm,
+        bool validateRotation)
     {
-        if (!rotation.IsNormalized())
+        if (validateRotation && !rotation.IsNormalized())
             throw new ArgumentException("The point-anchor rotation must be normalized.", nameof(rotation));
 
         Origin = origin;
@@ -132,7 +149,8 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             LocalPoint,
             LocalDisplacement,
             localTranslation,
-            ExactLocalTerm);
+            ExactLocalTerm,
+            validateRotation: true);
 
     /// <summary>
     /// Attempts to materialize the absolute world point.

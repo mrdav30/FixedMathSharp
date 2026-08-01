@@ -312,7 +312,7 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
                 nameof(point));
         }
 
-        return WideOrientedBox.GetClosestPointOnTriangle(
+        return WideTriangleRelations.GetClosestPointAnchor(
             this,
             triangleOrigin,
             triangleRotation,

@@ -59,7 +59,7 @@ internal static partial class WideOrientedBox
         Signed576 projection = GetAxisProjection(
             centerAxis,
             capsuleAxis);
-        Signed576 capsuleSquared = GetSquaredLength(capsuleAxis);
+        Signed576 capsuleSquared = capsuleAxis.SquaredLength;
         Signed576 projectionAtHalfLength = WideArithmetic.MultiplySigned576(
             GetMagnitude(projection),
             Signed192.Raw(Fixed64.Two));
@@ -120,7 +120,7 @@ internal static partial class WideOrientedBox
             endpointSign);
         WideAxis3 edgeAxis = GetBasisAxis(basis, edgeAxisIndex);
         Signed576 projection = GetAxisProjection(endpointAxis, edgeAxis);
-        Signed576 edgeSquared = GetSquaredLength(edgeAxis);
+        Signed576 edgeSquared = edgeAxis.SquaredLength;
         Fixed64 edgeExtent = GetEdgeAxisExtent(
             halfExtents,
             edgeAxisIndex);

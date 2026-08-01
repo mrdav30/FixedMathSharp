@@ -20,7 +20,7 @@ internal static partial class WideOrientedBox
         Vector3d worldDirection)
     {
         WideRationalBasis3d basis = new(rotation);
-        WideAxis3 rotated = TransformLocalAxis(
+        WideAxis3 rotated = WideRigidProjection.TransformLocalAxis(
             basis,
             Signed192.Raw(localDirection.X),
             Signed192.Raw(localDirection.Y),
@@ -50,7 +50,7 @@ internal static partial class WideOrientedBox
         out Signed192 rotationDenominator)
     {
         WideRationalBasis3d basis = new(rotation);
-        WideAxis3 rotated = TransformLocalAxis(
+        WideAxis3 rotated = WideRigidProjection.TransformLocalAxis(
             basis,
             Signed192.Raw(localDirection.X),
             Signed192.Raw(localDirection.Y),

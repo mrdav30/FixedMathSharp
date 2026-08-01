@@ -36,60 +36,6 @@ internal static partial class WideOrientedBox
                 Signed320.ExtendValue(Z));
     }
 
-    private readonly struct WideAxis3
-    {
-        internal readonly Signed320 X;
-        internal readonly Signed320 Y;
-        internal readonly Signed320 Z;
-
-        internal WideAxis3(Signed320 x, Signed320 y, Signed320 z)
-        {
-            X = x;
-            Y = y;
-            Z = z;
-        }
-
-        internal bool IsZero => X.IsZero && Y.IsZero && Z.IsZero;
-
-        public static WideAxis3 operator -(WideAxis3 value) =>
-            new(
-                WideArithmetic.SubtractSigned320(default, value.X),
-                WideArithmetic.SubtractSigned320(default, value.Y),
-                WideArithmetic.SubtractSigned320(default, value.Z));
-    }
-
-    private readonly struct PolytopePenetration
-    {
-        internal readonly WideAxis3 Axis;
-        internal readonly bool Negate;
-        internal readonly Fixed64 Depth;
-        internal readonly bool DepthIsClamped;
-        internal readonly Signed576 ExactOverlap;
-        internal readonly Signed576 ExactSquaredAxisLength;
-        internal readonly Signed320 ExactCommonDenominator;
-
-        internal PolytopePenetration(
-            WideAxis3 axis,
-            bool negate,
-            Fixed64 depth,
-            bool depthIsClamped,
-            Signed576 exactOverlap,
-            Signed576 exactSquaredAxisLength,
-            Signed320 exactCommonDenominator)
-        {
-            Axis = axis;
-            Negate = negate;
-            Depth = depth;
-            DepthIsClamped = depthIsClamped;
-            ExactOverlap = exactOverlap;
-            ExactSquaredAxisLength = exactSquaredAxisLength;
-            ExactCommonDenominator = exactCommonDenominator;
-            HasValue = true;
-        }
-
-        internal bool HasValue { get; }
-    }
-
     #endregion
 
     internal static bool TryGetConvexPrismContact(
@@ -103,7 +49,7 @@ internal static partial class WideOrientedBox
         out FixedContactAnchors contact)
     {
         WideRationalBasis3d basis = new(orientation);
-        var best = default(PolytopePenetration);
+        var best = default(WidePointSpanPenetration);
         WideAxis3 up = new(default, Signed320.One, default);
         if (!TryKeepConvexPrismAxis(
                 up,
@@ -222,6 +168,7 @@ internal static partial class WideOrientedBox
             prismHalfThickness,
             prismRotation,
             orientedAxis);
+        Fixed64 depth = best.GetRoundedDepth(out bool depthIsClamped);
 
         contact = new FixedContactAnchors(
             new FixedPointAnchor(
@@ -235,8 +182,8 @@ internal static partial class WideOrientedBox
                     -prismRotation),
                 prismOffset),
             normal,
-            best.Depth,
-            best.DepthIsClamped);
+            depth,
+            depthIsClamped);
         return true;
     }
 
@@ -249,7 +196,7 @@ internal static partial class WideOrientedBox
         Fixed64 prismRotation,
         ReadOnlySpan<Vector2d> prismLocalOffsets,
         Fixed64 prismHalfThickness,
-        ref PolytopePenetration best)
+        ref WidePointSpanPenetration best)
     {
         if (axis.IsZero)
             return true;
@@ -261,7 +208,7 @@ internal static partial class WideOrientedBox
                 basis),
             Signed192.One);
         Signed576 originProjection = WideArithmetic.MultiplySigned576(
-            GetDifferenceProjection(
+            WideRigidProjection.GetWorldOriginDifferenceProjection(
                 prismOrigin,
                 boxCenter,
                 axis),
@@ -325,25 +272,15 @@ internal static partial class WideOrientedBox
             WideArithmetic.MultiplySigned192(
                 basis.Denominator,
                 Signed192.One);
-        GetPolytopeDepth(
-            overlap,
-            axis,
-            commonDenominator,
-            out Fixed64 depth,
-            out bool depthIsClamped,
-            out Signed576 squaredAxisLength);
-        if (ShouldReplacePolytope(
+        Signed576 squaredAxisLength = axis.SquaredLength;
+        if (best.ShouldReplace(
             overlap,
             squaredAxisLength,
-            commonDenominator,
-            depth,
-            best))
+            commonDenominator))
         {
-            best = new PolytopePenetration(
+            best = new WidePointSpanPenetration(
                 axis,
                 negate,
-                depth,
-                depthIsClamped,
                 overlap,
                 squaredAxisLength,
                 commonDenominator);
@@ -359,62 +296,26 @@ internal static partial class WideOrientedBox
         WideArithmetic.AddSigned576(
             WideArithmetic.AddSigned576(
                 WideArithmetic.MultiplySigned576(
-                    GetMagnitude(GetBasisProjection(
+                    GetMagnitude(WideRigidProjection.GetBasisAxisProjection(
                         axis,
                         basis.Xx,
                         basis.Xy,
                         basis.Xz)),
                     Signed192.Raw(halfExtents.X)),
                 WideArithmetic.MultiplySigned576(
-                    GetMagnitude(GetBasisProjection(
+                    GetMagnitude(WideRigidProjection.GetBasisAxisProjection(
                         axis,
                         basis.Yx,
                         basis.Yy,
                         basis.Yz)),
                     Signed192.Raw(halfExtents.Y))),
             WideArithmetic.MultiplySigned576(
-                GetMagnitude(GetBasisProjection(
+                GetMagnitude(WideRigidProjection.GetBasisAxisProjection(
                     axis,
                     basis.Zx,
                     basis.Zy,
                     basis.Zz)),
                 Signed192.Raw(halfExtents.Z)));
-
-    private static Signed576 GetBasisProjection(
-        WideAxis3 axis,
-        Signed192 basisX,
-        Signed192 basisY,
-        Signed192 basisZ) =>
-        WideArithmetic.AddSigned576(
-            WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned576(
-                    Signed576.ExtendValue(axis.X),
-                    basisX),
-                WideArithmetic.MultiplySigned576(
-                    Signed576.ExtendValue(axis.Y),
-                    basisY)),
-            WideArithmetic.MultiplySigned576(
-                Signed576.ExtendValue(axis.Z),
-                basisZ));
-
-    private static Signed576 GetDifferenceProjection(
-        Vector3d end,
-        Vector3d start,
-        WideAxis3 axis) =>
-        WideArithmetic.AddSigned576(
-            WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned320(
-                    Signed320.ExtendValue(
-                        WideArithmetic.SubtractSigned192(Signed192.Raw(end.X), Signed192.Raw(start.X))),
-                    axis.X),
-                WideArithmetic.MultiplySigned320(
-                    Signed320.ExtendValue(
-                        WideArithmetic.SubtractSigned192(Signed192.Raw(end.Y), Signed192.Raw(start.Y))),
-                    axis.Y)),
-            WideArithmetic.MultiplySigned320(
-                Signed320.ExtendValue(
-                    WideArithmetic.SubtractSigned192(Signed192.Raw(end.Z), Signed192.Raw(start.Z))),
-                axis.Z));
 
     private static Signed576 GetRotatedPlanarOffsetProjection(
         Vector2d offset,
@@ -462,62 +363,19 @@ internal static partial class WideOrientedBox
         z = WideArithmetic.SubtractSigned192(endZ, startZ);
     }
 
-    private static void GetPolytopeDepth(
-        Signed576 overlap,
-        WideAxis3 axis,
-        Signed320 commonDenominator,
-        out Fixed64 depth,
-        out bool depthIsClamped,
-        out Signed576 squaredLength)
-    {
-        squaredLength = WideArithmetic.AddSigned576(
-            WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned320(axis.X, axis.X),
-                WideArithmetic.MultiplySigned320(axis.Y, axis.Y)),
-            WideArithmetic.MultiplySigned320(axis.Z, axis.Z));
-        // The vertical axis is exact. Every other nonzero SAT axis contains
-        // either a normalized quaternion-basis numerator or a rotated strict
-        // polygon edge, proving the helper's half-Q32 minimum magnitude.
-        depth = WideArithmetic.GetRoundedNonNegativeNormalizedDepth(
-            overlap,
-            squaredLength,
-            commonDenominator,
-            out depthIsClamped);
-    }
-
-    private static bool ShouldReplacePolytope(
-        Signed576 overlap,
-        Signed576 squaredAxisLength,
-        Signed320 commonDenominator,
-        Fixed64 depth,
-        in PolytopePenetration best)
-    {
-        if (!best.HasValue || depth < best.Depth)
-            return true;
-        if (depth > best.Depth)
-            return false;
-        return WideArithmetic.CompareNonNegativeNormalizedDepths(
-            overlap,
-            squaredAxisLength,
-            commonDenominator,
-            best.ExactOverlap,
-            best.ExactSquaredAxisLength,
-            best.ExactCommonDenominator) < 0;
-    }
-
     private static Vector3d GetLocalAxisSupportPoint(
         WideRationalBasis3d basis,
         Vector3d halfExtents,
         WideAxis3 axis)
     {
         return new Vector3d(
-            GetBasisProjection(axis, basis.Xx, basis.Xy, basis.Xz).Sign > 0
+            WideRigidProjection.GetBasisAxisProjection(axis, basis.Xx, basis.Xy, basis.Xz).Sign > 0
                 ? halfExtents.X
                 : -halfExtents.X,
-            GetBasisProjection(axis, basis.Yx, basis.Yy, basis.Yz).Sign > 0
+            WideRigidProjection.GetBasisAxisProjection(axis, basis.Yx, basis.Yy, basis.Yz).Sign > 0
                 ? halfExtents.Y
                 : -halfExtents.Y,
-            GetBasisProjection(axis, basis.Zx, basis.Zy, basis.Zz).Sign > 0
+            WideRigidProjection.GetBasisAxisProjection(axis, basis.Zx, basis.Zy, basis.Zz).Sign > 0
                 ? halfExtents.Z
                 : -halfExtents.Z);
     }

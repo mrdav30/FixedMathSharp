@@ -74,7 +74,7 @@ internal static partial class WideOrientedBox
             out Signed192 localNormalX,
             out Signed192 localNormalY,
             out Signed192 localNormalZ);
-        WideAxis3 triangleNormal = TransformLocalAxis(
+        WideAxis3 triangleNormal = WideRigidProjection.TransformLocalAxis(
             triangleBasis,
             localNormalX,
             localNormalY,
@@ -166,7 +166,7 @@ internal static partial class WideOrientedBox
                     slabHalfThickness,
                     ref best)
                 || !TryKeepTriangleCapsuleSlabAxis(
-                    Cross(edge, capsuleAxis),
+                    WideAxis3.Cross(edge, capsuleAxis),
                     triangleOrigin,
                     triangleBasis,
                     trianglePoints,
@@ -272,7 +272,7 @@ internal static partial class WideOrientedBox
             out Signed576 triangleMaximum);
         Signed576 centerProjection = WideArithmetic.MultiplySigned576(
             WideArithmetic.MultiplySigned576(
-                GetDifferenceProjection(
+                WideRigidProjection.GetWorldOriginDifferenceProjection(
                     slabCenter,
                     triangleOrigin,
                     axis),
@@ -340,7 +340,7 @@ internal static partial class WideOrientedBox
             return false;
         }
 
-        Signed576 squaredAxisLength = GetSquaredAxisLength(axis);
+        Signed576 squaredAxisLength = axis.SquaredLength;
         GetRadialDepth(
             positiveBase,
             radialSquared,

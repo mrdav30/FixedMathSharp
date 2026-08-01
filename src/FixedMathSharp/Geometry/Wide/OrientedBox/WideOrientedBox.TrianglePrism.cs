@@ -39,7 +39,7 @@ internal static partial class WideOrientedBox
             triangle.C,
         };
         WideRationalBasis3d triangleBasis = new(triangleRotation);
-        var best = default(PolytopePenetration);
+        var best = default(WidePointSpanPenetration);
         WideAxis3 up = new(default, Signed320.One, default);
         WideAxis3 firstEdge = GetHullEdge(
             triangleBasis,
@@ -76,7 +76,7 @@ internal static partial class WideOrientedBox
                 prismHalfThickness,
                 ref best)
             || !TryKeepTrianglePrismAxis(
-                TransformLocalAxis(
+                WideRigidProjection.TransformLocalAxis(
                     triangleBasis,
                     localNormalX,
                     localNormalY,
@@ -156,7 +156,7 @@ internal static partial class WideOrientedBox
                         prismHalfThickness,
                         ref best)
                     || !TryKeepTrianglePrismAxis(
-                        Cross(triangleEdge, prismEdge),
+                        WideAxis3.Cross(triangleEdge, prismEdge),
                         triangleOrigin,
                         triangleBasis,
                         trianglePoints,
@@ -187,6 +187,7 @@ internal static partial class WideOrientedBox
             prismHalfThickness,
             prismRotation,
             orientedAxis);
+        Fixed64 depth = best.GetRoundedDepth(out bool depthIsClamped);
         contact = new FixedContactAnchors(
             new FixedPointAnchor(
                 triangleOrigin,
@@ -199,8 +200,8 @@ internal static partial class WideOrientedBox
                     -prismRotation),
                 prismLocalPoint),
             normal,
-            best.Depth,
-            best.DepthIsClamped);
+            depth,
+            depthIsClamped);
         return true;
     }
 
@@ -213,7 +214,7 @@ internal static partial class WideOrientedBox
         Fixed64 prismRotation,
         ReadOnlySpan<Vector2d> prismLocalOffsets,
         Fixed64 prismHalfThickness,
-        ref PolytopePenetration best)
+        ref WidePointSpanPenetration best)
     {
         if (axis.IsZero)
             return true;
@@ -226,7 +227,7 @@ internal static partial class WideOrientedBox
             out Signed576 triangleMinimum,
             out Signed576 triangleMaximum);
         Signed576 originProjection = WideArithmetic.MultiplySigned576(
-            GetDifferenceProjection(
+            WideRigidProjection.GetWorldOriginDifferenceProjection(
                 prismOrigin,
                 triangleOrigin,
                 axis),
@@ -292,25 +293,15 @@ internal static partial class WideOrientedBox
         Signed320 commonDenominator = WideArithmetic.MultiplySigned192(
             triangleBasis.Denominator,
             Signed192.One);
-        GetPolytopeDepth(
-            overlap,
-            axis,
-            commonDenominator,
-            out Fixed64 depth,
-            out bool depthIsClamped,
-            out Signed576 squaredAxisLength);
-        if (ShouldReplacePolytope(
+        Signed576 squaredAxisLength = axis.SquaredLength;
+        if (best.ShouldReplace(
             overlap,
             squaredAxisLength,
-            commonDenominator,
-            depth,
-            best))
+            commonDenominator))
         {
-            best = new PolytopePenetration(
+            best = new WidePointSpanPenetration(
                 axis,
                 negate,
-                depth,
-                depthIsClamped,
                 overlap,
                 squaredAxisLength,
                 commonDenominator);

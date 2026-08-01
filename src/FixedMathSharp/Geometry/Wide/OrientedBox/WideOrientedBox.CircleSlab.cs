@@ -181,17 +181,17 @@ internal static partial class WideOrientedBox
         if (outsideX || outsideY || outsideZ)
             return closest;
 
-        Signed576 localNormalX = GetBasisProjection(
+        Signed576 localNormalX = WideRigidProjection.GetBasisAxisProjection(
             boxToSlabAxis,
             basis.Xx,
             basis.Xy,
             basis.Xz);
-        Signed576 localNormalY = GetBasisProjection(
+        Signed576 localNormalY = WideRigidProjection.GetBasisAxisProjection(
             boxToSlabAxis,
             basis.Yx,
             basis.Yy,
             basis.Yz);
-        Signed576 localNormalZ = GetBasisProjection(
+        Signed576 localNormalZ = WideRigidProjection.GetBasisAxisProjection(
             boxToSlabAxis,
             basis.Zx,
             basis.Zy,
@@ -239,7 +239,7 @@ internal static partial class WideOrientedBox
             axis,
             halfExtents,
             basis);
-        Signed576 centerProjection = GetDifferenceProjection(
+        Signed576 centerProjection = WideRigidProjection.GetWorldOriginDifferenceProjection(
             slabCenter,
             boxCenter,
             axis);
@@ -273,7 +273,7 @@ internal static partial class WideOrientedBox
             return false;
         }
 
-        Signed576 squaredAxisLength = GetSquaredAxisLength(axis);
+        Signed576 squaredAxisLength = axis.SquaredLength;
         GetRadialDepth(
             rational,
             radialSquared,
@@ -372,13 +372,6 @@ internal static partial class WideOrientedBox
 
         depthIsClamped = false;
     }
-
-    private static Signed576 GetSquaredAxisLength(WideAxis3 axis) =>
-        WideArithmetic.AddSigned576(
-            WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned320(axis.X, axis.X),
-                WideArithmetic.MultiplySigned320(axis.Y, axis.Y)),
-            WideArithmetic.MultiplySigned320(axis.Z, axis.Z));
 
     private static WideAxis3 GetCornerToOriginAxis(
         Vector3d boxCenter,

@@ -37,7 +37,7 @@ internal static partial class WideOrientedBox
             GetBasisAxis(boxBasis, 1),
             GetBasisAxis(boxBasis, 2),
         };
-        var best = default(PointSpanPenetration);
+        var best = default(WidePointSpanPenetration);
         for (int index = 0; index < boxAxes.Length; index++)
         {
             if (!TryKeepTriangleAxis(
@@ -72,7 +72,7 @@ internal static partial class WideOrientedBox
             out Signed192 normalY,
             out Signed192 normalZ);
         if (!TryKeepTriangleAxis(
-                TransformLocalAxis(
+                WideRigidProjection.TransformLocalAxis(
                     triangleBasis,
                     normalX,
                     normalY,
@@ -131,12 +131,7 @@ internal static partial class WideOrientedBox
             triangle,
             triangleBasis,
             orientedAxis);
-        GetPointSpanDepth(
-            best.ExactOverlap,
-            best.ExactSquaredAxisLength,
-            best.ExactCommonDenominator,
-            out Fixed64 depth,
-            out bool depthIsClamped);
+        Fixed64 depth = best.GetRoundedDepth(out bool depthIsClamped);
         contact = new FixedContactAnchors(
             new FixedPointAnchor(
                 boxCenter,
@@ -165,9 +160,9 @@ internal static partial class WideOrientedBox
         Vector3d triangleOrigin,
         WideRationalBasis3d triangleBasis,
         FixedTriangle triangle,
-        ref PointSpanPenetration best)
+        ref WidePointSpanPenetration best)
     {
-        WideAxis3 edge = TransformLocalAxis(
+        WideAxis3 edge = WideRigidProjection.TransformLocalAxis(
             triangleBasis,
             WideArithmetic.SubtractSigned192(
                 Signed192.Raw(edgeEnd.X),
@@ -181,7 +176,7 @@ internal static partial class WideOrientedBox
         for (int axisIndex = 0; axisIndex < boxAxes.Length; axisIndex++)
         {
             if (!TryKeepTriangleAxis(
-                    Cross(boxAxes[axisIndex], edge),
+                    WideAxis3.Cross(boxAxes[axisIndex], edge),
                     boxCenter,
                     boxHalfExtents,
                     boxBasis,
@@ -204,7 +199,7 @@ internal static partial class WideOrientedBox
         Vector3d triangleOrigin,
         WideRationalBasis3d triangleBasis,
         FixedTriangle triangle,
-        ref PointSpanPenetration best)
+        ref WidePointSpanPenetration best)
     {
         if (axis.IsZero)
             return true;
@@ -213,24 +208,24 @@ internal static partial class WideOrientedBox
             axis,
             boxHalfExtents,
             boxBasis);
-        Signed576 first = GetTransformedOffsetProjection(
+        Signed576 first = WideRigidProjection.GetTransformedLocalOffsetProjection(
             triangle.A,
             triangleBasis,
             axis);
-        Signed576 second = GetTransformedOffsetProjection(
+        Signed576 second = WideRigidProjection.GetTransformedLocalOffsetProjection(
             triangle.B,
             triangleBasis,
             axis);
-        Signed576 third = GetTransformedOffsetProjection(
+        Signed576 third = WideRigidProjection.GetTransformedLocalOffsetProjection(
             triangle.C,
             triangleBasis,
             axis);
         Signed576 minimum = first;
         Signed576 maximum = first;
-        KeepProjection(second, ref minimum, ref maximum);
-        KeepProjection(third, ref minimum, ref maximum);
+        WideRigidProjection.IncludeProjection(second, ref minimum, ref maximum);
+        WideRigidProjection.IncludeProjection(third, ref minimum, ref maximum);
 
-        Signed576 originProjection = GetDifferenceProjection(
+        Signed576 originProjection = WideRigidProjection.GetWorldOriginDifferenceProjection(
             triangleOrigin,
             boxCenter,
             axis);
@@ -263,14 +258,13 @@ internal static partial class WideOrientedBox
         Signed320 commonDenominator = WideArithmetic.MultiplySigned192(
             boxBasis.Denominator,
             triangleBasis.Denominator);
-        Signed576 squaredAxisLength = GetSquaredLength(axis);
-        if (ShouldReplacePointSpan(
+        Signed576 squaredAxisLength = axis.SquaredLength;
+        if (best.ShouldReplace(
             overlap,
             squaredAxisLength,
-            commonDenominator,
-            best))
+            commonDenominator))
         {
-            best = new PointSpanPenetration(
+            best = new WidePointSpanPenetration(
                 axis,
                 negate,
                 overlap,
@@ -286,7 +280,7 @@ internal static partial class WideOrientedBox
         WideAxis3 boxToTriangleAxis)
     {
         Vector3d bestPoint = triangle.A;
-        Signed576 bestProjection = GetTransformedOffsetProjection(
+        Signed576 bestProjection = WideRigidProjection.GetTransformedLocalOffsetProjection(
             bestPoint,
             triangleBasis,
             boxToTriangleAxis);
@@ -312,7 +306,7 @@ internal static partial class WideOrientedBox
         ref Vector3d bestPoint,
         ref Signed576 bestProjection)
     {
-        Signed576 candidateProjection = GetTransformedOffsetProjection(
+        Signed576 candidateProjection = WideRigidProjection.GetTransformedLocalOffsetProjection(
             candidate,
             triangleBasis,
             boxToTriangleAxis);
@@ -353,7 +347,7 @@ internal static partial class WideOrientedBox
             out Signed192 normalX,
             out Signed192 normalY,
             out Signed192 normalZ);
-        WideAxis3 triangleNormal = TransformLocalAxis(
+        WideAxis3 triangleNormal = WideRigidProjection.TransformLocalAxis(
             triangleBasis,
             normalX,
             normalY,
@@ -441,11 +435,11 @@ internal static partial class WideOrientedBox
             bestAlignment = candidateAlignment;
         }
 
-        Signed576 boxSquared = GetSquaredLength(bestAxis);
+        Signed576 boxSquared = bestAxis.SquaredLength;
         if (!IsParallel(
                 bestAlignment,
                 boxSquared,
-                GetSquaredLength(triangleNormal)))
+                triangleNormal.SquaredLength))
         {
             return -1;
         }
@@ -457,7 +451,7 @@ internal static partial class WideOrientedBox
         return IsParallel(
                 GetAxisProjection(bestAxis, primaryAxis),
                 boxSquared,
-                GetSquaredLength(primaryAxis))
+                primaryAxis.SquaredLength)
             ? bestIndex
             : -1;
     }
@@ -480,9 +474,6 @@ internal static partial class WideOrientedBox
                 WideArithmetic.MultiplySigned320(first.X, second.X),
                 WideArithmetic.MultiplySigned320(first.Y, second.Y)),
             WideArithmetic.MultiplySigned320(first.Z, second.Z));
-
-    private static Signed576 GetSquaredLength(WideAxis3 axis) =>
-        GetAxisProjection(axis, axis);
 
     private static bool IsParallel(
         Signed576 alignment,
@@ -512,14 +503,4 @@ internal static partial class WideOrientedBox
                     Signed576.ExtendValue(thresholdSquared))) >= 0;
     }
 
-    private static void KeepProjection(
-        Signed576 candidate,
-        ref Signed576 minimum,
-        ref Signed576 maximum)
-    {
-        if (CompareSigned(candidate, minimum) < 0)
-            minimum = candidate;
-        if (CompareSigned(candidate, maximum) > 0)
-            maximum = candidate;
-    }
 }

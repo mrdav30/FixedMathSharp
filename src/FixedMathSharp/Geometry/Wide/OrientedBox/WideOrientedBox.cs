@@ -51,33 +51,6 @@ internal static partial class WideOrientedBox
         internal bool HasValue { get; }
     }
 
-
-    private readonly struct PointSpanPenetration
-    {
-        internal readonly WideAxis3 Axis;
-        internal readonly bool Negate;
-        internal readonly Signed576 ExactOverlap;
-        internal readonly Signed576 ExactSquaredAxisLength;
-        internal readonly Signed320 ExactCommonDenominator;
-
-        internal PointSpanPenetration(
-            WideAxis3 axis,
-            bool negate,
-            Signed576 exactOverlap,
-            Signed576 exactSquaredAxisLength,
-            Signed320 exactCommonDenominator)
-        {
-            Axis = axis;
-            Negate = negate;
-            ExactOverlap = exactOverlap;
-            ExactSquaredAxisLength = exactSquaredAxisLength;
-            ExactCommonDenominator = exactCommonDenominator;
-            HasValue = true;
-        }
-
-        internal bool HasValue { get; }
-    }
-
     #endregion
 
     internal static void GetAxes(

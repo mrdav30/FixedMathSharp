@@ -102,7 +102,7 @@ internal static partial class WideOrientedBox
             for (int secondIndex = 0; secondIndex < secondAxes.Length; secondIndex++)
             {
                 if (!TryKeepBoxAxis(
-                        Cross(firstAxes[firstIndex], secondAxes[secondIndex]),
+                        WideAxis3.Cross(firstAxes[firstIndex], secondAxes[secondIndex]),
                         firstCenter,
                         firstHalfExtents,
                         firstBasis,
@@ -185,7 +185,7 @@ internal static partial class WideOrientedBox
             axis,
             secondHalfExtents,
             secondBasis);
-        Signed576 centerProjection = GetDifferenceProjection(
+        Signed576 centerProjection = WideRigidProjection.GetWorldOriginDifferenceProjection(
             secondCenter,
             firstCenter,
             axis);
@@ -204,7 +204,7 @@ internal static partial class WideOrientedBox
         if (overlap.Sign < 0)
             return false;
 
-        Signed576 squaredAxisLength = GetSquaredLength(axis);
+        Signed576 squaredAxisLength = axis.SquaredLength;
         bool shouldReplace = !best.HasValue
             || CompareBoxDepth(
                 overlap,
@@ -276,16 +276,4 @@ internal static partial class WideOrientedBox
                 Signed320.ExtendValue(basis.Zz)),
         };
 
-    private static WideAxis3 Cross(WideAxis3 left, WideAxis3 right) =>
-        // Each rational quaternion-basis component uses at most 65 significant
-        // bits, so a difference of two component products fits in Signed320.
-        new(Signed320.NarrowValue(WideArithmetic.SubtractSigned576(
-                WideArithmetic.MultiplySigned320(left.Y, right.Z),
-                WideArithmetic.MultiplySigned320(left.Z, right.Y))),
-            Signed320.NarrowValue(WideArithmetic.SubtractSigned576(
-                WideArithmetic.MultiplySigned320(left.Z, right.X),
-                WideArithmetic.MultiplySigned320(left.X, right.Z))),
-            Signed320.NarrowValue(WideArithmetic.SubtractSigned576(
-                WideArithmetic.MultiplySigned320(left.X, right.Y),
-                WideArithmetic.MultiplySigned320(left.Y, right.X))));
 }

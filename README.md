@@ -64,7 +64,7 @@ Use floating point when you need:
   for explicit signed-axis adapter boundaries.
 - **Geometry and bounds** with 2D areas, circles, rays, segments, and triangles
   plus 3D axis-aligned and oriented boxes, spheres, frustums, planes, rays,
-  segments, triangles, and rigid point anchors for full-domain relations.
+  segments, rigid-frame full-domain triangle-pair contact, and local anchors.
 - **Curves and ranges** with `FixedCurve`, `FixedCurveKey`, and `FixedRange`.
 - **Deterministic RNG** with `DeterministicRandom` streams derived from seeds,
   feature keys, and indices.
@@ -236,7 +236,8 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - `FixedSegment2d`, `FixedRay2d`, `FixedTriangle2d`: finite-segment, ray, and
   triangle primitives for deterministic 2D plane math.
 - `FixedSegment`, `FixedTriangle`: finite-segment and triangle primitives for
-  deterministic 3D geometry.
+  deterministic 3D geometry, including rigid-frame full-domain triangle-pair
+  contact with local anchors.
 - `FixedSlabProjection`: full-domain X/Z support for centered capsules,
   cylinders, and cones clipped to a closed world-Y interval.
 - `FixedCurve`, `FixedCurveKey`, `FixedRange`: interpolation and range helpers.
