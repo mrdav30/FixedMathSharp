@@ -444,6 +444,23 @@ public sealed class WideFiniteAxisArithmeticTests
     }
 
     [Fact]
+    public void Signed576_SingleLimbDenominator_PreservesRoundingAndSignedRange()
+    {
+        AssertRawRatio(1L, 4, 3);
+        AssertRawRatio(long.MaxValue, long.MaxValue, 1);
+        AssertRawRatio(1L, (BigInteger.One << 64) + 7, ulong.MaxValue);
+
+        Assert.False(Fixed64.TryGetSignedRawRatio(
+            ToSigned576((BigInteger.One << 64) - 1),
+            ToSigned576(2),
+            out _));
+        Assert.False(Fixed64.TryGetSignedRawRatio(
+            ToSigned576(-(((BigInteger.One << 63) * 3) + 2)),
+            ToSigned576(3),
+            out _));
+    }
+
+    [Fact]
     public void Signed832_RawRatioRejectsZeroDenominator()
     {
         Assert.False(Fixed64.TryGetSignedRawRatio(
@@ -492,6 +509,25 @@ public sealed class WideFiniteAxisArithmeticTests
             negative: false,
             out Fixed64 roundedZero));
         Assert.Equal(Fixed64.Zero, roundedZero);
+    }
+
+    [Fact]
+    public void MagnitudeSpan_UnitIntervalRatioReturnsDefaultForZeroDenominator()
+    {
+        ulong[] numerator = { 1UL };
+        ulong[] denominator = { 0UL };
+
+        Assert.Equal(
+            default,
+            Fixed64.GetUnitIntervalRatio(numerator, denominator));
+    }
+
+    [Fact]
+    public void Signed704_NonNegativeRawRatioFloorSaturatesForZeroDenominator()
+    {
+        Assert.Equal(
+            Fixed64.MaxValue,
+            Fixed64.GetNonNegativeRawRatioFloor(ToSigned704(1), default));
     }
 
     [Fact]

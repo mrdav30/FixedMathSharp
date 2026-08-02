@@ -50,8 +50,7 @@ internal static partial class WideArithmetic
 
         Signed576 approximationThreshold = Signed576.ExtendValue(
             Signed320.ExtendValue(Signed192.Signed(1L << 62)));
-        if (!squaredAxisLength.IsZero
-            && CompareNonNegative(
+        if (CompareNonNegative(
                 squaredAxisLength,
                 approximationThreshold) < 0)
         {
@@ -143,8 +142,7 @@ internal static partial class WideArithmetic
         GetMagnitude(leftSquaredAxisLength, leftAxisWords);
         GetMagnitude(rightSquaredAxisLength, rightAxisWords);
 
-        if (leftCommonDenominator.Sign > 0
-            && leftCommonDenominator.Equals(rightCommonDenominator))
+        if (leftCommonDenominator.Equals(rightCommonDenominator))
         {
             return CompareSignedNormalizedMagnitudes(
                 leftOverlapWords,

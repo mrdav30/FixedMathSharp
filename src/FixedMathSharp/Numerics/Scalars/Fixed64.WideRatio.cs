@@ -972,6 +972,13 @@ public partial struct Fixed64
     {
         int remainderLength = GetActiveMagnitudeLength(remainder);
         int denominatorLength = GetActiveMagnitudeLength(denominatorMagnitude);
+        if (denominatorLength == 1
+            && denominatorMagnitude[0] == 0UL)
+        {
+            result = default;
+            return false;
+        }
+
         int activeLength = Math.Max(remainderLength, denominatorLength);
         Span<ulong> activeRemainder = remainder[..activeLength];
         Span<ulong> activeDenominator = denominatorMagnitude[..activeLength];
@@ -981,6 +988,25 @@ public partial struct Fixed64
         {
             result = default;
             return false;
+        }
+
+        if (denominatorLength == 1)
+        {
+            ulong denominator = denominatorMagnitude[0];
+            ulong numeratorHigh = remainderLength == 2 ? remainder[1] : 0UL;
+            ulong singleWordQuotient = Divide128By64(
+                numeratorHigh,
+                remainder[0],
+                denominator,
+                out ulong singleWordRemainder);
+            int singleWordMidpointComparison = roundToEven
+                ? singleWordRemainder.CompareTo(denominator - singleWordRemainder)
+                : -1;
+            return TryCreateRawRatioResult(
+                singleWordQuotient,
+                singleWordMidpointComparison,
+                negative,
+                out result);
         }
 
         ulong quotient = 0UL;
