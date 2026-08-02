@@ -222,9 +222,9 @@ internal static partial class WideOrientedBox
             out commonDenominator);
         Span<WideAxis3> boxAxes = stackalloc WideAxis3[3]
         {
-            GetBasisAxis(basis, 2),
-            GetBasisAxis(basis, 1),
-            GetBasisAxis(basis, 0),
+            basis.GetAxis(2),
+            basis.GetAxis(1),
+            basis.GetAxis(0),
         };
         best = default;
         for (int index = 0; index < boxAxes.Length; index++)

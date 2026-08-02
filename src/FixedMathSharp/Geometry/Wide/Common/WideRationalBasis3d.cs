@@ -85,6 +85,85 @@ internal readonly struct WideRationalBasis3d
             ww);
     }
 
+    private WideRationalBasis3d(
+        Signed192 denominator,
+        Signed192 xx,
+        Signed192 xy,
+        Signed192 xz,
+        Signed192 yx,
+        Signed192 yy,
+        Signed192 yz,
+        Signed192 zx,
+        Signed192 zy,
+        Signed192 zz)
+    {
+        Denominator = denominator;
+        Xx = xx;
+        Xy = xy;
+        Xz = xz;
+        Yx = yx;
+        Yy = yy;
+        Yz = yz;
+        Zx = zx;
+        Zy = zy;
+        Zz = zz;
+    }
+
+    internal static WideRationalBasis3d CreateRelative(
+        in WideRationalBasis3d target,
+        in WideRationalBasis3d source) =>
+        // Normalized quaternion-basis products and their three-term sums fit
+        // Signed192, including the unreduced shared denominator.
+        new(
+            Signed192.NarrowProven(
+                WideArithmetic.MultiplySigned192(
+                    target.Denominator,
+                    source.Denominator)),
+            Signed192.NarrowProven(WideArithmetic.GetDotProduct3D(
+                target.Xx, target.Xy, target.Xz,
+                source.Xx, source.Xy, source.Xz)),
+            Signed192.NarrowProven(WideArithmetic.GetDotProduct3D(
+                target.Yx, target.Yy, target.Yz,
+                source.Xx, source.Xy, source.Xz)),
+            Signed192.NarrowProven(WideArithmetic.GetDotProduct3D(
+                target.Zx, target.Zy, target.Zz,
+                source.Xx, source.Xy, source.Xz)),
+            Signed192.NarrowProven(WideArithmetic.GetDotProduct3D(
+                target.Xx, target.Xy, target.Xz,
+                source.Yx, source.Yy, source.Yz)),
+            Signed192.NarrowProven(WideArithmetic.GetDotProduct3D(
+                target.Yx, target.Yy, target.Yz,
+                source.Yx, source.Yy, source.Yz)),
+            Signed192.NarrowProven(WideArithmetic.GetDotProduct3D(
+                target.Zx, target.Zy, target.Zz,
+                source.Yx, source.Yy, source.Yz)),
+            Signed192.NarrowProven(WideArithmetic.GetDotProduct3D(
+                target.Xx, target.Xy, target.Xz,
+                source.Zx, source.Zy, source.Zz)),
+            Signed192.NarrowProven(WideArithmetic.GetDotProduct3D(
+                target.Yx, target.Yy, target.Yz,
+                source.Zx, source.Zy, source.Zz)),
+            Signed192.NarrowProven(WideArithmetic.GetDotProduct3D(
+                target.Zx, target.Zy, target.Zz,
+                source.Zx, source.Zy, source.Zz)));
+
+    internal WideAxis3 GetAxis(int index) =>
+        index switch
+        {
+            0 => new WideAxis3(
+                Signed320.ExtendValue(Xx),
+                Signed320.ExtendValue(Xy),
+                Signed320.ExtendValue(Xz)),
+            1 => new WideAxis3(
+                Signed320.ExtendValue(Yx),
+                Signed320.ExtendValue(Yy),
+                Signed320.ExtendValue(Yz)),
+            _ => new WideAxis3(
+                Signed320.ExtendValue(Zx),
+                Signed320.ExtendValue(Zy),
+                Signed320.ExtendValue(Zz)),
+        };
+
     internal static Signed576 GetComposedScaledCoordinateNumerator(
         Fixed64 outerLocalPoint,
         Fixed64 outerScale,

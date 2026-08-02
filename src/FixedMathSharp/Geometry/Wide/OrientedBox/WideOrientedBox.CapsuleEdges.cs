@@ -118,7 +118,7 @@ internal static partial class WideOrientedBox
             capsuleAxisDenominator,
             capsuleAxisLength,
             endpointSign);
-        WideAxis3 edgeAxis = GetBasisAxis(basis, edgeAxisIndex);
+        WideAxis3 edgeAxis = basis.GetAxis(edgeAxisIndex);
         Signed576 projection = GetAxisProjection(endpointAxis, edgeAxis);
         Signed576 edgeSquared = edgeAxis.SquaredLength;
         Fixed64 edgeExtent = GetEdgeAxisExtent(

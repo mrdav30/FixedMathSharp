@@ -30,9 +30,9 @@ internal static partial class WideOrientedBox
         WideRationalBasis3d hullBasis = new(hullOrientation);
         Span<WideAxis3> boxAxes = stackalloc WideAxis3[3]
         {
-            GetBasisAxis(boxBasis, 0),
-            GetBasisAxis(boxBasis, 1),
-            GetBasisAxis(boxBasis, 2),
+            boxBasis.GetAxis(0),
+            boxBasis.GetAxis(1),
+            boxBasis.GetAxis(2),
         };
         var best = default(WidePointSpanPenetration);
         for (int index = 0; index < boxAxes.Length; index++)

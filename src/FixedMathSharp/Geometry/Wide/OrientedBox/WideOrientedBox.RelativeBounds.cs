@@ -99,21 +99,21 @@ internal static partial class WideOrientedBox
         out Fixed64 minimum,
         out Fixed64 maximum)
     {
-        Signed320 sourceXCoefficient = GetBasisDot(
+        Signed320 sourceXCoefficient = WideArithmetic.GetDotProduct3D(
             targetAxisX,
             targetAxisY,
             targetAxisZ,
             sourceBasis.Xx,
             sourceBasis.Xy,
             sourceBasis.Xz);
-        Signed320 sourceYCoefficient = GetBasisDot(
+        Signed320 sourceYCoefficient = WideArithmetic.GetDotProduct3D(
             targetAxisX,
             targetAxisY,
             targetAxisZ,
             sourceBasis.Yx,
             sourceBasis.Yy,
             sourceBasis.Yz);
-        Signed320 sourceZCoefficient = GetBasisDot(
+        Signed320 sourceZCoefficient = WideArithmetic.GetDotProduct3D(
             targetAxisX,
             targetAxisY,
             targetAxisZ,
@@ -232,16 +232,4 @@ internal static partial class WideOrientedBox
         return endpoint;
     }
 
-    private static Signed320 GetBasisDot(
-        Signed192 firstX,
-        Signed192 firstY,
-        Signed192 firstZ,
-        Signed192 secondX,
-        Signed192 secondY,
-        Signed192 secondZ) =>
-        WideArithmetic.AddSigned320(
-            WideArithmetic.AddSigned320(
-                WideArithmetic.MultiplySigned192(firstX, secondX),
-                WideArithmetic.MultiplySigned192(firstY, secondY)),
-            WideArithmetic.MultiplySigned192(firstZ, secondZ));
 }

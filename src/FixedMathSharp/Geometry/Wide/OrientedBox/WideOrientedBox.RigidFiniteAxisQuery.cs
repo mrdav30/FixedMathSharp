@@ -352,14 +352,14 @@ internal static partial class WideOrientedBox
         Vector3d center,
         WideRationalBasis3d basis)
     {
-        GetRigidLocalPointNumerators(
+        GetRelativeLocalPointNumerators(
             query.Start,
             center,
             basis,
             out Signed192 startX,
             out Signed192 startY,
             out Signed192 startZ);
-        GetRigidLocalPointNumerators(
+        GetRelativeLocalPointNumerators(
             query.End,
             center,
             basis,
@@ -374,46 +374,6 @@ internal static partial class WideOrientedBox
             endY,
             endZ,
             basis.Denominator);
-    }
-
-    private static void GetRigidLocalPointNumerators(
-        Vector3d point,
-        Vector3d center,
-        WideRationalBasis3d basis,
-        out Signed192 x,
-        out Signed192 y,
-        out Signed192 z)
-    {
-        Signed192 differenceX = WideArithmetic.SubtractSigned192(
-            Signed192.Raw(point.X),
-            Signed192.Raw(center.X));
-        Signed192 differenceY = WideArithmetic.SubtractSigned192(
-            Signed192.Raw(point.Y),
-            Signed192.Raw(center.Y));
-        Signed192 differenceZ = WideArithmetic.SubtractSigned192(
-            Signed192.Raw(point.Z),
-            Signed192.Raw(center.Z));
-        x = GetRelativeLocalCoordinateNumerator(
-            differenceX,
-            differenceY,
-            differenceZ,
-            basis.Xx,
-            basis.Xy,
-            basis.Xz);
-        y = GetRelativeLocalCoordinateNumerator(
-            differenceX,
-            differenceY,
-            differenceZ,
-            basis.Yx,
-            basis.Yy,
-            basis.Yz);
-        z = GetRelativeLocalCoordinateNumerator(
-            differenceX,
-            differenceY,
-            differenceZ,
-            basis.Zx,
-            basis.Zy,
-            basis.Zz);
     }
 
     private static bool TryGetCardinalLocalYAxis(

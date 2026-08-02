@@ -33,9 +33,9 @@ internal static partial class WideOrientedBox
         WideRationalBasis3d triangleBasis = new(triangleRotation);
         Span<WideAxis3> boxAxes = stackalloc WideAxis3[3]
         {
-            GetBasisAxis(boxBasis, 0),
-            GetBasisAxis(boxBasis, 1),
-            GetBasisAxis(boxBasis, 2),
+            boxBasis.GetAxis(0),
+            boxBasis.GetAxis(1),
+            boxBasis.GetAxis(2),
         };
         var best = default(WidePointSpanPenetration);
         for (int index = 0; index < boxAxes.Length; index++)
@@ -359,7 +359,7 @@ internal static partial class WideOrientedBox
         if (faceAxis < 0)
             return;
 
-        WideAxis3 selectedAxis = GetBasisAxis(boxBasis, faceAxis);
+        WideAxis3 selectedAxis = boxBasis.GetAxis(faceAxis);
         Fixed64 faceSign = GetDirectionProjection(
                 selectedAxis,
                 primary.Normal).Sign < 0
@@ -413,13 +413,13 @@ internal static partial class WideOrientedBox
         Vector3d primaryNormal)
     {
         int bestIndex = 0;
-        WideAxis3 bestAxis = GetBasisAxis(boxBasis, 0);
+        WideAxis3 bestAxis = boxBasis.GetAxis(0);
         Signed576 bestAlignment = GetAxisProjection(
             bestAxis,
             triangleNormal);
         for (int index = 1; index < 3; index++)
         {
-            WideAxis3 candidateAxis = GetBasisAxis(boxBasis, index);
+            WideAxis3 candidateAxis = boxBasis.GetAxis(index);
             Signed576 candidateAlignment = GetAxisProjection(
                 candidateAxis,
                 triangleNormal);

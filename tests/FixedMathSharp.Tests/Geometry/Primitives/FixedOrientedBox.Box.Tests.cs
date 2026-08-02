@@ -103,7 +103,177 @@ public sealed class FixedOrientedBoxBoxTests
             out FixedContactAnchors secondRun));
         Assert.Equal(firstRun.Normal, secondRun.Normal);
         Assert.Equal(firstRun.Depth, secondRun.Depth);
-        Assert.True(firstRun.Normal.MagnitudeSquared > Fixed64.Zero);
+        Assert.Equal(
+            new Vector3d(
+                Fixed64.FromRaw(1702055563L),
+                Fixed64.FromRaw(271603553L),
+                Fixed64.FromRaw(3933952522L)),
+            firstRun.Normal);
+        Assert.Equal(Fixed64.FromRaw(3502736696L), firstRun.Depth);
+        Assert.Equal(
+            new Vector3d(
+                Fixed64.FromRaw(6116972012L),
+                Fixed64.One,
+                Fixed64.One),
+            firstRun.FirstAnchor.LocalPoint);
+        Assert.Equal(
+            new Vector3d(
+                Fixed64.One,
+                Fixed64.FromRaw(3512911620L),
+                -Fixed64.One),
+            firstRun.SecondAnchor.LocalPoint);
+        Assert.False(firstRun.DepthIsClamped);
+    }
+
+    [Fact]
+    public void ContactAnchors_PreserveFirstFaceOnEqualDepthTie()
+    {
+        var first = new FixedOrientedBox(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.One);
+        var second = new FixedOrientedBox(
+            new Vector3d(
+                Fixed64.FromFraction(3, 2),
+                Fixed64.FromFraction(3, 2),
+                Fixed64.Zero),
+            FixedQuaternion.Identity,
+            Vector3d.One);
+
+        Assert.True(first.TryGetContact(
+            second,
+            out FixedContactAnchors contact));
+        Assert.Equal(Vector3d.Right, contact.Normal);
+        Assert.Equal(Fixed64.Half, contact.Depth);
+        Assert.Equal(
+            new Vector3d(1, 1, 0),
+            contact.FirstAnchor.LocalPoint);
+        Assert.Equal(
+            new Vector3d(
+                (Fixed64)(-1),
+                -Fixed64.Half,
+                Fixed64.Zero),
+            contact.SecondAnchor.LocalPoint);
+        Assert.False(contact.DepthIsClamped);
+    }
+
+    [Fact]
+    public void ContactAnchors_CanSelectSecondBoxFace()
+    {
+        FixedQuaternion secondOrientation =
+            FixedQuaternion.FromEulerAnglesInDegrees(
+                Fixed64.Zero,
+                (Fixed64)30,
+                Fixed64.Zero);
+        var centeredSecond = new FixedOrientedBox(
+            Vector3d.Zero,
+            secondOrientation,
+            Vector3d.One);
+        centeredSecond.GetAxes(
+            out Vector3d secondX,
+            out _,
+            out _);
+        var first = new FixedOrientedBox(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d(2, 1, 1));
+        var second = new FixedOrientedBox(
+            secondX * (Fixed64)3,
+            secondOrientation,
+            centeredSecond.HalfExtents);
+
+        Assert.True(first.TryGetContact(
+            second,
+            out FixedContactAnchors contact));
+        Assert.Equal(secondX, contact.Normal);
+        Assert.False(contact.DepthIsClamped);
+    }
+
+    [Fact]
+    public void ContactAnchors_RotatedResultIsTranslationInvariantNearScalarLimit()
+    {
+        FixedQuaternion firstOrientation =
+            FixedQuaternion.FromEulerAnglesInDegrees(
+                (Fixed64)15,
+                (Fixed64)25,
+                (Fixed64)5);
+        FixedQuaternion secondOrientation =
+            FixedQuaternion.FromEulerAnglesInDegrees(
+                (Fixed64)(-10),
+                (Fixed64)40,
+                (Fixed64)20);
+        Vector3d translation = new(
+            Fixed64.MaxValue - (Fixed64)4,
+            Fixed64.MaxValue - (Fixed64)4,
+            Fixed64.MaxValue - (Fixed64)4);
+        var ordinaryFirst = new FixedOrientedBox(
+            Vector3d.Zero,
+            firstOrientation,
+            new Vector3d(2, 1, 1));
+        var ordinarySecond = new FixedOrientedBox(
+            new Vector3d(2, 0, 1),
+            secondOrientation,
+            new Vector3d(1, 2, 1));
+        var translatedFirst = new FixedOrientedBox(
+            translation,
+            firstOrientation,
+            ordinaryFirst.HalfExtents);
+        var translatedSecond = new FixedOrientedBox(
+            translation + ordinarySecond.Center,
+            secondOrientation,
+            ordinarySecond.HalfExtents);
+
+        Assert.True(ordinaryFirst.TryGetContact(
+            ordinarySecond,
+            out FixedContactAnchors ordinary));
+        Assert.True(translatedFirst.TryGetContact(
+            translatedSecond,
+            out FixedContactAnchors translated));
+        Assert.Equal(ordinary.Normal, translated.Normal);
+        Assert.Equal(ordinary.Depth, translated.Depth);
+        Assert.Equal(ordinary.DepthIsClamped, translated.DepthIsClamped);
+        Assert.Equal(
+            ordinary.FirstAnchor.LocalPoint,
+            translated.FirstAnchor.LocalPoint);
+        Assert.Equal(
+            ordinary.SecondAnchor.LocalPoint,
+            translated.SecondAnchor.LocalPoint);
+        Assert.Equal(
+            ordinary.FirstAnchor.LocalDisplacement,
+            translated.FirstAnchor.LocalDisplacement);
+        Assert.Equal(
+            ordinary.SecondAnchor.LocalDisplacement,
+            translated.SecondAnchor.LocalDisplacement);
+    }
+
+    [Fact]
+    public void ContactAnchors_RejectRotatedOppositeScalarFaces()
+    {
+        var first = new FixedOrientedBox(
+            new Vector3d(
+                Fixed64.MinValue + (Fixed64)4,
+                Fixed64.MinValue + (Fixed64)4,
+                Fixed64.MinValue + (Fixed64)4),
+            FixedQuaternion.FromEulerAnglesInDegrees(
+                (Fixed64)17,
+                (Fixed64)(-29),
+                (Fixed64)11),
+            Vector3d.One);
+        var second = new FixedOrientedBox(
+            new Vector3d(
+                Fixed64.MaxValue - (Fixed64)4,
+                Fixed64.MaxValue - (Fixed64)4,
+                Fixed64.MaxValue - (Fixed64)4),
+            FixedQuaternion.FromEulerAnglesInDegrees(
+                (Fixed64)(-13),
+                (Fixed64)37,
+                (Fixed64)(-19)),
+            Vector3d.One);
+
+        Assert.False(first.TryGetContact(
+            second,
+            out FixedContactAnchors contact));
+        Assert.Equal(default, contact);
     }
 
     [Fact]
@@ -181,6 +351,7 @@ public sealed class FixedOrientedBoxBoxTests
         Assert.True(huge.TryGetContact(
             huge,
             out FixedContactAnchors clamped));
+        Assert.Equal(Vector3d.Right, clamped.Normal);
         Assert.Equal(Fixed64.MaxValue, clamped.Depth);
         Assert.True(clamped.DepthIsClamped);
     }

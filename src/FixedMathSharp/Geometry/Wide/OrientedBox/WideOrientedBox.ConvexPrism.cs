@@ -289,34 +289,6 @@ internal static partial class WideOrientedBox
         return true;
     }
 
-    private static Signed576 GetBoxProjectionRadiusNumerator(
-        WideAxis3 axis,
-        Vector3d halfExtents,
-        WideRationalBasis3d basis) =>
-        WideArithmetic.AddSigned576(
-            WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned576(
-                    GetMagnitude(WideRigidProjection.GetBasisAxisProjection(
-                        axis,
-                        basis.Xx,
-                        basis.Xy,
-                        basis.Xz)),
-                    Signed192.Raw(halfExtents.X)),
-                WideArithmetic.MultiplySigned576(
-                    GetMagnitude(WideRigidProjection.GetBasisAxisProjection(
-                        axis,
-                        basis.Yx,
-                        basis.Yy,
-                        basis.Yz)),
-                    Signed192.Raw(halfExtents.Y))),
-            WideArithmetic.MultiplySigned576(
-                GetMagnitude(WideRigidProjection.GetBasisAxisProjection(
-                    axis,
-                    basis.Zx,
-                    basis.Zy,
-                    basis.Zz)),
-                Signed192.Raw(halfExtents.Z)));
-
     private static Signed576 GetRotatedPlanarOffsetProjection(
         Vector2d offset,
         Fixed64 rotation,

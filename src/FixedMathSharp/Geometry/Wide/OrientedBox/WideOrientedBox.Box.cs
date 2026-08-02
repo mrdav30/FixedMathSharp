@@ -19,18 +19,21 @@ internal static partial class WideOrientedBox
 
     private readonly struct BoxPenetration
     {
-        internal readonly WideAxis3 Axis;
+        internal readonly int FirstAxisIndex;
+        internal readonly int SecondAxisIndex;
         internal readonly bool Negate;
         internal readonly Signed576 Overlap;
         internal readonly Signed576 SquaredAxisLength;
 
         internal BoxPenetration(
-            WideAxis3 axis,
+            int firstAxisIndex,
+            int secondAxisIndex,
             bool negate,
             Signed576 overlap,
             Signed576 squaredAxisLength)
         {
-            Axis = axis;
+            FirstAxisIndex = firstAxisIndex;
+            SecondAxisIndex = secondAxisIndex;
             Negate = negate;
             Overlap = overlap;
             SquaredAxisLength = squaredAxisLength;
@@ -53,43 +56,61 @@ internal static partial class WideOrientedBox
     {
         WideRationalBasis3d firstBasis = new(firstOrientation);
         WideRationalBasis3d secondBasis = new(secondOrientation);
-        Signed320 commonDenominator = WideArithmetic.MultiplySigned192(
-            firstBasis.Denominator,
-            secondBasis.Denominator);
-        Span<WideAxis3> firstAxes = stackalloc WideAxis3[3]
+        WideRationalBasis3d relativeBasis =
+            WideRationalBasis3d.CreateRelative(firstBasis, secondBasis);
+        Signed320 commonDenominator =
+            Signed320.ExtendValue(relativeBasis.Denominator);
+        Span<Signed192> relative = stackalloc Signed192[9]
         {
-            GetBasisAxis(firstBasis, 0),
-            GetBasisAxis(firstBasis, 1),
-            GetBasisAxis(firstBasis, 2),
+            relativeBasis.Xx,
+            relativeBasis.Xy,
+            relativeBasis.Xz,
+            relativeBasis.Yx,
+            relativeBasis.Yy,
+            relativeBasis.Yz,
+            relativeBasis.Zx,
+            relativeBasis.Zy,
+            relativeBasis.Zz,
         };
-        Span<WideAxis3> secondAxes = stackalloc WideAxis3[3]
-        {
-            GetBasisAxis(secondBasis, 0),
-            GetBasisAxis(secondBasis, 1),
-            GetBasisAxis(secondBasis, 2),
-        };
+        Span<Signed192> firstTranslation = stackalloc Signed192[3];
+        GetRelativeLocalPointNumerators(
+            secondCenter,
+            firstCenter,
+            firstBasis,
+            out firstTranslation[0],
+            out firstTranslation[1],
+            out firstTranslation[2]);
+        Span<Signed192> secondTranslation = stackalloc Signed192[3];
+        GetRelativeLocalPointNumerators(
+            secondCenter,
+            firstCenter,
+            secondBasis,
+            out secondTranslation[0],
+            out secondTranslation[1],
+            out secondTranslation[2]);
+
         var best = default(BoxPenetration);
-        for (int index = 0; index < firstAxes.Length; index++)
+        for (int index = 0; index < 3; index++)
         {
-            if (!TryKeepBoxAxis(
-                    firstAxes[index],
-                    firstCenter,
+            if (!TryKeepFirstFaceAxis(
+                    index,
                     firstHalfExtents,
-                    firstBasis,
-                    secondCenter,
                     secondHalfExtents,
-                    secondBasis,
-                    commonDenominator,
+                    relative,
+                    firstTranslation,
+                    firstBasis.Denominator,
+                    secondBasis.Denominator,
+                    relativeBasis.Denominator,
                     ref best)
-                || !TryKeepBoxAxis(
-                    secondAxes[index],
-                    firstCenter,
+                || !TryKeepSecondFaceAxis(
+                    index,
                     firstHalfExtents,
-                    firstBasis,
-                    secondCenter,
                     secondHalfExtents,
-                    secondBasis,
-                    commonDenominator,
+                    relative,
+                    secondTranslation,
+                    firstBasis.Denominator,
+                    secondBasis.Denominator,
+                    relativeBasis.Denominator,
                     ref best))
             {
                 contact = default;
@@ -97,19 +118,19 @@ internal static partial class WideOrientedBox
             }
         }
 
-        for (int firstIndex = 0; firstIndex < firstAxes.Length; firstIndex++)
+        for (int firstIndex = 0; firstIndex < 3; firstIndex++)
         {
-            for (int secondIndex = 0; secondIndex < secondAxes.Length; secondIndex++)
+            for (int secondIndex = 0; secondIndex < 3; secondIndex++)
             {
-                if (!TryKeepBoxAxis(
-                        WideAxis3.Cross(firstAxes[firstIndex], secondAxes[secondIndex]),
-                        firstCenter,
+                if (!TryKeepCrossAxis(
+                        firstIndex,
+                        secondIndex,
                         firstHalfExtents,
-                        firstBasis,
-                        secondCenter,
                         secondHalfExtents,
-                        secondBasis,
-                        commonDenominator,
+                        relative,
+                        firstTranslation,
+                        firstBasis.Denominator,
+                        secondBasis.Denominator,
                         ref best))
                 {
                     contact = default;
@@ -124,7 +145,14 @@ internal static partial class WideOrientedBox
                 best.SquaredAxisLength,
                 commonDenominator,
                 out bool depthIsClamped);
-        WideAxis3 orientedAxis = best.Negate ? -best.Axis : best.Axis;
+        WideAxis3 axis = best.SecondAxisIndex < 0
+            ? firstBasis.GetAxis(best.FirstAxisIndex)
+            : best.FirstAxisIndex < 0
+                ? secondBasis.GetAxis(best.SecondAxisIndex)
+                : WideAxis3.Cross(
+                    firstBasis.GetAxis(best.FirstAxisIndex),
+                    secondBasis.GetAxis(best.SecondAxisIndex));
+        WideAxis3 orientedAxis = best.Negate ? -axis : axis;
         Vector3d normal = WideNormalization.GetNormalized(
             Signed576.ExtendValue(orientedAxis.X),
             Signed576.ExtendValue(orientedAxis.Y),
@@ -163,58 +191,169 @@ internal static partial class WideOrientedBox
         return true;
     }
 
-    private static bool TryKeepBoxAxis(
-        WideAxis3 axis,
-        Vector3d firstCenter,
+    private static bool TryKeepFirstFaceAxis(
+        int axisIndex,
         Vector3d firstHalfExtents,
-        WideRationalBasis3d firstBasis,
-        Vector3d secondCenter,
         Vector3d secondHalfExtents,
-        WideRationalBasis3d secondBasis,
-        Signed320 commonDenominator,
+        ReadOnlySpan<Signed192> relative,
+        ReadOnlySpan<Signed192> firstTranslation,
+        Signed192 firstDenominator,
+        Signed192 secondDenominator,
+        Signed192 relativeDenominator,
         ref BoxPenetration best)
     {
-        if (axis.IsZero)
+        Signed320 radius = WideArithmetic.AddSigned320(
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(firstHalfExtents[axisIndex]),
+                relativeDenominator),
+            GetExtentNumerator(
+                relative[axisIndex],
+                relative[3 + axisIndex],
+                relative[6 + axisIndex],
+                secondHalfExtents));
+
+        Signed320 centerProjection = WideArithmetic.MultiplySigned192(
+            firstTranslation[axisIndex],
+            secondDenominator);
+        Signed320 overlap = WideArithmetic.SubtractSigned320(
+            radius,
+            GetMagnitude(centerProjection));
+        return TryKeepBoxPenetration(
+            axisIndex,
+            -1,
+            centerProjection.Sign < 0,
+            WideArithmetic.MultiplySigned320(overlap, firstDenominator),
+            Signed576.ExtendValue(
+                WideArithmetic.MultiplySigned192(
+                    firstDenominator,
+                    firstDenominator)),
+            ref best);
+    }
+
+    private static bool TryKeepSecondFaceAxis(
+        int axisIndex,
+        Vector3d firstHalfExtents,
+        Vector3d secondHalfExtents,
+        ReadOnlySpan<Signed192> relative,
+        ReadOnlySpan<Signed192> secondTranslation,
+        Signed192 firstDenominator,
+        Signed192 secondDenominator,
+        Signed192 relativeDenominator,
+        ref BoxPenetration best)
+    {
+        int relativeOffset = axisIndex * 3;
+        Signed320 radius = WideArithmetic.AddSigned320(
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(secondHalfExtents[axisIndex]),
+                relativeDenominator),
+            GetExtentNumerator(
+                relative[relativeOffset],
+                relative[relativeOffset + 1],
+                relative[relativeOffset + 2],
+                firstHalfExtents));
+
+        Signed320 centerProjection = WideArithmetic.MultiplySigned192(
+            secondTranslation[axisIndex],
+            firstDenominator);
+        Signed320 overlap = WideArithmetic.SubtractSigned320(
+            radius,
+            GetMagnitude(centerProjection));
+        return TryKeepBoxPenetration(
+            -1,
+            axisIndex,
+            centerProjection.Sign < 0,
+            WideArithmetic.MultiplySigned320(overlap, secondDenominator),
+            Signed576.ExtendValue(
+                WideArithmetic.MultiplySigned192(
+                    secondDenominator,
+                    secondDenominator)),
+            ref best);
+    }
+
+    private static bool TryKeepCrossAxis(
+        int firstAxisIndex,
+        int secondAxisIndex,
+        Vector3d firstHalfExtents,
+        Vector3d secondHalfExtents,
+        ReadOnlySpan<Signed192> relative,
+        ReadOnlySpan<Signed192> firstTranslation,
+        Signed192 firstDenominator,
+        Signed192 secondDenominator,
+        ref BoxPenetration best)
+    {
+        int firstNext = (firstAxisIndex + 1) % 3;
+        int firstLast = (firstAxisIndex + 2) % 3;
+        int secondNext = (secondAxisIndex + 1) % 3;
+        int secondLast = (secondAxisIndex + 2) % 3;
+        int secondOffset = secondAxisIndex * 3;
+        Signed192 firstComponent = relative[secondOffset + firstNext];
+        Signed192 secondComponent = relative[secondOffset + firstLast];
+        Signed320 squaredAxisLength = WideArithmetic.AddSigned320(
+            WideArithmetic.MultiplySigned192(
+                firstComponent,
+                firstComponent),
+            WideArithmetic.MultiplySigned192(
+                secondComponent,
+                secondComponent));
+        if (squaredAxisLength.IsZero)
             return true;
 
-        Signed576 firstRadius = GetBoxProjectionRadiusNumerator(
-            axis,
-            firstHalfExtents,
-            firstBasis);
-        Signed576 secondRadius = GetBoxProjectionRadiusNumerator(
-            axis,
-            secondHalfExtents,
-            secondBasis);
-        Signed576 centerProjection = WideRigidProjection.GetWorldOriginDifferenceProjection(
-            secondCenter,
-            firstCenter,
-            axis);
-        bool negate = centerProjection.Sign < 0;
+        Signed320 radius = WideArithmetic.AddSigned320(
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(firstHalfExtents[firstNext]),
+                GetMagnitude(secondComponent)),
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(firstHalfExtents[firstLast]),
+                GetMagnitude(firstComponent)));
+        radius = WideArithmetic.AddSigned320(
+            radius,
+            WideArithmetic.AddSigned320(
+                WideArithmetic.MultiplySigned192(
+                    Signed192.Raw(secondHalfExtents[secondNext]),
+                    GetMagnitude(relative[(secondLast * 3) + firstAxisIndex])),
+                WideArithmetic.MultiplySigned192(
+                    Signed192.Raw(secondHalfExtents[secondLast]),
+                    GetMagnitude(relative[(secondNext * 3) + firstAxisIndex]))));
+        Signed320 centerProjection = WideArithmetic.SubtractSigned320(
+            WideArithmetic.MultiplySigned192(
+                firstTranslation[firstLast],
+                firstComponent),
+            WideArithmetic.MultiplySigned192(
+                firstTranslation[firstNext],
+                secondComponent));
         Signed576 overlap = WideArithmetic.SubtractSigned576(
-            WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned576(
-                    firstRadius,
-                    secondBasis.Denominator),
-                WideArithmetic.MultiplySigned576(
-                    secondRadius,
-                    firstBasis.Denominator)),
-            WideArithmetic.MultiplySigned576(
-                GetMagnitude(centerProjection),
-                Signed192.NarrowValue(commonDenominator)));
+            WideArithmetic.MultiplySigned320(radius, firstDenominator),
+            Signed576.ExtendValue(GetMagnitude(centerProjection)));
+        return TryKeepBoxPenetration(
+            firstAxisIndex,
+            secondAxisIndex,
+            centerProjection.Sign < 0,
+            WideArithmetic.MultiplySigned576(overlap, secondDenominator),
+            Signed576.ExtendValue(squaredAxisLength),
+            ref best);
+    }
+
+    private static bool TryKeepBoxPenetration(
+        int firstAxisIndex,
+        int secondAxisIndex,
+        bool negate,
+        Signed576 overlap,
+        Signed576 squaredAxisLength,
+        ref BoxPenetration best)
+    {
         if (overlap.Sign < 0)
             return false;
 
-        Signed576 squaredAxisLength = axis.SquaredLength;
-        bool shouldReplace = !best.HasValue
+        if (!best.HasValue
             || CompareBoxDepth(
                 overlap,
                 squaredAxisLength,
                 best.Overlap,
-                best.SquaredAxisLength) < 0;
-        if (shouldReplace)
+                best.SquaredAxisLength) < 0)
         {
             best = new BoxPenetration(
-                axis,
+                firstAxisIndex,
+                secondAxisIndex,
                 negate,
                 overlap,
                 squaredAxisLength);
@@ -258,22 +397,4 @@ internal static partial class WideOrientedBox
             currentScaled);
         return WideArithmetic.CompareMagnitudeEqualLength(candidateScaled, currentScaled);
     }
-
-    private static WideAxis3 GetBasisAxis(WideRationalBasis3d basis, int index) =>
-        index switch
-        {
-            0 => new WideAxis3(
-                Signed320.ExtendValue(basis.Xx),
-                Signed320.ExtendValue(basis.Xy),
-                Signed320.ExtendValue(basis.Xz)),
-            1 => new WideAxis3(
-                Signed320.ExtendValue(basis.Yx),
-                Signed320.ExtendValue(basis.Yy),
-                Signed320.ExtendValue(basis.Yz)),
-            _ => new WideAxis3(
-                Signed320.ExtendValue(basis.Zx),
-                Signed320.ExtendValue(basis.Zy),
-                Signed320.ExtendValue(basis.Zz)),
-        };
-
 }
