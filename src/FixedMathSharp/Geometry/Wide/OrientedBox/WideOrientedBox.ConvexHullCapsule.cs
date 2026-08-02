@@ -586,7 +586,7 @@ internal static partial class WideOrientedBox
             return ToCapsuleAxis(startToEndpoint);
 
         Signed576 projection =
-            GetAxisProjection(startToEndpoint, edge);
+            WideAxis3.Dot(startToEndpoint, edge);
         if (projection.Sign <= 0)
             return ToCapsuleAxis(startToEndpoint);
         Signed576 upperBound = WideArithmetic.MultiplySigned576(

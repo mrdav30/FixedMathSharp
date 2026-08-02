@@ -14,7 +14,7 @@ namespace FixedMathSharp.Geometry;
 internal static class WideRigidProjection
 {
     internal static WideAxis3 TransformLocalAxis(
-        WideRationalBasis3d basis,
+        in WideRationalBasis3d basis,
         Signed192 localX,
         Signed192 localY,
         Signed192 localZ) =>
@@ -35,7 +35,7 @@ internal static class WideRigidProjection
     /// keeps each transformed component within <see cref="Signed320"/>.
     /// </summary>
     internal static WideAxis3 TransformLocalTriangleNormalCrossEdgeAxis(
-        WideRationalBasis3d basis,
+        in WideRationalBasis3d basis,
         Signed320 localX,
         Signed320 localY,
         Signed320 localZ) =>
@@ -50,29 +50,75 @@ internal static class WideRigidProjection
                 localX, localY, localZ,
                 basis.Xz, basis.Yz, basis.Zz));
 
-    internal static Signed576 GetTransformedLocalOffsetProjection(
+    internal static void GetLocalAxisProjections(
+        in WideAxis3 axis,
+        in WideRationalBasis3d basis,
+        out Signed576 x,
+        out Signed576 y,
+        out Signed576 z)
+    {
+        x = GetBasisAxisProjection(
+            axis,
+            basis.Xx,
+            basis.Xy,
+            basis.Xz);
+        y = GetBasisAxisProjection(
+            axis,
+            basis.Yx,
+            basis.Yy,
+            basis.Yz);
+        z = GetBasisAxisProjection(
+            axis,
+            basis.Zx,
+            basis.Zy,
+            basis.Zz);
+    }
+
+    internal static Signed576 GetLocalOffsetProjection(
         Vector3d localOffset,
-        WideRationalBasis3d basis,
-        WideAxis3 axis) =>
+        in Signed576 axisX,
+        in Signed576 axisY,
+        in Signed576 axisZ) =>
         WideArithmetic.AddSigned576(
             WideArithmetic.AddSigned576(
                 WideArithmetic.MultiplySigned576(
-                    GetBasisAxisProjection(
-                        axis, basis.Xx, basis.Xy, basis.Xz),
-                    Signed192.Raw(localOffset.X)),
+                    axisX,
+                    localOffset.X.m_rawValue),
                 WideArithmetic.MultiplySigned576(
-                    GetBasisAxisProjection(
-                        axis, basis.Yx, basis.Yy, basis.Yz),
-                    Signed192.Raw(localOffset.Y))),
+                    axisY,
+                    localOffset.Y.m_rawValue)),
             WideArithmetic.MultiplySigned576(
-                GetBasisAxisProjection(
-                    axis, basis.Zx, basis.Zy, basis.Zz),
-                Signed192.Raw(localOffset.Z)));
+                axisZ,
+                localOffset.Z.m_rawValue));
+
+    internal static void TransformLocalAxis(
+        in WideRationalBasis3d basis,
+        in WideAxis3 localAxis,
+        out Signed576 x,
+        out Signed576 y,
+        out Signed576 z)
+    {
+        x = TransformLocalAxisComponent(
+            localAxis,
+            basis.Xx,
+            basis.Yx,
+            basis.Zx);
+        y = TransformLocalAxisComponent(
+            localAxis,
+            basis.Xy,
+            basis.Yy,
+            basis.Zy);
+        z = TransformLocalAxisComponent(
+            localAxis,
+            basis.Xz,
+            basis.Yz,
+            basis.Zz);
+    }
 
     internal static Signed576 GetWorldOriginDifferenceProjection(
         Vector3d end,
         Vector3d start,
-        WideAxis3 axis) =>
+        in WideAxis3 axis) =>
         WideArithmetic.AddSigned576(
             WideArithmetic.AddSigned576(
                 WideArithmetic.MultiplySigned320(
@@ -92,7 +138,7 @@ internal static class WideRigidProjection
                 axis.Z));
 
     internal static Signed576 GetBasisAxisProjection(
-        WideAxis3 axis,
+        in WideAxis3 axis,
         Signed192 basisX,
         Signed192 basisY,
         Signed192 basisZ) =>
@@ -109,7 +155,7 @@ internal static class WideRigidProjection
                 basisZ));
 
     internal static void IncludeProjection(
-        Signed576 candidate,
+        in Signed576 candidate,
         ref Signed576 minimum,
         ref Signed576 maximum)
     {
@@ -153,4 +199,21 @@ internal static class WideRigidProjection
                 basisZ));
         return Signed320.NarrowValue(transformed);
     }
+
+    private static Signed576 TransformLocalAxisComponent(
+        in WideAxis3 localAxis,
+        Signed192 basisX,
+        Signed192 basisY,
+        Signed192 basisZ) =>
+        WideArithmetic.AddSigned576(
+            WideArithmetic.AddSigned576(
+                WideArithmetic.MultiplySigned576(
+                    Signed576.ExtendValue(localAxis.X),
+                    basisX),
+                WideArithmetic.MultiplySigned576(
+                    Signed576.ExtendValue(localAxis.Y),
+                    basisY)),
+            WideArithmetic.MultiplySigned576(
+                Signed576.ExtendValue(localAxis.Z),
+                basisZ));
 }

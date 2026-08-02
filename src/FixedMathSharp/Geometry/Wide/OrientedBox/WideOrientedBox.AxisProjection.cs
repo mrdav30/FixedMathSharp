@@ -15,9 +15,9 @@ namespace FixedMathSharp.Geometry;
 internal static partial class WideOrientedBox
 {
     private static Signed576 GetBoxProjectionRadiusNumerator(
-        WideAxis3 axis,
+        in WideAxis3 axis,
         Vector3d halfExtents,
-        WideRationalBasis3d basis) =>
+        in WideRationalBasis3d basis) =>
         WideArithmetic.AddSigned576(
             WideArithmetic.AddSigned576(
                 WideArithmetic.MultiplySigned576(
@@ -41,6 +41,21 @@ internal static partial class WideOrientedBox
                     basis.Zy,
                     basis.Zz)),
                 Signed192.Raw(halfExtents.Z)));
+
+    private static Signed576 GetLocalBoxProjectionRadiusNumerator(
+        in WideAxis3 axis,
+        Vector3d halfExtents) =>
+        WideArithmetic.AddSigned576(
+            WideArithmetic.AddSigned576(
+                WideArithmetic.MultiplySigned576(
+                    Signed576.ExtendValue(GetMagnitude(axis.X)),
+                    halfExtents.X.m_rawValue),
+                WideArithmetic.MultiplySigned576(
+                    Signed576.ExtendValue(GetMagnitude(axis.Y)),
+                    halfExtents.Y.m_rawValue)),
+            WideArithmetic.MultiplySigned576(
+                Signed576.ExtendValue(GetMagnitude(axis.Z)),
+                halfExtents.Z.m_rawValue));
 
     internal static int GetRotatedLocalProjectionSign(
         FixedQuaternion rotation,
@@ -114,7 +129,7 @@ internal static partial class WideOrientedBox
     internal static void GetRelativeLocalPointNumerators(
         Vector3d point,
         Vector3d origin,
-        WideRationalBasis3d basis,
+        in WideRationalBasis3d basis,
         out Signed192 x,
         out Signed192 y,
         out Signed192 z)

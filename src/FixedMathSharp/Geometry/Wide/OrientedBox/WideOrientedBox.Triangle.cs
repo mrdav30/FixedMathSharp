@@ -31,22 +31,40 @@ internal static partial class WideOrientedBox
 
         WideRationalBasis3d boxBasis = new(boxOrientation);
         WideRationalBasis3d triangleBasis = new(triangleRotation);
+        WideRationalBasis3d relativeBasis =
+            WideRationalBasis3d.CreateRelative(boxBasis, triangleBasis);
+        Signed320 unit = Signed320.One;
         Span<WideAxis3> boxAxes = stackalloc WideAxis3[3]
         {
-            boxBasis.GetAxis(0),
-            boxBasis.GetAxis(1),
-            boxBasis.GetAxis(2),
+            new(unit, default, default),
+            new(default, unit, default),
+            new(default, default, unit),
         };
+        GetRelativeLocalPointNumerators(
+            triangleOrigin,
+            boxCenter,
+            boxBasis,
+            out Signed192 translationX,
+            out Signed192 translationY,
+            out Signed192 translationZ);
+        var triangleTranslation = new WideAxis3(
+            WideArithmetic.MultiplySigned192(
+                translationX,
+                triangleBasis.Denominator),
+            WideArithmetic.MultiplySigned192(
+                translationY,
+                triangleBasis.Denominator),
+            WideArithmetic.MultiplySigned192(
+                translationZ,
+                triangleBasis.Denominator));
         var best = default(WidePointSpanPenetration);
         for (int index = 0; index < boxAxes.Length; index++)
         {
             if (!TryKeepTriangleAxis(
                     boxAxes[index],
-                    boxCenter,
                     boxHalfExtents,
-                    boxBasis,
-                    triangleOrigin,
-                    triangleBasis,
+                    relativeBasis,
+                    triangleTranslation,
                     triangle,
                     ref best))
             {
@@ -73,48 +91,40 @@ internal static partial class WideOrientedBox
             out Signed192 normalZ);
         if (!TryKeepTriangleAxis(
                 WideRigidProjection.TransformLocalAxis(
-                    triangleBasis,
+                    relativeBasis,
                     normalX,
                     normalY,
                     normalZ),
-                boxCenter,
                 boxHalfExtents,
-                boxBasis,
-                triangleOrigin,
-                triangleBasis,
+                relativeBasis,
+                triangleTranslation,
                 triangle,
                 ref best)
             || !TryKeepTriangleEdgeAxes(
                 triangle.A,
                 triangle.B,
                 boxAxes,
-                boxCenter,
                 boxHalfExtents,
-                boxBasis,
-                triangleOrigin,
-                triangleBasis,
+                relativeBasis,
+                triangleTranslation,
                 triangle,
                 ref best)
             || !TryKeepTriangleEdgeAxes(
                 triangle.B,
                 triangle.C,
                 boxAxes,
-                boxCenter,
                 boxHalfExtents,
-                boxBasis,
-                triangleOrigin,
-                triangleBasis,
+                relativeBasis,
+                triangleTranslation,
                 triangle,
                 ref best)
             || !TryKeepTriangleEdgeAxes(
                 triangle.C,
                 triangle.A,
                 boxAxes,
-                boxCenter,
                 boxHalfExtents,
-                boxBasis,
-                triangleOrigin,
-                triangleBasis,
+                relativeBasis,
+                triangleTranslation,
                 triangle,
                 ref best))
         {
@@ -123,13 +133,19 @@ internal static partial class WideOrientedBox
         }
 
         WideAxis3 orientedAxis = best.Negate ? -best.Axis : best.Axis;
+        WideRigidProjection.TransformLocalAxis(
+            boxBasis,
+            orientedAxis,
+            out Signed576 worldX,
+            out Signed576 worldY,
+            out Signed576 worldZ);
         Vector3d contactNormal = WideNormalization.GetNormalized(
-            Signed576.ExtendValue(orientedAxis.X),
-            Signed576.ExtendValue(orientedAxis.Y),
-            Signed576.ExtendValue(orientedAxis.Z));
+            worldX,
+            worldY,
+            worldZ);
         Vector3d triangleLocalPoint = GetTriangleSupportLocalPoint(
             triangle,
-            triangleBasis,
+            relativeBasis,
             orientedAxis);
         Fixed64 depth = best.GetRoundedDepth(out bool depthIsClamped);
         contact = new FixedContactAnchors(
@@ -154,16 +170,14 @@ internal static partial class WideOrientedBox
         Vector3d edgeStart,
         Vector3d edgeEnd,
         ReadOnlySpan<WideAxis3> boxAxes,
-        Vector3d boxCenter,
         Vector3d boxHalfExtents,
-        WideRationalBasis3d boxBasis,
-        Vector3d triangleOrigin,
-        WideRationalBasis3d triangleBasis,
-        FixedTriangle triangle,
+        in WideRationalBasis3d relativeBasis,
+        in WideAxis3 triangleTranslation,
+        in FixedTriangle triangle,
         ref WidePointSpanPenetration best)
     {
         WideAxis3 edge = WideRigidProjection.TransformLocalAxis(
-            triangleBasis,
+            relativeBasis,
             WideArithmetic.SubtractSigned192(
                 Signed192.Raw(edgeEnd.X),
                 Signed192.Raw(edgeStart.X)),
@@ -177,11 +191,9 @@ internal static partial class WideOrientedBox
         {
             if (!TryKeepTriangleAxis(
                     WideAxis3.Cross(boxAxes[axisIndex], edge),
-                    boxCenter,
                     boxHalfExtents,
-                    boxBasis,
-                    triangleOrigin,
-                    triangleBasis,
+                    relativeBasis,
+                    triangleTranslation,
                     triangle,
                     ref best))
             {
@@ -192,55 +204,50 @@ internal static partial class WideOrientedBox
     }
 
     private static bool TryKeepTriangleAxis(
-        WideAxis3 axis,
-        Vector3d boxCenter,
+        in WideAxis3 axis,
         Vector3d boxHalfExtents,
-        WideRationalBasis3d boxBasis,
-        Vector3d triangleOrigin,
-        WideRationalBasis3d triangleBasis,
-        FixedTriangle triangle,
+        in WideRationalBasis3d relativeBasis,
+        in WideAxis3 triangleTranslation,
+        in FixedTriangle triangle,
         ref WidePointSpanPenetration best)
     {
         if (axis.IsZero)
             return true;
 
-        Signed576 boxRadius = GetBoxProjectionRadiusNumerator(
+        WideRigidProjection.GetLocalAxisProjections(
             axis,
-            boxHalfExtents,
-            boxBasis);
-        Signed576 first = WideRigidProjection.GetTransformedLocalOffsetProjection(
+            relativeBasis,
+            out Signed576 localAxisX,
+            out Signed576 localAxisY,
+            out Signed576 localAxisZ);
+        Signed576 first = WideRigidProjection.GetLocalOffsetProjection(
             triangle.A,
-            triangleBasis,
-            axis);
-        Signed576 second = WideRigidProjection.GetTransformedLocalOffsetProjection(
+            localAxisX,
+            localAxisY,
+            localAxisZ);
+        Signed576 second = WideRigidProjection.GetLocalOffsetProjection(
             triangle.B,
-            triangleBasis,
-            axis);
-        Signed576 third = WideRigidProjection.GetTransformedLocalOffsetProjection(
+            localAxisX,
+            localAxisY,
+            localAxisZ);
+        Signed576 third = WideRigidProjection.GetLocalOffsetProjection(
             triangle.C,
-            triangleBasis,
-            axis);
+            localAxisX,
+            localAxisY,
+            localAxisZ);
         Signed576 minimum = first;
         Signed576 maximum = first;
         WideRigidProjection.IncludeProjection(second, ref minimum, ref maximum);
         WideRigidProjection.IncludeProjection(third, ref minimum, ref maximum);
 
-        Signed576 originProjection = WideRigidProjection.GetWorldOriginDifferenceProjection(
-            triangleOrigin,
-            boxCenter,
-            axis);
-        Signed576 originNumerator = WideArithmetic.MultiplySigned576(
-            originProjection,
-            triangleBasis.Denominator);
-        minimum = WideArithmetic.MultiplySigned576(
-            WideArithmetic.AddSigned576(originNumerator, minimum),
-            boxBasis.Denominator);
-        maximum = WideArithmetic.MultiplySigned576(
-            WideArithmetic.AddSigned576(originNumerator, maximum),
-            boxBasis.Denominator);
-        boxRadius = WideArithmetic.MultiplySigned576(
-            boxRadius,
-            triangleBasis.Denominator);
+        Signed576 originProjection = WideAxis3.Dot(
+            axis,
+            triangleTranslation);
+        minimum = WideArithmetic.AddSigned576(originProjection, minimum);
+        maximum = WideArithmetic.AddSigned576(originProjection, maximum);
+        Signed576 boxRadius = WideArithmetic.MultiplySigned576(
+            GetLocalBoxProjectionRadiusNumerator(axis, boxHalfExtents),
+            relativeBasis.Denominator);
         Signed576 pushBoxNegative = WideArithmetic.SubtractSigned576(
             boxRadius,
             minimum);
@@ -255,9 +262,8 @@ internal static partial class WideOrientedBox
         Signed576 overlap = negate
             ? pushBoxPositive
             : pushBoxNegative;
-        Signed320 commonDenominator = WideArithmetic.MultiplySigned192(
-            boxBasis.Denominator,
-            triangleBasis.Denominator);
+        Signed320 commonDenominator =
+            Signed320.ExtendValue(relativeBasis.Denominator);
         Signed576 squaredAxisLength = axis.SquaredLength;
         if (best.ShouldReplace(
             overlap,
@@ -275,46 +281,40 @@ internal static partial class WideOrientedBox
     }
 
     private static Vector3d GetTriangleSupportLocalPoint(
-        FixedTriangle triangle,
-        WideRationalBasis3d triangleBasis,
-        WideAxis3 boxToTriangleAxis)
+        in FixedTriangle triangle,
+        in WideRationalBasis3d relativeBasis,
+        in WideAxis3 boxLocalAxis)
     {
+        WideRigidProjection.GetLocalAxisProjections(
+            boxLocalAxis,
+            relativeBasis,
+            out Signed576 localAxisX,
+            out Signed576 localAxisY,
+            out Signed576 localAxisZ);
         Vector3d bestPoint = triangle.A;
-        Signed576 bestProjection = WideRigidProjection.GetTransformedLocalOffsetProjection(
+        Signed576 bestProjection = WideRigidProjection.GetLocalOffsetProjection(
             bestPoint,
-            triangleBasis,
-            boxToTriangleAxis);
-        KeepTriangleSupportPoint(
+            localAxisX,
+            localAxisY,
+            localAxisZ);
+        Signed576 secondProjection = WideRigidProjection.GetLocalOffsetProjection(
             triangle.B,
-            triangleBasis,
-            boxToTriangleAxis,
-            ref bestPoint,
-            ref bestProjection);
-        KeepTriangleSupportPoint(
+            localAxisX,
+            localAxisY,
+            localAxisZ);
+        if (CompareSigned(secondProjection, bestProjection) < 0)
+        {
+            bestPoint = triangle.B;
+            bestProjection = secondProjection;
+        }
+        Signed576 thirdProjection = WideRigidProjection.GetLocalOffsetProjection(
             triangle.C,
-            triangleBasis,
-            boxToTriangleAxis,
-            ref bestPoint,
-            ref bestProjection);
+            localAxisX,
+            localAxisY,
+            localAxisZ);
+        if (CompareSigned(thirdProjection, bestProjection) < 0)
+            bestPoint = triangle.C;
         return bestPoint;
-    }
-
-    private static void KeepTriangleSupportPoint(
-        Vector3d candidate,
-        WideRationalBasis3d triangleBasis,
-        WideAxis3 boxToTriangleAxis,
-        ref Vector3d bestPoint,
-        ref Signed576 bestProjection)
-    {
-        Signed576 candidateProjection = WideRigidProjection.GetTransformedLocalOffsetProjection(
-            candidate,
-            triangleBasis,
-            boxToTriangleAxis);
-        if (CompareSigned(candidateProjection, bestProjection) >= 0)
-            return;
-
-        bestPoint = candidate;
-        bestProjection = candidateProjection;
     }
 
     internal static void GetTriangleFaceContacts(
@@ -414,13 +414,13 @@ internal static partial class WideOrientedBox
     {
         int bestIndex = 0;
         WideAxis3 bestAxis = boxBasis.GetAxis(0);
-        Signed576 bestAlignment = GetAxisProjection(
+        Signed576 bestAlignment = WideAxis3.Dot(
             bestAxis,
             triangleNormal);
         for (int index = 1; index < 3; index++)
         {
             WideAxis3 candidateAxis = boxBasis.GetAxis(index);
-            Signed576 candidateAlignment = GetAxisProjection(
+            Signed576 candidateAlignment = WideAxis3.Dot(
                 candidateAxis,
                 triangleNormal);
             if (CompareSigned(
@@ -449,7 +449,7 @@ internal static partial class WideOrientedBox
             Signed320.ExtendValue(Signed192.Raw(primaryNormal.Y)),
             Signed320.ExtendValue(Signed192.Raw(primaryNormal.Z)));
         return IsParallel(
-                GetAxisProjection(bestAxis, primaryAxis),
+                WideAxis3.Dot(bestAxis, primaryAxis),
                 boxSquared,
                 primaryAxis.SquaredLength)
             ? bestIndex
@@ -457,23 +457,14 @@ internal static partial class WideOrientedBox
     }
 
     private static Signed576 GetDirectionProjection(
-        WideAxis3 axis,
+        in WideAxis3 axis,
         Vector3d direction) =>
-        GetAxisProjection(
+        WideAxis3.Dot(
             axis,
             new WideAxis3(
                 Signed320.ExtendValue(Signed192.Raw(direction.X)),
                 Signed320.ExtendValue(Signed192.Raw(direction.Y)),
                 Signed320.ExtendValue(Signed192.Raw(direction.Z))));
-
-    private static Signed576 GetAxisProjection(
-        WideAxis3 first,
-        WideAxis3 second) =>
-        WideArithmetic.AddSigned576(
-            WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned320(first.X, second.X),
-                WideArithmetic.MultiplySigned320(first.Y, second.Y)),
-            WideArithmetic.MultiplySigned320(first.Z, second.Z));
 
     private static bool IsParallel(
         Signed576 alignment,

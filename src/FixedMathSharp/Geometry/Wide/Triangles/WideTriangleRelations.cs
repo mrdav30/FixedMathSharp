@@ -197,13 +197,13 @@ internal static partial class WideTriangleRelations
     }
 
     private static bool TryKeepPairAxis(
-        WideAxis3 axis,
-        FixedTriangle first,
+        in WideAxis3 axis,
+        in FixedTriangle first,
         Vector3d firstOrigin,
-        WideRationalBasis3d firstBasis,
-        FixedTriangle second,
+        in WideRationalBasis3d firstBasis,
+        in FixedTriangle second,
         Vector3d secondOrigin,
-        WideRationalBasis3d secondBasis,
+        in WideRationalBasis3d secondBasis,
         ref WidePointSpanPenetration best)
     {
         if (axis.IsZero)
@@ -284,48 +284,42 @@ internal static partial class WideTriangleRelations
     }
 
     private static void GetProjectionInterval(
-        FixedTriangle triangle,
-        WideRationalBasis3d basis,
-        WideAxis3 axis,
+        in FixedTriangle triangle,
+        in WideRationalBasis3d basis,
+        in WideAxis3 axis,
         Signed192 otherDenominator,
         out Signed576 minimum,
         out Signed576 maximum,
         out Signed576 sum)
     {
-        Signed576 localAxisX = WideRigidProjection.GetBasisAxisProjection(
+        WideRigidProjection.GetLocalAxisProjections(
             axis,
-            basis.Xx,
-            basis.Xy,
-            basis.Xz);
-        Signed576 localAxisY = WideRigidProjection.GetBasisAxisProjection(
-            axis,
-            basis.Yx,
-            basis.Yy,
-            basis.Yz);
-        Signed576 localAxisZ = WideRigidProjection.GetBasisAxisProjection(
-            axis,
-            basis.Zx,
-            basis.Zy,
-            basis.Zz);
-        Signed576 first = GetProjection(
-            triangle.A,
-            localAxisX,
-            localAxisY,
-            localAxisZ,
+            basis,
+            out Signed576 localAxisX,
+            out Signed576 localAxisY,
+            out Signed576 localAxisZ);
+        Signed576 first = WideArithmetic.MultiplySigned576(
+            WideRigidProjection.GetLocalOffsetProjection(
+                triangle.A,
+                localAxisX,
+                localAxisY,
+                localAxisZ),
             otherDenominator);
         minimum = first;
         maximum = first;
-        Signed576 second = GetProjection(
-            triangle.B,
-            localAxisX,
-            localAxisY,
-            localAxisZ,
+        Signed576 second = WideArithmetic.MultiplySigned576(
+            WideRigidProjection.GetLocalOffsetProjection(
+                triangle.B,
+                localAxisX,
+                localAxisY,
+                localAxisZ),
             otherDenominator);
-        Signed576 third = GetProjection(
-            triangle.C,
-            localAxisX,
-            localAxisY,
-            localAxisZ,
+        Signed576 third = WideArithmetic.MultiplySigned576(
+            WideRigidProjection.GetLocalOffsetProjection(
+                triangle.C,
+                localAxisX,
+                localAxisY,
+                localAxisZ),
             otherDenominator);
         WideRigidProjection.IncludeProjection(
             second,
@@ -339,26 +333,6 @@ internal static partial class WideTriangleRelations
             WideArithmetic.AddSigned576(first, second),
             third);
     }
-
-    private static Signed576 GetProjection(
-        Vector3d point,
-        Signed576 localAxisX,
-        Signed576 localAxisY,
-        Signed576 localAxisZ,
-        Signed192 otherDenominator) =>
-        WideArithmetic.MultiplySigned576(
-            WideArithmetic.AddSigned576(
-                WideArithmetic.AddSigned576(
-                    WideArithmetic.MultiplySigned576(
-                        localAxisX,
-                        point.X.m_rawValue),
-                    WideArithmetic.MultiplySigned576(
-                        localAxisY,
-                        point.Y.m_rawValue)),
-                WideArithmetic.MultiplySigned576(
-                    localAxisZ,
-                    point.Z.m_rawValue)),
-            otherDenominator);
 
     private static WideAxis3 TransformLocalNormalCrossEdge(
         WideRationalBasis3d basis,

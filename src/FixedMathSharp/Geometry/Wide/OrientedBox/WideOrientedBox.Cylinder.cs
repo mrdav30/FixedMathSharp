@@ -294,8 +294,8 @@ internal static partial class WideOrientedBox
 
             return new CenteredCylinderContactFeature(
                 index,
-                GetAxisProjection(orientedAxis, boxAxis).Sign,
-                -GetAxisProjection(orientedAxis, cylinderAxis).Sign);
+                WideAxis3.Dot(orientedAxis, boxAxis).Sign,
+                -WideAxis3.Dot(orientedAxis, cylinderAxis).Sign);
         }
 
         return default;
@@ -451,7 +451,7 @@ internal static partial class WideOrientedBox
                 baseRational,
                 cylinderAxisDenominator),
             Signed192.Raw(Fixed64.Two));
-        Signed576 alignmentWide = GetAxisProjection(
+        Signed576 alignmentWide = WideAxis3.Dot(
             axis,
             cylinderAxis);
         Signed576 alignmentMagnitude = GetMagnitude(alignmentWide);

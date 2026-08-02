@@ -57,15 +57,23 @@ internal static partial class WideOrientedBox
             if (axis.IsZero)
                 continue;
 
-            Signed576 faceProjection = WideRigidProjection.GetTransformedLocalOffsetProjection(
-                first,
+            WideRigidProjection.GetLocalAxisProjections(
+                axis,
                 hullBasis,
-                axis);
+                out Signed576 hullAxisX,
+                out Signed576 hullAxisY,
+                out Signed576 hullAxisZ);
+            Signed576 faceProjection = WideRigidProjection.GetLocalOffsetProjection(
+                first,
+                hullAxisX,
+                hullAxisY,
+                hullAxisZ);
             Signed576 interiorDelta = WideArithmetic.SubtractSigned576(
-                WideRigidProjection.GetTransformedLocalOffsetProjection(
+                WideRigidProjection.GetLocalOffsetProjection(
                     hullInteriorLocalPoint,
-                    hullBasis,
-                    axis),
+                    hullAxisX,
+                    hullAxisY,
+                    hullAxisZ),
                 faceProjection);
             if (interiorDelta.Sign == 0)
                 continue;
@@ -74,15 +82,22 @@ internal static partial class WideOrientedBox
                 point.Origin,
                 hullOrigin,
                 axis);
+            WideRigidProjection.GetLocalAxisProjections(
+                axis,
+                pointBasis,
+                out Signed576 pointAxisX,
+                out Signed576 pointAxisY,
+                out Signed576 pointAxisZ);
             Signed576 pointProjection = WideArithmetic.MultiplySigned576(
                 WideArithmetic.AddSigned576(
                     WideArithmetic.MultiplySigned576(
                         originProjection,
                         pointBasis.Denominator),
-                    WideRigidProjection.GetTransformedLocalOffsetProjection(
+                    WideRigidProjection.GetLocalOffsetProjection(
                         point.LocalPoint,
-                        pointBasis,
-                        axis)),
+                        pointAxisX,
+                        pointAxisY,
+                        pointAxisZ)),
                 hullBasis.Denominator);
             Signed576 faceProjectionCommon = WideArithmetic.MultiplySigned576(
                 faceProjection,
@@ -216,12 +231,12 @@ internal static partial class WideOrientedBox
     private static bool TryKeepHullFaceAxes(
         ReadOnlySpan<Vector3d> axisSourcePoints,
         ReadOnlySpan<int> axisSourceTriangles,
-        WideRationalBasis3d axisBasis,
+        in WideRationalBasis3d axisBasis,
         Vector3d firstOrigin,
-        WideRationalBasis3d firstBasis,
+        in WideRationalBasis3d firstBasis,
         ReadOnlySpan<Vector3d> firstPoints,
         Vector3d secondOrigin,
-        WideRationalBasis3d secondBasis,
+        in WideRationalBasis3d secondBasis,
         ReadOnlySpan<Vector3d> secondPoints,
         ref WidePointSpanPenetration best)
     {
@@ -268,12 +283,12 @@ internal static partial class WideOrientedBox
     }
 
     private static bool TryKeepHullPairAxis(
-        WideAxis3 axis,
+        in WideAxis3 axis,
         Vector3d firstOrigin,
-        WideRationalBasis3d firstBasis,
+        in WideRationalBasis3d firstBasis,
         ReadOnlySpan<Vector3d> firstPoints,
         Vector3d secondOrigin,
-        WideRationalBasis3d secondBasis,
+        in WideRationalBasis3d secondBasis,
         ReadOnlySpan<Vector3d> secondPoints,
         ref WidePointSpanPenetration best)
     {
@@ -347,24 +362,35 @@ internal static partial class WideOrientedBox
 
     private static void GetHullProjectionInterval(
         ReadOnlySpan<Vector3d> points,
-        WideRationalBasis3d basis,
-        WideAxis3 axis,
+        in WideRationalBasis3d basis,
+        in WideAxis3 axis,
         Signed192 otherDenominator,
         out Signed576 minimum,
         out Signed576 maximum)
     {
+        WideRigidProjection.GetLocalAxisProjections(
+            axis,
+            basis,
+            out Signed576 localAxisX,
+            out Signed576 localAxisY,
+            out Signed576 localAxisZ);
         minimum = WideArithmetic.MultiplySigned576(
-            WideRigidProjection.GetTransformedLocalOffsetProjection(points[0], basis, axis),
+            WideRigidProjection.GetLocalOffsetProjection(
+                points[0],
+                localAxisX,
+                localAxisY,
+                localAxisZ),
             otherDenominator);
         maximum = minimum;
         for (int index = 1; index < points.Length; index++)
         {
             WideRigidProjection.IncludeProjection(
                 WideArithmetic.MultiplySigned576(
-                    WideRigidProjection.GetTransformedLocalOffsetProjection(
+                    WideRigidProjection.GetLocalOffsetProjection(
                         points[index],
-                        basis,
-                        axis),
+                        localAxisX,
+                        localAxisY,
+                        localAxisZ),
                     otherDenominator),
                 ref minimum,
                 ref maximum);
@@ -372,7 +398,7 @@ internal static partial class WideOrientedBox
     }
 
     private static WideAxis3 GetHullEdge(
-        WideRationalBasis3d basis,
+        in WideRationalBasis3d basis,
         Vector3d start,
         Vector3d end) =>
         WideRigidProjection.TransformLocalAxis(
@@ -382,23 +408,31 @@ internal static partial class WideOrientedBox
             WideArithmetic.SubtractSigned192(Signed192.Raw(end.Z), Signed192.Raw(start.Z)));
 
     private static Vector3d GetHullSupportLocalPoint(
-        WideRationalBasis3d basis,
+        in WideRationalBasis3d basis,
         ReadOnlySpan<Vector3d> points,
-        WideAxis3 axis,
+        in WideAxis3 axis,
         bool maximize)
     {
-        Vector3d best = points[0];
-        Signed576 bestProjection = WideRigidProjection.GetTransformedLocalOffsetProjection(
-            best,
+        WideRigidProjection.GetLocalAxisProjections(
+            axis,
             basis,
-            axis);
+            out Signed576 localAxisX,
+            out Signed576 localAxisY,
+            out Signed576 localAxisZ);
+        Vector3d best = points[0];
+        Signed576 bestProjection = WideRigidProjection.GetLocalOffsetProjection(
+            best,
+            localAxisX,
+            localAxisY,
+            localAxisZ);
         for (int index = 1; index < points.Length; index++)
         {
             Vector3d candidate = points[index];
-            Signed576 projection = WideRigidProjection.GetTransformedLocalOffsetProjection(
+            Signed576 projection = WideRigidProjection.GetLocalOffsetProjection(
                 candidate,
-                basis,
-                axis);
+                localAxisX,
+                localAxisY,
+                localAxisZ);
             int comparison = CompareSigned(projection, bestProjection);
             if (maximize ? comparison > 0 : comparison < 0)
             {

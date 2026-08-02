@@ -59,34 +59,55 @@ public sealed class FixedOrientedBoxTriangleTests
     }
 
     [Fact]
-    public void ContactAnchors_UseExactRotatedEdgeAxes()
+    public void ContactAnchors_EqualFaceDepthKeepsFirstAxisAndFirstSupportPoint()
     {
         var box = new FixedOrientedBox(
-            new Vector3d(2, -1, 3),
-            FixedQuaternion.FromEulerAnglesInDegrees(
-                (Fixed64)15,
-                (Fixed64)25,
-                (Fixed64)5),
-            new Vector3d(2, 1, 1));
-        Vector3d triangleOrigin = new(2, -1, 3);
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.One);
         var triangle = new FixedTriangle(
-            new Vector3d(0, -2, 3),
-            new Vector3d(4, 0, 4),
-            new Vector3d(3, 2, 2));
+            new Vector3d(0, -2, -2),
+            new Vector3d(0, 2, -2),
+            new Vector3d(0, -2, 2));
 
         Assert.True(box.TryGetTriangleContact(
             Vector3d.Zero,
             FixedQuaternion.Identity,
             triangle,
-            out FixedContactAnchors first));
+            out FixedContactAnchors contact));
+        Assert.Equal(Vector3d.Right, contact.Normal);
+        Assert.Equal(Fixed64.One, contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        Assert.Equal(new Vector3d(1, -1, -1), contact.FirstAnchor.LocalPoint);
+        Assert.Equal(triangle.A, contact.SecondAnchor.LocalPoint);
+    }
+
+    [Fact]
+    public void ContactAnchors_UniqueTriangleSupportKeepsThirdVertex()
+    {
+        var box = new FixedOrientedBox(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.One);
+        var triangle = new FixedTriangle(
+            new Vector3d(
+                Fixed64.FromFraction(3, 4),
+                -Fixed64.Half,
+                -Fixed64.Half),
+            new Vector3d(
+                Fixed64.FromFraction(3, 4),
+                Fixed64.Half,
+                -Fixed64.Half),
+            new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Half));
+
         Assert.True(box.TryGetTriangleContact(
             Vector3d.Zero,
             FixedQuaternion.Identity,
             triangle,
-            out FixedContactAnchors second));
-        Assert.Equal(first.Normal, second.Normal);
-        Assert.Equal(first.Depth, second.Depth);
-        Assert.True(first.Normal.MagnitudeSquared > Fixed64.Zero);
+            out FixedContactAnchors contact));
+        Assert.Equal(Vector3d.Right, contact.Normal);
+        Assert.Equal(Fixed64.Half, contact.Depth);
+        Assert.Equal(triangle.C, contact.SecondAnchor.LocalPoint);
     }
 
     [Fact]
@@ -301,7 +322,7 @@ public sealed class FixedOrientedBoxTriangleTests
     }
 
     [Fact]
-    public void FaceContactAnchors_SelectTheDeepestTriangleWitnessBeforeRejectingAnEdgeFeature()
+    public void ContactAnchors_PreserveEdgeCrossWinnerAndSupport()
     {
         var box = new FixedOrientedBox(
             Vector3d.Zero,
@@ -322,11 +343,75 @@ public sealed class FixedOrientedBoxTriangleTests
             out FixedContactAnchors primary,
             out int count));
 
+        Assert.Equal(new Vector3d(0, 2, -3).Normalized, primary.Normal);
+        // Nearest-even materialization of the exact 5 / sqrt(13) depth.
+        Assert.Equal(Fixed64.FromRaw(5_956_048_005), primary.Depth);
+        Assert.False(primary.DepthIsClamped);
+        Assert.Equal(new Vector3d(-1, 1, -1), primary.FirstAnchor.LocalPoint);
         Assert.Equal(triangle.B, primary.SecondAnchor.LocalPoint);
         Assert.Equal(0, count);
-        Assert.True(
-            Vector3d.Dot(triangle.Normal, primary.Normal).Abs()
-                < Fixed64.FromFraction(99, 100));
+    }
+
+    [Fact]
+    public void ContactAnchors_PreserveRotatedFrameUnderScalarTranslation()
+    {
+        FixedQuaternion boxRotation =
+            FixedQuaternion.FromEulerAnglesInDegrees(
+                (Fixed64)7,
+                (Fixed64)19,
+                (Fixed64)(-11));
+        FixedQuaternion triangleRotation =
+            FixedQuaternion.FromAxisAngle(
+                Vector3d.Forward,
+                Fixed64.PiOver4);
+        Vector3d triangleOrigin = new(
+            Fixed64.Zero,
+            Fixed64.One,
+            Fixed64.Zero);
+        var triangle = new FixedTriangle(
+            new Vector3d(-3, 0, -3),
+            new Vector3d(3, 0, -3),
+            new Vector3d(0, 0, 3));
+        var box = new FixedOrientedBox(
+            Vector3d.Zero,
+            boxRotation,
+            new Vector3d(2, 1, 3));
+
+        Assert.True(box.TryGetTriangleContact(
+            triangleOrigin,
+            triangleRotation,
+            triangle,
+            out FixedContactAnchors ordinary));
+
+        Vector3d translation = new(
+            Fixed64.MaxValue - (Fixed64)10,
+            Fixed64.MinValue + (Fixed64)10,
+            Fixed64.Zero);
+        var translatedBox = new FixedOrientedBox(
+            translation,
+            boxRotation,
+            box.HalfExtents);
+        Assert.True(translatedBox.TryGetTriangleContact(
+            translation + triangleOrigin,
+            triangleRotation,
+            triangle,
+            out FixedContactAnchors translated));
+
+        Assert.Equal(ordinary.Normal, translated.Normal);
+        Assert.Equal(ordinary.Depth, translated.Depth);
+        Assert.Equal(ordinary.DepthIsClamped, translated.DepthIsClamped);
+        Assert.Equal(
+            ordinary.FirstAnchor.LocalPoint,
+            translated.FirstAnchor.LocalPoint);
+        Assert.Equal(
+            ordinary.FirstAnchor.LocalDisplacement,
+            translated.FirstAnchor.LocalDisplacement);
+        Assert.Equal(
+            ordinary.SecondAnchor.LocalPoint,
+            translated.SecondAnchor.LocalPoint);
+        Assert.Equal(
+            ordinary.SecondAnchor.LocalDisplacement,
+            translated.SecondAnchor.LocalDisplacement);
     }
 
     [Fact]
@@ -587,4 +672,3 @@ public sealed class FixedOrientedBoxTriangleTests
         Assert.Equal(0, contactCount);
     }
 }
-

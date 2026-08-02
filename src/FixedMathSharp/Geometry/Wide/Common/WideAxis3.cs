@@ -32,7 +32,7 @@ internal readonly struct WideAxis3
                 WideArithmetic.MultiplySigned320(Y, Y)),
             WideArithmetic.MultiplySigned320(Z, Z));
 
-    internal static WideAxis3 Cross(WideAxis3 left, WideAxis3 right) =>
+    internal static WideAxis3 Cross(in WideAxis3 left, in WideAxis3 right) =>
         new(
             Signed320.NarrowValue(WideArithmetic.SubtractSigned576(
                 WideArithmetic.MultiplySigned320(left.Y, right.Z),
@@ -43,6 +43,13 @@ internal readonly struct WideAxis3
             Signed320.NarrowValue(WideArithmetic.SubtractSigned576(
                 WideArithmetic.MultiplySigned320(left.X, right.Y),
                 WideArithmetic.MultiplySigned320(left.Y, right.X))));
+
+    internal static Signed576 Dot(in WideAxis3 left, in WideAxis3 right) =>
+        WideArithmetic.AddSigned576(
+            WideArithmetic.AddSigned576(
+                WideArithmetic.MultiplySigned320(left.X, right.X),
+                WideArithmetic.MultiplySigned320(left.Y, right.Y)),
+            WideArithmetic.MultiplySigned320(left.Z, right.Z));
 
     public static WideAxis3 operator -(WideAxis3 value) =>
         new(

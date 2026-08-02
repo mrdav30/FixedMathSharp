@@ -32,7 +32,7 @@ public sealed class FixedOrientedBoxConvexHullTests
     };
 
     [Fact]
-    public void ContactAnchors_PreserveConvexContainment()
+    public void ContactAnchors_EqualFaceDepthKeepsFirstBoxAxisAndFirstSupportPoint()
     {
         var box = new FixedOrientedBox(
             Vector3d.Zero,
@@ -55,40 +55,22 @@ public sealed class FixedOrientedBoxConvexHullTests
     }
 
     [Fact]
-    public void ContactAnchors_UseFaceAndEdgeAxesAndRejectSeparation()
-    {
-        var box = new FixedOrientedBox(
-            new Vector3d(4, 0, 0),
-            FixedQuaternion.FromEulerAnglesInDegrees(
-                (Fixed64)10,
-                (Fixed64)30,
-                (Fixed64)20),
-            Vector3d.One);
-        Vector3d[] hullOffsets = CreateCubeOffsets(Fixed64.One);
-        FixedQuaternion hullOrientation =
-            FixedQuaternion.FromEulerAnglesInDegrees(
-                (Fixed64)(-5),
-                (Fixed64)15,
-                (Fixed64)25);
-
-        Assert.False(box.TryGetConvexHullContact(
-            Vector3d.Zero,
-            hullOrientation,
-            hullOffsets,
-            CubeTriangles,
-            CubeEdges,
-            out FixedContactAnchors contact));
-        Assert.Equal(default, contact);
-    }
-
-    [Fact]
-    public void ContactAnchors_RejectHullFaceAndEdgeCrossSeparations()
+    public void ContactAnchors_RejectBoxHullFaceAndEdgeCrossSeparations()
     {
         var box = new FixedOrientedBox(
             Vector3d.Zero,
             FixedQuaternion.Identity,
             Vector3d.One);
         Vector3d[] hullOffsets = CreateCubeOffsets(Fixed64.One);
+
+        Assert.False(box.TryGetConvexHullContact(
+            new Vector3d(3, 0, 0),
+            FixedQuaternion.Identity,
+            hullOffsets,
+            CubeTriangles,
+            CubeEdges,
+            out FixedContactAnchors boxContact));
+        Assert.Equal(default, boxContact);
 
         Assert.False(box.TryGetConvexHullContact(
             new Vector3d(
@@ -266,6 +248,111 @@ public sealed class FixedOrientedBoxConvexHullTests
     }
 
     [Fact]
+    public void ContactAnchors_PreserveRotatedSpanSliceUnderScalarTranslation()
+    {
+        FixedQuaternion boxRotation =
+            FixedQuaternion.FromEulerAnglesInDegrees(
+                (Fixed64)7,
+                (Fixed64)19,
+                (Fixed64)(-11));
+        FixedQuaternion hullRotation =
+            FixedQuaternion.FromEulerAnglesInDegrees(
+                (Fixed64)(-5),
+                (Fixed64)13,
+                (Fixed64)17);
+        Vector3d hullOrigin = new(Fixed64.Half, Fixed64.Zero, Fixed64.Zero);
+        var box = new FixedOrientedBox(
+            Vector3d.Zero,
+            boxRotation,
+            new Vector3d(2, 1, 3));
+        Vector3d[] storage = new Vector3d[10];
+        CreateCubeOffsets(Fixed64.One).CopyTo(storage, 1);
+        ReadOnlySpan<Vector3d> points = storage.AsSpan(1, 8);
+
+        Assert.True(box.TryGetConvexHullContact(
+            hullOrigin,
+            hullRotation,
+            points,
+            CubeTriangles,
+            CubeEdges,
+            out FixedContactAnchors ordinary));
+
+        Vector3d translation = new(
+            Fixed64.MaxValue - (Fixed64)10,
+            Fixed64.Zero,
+            Fixed64.Zero);
+        var translatedBox = new FixedOrientedBox(
+            translation,
+            boxRotation,
+            box.HalfExtents);
+        Assert.True(translatedBox.TryGetConvexHullContact(
+            translation + hullOrigin,
+            hullRotation,
+            points,
+            CubeTriangles,
+            CubeEdges,
+            out FixedContactAnchors translated));
+
+        Assert.Equal(ordinary.Normal, translated.Normal);
+        Assert.Equal(ordinary.Depth, translated.Depth);
+        Assert.Equal(ordinary.DepthIsClamped, translated.DepthIsClamped);
+        Assert.Equal(
+            ordinary.FirstAnchor.LocalPoint,
+            translated.FirstAnchor.LocalPoint);
+        Assert.Equal(
+            ordinary.FirstAnchor.LocalDisplacement,
+            translated.FirstAnchor.LocalDisplacement);
+        Assert.Equal(
+            ordinary.SecondAnchor.LocalPoint,
+            translated.SecondAnchor.LocalPoint);
+        Assert.Equal(
+            ordinary.SecondAnchor.LocalDisplacement,
+            translated.SecondAnchor.LocalDisplacement);
+    }
+
+    [Fact]
+    public void ConvexHullContact_WarmedPathDoesNotAllocate()
+    {
+        var box = new FixedOrientedBox(
+            Vector3d.Zero,
+            FixedQuaternion.FromEulerAnglesInDegrees(
+                (Fixed64)7,
+                (Fixed64)19,
+                (Fixed64)(-11)),
+            new Vector3d(2, 1, 3));
+        Vector3d[] points = CreateCubeOffsets(Fixed64.One);
+        FixedQuaternion rotation =
+            FixedQuaternion.FromEulerAnglesInDegrees(
+                (Fixed64)(-5),
+                (Fixed64)13,
+                (Fixed64)17);
+        _ = box.TryGetConvexHullContact(
+            new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Zero),
+            rotation,
+            points,
+            CubeTriangles,
+            CubeEdges,
+            out _);
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        bool allContacts = true;
+
+        for (int iteration = 0; iteration < 64; iteration++)
+        {
+            allContacts &= box.TryGetConvexHullContact(
+                new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Zero),
+                rotation,
+                points,
+                CubeTriangles,
+                CubeEdges,
+                out _);
+        }
+
+        long after = GC.GetAllocatedBytesForCurrentThread();
+        Assert.True(allContacts);
+        Assert.Equal(before, after);
+    }
+
+    [Fact]
     public void ContactAnchors_RejectInvalidAuthoredHullData()
     {
         var box = new FixedOrientedBox(
@@ -358,4 +445,3 @@ public sealed class FixedOrientedBoxConvexHullTests
             new Vector3d(extent, extent, extent),
         };
 }
-
