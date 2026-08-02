@@ -10,6 +10,7 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)' == 'ReleaseLean'">
+    <DisableMemoryPack>true</DisableMemoryPack>
     <DefineConstants>$(DefineConstants);FIXEDMATHSHARP_DISABLE_MEMORYPACK</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
@@ -33,8 +34,5 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Remove=".gitignore" />
   </ItemGroup>
 </Project>

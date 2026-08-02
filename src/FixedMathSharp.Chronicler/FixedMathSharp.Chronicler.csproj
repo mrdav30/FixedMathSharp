@@ -65,12 +65,12 @@
 
   <!-- Dependencies and Package References -->
   <ItemGroup Condition="'$(DisableMemoryPack)' != 'true'">
-    <PackageReference Include="Chronicler.Core" Version="0.3.0" />
+    <PackageReference Include="Chronicler.Core" Version="0.4.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(DisableMemoryPack)' == 'true'">
-    <PackageReference Include="Chronicler.Core.Lean" Version="0.3.0" />
-    <PackageReference Include="Chronicler.MemoryPackShim" Version="0.3.0" PrivateAssets="all" />
+    <PackageReference Include="Chronicler.Core.Lean" Version="0.4.0" />
+    <PackageReference Include="Chronicler.MemoryPackShim" Version="0.4.0" />
   </ItemGroup>
 
   <ItemGroup>
