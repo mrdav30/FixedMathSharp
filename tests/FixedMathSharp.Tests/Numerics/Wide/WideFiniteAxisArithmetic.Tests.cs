@@ -847,6 +847,31 @@ public sealed class WideFiniteAxisArithmeticTests
     }
 
     [Fact]
+    public void Signed576BySigned64Products_MatchBigIntegerAcrossSignsAndCarries()
+    {
+        BigInteger wide = (BigInteger.One << 511)
+            + (BigInteger.One << 257)
+            + ulong.MaxValue;
+        (BigInteger Value, long Factor)[] cases =
+        {
+            (BigInteger.Zero, long.MinValue),
+            (wide, long.MaxValue),
+            (-wide, long.MaxValue),
+            (wide, long.MinValue),
+            (-wide, long.MinValue),
+            (BigInteger.One << 512, long.MinValue),
+            ((BigInteger.One << 320) - 1, -7L),
+        };
+
+        foreach ((BigInteger value, long factor) in cases)
+        {
+            AssertSigned576(
+                value * factor,
+                WideArithmetic.MultiplySigned576(ToSigned576(value), factor));
+        }
+    }
+
+    [Fact]
     public void WideNormalization_SelectsTheLargestMagnitudeAcrossEveryAxis()
     {
         Assert.Equal(

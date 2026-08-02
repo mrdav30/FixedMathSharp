@@ -351,13 +351,13 @@ internal static partial class WideTriangleRelations
                 WideArithmetic.AddSigned576(
                     WideArithmetic.MultiplySigned576(
                         localAxisX,
-                        Signed192.Raw(point.X)),
+                        point.X.m_rawValue),
                     WideArithmetic.MultiplySigned576(
                         localAxisY,
-                        Signed192.Raw(point.Y))),
+                        point.Y.m_rawValue)),
                 WideArithmetic.MultiplySigned576(
                     localAxisZ,
-                    Signed192.Raw(point.Z))),
+                    point.Z.m_rawValue)),
             otherDenominator);
 
     private static WideAxis3 TransformLocalNormalCrossEdge(

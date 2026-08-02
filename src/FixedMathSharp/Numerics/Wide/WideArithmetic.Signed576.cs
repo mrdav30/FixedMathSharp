@@ -165,6 +165,31 @@ internal static partial class WideArithmetic
     }
 
     /// <summary>
+    /// Multiplies a signed nine-word value by a signed one-word value whose
+    /// proven product fits in nine words.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed576 MultiplySigned576(Signed576 left, long right)
+    {
+        ulong factor = Fixed64.AbsToUInt64(right);
+        ulong carry = 0UL;
+        ulong word0 = MultiplySigned576Word(left.Word0, factor, ref carry);
+        ulong word1 = MultiplySigned576Word(left.Word1, factor, ref carry);
+        ulong word2 = MultiplySigned576Word(left.Word2, factor, ref carry);
+        ulong word3 = MultiplySigned576Word(left.Word3, factor, ref carry);
+        ulong word4 = MultiplySigned576Word(left.Word4, factor, ref carry);
+        ulong word5 = MultiplySigned576Word(left.Word5, factor, ref carry);
+        ulong word6 = MultiplySigned576Word(left.Word6, factor, ref carry);
+        ulong word7 = MultiplySigned576Word(left.Word7, factor, ref carry);
+        ulong word8 = MultiplySigned576Word(left.Word8, factor, ref carry);
+        Signed576 product = new(
+            word8, word7, word6, word5, word4, word3, word2, word1, word0);
+        return right < 0L
+            ? SubtractSigned576(default, product)
+            : product;
+    }
+
+    /// <summary>
     /// Multiplies a signed nine-word value by a signed three-word value whose
     /// proven product fits in nine words.
     /// </summary>
@@ -320,6 +345,22 @@ internal static partial class WideArithmetic
         if (middle != 0UL)
             return 64 + 64 - Fixed64.CountLeadingZeroes(middle);
         return low == 0UL ? 0 : 64 - Fixed64.CountLeadingZeroes(low);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong MultiplySigned576Word(
+        ulong value,
+        ulong factor,
+        ref ulong carry)
+    {
+        Fixed64.Multiply64To128(
+            value,
+            factor,
+            out ulong high,
+            out ulong low);
+        ulong product = unchecked(low + carry);
+        carry = unchecked(high + (product < low ? 1UL : 0UL));
+        return product;
     }
 
     private static ulong GetBitPair(Signed576 value, int pairIndex)
