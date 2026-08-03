@@ -76,6 +76,64 @@ internal static partial class WidePointAnchor3d
         Fixed64 scale,
         out Vector3d offset)
     {
+        if (firstOrigin == secondOrigin
+            && firstRotation == secondRotation)
+        {
+            bool localRepresentable;
+            Vector3d localOffset;
+            if (firstLocalDisplacement == Vector3d.Zero
+                && secondLocalDisplacement == Vector3d.Zero)
+            {
+                localRepresentable = Vector3d.TrySubtract(
+                    firstLocalPoint,
+                    secondLocalPoint,
+                    out localOffset);
+            }
+            else
+            {
+                localRepresentable = Vector3d.TrySubtractSums(
+                    firstLocalPoint,
+                    firstLocalDisplacement,
+                    secondLocalPoint,
+                    secondLocalDisplacement,
+                    out localOffset);
+            }
+
+            if (localRepresentable)
+            {
+                if (firstRotation != FixedQuaternion.Identity)
+                {
+                    if (scale == Fixed64.One)
+                        return firstRotation.TryRotate(localOffset, out offset);
+                }
+                else
+                {
+                    return TryScaleOffset(localOffset, scale, out offset);
+                }
+            }
+        }
+
+        if (firstRotation == FixedQuaternion.Identity
+            && secondRotation == FixedQuaternion.Identity)
+        {
+            bool compactRepresentable = Vector3d.TryAddSubtract(
+                firstOrigin,
+                firstLocalPoint,
+                secondOrigin,
+                out Vector3d firstStep);
+            compactRepresentable &= Vector3d.TryAddSubtract(
+                firstStep,
+                firstLocalDisplacement,
+                secondLocalPoint,
+                out Vector3d secondStep);
+            compactRepresentable &= Vector3d.TrySubtract(
+                secondStep,
+                secondLocalDisplacement,
+                out Vector3d compactOffset);
+            if (compactRepresentable)
+                return TryScaleOffset(compactOffset, scale, out offset);
+        }
+
         WideRationalBasis3d firstBasis = new(firstRotation);
         WideRationalBasis3d secondBasis = new(secondRotation);
         Signed320 denominator = WideArithmetic.MultiplySigned192(
@@ -147,6 +205,36 @@ internal static partial class WidePointAnchor3d
 
         offset = new Vector3d(x, y, z);
         return true;
+    }
+
+    private static bool TryScaleOffset(
+        Vector3d value,
+        Fixed64 scale,
+        out Vector3d result)
+    {
+        if (scale == Fixed64.One)
+        {
+            result = value;
+            return true;
+        }
+
+        bool representable = Fixed64.TryMultiplyDivide(
+                value.X,
+                scale,
+                Fixed64.One,
+                out Fixed64 x)
+            & Fixed64.TryMultiplyDivide(
+                value.Y,
+                scale,
+                Fixed64.One,
+                out Fixed64 y)
+            & Fixed64.TryMultiplyDivide(
+                value.Z,
+                scale,
+                Fixed64.One,
+                out Fixed64 z);
+        result = representable ? new Vector3d(x, y, z) : default;
+        return representable;
     }
 
     internal static bool TryGetLocalPointIn(
@@ -534,12 +622,6 @@ internal static partial class WidePointAnchor3d
                 denominatorWide,
                 out coordinate);
         }
-        if (scale == Fixed64.Zero)
-        {
-            coordinate = Fixed64.Zero;
-            return true;
-        }
-
         Signed320 scaleRaw = Signed320.ExtendValue(Signed192.Raw(scale));
         Signed320 oneRaw = Signed320.ExtendValue(Signed192.One);
         return Fixed64.TryGetSignedRawRatio(

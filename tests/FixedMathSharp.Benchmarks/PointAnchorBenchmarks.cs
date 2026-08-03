@@ -10,6 +10,28 @@ namespace FixedMathSharp.Benchmarks;
 [MemoryDiagnoser]
 public class PointAnchorBenchmarks
 {
+    private readonly FixedPointAnchor _sameFrameIdentity = new(
+        new Vector3d(5, -3, 7),
+        FixedQuaternion.Identity,
+        new Vector3d(2, 1, -4),
+        new Vector3d(Fixed64.Half, -Fixed64.Half, Fixed64.One));
+    private readonly FixedPointAnchor _sameFrameIdentityOther = new(
+        new Vector3d(5, -3, 7),
+        FixedQuaternion.Identity,
+        new Vector3d(-2, 4, 1));
+    private readonly FixedPointAnchor _identityFrameOtherOrigin = new(
+        new Vector3d(-1, 4, 3),
+        FixedQuaternion.Identity,
+        new Vector3d(-2, 4, 1));
+    private readonly FixedPointAnchor _sameFrameRotated = new(
+        new Vector3d(5, -3, 7),
+        FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver4),
+        new Vector3d(2, 1, -4),
+        new Vector3d(Fixed64.Half, -Fixed64.Half, Fixed64.One));
+    private readonly FixedPointAnchor _sameFrameRotatedOther = new(
+        new Vector3d(5, -3, 7),
+        FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver4),
+        new Vector3d(-2, 4, 1));
     private readonly FixedPointAnchor _anchor = new(
         new Vector3d(5, -3, 7),
         FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver4),
@@ -61,6 +83,24 @@ public class PointAnchorBenchmarks
     [Benchmark]
     public bool RelativeOffset2d() =>
         _anchor2d.TryGetOffsetFrom(_other2d, out _);
+
+    [Benchmark]
+    public bool SameFrameIdentityOffset() =>
+        _sameFrameIdentity.TryGetOffsetFrom(
+            _sameFrameIdentityOther,
+            out _);
+
+    [Benchmark]
+    public bool IdentityFrameOffset() =>
+        _sameFrameIdentity.TryGetOffsetFrom(
+            _identityFrameOtherOrigin,
+            out _);
+
+    [Benchmark]
+    public bool SameFrameRotatedOffset() =>
+        _sameFrameRotated.TryGetOffsetFrom(
+            _sameFrameRotatedOther,
+            out _);
 
     [Benchmark]
     public bool ReexpressInRotatedFrame2d() =>

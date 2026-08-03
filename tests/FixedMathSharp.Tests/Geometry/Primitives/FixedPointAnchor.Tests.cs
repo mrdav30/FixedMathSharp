@@ -237,6 +237,176 @@ public sealed class FixedPointAnchorTests
     }
 
     [Fact]
+    public void TryGetOffsetFrom_SameFramePreservesCompositeLocalDifference()
+    {
+        Vector3d origin = new(7, -3, 11);
+        FixedPointAnchor first = new(
+            origin,
+            FixedQuaternion.Identity,
+            new Vector3d(5, 2, -4),
+            new Vector3d(-2, 3, 1));
+        FixedPointAnchor second = new(
+            origin,
+            FixedQuaternion.Identity,
+            new Vector3d(1, -1, 2),
+            new Vector3d(3, 1, -2));
+
+        Assert.True(first.TryGetOffsetFrom(second, out Vector3d offset));
+        Assert.Equal(new Vector3d(-1, 5, -3), offset);
+        Assert.True(first.TryGetScaledOffsetFrom(
+            second,
+            -Fixed64.Half,
+            out Vector3d scaled));
+        Assert.Equal(new Vector3d(
+            Fixed64.Half,
+            -Fixed64.FromFraction(5, 2),
+            Fixed64.FromFraction(3, 2)), scaled);
+    }
+
+    [Fact]
+    public void TryGetOffsetFrom_IdentityFramesPreserveCompositeWorldDifference()
+    {
+        FixedPointAnchor first = new(
+            new Vector3d(7, -3, 11),
+            FixedQuaternion.Identity,
+            new Vector3d(5, 2, -4),
+            new Vector3d(-2, 3, 1));
+        FixedPointAnchor second = new(
+            new Vector3d(-1, 4, 3),
+            FixedQuaternion.Identity,
+            new Vector3d(1, -1, 2),
+            new Vector3d(3, 1, -2));
+
+        Assert.True(first.TryGetOffsetFrom(second, out Vector3d offset));
+        Assert.Equal(new Vector3d(7, -2, 5), offset);
+        Assert.True(first.TryGetScaledOffsetFrom(
+            second,
+            Fixed64.Half,
+            out Vector3d scaled));
+        Assert.Equal(new Vector3d(
+            Fixed64.FromFraction(7, 2),
+            -Fixed64.One,
+            Fixed64.FromFraction(5, 2)), scaled);
+    }
+
+    [Fact]
+    public void TryGetScaledOffsetFrom_SameIdentityFrameRoundsRawTiesToEven()
+    {
+        Fixed64 oneRaw = Fixed64.FromRaw(1);
+        Fixed64 threeRaw = Fixed64.FromRaw(3);
+        FixedPointAnchor first = new(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d(oneRaw, threeRaw, -threeRaw));
+        FixedPointAnchor second = new(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.Zero);
+
+        Assert.True(first.TryGetScaledOffsetFrom(
+            second,
+            Fixed64.Half,
+            out Vector3d offset));
+        Assert.Equal(new Vector3d(
+            Fixed64.Zero,
+            Fixed64.FromRaw(2),
+            Fixed64.FromRaw(-2)), offset);
+    }
+
+    [Fact]
+    public void TryGetOffsetFrom_IdentityFramesRetainIntermediateOverflowFallback()
+    {
+        FixedPointAnchor first = new(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            FixedQuaternion.Identity,
+            Vector3d.Right,
+            Vector3d.Left);
+        FixedPointAnchor second = new(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.Zero);
+
+        Assert.True(first.TryGetOffsetFrom(second, out Vector3d offset));
+        Assert.Equal(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            offset);
+    }
+
+    [Fact]
+    public void TryGetOffsetFrom_SameRotatedFrameUsesCompleteLocalDifference()
+    {
+        Vector3d origin = new(7, -3, 11);
+        FixedQuaternion rotation =
+            FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.HalfPi);
+        FixedPointAnchor first = new(
+            origin,
+            rotation,
+            new Vector3d(5, 2, -4),
+            new Vector3d(-2, 3, 1));
+        FixedPointAnchor second = new(
+            origin,
+            rotation,
+            new Vector3d(1, -1, 2),
+            new Vector3d(3, 1, -2));
+
+        Assert.True(first.TryGetOffsetFrom(second, out Vector3d offset));
+        Assert.Equal(new Vector3d(-3, 5, 1), offset);
+        Assert.True(first.TryGetScaledOffsetFrom(
+            second,
+            Fixed64.Half,
+            out Vector3d scaled));
+        Assert.Equal(new Vector3d(
+            Fixed64.FromFraction(-3, 2),
+            Fixed64.FromFraction(5, 2),
+            Fixed64.Half), scaled);
+    }
+
+    [Fact]
+    public void TryGetOffsetFrom_SameRotatedFrameRetainsWideLocalFallback()
+    {
+        Fixed64 large = Fixed64.FromRaw((long.MaxValue / 5L) * 3L);
+        FixedQuaternion rotation =
+            FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver4);
+        FixedPointAnchor first = new(
+            Vector3d.Zero,
+            rotation,
+            new Vector3d(large, Fixed64.Zero, Fixed64.Zero));
+        FixedPointAnchor second = new(
+            Vector3d.Zero,
+            rotation,
+            new Vector3d(-large, Fixed64.Zero, Fixed64.Zero));
+
+        Assert.False(Vector3d.TrySubtract(
+            first.LocalPoint,
+            second.LocalPoint,
+            out _));
+        Assert.True(first.TryGetOffsetFrom(second, out Vector3d offset));
+        Assert.Equal(new Vector3d(
+            Fixed64.FromRaw(7826290728543493829L),
+            Fixed64.Zero,
+            Fixed64.FromRaw(-7826290661855844679L)), offset);
+    }
+
+    [Fact]
+    public void TryGetScaledOffsetFrom_SameIdentityFrameRejectsFinalOverflow()
+    {
+        FixedPointAnchor first = new(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero));
+        FixedPointAnchor second = new(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.Zero);
+
+        Assert.False(first.TryGetScaledOffsetFrom(
+            second,
+            Fixed64.Two,
+            out Vector3d offset));
+        Assert.Equal(default, offset);
+    }
+
+    [Fact]
     public void TryGetPoint_RejectsUnrepresentableWorldCoordinate()
     {
         FixedPointAnchor anchor = new(

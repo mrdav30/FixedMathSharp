@@ -200,6 +200,11 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             offset = default;
             return false;
         }
+        if (scale == Fixed64.Zero)
+        {
+            offset = Vector3d.Zero;
+            return true;
+        }
 
         return WidePointAnchor3d.TryGetRelativeOffset(
             Origin,

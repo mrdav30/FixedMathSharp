@@ -690,12 +690,6 @@ internal static partial class WidePointAnchor3d
                 denominator,
                 out coordinate);
         }
-        if (scale == Fixed64.Zero)
-        {
-            coordinate = Fixed64.Zero;
-            return true;
-        }
-
         return Fixed64.TryGetSignedRawRatio(
             WideArithmetic.MultiplySigned576ToSigned704(
                 numerator,
