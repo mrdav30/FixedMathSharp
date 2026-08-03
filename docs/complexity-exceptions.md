@@ -15,8 +15,8 @@ complexity review threshold.
   score cannot fall below its cyclomatic complexity, so documented complexity
   floors are reviewed rather than mechanically refactored.
 - Current status: the latest full-project run, excluding generated serializer
-  sources, covers 53,003/53,003 lines, 8,768/8,768 branches, and
-  3,411/3,411 coverage methods. The CRAP analyzer scored 3,407 method
+  sources, covers 53,304/53,304 lines, 8,786/8,786 branches, and
+  3,418/3,418 coverage methods. The CRAP analyzer scored 3,414 method
   identities; every analyzed method is fully covered, and the only nine scores
   above 30 are the registered complexity floors at 52, 48, 48, 44, 44, 38,
   36, 32, and 32.
