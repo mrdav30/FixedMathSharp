@@ -434,26 +434,20 @@ public sealed class FixedOrientedBoxCircleSlabSweepTests
                 (Fixed64)(-29),
                 (Fixed64)7),
             new Vector3d(2, 3, 4));
-        _ = box.TryGetCircleSlabSweepDistance(
-            new Vector3d(-10, 0, 0),
-            Vector2d.Right,
-            (Fixed64)20,
-            Fixed64.One,
-            Fixed64.Half,
-            out _);
-        long before = GC.GetAllocatedBytesForCurrentThread();
-
-        for (int iteration = 0; iteration < 64; iteration++)
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            _ = box.TryGetCircleSlabSweepDistance(
-                new Vector3d(-10, 0, 0),
-                Vector2d.Right,
-                (Fixed64)20,
-                Fixed64.One,
-                Fixed64.Half,
-                out _);
-        }
+            for (int iteration = 0; iteration < 64; iteration++)
+            {
+                _ = box.TryGetCircleSlabSweepDistance(
+                    new Vector3d(-10, 0, 0),
+                    Vector2d.Right,
+                    (Fixed64)20,
+                    Fixed64.One,
+                    Fixed64.Half,
+                    out _);
+            }
+        });
 
-        Assert.Equal(before, GC.GetAllocatedBytesForCurrentThread());
+        Assert.Equal(0L, allocated);
     }
 }

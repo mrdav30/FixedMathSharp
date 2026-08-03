@@ -1,10 +1,25 @@
-﻿using Xunit;
+﻿using System;
+using System.Runtime.CompilerServices;
+
+using Xunit;
 
 namespace FixedMathSharp.Tests;
 
 internal static class FixedMathTestHelper
 {
     private static readonly Fixed64 RelativeTolerance = Fixed64.FromDouble(0.0001); // 0.01%
+
+    /// <summary>
+    /// Measures a warmed operation behind a JIT optimization boundary.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static long MeasureWarmedAllocations(Action operation)
+    {
+        operation();
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        operation();
+        return GC.GetAllocatedBytesForCurrentThread() - before;
+    }
 
     /// <summary>
     /// Asserts that the difference between the expected and actual values is within the specified relative tolerance.

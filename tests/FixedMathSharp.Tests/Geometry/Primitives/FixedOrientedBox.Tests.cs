@@ -670,12 +670,13 @@ public sealed class FixedOrientedBoxTests
         Vector3d halfExtents = new(2, 4, 6);
         Vector3d point = new(11, -13, 17);
 
-        _ = Exercise(center, orientation, halfExtents, point);
-        long before = GC.GetAllocatedBytesForCurrentThread();
         int checksum = 0;
-        for (int i = 0; i < 255; i++)
-            checksum ^= Exercise(center, orientation, halfExtents, point);
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
+        {
+            checksum = 0;
+            for (int i = 0; i < 255; i++)
+                checksum ^= Exercise(center, orientation, halfExtents, point);
+        });
 
         Assert.NotEqual(0, checksum);
         Assert.Equal(0L, allocated);

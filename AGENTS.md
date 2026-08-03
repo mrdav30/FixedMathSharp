@@ -296,6 +296,9 @@ GitVersion variables are consumed when present, otherwise version falls back to
 - Use helper assertions from
   [`tests/FixedMathSharp.Tests/Support/FixedMathTestHelper.cs`](tests/FixedMathSharp.Tests/Support/FixedMathTestHelper.cs)
   for tolerance and range checks instead of ad-hoc epsilon logic.
+- Use `FixedMathTestHelper.MeasureWarmedAllocations(...)` for zero-allocation
+  assertions. Direct allocation counters inside optimized test methods are not
+  a reliable JIT boundary.
 - For deterministic RNG changes, validate same-seed reproducibility and
   bounds/argument exceptions like `DeterministicRandom.Tests.cs`.
 - For serialization changes, update MemoryPack and JSON roundtrip tests.

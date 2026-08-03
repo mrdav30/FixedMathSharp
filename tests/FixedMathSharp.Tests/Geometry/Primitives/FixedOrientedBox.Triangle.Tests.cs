@@ -584,26 +584,22 @@ public sealed class FixedOrientedBoxTriangleTests
             Fixed64.Zero,
             Fixed64.One,
             Fixed64.Zero);
-        _ = box.TryGetTriangleContact(
-            triangleOrigin,
-            triangleRotation,
-            triangle,
-            out _);
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        bool allContacts = true;
-
-        for (int iteration = 0; iteration < 64; iteration++)
+        bool allContacts = false;
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            allContacts &= box.TryGetTriangleContact(
-                triangleOrigin,
-                triangleRotation,
-                triangle,
-                out _);
-        }
+            allContacts = true;
+            for (int iteration = 0; iteration < 64; iteration++)
+            {
+                allContacts &= box.TryGetTriangleContact(
+                    triangleOrigin,
+                    triangleRotation,
+                    triangle,
+                    out _);
+            }
+        });
 
-        long after = GC.GetAllocatedBytesForCurrentThread();
         Assert.True(allContacts);
-        Assert.Equal(before, after);
+        Assert.Equal(0L, allocated);
     }
 
     [Fact]
