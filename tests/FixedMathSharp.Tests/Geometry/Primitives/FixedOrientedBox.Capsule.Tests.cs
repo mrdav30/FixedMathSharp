@@ -479,6 +479,288 @@ public sealed class FixedOrientedBoxCapsuleTests
     }
 
     [Fact]
+    public void ContactOffsets_KeepCornerFeatureUnderRelativeRigidPose()
+    {
+        var baselineBox = new FixedOrientedBox(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Half));
+        Vector3d touchingEndpoint = new(
+            Fixed64.Half,
+            Fixed64.Half,
+            Fixed64.Zero);
+        Vector3d otherEndpoint = new(
+            Fixed64.FromFraction(2, 5),
+            Fixed64.FromFraction(51, 100),
+            Fixed64.Zero);
+        Vector3d segment = otherEndpoint - touchingEndpoint;
+        Fixed64 segmentLength = segment.Magnitude;
+        Vector3d segmentDirection = segment / segmentLength;
+        Vector3d rotationAxis = Vector3d.Cross(
+            Vector3d.Up,
+            segmentDirection);
+        FixedQuaternion capsuleRotation = new FixedQuaternion(
+            rotationAxis.X,
+            rotationAxis.Y,
+            rotationAxis.Z,
+            Fixed64.One + Vector3d.Dot(
+                Vector3d.Up,
+                segmentDirection)).Normalized;
+        Vector3d capsuleCenter =
+            (touchingEndpoint + otherEndpoint) * Fixed64.Half;
+        Fixed64 radius = Fixed64.FromFraction(1, 10);
+        Assert.True(baselineBox.TryGetCenteredCapsuleContact(
+            capsuleCenter,
+            capsuleRotation,
+            Vector3d.Up,
+            segmentLength,
+            radius,
+            out FixedContactAnchors baseline));
+
+        var rigidRotation = new FixedQuaternion(
+            Fixed64.Half,
+            Fixed64.Half,
+            Fixed64.Half,
+            Fixed64.Half);
+        Vector3d scalarFaceCenter = new(
+            Fixed64.MinValue,
+            Fixed64.Zero,
+            Fixed64.Zero);
+        Assert.True(Vector3d.TryAdd(
+            scalarFaceCenter,
+            rigidRotation * capsuleCenter,
+            out Vector3d transformedCenter));
+        var transformedBox = new FixedOrientedBox(
+            scalarFaceCenter,
+            rigidRotation,
+            baselineBox.HalfExtents);
+        Assert.True(transformedBox.TryGetCenteredCapsuleContact(
+            transformedCenter,
+            rigidRotation * capsuleRotation,
+            Vector3d.Up,
+            segmentLength,
+            radius,
+            out FixedContactAnchors transformed));
+        Vector3d expectedNormal = rigidRotation * baseline.Normal;
+
+        Assert.Equal(baseline.Depth, transformed.Depth);
+        Assert.Equal(baseline.DepthIsClamped, transformed.DepthIsClamped);
+        Assert.Equal(baseline.FirstAnchor.LocalPoint, transformed.FirstAnchor.LocalPoint);
+        Assert.Equal(baseline.SecondAnchor.LocalPoint, transformed.SecondAnchor.LocalPoint);
+        Assert.True(Vector3d.Distance(expectedNormal, transformed.Normal)
+            <= Fixed64.Epsilon);
+    }
+
+    [Fact]
+    public void ContactOffsets_EqualRankTieKeepsFirstFaceAxis()
+    {
+        var box = new FixedOrientedBox(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.One);
+        FixedQuaternion capsuleRotation =
+            WideGeometry.GetCanonicalAxisRotation(Vector3d.Right);
+        Assert.True(box.TryGetCenteredCapsuleContact(
+            Vector3d.Zero,
+            capsuleRotation,
+            Vector3d.Up,
+            Fixed64.Zero,
+            Fixed64.One,
+            out FixedContactAnchors expected));
+
+        Assert.Equal(Vector3d.Forward, expected.Normal);
+        Assert.Equal(new Vector3d(0, 0, 1), expected.FirstAnchor.LocalPoint);
+        for (int iteration = 0; iteration < 8; iteration++)
+        {
+            Assert.True(box.TryGetCenteredCapsuleContact(
+                Vector3d.Zero,
+                capsuleRotation,
+                Vector3d.Up,
+                Fixed64.Zero,
+                Fixed64.One,
+                out FixedContactAnchors actual));
+            Assert.Equal(expected, actual);
+        }
+    }
+
+    [Fact]
+    public void ContactOffsets_EqualDepthLaterFaceReplacesCrossAxis()
+    {
+        var box = new FixedOrientedBox(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d(3, 3, 5));
+        Vector3d capsuleAxis = new(
+            Fixed64.FromFraction(4, 5),
+            Fixed64.FromFraction(3, 5),
+            Fixed64.Zero);
+        FixedQuaternion capsuleRotation =
+            WideGeometry.GetCanonicalAxisRotation(capsuleAxis);
+
+        Assert.True(box.TryGetCenteredCapsuleContact(
+            Vector3d.Zero,
+            capsuleRotation,
+            Vector3d.Up,
+            (Fixed64)4,
+            Fixed64.Half,
+            out FixedContactAnchors contact));
+
+        Assert.Equal(Vector3d.Up, contact.Normal);
+        Assert.Equal(
+            new Vector3d(
+                -Fixed64.FromFraction(8, 5),
+                (Fixed64)3,
+                Fixed64.Zero),
+            contact.FirstAnchor.LocalPoint);
+        Assert.Equal(Fixed64.FromFraction(47, 10), contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+    }
+
+    [Fact]
+    public void ContactOffsets_KeepEndpointEdgeFeatureUnderRigidPose()
+    {
+        var baselineBox = new FixedOrientedBox(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            Vector3d.One);
+        Vector3d capsuleCenter = new(
+            Fixed64.FromFraction(8, 5),
+            Fixed64.FromFraction(13, 10),
+            Fixed64.Zero);
+        FixedQuaternion capsuleRotation =
+            WideGeometry.GetCanonicalAxisRotation(Vector3d.Right);
+        Assert.True(baselineBox.TryGetCenteredCapsuleContact(
+            capsuleCenter,
+            capsuleRotation,
+            Vector3d.Up,
+            Fixed64.One,
+            Fixed64.Half,
+            out FixedContactAnchors baseline));
+        Assert.True(baseline.Normal.X > Fixed64.Zero);
+        Assert.True(baseline.Normal.Y > Fixed64.Zero);
+        Assert.Equal(Fixed64.Zero, baseline.Normal.Z);
+        Assert.True((baseline.Normal.Y - (baseline.Normal.X * (Fixed64)3)).Abs()
+            <= Fixed64.Epsilon);
+        Assert.Equal(Fixed64.Zero, baseline.FirstAnchor.LocalPoint.Z);
+
+        var rigidRotation = new FixedQuaternion(
+            Fixed64.Half,
+            Fixed64.Half,
+            Fixed64.Half,
+            Fixed64.Half);
+        var transformedBox = new FixedOrientedBox(
+            Vector3d.Zero,
+            rigidRotation,
+            Vector3d.One);
+        Assert.True(transformedBox.TryGetCenteredCapsuleContact(
+            rigidRotation * capsuleCenter,
+            rigidRotation * capsuleRotation,
+            Vector3d.Up,
+            Fixed64.One,
+            Fixed64.Half,
+            out FixedContactAnchors transformed));
+
+        Assert.Equal(baseline.Depth, transformed.Depth);
+        Assert.Equal(baseline.DepthIsClamped, transformed.DepthIsClamped);
+        Assert.Equal(baseline.FirstAnchor.LocalPoint, transformed.FirstAnchor.LocalPoint);
+        Assert.Equal(baseline.SecondAnchor.LocalPoint, transformed.SecondAnchor.LocalPoint);
+        Assert.True(Vector3d.Distance(
+            rigidRotation * baseline.Normal,
+            transformed.Normal) <= Fixed64.Epsilon);
+    }
+
+    [Fact]
+    public void ContactOffsets_PerpendicularAxisUsesSegmentSurfaceAndFreeCoordinates()
+    {
+        var box = new FixedOrientedBox(
+            Vector3d.Zero,
+            FixedQuaternion.Identity,
+            new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Half));
+        Vector3d capsuleCenter = new(
+            Fixed64.FromFraction(1, 4),
+            Fixed64.FromFraction(3, 4),
+            Fixed64.FromFraction(1, 8));
+        FixedQuaternion capsuleRotation =
+            WideGeometry.GetCanonicalAxisRotation(Vector3d.Right);
+
+        Assert.True(box.TryGetCenteredCapsuleContact(
+            capsuleCenter,
+            capsuleRotation,
+            Vector3d.Up,
+            Fixed64.FromFraction(1, 4),
+            Fixed64.Half,
+            out FixedContactAnchors contact));
+
+        Assert.Equal(Vector3d.Up, contact.Normal);
+        Assert.Equal(
+            new Vector3d(
+                Fixed64.FromFraction(1, 8),
+                Fixed64.Half,
+                capsuleCenter.Z),
+            contact.FirstAnchor.LocalPoint);
+        Assert.Equal(
+            new Vector3d(
+                -Fixed64.FromFraction(1, 8),
+                -Fixed64.Half,
+                Fixed64.Zero),
+            GetOffset(contact.SecondAnchor));
+        Assert.Equal(Fixed64.FromFraction(1, 4), contact.Depth);
+    }
+
+    [Fact]
+    public void ContactOffsets_WarmedPathDoesNotAllocate()
+    {
+        FixedQuaternion boxRotation =
+            FixedQuaternion.FromEulerAnglesInDegrees(
+                (Fixed64)17,
+                (Fixed64)29,
+                (Fixed64)11);
+        var box = new FixedOrientedBox(
+            new Vector3d(3, -2, 5),
+            boxRotation,
+            Vector3d.One);
+        Vector3d capsuleCenter = box.Center + boxRotation * new Vector3d(
+            Fixed64.FromFraction(5, 4),
+            Fixed64.Zero,
+            Fixed64.Zero);
+        FixedQuaternion capsuleRotation = boxRotation
+            * FixedQuaternion.FromEulerAnglesInDegrees(
+                Fixed64.Zero,
+                Fixed64.Zero,
+                (Fixed64)37);
+        Assert.True(box.TryGetCenteredCapsuleContact(
+            capsuleCenter,
+            capsuleRotation,
+            Vector3d.Up,
+            Fixed64.Two,
+            Fixed64.Half,
+            out FixedContactAnchors expected));
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        bool stable = true;
+        for (int iteration = 0; iteration < 32; iteration++)
+        {
+            bool hit = box.TryGetCenteredCapsuleContact(
+                capsuleCenter,
+                capsuleRotation,
+                Vector3d.Up,
+                Fixed64.Two,
+                Fixed64.Half,
+                out FixedContactAnchors actual);
+            stable &= hit
+                && actual.FirstAnchor == expected.FirstAnchor
+                && actual.SecondAnchor == expected.SecondAnchor
+                && actual.Normal == expected.Normal
+                && actual.Depth == expected.Depth
+                && actual.DepthIsClamped == expected.DepthIsClamped;
+        }
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(stable);
+        Assert.Equal(0L, allocated);
+    }
+
+    [Fact]
     public void ContactOffsets_RetainFullDomainRotatedEdgeWitnesses()
     {
         FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(
@@ -512,6 +794,33 @@ public sealed class FixedOrientedBoxCapsuleTests
         Assert.True(contact.Normal.IsNormalized());
         Assert.True(contact.FirstAnchor.TryGetPoint(out _));
         Assert.True(contact.SecondAnchor.TryGetPoint(out _));
+    }
+
+    [Fact]
+    public void ContactOffsets_RetainTranslatedRotatedFullDomainCornerWitness()
+    {
+        Fixed64 oppositeCenter = -Fixed64.MaxValue
+            * Fixed64.FromFraction(7, 10);
+        var box = new FixedOrientedBox(
+            new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero),
+            FixedQuaternion.FromAxisAngle(Vector3d.Forward, Fixed64.PiOver4),
+            new Vector3d(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.One));
+        FixedQuaternion capsuleRotation = box.Orientation;
+
+        Assert.True(box.TryGetCenteredCapsuleContact(
+            new Vector3d(oppositeCenter, Fixed64.Zero, Fixed64.Zero),
+            capsuleRotation,
+            Vector3d.Up,
+            Fixed64.One,
+            Fixed64.MaxValue,
+            out FixedContactAnchors contact));
+
+        Assert.NotEqual(Fixed64.Zero, contact.Normal.X);
+        Assert.NotEqual(Fixed64.Zero, contact.Normal.Y);
+        Assert.Equal(Fixed64.MaxValue, contact.FirstAnchor.LocalPoint.X.Abs());
+        Assert.Equal(Fixed64.MaxValue, contact.FirstAnchor.LocalPoint.Y.Abs());
+        Assert.True(contact.Normal.IsNormalized());
+        Assert.False(contact.DepthIsClamped);
     }
 
     [Fact]
@@ -567,4 +876,3 @@ public sealed class FixedOrientedBoxCapsuleTests
     }
 
 }
-

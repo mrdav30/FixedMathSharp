@@ -55,27 +55,34 @@ internal static partial class WideOrientedBox
         Fixed64 capsuleRadius,
         out FixedContactAnchors contact)
     {
-        GetRotatedLocalAxisNumerators(
-            capsuleRotation,
-            localCapsuleAxisDirection,
-            out Signed192 capsuleAxisX,
-            out Signed192 capsuleAxisY,
-            out Signed192 capsuleAxisZ,
-            out Signed192 capsuleAxisDenominator);
-        WideAxis3 capsuleAxis = new(
-            Signed320.ExtendValue(capsuleAxisX),
-            Signed320.ExtendValue(capsuleAxisY),
-            Signed320.ExtendValue(capsuleAxisZ));
+        WideRationalBasis3d boxBasis = new(orientation);
+        WideRationalBasis3d capsuleBasis = new(capsuleRotation);
+        WideRationalBasis3d relativeBasis =
+            WideRationalBasis3d.CreateRelative(boxBasis, capsuleBasis);
+        WideAxis3 capsuleAxis = WideRigidProjection.TransformLocalAxis(
+            relativeBasis,
+            Signed192.Raw(localCapsuleAxisDirection.X),
+            Signed192.Raw(localCapsuleAxisDirection.Y),
+            Signed192.Raw(localCapsuleAxisDirection.Z));
         if (!TryGetCenteredCapsulePenetration(
                 center,
-                orientation,
                 halfExtents,
                 capsuleCenter,
+                boxBasis,
+                capsuleBasis.Denominator,
                 capsuleAxis,
-                capsuleAxisDenominator,
+                relativeBasis.Denominator,
+                GetScaledCapsuleAxisSquared(
+                    localCapsuleAxisDirection,
+                    capsuleBasis.Denominator),
+                GetCapsuleCenterAxisProjection(
+                    boxBasis.Denominator,
+                    center,
+                    capsuleCenter,
+                    capsuleBasis,
+                    localCapsuleAxisDirection),
                 capsuleAxisLength,
                 capsuleRadius,
-                out WideRationalBasis3d basis,
                 out Signed192 commonDenominator,
                 out CapsulePenetration best))
         {
@@ -91,10 +98,28 @@ internal static partial class WideOrientedBox
             out Fixed64 depth,
             out bool depthIsClamped);
         CapsuleAxis3 orientedAxis = best.Negate ? -best.Axis : best.Axis;
+        Signed576 worldX = Signed576.NarrowValue(
+            GetCapsuleBasisProjection(
+                orientedAxis,
+                boxBasis.Xx,
+                boxBasis.Yx,
+                boxBasis.Zx));
+        Signed576 worldY = Signed576.NarrowValue(
+            GetCapsuleBasisProjection(
+                orientedAxis,
+                boxBasis.Xy,
+                boxBasis.Yy,
+                boxBasis.Zy));
+        Signed576 worldZ = Signed576.NarrowValue(
+            GetCapsuleBasisProjection(
+                orientedAxis,
+                boxBasis.Xz,
+                boxBasis.Yz,
+                boxBasis.Zz));
         Vector3d normal = WideNormalization.GetNormalized(
-            orientedAxis.X,
-            orientedAxis.Y,
-            orientedAxis.Z);
+            worldX,
+            worldY,
+            worldZ);
         FixedPointAnchor capsuleAnchor = GetMatchedCapsuleSupportAnchor(
             center,
             capsuleCenter,
@@ -105,12 +130,14 @@ internal static partial class WideOrientedBox
             normal,
             !GetCapsuleAxisProjection(orientedAxis, capsuleAxis).IsZero);
         Vector3d boxLocalPoint = GetMatchedBoxSupportLocalPoint(
-            basis,
+            boxBasis,
             halfExtents,
             center,
             orientation,
             capsuleAnchor,
-            orientedAxis);
+            orientedAxis.X,
+            orientedAxis.Y,
+            orientedAxis.Z);
         contact = new FixedContactAnchors(
             new FixedPointAnchor(
                 center,
@@ -137,24 +164,37 @@ internal static partial class WideOrientedBox
         Fixed64 capsuleAxisLength,
         Fixed64 capsuleRadius)
     {
-        WideAxis3 capsuleAxis = new(
-            Signed320.ExtendValue(
-                Signed192.Raw(capsuleAxisDirection.X)),
-            Signed320.ExtendValue(
-                Signed192.Raw(capsuleAxisDirection.Y)),
-            Signed320.ExtendValue(
-                Signed192.Raw(capsuleAxisDirection.Z)));
-        return
-        TryGetCenteredCapsulePenetration(
+        WideRationalBasis3d boxBasis = new(orientation);
+        GetDirectionProjections(
+            capsuleAxisDirection,
+            boxBasis,
+            out Signed320 capsuleAxisX,
+            out Signed320 capsuleAxisY,
+            out Signed320 capsuleAxisZ);
+        var authoredCapsuleAxis = new WideAxis3(
+            Signed320.ExtendValue(Signed192.Raw(capsuleAxisDirection.X)),
+            Signed320.ExtendValue(Signed192.Raw(capsuleAxisDirection.Y)),
+            Signed320.ExtendValue(Signed192.Raw(capsuleAxisDirection.Z)));
+        return TryGetCenteredCapsulePenetration(
             center,
-            orientation,
             halfExtents,
             capsuleCenter,
-            capsuleAxis,
+            boxBasis,
             Signed192.Signed(1L),
+            new WideAxis3(
+                capsuleAxisX,
+                capsuleAxisY,
+                capsuleAxisZ),
+            boxBasis.Denominator,
+            authoredCapsuleAxis.SquaredLength,
+            WideArithmetic.MultiplySigned576(
+                WideRigidProjection.GetWorldOriginDifferenceProjection(
+                    capsuleCenter,
+                    center,
+                    authoredCapsuleAxis),
+                boxBasis.Denominator),
             capsuleAxisLength,
             capsuleRadius,
-            out _,
             out _,
             out _);
     }
@@ -169,89 +209,128 @@ internal static partial class WideOrientedBox
         Fixed64 capsuleAxisLength,
         Fixed64 capsuleRadius)
     {
-        GetRotatedLocalAxisNumerators(
-            capsuleRotation,
-            localCapsuleAxisDirection,
-            out Signed192 capsuleAxisX,
-            out Signed192 capsuleAxisY,
-            out Signed192 capsuleAxisZ,
-            out Signed192 capsuleAxisDenominator);
-        WideAxis3 capsuleAxis = new(
-            Signed320.ExtendValue(capsuleAxisX),
-            Signed320.ExtendValue(capsuleAxisY),
-            Signed320.ExtendValue(capsuleAxisZ));
+        WideRationalBasis3d boxBasis = new(orientation);
+        WideRationalBasis3d capsuleBasis = new(capsuleRotation);
+        WideRationalBasis3d relativeBasis =
+            WideRationalBasis3d.CreateRelative(boxBasis, capsuleBasis);
+        WideAxis3 capsuleAxis = WideRigidProjection.TransformLocalAxis(
+            relativeBasis,
+            Signed192.Raw(localCapsuleAxisDirection.X),
+            Signed192.Raw(localCapsuleAxisDirection.Y),
+            Signed192.Raw(localCapsuleAxisDirection.Z));
         return TryGetCenteredCapsulePenetration(
             center,
-            orientation,
             halfExtents,
             capsuleCenter,
+            boxBasis,
+            capsuleBasis.Denominator,
             capsuleAxis,
-            capsuleAxisDenominator,
+            relativeBasis.Denominator,
+            GetScaledCapsuleAxisSquared(
+                localCapsuleAxisDirection,
+                capsuleBasis.Denominator),
+            GetCapsuleCenterAxisProjection(
+                boxBasis.Denominator,
+                center,
+                capsuleCenter,
+                capsuleBasis,
+                localCapsuleAxisDirection),
             capsuleAxisLength,
             capsuleRadius,
-            out _,
             out _,
             out _);
     }
 
     private static bool TryGetCenteredCapsulePenetration(
-        Vector3d center,
-        FixedQuaternion orientation,
+        Vector3d boxCenter,
         Vector3d halfExtents,
         Vector3d capsuleCenter,
-        WideAxis3 capsuleAxis,
+        in WideRationalBasis3d boxBasis,
+        Signed192 translationScale,
+        in WideAxis3 capsuleAxis,
         Signed192 capsuleAxisDenominator,
+        Signed576 capsuleAxisSquared,
+        Signed576 capsuleCenterAxisProjection,
         Fixed64 capsuleAxisLength,
         Fixed64 capsuleRadius,
-        out WideRationalBasis3d basis,
         out Signed192 commonDenominator,
         out CapsulePenetration best)
     {
-        basis = new WideRationalBasis3d(orientation);
-        Signed576 commonDenominatorWide = WideArithmetic.MultiplySigned576(
-            Signed576.ExtendValue(
-                WideArithmetic.MultiplySigned192(
-                    basis.Denominator,
-                    capsuleAxisDenominator)),
+        Signed320 commonDenominatorWide = WideArithmetic.MultiplySigned192(
+            capsuleAxisDenominator,
             Signed192.Raw(Fixed64.Two));
-        // Each normalized rigid-frame denominator needs at most 68 signed
-        // bits. Their product plus the Q32.32 factor for two needs at most
-        // 170 signed bits, so this narrowing is exact.
-        _ = Signed192.TryNarrowSigned(
-            commonDenominatorWide,
-            out commonDenominator);
+        commonDenominator = Signed192.NarrowProven(commonDenominatorWide);
+        GetRelativeLocalPointNumerators(
+            capsuleCenter,
+            boxCenter,
+            boxBasis,
+            out Signed192 translationX,
+            out Signed192 translationY,
+            out Signed192 translationZ);
+        var translation = new WideAxis3(
+            Signed320.ExtendValue(translationX),
+            Signed320.ExtendValue(translationY),
+            Signed320.ExtendValue(translationZ));
+        Signed320 centerScale = WideArithmetic.MultiplySigned192(
+            translationScale,
+            Signed192.Raw(Fixed64.Two));
+        Signed320 axialScale = Signed320.ExtendValue(
+            Signed192.Raw(capsuleAxisLength));
+        var twiceTranslation = new WideAxis3(
+            Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
+                translation.X,
+                centerScale)),
+            Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
+                translation.Y,
+                centerScale)),
+            Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
+                translation.Z,
+                centerScale)));
+        var scaledExtents = new WideAxis3(
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(halfExtents.X),
+                commonDenominator),
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(halfExtents.Y),
+                commonDenominator),
+            WideArithmetic.MultiplySigned192(
+                Signed192.Raw(halfExtents.Z),
+                commonDenominator));
+        Signed704 vertexCapBound =
+            WideArithmetic.MultiplySigned576ToSigned704(
+                capsuleAxisSquared,
+                WideArithmetic.MultiplySigned192(
+                    boxBasis.Denominator,
+                    Signed192.Raw(capsuleAxisLength)));
+        Signed320 unit = Signed320.One;
         Span<WideAxis3> boxAxes = stackalloc WideAxis3[3]
         {
-            basis.GetAxis(2),
-            basis.GetAxis(1),
-            basis.GetAxis(0),
+            new(default, default, unit),
+            new(default, unit, default),
+            new(unit, default, default),
         };
         best = default;
         for (int index = 0; index < boxAxes.Length; index++)
         {
             if (!TryKeepCapsuleAxis(
-                    boxAxes[index],
-                    center,
-                    halfExtents,
-                    basis,
+                    ToCapsuleAxis(boxAxes[index]),
+                    scaledExtents,
+                    twiceTranslation,
                     commonDenominator,
-                    capsuleCenter,
                     capsuleAxis,
-                    capsuleAxisDenominator,
-                    capsuleAxisLength,
+                    axialScale,
                     capsuleRadius,
                     0,
                     ref best)
                 || !TryKeepCapsuleAxis(
-                    WideAxis3.Cross(boxAxes[index], capsuleAxis),
-                    center,
-                    halfExtents,
-                    basis,
+                    ToCapsuleAxis(WideAxis3.Cross(
+                        boxAxes[index],
+                        capsuleAxis)),
+                    scaledExtents,
+                    twiceTranslation,
                     commonDenominator,
-                    capsuleCenter,
                     capsuleAxis,
-                    capsuleAxisDenominator,
-                    capsuleAxisLength,
+                    axialScale,
                     capsuleRadius,
                     1,
                     ref best))
@@ -275,22 +354,21 @@ internal static partial class WideOrientedBox
                     ? -halfExtents.Z
                     : halfExtents.Z);
             if (!TryKeepCapsuleAxis(
-                    GetVertexToCapsuleAxis(
-                        center,
-                        capsuleCenter,
-                        basis,
+                    GetLocalVertexToCapsuleAxis(
+                        translation,
+                        boxBasis.Denominator,
                         localVertex,
                         capsuleAxis,
-                        capsuleAxisDenominator,
-                        capsuleAxisLength),
-                    center,
-                    halfExtents,
-                    basis,
+                        capsuleAxisSquared,
+                        capsuleCenterAxisProjection,
+                        centerScale,
+                        axialScale,
+                        vertexCapBound),
+                    scaledExtents,
+                    twiceTranslation,
                     commonDenominator,
-                    capsuleCenter,
                     capsuleAxis,
-                    capsuleAxisDenominator,
-                    capsuleAxisLength,
+                    axialScale,
                     capsuleRadius,
                     1,
                     ref best))
@@ -307,31 +385,40 @@ internal static partial class WideOrientedBox
                     secondSign <= 1;
                     secondSign += 2)
                 {
+                    Vector3d localEdgeCenter = GetLocalEdgeCenter(
+                        halfExtents,
+                        edgeAxisIndex,
+                        firstSign,
+                        secondSign);
+                    WideAxis3 edgeDifference =
+                        GetLocalPointToCapsuleCenterAxis(
+                            translation,
+                            boxBasis.Denominator,
+                            localEdgeCenter);
+                    Signed320 edgeBound = edgeAxisIndex switch
+                    {
+                        0 => scaledExtents.X,
+                        1 => scaledExtents.Y,
+                        _ => scaledExtents.Z,
+                    };
                     for (int endpointSign = -1;
                         endpointSign <= 1;
                         endpointSign += 2)
                     {
                         if (!TryKeepCapsuleAxis(
                                 GetCapsuleEndpointToBoxEdgeAxis(
-                                    center,
-                                    capsuleCenter,
-                                    basis,
-                                    halfExtents,
+                                    edgeDifference,
+                                    centerScale,
+                                    axialScale,
                                     edgeAxisIndex,
-                                    firstSign,
-                                    secondSign,
                                     endpointSign,
                                     capsuleAxis,
-                                    capsuleAxisDenominator,
-                                    capsuleAxisLength),
-                                center,
-                                halfExtents,
-                                basis,
+                                    edgeBound),
+                                scaledExtents,
+                                twiceTranslation,
                                 commonDenominator,
-                                capsuleCenter,
                                 capsuleAxis,
-                                capsuleAxisDenominator,
-                                capsuleAxisLength,
+                                axialScale,
                                 capsuleRadius,
                                 1,
                                 ref best))
@@ -534,32 +621,5 @@ internal static partial class WideOrientedBox
             out Fixed64 target);
         return FixedMath.Clamp(target, -extent, extent);
     }
-
-    private static bool TryKeepCapsuleAxis(
-        WideAxis3 axis,
-        Vector3d boxCenter,
-        Vector3d halfExtents,
-        WideRationalBasis3d basis,
-        Signed192 commonDenominator,
-        Vector3d capsuleCenter,
-        WideAxis3 capsuleAxis,
-        Signed192 capsuleAxisDenominator,
-        Fixed64 capsuleAxisLength,
-        Fixed64 capsuleRadius,
-        int featureRank,
-        ref CapsulePenetration best)
-        => TryKeepCapsuleAxis(
-            ToCapsuleAxis(axis),
-            boxCenter,
-            halfExtents,
-            basis,
-            commonDenominator,
-            capsuleCenter,
-            capsuleAxis,
-            capsuleAxisDenominator,
-            capsuleAxisLength,
-            capsuleRadius,
-            featureRank,
-            ref best);
 
 }

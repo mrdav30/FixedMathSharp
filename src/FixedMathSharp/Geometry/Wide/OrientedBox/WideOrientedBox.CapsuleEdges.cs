@@ -91,71 +91,225 @@ internal static partial class WideOrientedBox
             projection);
     }
 
-    private static CapsuleAxis3 GetCapsuleEndpointToBoxEdgeAxis(
-        Vector3d boxCenter,
-        Vector3d capsuleCenter,
-        WideRationalBasis3d basis,
-        Vector3d halfExtents,
-        int edgeAxisIndex,
-        int firstSign,
-        int secondSign,
-        int endpointSign,
-        WideAxis3 capsuleAxis,
-        Signed192 capsuleAxisDenominator,
-        Fixed64 capsuleAxisLength)
+    private static CapsuleAxis3 GetLocalVertexToCapsuleAxis(
+        in WideAxis3 translation,
+        Signed192 boxDenominator,
+        Vector3d localVertex,
+        in WideAxis3 capsuleAxis,
+        in Signed576 capsuleAxisSquared,
+        in Signed576 capsuleCenterAxisProjection,
+        in Signed320 centerScale,
+        in Signed320 axialScale,
+        in Signed704 capBound)
     {
-        Vector3d localEdgeCenter = GetLocalEdgeCenter(
-            halfExtents,
-            edgeAxisIndex,
-            firstSign,
-            secondSign);
-        WideAxis3 endpointAxis = GetCornerToAxisEndpointAxis3D(
-            boxCenter,
-            capsuleCenter,
-            basis,
-            localEdgeCenter,
-            capsuleAxis,
-            capsuleAxisDenominator,
-            capsuleAxisLength,
-            endpointSign);
-        WideAxis3 edgeAxis = basis.GetAxis(edgeAxisIndex);
-        Signed576 projection = WideAxis3.Dot(endpointAxis, edgeAxis);
-        Signed576 edgeSquared = edgeAxis.SquaredLength;
-        Fixed64 edgeExtent = GetEdgeAxisExtent(
-            halfExtents,
-            edgeAxisIndex);
-        Signed576 edgeBound = WideArithmetic.MultiplySigned576(
-            WideArithmetic.MultiplySigned576(
-                edgeSquared,
-                capsuleAxisDenominator),
-            Signed192.Raw(edgeExtent));
-        edgeBound = WideArithmetic.AddSigned576(edgeBound, edgeBound);
-        if (WideArithmetic.CompareNonNegative(
+        WideAxis3 difference = GetLocalPointToCapsuleCenterAxis(
+            translation,
+            boxDenominator,
+            localVertex);
+        var localVertexAxis = new WideAxis3(
+            Signed320.ExtendValue(Signed192.Raw(localVertex.X)),
+            Signed320.ExtendValue(Signed192.Raw(localVertex.Y)),
+            Signed320.ExtendValue(Signed192.Raw(localVertex.Z)));
+        Signed576 projection = WideArithmetic.SubtractSigned576(
+            capsuleCenterAxisProjection,
+            WideAxis3.Dot(localVertexAxis, capsuleAxis));
+        Signed704 projectionAtHalfLength =
+            WideArithmetic.MultiplySigned576ToSigned704(
                 GetMagnitude(projection),
-                edgeBound) >= 0)
+                centerScale);
+        if (WideArithmetic.CompareNonNegative(
+                projectionAtHalfLength,
+                capBound) >= 0)
         {
-            int edgeSign = projection.Sign < 0 ? -1 : 1;
-            Vector3d localVertex = AddEdgeAxisExtent(
-                localEdgeCenter,
-                edgeAxisIndex,
-                edgeSign,
-                edgeExtent);
-            return ToCapsuleAxis(GetCornerToAxisEndpointAxis3D(
-                boxCenter,
-                capsuleCenter,
-                basis,
-                localVertex,
+            return GetLocalPointToCapsuleEndpointAxis(
+                difference,
+                centerScale,
+                axialScale,
                 capsuleAxis,
-                capsuleAxisDenominator,
-                capsuleAxisLength,
-                endpointSign));
+                projection.Sign > 0 ? -1 : 1);
         }
 
+        var scaledDifference = new WideAxis3(
+            Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
+                difference.X,
+                Signed320.ExtendValue(boxDenominator))),
+            Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
+                difference.Y,
+                Signed320.ExtendValue(boxDenominator))),
+            Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
+                difference.Z,
+                Signed320.ExtendValue(boxDenominator))));
         return GetPerpendicularAxis(
-            endpointAxis,
-            edgeAxis,
-            edgeSquared,
+            scaledDifference,
+            capsuleAxis,
+            capsuleAxisSquared,
             projection);
+    }
+
+    private static CapsuleAxis3 GetCapsuleEndpointToBoxEdgeAxis(
+        in WideAxis3 edgeDifference,
+        in Signed320 centerScale,
+        in Signed320 axialScale,
+        int edgeAxisIndex,
+        int endpointSign,
+        in WideAxis3 capsuleAxis,
+        in Signed320 edgeBound)
+    {
+        CapsuleAxis3 endpointAxis = GetLocalPointToCapsuleEndpointAxis(
+            edgeDifference,
+            centerScale,
+            axialScale,
+            capsuleAxis,
+            endpointSign);
+        Signed576 projection = edgeAxisIndex switch
+        {
+            0 => endpointAxis.X,
+            1 => endpointAxis.Y,
+            _ => endpointAxis.Z,
+        };
+        Signed576 wideEdgeBound = Signed576.ExtendValue(edgeBound);
+        Signed576 edgeComponent = default;
+        if (WideArithmetic.CompareNonNegative(
+                GetMagnitude(projection),
+                wideEdgeBound) >= 0)
+        {
+            edgeComponent = projection.Sign < 0
+                ? WideArithmetic.AddSigned576(projection, wideEdgeBound)
+                : WideArithmetic.SubtractSigned576(projection, wideEdgeBound);
+        }
+
+        return edgeAxisIndex switch
+        {
+            0 => new CapsuleAxis3(
+                edgeComponent,
+                endpointAxis.Y,
+                endpointAxis.Z),
+            1 => new CapsuleAxis3(
+                endpointAxis.X,
+                edgeComponent,
+                endpointAxis.Z),
+            _ => new CapsuleAxis3(
+                endpointAxis.X,
+                endpointAxis.Y,
+                edgeComponent),
+        };
+    }
+
+    private static WideAxis3 GetLocalPointToCapsuleCenterAxis(
+        in WideAxis3 translation,
+        Signed192 boxDenominator,
+        Vector3d localPoint) =>
+        new(
+            WideArithmetic.SubtractSigned320(
+                translation.X,
+                WideArithmetic.MultiplySigned192(
+                    Signed192.Raw(localPoint.X),
+                    boxDenominator)),
+            WideArithmetic.SubtractSigned320(
+                translation.Y,
+                WideArithmetic.MultiplySigned192(
+                    Signed192.Raw(localPoint.Y),
+                    boxDenominator)),
+            WideArithmetic.SubtractSigned320(
+                translation.Z,
+                WideArithmetic.MultiplySigned192(
+                    Signed192.Raw(localPoint.Z),
+                    boxDenominator)));
+
+    private static CapsuleAxis3 GetLocalPointToCapsuleEndpointAxis(
+        in WideAxis3 difference,
+        in Signed320 centerScale,
+        in Signed320 axialScale,
+        in WideAxis3 capsuleAxis,
+        int endpointSign)
+    {
+        return new CapsuleAxis3(
+            GetLocalEndpointComponent(
+                difference.X,
+                capsuleAxis.X,
+                centerScale,
+                axialScale,
+                endpointSign),
+            GetLocalEndpointComponent(
+                difference.Y,
+                capsuleAxis.Y,
+                centerScale,
+                axialScale,
+                endpointSign),
+            GetLocalEndpointComponent(
+                difference.Z,
+                capsuleAxis.Z,
+                centerScale,
+                axialScale,
+                endpointSign));
+    }
+
+    private static Signed576 GetLocalEndpointComponent(
+        in Signed320 difference,
+        in Signed320 axis,
+        in Signed320 centerScale,
+        in Signed320 axialScale,
+        int endpointSign)
+    {
+        Signed576 center = WideArithmetic.MultiplySigned320(
+            difference,
+            centerScale);
+        Signed576 axial = WideArithmetic.MultiplySigned320(
+            axis,
+            axialScale);
+        return endpointSign < 0
+            ? WideArithmetic.SubtractSigned576(center, axial)
+            : WideArithmetic.AddSigned576(center, axial);
+    }
+
+    private static Signed576 GetScaledCapsuleAxisSquared(
+        Vector3d localAxis,
+        Signed192 basisDenominator)
+    {
+        var rawAxis = new WideAxis3(
+            Signed320.ExtendValue(Signed192.Raw(localAxis.X)),
+            Signed320.ExtendValue(Signed192.Raw(localAxis.Y)),
+            Signed320.ExtendValue(Signed192.Raw(localAxis.Z)));
+        Signed320 denominatorSquared = WideArithmetic.MultiplySigned192(
+            basisDenominator,
+            basisDenominator);
+        // Rotation preserves length, so |C*u|^2 = Dc^2*|u|^2. A validated
+        // Q32.32 unit axis and normalized-quaternion denominator keep this
+        // exact product below 196 bits.
+        return Signed576.NarrowValue(
+            WideArithmetic.MultiplySigned576ToSigned704(
+                rawAxis.SquaredLength,
+                denominatorSquared));
+    }
+
+    private static Signed576 GetCapsuleCenterAxisProjection(
+        Signed192 boxDenominator,
+        Vector3d boxCenter,
+        Vector3d capsuleCenter,
+        in WideRationalBasis3d capsuleBasis,
+        Vector3d localCapsuleAxis)
+    {
+        GetRelativeLocalPointNumerators(
+            capsuleCenter,
+            boxCenter,
+            capsuleBasis,
+            out Signed192 translationX,
+            out Signed192 translationY,
+            out Signed192 translationZ);
+        var capsuleTranslation = new WideAxis3(
+            Signed320.ExtendValue(translationX),
+            Signed320.ExtendValue(translationY),
+            Signed320.ExtendValue(translationZ));
+        var rawAxis = new WideAxis3(
+            Signed320.ExtendValue(Signed192.Raw(localCapsuleAxis.X)),
+            Signed320.ExtendValue(Signed192.Raw(localCapsuleAxis.Y)),
+            Signed320.ExtendValue(Signed192.Raw(localCapsuleAxis.Z)));
+        // (C^T*delta) dot u = delta dot (C*u). Multiplying by Db gives
+        // the same reduced scalar as each old world vertex projection,
+        // without constructing either world vector per vertex.
+        return WideArithmetic.MultiplySigned576(
+            WideAxis3.Dot(capsuleTranslation, rawAxis),
+            boxDenominator);
     }
 
     private static WideAxis3 GetCornerToAxisCenterAxis3D(
@@ -225,10 +379,10 @@ internal static partial class WideOrientedBox
     }
 
     private static CapsuleAxis3 GetPerpendicularAxis(
-        WideAxis3 difference,
-        WideAxis3 lineAxis,
-        Signed576 lineSquared,
-        Signed576 projection) =>
+        in WideAxis3 difference,
+        in WideAxis3 lineAxis,
+        in Signed576 lineSquared,
+        in Signed576 projection) =>
         new(
             GetPerpendicularComponent(
                 difference.X,
@@ -247,10 +401,10 @@ internal static partial class WideOrientedBox
                 projection));
 
     private static Signed576 GetPerpendicularComponent(
-        Signed320 difference,
-        Signed320 line,
-        Signed576 lineSquared,
-        Signed576 projection)
+        in Signed320 difference,
+        in Signed320 line,
+        in Signed576 lineSquared,
+        in Signed576 projection)
     {
         Signed704 first = WideArithmetic.MultiplySigned576ToSigned704(
             lineSquared,
@@ -266,15 +420,12 @@ internal static partial class WideOrientedBox
     }
 
     private static bool TryKeepCapsuleAxis(
-        CapsuleAxis3 axis,
-        Vector3d boxCenter,
-        Vector3d halfExtents,
-        WideRationalBasis3d basis,
+        in CapsuleAxis3 axis,
+        in WideAxis3 scaledExtents,
+        in WideAxis3 twiceTranslation,
         Signed192 commonDenominator,
-        Vector3d capsuleCenter,
-        WideAxis3 capsuleAxis,
-        Signed192 capsuleAxisDenominator,
-        Fixed64 capsuleAxisLength,
+        in WideAxis3 capsuleAxis,
+        in Signed320 axialScale,
         Fixed64 capsuleRadius,
         int featureRank,
         ref CapsulePenetration best)
@@ -282,34 +433,28 @@ internal static partial class WideOrientedBox
         if (axis.IsZero)
             return true;
 
-        Signed576 boxRadius = GetCapsuleBoxRadius(
+        Signed704 boxRadius = GetLocalCapsuleBoxRadius(
             axis,
-            halfExtents,
-            basis);
-        Signed576 centerProjection = GetCapsuleCenterProjection(
-            capsuleCenter,
-            boxCenter,
-            axis);
+            scaledExtents);
+        Signed704 centerProjection = GetLocalCapsuleCenterProjection(
+            axis,
+            twiceTranslation);
         bool negate = centerProjection.Sign < 0;
-        Signed576 baseRational = WideArithmetic.SubtractSigned576(
+        Signed704 rational = WideArithmetic.SubtractSigned704(
             boxRadius,
-            WideArithmetic.MultiplySigned576(
-                GetMagnitude(centerProjection),
-                basis.Denominator));
-        Signed320 baseScale = WideArithmetic.MultiplySigned192(
-            capsuleAxisDenominator,
-            Signed192.Raw(Fixed64.Two));
-        Signed704 rational = WideArithmetic.MultiplySigned576ToSigned704(
-            baseRational,
-            baseScale);
-        // A 411-bit candidate component projected onto the at-most-103-bit
-        // rotated capsule axis needs at most 517 signed bits including the
-        // three-term sum, so this Signed576 narrowing is exact.
+            negate
+                ? WideArithmetic.SubtractSigned704(
+                    default,
+                    centerProjection)
+                : centerProjection);
+        // Every candidate norm is strictly below 2^411. Normalized quaternion
+        // denominators are below 2^65, so the relative-axis norm
+        // |A| = Db*Dc*|u| is below 2^163 for a validated Q32.32 unit axis.
+        // Cauchy therefore bounds |candidate dot A| below 2^574, inside the
+        // positive 575-bit magnitude of Signed576. This correlated norm bound
+        // is tighter than summing independent component-width maxima.
         Signed576 alignment = Signed576.NarrowValue(
             GetCapsuleAxisProjection(axis, capsuleAxis));
-        Signed320 axialScale = WideArithmetic.MultiplySigned192(
-            Signed192.Raw(capsuleAxisLength),
-            basis.Denominator);
         Signed704 axial = WideArithmetic.MultiplySigned576ToSigned704(
             GetMagnitude(alignment),
             axialScale);
@@ -349,69 +494,38 @@ internal static partial class WideOrientedBox
         return true;
     }
 
-    // A 411-bit candidate component projected onto an at-most-68-bit box
-    // basis component needs at most 482 signed bits including the three-term
-    // sum, so each Signed704-to-Signed576 narrowing below is exact.
-    private static Signed576 GetCapsuleBoxRadius(
-        CapsuleAxis3 axis,
-        Vector3d halfExtents,
-        WideRationalBasis3d basis) =>
-        WideArithmetic.AddSigned576(
-            WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned576(
-                    GetMagnitude(Signed576.NarrowValue(
-                        GetCapsuleBasisProjection(
-                            axis,
-                            basis.Xx,
-                            basis.Xy,
-                            basis.Xz))),
-                    Signed192.Raw(halfExtents.X)),
-                WideArithmetic.MultiplySigned576(
-                    GetMagnitude(Signed576.NarrowValue(
-                        GetCapsuleBasisProjection(
-                            axis,
-                            basis.Yx,
-                            basis.Yy,
-                            basis.Yz))),
-                    Signed192.Raw(halfExtents.Y))),
-            WideArithmetic.MultiplySigned576(
-                GetMagnitude(Signed576.NarrowValue(
-                    GetCapsuleBasisProjection(
-                        axis,
-                        basis.Zx,
-                        basis.Zy,
-                        basis.Zz))),
-                Signed192.Raw(halfExtents.Z)));
+    private static Signed704 GetLocalCapsuleBoxRadius(
+        in CapsuleAxis3 axis,
+        in WideAxis3 scaledExtents) =>
+        WideArithmetic.AddSigned704(
+            WideArithmetic.AddSigned704(
+                WideArithmetic.MultiplySigned576ToSigned704(
+                    GetMagnitude(axis.X),
+                    scaledExtents.X),
+                WideArithmetic.MultiplySigned576ToSigned704(
+                    GetMagnitude(axis.Y),
+                    scaledExtents.Y)),
+            WideArithmetic.MultiplySigned576ToSigned704(
+                GetMagnitude(axis.Z),
+                scaledExtents.Z));
 
-    // A 411-bit candidate component times a 65-bit center delta needs at most
-    // 479 signed bits including the three-term sum.
-    private static Signed576 GetCapsuleCenterProjection(
-        Vector3d end,
-        Vector3d start,
-        CapsuleAxis3 axis) =>
-        Signed576.NarrowValue(WideArithmetic.AddSigned704(
+    private static Signed704 GetLocalCapsuleCenterProjection(
+        in CapsuleAxis3 axis,
+        in WideAxis3 twiceTranslation) =>
+        WideArithmetic.AddSigned704(
             WideArithmetic.AddSigned704(
                 WideArithmetic.MultiplySigned576ToSigned704(
                     axis.X,
-                    Signed320.ExtendValue(
-                        WideArithmetic.SubtractSigned192(
-                            Signed192.Raw(end.X),
-                            Signed192.Raw(start.X)))),
+                    twiceTranslation.X),
                 WideArithmetic.MultiplySigned576ToSigned704(
                     axis.Y,
-                    Signed320.ExtendValue(
-                        WideArithmetic.SubtractSigned192(
-                            Signed192.Raw(end.Y),
-                            Signed192.Raw(start.Y))))),
+                    twiceTranslation.Y)),
             WideArithmetic.MultiplySigned576ToSigned704(
                 axis.Z,
-                Signed320.ExtendValue(
-                    WideArithmetic.SubtractSigned192(
-                        Signed192.Raw(end.Z),
-                        Signed192.Raw(start.Z))))));
+                twiceTranslation.Z));
 
     private static Signed704 GetCapsuleBasisProjection(
-        CapsuleAxis3 axis,
+        in CapsuleAxis3 axis,
         Signed192 x,
         Signed192 y,
         Signed192 z) =>
@@ -428,8 +542,8 @@ internal static partial class WideOrientedBox
                 Signed320.ExtendValue(z)));
 
     private static Signed704 GetCapsuleAxisProjection(
-        CapsuleAxis3 axis,
-        WideAxis3 direction) =>
+        in CapsuleAxis3 axis,
+        in WideAxis3 direction) =>
         WideArithmetic.AddSigned704(
             WideArithmetic.AddSigned704(
                 WideArithmetic.MultiplySigned576ToSigned704(
@@ -443,7 +557,7 @@ internal static partial class WideOrientedBox
                 direction.Z));
 
     private static Signed832 GetCapsuleSquaredLength(
-        CapsuleAxis3 axis) =>
+        in CapsuleAxis3 axis) =>
         WideArithmetic.AddSigned832(
             WideArithmetic.AddSigned832(
                 WideArithmetic.MultiplySigned576ToSigned832(
@@ -556,80 +670,9 @@ internal static partial class WideOrientedBox
             currentAxis);
     }
 
-    private static Vector3d GetEdgeAxisOffset(
-        int edgeAxisIndex,
-        int sign,
-        Fixed64 extent) =>
-        edgeAxisIndex switch
-        {
-            0 => new Vector3d(sign * extent, Fixed64.Zero, Fixed64.Zero),
-            1 => new Vector3d(Fixed64.Zero, sign * extent, Fixed64.Zero),
-            _ => new Vector3d(Fixed64.Zero, Fixed64.Zero, sign * extent),
-        };
-
-    private static Vector3d AddEdgeAxisExtent(
-        Vector3d localEdgeCenter,
-        int edgeAxisIndex,
-        int sign,
-        Fixed64 extent) =>
-        localEdgeCenter + GetEdgeAxisOffset(
-            edgeAxisIndex,
-            sign,
-            extent);
-
-    private static Fixed64 GetEdgeAxisExtent(
-        Vector3d halfExtents,
-        int edgeAxisIndex) =>
-        edgeAxisIndex switch
-        {
-            0 => halfExtents.X,
-            1 => halfExtents.Y,
-            _ => halfExtents.Z,
-        };
-
-    private static CapsuleAxis3 ToCapsuleAxis(WideAxis3 axis) =>
+    private static CapsuleAxis3 ToCapsuleAxis(in WideAxis3 axis) =>
         new(
             Signed576.ExtendValue(axis.X),
             Signed576.ExtendValue(axis.Y),
             Signed576.ExtendValue(axis.Z));
-
-    private static Vector3d GetMatchedBoxSupportLocalPoint(
-        WideRationalBasis3d basis,
-        Vector3d halfExtents,
-        Vector3d boxCenter,
-        FixedQuaternion boxRotation,
-        in FixedPointAnchor otherAnchor,
-        CapsuleAxis3 featureAxis)
-    {
-        // Vertex-to-axis perpendicular components need at most 412 signed
-        // bits. Basis, center-delta, and capsule-axis projections add at most
-        // 103 bits, so every caller remains below the nine-word range.
-        Signed576 xProjection = Signed576.NarrowValue(
-            GetCapsuleBasisProjection(
-                featureAxis,
-                basis.Xx,
-                basis.Xy,
-                basis.Xz));
-        Signed576 yProjection = Signed576.NarrowValue(
-            GetCapsuleBasisProjection(
-                featureAxis,
-                basis.Yx,
-                basis.Yy,
-                basis.Yz));
-        Signed576 zProjection = Signed576.NarrowValue(
-            GetCapsuleBasisProjection(
-                featureAxis,
-                basis.Zx,
-                basis.Zy,
-                basis.Zz));
-        return GetMatchedBoxSupportLocalPoint(
-            basis,
-            halfExtents,
-            boxCenter,
-            boxRotation,
-            otherAnchor,
-            xProjection,
-            yProjection,
-            zProjection);
-    }
 }
