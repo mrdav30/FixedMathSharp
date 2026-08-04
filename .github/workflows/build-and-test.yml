@@ -13,6 +13,18 @@ on:
       - "develop"
 
 jobs:
+  validate-wiki-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Test wiki link rewriting
+        run: python3 .github/scripts/rewrite_wiki_links_for_github_wiki_tests.py
+
   validate-dotnet:
     runs-on: ${{ matrix.os }}
 

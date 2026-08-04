@@ -20,11 +20,19 @@ concurrency:
 
 jobs:
   coverage:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -44,8 +52,22 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore FixedMathSharp.slnx --property:Configuration=Release
 
+      - name: Build solution
+        run: dotnet build FixedMathSharp.slnx --configuration Release --no-restore
+
       - name: Run tests with coverage
         run: dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configuration Release --no-build --collect:"XPlat Code Coverage" --settings tests/FixedMathSharp.Tests/coverlet.runsettings --results-directory artifacts/coverage
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Build API documentation
+        run: |
+          test -f src/FixedMathSharp/bin/Release/net8.0/FixedMathSharp.dll
+          test -f src/FixedMathSharp/bin/Release/net8.0/FixedMathSharp.xml
+          dotnet tool run docfx docs/api/docfx.json
+          test -f docs/api/obj/_site/index.html
+          test -f docs/api/obj/_site/api/FixedMathSharp.html
 
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
@@ -64,11 +86,25 @@ jobs:
       - name: Add coverage summary to job
         run: cat artifacts/coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Assemble Pages site
+        run: |
+          mkdir -p artifacts/pages/coverage
+          cp -a docs/api/obj/_site/. artifacts/pages/
+          cp -a artifacts/coverage-report/. artifacts/pages/coverage/
+          test -f artifacts/pages/index.html
+          test -f artifacts/pages/api/FixedMathSharp.html
+          test -f artifacts/pages/coverage/Summary.json
+
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: artifacts/coverage-report
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: artifacts/pages
 
   deploy:
     needs: coverage
@@ -80,17 +116,6 @@ jobs:
     steps:
       - name: Configure Pages
         uses: actions/configure-pages@v6
-
-      - name: Download coverage artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: coverage-report
-          path: artifacts/coverage-report
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: artifacts/coverage-report
 
       - name: Deploy to GitHub Pages
         id: deployment

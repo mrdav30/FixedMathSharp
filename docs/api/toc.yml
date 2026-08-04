@@ -1,0 +1,10 @@
+items:
+  - name: Home
+    href: index.md
+  - name: API Reference
+    href: obj/api/
+    homepage: obj/api/FixedMathSharp.yml
+  - name: Wiki
+    href: https://github.com/mrdav30/FixedMathSharp/wiki
+  - name: Coverage
+    href: https://mrdav30.github.io/FixedMathSharp/coverage/

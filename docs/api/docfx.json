@@ -1,0 +1,24 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "files": ["src/FixedMathSharp/bin/Release/net8.0/FixedMathSharp.dll"],
+          "src": "../.."
+        }
+      ],
+      "dest": "obj/api"
+    }
+  ],
+  "build": {
+    "content": [
+      { "files": ["index.md", "toc.yml"] },
+      { "files": ["**/*.yml"], "src": "obj/api", "dest": "api" }
+    ],
+    "output": "obj/_site",
+    "template": ["default", "modern"],
+    "globalMetadata": {
+      "_appName": "FixedMathSharp API"
+    }
+  }
+}

@@ -57,10 +57,14 @@ claims, serialization layout, or developer workflow changes:
 
 - [`README.md`](README.md)
 - [`AGENTS.md`](AGENTS.md)
-- [`docs`](docs)
+- [`docs`](docs), with [`docs/wiki`](docs/wiki) as the source content for the
+  GitHub Wiki
 - [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests)
 - [`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks)
 - [`.github/workflows`](.github/workflows)
+
+Keep `docs/wiki` links repo-friendly with their `.md` extensions. The Wiki sync
+workflow performs the narrow link rewrite required by GitHub Wiki routes.
 
 ## Repository Map
 
@@ -277,8 +281,10 @@ dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 Coverage uses `tests/FixedMathSharp.Tests/coverlet.runsettings`. CI runs Release
 and ReleaseLean on Linux and Windows through
 [`.github/workflows/build-and-test.yml`](.github/workflows/build-and-test.yml).
-The coverage workflow publishes coverage reports after `build-and-test`
-completes on `main`.
+After a successful `main` push, the coverage workflow publishes the DocFX API
+site and coverage report as one GitHub Pages artifact, while `sync-wiki.yml`
+publishes `docs/wiki` to the GitHub Wiki. Both workflows depend on the
+`build-and-test` workflow name.
 
 Packaging/versioning comes from
 [`src/FixedMathSharp/FixedMathSharp.csproj`](src/FixedMathSharp/FixedMathSharp.csproj):

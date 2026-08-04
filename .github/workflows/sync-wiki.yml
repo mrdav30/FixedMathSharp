@@ -1,0 +1,80 @@
+name: Sync Wiki
+
+on:
+  workflow_run:
+    workflows:
+      - build-and-test
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki-sync-main
+  cancel-in-progress: true
+
+jobs:
+  sync-wiki:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify wiki source exists
+        run: test -d docs/wiki
+
+      - name: Sync docs/wiki to GitHub wiki
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_DIR: docs/wiki
+          SYNC_SHA: ${{ github.event.workflow_run.head_sha }}
+          WIKI_TOKEN: ${{ secrets.WIKI_PUSH_TOKEN != '' && secrets.WIKI_PUSH_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+
+          wiki_dir="$(mktemp -d)"
+          trap 'rm -rf "$wiki_dir"' EXIT
+
+          git clone "https://x-access-token:${WIKI_TOKEN}@github.com/${REPOSITORY}.wiki.git" "$wiki_dir"
+
+          rsync -a --delete --exclude '.git/' "${SOURCE_DIR}/" "$wiki_dir/"
+
+          python3 .github/scripts/rewrite-wiki-links-for-github-wiki.py \
+            "$wiki_dir" \
+            "$REPOSITORY" \
+            "$SYNC_SHA" \
+            --source-dir "$SOURCE_DIR" \
+            --repo-root "$PWD"
+
+          cd "$wiki_dir"
+
+          current_main_sha="$(git ls-remote "https://x-access-token:${WIKI_TOKEN}@github.com/${REPOSITORY}.git" refs/heads/main | cut -f1)"
+          if [[ "$SYNC_SHA" != "$current_main_sha" ]]; then
+            echo "Skipping stale wiki sync for ${SYNC_SHA}; main is ${current_main_sha}."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add --all
+
+          if git diff --cached --quiet --exit-code; then
+            echo "Wiki is already up to date."
+            exit 0
+          fi
+
+          git commit -m "Sync wiki from ${SYNC_SHA}"
+          git push origin HEAD:master
