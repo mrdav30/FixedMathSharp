@@ -1,15 +1,14 @@
 # FixedMathSharp Benchmarks
 
-This project is the BenchmarkDotNet scaffold for FixedMathSharp hot paths.
-
-The runner, alias catalog, deterministic fixture helpers, and first-pass
-hot-path benchmark classes are in place. The initial suite covers scalar
-arithmetic, fixed trigonometry, vector operations, quaternion rotations, matrix
-transforms, and bounds checks.
+This project contains the BenchmarkDotNet runner, alias catalog, deterministic
+fixtures, and focused measurements for FixedMathSharp hot paths. The suite
+covers scalar arithmetic, fixed trigonometry, vector operations, quaternion
+rotations, matrix transforms, geometry, bounds, formatting, and serialization.
 
 ## Requirements
 
-- .NET 8 SDK
+- .NET 10 SDK selected by `global.json`
+- .NET 8 runtime for the benchmark target
 - `Release` configuration for meaningful measurements
 
 Avoid measuring `Debug` builds except when diagnosing benchmark setup failures.
@@ -213,9 +212,8 @@ use this direct command when isolating benchmark compilation locally:
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj --configuration Release
 ```
 
-Running full benchmarks in CI is optional until local variance is understood.
-When performance gates are introduced, prefer BenchmarkDotNet comparison support
-or stored baseline artifacts over raw timing thresholds, which are sensitive to
-runner hardware. A future smoke job should compile benchmarks first and, if it
-runs benchmarks at all, use a short alias-scoped job that verifies selection and
-basic execution without claiming a performance delta.
+Full benchmark execution in CI is optional because raw timing thresholds are
+sensitive to runner hardware. Any CI performance gate should use BenchmarkDotNet
+comparison support or stored baseline artifacts. A smoke job should compile the
+benchmark project first and use a short alias-scoped run only to verify
+selection and basic execution, not to claim a performance delta.

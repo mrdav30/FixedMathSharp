@@ -9,14 +9,12 @@ replays, and lockstep-style systems. The library centers on `Fixed64`
 with Q32.32 representation (`SHIFT_AMOUNT_I = 32` in
 [`src/FixedMathSharp/Core/FixedMath.cs`](src/FixedMathSharp/Core/FixedMath.cs)).
 
-This repo grew out of an older Unity prototype and was abstracted into an
-engine-neutral math package over time. Treat Unity-originated assumptions as
-historical context, not as source of truth. When a convention, algorithm, data
-layout, or API shape looks copied from Unity, XNA, MonoGame, or another engine,
-verify whether it is still optimal for FixedMathSharp's goals before extending
-it.
+FixedMathSharp is engine-neutral. Treat engine conventions as adapter concerns,
+not as source of truth for the core package. When a convention, algorithm, data
+layout, or API shape resembles Unity, XNA, MonoGame, or another engine, verify
+that it is optimal for FixedMathSharp's goals before extending it.
 
-Current priorities:
+Priorities:
 
 1. Preserve deterministic behavior across supported platforms and target
    frameworks.
@@ -26,15 +24,14 @@ Current priorities:
    adapter packages or docs.
 4. Use benchmarks to guide hot-path redesigns and to demonstrate why the library
    is worth using.
-5. Avoid band-aid layers that preserve weak translations from the Unity
-   prototype when a clean deterministic design is the right move.
+5. Avoid band-aid compatibility layers when a clean deterministic design is the
+   right move.
 
 ## Start Here
 
 Read these in order before making non-trivial changes:
 
-1. [`README.md`](README.md) for package orientation, supported packages, and
-   current positioning.
+1. [`README.md`](README.md) for package orientation and supported packages.
 2. [`src/FixedMathSharp/FixedMathSharp.csproj`](src/FixedMathSharp/FixedMathSharp.csproj),
    [`tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj`](tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj),
    and
@@ -46,14 +43,14 @@ Read these in order before making non-trivial changes:
    before changing measured hot paths or adding benchmark cases.
 6. [`docs/complexity-exceptions.md`](docs/complexity-exceptions.md) before
    refactoring high-complexity deterministic hot paths only to satisfy a metric.
-7. Existing feature plans under [`docs/feature-work`](docs/feature-work) when
-   the task touches an active design thread, such as coordinate conventions.
+7. Feature plans under [`docs/feature-work`](docs/feature-work) when the task is
+   part of an active design thread.
 
 ## Source Of Truth
 
-When code, README text, generated docs, and copied benchmark scaffolding
-disagree, prefer current source, project files, tests, and workflows. Keep docs
-honest as old prototype assumptions are corrected.
+When code, README text, generated docs, and benchmark scaffolding disagree,
+prefer source, project files, tests, and workflows. Keep documentation aligned
+with the implemented package behavior.
 
 Keep these aligned whenever behavior, public API, package shape, performance
 claims, serialization layout, or developer workflow changes:
@@ -158,9 +155,10 @@ the evidence for performance claims.
 
 ## Experimental Design And Evidence Bar
 
-The library is allowed to be better than its prototype lineage. If old code
-looks like a translation artifact from Unity or another engine, investigate it
-instead of preserving it automatically.
+FixedMathSharp does not copy another library or engine merely because its
+approach is familiar. Investigate engine-shaped code against this package's
+determinism, performance, maintainability, and correctness goals before
+preserving or extending it.
 
 Accept novel approaches when they:
 
@@ -211,9 +209,8 @@ deterministic.
   `Intersects` overloads among boxes, areas, spheres, frustums, planes, and
   rays; do not replace them with a generic abstraction unless a measured design
   proves it is faster and clearer.
-- For coordinate conventions, treat `+Z` forward as the current core convention
-  until an approved plan changes it. Engine-specific forward/back naming belongs
-  at adapter boundaries.
+- The core coordinate convention uses `+Z` forward. Engine-specific forward/back
+  naming belongs at adapter boundaries.
 
 ### Gravitas Internal Friendship Boundary
 
@@ -228,7 +225,7 @@ repository, or host adapters.
 - Gravitas owns rigid-body semantics and policy: contacts, mass and inertia
   interpretation, mobility, impulses, restitution, friction, solver
   accumulation, warm starts, and CCD response.
-- Promote a private FixedMathSharp member to internal only for a current
+- Promote a private FixedMathSharp member to internal only for an existing
   Gravitas production use when the operation remains policy-neutral and its
   width, sign, rounding, overflow, and failure contract is tested here.
 - Keep FixedMathSharp internals out of Gravitas public/protected signatures,
@@ -258,8 +255,9 @@ Serialization compatibility is intentional.
 
 Solution: [`FixedMathSharp.slnx`](FixedMathSharp.slnx), with the core library,
 FluentAssertions package, test project, and benchmark project. `global.json`
-selects the .NET 10 SDK for `.slnx` tooling consistency while the runtime
-projects continue to target `netstandard2.1` and `net8.0`.
+selects the .NET 10 SDK for `.slnx` tooling consistency. Install the .NET 8
+runtime as well to execute the `net8.0` tests and benchmarks; the runtime
+packages target `netstandard2.1` and `net8.0`.
 
 Typical local workflow:
 

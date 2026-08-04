@@ -1,7 +1,7 @@
 # Cyclomatic Complexity Exception Register
 
-This document records methods that intentionally exceed the current cyclomatic
-complexity review threshold.
+This document records methods that intentionally exceed the repository's
+cyclomatic complexity review threshold.
 
 ## Policy
 
@@ -14,13 +14,10 @@ complexity review threshold.
   30 requires immediate test hardening or refactoring. A fully covered method's
   score cannot fall below its cyclomatic complexity, so documented complexity
   floors are reviewed rather than mechanically refactored.
-- Current status: the latest full-project run, excluding generated serializer
-  sources, covers 53,304/53,304 lines, 8,786/8,786 branches, and 3,418/3,418
-  coverage methods. The CRAP analyzer scored 3,414 method identities; every
-  analyzed method is fully covered, and the only nine scores above 30 are the
-  registered complexity floors at 52, 48, 48, 44, 44, 38, 36, 32, and 32.
-  Per-method coverage is recorded below and should be refreshed whenever a
-  listed implementation changes.
+- Coverage requirement: registered methods remain at 100% reachable line and
+  branch coverage. Refresh the per-method coverage column whenever a listed
+  implementation changes. Aggregate test and coverage counts belong in generated
+  reports rather than this long-lived register.
 
 Complexity exceptions are acceptable when the method is a hot deterministic math
 path, a direct component-wise value comparison, a fixed-shape assertion helper,
@@ -80,7 +77,6 @@ behavior changes, or the implementation becomes harder to reason about.
 | `FixedMathSharp`                  | `WideFiniteAxisIntersection.IsRoundedCylinderEntryBeforeOrEqualToExit(...)`         |         12 | 100% line / 100% branch | Exact radical-bound comparison prevents two distinct cap intervals that round to the same public distance from becoming a false hit.                                                                                         | A shared exact quadratic-bound comparator expresses the same inequality with fewer wide products.                                              |
 | `FixedMathSharp`                  | `Fixed64.GetMagnitudeBitLength(ReadOnlySpan<ulong>)`                                |         16 | 100% line / 100% branch | Fixed-size magnitude alignment selects the highest nonzero limb directly so raw-ratio division remains allocation-free and target independent.                                                                               | A reusable fixed-limb magnitude type provides the same word ordering with simpler equally inlinable code.                                      |
 | `FixedMathSharp`                  | `WideFiniteAxisIntersection.TryGetAxialInterval(...)`                               |         14 | 100% line / 100% branch | Closed finite-axis admission keeps stationary, reversed, disjoint, and clipped rational bounds in one fixed-width decision path.                                                                                             | Another exact segment primitive can reuse the bound result without extra products or branches.                                                 |
-| `FixedMathSharp`                  | `WideFiniteAxisIntersection.TryGetExpandedAxialInterval(...)`                       |         14 | 100% line / 100% branch | Authored-length scaling and axial expansion require signed 320-bit rational bounds before deterministic [0, 1] clipping.                                                                                                     | Expanded-axis ownership moves into a simpler shared rational primitive with neutral measured cost.                                             |
 | `FixedMathSharp`                  | `WideFiniteAxisIntersection.TryGetCenteredAxialInterval(...)`                       |         14 | 100% line / 100% branch | Centered finite axes use exact signed 320-bit symmetric bounds before deterministic clipping, including stationary-query classification.                                                                                     | Centered and endpoint axes can share a simpler bound primitive without widening products or adding branches.                                   |
 | `FixedMathSharp`                  | `WideArithmetic.GetBitLength(Signed576)`                                            |         16 | 100% line / 100% branch | Nine-word lexicographic bit selection keeps the scaled integer-square-root seed allocation-free and explicit across every limb.                                                                                              | A portable fixed-width bit-scan primitive provides identical word order and lower measured cost.                                               |
 | `FixedMathSharp`                  | `WideArithmetic.CompareNonNegative(Signed576, Signed576)`                           |         36 | 100% line / 100% branch | Nine-word lexicographic comparison keeps fixed-width square-root and midpoint ordering allocation-free and independent of target-specific big-integer support.                                                               | A fixed-width value type or portable intrinsic provides the same limb ordering with lower complexity and neutral measured cost.                |

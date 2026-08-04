@@ -3,7 +3,7 @@
 ![FixedMathSharp Icon](https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/icon.png)
 
 [![Build](https://github.com/mrdav30/FixedMathSharp/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/mrdav30/FixedMathSharp/actions/workflows/build-and-test.yml)
-[![Coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmrdav30.github.io%2FFixedMathSharp%2FSummary.json&query=%24.summary.linecoverage&suffix=%25&label=coverage&color=brightgreen)](https://mrdav30.github.io/FixedMathSharp/)
+[![Branch Coverage](https://mrdav30.github.io/FixedMathSharp/badge_branchcoverage.svg)](https://mrdav30.github.io/FixedMathSharp/)
 [![NuGet](https://img.shields.io/nuget/v/FixedMathSharp.svg)](https://www.nuget.org/packages/FixedMathSharp)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/FixedMathSharp.svg)](https://www.nuget.org/packages/FixedMathSharp)
 [![License](https://img.shields.io/github/license/mrdav30/FixedMathSharp.svg)](https://github.com/mrdav30/FixedMathSharp/blob/main/LICENSE)
@@ -55,6 +55,9 @@ Use floating point when you need:
 
 - **`Fixed64` scalar arithmetic** with deterministic Q32.32 representation,
   guarded overflow behavior, parsing, formatting, and common math helpers.
+- **[Full-domain intermediate arithmetic](docs/wiki/full-domain-wide-arithmetic.md)**
+  with allocation-free internal fixed-width math that prevents premature
+  saturation and rounding across fused scalar APIs, transforms, and geometry.
 - **2D, 3D, and 4D vectors** via `Vector2d`, `Vector3d`, and `Vector4d`,
   including dot products, distances, normalization, transforms, fuzzy equality,
   and component operations.
@@ -260,10 +263,9 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - 3D bounds use `FixedBoundBox`; 2D plane bounds use `FixedBoundArea`. Flat
   world footprints should pair `FixedBoundArea` with explicit layer or elevation
   state in higher-level packages.
-- FixedMathSharp owns reusable exact arithmetic and geometry. Raw fixed-width
-  wide representations remain internal implementation mechanics; rigid-body
-  lever, mass-property, impulse, and friction policy belongs in physics
-  packages.
+- FixedMathSharp owns reusable exact arithmetic and geometry. Its
+  [full-domain Wide layer](docs/wiki/full-domain-wide-arithmetic.md) retains
+  exact fixed-width intermediates without exposing their raw representations.
 - Gravitas is the runtime assembly's sole intentional non-test friend so it can
   compose those internals without exposing them. This is a one-way,
   release-coupled boundary, not a public extension mechanism or a precedent for
@@ -293,8 +295,7 @@ Use `CoordinateConvention3d.NegativeZForward` when a `+Y`-up adapter boundary
 needs to translate `-Z`-forward direction semantics, such as MonoGame's
 `Vector3.Forward`, into the core convention. Use
 `CoordinateConvention3d.XForwardZUp` for `+X` forward, `+Y` right, `+Z` up
-adapter boundaries, such as Unreal-style coordinate spaces. XNA is legacy
-context for MonoGame's maintained XNA-compatible API. Engine and toolchain
+adapter boundaries, such as Unreal-style coordinate spaces. Engine and toolchain
 differences beyond direction basis mapping, such as matrix multiplication
 convention, storage layout, transform APIs, origins, units, or clip-space depth,
 belong in adapter code.
@@ -303,9 +304,10 @@ belong in adapter code.
 
 ## Build From Source
 
-Install the .NET 10 SDK before building from source. `global.json` pins the repo
-tooling to SDK 10 so `.slnx` workflows behave consistently; the packages still
-target .NET Standard 2.1 and .NET 8 for consumers.
+Install the .NET 10 SDK and .NET 8 runtime before building from source.
+`global.json` pins repository tooling to SDK 10 so `.slnx` workflows behave
+consistently; the .NET 8 runtime executes the tests and benchmarks. Published
+packages target .NET Standard 2.1 and .NET 8.
 
 ```bash
 git clone https://github.com/mrdav30/FixedMathSharp.git
