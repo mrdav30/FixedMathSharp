@@ -230,14 +230,14 @@ internal static class WideSlabProjection
         denominator = WideArithmetic.SubtractSigned576(default, denominator);
     }
 
-internal static bool TryGetCapsuleSupport(
-        Vector3d center,
-        Vector3d axis,
-        Fixed64 axisLength,
-        Fixed64 radius,
-        FixedRange slab,
-        Vector2d direction,
-        out Vector2d support)
+    internal static bool TryGetCapsuleSupport(
+            Vector3d center,
+            Vector3d axis,
+            Fixed64 axisLength,
+            Fixed64 radius,
+            FixedRange slab,
+            Vector2d direction,
+            out Vector2d support)
     {
         Signed192 directionLength = GetPlanarDirectionLength(direction);
         if (TryAdmitCapsuleSupport(center, axis, axisLength, radius, slab, direction, directionLength, out support))
@@ -406,17 +406,17 @@ internal static bool TryGetCapsuleSupport(
         return !SumSquares(gx, gy, gz).IsZero;
     }
 
-private static void AddSphereEndpoint(
-        Vector3d center,
-        Vector3d axis,
-        Fixed64 axisLength,
-        Fixed64 radius,
-        int sign,
-        FixedRange slab,
-        Vector2d direction,
-        Signed192 directionLength,
-        ref bool found,
-        ref WidePlanarCandidate best)
+    private static void AddSphereEndpoint(
+            Vector3d center,
+            Vector3d axis,
+            Fixed64 axisLength,
+            Fixed64 radius,
+            int sign,
+            FixedRange slab,
+            Vector2d direction,
+            Signed192 directionLength,
+            ref bool found,
+            ref WidePlanarCandidate best)
     {
         Signed320 y = GetEndpointNumerator(center.Y, axis.Y, axisLength, sign);
         if (!IsInRange(y, CenteredAxisScale, slab))
@@ -718,14 +718,14 @@ private static void AddSphereEndpoint(
         KeepBest(new WidePlanarCandidate(x, z, denominator), direction, ref found, ref best);
     }
 
-private static bool TryGetVerticalConeSupport(
-        Vector3d center,
-        Vector3d axis,
-        Fixed64 height,
-        Fixed64 radius,
-        FixedRange slab,
-        Vector2d direction,
-        out Vector2d support)
+    private static bool TryGetVerticalConeSupport(
+            Vector3d center,
+            Vector3d axis,
+            Fixed64 height,
+            Fixed64 radius,
+            FixedRange slab,
+            Vector2d direction,
+            out Vector2d support)
     {
         Signed320 apexY = GetConeEndpointNumerator(center.Y, axis.Y, height, 1);
         Signed320 baseY = GetConeEndpointNumerator(center.Y, axis.Y, height, -1);

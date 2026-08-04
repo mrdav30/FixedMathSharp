@@ -1,13 +1,13 @@
-﻿//=======================================================================
+//=======================================================================
 // FixedCurve.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using MemoryPack;
 using System;
 using System.Text.Json.Serialization;
+using MemoryPack;
 
 namespace FixedMathSharp;
 
@@ -54,7 +54,7 @@ public partial struct FixedCurve : IEquatable<FixedCurve>
 
     #endregion
 
-    #region Properties 
+    #region Properties
 
     /// <summary>
     /// Gets the mode used for the fixed curve calculation.

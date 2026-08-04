@@ -5,8 +5,8 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Geometry;
 using System;
+using FixedMathSharp.Geometry;
 using Xunit;
 
 namespace FixedMathSharp.Tests;

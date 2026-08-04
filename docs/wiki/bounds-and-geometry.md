@@ -171,10 +171,10 @@ Both anchor types expose `CompareSquaredDistance(first, second)` for exact
 nearest-feature ranking without materializing either candidate distance. A
 negative result means `first` is closer to the reference anchor, zero is an
 exact tie, and a positive result means `second` is closer. The public anchor
-contract stops at point materialization, relative offsets, frame
-re-expression, exact comparison, and supported projections. Domain-specific
-lever, mass-property, and response policy belongs in the consuming simulation
-library rather than FixedMathSharp's public geometry API.
+contract stops at point materialization, relative offsets, frame re-expression,
+exact comparison, and supported projections. Domain-specific lever,
+mass-property, and response policy belongs in the consuming simulation library
+rather than FixedMathSharp's public geometry API.
 
 FixedMathSharp's internal fixed-width arithmetic exists to implement these
 reusable exact contracts without exposing raw wide representations. Gravitas is
@@ -444,9 +444,9 @@ nonnegative expansion separate and report inclusive start containment plus
 strict end containment. `GetPointAtDistance(distance, totalDistance)`
 reconstructs a returned hit with the same exact chord contract, rejects values
 outside that closed range, and returns exact authored endpoints at zero and the
-total distance. A zero total distance is valid only when both authored
-endpoints are equal; this lets overlap workers classify and reconstruct a point
-query without a separate downstream branch.
+total distance. A zero total distance is valid only when both authored endpoints
+are equal; this lets overlap workers classify and reconstruct a point query
+without a separate downstream branch.
 
 For centers near the scalar-domain boundary, prefer the centered capsule and
 cylinder overloads. Their axis direction must already be normalized, and their

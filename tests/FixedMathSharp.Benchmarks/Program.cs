@@ -1,5 +1,5 @@
-﻿using BenchmarkDotNet.Running;
 using System;
+using BenchmarkDotNet.Running;
 
 namespace FixedMathSharp.Benchmarks;
 

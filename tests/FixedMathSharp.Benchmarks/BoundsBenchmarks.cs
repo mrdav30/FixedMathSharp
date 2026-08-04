@@ -1,7 +1,7 @@
-using BenchmarkDotNet.Attributes;
-using FixedMathSharp.Geometry;
 using System;
 using System.Collections.Generic;
+using BenchmarkDotNet.Attributes;
+using FixedMathSharp.Geometry;
 
 namespace FixedMathSharp.Benchmarks;
 

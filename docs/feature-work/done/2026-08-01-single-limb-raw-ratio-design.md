@@ -8,8 +8,8 @@
 
 The benchmark backlog records an incomplete performance signal for
 `Fixed64.TryGetSignedRawRatio(Signed576, Signed576, ...)` when the denominator
-has one active 64-bit limb. The original investigation was terminated without
-a completed timing sample and predates the overload's current `Signed192` and
+has one active 64-bit limb. The original investigation was terminated without a
+completed timing sample and predates the overload's current `Signed192` and
 `Signed320` narrowing paths.
 
 The shared divider still routes a one-limb denominator through equal-length
@@ -56,10 +56,10 @@ managed allocation. Capture the baseline and candidate with the same Release
 build, BenchmarkDotNet job, machine, filters, and artifact layout.
 
 The specialization is accepted only when a stable out-of-process comparison
-shows at least a provisional 15% improvement in the affected representable
-rows, zero managed allocation, and no multi-limb control regression beyond 5%
-or ordinary run noise. If the baseline is already competitive, retain the
-benchmark and close the signal with a no-change decision.
+shows at least a provisional 15% improvement in the affected representable rows,
+zero managed allocation, and no multi-limb control regression beyond 5% or
+ordinary run noise. If the baseline is already competitive, retain the benchmark
+and close the signal with a no-change decision.
 
 ## Conditional Production Design
 
@@ -116,13 +116,13 @@ The shared one-limb-denominator specialization was accepted. Canonical
 BenchmarkDotNet `DefaultJob` artifacts compare base `28aef44` with the final
 candidate under the same Release/net8.0 environment:
 
-| Row | Baseline mean | Candidate mean | Mean delta | Baseline median | Candidate median | Median delta | Allocated |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| One-word numerator/denominator | 160.759 ns | 51.770 ns | -67.80% | 160.561 ns | 51.676 ns | -67.82% | 0 B -> 0 B |
-| Two-word numerator / 32-bit denominator | 279.194 ns | 61.077 ns | -78.12% | 277.527 ns | 60.916 ns | -78.05% | 0 B -> 0 B |
-| Two-word numerator / 64-bit denominator | 376.112 ns | 131.217 ns | -65.11% | 374.211 ns | 131.199 ns | -64.94% | 0 B -> 0 B |
-| Unrepresentable quotient | 42.586 ns | 43.207 ns | +1.46% | 42.568 ns | 43.174 ns | +1.43% | 0 B -> 0 B |
-| Multi-word denominator control | 73.190 ns | 72.257 ns | -1.27% | 72.626 ns | 71.670 ns | -1.32% | 0 B -> 0 B |
+| Row                                     | Baseline mean | Candidate mean | Mean delta | Baseline median | Candidate median | Median delta |  Allocated |
+| --------------------------------------- | ------------: | -------------: | ---------: | --------------: | ---------------: | -----------: | ---------: |
+| One-word numerator/denominator          |    160.759 ns |      51.770 ns |    -67.80% |      160.561 ns |        51.676 ns |      -67.82% | 0 B -> 0 B |
+| Two-word numerator / 32-bit denominator |    279.194 ns |      61.077 ns |    -78.12% |      277.527 ns |        60.916 ns |      -78.05% | 0 B -> 0 B |
+| Two-word numerator / 64-bit denominator |    376.112 ns |     131.217 ns |    -65.11% |      374.211 ns |       131.199 ns |      -64.94% | 0 B -> 0 B |
+| Unrepresentable quotient                |     42.586 ns |      43.207 ns |     +1.46% |       42.568 ns |        43.174 ns |       +1.43% | 0 B -> 0 B |
+| Multi-word denominator control          |     73.190 ns |      72.257 ns |     -1.27% |       72.626 ns |        71.670 ns |       -1.32% | 0 B -> 0 B |
 
 All three affected representable rows exceed the 15% improvement gate on mean
 and median. The multi-word control stays within the 5% regression gate by

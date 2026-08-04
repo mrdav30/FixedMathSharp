@@ -600,20 +600,20 @@ internal static class WideFiniteAxisProjection
         return new Signed192(value.Word2, value.Word1, value.Word0);
     }
 
-internal static bool TryGetCapsuleCapsuleSlabAxisPenetration(
-        Vector3d projectionAxis,
-        Vector3d capsuleCenter,
-        Vector3d capsuleAxis,
-        Fixed64 capsuleLength,
-        Fixed64 capsuleRadius,
-        Vector3d slabCenter,
-        Vector2d slabCapsuleAxis,
-        Fixed64 slabCapsuleLength,
-        Fixed64 slabCapsuleRadius,
-        Fixed64 slabHalfThickness,
-        out Vector3d orientedAxis,
-        out Fixed64 depth,
-        out bool depthIsClamped)
+    internal static bool TryGetCapsuleCapsuleSlabAxisPenetration(
+            Vector3d projectionAxis,
+            Vector3d capsuleCenter,
+            Vector3d capsuleAxis,
+            Fixed64 capsuleLength,
+            Fixed64 capsuleRadius,
+            Vector3d slabCenter,
+            Vector2d slabCapsuleAxis,
+            Fixed64 slabCapsuleLength,
+            Fixed64 slabCapsuleRadius,
+            Fixed64 slabHalfThickness,
+            out Vector3d orientedAxis,
+            out Fixed64 depth,
+            out bool depthIsClamped)
     {
         CreateSymmetricCapsuleSlabDepth(
             projectionAxis,

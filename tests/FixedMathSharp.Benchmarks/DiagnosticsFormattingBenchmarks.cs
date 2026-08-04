@@ -1,6 +1,6 @@
-using BenchmarkDotNet.Attributes;
 using System;
 using System.Globalization;
+using BenchmarkDotNet.Attributes;
 
 namespace FixedMathSharp.Benchmarks;
 

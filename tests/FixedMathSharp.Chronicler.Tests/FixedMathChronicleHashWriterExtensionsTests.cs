@@ -1,6 +1,6 @@
+using System;
 using Chronicler;
 using FixedMathSharp.Geometry;
-using System;
 using Xunit;
 
 namespace FixedMathSharp.Chronicler.Tests;

@@ -1,7 +1,7 @@
-using FixedMathSharp.Geometry;
-using MemoryPack;
 using System.Numerics;
 using System.Text.Json;
+using FixedMathSharp.Geometry;
+using MemoryPack;
 using Xunit;
 
 namespace FixedMathSharp.Tests.Bounds;

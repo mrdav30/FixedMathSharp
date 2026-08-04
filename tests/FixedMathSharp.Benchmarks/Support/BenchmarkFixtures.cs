@@ -1,4 +1,4 @@
-﻿namespace FixedMathSharp.Benchmarks;
+namespace FixedMathSharp.Benchmarks;
 
 internal static class BenchmarkFixtures
 {

@@ -1,5 +1,5 @@
-﻿using FixedMathSharp.Assertions;
 using System;
+using FixedMathSharp.Assertions;
 using Xunit;
 
 namespace FixedMathSharp.Tests;

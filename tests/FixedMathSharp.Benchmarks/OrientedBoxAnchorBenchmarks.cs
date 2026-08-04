@@ -1,6 +1,6 @@
+using System;
 using BenchmarkDotNet.Attributes;
 using FixedMathSharp.Geometry;
-using System;
 
 namespace FixedMathSharp.Benchmarks;
 

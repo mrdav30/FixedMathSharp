@@ -1,7 +1,7 @@
-﻿using MemoryPack;
 using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MemoryPack;
 using Xunit;
 
 namespace FixedMathSharp.Tests;

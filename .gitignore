@@ -1,17 +1,45 @@
-bin/
-obj/
+*.swp
+*.*~
+project.lock.json
+.DS_Store
+*.pyc
+
+# Visual Studio Code
+.vscode
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+# Visual Studio 2015
 .vs/
-TestResults/
-.codex
-*.lscache
 
 # Local build, release, and CI artifact output
+TestResults/
 artifacts/
-.vs/
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
 BenchmarkDotNet.Artifacts/
-docs/feature-work/prototype/
+*.lscache
+
+# Prettier settings for VS Code
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# AI
+.codex

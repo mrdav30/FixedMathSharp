@@ -1,16 +1,16 @@
-﻿//=======================================================================
+//=======================================================================
 // Fixed64.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using MemoryPack;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
+using MemoryPack;
 
 namespace FixedMathSharp;
 

@@ -1,6 +1,6 @@
-using FixedMathSharp.Geometry;
 using System;
 using System.Globalization;
+using FixedMathSharp.Geometry;
 using Xunit;
 
 namespace FixedMathSharp.Tests;

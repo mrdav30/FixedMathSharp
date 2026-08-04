@@ -15,19 +15,19 @@ the matching Gravitas query reducers onto those lower-stack contracts.
 **Architecture:** Keep `Signed192` and `Signed320` internal. Existing bound
 methods route through one exact radial-distance comparison; `FixedRay2d` and
 `FixedRay` expose allocation-free bounded interval methods with two `out`
-parameters; `FixedMath` exposes the scalar circle-cross-section radius needed
-by mixed-dimensional geometry. The existing first-hit ray path remains
-independent so callers that do not need an exit root do not pay for one.
+parameters; `FixedMath` exposes the scalar circle-cross-section radius needed by
+mixed-dimensional geometry. The existing first-hit ray path remains independent
+so callers that do not need an exit root do not pay for one.
 
 **Tech Stack:** C# 11, Q32.32 `Fixed64`, internal fixed-width wide arithmetic,
 xUnit v3, BenchmarkDotNet, `netstandard2.1`, and `net8.0`.
 
 ## Global Constraints
 
-- Preserve deterministic nearest-even conversion at the single public
-  `Fixed64` boundary.
-- Perform radius addition, squared-distance comparison, discriminant work,
-  root ordering, and interval clipping before representable narrowing.
+- Preserve deterministic nearest-even conversion at the single public `Fixed64`
+  boundary.
+- Perform radius addition, squared-distance comparison, discriminant work, root
+  ordering, and interval clipping before representable narrowing.
 - Keep hot paths allocation-free and do not expose internal wide-number types.
 - Keep 2D and 3D public contracts behaviorally identical.
 - Treat this as a clean v7 API: remove squared-radius properties that cannot
@@ -59,18 +59,18 @@ public bool TryGetIntersectionInterval(
 
 `FixedRay` mirrors the two overloads for `FixedBoundSphere`.
 
-The result is the exact closed overlap interval clipped to
-`[0, maxParameter]`. Tangency has equal endpoints; a start inside has
-`entry == 0`; an exact zero direction inside returns the whole bounded
-interval; a boundary point moving outward returns `[0, 0]`; negative maximums
-return `false`; negative radius expansion throws. Exact clipping happens before
-nearest-even conversion. A non-empty sub-raw interval may therefore return two
-equal representable endpoints while the Boolean remains authoritative.
+The result is the exact closed overlap interval clipped to `[0, maxParameter]`.
+Tangency has equal endpoints; a start inside has `entry == 0`; an exact zero
+direction inside returns the whole bounded interval; a boundary point moving
+outward returns `[0, 0]`; negative maximums return `false`; negative radius
+expansion throws. Exact clipping happens before nearest-even conversion. A
+non-empty sub-raw interval may therefore return two equal representable
+endpoints while the Boolean remains authoritative.
 
-`FixedRange` was rejected because its existing half-open range semantics do
-not match boundary-inclusive contact. A public generic quadratic solver was
-rejected because callers could saturate coefficients before invoking it and
-because it would expose numeric machinery instead of geometry intent.
+`FixedRange` was rejected because its existing half-open range semantics do not
+match boundary-inclusive contact. A public generic quadratic solver was rejected
+because callers could saturate coefficients before invoking it and because it
+would expose numeric machinery instead of geometry intent.
 
 ## Task 1: Exact Radial Predicates
 
@@ -90,8 +90,8 @@ because it would expose numeric machinery instead of geometry intent.
 - Test: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundArea.Tests.cs`
 - Test: `tests/FixedMathSharp.Tests/Geometry/Bounds/FixedBoundBox.Tests.cs`
 
-- [x] Add failing extreme-domain point, pair, strict-overlap, closest-point,
-      and centered-extent containment regressions in both dimensions.
+- [x] Add failing extreme-domain point, pair, strict-overlap, closest-point, and
+      centered-extent containment regressions in both dimensions.
 - [x] Add internal exact distance-versus-combined-radius and centered-extent
       predicates.
 - [x] Route existing public predicates through them while preserving inclusive,
@@ -129,9 +129,9 @@ reported zero managed allocation for every measured row.
       starts-inside, full containment, tangency, zero direction, exact boundary
       motion, radius-sum overflow, sub-raw intervals, half-even entry/exit
       roots, equivalent scaling, and exact roots just inside/outside the bound.
-- [x] Refactor coefficient/discriminant ownership so the first-root and
-      interval solvers share exact setup without forcing first-hit callers to
-      refine an unused exit.
+- [x] Refactor coefficient/discriminant ownership so the first-root and interval
+      solvers share exact setup without forcing first-hit callers to refine an
+      unused exit.
 - [x] Implement ordered lower- and upper-root correction with exact polynomial
       and derivative evaluation in `Signed320`.
 - [x] Expose the two bounded interval overloads on both public ray types.
@@ -158,9 +158,9 @@ for the corresponding interval rows; every row allocated 0 B.
 - [x] Add failing tests for ordinary `3-4-5`, signed offsets, tangent/outside,
       negative-radius rejection, `100000/60000 -> 80000`, and maximum-raw
       difference-of-squares rounding.
-- [x] Implement `FixedMath.TryGetCircleCrossSectionRadius(radius, offset, out
-      crossSectionRadius)` with a wide difference of squares and exact
-      nearest-even square root.
+- [x] Implement
+      `FixedMath.TryGetCircleCrossSectionRadius(radius, offset, out     crossSectionRadius)`
+      with a wide difference of squares and exact nearest-even square root.
 - [x] Add `TryGetSphereSlabCrossSectionRadius` so opposite-domain sphere/slab
       centers remain exact until the nearest in-slab plane is selected.
 - [x] Document zero-allocation domain and failure behavior.
@@ -178,13 +178,17 @@ overlaps without narrowing center separation or half-thickness projection.
 **Files:**
 
 - Modify: `../Gravitas/src/Gravitas/Queries/3D/RaycastSegmentWorker.cs`
-- Modify: `../Gravitas/src/Gravitas/Queries/Mixed/GravitasQueryMixedService.SphereSlab.cs`
-- Modify: `../Gravitas/src/Gravitas/Queries/Mixed/GravitasQueryMixedService.Support.cs`
-- Modify: `../Gravitas/src/Gravitas/Queries/Mixed/GravitasQueryMixedService.CircleGeometry.cs`
+- Modify:
+  `../Gravitas/src/Gravitas/Queries/Mixed/GravitasQueryMixedService.SphereSlab.cs`
+- Modify:
+  `../Gravitas/src/Gravitas/Queries/Mixed/GravitasQueryMixedService.Support.cs`
+- Modify:
+  `../Gravitas/src/Gravitas/Queries/Mixed/GravitasQueryMixedService.CircleGeometry.cs`
 - Modify: `../Gravitas/docs/feature-work/issue-tracker.md`
 - Test: `../Gravitas/tests/Gravitas.Tests/Queries/RaycastSegmentWorkerTests.cs`
 - Test: `../Gravitas/tests/Gravitas.Tests/MixedDimensions/MixedQueryCcdTests.cs`
-- Benchmark: `../Gravitas/tests/Gravitas.Benchmarks/Queries/RadialRaycastBenchmarks.cs`
+- Benchmark:
+  `../Gravitas/tests/Gravitas.Benchmarks/Queries/RadialRaycastBenchmarks.cs`
 
 - [x] Add ordinary/extreme crossings, a nonzero segment whose square rounds to
       zero, authored-endpoint, intersections-disabled, and mixed-slab parity
@@ -201,25 +205,25 @@ overlaps without narrowing center separation or half-thickness projection.
       query benchmarks.
 
 **Completion summary (2026-07-18):** Gravitas's ambiguous raw sphere-segment
-overload was replaced by explicit `FixedBoundSphere` ownership. It evaluates
-the authored segment on `[0, 1]` and reconstructs authored endpoints from exact
-bounded interval parameters. The
-mixed circle-slab side reducer passes radius expansion separately to the exact
-2D interval primitive with authored-segment admission, and mixed sphere slicing
-uses the exact lower-stack sphere-vs-slab cross-section helper. Direct reducer
-regressions cover rounded side/cap endpoints, opposite-domain vertical
-separation, and the `400000 / 60000 / 100000` extreme crossing without forcing
-broad-phase enumeration across an artificial giant world. Release passed 2,790
-tests and ReleaseLean passed 2,751 tests; focused mixed steady-state allocation
-remained 0 B. Gravitas ShortRun medians were 1.425/1.669 us for sphere segments
-and 3.326/4.217 us for mixed circle slabs at scales 1 and 100,000 respectively,
-all at 0 B. Finite-axis projections and conic quadratics remain explicit active
+overload was replaced by explicit `FixedBoundSphere` ownership. It evaluates the
+authored segment on `[0, 1]` and reconstructs authored endpoints from exact
+bounded interval parameters. The mixed circle-slab side reducer passes radius
+expansion separately to the exact 2D interval primitive with authored-segment
+admission, and mixed sphere slicing uses the exact lower-stack sphere-vs-slab
+cross-section helper. Direct reducer regressions cover rounded side/cap
+endpoints, opposite-domain vertical separation, and the
+`400000 / 60000 / 100000` extreme crossing without forcing broad-phase
+enumeration across an artificial giant world. Release passed 2,790 tests and
+ReleaseLean passed 2,751 tests; focused mixed steady-state allocation remained 0
+B. Gravitas ShortRun medians were 1.425/1.669 us for sphere segments and
+3.326/4.217 us for mixed circle slabs at scales 1 and 100,000 respectively, all
+at 0 B. Finite-axis projections and conic quadratics remain explicit active
 issues.
 
 ## Task 5: Closure
 
-- [x] Update `MIGRATION.md`, complexity exceptions, both issue trackers, and
-      the Gravitas active queue with exact completed/deferred scope.
+- [x] Update `MIGRATION.md`, complexity exceptions, both issue trackers, and the
+      Gravitas active queue with exact completed/deferred scope.
 - [x] Re-achieve 100% FixedMathSharp line/branch/method coverage without
       coverage-only or API-shape tests.
 - [x] Obtain an independent correctness/performance review.

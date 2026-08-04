@@ -5,8 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using FixedMathSharp.Geometry;
-
 namespace FixedMathSharp;
 
 /// <summary>

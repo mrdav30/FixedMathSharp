@@ -1,7 +1,10 @@
 root = true
 
 [*]
+charset = utf-8
 end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
 
 # IDE0130: Namespace does not match folder structure
 dotnet_diagnostic.IDE0130.severity = silent
@@ -12,3 +15,11 @@ dotnet_diagnostic.IDE0251.severity = silent
 # Enable XML documentation warnings only for source code
 [src/**/*.cs]
 dotnet_diagnostic.CS1591.severity = warning
+
+[*.cs]
+indent_style = space
+indent_size = 4
+dotnet_sort_system_directives_first = true
+csharp_style_var_for_built_in_types = true
+csharp_style_var_when_type_is_apparent = true
+dotnet_diagnostic.IDE0005.severity = error

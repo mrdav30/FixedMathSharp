@@ -1,5 +1,5 @@
-﻿using FixedMathSharp.Random;
 using System;
+using FixedMathSharp.Random;
 using Xunit;
 
 namespace FixedMathSharp.Tests;

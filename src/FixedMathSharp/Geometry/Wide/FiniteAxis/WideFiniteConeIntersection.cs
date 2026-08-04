@@ -801,22 +801,22 @@ internal static class WideFiniteConeIntersection
             leftEnd.X, leftStart.X, leftEnd.Y, leftStart.Y, leftEnd.Z, leftStart.Z,
             rightEnd.X, rightStart.X, rightEnd.Y, rightStart.Y, rightEnd.Z, rightStart.Z);
 
-internal static int EvaluateBoundedUnitPolynomialSign(
-        Signed576 coefficient,
-        Signed576 projection,
-        Signed576 constant,
-        Signed192 numerator,
-        Signed192 denominator) =>
-        Evaluate(
-            new ConeData(
-                default,
-                default,
-                default,
-                coefficient,
-                projection,
-                constant),
-            numerator,
-            denominator).Sign;
+    internal static int EvaluateBoundedUnitPolynomialSign(
+            Signed576 coefficient,
+            Signed576 projection,
+            Signed576 constant,
+            Signed192 numerator,
+            Signed192 denominator) =>
+            Evaluate(
+                new ConeData(
+                    default,
+                    default,
+                    default,
+                    coefficient,
+                    projection,
+                    constant),
+                numerator,
+                denominator).Sign;
 
     internal static int EvaluateBoundedUnitPolynomialDerivativeSign(
         Signed576 coefficient,

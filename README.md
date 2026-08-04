@@ -229,8 +229,8 @@ Vector3d transformed = Fixed4x4.TransformPoint(transform, new Vector3d(1, 0, 0))
 - `FixedOrientedBox`: canonical center/orientation/half-extent geometry with
   analytical clipped bounds and exact concrete relation helpers.
 - `FixedPointAnchor`, `FixedPointAnchor2d`: rigid-frame point representations
-  that preserve relative geometry when an intermediate or absolute coordinate
-  is outside the scalar domain.
+  that preserve relative geometry when an intermediate or absolute coordinate is
+  outside the scalar domain.
 - `FixedPlane`, `FixedRay`: geometric primitives for plane classification and 3D
   ray intersections.
 - `FixedSegment2d`, `FixedRay2d`, `FixedTriangle2d`: finite-segment, ray, and

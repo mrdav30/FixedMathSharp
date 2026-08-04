@@ -12,8 +12,8 @@ performance gap.
 **Architecture:** A dedicated BenchmarkDotNet fixture establishes the current
 production baseline and retains a multi-limb control. If the approved evidence
 gate opens, `TryGetSignedRawRatioCore(...)` handles a one-word denominator with
-the existing portable `Divide128By64(...)` and existing signed materializer;
-all other denominators retain the current fixed-limb divider.
+the existing portable `Divide128By64(...)` and existing signed materializer; all
+other denominators retain the current fixed-limb divider.
 
 **Tech Stack:** C# 11, .NET 8 / .NET Standard 2.1, Q32.32 `Fixed64`, internal
 `Signed576` arithmetic, BenchmarkDotNet 0.15.8, xUnit v3, `BigInteger` test
@@ -78,8 +78,8 @@ oracle, Coverlet/ReportGenerator.
   ```
 
   `Positive(high, low)` must return
-  `new Signed576(0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, high, low)`.
-  Mark `MultiWordDenominatorControl` as the BenchmarkDotNet baseline.
+  `new Signed576(0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, high, low)`. Mark
+  `MultiWordDenominatorControl` as the BenchmarkDotNet baseline.
 
 - [x] **Step 2: Build and list the new benchmark**
 
@@ -105,38 +105,39 @@ oracle, Coverlet/ReportGenerator.
 
 - [x] **Step 4: Apply the evidence gate**
 
-  If the affected representable rows are not materially disproportionate to
-  the multi-limb control, skip Tasks 2 and 3, complete Task 4 as a measured
+  If the affected representable rows are not materially disproportionate to the
+  multi-limb control, skip Tasks 2 and 3, complete Task 4 as a measured
   no-change closure, and retain the benchmark. Otherwise document the measured
   bottleneck and proceed.
 
-**Task 1 evidence (2026-08-01):** `dotnet build
-tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release
--f net8.0` completed with 0 warnings and 0 errors. The benchmark catalog lists
+**Task 1 evidence (2026-08-01):**
+`dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0`
+completed with 0 warnings and 0 errors. The benchmark catalog lists
 `wide-raw-ratio`. The required out-of-process Short job completed with artifacts
 at `artifacts/benchmarks/2026-08-01-single-limb-raw-ratio-baseline/` on .NET
 8.0.28 / BenchmarkDotNet 0.15.8 (Intel Core i7-9700K, Windows 11).
 
-| Method | Mean | Error | Median | Ratio | Allocated |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| OneWordNumeratorAndDenominator | 163.20 ns | 9.078 ns | 163.093 ns | 2.30 | 0 B |
-| TwoWordNumeratorAnd32BitDenominator | 279.40 ns | 67.769 ns | 281.244 ns | 3.93 | 0 B |
-| TwoWordNumeratorAnd64BitDenominator | 382.32 ns | 142.754 ns | 382.544 ns | 5.38 | 0 B |
-| UnrepresentableQuotient | 43.28 ns | 12.788 ns | 43.139 ns | 0.61 | 0 B |
-| MultiWordDenominatorControl (baseline) | 71.06 ns | 17.245 ns | 70.653 ns | 1.00 | 0 B |
+| Method                                 |      Mean |      Error |     Median | Ratio | Allocated |
+| -------------------------------------- | --------: | ---------: | ---------: | ----: | --------: |
+| OneWordNumeratorAndDenominator         | 163.20 ns |   9.078 ns | 163.093 ns |  2.30 |       0 B |
+| TwoWordNumeratorAnd32BitDenominator    | 279.40 ns |  67.769 ns | 281.244 ns |  3.93 |       0 B |
+| TwoWordNumeratorAnd64BitDenominator    | 382.32 ns | 142.754 ns | 382.544 ns |  5.38 |       0 B |
+| UnrepresentableQuotient                |  43.28 ns |  12.788 ns |  43.139 ns |  0.61 |       0 B |
+| MultiWordDenominatorControl (baseline) |  71.06 ns |  17.245 ns |  70.653 ns |  1.00 |       0 B |
 
 **Gate:** Open. The three representable one-limb-denominator rows are 2.30x,
 3.93x, and 5.38x the multi-word control with zero managed allocation. This
 materially disproportionate baseline supports the documented shared-divider
-single-limb bottleneck hypothesis; continue with Tasks 2 and 3. The Short
-job's wide error intervals are baseline evidence only and do not satisfy the
-candidate acceptance gate.
+single-limb bottleneck hypothesis; continue with Tasks 2 and 3. The Short job's
+wide error intervals are baseline evidence only and do not satisfy the candidate
+acceptance gate.
 
 ### Task 2: Pin The Complete Single-Limb Contract
 
 **Files:**
 
-- Modify: `tests/FixedMathSharp.Tests/Numerics/Wide/WideFiniteAxisArithmetic.Tests.cs`
+- Modify:
+  `tests/FixedMathSharp.Tests/Numerics/Wide/WideFiniteAxisArithmetic.Tests.cs`
 
 **Interfaces:**
 
@@ -189,12 +190,11 @@ candidate acceptance gate.
 
 **Task 2 evidence (2026-08-01):** Audited the existing Signed576 raw-ratio
 coverage. It already covers zero, zero denominator, sign pairs, `5 / 3`, both
-midpoint parity cases, `long.MinValue`, every magnitude word, and ordinary
-range rejection. Added only the missing below-half, `long.MaxValue`,
+midpoint parity cases, `long.MinValue`, every magnitude word, and ordinary range
+rejection. Added only the missing below-half, `long.MaxValue`,
 `ulong.MaxValue`-denominator, and positive/negative rounding-overflow cases.
-`dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release
---filter "FullyQualifiedName~WideFiniteAxisArithmetic"` passed: 47 passed,
-0 failed, 0 skipped (net8.0; 256 ms).
+`dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter "FullyQualifiedName~WideFiniteAxisArithmetic"`
+passed: 47 passed, 0 failed, 0 skipped (net8.0; 256 ms).
 
 ### Task 3: Specialize The Shared Single-Limb Boundary
 
@@ -264,50 +264,48 @@ range rejection. Added only the missing below-half, `long.MaxValue`,
 
 **Task 3 evidence (2026-08-02):** Added the conditional branch only in
 `TryGetSignedRawRatioCore(...)`, after the existing `quotientBit > 63`
-rejection. It reuses `Divide128By64(...)` and
-`TryCreateRawRatioResult(...)`; the general multi-limb divider is unchanged.
-The final focused Release command passed 49 tests with 0 failures and 0 skips.
-The Release benchmark build completed with 0 warnings and 0 errors. The exact
-out-of-process Short candidate job completed under
+rejection. It reuses `Divide128By64(...)` and `TryCreateRawRatioResult(...)`;
+the general multi-limb divider is unchanged. The final focused Release command
+passed 49 tests with 0 failures and 0 skips. The Release benchmark build
+completed with 0 warnings and 0 errors. The exact out-of-process Short candidate
+job completed under
 `artifacts/benchmarks/2026-08-01-single-limb-raw-ratio-candidate/` on the same
 .NET 8.0.28 / BenchmarkDotNet 0.15.8 / Intel Core i7-9700K / Windows 11
 environment as Task 1. This Short job is diagnostic evidence only; it is not the
 canonical performance claim.
 
-| Method | Baseline median | Candidate median | Delta | Allocated |
-| --- | ---: | ---: | ---: | ---: |
-| OneWordNumeratorAndDenominator | 163.093 ns | 54.314 ns | -66.70% | 0 B |
-| TwoWordNumeratorAnd32BitDenominator | 281.244 ns | 64.888 ns | -76.93% | 0 B |
-| TwoWordNumeratorAnd64BitDenominator | 382.544 ns | 131.618 ns | -65.59% | 0 B |
-| UnrepresentableQuotient | 43.139 ns | 42.282 ns | -1.99% | 0 B |
-| MultiWordDenominatorControl | 70.653 ns | 71.567 ns | +1.29% | 0 B |
+| Method                              | Baseline median | Candidate median |   Delta | Allocated |
+| ----------------------------------- | --------------: | ---------------: | ------: | --------: |
+| OneWordNumeratorAndDenominator      |      163.093 ns |        54.314 ns | -66.70% |       0 B |
+| TwoWordNumeratorAnd32BitDenominator |      281.244 ns |        64.888 ns | -76.93% |       0 B |
+| TwoWordNumeratorAnd64BitDenominator |      382.544 ns |       131.618 ns | -65.59% |       0 B |
+| UnrepresentableQuotient             |       43.139 ns |        42.282 ns |  -1.99% |       0 B |
+| MultiWordDenominatorControl         |       70.653 ns |        71.567 ns |  +1.29% |       0 B |
 
 **Review fix round 1 canonical evidence (2026-08-02):** The canonical comparison
 uses BenchmarkDotNet `DefaultJob`, without `-j Short`, from a temporary detached
 worktree at baseline `28aef445471177ffc499c4ae0c86dad3b217733b` and from the
 final current worktree. The fixture SHA-256 matched in both worktrees:
-`C121ABB6D5AED2FF9716134C8E599AE20696D9977D3DBB29ABB4D521AD082145`.
-Both runners built in Release/net8.0 with 0 warnings and 0 errors, then ran the
-same five-row `wide-raw-ratio --exporters json` alias. Canonical artifacts are
-preserved under
-`artifacts/benchmarks/2026-08-02-single-limb-raw-ratio-canonical-baseline/`
-and
+`C121ABB6D5AED2FF9716134C8E599AE20696D9977D3DBB29ABB4D521AD082145`. Both runners
+built in Release/net8.0 with 0 warnings and 0 errors, then ran the same five-row
+`wide-raw-ratio --exporters json` alias. Canonical artifacts are preserved under
+`artifacts/benchmarks/2026-08-02-single-limb-raw-ratio-canonical-baseline/` and
 `artifacts/benchmarks/2026-08-02-single-limb-raw-ratio-canonical-candidate/`.
 
-| Method | Baseline mean | Candidate mean | Mean delta | Baseline median | Candidate median | Median delta | Error (base -> candidate) | StdDev (base -> candidate) | Allocated |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| OneWordNumeratorAndDenominator | 160.759 ns | 51.770 ns | -67.80% | 160.561 ns | 51.676 ns | -67.82% | 1.290 -> 0.331 ns | 1.077 -> 0.310 ns | 0 B -> 0 B |
-| TwoWordNumeratorAnd32BitDenominator | 279.194 ns | 61.077 ns | -78.12% | 277.527 ns | 60.916 ns | -78.05% | 4.104 -> 0.530 ns | 3.839 -> 0.414 ns | 0 B -> 0 B |
-| TwoWordNumeratorAnd64BitDenominator | 376.112 ns | 131.217 ns | -65.11% | 374.211 ns | 131.199 ns | -64.94% | 4.120 -> 0.284 ns | 3.854 -> 0.222 ns | 0 B -> 0 B |
-| UnrepresentableQuotient | 42.586 ns | 43.207 ns | +1.46% | 42.568 ns | 43.174 ns | +1.43% | 0.206 -> 0.138 ns | 0.172 -> 0.122 ns | 0 B -> 0 B |
-| MultiWordDenominatorControl | 73.190 ns | 72.257 ns | -1.27% | 72.626 ns | 71.670 ns | -1.32% | 1.438 -> 1.112 ns | 1.413 -> 1.041 ns | 0 B -> 0 B |
+| Method                              | Baseline mean | Candidate mean | Mean delta | Baseline median | Candidate median | Median delta | Error (base -> candidate) | StdDev (base -> candidate) |  Allocated |
+| ----------------------------------- | ------------: | -------------: | ---------: | --------------: | ---------------: | -----------: | ------------------------: | -------------------------: | ---------: |
+| OneWordNumeratorAndDenominator      |    160.759 ns |      51.770 ns |    -67.80% |      160.561 ns |        51.676 ns |      -67.82% |         1.290 -> 0.331 ns |          1.077 -> 0.310 ns | 0 B -> 0 B |
+| TwoWordNumeratorAnd32BitDenominator |    279.194 ns |      61.077 ns |    -78.12% |      277.527 ns |        60.916 ns |      -78.05% |         4.104 -> 0.530 ns |          3.839 -> 0.414 ns | 0 B -> 0 B |
+| TwoWordNumeratorAnd64BitDenominator |    376.112 ns |     131.217 ns |    -65.11% |      374.211 ns |       131.199 ns |      -64.94% |         4.120 -> 0.284 ns |          3.854 -> 0.222 ns | 0 B -> 0 B |
+| UnrepresentableQuotient             |     42.586 ns |      43.207 ns |     +1.46% |       42.568 ns |        43.174 ns |       +1.43% |         0.206 -> 0.138 ns |          0.172 -> 0.122 ns | 0 B -> 0 B |
+| MultiWordDenominatorControl         |     73.190 ns |      72.257 ns |     -1.27% |       72.626 ns |        71.670 ns |       -1.32% |         1.438 -> 1.112 ns |          1.413 -> 1.041 ns | 0 B -> 0 B |
 
 **Decision:** Accept and retain the specialization based on the canonical
-default-job evidence. All three affected representable rows improve by more
-than the required 15% on both mean and median and remain allocation-free. The
-multi-limb control improves by 1.27% mean and 1.32% median, safely within the
-5% regression gate. The non-target unrepresentable row regresses by 1.46% mean
-and 1.43% median, with lower absolute error and standard deviation; it is not a
+default-job evidence. All three affected representable rows improve by more than
+the required 15% on both mean and median and remain allocation-free. The
+multi-limb control improves by 1.27% mean and 1.32% median, safely within the 5%
+regression gate. The non-target unrepresentable row regresses by 1.46% mean and
+1.43% median, with lower absolute error and standard deviation; it is not a
 gated affected row. Review round 1 added shared zero-denominator rejection and
 two focused caller-policy regressions; the focused Release suite now passes 49
 tests. The touched shared core has cyclomatic complexity 11 by the register's
@@ -344,15 +342,15 @@ counting policy, so `docs/complexity-exceptions.md` now records it for the Task
   dotnet build src/FixedMathSharp/FixedMathSharp.csproj -c ReleaseLean
   ```
 
-  Require zero failures and zero warnings for both target frameworks and
-  package variants.
+  Require zero failures and zero warnings for both target frameworks and package
+  variants.
 
 - [x] **Step 3: Re-run independent coverage**
 
-  Collect coverage with
-  `tests/FixedMathSharp.Tests/coverlet.runsettings`, generate a ReportGenerator
-  summary, and require 100% reachable line, branch, and method coverage. Remove
-  unreachable branches instead of adding hollow tests.
+  Collect coverage with `tests/FixedMathSharp.Tests/coverlet.runsettings`,
+  generate a ReportGenerator summary, and require 100% reachable line, branch,
+  and method coverage. Remove unreachable branches instead of adding hollow
+  tests.
 
 - [x] **Step 4: Validate the downstream boundary when applicable**
 
@@ -365,34 +363,34 @@ counting policy, so `docs/complexity-exceptions.md` now records it for the Task
 five benchmark rows and every row reports `0 B`. The complete focused
 `WideFiniteAxisArithmetic` Release filter passed 49/49. The four required
 release gates then ran sequentially: Release passed 2,652/2,652 tests,
-ReleaseLean passed 2,631/2,631 tests, and both package builds produced
-`net8.0` and `netstandard2.1` outputs with 0 warnings and 0 errors.
+ReleaseLean passed 2,631/2,631 tests, and both package builds produced `net8.0`
+and `netstandard2.1` outputs with 0 warnings and 0 errors.
 
-The first full main-suite coverage refresh exposed two structurally
-unreachable short-circuit predicates in
-`WideArithmetic.Comparison.cs`: a zero squared-axis branch despite every
-production caller supplying a nonzero squared axis, and a nonpositive common
-denominator branch despite every producer supplying a positive quaternion-norm
-denominator or product. Both zombie predicates were removed instead of adding
-invalid-input coverage tests. The combined normalized-depth and wide-arithmetic
-Release filter then passed 59/59, and all four release gates above were rerun
-successfully from the final source. Fresh coverage passed 2,652/2,652 tests and
-reports 53,003/53,003 lines, 8,768/8,768 branches, and 3,411/3,411 methods.
-`TryGetSignedRawRatioCore(...)` itself reports 100% line and branch coverage.
-The CRAP scripts analyzed 3,407 methods, found 0 below-threshold coverage gaps
-or uncovered methods, and reported 9 score-above-30 methods; all nine remain
-fully covered and registered deterministic complexity exceptions.
+The first full main-suite coverage refresh exposed two structurally unreachable
+short-circuit predicates in `WideArithmetic.Comparison.cs`: a zero squared-axis
+branch despite every production caller supplying a nonzero squared axis, and a
+nonpositive common denominator branch despite every producer supplying a
+positive quaternion-norm denominator or product. Both zombie predicates were
+removed instead of adding invalid-input coverage tests. The combined
+normalized-depth and wide-arithmetic Release filter then passed 59/59, and all
+four release gates above were rerun successfully from the final source. Fresh
+coverage passed 2,652/2,652 tests and reports 53,003/53,003 lines, 8,768/8,768
+branches, and 3,411/3,411 methods. `TryGetSignedRawRatioCore(...)` itself
+reports 100% line and branch coverage. The CRAP scripts analyzed 3,407 methods,
+found 0 below-threshold coverage gaps or uncovered methods, and reported 9
+score-above-30 methods; all nine remain fully covered and registered
+deterministic complexity exceptions.
 
 The unmodified Gravitas local-link graph first failed Release before tests
 because packaged `Chronicler.Core` 0.4.0 and the local 0.0.0 `Chronicler`
 assembly had the same simple name. A no-file-change `-p:SemVer=0.4.0` retry
 retained the existing local project links and passed Release 3,925/3,925.
 ReleaseLean initially exposed a stale global NuGet cache entry for
-`Chronicler.MemoryPackShim` 0.4.0. A fresh isolated `--no-cache --force`
-restore fetched the current 6,656-byte net8.0 shim with the required
-`GenerateType` and `SerializeLayout` constructors; ReleaseLean then passed
-3,870/3,870 through the same local links and fresh package path. Neither
-Gravitas files nor the local-link scaffolding were modified.
+`Chronicler.MemoryPackShim` 0.4.0. A fresh isolated `--no-cache --force` restore
+fetched the current 6,656-byte net8.0 shim with the required `GenerateType` and
+`SerializeLayout` constructors; ReleaseLean then passed 3,870/3,870 through the
+same local links and fresh package path. Neither Gravitas files nor the
+local-link scaffolding were modified.
 
 - [x] **Step 5: Complete independent review**
 
@@ -414,8 +412,7 @@ Important finding was that the accepted performance claim relied on a Short
 diagnostic job. Fix round 1 resolved it with matched BenchmarkDotNet
 `DefaultJob` baseline/candidate artifacts from base `28aef44` and the final
 worktree; follow-up review verified both artifacts, the updated evidence, and
-safe temporary-worktree cleanup, leaving no open Critical or Important
-findings.
+safe temporary-worktree cleanup, leaving no open Critical or Important findings.
 
 The single-limb-denominator entry is now in Closed Signals with canonical
 values, 0 B/op, FixedMathSharp Release 2,652/2,652, ReleaseLean 2,631/2,631,
