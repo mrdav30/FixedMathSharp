@@ -3,11 +3,12 @@
 ![FixedMathSharp Icon](https://raw.githubusercontent.com/mrdav30/fixedmathsharp/main/icon.png)
 
 [![Build](https://github.com/mrdav30/FixedMathSharp/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/mrdav30/FixedMathSharp/actions/workflows/build-and-test.yml)
-[![Branch Coverage](https://mrdav30.github.io/FixedMathSharp/coverage/badge_branchcoverage.svg)](https://mrdav30.github.io/FixedMathSharp/coverage/)
+[![Branch Coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmrdav30.github.io%2FFixedMathSharp%2Fcoverage%2FSummary.json&query=%24.summary.branchcoverage&suffix=%25&label=branch%20coverage&color=brightgreen)](https://mrdav30.github.io/FixedMathSharp/coverage/)
 [![NuGet](https://img.shields.io/nuget/v/FixedMathSharp.svg)](https://www.nuget.org/packages/FixedMathSharp)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/FixedMathSharp.svg)](https://www.nuget.org/packages/FixedMathSharp)
 [![License](https://img.shields.io/github/license/mrdav30/FixedMathSharp.svg)](https://github.com/mrdav30/FixedMathSharp/blob/main/LICENSE)
 [![Frameworks](https://img.shields.io/badge/frameworks-netstandard2.1%20%7C%20net8.0-512BD4.svg)](https://github.com/mrdav30/FixedMathSharp)
+[![Discord](https://img.shields.io/badge/discord-join%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/mhwK2QFNBA)
 
 **Deterministic fixed-point math for .NET simulations, games, tools, and
 procedural systems.**
