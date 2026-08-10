@@ -3,7 +3,7 @@ export default {
     {
       icon: "github",
       title: "FixedMathSharp repository on GitHub",
-      href: "https://github.com/mrdav30/FixedMathSharp",
-    },
-  ],
+      href: "https://github.com/mrdav30/FixedMathSharp"
+    }
+  ]
 }

@@ -2,6 +2,7 @@
 uid: FixedMathSharp
 summary: *content
 ---
+
 FixedMathSharp provides deterministic Q32.32 scalars, vectors, rotations,
 matrices, transforms, curves, ranges, and shared geometry relations for .NET.
 

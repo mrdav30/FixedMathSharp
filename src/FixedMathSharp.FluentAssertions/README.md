@@ -42,8 +42,8 @@ matrix.Should().HaveRotationApproximately(rotation);
 matrix.Should().HaveScaleApproximately(new Vector3d(2, 2, 2));
 ```
 
-Approximate assertions use `Fixed64.Epsilon` when no tolerance is supplied.
-Pass an explicit tolerance when the expected error budget is part of the test.
+Approximate assertions use `Fixed64.Epsilon` when no tolerance is supplied. Pass
+an explicit tolerance when the expected error budget is part of the test.
 
 The package includes assertions for:
 
@@ -52,6 +52,7 @@ The package includes assertions for:
 - `FixedQuaternion`
 - `Fixed3x3` and `Fixed4x4`
 
-See the [main FixedMathSharp repository](https://github.com/mrdav30/FixedMathSharp)
-and [API reference](https://mrdav30.github.io/FixedMathSharp/) for the numeric
+See the
+[main FixedMathSharp repository](https://github.com/mrdav30/FixedMathSharp) and
+[API reference](https://mrdav30.github.io/FixedMathSharp/) for the numeric
 contracts behind these assertions.

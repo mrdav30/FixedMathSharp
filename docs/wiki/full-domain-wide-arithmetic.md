@@ -10,8 +10,8 @@ transforms, and geometry; the wide representation stays internal.
 
 ## Why ordinary operators are sometimes not enough
 
-Every overloaded C# operator finishes before the next operator begins. It
-rounds and, when required by the operator contract, saturates its own result.
+Every overloaded C# operator finishes before the next operator begins. It rounds
+and, when required by the operator contract, saturates its own result.
 
 ```csharp
 Fixed64 value = new Fixed64(65_536);
@@ -25,8 +25,8 @@ bool succeeded = Fixed64.TryMultiplyDivide(
     out Fixed64 fused);
 ```
 
-The multiplication in `chained` saturates before division can cancel the
-growth. The fused call retains the complete ratio: `succeeded` is `true` and
+The multiplication in `chained` saturates before division can cancel the growth.
+The fused call retains the complete ratio: `succeeded` is `true` and
 `fused == value`.
 
 Wide arithmetic also prevents premature rounding. A small product may round to
@@ -35,13 +35,13 @@ representable raw unit.
 
 ## Pick the contract you mean
 
-| API shape | What happens | Use it when... |
-| --- | --- | --- |
-| Ordinary operators | Each operator rounds and saturates independently | Every intermediate is a meaningful public value |
-| Fused value-returning methods | The expression rounds once; only the final result saturates | A saturated final answer is acceptable |
-| `Try*` methods | Report the member's documented query or output failure without returning a partial result | The caller must distinguish success from that failure |
-| Strict constructors/properties | Throw when the required public value cannot be represented | Saturation would misdescribe the value |
-| `*ClippedToDomain` geometry APIs | Clip a conceptual shape only at the public coordinate domain | You explicitly want the representable portion of a shape |
+| API shape                        | What happens                                                                              | Use it when...                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Ordinary operators               | Each operator rounds and saturates independently                                          | Every intermediate is a meaningful public value          |
+| Fused value-returning methods    | The expression rounds once; only the final result saturates                               | A saturated final answer is acceptable                   |
+| `Try*` methods                   | Report the member's documented query or output failure without returning a partial result | The caller must distinguish success from that failure    |
+| Strict constructors/properties   | Throw when the required public value cannot be represented                                | Saturation would misdescribe the value                   |
+| `*ClippedToDomain` geometry APIs | Clip a conceptual shape only at the public coordinate domain                              | You explicitly want the representable portion of a shape |
 
 `Try` does not mean “never throws.” Invalid arguments and violated input
 contracts—such as a required normalized axis or nonnegative radius—may still
@@ -89,20 +89,20 @@ That lets the library:
 - round a final witness once; and
 - build conservative clipped bounds without underestimating the shape.
 
-This helps both extreme coordinates and ordinary near-cancelling expressions.
-It does not increase the range of stored `Fixed64` state.
+This helps both extreme coordinates and ordinary near-cancelling expressions. It
+does not increase the range of stored `Fixed64` state.
 
 ## How the internal layer is bounded
 
 The implementation uses signed fixed-width values composed of 64-bit limbs:
 
-| Internal type | Width | Typical role |
-| --- | ---: | --- |
-| `Signed192` | 192 bits | Endpoint differences, products, and foundational geometry |
-| `Signed320` | 320 bits | Multi-component dot, cross, and determinant expressions |
-| `Signed576` | 576 bits | Finite-axis ratios and roots |
-| `Signed704` | 704 bits | Expanded finite-axis and radical evaluation |
-| `Signed832` | 832 bits | The widest fixed-degree conic comparisons currently required |
+| Internal type |    Width | Typical role                                                 |
+| ------------- | -------: | ------------------------------------------------------------ |
+| `Signed192`   | 192 bits | Endpoint differences, products, and foundational geometry    |
+| `Signed320`   | 320 bits | Multi-component dot, cross, and determinant expressions      |
+| `Signed576`   | 576 bits | Finite-axis ratios and roots                                 |
+| `Signed704`   | 704 bits | Expanded finite-axis and radical evaluation                  |
+| `Signed832`   | 832 bits | The widest fixed-degree conic comparisons currently required |
 
 These are not user-selectable precision modes. Each algorithm uses a width
 proven sufficient for its bounded expression. Fixed-size value types and stack
@@ -116,9 +116,9 @@ still decide whether an operation saturates, clips, throws, or reports failure.
 ## Why Wide stays internal
 
 Keeping the layer internal preserves a small public numeric API and prevents
-limb layouts from becoming serialization contracts. The widths can evolve as
-new bounded expressions are proven without asking users to choose or persist a
-wide number format.
+limb layouts from becoming serialization contracts. The widths can evolve as new
+bounded expressions are proven without asking users to choose or persist a wide
+number format.
 
 Gravitas is the runtime assembly's sole external production friend. It may
 compose policy-neutral arithmetic behind Gravitas-owned physics semantics, but
@@ -128,8 +128,8 @@ Wide types do not belong in Gravitas public APIs or host adapters.
 
 - Use ordinary operators when every intermediate is intentionally a standalone
   `Fixed64` value.
-- Use an existing fused method when the complete expression is the operation
-  you mean.
+- Use an existing fused method when the complete expression is the operation you
+  mean.
 - Prefer a `Try*` form when a documented output failure must be distinct from a
   valid saturated value.
 - Use relative coordinates, chunking, or rebasing when final application state

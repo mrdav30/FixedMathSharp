@@ -37,8 +37,9 @@ Read these in order before making non-trivial changes:
    FluentAssertions packages plus core, Chronicler, and benchmark test projects.
 3. The relevant package under [`src`](src). Core math changes begin under
    [`src/FixedMathSharp`](src/FixedMathSharp).
-4. The matching test file under [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests)
-   or [`tests/FixedMathSharp.Chronicler.Tests`](tests/FixedMathSharp.Chronicler.Tests).
+4. The matching test file under
+   [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests) or
+   [`tests/FixedMathSharp.Chronicler.Tests`](tests/FixedMathSharp.Chronicler.Tests).
 5. [`tests/FixedMathSharp.Benchmarks/README.md`](tests/FixedMathSharp.Benchmarks/README.md)
    before changing measured hot paths or adding benchmark cases.
 6. [`docs/complexity-exceptions.md`](docs/complexity-exceptions.md) before
@@ -65,10 +66,10 @@ claims, serialization layout, or developer workflow changes:
 - [`.github/workflows`](.github/workflows)
 
 Keep `docs/wiki` links repo-friendly with their `.md` extensions. The Wiki sync
-workflow performs the narrow link rewrite required by GitHub Wiki routes.
-Treat `docs/api/index.md`, `docs/api/toc.yml`, DocFX configuration, templates,
-and overwrite files as authored source. Never hand-edit or commit
-`docs/api/obj`; DocFX regenerates that tree.
+workflow performs the narrow link rewrite required by GitHub Wiki routes. Treat
+`docs/api/index.md`, `docs/api/toc.yml`, DocFX configuration, templates, and
+overwrite files as authored source. Never hand-edit or commit `docs/api/obj`;
+DocFX regenerates that tree.
 
 ## Repository Map
 
@@ -305,8 +306,9 @@ GitVersion variables are consumed when present, otherwise version falls back to
 
 ## Testing Patterns To Mirror
 
-- Tests are xUnit v3 under [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests)
-  and [`tests/FixedMathSharp.Chronicler.Tests`](tests/FixedMathSharp.Chronicler.Tests).
+- Tests are xUnit v3 under
+  [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests) and
+  [`tests/FixedMathSharp.Chronicler.Tests`](tests/FixedMathSharp.Chronicler.Tests).
 - Keep one feature area per test file, such as `Vector3d.Tests.cs` or
   `Geometry/Bounds/FixedBoundBox.Tests.cs`.
 - Use helper assertions from

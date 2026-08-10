@@ -1,9 +1,10 @@
 # FixedMathSharp Wiki
 
 Welcome. This wiki explains the choices and behavioral contracts behind
-FixedMathSharp. Use the [API reference](https://mrdav30.github.io/FixedMathSharp/)
-when you need an exact signature; use these pages when you need to understand
-why an API behaves the way it does.
+FixedMathSharp. Use the
+[API reference](https://mrdav30.github.io/FixedMathSharp/) when you need an
+exact signature; use these pages when you need to understand why an API behaves
+the way it does.
 
 ## Start here
 
@@ -26,15 +27,15 @@ For Unity, install from the dedicated
 
 ## Find the right guide
 
-| I want to... | Read... |
-| --- | --- |
-| Install a package and run a first example | [Getting Started](getting-started.md) |
-| Understand Q32.32 range, precision, and conversions | [Fixed64 Representation](fixed64-representation.md) |
-| Understand fused operations and extreme intermediates | [Full-Domain Arithmetic](full-domain-wide-arithmetic.md) |
-| Work with vectors, matrices, quaternions, or engine adapters | [Coordinate Conventions](coordinate-conventions.md) |
-| Choose bounds or geometry APIs | [Bounds and Geometry](bounds-and-geometry.md) |
-| Format values for logs or persist them safely | [Diagnostics Formatting](diagnostics-formatting.md) |
-| See how the pieces fit together | [Technical Overview](Overview.md) |
+| I want to...                                                 | Read...                                                  |
+| ------------------------------------------------------------ | -------------------------------------------------------- |
+| Install a package and run a first example                    | [Getting Started](getting-started.md)                    |
+| Understand Q32.32 range, precision, and conversions          | [Fixed64 Representation](fixed64-representation.md)      |
+| Understand fused operations and extreme intermediates        | [Full-Domain Arithmetic](full-domain-wide-arithmetic.md) |
+| Work with vectors, matrices, quaternions, or engine adapters | [Coordinate Conventions](coordinate-conventions.md)      |
+| Choose bounds or geometry APIs                               | [Bounds and Geometry](bounds-and-geometry.md)            |
+| Format values for logs or persist them safely                | [Diagnostics Formatting](diagnostics-formatting.md)      |
+| See how the pieces fit together                              | [Technical Overview](Overview.md)                        |
 
 ## Project links
 

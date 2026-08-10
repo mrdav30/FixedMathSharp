@@ -13,14 +13,14 @@ API compatibility.
 
 ### Bounds
 
-| Shape | Type | Typical use |
-| --- | --- | --- |
-| 2D axis-aligned area | `FixedBoundArea` | Grids, footprints, planar broad-phase bounds |
-| 2D circle | `FixedBoundCircle` | Radial planar containment and overlap |
-| 3D axis-aligned box | `FixedBoundBox` | Volumes and broad-phase bounds |
-| 3D sphere | `FixedBoundSphere` | Radial volume containment and overlap |
-| 3D oriented box | `FixedOrientedBox` | Rotated box geometry without cached corners |
-| 3D view frustum | `FixedBoundFrustum` | Plane-based frustum classification |
+| Shape                | Type                | Typical use                                  |
+| -------------------- | ------------------- | -------------------------------------------- |
+| 2D axis-aligned area | `FixedBoundArea`    | Grids, footprints, planar broad-phase bounds |
+| 2D circle            | `FixedBoundCircle`  | Radial planar containment and overlap        |
+| 3D axis-aligned box  | `FixedBoundBox`     | Volumes and broad-phase bounds               |
+| 3D sphere            | `FixedBoundSphere`  | Radial volume containment and overlap        |
+| 3D oriented box      | `FixedOrientedBox`  | Rotated box geometry without cached corners  |
+| 3D view frustum      | `FixedBoundFrustum` | Plane-based frustum classification           |
 
 A flat world footprint is a `FixedBoundArea` plus explicit layer, elevation, or
 height state in your application. Use `FixedBoundBox` when the query is truly
@@ -28,11 +28,11 @@ volumetric.
 
 ### Primitives
 
-| Dimension | Types |
-| --- | --- |
-| 2D | `FixedRay2d`, `FixedSegment2d`, `FixedTriangle2d`, `FixedPointAnchor2d` |
-| 3D | `FixedRay`, `FixedPlane`, `FixedSegment`, `FixedTriangle`, `FixedPointAnchor` |
-| Cross-shape helpers | `FixedSlabProjection`, convex relation helpers, contact-anchor values |
+| Dimension           | Types                                                                         |
+| ------------------- | ----------------------------------------------------------------------------- |
+| 2D                  | `FixedRay2d`, `FixedSegment2d`, `FixedTriangle2d`, `FixedPointAnchor2d`       |
+| 3D                  | `FixedRay`, `FixedPlane`, `FixedSegment`, `FixedTriangle`, `FixedPointAnchor` |
+| Cross-shape helpers | `FixedSlabProjection`, convex relation helpers, contact-anchor values         |
 
 Start with the simple bound or primitive that represents your data. Reach for a
 centered-axis, sweep, slab, or anchor API only when materializing intermediate
@@ -134,11 +134,11 @@ if (box.TryMaterializeLocalPoint(localSupport, out Vector3d worldSupport))
 
 `default(FixedOrientedBox)` is invalid. Queries derive an exact rational basis
 from the stored quaternion, so negating every quaternion component does not
-change the represented geometry. Value equality remains structural, however;
-the two stored quaternion signs are different values.
+change the represented geometry. Value equality remains structural, however; the
+two stored quaternion signs are different values.
 
-Support and corner features are center-relative. Materialization returns
-`false` when the final world point is outside the coordinate domain.
+Support and corner features are center-relative. Materialization returns `false`
+when the final world point is outside the coordinate domain.
 
 ## Rays and segments
 
@@ -248,9 +248,9 @@ bool hit = first.TryGetContact(
 ```
 
 The normal points from the first triangle toward the second. Each anchor stays
-in its input rigid frame, so the relation can remain valid even when an
-absolute world witness cannot be materialized. Exact touching is included and
-reports zero depth.
+in its input rigid frame, so the relation can remain valid even when an absolute
+world witness cannot be materialized. Exact touching is included and reports
+zero depth.
 
 ## Anchors and slab projection
 
@@ -269,16 +269,16 @@ physics-response API.
 
 ## Advanced API map
 
-| Task | Start with |
-| --- | --- |
-| Cross-type bound relations | `FixedBoundArea`, `FixedBoundBox`, `FixedBoundCircle`, `FixedBoundSphere` |
-| Oriented-box support and relations | `FixedOrientedBox` |
-| Segment/ray versus capsule, cylinder, or cone | `FixedSegment2d`, `FixedSegment`, `FixedRay2d`, `FixedRay` |
-| Swept sphere versus cylinder or box | `FixedSegment` |
-| Centered shape support, containment, or materialization | `FixedSegment2d`, `FixedSegment` static helpers |
-| Shape support inside a world-Y layer | `FixedSlabProjection` |
-| Triangle contacts or finite-shape relations | `FixedTriangle` |
-| Relative witnesses outside ordinary world-coordinate range | `FixedPointAnchor`, `FixedPointAnchor2d`, contact-anchor types |
+| Task                                                       | Start with                                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Cross-type bound relations                                 | `FixedBoundArea`, `FixedBoundBox`, `FixedBoundCircle`, `FixedBoundSphere` |
+| Oriented-box support and relations                         | `FixedOrientedBox`                                                        |
+| Segment/ray versus capsule, cylinder, or cone              | `FixedSegment2d`, `FixedSegment`, `FixedRay2d`, `FixedRay`                |
+| Swept sphere versus cylinder or box                        | `FixedSegment`                                                            |
+| Centered shape support, containment, or materialization    | `FixedSegment2d`, `FixedSegment` static helpers                           |
+| Shape support inside a world-Y layer                       | `FixedSlabProjection`                                                     |
+| Triangle contacts or finite-shape relations                | `FixedTriangle`                                                           |
+| Relative witnesses outside ordinary world-coordinate range | `FixedPointAnchor`, `FixedPointAnchor2d`, contact-anchor types            |
 
 Browse the
 [`FixedMathSharp.Geometry` API](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.Geometry.html)

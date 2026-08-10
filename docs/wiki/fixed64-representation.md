@@ -5,15 +5,15 @@ fixed-point value in a signed 64-bit raw integer using a Q32.32 layout.
 
 ## At a glance
 
-| Question | Answer |
-| --- | --- |
-| How is a value stored? | One signed 64-bit integer |
-| How many fractional bits? | 32 |
-| Smallest positive step | `1 / 2^32` |
-| Approximate public range | `-2,147,483,648` through just under `2,147,483,648` |
-| Midpoint rule for multiply/divide | Round to the even raw integer |
-| What should normal code use? | Constants, integer constructors, `FromDecimal`, and fixed-point operators |
-| What is `FromRaw` for? | Already-scaled Q32.32 payloads only |
+| Question                          | Answer                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------- |
+| How is a value stored?            | One signed 64-bit integer                                                 |
+| How many fractional bits?         | 32                                                                        |
+| Smallest positive step            | `1 / 2^32`                                                                |
+| Approximate public range          | `-2,147,483,648` through just under `2,147,483,648`                       |
+| Midpoint rule for multiply/divide | Round to the even raw integer                                             |
+| What should normal code use?      | Constants, integer constructors, `FromDecimal`, and fixed-point operators |
+| What is `FromRaw` for?            | Already-scaled Q32.32 payloads only                                       |
 
 ## Q32.32 Layout
 

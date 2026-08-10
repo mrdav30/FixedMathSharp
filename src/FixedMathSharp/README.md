@@ -11,8 +11,8 @@ dotnet add package FixedMathSharp
 ```
 
 Use [`FixedMathSharp.Lean`](https://www.nuget.org/packages/FixedMathSharp.Lean)
-when you want the same math surface without a direct MemoryPack dependency.
-Both packages target .NET Standard 2.1 and .NET 8.
+when you want the same math surface without a direct MemoryPack dependency. Both
+packages target .NET Standard 2.1 and .NET 8.
 
 For Unity projects, use the dedicated
 [FixedMathSharp-Unity packages](https://github.com/mrdav30/FixedMathSharp-Unity).

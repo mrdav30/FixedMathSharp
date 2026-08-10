@@ -22,9 +22,7 @@
         "dest": "assets"
       }
     ],
-    "overwrite": [
-      { "files": ["overrides/*.md"] }
-    ],
+    "overwrite": [{ "files": ["overrides/*.md"] }],
     "output": "obj/_site",
     "template": ["default", "modern", "templates/fixedmathsharp"],
     "globalMetadata": {

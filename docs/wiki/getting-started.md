@@ -11,13 +11,13 @@ Most applications should start here:
 dotnet add package FixedMathSharp
 ```
 
-| If you need... | Choose... |
-| --- | --- |
-| Core math with MemoryPack support | `FixedMathSharp` |
-| Core math without a direct MemoryPack dependency | `FixedMathSharp.Lean` |
-| Deterministic record hashes for replay or conformance checks | `FixedMathSharp.Chronicler` or `.Lean` |
-| FluentAssertions helpers for fixed-point tests | `FixedMathSharp.FluentAssertions` or `.Lean` |
-| Unity packages and Unity-specific interop | [FixedMathSharp-Unity](https://github.com/mrdav30/FixedMathSharp-Unity) |
+| If you need...                                               | Choose...                                                               |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| Core math with MemoryPack support                            | `FixedMathSharp`                                                        |
+| Core math without a direct MemoryPack dependency             | `FixedMathSharp.Lean`                                                   |
+| Deterministic record hashes for replay or conformance checks | `FixedMathSharp.Chronicler` or `.Lean`                                  |
+| FluentAssertions helpers for fixed-point tests               | `FixedMathSharp.FluentAssertions` or `.Lean`                            |
+| Unity packages and Unity-specific interop                    | [FixedMathSharp-Unity](https://github.com/mrdav30/FixedMathSharp-Unity) |
 
 Pair standard companion packages with `FixedMathSharp`, and Lean companion
 packages with `FixedMathSharp.Lean`.
@@ -80,8 +80,9 @@ values, domain limits, or overflow behavior.
 - 4x4 transforms use row vectors, with translation in `M41`, `M42`, and `M43`.
 - Default geometry containment and intersection include boundaries.
 - `Try*` methods report the failure described by that member. Invalid arguments
-  may still throw, so check the [API reference](https://mrdav30.github.io/FixedMathSharp/)
-  for the exact contract.
+  may still throw, so check the
+  [API reference](https://mrdav30.github.io/FixedMathSharp/) for the exact
+  contract.
 - Ordinary operators round or saturate at each operator boundary. Fused and
   full-domain APIs preserve wider intermediates until the final result.
 

@@ -13,9 +13,9 @@ Fixed64 + FixedMath
         +-- bounds and computational geometry
 ```
 
-An internal fixed-width Wide layer supports operations whose intermediate
-values are larger than the final public result. It is an implementation tool,
-not a second public number system.
+An internal fixed-width Wide layer supports operations whose intermediate values
+are larger than the final public result. It is an implementation tool, not a
+second public number system.
 
 ## The scalar foundation
 
@@ -35,15 +35,15 @@ conversion, rounding, and overflow details.
 
 ## Who owns what?
 
-| Area | Main types | Responsibility |
-| --- | --- | --- |
-| Scalar values | `Fixed64` | Q32.32 representation, conversion, parsing, operators |
-| Scalar algorithms | `FixedMath` | Shared deterministic math |
-| Linear algebra | `Vector2d`, `Vector3d`, `Vector4d`, `FixedQuaternion`, `Fixed3x3`, `Fixed4x4` | Vectors, rotations, matrices, and transforms |
-| Transform hierarchy | `FixedTransform` | Engine-neutral local components and derived hierarchy views |
-| Geometry | Bounds, rays, planes, segments, triangles, oriented boxes, anchors | Reusable dimension-explicit geometry |
-| Deterministic utilities | `FixedCurve`, `FixedRange`, `DeterministicRandom` | Interpolation, ranges, and repeatable random streams |
-| Exact intermediates | Internal Wide types | Products, differences, comparisons, roots, and final narrowing |
+| Area                    | Main types                                                                    | Responsibility                                                 |
+| ----------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Scalar values           | `Fixed64`                                                                     | Q32.32 representation, conversion, parsing, operators          |
+| Scalar algorithms       | `FixedMath`                                                                   | Shared deterministic math                                      |
+| Linear algebra          | `Vector2d`, `Vector3d`, `Vector4d`, `FixedQuaternion`, `Fixed3x3`, `Fixed4x4` | Vectors, rotations, matrices, and transforms                   |
+| Transform hierarchy     | `FixedTransform`                                                              | Engine-neutral local components and derived hierarchy views    |
+| Geometry                | Bounds, rays, planes, segments, triangles, oriented boxes, anchors            | Reusable dimension-explicit geometry                           |
+| Deterministic utilities | `FixedCurve`, `FixedRange`, `DeterministicRandom`                             | Interpolation, ranges, and repeatable random streams           |
+| Exact intermediates     | Internal Wide types                                                           | Products, differences, comparisons, roots, and final narrowing |
 
 Factories and convention-heavy operations stay on the owning type. Extension
 classes are curated conveniences that forward to those canonical APIs.
@@ -81,12 +81,12 @@ factories.
 
 ## Packages
 
-| Package family | Purpose |
-| --- | --- |
-| `FixedMathSharp` | Core math with MemoryPack support |
-| `FixedMathSharp.Lean` | Core math without a direct MemoryPack dependency |
-| `FixedMathSharp.Chronicler` / `.Lean` | Deterministic `ChronicleHashWriter` extensions |
-| `FixedMathSharp.FluentAssertions` / `.Lean` | Assertions for fixed-point tests |
+| Package family                              | Purpose                                          |
+| ------------------------------------------- | ------------------------------------------------ |
+| `FixedMathSharp`                            | Core math with MemoryPack support                |
+| `FixedMathSharp.Lean`                       | Core math without a direct MemoryPack dependency |
+| `FixedMathSharp.Chronicler` / `.Lean`       | Deterministic `ChronicleHashWriter` extensions   |
+| `FixedMathSharp.FluentAssertions` / `.Lean` | Assertions for fixed-point tests                 |
 
 Lean builds exclude the `*.MemoryPack.cs` partial files and replace the direct
 MemoryPack dependency with `Chronicler.MemoryPackShim`. The intended public math

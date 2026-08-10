@@ -6,15 +6,15 @@ simulation on one canonical basis.
 
 ## Core convention
 
-| Concept | FixedMathSharp convention |
-| --- | --- |
-| Right | `+X` |
-| Up | `+Y` |
-| Forward | `+Z` |
-| 3D cross orientation | `Right × Up = Forward` |
-| 4x4 transform form | Row vectors: `value * matrix` |
-| 4x4 translation | `M41`, `M42`, `M43` |
-| 2D forward | `Vector2d.Forward == (0, 1)` |
+| Concept              | FixedMathSharp convention     |
+| -------------------- | ----------------------------- |
+| Right                | `+X`                          |
+| Up                   | `+Y`                          |
+| Forward              | `+Z`                          |
+| 3D cross orientation | `Right × Up = Forward`        |
+| 4x4 transform form   | Row vectors: `value * matrix` |
+| 4x4 translation      | `M41`, `M42`, `M43`           |
+| 2D forward           | `Vector2d.Forward == (0, 1)`  |
 
 ```csharp
 Vector3d forward = Vector3d.Cross(Vector3d.Right, Vector3d.Up);
@@ -48,8 +48,8 @@ Vector3d turned = quarterTurn.Rotate(Vector3d.Forward);
 
 ## Matrix composition
 
-Because transforms use row vectors, a child-to-root hierarchy multiplies in
-that same order:
+Because transforms use row vectors, a child-to-root hierarchy multiplies in that
+same order:
 
 ```csharp
 Fixed4x4 world = child.LocalMatrix
@@ -58,8 +58,8 @@ Fixed4x4 world = child.LocalMatrix
 ```
 
 Do not infer multiplication convention from field layout alone. When importing
-another library's matrix, verify its vector side, composition order,
-handedness, translation fields, and clip-space rules.
+another library's matrix, verify its vector side, composition order, handedness,
+translation fields, and clip-space rules.
 
 ## `FixedTransform`
 
@@ -98,8 +98,7 @@ The 2D-to-3D bridge maps `(x, y)` to `(x, 0, y)`. Planar scale maps to
 `(x, 1, y)`. Explicit `*PointXZ` methods retain representable in-plane affine
 shear and reject X/Z-to-Y coupling instead of silently projecting it away.
 
-Use these helpers only when the hierarchy is intended to preserve the X/Z
-plane.
+Use these helpers only when the hierarchy is intended to preserve the X/Z plane.
 
 ## Mapping external direction conventions
 
@@ -115,11 +114,11 @@ Vector3d canonical = external.ToCanonicalDirection(Vector3d.Backward);
 
 Common starting points:
 
-| External semantic basis | Helper |
-| --- | --- |
+| External semantic basis           | Helper             |
+| --------------------------------- | ------------------ |
 | `+X` right, `+Y` up, `+Z` forward | `PositiveZForward` |
 | `+X` right, `+Y` up, `-Z` forward | `NegativeZForward` |
-| `+Y` right, `+Z` up, `+X` forward | `XForwardZUp` |
+| `+Y` right, `+Z` up, `+X` forward | `XForwardZUp`      |
 
 Unity direction naming aligns with `+Z` forward. MonoGame uses `-Z` for
 `Vector3.Forward`. Unreal-style coordinates commonly use `+X` forward and `+Z`
