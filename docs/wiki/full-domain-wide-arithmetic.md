@@ -1,182 +1,142 @@
-# Full-Domain Arithmetic And Wide Intermediates
+# Full-Domain Arithmetic
 
-`Fixed64` deliberately exposes a compact Q32.32 value domain. Complex
-expressions, however, can require more intermediate range than their final
-answer. FixedMathSharp's internal Wide arithmetic layer preserves those
-intermediates so a representable result is not lost to an earlier saturation or
-rounding step.
+`Fixed64` has a deliberately compact Q32.32 range. A complete expression can
+still have a valid `Fixed64` answer even when a product, difference, or squared
+distance in the middle is much larger.
 
-This is a consumer-visible correctness guarantee, not a public arbitrary-
-precision number system. Callers continue to work with `Fixed64`, vectors,
-transforms, and geometry while the library carries the wider representation
-internally.
+FixedMathSharp's internal Wide layer keeps those intermediates exact until the
+public API needs one final result. You continue to work with `Fixed64`, vectors,
+transforms, and geometry; the wide representation stays internal.
 
-## The Intermediate-Saturation Problem
+## Why ordinary operators are sometimes not enough
 
-Every ordinary C# operator completes before the next operator begins. A
-`Fixed64` multiplication therefore rounds and, if necessary, saturates before a
-following division can cancel that growth:
+Every overloaded C# operator finishes before the next operator begins. It
+rounds and, when required by the operator contract, saturates its own result.
 
 ```csharp
 Fixed64 value = new Fixed64(65_536);
 
 Fixed64 chained = (value * value) / value;
+
 bool succeeded = Fixed64.TryMultiplyDivide(
     value,
     value,
     value,
     out Fixed64 fused);
-
-// chained is not value because value * value saturated first.
-// succeeded is true and fused equals value.
 ```
 
-Parentheses make the evaluation order explicit, but they cannot ask the C#
-compiler to fuse independently overloaded operators. Use a fused API when the
-mathematical expression, rather than each intermediate `Fixed64`, is the
-contract.
+The multiplication in `chained` saturates before division can cancel the
+growth. The fused call retains the complete ratio: `succeeded` is `true` and
+`fused == value`.
 
-Premature rounding can be just as significant as saturation. For example, a
-small multiplication can round to zero even though a later division would
-restore a representable raw unit. The Wide layer retains the complete numerator
-and denominator until one final round-half-to-even conversion.
+Wide arithmetic also prevents premature rounding. A small product may round to
+zero as a standalone `Fixed64` even when a later division would restore a
+representable raw unit.
 
-## The Full-Domain Contract
+## Pick the contract you mean
 
-Full-domain operations follow three rules:
+| API shape | What happens | Use it when... |
+| --- | --- | --- |
+| Ordinary operators | Each operator rounds and saturates independently | Every intermediate is a meaningful public value |
+| Fused value-returning methods | The expression rounds once; only the final result saturates | A saturated final answer is acceptable |
+| `Try*` methods | Report the member's documented query or output failure without returning a partial result | The caller must distinguish success from that failure |
+| Strict constructors/properties | Throw when the required public value cannot be represented | Saturation would misdescribe the value |
+| `*ClippedToDomain` geometry APIs | Clip a conceptual shape only at the public coordinate domain | You explicitly want the representable portion of a shape |
 
-1. Input raw values are widened before an unsafe sum, difference, product,
-   ratio, square root, or geometric predicate is evaluated.
-2. Signs, ordering, roots, containment, and candidate selection are decided from
-   exact intermediates rather than saturated public approximations.
-3. A public `Fixed64`, vector, point, distance, or bound is materialized once,
-   using the API's documented final-result policy.
+`Try` does not mean “never throws.” Invalid arguments and violated input
+contracts—such as a required normalized axis or nonnegative radius—may still
+throw. The [API reference](https://mrdav30.github.io/FixedMathSharp/) documents
+the exact failure and exception behavior of each member.
 
-The final mathematical result can still lie outside Q32.32. Wide arithmetic does
-not change the public numeric range; it prevents a temporary value from
-corrupting a result that does fit.
-
-| Public surface                                              | Final behavior                                                                                                          | Use when                                                                |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Ordinary operators                                          | Each operator rounds and saturates independently                                                                        | Every intermediate value is meaningful and expected to fit              |
-| Fused value-returning methods such as `Fixed64.MultiplyAdd` | The combined expression rounds once and only the final result saturates                                                 | A saturated final value is an acceptable contract                       |
-| `Try*` arithmetic, vector, transform, and geometry methods  | Returns `false` atomically when the required final result is not representable or another documented precondition fails | The caller must distinguish success from saturation or invalid input    |
-| Strict constructors and derived properties                  | Throws the documented exception when a required result cannot be represented                                            | Clipping or saturation would misdescribe the value                      |
-| Explicit `*ClippedToDomain` geometry APIs                   | Clips only the final conceptual boundary to the Q32.32 domain                                                           | The desired result is specifically the representable portion of a shape |
-
-## What Consumers Gain
-
-### Fused Scalar And Vector Expressions
-
-`Fixed64.TryAddSubtract`, `TrySubtractSums`, `MultiplyAdd`, `TryMultiplyAdd`,
-and the `TryMultiplyDivide` overloads preserve their complete expression. Vector
-helpers apply matching contracts component by component and fail atomically
-instead of returning a partly valid vector.
+## Fused arithmetic example
 
 ```csharp
-if (!Fixed64.TryMultiplyAdd(
-        Fixed64.MaxValue,
-        Fixed64.Two,
-        -Fixed64.MaxValue,
-        out Fixed64 result))
-{
-    // The final result was not representable.
-}
+bool representable = Fixed64.TryMultiplyAdd(
+    Fixed64.MaxValue,
+    Fixed64.Two,
+    -Fixed64.MaxValue,
+    out Fixed64 result);
 
-// result is Fixed64.MaxValue; the oversized product cancels before narrowing.
+// representable is true.
+// The oversized product cancels before narrowing, so result is MaxValue.
 ```
 
-Magnitude, distance, weighted-average, normalization, and linear-combination
-helpers also avoid feeding saturated squared terms or sums back into later
-decisions.
+Scalar APIs include fused add/subtract and multiply/divide families. Matching
+vector, matrix, transform, and geometry methods apply the same principle to a
+whole operation and fail atomically when a required final output cannot be
+represented.
 
-### Transforms And Rotations
+## What this changes for consumers
 
-Transforming a point can temporarily exceed Q32.32 even when translation or a
-relative frame brings the final coordinate back into range. Vector, quaternion,
-matrix, and `FixedTransform` `TryTransform*` APIs retain the scaled products and
-translation terms until final materialization. The same principle supports
-inverse transforms, composite local points, full-domain quaternion
-normalization, and robust matrix construction and decomposition.
+### Transforms and rotations
 
-### Geometry Across The Scalar Domain
+A transformed point may leave Q32.32 temporarily, then return after translation
+or relative-frame cancellation. Full-domain transform methods keep products and
+translation terms together until final materialization.
 
-Geometry needs exact predicates even when a convenient public measurement would
-saturate. The Wide layer lets bounds, segments, triangles, rays, finite axes,
-cones, slabs, and oriented boxes:
+### Geometry
 
-- compare candidates before converting distances to `Fixed64`;
-- classify sides, containment, separation, and degeneracy from exact signs;
-- retain rational points and rigid-frame anchors until a world point is needed;
-- solve roots and discriminants without narrowing their coefficients early;
-- compute conservative bounds without underestimating an extreme shape; and
-- round a final witness once instead of repeatedly deforming its construction.
+Geometry often needs a reliable comparison more than it needs a materialized
+distance. Wide predicates can compare squared distances, discriminants,
+projections, and candidate features before converting the selected witness to
+`Fixed64`.
 
-The result is not merely support for unusually large worlds. Near-cancelling
-expressions, tiny representable directions, extreme mass ratios, and ordinary
-geometry translated near a domain boundary all benefit from the same contract.
+That lets the library:
 
-## How It Works Internally
+- classify containment, separation, and degeneracy from exact signs;
+- rank candidates before a public distance saturates;
+- retain rational or rigid-frame points until a world point is requested;
+- round a final witness once; and
+- build conservative clipped bounds without underestimating the shape.
 
-The numeric core uses signed, fixed-width two's-complement values composed of
-64-bit limbs:
+This helps both extreme coordinates and ordinary near-cancelling expressions.
+It does not increase the range of stored `Fixed64` state.
 
-| Internal type |    Width | Primary role                                                                   |
-| ------------- | -------: | ------------------------------------------------------------------------------ |
-| `Signed192`   |  3 limbs | Endpoint differences, products, sums, and foundational exact geometry          |
-| `Signed320`   |  5 limbs | Multi-component dot, cross, determinant, and product-difference expressions    |
-| `Signed576`   |  9 limbs | Finite-axis products, ratios, square roots, and higher-order geometry          |
-| `Signed704`   | 11 limbs | Expanded finite-axis and radical evaluations                                   |
-| `Signed832`   | 13 limbs | Conic discriminants and the widest fixed-degree comparisons currently required |
+## How the internal layer is bounded
 
-These widths are not public precision modes. Each owner selects a width proven
-large enough for its bounded expression. `WideArithmetic` centralizes limb
-addition, subtraction, multiplication, magnitude handling, comparisons,
-division, square roots, and final guard/sticky-bit rounding. Focused owners such
-as Wide normalization, weighted-average, transform, and geometry helpers build
-policy-neutral operations on that foundation.
+The implementation uses signed fixed-width values composed of 64-bit limbs:
 
-Fixed-size value types and stack-allocated scratch spans avoid a `BigInteger`
-runtime dependency and are designed to remain allocation-free on simulation hot
-paths. Explicit integer carry, borrow, sign extension, and round-half-to-even
-rules keep results deterministic across the supported .NET targets.
+| Internal type | Width | Typical role |
+| --- | ---: | --- |
+| `Signed192` | 192 bits | Endpoint differences, products, and foundational geometry |
+| `Signed320` | 320 bits | Multi-component dot, cross, and determinant expressions |
+| `Signed576` | 576 bits | Finite-axis ratios and roots |
+| `Signed704` | 704 bits | Expanded finite-axis and radical evaluation |
+| `Signed832` | 832 bits | The widest fixed-degree conic comparisons currently required |
 
-## Why The Wide Types Stay Internal
+These are not user-selectable precision modes. Each algorithm uses a width
+proven sufficient for its bounded expression. Fixed-size value types and stack
+scratch storage avoid a runtime `BigInteger` dependency and keep hot paths
+allocation-light.
 
-The layer solves known bounded expressions; it is not intended to become a
-general-purpose arbitrary-precision API. Keeping it internal:
+The Wide layer owns representation mechanics—carry, borrow, sign extension,
+division, roots, comparison, and round-half-to-even narrowing. Public owners
+still decide whether an operation saturates, clips, throws, or reports failure.
 
-- preserves a small and approachable public numeric surface;
-- lets implementation widths evolve with proven arithmetic requirements;
-- prevents raw limb layouts from becoming serialization or compatibility
-  contracts; and
-- keeps final overflow behavior attached to meaningful public operations.
+## Why Wide stays internal
 
-Gravitas is the runtime assembly's sole intentional non-test friend. It may
-compose policy-neutral Wide arithmetic behind Gravitas-owned contact, mass,
-impulse, friction, and continuous-collision semantics. Wide types must not leak
-through Gravitas public APIs, and changes to internals consumed by Gravitas are
-coordinated release events. This relationship does not extend to other LSF
-libraries or host adapters.
+Keeping the layer internal preserves a small public numeric API and prevents
+limb layouts from becoming serialization contracts. The widths can evolve as
+new bounded expressions are proven without asking users to choose or persist a
+wide number format.
 
-## Practical Guidance
+Gravitas is the runtime assembly's sole external production friend. It may
+compose policy-neutral arithmetic behind Gravitas-owned physics semantics, but
+Wide types do not belong in Gravitas public APIs or host adapters.
+
+## Practical guidance
 
 - Use ordinary operators when every intermediate is intentionally a standalone
-  `Fixed64` result.
-- Use an existing fused method when the complete expression is the operation you
-  mean.
-- Prefer a `Try*` form when an unrepresentable final result must not be confused
-  with a valid saturated value.
+  `Fixed64` value.
+- Use an existing fused method when the complete expression is the operation
+  you mean.
+- Prefer a `Try*` form when a documented output failure must be distinct from a
+  valid saturated value.
 - Use relative coordinates, chunking, or rebasing when final application state
-  itself exceeds Q32.32; wider intermediates do not enlarge stored `Fixed64`
-  values.
-- Do not hand-roll public wide arithmetic or use floating point to approximate
-  an extreme deterministic predicate. Check for an existing full-domain API
-  first.
+  itself exceeds Q32.32.
+- Do not approximate an extreme deterministic predicate with floating point.
+  Check the API for an existing full-domain operation first.
 
-Member-level XML documentation remains the source of truth for individual
-preconditions and final-result behavior. For the Q32.32 representation and
-ordinary operator semantics, see
-[`fixed64-representation.md`](fixed64-representation.md). For the geometry
-contracts built on the Wide layer, see
-[`bounds-and-geometry.md`](bounds-and-geometry.md).
+For ordinary representation and operator behavior, continue with
+[Fixed64 Representation](fixed64-representation.md). For the geometry built on
+these guarantees, see [Bounds and Geometry](bounds-and-geometry.md).

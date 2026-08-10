@@ -1,32 +1,46 @@
 # FixedMathSharp Wiki
 
-FixedMathSharp is an engine-agnostic, deterministic Q32.32 mathematics library
-for simulations, games, procedural generation, replays, and lockstep systems.
+Welcome. This wiki explains the choices and behavioral contracts behind
+FixedMathSharp. Use the [API reference](https://mrdav30.github.io/FixedMathSharp/)
+when you need an exact signature; use these pages when you need to understand
+why an API behaves the way it does.
 
-Use this wiki for design context and behavioral contracts. Use the generated API
-documentation for individual types and members.
+## Start here
 
-## Quick Links
+New to the library? Follow [Getting Started](getting-started.md). The shortest
+path is:
 
-| Destination                                                                       | Use it for                                          |
-| --------------------------------------------------------------------------------- | --------------------------------------------------- |
-| [README](https://github.com/mrdav30/FixedMathSharp/blob/main/README.md)           | Installation, package selection, and first examples |
-| [Documentation Site](https://mrdav30.github.io/FixedMathSharp/)                   | Generated documentation landing page                |
-| [API Reference](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.html) | Public namespaces, types, and members               |
-| [Coverage Report](https://mrdav30.github.io/FixedMathSharp/coverage/)             | Current test coverage details                       |
-| [GitHub Repository](https://github.com/mrdav30/FixedMathSharp)                    | Source, issues, releases, and contribution history  |
+```bash
+dotnet add package FixedMathSharp
+```
 
-## Wiki Navigation
+```csharp
+using FixedMathSharp;
 
-| Page                                                          | Focus                                                                     |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Home                                                          | Concise navigation and project links                                      |
-| [Technical Overview](Overview.md)                             | System shape, API ownership, package variants, and validation strategy    |
-| [Fixed64 Representation](fixed64-representation.md)           | Q32.32 raw layout, range, precision, conversion, and overflow behavior    |
-| [Full-Domain Wide Arithmetic](full-domain-wide-arithmetic.md) | Exact fixed-width intermediates, rounding, and public narrowing contracts |
-| [Coordinate Conventions](coordinate-conventions.md)           | Core `+Z`-forward convention and adapter-boundary mappings                |
-| [Bounds and Geometry](bounds-and-geometry.md)                 | Dimension-explicit shapes, relations, anchors, and boundary semantics     |
-| [Diagnostics Formatting](diagnostics-formatting.md)           | Diagnostic formatting, raw payload text, and the serialization boundary   |
+Fixed64 tick = Fixed64.One / 60;
+Vector3d movement = new Vector3d(6, 0, 2) * tick;
+```
 
-Start with the Technical Overview, then Fixed64 Representation; read Full-Domain
-Wide Arithmetic before fused or `Try*` APIs, then the domain page you need.
+For Unity, install from the dedicated
+[FixedMathSharp-Unity repository](https://github.com/mrdav30/FixedMathSharp-Unity).
+
+## Find the right guide
+
+| I want to... | Read... |
+| --- | --- |
+| Install a package and run a first example | [Getting Started](getting-started.md) |
+| Understand Q32.32 range, precision, and conversions | [Fixed64 Representation](fixed64-representation.md) |
+| Understand fused operations and extreme intermediates | [Full-Domain Arithmetic](full-domain-wide-arithmetic.md) |
+| Work with vectors, matrices, quaternions, or engine adapters | [Coordinate Conventions](coordinate-conventions.md) |
+| Choose bounds or geometry APIs | [Bounds and Geometry](bounds-and-geometry.md) |
+| Format values for logs or persist them safely | [Diagnostics Formatting](diagnostics-formatting.md) |
+| See how the pieces fit together | [Technical Overview](Overview.md) |
+
+## Project links
+
+- [API reference](https://mrdav30.github.io/FixedMathSharp/)
+- [GitHub repository](https://github.com/mrdav30/FixedMathSharp)
+- [NuGet package](https://www.nuget.org/packages/FixedMathSharp)
+- [Core test-suite coverage](https://mrdav30.github.io/FixedMathSharp/coverage/)
+- [Migration guide](https://github.com/mrdav30/FixedMathSharp/blob/main/docs/MIGRATION.md)
+- [Discord community](https://discord.gg/mhwK2QFNBA)

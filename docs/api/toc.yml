@@ -4,7 +4,13 @@ items:
   - name: API Reference
     href: obj/api/
     homepage: obj/api/FixedMathSharp.yml
-  - name: Wiki
-    href: https://github.com/mrdav30/FixedMathSharp/wiki
-  - name: Coverage
-    href: https://mrdav30.github.io/FixedMathSharp/coverage/
+  - name: Resources
+    items:
+      - name: Wiki
+        href: https://github.com/mrdav30/FixedMathSharp/wiki
+      - name: Unity Packages
+        href: https://github.com/mrdav30/FixedMathSharp-Unity
+      - name: Source
+        href: https://github.com/mrdav30/FixedMathSharp
+      - name: Core Test Coverage
+        href: https://mrdav30.github.io/FixedMathSharp/coverage/

@@ -10,7 +10,7 @@ Use formatting when a person needs to read a value:
 
 ```csharp
 Fixed64 speed = Fixed64.FromDouble(12.345);
-string text = speed.ToString("0.00", CultureInfo.InvariantCulture); // "12.35"
+string text = speed.ToString("0.00", CultureInfo.InvariantCulture); // "12.34"
 ```
 
 Use serialization when data needs to roundtrip through storage or transport.
@@ -86,6 +86,6 @@ behavior as `double` for human-readable display. That is convenient and
 compatible with standard format strings, but it is not an exact fixed-point
 decimal serializer.
 
-If exact decimal text ever becomes a runtime requirement, it should be designed
-as a dedicated deterministic integer-based formatter rather than layered onto
-diagnostic formatting.
+There is no dedicated exact decimal-text serialization API. Use raw payload text
+when another FixedMathSharp endpoint owns the format, or use JSON/MemoryPack for
+structured persistence.

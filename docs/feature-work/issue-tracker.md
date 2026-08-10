@@ -27,6 +27,8 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 No active issues.
 
+**Next issue ID:** `FMS-Issue-018`
+
 ## Issue Template
 
 ```markdown
@@ -39,3 +41,6 @@ No active issues.
 - **Impact:** Observable correctness, determinism, usability, or tooling risk
 - **Next action:** The smallest useful investigation or implementation step
 ```
+
+When adding an issue, use the next ID and increment the field above. Never reuse
+an ID that appears in a completed plan or repository history.

@@ -77,7 +77,7 @@
     <None Include="..\..\COPYRIGHT" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\NOTICE" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" Visible="false" />
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="README.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 </Project>

@@ -1,125 +1,120 @@
 # Technical Overview
 
-FixedMathSharp is organized around one premise: deterministic runtime math needs
-an explicit numeric representation and equally explicit behavior at every layer
-built on top of it.
-
-This page maps those layers and their responsibilities. Detailed numeric and
-geometry contracts live on the focused wiki pages linked below; exact public
-signatures live in the
-[API documentation](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.html).
-
-## System Shape
+FixedMathSharp is built in layers. Each layer has one clear job, and all public
+runtime values eventually reduce to the same Q32.32 `Fixed64` representation.
 
 ```text
-Fixed64 and FixedMath
-  -> vectors, rotations, and matrices
-  -> bounds, primitives, curves, ranges, and deterministic random streams
-  -> serialization and companion-package integrations
-
-Internal fixed-width wide arithmetic
-  -> exact intermediates shared by scalar and geometry operations
+Fixed64 + FixedMath
+        |
+        +-- vectors, quaternions, matrices, FixedTransform
+        |
+        +-- curves, ranges, and deterministic random streams
+        |
+        +-- bounds and computational geometry
 ```
 
-The public layers expose representable Q32.32 values. Internal wide mechanics
-allow an operation to retain exact differences, products, sums, comparisons, and
-roots until the contract requires one final public conversion.
+An internal fixed-width Wide layer supports operations whose intermediate
+values are larger than the final public result. It is an implementation tool,
+not a second public number system.
 
-## Scalar Foundation
+## The scalar foundation
 
-`Fixed64` stores a signed Q32.32 value in a 64-bit integer. `FixedMath` owns the
-shared deterministic scalar algorithms used by the rest of the library.
+`Fixed64` owns representation-level behavior:
 
-That ownership split keeps representation and conversion rules on `Fixed64`
-while trigonometry, interpolation, roots, powers, rounding, and related
-algorithms have one canonical implementation in `FixedMath`.
+- Q32.32 storage and raw values
+- constants and conversions
+- parsing and formatting
+- equality, comparison, and operators
 
-Read [Fixed64 Representation](fixed64-representation.md) for the raw layout,
-range, precision, conversions, and guarded overflow behavior.
+`FixedMath` owns shared scalar algorithms such as rounding, interpolation,
+trigonometry, roots, powers, and utility functions. Vector and geometry code use
+those canonical implementations rather than maintaining alternate algorithms.
 
-## API Ownership
+Read [Fixed64 Representation](fixed64-representation.md) for range, resolution,
+conversion, rounding, and overflow details.
 
-| Layer                   | Primary owners                                                                                  | Responsibility                                                                           |
-| ----------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Scalar representation   | `Fixed64`                                                                                       | Q32.32 storage, parsing, formatting, conversions, constants, and operators               |
-| Scalar algorithms       | `FixedMath`                                                                                     | Shared deterministic rounding, interpolation, trigonometry, powers, roots, and utilities |
-| Linear algebra          | `Vector2d`, `Vector3d`, `Vector4d`, `FixedQuaternion`, `Fixed3x3`, `Fixed4x4`, `FixedTransform` | Vectors, rotations, matrices, and transforms without engine dependencies                 |
-| Geometry                | Bounds, rays, planes, segments, triangles, oriented boxes, and anchors                          | Dimension-explicit computational geometry and exact relation results                     |
-| Deterministic utilities | `FixedCurve`, `FixedRange`, `DeterministicRandom`                                               | Repeatable interpolation, ranges, and seeded streams                                     |
-| Wide mechanics          | Internal fixed-width numeric types                                                              | Policy-neutral exact intermediates, comparison, rounding, and narrowing support          |
+## Who owns what?
 
-Factories and convention-heavy operations stay on their owning types. Extension
-classes expose curated receiver-shaped conveniences and forward to canonical
-implementations rather than creating alternate algorithms.
+| Area | Main types | Responsibility |
+| --- | --- | --- |
+| Scalar values | `Fixed64` | Q32.32 representation, conversion, parsing, operators |
+| Scalar algorithms | `FixedMath` | Shared deterministic math |
+| Linear algebra | `Vector2d`, `Vector3d`, `Vector4d`, `FixedQuaternion`, `Fixed3x3`, `Fixed4x4` | Vectors, rotations, matrices, and transforms |
+| Transform hierarchy | `FixedTransform` | Engine-neutral local components and derived hierarchy views |
+| Geometry | Bounds, rays, planes, segments, triangles, oriented boxes, anchors | Reusable dimension-explicit geometry |
+| Deterministic utilities | `FixedCurve`, `FixedRange`, `DeterministicRandom` | Interpolation, ranges, and repeatable random streams |
+| Exact intermediates | Internal Wide types | Products, differences, comparisons, roots, and final narrowing |
 
-Read [Coordinate Conventions](coordinate-conventions.md) before adding an engine
-or host adapter. Read [Bounds and Geometry](bounds-and-geometry.md) for the
-shape model, relation semantics, anchors, and boundary rules.
+Factories and convention-heavy operations stay on the owning type. Extension
+classes are curated conveniences that forward to those canonical APIs.
 
-## Full-Domain Arithmetic
+## What “deterministic” covers
 
-Ordinary public values remain `Fixed64` and fixed-point vectors. Some correct
-operations still require intermediates wider than either the input or output
-type—for example, subtracting opposite domain endpoints or comparing squared
-distances before saturation.
+Avoiding `float` and `double` inside the runtime is only the first step. The
+library also makes these choices explicit and testable:
 
-The internal wide layer owns those representation mechanics. It is not a second
-public number system and does not expose raw wide storage. Public operations
-define when results round, saturate, throw, clip, or report failure.
-
-Read [Full-Domain Wide Arithmetic](full-domain-wide-arithmetic.md) for the
-invariants and narrowing model.
-
-## Determinism Boundaries
-
-Determinism depends on more than avoiding `float` and `double`. FixedMathSharp
-also keeps these behaviors stable and explicit:
-
-- rounding and overflow policy
-- equality, normalization, and tie-breaking
-- collection and result ordering
-- random seeds and stream derivation
-- coordinate and transform conventions
+- midpoint rounding and overflow behavior
+- normalization and equality rules
+- stable tie-breaking and result ordering
+- random seed and stream derivation
+- coordinate and matrix conventions
 - serialization member order and package shape
 
-Diagnostic strings are a separate contract from round-trip representations;
-[Diagnostics Formatting](diagnostics-formatting.md) describes that boundary.
+Diagnostic strings are intentionally separate from round-trip data. See
+[Diagnostics Formatting](diagnostics-formatting.md) before using formatted text
+outside logs, editors, or debugging tools.
 
-## Packages And Serialization
+## Full-domain operations
 
-| Package family                                | Purpose                                                                 |
-| --------------------------------------------- | ----------------------------------------------------------------------- |
-| `FixedMathSharp`                              | Core runtime with MemoryPack serialization support                      |
-| `FixedMathSharp.Lean`                         | The same math API without the direct MemoryPack dependency              |
-| `FixedMathSharp.Chronicler` and `.Lean`       | Deterministic record-hash extensions for replay and conformance tooling |
-| `FixedMathSharp.FluentAssertions` and `.Lean` | Test assertions for fixed-point values and core numeric types           |
+An ordinary overloaded operator finishes before the next operator begins. That
+means an intermediate result can round or saturate even when the complete
+expression would fit.
 
-MemoryPack layout is explicit through ordered serialization metadata. Lean
-builds exclude MemoryPack-specific source while preserving the intended math
-surface. JSON remains useful for human-readable tooling and interoperability
-rather than hot deterministic state transfer.
+FixedMathSharp uses fused methods and internal Wide arithmetic when an operation
+needs to preserve the complete expression through one final conversion. Public
+APIs still return `Fixed64`, vectors, bounds, or explicit success/failure
+results; callers never need to manage wide limbs.
 
-## Validation And Performance
+Read [Full-Domain Arithmetic](full-domain-wide-arithmetic.md) for the difference
+between ordinary operators, fused methods, `Try*` methods, and clipped geometry
+factories.
 
-The xUnit suite protects arithmetic, geometry, serialization, deterministic
-random behavior, and regressions across standard and Lean configurations. CI
-runs supported build variants on Windows and Linux.
+## Packages
 
-BenchmarkDotNet cases provide evidence for hot-path changes. Performance work is
-accepted only when it preserves correctness, determinism, API semantics, and
-serialization compatibility.
+| Package family | Purpose |
+| --- | --- |
+| `FixedMathSharp` | Core math with MemoryPack support |
+| `FixedMathSharp.Lean` | Core math without a direct MemoryPack dependency |
+| `FixedMathSharp.Chronicler` / `.Lean` | Deterministic `ChronicleHashWriter` extensions |
+| `FixedMathSharp.FluentAssertions` / `.Lean` | Assertions for fixed-point tests |
 
-- [Coverage Report](https://mrdav30.github.io/FixedMathSharp/coverage/)
-- [Benchmark Guide](https://github.com/mrdav30/FixedMathSharp/blob/main/tests/FixedMathSharp.Benchmarks/README.md)
-- [API Documentation](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.html)
+Lean builds exclude the `*.MemoryPack.cs` partial files and replace the direct
+MemoryPack dependency with `Chronicler.MemoryPackShim`. The intended public math
+surface remains aligned with the standard package.
 
-## Where To Go Next
+Engine integration is intentionally separate. Unity users should use
+[FixedMathSharp-Unity](https://github.com/mrdav30/FixedMathSharp-Unity). Other
+adapters should convert their host conventions at the boundary rather than
+changing the core package.
 
-- Start with [Fixed64 Representation](fixed64-representation.md) for numeric
-  behavior.
-- Use [Full-Domain Wide Arithmetic](full-domain-wide-arithmetic.md) when an
-  algorithm crosses ordinary intermediate range.
-- Use [Coordinate Conventions](coordinate-conventions.md) at adapter boundaries.
-- Use [Bounds and Geometry](bounds-and-geometry.md) for spatial contracts.
-- Use [Diagnostics Formatting](diagnostics-formatting.md) for diagnostic text,
-  raw payload text, and serialization boundaries.
+## Validation and performance
+
+The solution contains core, Chronicler, and FluentAssertions packages; core and
+Chronicler xUnit projects; and a BenchmarkDotNet project. CI builds and tests
+the complete solution in `Release` and `ReleaseLean` on Windows and Linux.
+
+The published coverage report currently measures the core test project. The
+benchmark suite is evidence for hot-path changes, not a substitute for
+correctness tests.
+
+- [Core test-suite coverage](https://mrdav30.github.io/FixedMathSharp/coverage/)
+- [Benchmark guide](https://github.com/mrdav30/FixedMathSharp/blob/main/tests/FixedMathSharp.Benchmarks/README.md)
+- [API reference](https://mrdav30.github.io/FixedMathSharp/)
+
+## Continue reading
+
+- [Coordinate Conventions](coordinate-conventions.md) for vectors, matrices,
+  transforms, and adapters
+- [Bounds and Geometry](bounds-and-geometry.md) for shape selection and query
+  semantics
+- [Getting Started](getting-started.md) for package setup and source builds

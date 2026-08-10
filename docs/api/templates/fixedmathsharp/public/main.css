@@ -1,0 +1,107 @@
+:root {
+  --fms-orange: #f4511e;
+  --fms-orange-rgb: 244, 81, 30;
+}
+
+body {
+  --bs-primary-rgb: var(--fms-orange-rgb);
+  --bs-link-color-rgb: 208, 61, 18;
+  --bs-link-hover-color-rgb: 244, 81, 30;
+}
+
+[data-bs-theme="dark"] body {
+  --bs-link-color-rgb: 255, 132, 94;
+  --bs-link-hover-color-rgb: 255, 165, 137;
+}
+
+#logo {
+  width: 2rem;
+  height: 2rem;
+  margin-inline-end: 0.5rem;
+  object-fit: contain;
+}
+
+.fms-hero {
+  margin-block: 1rem 2.5rem;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid rgba(var(--fms-orange-rgb), 0.35);
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(var(--fms-orange-rgb), 0.18), transparent 40%),
+    var(--bs-tertiary-bg);
+}
+
+.fms-hero h1 {
+  max-width: 16ch;
+  margin-block: 0.2rem 0.75rem;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.05;
+}
+
+.fms-hero > p:not(.fms-kicker) {
+  max-width: 62ch;
+  font-size: 1.08rem;
+}
+
+.fms-kicker {
+  margin: 0;
+  color: rgb(var(--fms-orange-rgb));
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.fms-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.fms-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.4rem;
+  color: var(--bs-body-color);
+  font-weight: 600;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.fms-actions a:first-child {
+  border-color: rgb(var(--fms-orange-rgb));
+  background: rgb(var(--fms-orange-rgb));
+  color: #fff;
+}
+
+.fms-actions a:hover,
+.fms-actions a:focus-visible {
+  border-color: rgb(var(--fms-orange-rgb));
+  box-shadow: 0 0 0 0.2rem rgba(var(--fms-orange-rgb), 0.2);
+}
+
+.fms-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 1rem;
+  margin-block: 1rem 2.5rem;
+}
+
+.fms-card {
+  padding: 1.25rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.75rem;
+  background: var(--bs-body-bg);
+}
+
+.fms-card h3 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.fms-card p {
+  margin-bottom: 0;
+}

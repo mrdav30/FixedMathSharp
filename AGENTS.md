@@ -32,13 +32,13 @@ Priorities:
 Read these in order before making non-trivial changes:
 
 1. [`README.md`](README.md) for package orientation and supported packages.
-2. [`src/FixedMathSharp/FixedMathSharp.csproj`](src/FixedMathSharp/FixedMathSharp.csproj),
-   [`tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj`](tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj),
-   and
-   [`tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj`](tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj).
-3. The relevant source area under [`src/FixedMathSharp`](src/FixedMathSharp).
-4. The matching test file under
-   [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests).
+2. [`FixedMathSharp.slnx`](FixedMathSharp.slnx) and the project files for the
+   area being changed. The solution includes the core, Chronicler, and
+   FluentAssertions packages plus core, Chronicler, and benchmark test projects.
+3. The relevant package under [`src`](src). Core math changes begin under
+   [`src/FixedMathSharp`](src/FixedMathSharp).
+4. The matching test file under [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests)
+   or [`tests/FixedMathSharp.Chronicler.Tests`](tests/FixedMathSharp.Chronicler.Tests).
 5. [`tests/FixedMathSharp.Benchmarks/README.md`](tests/FixedMathSharp.Benchmarks/README.md)
    before changing measured hot paths or adding benchmark cases.
 6. [`docs/complexity-exceptions.md`](docs/complexity-exceptions.md) before
@@ -60,11 +60,15 @@ claims, serialization layout, or developer workflow changes:
 - [`docs`](docs), with [`docs/wiki`](docs/wiki) as the source content for the
   GitHub Wiki
 - [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests)
+- [`tests/FixedMathSharp.Chronicler.Tests`](tests/FixedMathSharp.Chronicler.Tests)
 - [`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks)
 - [`.github/workflows`](.github/workflows)
 
 Keep `docs/wiki` links repo-friendly with their `.md` extensions. The Wiki sync
 workflow performs the narrow link rewrite required by GitHub Wiki routes.
+Treat `docs/api/index.md`, `docs/api/toc.yml`, DocFX configuration, templates,
+and overwrite files as authored source. Never hand-edit or commit
+`docs/api/obj`; DocFX regenerates that tree.
 
 ## Repository Map
 
@@ -79,7 +83,9 @@ workflow performs the narrow link rewrite required by GitHub Wiki routes.
 | [`src/FixedMathSharp/Numerics/Wide`](src/FixedMathSharp/Numerics/Wide)           | Internal fixed-width arithmetic and normalization         | Own representation mechanics shared by exact numeric and geometry operations.                                                                                                                                                                     |
 | [`src/FixedMathSharp/Geometry`](src/FixedMathSharp/Geometry)                     | Bounds and primitive geometry                             | Public anchors and bounds live in `Anchors` and `Bounds`; rays, relations, segments, and triangles are grouped under `Primitives`; exact internal algorithms are grouped under `Wide` by common, convex, finite-axis, and oriented-box ownership. |
 | [`src/FixedMathSharp.FluentAssertions`](src/FixedMathSharp.FluentAssertions)     | Test assertion helpers package                            | Keep helpers aligned with core API semantics.                                                                                                                                                                                                     |
+| [`src/FixedMathSharp.Chronicler`](src/FixedMathSharp.Chronicler)                 | Chronicler record-hash extensions                         | Field order is a replay/hash compatibility contract.                                                                                                                                                                                              |
 | [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests)                       | xUnit v3 test project                                     | Add focused deterministic, edge-case, serialization, and regression coverage.                                                                                                                                                                     |
+| [`tests/FixedMathSharp.Chronicler.Tests`](tests/FixedMathSharp.Chronicler.Tests) | Chronicler extension tests                                | Keep standard and Lean package graphs aligned and verify explicit hash ordering.                                                                                                                                                                  |
 | [`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks)             | BenchmarkDotNet project                                   | Experimental performance lab and showcase for hot-path wins.                                                                                                                                                                                      |
 | [`docs/feature-work`](docs/feature-work)                                         | Active and completed implementation plans                 | Use for multi-step design and optimization efforts.                                                                                                                                                                                               |
 | [`docs/wiki`](docs/wiki)                                                         | Deeper package documentation                              | Add focused pages when README would become crowded.                                                                                                                                                                                               |
@@ -143,7 +149,9 @@ For hot-path changes:
 - Do not accept a faster result that weakens determinism, public semantics, or
   serialization compatibility.
 
-Benchmark workflow:
+Canonical benchmark workflow and evidence rules live in
+[`tests/FixedMathSharp.Benchmarks/README.md`](tests/FixedMathSharp.Benchmarks/README.md).
+The required build and smoke-check shape is:
 
 ```bash
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0
@@ -257,11 +265,11 @@ Serialization compatibility is intentional.
 
 ## Build, Test, And Coverage Workflows
 
-Solution: [`FixedMathSharp.slnx`](FixedMathSharp.slnx), with the core library,
-FluentAssertions package, test project, and benchmark project. `global.json`
-selects the .NET 10 SDK for `.slnx` tooling consistency. Install the .NET 8
-runtime as well to execute the `net8.0` tests and benchmarks; the runtime
-packages target `netstandard2.1` and `net8.0`.
+Solution: [`FixedMathSharp.slnx`](FixedMathSharp.slnx), with core, Chronicler,
+and FluentAssertions packages plus core, Chronicler, and benchmark test
+projects. `global.json` selects the .NET 10 SDK for `.slnx` tooling consistency.
+Install the .NET 8 runtime as well to execute the `net8.0` tests and benchmarks;
+the runtime packages target `netstandard2.1` and `net8.0`.
 
 Typical local workflow:
 
@@ -274,12 +282,16 @@ dotnet test FixedMathSharp.slnx --configuration Debug
 Release validation:
 
 ```bash
+dotnet restore FixedMathSharp.slnx --property:Configuration=Release
 dotnet test FixedMathSharp.slnx --configuration Release --no-restore
+dotnet restore FixedMathSharp.slnx --property:Configuration=ReleaseLean
 dotnet test FixedMathSharp.slnx --configuration ReleaseLean --no-restore
 ```
 
-Coverage uses `tests/FixedMathSharp.Tests/coverlet.runsettings`. CI runs Release
-and ReleaseLean on Linux and Windows through
+Coverage uses `tests/FixedMathSharp.Tests/coverlet.runsettings` and currently
+runs only the core test project; it does not include the separate Chronicler
+test project. CI runs the complete solution in Release and ReleaseLean on Linux
+and Windows through
 [`.github/workflows/build-and-test.yml`](.github/workflows/build-and-test.yml).
 After a successful `main` push, the coverage workflow publishes the DocFX API
 site and coverage report as one GitHub Pages artifact, while `sync-wiki.yml`
@@ -293,8 +305,8 @@ GitVersion variables are consumed when present, otherwise version falls back to
 
 ## Testing Patterns To Mirror
 
-- Tests are xUnit v3 under
-  [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests).
+- Tests are xUnit v3 under [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests)
+  and [`tests/FixedMathSharp.Chronicler.Tests`](tests/FixedMathSharp.Chronicler.Tests).
 - Keep one feature area per test file, such as `Vector3d.Tests.cs` or
   `Geometry/Bounds/FixedBoundBox.Tests.cs`.
 - Use helper assertions from

@@ -3,6 +3,18 @@
 `Fixed64` is the scalar foundation of FixedMathSharp. It stores a deterministic
 fixed-point value in a signed 64-bit raw integer using a Q32.32 layout.
 
+## At a glance
+
+| Question | Answer |
+| --- | --- |
+| How is a value stored? | One signed 64-bit integer |
+| How many fractional bits? | 32 |
+| Smallest positive step | `1 / 2^32` |
+| Approximate public range | `-2,147,483,648` through just under `2,147,483,648` |
+| Midpoint rule for multiply/divide | Round to the even raw integer |
+| What should normal code use? | Constants, integer constructors, `FromDecimal`, and fixed-point operators |
+| What is `FromRaw` for? | Already-scaled Q32.32 payloads only |
+
 ## Q32.32 Layout
 
 The library-wide shift amount is fixed at 32 bits:
@@ -168,14 +180,18 @@ curve-key `FromDouble` factories also operate in normal value space. They reject
 This keeps engine or tooling boundary input mistakes visible instead of silently
 manufacturing raw fixed-point payloads.
 
+`Fixed64.FromFraction(double, double)` is a convenience conversion through
+`double`. For runtime ratios whose inputs are already deterministic integers or
+fixed-point values, prefer fixed-point division such as `Fixed64.One / 60`.
+
 APIs that can reasonably stay in fixed-point space should do so. For example,
 range checks use `FixedRange.InRange(Fixed64, bool)`, and deterministic random
 generation exposes `Fixed64` helpers instead of a `double` stream.
 
 - Use `Fixed64.FromRaw(long)` only when you intentionally want an exact raw
   representation.
-- Use constructors, constants, and helpers such as `Fixed64.One`,
-  `Fixed64.FromFraction`, and `FixedMath` methods for normal value-space code.
+- Use integer constructors, constants such as `Fixed64.One`, `FromDecimal`, and
+  `FixedMath` methods for normal value-space code.
 - Keep deterministic simulation state in fixed-point values, but convert to
   `float` or `double` at rendering and engine interop boundaries when needed.
 - Treat overflow behavior as part of the numeric contract; avoid relying on

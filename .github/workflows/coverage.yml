@@ -68,6 +68,9 @@ jobs:
           dotnet tool run docfx docs/api/docfx.json
           test -f docs/api/obj/_site/index.html
           test -f docs/api/obj/_site/api/FixedMathSharp.html
+          test -f docs/api/obj/_site/assets/icon_128x128.png
+          grep -q "github.com/mrdav30/FixedMathSharp" docs/api/obj/_site/public/main.js
+          grep -q "FixedMathSharp-Unity" docs/api/obj/_site/api/FixedMathSharp.html
 
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
