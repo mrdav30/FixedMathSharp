@@ -52,6 +52,53 @@ internal static partial class WidePlanarProjection
 
     #endregion
 
+    internal static bool AreSegmentEndpointDistancesAtLeast(
+        FixedSegment2d first,
+        FixedSegment2d second,
+        Fixed64 minimumDistance)
+    {
+        Signed192 denominator = Signed192.Signed(1L);
+        RationalPoint firstStart = GetRawPoint(first.Start);
+        RationalPoint firstEnd = GetRawPoint(first.End);
+        RationalPoint secondStart = GetRawPoint(second.Start);
+        RationalPoint secondEnd = GetRawPoint(second.End);
+        Signed192 minimumRaw = Signed192.Raw(minimumDistance);
+
+        return CompareDistanceToRaw(
+                GetSegmentDistance(
+                    first.Start,
+                    denominator,
+                    secondStart,
+                    secondEnd),
+                minimumRaw) >= 0
+            && CompareDistanceToRaw(
+                GetSegmentDistance(
+                    first.End,
+                    denominator,
+                    secondStart,
+                    secondEnd),
+                minimumRaw) >= 0
+            && CompareDistanceToRaw(
+                GetSegmentDistance(
+                    second.Start,
+                    denominator,
+                    firstStart,
+                    firstEnd),
+                minimumRaw) >= 0
+            && CompareDistanceToRaw(
+                GetSegmentDistance(
+                    second.End,
+                    denominator,
+                    firstStart,
+                    firstEnd),
+                minimumRaw) >= 0;
+    }
+
+    private static RationalPoint GetRawPoint(Vector2d point) =>
+        new(
+            Signed320.ExtendValue(Signed192.Raw(point.X)),
+            Signed320.ExtendValue(Signed192.Raw(point.Y)));
+
     internal static bool TryGetSphereRelation(
         Vector2d circleCenter,
         Fixed64 circleRadius,

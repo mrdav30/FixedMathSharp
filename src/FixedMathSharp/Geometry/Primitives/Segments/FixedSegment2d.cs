@@ -121,6 +121,34 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     }
 
     /// <summary>
+    /// Determines whether the exact minimum distance to another finite segment
+    /// is at least the supplied threshold.
+    /// </summary>
+    /// <remarks>
+    /// The comparison uses wide rational distances and does not materialize a
+    /// rounded closest point or square root. Equality is accepted.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="minimumDistance"/> is negative.
+    /// </exception>
+    public readonly bool IsDistanceAtLeast(
+        FixedSegment2d other,
+        Fixed64 minimumDistance)
+    {
+        if (minimumDistance < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(minimumDistance));
+        if (minimumDistance == Fixed64.Zero)
+            return true;
+        if (TryGetUniqueIntersection(other, out _, out _))
+            return false;
+
+        return WidePlanarProjection.AreSegmentEndpointDistancesAtLeast(
+            this,
+            other,
+            minimumDistance);
+    }
+
+    /// <summary>
     /// Finds the closed parameter interval where this segment intersects a capsule.
     /// </summary>
     /// <remarks>
