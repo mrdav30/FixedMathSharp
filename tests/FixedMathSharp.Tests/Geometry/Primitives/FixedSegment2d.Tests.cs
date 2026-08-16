@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using System.Text.Json;
 using FixedMathSharp.Geometry;
@@ -8,6 +9,57 @@ namespace FixedMathSharp.Tests.Bounds;
 
 public class FixedSegment2dTests
 {
+    [Fact]
+    public void UniqueIntersectionEnclosure_ContainsNonrepresentableCrossingAndClampsEndpoints()
+    {
+        var horizontal = new FixedSegment2d(new Vector2d(0, 0), new Vector2d(3, 0));
+        var interior = new FixedSegment2d(new Vector2d(1, -1), new Vector2d(1, 1));
+        Assert.True(horizontal.TryGetUniqueIntersection(interior, out Fixed64 nearest));
+
+        Assert.True(horizontal.TryGetUniqueIntersectionParameterEnclosure(
+            interior,
+            out Fixed64 enclosedNearest,
+            out Fixed64 lower,
+            out Fixed64 upper));
+        Assert.Equal(nearest, enclosedNearest);
+        Assert.Equal(Fixed64.FromRaw(nearest.m_rawValue - 1L), lower);
+        Assert.Equal(Fixed64.FromRaw(nearest.m_rawValue + 1L), upper);
+        Assert.True(lower.m_rawValue * 3L <= Fixed64.One.m_rawValue);
+        Assert.True(upper.m_rawValue * 3L >= Fixed64.One.m_rawValue);
+
+        var endpoint = new FixedSegment2d(new Vector2d(0, -1), new Vector2d(0, 1));
+        Assert.True(horizontal.TryGetUniqueIntersectionParameterEnclosure(
+            endpoint,
+            out enclosedNearest,
+            out lower,
+            out upper));
+        Assert.Equal(Fixed64.Zero, enclosedNearest);
+        Assert.Equal(Fixed64.Zero, lower);
+        Assert.Equal(Fixed64.MinIncrement, upper);
+
+        var disjoint = new FixedSegment2d(new Vector2d(4, -1), new Vector2d(4, 1));
+        Assert.False(horizontal.TryGetUniqueIntersectionParameterEnclosure(
+            disjoint,
+            out _,
+            out _,
+            out _));
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        bool intersects = false;
+        for (int i = 0; i < 256; i++)
+        {
+            intersects = horizontal.TryGetUniqueIntersectionParameterEnclosure(
+                interior,
+                out _,
+                out _,
+                out _);
+        }
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(intersects);
+        Assert.Equal(0, allocated);
+    }
+
     [Fact]
     public void Constructor_AssignsEndpointsAndDerivedValues()
     {

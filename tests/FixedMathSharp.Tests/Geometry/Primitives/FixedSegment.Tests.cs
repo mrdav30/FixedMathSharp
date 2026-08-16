@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using System.Text.Json;
 using FixedMathSharp.Geometry;
@@ -8,6 +9,51 @@ namespace FixedMathSharp.Tests.Bounds;
 
 public class FixedSegmentTests
 {
+    [Fact]
+    public void Contains_UsesExactFiniteCollinearityInsteadOfRoundedProjection()
+    {
+        const long scale = 65_536L;
+        var segment = new FixedSegment(
+            Vector3d.Zero,
+            new Vector3d(
+                Fixed64.FromRaw(3L * scale),
+                Fixed64.FromRaw(2L * scale),
+                Fixed64.Zero));
+        var exactInterior = new Vector3d(
+            Fixed64.FromRaw(3L * scale / 2L),
+            Fixed64.FromRaw(scale),
+            Fixed64.Zero);
+
+        Assert.True(segment.Contains(segment.Start));
+        Assert.True(segment.Contains(exactInterior));
+        Assert.True(segment.Contains(segment.End));
+        Assert.False(segment.Contains(new Vector3d(
+            Fixed64.FromRaw(1L),
+            Fixed64.Zero,
+            Fixed64.Zero)));
+        Assert.False(segment.Contains(new Vector3d(
+            Fixed64.FromRaw(1L),
+            Fixed64.FromRaw(1L),
+            Fixed64.Zero)));
+        Assert.False(segment.Contains(new Vector3d(
+            Fixed64.FromRaw(3L * scale + 3L),
+            Fixed64.FromRaw(2L * scale + 2L),
+            Fixed64.Zero)));
+
+        var point = new FixedSegment(exactInterior, exactInterior);
+        Assert.True(point.Contains(exactInterior));
+        Assert.False(point.Contains(segment.Start));
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        bool contains = false;
+        for (int i = 0; i < 256; i++)
+            contains = segment.Contains(exactInterior);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(contains);
+        Assert.Equal(0, allocated);
+    }
+
     [Fact]
     public void Constructor_AssignsEndpointsAndDerivedValues()
     {

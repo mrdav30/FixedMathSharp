@@ -122,6 +122,19 @@ public partial struct FixedSegment : IEquatable<FixedSegment>
     public Vector3d ClosestPoint(Vector3d point) => Vector3d.ClosestPointOnLineSegment(point, Start, End);
 
     /// <summary>
+    /// Determines whether the supplied point lies exactly on this finite segment.
+    /// </summary>
+    /// <remarks>
+    /// Collinearity and finite bounds use the complete fixed-point raw domain and
+    /// do not compare a rounded closest-point projection.
+    /// </remarks>
+    public readonly bool Contains(Vector3d point)
+    {
+        Signed192 lengthSquared = GetDifferenceDot(End, Start, End, Start);
+        return PointOnSegment(point, this, lengthSquared);
+    }
+
+    /// <summary>
     /// Computes the squared distance from the supplied point to this finite segment.
     /// </summary>
     /// <remarks>

@@ -399,6 +399,37 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     }
 
     /// <summary>
+    /// Attempts to enclose the unique intersection parameter on this segment.
+    /// </summary>
+    /// <remarks>
+    /// The exact rational intersection is enclosed by expanding the nearest
+    /// representable parameter by one raw unit and clamping to [0, 1]. Collinear
+    /// positive-length overlaps retain the unique-intersection failure behavior.
+    /// </remarks>
+    public readonly bool TryGetUniqueIntersectionParameterEnclosure(
+        FixedSegment2d other,
+        out Fixed64 nearestParameter,
+        out Fixed64 lowerParameter,
+        out Fixed64 upperParameter)
+    {
+        if (!TryGetUniqueIntersection(other, out nearestParameter))
+        {
+            nearestParameter = default;
+            lowerParameter = default;
+            upperParameter = default;
+            return false;
+        }
+
+        lowerParameter = nearestParameter > Fixed64.Zero
+            ? Fixed64.FromRaw(nearestParameter.m_rawValue - 1L)
+            : Fixed64.Zero;
+        upperParameter = nearestParameter < Fixed64.One
+            ? Fixed64.FromRaw(nearestParameter.m_rawValue + 1L)
+            : Fixed64.One;
+        return true;
+    }
+
+    /// <summary>
     /// Returns the closest finite points on this segment and another segment.
     /// </summary>
     /// <remarks>
