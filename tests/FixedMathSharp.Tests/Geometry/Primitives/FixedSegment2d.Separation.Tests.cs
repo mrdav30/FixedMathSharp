@@ -13,6 +13,59 @@ namespace FixedMathSharp.Tests;
 
 public sealed class FixedSegment2dSeparationTests
 {
+    [Fact]
+    public void TryGetCapsuleIntersectionParameterEnclosure_RoundsBothBoundsOutward()
+    {
+        FixedSegment2d query = new(
+            Vector2d.Zero,
+            new Vector2d(new Fixed64(3), Fixed64.Zero));
+        FixedSegment2d capsuleAxis = new(
+            new Vector2d(new Fixed64(3) / new Fixed64(2), Fixed64.Zero),
+            new Vector2d(new Fixed64(3) / new Fixed64(2), Fixed64.Zero));
+
+        Assert.True(query.TryGetCapsuleIntersectionParameterEnclosure(
+            capsuleAxis,
+            Fixed64.One,
+            out Fixed64 entry,
+            out Fixed64 exit));
+
+        long scale = FixedMath.ONE_L;
+        Assert.True(entry.m_rawValue * 6L <= scale);
+        Assert.True((entry.m_rawValue + 1L) * 6L > scale);
+        Assert.True(exit.m_rawValue * 6L >= 5L * scale);
+        Assert.True((exit.m_rawValue - 1L) * 6L < 5L * scale);
+
+        FixedSegment2d far = new(
+            new Vector2d(new Fixed64(10), Fixed64.Zero),
+            new Vector2d(new Fixed64(10), Fixed64.Zero));
+        Assert.False(query.TryGetCapsuleIntersectionParameterEnclosure(
+            far,
+            Fixed64.One,
+            out _,
+            out _));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            query.TryGetCapsuleIntersectionParameterEnclosure(
+                capsuleAxis,
+                -Fixed64.MinIncrement,
+                out _,
+                out _));
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        bool allFound = true;
+        for (int i = 0; i < 256; i++)
+        {
+            allFound &= query.TryGetCapsuleIntersectionParameterEnclosure(
+                capsuleAxis,
+                Fixed64.One,
+                out _,
+                out _);
+        }
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(allFound);
+        Assert.Equal(0, allocated);
+    }
+
     [Theory]
     [InlineData(0L, true)]
     [InlineData(1L, false)]

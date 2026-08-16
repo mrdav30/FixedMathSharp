@@ -172,6 +172,41 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
             out exitParameter);
 
     /// <summary>
+    /// Finds a conservative parameter enclosure for the closed interval where
+    /// this segment intersects an endpoint-authored capsule.
+    /// </summary>
+    /// <remarks>
+    /// The exact finite-axis solve rounds its representable interval bounds to
+    /// nearest. This method expands each returned bound outward by one raw
+    /// quantum, clamped to [0, 1], so the mathematical interval is enclosed.
+    /// A zero-length capsule axis is treated as a circle.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="radius"/> is negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionParameterEnclosure(
+        FixedSegment2d capsuleAxis,
+        Fixed64 radius,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter)
+    {
+        if (!TryGetCapsuleIntersectionInterval(
+                capsuleAxis,
+                radius,
+                out entryParameter,
+                out exitParameter))
+        {
+            return false;
+        }
+
+        if (entryParameter > Fixed64.Zero)
+            entryParameter = Fixed64.FromRaw(entryParameter.m_rawValue - 1L);
+        if (exitParameter < Fixed64.One)
+            exitParameter = Fixed64.FromRaw(exitParameter.m_rawValue + 1L);
+        return true;
+    }
+
+    /// <summary>
     /// Finds the closed parameter interval where this segment intersects a radially
     /// expanded capsule.
     /// </summary>
