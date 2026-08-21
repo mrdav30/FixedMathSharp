@@ -17,6 +17,59 @@ namespace FixedMathSharp;
 public static class FixedConvexPrismRelations
 {
     /// <summary>
+    /// Determines whether an upright cylinder translated between two
+    /// bottom-center points has strict positive-volume overlap with a rotated
+    /// vertical convex prism at any shared continuous parameter in [0, 1].
+    /// </summary>
+    /// <remarks>
+    /// Planar tangency, vertical tangency, and contact that exists only where
+    /// the planar and vertical strict intervals meet at one boundary parameter
+    /// return <see langword="false"/>. A zero radius requires the swept axis
+    /// point to enter the strict prism footprint. The joint parameter relation
+    /// is evaluated with exact wide intermediates and does not publish rounded
+    /// interval endpoints.
+    /// </remarks>
+    /// <param name="bottomStart">The cylinder bottom center at parameter zero.</param>
+    /// <param name="bottomEnd">The cylinder bottom center at parameter one.</param>
+    /// <param name="radius">The nonnegative cylinder radius.</param>
+    /// <param name="height">The positive full cylinder height.</param>
+    /// <param name="prismOrigin">The center of the vertical convex prism.</param>
+    /// <param name="prismRotation">The prism footprint rotation about world Y.</param>
+    /// <param name="prismLocalOffsets">At least three ordered convex-footprint offsets.</param>
+    /// <param name="prismHalfThickness">The positive prism half-thickness along world Y.</param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="radius"/> is negative, <paramref name="height"/> is not
+    /// positive, or <paramref name="prismHalfThickness"/> is not positive.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// Fewer than three ordered prism offsets were supplied.
+    /// </exception>
+    public static bool IntersectsSweptUprightCylinderStrict(
+        Vector3d bottomStart,
+        Vector3d bottomEnd,
+        Fixed64 radius,
+        Fixed64 height,
+        Vector3d prismOrigin,
+        Fixed64 prismRotation,
+        ReadOnlySpan<Vector2d> prismLocalOffsets,
+        Fixed64 prismHalfThickness)
+    {
+        if (height <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(height));
+        ValidatePrism(radius, prismLocalOffsets, prismHalfThickness);
+        return WideConvexPrismRelations
+            .IntersectsSweptUprightCylinderStrict(
+                bottomStart,
+                bottomEnd,
+                radius,
+                height,
+                prismOrigin,
+                prismRotation,
+                prismLocalOffsets,
+                prismHalfThickness);
+    }
+
+    /// <summary>
     /// Attempts to construct canonical contact anchors between a rigidly
     /// transformed triangle and a rotated vertical convex prism.
     /// </summary>

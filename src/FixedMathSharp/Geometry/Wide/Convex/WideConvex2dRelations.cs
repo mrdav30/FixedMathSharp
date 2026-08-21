@@ -33,7 +33,7 @@ internal static partial class WideConvex2dRelations
             new(WideArithmetic.Negate(value.X), WideArithmetic.Negate(value.Y));
     }
 
-    private readonly struct RotationFrame2d
+    internal readonly struct RotationFrame2d
     {
         internal static readonly RotationFrame2d Identity = new(
             Signed192.One,
