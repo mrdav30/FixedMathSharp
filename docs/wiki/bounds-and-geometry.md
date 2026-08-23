@@ -218,6 +218,13 @@ Choose the represented boundary carefully:
 This distinction is why the API exposes named sweep methods instead of treating
 every query as an expanded axis-aligned bound.
 
+`FixedConvexPrismRelations.IntersectsSweptUprightCylinderStrict` answers the
+joint continuous relation between a translated upright cylinder and a rotated
+vertical convex prism. It keeps one exact parameter domain for both footprint
+and height overlap, so planar tangency, vertical tangency, and intervals that
+meet only at one boundary parameter do not become false positive volume
+intersections through independently rounded roots.
+
 ## Triangles and contacts
 
 Triangles preserve vertex order. `FixedTriangle2d` exposes planar barycentric
@@ -277,6 +284,7 @@ physics-response API.
 | Swept sphere versus cylinder or box                        | `FixedSegment`                                                            |
 | Centered shape support, containment, or materialization    | `FixedSegment2d`, `FixedSegment` static helpers                           |
 | Shape support inside a world-Y layer                       | `FixedSlabProjection`                                                     |
+| Swept upright cylinder versus a vertical convex prism      | `FixedConvexPrismRelations`                                               |
 | Triangle contacts or finite-shape relations                | `FixedTriangle`                                                           |
 | Relative witnesses outside ordinary world-coordinate range | `FixedPointAnchor`, `FixedPointAnchor2d`, contact-anchor types            |
 

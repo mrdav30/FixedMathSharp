@@ -121,6 +121,34 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
     }
 
     /// <summary>
+    /// Determines whether the exact minimum distance to another finite segment
+    /// is at least the supplied threshold.
+    /// </summary>
+    /// <remarks>
+    /// The comparison uses wide rational distances and does not materialize a
+    /// rounded closest point or square root. Equality is accepted.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="minimumDistance"/> is negative.
+    /// </exception>
+    public readonly bool IsDistanceAtLeast(
+        FixedSegment2d other,
+        Fixed64 minimumDistance)
+    {
+        if (minimumDistance < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(minimumDistance));
+        if (minimumDistance == Fixed64.Zero)
+            return true;
+        if (TryGetUniqueIntersection(other, out _, out _))
+            return false;
+
+        return WidePlanarProjection.AreSegmentEndpointDistancesAtLeast(
+            this,
+            other,
+            minimumDistance);
+    }
+
+    /// <summary>
     /// Finds the closed parameter interval where this segment intersects a capsule.
     /// </summary>
     /// <remarks>
@@ -142,6 +170,41 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
             Fixed64.Zero,
             out entryParameter,
             out exitParameter);
+
+    /// <summary>
+    /// Finds a conservative parameter enclosure for the closed interval where
+    /// this segment intersects an endpoint-authored capsule.
+    /// </summary>
+    /// <remarks>
+    /// The exact finite-axis solve rounds its representable interval bounds to
+    /// nearest. This method expands each returned bound outward by one raw
+    /// quantum, clamped to [0, 1], so the mathematical interval is enclosed.
+    /// A zero-length capsule axis is treated as a circle.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="radius"/> is negative.
+    /// </exception>
+    public readonly bool TryGetCapsuleIntersectionParameterEnclosure(
+        FixedSegment2d capsuleAxis,
+        Fixed64 radius,
+        out Fixed64 entryParameter,
+        out Fixed64 exitParameter)
+    {
+        if (!TryGetCapsuleIntersectionInterval(
+                capsuleAxis,
+                radius,
+                out entryParameter,
+                out exitParameter))
+        {
+            return false;
+        }
+
+        if (entryParameter > Fixed64.Zero)
+            entryParameter = Fixed64.FromRaw(entryParameter.m_rawValue - 1L);
+        if (exitParameter < Fixed64.One)
+            exitParameter = Fixed64.FromRaw(exitParameter.m_rawValue + 1L);
+        return true;
+    }
 
     /// <summary>
     /// Finds the closed parameter interval where this segment intersects a radially
@@ -333,6 +396,37 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
         out Fixed64 thisParameter)
     {
         return TryGetUniqueIntersection(other, out thisParameter, out _);
+    }
+
+    /// <summary>
+    /// Attempts to enclose the unique intersection parameter on this segment.
+    /// </summary>
+    /// <remarks>
+    /// The exact rational intersection is enclosed by expanding the nearest
+    /// representable parameter by one raw unit and clamping to [0, 1]. Collinear
+    /// positive-length overlaps retain the unique-intersection failure behavior.
+    /// </remarks>
+    public readonly bool TryGetUniqueIntersectionParameterEnclosure(
+        FixedSegment2d other,
+        out Fixed64 nearestParameter,
+        out Fixed64 lowerParameter,
+        out Fixed64 upperParameter)
+    {
+        if (!TryGetUniqueIntersection(other, out nearestParameter))
+        {
+            nearestParameter = default;
+            lowerParameter = default;
+            upperParameter = default;
+            return false;
+        }
+
+        lowerParameter = nearestParameter > Fixed64.Zero
+            ? Fixed64.FromRaw(nearestParameter.m_rawValue - 1L)
+            : Fixed64.Zero;
+        upperParameter = nearestParameter < Fixed64.One
+            ? Fixed64.FromRaw(nearestParameter.m_rawValue + 1L)
+            : Fixed64.One;
+        return true;
     }
 
     /// <summary>
