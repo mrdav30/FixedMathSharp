@@ -62,8 +62,6 @@ internal static partial class WideConvexPrismRelations
             Signed320 constant,
             Signed320 velocity)
         {
-            if (IsEmpty)
-                return false;
             if (velocity.Sign > 0)
             {
                 KeepLower(
@@ -371,8 +369,6 @@ internal static partial class WideConvexPrismRelations
         Signed576 c,
         SweepParameterDomain domain)
     {
-        if (domain.IsEmpty)
-            return false;
         if (a.IsZero || b.Sign >= 0)
         {
             return EvaluateQuadratic(

@@ -20,6 +20,15 @@ public class FixedRangeTests
     }
 
     [Fact]
+    public void FixedRange_StaticExtremaRepresentTheFullDomainEndpoints()
+    {
+        Assert.Equal(Fixed64.MinValue, FixedRange.MinRange.Min);
+        Assert.Equal(Fixed64.MinValue, FixedRange.MinRange.Max);
+        Assert.Equal(Fixed64.MaxValue, FixedRange.MaxRange.Min);
+        Assert.Equal(Fixed64.MaxValue, FixedRange.MaxRange.Max);
+    }
+
+    [Fact]
     public void FixedRange_Constructor_EnforcesOrder()
     {
         var range = new FixedRange(new Fixed64(10), new Fixed64(-10));

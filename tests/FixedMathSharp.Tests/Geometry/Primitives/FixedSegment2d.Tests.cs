@@ -37,6 +37,16 @@ public class FixedSegment2dTests
         Assert.Equal(Fixed64.Zero, lower);
         Assert.Equal(Fixed64.MinIncrement, upper);
 
+        var endEndpoint = new FixedSegment2d(new Vector2d(3, -1), new Vector2d(3, 1));
+        Assert.True(horizontal.TryGetUniqueIntersectionParameterEnclosure(
+            endEndpoint,
+            out enclosedNearest,
+            out lower,
+            out upper));
+        Assert.Equal(Fixed64.One, enclosedNearest);
+        Assert.Equal(Fixed64.FromRaw(Fixed64.One.m_rawValue - 1L), lower);
+        Assert.Equal(Fixed64.One, upper);
+
         var disjoint = new FixedSegment2d(new Vector2d(4, -1), new Vector2d(4, 1));
         Assert.False(horizontal.TryGetUniqueIntersectionParameterEnclosure(
             disjoint,

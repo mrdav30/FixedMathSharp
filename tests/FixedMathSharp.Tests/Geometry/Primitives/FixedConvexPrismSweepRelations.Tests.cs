@@ -105,6 +105,52 @@ public sealed class FixedConvexPrismSweepRelationsTests
     }
 
     [Fact]
+    public void CollinearFootprint_HasNoStrictVolume()
+    {
+        Vector2d[] collinear =
+        {
+            new(-Fixed64.One, Fixed64.Zero),
+            Vector2d.Zero,
+            new(Fixed64.One, Fixed64.Zero),
+        };
+        Vector3d bottom =
+            -Vector3d.Up * Fixed64.FromFraction(1, 4);
+
+        Assert.False(Intersects(
+            bottom,
+            bottom,
+            Fixed64.Zero,
+            Fixed64.One,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            collinear));
+    }
+
+    [Fact]
+    public void RepeatedAdjacentFootprintVertex_PreservesStrictOverlap()
+    {
+        Vector2d[] squareWithRepeatedVertex =
+        {
+            new(-Fixed64.Half, -Fixed64.Half),
+            new(-Fixed64.Half, -Fixed64.Half),
+            new(Fixed64.Half, -Fixed64.Half),
+            new(Fixed64.Half, Fixed64.Half),
+            new(-Fixed64.Half, Fixed64.Half),
+        };
+        Vector3d bottom =
+            -Vector3d.Up * Fixed64.FromFraction(1, 4);
+
+        Assert.True(Intersects(
+            bottom,
+            bottom,
+            Fixed64.Zero,
+            Fixed64.One,
+            Vector3d.Zero,
+            Fixed64.Zero,
+            squareWithRepeatedVertex));
+    }
+
+    [Fact]
     public void ZeroRadius_RequiresTheAxisPointToEnterTheStrictFootprint()
     {
         Vector3d bottom = -Vector3d.Up * Fixed64.FromFraction(1, 4);

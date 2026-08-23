@@ -35,6 +35,14 @@ public sealed class FixedSegment2dSeparationTests
         Assert.True(exit.m_rawValue * 6L >= 5L * scale);
         Assert.True((exit.m_rawValue - 1L) * 6L < 5L * scale);
 
+        Assert.True(query.TryGetCapsuleIntersectionParameterEnclosure(
+            query,
+            Fixed64.One,
+            out entry,
+            out exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal(Fixed64.One, exit);
+
         FixedSegment2d far = new(
             new Vector2d(new Fixed64(10), Fixed64.Zero),
             new Vector2d(new Fixed64(10), Fixed64.Zero));
