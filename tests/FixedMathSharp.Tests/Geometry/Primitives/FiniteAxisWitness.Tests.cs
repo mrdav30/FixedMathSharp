@@ -559,29 +559,23 @@ public sealed partial class FiniteAxisIntersectionTests
     [Fact]
     public void CenteredFiniteAxisWitnesses_AllocateZeroAfterWarmup()
     {
-        _ = FixedSegment.TryGetCenteredAxisEndpoint(
-            Vector3d.Zero, Vector3d.Up, Fixed64.Two, true, out _);
-        _ = FixedSegment.TryGetCenteredCapsuleSupport(
-            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Vector3d.Right, out _);
-        _ = FixedSegment.TryGetCenteredFiniteCylinderSupport(
-            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Vector3d.Right, out _);
-        _ = FixedSegment.TryGetCenteredFiniteConeSupport(
-            Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Vector3d.Right, out _);
-
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < 128; i++)
+        // Warm the same batch that is measured behind the helper's JIT boundary.
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(static () =>
         {
-            _ = FixedSegment.TryGetCenteredAxisEndpoint(
-                Vector3d.Zero, Vector3d.Up, Fixed64.Two, true, out _);
-            _ = FixedSegment.TryGetCenteredCapsuleSupport(
-                Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Vector3d.Right, out _);
-            _ = FixedSegment.TryGetCenteredFiniteCylinderSupport(
-                Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Vector3d.Right, out _);
-            _ = FixedSegment.TryGetCenteredFiniteConeSupport(
-                Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Vector3d.Right, out _);
-        }
+            for (int i = 0; i < 128; i++)
+            {
+                _ = FixedSegment.TryGetCenteredAxisEndpoint(
+                    Vector3d.Zero, Vector3d.Up, Fixed64.Two, true, out _);
+                _ = FixedSegment.TryGetCenteredCapsuleSupport(
+                    Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Vector3d.Right, out _);
+                _ = FixedSegment.TryGetCenteredFiniteCylinderSupport(
+                    Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Vector3d.Right, out _);
+                _ = FixedSegment.TryGetCenteredFiniteConeSupport(
+                    Vector3d.Zero, Vector3d.Up, Fixed64.Two, Fixed64.One, Vector3d.Right, out _);
+            }
+        });
 
-        Assert.Equal(0L, GC.GetAllocatedBytesForCurrentThread() - before);
+        Assert.Equal(0L, allocated);
     }
 
     private static long RoundRadicalRatio(BigInteger numerator, BigInteger radicand)

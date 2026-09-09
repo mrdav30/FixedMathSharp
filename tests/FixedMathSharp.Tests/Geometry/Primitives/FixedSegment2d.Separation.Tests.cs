@@ -58,17 +58,19 @@ public sealed class FixedSegment2dSeparationTests
                 out _,
                 out _));
 
-        long before = GC.GetAllocatedBytesForCurrentThread();
         bool allFound = true;
-        for (int i = 0; i < 256; i++)
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            allFound &= query.TryGetCapsuleIntersectionParameterEnclosure(
-                capsuleAxis,
-                Fixed64.One,
-                out _,
-                out _);
-        }
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            allFound = true;
+            for (int i = 0; i < 256; i++)
+            {
+                allFound &= query.TryGetCapsuleIntersectionParameterEnclosure(
+                    capsuleAxis,
+                    Fixed64.One,
+                    out _,
+                    out _);
+            }
+        });
 
         Assert.True(allFound);
         Assert.Equal(0, allocated);
