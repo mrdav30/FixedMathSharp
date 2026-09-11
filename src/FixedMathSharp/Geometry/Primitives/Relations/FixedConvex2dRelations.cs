@@ -38,8 +38,8 @@ public static class FixedConvex2dRelations
         ValidateVertexOffsets(convexVertexOffsets);
         return WideConvex2dRelations.ContainsPoint(
             point,
-            Vector2d.Zero,
             convexOrigin,
+            Fixed64.Zero,
             convexVertexOffsets);
     }
 
@@ -56,7 +56,6 @@ public static class FixedConvex2dRelations
         ValidateVertexOffsets(convexVertexOffsets);
         return WideConvex2dRelations.ContainsPoint(
             point,
-            Vector2d.Zero,
             convexOrigin,
             convexRotation,
             convexVertexOffsets);
@@ -310,8 +309,8 @@ public static class FixedConvex2dRelations
         ValidateVertexOffsets(convexVertexOffsets);
         if (WideConvex2dRelations.ContainsPoint(
                 start,
-                Vector2d.Zero,
                 convexOrigin,
+                Fixed64.Zero,
                 convexVertexOffsets))
         {
             distance = Fixed64.Zero;
@@ -361,7 +360,6 @@ public static class FixedConvex2dRelations
         Vector2d contactOffset;
         if (WideConvex2dRelations.ContainsPoint(
                 start,
-                Vector2d.Zero,
                 convexOrigin,
                 convexRotation,
                 convexVertexOffsets))

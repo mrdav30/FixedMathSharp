@@ -123,6 +123,14 @@ Start with hot paths that can be isolated and repeated deterministically:
 Keep support helpers specific. Remove copied template helpers when they stop
 serving a FixedMathSharp benchmark scenario.
 
+`convex-point-containment` measures exact inside/outside queries against
+translated four- and six-vertex footprints, with zero and 30-degree rotations.
+Setup verifies the intended classifications. This isolates the public convex
+containment path; use a consuming library's end-to-end benchmark before claiming
+a simulation-frame improvement from its results.
+The [containment follow-up record](../../docs/feature-work/done/2026-09-11-convex-point-containment-performance.md)
+retains one measured before/after comparison and its limits.
+
 ## Baseline Artifacts
 
 Before starting optimization work, capture a baseline:

@@ -490,25 +490,16 @@ internal static partial class WideConvex2dRelations
     }
 
     internal static bool ContainsPoint(
-        Vector2d pointOrigin,
-        Vector2d pointOriginOffset,
-        Vector2d convexOrigin,
-        ReadOnlySpan<Vector2d> convexVertexOffsets)
-        => ContainsPoint(
-            pointOrigin,
-            pointOriginOffset,
-            convexOrigin,
-            Fixed64.Zero,
-            convexVertexOffsets);
-
-    internal static bool ContainsPoint(
-        Vector2d pointOrigin,
-        Vector2d pointOriginOffset,
+        Vector2d point,
         Vector2d convexOrigin,
         Fixed64 convexRotation,
         ReadOnlySpan<Vector2d> convexVertexOffsets)
     {
         RotationFrame2d convexFrame = new(convexRotation);
+        // The query is already a world point. Widen it once to the polygon's
+        // product scale; only the polygon vertices require frame transforms.
+        Signed192 pointWorldX = WideArithmetic.Scale(point.X);
+        Signed192 pointWorldY = WideArithmetic.Scale(point.Y);
         bool hasPositive = false;
         bool hasNegative = false;
         for (int i = 0; i < convexVertexOffsets.Length; i++)
@@ -522,13 +513,6 @@ internal static partial class WideConvex2dRelations
                 end,
                 out Signed192 edgeX,
                 out Signed192 edgeY);
-            GetWorldPoint(
-                pointOrigin,
-                RotationFrame2d.Identity,
-                pointOriginOffset,
-                Vector2d.Zero,
-                out Signed192 pointWorldX,
-                out Signed192 pointWorldY);
             GetWorldPoint(
                 convexOrigin,
                 convexFrame,

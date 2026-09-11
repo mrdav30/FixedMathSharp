@@ -105,6 +105,46 @@ public sealed class FixedConvex2dRelationsTests
         new(-Fixed64.One, Fixed64.One)
     };
 
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, false)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(true, true, true)]
+    public void ContainsPoint_PreservesClosedFacesBeyondScalarDomain(
+        bool clockwise,
+        bool rotated,
+        bool positiveFace)
+    {
+        Vector2d[] rectangle =
+        {
+            new(-Fixed64.Two, -Fixed64.One),
+            new(Fixed64.Two, -Fixed64.One),
+            new(Fixed64.Two, Fixed64.One),
+            new(-Fixed64.Two, Fixed64.One)
+        };
+        if (clockwise)
+            Array.Reverse(rectangle);
+        Fixed64 face = positiveFace ? Fixed64.MaxValue : Fixed64.MinValue;
+        Fixed64 inward = positiveFace ? -Fixed64.One : Fixed64.One;
+        Vector2d origin = new(face, face);
+        Fixed64 rotation = rotated ? Fixed64.HalfPi : Fixed64.Zero;
+        // A quarter turn swaps the literal rectangle's half-width and half-height.
+        // Half the conceptual polygon extends past each scalar face; do not clamp it.
+        Fixed64 x = face + inward * (rotated ? Fixed64.One : Fixed64.Two);
+        Fixed64 y = face + inward * (rotated ? Fixed64.Two : Fixed64.One);
+
+        Assert.True(FixedConvex2dRelations.ContainsPoint(origin, origin, rotation, rectangle));
+        Assert.True(FixedConvex2dRelations.ContainsPoint(new Vector2d(x, y), origin, rotation, rectangle));
+        Assert.False(FixedConvex2dRelations.ContainsPoint(
+            new Vector2d(x + inward * Fixed64.MinIncrement, y), origin, rotation, rectangle));
+        Assert.False(FixedConvex2dRelations.ContainsPoint(
+            new Vector2d(x, y + inward * Fixed64.MinIncrement), origin, rotation, rectangle));
+    }
+
     [Fact]
     public void SupportOffset_PreservesTheFirstAuthoredFeatureOnAnExactTie()
     {
