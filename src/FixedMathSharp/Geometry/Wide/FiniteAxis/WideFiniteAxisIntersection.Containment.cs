@@ -14,6 +14,43 @@ namespace FixedMathSharp.Geometry;
 /// </content>
 internal static partial class WideFiniteAxisIntersection
 {
+    internal static bool AreSegmentEndpointDistancesAtLeast(
+        FixedSegment2d first,
+        FixedSegment2d second,
+        Fixed64 minimumDistance)
+    {
+        if (second.Start == second.End)
+        {
+            FixedSegment2d temporary = first;
+            first = second;
+            second = temporary;
+        }
+
+        Signed192 squaredRadius = GetSquaredRadius(Signed192.Raw(minimumDistance));
+        bool firstSeparated = IsPointSegmentDistanceAtLeast(first.Start, second, squaredRadius);
+        // For a point, this is the complete minimum distance. Distances to the
+        // other segment's endpoints cannot be smaller, and repeating the point adds nothing.
+        if (!firstSeparated || first.Start == first.End)
+            return firstSeparated;
+
+        return IsPointSegmentDistanceAtLeast(first.End, second, squaredRadius)
+            && IsPointSegmentDistanceAtLeast(second.Start, first, squaredRadius)
+            && IsPointSegmentDistanceAtLeast(second.End, first, squaredRadius);
+    }
+
+    private static bool IsPointSegmentDistanceAtLeast(
+        Vector2d point,
+        FixedSegment2d segment,
+        Signed192 squaredRadius) =>
+        // Negating strict capsule containment keeps equality without rounding a distance.
+        !IsCapsulePointContained(
+            GetDot(point, segment.Start, point, segment.Start),
+            GetDot(point, segment.End, point, segment.End),
+            GetDot(point, segment.Start, segment.End, segment.Start),
+            GetDot(segment.End, segment.Start, segment.End, segment.Start),
+            squaredRadius,
+            strict: true);
+
     internal static bool ContainsPointInCenteredFiniteCylinder(
         Vector3d point,
         Vector3d center,

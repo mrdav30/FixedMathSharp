@@ -7,6 +7,49 @@ namespace FixedMathSharp.Tests.Bounds;
 
 public sealed partial class FiniteAxisIntersectionTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void EndpointCapsule2d_ContainedSegmentsRetainTheFullDomain(bool fullDomain, bool point)
+    {
+        FixedSegment2d axis = new(
+            new Vector2d(fullDomain ? Fixed64.MinValue : new Fixed64(-4), Fixed64.Zero),
+            new Vector2d(fullDomain ? Fixed64.MaxValue : new Fixed64(4), Fixed64.Zero));
+        FixedSegment2d query = point
+            ? new FixedSegment2d(new Vector2d(Fixed64.Zero, Fixed64.Half),
+                new Vector2d(Fixed64.Zero, Fixed64.Half))
+            : fullDomain ? axis : new FixedSegment2d(
+                new Vector2d(new Fixed64(-4) - Fixed64.Half, Fixed64.Zero),
+                new Vector2d(new Fixed64(4) + Fixed64.Half, Fixed64.Zero));
+
+        Assert.True(query.TryGetCapsuleIntersectionInterval(axis, Fixed64.Half, Fixed64.Half,
+            out Fixed64 entry, out Fixed64 exit, out bool startContained, out bool endContainedStrict));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal(Fixed64.One, exit);
+        Assert.True(startContained);
+        Assert.True(endContainedStrict);
+    }
+
+    [Theory]
+    [InlineData(1, 0, 0L, 4294967296L, true, true)]
+    [InlineData(0, 1, 0L, 4294967296L, true, false)]
+    [InlineData(2, 0, 2147483648L, 4294967296L, false, true)]
+    [InlineData(0, 2, 0L, 2147483648L, true, false)]
+    public void EndpointCapsule2d_BoundaryAndPartialQueriesRetainExactContainmentFlags(
+        int startY, int endY, long entryRaw, long exitRaw, bool expectedStart, bool expectedEndStrict)
+    {
+        FixedSegment2d axis = new(new Vector2d(-1, 0), new Vector2d(1, 0));
+        FixedSegment2d query = new(new Vector2d(0, startY), new Vector2d(0, endY));
+        Assert.True(query.TryGetCapsuleIntersectionInterval(axis, Fixed64.One, Fixed64.Zero,
+            out Fixed64 entry, out Fixed64 exit, out bool startContained, out bool endContainedStrict));
+        Assert.Equal(Fixed64.FromRaw(entryRaw), entry);
+        Assert.Equal(Fixed64.FromRaw(exitRaw), exit);
+        Assert.Equal(expectedStart, startContained);
+        Assert.Equal(expectedEndStrict, endContainedStrict);
+    }
+
     [Fact]
     public void CenteredCapsule_RepresentableAxisMatchesEndpointContract()
     {

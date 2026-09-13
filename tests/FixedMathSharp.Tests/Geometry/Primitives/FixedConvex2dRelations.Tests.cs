@@ -217,6 +217,85 @@ public sealed class FixedConvex2dRelationsTests
             new(Fixed64.MinValue, Fixed64.Zero), new(Fixed64.MaxValue, Fixed64.Zero), Fixed64.PiOver4, rectangle));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ContainsPoint_ZeroRotationPreservesFullDomainDiagonal(bool clockwise)
+    {
+        Vector2d[] triangle =
+        {
+            new(Fixed64.MinValue, Fixed64.MinValue),
+            new(Fixed64.MaxValue, Fixed64.MinValue),
+            new(Fixed64.MinValue, Fixed64.MaxValue)
+        };
+        if (clockwise)
+            Array.Reverse(triangle);
+
+        // The diagonal is x + y = -1 raw unit, not zero: MinValue + MaxValue = -1 raw.
+        AssertZeroRotationContainment(true, triangle[0], Vector2d.Zero, triangle);
+        AssertZeroRotationContainment(true,
+            new(Fixed64.Zero, -Fixed64.MinIncrement), Vector2d.Zero, triangle);
+        AssertZeroRotationContainment(false, Vector2d.Zero, Vector2d.Zero, triangle);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ContainsPoint_ZeroRotationDoesNotNarrowOppositeExtremeDisplacements(
+        bool clockwise,
+        bool positiveOrigin)
+    {
+        Vector2d[] rectangle =
+        {
+            new(Fixed64.MinValue, Fixed64.MinValue),
+            new(Fixed64.MaxValue, Fixed64.MinValue),
+            new(Fixed64.MaxValue, Fixed64.MaxValue),
+            new(Fixed64.MinValue, Fixed64.MaxValue)
+        };
+        if (clockwise)
+            Array.Reverse(rectangle);
+        Fixed64 originCoordinate = positiveOrigin ? Fixed64.MaxValue : Fixed64.MinValue;
+        Fixed64 pointCoordinate = positiveOrigin ? Fixed64.MinValue : Fixed64.MaxValue;
+        Vector2d origin = new(originCoordinate, originCoordinate);
+
+        AssertZeroRotationContainment(true, origin, origin, rectangle);
+        // Each displacement exceeds the raw scalar range; clamping would put it on an included face.
+        AssertZeroRotationContainment(false, new(pointCoordinate, originCoordinate), origin, rectangle);
+        AssertZeroRotationContainment(false, new(originCoordinate, pointCoordinate), origin, rectangle);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ContainsPoint_ZeroRotationPreservesCollinearAndRepeatedEdges(bool clockwise)
+    {
+        Vector2d[] rectangle =
+        {
+            new(0, 0), new(1, 0), new(2, 0), new(2, 0), new(2, 2), new(0, 2)
+        };
+        if (clockwise)
+            Array.Reverse(rectangle);
+        Vector2d origin = new(40, 50);
+
+        AssertZeroRotationContainment(true, new(41, 51), origin, rectangle);
+        AssertZeroRotationContainment(true, new(40, 51), origin, rectangle);
+        // Only the last-to-first edge rejects this point, in either authored winding.
+        AssertZeroRotationContainment(false,
+            new((Fixed64)40 - Fixed64.MinIncrement, (Fixed64)51), origin, rectangle);
+    }
+
+    private static void AssertZeroRotationContainment(
+        bool expected,
+        Vector2d point,
+        Vector2d origin,
+        Vector2d[] offsets)
+    {
+        Assert.Equal(expected, FixedConvex2dRelations.ContainsPoint(point, origin, offsets));
+        Assert.Equal(expected, FixedConvex2dRelations.ContainsPoint(point, origin, Fixed64.Zero, offsets));
+    }
+
     [Fact]
     public void SupportOffset_PreservesTheFirstAuthoredFeatureOnAnExactTie()
     {

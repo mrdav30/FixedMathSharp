@@ -164,6 +164,42 @@ public sealed class FixedSegment2dSeparationTests
                 (Fixed64)5));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void IsDistanceAtLeast_PointAgainstFullDomainSegmentUsesInteriorProjection(bool reversed)
+    {
+        Vector2d start = new(Fixed64.MinValue, Fixed64.Zero);
+        Vector2d end = new(Fixed64.MaxValue, Fixed64.Zero);
+        FixedSegment2d segment = reversed ? new(end, start) : new(start, end);
+        Vector2d position = new(Fixed64.Zero, Fixed64.One);
+        FixedSegment2d point = new(position, position);
+
+        // Both wall endpoints are far away, but the exact interior projection is one unit below.
+        Assert.True(point.IsDistanceAtLeast(segment, Fixed64.One));
+        Assert.True(segment.IsDistanceAtLeast(point, Fixed64.One));
+        Assert.False(point.IsDistanceAtLeast(segment, Fixed64.One + Fixed64.MinIncrement));
+        Assert.False(segment.IsDistanceAtLeast(point, Fixed64.One + Fixed64.MinIncrement));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void IsDistanceAtLeast_PointBeyondFiniteEndpointUsesEndpointDistance(bool reversed)
+    {
+        Vector2d start = new(Fixed64.MaxValue - (Fixed64)4, Fixed64.Zero);
+        Vector2d end = new(Fixed64.MaxValue - (Fixed64)3, Fixed64.Zero);
+        FixedSegment2d segment = reversed ? new(end, start) : new(start, end);
+        Vector2d position = new(Fixed64.MaxValue, (Fixed64)4);
+        FixedSegment2d point = new(position, position);
+
+        // The supporting line is four units away; the finite endpoint is exactly five (3-4-5).
+        Assert.True(point.IsDistanceAtLeast(segment, (Fixed64)5));
+        Assert.True(segment.IsDistanceAtLeast(point, (Fixed64)5));
+        Assert.False(point.IsDistanceAtLeast(segment, (Fixed64)5 + Fixed64.MinIncrement));
+        Assert.False(segment.IsDistanceAtLeast(point, (Fixed64)5 + Fixed64.MinIncrement));
+    }
+
     [Fact]
     public void IsDistanceAtLeast_HandlesExtremeRawCoordinatesWithoutNarrowing()
     {
@@ -176,6 +212,51 @@ public sealed class FixedSegment2dSeparationTests
 
         Assert.True(minimum.IsDistanceAtLeast(maximum, Fixed64.MaxValue));
         Assert.True(maximum.IsDistanceAtLeast(minimum, Fixed64.MaxValue));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void IsDistanceAtLeast_SkewSegmentsKeepTheNearestEndpointProjection(
+        bool reverseFirst,
+        bool reverseSecond)
+    {
+        FixedSegment2d first = new(new Vector2d(0, 0), new Vector2d(6, 8));
+        FixedSegment2d second = new(new Vector2d(-1, 7), new Vector2d(-4, 11));
+        if (reverseFirst)
+            first = new(first.End, first.Start);
+        if (reverseSecond)
+            second = new(second.End, second.Start);
+
+        // (-1, 7) projects to (3, 4): the perpendicular offset (-4, 3) has length five.
+        // Both endpoints of the first segment are farther from the second segment.
+        Assert.True(first.IsDistanceAtLeast(second, (Fixed64)5));
+        Assert.True(second.IsDistanceAtLeast(first, (Fixed64)5));
+        Assert.False(first.IsDistanceAtLeast(second, (Fixed64)5 + Fixed64.MinIncrement));
+        Assert.False(second.IsDistanceAtLeast(first, (Fixed64)5 + Fixed64.MinIncrement));
+    }
+
+    [Theory]
+    [InlineData(1L, false, false)]
+    [InlineData(1L, false, true)]
+    [InlineData(2L, true, false)]
+    [InlineData(2L, true, true)]
+    public void IsDistanceAtLeast_FullDomainDiagonalRetainsSubRawRadialSeparation(
+        long pointYRaw,
+        bool expected,
+        bool reversed)
+    {
+        Vector2d start = new(Fixed64.MinValue, Fixed64.MinValue);
+        Vector2d end = new(Fixed64.MaxValue, Fixed64.MaxValue);
+        FixedSegment2d diagonal = reversed ? new(end, start) : new(start, end);
+        Vector2d position = new(Fixed64.Zero, Fixed64.FromRaw(pointYRaw));
+        FixedSegment2d point = new(position, position);
+
+        // Distance to y=x is pointYRaw / sqrt(2) raw units: one is below one, two is above.
+        Assert.Equal(expected, point.IsDistanceAtLeast(diagonal, Fixed64.MinIncrement));
+        Assert.Equal(expected, diagonal.IsDistanceAtLeast(point, Fixed64.MinIncrement));
     }
 
     [Fact]

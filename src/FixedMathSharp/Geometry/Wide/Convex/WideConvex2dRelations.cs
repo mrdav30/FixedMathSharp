@@ -495,6 +495,9 @@ internal static partial class WideConvex2dRelations
         Fixed64 convexRotation,
         ReadOnlySpan<Vector2d> convexVertexOffsets)
     {
+        if (convexRotation == Fixed64.Zero)
+            return ContainsPointUnrotated(point, convexOrigin, convexVertexOffsets);
+
         RotationFrame2d convexFrame = new(convexRotation);
         // Widen before subtracting: the point-to-origin displacement can exceed
         // the scalar domain. Keep it at the rotated vertices' product scale.
@@ -540,6 +543,45 @@ internal static partial class WideConvex2dRelations
 
             startX = endX;
             startY = endY;
+        }
+
+        return true;
+    }
+
+    private static bool ContainsPointUnrotated(
+        Vector2d point,
+        Vector2d convexOrigin,
+        ReadOnlySpan<Vector2d> convexVertexOffsets)
+    {
+        // At zero rotation the general determinant is this raw determinant times
+        // 2^64, so its sign is unchanged. Widen before every subtraction: edges
+        // need 65 signed bits and point - origin - vertex can need 66.
+        Signed192 relativePointX = WideArithmetic.Difference(point.X, convexOrigin.X);
+        Signed192 relativePointY = WideArithmetic.Difference(point.Y, convexOrigin.Y);
+        Vector2d start = convexVertexOffsets[0];
+        bool hasPositive = false;
+        bool hasNegative = false;
+        for (int i = 0; i < convexVertexOffsets.Length; i++)
+        {
+            Vector2d end = convexVertexOffsets[
+                i + 1 == convexVertexOffsets.Length ? 0 : i + 1];
+            Signed192 edgeX = WideArithmetic.Difference(end.X, start.X);
+            Signed192 edgeY = WideArithmetic.Difference(end.Y, start.Y);
+            Signed192 pointX = WideArithmetic.SubtractSigned192(relativePointX, Signed192.Raw(start.X));
+            Signed192 pointY = WideArithmetic.SubtractSigned192(relativePointY, Signed192.Raw(start.Y));
+            int orientation = WideArithmetic.MultiplySubtract(
+                edgeX,
+                pointY,
+                edgeY,
+                pointX).Sign;
+            if (orientation > 0)
+                hasPositive = true;
+            else if (orientation < 0)
+                hasNegative = true;
+            if (hasPositive && hasNegative)
+                return false;
+
+            start = end;
         }
 
         return true;

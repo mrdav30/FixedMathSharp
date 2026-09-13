@@ -58,13 +58,10 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 expandedRadius = GetExpandedRadius(radius, radiusExpansion);
         Signed192 squaredRadius = GetSquaredRadius(expandedRadius);
         Signed192 axisLengthSquared = GetDot(axis.End, axis.Start, axis.End, axis.Start);
-        Signed192 queryLengthSquared = GetDot(query.End, query.Start, query.End, query.Start);
         Signed192 startDistanceSquared = GetDot(query.Start, axis.Start, query.Start, axis.Start);
         Signed192 endDistanceSquared = GetDot(query.End, axis.Start, query.End, axis.Start);
-        Signed192 directionsDot = GetDot(query.End, query.Start, axis.End, axis.Start);
         Signed192 startAxisProjection = GetDot(query.Start, axis.Start, axis.End, axis.Start);
         Signed192 endAxisProjection = GetDot(query.End, axis.Start, axis.End, axis.Start);
-        Signed192 startDirectionProjection = GetDot(query.Start, axis.Start, query.End, query.Start);
 
         if (axisLengthSquared.IsZero)
         {
@@ -93,6 +90,18 @@ internal static partial class WideFiniteAxisIntersection
             axisLengthSquared,
             squaredRadius,
             strict: true);
+        // A capsule is convex: these already-certified endpoints enclose the
+        // complete query, so neither the finite-axis nor cap solves add evidence.
+        if (startContained && endContainedStrict)
+        {
+            entry = Fixed64.Zero;
+            exit = Fixed64.One;
+            return true;
+        }
+
+        Signed192 queryLengthSquared = GetDot(query.End, query.Start, query.End, query.Start);
+        Signed192 directionsDot = GetDot(query.End, query.Start, axis.End, axis.Start);
+        Signed192 startDirectionProjection = GetDot(query.Start, axis.Start, query.End, query.Start);
         bool found = TryGetFiniteAxisInterval(
             queryLengthSquared,
             axisLengthSquared,

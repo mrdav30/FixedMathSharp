@@ -142,7 +142,7 @@ public partial struct FixedSegment2d : IEquatable<FixedSegment2d>
         if (TryGetUniqueIntersection(other, out _, out _))
             return false;
 
-        return WidePlanarProjection.AreSegmentEndpointDistancesAtLeast(
+        return WideFiniteAxisIntersection.AreSegmentEndpointDistancesAtLeast(
             this,
             other,
             minimumDistance);
