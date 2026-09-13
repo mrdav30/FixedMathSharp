@@ -145,6 +145,78 @@ public sealed class FixedConvex2dRelationsTests
             new Vector2d(x, y + inward * Fixed64.MinIncrement), origin, rotation, rectangle));
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ContainsPoint_PreservesClosingEdgeAndOneRawSeparation(
+        bool clockwise,
+        bool rotated)
+    {
+        Vector2d[] rectangle =
+        {
+            new(-2, -1), new(2, -1), new(2, 1), new(-2, 1)
+        };
+        if (clockwise)
+            Array.Reverse(rectangle);
+        Vector2d origin = new(40, 50);
+        Fixed64 rotation = rotated ? Fixed64.HalfPi : Fixed64.Zero;
+        // The closing edge is x = 38, or y = 48 after the quarter turn.
+        // A point just beyond it still satisfies every earlier edge.
+        Vector2d boundary = rotated ? new(40, 48) : new(38, 50);
+        Vector2d outside = rotated
+            ? new((Fixed64)40, (Fixed64)48 - Fixed64.MinIncrement)
+            : new((Fixed64)38 - Fixed64.MinIncrement, (Fixed64)50);
+
+        Assert.True(FixedConvex2dRelations.ContainsPoint(boundary, origin, rotation, rectangle));
+        Assert.False(FixedConvex2dRelations.ContainsPoint(outside, origin, rotation, rectangle));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ContainsPoint_PreservesObliqueClosingEdgeWithRepeatedVertex(bool clockwise)
+    {
+        Vector2d[] triangle = { new(0, 0), new(2, 0), new(2, 0), new(0, 2) };
+        if (clockwise)
+            Array.Reverse(triangle);
+        Fixed64 rotation = Fixed64.PiOver6;
+        // Rotating the local closing-edge midpoint (0, 1) gives (-sin, cos)
+        // exactly at the public scalar scale; no containment result builds the expectation.
+        Vector2d boundary = new(-FixedMath.Sin(rotation), FixedMath.Cos(rotation));
+        Vector2d outside = new(boundary.X - Fixed64.MinIncrement, boundary.Y);
+
+        Assert.True(FixedConvex2dRelations.ContainsPoint(boundary, Vector2d.Zero, rotation, triangle));
+        Assert.False(FixedConvex2dRelations.ContainsPoint(outside, Vector2d.Zero, rotation, triangle));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ContainsPoint_PreservesRotatedEdgesWiderThanTheScalarDomain(bool clockwise)
+    {
+        Vector2d[] rectangle =
+        {
+            new(Fixed64.MinValue, Fixed64.MinValue),
+            new(Fixed64.MaxValue, Fixed64.MinValue),
+            new(Fixed64.MaxValue, Fixed64.MaxValue),
+            new(Fixed64.MinValue, Fixed64.MaxValue)
+        };
+        if (clockwise)
+            Array.Reverse(rectangle);
+        // At 45 degrees the square becomes a diamond: axis endpoints remain
+        // inside, but the original square's far corner is outside.
+        Assert.True(FixedConvex2dRelations.ContainsPoint(
+            Vector2d.Zero, Vector2d.Zero, Fixed64.PiOver4, rectangle));
+        Assert.True(FixedConvex2dRelations.ContainsPoint(
+            new(Fixed64.MaxValue, Fixed64.Zero), Vector2d.Zero, Fixed64.PiOver4, rectangle));
+        Assert.False(FixedConvex2dRelations.ContainsPoint(
+            new(Fixed64.MaxValue, Fixed64.MaxValue), Vector2d.Zero, Fixed64.PiOver4, rectangle));
+        Assert.False(FixedConvex2dRelations.ContainsPoint(
+            new(Fixed64.MinValue, Fixed64.Zero), new(Fixed64.MaxValue, Fixed64.Zero), Fixed64.PiOver4, rectangle));
+    }
+
     [Fact]
     public void SupportOffset_PreservesTheFirstAuthoredFeatureOnAnExactTie()
     {

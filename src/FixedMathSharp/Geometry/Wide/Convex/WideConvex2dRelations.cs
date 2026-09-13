@@ -496,38 +496,36 @@ internal static partial class WideConvex2dRelations
         ReadOnlySpan<Vector2d> convexVertexOffsets)
     {
         RotationFrame2d convexFrame = new(convexRotation);
-        // The query is already a world point. Widen it once to the polygon's
-        // product scale; only the polygon vertices require frame transforms.
-        Signed192 pointWorldX = WideArithmetic.Scale(point.X);
-        Signed192 pointWorldY = WideArithmetic.Scale(point.Y);
+        // Widen before subtracting: the point-to-origin displacement can exceed
+        // the scalar domain. Keep it at the rotated vertices' product scale.
+        Signed192 relativePointX = WideArithmetic.SubtractSigned192(
+            WideArithmetic.Scale(point.X),
+            WideArithmetic.Scale(convexOrigin.X));
+        Signed192 relativePointY = WideArithmetic.SubtractSigned192(
+            WideArithmetic.Scale(point.Y),
+            WideArithmetic.Scale(convexOrigin.Y));
+        GetRotatedOffset(
+            convexFrame,
+            convexVertexOffsets[0],
+            out Signed192 startX,
+            out Signed192 startY);
         bool hasPositive = false;
         bool hasNegative = false;
         for (int i = 0; i < convexVertexOffsets.Length; i++)
         {
-            Vector2d start = convexVertexOffsets[i];
             Vector2d end = convexVertexOffsets[
                 i + 1 == convexVertexOffsets.Length ? 0 : i + 1];
-            GetTransformedEdge(
+            GetRotatedOffset(
                 convexFrame,
-                start,
                 end,
-                out Signed192 edgeX,
-                out Signed192 edgeY);
-            GetWorldPoint(
-                convexOrigin,
-                convexFrame,
-                start,
-                Vector2d.Zero,
-                out Signed192 startWorldX,
-                out Signed192 startWorldY);
-            Signed192 pointX =
-                WideArithmetic.SubtractSigned192(
-                    pointWorldX,
-                    startWorldX);
-            Signed192 pointY =
-                WideArithmetic.SubtractSigned192(
-                    pointWorldY,
-                    startWorldY);
+                out Signed192 endX,
+                out Signed192 endY);
+            // Wide rotation is linear without rounding: R(end) - R(start)
+            // equals R(end - start), and the next edge reuses this endpoint.
+            Signed192 edgeX = WideArithmetic.SubtractSigned192(endX, startX);
+            Signed192 edgeY = WideArithmetic.SubtractSigned192(endY, startY);
+            Signed192 pointX = WideArithmetic.SubtractSigned192(relativePointX, startX);
+            Signed192 pointY = WideArithmetic.SubtractSigned192(relativePointY, startY);
             int orientation = WideArithmetic.MultiplySubtract(
                 edgeX,
                 pointY,
@@ -539,6 +537,9 @@ internal static partial class WideConvex2dRelations
                 hasNegative = true;
             if (hasPositive && hasNegative)
                 return false;
+
+            startX = endX;
+            startY = endY;
         }
 
         return true;

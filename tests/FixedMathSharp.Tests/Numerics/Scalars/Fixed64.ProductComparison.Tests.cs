@@ -1,4 +1,3 @@
-using System;
 using Xunit;
 
 namespace FixedMathSharp.Tests;
@@ -102,47 +101,30 @@ public sealed class Fixed64ProductComparisonTests
     [Fact]
     public void CompareProducts_WarmedExecution_DoesNotAllocate()
     {
-        for (int index = 0; index < 64; index++)
-        {
-            _ = Fixed64.CompareProducts(
-                Fixed64.MaxValue,
-                Fixed64.Two,
-                Fixed64.MaxValue,
-                Fixed64.One);
-            _ = Fixed64.CompareProducts(
-                Fixed64.MaxValue,
-                Fixed64.One,
-                Fixed64.One,
-                Fixed64.One,
-                Fixed64.MaxValue,
-                Fixed64.Two,
-                Fixed64.One,
-                Fixed64.One);
-        }
-
         int accumulatedSign = 0;
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int index = 0; index < 64; index++)
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            accumulatedSign += Fixed64.CompareProducts(
-                Fixed64.MaxValue,
-                Fixed64.Two,
-                Fixed64.MaxValue,
-                Fixed64.One);
-            accumulatedSign += Fixed64.CompareProducts(
-                Fixed64.MaxValue,
-                Fixed64.One,
-                Fixed64.One,
-                Fixed64.One,
-                Fixed64.MaxValue,
-                Fixed64.Two,
-                Fixed64.One,
-                Fixed64.One);
-        }
-
-        long after = GC.GetAllocatedBytesForCurrentThread();
+            accumulatedSign = 0;
+            for (int index = 0; index < 64; index++)
+            {
+                accumulatedSign += Fixed64.CompareProducts(
+                    Fixed64.MaxValue,
+                    Fixed64.Two,
+                    Fixed64.MaxValue,
+                    Fixed64.One);
+                accumulatedSign += Fixed64.CompareProducts(
+                    Fixed64.MaxValue,
+                    Fixed64.One,
+                    Fixed64.One,
+                    Fixed64.One,
+                    Fixed64.MaxValue,
+                    Fixed64.Two,
+                    Fixed64.One,
+                    Fixed64.One);
+            }
+        });
 
         Assert.Equal(0, accumulatedSign);
-        Assert.Equal(before, after);
+        Assert.Equal(0L, allocated);
     }
 }
