@@ -131,6 +131,11 @@ a simulation-frame improvement from its results.
 The [containment follow-up record](../../docs/feature-work/done/2026-09-11-convex-point-containment-performance.md)
 retains one measured before/after comparison and its limits.
 
+The [leading-zero follow-up record](../../docs/feature-work/done/2026-09-13-leading-zero-count-performance.md)
+retains a repeated `fixed64-arithmetic` / `Divide` comparison. That row measures
+256 divisions plus accumulation per invocation, not one division; its .NET 8
+result does not imply a change to the portable `netstandard2.1` implementation.
+
 ## Baseline Artifacts
 
 Before starting optimization work, capture a baseline:

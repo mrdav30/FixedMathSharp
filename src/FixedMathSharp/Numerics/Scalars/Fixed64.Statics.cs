@@ -23,6 +23,9 @@ public partial struct Fixed64
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static int CountLeadingZeroes(ulong x)
     {
+#if NET8_0_OR_GREATER
+        return System.Numerics.BitOperations.LeadingZeroCount(x);
+#else
         if (x == 0UL)
             return 64;
 
@@ -30,6 +33,7 @@ public partial struct Fixed64
         while ((x & 0xF000000000000000) == 0) { result += 4; x <<= 4; }
         while ((x & 0x8000000000000000) == 0) { result += 1; x <<= 1; }
         return result;
+#endif
     }
 
     /// <summary>
