@@ -41,6 +41,55 @@ public class Fixed64Tests
     }
 
     [Fact]
+    public void Multiply_ZeroEitherSideAcrossRawBitBoundaries_ReturnsExactZero()
+    {
+        for (int bit = 0; bit < 64; bit++)
+        {
+            long boundary = unchecked((long)(1UL << bit));
+            foreach (long raw in new[]
+            {
+                boundary,
+                unchecked(boundary - 1L),
+                unchecked(boundary + 1L),
+                unchecked(-boundary),
+                unchecked(-boundary - 1L),
+                unchecked(-boundary + 1L)
+            })
+            {
+                Fixed64 value = Fixed64.FromRaw(raw);
+                Assert.Equal(0L, (Fixed64.Zero * value).m_rawValue);
+                Assert.Equal(0L, (value * Fixed64.Zero).m_rawValue);
+            }
+        }
+    }
+
+    [Fact]
+    public void Multiply_RawZeroUnitNeighborsAndExtremes_MatchBigIntegerOracle()
+    {
+        const long rawOne = 1L << 32;
+        long[] rawValues =
+        {
+            long.MinValue, long.MinValue + 1L,
+            -rawOne - 1L, -rawOne, -rawOne + 1L,
+            -1L, 0L, 1L,
+            rawOne - 1L, rawOne, rawOne + 1L,
+            long.MaxValue - 1L, long.MaxValue
+        };
+        foreach (long leftRaw in rawValues)
+        {
+            foreach (long rightRaw in rawValues)
+            {
+                BigInteger product = (BigInteger)leftRaw * rightRaw;
+                if (!TryRoundRationalToInt64(product, rawOne, out long expectedRaw))
+                    expectedRaw = product.Sign < 0 ? long.MinValue : long.MaxValue;
+
+                Fixed64 result = Fixed64.FromRaw(leftRaw) * Fixed64.FromRaw(rightRaw);
+                Assert.Equal(expectedRaw, result.m_rawValue);
+            }
+        }
+    }
+
+    [Fact]
     public void Divide_Fixed64Values_ReturnsCorrectQuotient()
     {
         var a = new Fixed64(6);
@@ -183,6 +232,97 @@ public class Fixed64Tests
                 divisor = -divisor;
 
             AssertDivisionMatchesOracle(dividend, divisor);
+        }
+    }
+
+    [Fact]
+    public void Divide_AllBinaryDivisorExponentsAndSigns_MatchRawOracle()
+    {
+        long[] dividends =
+        {
+            long.MinValue, long.MinValue + 1, long.MinValue + 2,
+            -4_294_967_297L, -4_294_967_296L, -4_294_967_295L,
+            -9, -8, -7, -5, -3, -2, -1, 0, 1, 2, 3, 5, 7, 8, 9,
+            4_294_967_295L, 4_294_967_296L, 4_294_967_297L,
+            long.MaxValue - 2, long.MaxValue - 1, long.MaxValue
+        };
+
+        for (int exponent = 0; exponent <= 63; exponent++)
+        {
+            foreach (long dividend in dividends)
+                AssertSignedPowerDivisionMatchesOracle(dividend, exponent);
+        }
+    }
+
+    [Fact]
+    public void Divide_BinaryDivisorMidpointNeighbors_RoundEvenForBothSigns()
+    {
+        // A raw divisor 2^exponent divides the raw dividend by 2^(exponent-32).
+        // Visit both even and odd retained quotients, immediately around each tie.
+        for (int exponent = 33; exponent <= 63; exponent++)
+        {
+            int shift = exponent - 32;
+            for (long quotient = 0; quotient <= 3; quotient++)
+            {
+                long midpoint = (quotient << shift) + (1L << (shift - 1));
+                for (int offset = -1; offset <= 1; offset++)
+                {
+                    long dividend = midpoint + offset;
+                    AssertSignedPowerDivisionMatchesOracle(dividend, exponent);
+                    AssertSignedPowerDivisionMatchesOracle(-dividend, exponent);
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void Divide_BinaryDivisorSignedSaturationBoundaries_MatchRawOracle()
+    {
+        for (int exponent = 0; exponent <= 32; exponent++)
+        {
+            BigInteger scale = BigInteger.One << (32 - exponent);
+            foreach (BigInteger limit in new[] { new BigInteger(long.MaxValue), BigInteger.One << 63 })
+            {
+                BigInteger cutoff = limit / scale;
+                for (int offset = -1; offset <= 1; offset++)
+                {
+                    BigInteger magnitude = cutoff + offset;
+                    if (magnitude <= long.MaxValue)
+                    {
+                        AssertSignedPowerDivisionMatchesOracle((long)magnitude, exponent);
+                        AssertSignedPowerDivisionMatchesOracle(-(long)magnitude, exponent);
+                    }
+                    else if (magnitude == BigInteger.One << 63)
+                    {
+                        AssertSignedPowerDivisionMatchesOracle(long.MinValue, exponent);
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void Divide_NonBinaryNeighborsOfEveryPower_KeepGeneralDivisionResults()
+    {
+        long[] dividends =
+        {
+            long.MinValue, long.MinValue + 1, -4_294_967_297L, -3, -1, 0,
+            1, 3, 4_294_967_297L, long.MaxValue - 1, long.MaxValue
+        };
+        for (int exponent = 2; exponent <= 63; exponent++)
+        {
+            foreach (int offset in new[] { -1, 1 })
+            {
+                BigInteger divisor = (BigInteger.One << exponent) + offset;
+                if (divisor > long.MaxValue)
+                    continue;
+
+                foreach (long dividend in dividends)
+                {
+                    AssertDivisionMatchesOracle(dividend, (long)divisor);
+                    AssertDivisionMatchesOracle(dividend, -(long)divisor);
+                }
+            }
         }
     }
 
@@ -593,17 +733,23 @@ public class Fixed64Tests
     }
 
     [Theory]
-    [InlineData(false, long.MaxValue)]
-    [InlineData(true, long.MinValue)]
-    public void DivideMagnitude_RoundedCarrySaturatesToSignedLimit(
+    [InlineData(8_589_934_591UL, false, long.MaxValue)]
+    [InlineData(8_589_934_591UL, true, long.MinValue)]
+    [InlineData(8_589_934_592UL, false, long.MaxValue)]
+    [InlineData(8_589_934_592UL, true, long.MinValue)]
+    [InlineData(8_589_934_593UL, false, 9_223_372_035_781_033_984L)]
+    [InlineData(8_589_934_593UL, true, -9_223_372_035_781_033_984L)]
+    public void DivideMagnitude_FullWidthDividendAtCarryBoundary_PreservesSignedResult(
+        ulong divisor,
         bool negative,
         long expectedRaw)
     {
-        // A full-width dividend reaches final rounding carry while the divisor remains
-        // inside the signed-raw magnitude domain required by DivideMagnitude.
+        // 2^33 is the sole divisor that rounds this dividend into the signed limit.
+        // Its lower neighbor overflows before rounding; the upper neighbor rounds
+        // to 2^63 - 2^30 and must not saturate.
         Fixed64 result = Fixed64.DivideMagnitude(
             ulong.MaxValue,
-            1UL << (FixedMath.SHIFT_AMOUNT_I + 1),
+            divisor,
             negative);
 
         Assert.Equal(expectedRaw, result.m_rawValue);
@@ -1408,8 +1554,16 @@ public class Fixed64Tests
         Fixed64 divisor = Fixed64.FromRaw(divisorRaw);
 
         Assert.Equal(expectedRaw, (dividend / divisor).m_rawValue);
-        if (divisorRaw > 0)
-            Assert.Equal(expectedRaw, FixedMath.FastDiv(dividend, divisor).m_rawValue);
+        Assert.Equal(expectedRaw, FixedMath.FastDiv(dividend, divisor).m_rawValue);
+    }
+
+    private static void AssertSignedPowerDivisionMatchesOracle(long dividendRaw, int exponent)
+    {
+        ulong magnitude = 1UL << exponent;
+        // Positive 2^63 is outside the public signed raw domain; its negative is MinValue.
+        if (exponent < 63)
+            AssertDivisionMatchesOracle(dividendRaw, (long)magnitude);
+        AssertDivisionMatchesOracle(dividendRaw, unchecked(-(long)magnitude));
     }
 
     private static long DivideRawToEven(long dividendRaw, long divisorRaw)

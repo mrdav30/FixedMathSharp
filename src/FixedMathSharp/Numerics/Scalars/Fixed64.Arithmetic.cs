@@ -393,14 +393,39 @@ public partial struct Fixed64
     /// <remarks>
     /// The divisor magnitude must be in the range 1 through 2^63, inclusive, matching the
     /// unsigned magnitude of any signed raw value. This bound keeps remainder doubling within
-    /// <see cref="ulong"/>. The quotient is calculated with one guard bit and rounded to the
-    /// nearest even raw value before final saturation.
+    /// <see cref="ulong"/>. Binary-power divisors use direct shifts; other divisors use a guarded
+    /// quotient. Both paths round to the nearest even raw value before final saturation.
     /// </remarks>
     internal static Fixed64 DivideMagnitude(
         ulong dividendMagnitude,
         ulong divisorMagnitude,
         bool negative)
     {
+        if ((divisorMagnitude & (divisorMagnitude - 1UL)) == 0UL)
+        {
+            // For divisor 2^k, the raw quotient is dividend * 2^(32-k).
+            int shift = CountLeadingZeroes(divisorMagnitude) - 31;
+            ulong powerMagnitude;
+            if (shift >= 0)
+            {
+                ulong limit = negative ? 1UL << 63 : (ulong)long.MaxValue;
+                if (dividendMagnitude > (limit >> shift))
+                    return negative ? MinValue : MaxValue;
+
+                powerMagnitude = dividendMagnitude << shift;
+            }
+            else
+            {
+                // A full-width dividend can round up to the negative limit.
+                powerMagnitude = ShiftRightRoundedToEven(0UL, dividendMagnitude, -shift, out _);
+            }
+
+            if (powerMagnitude > long.MaxValue)
+                return negative ? MinValue : MaxValue;
+
+            return new Fixed64(negative ? -(long)powerMagnitude : (long)powerMagnitude);
+        }
+
         ulong remainder = dividendMagnitude;
         ulong divider = divisorMagnitude;
         ulong quotient = 0UL;
@@ -433,13 +458,11 @@ public partial struct Fixed64
             --bitPos;
         }
 
+        // The sole final rounding carry, (ulong.MaxValue / 2^33), uses the binary-power path above.
         ulong magnitude = RoundGuardedQuotientToEven(
             quotient,
             remainder != 0UL,
-            out bool roundedOverflow);
-
-        if (roundedOverflow)
-            return negative ? MinValue : MaxValue;
+            out _);
 
         long result = (long)magnitude;
         return new Fixed64(negative ? -result : result);
