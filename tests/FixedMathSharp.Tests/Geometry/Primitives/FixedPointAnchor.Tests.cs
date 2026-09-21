@@ -782,20 +782,21 @@ public sealed class FixedPointAnchorTests
         FixedQuaternion frameRotation =
             FixedQuaternion.FromAxisAngle(Vector3d.Right, Fixed64.PiOver4);
 
-        _ = anchor.TryGetLocalPointIn(
-            new Vector3d(1, 2, 3),
-            frameRotation,
-            out _);
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int index = 0; index < 256; index++)
+        bool allSucceeded = false;
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            _ = anchor.TryGetLocalPointIn(
-                new Vector3d(1, 2, 3),
-                frameRotation,
-                out _);
-        }
+            allSucceeded = true;
+            for (int index = 0; index < 256; index++)
+            {
+                allSucceeded &= anchor.TryGetLocalPointIn(
+                    new Vector3d(1, 2, 3),
+                    frameRotation,
+                    out _);
+            }
+        });
 
-        Assert.Equal(before, GC.GetAllocatedBytesForCurrentThread());
+        Assert.True(allSucceeded);
+        Assert.Equal(0, allocated);
     }
 
     [Fact]

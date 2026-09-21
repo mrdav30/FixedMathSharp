@@ -13,7 +13,7 @@ namespace FixedMathSharp.Geometry;
 /// Provides exact relations for convex 2D shapes represented by canonical
 /// origins, scalar rotations, and local vertex offsets.
 /// </summary>
-public static class FixedConvex2dRelations
+public static partial class FixedConvex2dRelations
 {
     /// <summary>
     /// Returns whether boundary-ordered vertices form a strictly convex

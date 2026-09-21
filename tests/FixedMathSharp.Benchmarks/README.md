@@ -131,6 +131,11 @@ a simulation-frame improvement from its results.
 The [containment follow-up record](../../docs/feature-work/done/2026-09-11-convex-point-containment-performance.md)
 retains one measured before/after comparison and its limits.
 
+`planar-capsule-sweep` measures the strict whole-body planar relation for a
+middle crossing, side tangency, rounded-corner miss and stationary overlap.
+Setup checks the classifications; these are individual geometry queries, not
+controller-frame measurements.
+
 The [leading-zero follow-up record](../../docs/feature-work/done/2026-09-13-leading-zero-count-performance.md)
 retains a repeated `fixed64-arithmetic` / `Divide` comparison. That row measures
 256 divisions plus accumulation per invocation, not one division; its .NET 8

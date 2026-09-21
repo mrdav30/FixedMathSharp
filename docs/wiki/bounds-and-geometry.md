@@ -225,6 +225,26 @@ and height overlap, so planar tangency, vertical tangency, and intervals that
 meet only at one boundary parameter do not become false positive volume
 intersections through independently rounded roots.
 
+`FixedConvex2dRelations.IntersectsSweptUprightCapsuleStrict` tests the full
+continuous planar sweep of a capsule with a Forward-parallel axis against a
+convex polygon. Supply start/end **centers**, full axis length, and radius;
+total height is axis length plus twice radius. Zero axis length is a circle.
+Exact tangency is excluded, including at either endpoint. Zero radius asks
+whether the swept axis enters the polygon's interior.
+
+The query keeps conceptual half-axis endpoints exact, including odd-raw lengths,
+and does not normalize the chord. Polygon vertices are origin-relative and
+must be boundary-ordered and convex in either winding. Repeated vertices and
+collinear edges are allowed; a wholly collinear polygon has no interior.
+Negative dimensions and fewer than three vertices throw. Convexity remains an
+authoring precondition; the hot query does not validate arbitrary polygons.
+This is an overlap predicate, not a first-contact distance or a physics response.
+
+For touch-inclusive admission of a single pose, use
+`FixedConvex2dRelations.IntersectsUprightCapsule`. It shares the exact shape math
+but includes tangency. Do not infer this classification from a rounded contact
+normal or penetration depth.
+
 ## Triangles and contacts
 
 Triangles preserve vertex order. `FixedTriangle2d` exposes planar barycentric
@@ -285,6 +305,7 @@ physics-response API.
 | Centered shape support, containment, or materialization    | `FixedSegment2d`, `FixedSegment` static helpers                           |
 | Shape support inside a world-Y layer                       | `FixedSlabProjection`                                                     |
 | Swept upright cylinder versus a vertical convex prism      | `FixedConvexPrismRelations`                                               |
+| Strict planar sweep of an upright capsule or circle        | `FixedConvex2dRelations.IntersectsSweptUprightCapsuleStrict`               |
 | Triangle contacts or finite-shape relations                | `FixedTriangle`                                                           |
 | Relative witnesses outside ordinary world-coordinate range | `FixedPointAnchor`, `FixedPointAnchor2d`, contact-anchor types            |
 

@@ -149,6 +149,13 @@ dependency.
 
 ## Review Notes
 
+The native planar capsule relations retain two focused branch-heavy methods:
+
+| Method | Complexity | Coverage | Rationale | Revisit if |
+| --- | ---: | --- | --- | --- |
+| `WideConvex2dRelations.IntersectsSweptUprightCapsule(...)` | 20 | 100% line / 100% branch | Exact doubled-raw swept core, zero-radius policy and finite edge-distance reduction share one allocation-free O(n) path for closed pose and strict sweep queries. | Another exact relation can share the core without a generic shape framework or rounded endpoints. |
+| `WideConvex2dRelations.HasPlanarSweepCoreOverlap(...)` | 30 | 100% line / 100% branch | Polygon halfspaces and the two core edge normals form the complete linear-time SAT proof, including point/segment degeneracy and strict versus closed boundaries. | Supported shape families or input validation policy change. |
+
 - Methods at 100% line and branch coverage with direct component-wise logic
   should usually remain explicit unless a zero-overhead generated approach is
   introduced.
