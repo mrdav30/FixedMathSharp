@@ -140,8 +140,8 @@ eight-case speedup result. Both fail in `Outside(4 vertices, 30 degrees)`, launc
 2, before the optimization: first a native access violation, then an NRE in
 `GetWorldPoint`. Each executes only 23/24 planned children. Their partial
 statistics are not used, and no candidate microcomparison is claimed.
-[`FMS-Issue-018`](../issue-tracker.md#fms-issue-018-convex-containment-benchmark-child-fails-during-measurement)
-retains both failures and the bounded no-dump diagnostic replay. Eliminating
+The [FMS-Issue-018 closure record](2026-09-11-convex-point-containment-performance.md#2026-09-21-fms-issue-018-closure)
+below retains the investigation outcome and recurrence criteria. Eliminating
 the reported helper from this call path does not establish a crash fix.
 
 The keep decision instead uses complete matched **Trailblazer guided-frame**
@@ -196,3 +196,41 @@ fully covered method coverage: GridForge 852/852 tests, Gravitas 3,950/3,895,
 Trailblazer 2,467/2,405 core plus 65 adapter tests in each configuration. Their
 source remains unchanged; these validate the shared math change through the
 unreleased local stack.
+
+## 2026-09-21: FMS-Issue-018 closure
+
+Resolved by maintainer decision after the crash could not be reproduced and
+the confirmed launcher failure-reporting defect was fixed. The original native
+access violation / managed NRE remains unattributed; this closure does not
+claim that a geometry or runtime defect was found and repaired. No math code,
+runtime optimization setting or dependency was changed for this investigation.
+
+The launcher previously discarded `BenchmarkSwitcher.Run` summaries and always
+returned zero. It now rejects critical validation errors, failed reports and
+reported child executions with missing workload results or nonzero exits,
+including failures after an earlier successful launch. The permanent
+[`Verify-ExitCodes.ps1`](../../../tests/FixedMathSharp.Benchmarks/Verify-ExitCodes.ps1)
+reproduced the old false-success result and passed all 11 checks after the fix.
+The [benchmark guide](../../../tests/FixedMathSharp.Benchmarks/README.md)
+documents how to rerun these checks; generated artifacts are disposable.
+
+Verification on Windows 11 / .NET 8.0.29 x64 / BenchmarkDotNet 0.15.8:
+
+- The originally failing case on `45fd98b` completed 3/3 launches and 45 actual
+  iterations.
+- A fresh `e8a2ab5` build completed eight cases / 24 launches / 360 actual
+  iterations in each of two runs, one under CDB and one without a debugger.
+  Every child exited zero; CDB observed no first-chance access violation.
+- A deliberately caught NRE control produced a native fault dump, validating
+  the collector independently of the benchmark.
+- The patched launcher's eight-case convex containment ShortRun passed.
+- Full solution tests passed: Release 2,780 core + 8 Chronicler tests;
+  ReleaseLean 2,759 core + 8 Chronicler tests.
+
+These are diagnostic and correctness results, not performance comparisons.
+FMS-Issue-018 is removed from the active tracker. If the crash recurs, file a
+new issue referencing this record with the source revision, environment, exact
+command, affected case/launch, child exit and stack or native fault context.
+Use a validated first-chance access-violation collector because BenchmarkDotNet
+catches managed exceptions. Preserve findings in the new issue rather than
+depending on temporary binaries, dumps or logs remaining available.

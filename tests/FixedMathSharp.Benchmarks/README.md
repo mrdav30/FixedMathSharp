@@ -64,6 +64,26 @@ Arguments after the selection are forwarded to BenchmarkDotNet:
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all --list flat
 ```
 
+The launcher returns a nonzero exit code for critical validation errors, failed
+reports, or reported executions with missing workload results or nonzero child
+exits. A successful earlier launch does not hide a later failure. Listing and
+help commands return zero. This checks the results exposed by BenchmarkDotNet;
+retain logs and check expected launches before using a capture as performance
+evidence, including any separate diagnoser processes.
+
+Run the launcher regression checks with PowerShell 7:
+
+```powershell
+pwsh -NoProfile -File tests/FixedMathSharp.Benchmarks/Verify-ExitCodes.ps1
+```
+
+The script builds the real launcher with small synthetic benchmarks in an
+isolated directory under `artifacts/benchmark-exit-codes`. It checks child and
+partial-launch failures, a nonzero exit after results, critical validation,
+successful execution, and list/help routing. It uses the benchmark project's
+BenchmarkDotNet version and adds no fixtures to the regular benchmark catalog.
+Its generated files and logs are disposable; the script recreates them.
+
 ### Fast development check
 
 Use BenchmarkDotNet's short out-of-process job for broad local smoke runs. This

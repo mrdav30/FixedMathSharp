@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 
 namespace FixedMathSharp.Benchmarks;
@@ -11,8 +14,7 @@ internal static class Program
     {
         if (args.Length == 0)
         {
-            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
-            return 0;
+            return GetExitCode(BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args));
         }
 
         string command = args[0];
@@ -41,8 +43,8 @@ internal static class Program
                 return 1;
             }
 
-            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(EnsureAllBenchmarksSelected(CopyRange(args, 1, args.Length - 1)));
-            return 0;
+            return GetExitCode(BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(
+                EnsureAllBenchmarksSelected(CopyRange(args, 1, args.Length - 1))));
         }
 
         int aliasCount = 0;
@@ -51,8 +53,7 @@ internal static class Program
 
         if (aliasCount == 0)
         {
-            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
-            return 0;
+            return GetExitCode(BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args));
         }
 
         Type[] selectedTypes = _catalog.Resolve(CopyRange(args, 0, aliasCount), out string unknownAlias);
@@ -64,7 +65,23 @@ internal static class Program
             return 1;
         }
 
-        BenchmarkSwitcher.FromTypes(selectedTypes).Run(EnsureAllBenchmarksSelected(CopyRange(args, aliasCount, args.Length - aliasCount)));
+        return GetExitCode(BenchmarkSwitcher.FromTypes(selectedTypes).Run(
+            EnsureAllBenchmarksSelected(CopyRange(args, aliasCount, args.Length - aliasCount))));
+    }
+
+    private static int GetExitCode(IEnumerable<Summary> summaries)
+    {
+        foreach (Summary summary in summaries)
+        {
+            // Earlier launches can leave a populated summary after a later
+            // child fails. Check every reported execution, not just aggregate results.
+            if (summary.HasCriticalValidationErrors || summary.Reports.Any(report =>
+                    !report.Success || report.ExecuteResults.Any(execution =>
+                        !execution.IsSuccess || execution.ExitCode != 0)))
+                return 1;
+        }
+
+        // Listing/help commands intentionally produce no summaries.
         return 0;
     }
 
