@@ -20,6 +20,13 @@ with the project.
 5. Exclude generated build, test, coverage, package, and benchmark artifacts
    from the pull request.
 
+The core test project uses blocking GC so its exact per-thread allocation guards
+are not affected by background-GC allocation-buffer accounting. This applies to
+the test host only; it does not configure consumers or benchmarks. Keep this
+setting when changing test runners. See the
+[allocation-counter investigation](docs/feature-work/done/2026-09-21-allocation-counter-accounting.md)
+for the reproducer and evidence.
+
 ## Code of Conduct
 
 ### Our Pledge

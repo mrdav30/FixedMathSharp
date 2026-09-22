@@ -317,6 +317,11 @@ GitVersion variables are consumed when present, otherwise version falls back to
 - Use `FixedMathTestHelper.MeasureWarmedAllocations(...)` for zero-allocation
   assertions. Direct allocation counters inside optimized test methods are not a
   reliable JIT boundary.
+- Keep blocking GC enabled in the core test project. Background GC can count
+  discarded allocation-context space as allocated bytes on .NET 8; the setting
+  makes exact allocation guards reliable without changing library or benchmark
+  GC behavior. See
+  [`FMS-Issue-019 RCA`](docs/feature-work/done/2026-09-21-allocation-counter-accounting.md).
 - For deterministic RNG changes, validate same-seed reproducibility and
   bounds/argument exceptions like `DeterministicRandom.Tests.cs`.
 - For serialization changes, update MemoryPack and JSON roundtrip tests.

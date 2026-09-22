@@ -101,18 +101,18 @@ public sealed class Fixed64ProductComparisonTests
     [Fact]
     public void CompareProducts_WarmedExecution_DoesNotAllocate()
     {
-        int accumulatedSign = 0;
+        bool allComparisonsCorrect = false;
         long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            accumulatedSign = 0;
+            allComparisonsCorrect = true;
             for (int index = 0; index < 64; index++)
             {
-                accumulatedSign += Fixed64.CompareProducts(
+                allComparisonsCorrect &= Fixed64.CompareProducts(
                     Fixed64.MaxValue,
                     Fixed64.Two,
                     Fixed64.MaxValue,
-                    Fixed64.One);
-                accumulatedSign += Fixed64.CompareProducts(
+                    Fixed64.One) > 0;
+                allComparisonsCorrect &= Fixed64.CompareProducts(
                     Fixed64.MaxValue,
                     Fixed64.One,
                     Fixed64.One,
@@ -120,11 +120,11 @@ public sealed class Fixed64ProductComparisonTests
                     Fixed64.MaxValue,
                     Fixed64.Two,
                     Fixed64.One,
-                    Fixed64.One);
+                    Fixed64.One) < 0;
             }
         });
 
-        Assert.Equal(0, accumulatedSign);
+        Assert.True(allComparisonsCorrect);
         Assert.Equal(0L, allocated);
     }
 }

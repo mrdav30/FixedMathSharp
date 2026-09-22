@@ -28,46 +28,6 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ## Active Issues
 
-### FMS-Issue-019: Allocation guards reported unexplained bursts
-
-- **Status:** Needs reproduction after test-protocol alignment. No production
-  allocator or source for the observed bytes is established.
-- **Priority:** Low
-- **Affected area:** `Fixed64ProductComparisonTests.CompareProducts_WarmedExecution_DoesNotAllocate`.
-- **Evidence:** The first covered ReleaseLean run on 2026-09-13 UTC reports
-  2,208 bytes (8,298,416 before / 8,300,624 after); 2,694 other core tests pass.
-  `CompareProducts` source is unchanged by the containment optimization.
-  The coordinating Trailblazer checkout retains the failed log/TRX/coverage in
-  `artifacts/benchmark005/vertex-verification` and source plus post-run binary
-  snapshots in `vertex-allocation-failure` beside it.
-- **Confirmed protocol correction:** The original guard warmed a discard-result
-  loop and measured a separate accumulating loop, using direct counters despite
-  the existing repository guidance. Both phases now use the same operation via
-  `FixedMathTestHelper.MeasureWarmedAllocations`: 64 calls to each overload,
-  unchanged inputs, zero checksum and exactly zero bytes. No retry, tolerance,
-  extra warmup or runtime change was added. The aligned seven-test class passes;
-  temporarily allocating a 64-byte array per iteration fails at 5,632 bytes.
-  That mutation is removed. This proves guard sensitivity, not the burst's cause.
-- **Next action:** Preserve any recurrence with its configuration and coverage
-  context before attributing it to production code. Successful aligned runs do
-  not establish that flakiness is cured; no broader test-harness work is planned.
-
-- **Separate 2026-09-21 signal:** An uninstrumented Release solution run during
-  planar-clearance work failed the unchanged
-  `FixedPointAnchorTests.TryGetLocalPointIn_DoesNotAllocate` guard at 7,240 bytes
-  (2,775,296 before / 2,782,536 after); 2,775 other core tests passed. Five
-  isolated runs and the complete covered run subsequently passed. This is not
-  evidence of the same allocator as the earlier product-comparison signal.
-  The guard warmed one call but measured 256, discarding every success result.
-  It now uses the existing helper for the identical 256-call operation and
-  asserts successful execution as well as zero bytes. This corrects a visible
-  test-protocol weakness, not an attributed allocation defect. A temporary
-  64-byte array per iteration made the aligned guard fail at 22,528 bytes;
-  the mutation was removed. Full standard/Lean suites and coverage subsequently
-  passed, as did Linux execution; none attributes the original burst or proves
-  it cannot recur. Failure and
-  follow-up logs remain in the coordinating 2D plan's ignored evidence workspace.
-
 ### FMS-Issue-020: Rounded capsule contact axes reject exact corner tangency
 
 - **Status:** Confirmed; generalized contact-depth path is not fixed by the

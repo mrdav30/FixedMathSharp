@@ -170,12 +170,14 @@ The first full Lean coverage run failed an **unchanged** product-comparison
 allocation guard at 2,208 bytes. Its warmup discarded results in a separate
 loop while measurement accumulated them. The guard now uses the existing
 `FixedMathTestHelper.MeasureWarmedAllocations` boundary with the same operation
-and 64 iterations in each phase. Exact zero bytes and the result checksum remain
-mandatory. A temporary 64-byte allocation per iteration makes the corrected
-guard fail at 5,632 bytes; it is removed before final validation.
-[`FMS-Issue-019`](../issue-tracker.md#fms-issue-019-product-comparison-allocation-guard-reported-an-unexplained-burst)
-keeps the original burst unattributed. This is test-protocol alignment, not a
-production allocation fix or proof that flakiness is cured.
+and 64 iterations in each phase. Exact zero bytes remain mandatory; the later
+issue investigation strengthens the cancelling result checksum to check each
+overload's expected comparison sign. A temporary 64-byte allocation per iteration
+makes the corrected guard fail at 5,632 bytes; it is removed before final validation.
+The later [FMS-Issue-019 investigation](2026-09-21-allocation-counter-accounting.md)
+confirmed background-GC allocation-counter accounting as a reproducible source
+of these failures and configured blocking GC in the core test host. The earlier
+protocol alignment alone did not establish that cause.
 
 Fresh final solution builds and coverage runs pass, including both library
 targets with zero build warnings/errors:

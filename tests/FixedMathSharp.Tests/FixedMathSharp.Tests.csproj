@@ -8,8 +8,11 @@
     <IsTestProject>true</IsTestProject>
     <Configurations>Debug;Release;ReleaseLean</Configurations>
     <OutputType>Exe</OutputType>
+    <!-- Background GC can count discarded allocation-context space as allocated
+         bytes on .NET 8. Use blocking GC for exact per-thread allocation guards. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)' == 'ReleaseLean'">
+  <PropertyGroup Condition="'$(Configuration)' == 'ReleaseLean'">
     <DisableMemoryPack>true</DisableMemoryPack>
     <DefineConstants>$(DefineConstants);FIXEDMATHSHARP_DISABLE_MEMORYPACK</DefineConstants>
   </PropertyGroup>
