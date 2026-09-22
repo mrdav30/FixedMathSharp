@@ -180,8 +180,9 @@ Two separate findings were recorded during this correction:
 - **FMS-Issue-021:** one intermediate out-of-process benchmark process threw a
   managed NRE through the value-type convex transform path. That failed run is
   excluded from performance evidence. Its input, source distinction, environment,
-  managed stack, and command are retained in the [active tracker](../issue-tracker.md);
-  the cause is unattributed.
+  managed stack, and command are retained in the
+  [closed investigation record](2026-09-21-capsule-benchmark-crash.md);
+  the cause is unattributed. Subsequent bounded replays did not reproduce it.
   Neither final capture reproduced the crash, which does not establish its cause.
 - **FMS-Issue-022:** a preexisting capsule side/vertex fallback can pair different
   tangential anchor positions even when classification and depth are correct.
