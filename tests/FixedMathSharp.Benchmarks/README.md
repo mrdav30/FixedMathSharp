@@ -148,18 +148,15 @@ translated four- and six-vertex footprints, with zero and 30-degree rotations.
 Setup verifies the intended classifications. This isolates the public convex
 containment path; use a consuming library's end-to-end benchmark before claiming
 a simulation-frame improvement from its results.
-The [containment follow-up record](../../docs/feature-work/done/2026-09-11-convex-point-containment-performance.md)
-retains one measured before/after comparison and its limits.
 
 `planar-capsule-sweep` measures the strict whole-body planar relation for a
 middle crossing, side tangency, rounded-corner miss and stationary overlap.
 Setup checks the classifications; these are individual geometry queries, not
 controller-frame measurements.
 
-The [leading-zero follow-up record](../../docs/feature-work/done/2026-09-13-leading-zero-count-performance.md)
-retains a repeated `fixed64-arithmetic` / `Divide` comparison. That row measures
-256 divisions plus accumulation per invocation, not one division; its .NET 8
-result does not imply a change to the portable `netstandard2.1` implementation.
+`centered-capsule-convex` measures closed contact-depth queries for side
+overlap, rotated overlap, exact 3–4–5 corner tangency and a one-raw-unit radius
+miss. Setup verifies each classification.
 
 ## Baseline Artifacts
 

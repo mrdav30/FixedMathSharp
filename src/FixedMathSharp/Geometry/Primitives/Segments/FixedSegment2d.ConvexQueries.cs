@@ -23,7 +23,10 @@ public partial struct FixedSegment2d
     /// Offsets must be supplied in boundary order. Exact depth ties retain the
     /// first authored edge axis, and exact direction ties retain the first
     /// authored vertex. Neither shape's conceptual world vertices need to be
-    /// representable.
+    /// representable. Classification and depth ordering retain unnormalized
+    /// axes and exact radial extents. The selected normal is then normalized
+    /// to representable components, and depth rounds once to nearest-even.
+    /// Depths outside the scalar domain saturate to <see cref="Fixed64.MaxValue"/>.
     /// </remarks>
     /// <returns>
     /// <see langword="true"/> when the shapes overlap, including tangency;
@@ -102,7 +105,8 @@ public partial struct FixedSegment2d
     /// <remarks>
     /// <paramref name="localCapsuleAxisDirection"/> is expressed in the
     /// capsule frame. Returned capsule anchors retain their axial and radial
-    /// feature terms separately.
+    /// feature terms separately. Closed-contact classification precedes normal
+    /// and depth rounding, so exact tangency returns true with zero depth.
     /// </remarks>
     public static bool TryGetCenteredCapsuleConvexContacts(
         Vector2d capsuleCenter,

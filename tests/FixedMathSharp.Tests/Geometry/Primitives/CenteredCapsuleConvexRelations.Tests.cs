@@ -13,6 +13,37 @@ namespace FixedMathSharp.Tests;
 
 public sealed class CenteredCapsuleConvexRelationsTests
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(10)]
+    [InlineData(100)]
+    [InlineData(1000)]
+    public void MinimumTranslation_ExactCornerTangencyReturnsZeroDepth(int scale)
+    {
+        Vector2d[] vertices =
+        {
+            new(-1, -1),
+            new(0, -1),
+            new(0, 0),
+            new(-1, 0),
+        };
+
+        // The closest corner is exactly 5 * scale from the circle center.
+        Assert.True(FixedSegment2d.TryGetCenteredCapsuleConvexMinimumTranslation(
+            new Vector2d(3 * scale, 4 * scale),
+            Vector2d.Forward,
+            Fixed64.Zero,
+            (Fixed64)(5 * scale),
+            Vector2d.Zero,
+            vertices,
+            out Vector2d normal,
+            out Fixed64 depth));
+        Assert.Equal(Fixed64.Zero, depth);
+        Assert.Equal(
+            new Vector2d(Fixed64.FromFraction(-3, 5), Fixed64.FromFraction(-4, 5)),
+            normal);
+    }
+
     [Fact]
     public void MinimumTranslation_ReturnsOrdinaryHorizontalFeature()
     {

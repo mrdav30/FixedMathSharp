@@ -194,6 +194,15 @@ center and half-axis first would saturate.
 - `FixedSegment` owns the corresponding 3D capsule helpers plus cylinder, cone,
   swept-sphere, and rounded-box queries.
 
+Capsule/polygon minimum-translation queries retain exact, unnormalized polygon
+edge, capsule side, and closest-vertex axes through classification and depth
+ordering. Exact tangency is closed contact with zero depth; a gap of one raw
+unit remains separated. Only the selected public normal and depth are rounded,
+with depth using nearest-even rounding. Contact overloads distinguish a depth
+above `Fixed64.MaxValue` from an exactly representable maximum through
+`depthIsClamped`. These rules also apply to circle/polygon contacts and the
+initial-contact check in capsule/polygon sweeps.
+
 The exact overload names and argument preconditions are listed on the
 [`FixedSegment2d`](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.Geometry.FixedSegment2d.html)
 and
