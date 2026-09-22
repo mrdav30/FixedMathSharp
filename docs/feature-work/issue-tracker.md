@@ -87,41 +87,6 @@ Work that requires staged implementation belongs in a focused feature-work plan.
   the input, environment, source distinction, command, and managed stack above
   are the durable evidence.
 
-### FMS-Issue-022: Capsule side/vertex contact anchors disagree tangentially
-
-- **Status:** Confirmed; preexisting contact-witness limitation exposed during
-  FMS-Issue-020 review. Classification and minimum depth are correct.
-- **Priority:** High
-- **Affected area:** `WideCenteredCapsule2dRelations.TryGetContacts` single-anchor
-  fallback for a capsule side against a polygon vertex.
-- **Evidence (2026-09-21):** Capsule center `(0,0)`, Right axis, length `4`,
-  radius `1`; triangle `(1,1),(2,3),(0,3)`; zero origins and rotations. The
-  API returns true, count `1`, normal `(0,1)`, depth `0`, unclamped. Materialized
-  capsule anchor is `(0,1)` and polygon anchor is `(1,1)`. The geometric tangent
-  point is `(1,1)` on both shapes.
-- **Cause:** An axial support tie selects the capsule side midpoint. The
-  single-contact fallback does not project the selected polygon vertex onto
-  the capsule side before choosing its axial anchor term.
-- **Impact:** The contact pair can have a tangential offset at zero penetration,
-  which can give a physics consumer an incorrect moment arm.
-- **Minimal reproduction:**
-
-  ```csharp
-  Vector2d[] triangle = { new(1, 1), new(2, 3), new(0, 3) };
-  Span<FixedPointAnchor2d> capsule = stackalloc FixedPointAnchor2d[2];
-  Span<FixedPointAnchor2d> polygon = stackalloc FixedPointAnchor2d[2];
-  bool hit = FixedSegment2d.TryGetCenteredCapsuleConvexContacts(
-      Vector2d.Zero, Fixed64.Zero, Vector2d.Right, (Fixed64)4, Fixed64.One,
-      Vector2d.Zero, Fixed64.Zero, triangle, capsule, polygon,
-      out int count, out Vector2d normal, out Fixed64 depth, out bool clamped);
-  capsule[0].TryGetPoint(out Vector2d capsulePoint); // currently (0,1)
-  polygon[0].TryGetPoint(out Vector2d polygonPoint); // (1,1)
-  ```
-
-- **Next action:** Add a permanent public-API regression, resolve the axial
-  side witness from the opposing feature without rounding conceptual endpoints,
-  and validate rotated/scalar-boundary cases and Gravitas contact consumers.
-
 **Next issue ID:** `FMS-Issue-023`
 
 ## Issue Template

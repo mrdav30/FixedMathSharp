@@ -203,6 +203,12 @@ above `Fixed64.MaxValue` from an exactly representable maximum through
 `depthIsClamped`. These rules also apply to circle/polygon contacts and the
 initial-contact check in capsule/polygon sweeps.
 
+For a single capsule-side contact, the opposing polygon feature determines
+the axial position on the capsule. Projection and endpoint clamping use wide
+coordinates before rounding the axial parameter, so off-center vertices do
+not inherit an arbitrary side midpoint. Anchors retain separate axial and
+radial terms even when their world positions are unrepresentable.
+
 The exact overload names and argument preconditions are listed on the
 [`FixedSegment2d`](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.Geometry.FixedSegment2d.html)
 and

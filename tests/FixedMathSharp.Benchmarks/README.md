@@ -156,7 +156,8 @@ controller-frame measurements.
 
 `centered-capsule-convex` measures closed contact-depth queries for side
 overlap, rotated overlap, exact 3–4–5 corner tangency and a one-raw-unit radius
-miss. Setup verifies each classification.
+miss. Its `SideVertexContact` row measures contact-anchor construction against
+an off-center vertex. Setup verifies each classification and the side witness.
 
 ## Baseline Artifacts
 

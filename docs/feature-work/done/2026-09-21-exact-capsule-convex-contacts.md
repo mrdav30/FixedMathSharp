@@ -175,16 +175,18 @@ as a like-for-like speed comparison.
 
 ## Separate follow-ups
 
-The [active tracker](../issue-tracker.md) retains two separate findings:
+Two separate findings were recorded during this correction:
 
 - **FMS-Issue-021:** one intermediate out-of-process benchmark process threw a
   managed NRE through the value-type convex transform path. That failed run is
   excluded from performance evidence. Its input, source distinction, environment,
-  managed stack, and command are retained in the tracker; the cause is unattributed.
+  managed stack, and command are retained in the [active tracker](../issue-tracker.md);
+  the cause is unattributed.
   Neither final capture reproduced the crash, which does not establish its cause.
 - **FMS-Issue-022:** a preexisting capsule side/vertex fallback can pair different
   tangential anchor positions even when classification and depth are correct.
   This is contact-witness construction, separate from the repaired axis classifier.
+  It is now [resolved and validated](2026-09-21-capsule-side-contact-witness.md).
 
 Temporary benchmark exports, logs, and coverage reports are supplemental. The
 regression sources, arithmetic invariants, commands, and observations above do

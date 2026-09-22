@@ -107,6 +107,8 @@ public partial struct FixedSegment2d
     /// capsule frame. Returned capsule anchors retain their axial and radial
     /// feature terms separately. Closed-contact classification precedes normal
     /// and depth rounding, so exact tangency returns true with zero depth.
+    /// A single side contact projects the opposing polygon feature onto the
+    /// capsule's finite side before rounding its axial parameter.
     /// </remarks>
     public static bool TryGetCenteredCapsuleConvexContacts(
         Vector2d capsuleCenter,

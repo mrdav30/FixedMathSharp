@@ -212,6 +212,19 @@ internal static class WideCenteredCapsule2dRelations
             requireInteriorProjection: false,
             out Vector2d convexOffset);
 
+        // A side support is an entire segment, not its arbitrary midpoint.
+        // Resolve its axial witness from the opposing feature using the exact
+        // selected axis; a rounded normal can turn a side tie into an end cap.
+        if (axisLength > Fixed64.Zero
+            && WideArithmetic.AddSigned320(
+                WideArithmetic.MultiplySigned192(contactAxis.X, Signed192.Raw(capsuleAxis.X)),
+                WideArithmetic.MultiplySigned192(contactAxis.Y, Signed192.Raw(capsuleAxis.Y))).IsZero)
+        {
+            capsuleContact = GetProjectedSideAnchor(
+                capsuleCenter, capsuleRotation, localCapsuleAxis, axisLength,
+                localNormal, radius, convexOrigin, convexRotation, convexOffset);
+        }
+
         capsuleContacts[0] = capsuleContact;
         convexContacts[0] = new FixedPointAnchor2d(
             convexOrigin,
@@ -219,6 +232,56 @@ internal static class WideCenteredCapsule2dRelations
             convexOffset);
         contactCount = 1;
         return true;
+    }
+
+    private static FixedPointAnchor2d GetProjectedSideAnchor(
+        Vector2d center,
+        Fixed64 rotation,
+        Vector2d localAxis,
+        Fixed64 axisLength,
+        Vector2d localNormal,
+        Fixed64 radius,
+        Vector2d pointOrigin,
+        Fixed64 pointRotation,
+        Vector2d pointOffset)
+    {
+        RotationFrame2d frame = new(rotation);
+        WideConvex2dRelations.GetRotatedOffset(frame, localAxis,
+            out Signed192 axisX, out Signed192 axisY);
+        WideConvex2dRelations.GetRotatedOffset(frame, localNormal,
+            out Signed192 radialX, out Signed192 radialY);
+        GetRelativePointNumerators(pointOrigin, new RotationFrame2d(pointRotation),
+            pointOffset, center, out Signed192 pointX, out Signed192 pointY);
+
+        // Axis and point numerators have denominator S^2. Subtract the radial
+        // support at denominator S^3 before projecting onto the conceptual side.
+        // Twice the local axial distance in raw units is 2*dot(delta,axis)/|axis|^2.
+        Signed192 deltaX = Signed192.NarrowValue(WideArithmetic.SubtractSigned320(
+            WideArithmetic.MultiplySigned192(pointX, Signed192.One),
+            WideArithmetic.MultiplySigned192(radialX, Signed192.Raw(radius))));
+        Signed192 deltaY = Signed192.NarrowValue(WideArithmetic.SubtractSigned320(
+            WideArithmetic.MultiplySigned192(pointY, Signed192.One),
+            WideArithmetic.MultiplySigned192(radialY, Signed192.Raw(radius))));
+        Signed320 projection = WideArithmetic.AddSigned320(
+            WideArithmetic.MultiplySigned192(deltaX, axisX),
+            WideArithmetic.MultiplySigned192(deltaY, axisY));
+        Signed320 numerator = WideArithmetic.AddSigned320(projection, projection);
+        Signed320 denominator = WideArithmetic.AddSigned320(
+            WideArithmetic.MultiplySigned192(axisX, axisX),
+            WideArithmetic.MultiplySigned192(axisY, axisY));
+        Signed576 limit = WideArithmetic.MultiplySigned320(denominator, Signed192.Raw(axisLength));
+        Signed576 signedNumerator = Signed576.ExtendValue(numerator);
+        Fixed64 signedLength;
+        if (WideArithmetic.SubtractSigned576(signedNumerator, limit).Sign >= 0)
+            signedLength = axisLength;
+        else if (WideArithmetic.AddSigned576(signedNumerator, limit).Sign <= 0)
+            signedLength = -axisLength;
+        else
+            _ = Fixed64.TryGetSignedRawRatio(signedNumerator,
+                Signed576.ExtendValue(denominator), out signedLength);
+
+        return GetCenteredCapsuleSideAnchor(
+            center, rotation, localAxis, signedLength, localNormal, radius);
     }
 
     private static FixedPointAnchor2d GetCenteredCapsuleSideAnchor(
