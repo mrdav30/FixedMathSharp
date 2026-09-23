@@ -20,12 +20,22 @@ with the project.
 5. Exclude generated build, test, coverage, package, and benchmark artifacts
    from the pull request.
 
-The core test project uses blocking GC so its exact per-thread allocation guards
+The core and Chronicler test projects use blocking GC so their allocation guards
 are not affected by background-GC allocation-buffer accounting. This applies to
 the test host only; it does not configure consumers or benchmarks. Keep this
 setting when changing test runners. See the
 [allocation-counter investigation](docs/feature-work/done/2026-09-21-allocation-counter-accounting.md)
 for the reproducer and evidence.
+
+## Coordinated source development
+
+Place the Chronicler checkout beside FixedMathSharp and run
+`dotnet test FixedMathSharp.slnx -c Release -p:UseLocalLsfStack=true` (repeat with
+`ReleaseLean`). This selects source Chronicler for the companion, including the
+Lean shim. It is required while the timing APIs are unpublished. Package mode
+remains the default and must be validated against a timing-capable Chronicler
+release before publishing the companion. Local 0.4.0 identities only coordinate
+assembly resolution; generated source-mode packages are not release artifacts.
 
 ## Code of Conduct
 

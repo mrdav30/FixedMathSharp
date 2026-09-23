@@ -85,7 +85,7 @@ factories.
 | ------------------------------------------- | ------------------------------------------------ |
 | `FixedMathSharp`                            | Core math with MemoryPack support                |
 | `FixedMathSharp.Lean`                       | Core math without a direct MemoryPack dependency |
-| `FixedMathSharp.Chronicler` / `.Lean`       | Deterministic `ChronicleHashWriter` extensions   |
+| `FixedMathSharp.Chronicler` / `.Lean`       | Record hashes and exact simulation-time interop |
 | `FixedMathSharp.FluentAssertions` / `.Lean` | Assertions for fixed-point tests                 |
 
 Lean builds exclude the `*.MemoryPack.cs` partial files and replace the direct

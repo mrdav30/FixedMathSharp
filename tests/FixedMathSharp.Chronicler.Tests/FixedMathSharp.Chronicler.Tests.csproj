@@ -8,12 +8,14 @@
     <IsTestProject>true</IsTestProject>
     <Configurations>Debug;Release;ReleaseLean</Configurations>
     <OutputType>Exe</OutputType>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'ReleaseLean'">
     <DisableMemoryPack>true</DisableMemoryPack>
     <DefineConstants>$(DefineConstants);FIXEDMATHSHARP_DISABLE_MEMORYPACK</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\FixedMathSharp.Tests\Support\FixedMathTestHelper.cs" Link="Support\FixedMathTestHelper.cs" />
     <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj" />
     <ProjectReference Include="..\..\src\FixedMathSharp.Chronicler\FixedMathSharp.Chronicler.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />

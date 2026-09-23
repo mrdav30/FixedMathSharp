@@ -28,8 +28,8 @@
     <AssemblyName>FixedMathSharp.Chronicler</AssemblyName>
     <RootNamespace>FixedMathSharp.Chronicler</RootNamespace>
     <Authors>mrdav30</Authors>
-    <Description>Chronicler deterministic record-hash writer extensions for FixedMathSharp fixed-point, vector, matrix, transform, and geometry types.</Description>
-    <PackageTags>fixed-point;math;deterministic;lockstep;chronicler;hash;replay;conformance;dotnet;game-development</PackageTags>
+    <Description>Exact Fixed64 simulation-time conversions and deterministic Chronicler record-hash extensions for FixedMathSharp values.</Description>
+    <PackageTags>fixed-point;math;deterministic;lockstep;chronicler;timing;hash;replay;conformance;dotnet;game-development</PackageTags>
     <RepositoryUrl>https://github.com/mrdav30/FixedMathSharp</RepositoryUrl>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -64,13 +64,19 @@
   </ItemGroup>
 
   <!-- Dependencies and Package References -->
-  <ItemGroup Condition="'$(DisableMemoryPack)' != 'true'">
+  <ItemGroup Condition="'$(DisableMemoryPack)' != 'true' And '$(UseLocalLsfStack)' != 'true'">
     <PackageReference Include="Chronicler.Core" Version="0.4.0" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(DisableMemoryPack)' == 'true'">
+  <ItemGroup Condition="'$(DisableMemoryPack)' == 'true' And '$(UseLocalLsfStack)' != 'true'">
     <PackageReference Include="Chronicler.Core.Lean" Version="0.4.0" />
     <PackageReference Include="Chronicler.MemoryPackShim" Version="0.4.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalLsfStack)' == 'true'">
+    <!-- Local identity matches the existing package graph; this is not a release version. -->
+    <ProjectReference Include="..\..\..\Chronicler\src\Chronicler\Chronicler.csproj"
+                      AdditionalProperties="Configuration=$(Configuration);SemVer=0.4.0;AssemblySemVer=0.4.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -79,5 +85,9 @@
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" Visible="false" />
     <None Include="README.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(UseLocalLsfStack)' == 'true' And ('$(Configuration)' == 'ReleaseLean' Or '$(DisableMemoryPack)' == 'true')">
+    <ProjectReference Include="..\..\..\Chronicler\src\Chronicler.MemoryPackShim\Chronicler.MemoryPackShim.csproj"
+      AdditionalProperties="Configuration=$(Configuration);SemVer=0.4.0;AssemblySemVer=0.4.0.0" />
   </ItemGroup>
 </Project>

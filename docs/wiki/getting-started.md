@@ -15,12 +15,15 @@ dotnet add package FixedMathSharp
 | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | Core math with MemoryPack support                            | `FixedMathSharp`                                                        |
 | Core math without a direct MemoryPack dependency             | `FixedMathSharp.Lean`                                                   |
-| Deterministic record hashes for replay or conformance checks | `FixedMathSharp.Chronicler` or `.Lean`                                  |
+| Record hashes or exact Chronicler simulation-time interop    | `FixedMathSharp.Chronicler` or `.Lean`                                  |
 | FluentAssertions helpers for fixed-point tests               | `FixedMathSharp.FluentAssertions` or `.Lean`                            |
 | Unity packages and Unity-specific interop                    | [FixedMathSharp-Unity](https://github.com/mrdav30/FixedMathSharp-Unity) |
 
 Pair standard companion packages with `FixedMathSharp`, and Lean companion
 packages with `FixedMathSharp.Lean`.
+
+See the [companion guide](../../src/FixedMathSharp.Chronicler/README.md) for
+exact duration conversions and their current development availability.
 
 ## 2. Run a fixed-point calculation
 

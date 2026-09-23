@@ -71,7 +71,7 @@ All values in the simulation-facing calculation remain fixed point. Convert to
 | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | [`FixedMathSharp`](https://www.nuget.org/packages/FixedMathSharp)                                             | Core math with MemoryPack support                              |
 | [`FixedMathSharp.Lean`](https://www.nuget.org/packages/FixedMathSharp.Lean)                                   | The same math surface without a direct MemoryPack dependency   |
-| [`FixedMathSharp.Chronicler`](https://www.nuget.org/packages/FixedMathSharp.Chronicler)                       | Deterministic record hashes for replay and conformance tooling |
+| [`FixedMathSharp.Chronicler`](https://www.nuget.org/packages/FixedMathSharp.Chronicler)                       | Deterministic record hashes and exact simulation-time interop |
 | [`FixedMathSharp.Chronicler.Lean`](https://www.nuget.org/packages/FixedMathSharp.Chronicler.Lean)             | Chronicler extensions on the Lean dependency graph             |
 | [`FixedMathSharp.FluentAssertions`](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions)           | Fluent assertions for fixed-point tests                        |
 | [`FixedMathSharp.FluentAssertions.Lean`](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions.Lean) | Fluent assertions paired with the Lean package                 |

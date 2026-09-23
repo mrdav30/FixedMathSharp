@@ -306,6 +306,14 @@ GitVersion variables are consumed when present, otherwise version falls back to
 
 ## Testing Patterns To Mirror
 
+`FixedMathSharp.Chronicler.FixedChronicleTime` owns the exact bridge to
+`Chronicler.Timing`, not the math core. Keep raw fractional bits, explicit
+out-of-range rejection, and raw integer floor division for complete-step counts.
+Subtract timestamps before narrowing durations. Coordinated development uses
+`UseLocalLsfStack=true` with the Chronicler sibling checkout; see
+[`CONTRIBUTING.md`](CONTRIBUTING.md#coordinated-source-development). The local
+0.4.0 Chronicler/shim identities are build fixtures, not release decisions.
+
 - Tests are xUnit v3 under
   [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests) and
   [`tests/FixedMathSharp.Chronicler.Tests`](tests/FixedMathSharp.Chronicler.Tests).
@@ -317,10 +325,10 @@ GitVersion variables are consumed when present, otherwise version falls back to
 - Use `FixedMathTestHelper.MeasureWarmedAllocations(...)` for zero-allocation
   assertions. Direct allocation counters inside optimized test methods are not a
   reliable JIT boundary.
-- Keep blocking GC enabled in the core test project. Background GC can count
-  discarded allocation-context space as allocated bytes on .NET 8; the setting
-  makes exact allocation guards reliable without changing library or benchmark
-  GC behavior. See
+- Keep blocking GC enabled in the core and Chronicler test projects. Background
+  GC can count discarded allocation-context space as allocated bytes on .NET 8;
+  the setting makes exact allocation guards reliable without changing library or
+  benchmark GC behavior. See
   [`FMS-Issue-019 RCA`](docs/feature-work/done/2026-09-21-allocation-counter-accounting.md).
 - For deterministic RNG changes, validate same-seed reproducibility and
   bounds/argument exceptions like `DeterministicRandom.Tests.cs`.

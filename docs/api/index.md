@@ -41,6 +41,7 @@ description: API reference for deterministic Q32.32 math, transforms, random str
 - [Source, issues, and releases](https://github.com/mrdav30/FixedMathSharp)
 - [Core test-suite coverage report](https://mrdav30.github.io/FixedMathSharp/coverage/)
 - [Migration guide](https://github.com/mrdav30/FixedMathSharp/blob/main/docs/MIGRATION.md)
+- [Chronicler companion: record hashes and exact time conversions](https://github.com/mrdav30/FixedMathSharp/blob/main/src/FixedMathSharp.Chronicler/README.md)
 
 The API reference is generated from the library's source XML documentation. The
 wiki explains cross-cutting behavior such as Q32.32 representation, overflow,
