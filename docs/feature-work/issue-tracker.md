@@ -28,9 +28,34 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ## Active Issues
 
-No active issues.
+### FMS-Issue-023: Finite cylinder/capsule contact misses rim separation
 
-**Next issue ID:** `FMS-Issue-023`
+- **Status:** Confirmed on 2026-09-24 against `b7a6b02`, while evaluating
+  exact posture clearance for Gravitas `GRV-Issue-081`.
+- **Priority:** High
+- **Affected area:** `FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact` and
+  `WideConvexPrismRelations.RigidFiniteShapePairs.cs`. The current finite set
+  of tested directions does not completely classify cylinder-rim separation.
+- **Evidence:** A cylinder at the origin, axis +Y, length 2, radius 10;
+  a capsule at `(20.75, 1.75, 0)`, axis +X, length 20, radius 1. The nearest
+  capsule endpoint is `(10.75, 1.75, 0)` and its squared distance to the rim
+  `(10, 1, 0)` is `9/8 > 1`, yet contact returns true. At capsule center
+  `(20.75, 2, 0)` and radius `5/4`, the exact rim distance is `5/4` (tangent),
+  but returned depth is `0.25`; raising Y by one raw unit still returns true.
+  `FixedSegmentStrictClearanceRegressionTests` preserves all three failures
+  and penetrating controls. Reproduce with
+  `dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter FullyQualifiedName~FixedSegmentStrictClearanceRegressionTests`.
+- **Impact:** False collision and incorrect solver depth; exact posture
+  clearance cannot reuse this contact classifier merely by changing `<=` to
+  `<`. This defect predates the new strict predicates.
+- **Next action:** Establish complete finite-rim classification, including
+  arbitrary rigid frames, before replacing the old contact authority. Evaluate
+  reuse of the existing rounded-cylinder polynomial machinery with exact
+  centered-axis inputs; do not round endpoints, add an epsilon, or label a
+  finite sampled-axis check exact. Keep independent analytic boundary tests
+  and benchmark the contact path before and after any owning repair.
+
+**Next issue ID:** `FMS-Issue-024`
 
 ## Issue Template
 
