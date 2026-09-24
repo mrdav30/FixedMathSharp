@@ -29,6 +29,13 @@ behavior changes, or the implementation becomes harder to reason about.
 
 | Module                            | Method                                                                              | Complexity | Coverage                | Rationale                                                                                                                                                                                                                    | Revisit if                                                                                                                                     |
 | --------------------------------- | ----------------------------------------------------------------------------------- | ---------: | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.DoesCenteredFiniteCylinderPenetrateCapsule(...)` | 12 | 100% line / 100% branch | Exact core entry, the side cylinder and both expanded disks form the complete finite-cylinder Minkowski relation, including collapsed inputs. | Another owner can share the complete feature proof without rounded endpoints or sampled axes. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.DoesCenteredFiniteConePenetrateCapsule(...)` | 12 | 100% line / 100% branch | The base disk, apex sphere and offset-side frustum retain finite cone features and exact rigid chord authority. | A shared finite-solid distance representation reduces work without weakening boundary truth. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.DoesStrictChordEnterExpandedDisk(...)` | 14 | 100% line / 100% branch | The disk core and complete rim tube retain unsquared negative terms before the quartic sign test; coefficient construction stays fixed-width and allocation-free. | An equally complete lower-degree formulation removes the rim polynomial. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.HasNegativeFiniteAxisPolynomial(...)` | 24 | 100% line / 100% branch | Endpoint signs and bounded Sturm/gcd multiplicity cases distinguish negative intervals from repeated-root tangency without isolating or rounding roots. | The degree/input-width contract changes or a simpler exact multiplicity authority is available. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.BuildFiniteAxisPolynomialSturmSequence(...)` | 14 | 100% line / 100% branch | One degree-at-most-four chain shares factorized quartic construction and lower-degree pseudo-remainders at caller-proven fixed widths. | Another consumer requires a wider degree or different algebraic contract; do not silently generalize this bounded owner. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.GetStrictPolynomialEndpointSign(...)` | 14 | 100% line / 100% branch | The first nonzero inward derivative determines the sign at an excluded endpoint root, with the nonzero leading coefficient as the exact final case. | The interval policy changes or a shared derivative-sign primitive preserves these invariants. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.GetStrictChordBounds(...)` | 12 | 100% line / 100% branch | Stationary and reversed rigid chords clip against rational or single-quadratic-field axial bounds without rounding the interval. | Another relation can share this bound representation with neutral or lower measured cost. |
 | `FixedMathSharp` | `WideOrientedBox.DoesCenteredCylinderPenetrateBox(...)` | 18 | 100% line / 100% branch | Exact center containment and six fixed box faces form a complete cylinder/polytope test, with stable early exits and no contact ranking. | A shared polytope owner removes the face setup without allocation or a measured regression. |
 | `FixedMathSharp` | `WideOrientedBox.DoesCylinderTrianglePenetrate(...)` | 22 | 100% line / 100% branch | The complete cap-clipped triangle feature set includes projected-axis containment, original edges and both newly clipped cap sections. | A simpler complete radial minimum preserves open axial boundaries and degenerate standalone triangles. |
 | `FixedMathSharp` | `WideOrientedBox.IsCylinderAxisInsideTriangleProjection(...)` | 18 | 100% line / 100% branch | Exact winding and barycentric axial comparison identify the zero-radial minimum without rounding the cylinder-axis intersection. | A shared rational triangle containment primitive preserves these dimensional and strict-boundary guarantees. |
@@ -150,6 +157,17 @@ behavior changes, or the implementation becomes harder to reason about.
 | `FixedMathSharp`                  | `Fixed64.TryGetSignedRawRatioCore(...)`                                             |         11 | 100% line / 100% branch | Shared zero-denominator rejection, quotient-width validation, the measured single-limb specialization, general fixed-limb division, rounding, and signed materialization stay in one allocation-free deterministic boundary. | A simpler shared divider preserves zero, width, rounding, and signed-range policies with lower complexity and neutral or faster measured cost. |
 
 ## Fixed-Width Workspace Bounds
+
+Capsule/finite-solid strict classification keeps the dual-rigid core chord
+rational, including odd raw lengths and 65-bit origin differences. Chord
+coordinates remain below 232 bits and rim quartic coefficients below 960 bits.
+The degree-at-most-four sign owner admits 1,024-bit coefficients: factorized
+Sturm terms need at most `6B+32` bits, exceptional pseudo-remainders at most
+`7B+32`, all within its fixed 128-word workspace. Existing rounded-cylinder
+callers retain their original 44-word workspace. Cone-side comparisons use one
+quadratic field, with exact endpoint/vertex expressions below 1,820 bits and
+squared sign comparisons within 4,096 bits. No algebraic root is converted to
+Fixed64 to make an overlap decision.
 
 Cylinder/polytope strict classification transforms authored vertices through
 the exact relative rigid basis and clips against the two cylinder cap planes.
