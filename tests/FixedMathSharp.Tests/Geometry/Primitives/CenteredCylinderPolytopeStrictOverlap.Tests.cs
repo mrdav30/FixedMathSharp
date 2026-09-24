@@ -176,6 +176,24 @@ public sealed class CenteredCylinderPolytopeStrictOverlapTests
     }
 
     [Fact]
+    public void CylinderHull_CenterOnBoundaryStillFindsPositiveSurfaceIntrusion()
+    {
+        Assert.True(Hull(new Vector3d(1, 0, 0), FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
+            Vector3d.Zero, FixedQuaternion.Identity, CubeVertices(new Vector3d(1, 1, 1)), CubeTriangles(), true));
+    }
+
+    [Fact]
+    public void CylinderTriangle_FindsInteriorOnlyOnClippedLowerCapSection()
+    {
+        // y=x-3. In the slab, 2<=x<=4, and original edge portions have
+        // |z|>=6. Only the new lower-cap edge approaches the radius-3 disk.
+        var triangle = new FixedTriangle(new Vector3d(0, -3, -10),
+            new Vector3d(0, -3, 10), new Vector3d(10, 7, 0));
+        Assert.True(Triangle(Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, (Fixed64)3,
+            triangle, Vector3d.Zero, FixedQuaternion.Identity));
+    }
+
+    [Fact]
     public void CylinderTriangle_MatchesIndependentClippedPolygonRationalOracle()
     {
         FixedQuaternion cylinderRotation = new FixedQuaternion((Fixed64)2, (Fixed64)3, (Fixed64)5, (Fixed64)7).Normalized;

@@ -117,7 +117,8 @@ internal static partial class WideOrientedBox
     /// Tests a cylinder against validated convex triangle topology. Closed
     /// volumes include cylinder enclosure; open coplanar surfaces use triangle
     /// intrusion only. Height/radius are positive, frames normalized, indices
-    /// valid, and closed-volume triangles have consistent shell winding.
+    /// valid, and closed-volume triangles are nondegenerate with consistent
+    /// shell winding, as required by the owning mesh admission contract.
     /// </summary>
     internal static bool DoesCenteredCylinderPenetrateConvexHull(
         Vector3d cylinderCenter, FixedQuaternion cylinderRotation, Fixed64 height, Fixed64 radius,
@@ -161,8 +162,6 @@ internal static partial class WideOrientedBox
             WideGeometry.GetDifferenceCrossProduct3D(b.X, a.X, b.Y, a.Y, b.Z, a.Z,
                 c.X, a.X, c.Y, a.Y, c.Z, a.Z,
                 out Signed192 nx, out Signed192 ny, out Signed192 nz);
-            if (nx.IsZero && ny.IsZero && nz.IsZero)
-                continue;
             Signed192 dx = WideArithmetic.SubtractSigned192(x, Signed192.NarrowProven(
                 WideArithmetic.MultiplySigned192(Signed192.Raw(a.X), denominator)));
             Signed192 dy = WideArithmetic.SubtractSigned192(y, Signed192.NarrowProven(
