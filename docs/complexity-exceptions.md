@@ -29,6 +29,10 @@ behavior changes, or the implementation becomes harder to reason about.
 
 | Module                            | Method                                                                              | Complexity | Coverage                | Rationale                                                                                                                                                                                                                    | Revisit if                                                                                                                                     |
 | --------------------------------- | ----------------------------------------------------------------------------------- | ---------: | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FixedMathSharp` | `WideOrientedBox.DoesCenteredCylinderPenetrateBox(...)` | 18 | 100% line / 100% branch | Exact center containment and six fixed box faces form a complete cylinder/polytope test, with stable early exits and no contact ranking. | A shared polytope owner removes the face setup without allocation or a measured regression. |
+| `FixedMathSharp` | `WideOrientedBox.DoesCylinderTrianglePenetrate(...)` | 22 | 100% line / 100% branch | The complete cap-clipped triangle feature set includes projected-axis containment, original edges and both newly clipped cap sections. | A simpler complete radial minimum preserves open axial boundaries and degenerate standalone triangles. |
+| `FixedMathSharp` | `WideOrientedBox.IsCylinderAxisInsideTriangleProjection(...)` | 18 | 100% line / 100% branch | Exact winding and barycentric axial comparison identify the zero-radial minimum without rounding the cylinder-axis intersection. | A shared rational triangle containment primitive preserves these dimensional and strict-boundary guarantees. |
+| `FixedMathSharp` | `WideOrientedBox.IsCylinderRadialSegmentInside(...)` | 12 | 100% line / 100% branch | Rational cap-clipped endpoints, endpoint minima and the interior projection share a bounded squared-distance comparison. | A shared rational segment primitive reduces duplication without wider intermediates or allocation. |
 | `FixedMathSharp` | `WideCenteredCapsule2dRelations.TryGetContactAxis(...)` | 20 | 100% line / 100% branch | One ordered polygon, capsule-side, and closest-vertex traversal serves closed contacts and strict classification; strict queries skip depth ranking. | The SAT candidate set changes or an equally exact lower-cost traversal becomes available. |
 | `FixedMathSharp` | `WideCenteredCapsule2dRelations.TryKeepAxis(...)` | 18 | 100% line / 100% branch | Signed axial overlap and exact radial support preserve strict/closed boundary policy; only contact queries retain the minimum normalized depth. | Another capsule relation can share this invariant without widening products or obscuring signs. |
 | `FixedMathSharp` | `WideOrientedBox.TryGetCenteredCapsulePenetration(...)` | 30 | 100% line / 100% branch | One complete box/capsule candidate traversal preserves ordinary contact ordering and exact strict rejection without constructing a second geometry kernel. | Candidate families change or an equally complete lower-cost distance authority is available. |
@@ -146,6 +150,17 @@ behavior changes, or the implementation becomes harder to reason about.
 | `FixedMathSharp`                  | `Fixed64.TryGetSignedRawRatioCore(...)`                                             |         11 | 100% line / 100% branch | Shared zero-denominator rejection, quotient-width validation, the measured single-limb specialization, general fixed-limb division, rounding, and signed materialization stay in one allocation-free deterministic boundary. | A simpler shared divider preserves zero, width, rounding, and signed-range policies with lower complexity and neutral or faster measured cost. |
 
 ## Fixed-Width Workspace Bounds
+
+Cylinder/polytope strict classification transforms authored vertices through
+the exact relative rigid basis and clips against the two cylinder cap planes.
+With normalized quaternion bases below 68 denominator bits each, the relative
+denominator is below 136 bits and doubled vertex numerators below 204 bits.
+Clipped vertices need fewer than 410 numerator bits over 341 denominator bits;
+radial segment differences need fewer than 752 bits and their cross products
+fewer than 821 bits. The final squared comparison stays below 1,642 bits,
+within the existing fixed 36-word stack workspace. Open axial admission plus a
+strict radial margin distinguishes cap-only tangency from intrusion without
+rounding an intersection point.
 
 The projected rigid-triangle finite-slab sweep keeps every triangle vertex and
 Y-plane clipping intersection rational until the final public witness and
