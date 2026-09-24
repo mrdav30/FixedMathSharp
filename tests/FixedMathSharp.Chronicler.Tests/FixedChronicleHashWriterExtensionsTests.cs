@@ -5,7 +5,7 @@ using Xunit;
 
 namespace FixedMathSharp.Chronicler.Tests;
 
-public sealed class FixedMathChronicleHashWriterExtensionsTests
+public sealed class FixedChronicleHashWriterExtensionsTests
 {
     [Fact]
     public void WriteFixed64_UsesRawFixedPointPayload()
