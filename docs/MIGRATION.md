@@ -1,5 +1,19 @@
 # FixedMathSharp Migration Guide
 
+## Chronicler v1.0.0 Companion Migration
+
+When rebuilding `FixedMathSharp.Chronicler` against Chronicler v1.0.0, import
+`Chronicler.Hashing` for `ChronicleHash`, `ChronicleHashWriter`, and
+`ChronicleHashSerializer`. The extension methods remain in
+`FixedMathSharp.Chronicler`; their field order and hash output are unchanged.
+Rebuild dependent assemblies together because the hash types' CLR identities
+have changed. Recording contracts remain in `Chronicler`, and timing values
+remain in `Chronicler.Timing`.
+
+For coordinated source validation before publishing the updated packages, use
+`UseLocalLsfStack=true` as described in
+[CONTRIBUTING.md](../CONTRIBUTING.md#coordinated-source-development).
+
 ## Migrating From v6.x To v7.x
 
 FixedMathSharp v7.x is a deterministic arithmetic, transform, and full-domain
@@ -942,7 +956,7 @@ FixedMathSharp v6.x includes an optional `FixedMathSharp.Chronicler` companion
 package. Add it only when your project uses Chronicler replay hashing:
 
 ```csharp
-using Chronicler;
+using Chronicler.Hashing;
 using FixedMathSharp.Chronicler;
 
 ChronicleHashWriter writer = new();

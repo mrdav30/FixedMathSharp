@@ -1418,8 +1418,7 @@ depended on matrix-canonicalized scale or rotation values.
 - Modify: `src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.Conversions.cs`
 - Modify: `src/FixedMathSharp/Numerics/Scalars/Fixed64.WideGeometry.cs`
 - Modify: `src/FixedMathSharp.FluentAssertions/FixedAssertions.cs`
-- Modify:
-  `src/FixedMathSharp.Chronicler/FixedMathChronicleHashWriterExtensions.cs`
+- Modify: `src/FixedMathSharp.Chronicler/FixedChronicleHashWriterExtensions.cs`
 - Modify: `docs/wiki/coordinate-conventions.md`
 - Modify: `docs/complexity-exceptions.md` only if fresh metrics require a
   registered exception.
@@ -1429,7 +1428,7 @@ depended on matrix-canonicalized scale or rotation values.
 - Test: `tests/FixedMathSharp.Tests/Numerics/Scalars/Fixed64.Tests.cs`
 - Test: `tests/FixedMathSharp.Tests/FixedAssertions.Tests.cs`
 - Test:
-  `tests/FixedMathSharp.Chronicler.Tests/FixedMathChronicleHashWriterExtensionsTests.cs`
+  `tests/FixedMathSharp.Chronicler.Tests/FixedChronicleHashWriterExtensionsTests.cs`
 - Benchmark: `tests/FixedMathSharp.Benchmarks/Matrix4x4Benchmarks.cs`
 - Benchmark: `tests/FixedMathSharp.Benchmarks/QuaternionBenchmarks.cs`
 - Benchmark: create

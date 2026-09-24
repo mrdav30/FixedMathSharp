@@ -19,7 +19,7 @@ Both variants target .NET Standard 2.1 and .NET 8.
 ## Record hashes
 
 ```csharp
-using Chronicler;
+using Chronicler.Hashing;
 using FixedMathSharp;
 using FixedMathSharp.Chronicler;
 
@@ -38,6 +38,10 @@ compatibility event.
 
 `WriteTransform` hashes local position, local rotation, and local scale. Parent
 identity and derived world values are intentionally excluded.
+
+Chronicler v1.0.0 places hash types in `Chronicler.Hashing`. Rebuild the companion
+and its consumers together when migrating; this namespace change preserves the
+extension writers' field order and hash output.
 
 ## Exact simulation-time conversions
 

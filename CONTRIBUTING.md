@@ -33,6 +33,8 @@ Place the Chronicler checkout beside FixedMathSharp and run
 `dotnet test FixedMathSharp.slnx -c Release -p:UseLocalLsfStack=true` (repeat with
 `ReleaseLean`). This selects source Chronicler for the companion, including the
 Lean shim. Package mode remains the default and is the release-validation path.
+Alternatively, set `$env:UseLocalLsfStack='true'` for the PowerShell session.
+This also selects the local shim for the core math library's Lean build.
 Local 0.4.0 identities only coordinate
 assembly resolution; generated source-mode packages are not release artifacts.
 

@@ -1,19 +1,20 @@
 using System;
 using System.Runtime.CompilerServices;
+using Chronicler.Hashing;
 using FixedMathSharp.Geometry;
 
 namespace FixedMathSharp.Chronicler;
 
 /// <summary>
-/// Provides deterministic <see cref="global::Chronicler.ChronicleHashWriter"/> extensions for FixedMathSharp types.
+/// Provides deterministic <see cref="ChronicleHashWriter"/> extensions for FixedMathSharp types.
 /// </summary>
-public static class FixedMathChronicleHashWriterExtensions
+public static class FixedChronicleHashWriterExtensions
 {
     /// <summary>
     /// Writes a fixed-point value by its raw Q32.32 payload.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void WriteFixed64(this ref global::Chronicler.ChronicleHashWriter writer, Fixed64 value)
+    public static void WriteFixed64(this ref ChronicleHashWriter writer, Fixed64 value)
     {
         writer.WriteInt64(value.m_rawValue);
     }
@@ -21,7 +22,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a 2D vector in X, Y component order.
     /// </summary>
-    public static void WriteVector2d(this ref global::Chronicler.ChronicleHashWriter writer, Vector2d value)
+    public static void WriteVector2d(this ref ChronicleHashWriter writer, Vector2d value)
     {
         writer.WriteFixed64(value.X);
         writer.WriteFixed64(value.Y);
@@ -30,7 +31,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a 3D vector in X, Y, Z component order.
     /// </summary>
-    public static void WriteVector3d(this ref global::Chronicler.ChronicleHashWriter writer, Vector3d value)
+    public static void WriteVector3d(this ref ChronicleHashWriter writer, Vector3d value)
     {
         writer.WriteFixed64(value.X);
         writer.WriteFixed64(value.Y);
@@ -40,7 +41,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a 4D vector in X, Y, Z, W component order.
     /// </summary>
-    public static void WriteVector4d(this ref global::Chronicler.ChronicleHashWriter writer, Vector4d value)
+    public static void WriteVector4d(this ref ChronicleHashWriter writer, Vector4d value)
     {
         writer.WriteFixed64(value.X);
         writer.WriteFixed64(value.Y);
@@ -51,7 +52,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a quaternion in X, Y, Z, W component order.
     /// </summary>
-    public static void WriteQuaternion(this ref global::Chronicler.ChronicleHashWriter writer, FixedQuaternion value)
+    public static void WriteQuaternion(this ref ChronicleHashWriter writer, FixedQuaternion value)
     {
         writer.WriteFixed64(value.X);
         writer.WriteFixed64(value.Y);
@@ -66,7 +67,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// Parent identity and all derived world views are intentionally excluded. Adopting this local
     /// contract is a replay/hash compatibility boundary for hashes produced by older package versions.
     /// </remarks>
-    public static void WriteTransform(this ref global::Chronicler.ChronicleHashWriter writer, FixedTransform value)
+    public static void WriteTransform(this ref ChronicleHashWriter writer, FixedTransform value)
     {
         if (value == null)
             throw new ArgumentNullException(nameof(value));
@@ -79,7 +80,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a 3x3 matrix in row-major order.
     /// </summary>
-    public static void WriteFixed3x3(this ref global::Chronicler.ChronicleHashWriter writer, Fixed3x3 value)
+    public static void WriteFixed3x3(this ref ChronicleHashWriter writer, Fixed3x3 value)
     {
         writer.WriteFixed64(value.M11);
         writer.WriteFixed64(value.M12);
@@ -95,7 +96,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a 4x4 matrix in row-major order.
     /// </summary>
-    public static void WriteFixed4x4(this ref global::Chronicler.ChronicleHashWriter writer, Fixed4x4 value)
+    public static void WriteFixed4x4(this ref ChronicleHashWriter writer, Fixed4x4 value)
     {
         writer.WriteFixed64(value.M11);
         writer.WriteFixed64(value.M12);
@@ -118,7 +119,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a 2D bounding area by canonical minimum then maximum corners.
     /// </summary>
-    public static void WriteBoundArea(this ref global::Chronicler.ChronicleHashWriter writer, FixedBoundArea value)
+    public static void WriteBoundArea(this ref ChronicleHashWriter writer, FixedBoundArea value)
     {
         writer.WriteVector2d(value.Min);
         writer.WriteVector2d(value.Max);
@@ -127,7 +128,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a bounding box by canonical minimum then maximum corners.
     /// </summary>
-    public static void WriteBoundBox(this ref global::Chronicler.ChronicleHashWriter writer, FixedBoundBox value)
+    public static void WriteBoundBox(this ref ChronicleHashWriter writer, FixedBoundBox value)
     {
         writer.WriteVector3d(value.Min);
         writer.WriteVector3d(value.Max);
@@ -136,7 +137,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a 2D bounding circle as center then normalized radius.
     /// </summary>
-    public static void WriteBoundCircle(this ref global::Chronicler.ChronicleHashWriter writer, FixedBoundCircle value)
+    public static void WriteBoundCircle(this ref ChronicleHashWriter writer, FixedBoundCircle value)
     {
         writer.WriteVector2d(value.Center);
         writer.WriteFixed64(value.Radius);
@@ -145,7 +146,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a bounding sphere as center then radius.
     /// </summary>
-    public static void WriteBoundSphere(this ref global::Chronicler.ChronicleHashWriter writer, FixedBoundSphere value)
+    public static void WriteBoundSphere(this ref ChronicleHashWriter writer, FixedBoundSphere value)
     {
         writer.WriteVector3d(value.Center);
         writer.WriteFixed64(value.Radius);
@@ -154,7 +155,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a ray as position then direction.
     /// </summary>
-    public static void WriteRay(this ref global::Chronicler.ChronicleHashWriter writer, FixedRay value)
+    public static void WriteRay(this ref ChronicleHashWriter writer, FixedRay value)
     {
         writer.WriteVector3d(value.Position);
         writer.WriteVector3d(value.Direction);
@@ -163,7 +164,7 @@ public static class FixedMathChronicleHashWriterExtensions
     /// <summary>
     /// Writes a plane as normal then distance component.
     /// </summary>
-    public static void WritePlane(this ref global::Chronicler.ChronicleHashWriter writer, FixedPlane value)
+    public static void WritePlane(this ref ChronicleHashWriter writer, FixedPlane value)
     {
         writer.WriteVector3d(value.Normal);
         writer.WriteFixed64(value.D);
