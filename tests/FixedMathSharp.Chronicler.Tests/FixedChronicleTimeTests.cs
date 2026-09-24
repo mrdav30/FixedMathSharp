@@ -5,7 +5,7 @@ using Xunit;
 
 namespace FixedMathSharp.Chronicler.Tests;
 
-public sealed class FixedMathChronicleTimeTests
+public sealed class FixedChronicleTimeTests
 {
     [Theory]
     [InlineData(long.MinValue, int.MinValue, 0U)]

@@ -3,7 +3,10 @@
     {
       "src": [
         {
-          "files": ["src/FixedMathSharp/bin/Release/net8.0/FixedMathSharp.dll"],
+          "files": [
+            "src/FixedMathSharp/bin/Release/net8.0/FixedMathSharp.dll",
+            "src/FixedMathSharp.Chronicler/bin/Release/net8.0/FixedMathSharp.Chronicler.dll"
+          ],
           "src": "../.."
         }
       ],

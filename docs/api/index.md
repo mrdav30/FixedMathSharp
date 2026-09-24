@@ -37,6 +37,8 @@ description: API reference for deterministic Q32.32 math, transforms, random str
 
 ## Resources
 
+- [Chronicler companion API](xref:FixedMathSharp.Chronicler) — exact time
+  conversions and deterministic record-hash extensions.
 - [Behavioral guides and getting started](https://github.com/mrdav30/FixedMathSharp/wiki)
 - [Source, issues, and releases](https://github.com/mrdav30/FixedMathSharp)
 - [Core test-suite coverage report](https://mrdav30.github.io/FixedMathSharp/coverage/)
