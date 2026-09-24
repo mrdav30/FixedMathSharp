@@ -656,10 +656,11 @@ internal static partial class WideFiniteAxisIntersection
         Span<sbyte> signs,
         Span<int> degrees)
     {
-        Span<ulong> first = stackalloc ulong[RoundedCylinderWideLimbCount];
-        Span<ulong> second = stackalloc ulong[RoundedCylinderWideLimbCount];
-        Span<ulong> scratch = stackalloc ulong[RoundedCylinderWideLimbCount];
-        Span<ulong> result = stackalloc ulong[RoundedCylinderWideLimbCount];
+        int wordCount = coefficients.Length / (RoundedCylinderPolynomialCount * RoundedCylinderCoefficientCount);
+        Span<ulong> first = stackalloc ulong[wordCount];
+        Span<ulong> second = stackalloc ulong[wordCount];
+        Span<ulong> scratch = stackalloc ulong[wordCount];
+        Span<ulong> result = stackalloc ulong[wordCount];
 
         ReadOnlySpan<ulong> a = GetRoundedCylinderCoefficient(coefficients, 0, 4);
         ReadOnlySpan<ulong> b = GetRoundedCylinderCoefficient(coefficients, 0, 3);
@@ -866,11 +867,12 @@ internal static partial class WideFiniteAxisIntersection
                 signs[GetRoundedCylinderCoefficientIndex(dividendIndex, coefficientIndex)];
         }
 
-        Span<ulong> leadingRemainder = stackalloc ulong[RoundedCylinderWideLimbCount];
-        Span<ulong> leadingDivisor = stackalloc ulong[RoundedCylinderWideLimbCount];
-        Span<ulong> first = stackalloc ulong[RoundedCylinderWideLimbCount];
-        Span<ulong> second = stackalloc ulong[RoundedCylinderWideLimbCount];
-        Span<ulong> difference = stackalloc ulong[RoundedCylinderWideLimbCount];
+        int wordCount = coefficients.Length / (RoundedCylinderPolynomialCount * RoundedCylinderCoefficientCount);
+        Span<ulong> leadingRemainder = stackalloc ulong[wordCount];
+        Span<ulong> leadingDivisor = stackalloc ulong[wordCount];
+        Span<ulong> first = stackalloc ulong[wordCount];
+        Span<ulong> second = stackalloc ulong[wordCount];
+        Span<ulong> difference = stackalloc ulong[wordCount];
         CopyRoundedCylinderWide(
             GetRoundedCylinderCoefficient(coefficients, divisorIndex, divisorDegree),
             leadingDivisor);

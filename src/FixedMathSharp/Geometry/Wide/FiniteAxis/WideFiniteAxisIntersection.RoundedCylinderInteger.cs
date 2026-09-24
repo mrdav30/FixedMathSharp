@@ -52,9 +52,10 @@ internal static partial class WideFiniteAxisIntersection
         int coefficientIndex)
     {
         int index = GetRoundedCylinderCoefficientIndex(polynomialIndex, coefficientIndex);
+        int wordCount = coefficients.Length / (RoundedCylinderPolynomialCount * RoundedCylinderCoefficientCount);
         return coefficients.Slice(
-            index * RoundedCylinderWideLimbCount,
-            RoundedCylinderWideLimbCount);
+            index * wordCount,
+            wordCount);
     }
 
     private static int GetRoundedCylinderCoefficientIndex(int polynomialIndex, int coefficientIndex) =>
