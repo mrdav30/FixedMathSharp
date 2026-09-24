@@ -98,6 +98,8 @@ public sealed class CenteredCapsuleRigidFrameTests
                 TryGetContact(value, value.Distance, out FixedContactAnchors contact),
                 value.Name);
             Assert.True(contact.Depth >= Fixed64.Zero, value.Name);
+            Assert.False(OverlapsStrict(value, value.Distance), value.Name);
+            Assert.True(OverlapsStrict(value, value.Distance + Fixed64.MinIncrement), value.Name);
         }
     }
 
@@ -173,7 +175,55 @@ public sealed class CenteredCapsuleRigidFrameTests
             Vector3d.Right,
             out FixedContactAnchors contact));
         Assert.True(contact.Depth >= Fixed64.Zero);
+
+        Assert.False(FixedSegment.DoCenteredCapsulesOverlapStrict(
+            firstCenter, rotation, Vector3d.Up, Fixed64.MaxValue, Fixed64.FromRaw(14_929_469_566L),
+            secondCenter, rotation, Vector3d.Up, Fixed64.MaxValue, Fixed64.Zero));
+        Assert.True(FixedSegment.DoCenteredCapsulesOverlapStrict(
+            firstCenter, rotation, Vector3d.Up, Fixed64.MaxValue, Fixed64.FromRaw(14_929_469_567L),
+            secondCenter, rotation, Vector3d.Up, Fixed64.MaxValue, Fixed64.Zero));
     }
+
+    [Theory]
+    [InlineData(-1, true)]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    public void StrictRigidFrame_QuaternionSignPreservesRationalTangency(long rawStep, bool overlap)
+    {
+        // Raw components have exact ratio (-2,-2,-2,1), so local Up rotates
+        // to (12/13,-3/13,4/13). Length 26 puts the upper endpoint at
+        // (12,-3,4); the opposing point is exactly one unit beyond it in Z.
+        FixedQuaternion rotation = new(
+            Fixed64.FromRaw(-2_382_419_202L), Fixed64.FromRaw(-2_382_419_202L),
+            Fixed64.FromRaw(-2_382_419_202L), Fixed64.FromRaw(1_191_209_601L));
+        Vector3d second = new((Fixed64)12, (Fixed64)(-3), Fixed64.FromRaw(((Fixed64)5).m_rawValue + rawStep));
+        Assert.Equal(overlap, FixedSegment.DoCenteredCapsulesOverlapStrict(
+            Vector3d.Zero, rotation, Vector3d.Up, (Fixed64)26, Fixed64.One,
+            second, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.Zero));
+        FixedQuaternion negated = new(-rotation.X, -rotation.Y, -rotation.Z, -rotation.W);
+        Assert.Equal(overlap, FixedSegment.DoCenteredCapsulesOverlapStrict(
+            Vector3d.Zero, negated, Vector3d.Up, (Fixed64)26, Fixed64.One,
+            second, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.Zero));
+    }
+
+    [Fact]
+    public void StrictRigidFrame_DegenerateAxisAndHalfRawEndpointRemainExact()
+    {
+        Assert.True(FixedSegment.DoCenteredCapsulesOverlapStrict(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Right,
+            Fixed64.MinIncrement, Fixed64.MinIncrement,
+            new(Fixed64.MinIncrement, Fixed64.Zero, Fixed64.Zero),
+            FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.Zero));
+        Assert.False(FixedSegment.DoCenteredCapsulesOverlapStrict(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Right,
+            Fixed64.Zero, Fixed64.Zero,
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.Zero));
+    }
+
+    private static bool OverlapsStrict(CapsulePairCase value, Fixed64 radius) =>
+        FixedSegment.DoCenteredCapsulesOverlapStrict(
+            value.FirstCenter, FixedQuaternion.Identity, value.FirstAxis, value.AxisLength, radius,
+            value.SecondCenter, FixedQuaternion.Identity, value.SecondAxis, value.AxisLength, Fixed64.Zero);
 
     private static bool TryGetContact(
         CapsulePairCase value,

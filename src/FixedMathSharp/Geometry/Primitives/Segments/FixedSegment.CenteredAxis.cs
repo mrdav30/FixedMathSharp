@@ -16,6 +16,78 @@ namespace FixedMathSharp.Geometry;
 public partial struct FixedSegment
 {
     /// <summary>
+    /// Returns whether two centered capsules in normalized rigid frames have
+    /// strictly positive radial overlap, excluding exact tangency.
+    /// </summary>
+    /// <remarks>
+    /// Each axis is expressed in its capsule's local frame. The exact rational
+    /// quaternion rotation remains authoritative; derived rounded world axes,
+    /// endpoint coordinates, and contact depths do not affect classification.
+    /// Zero-length axes are points; a zero radius sum has no strict overlap.
+    /// </remarks>
+    public static bool DoCenteredCapsulesOverlapStrict(
+        Vector3d firstCenter,
+        FixedQuaternion firstRotation,
+        Vector3d firstLocalAxisDirection,
+        Fixed64 firstAxisLength,
+        Fixed64 firstRadius,
+        Vector3d secondCenter,
+        FixedQuaternion secondRotation,
+        Vector3d secondLocalAxisDirection,
+        Fixed64 secondAxisLength,
+        Fixed64 secondRadius)
+    {
+        ValidateNormalizedRotation(firstRotation, nameof(firstRotation));
+        ValidateNormalizedRotation(secondRotation, nameof(secondRotation));
+        ValidateCenteredAxis(firstLocalAxisDirection, firstAxisLength,
+            nameof(firstLocalAxisDirection), nameof(firstAxisLength));
+        if (firstRadius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(firstRadius));
+        ValidateCenteredAxis(secondLocalAxisDirection, secondAxisLength,
+            nameof(secondLocalAxisDirection), nameof(secondAxisLength));
+        if (secondRadius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(secondRadius));
+
+        return WideOrientedBox.DoCenteredRigidCapsulesOverlap(
+            firstCenter, firstRotation, firstLocalAxisDirection, firstAxisLength, firstRadius,
+            secondCenter, secondRotation, secondLocalAxisDirection, secondAxisLength, secondRadius,
+            strict: true);
+    }
+
+    /// <summary>
+    /// Returns whether the exact distance between two centered capsule axes is
+    /// strictly less than their radius sum. Exact tangency is excluded.
+    /// </summary>
+    /// <remarks>
+    /// Classification precedes endpoint, distance, and contact-depth rounding.
+    /// Zero-length axes are points; a zero radius sum has no strict overlap.
+    /// </remarks>
+    public static bool DoCenteredCapsulesOverlapStrict(
+        Vector3d firstCenter,
+        Vector3d firstAxisDirection,
+        Fixed64 firstAxisLength,
+        Fixed64 firstRadius,
+        Vector3d secondCenter,
+        Vector3d secondAxisDirection,
+        Fixed64 secondAxisLength,
+        Fixed64 secondRadius)
+    {
+        ValidateCenteredAxis(firstAxisDirection, firstAxisLength,
+            nameof(firstAxisDirection), nameof(firstAxisLength));
+        if (firstRadius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(firstRadius));
+        ValidateCenteredAxis(secondAxisDirection, secondAxisLength,
+            nameof(secondAxisDirection), nameof(secondAxisLength));
+        if (secondRadius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(secondRadius));
+
+        return WideFiniteAxisIntersection.DoCenteredCapsulesOverlap(
+            firstCenter, firstAxisDirection, firstAxisLength, firstRadius,
+            secondCenter, secondAxisDirection, secondAxisLength, secondRadius,
+            strict: true);
+    }
+
+    /// <summary>
     /// Attempts to return the rounded distance from a point to a conceptual
     /// centered finite axis without materializing its endpoints.
     /// </summary>

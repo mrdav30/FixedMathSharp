@@ -81,6 +81,13 @@ public class OrientedBoxAnchorBenchmarks
     private readonly Signed320 _trianglePairTinyCommon =
         Signed320.ExtendValue(Signed192.Signed(1L));
 
+    [GlobalSetup]
+    public void ValidateStrictControls()
+    {
+        if (!CapsulePrimary() || !CapsuleStrict() || !SpherePrimary() || !SphereStrict())
+            throw new InvalidOperationException("Strict box controls must retain their intended positive overlap.");
+    }
+
     [Benchmark(Baseline = true)]
     public bool TrianglePrimary() =>
         _box.TryGetTriangleContact(
@@ -105,6 +112,13 @@ public class OrientedBoxAnchorBenchmarks
             Fixed64.Two,
             Fixed64.Half,
             out _);
+
+    [Benchmark]
+    public bool CapsuleStrict() =>
+        WideOrientedBox.DoesCenteredCapsulePenetrate(
+            _box.Center, _box.Orientation, _box.HalfExtents,
+            new Vector3d(Fixed64.FromFraction(5, 4), Fixed64.Zero, Fixed64.Zero),
+            _triangleRotation, Vector3d.Up, Fixed64.Two, Fixed64.Half);
 
     [Benchmark]
     public bool TriangleManifold()
@@ -146,6 +160,13 @@ public class OrientedBoxAnchorBenchmarks
             _triangleRotation,
             Fixed64.One,
             out _);
+
+    [Benchmark]
+    public bool SphereStrict() =>
+        WideOrientedBox.DoesSpherePenetrate(
+            _box.Center, _box.Orientation, _box.HalfExtents,
+            new Vector3d(Fixed64.FromFraction(3, 2), Fixed64.Zero, Fixed64.FromFraction(3, 2)),
+            Fixed64.One);
 
     [Benchmark]
     public bool CircleSlabPrimary() =>

@@ -158,6 +158,16 @@ controller-frame measurements.
 overlap, rotated overlap, exact 3–4–5 corner tangency and a one-raw-unit radius
 miss. Its `SideVertexContact` row measures contact-anchor construction against
 an off-center vertex. Setup verifies each classification and the side witness.
+The matching `Strict*` rows measure classification alone, including a positive
+sub-raw overlap. Exact touch is intentionally false in strict rows and true in
+closed-contact rows.
+
+`oriented-box-anchor` includes paired `SpherePrimary`/`SphereStrict` and
+`CapsulePrimary`/`CapsuleStrict` rows on the same geometry. The
+`rigid-finite-shape-relation` selection similarly pairs `OrdinaryHullCapsule`
+with `OrdinaryHullCapsuleStrict`. These isolate the cost avoided when a caller
+needs only penetration truth, not normals, ranked depths, or contact witnesses.
+They are not end-to-end posture-transaction or simulation-frame measurements.
 
 ## Baseline Artifacts
 

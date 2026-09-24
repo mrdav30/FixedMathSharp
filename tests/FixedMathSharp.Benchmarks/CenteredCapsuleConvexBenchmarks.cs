@@ -4,7 +4,7 @@ using FixedMathSharp.Geometry;
 
 namespace FixedMathSharp.Benchmarks;
 
-/// <summary>Closed capsule/polygon contacts before public normal and depth rounding.</summary>
+/// <summary>Closed contact-depth and exact strict capsule/polygon classifications.</summary>
 [MemoryDiagnoser]
 public class CenteredCapsuleConvexBenchmarks
 {
@@ -18,6 +18,11 @@ public class CenteredCapsuleConvexBenchmarks
             throw new InvalidOperationException("Capsule contacts must retain exact closed classifications.");
         if (!SideVertexContact().TryGetPoint(out Vector2d witness) || witness != Vector2d.One)
             throw new InvalidOperationException("Capsule side contact must match the opposing vertex.");
+        if (!StrictSideOverlap() || !StrictRotatedOverlap() || StrictCornerTangency()
+            || StrictCornerMiss() || !StrictSubRawOverlap())
+        {
+            throw new InvalidOperationException("Strict capsule relations must exclude touch and retain sub-raw penetration.");
+        }
     }
 
     [Benchmark]
@@ -39,6 +44,31 @@ public class CenteredCapsuleConvexBenchmarks
     public bool CornerMiss() => FixedSegment2d.TryGetCenteredCapsuleConvexMinimumTranslation(
         new(3, 4), Vector2d.Forward, Fixed64.Zero, (Fixed64)5 - Fixed64.MinIncrement,
         Vector2d.Zero, _square, out _, out _);
+
+    [Benchmark]
+    public bool StrictSideOverlap() => FixedSegment2d.DoesCenteredCapsulePenetrateConvex(
+        new(Fixed64.Half, -Fixed64.Half), Vector2d.Forward, Fixed64.One, Fixed64.One,
+        Vector2d.Zero, Fixed64.Zero, _square);
+
+    [Benchmark]
+    public bool StrictRotatedOverlap() => FixedSegment2d.DoesCenteredCapsulePenetrateConvex(
+        Vector2d.Zero, Vector2d.One.Normalized, Fixed64.One, Fixed64.One,
+        Vector2d.Zero, Fixed64.Pi / (Fixed64)6, _square);
+
+    [Benchmark]
+    public bool StrictCornerTangency() => FixedSegment2d.DoesCenteredCapsulePenetrateConvex(
+        new(3, 4), Vector2d.Forward, Fixed64.Zero, (Fixed64)5,
+        Vector2d.Zero, Fixed64.Zero, _square);
+
+    [Benchmark]
+    public bool StrictCornerMiss() => FixedSegment2d.DoesCenteredCapsulePenetrateConvex(
+        new(3, 4), Vector2d.Forward, Fixed64.Zero, (Fixed64)5 - Fixed64.MinIncrement,
+        Vector2d.Zero, Fixed64.Zero, _square);
+
+    [Benchmark]
+    public bool StrictSubRawOverlap() => FixedSegment2d.DoesCenteredCapsulePenetrateConvex(
+        new(Fixed64.MinIncrement, -Fixed64.Half), Vector2d.Right,
+        Fixed64.MinIncrement, Fixed64.MinIncrement, Vector2d.Zero, Fixed64.Zero, _square);
 
     [Benchmark]
     public FixedPointAnchor2d SideVertexContact()

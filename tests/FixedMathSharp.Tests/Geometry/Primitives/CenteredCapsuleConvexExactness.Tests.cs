@@ -96,6 +96,11 @@ public sealed class CenteredCapsuleConvexExactnessTests
             out Vector2d directionNormal, out Fixed64 directionDepth));
         Assert.Equal(normal, directionNormal);
         Assert.Equal(depth, directionDepth);
+        Assert.False(FixedSegment2d.DoesCenteredCapsulePenetrateConvex(
+            center, rotation, Fixed64.Two, (Fixed64)5, Vector2d.Zero, Fixed64.Zero, Corner));
+        Assert.True(FixedSegment2d.DoesCenteredCapsulePenetrateConvex(
+            center, rotation, Fixed64.Two, (Fixed64)5 + Fixed64.MinIncrement,
+            Vector2d.Zero, Fixed64.Zero, Corner));
     }
 
     [Theory]
@@ -261,6 +266,14 @@ public sealed class CenteredCapsuleConvexExactnessTests
             bool actual = FixedSegment2d.TryGetCenteredCapsuleConvexMinimumTranslation(
                 center, axis, length, radius, origin, rotation, Corner, out Vector2d normal, out Fixed64 depth);
             Assert.True(expected == actual, $"Fixture {i}: center={center}, axis={axis}, length={length}, radius={radius}, origin={origin}, rotation={rotation}");
+            if (radius > Fixed64.Zero)
+            {
+                bool strictExpected = IntersectsBySegmentDistances(
+                    center, axis, length, radius, origin, rotation, Corner, strict: true);
+                bool strictActual = FixedSegment2d.DoesCenteredCapsulePenetrateConvex(
+                    center, axis, length, radius, origin, rotation, Corner);
+                Assert.True(strictExpected == strictActual, $"Strict fixture {i}");
+            }
             if (actual)
             {
                 Assert.True(normal.IsNormalized());
@@ -302,6 +315,9 @@ public sealed class CenteredCapsuleConvexExactnessTests
             bool actual = FixedSegment2d.TryGetCenteredCapsuleConvexMinimumTranslation(
                 center, diagonal, maximum, maximum, origin, rotation, polygon, out _, out _);
             Assert.Equal(expected, actual);
+            Assert.Equal(
+                IntersectsBySegmentDistances(center, diagonal, maximum, maximum, origin, rotation, polygon, strict: true),
+                FixedSegment2d.DoesCenteredCapsulePenetrateConvex(center, diagonal, maximum, maximum, origin, rotation, polygon));
         }
     }
 
@@ -329,9 +345,11 @@ public sealed class CenteredCapsuleConvexExactnessTests
     // Independent oracle: segment/edge intersection and point-to-segment distances.
     // All coordinates share denominator 2*S^2, retaining half-raw endpoints and
     // exact products of the authored fixed-point rotation coefficients.
+    // Strict calls use positive radii: an axis/polygon intersection then lies
+    // strictly inside the capsule dilation even if the axis only touches an edge.
     private static bool IntersectsBySegmentDistances(
         Vector2d center, Vector2d axis, Fixed64 length, Fixed64 radius,
-        Vector2d origin, Fixed64 rotation, Vector2d[] offsets)
+        Vector2d origin, Fixed64 rotation, Vector2d[] offsets, bool strict = false)
     {
         BigInteger scale = BigInteger.One << 32;
         (BigInteger X, BigInteger Y) start = (
@@ -362,9 +380,9 @@ public sealed class CenteredCapsuleConvexExactnessTests
                     && Cross(start, end, a).Sign * Cross(start, end, b).Sign <= 0
                     && BigInteger.Max(BigInteger.Min(start.X, end.X), BigInteger.Min(a.X, b.X)) <= BigInteger.Min(BigInteger.Max(start.X, end.X), BigInteger.Max(a.X, b.X))
                     && BigInteger.Max(BigInteger.Min(start.Y, end.Y), BigInteger.Min(a.Y, b.Y)) <= BigInteger.Min(BigInteger.Max(start.Y, end.Y), BigInteger.Max(a.Y, b.Y)))
-                || PointWithinRadius(start, a, b, radiusSquared)
-                || PointWithinRadius(end, a, b, radiusSquared)
-                || PointWithinRadius(a, start, end, radiusSquared))
+                || PointWithinRadius(start, a, b, radiusSquared, strict)
+                || PointWithinRadius(end, a, b, radiusSquared, strict)
+                || PointWithinRadius(a, start, end, radiusSquared, strict))
             {
                 return true;
             }
@@ -378,7 +396,7 @@ public sealed class CenteredCapsuleConvexExactnessTests
 
     private static bool PointWithinRadius(
         (BigInteger X, BigInteger Y) point, (BigInteger X, BigInteger Y) a,
-        (BigInteger X, BigInteger Y) b, BigInteger radiusSquared)
+        (BigInteger X, BigInteger Y) b, BigInteger radiusSquared, bool strict)
     {
         BigInteger x = b.X - a.X;
         BigInteger y = b.Y - a.Y;
@@ -387,13 +405,13 @@ public sealed class CenteredCapsuleConvexExactnessTests
         BigInteger lengthSquared = x * x + y * y;
         BigInteger projection = dx * x + dy * y;
         if (projection <= 0)
-            return dx * dx + dy * dy <= radiusSquared;
+            return (dx * dx + dy * dy).CompareTo(radiusSquared) < (strict ? 0 : 1);
         if (projection >= lengthSquared)
         {
             dx = point.X - b.X;
             dy = point.Y - b.Y;
-            return dx * dx + dy * dy <= radiusSquared;
+            return (dx * dx + dy * dy).CompareTo(radiusSquared) < (strict ? 0 : 1);
         }
-        return BigInteger.Pow(dx * y - dy * x, 2) <= radiusSquared * lengthSquared;
+        return BigInteger.Pow(dx * y - dy * x, 2).CompareTo(radiusSquared * lengthSquared) < (strict ? 0 : 1);
     }
 }

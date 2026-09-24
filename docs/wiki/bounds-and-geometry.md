@@ -91,6 +91,22 @@ There is no global geometry epsilon. Individual members document whether they
 use exact comparison, `Fixed64.Epsilon`, inclusive boundaries, or strict
 interiors.
 
+For centered capsules, use `FixedSegment2d.DoCenteredCapsulesOverlapStrict`
+or `FixedSegment.DoCenteredCapsulesOverlapStrict` when exact tangency must not
+count. `FixedSegment2d.DoesCenteredCapsulePenetrateConvex` provides the
+corresponding capsule/polygon decision. These methods classify the exact
+geometry before rounding a normal or contact depth. A positive penetration
+smaller than half a raw Q32.32 unit can produce a contact depth of zero;
+testing `contact.Depth > Fixed64.Zero` is not a substitute for a strict query.
+
+Use the overload that matches the geometry's authoritative representation:
+an explicit world axis, a 2D scalar rotation, or a 3D quaternion and local axis.
+Do not replace a rigid frame with a separately rounded or renormalized world
+axis when exact boundary agreement matters. Zero-length capsule axes are
+points. Two capsules with zero combined radius never have strict radial
+overlap; polygon queries document their separate minimum-translation rules
+for zero-radius and lower-dimensional inputs.
+
 ## Full-domain behavior
 
 Geometry routinely compares products and squared distances that are larger than

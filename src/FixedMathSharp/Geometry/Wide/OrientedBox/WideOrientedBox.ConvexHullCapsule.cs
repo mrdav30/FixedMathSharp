@@ -44,116 +44,19 @@ internal static partial class WideOrientedBox
             Signed320.ExtendValue(capsuleAxisY),
             Signed320.ExtendValue(capsuleAxisZ));
 
-        HullCapsuleCandidate best = default;
-        bool hasBest = false;
-        for (int index = 0;
-            index < triangleVertexIndices.Length;
-            index += 3)
-        {
-            if (!TryKeepHullCapsuleCandidate(
-                    new HullCapsuleCandidate(
-                        HullCapsuleCandidateKind.Face,
-                        index,
-                        0),
-                    hullOrigin,
-                    hullBasis,
-                    hullLocalPoints,
-                    triangleVertexIndices,
-                    edgeVertexPairs,
-                    capsuleCenter,
-                    capsuleAxis,
-                    capsuleAxisDenominator,
-                    capsuleAxisLength,
-                    capsuleRadius,
-                    ref best,
-                    ref hasBest))
-            {
-                contact = default;
-                return false;
-            }
-        }
-
-        for (int index = 0; index < edgeVertexPairs.Length; index += 2)
-        {
-            if (!TryKeepHullCapsuleCandidate(
-                    new HullCapsuleCandidate(
-                        HullCapsuleCandidateKind.EdgeCross,
-                        index,
-                        0),
-                    hullOrigin,
-                    hullBasis,
-                    hullLocalPoints,
-                    triangleVertexIndices,
-                    edgeVertexPairs,
-                    capsuleCenter,
-                    capsuleAxis,
-                    capsuleAxisDenominator,
-                    capsuleAxisLength,
-                    capsuleRadius,
-                    ref best,
-                    ref hasBest))
-            {
-                contact = default;
-                return false;
-            }
-        }
-
-        for (int index = 0; index < hullLocalPoints.Length; index++)
-        {
-            if (!TryKeepHullCapsuleCandidate(
-                    new HullCapsuleCandidate(
-                        HullCapsuleCandidateKind.VertexCore,
-                        index,
-                        0),
-                    hullOrigin,
-                    hullBasis,
-                    hullLocalPoints,
-                    triangleVertexIndices,
-                    edgeVertexPairs,
-                    capsuleCenter,
-                    capsuleAxis,
-                    capsuleAxisDenominator,
-                    capsuleAxisLength,
-                    capsuleRadius,
-                    ref best,
-                    ref hasBest))
-            {
-                contact = default;
-                return false;
-            }
-        }
-
-        for (int index = 0; index < edgeVertexPairs.Length; index += 2)
-        {
-            for (int endpointSign = -1;
-                endpointSign <= 1;
-                endpointSign += 2)
-            {
-                if (!TryKeepHullCapsuleCandidate(
-                        new HullCapsuleCandidate(
-                            HullCapsuleCandidateKind.EndpointEdge,
-                            index,
-                            endpointSign),
-                        hullOrigin,
-                        hullBasis,
-                        hullLocalPoints,
-                        triangleVertexIndices,
-                        edgeVertexPairs,
-                        capsuleCenter,
-                        capsuleAxis,
-                        capsuleAxisDenominator,
-                        capsuleAxisLength,
-                        capsuleRadius,
-                        ref best,
-                        ref hasBest))
-                {
-                    contact = default;
-                    return false;
-                }
-            }
-        }
-
-        if (!hasBest)
+        if (!TryFindHullCapsuleCandidate(
+                hullOrigin,
+                hullBasis,
+                hullLocalPoints,
+                triangleVertexIndices,
+                edgeVertexPairs,
+                capsuleCenter,
+                capsuleAxis,
+                capsuleAxisDenominator,
+                capsuleAxisLength,
+                capsuleRadius,
+                strict: false,
+                out HullCapsuleCandidate best))
         {
             contact = default;
             return false;
@@ -225,6 +128,177 @@ internal static partial class WideOrientedBox
         return true;
     }
 
+    /// <summary>
+    /// Tests positive overlap against every exact hull-capsule separating-axis
+    /// candidate without rounding depth or constructing contact witnesses.
+    /// Inputs have the same admitted geometry contract as the contact kernel.
+    /// A zero-length capsule is a sphere; tangency is not positive overlap.
+    /// </summary>
+    internal static bool DoesConvexHullCenteredCapsuleStrictlyOverlap(
+        Vector3d hullOrigin,
+        FixedQuaternion hullRotation,
+        ReadOnlySpan<Vector3d> hullLocalPoints,
+        ReadOnlySpan<int> triangleVertexIndices,
+        ReadOnlySpan<int> edgeVertexPairs,
+        Vector3d capsuleCenter,
+        FixedQuaternion capsuleRotation,
+        Vector3d capsuleLocalAxisDirection,
+        Fixed64 capsuleAxisLength,
+        Fixed64 capsuleRadius)
+    {
+        WideRationalBasis3d hullBasis = new(hullRotation);
+        GetRotatedLocalAxisNumerators(
+            capsuleRotation,
+            capsuleLocalAxisDirection,
+            out Signed192 capsuleAxisX,
+            out Signed192 capsuleAxisY,
+            out Signed192 capsuleAxisZ,
+            out Signed192 capsuleAxisDenominator);
+        var capsuleAxis = new WideAxis3(
+            Signed320.ExtendValue(capsuleAxisX),
+            Signed320.ExtendValue(capsuleAxisY),
+            Signed320.ExtendValue(capsuleAxisZ));
+        return TryFindHullCapsuleCandidate(
+            hullOrigin,
+            hullBasis,
+            hullLocalPoints,
+            triangleVertexIndices,
+            edgeVertexPairs,
+            capsuleCenter,
+            capsuleAxis,
+            capsuleAxisDenominator,
+            capsuleAxisLength,
+            capsuleRadius,
+            strict: true,
+            out _);
+    }
+
+    private static bool TryFindHullCapsuleCandidate(
+        Vector3d hullOrigin,
+        WideRationalBasis3d hullBasis,
+        ReadOnlySpan<Vector3d> hullLocalPoints,
+        ReadOnlySpan<int> triangleVertexIndices,
+        ReadOnlySpan<int> edgeVertexPairs,
+        Vector3d capsuleCenter,
+        WideAxis3 capsuleAxis,
+        Signed192 capsuleAxisDenominator,
+        Fixed64 capsuleAxisLength,
+        Fixed64 capsuleRadius,
+        bool strict,
+        out HullCapsuleCandidate best)
+    {
+        best = default;
+        bool hasBest = false;
+        for (int index = 0;
+            index < triangleVertexIndices.Length;
+            index += 3)
+        {
+            if (!TryKeepHullCapsuleCandidate(
+                    new HullCapsuleCandidate(
+                        HullCapsuleCandidateKind.Face,
+                        index,
+                        0),
+                    hullOrigin,
+                    hullBasis,
+                    hullLocalPoints,
+                    triangleVertexIndices,
+                    edgeVertexPairs,
+                    capsuleCenter,
+                    capsuleAxis,
+                    capsuleAxisDenominator,
+                    capsuleAxisLength,
+                    capsuleRadius,
+                    ref best,
+                    ref hasBest,
+                    strict))
+            {
+                return false;
+            }
+        }
+
+        for (int index = 0; index < edgeVertexPairs.Length; index += 2)
+        {
+            if (!TryKeepHullCapsuleCandidate(
+                    new HullCapsuleCandidate(
+                        HullCapsuleCandidateKind.EdgeCross,
+                        index,
+                        0),
+                    hullOrigin,
+                    hullBasis,
+                    hullLocalPoints,
+                    triangleVertexIndices,
+                    edgeVertexPairs,
+                    capsuleCenter,
+                    capsuleAxis,
+                    capsuleAxisDenominator,
+                    capsuleAxisLength,
+                    capsuleRadius,
+                    ref best,
+                    ref hasBest,
+                    strict))
+            {
+                return false;
+            }
+        }
+
+        for (int index = 0; index < hullLocalPoints.Length; index++)
+        {
+            if (!TryKeepHullCapsuleCandidate(
+                    new HullCapsuleCandidate(
+                        HullCapsuleCandidateKind.VertexCore,
+                        index,
+                        0),
+                    hullOrigin,
+                    hullBasis,
+                    hullLocalPoints,
+                    triangleVertexIndices,
+                    edgeVertexPairs,
+                    capsuleCenter,
+                    capsuleAxis,
+                    capsuleAxisDenominator,
+                    capsuleAxisLength,
+                    capsuleRadius,
+                    ref best,
+                    ref hasBest,
+                    strict))
+            {
+                return false;
+            }
+        }
+
+        for (int index = 0; index < edgeVertexPairs.Length; index += 2)
+        {
+            for (int endpointSign = -1;
+                endpointSign <= 1;
+                endpointSign += 2)
+            {
+                if (!TryKeepHullCapsuleCandidate(
+                        new HullCapsuleCandidate(
+                            HullCapsuleCandidateKind.EndpointEdge,
+                            index,
+                            endpointSign),
+                        hullOrigin,
+                        hullBasis,
+                        hullLocalPoints,
+                        triangleVertexIndices,
+                        edgeVertexPairs,
+                        capsuleCenter,
+                        capsuleAxis,
+                        capsuleAxisDenominator,
+                        capsuleAxisLength,
+                        capsuleRadius,
+                        ref best,
+                        ref hasBest,
+                        strict))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return hasBest;
+    }
+
     private static bool TryKeepHullCapsuleCandidate(
         HullCapsuleCandidate candidate,
         Vector3d hullOrigin,
@@ -238,7 +312,8 @@ internal static partial class WideOrientedBox
         Fixed64 capsuleAxisLength,
         Fixed64 capsuleRadius,
         ref HullCapsuleCandidate best,
-        ref bool hasBest)
+        ref bool hasBest,
+        bool strict)
     {
         Span<ulong> rational =
             stackalloc ulong[HullCapsuleMagnitudeWords];
@@ -261,12 +336,13 @@ internal static partial class WideOrientedBox
             squaredAxisLength,
             out _,
             out _,
-            out _);
+            out _,
+            strict);
         if (status < 0)
             return false;
         if (status == 0)
             return true;
-        if (!hasBest)
+        if (strict || !hasBest)
         {
             best = candidate;
             hasBest = true;
@@ -326,7 +402,8 @@ internal static partial class WideOrientedBox
         Span<ulong> squaredAxisLength,
         out CapsuleAxis3 axis,
         out bool negate,
-        out Signed192 commonDenominator)
+        out Signed192 commonDenominator,
+        bool strict = false)
     {
         axis = BuildHullCapsuleCandidateAxis(
             candidate,
@@ -473,12 +550,13 @@ internal static partial class WideOrientedBox
         GetHullCapsuleMagnitude(
             radialCoefficient,
             coefficient);
-        return WideArithmetic.GetSignedMagnitudeAndSquareRootSign(
+        int overlapSign = WideArithmetic.GetSignedMagnitudeAndSquareRootSign(
                 rational,
                 rationalSign,
                 coefficient,
                 radialCoefficient.Sign,
-                squaredAxisLength) < 0
+                squaredAxisLength);
+        return overlapSign < 0 || (overlapSign == 0 && strict)
             ? -1
             : 1;
     }

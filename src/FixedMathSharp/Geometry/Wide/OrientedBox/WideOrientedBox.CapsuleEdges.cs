@@ -428,7 +428,8 @@ internal static partial class WideOrientedBox
         in Signed320 axialScale,
         Fixed64 capsuleRadius,
         int featureRank,
-        ref CapsulePenetration best)
+        ref CapsulePenetration best,
+        bool strict)
     {
         if (axis.IsZero)
             return true;
@@ -460,13 +461,23 @@ internal static partial class WideOrientedBox
             axialScale);
         rational = WideArithmetic.AddSigned704(rational, axial);
 
+        // Strict admission only needs every candidate's exact depth sign.
+        // Do not rank depths or retain a witness for a classification query.
+        if (strict && rational.Sign >= 0)
+            return rational.Sign > 0 || capsuleRadius > Fixed64.Zero;
+
         Signed832 squaredAxisLength = GetCapsuleSquaredLength(axis);
+        if (strict)
+        {
+            return CompareWideCapsuleRadicalToRational(
+                squaredAxisLength, commonDenominator, capsuleRadius, rational) > 0;
+        }
         if (rational.Sign < 0
-            && !IsWideCapsuleRadicalAtLeastRational(
+            && CompareWideCapsuleRadicalToRational(
                 squaredAxisLength,
                 commonDenominator,
                 capsuleRadius,
-                rational))
+                rational) < 0)
         {
             return false;
         }
@@ -570,7 +581,7 @@ internal static partial class WideOrientedBox
                 axis.Z,
                 axis.Z));
 
-    private static bool IsWideCapsuleRadicalAtLeastRational(
+    private static int CompareWideCapsuleRadicalToRational(
         Signed832 squaredAxisLength,
         Signed192 commonDenominator,
         Fixed64 radius,
@@ -603,7 +614,7 @@ internal static partial class WideOrientedBox
             rationalMagnitude,
             rationalMagnitude,
             right);
-        return WideArithmetic.CompareMagnitudeEqualLength(left, right) >= 0;
+        return WideArithmetic.CompareMagnitudeEqualLength(left, right);
     }
 
     private static void GetWideCapsuleDepth(

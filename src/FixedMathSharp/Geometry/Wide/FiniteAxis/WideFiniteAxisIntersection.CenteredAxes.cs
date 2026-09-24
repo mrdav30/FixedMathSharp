@@ -166,7 +166,8 @@ internal static partial class WideFiniteAxisIntersection
         Vector2d secondCenter,
         Vector2d secondAxis,
         Fixed64 secondLength,
-        Fixed64 secondRadius)
+        Fixed64 secondRadius,
+        bool strict = false)
     {
         GetCenteredAxesSquaredDistance(
             firstCenter,
@@ -181,7 +182,8 @@ internal static partial class WideFiniteAxisIntersection
             squaredNumerator,
             denominator,
             firstRadius,
-            secondRadius);
+            secondRadius,
+            strict);
     }
 
     internal static bool DoCenteredCapsulesOverlap(
@@ -192,7 +194,8 @@ internal static partial class WideFiniteAxisIntersection
         Vector3d secondCenter,
         Vector3d secondAxis,
         Fixed64 secondLength,
-        Fixed64 secondRadius)
+        Fixed64 secondRadius,
+        bool strict = false)
     {
         GetCenteredAxesSquaredDistance(
             firstCenter,
@@ -207,7 +210,8 @@ internal static partial class WideFiniteAxisIntersection
             squaredNumerator,
             denominator,
             firstRadius,
-            secondRadius);
+            secondRadius,
+            strict);
     }
 
     internal static bool TryGetCenteredCapsulesContact(

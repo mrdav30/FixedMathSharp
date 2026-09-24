@@ -91,6 +91,19 @@ internal static class WideCenteredCapsule2dRelations
             out _,
             out _);
 
+    internal static bool DoesCapsulePenetrateConvex(
+        Vector2d center,
+        Vector2d capsuleAxis,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector2d convexOrigin,
+        Fixed64 convexRotation,
+        ReadOnlySpan<Vector2d> convexOriginOffsets) =>
+        TryGetContactAxis(
+            center, capsuleAxis, axisLength, radius,
+            convexOrigin, convexRotation, convexOriginOffsets,
+            strict: true, out _);
+
     internal static bool TryGetContacts(
         Vector2d capsuleCenter,
         Fixed64 capsuleRotation,
@@ -324,10 +337,34 @@ internal static class WideCenteredCapsule2dRelations
         out bool depthIsClamped,
         out ContactAxis best)
     {
-        RotationFrame2d frame = new(convexRotation);
         normal = default;
         depth = default;
         depthIsClamped = false;
+        if (!TryGetContactAxis(
+                center, capsuleAxis, axisLength, radius,
+                convexOrigin, convexRotation, convexOriginOffsets,
+                strict: false, out best))
+        {
+            return false;
+        }
+
+        normal = WideNormalization.GetNormalized(best.X, best.Y);
+        depth = GetDepth(best, radius, out depthIsClamped);
+        return true;
+    }
+
+    private static bool TryGetContactAxis(
+        Vector2d center,
+        Vector2d capsuleAxis,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector2d convexOrigin,
+        Fixed64 convexRotation,
+        ReadOnlySpan<Vector2d> convexOriginOffsets,
+        bool strict,
+        out ContactAxis best)
+    {
+        RotationFrame2d frame = new(convexRotation);
         best = default;
         for (int i = 0; i < convexOriginOffsets.Length; i++)
         {
@@ -345,7 +382,7 @@ internal static class WideCenteredCapsule2dRelations
             if (!TryKeepAxis(
                     center, capsuleAxis, axisLength, radius,
                     convexOrigin, frame, convexOriginOffsets,
-                    axisX, axisY, true, ref best))
+                    axisX, axisY, true, strict, ref best))
             {
                 return false;
             }
@@ -361,7 +398,7 @@ internal static class WideCenteredCapsule2dRelations
                 center, capsuleAxis, axisLength, radius,
                 convexOrigin, frame, convexOriginOffsets,
                 WideArithmetic.Negate(Signed192.Raw(capsuleAxis.Y)),
-                Signed192.Raw(capsuleAxis.X), false, ref best))
+                Signed192.Raw(capsuleAxis.X), false, strict, ref best))
         {
             return false;
         }
@@ -374,13 +411,11 @@ internal static class WideCenteredCapsule2dRelations
             && !TryKeepAxis(
                 center, capsuleAxis, axisLength, radius,
                 convexOrigin, frame, convexOriginOffsets,
-                closestX, closestY, false, ref best))
+                closestX, closestY, false, strict, ref best))
         {
             return false;
         }
 
-        normal = WideNormalization.GetNormalized(best.X, best.Y);
-        depth = GetDepth(best, radius, out depthIsClamped);
         return true;
     }
 
@@ -562,6 +597,7 @@ internal static class WideCenteredCapsule2dRelations
         Signed192 axisX,
         Signed192 axisY,
         bool axisFromEdge,
+        bool strict,
         ref ContactAxis best)
     {
         GetRelativeProjectionRange(
@@ -591,9 +627,12 @@ internal static class WideCenteredCapsule2dRelations
         // With S = 2^32, the exact depth in raw units is
         // radius.Raw + overlap / (2*S*sqrt(axisSquared)). Test its sign
         // before rounding either the axis, radial support, or public depth.
-        if (CompareDepthToTwiceRaw(candidate, radius, default) < 0)
+        int depthSign = CompareDepthToTwiceRaw(candidate, radius, default);
+        if (strict ? depthSign <= 0 : depthSign < 0)
             return false;
-        if (!best.HasValue || CompareDepths(candidate, best) < 0)
+        // A boolean strict relation needs no minimum-depth ranking, normal,
+        // square root, or rounded contact witness.
+        if (!best.HasValue || (!strict && CompareDepths(candidate, best) < 0))
             best = candidate;
         return true;
     }

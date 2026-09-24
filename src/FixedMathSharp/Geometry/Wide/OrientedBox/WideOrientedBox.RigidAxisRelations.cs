@@ -53,7 +53,8 @@ internal static partial class WideOrientedBox
         FixedQuaternion secondRotation,
         Vector3d secondLocalAxis,
         Fixed64 secondLength,
-        Fixed64 secondRadius)
+        Fixed64 secondRadius,
+        bool strict = false)
     {
         GetRotatedLocalAxisNumerators(
             firstRotation,
@@ -307,7 +308,8 @@ internal static partial class WideOrientedBox
                 secondDotDifference,
                 determinant,
                 relationDenominator,
-                combinedRadius);
+                combinedRadius,
+                strict);
         }
         if (firstFeature == RigidSegmentInterior)
         {
@@ -323,7 +325,8 @@ internal static partial class WideOrientedBox
                 firstSquared,
                 adjustedDot,
                 relationDenominator,
-                combinedRadius);
+                combinedRadius,
+                strict);
         }
         if (secondFeature == RigidSegmentInterior)
         {
@@ -339,7 +342,8 @@ internal static partial class WideOrientedBox
                 secondSquared,
                 adjustedDot,
                 relationDenominator,
-                combinedRadius);
+                combinedRadius,
+                strict);
         }
 
         return IsRigidPointWithinRadius(
@@ -347,7 +351,8 @@ internal static partial class WideOrientedBox
             relationY,
             relationZ,
             relationDenominator,
-            combinedRadius);
+            combinedRadius,
+            strict);
     }
 
     private const int RigidSegmentLower = -1;
@@ -448,7 +453,8 @@ internal static partial class WideOrientedBox
         Signed704 secondDotDifference,
         ReadOnlySpan<ulong> determinant,
         Signed576 relationDenominator,
-        Signed192 radius)
+        Signed192 radius,
+        bool strict)
     {
         Span<ulong> relationSquared = stackalloc ulong[13];
         GetSquaredMagnitude(
@@ -513,7 +519,8 @@ internal static partial class WideOrientedBox
             relationDenominator,
             determinant,
             right);
-        return WideArithmetic.CompareMagnitudeEqualLength(left, right) <= 0;
+        int comparison = WideArithmetic.CompareMagnitudeEqualLength(left, right);
+        return strict ? comparison < 0 : comparison <= 0;
     }
 
     private static bool IsRigidPointLineWithinRadius(
@@ -523,7 +530,8 @@ internal static partial class WideOrientedBox
         Signed576 axisSquared,
         Signed704 axisDotDifference,
         Signed576 relationDenominator,
-        Signed192 radius)
+        Signed192 radius,
+        bool strict)
     {
         Span<ulong> relationSquared = stackalloc ulong[13];
         GetSquaredMagnitude(
@@ -551,7 +559,8 @@ internal static partial class WideOrientedBox
             relationDenominator,
             axisSquaredMagnitude,
             right);
-        return WideArithmetic.CompareMagnitudeEqualLength(left, right) <= 0;
+        int comparison = WideArithmetic.CompareMagnitudeEqualLength(left, right);
+        return strict ? comparison < 0 : comparison <= 0;
     }
 
     private static bool IsRigidPointWithinRadius(
@@ -559,7 +568,8 @@ internal static partial class WideOrientedBox
         Signed576 relationY,
         Signed576 relationZ,
         Signed576 relationDenominator,
-        Signed192 radius)
+        Signed192 radius,
+        bool strict)
     {
         Span<ulong> left = stackalloc ulong[TriangleSweepMagnitudeWords];
         left.Clear();
@@ -574,7 +584,8 @@ internal static partial class WideOrientedBox
             relationDenominator,
             ReadOnlySpan<ulong>.Empty,
             right);
-        return WideArithmetic.CompareMagnitudeEqualLength(left, right) <= 0;
+        int comparison = WideArithmetic.CompareMagnitudeEqualLength(left, right);
+        return strict ? comparison < 0 : comparison <= 0;
     }
 
     private static void GetRadiusThreshold(

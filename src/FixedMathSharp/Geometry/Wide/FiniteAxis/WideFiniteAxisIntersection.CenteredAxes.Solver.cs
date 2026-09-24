@@ -305,7 +305,8 @@ internal static partial class WideFiniteAxisIntersection
         Signed832 squaredDistanceNumerator,
         Signed320 distanceDenominator,
         Fixed64 firstRadius,
-        Fixed64 secondRadius)
+        Fixed64 secondRadius,
+        bool strict = false)
     {
         Signed192 combinedRadius = WideArithmetic.AddSigned192(
             Signed192.Signed(firstRadius.m_rawValue),
@@ -313,11 +314,12 @@ internal static partial class WideFiniteAxisIntersection
         Signed576 radiusNumerator = WideArithmetic.MultiplySigned320(
             distanceDenominator,
             Signed320.ExtendValue(combinedRadius));
-        return WideArithmetic.SubtractSigned832(
+        int comparison = WideArithmetic.SubtractSigned832(
             squaredDistanceNumerator,
             WideArithmetic.MultiplySigned576ToSigned832(
                 radiusNumerator,
-                radiusNumerator)).Sign <= 0;
+                radiusNumerator)).Sign;
+        return strict ? comparison < 0 : comparison <= 0;
     }
 
     private static void ProjectSecondFromCenteredAxisCap(

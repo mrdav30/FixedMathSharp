@@ -13,6 +13,40 @@ namespace FixedMathSharp.Geometry;
 /// </content>
 internal static partial class WideOrientedBox
 {
+    internal static bool DoesSpherePenetrate(
+        Vector3d center, FixedQuaternion orientation, Vector3d halfExtents,
+        Vector3d sphereCenter, Fixed64 sphereRadius)
+    {
+        WideRationalBasis3d basis = new(orientation);
+        GetPointProjections(sphereCenter, center, basis,
+            out Signed320 x, out Signed320 y, out Signed320 z);
+        Signed320 gapX = WideArithmetic.SubtractSigned320(
+            GetMagnitude(x), GetExtentNumerator(halfExtents.X, basis.Denominator));
+        Signed320 gapY = WideArithmetic.SubtractSigned320(
+            GetMagnitude(y), GetExtentNumerator(halfExtents.Y, basis.Denominator));
+        Signed320 gapZ = WideArithmetic.SubtractSigned320(
+            GetMagnitude(z), GetExtentNumerator(halfExtents.Z, basis.Denominator));
+        if (sphereRadius == Fixed64.Zero)
+            return gapX.Sign < 0 && gapY.Sign < 0 && gapZ.Sign < 0;
+
+        if (gapX.Sign < 0) gapX = default;
+        if (gapY.Sign < 0) gapY = default;
+        if (gapZ.Sign < 0) gapZ = default;
+        // The rational quaternion basis is orthogonal with common scale D.
+        // Compare squared local distance against (radius * D)^2, without
+        // materializing a world witness, normal, square root or rounded depth.
+        // A raw coordinate difference times D uses fewer than 134 bits;
+        // its squared sum fits Signed576 throughout the Fixed64 domain.
+        Signed576 distanceSquared = WideArithmetic.AddSigned576(
+            WideArithmetic.AddSigned576(
+                WideArithmetic.MultiplySigned320(gapX, gapX),
+                WideArithmetic.MultiplySigned320(gapY, gapY)),
+            WideArithmetic.MultiplySigned320(gapZ, gapZ));
+        Signed320 radius = GetExtentNumerator(sphereRadius, basis.Denominator);
+        return WideArithmetic.SubtractSigned576(
+            distanceSquared, WideArithmetic.MultiplySigned320(radius, radius)).Sign < 0;
+    }
+
     internal static bool TryGetSweptSphereIntersectionDistance(
         Vector3d center,
         FixedQuaternion orientation,

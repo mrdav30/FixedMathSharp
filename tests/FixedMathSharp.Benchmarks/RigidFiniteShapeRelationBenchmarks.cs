@@ -81,6 +81,7 @@ public class RigidFiniteShapeRelationBenchmarks
             || !MultiRadicalCylinderCylinder()
             || IrreducibleGenericRadicalSign() == 0
             || !OrdinaryHullCapsule()
+            || !OrdinaryHullCapsuleStrict()
             || !EdgeFeatureHullCapsule()
             || !OrdinaryCapsuleSlabProjection()
             || !OrdinaryCylinderSlabProjection()
@@ -251,6 +252,13 @@ public class RigidFiniteShapeRelationBenchmarks
             Fixed64.Two,
             Fixed64.One,
             out _);
+
+    [Benchmark]
+    public bool OrdinaryHullCapsuleStrict() =>
+        WideOrientedBox.DoesConvexHullCenteredCapsuleStrictlyOverlap(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            new Vector3d(Fixed64.FromFraction(3, 2), Fixed64.Zero, Fixed64.Zero),
+            FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.One);
 
     [Benchmark]
     public bool EdgeFeatureHullCapsule() =>

@@ -14,6 +14,29 @@ namespace FixedMathSharp.Geometry;
 /// </content>
 internal static partial class WideOrientedBox
 {
+    internal static bool DoesCenteredCapsulePenetrate(
+        Vector3d center, FixedQuaternion orientation, Vector3d halfExtents,
+        Vector3d capsuleCenter, FixedQuaternion capsuleRotation,
+        Vector3d localCapsuleAxisDirection, Fixed64 capsuleAxisLength, Fixed64 capsuleRadius)
+    {
+        if (capsuleAxisLength == Fixed64.Zero)
+            return DoesSpherePenetrate(center, orientation, halfExtents, capsuleCenter, capsuleRadius);
+
+        WideRationalBasis3d boxBasis = new(orientation);
+        WideRationalBasis3d capsuleBasis = new(capsuleRotation);
+        WideRationalBasis3d relativeBasis = WideRationalBasis3d.CreateRelative(boxBasis, capsuleBasis);
+        WideAxis3 capsuleAxis = WideRigidProjection.TransformLocalAxis(
+            relativeBasis, Signed192.Raw(localCapsuleAxisDirection.X),
+            Signed192.Raw(localCapsuleAxisDirection.Y), Signed192.Raw(localCapsuleAxisDirection.Z));
+        return TryGetCenteredCapsulePenetration(
+                center, halfExtents, capsuleCenter, boxBasis, capsuleBasis.Denominator,
+                capsuleAxis, relativeBasis.Denominator,
+                GetScaledCapsuleAxisSquared(localCapsuleAxisDirection, capsuleBasis.Denominator),
+                GetCapsuleCenterAxisProjection(boxBasis.Denominator, center, capsuleCenter,
+                    capsuleBasis, localCapsuleAxisDirection),
+                capsuleAxisLength, capsuleRadius, out _, out _, strict: true);
+    }
+
     #region Nested Types
 
     private readonly struct CapsulePenetration
@@ -254,7 +277,8 @@ internal static partial class WideOrientedBox
         Fixed64 capsuleAxisLength,
         Fixed64 capsuleRadius,
         out Signed192 commonDenominator,
-        out CapsulePenetration best)
+        out CapsulePenetration best,
+        bool strict = false)
     {
         Signed320 commonDenominatorWide = WideArithmetic.MultiplySigned192(
             capsuleAxisDenominator,
@@ -321,7 +345,8 @@ internal static partial class WideOrientedBox
                     axialScale,
                     capsuleRadius,
                     0,
-                    ref best)
+                    ref best,
+                    strict)
                 || !TryKeepCapsuleAxis(
                     ToCapsuleAxis(WideAxis3.Cross(
                         boxAxes[index],
@@ -333,7 +358,8 @@ internal static partial class WideOrientedBox
                     axialScale,
                     capsuleRadius,
                     1,
-                    ref best))
+                    ref best,
+                    strict))
             {
                 return false;
             }
@@ -371,7 +397,8 @@ internal static partial class WideOrientedBox
                     axialScale,
                     capsuleRadius,
                     1,
-                    ref best))
+                    ref best,
+                    strict))
             {
                 return false;
             }
@@ -421,7 +448,8 @@ internal static partial class WideOrientedBox
                                 axialScale,
                                 capsuleRadius,
                                 1,
-                                ref best))
+                                ref best,
+                                strict))
                         {
                             return false;
                         }

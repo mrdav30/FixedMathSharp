@@ -15,6 +15,66 @@ namespace FixedMathSharp.Geometry;
 public partial struct FixedSegment2d
 {
     /// <summary>
+    /// Returns whether a centered capsule expressed by a scalar rigid-frame
+    /// rotation strictly penetrates a rotated convex polygon.
+    /// </summary>
+    /// <remarks>
+    /// The capsule's local positive Y axis uses the authored sine and cosine
+    /// coefficients without renormalizing the derived world axis. Exact touch
+    /// is excluded; positive penetration survives contact-depth rounding to zero.
+    /// </remarks>
+    public static bool DoesCenteredCapsulePenetrateConvex(
+        Vector2d center,
+        Fixed64 rotation,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector2d convexOrigin,
+        Fixed64 convexRotation,
+        ReadOnlySpan<Vector2d> convexVertexOffsets) =>
+        DoesCenteredCapsulePenetrateConvex(
+            center, GetRotatedPositiveYAxis(rotation), axisLength, radius,
+            convexOrigin, convexRotation, convexVertexOffsets);
+
+    /// <summary>
+    /// Returns whether a conceptual centered capsule has strictly positive
+    /// penetration into a rotated convex polygon, excluding exact tangency.
+    /// </summary>
+    /// <remarks>
+    /// Offsets must describe a convex polygon in boundary order. The world-space
+    /// capsule axis and rotated polygon vertices retain their exact authored
+    /// components through classification; no normal or contact depth is rounded.
+    /// Repeated adjacent vertices are ignored, and a fully collapsed boundary
+    /// returns false, as in the closed minimum-translation query.
+    /// For a nondegenerate polygon, a zero-radius point or finite axis must enter
+    /// its interior. A noncollapsed collinear boundary instead uses positive
+    /// minimum separating translation: a transverse axis crossing can penetrate,
+    /// while a point on the line or an axis running along it cannot.
+    /// </remarks>
+    public static bool DoesCenteredCapsulePenetrateConvex(
+        Vector2d center,
+        Vector2d axisDirection,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector2d convexOrigin,
+        Fixed64 convexRotation,
+        ReadOnlySpan<Vector2d> convexVertexOffsets)
+    {
+        ValidateCenteredAxis(axisDirection, axisLength);
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (convexVertexOffsets.Length < 3)
+        {
+            throw new ArgumentException(
+                "A convex polygon requires at least three vertex offsets.",
+                nameof(convexVertexOffsets));
+        }
+
+        return WideCenteredCapsule2dRelations.DoesCapsulePenetrateConvex(
+            center, axisDirection, axisLength, radius,
+            convexOrigin, convexRotation, convexVertexOffsets);
+    }
+
+    /// <summary>
     /// Finds the minimum translation that separates a conceptual centered
     /// capsule from a closed convex polygon represented by an origin and
     /// origin-relative vertex offsets.
