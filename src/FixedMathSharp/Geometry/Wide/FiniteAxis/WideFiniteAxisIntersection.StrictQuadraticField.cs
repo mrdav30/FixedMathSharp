@@ -143,16 +143,17 @@ internal static partial class WideFiniteAxisIntersection
     private static int GetStrictFieldSign(ReadOnlySpan<ulong> rational, sbyte rationalSign,
         ReadOnlySpan<ulong> radical, sbyte radicalSign, Signed832 radicand)
     {
-        if (radicand.IsZero)
-            radicalSign = 0;
+        // All callers supply a positive radicand: one for rational queries,
+        // h^2+r^2 for capsules, or the positive generator discriminant for pairs.
         if (rationalSign == 0)
             return radicalSign;
         if (radicalSign == 0 || radicalSign == rationalSign)
             return rationalSign;
-        // Centered dual-rigid rational coefficients/bound components are
+        // For the capsule caller, dual-rigid rational coefficients/bound components are
         // below 2^604; their radical coefficients are below 2^540 and
         // k<2^127. Evaluating the cone quadratic needs fewer than 1820 bits;
-        // both square comparisons (including k<2^127) fit 4096 bits.
+        // both square comparisons (including k<2^127) fit 4096 bits. The
+        // cylinder/cone pair caller proves its separate bound at its call site.
         Span<ulong> first = stackalloc ulong[StrictFieldWords];
         Span<ulong> second = stackalloc ulong[StrictFieldWords];
         Span<ulong> k = stackalloc ulong[StrictFieldWords];

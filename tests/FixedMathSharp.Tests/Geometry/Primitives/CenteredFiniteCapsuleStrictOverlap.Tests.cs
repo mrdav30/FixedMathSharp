@@ -16,6 +16,11 @@ public sealed class CenteredFiniteCapsuleStrictOverlapTests
     [InlineData(16, -200, 825, -1250, 625, false)] // (5t-1)^2(5t-4)^2
     [InlineData(12, -155, 675, -1125, 625, true)] // (5t-1)^2(5t-3)(5t-4)
     [InlineData(6, -29, 13, 32, -16, true)] // negative leading coefficient
+    [InlineData(1, -4, 0, 0, 4, true)] // quartic/derivative has a linear remainder; P(1/2)<0
+    [InlineData(3, -8, 0, 0, 16, false)] // (2t-1)^2(4t^2+4t+3)
+    [InlineData(1, 1, 0, 0, 1, false)] // negative-leading linear Sturm divisor
+    [InlineData(1, 0, 0, 0, 1, false)] // constant second Sturm remainder
+    [InlineData(10, 4, 2, 0, 1, false)] // constant third Sturm remainder
     [InlineData(0, 0, 0, 0, 0, false)]
     [InlineData(-1, 0, 0, 0, 0, true)]
     [InlineData(1, 0, 0, 0, 0, false)]
@@ -163,6 +168,44 @@ public sealed class CenteredFiniteCapsuleStrictOverlapTests
         Assert.Equal(expected, WideFiniteAxisIntersection.DoesCenteredFiniteConePenetrateCapsule(
             Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
             new Vector3d(0, -2, 0), FixedQuaternion.Identity, Vector3d.Up, length, Fixed64.Zero));
+    }
+
+    [Theory]
+    [InlineData(6, false)]
+    [InlineData(8, true)]
+    public void ZeroRadiusSolids_UseExactRigidCoreDistance(int length, bool expected)
+    {
+        Assert.Equal(expected, WideFiniteAxisIntersection.DoesCenteredFiniteCylinderPenetrateCapsule(
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.Zero,
+            new Vector3d(4, 0, 0), FixedQuaternion.Identity, Vector3d.Right, (Fixed64)length, Fixed64.One));
+        Assert.Equal(expected, WideFiniteAxisIntersection.DoesCenteredFiniteConePenetrateCapsule(
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.Zero,
+            new Vector3d(4, 0, 0), FixedQuaternion.Identity, Vector3d.Right, (Fixed64)length, Fixed64.One));
+    }
+
+    [Fact]
+    public void CapsuleCore_EntersExpandedCapDiskWithoutCenterSphereEntry()
+    {
+        // The center is outside the rounded cylinder, but the left core end
+        // (5,3,0) is two units above the interior of the upper disk.
+        Assert.True(Cylinder(new Vector3d(20, 3, 0), Vector3d.Right, (Fixed64)30, (Fixed64)3));
+        // Here rho is always at least 3/2, outside the radius-one disk core.
+        // At z=0, N=rho^2+axial^2+R^2-s^2=-7/2, so the full ring lies
+        // inside the radius-three expansion without squaring away its sign.
+        Assert.True(WideFiniteAxisIntersection.DoesCenteredFiniteCylinderPenetrateCapsule(
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
+            new Vector3d((Fixed64)3/2, (Fixed64)5/2, (Fixed64)4), FixedQuaternion.Identity,
+            Vector3d.Forward, (Fixed64)12, (Fixed64)3));
+    }
+
+    [Fact]
+    public void CapsuleCore_EntersApexSphereAwayFromItsCenter()
+    {
+        // The left core end (0,3,0) is one unit above the apex; the core
+        // midpoint is outside, and the base disk is five units below it.
+        Assert.True(WideFiniteAxisIntersection.DoesCenteredFiniteConePenetrateCapsule(
+            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, (Fixed64)3,
+            new Vector3d(4, 3, 0), FixedQuaternion.Identity, Vector3d.Right, (Fixed64)8, Fixed64.Two));
     }
 
     [Theory]

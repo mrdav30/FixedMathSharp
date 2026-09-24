@@ -70,8 +70,8 @@ internal static partial class WideFiniteAxisIntersection
         }
         if (gcdDegree == 2)
         {
-            if (degree == 3)
-                return true; // One triple root.
+            // A cubic with a quadratic gcd is a cube: an interior root would
+            // already give a negative endpoint sign. Only quartics reach here.
             // Quartic: either two double roots (never a crossing), or one
             // triple and one simple root (both are crossings).
             Span<ulong> first = stackalloc ulong[StrictPolynomialWorkWords];
@@ -139,8 +139,6 @@ internal static partial class WideFiniteAxisIntersection
         for (int i = 0; i < count; i++)
         {
             int sign = GetStrictPolynomialEndpointSign(coefficients, signs, i, degrees[i], atOne);
-            if (sign == 0)
-                continue;
             if (previous != 0 && previous != sign)
                 variations++;
             previous = sign;
@@ -153,7 +151,9 @@ internal static partial class WideFiniteAxisIntersection
     private static int GetStrictPolynomialEndpointSign(Span<ulong> coefficients,
         Span<sbyte> signs, int polynomial, int degree, bool atOne)
     {
-        for (int order = 0; order <= degree; order++)
+        // Every sequence member has a nonzero leading coefficient. If all
+        // lower derivatives vanish, the degree-th derivative has that sign.
+        for (int order = 0; order < degree; order++)
         {
             int sign = atOne
                 ? GetStrictPolynomialValueAtOne(coefficients, signs, polynomial, degree, order)
@@ -161,7 +161,8 @@ internal static partial class WideFiniteAxisIntersection
             if (sign != 0)
                 return atOne && (order & 1) != 0 ? -sign : sign;
         }
-        return 0;
+        int leading = signs[GetRoundedCylinderCoefficientIndex(polynomial, degree)];
+        return atOne && (degree & 1) != 0 ? -leading : leading;
     }
 
     private static int GetStrictPolynomialValueAtOne(Span<ulong> coefficients,
