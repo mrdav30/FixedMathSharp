@@ -69,11 +69,12 @@ Work that requires staged implementation belongs in a focused feature-work plan.
   `(3/4,1,1)`, but contact returns depth `0.09497214644216001` instead of zero;
   a one-raw outward Z offset is also incorrectly admitted.
 - **Verification boundary:** `CenteredCylinderPairStrictRegressionTests`
-  retains the public counterexamples and penetrating controls. The diagnostic
-  reproduced three expected failures and one pass, then was deliberately stopped
-  after about 4.5 CPU minutes in the remaining contact case. This is not a
-  completed suite run or a new runtime crash. Contact materialization cost on
-  these cases also needs investigation; Boolean classification should not pay it.
+  retains the public counterexamples and penetrating controls. The separate
+  [FMS-Issue-026 rounding runtime repair](done/2026-09-24-cylinder-pair-depth-rounding.md)
+  lets all five cases complete: three geometric failures and two passing
+  penetration controls. It does not change candidate selection or fix these
+  contact classification/depth failures. Boolean classification should not pay
+  for contact materialization.
 - **Required fix:** A complete finite cap/rim authority, not another sampled
   direction or a depth epsilon. Preserve touching/penetrating distinctions and
   truthful contact materialization in the owning repair.
@@ -93,7 +94,7 @@ Work that requires staged implementation belongs in a focused feature-work plan.
   predicate. Keep the ordinary contact repair distinct from the new posture
   classification; a strict predicate passing does not certify solver contacts.
 
-**Next issue ID:** `FMS-Issue-026`
+**Next issue ID:** `FMS-Issue-027`
 
 ## Issue Template
 

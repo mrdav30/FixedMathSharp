@@ -12,7 +12,7 @@ namespace FixedMathSharp.Geometry;
 /// <content>
 /// Provides correctly-rounded penetration depth calculations for rigid cylinder
 /// pairs, using fast scalar approximations corrected by exact fixed-point
-/// comparisons, with a fallback binary search for edge cases near overflow.
+/// comparisons, with a bounded exact binary-search fallback.
 /// </content>
 internal static partial class WideConvexPrismRelations
 {
@@ -43,10 +43,11 @@ internal static partial class WideConvexPrismRelations
             isClamped = false;
             return;
         }
-        // Each scalar approximation is rounded once, so the combined estimate
-        // is only a few raw units from the exact projection. Correct those
-        // units directly with the exact midpoint comparator.
-        while (true)
+        // Reduced closest-core axes can have small nonsquare lengths, so the
+        // scalar square-root estimate has no small raw-error bound. Preserve
+        // the cheap exact corrections for ordinary axes, but limit that work;
+        // four is a fast-path budget, never a geometric or rounding tolerance.
+        for (int correction = 0; correction < 4; correction++)
         {
             if (approximation == Fixed64.MaxValue)
             {
@@ -104,6 +105,14 @@ internal static partial class WideConvexPrismRelations
             isClamped = false;
             return;
         }
+
+        result = GetRoundedCylinderPairDepthBySearch(depth);
+        isClamped = CompareCylinderPairDepthToTwiceRaw(
+            depth,
+            new Signed192(
+                0UL,
+                0UL,
+                unchecked((ulong)long.MaxValue << 1))) > 0;
     }
 
     private static bool TryGetCylinderPairDepthApproximation(
