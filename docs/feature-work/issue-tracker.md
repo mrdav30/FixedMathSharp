@@ -30,7 +30,9 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ### FMS-Issue-024: Finite cylinder-pair contact misses intersecting cap-rim constraints
 
-- **Status:** Confirmed on 2026-09-24 while completing Gravitas `GRV-Issue-081`.
+- **Status:** Confirmed on 2026-09-24 while completing Gravitas `GRV-Issue-081`;
+  complete-contact direction approved on 2026-09-25. The focused
+  [design](2026-09-25-cylinder-pair-contact-design.md) is awaiting review.
 - **Affected area:** `FixedSegment.TryGetCenteredFiniteCylindersContact` and its
   finite separating-axis candidates. This predates the strict-classification work.
 - **Evidence:** Cylinder A has center zero, axis +Y, height 2 and radius 1;
@@ -41,6 +43,10 @@ Work that requires staged implementation belongs in a focused feature-work plan.
   With radii `5/4` and second Z coordinate 2, the only common point is
   `(3/4,1,1)`, but contact returns depth `0.09497214644216001` instead of zero;
   a one-raw outward Z offset is also incorrectly admitted.
+  A penetrating control with radii 1 and second Z coordinate `5/4` returns
+  depth raw `597275436` (about `0.139064`), but direction `(1,1,1)` already
+  gives support overlap `(2*sqrt(2)-11/4)/sqrt(3)` (about `0.045280`). Thus
+  positive minimum-depth selection is incorrect too, not only classification.
 - **Verification boundary:** `CenteredCylinderPairStrictRegressionTests`
   retains the public counterexamples and penetrating controls. The separate
   [FMS-Issue-026 rounding runtime repair](done/2026-09-24-cylinder-pair-depth-rounding.md)
@@ -50,7 +56,10 @@ Work that requires staged implementation belongs in a focused feature-work plan.
   for contact materialization.
 - **Required fix:** A complete finite cap/rim authority, not another sampled
   direction or a depth epsilon. Preserve touching/penetrating distinctions and
-  truthful contact materialization in the owning repair.
+  truthful contact materialization in the owning repair. Reuse and restructure
+  existing exact helpers instead of copying solver machinery. Gravitas
+  `GRV-Issue-084` tracks a mixed cylinder/circle-slab consumer that duplicates
+  the incomplete direction set and must migrate with downstream acceptance.
 
 ### FMS-Issue-025: Box-cylinder contact can miss cap-clipped radial separation
 
