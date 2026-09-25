@@ -13,10 +13,15 @@ namespace FixedMathSharp.Geometry;
 /// Wide-precision (multi-word) arithmetic helpers used to build and manipulate
 /// magnitude spans for high-precision projection products, including
 /// multiplication, addition, subtraction, shifting, and comparison of
-/// arbitrary-length unsigned word arrays.
+/// arbitrary-length unsigned word arrays and combining signed magnitudes.
 /// </content>
 internal static partial class WideConvexPrismRelations
 {
+    private static Signed576 GetMagnitude576(Signed576 value) =>
+        value.Sign >= 0
+            ? value
+            : WideArithmetic.SubtractSigned576(default, value);
+
     private static void BuildProduct(
         Signed704 first,
         Signed704 second,
@@ -123,6 +128,63 @@ internal static partial class WideConvexPrismRelations
             out result[2],
             out result[1],
             out result[0]);
+
+    private static void CopyPositiveRadicand(
+        ReadOnlySpan<ulong> radicand,
+        Span<ulong> first,
+        Span<ulong> second)
+    {
+        if (IsZero(first))
+            radicand.CopyTo(first);
+        else
+            radicand.CopyTo(second);
+    }
+
+    private static void CombineWideSignedMagnitudes(
+        ReadOnlySpan<ulong> left,
+        int leftSign,
+        ReadOnlySpan<ulong> right,
+        int rightSign,
+        Span<ulong> result,
+        out int resultSign)
+    {
+        if (leftSign == 0 || IsZero(left))
+        {
+            right.CopyTo(result);
+            resultSign = IsZero(right) ? 0 : rightSign;
+            return;
+        }
+        if (rightSign == 0 || IsZero(right))
+        {
+            left.CopyTo(result);
+            resultSign = leftSign;
+            return;
+        }
+        if (leftSign == rightSign)
+        {
+            WideArithmetic.AddEqualMagnitudes(left, right, result);
+            resultSign = leftSign;
+            return;
+        }
+
+        int comparison = WideArithmetic.CompareMagnitudeEqualLength(left, right);
+        if (comparison == 0)
+        {
+            result.Clear();
+            resultSign = 0;
+            return;
+        }
+        if (comparison > 0)
+        {
+            WideArithmetic.SubtractEqualMagnitudes(left, right, result);
+            resultSign = leftSign;
+        }
+        else
+        {
+            WideArithmetic.SubtractEqualMagnitudes(right, left, result);
+            resultSign = rightSign;
+        }
+    }
 
     private static void ShiftLeft(Span<ulong> value, int bits)
     {

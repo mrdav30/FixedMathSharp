@@ -231,6 +231,30 @@ and
 [`FixedSegment`](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.Geometry.FixedSegment.html)
 API pages.
 
+### Cylinder/capsule contacts
+
+`FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact` includes the finite
+cylinder's caps, side, and rims when finding the minimum translation. It also
+handles a capsule core that enters the cylinder: depth is not necessarily just
+the capsule radius. A zero-length capsule core is a sphere; a zero-radius
+cylinder is its finite axis segment.
+
+Classification and depth ordering use the exact authored geometry. Exact
+tangency is contact with zero depth, and a sub-raw separation remains a miss.
+Only the selected normal and complete depth are rounded; `DepthIsClamped`
+distinguishes conceptual overflow from an exactly representable maximum.
+Equal minima follow stable feature order. Continuous radial ties use a
+representative in the authored cylinder frame.
+
+The two returned anchors are independent support points for the rounded normal.
+They are not a promise that two algebraic closest points were rounded together
+or that the materialized anchors coincide at every tangency.
+
+Curved oblique contacts require more work than ordinary cap/side contacts.
+The query allocates no managed memory, but its exact fallback can use hundreds
+of KiB of bounded stack scratch. Avoid deliberately small-stack worker threads;
+allow at least a 1 MiB thread stack with adequate headroom for the caller.
+
 ## Sweeps and finite-shape intervals
 
 Interval queries return the closed portion of a bounded segment or ray that

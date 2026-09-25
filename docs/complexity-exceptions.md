@@ -29,6 +29,23 @@ behavior changes, or the implementation becomes harder to reason about.
 
 | Module                            | Method                                                                              | Complexity | Coverage                | Rationale                                                                                                                                                                                                                    | Revisit if                                                                                                                                     |
 | --------------------------------- | ----------------------------------------------------------------------------------- | ---------: | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FixedMathSharp` | `WideConvexPrismRelations.BuildCylinderCapsuleAxisCandidate(...)` | 14 | 100% line / 100% branch | Exact authored axes, signed axial support and radial support form one squared-gap candidate without normalizing geometry or rounding classification inputs. | A simpler candidate representation preserves full-domain support and its width proof. |
+| `FixedMathSharp` | `WideConvexPrismRelations.TryGetCenteredFiniteCylinderCapsuleContact(...)` | 42 | 100% line / 100% branch | One canonical feature traversal owns cap, side, endpoint-rim and capsule-interior candidates, degenerate reductions and certified early returns. | The complete feature proof changes or measured equivalent pruning removes work without weakening minimum-depth selection. |
+| `FixedMathSharp` | `WideConvexPrismRelations.GetRoundedCylinderCapsuleCandidateDepth(...)` | 14 | 100% line / 100% branch | Proven magnitude bounds narrow the exact depth search while zero-gap, nearest-even and conceptual-clamping decisions remain explicit. | A cheaper exact conversion preserves half-raw ties and maximum-range behavior. |
+| `FixedMathSharp` | `WideConvexPrismRelations.GetRoundedCylinderCapsuleEllipseDepth(...)` | 14 | 100% line / 100% branch | The admitted analytic bound narrows exact ellipse-depth rounding; a bound overflow is not itself proof of conceptual depth clamping. | A cheaper exact conversion preserves zero gap, half-raw ties and maximum-range behavior. |
+| `FixedMathSharp` | `WideConvexPrismRelations.GetCylinderCapsuleCandidateQuadraticSign(...)` | 12 | 100% line / 100% branch | Zero terms and like signs resolve directly; opposing rational/radical terms use one exact squared comparison, including cancellation. | Another actual caller justifies a shared sign primitive with the same width and allocation contract. |
+| `FixedMathSharp` | `WideConvexPrismRelations.GetCylinderCapsuleCandidateThreeTermSign(...)` | 18 | 100% line / 100% branch | Cross-candidate comparison retains both radicals, sign reductions and exact equality before deterministic winner selection. | A simpler comparison preserves distinct algebraic depths that round to the same scalar. |
+| `FixedMathSharp` | `WideConvexPrismRelations.CompareCylinderCapsuleEllipseSquaredGap(...)` | 12 | 100% line / 100% branch | Sign admission precedes radical elimination, then an exact degree-at-most-eight query compares the retained ellipse root with the analytic winner. | The candidate representation or degree/width contract changes. |
+| `FixedMathSharp` | `WideConvexPrismRelations.GetCylinderCapsuleEllipseGreatestCommonDivisor(...)` | 20 | 100% line / 100% branch | Three-word binary Euclid removes authored integer content before expensive products without changing the cylinder half-axis or capsule normal plane. | A shared exact integer-content reducer has an existing consumer and equal or lower measured cost. |
+| `FixedMathSharp` | `WideConvexPrismRelations.DivideCylinderCapsuleEllipseInteger(...)` | 16 | 100% line / 100% branch | Bounded exact signed division applies the proven common divisor without a rounded ratio or wider representation. | Another consumer justifies reusing the same exact-divisibility and input-width contract. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.TryGetLargestPositiveFiniteAxisRoot(...)` | 28 | 100% line / 100% branch | Degree reduction, excluded zero roots, Sturm counts and dyadic isolation retain the largest positive root with explicit rational and repeated-root ownership. | The degree or root-selection contract changes, or a simpler exact isolation proof reduces work. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.GetSignAtFiniteAxisRoot(...)` | 16 | 100% line / 100% branch | Constant/rational queries and sign-preserving pseudo-reduction evaluate the same retained root exactly, including equality. | Query degree exceeds eight or another representation reduces exact sign work without losing root identity. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.GetReducedSignAtFiniteAxisRoot(...)` | 28 | 100% line / 100% branch | Certified interval signs and exact linear-boundary evaluation precede bounded crossing/Sturm refinement and the Hermite fallback; the fast-path budget never determines the answer. | A cheaper exact equality/sign certificate replaces refinement or the fallback without losing multiple-root behavior. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(...)` | 12 | 100% line / 100% branch | A common positive power-of-two factor is removed across nonzero coefficients, preserving roots and signs while controlling intermediate width. | Coefficient storage or normalization policy changes. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.ReduceFiniteRootQuery(...)` | 12 | 100% line / 100% branch | Positive pseudo-division removes at most eight leading terms with explicit signed cancellation and degree trimming. | A changed degree contract requires a new growth proof; this is not a general polynomial remainder engine. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.GetFiniteRootIntervalSign(...)` | 14 | 100% line / 100% branch | Signed interval Horner bounds certify a polynomial's sign over the retained positive dyadic cell without approximate root substitution. | A tighter exact interval evaluation measurably reduces fallback work. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.GetFiniteRootHermiteIntervalSign(...)` | 16 | 100% line / 100% branch | Two endpoint-weighted Hermite signatures cancel every other real root and recover the selected root's exact query sign, including zero. | Root-cell endpoint or degree invariants change. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.GetFiniteRootSymmetricSignature(...)` | 28 | 100% line / 100% branch | At-most-four-dimensional principal minors and exact real-eigenvalue sign variations handle singular and repeated-root trace forms without iterative numerical decisions. | A smaller exact signature algorithm preserves singular cases and the determinant-width proof. |
 | `FixedMathSharp` | `WideConvexPrismRelations.GetRoundedCylinderCylinderDepth(...)` | 14 | 100% line / 100% branch | A bounded scalar-correction fast path and existing exact search retain nearest-even depth and separate saturation evidence for reduced nonsquare axes. | A proven tighter approximation removes correction work without changing midpoint or clamp behavior. |
 | `FixedMathSharp` | `WideFiniteAxisIntersection.DoStrictCylinderConeLateralInteriorsMeet(...)` | 20 | 100% line / 100% branch | Exact cone-generator normals enumerate the complete smooth lateral candidate set, retaining finite axial parameters in one quadratic field. | A simpler complete feature proof reduces arithmetic without sampled directions or rounded parameters. |
 | `FixedMathSharp` | `WideFiniteAxisIntersection.DoesFiniteCapDiskEnterSolid(...)` | 14 | 100% line / 100% branch | Disk center, complete rim crossing and target-section containment cover both crossing and enclosure without materializing contacts. | A shared exact planar-section representation lowers work without losing finite-cap boundaries. |
@@ -167,6 +184,62 @@ behavior changes, or the implementation becomes harder to reason about.
 | `FixedMathSharp`                  | `Fixed64.TryGetSignedRawRatioCore(...)`                                             |         11 | 100% line / 100% branch | Shared zero-denominator rejection, quotient-width validation, the measured single-limb specialization, general fixed-limb division, rounding, and signed materialization stay in one allocation-free deterministic boundary. | A simpler shared divider preserves zero, width, rounding, and signed-range policies with lower complexity and neutral or faster measured cost. |
 
 ## Fixed-Width Workspace Bounds
+
+Cylinder/capsule contact retains authored rational geometry through complete
+feature selection and rounds only the winning normal and depth. Analytic
+candidates use forty-word scalar slots. Their generated rational directions
+remain below `2^440`, dot products below `2^542`, common support below `2^674`
+and squared-gap coefficients below `2^1780`. Cross-denominated comparison
+coefficients need at most 81/80 words; radical radicands need at most 200 words
+plus a carry word. Normal-square coefficients need at most 122 words, with
+integer midpoint factors adding at most two words. Arithmetic scratch sizes
+follow active operand lengths plus the documented carries, not truncation.
+
+The oblique capsule-interior family retains at most one interior minimum;
+principal-axis and degenerate boundaries remain analytic candidates. Ellipse
+stationary and signed-gap coefficients stay below `2^1818` and `2^1244`;
+squared-gap numerator/denominator coefficients stay below `2^2490` and
+`2^2354`, within forty-word slots. Eliminating the analytic candidate's radical
+uses 202-word comparison slots, while scalar depth thresholds use 43-word
+slots. Preparation's positive common-divisor reduction and exact division
+stay in three words with inputs below `2^100`; they reduce integer content
+without changing authored cylinder half-lengths or the capsule-normal plane.
+
+Retained-root storage is sized from actual coefficient bit lengths within the
+degree-at-most-four root and degree-at-most-eight query contracts. For root
+coefficient height of `B` bits, the dyadic cell reserves at least `9B+192` bits
+and Sturm coefficient slots reserve `7B+32` bits. Isolation and later
+refinement use the source's separation and Cauchy bounds; the later shift
+ceiling is `8B+128`. The 64-refinement fast-path budget is not a tolerance or
+termination fallback: unresolved signs and equality proceed to the exact
+Hermite query. Positive pseudo-division adds at most `B+1` bits per eliminated
+coefficient, with at most eight eliminations.
+
+An unresolved linear query has its rational zero inside the retained positive
+cell. Homogeneous evaluation at that exact fraction needs
+`Bp + degree*max(Bnumerator,Bdenominator) + 3` bits for at most five terms,
+using five magnitude buffers. Equality or a crossing-root sign decides the
+query directly; noncrossing nonequality retains the general fallback. For
+the contact caller, even conservatively allowing eight pseudo-eliminations
+before this linear query, those five buffers consume less than 70 KiB and
+do not overlap the later Sturm/Hermite scratch lifetime.
+
+Hermite traces and matrix entries also use coefficient-sized bounded spans.
+For root/query heights `Bp`/`Bq` and maximum trace order `K`, entries require
+at most `Bq+K(Bp+1)+7` bits; determinants of order at most four fit
+`4*entryBits+8` bits. A conservative simultaneous-buffer calculation for the
+contact caller (`B <= 1818`, query slots at most 202 words) includes eight
+pseudo-eliminations, retained Sturm storage, weighted query, trace powers,
+Hermite matrix/determinants, and outer feature/comparison buffers: fewer than
+448 KiB of explicit stack scratch, including sign/index arrays. This is a
+source-derived buffer bound, not a measured total thread-stack maximum; value
+structs, alignment, JIT spills and host frames need additional headroom. Use
+at least a 1 MiB worker-thread stack with adequate caller headroom, not a
+deliberately reduced stack. Ordinary analytic contacts do not construct this
+workspace. The geometry, root-selection and width derivations remain beside
+their owning source; changing their
+degree or authored-input contracts requires re-review, not a generic symbolic
+algebra layer or runtime-sized integer fallback.
 
 Cylinder-pair and cylinder/cone strict classification tests all finite cap
 disks plus the complete smooth lateral feature set. Circle radial coefficients

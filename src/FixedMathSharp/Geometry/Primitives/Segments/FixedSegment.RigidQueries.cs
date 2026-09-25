@@ -222,6 +222,13 @@ public partial struct FixedSegment
     /// <remarks>
     /// Both finite axes remain authoritative in their normalized rigid frames.
     /// The returned normal points from the cylinder toward the capsule.
+    /// Separation, exact tangency, and minimum depth are decided before output
+    /// rounding, including rim features and intersecting capsule cores. Depth
+    /// rounds once to nearest-even; DepthIsClamped describes conceptual overflow.
+    /// Exact ties retain stable feature order. Each anchor is an independent
+    /// support point for the rounded normal, not a paired algebraic closest point.
+    /// The exact curved-feature fallback uses bounded stack scratch storage;
+    /// avoid deliberately small-stack worker threads for these queries.
     /// </remarks>
     public static bool TryGetCenteredFiniteCylinderCapsuleContact(
         Vector3d cylinderCenter,

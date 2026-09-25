@@ -102,12 +102,19 @@ The implementation uses signed fixed-width values composed of 64-bit limbs:
 | `Signed320`   | 320 bits | Multi-component dot, cross, and determinant expressions      |
 | `Signed576`   | 576 bits | Finite-axis ratios and roots                                 |
 | `Signed704`   | 704 bits | Expanded finite-axis and radical evaluation                  |
-| `Signed832`   | 832 bits | The widest fixed-degree conic comparisons currently required |
+| `Signed832`   | 832 bits | Wide conic and finite-feature intermediates                   |
 
 These are not user-selectable precision modes. Each algorithm uses a width
 proven sufficient for its bounded expression. Fixed-size value types and stack
 scratch storage avoid a runtime `BigInteger` dependency and keep hot paths
 allocation-light.
+
+Higher-degree exact comparisons also use bounded limb spans when their proof
+requires more than 832 bits. The cylinder/capsule contact solver, for example,
+retains an exact stationary root until final rounding. It uses stack storage
+and has a substantially larger worst-case stack footprint than ordinary scalar
+arithmetic; see [Cylinder/capsule contacts](bounds-and-geometry.md#cylindercapsule-contacts)
+when configuring worker-thread stack sizes.
 
 The Wide layer owns representation mechanics—carry, borrow, sign extension,
 division, roots, comparison, and round-half-to-even narrowing. Public owners

@@ -186,7 +186,7 @@ public class RigidFiniteShapeRelationBenchmarks
     [Benchmark]
     public bool IrreducibleWideCylinderCapsule()
     {
-        bool result = WideConvexPrismRelations
+        return FixedSegment
             .TryGetCenteredFiniteCylinderCapsuleContact(
                 new Vector3d(
                     Fixed64.FromRaw(-9_223_371_298_328_934_912L),
@@ -204,10 +204,51 @@ public class RigidFiniteShapeRelationBenchmarks
                 Vector3d.Forward,
                 Fixed64.FromRaw(855_113_133_883L),
                 Fixed64.FromRaw(9_223_371_872_063_158_705L),
-                out _,
-                out bool usedWideCandidate);
-        return result && usedWideCandidate;
+                out _);
     }
+
+    // These feature-sensitive rows intentionally measure the public contact
+    // query. Their independent correctness oracles live in the test suite;
+    // historical timings from a misclassifying implementation are cost-only.
+    [Benchmark]
+    public bool EndpointRimCylinderCapsule() =>
+        FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, (Fixed64)10,
+            new Vector3d(Fixed64.FromFraction(83, 4), Fixed64.Two, Fixed64.Zero),
+            FixedQuaternion.Identity, Vector3d.Right, (Fixed64)20, Fixed64.FromFraction(5, 4),
+            out _);
+
+    [Benchmark]
+    public bool InteriorObliqueRimCylinderCapsule() =>
+        FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.One,
+            new Vector3d(4, 5, 0),
+            new FixedQuaternion(Fixed64.FromRaw(3_037_000_500L), Fixed64.Zero,
+                Fixed64.FromRaw(-1_822_200_300L), Fixed64.FromRaw(2_429_600_400L)),
+            Vector3d.Up, Fixed64.Two, (Fixed64)5, out _);
+
+    [Benchmark]
+    public bool CoreInsideCylinderCapsule() =>
+        FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.One,
+            new Vector3d(Fixed64.FromFraction(7, 4), Fixed64.Zero, Fixed64.FromFraction(1, 4)),
+            new FixedQuaternion(Fixed64.Zero, Fixed64.Zero,
+                Fixed64.FromRaw(-1_920_767_767L), Fixed64.FromRaw(3_841_535_534L)),
+            Vector3d.Up, (Fixed64)10, Fixed64.FromFraction(1, 4), out _);
+
+    [Benchmark]
+    public bool ZeroRadiusCylinderCapsule() =>
+        FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.Zero,
+            new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Zero),
+            FixedQuaternion.Identity, Vector3d.Right, Fixed64.Two, Fixed64.One, out _);
+
+    [Benchmark]
+    public bool ZeroCoreLengthCylinderCapsule() =>
+        FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.One,
+            new Vector3d(Fixed64.FromFraction(7, 4), Fixed64.Two, Fixed64.Zero),
+            FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.FromFraction(5, 4), out _);
 
     [Benchmark]
     public bool FullDomainCancellationCylinderCapsule() =>

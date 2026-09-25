@@ -10,43 +10,11 @@ using System;
 namespace FixedMathSharp.Geometry;
 
 /// <content>
-/// Provides rigid closest-axis/closest-point candidate resolution for cylinder-capsule
-/// and cylinder-cylinder pairs, used to determine penetration depth and axis data
-/// for collision response.
+/// Provides rigid closest-axis/closest-point candidates for cylinder pairs,
+/// used to determine penetration depth and axis data for collision response.
 /// </content>
 internal static partial class WideOrientedBox
 {
-    internal static bool TryKeepCenteredRigidCylinderCapsuleClosestAxis(
-        Vector3d cylinderCenter,
-        FixedQuaternion cylinderRotation,
-        Vector3d cylinderLocalAxis,
-        Fixed64 cylinderLength,
-        Fixed64 cylinderRadius,
-        Vector3d capsuleCenter,
-        FixedQuaternion capsuleRotation,
-        Vector3d capsuleLocalAxis,
-        Fixed64 capsuleLength,
-        Fixed64 capsuleRadius,
-        ref WideConvexPrismRelations.CylinderCapsulePenetration best)
-    {
-        var unused = default(
-            WideConvexPrismRelations.CylinderCylinderPenetration);
-        return TryKeepCenteredRigidCylinderClosestAxis(
-            cylinderCenter,
-            cylinderRotation,
-            cylinderLocalAxis,
-            cylinderLength,
-            cylinderRadius,
-            capsuleCenter,
-            capsuleRotation,
-            capsuleLocalAxis,
-            capsuleLength,
-            capsuleRadius,
-            RigidClosestPairKind.CylinderCapsule,
-            ref best,
-            ref unused);
-    }
-
     internal static bool TryKeepCenteredRigidCylinderCylinderClosestAxis(
         Vector3d firstCenter,
         FixedQuaternion firstRotation,
@@ -58,53 +26,19 @@ internal static partial class WideOrientedBox
         Vector3d secondLocalAxis,
         Fixed64 secondLength,
         Fixed64 secondRadius,
-        ref WideConvexPrismRelations.CylinderCylinderPenetration best)
-    {
-        var unused = default(
-            WideConvexPrismRelations.CylinderCapsulePenetration);
-        return TryKeepCenteredRigidCylinderClosestAxis(
-            firstCenter,
-            firstRotation,
-            firstLocalAxis,
-            firstLength,
-            firstRadius,
-            secondCenter,
-            secondRotation,
-            secondLocalAxis,
-            secondLength,
-            secondRadius,
-            RigidClosestPairKind.CylinderCylinder,
-            ref unused,
-            ref best);
-    }
-
-    private static bool TryKeepCenteredRigidCylinderClosestAxis(
-        Vector3d cylinderCenter,
-        FixedQuaternion cylinderRotation,
-        Vector3d cylinderLocalAxis,
-        Fixed64 cylinderLength,
-        Fixed64 cylinderRadius,
-        Vector3d capsuleCenter,
-        FixedQuaternion capsuleRotation,
-        Vector3d capsuleLocalAxis,
-        Fixed64 capsuleLength,
-        Fixed64 capsuleRadius,
-        RigidClosestPairKind pairKind,
-        ref WideConvexPrismRelations.CylinderCapsulePenetration
-            cylinderCapsuleBest,
         ref WideConvexPrismRelations.CylinderCylinderPenetration
-            cylinderCylinderBest)
+            best)
     {
         GetRotatedLocalAxisNumerators(
-            cylinderRotation,
-            cylinderLocalAxis,
+            firstRotation,
+            firstLocalAxis,
             out Signed192 firstAxisX,
             out Signed192 firstAxisY,
             out Signed192 firstAxisZ,
             out Signed192 firstRotationDenominator);
         GetRotatedLocalAxisNumerators(
-            capsuleRotation,
-            capsuleLocalAxis,
+            secondRotation,
+            secondLocalAxis,
             out Signed192 secondAxisX,
             out Signed192 secondAxisY,
             out Signed192 secondAxisZ,
@@ -114,13 +48,13 @@ internal static partial class WideOrientedBox
             firstAxisY,
             firstAxisZ,
             firstRotationDenominator,
-            cylinderLength);
+            firstLength);
         var secondAxis = new RigidSegmentAxis(
             secondAxisX,
             secondAxisY,
             secondAxisZ,
             secondRotationDenominator,
-            capsuleLength);
+            secondLength);
         Signed576 relationDenominator = WideArithmetic.AddSigned576(
             WideArithmetic.MultiplySigned320(
                 firstAxis.Denominator,
@@ -129,9 +63,9 @@ internal static partial class WideOrientedBox
                 firstAxis.Denominator,
                 secondAxis.Denominator));
         GetRigidSegmentLowerDifference(
-            cylinderCenter,
+            firstCenter,
             firstAxis,
-            capsuleCenter,
+            secondCenter,
             secondAxis,
             relationDenominator,
             out Signed576 relationX,
@@ -467,43 +401,20 @@ internal static partial class WideOrientedBox
             candidateYSign,
             candidateZ,
             candidateZSign);
-        if (pairKind == RigidClosestPairKind.CylinderCapsule)
-        {
-            return WideConvexPrismRelations
-                .TryKeepWideCylinderCapsuleAxis(
-                    candidate,
-                    cylinderCenter,
-                    cylinderRotation,
-                    cylinderLocalAxis,
-                    cylinderLength,
-                    cylinderRadius,
-                    capsuleCenter,
-                    capsuleRotation,
-                    capsuleLocalAxis,
-                    capsuleLength,
-                    capsuleRadius,
-                    ref cylinderCapsuleBest);
-        }
         return WideConvexPrismRelations
             .TryKeepWideCylinderCylinderAxis(
                 candidate,
-                cylinderCenter,
-                cylinderRotation,
-                cylinderLocalAxis,
-                cylinderLength,
-                cylinderRadius,
-                capsuleCenter,
-                capsuleRotation,
-                capsuleLocalAxis,
-                capsuleLength,
-                capsuleRadius,
-                ref cylinderCylinderBest);
-    }
-
-    private enum RigidClosestPairKind
-    {
-        CylinderCapsule,
-        CylinderCylinder,
+                firstCenter,
+                firstRotation,
+                firstLocalAxis,
+                firstLength,
+                firstRadius,
+                secondCenter,
+                secondRotation,
+                secondLocalAxis,
+                secondLength,
+                secondRadius,
+                ref best);
     }
 
     private static void BuildRigidPointLineClosestComponent(

@@ -34,21 +34,6 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
         Assert.Equal(Vector3d.Right, contact.Normal);
         Assert.Equal(Fixed64.Zero, contact.Depth);
         Assert.False(contact.DepthIsClamped);
-        Assert.True(WideConvexPrismRelations
-            .TryGetCenteredFiniteCylinderCapsuleContact(
-                cylinderCenter,
-                FixedQuaternion.Identity,
-                Vector3d.Up,
-                Fixed64.Two,
-                Fixed64.Half,
-                capsuleCenter,
-                FixedQuaternion.Identity,
-                Vector3d.Up,
-                Fixed64.Two,
-                Fixed64.Half,
-                out _,
-                out bool usedWideCandidate));
-        Assert.False(usedWideCandidate);
 
         Assert.False(FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact(
             cylinderCenter,
@@ -168,7 +153,7 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
                 Vector3d.Forward,
                 Fixed64.HalfPi);
 
-        Assert.True(WideConvexPrismRelations
+        Assert.True(FixedSegment
             .TryGetCenteredFiniteCylinderCapsuleContact(
                 Vector3d.Zero,
                 FixedQuaternion.Identity,
@@ -180,12 +165,10 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
                 Vector3d.Up,
                 Fixed64.MaxValue,
                 Fixed64.MaxValue,
-                out FixedContactAnchors contact,
-                out bool usedWideCandidate));
+                out FixedContactAnchors contact));
 
         Assert.Equal(Fixed64.MaxValue, contact.Depth);
         Assert.True(contact.DepthIsClamped);
-        Assert.False(usedWideCandidate);
     }
 
     [Fact]
@@ -285,29 +268,24 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
             Assert.Equal(expected.Depth, actual.Depth);
         }
 
-        for (int iteration = 0; iteration < 4; iteration++)
-        {
-            _ = TryGetFullDomainCancellationContact(
-                offsetRaw: 2,
-                mirrored: false,
-                out _);
-        }
-        long before = GC.GetAllocatedBytesForCurrentThread();
         int contacts = 0;
-        for (int iteration = 0; iteration < 8; iteration++)
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            if (TryGetFullDomainCancellationContact(
-                    offsetRaw: 2,
-                    mirrored: false,
-                    out _))
+            contacts = 0;
+            for (int iteration = 0; iteration < 8; iteration++)
             {
-                contacts++;
+                if (TryGetFullDomainCancellationContact(
+                        offsetRaw: 2,
+                        mirrored: false,
+                        out _))
+                {
+                    contacts++;
+                }
             }
-        }
-        long after = GC.GetAllocatedBytesForCurrentThread();
+        });
 
         Assert.Equal(8, contacts);
-        Assert.Equal(before, after);
+        Assert.Equal(0L, allocated);
     }
 
     [Fact]
@@ -507,12 +485,10 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
     }
 
     [Fact]
-    public void Contact_IrreducibleClosestCandidateUsesWideFallback()
+    public void Contact_FullWidthGeometryPreservesSupportAndRigidRotation()
     {
-        Assert.True(TryGetIrreducibleContact(
-            out FixedContactAnchors contact,
-            out bool usedWideCandidate));
-        Assert.True(usedWideCandidate);
+        Assert.True(TryGetFullWidthContact(
+            out FixedContactAnchors contact));
         Assert.True(contact.Normal.IsNormalized());
         Assert.True(contact.Depth > Fixed64.Zero);
         Assert.False(contact.DepthIsClamped);
@@ -533,46 +509,39 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
                 Fixed64.One,
                 Fixed64.Zero,
                 Fixed64.Zero);
-        Assert.True(TryGetIrreducibleContact(
+        Assert.True(TryGetFullWidthContact(
             halfTurn,
-            out FixedContactAnchors rotated,
-            out bool rotatedWide));
-        Assert.True(rotatedWide);
+            out FixedContactAnchors rotated));
         Assert.Equal(contact.Depth, rotated.Depth);
         Assert.Equal(halfTurn * contact.Normal, rotated.Normal);
         AssertCommonRotation(halfTurn, contact, rotated);
     }
 
     [Fact]
-    public void Contact_SeparatingAlongIrreducibleClosestAxisRejectsThePair()
+    public void Contact_TranslatingByReportedDepthAndMarginSeparatesFullWidthPair()
     {
         Vector3d capsuleCenter = new(
             Fixed64.FromRaw(-682_964_183_777L),
             Fixed64.FromRaw(-140_355_624_925L),
             Fixed64.FromRaw(-284_939_450_016L));
-        Assert.True(TryGetRelativeIrreducibleContact(
+        Assert.True(TryGetRelativeFullWidthContact(
             capsuleCenter,
-            out FixedContactAnchors contact,
-            out bool usedWideCandidate));
-        Assert.True(usedWideCandidate);
+            out FixedContactAnchors contact));
 
         Vector3d separatedCenter =
             capsuleCenter
             + contact.Normal * (contact.Depth + Fixed64.One);
-        Assert.False(TryGetRelativeIrreducibleContact(
+        Assert.False(TryGetRelativeFullWidthContact(
             separatedCenter,
-            out _,
             out _));
     }
 
     [Fact]
-    public void Contact_IrreducibleOverlapBeyondTheScalarDomainIsExplicitlyClamped()
+    public void Contact_FullWidthOverlapBeyondTheScalarDomainIsExplicitlyClamped()
     {
-        Assert.True(TryGetClampedIrreducibleContact(
-            out FixedContactAnchors contact,
-            out bool usedWideCandidate));
+        Assert.True(TryGetClampedFullWidthContact(
+            out FixedContactAnchors contact));
 
-        Assert.True(usedWideCandidate);
         Assert.True(contact.Normal.IsNormalized());
         Assert.Equal(Fixed64.MaxValue, contact.Depth);
         Assert.True(contact.DepthIsClamped);
@@ -581,17 +550,13 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
     [Fact]
     public void Contact_ExtremeTranslationMatchesTheReducedGeometryOracle()
     {
-        Assert.True(TryGetFormerWideFixture(
+        Assert.True(TryGetFullDomainGeometryContact(
             reduceTranslation: false,
-            out FixedContactAnchors extreme,
-            out bool extremeWide));
-        Assert.True(TryGetFormerWideFixture(
+            out FixedContactAnchors extreme));
+        Assert.True(TryGetFullDomainGeometryContact(
             reduceTranslation: true,
-            out FixedContactAnchors reduced,
-            out bool reducedWide));
+            out FixedContactAnchors reduced));
 
-        Assert.False(extremeWide);
-        Assert.False(reducedWide);
         Assert.Equal(reduced.Normal, extreme.Normal);
         Assert.Equal(reduced.Depth, extreme.Depth);
         Assert.Equal(
@@ -608,20 +573,16 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
     }
 
     [Fact]
-    public void Contact_WideFallbackIsDirtyStackDeterministic()
+    public void Contact_FullWidthGeometryIsDirtyStackDeterministic()
     {
-        Assert.True(TryGetIrreducibleContact(
-            out FixedContactAnchors expected,
-            out bool expectedWide));
-        Assert.True(expectedWide);
+        Assert.True(TryGetFullWidthContact(
+            out FixedContactAnchors expected));
 
         for (int iteration = 0; iteration < 32; iteration++)
         {
             PolluteStack(unchecked((ulong)iteration + 1UL));
-            Assert.True(TryGetIrreducibleContact(
-                out FixedContactAnchors actual,
-                out bool usedWide));
-            Assert.True(usedWide);
+            Assert.True(TryGetFullWidthContact(
+                out FixedContactAnchors actual));
             Assert.Equal(expected.Normal, actual.Normal);
             Assert.Equal(expected.Depth, actual.Depth);
             Assert.Equal(
@@ -631,22 +592,21 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
     }
 
     [Fact]
-    public void Contact_WarmedWideFallbackDoesNotAllocate()
+    public void Contact_WarmedFullWidthGeometryDoesNotAllocate()
     {
-        for (int iteration = 0; iteration < 4; iteration++)
-            _ = TryGetIrreducibleContact(out _, out _);
-
         int contacts = 0;
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int iteration = 0; iteration < 16; iteration++)
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            if (TryGetIrreducibleContact(out _, out _))
-                contacts++;
-        }
-        long after = GC.GetAllocatedBytesForCurrentThread();
+            contacts = 0;
+            for (int iteration = 0; iteration < 16; iteration++)
+            {
+                if (TryGetFullWidthContact(out _))
+                    contacts++;
+            }
+        });
 
         Assert.Equal(16, contacts);
-        Assert.Equal(before, after);
+        Assert.Equal(0L, allocated);
     }
 
     [Fact]
@@ -731,30 +691,26 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
             Assert.Equal(expected.Depth, actual.Depth);
         }
 
-        _ = TryGetLowerEndpointContact(
-            Vector3d.Zero,
-            rotation,
-            center,
-            FixedQuaternion.Identity,
-            out _);
-        long before = GC.GetAllocatedBytesForCurrentThread();
         int contacts = 0;
-        for (int iteration = 0; iteration < 16; iteration++)
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            if (TryGetLowerEndpointContact(
-                    Vector3d.Zero,
-                    rotation,
-                    center,
-                    FixedQuaternion.Identity,
-                    out _))
+            contacts = 0;
+            for (int iteration = 0; iteration < 16; iteration++)
             {
-                contacts++;
+                if (TryGetLowerEndpointContact(
+                        Vector3d.Zero,
+                        rotation,
+                        center,
+                        FixedQuaternion.Identity,
+                        out _))
+                {
+                    contacts++;
+                }
             }
-        }
-        long after = GC.GetAllocatedBytesForCurrentThread();
+        });
 
         Assert.Equal(16, contacts);
-        Assert.Equal(before, after);
+        Assert.Equal(0L, allocated);
     }
 
     [Fact]
@@ -835,7 +791,7 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
             Fixed64 capsuleRadius =
                 radii[(index * 7 + 2) % radii.Length];
 
-            bool hit = WideConvexPrismRelations
+            bool hit = FixedSegment
                 .TryGetCenteredFiniteCylinderCapsuleContact(
                     Vector3d.Zero,
                     cylinderRotation,
@@ -847,9 +803,8 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
                     capsuleAxis,
                     capsuleLength,
                     capsuleRadius,
-                    out FixedContactAnchors contact,
-                    out bool usedWide);
-            bool rotatedHit = WideConvexPrismRelations
+                    out FixedContactAnchors contact);
+            bool rotatedHit = FixedSegment
                 .TryGetCenteredFiniteCylinderCapsuleContact(
                     Vector3d.Zero,
                     halfTurn * cylinderRotation,
@@ -861,8 +816,7 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
                     capsuleAxis,
                     capsuleLength,
                     capsuleRadius,
-                    out FixedContactAnchors rotatedContact,
-                    out bool rotatedUsedWide);
+                    out FixedContactAnchors rotatedContact);
 
             Assert.Equal(hit, rotatedHit);
             if (!hit)
@@ -871,7 +825,7 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
             Assert.True(contact.Depth >= Fixed64.Zero);
             Assert.True(
                 contact.Depth == rotatedContact.Depth,
-                $"Topology index {index}: expected rotated depth {contact.Depth}, got {rotatedContact.Depth}; normals {contact.Normal} -> {rotatedContact.Normal}; wide {usedWide}/{rotatedUsedWide}.");
+                $"Topology index {index}: expected rotated depth {contact.Depth}, got {rotatedContact.Depth}; normals {contact.Normal} -> {rotatedContact.Normal}.");
             Assert.Equal(
                 contact.DepthIsClamped,
                 rotatedContact.DepthIsClamped);
@@ -942,7 +896,7 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
             Fixed64 capsuleRadius =
                 NextNonNegativeRaw(ref state, 3L << 32);
 
-            bool hit = WideConvexPrismRelations
+            bool hit = FixedSegment
                 .TryGetCenteredFiniteCylinderCapsuleContact(
                     cylinderCenter,
                     cylinderRotation,
@@ -954,9 +908,8 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
                     capsuleAxis,
                     capsuleLength,
                     capsuleRadius,
-                    out FixedContactAnchors contact,
-                    out bool usedWide);
-            bool rotatedHit = WideConvexPrismRelations
+                    out FixedContactAnchors contact);
+            bool rotatedHit = FixedSegment
                 .TryGetCenteredFiniteCylinderCapsuleContact(
                     halfTurn * cylinderCenter,
                     halfTurn * cylinderRotation,
@@ -968,8 +921,7 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
                     capsuleAxis,
                     capsuleLength,
                     capsuleRadius,
-                    out FixedContactAnchors rotated,
-                    out bool rotatedUsedWide);
+                    out FixedContactAnchors rotated);
 
             Assert.Equal(hit, rotatedHit);
             if (!hit)
@@ -977,7 +929,7 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
             contacts++;
             Assert.True(
                 contact.Depth == rotated.Depth,
-                $"Sample {index}: depths {contact.Depth}/{rotated.Depth}; normals {contact.Normal}/{rotated.Normal}; wide {usedWide}/{rotatedUsedWide}.");
+                $"Sample {index}: depths {contact.Depth}/{rotated.Depth}; normals {contact.Normal}/{rotated.Normal}.");
             Assert.Equal(
                 contact.DepthIsClamped,
                 rotated.DepthIsClamped);
@@ -993,18 +945,15 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
         Assert.True(contacts > 32);
     }
 
-    private static bool TryGetIrreducibleContact(
-        out FixedContactAnchors contact,
-        out bool usedWideCandidate) =>
-        TryGetIrreducibleContact(
+    private static bool TryGetFullWidthContact(
+        out FixedContactAnchors contact) =>
+        TryGetFullWidthContact(
             FixedQuaternion.Identity,
-            out contact,
-            out usedWideCandidate);
+            out contact);
 
-    private static bool TryGetIrreducibleContact(
+    private static bool TryGetFullWidthContact(
         FixedQuaternion commonRotation,
-        out FixedContactAnchors contact,
-        out bool usedWideCandidate)
+        out FixedContactAnchors contact)
     {
         Vector3d cylinderCenter = new(
             Fixed64.FromRaw(-9_223_371_298_328_934_912L),
@@ -1022,7 +971,7 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
             FixedQuaternion.FromAxisAngle(
                 Vector3d.Up,
                 Fixed64.Pi / (Fixed64)4);
-        return WideConvexPrismRelations
+        return FixedSegment
             .TryGetCenteredFiniteCylinderCapsuleContact(
                 commonRotation * cylinderCenter,
                 commonRotation * cylinderRotation,
@@ -1034,20 +983,18 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
                 Vector3d.Forward,
                 Fixed64.FromRaw(855_113_133_883L),
                 Fixed64.FromRaw(9_223_371_872_063_158_705L),
-                out contact,
-                out usedWideCandidate);
+                out contact);
     }
 
-    private static bool TryGetRelativeIrreducibleContact(
+    private static bool TryGetRelativeFullWidthContact(
         Vector3d capsuleCenter,
-        out FixedContactAnchors contact,
-        out bool usedWideCandidate)
+        out FixedContactAnchors contact)
     {
         FixedQuaternion rotation =
             FixedQuaternion.FromAxisAngle(
                 Vector3d.Up,
                 Fixed64.Pi / (Fixed64)4);
-        return WideConvexPrismRelations
+        return FixedSegment
             .TryGetCenteredFiniteCylinderCapsuleContact(
                 Vector3d.Zero,
                 rotation,
@@ -1059,14 +1006,12 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
                 Vector3d.Forward,
                 Fixed64.FromRaw(855_113_133_883L),
                 Fixed64.FromRaw(9_223_371_872_063_158_705L),
-                out contact,
-                out usedWideCandidate);
+                out contact);
     }
 
-    private static bool TryGetFormerWideFixture(
+    private static bool TryGetFullDomainGeometryContact(
         bool reduceTranslation,
-        out FixedContactAnchors contact,
-        out bool usedWideCandidate)
+        out FixedContactAnchors contact)
     {
         Vector3d cylinderCenter = reduceTranslation
             ? Vector3d.Zero
@@ -1089,7 +1034,7 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
             FixedQuaternion.FromAxisAngle(
                 Vector3d.Right,
                 Fixed64.Pi / (Fixed64)3);
-        return WideConvexPrismRelations
+        return FixedSegment
             .TryGetCenteredFiniteCylinderCapsuleContact(
                 cylinderCenter,
                 cylinderRotation,
@@ -1101,13 +1046,11 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
                 Vector3d.Up,
                 Fixed64.MaxValue - Fixed64.One,
                 Fixed64.MaxValue / (Fixed64)8,
-                out contact,
-                out usedWideCandidate);
+                out contact);
     }
 
-    private static bool TryGetClampedIrreducibleContact(
-        out FixedContactAnchors contact,
-        out bool usedWideCandidate)
+    private static bool TryGetClampedFullWidthContact(
+        out FixedContactAnchors contact)
     {
         Vector3d cylinderCenter = new(
             Fixed64.FromRaw(-9_223_371_836_141_996_263L),
@@ -1117,7 +1060,7 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
             Fixed64.FromRaw(-9_223_371_392_634_327_554L),
             Fixed64.FromRaw(-9_223_371_627_891_749_603L),
             Fixed64.FromRaw(-9_223_371_800_738_914_912L));
-        return WideConvexPrismRelations
+        return FixedSegment
             .TryGetCenteredFiniteCylinderCapsuleContact(
                 cylinderCenter,
                 FixedQuaternion.Identity,
@@ -1131,8 +1074,7 @@ public sealed class CenteredCylinderCapsuleRigidFrameTests
                 Vector3d.Forward,
                 Fixed64.FromRaw(4_611_686_427_549_936_991L),
                 Fixed64.FromRaw(9_223_371_370_890_567_190L),
-                out contact,
-                out usedWideCandidate);
+                out contact);
     }
 
     private static bool TryGetLowerEndpointContact(

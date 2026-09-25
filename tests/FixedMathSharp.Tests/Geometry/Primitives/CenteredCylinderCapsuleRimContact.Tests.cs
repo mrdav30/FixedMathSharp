@@ -5,6 +5,26 @@ namespace FixedMathSharp.Tests;
 
 public sealed class CenteredCylinderCapsuleRimContactTests
 {
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public void Contact_ZeroRadiusCoreEndpointsMeetWithoutInventingANormal(int sign)
+    {
+        // The two length-2 perpendicular cores meet at (0,sign,0).
+        // Their Minkowski sum is a flat rectangle and the queried center is
+        // its corner: the minimum offset depth is exactly the capsule radius.
+        // The coincident endpoint is not an additional normal direction.
+        Assert.True(FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up,
+            Fixed64.Two, Fixed64.Zero,
+            new Vector3d(sign, sign, 0), FixedQuaternion.Identity, Vector3d.Right,
+            Fixed64.Two, Fixed64.Half, out FixedContactAnchors contact));
+
+        Assert.Equal(Fixed64.Half, contact.Depth);
+        Assert.Equal(sign * Vector3d.Up, contact.Normal);
+        Assert.False(contact.DepthIsClamped);
+    }
+
     [Fact]
     public void Contact_CoreInsideCylinderDoesNotExceedAKnownSeparatingTranslation()
     {

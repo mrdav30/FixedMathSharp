@@ -190,25 +190,6 @@ internal static partial class WideConvexPrismRelations
             right.AxisSquared);
     }
 
-    private static int CompareSignedProjectionDepths(
-        in ProjectionDepth left,
-        in ProjectionDepth right)
-    {
-        // Cylinder-capsule admission adds the same capsule radius to every
-        // candidate, so base projections retain their ordering even when
-        // either base is negative. Squared depths preserve order only within
-        // one sign partition.
-        bool leftNonNegative = IsProjectionNonNegative(left);
-        bool rightNonNegative = IsProjectionNonNegative(right);
-        if (leftNonNegative != rightNonNegative)
-            return leftNonNegative ? 1 : -1;
-
-        int squaredComparison = CompareProjectionDepths(left, right);
-        return leftNonNegative
-            ? squaredComparison
-            : -squaredComparison;
-    }
-
     private static void GetRadialProjection(
         in ProjectionDepth depth,
         Signed576 unit,

@@ -172,6 +172,14 @@ They are not end-to-end posture-transaction or simulation-frame measurements.
 Ordinary overlap fixtures can exit as soon as a center/core witness proves
 intrusion; their results do not estimate the cost of difficult negative queries.
 
+The cylinder/capsule contact rows also cover endpoint rims, oblique interior
+rims, an intersecting capsule core, zero cylinder radius, zero capsule-core
+length, and full-domain arithmetic. Their geometric expectations live in the
+matching `CenteredCylinderCapsule*` tests. Compare each fixture unchanged across
+revisions; timings from an implementation that returns an incorrect contact
+are historical costs, not equivalent-result speed comparisons. These rows
+measure one contact query, not a complete physics frame.
+
 Additional strict rows exercise cone/capsule, cylinder/cone, separated finite
 rims, and triangle intrusion found only after clipping against the cylinder
 caps. Setup validates each expected classification. Separated-rim rows are
