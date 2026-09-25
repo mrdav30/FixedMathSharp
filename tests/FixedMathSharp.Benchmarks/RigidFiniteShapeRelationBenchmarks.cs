@@ -40,6 +40,8 @@ public class RigidFiniteShapeRelationBenchmarks
         FixedQuaternion.FromAxisAngle(
             Vector3d.Forward,
             Fixed64.PiOver6);
+    private readonly FixedQuaternion _perpendicularCylinder =
+        new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.One).Normalized;
     private readonly FixedQuaternion _tiltedCapsule =
         FixedQuaternion.FromAxisAngle(
             Vector3d.Right,
@@ -77,6 +79,14 @@ public class RigidFiniteShapeRelationBenchmarks
             || !FullDomainCancellationCylinderCapsule()
             || !IrreducibleWideCylinderCapsule()
             || !OrdinaryCylinderCylinder()
+            || !ReducedCoreAxisCylinderCylinder()
+            || !OrdinaryCylinderCapsuleStrict()
+            || !OrdinaryCylinderCylinderStrict()
+            || !OrdinaryConeCapsuleStrict()
+            || !OrdinaryCylinderConeStrict()
+            || SeparatedCylinderCapsuleRimStrict()
+            || SeparatedCylinderRimsStrict()
+            || !ClippedTriangleCylinderStrict()
             || !FullDomainCancellationCylinderCylinder()
             || !MultiRadicalCylinderCylinder()
             || IrreducibleGenericRadicalSign() == 0
@@ -110,6 +120,68 @@ public class RigidFiniteShapeRelationBenchmarks
             Fixed64.Two,
             Fixed64.One,
             out _);
+
+    [Benchmark]
+    public bool ReducedCoreAxisCylinderCylinder()
+    {
+        bool hit = FixedSegment.TryGetCenteredFiniteCylindersContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.One,
+            new Vector3d(Fixed64.FromFraction(7, 4), Fixed64.FromFraction(7, 4), Fixed64.FromFraction(5, 4)),
+            FixedQuaternion.Identity, Vector3d.Right, Fixed64.Two, Fixed64.One,
+            out FixedContactAnchors contact);
+        // The selected projection's exact rounding is independently proved in
+        // CenteredCylinderPairDepthRoundingTests; no geometry-completeness claim.
+        return hit && contact.Depth.m_rawValue == 597_275_436L && !contact.DepthIsClamped;
+    }
+
+    [Benchmark]
+    public bool OrdinaryCylinderCapsuleStrict() =>
+        WideFiniteAxisIntersection.DoesCenteredFiniteCylinderPenetrateCapsule(
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
+            new Vector3d(Fixed64.Half, Fixed64.One + Fixed64.Half, Fixed64.Zero),
+            FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.One);
+
+    [Benchmark]
+    public bool OrdinaryCylinderCylinderStrict() =>
+        WideFiniteAxisIntersection.DoesCenteredFiniteCylindersPenetrate(
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
+            new Vector3d(Fixed64.Half, Fixed64.One + Fixed64.Half, Fixed64.Zero),
+            FixedQuaternion.Identity, Fixed64.Two, Fixed64.One);
+
+    [Benchmark]
+    public bool OrdinaryConeCapsuleStrict() =>
+        WideFiniteAxisIntersection.DoesCenteredFiniteConePenetrateCapsule(
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
+            new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Zero),
+            _tiltedCapsule, Vector3d.Up, Fixed64.Two, Fixed64.One);
+
+    [Benchmark]
+    public bool OrdinaryCylinderConeStrict() =>
+        WideFiniteAxisIntersection.DoesCenteredFiniteCylinderPenetrateCone(
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
+            new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Zero),
+            _tiltedCapsule, Fixed64.Two, Fixed64.One);
+
+    [Benchmark]
+    public bool SeparatedCylinderCapsuleRimStrict() =>
+        WideFiniteAxisIntersection.DoesCenteredFiniteCylinderPenetrateCapsule(
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, (Fixed64)10,
+            new Vector3d(Fixed64.FromFraction(83, 4), Fixed64.FromFraction(7, 4), Fixed64.Zero),
+            FixedQuaternion.Identity, Vector3d.Right, (Fixed64)20, Fixed64.One);
+
+    [Benchmark]
+    public bool SeparatedCylinderRimsStrict() =>
+        WideFiniteAxisIntersection.DoesCenteredFiniteCylindersPenetrate(
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
+            new Vector3d(Fixed64.FromFraction(7, 4), Fixed64.FromFraction(7, 4), Fixed64.FromFraction(11, 8)),
+            _perpendicularCylinder, Fixed64.Two, Fixed64.One);
+
+    [Benchmark]
+    public bool ClippedTriangleCylinderStrict() =>
+        WideOrientedBox.DoesCenteredCylinderPenetrateTriangle(
+            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)10, (Fixed64)5,
+            new FixedTriangle(new Vector3d(0, 7, -5), new Vector3d(10, 1, -5), new Vector3d(5, 4, 5)),
+            Vector3d.Zero, FixedQuaternion.Identity);
 
     [Benchmark]
     public bool IrreducibleWideCylinderCapsule()

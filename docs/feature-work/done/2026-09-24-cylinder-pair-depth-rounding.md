@@ -117,6 +117,17 @@ Independent review found no actionable change to exact rounding, clamping, or
 geometry. Steady-state benchmark comparisons remain separate from these
 diagnostic timings.
 
+The completed out-of-process BenchmarkDotNet 0.15.8 default-job capture on
+Windows 11 / i7-9700K / .NET 8.0.29 measured the penetrating reduced-core fixture
+at **340.74 us mean, 340.64 us median, 0 B allocated**. Matching ordinary
+cylinder/capsule and cylinder/cylinder controls measured 27.48 us and 24.88 us,
+versus 27.48 us and 25.08 us in the preceding capture: no observed ordinary-path
+regression. The pre-fix pathological case timed out, so no invented finite
+baseline or speedup ratio is reported. Reproduce the measured row through
+`rigid-finite-shape-relation --filter '*ReducedCoreAxisCylinderCylinder'` in the
+existing benchmark runner. Raw JSON and complete logs are under
+`artifacts/grv081-final-benchmarks`.
+
 Ignored logs, stack captures, TRX files and diagnostic dumps under `artifacts`
 are supplementary; the fixtures, numerical mechanism and commands above
 preserve the reproducer without those files.

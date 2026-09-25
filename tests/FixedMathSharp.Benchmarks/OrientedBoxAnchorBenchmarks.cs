@@ -84,7 +84,8 @@ public class OrientedBoxAnchorBenchmarks
     [GlobalSetup]
     public void ValidateStrictControls()
     {
-        if (!CapsulePrimary() || !CapsuleStrict() || !SpherePrimary() || !SphereStrict())
+        if (!CapsulePrimary() || !CapsuleStrict() || !SpherePrimary() || !SphereStrict()
+            || !CylinderManifold() || !CylinderStrict())
             throw new InvalidOperationException("Strict box controls must retain their intended positive overlap.");
     }
 
@@ -149,6 +150,12 @@ public class OrientedBoxAnchorBenchmarks
             out _,
             out _);
     }
+
+    [Benchmark]
+    public bool CylinderStrict() =>
+        WideOrientedBox.DoesCenteredCylinderPenetrateBox(
+            new Vector3d(0, 1, 0), FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
+            _box.Center, _box.Orientation, _box.HalfExtents);
 
     [Benchmark]
     public bool SpherePrimary() =>

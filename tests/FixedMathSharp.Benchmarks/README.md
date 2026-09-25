@@ -162,12 +162,26 @@ The matching `Strict*` rows measure classification alone, including a positive
 sub-raw overlap. Exact touch is intentionally false in strict rows and true in
 closed-contact rows.
 
-`oriented-box-anchor` includes paired `SpherePrimary`/`SphereStrict` and
-`CapsulePrimary`/`CapsuleStrict` rows on the same geometry. The
-`rigid-finite-shape-relation` selection similarly pairs `OrdinaryHullCapsule`
-with `OrdinaryHullCapsuleStrict`. These isolate the cost avoided when a caller
+`oriented-box-anchor` includes paired `SpherePrimary`/`SphereStrict`,
+`CapsulePrimary`/`CapsuleStrict`, and `CylinderManifold`/`CylinderStrict` rows
+on the same geometry. The `rigid-finite-shape-relation` selection similarly
+pairs ordinary hull/capsule, cylinder/capsule, and cylinder/cylinder queries
+with their `Strict` counterparts. These isolate the cost avoided when a caller
 needs only penetration truth, not normals, ranked depths, or contact witnesses.
 They are not end-to-end posture-transaction or simulation-frame measurements.
+Ordinary overlap fixtures can exit as soon as a center/core witness proves
+intrusion; their results do not estimate the cost of difficult negative queries.
+
+Additional strict rows exercise cone/capsule, cylinder/cone, separated finite
+rims, and triangle intrusion found only after clipping against the cylinder
+caps. Setup validates each expected classification. Separated-rim rows are
+correctness-sensitive workloads, not equivalent-result speed comparisons with
+an ordinary contact query that misclassifies that geometry.
+
+`ReducedCoreAxisCylinderCylinder` measures an admitted contact whose small
+nonsquare axis defeats the scalar depth estimate. Its expected rounded depth
+is independently checked by the test suite; this row exercises the bounded
+exact-search fallback without claiming complete cylinder-pair contact geometry.
 
 ## Baseline Artifacts
 
