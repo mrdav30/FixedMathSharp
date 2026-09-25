@@ -31,7 +31,11 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 ### FMS-Issue-023: Finite cylinder/capsule contact misses rim separation
 
 - **Status:** Confirmed on 2026-09-24 against `b7a6b02`, while evaluating
-  exact posture clearance for Gravitas `GRV-Issue-081`.
+  exact posture clearance for Gravitas `GRV-Issue-081`. Reproduced and expanded
+  against `5ddf2c5`; implementation remains open.
+- **Proposed design:** [Complete cylinder/capsule contact](2026-09-24-cylinder-capsule-contact-design.md)
+  captures the private solver replacement, reuse boundaries, and acceptance
+  gates. Awaiting design review; no runtime cutover has occurred.
 - **Priority:** High
 - **Affected area:** `FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact` and
   `WideConvexPrismRelations.RigidFiniteShapePairs.cs`. The current finite set
@@ -45,15 +49,75 @@ Work that requires staged implementation belongs in a focused feature-work plan.
   `FixedSegmentStrictClearanceRegressionTests` preserves all three failures
   and penetrating controls. Reproduce with
   `dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter FullyQualifiedName~FixedSegmentStrictClearanceRegressionTests`.
+- **Expanded contact evidence:** `CenteredCylinderCapsuleRimContactTests`
+  covers endpoint, interior, and oblique interior rim features through the
+  public contact API. A cylinder of radius 10 and length 2, and a capsule core
+  through `(43/4, 2, 0)`, have closest rim point `(10, 1, 0)` and core distance
+  `5/4`. Capsule radii `5/4` and `6/4` must give depths 0 and `1/4`, not the
+  observed `1/4` and `1/2`. Both a +X endpoint and a +Z interior core exhibit
+  the error.
+  For a genuinely oblique case, use a cylinder of radius 1 and length 2,
+  capsule center `(4, 5, 0)`, length 2, and quaternion raw components
+  `607400100 * (5, 0, -3, 4)`. The exact rigid-frame +Y axis is
+  `(12, -9, 20)/25`. The rim point `(1, 1, 0)` and normal `(3, 4, 0)/5`
+  prove core distance 5, with an interior core witness. Radius `5 - 1 raw`
+  must miss; radii 5 and `5 + 1 raw` must produce depths 0 and 1 raw. The
+  existing method admits all three and reports about `0.02118` excess depth.
+  Independent +/-1-raw vertical translations also preserve the tangency
+  classification reproducer. Run the same test command with
+  `--filter FullyQualifiedName~CenteredCylinderCapsuleRimContactTests`.
+- **Core-overlap evidence:** The same new fixture also prevents an
+  outside-only distance repair from masquerading as a complete fix. For the
+  unit-radius, length-2 cylinder, use capsule center `(7/4, 0, 1/4)`, length
+  10, radius `1/4`, and quaternion raw components
+  `1920767767 * (0, 0, -1, 2)`, giving exact axis `(4/5, 3/5, 0)`. Its core
+  intersects the cylinder. Translation `3/5` along `(3, -4, 0)/5` already
+  separates the shapes, but the old method reports depth raw `3096962338`
+  (about `0.72107`), exceeding that proved upper bound.
 - **Impact:** False collision and incorrect solver depth; exact posture
   clearance cannot reuse this contact classifier merely by changing `<=` to
   `<`. This defect predates the new strict predicates.
-- **Next action:** Establish complete finite-rim classification, including
-  arbitrary rigid frames, before replacing the old contact authority. Evaluate
-  reuse of the existing rounded-cylinder polynomial machinery with exact
-  centered-axis inputs; do not round endpoints, add an epsilon, or label a
-  finite sampled-axis check exact. Keep independent analytic boundary tests
-  and benchmark the contact path before and after any owning repair.
+- **Repair boundary:** The public method promises minimum translation, not
+  merely closed-overlap truth. Its finite candidate list and closest-core
+  direction are incomplete; adding the strict Boolean predicate cannot repair
+  normal or depth. For disjoint cores, capsule depth is radius minus exact
+  segment-to-cylinder distance. Intersecting cores require radius plus the
+  inside boundary distance of the cylinder swept along the capsule core.
+  On normals perpendicular to an oblique capsule axis, that boundary includes
+  projected cap ellipses; their stationary normals require quartic root
+  selection. Existing rounded-cylinder Sturm machinery is reusable, but its
+  current result is root existence or a rounded ray distance, not retained
+  root identity with exact sign/comparison and final contact rounding.
+- **Next action:** Design a focused private contact-kernel replacement with
+  complete feature selection for both core domains, arbitrary admitted rigid
+  frames/local axes, exact tangency, and deterministic ties. Reuse fixed-limb
+  arithmetic and Sturm machinery rather than introduce a generic algebra
+  framework. Preserve the public API and existing representable-anchor
+  contract; an algebraic public anchor/serialization redesign is not required.
+  Select the feature and depth before rounding normal and anchor outputs.
+  Do not round endpoints, add an epsilon, or label sampled directions exact.
+  Finish with full Release/ReleaseLean line/branch/method coverage and matched
+  benchmarks, then validate affected Gravitas consumers.
+- **Pre-change performance evidence:** Default out-of-process BenchmarkDotNet
+  0.15.8, .NET 8.0.29, SDK 10.0.302, Windows 11, i7-9700K, source at `5ddf2c5`:
+  `OrdinaryCylinderCapsule` mean 27.76 us (error 0.198 us),
+  `FullDomainCancellationCylinderCapsule` 185.61 us (error 1.777 us),
+  `IrreducibleWideCylinderCapsule` 1436.41 us (error 11.950 us); all 0 B/op.
+  These are baseline costs, not correctness or improvement claims. Build the
+  Release benchmark project and run the `rigid-finite-shape-relation` alias
+  with `--filter '*OrdinaryCylinderCapsule' '*FullDomainCancellationCylinderCapsule' '*IrreducibleWideCylinderCapsule' --exporters json`.
+  The last row also asserts the existing internal wide-candidate route; if a
+  replacement changes that diagnostic, recapture matched benchmark fixtures
+  before implementation rather than silently compare different workloads.
+- **Diagnostic verification:** With production unchanged at `5ddf2c5`, the
+  complete core suite plus the expanded regressions reports Release 3,124
+  passed / 15 failed, and ReleaseLean 3,103 passed / 15 failed, with no skips.
+  Twelve failures expose FMS-Issue-023 (nine newly captured); three are the
+  existing FMS-Issue-024 regressions. Core and FluentAssertions retain 100%
+  reachable line/branch/method coverage in both configurations: Release
+  49,417 lines / 9,578 branches / 3,568 methods; Lean
+  49,510 lines / 9,578 branches / 3,564 methods. Coverage is execution evidence,
+  not a claim that the contact behavior is fixed or that the suite is green.
 
 ### FMS-Issue-024: Finite cylinder-pair contact misses intersecting cap-rim constraints
 
