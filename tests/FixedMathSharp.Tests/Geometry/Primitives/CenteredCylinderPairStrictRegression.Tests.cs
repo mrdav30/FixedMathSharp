@@ -20,7 +20,7 @@ public sealed class CenteredCylinderPairStrictRegressionTests
     }
 
     [Fact]
-    public void Contact_AcceptsOverlappingPerpendicularRims()
+    public void Contact_OverlappingPerpendicularRimsDoNotExceedASeparatingTranslation()
     {
         // The same two z intervals overlap because (5/4)^2 < 7/4.
         Assert.True(TryGetContact(
@@ -28,6 +28,11 @@ public sealed class CenteredCylinderPairStrictRegressionTests
             (Fixed64)5 / 4,
             out FixedContactAnchors contact));
         Assert.True(contact.Depth > Fixed64.Zero);
+        // Direction (1,1,1) has normalized support gap
+        // (2*sqrt(2)-11/4)/sqrt(3). Since sqrt(2)<99/70 and
+        // sqrt(3)>5/3, that gap is below 33/700<1/20. A global
+        // minimum cannot exceed this explicit separating translation.
+        Assert.True(contact.Depth < Fixed64.FromFraction(1, 20));
     }
 
     [Theory]

@@ -58,6 +58,28 @@ internal static partial class WideConvexPrismRelations
     {
         usedWideCandidate = false;
         usedMultiRadicalRanking = false;
+        // A zero-radius cylinder is exactly its finite core segment. Keep
+        // that family with the complete cylinder/capsule authority, including
+        // oblique side/rim minima and zero-depth segment/segment contacts.
+        if (secondRadius == Fixed64.Zero)
+            return TryGetCenteredFiniteCylinderCapsuleContact(
+                firstCenter, firstRotation, firstLocalAxis, firstLength, firstRadius,
+                secondCenter, secondRotation, secondLocalAxis, secondLength, Fixed64.Zero,
+                out contact);
+        if (firstRadius == Fixed64.Zero)
+        {
+            if (!TryGetCenteredFiniteCylinderCapsuleContact(
+                    secondCenter, secondRotation, secondLocalAxis, secondLength, secondRadius,
+                    firstCenter, firstRotation, firstLocalAxis, firstLength, Fixed64.Zero,
+                    out FixedContactAnchors reversed))
+            {
+                contact = default;
+                return false;
+            }
+            contact = new FixedContactAnchors(reversed.SecondAnchor, reversed.FirstAnchor,
+                -reversed.Normal, reversed.Depth, reversed.DepthIsClamped);
+            return true;
+        }
         WideOrientedBox.GetRotatedLocalAxisNumerators(
             firstRotation,
             firstLocalAxis,

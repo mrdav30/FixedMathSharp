@@ -186,10 +186,16 @@ caps. Setup validates each expected classification. Separated-rim rows are
 correctness-sensitive workloads, not equivalent-result speed comparisons with
 an ordinary contact query that misclassifies that geometry.
 
-`ReducedCoreAxisCylinderCylinder` measures an admitted contact whose small
-nonsquare axis defeats the scalar depth estimate. Its expected rounded depth
-is independently checked by the test suite; this row exercises the bounded
-exact-search fallback without claiming complete cylinder-pair contact geometry.
+`PenetratingRimsCylinderCylinder` retains the geometry previously measured as
+`ReducedCoreAxisCylinderCylinder`. It no longer requires the old selected-axis
+depth: that depth is correctly rounded for the selected direction but is not
+the minimum translation of the actual solids. `SeparatedRimsCylinderCylinder`
+and `TangentRimsCylinderCylinder` complement it with disjoint and exactly
+touching cap rims. The enabled `CenteredCylinderPairStrictRegressionTests`
+own their correctness checks; setup does not require the known-broken contact
+answers for the separated and tangent rows. Before the complete contact repair,
+these timings are historical incorrect-answer costs, not equivalent-result
+performance baselines.
 
 ## Baseline Artifacts
 

@@ -255,6 +255,12 @@ The query allocates no managed memory, but its exact fallback can use hundreds
 of KiB of bounded stack scratch. Avoid deliberately small-stack worker threads;
 allow at least a 1 MiB thread stack with adequate headroom for the caller.
 
+`FixedSegment.TryGetCenteredFiniteCylindersContact` uses the same finite-segment
+contact path when either cylinder has zero radius. The stack guidance above
+therefore also applies to oblique zero-radius cylinder pairs. A zero-radius
+shape's anchor can lie at the segment center when its whole core supports the
+selected normal; callers should not require a particular endpoint in a tie.
+
 ## Sweeps and finite-shape intervals
 
 Interval queries return the closed portion of a bounded segment or ray that

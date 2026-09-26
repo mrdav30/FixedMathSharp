@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using FixedMathSharp.Geometry;
 using Xunit;
@@ -612,7 +613,7 @@ public sealed class CenteredCylinderRigidFrameTests
     }
 
     [Fact]
-    public void Contact_LowerEndpointCandidateIsSymmetricAndMatchesTheRigidFrameOracle()
+    public void Contact_RejectsSegmentOutsideTheFiniteCapRimInBothOrders()
     {
         FixedQuaternion firstRotation =
             FixedQuaternion.FromAxisAngle(
@@ -623,13 +624,18 @@ public sealed class CenteredCylinderRigidFrameTests
                 Fixed64.One + Fixed64.Half,
                 -Fixed64.Half,
                 Fixed64.Two + Fixed64.Half);
-        Vector3d firstLower =
-            -(firstRotation * Vector3d.Right);
-        Vector3d secondLower =
-            secondCenter - (Vector3d.Right * Fixed64.Two);
-        Vector3d separation = secondLower - firstLower;
+        // In the exact authored frame, the segment lies on z=-k*x, y=0,
+        // where k=2*qY*qW/(qW^2-qY^2). The cylinder admits x>=-1/2.
+        // Prove 0<k<11/10 without rounded rotation arithmetic; therefore
+        // z<=11/20 throughout the admitted segment. Radial distance squared
+        // is at least (1/2)^2+(5/2-11/20)^2=1621/400>4.
+        BigInteger y = firstRotation.Y.m_rawValue;
+        BigInteger w = firstRotation.W.m_rawValue;
+        BigInteger denominator = w * w - y * y;
+        Assert.True(denominator > 0 && y * w > 0);
+        Assert.True(20 * y * w < 11 * denominator);
 
-        Assert.True(TryGetLowerEndpointContact(
+        Assert.False(TryGetLowerEndpointContact(
             Vector3d.Zero,
             firstRotation,
             Fixed64.Two,
@@ -639,7 +645,7 @@ public sealed class CenteredCylinderRigidFrameTests
             (Fixed64)4,
             Fixed64.Two,
             out FixedContactAnchors forward));
-        Assert.True(TryGetLowerEndpointContact(
+        Assert.False(TryGetLowerEndpointContact(
             secondCenter,
             FixedQuaternion.Identity,
             (Fixed64)4,
@@ -650,16 +656,12 @@ public sealed class CenteredCylinderRigidFrameTests
             Fixed64.Zero,
             out FixedContactAnchors reverse));
 
-        AssertVectorWithinOneRawUnit(
-            separation.Normalized,
-            forward.Normal);
-        Assert.True(forward.Depth > Fixed64.Zero);
-        Assert.Equal(-forward.Normal, reverse.Normal);
-        Assert.Equal(forward.Depth, reverse.Depth);
+        Assert.Equal(default, forward);
+        Assert.Equal(default, reverse);
     }
 
     [Fact]
-    public void Contact_LowerEndpointCandidateIsDirtyStackDeterministicAndAllocationFree()
+    public void Contact_SeparatedCapRimIsDirtyStackDeterministicAndAllocationFree()
     {
         FixedQuaternion rotation =
             FixedQuaternion.FromAxisAngle(
@@ -670,7 +672,7 @@ public sealed class CenteredCylinderRigidFrameTests
                 Fixed64.One + Fixed64.Half,
                 -Fixed64.Half,
                 Fixed64.Two + Fixed64.Half);
-        Assert.True(TryGetLowerEndpointContact(
+        Assert.False(TryGetLowerEndpointContact(
             Vector3d.Zero,
             rotation,
             Fixed64.Two,
@@ -684,7 +686,7 @@ public sealed class CenteredCylinderRigidFrameTests
         for (int iteration = 0; iteration < 16; iteration++)
         {
             PolluteStack(unchecked((ulong)iteration + 1UL));
-            Assert.True(TryGetLowerEndpointContact(
+            Assert.False(TryGetLowerEndpointContact(
                 Vector3d.Zero,
                 rotation,
                 Fixed64.Two,
@@ -694,25 +696,15 @@ public sealed class CenteredCylinderRigidFrameTests
                 (Fixed64)4,
                 Fixed64.Two,
                 out FixedContactAnchors actual));
-            Assert.Equal(expected.Normal, actual.Normal);
-            Assert.Equal(expected.Depth, actual.Depth);
+            Assert.Equal(default, actual);
         }
 
-        _ = TryGetLowerEndpointContact(
-            Vector3d.Zero,
-            rotation,
-            Fixed64.Two,
-            Fixed64.Zero,
-            center,
-            FixedQuaternion.Identity,
-            (Fixed64)4,
-            Fixed64.Two,
-            out _);
-        long before = GC.GetAllocatedBytesForCurrentThread();
         int contacts = 0;
-        for (int iteration = 0; iteration < 16; iteration++)
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            if (TryGetLowerEndpointContact(
+            contacts = 0;
+            for (int iteration = 0; iteration < 16; iteration++)
+                if (TryGetLowerEndpointContact(
                     Vector3d.Zero,
                     rotation,
                     Fixed64.Two,
@@ -722,14 +714,12 @@ public sealed class CenteredCylinderRigidFrameTests
                     (Fixed64)4,
                     Fixed64.Two,
                     out _))
-            {
-                contacts++;
-            }
-        }
-        long after = GC.GetAllocatedBytesForCurrentThread();
+                    contacts++;
+        });
 
-        Assert.Equal(16, contacts);
-        Assert.Equal(before, after);
+        Assert.Equal(default, expected);
+        Assert.Equal(0, contacts);
+        Assert.Equal(0, allocated);
     }
 
     [Fact]
@@ -1185,24 +1175,6 @@ public sealed class CenteredCylinderRigidFrameTests
             Fixed64.Two,
             Fixed64.MaxValue,
             out contact);
-    }
-
-    private static void AssertVectorWithinOneRawUnit(
-        Vector3d expected,
-        Vector3d actual)
-    {
-        Assert.InRange(
-            (expected.X - actual.X).Abs().m_rawValue,
-            0L,
-            1L);
-        Assert.InRange(
-            (expected.Y - actual.Y).Abs().m_rawValue,
-            0L,
-            1L);
-        Assert.InRange(
-            (expected.Z - actual.Z).Abs().m_rawValue,
-            0L,
-            1L);
     }
 
     private static Fixed64 NextSignedRaw(

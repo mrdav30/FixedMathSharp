@@ -32,7 +32,9 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 - **Status:** Confirmed on 2026-09-24 while completing Gravitas `GRV-Issue-081`;
   complete-contact direction approved on 2026-09-25. The focused
-  [design](2026-09-25-cylinder-pair-contact-design.md) is awaiting review.
+  [design](2026-09-25-cylinder-pair-contact-design.md) is approved and in progress.
+  Zero-radius pairs now reuse the complete cylinder/capsule authority; general
+  positive-radius rim/rim selection remains unresolved.
 - **Affected area:** `FixedSegment.TryGetCenteredFiniteCylindersContact` and its
   finite separating-axis candidates. This predates the strict-classification work.
 - **Evidence:** Cylinder A has center zero, axis +Y, height 2 and radius 1;
@@ -50,8 +52,9 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 - **Verification boundary:** `CenteredCylinderPairStrictRegressionTests`
   retains the public counterexamples and penetrating controls. The separate
   [FMS-Issue-026 rounding runtime repair](done/2026-09-24-cylinder-pair-depth-rounding.md)
-  lets all five cases complete: three geometric failures and two passing
-  penetration controls. It does not change candidate selection or fix these
+  lets all five cases complete. Strengthening the penetrating control with
+  the independent support-gap bound now yields four geometric failures and one
+  pass. It does not change candidate selection or fix these
   contact classification/depth failures. Boolean classification should not pay
   for contact materialization.
 - **Required fix:** A complete finite cap/rim authority, not another sampled

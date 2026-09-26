@@ -79,7 +79,8 @@ public class RigidFiniteShapeRelationBenchmarks
             || !FullDomainCancellationCylinderCapsule()
             || !IrreducibleWideCylinderCapsule()
             || !OrdinaryCylinderCylinder()
-            || !ReducedCoreAxisCylinderCylinder()
+            || !PenetratingRimsCylinderCylinder()
+            || !ZeroRadiusCylinderCylinder()
             || !OrdinaryCylinderCapsuleStrict()
             || !OrdinaryCylinderCylinderStrict()
             || !OrdinaryConeCapsuleStrict()
@@ -122,17 +123,39 @@ public class RigidFiniteShapeRelationBenchmarks
             out _);
 
     [Benchmark]
-    public bool ReducedCoreAxisCylinderCylinder()
-    {
-        bool hit = FixedSegment.TryGetCenteredFiniteCylindersContact(
+    public bool PenetratingRimsCylinderCylinder() =>
+        FixedSegment.TryGetCenteredFiniteCylindersContact(
             Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.One,
             new Vector3d(Fixed64.FromFraction(7, 4), Fixed64.FromFraction(7, 4), Fixed64.FromFraction(5, 4)),
             FixedQuaternion.Identity, Vector3d.Right, Fixed64.Two, Fixed64.One,
-            out FixedContactAnchors contact);
-        // The selected projection's exact rounding is independently proved in
-        // CenteredCylinderPairDepthRoundingTests; no geometry-completeness claim.
-        return hit && contact.Depth.m_rawValue == 597_275_436L && !contact.DepthIsClamped;
-    }
+            out _);
+
+    // These two contact results are deliberately not asserted in Setup:
+    // FMS-Issue-024's enabled regression tests expose the current incorrect
+    // classification/depth. Keep the same geometry when measuring its repair.
+    [Benchmark]
+    public bool SeparatedRimsCylinderCylinder() =>
+        FixedSegment.TryGetCenteredFiniteCylindersContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.One,
+            new Vector3d(Fixed64.FromFraction(7, 4), Fixed64.FromFraction(7, 4), Fixed64.FromFraction(11, 8)),
+            FixedQuaternion.Identity, Vector3d.Right, Fixed64.Two, Fixed64.One,
+            out _);
+
+    [Benchmark]
+    public bool TangentRimsCylinderCylinder() =>
+        FixedSegment.TryGetCenteredFiniteCylindersContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.FromFraction(5, 4),
+            new Vector3d(Fixed64.FromFraction(7, 4), Fixed64.FromFraction(7, 4), Fixed64.Two),
+            FixedQuaternion.Identity, Vector3d.Right, Fixed64.Two, Fixed64.FromFraction(5, 4),
+            out _);
+
+    [Benchmark]
+    public bool ZeroRadiusCylinderCylinder() =>
+        FixedSegment.TryGetCenteredFiniteCylindersContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.One,
+            new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Zero),
+            FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.Zero,
+            out _);
 
     [Benchmark]
     public bool OrdinaryCylinderCapsuleStrict() =>

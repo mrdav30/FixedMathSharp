@@ -2,9 +2,10 @@
 
 ## Status and intent
 
-Design for review, 2026-09-25. The owner approved the complete-contact direction
-and explicitly requested reuse, restructuring where useful, and removal of
-superseded code. No runtime repair has been implemented by this document.
+Design approved for execution, 2026-09-25. The owner explicitly requested
+reuse, restructuring where useful, removal of superseded code, and independent
+correctness/Ponytail reviews. Progress and remaining gates are recorded below;
+design approval is not a claim that the general solver is complete.
 
 Repair `FixedSegment.TryGetCenteredFiniteCylindersContact` without changing its
 public signature. Closed separation/tangency, minimum translation depth,
@@ -12,8 +13,8 @@ normal selection, rounding and clamping must agree with the exact authored
 finite solids. Preserve the separate inexpensive strict-overlap path.
 
 This is a focused geometry repair, not a general collision framework or a new
-public circle-distance API. The implementation plan follows review of this
-design. Mathematical completeness and resource proofs below are prerequisites
+public circle-distance API. Execution follows the ordered checklist below.
+Mathematical completeness and resource proofs below are prerequisites
 to retaining a new runtime solver, not claims already established.
 
 ## Evidence and ownership
@@ -164,6 +165,103 @@ contract. No reference algorithm is adopted wholesale by this design.
 
 ## Verification and performance acceptance
 
+### Rim/rim construction refined during execution
+
+The following is derived mathematics, not implemented runtime code or a
+completed scratch-space proof. A direct polynomial in squared depth is simpler
+than the initially investigated coordinate octic followed by a value resultant;
+it avoids maintaining two independent algebraic representations per candidate.
+
+Handle zero radii and parallel axes first. For nonparallel positive-radius
+rims and one cap-sign pair, set `c=sA*A+sB*B-d`. Choose exact rational axis
+directions `a,b`, nonzero rational `u` perpendicular to `a`, and define:
+
+```text
+alpha=a.a, beta=u.u, delta=b.b, w=a cross u
+p=x*u+y*w, z=(x,y,1)
+C=diag(beta,alpha*beta,-ra^2), z^T C z=0
+Z=c.c+ra^2+2*c.p, J=b.(c+p), K=delta*Z-J^2
+T(p,S)=delta*(Z+rb^2-S)^2-4*rb^2*K
+```
+
+`T` is a conic in `(x,y)`. Its quadratic block is independent of `S`, its
+linear terms are affine in `S`, and its constant term is quadratic in `S`.
+For its symmetric matrix `T(S)`, form the cubic pencil
+`f(lambda,S)=det(T(S)-lambda*C)`. Every coefficient has degree at most two in
+`S`; the leading cubic coefficient is a nonzero constant. At a stationary
+distance the conics are tangent, giving a repeated root in `lambda`.
+Consequently the cubic discriminant `V(S)` contains every stationary squared
+distance and has degree at most eight. Its leading coefficient is
+`16*alpha^2*beta^8*delta^4*rb^4*(alpha*delta-(a.b)^2)^2`, strictly positive
+in this nonparallel domain. Parallel/coaxial circles are excluded deliberately:
+their pencil can have an identically-zero discriminant from persistent complex
+intersections at infinity, not a continuum of real contact depths.
+
+For cubic coefficients `A,B,C1,D`, recover its repeated root using
+`lambda=(9*A*D-B*C1)/(2*(B^2-3*A*C1))`, or `-B/(3*A)` for a triple root.
+At an isolated real `S` root:
+
+- Rank two of `T-lambda*C`: its kernel supplies the first-circle point.
+  Differentiating the determinant proves that this point lies on `C`.
+- Rank one: intersect the kernel line with `C`, retaining zero, one or two
+  real points. This requires one quadratic extension over the retained `S`.
+- Rank zero: the conics coincide; use the constant-distance-family reduction
+  below rather than an arbitrary point.
+
+With `H=Z+rb^2-S != 0`, reconstruct
+`q=-2*rb^2*Pb(c+p)/H` and `v=c+p+q`. The conic equation proves
+`q.q=rb^2` and `v.v=S`; tangency supplies the common-normal condition. For
+`v!=0`, orientations `n=sigma*v/sqrt(S)` must satisfy positive
+`sigma*(p.v)`, `sigma*(q.v)` and nonnegative cap projections
+`sA*sigma*(A.v)`, `sB*sigma*(B.v)`. The complete signed gap is
+`sigma*sqrt(S)`, not an unsigned nearest-circle distance. A negative admitted
+gap proves separation. Radial equality belongs to a cap-normal boundary.
+
+Keep these exceptional cases explicit:
+
+- `H=0` implies `K=0`: intersect the first circle with `-c+tau*b`, then the
+  second circle with its common-normal constraint. A continuous family with
+  zero second-plane tangent projection belongs to the second side-normal plane.
+- `v=0`: nonparallel rim tangents supply their cross-product normal. Parallel
+  tangents give a planar cone defined by the radial and cap inequalities;
+  any nontrivial cone has an active boundary represented by an earlier cap or
+  side-plane stratum. Do not normalize a zero residual.
+- Constant-distance families can be nonparallel. For example
+  `a=(-3,0,4), b=(0,0,1), ra=rb=5, c=(0,3,0)` has a stationary arc at
+  distance 3. In the nonorthogonal family the radii agree, `c` is perpendicular
+  to both axes, and `|c|=r*sin(angle)`. The support-admissible arc terminates at
+  cap-normal directions with the same gap and cap signs. Orthogonal continuous
+  families belong to a side-normal plane. These are repeated roots of the
+  nonzero value polynomial, not an excuse to discard it.
+
+The representation has a concrete coefficient ceiling. In the exact inverse
+first-cylinder frame, quaternion denominators `D1,D2<2^65` permit common raw
+scale `Hscale=2*2^32*D1*D2<2^163`. Axis/perpendicular norms are bounded by
+`|a|,|u|<2^33`, `|b|<2^163`, `|w|<2^66`, scaled `|c|<2^229` and scaled
+radii `<2^226`. Matrix row weights `(33,66,229)` bound the coefficient of
+`S^j` in `Tij` by `2^(790+weight_i+weight_j-458*j)`. Applying the cubic
+discriminant bounds every integer coefficient of `V` below 7,400 bits, or
+116 words. Physical raw squared depth is `S/Hscale^2`. This exact rational
+frame must never be replaced with a rounded quaternion/vector transform.
+
+Exact selection can now operate on value-root identities. A square-free GCD
+identifies the shared-root set; selected cells must also identify the same
+root ordinal before declaring equality. Unequal roots of coprime degree-eight
+polynomials with heights `Bf,Bg` have separation greater than
+`2^(-8*Bf-8*Bg-89)`, from the nonzero integer resultant and Mahler bounds.
+Factor-height and within-factor separation bounds must accompany GCD reduction.
+Side-plane and analytic candidates still need compatible complete-depth
+representations; ranking their unshifted distances is not sufficient.
+
+Remaining implementation gate: prove all-root isolation, sign queries,
+repeated-value recovery and peak simultaneously-live scratch. A compact
+graded subresultant chain is much smaller than uniformly padded coefficients,
+but the current quartic machinery lacks arbitrary-limb exact division/content
+GCD and uses five large temporary arrays in dyadic evaluation. Copying it or
+increasing its degree constants does not establish the 1 MiB stack contract.
+Reuse limb mechanics and shared evaluation operations; preserve the optimized
+quartic path, and do not introduce an unproved workspace or hidden allocation.
+
 First correct fixture validation and capture the unchanged geometric workloads
 against the current revision, before runtime edits. Include ordinary parallel
 and skew contacts, side/rim, separated/tangent/penetrating rim/rim cases,
@@ -225,6 +323,164 @@ expected geometric proof, observed output, owning revision and minimal next
 action in the owning tracker; do not quietly expand #024 into all solvers.
 
 ## Completion boundary
+
+### Execution checklist
+
+- [x] Re-read the production query, retained-root contracts, matching tests and
+  benchmark fixtures at `038d2b8`. Keep the existing develop checkout and leave
+  changes unstaged/uncommitted as requested.
+- [x] Strengthen the penetrating-rim regression with an independent separating
+  translation bound. Release result before runtime edits: four failures and
+  one pass in `CenteredCylinderPairStrictRegressionTests`; the new depth check
+  fails for the intended geometric reason.
+- [x] Remove the wrong selected-axis depth from the benchmark's public-contact
+  success condition. Preserve the geometry under the clearer
+  `PenetratingRimsCylinderCylinder` name; add separated/tangent rim and
+  zero-radius workloads in the existing benchmark class.
+- [x] Capture the frozen out-of-process Release baseline before runtime edits.
+- [x] Reproduce and repair zero-radius cylinder pairs by using the existing
+  complete cylinder/capsule query with capsule radius zero. Validate exact
+  oblique minimum depth, swapped normal/anchors, full-domain translation,
+  side one-raw boundaries, both-zero half-raw endpoints, default false output,
+  and warmed zero allocations through the public cylinder-pair API.
+- [ ] Finish the generic rim/rim elimination and exceptional-family proofs,
+  including exact touch and identically-zero eliminants. Prove all-root
+  isolation/comparison and scratch bounds before extending retained-root code.
+- [ ] Share projected-ellipse preparation for both side-normal planes; compare
+  complete gaps including each plane's constant radius, not unshifted gaps.
+- [ ] Integrate complete global candidate selection, remove obsolete paths and
+  migrate Gravitas's mixed cylinder consumer (`GRV-Issue-084`).
+- [ ] Run the complete standard/Lean build, test and coverage matrix and matched
+  benchmarks. Obtain independent correctness and Ponytail reviews and resolve
+  their actionable findings before closing this issue.
+
+### First implementation increment: zero-radius pairs
+
+The public query now dispatches a zero-radius cylinder as its exact finite
+segment to the existing cylinder/capsule authority. Reversing the inputs swaps
+anchor ownership and negates the normal; it preserves depth, clamping and
+default false output. Both-zero pairs use the same existing degenerate path.
+No copied solver, public API, dependency or managed allocation was introduced.
+The positive-radius candidate representation no longer checks for zero radii
+that cannot reach its sole constructor. The shared cylinder/capsule traversal
+also computes its minor cross axis only where it is consumed.
+
+`CenteredCylinderPairSegmentContactTests` added eleven cases. Before runtime
+edits, four failed and seven passed. The oblique fixture reported about
+158.523848 instead of the independently certified minimum 135, and coincident
+half-raw segments reported positive depth instead of zero. After dispatch,
+these regressions and the existing cylinder/capsule, rigid-frame and rounding
+controls all passed: 177 focused cases, none skipped.
+
+Two old rigid-frame tests had asserted a false contact for a segment outside a
+finite cap rim. Their corrected expectation is independently certified in the
+test: the authored segment has `y=0,z=-k*x` with `0<k<11/10`; the cylinder
+slab requires `x>=-1/2`, hence `z<=11/20`. Its radial squared separation is at
+least `1/4+(39/20)^2=1621/400>4`. Dirty-stack and zero-allocation checks remain;
+the obsolete approximate-vector assertion helper was removed.
+
+Independent correctness and Ponytail reviews found no remaining actionable
+issue in this increment. The correctness review prompted the public stack
+warning: oblique zero-radius pairs inherit the existing cylinder/capsule stack
+requirement. These reviews do not certify the unimplemented positive-radius
+solver or close #024.
+
+#### Verification boundary
+
+Final source builds of `FixedMathSharp.slnx` succeeded in Release and
+ReleaseLean, including `netstandard2.1` and `net8.0`, with zero warnings/errors.
+Both Chronicler extension suites passed all 49 cases. The complete core runs
+remain red only at the four enabled positive-radius regressions:
+
+| Configuration | Passed | Failed | Skipped | Covered lines | Covered branches | Covered methods |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Release | 3,279 | 4 | 0 | 50,022 / 50,022 | 10,008 / 10,008 | 3,629 / 3,629 |
+| ReleaseLean | 3,258 | 4 | 0 | 50,115 / 50,115 | 10,008 / 10,008 | 3,625 / 3,625 |
+
+Coverage is 100% reachable line/branch/method in both configurations. This is
+not a green-suite claim: separated rims, exact rim tangency, its one-raw outward
+neighbor and the strengthened penetrating-depth check remain unresolved.
+
+Portable core validation, after setting `UseLocalLsfStack=true`,
+`BuildInParallel=false` and `DOTNET_PROCESSOR_COUNT=2` in the process
+environment, uses:
+
+```text
+dotnet build FixedMathSharp.slnx -c Release -p:UseSharedCompilation=false -m:1
+dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --no-build --collect:"XPlat Code Coverage" --settings tests/FixedMathSharp.Tests/coverlet.runsettings --results-directory artifacts/fms024-coverage -- RunConfiguration.MaxCpuCount=1 xUnit.MaxParallelThreads=1
+dotnet test tests/FixedMathSharp.Chronicler.Tests/FixedMathSharp.Chronicler.Tests.csproj -c Release --no-build -- RunConfiguration.MaxCpuCount=1 xUnit.MaxParallelThreads=1
+```
+
+Repeat with `ReleaseLean` and a distinct coverage directory. Core test exit 1
+is expected until the four remaining regressions are repaired, not ignored by
+the validation gate. No tests are skipped or newly excluded from coverage.
+
+Gravitas `97fee61` was also source-built and checked with filter
+`FullyQualifiedName~Cylinder|FullyQualifiedName~MixedNarrowPhase|FullyQualifiedName~Capsule`.
+Release passed 519 cases and ReleaseLean passed 518; both had one failure and
+no skips. The sole failure was the already-tracked cylinder/triangle contact
+reproducer, `GRV-Issue-082`, outside this change. No Gravitas source or tracker
+was modified. These focused consumer runs do not replace its eventual complete
+test/coverage gate or the pending `GRV-Issue-084` migration.
+The FixedMathSharp DocFX API build also succeeded with `--warningsAsErrors`,
+zero warnings and zero errors. Generated output remains ignored.
+
+#### Frozen performance evidence
+
+Windows 11, Intel i7-9700K, .NET SDK 10.0.302, .NET runtime 8.0.29,
+BenchmarkDotNet 0.15.8; two-core affinity, serialized workloads, below-normal
+launcher. Both captures used two launches, three warmups and twelve measured
+iterations. Every row reported zero managed allocation and both launchers
+exited zero. Values below are mean microseconds with BenchmarkDotNet's 99.9%
+confidence-interval half-width, not end-to-end simulation costs.
+
+| Unchanged geometry | Before dispatch | After dispatch |
+| --- | ---: | ---: |
+| Penetrating rims | 357.780 +/- 5.341 | 358.924 +/- 5.253 |
+| Separated rims | 363.220 +/- 5.715 | 360.420 +/- 7.346 |
+| Tangent rims | 360.632 +/- 5.478 | 360.201 +/- 6.600 |
+| Zero-radius parallel segment | 29.439 +/- 0.387 | 31.170 +/- 0.444 |
+| Ordinary strict predicate | 0.899 +/- 0.012 | 0.905 +/- 0.013 |
+| Ordinary contact | 25.825 +/- 0.487 | 25.940 +/- 0.380 |
+| Multi-radical contact | 498.860 +/- 5.877 | 501.238 +/- 8.918 |
+| Full-domain cancellation | 353.676 +/- 3.270 | 357.171 +/- 4.975 |
+
+The first three rows still return incorrect classification/depth. Their times
+are retained workload baselines, not equivalent-result comparisons or evidence
+that the general repair is complete. Several distributions are bimodal; the
+sub-percent control differences do not establish a speed change.
+
+The ordinary zero-radius regression exceeded the 5% investigation threshold.
+A second matched capture confirmed about 31.3 us after dispatch. Moving the
+unused minor-axis calculation into its consuming block gave no measurable win:
+
+| Shared-kernel control | Before minor-axis cleanup | After cleanup |
+| --- | ---: | ---: |
+| Ordinary cylinder/capsule | 21.31 +/- 0.265 | 21.30 +/- 0.274 |
+| Zero-radius cylinder pair | 31.31 +/- 0.437 | 31.26 +/- 0.398 |
+| Oblique interior rim | 600.88 +/- 10.344 | 597.95 +/- 9.237 |
+| Intersecting capsule core | 461.19 +/- 6.871 | 463.19 +/- 7.055 |
+
+Retain the reuse repair for correct contacts across the whole segment family,
+with the explicit ordinary-case cost of about 1.8 us / 6% above the old path.
+Do not describe this as a performance improvement or add a second segment
+solver merely to recover that small absolute cost. The one-line cleanup is
+retained because the computation has no consumer on those paths.
+
+Reproduce from a Release benchmark build with `UseLocalLsfStack=true` and
+`BuildInParallel=false` in the process environment. Apply the two-core affinity
+and launcher priority above, then run:
+
+```text
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll rigid-finite-shape-relation --filter '*CylinderCylinder*' --warmupCount 3 --iterationCount 12 --launchCount 2 --exporters json --artifacts artifacts/fms024-baseline
+```
+
+Use a distinct artifact directory per revision. For the shared-kernel control
+capture, replace the filter with `'*ZeroRadiusCylinderCylinder*'
+'*OrdinaryCylinderCapsule' '*InteriorObliqueRimCylinderCapsule*'
+'*CoreInsideCylinderCapsule*'`. Baseline source was `038d2b8` plus the fixture
+corrections, before runtime edits. Ignored logs under `artifacts/fms024-*`
+support these results but are not required to reconstruct the workloads.
 
 Close #024 only after the complete contact authority, required shared-helper
 cleanup, ordinary/mixed consumer validation and measured acceptance above are

@@ -465,9 +465,9 @@ internal static partial class WideConvexPrismRelations
             values, signs, bestValues, bestSigns, ref bestGapSign, ref hasBest);
         int capGapSign = bestGapSign;
         Axis3 major = Cross(cylinder.ToWide(), capsule.ToWide());
-        Axis3 minor = Cross(capsule.ToWide(), major);
         if (capsuleLength != Fixed64.Zero && !major.IsZero)
         {
+            Axis3 minor = Cross(capsule.ToWide(), major);
             KeepCylinderCapsuleDirection(geometry, new CylinderCapsuleDirection(major),
                 values, signs, bestValues, bestSigns, ref bestGapSign, ref hasBest);
             KeepCylinderCapsuleDirection(geometry, new CylinderCapsuleDirection(minor),

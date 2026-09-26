@@ -251,12 +251,10 @@ internal static partial class WideConvexPrismRelations
         internal bool TryGetFastDepth(
             out ProjectionDepth depth)
         {
-            bool firstZero =
-                FirstRadius == Fixed64.Zero
-                || FirstPlaneSquared.IsZero;
-            bool secondZero =
-                SecondRadius == Fixed64.Zero
-                || SecondPlaneSquared.IsZero;
+            // Zero-radius shapes dispatch to the segment contact authority
+            // before this positive-radius pair representation is constructed.
+            bool firstZero = FirstPlaneSquared.IsZero;
+            bool secondZero = SecondPlaneSquared.IsZero;
             bool firstFull =
                 !firstZero
                 && IsFullDiskProjection(
