@@ -62,7 +62,7 @@ internal readonly struct CylinderPairGeometry
             rawScale, firstHalf.X, firstHalf.Y, firstHalf.Z, secondHalf.X, secondHalf.Y, secondHalf.Z,
             difference.X, difference.Y, difference.Z, radiusA, radiusB
         };
-        ReduceCommonScale(coordinates);
+        WideArithmetic.ReduceCommonScale(coordinates);
         RawScale = Signed192.NarrowProven(coordinates[0]);
         FirstHalf = new WideAxis3(coordinates[1], coordinates[2], coordinates[3]);
         SecondHalf = new WideAxis3(coordinates[4], coordinates[5], coordinates[6]);
@@ -125,30 +125,6 @@ internal readonly struct CylinderPairGeometry
         int firstSign, int secondSign) => WideArithmetic.SubtractSigned320(
             WideArithmetic.AddSigned320(firstSign > 0 ? first : WideArithmetic.Negate(first),
                 secondSign > 0 ? second : WideArithmetic.Negate(second)), center);
-
-    private static void ReduceCommonScale(Span<Signed320> values)
-    {
-        Span<ulong> content = stackalloc ulong[5];
-        Span<ulong> other = stackalloc ulong[5];
-        Span<ulong> division = stackalloc ulong[11];
-        Import(values[0], content);
-        for (int index = 1; index < values.Length; index++)
-        {
-            Import(values[index], other);
-            WideArithmetic.GetMagnitudeGreatestCommonDivisor(content, other, division);
-            if (content[0] == 1 && WideArithmetic.GetActiveMagnitudeLength(content) == 1)
-                return;
-        }
-        Span<ulong> remainder = stackalloc ulong[5];
-        for (int index = 0; index < values.Length; index++)
-        {
-            int sign = values[index].Sign;
-            Import(values[index], other);
-            WideArithmetic.DivideMagnitudes(other, content, other, remainder, division);
-            var value = new Signed320(other[4], other[3], other[2], other[1], other[0]);
-            values[index] = sign < 0 ? WideArithmetic.Negate(value) : value;
-        }
-    }
 
     private static void Import(Signed320 value, Span<ulong> magnitude) =>
         WideArithmetic.GetMagnitude(value, out magnitude[4], out magnitude[3], out magnitude[2],

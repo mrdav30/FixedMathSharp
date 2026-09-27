@@ -653,6 +653,13 @@ public readonly struct FixedOrientedBox : IEquatable<FixedOrientedBox>
     /// Attempts to construct an exact contact against a centered finite
     /// cylinder.
     /// </summary>
+    /// <remarks>
+    /// Includes cap, side and rim constraints when selecting the minimum
+    /// translation. Tangency is a contact with zero depth. The selected normal
+    /// and complete depth are rounded only after exact classification and
+    /// ordering; depth uses nearest-even rounding. A zero radius is a finite
+    /// axis segment. Oblique rims require more work than parallel cap contacts.
+    /// </remarks>
     public bool TryGetCenteredCylinderContact(
         Vector3d cylinderCenter,
         FixedQuaternion cylinderRotation,
@@ -724,7 +731,7 @@ public readonly struct FixedOrientedBox : IEquatable<FixedOrientedBox>
                 cylinderAxisLength,
                 cylinderRadius,
                 out contact,
-                out WideOrientedBox.CenteredCylinderContactFeature feature))
+                out CenteredCylinderContactFeature feature))
         {
             capFaceContactCount = 0;
             return false;

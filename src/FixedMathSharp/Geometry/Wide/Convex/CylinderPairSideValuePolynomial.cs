@@ -62,7 +62,8 @@ internal static class CylinderPairSideValuePolynomial
     /// their sum has height 3417. Substituting z=2^460*t raises this to 3425.
     /// Conjugation has 25 coefficient pairs and binomial absolute sum&lt;=4^8,
     /// so the final scaled octic has height&lt;6871, within 116 words.
-    /// Scratch is 56 coefficient slots, with no nested arithmetic allocation.
+    /// The unshifted phase peaks at 48 coefficient slots; the later conjugation
+    /// uses 43. Construction scratch is released before algebraic root work.
     /// This construction frame must return before a root arena is allocated.
     /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -70,27 +71,78 @@ internal static class CylinderPairSideValuePolynomial
         int words, Span<ulong> coefficients, Span<sbyte> signs,
         Span<ulong> unshiftedCoefficients = default, Span<sbyte> unshiftedSigns = default)
     {
-        unshiftedCoefficients.Clear();
-        unshiftedSigns.Clear();
-        Span<ulong> scratch = stackalloc ulong[56 * words];
-        Span<sbyte> scratchSigns = stackalloc sbyte[56];
-        scratch.Clear();
-        scratchSigns.Clear();
+        Span<ulong> unshifted = stackalloc ulong[5 * words];
+        Span<sbyte> unshiftedSignStorage = stackalloc sbyte[5];
+        BuildUnshifted(invariants, invariantSigns, words, unshifted, unshiftedSignStorage);
+        Span<ulong> scratch = stackalloc ulong[38 * words];
+        Span<sbyte> scratchSigns = stackalloc sbyte[38];
+        scratch.Clear(); scratchSigns.Clear();
+        Polynomial storage = new(scratch, scratchSigns, words);
+        Polynomial f = storage.Slice(0, 5), tau = storage.Slice(5, 1);
+        unshifted.CopyTo(f.Magnitudes);
+        unshiftedSignStorage.CopyTo(f.Signs);
+        invariants.Slice(7 * words, words).CopyTo(tau.Magnitudes);
+        tau.Signs[0] = invariantSigns[7];
+        if (!unshiftedCoefficients.IsEmpty)
+        {
+            f.Magnitudes.CopyTo(unshiftedCoefficients);
+            f.Signs.CopyTo(unshiftedSigns);
+        }
+        Polynomial p0 = storage.Slice(6, 9), p1 = storage.Slice(15, 9);
+        Polynomial even = storage.Slice(24, 5), odd = storage.Slice(29, 4);
+        Polynomial shifted = storage.Slice(33, 2), radicalSquared = storage.Slice(35, 2);
+        Span<ulong> product = scratch.Slice(37 * words, words);
+        // F(S+tau+w)=even+w*odd, w²=4*tau*S. Four Horner steps
+        // preserve the radius offset, then conjugation gives even²-w²*odd².
+        Add(shifted, tau);
+        shifted.Magnitudes[words] = 1;
+        shifted.Signs[1] = 1;
+        Add(radicalSquared, tau, 4, 1);
+        Add(even, f.Slice(4, 1));
+        for (int index = 3; index >= 0; index--)
+        {
+            Multiply(p0, shifted, even, product);
+            Multiply(p1, radicalSquared, odd, product);
+            Add(p0, p1); Add(p0, f.Slice(index, 1));
+            Multiply(p1, shifted, odd, product); Add(p1, even);
+            Copy(even, p0); Copy(odd, p1);
+        }
+        Polynomial output = new(coefficients.Slice(0, CoefficientCount * words), signs.Slice(0, CoefficientCount), words);
+        Multiply(output, even, even, product);
+        Multiply(p0, odd, odd, product); Multiply(p1, radicalSquared, p0, product);
+        Add(output, p1, -1);
+        // F's leading coefficient is H²*(H-C²)², strictly positive for
+        // nonzero nonparallel axes. Conjugation squares that coefficient.
+        System.Diagnostics.Debug.Assert(output.Signs[CoefficientCount - 1] > 0);
+        return CoefficientCount - 1;
+    }
+
+
+    /// <summary>
+    /// Builds only the degree-four squared distance polynomial for one projected
+    /// disk and a point in its projection plane. Scalar invariant slots are the
+    /// same as Build; tau is unused. Output has five equal-width coefficients.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static int BuildUnshifted(ReadOnlySpan<ulong> invariants,
+        ReadOnlySpan<sbyte> invariantSigns, int words,
+        Span<ulong> coefficients, Span<sbyte> signs)
+    {
+        Span<ulong> scratch = stackalloc ulong[43 * words];
+        Span<sbyte> scratchSigns = stackalloc sbyte[43];
+        scratch.Clear(); scratchSigns.Clear();
         invariants.Slice(0, InvariantCount * words).CopyTo(scratch);
         invariantSigns.Slice(0, InvariantCount).CopyTo(scratchSigns);
         Polynomial storage = new(scratch, scratchSigns, words);
         Polynomial u = storage.Slice(0, 1), b = storage.Slice(1, 1), c = storage.Slice(2, 1);
         Polynomial q = storage.Slice(3, 1), x = storage.Slice(4, 1), y = storage.Slice(5, 1);
-        Polynomial rho = storage.Slice(6, 1), tau = storage.Slice(7, 1);
+        Polynomial rho = storage.Slice(6, 1);
         Polynomial h = storage.Slice(8, 1), cSquared = storage.Slice(9, 1), j = storage.Slice(10, 1);
         Polynomial s0 = storage.Slice(11, 1), s1 = storage.Slice(12, 1);
         Polynomial l = storage.Slice(13, 2), m = storage.Slice(15, 2), v = storage.Slice(17, 2);
         Polynomial f = storage.Slice(19, 5);
         Polynomial p0 = storage.Slice(24, 9), p1 = storage.Slice(33, 9);
-        Polynomial even = storage.Slice(42, 5), odd = storage.Slice(47, 4);
-        Polynomial shifted = storage.Slice(51, 2), radicalSquared = storage.Slice(53, 2);
-        Span<ulong> product = scratch.Slice(55 * words, words);
-
+        Span<ulong> product = scratch.Slice(42 * words, words);
         Multiply(h, u, b, product);
         Multiply(cSquared, c, c, product);
         Add(j, h); Add(j, cSquared);
@@ -119,35 +171,10 @@ internal static class CylinderPairSideValuePolynomial
         Multiply(p0, s0, p1, product); Add(f, p0, -18);
         Multiply(s1, s0, s0, product); Multiply(p0, v, v, product);
         Multiply(p1, s1, p0, product); Add(f, p1, -27);
-        if (!unshiftedCoefficients.IsEmpty)
-        {
-            f.Magnitudes.CopyTo(unshiftedCoefficients);
-            f.Signs.CopyTo(unshiftedSigns);
-        }
 
-        // F(S+tau+w)=even+w*odd, w²=4*tau*S. Four Horner steps
-        // preserve the radius offset, then conjugation gives even²-w²*odd².
-        Add(shifted, tau);
-        shifted.Magnitudes[words] = 1;
-        shifted.Signs[1] = 1;
-        Add(radicalSquared, tau, 4, 1);
-        Add(even, f.Slice(4, 1));
-        for (int index = 3; index >= 0; index--)
-        {
-            Multiply(p0, shifted, even, product);
-            Multiply(p1, radicalSquared, odd, product);
-            Add(p0, p1); Add(p0, f.Slice(index, 1));
-            Multiply(p1, shifted, odd, product); Add(p1, even);
-            Copy(even, p0); Copy(odd, p1);
-        }
-        Polynomial output = new(coefficients.Slice(0, CoefficientCount * words), signs.Slice(0, CoefficientCount), words);
-        Multiply(output, even, even, product);
-        Multiply(p0, odd, odd, product); Multiply(p1, radicalSquared, p0, product);
-        Add(output, p1, -1);
-        // F's leading coefficient is H²*(H-C²)², strictly positive for
-        // nonzero nonparallel axes. Conjugation squares that coefficient.
-        System.Diagnostics.Debug.Assert(output.Signs[CoefficientCount - 1] > 0);
-        return CoefficientCount - 1;
+        f.Magnitudes.CopyTo(coefficients);
+        f.Signs.CopyTo(signs);
+        return 4;
     }
 
     private static void Multiply(Polynomial result, Polynomial left, Polynomial right, Span<ulong> product) =>

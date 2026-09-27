@@ -90,51 +90,6 @@ internal static class CylinderPairAnalyticFeatures
             : 1; // Every family has strictly positive radial support.
     }
 
-    /// <summary>
-    /// Compares S/RawScale², where S=2^ValueShift*t, to an analytic squared
-    /// raw gap. Gap signs are deliberately excluded; the caller ranks them first.
-    /// Only candidates constructed by Build have the coefficient bounds used here.
-    /// </summary>
-    internal static int CompareRootSquared(in CylinderPairGeometry geometry,
-        FiniteAxisValueRoot root, ConvexContactCandidate candidate)
-    {
-        Span<ulong> scale = stackalloc ulong[3];
-        WideArithmetic.GetMagnitude(geometry.RawScale, out scale[2], out scale[1], out scale[0]);
-        Span<ulong> squaredScale = stackalloc ulong[6];
-        WideArithmetic.MultiplyMagnitudes(scale, scale, squaredScale);
-        Span<ulong> linear = stackalloc ulong[2 * Words];
-        Span<sbyte> linearSigns = stackalloc sbyte[2];
-        // R=D*2^ValueShift*t-A*RawScale². Compare R with B*RawScale²*sqrt(C).
-        WideArithmetic.MultiplyMagnitudes(candidate.GapRational, squaredScale, linear[..Words]);
-        linearSigns[0] = (sbyte)-candidate.GapRationalSign;
-        candidate.GapDenominator.CopyTo(linear[Words..]);
-        linearSigns[1] = 1;
-        WideFiniteAxisIntersection.ScaleFiniteAxisPolynomialVariable(linear, 2, geometry.ValueShift);
-        int rationalSign = WideFiniteAxisIntersection.GetSignAtFiniteValueRoot(root, linear, linearSigns);
-        int radicalSign = candidate.GapRadicalSign;
-        if (rationalSign != radicalSign)
-            return rationalSign.CompareTo(radicalSign);
-        if (rationalSign == 0)
-            return 0;
-
-        // R has <1186-bit coefficients. The coupled per-feature bounds above
-        // give R²-B²*C*RawScale^4 coefficients <2374 bits, still forty words.
-        Span<ulong> query = stackalloc ulong[3 * Words];
-        Span<sbyte> querySigns = stackalloc sbyte[3];
-        Span<ulong> product = stackalloc ulong[Words];
-        Span<ulong> temporary = stackalloc ulong[Words];
-        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(linear, linearSigns, linear, linearSigns,
-            query, querySigns, product);
-        WideArithmetic.MultiplyMagnitudes(candidate.GapRadical, squaredScale, temporary);
-        WideArithmetic.MultiplyMagnitudes(temporary, temporary, product);
-        WideArithmetic.MultiplyMagnitudes(product, candidate.GapRadicand, temporary);
-        int constantSign = querySigns[0];
-        WideArithmetic.AddShiftedSignedMagnitude(temporary, -1, 0, query[..Words], ref constantSign);
-        querySigns[0] = (sbyte)constantSign;
-        WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(query, querySigns);
-        return rationalSign * WideFiniteAxisIntersection.GetSignAtFiniteValueRoot(root, query, querySigns);
-    }
-
     private static void WriteNormal(in WideRationalBasis3d basis, WideAxis3 direction,
         int orientation, Span<ulong> values, Span<int> signs)
     {

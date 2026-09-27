@@ -28,20 +28,8 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ## Active Issues
 
-### FMS-Issue-025: Box-cylinder contact can miss cap-clipped radial separation
-
-- **Status:** Confirmed on 2026-09-24 while completing Gravitas `GRV-Issue-081`.
-- **Affected area:** `FixedOrientedBox.TryGetCenteredCylinderContact`.
-- **Evidence:** Cylinder center zero, +Y, height 2, radius 1. Box center
-  `(1.26,-1.65,-0.92)`, half-extents `(0.83,0.75,0.52)`, rotation proportional to
-  quaternion `(-1,-9,7,0)`. For exact authored fractions the cap-clipped box's
-  minimum squared radial distance is `2530093/1922000 > 1`; admitted fixed
-  representations remain well separated. The legacy public contact query
-  nevertheless returns true with depth raw `160035987`.
-- **Verification:** Executable legacy RED was observed before
-  `CenteredCylinderPolytopeStrictOverlapTests` switched to the complete strict
-  predicate. Keep the ordinary contact repair distinct from the new posture
-  classification; a strict predicate passing does not certify solver contacts.
+No active correctness issues. Measured performance follow-ups remain in the
+[benchmark backlog](benchmark-signal-hardening-backlog.md).
 
 **Next issue ID:** `FMS-Issue-027`
 

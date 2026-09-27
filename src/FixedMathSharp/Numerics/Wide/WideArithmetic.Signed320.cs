@@ -16,6 +16,37 @@ namespace FixedMathSharp;
 /// </content>
 internal static partial class WideArithmetic
 {
+    /// <summary>
+    /// Divides a nonempty collection containing at least one nonzero value by
+    /// its common positive magnitude gcd, preserving every sign and ratio.
+    /// </summary>
+    internal static void ReduceCommonScale(Span<Signed320> values)
+    {
+        Span<ulong> content = stackalloc ulong[5];
+        Span<ulong> other = stackalloc ulong[5];
+        Span<ulong> division = stackalloc ulong[11];
+        GetMagnitude(values[0], out content[4], out content[3], out content[2],
+            out content[1], out content[0]);
+        for (int index = 1; index < values.Length; index++)
+        {
+            GetMagnitude(values[index], out other[4], out other[3], out other[2],
+                out other[1], out other[0]);
+            GetMagnitudeGreatestCommonDivisor(content, other, division);
+            if (content[0] == 1 && GetActiveMagnitudeLength(content) == 1)
+                return;
+        }
+        Span<ulong> remainder = stackalloc ulong[5];
+        for (int index = 0; index < values.Length; index++)
+        {
+            int sign = values[index].Sign;
+            GetMagnitude(values[index], out other[4], out other[3], out other[2],
+                out other[1], out other[0]);
+            DivideMagnitudes(other, content, other, remainder, division);
+            var value = new Signed320(other[4], other[3], other[2], other[1], other[0]);
+            values[index] = sign < 0 ? Negate(value) : value;
+        }
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void GetMagnitude(
         Signed320 value,

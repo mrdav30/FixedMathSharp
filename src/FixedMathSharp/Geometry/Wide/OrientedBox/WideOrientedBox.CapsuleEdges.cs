@@ -41,6 +41,107 @@ internal static partial class WideOrientedBox
 
     #endregion
 
+    private static WideAxis3 GetCornerToAxisEndpointAxis3D(
+        Vector3d boxCenter,
+        Vector3d axisCenter,
+        WideRationalBasis3d basis,
+        Vector3d localCorner,
+        WideAxis3 axis,
+        Signed192 axisDenominator,
+        Fixed64 axisLength,
+        int endpointSign) =>
+        new(
+            GetCornerToAxisEndpointComponent(
+                boxCenter.X,
+                axisCenter.X,
+                basis.Xx,
+                basis.Yx,
+                basis.Zx,
+                basis.Denominator,
+                localCorner,
+                axis.X,
+                axisDenominator,
+                axisLength,
+                endpointSign),
+            GetCornerToAxisEndpointComponent(
+                boxCenter.Y,
+                axisCenter.Y,
+                basis.Xy,
+                basis.Yy,
+                basis.Zy,
+                basis.Denominator,
+                localCorner,
+                axis.Y,
+                axisDenominator,
+                axisLength,
+                endpointSign),
+            GetCornerToAxisEndpointComponent(
+                boxCenter.Z,
+                axisCenter.Z,
+                basis.Xz,
+                basis.Yz,
+                basis.Zz,
+                basis.Denominator,
+                localCorner,
+                axis.Z,
+                axisDenominator,
+                axisLength,
+                endpointSign));
+
+    private static Signed320 GetCornerToAxisEndpointComponent(
+        Fixed64 boxCenter,
+        Fixed64 axisCenter,
+        Signed192 basisX,
+        Signed192 basisY,
+        Signed192 basisZ,
+        Signed192 basisDenominator,
+        Vector3d localCorner,
+        Signed320 axisComponent,
+        Signed192 axisDenominator,
+        Fixed64 axisLength,
+        int endpointSign)
+    {
+        Signed192 twiceScale = Signed192.Raw(Fixed64.Two);
+        Signed320 corner = GetLocalOffsetNumerator(
+            basisX,
+            basisY,
+            basisZ,
+            localCorner);
+        Signed576 center = WideArithmetic.MultiplySigned576(
+            WideArithmetic.MultiplySigned320(
+                WideArithmetic.MultiplySigned192(
+                    WideArithmetic.SubtractSigned192(
+                        Signed192.Raw(axisCenter),
+                        Signed192.Raw(boxCenter)),
+                    basisDenominator),
+                Signed320.ExtendValue(axisDenominator)),
+            twiceScale);
+        Signed576 endpoint = WideArithmetic.MultiplySigned576(
+            WideArithmetic.MultiplySigned576(
+                Signed576.ExtendValue(axisComponent),
+                Signed192.Signed(
+                    endpointSign * axisLength.m_rawValue)),
+            basisDenominator);
+        Signed576 cornerWide = WideArithmetic.MultiplySigned576(
+            WideArithmetic.MultiplySigned320(
+                corner,
+                Signed320.ExtendValue(axisDenominator)),
+            twiceScale);
+        Signed576 component = WideArithmetic.SubtractSigned576(
+            WideArithmetic.AddSigned576(center, endpoint),
+            cornerWide);
+        // The center term needs at most 235 signed bits (65-bit delta, two
+        // 68-bit rigid denominators, and the 34-bit Q32.32 factor for two).
+        // The endpoint and corner terms are no wider, so the final difference
+        // fits exactly in Signed320.
+        return new Signed320(
+            component.Word4,
+            component.Word3,
+            component.Word2,
+            component.Word1,
+            component.Word0);
+    }
+
     private static CapsuleAxis3 GetVertexToCapsuleAxis(
         Vector3d boxCenter,
         Vector3d capsuleCenter,

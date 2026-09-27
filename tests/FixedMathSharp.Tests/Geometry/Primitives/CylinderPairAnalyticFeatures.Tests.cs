@@ -97,7 +97,7 @@ public sealed class CylinderPairAnalyticFeaturesTests
         Write(BigInteger.One << geometry.ValueShift, polynomial.AsSpan(8, 8));
         ulong[] cell = new ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(polynomial, polynomialSigns)];
         Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(polynomial, polynomialSigns, 0, cell, out FiniteAxisValueRoot root));
-        Assert.Equal(comparison, CylinderPairAnalyticFeatures.CompareRootSquared(geometry, root,
+        Assert.Equal(comparison, ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, root,
             new ConvexContactCandidate(values, signs, gapSign)));
     }
 
@@ -124,7 +124,7 @@ public sealed class CylinderPairAnalyticFeaturesTests
         Write((BigInteger)25 << geometry.ValueShift, polynomial.AsSpan(8, 8));
         ulong[] cell = new ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(polynomial, polynomialSigns)];
         Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(polynomial, polynomialSigns, 0, cell, out FiniteAxisValueRoot root));
-        Assert.Equal(comparison, CylinderPairAnalyticFeatures.CompareRootSquared(geometry, root,
+        Assert.Equal(comparison, ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, root,
             new ConvexContactCandidate(values, signs, gapSign)));
     }
 

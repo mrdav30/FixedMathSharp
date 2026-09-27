@@ -24,7 +24,7 @@ public sealed class CylinderPairNormalRoundingTests
             0, cell, out FiniteAxisValueRoot root));
         ulong[] gradient = { odd, 0UL, 0UL, 1UL << 33, 0UL, 0UL };
         sbyte[] signs = { 1, 0, 0, 1, 0, 0 };
-        Vector3d normal = CylinderPairRimFeatures.GetNormalizedDirection(ref root, gradient, signs, orientation);
+        Vector3d normal = ConvexContactValueRoot.GetNormalizedDirection(ref root, gradient, signs, orientation);
         Assert.Equal(expectedRaw, normal.X.m_rawValue);
         Assert.Equal(orientation * (1L << 32), normal.Y.m_rawValue);
         Assert.Equal(Fixed64.Zero, normal.Z);

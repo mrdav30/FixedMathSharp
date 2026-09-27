@@ -174,6 +174,15 @@ They are not end-to-end posture-transaction or simulation-frame measurements.
 Ordinary overlap fixtures can exit as soon as a center/core witness proves
 intrusion; their results do not estimate the cost of difficult negative queries.
 
+The box/cylinder rows also distinguish parallel cap manifolds, general oblique
+contacts, a zero-radius segment, and cap-clipped radial separation. Setup checks
+both primary and manifold rejection for the separated fixture; the matching
+`FixedOrientedBoxCylinder*` tests supply exact feature and boundary regressions.
+An older contact solver returned a false positive for that miss and nonminimum
+depths for some positive contacts. Its timings are historical implementation
+costs, not an equivalent-correctness performance target. A strict Boolean
+predicate remains a different workload from complete contact construction.
+
 The cylinder/capsule contact rows also cover endpoint rims, oblique interior
 rims, an intersecting capsule core, zero cylinder radius, zero capsule-core
 length, and full-domain arithmetic. Their geometric expectations live in the

@@ -209,8 +209,8 @@ exception table: their reported complexities are at most 10.
 | `CylinderPairRepeatedRim.GetValueAndLine(...)` | 60 | 100% line / 100% branch (Release / ReleaseLean) | Independent, dependent and orthogonal projections require distinct exact eigenvalue compatibility cases before one certified rank-one line is retained. | A narrower exact parameterization preserves the unique-minimum rank-one family and all projection degeneracies. |
 | `CylinderPairRepeatedRim.GetRegularNormal(...)` | 24 | 100% line / 100% branch (Release / ReleaseLean) | Line-circle recovery retains merged tangent branches, unsquared radial signs and finite cap inequalities in the same quadratic extension; dominated H=0 values are excluded. | A shared recovery representation reduces work without admitting a squared conjugate or losing a true rank-one minimum. |
 | `CylinderPairRepeatedRim.RoundNormal(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Three exact world-normal components retain both quadratic extensions through signed nearest-even midpoint comparisons. | Another exact rounding owner supports these nested radicals within the same scratch bound. |
-| `CylinderPairRimFeatures.GetRoundedDepth(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Root-to-dyadic comparisons distinguish conceptual overflow, representable endpoints and nearest-even half-raw depth ties. | The physical-value scale or shared algebraic conversion contract changes. |
-| `CylinderPairRimFeatures.GetRoundedNormalComponent(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Implicit value derivatives determine component signs and exact midpoint squares without approximating the selected algebraic root. | A cheaper normal certificate preserves slope orientation, zero components and nearest-even ties. |
+| `ConvexContactValueRoot.GetRoundedDepth(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Shared root-to-dyadic comparisons distinguish conceptual overflow, representable endpoints and nearest-even half-raw depth ties for cylinder-pair and box/cylinder contacts. | The physical-value scale or shared algebraic conversion contract changes. |
+| `ConvexContactValueRoot.GetRoundedNormalComponent(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Shared exact direction polynomials determine component signs and midpoint squares without approximating the selected algebraic root. | A cheaper normal certificate preserves slope orientation, zero components and nearest-even ties. |
 | `CylinderPairSideValuePolynomial.Build(in CylinderPairGeometry, ...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Side/cap orientation selects exact geometry invariants for the shared unshifted quartic and full-radius octic construction. | Side ownership or exact first/second-frame scaling changes. |
 | `CylinderPairValuePolynomial.Build(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | One fixed cubic-pencil construction produces the squared-distance discriminant and optional analytic derivatives with shared polynomial arithmetic. | The feature proof or derivative consumers change, or a simpler exact construction lowers degree or live workspace. |
 | `WideConvexPrismRelations.TryImproveCylinderCapsuleEllipse(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | The existing quartic ellipse winner competes against the shared analytic candidate before exact full-gap classification and final rounding. | Winner ordering, signed radius offsets or the ellipse's sole-interior-minimum proof changes. |
@@ -239,7 +239,40 @@ exception table: their reported complexities are at most 10.
 | `WideArithmetic.DivideMagnitudes(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | Normalized multiword division bounds quotient correction, retains exact remainder and supports documented numerator/output overlap with caller-owned scratch. | A portable exact divider lowers cost while preserving correction bounds and every overlap contract. |
 | `Fixed64.Divide128By64(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Shared quotient-fit division uses two base-2^32 digits with bounded trial correction and an exact remainder, replacing bit-at-a-time wide division. | The quotient-fit precondition changes or a portable intrinsic matches both target frameworks and remainder semantics. |
 
+### Box/cylinder contacts
+
+The complete box/cylinder owner reuses the convex candidate comparator,
+projected-disk quartic and finite-value root kernel. Shared normal/depth
+materialization moved from `CylinderPairRimFeatures` to `ConvexContactValueRoot`;
+the two rows above name its current owner. The box path does not build the
+cylinder-pair radius-offset octic merely to recover its unshifted quartic.
+The Release and ReleaseLean reports in `artifacts/fms025-final-release` and
+`artifacts/fms025-final-lean` provide the refreshed measurements.
+
+| Method | Complexity | Coverage | Rationale | Revisit if |
+| --- | ---: | --- | --- | --- |
+| `BoxCylinderAnalyticFeatures.TryGetBest(...)` | 34 | 100% line / 100% branch (Release / ReleaseLean) | Canonical poles, face/side boundaries, radial vertices and exceptional edge directions exhaust the analytic feature set; smooth vertex/rim certificates still detect separation. | The complete support-feature proof changes or measured pruning removes repeated directions. |
+| `BoxCylinderAnalyticFeatures.KeepAxis(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Zero directions, separation and exact stable ties are handled before copying the shared candidate. | Candidate ownership or canonical tie order changes. |
+| `BoxCylinderAnalyticFeatures.BuildAxis(...)` | 20 | 100% line / 100% branch (Release / ReleaseLean) | Full authored support retains signed axial, box and radical radial terms, along with exact local and world normal signs. | A narrower representation preserves the same full-domain support and rounding contract. |
+| `BoxCylinderAnalyticFeatures.HasVertexRimSeparation(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | A smooth rim residual is a separator only after finite-cap, radial and exact box-cone admission; positive penetration minima belong to boundary features. | The zero-curvature proof or cap/cone ownership changes. |
+| `BoxCylinderEdgeContacts.TryGetContact(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | Bounded signed edge/cap charts retain exact zero and stable winners, with proven circle/rectangle reductions and cone-wide dominance pruning. | A smaller complete parameterization removes charts without approximating geometry. |
+| `BoxCylinderEdgeContacts.TryChart(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Quartic roots retain cap and unsquared stationary signs before separation, exact zero, squared-value mapping and winner selection. | Exact nonwinning-value rejection can safely precede mapping or admission becomes simpler. |
+| `WideOrientedBox.TryGetCenteredCylinderContact(..., out CenteredCylinderContactFeature)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | One boundary owns conservative broad rejection, analytic/edge selection, final rounding, exact box support signs and manifold feature metadata. | Contact or manifold ownership changes. |
+| `WideOrientedBox.GetCylinderCapFace(...)` | 30 | 100% line / 100% branch (Release / ReleaseLean) | Three explicit component tests admit only exact parallel box-face/cylinder-cap pairs; rounded world normals cannot fabricate a manifold. | Another consumer shares this exact three-axis classification. |
+
 ## Fixed-Width Workspace Bounds
+
+Box/cylinder geometry uses the authored rational box frame, an independently
+primitive cylinder axis and one reduced coordinate scale. Coordinates remain
+below 237 bits under conservative bounds. Analytic candidates and edge-parameter
+quartics fit forty-word fields; the scaled squared-value quartic fits fifty-six
+words. Polynomial construction returns before root isolation/refinement.
+The cone lower bound fits the existing candidate fields and returns before
+either chart allocates its root workspace. `FixedOrientedBoxCylinderResourceTests`
+checks ordinary algebraic and full-width contacts on a 1 MiB thread stack with
+64 KiB of live, dirty caller storage, plus repeatable zero-allocation output.
+Exact arithmetic and live-frame proofs remain beside their owning operations;
+these stack checks supplement those proofs rather than replacing them.
 
 Cylinder/capsule contact retains authored rational geometry through complete
 feature selection and rounds only the winning normal and depth. Analytic

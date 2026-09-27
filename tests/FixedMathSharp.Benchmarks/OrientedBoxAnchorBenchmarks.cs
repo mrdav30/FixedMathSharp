@@ -54,6 +54,15 @@ public class OrientedBoxAnchorBenchmarks
             (Fixed64)40,
             (Fixed64)20),
         new Vector3d(1, 2, 1));
+    private readonly FixedOrientedBox _capClippedSeparatedBox = new(
+        new Vector3d(Fixed64.FromFraction(126, 100),
+            Fixed64.FromFraction(-165, 100), Fixed64.FromFraction(-92, 100)),
+        new FixedQuaternion((Fixed64)(-1), (Fixed64)(-9), (Fixed64)7, Fixed64.Zero).Normalized,
+        new Vector3d(Fixed64.FromFraction(83, 100),
+            Fixed64.FromFraction(75, 100), Fixed64.FromFraction(52, 100)));
+    private readonly FixedOrientedBox _parallelCylinderBox = new(
+        Vector3d.Zero, FixedQuaternion.Identity,
+        new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Half));
     private readonly FixedTriangle _triangle = new(
         new Vector3d(-3, 0, -3),
         new Vector3d(3, 0, -3),
@@ -85,8 +94,19 @@ public class OrientedBoxAnchorBenchmarks
     public void ValidateStrictControls()
     {
         if (!CapsulePrimary() || !CapsuleStrict() || !SpherePrimary() || !SphereStrict()
-            || !CylinderManifold() || !CylinderStrict())
+            || !CylinderManifold() || !CylinderStrict()
+            || !CylinderParallelManifold() || !CylinderObliquePrimary()
+            || !CylinderZeroRadiusPrimary())
             throw new InvalidOperationException("Strict box controls must retain their intended positive overlap.");
+
+        // Cap clipping independently certifies this miss; both contact shapes
+        // must agree before any measured workload starts.
+        if (WideOrientedBox.DoesCenteredCylinderPenetrateBox(
+                Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
+                _capClippedSeparatedBox.Center, _capClippedSeparatedBox.Orientation,
+                _capClippedSeparatedBox.HalfExtents)
+            || CylinderCapClippedSeparatedPrimary() || CylinderCapClippedSeparatedManifold())
+            throw new InvalidOperationException("The cap-clipped fixture must remain separated.");
     }
 
     [Benchmark(Baseline = true)]
@@ -156,6 +176,44 @@ public class OrientedBoxAnchorBenchmarks
         WideOrientedBox.DoesCenteredCylinderPenetrateBox(
             new Vector3d(0, 1, 0), FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
             _box.Center, _box.Orientation, _box.HalfExtents);
+
+    [Benchmark]
+    public bool CylinderCapClippedSeparatedPrimary() =>
+        _capClippedSeparatedBox.TryGetCenteredCylinderContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up,
+            Fixed64.Two, Fixed64.One, out _);
+
+    [Benchmark]
+    public bool CylinderCapClippedSeparatedManifold()
+    {
+        Span<FixedContactLocalPoints> contacts = stackalloc FixedContactLocalPoints[4];
+        return _capClippedSeparatedBox.TryGetCenteredCylinderContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up,
+            Fixed64.Two, Fixed64.One, contacts, out _, out _);
+    }
+
+    [Benchmark]
+    public bool CylinderParallelManifold()
+    {
+        Span<FixedContactLocalPoints> contacts = stackalloc FixedContactLocalPoints[4];
+        return _parallelCylinderBox.TryGetCenteredCylinderContact(
+            new Vector3d(Fixed64.Zero, Fixed64.FromFraction(3, 4), Fixed64.Zero),
+            FixedQuaternion.Identity, Vector3d.Up,
+            Fixed64.One, Fixed64.Half, contacts, out _, out _);
+    }
+
+    [Benchmark]
+    public bool CylinderObliquePrimary() =>
+        _box.TryGetCenteredCylinderContact(
+            new Vector3d(0, 1, 0), _triangleRotation, Vector3d.Up,
+            Fixed64.Two, Fixed64.One, out _);
+
+    [Benchmark]
+    public bool CylinderZeroRadiusPrimary() =>
+        _parallelCylinderBox.TryGetCenteredCylinderContact(
+            new Vector3d(Fixed64.Zero, Fixed64.FromFraction(3, 4), Fixed64.Zero),
+            FixedQuaternion.Identity, Vector3d.Up,
+            Fixed64.One, Fixed64.Zero, out _);
 
     [Benchmark]
     public bool SpherePrimary() =>

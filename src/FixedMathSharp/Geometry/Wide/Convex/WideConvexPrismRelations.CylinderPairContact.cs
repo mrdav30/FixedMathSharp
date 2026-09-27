@@ -47,7 +47,7 @@ internal static partial class WideConvexPrismRelations
                 geometry, best.FirstSign, best.SecondSign, ref best.Root, best.SlopeSign, 1);
             depth = Fixed64.Zero;
             if (!best.IsZero)
-                CylinderPairRimFeatures.GetRoundedDepth(geometry, ref best.Root, out depth, out depthIsClamped);
+                ConvexContactValueRoot.GetRoundedDepth(geometry.RawScale, geometry.ValueShift, ref best.Root, out depth, out depthIsClamped);
         }
         return true;
     }
@@ -165,7 +165,7 @@ internal static partial class WideConvexPrismRelations
     private static bool ShouldKeepCylinderPairValue(in CylinderPairGeometry geometry, FiniteAxisValueRoot root,
         ConvexContactCandidate analytic, CylinderPairSelection best) => !best.IsZero && (best.HasRoot
             ? WideFiniteAxisIntersection.CompareFiniteValueRoots(root, best.Root) < 0
-            : CylinderPairAnalyticFeatures.CompareRootSquared(geometry, root, analytic) < 0);
+            : ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, root, analytic) < 0);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool TryHandleRepeatedCylinderPairValue(in CylinderPairGeometry geometry,

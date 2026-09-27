@@ -233,6 +233,13 @@ API pages.
 
 ### Cylinder contacts
 
+`FixedOrientedBox.TryGetCenteredCylinderContact` includes the box's faces,
+edges and vertices against the finite cylinder's caps, side and rims. It finds
+the minimum translation without replacing the cylinder with a capsule. A zero
+radius is a finite axis segment. The manifold overload additionally clips up
+to four matched contacts when a parallel box face and cylinder cap are selected;
+other features use the primary contact with a zero manifold count.
+
 `FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact` includes the finite
 cylinder's caps, side, and rims when finding the minimum translation. It also
 handles a capsule core that enters the cylinder: depth is not necessarily just
@@ -253,9 +260,11 @@ distinguishes conceptual overflow from an exactly representable maximum.
 Equal minima follow stable feature order. Continuous radial ties use a
 representative in the authored cylinder frame.
 
-The two returned anchors are independent support points for the rounded normal.
+The returned anchors retain independently selected shape-local support features.
 They are not a promise that two algebraic closest points were rounded together
-or that the materialized anchors coincide at every tangency.
+or that the materialized anchors coincide at every tangency. Box anchors retain
+the exact selected direction's support signs even if a tiny normal component
+rounds to zero.
 
 Curved oblique contacts require more work than ordinary cap/side contacts.
 The query allocates no managed memory, but its exact fallback can use hundreds

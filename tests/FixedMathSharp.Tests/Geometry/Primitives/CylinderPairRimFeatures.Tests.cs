@@ -42,7 +42,7 @@ public sealed class CylinderPairRimFeaturesTests
         ulong[] cell = new ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(values, signs)];
         Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(values, signs, 0, cell,
             out FiniteAxisValueRoot root));
-        CylinderPairRimFeatures.GetRoundedDepth(geometry, ref root, out Fixed64 depth, out bool clamped);
+        ConvexContactValueRoot.GetRoundedDepth(geometry.RawScale, geometry.ValueShift, ref root, out Fixed64 depth, out bool clamped);
         Assert.Equal(expectedRaw, depth.m_rawValue);
         Assert.Equal(expectedClamp, clamped);
     }
@@ -84,7 +84,7 @@ public sealed class CylinderPairRimFeaturesTests
             Assert.True(normal.Z > Fixed64.Zero);
             if (gapSign > 0)
             {
-                CylinderPairRimFeatures.GetRoundedDepth(geometry, ref root, out Fixed64 depth, out bool clamped);
+                ConvexContactValueRoot.GetRoundedDepth(geometry.RawScale, geometry.ValueShift, ref root, out Fixed64 depth, out bool clamped);
                 Assert.InRange(depth.m_rawValue, 1L, Fixed64.FromFraction(1, 20).m_rawValue);
                 Assert.False(clamped);
             }
@@ -210,7 +210,7 @@ public sealed class CylinderPairRimFeaturesTests
             AssertNormalComponent(normal.X.m_rawValue, 9, 34);
             AssertNormalComponent(normal.Y.m_rawValue, 9, 34);
             AssertNormalComponent(normal.Z.m_rawValue, 16, 34);
-            CylinderPairRimFeatures.GetRoundedDepth(geometry, ref root, out Fixed64 depth, out bool clamped);
+            ConvexContactValueRoot.GetRoundedDepth(geometry.RawScale, geometry.ValueShift, ref root, out Fixed64 depth, out bool clamped);
             AssertNormalComponent(depth.m_rawValue, 34, 16);
             Assert.False(clamped);
         }
@@ -285,7 +285,7 @@ public sealed class CylinderPairRimFeaturesTests
                 exactValue, geometry.ValueShift + 4) != 0)
                 continue;
             found = true;
-            CylinderPairRimFeatures.GetRoundedDepth(geometry, ref root, out Fixed64 depth, out bool clamped);
+            ConvexContactValueRoot.GetRoundedDepth(geometry.RawScale, geometry.ValueShift, ref root, out Fixed64 depth, out bool clamped);
             Assert.Equal(4023309325, depth.m_rawValue);
             Assert.False(clamped);
         }
