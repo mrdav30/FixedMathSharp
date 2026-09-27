@@ -64,10 +64,11 @@ Arguments after the selection are forwarded to BenchmarkDotNet:
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all --list flat
 ```
 
-The launcher returns a nonzero exit code for critical validation errors, failed
+The launcher returns a nonzero exit code for malformed arguments, unmatched
+benchmark filters, critical validation errors, failed
 reports, or reported executions with missing workload results or nonzero child
-exits. A successful earlier launch does not hide a later failure. Listing and
-help commands return zero. This checks the results exposed by BenchmarkDotNet;
+exits. A successful earlier launch does not hide a later failure. Valid listing,
+help, version and information commands return zero. This checks the results exposed by BenchmarkDotNet;
 retain logs and check expected launches before using a capture as performance
 evidence, including any separate diagnoser processes.
 
@@ -80,7 +81,8 @@ pwsh -NoProfile -File tests/FixedMathSharp.Benchmarks/Verify-ExitCodes.ps1
 The script builds the real launcher with small synthetic benchmarks in an
 isolated directory under `artifacts/benchmark-exit-codes`. It checks child and
 partial-launch failures, a nonzero exit after results, critical validation,
-successful execution, and list/help routing. It uses the benchmark project's
+malformed arguments, empty selections, successful execution and informational
+routing. It uses the benchmark project's
 BenchmarkDotNet version and adds no fixtures to the regular benchmark catalog.
 Its generated files and logs are disposable; the script recreates them.
 
@@ -186,16 +188,14 @@ caps. Setup validates each expected classification. Separated-rim rows are
 correctness-sensitive workloads, not equivalent-result speed comparisons with
 an ordinary contact query that misclassifies that geometry.
 
-`PenetratingRimsCylinderCylinder` retains the geometry previously measured as
-`ReducedCoreAxisCylinderCylinder`. It no longer requires the old selected-axis
-depth: that depth is correctly rounded for the selected direction but is not
-the minimum translation of the actual solids. `SeparatedRimsCylinderCylinder`
-and `TangentRimsCylinderCylinder` complement it with disjoint and exactly
-touching cap rims. The enabled `CenteredCylinderPairStrictRegressionTests`
-own their correctness checks; setup does not require the known-broken contact
-answers for the separated and tangent rows. Before the complete contact repair,
-these timings are historical incorrect-answer costs, not equivalent-result
-performance baselines.
+`PenetratingRimsCylinderCylinder`, `SeparatedRimsCylinderCylinder`, and
+`TangentRimsCylinderCylinder` measure overlapping, disjoint, and exactly touching
+finite cap rims. Setup validates those classifications;
+`CenteredCylinderPairStrictRegressionTests` supplies the independent geometry,
+minimum-depth bounds, and exact boundary checks. The penetrating geometry was
+previously named `ReducedCoreAxisCylinderCylinder`; its historical selected-axis
+depth was not the global minimum. Timings from that incomplete implementation
+remain incorrect-answer costs, not equivalent-result performance baselines.
 
 ## Baseline Artifacts
 

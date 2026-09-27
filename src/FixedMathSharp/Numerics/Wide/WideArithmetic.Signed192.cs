@@ -11,7 +11,7 @@ namespace FixedMathSharp;
 
 /// <content>
 /// Arithmetic helpers for <see cref="Signed192"/>: magnitude/comparison,
-/// exact add/subtract, and integer square root extraction.
+/// exact add/subtract, integer content reduction, and square root extraction.
 /// </content>
 internal static partial class WideArithmetic
 {
@@ -176,6 +176,83 @@ internal static partial class WideArithmetic
         if (value.Sign >= 0)
             return value;
         return SubtractSigned192(default, value);
+    }
+
+    /// <summary>
+    /// Returns the nonnegative greatest common divisor, including gcd(0,0)=0.
+    /// Both operand magnitudes must be less than 2^191.
+    /// </summary>
+    internal static Signed192 GetGreatestCommonDivisor(Signed192 first, Signed192 second)
+    {
+        if (first.Sign < 0)
+            first = Negate(first);
+        if (second.Sign < 0)
+            second = Negate(second);
+        if (first.IsZero)
+            return second;
+        if (second.IsZero)
+            return first;
+
+        int commonShift = 0;
+        while (((first.Low | second.Low) & 1UL) == 0UL)
+        {
+            first = HalveNonnegativeSigned192(first);
+            second = HalveNonnegativeSigned192(second);
+            commonShift++;
+        }
+        while ((first.Low & 1UL) == 0UL)
+            first = HalveNonnegativeSigned192(first);
+        do
+        {
+            while ((second.Low & 1UL) == 0UL)
+                second = HalveNonnegativeSigned192(second);
+            if (CompareMagnitude(first, second) > 0)
+                (first, second) = (second, first);
+            second = SubtractSigned192(second, first);
+        }
+        while (!second.IsZero);
+        while (commonShift-- > 0)
+            first = Double(first);
+        return first;
+    }
+
+    private static Signed192 HalveNonnegativeSigned192(Signed192 value) =>
+        new(value.High >> 1, (value.Middle >> 1) | (value.High << 63),
+            (value.Low >> 1) | (value.Middle << 63));
+
+    /// <summary>
+    /// Divides a signed value exactly by a positive nonzero divisor.
+    /// The value's magnitude must be less than 2^191 and divisibility is required.
+    /// </summary>
+    internal static Signed192 DivideExactSigned192(Signed192 value, Signed192 divisor)
+    {
+        System.Diagnostics.Debug.Assert(divisor.Sign > 0);
+        if (value.IsZero || (divisor.High == 0UL && divisor.Middle == 0UL && divisor.Low == 1UL))
+            return value;
+        int sign = value.Sign;
+        if (sign < 0)
+            value = Negate(value);
+        Signed192 quotient = default;
+        Signed192 remainder = default;
+        int bit = GetBitLength(value.High, value.Middle, value.Low);
+        while (bit-- > 0)
+        {
+            ulong word = bit < 64 ? value.Low : bit < 128 ? value.Middle : value.High;
+            // The next remainder is at most the consumed numerator prefix,
+            // itself below 2^191. The shift therefore stays nonnegative even
+            // for a divisor near the top of the admitted signed domain.
+            remainder = Double(remainder);
+            remainder = new Signed192(remainder.High, remainder.Middle,
+                remainder.Low | ((word >> (bit & 63)) & 1UL));
+            quotient = Double(quotient);
+            if (CompareMagnitude(remainder, divisor) >= 0)
+            {
+                remainder = SubtractSigned192(remainder, divisor);
+                quotient = new Signed192(quotient.High, quotient.Middle, quotient.Low | 1UL);
+            }
+        }
+        System.Diagnostics.Debug.Assert(remainder.IsZero);
+        return sign < 0 ? Negate(quotient) : quotient;
     }
 
     /// <summary>

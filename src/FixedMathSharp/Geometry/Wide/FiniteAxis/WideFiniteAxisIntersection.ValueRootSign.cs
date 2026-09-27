@@ -1,0 +1,288 @@
+//=======================================================================
+// MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
+// See LICENSE file in the project root for full license information.
+//=======================================================================
+using System;
+
+namespace FixedMathSharp.Geometry;
+
+/// <content>
+/// Certified signs at retained value roots. A nonzero algebraic-value bound
+/// makes equality terminate without rounding the root or adding a tolerance.
+/// </content>
+internal static partial class WideFiniteAxisIntersection
+{
+    /// <summary>
+    /// Compares the selected root to a nonnegative dyadic threshold. Contact
+    /// rounding uses at most 462 denominator bits; unlike a general sign
+    /// query, counting roots at that threshold needs no root refinement.
+    /// </summary>
+    internal static int CompareFiniteValueRootToDyadic(FiniteAxisValueRoot root,
+        ReadOnlySpan<ulong> numerator, int shift)
+    {
+        int numeratorBits = GetFiniteRootBits(numerator);
+        if (numeratorBits == 0)
+            return 1;
+        if (numeratorBits > shift)
+        {
+            bool exactlyOne = numeratorBits == shift + 1
+                && CountRoundedCylinderTrailingZeroes(numerator) == shift;
+            return exactlyOne && root.IsRational && root.DenominatorShift == 0 ? 0 : -1;
+        }
+        // Reuse the certified cell before constructing a Sturm chain. With
+        // zero radius, the shared mapped-endpoint comparison is just an exact
+        // dyadic comparison. Nonrational cell endpoints are strictly excluded.
+        int lowerComparison = CompareRadicalOffsetEndpoints(root.LowerNumerator, root.DenominatorShift, false,
+            default, 0, 1, numerator, shift, false);
+        if (root.IsRational)
+            return lowerComparison;
+        if (lowerComparison >= 0)
+            return 1;
+        if (CompareRadicalOffsetEndpoints(root.LowerNumerator, root.DenominatorShift, true,
+                default, 0, 1, numerator, shift, false) <= 0)
+            return -1;
+        int bits = GetFiniteRootCoefficientBits(root.Coefficients, root.Signs.Length);
+        Span<ulong> arena = stackalloc ulong[(880 * (bits + 64) + 63) / 64 + 512];
+        Span<int> offsets = stackalloc int[9];
+        Span<int> widths = stackalloc int[9];
+        Span<int> degrees = stackalloc int[9];
+        Span<sbyte> signs = stackalloc sbyte[81];
+        int count = BuildFiniteValueSturm(root.Coefficients, root.Signs, arena,
+            offsets, widths, degrees, signs, out int used);
+        Span<ulong> chain = arena[..used];
+        Span<ulong> evaluation = arena[used..];
+        Span<ulong> zero = stackalloc ulong[1] { 0 };
+        int throughThreshold = GetFiniteValueVariations(chain, offsets, widths, degrees,
+            signs, count, zero, 0, evaluation) - GetFiniteValueVariations(chain, offsets, widths,
+            degrees, signs, count, numerator, shift, evaluation);
+        if (root.Ordinal >= throughThreshold)
+            return 1;
+        // The threshold is strictly inside this root's isolating cell. Once
+        // it includes that root, it cannot include another root after it.
+        return EvaluateFiniteRootPolynomial(root.Coefficients, root.Signs, numerator, shift, 0, evaluation) == 0
+            ? 0 : -1;
+    }
+
+    internal static int CompareFiniteValueRoots(FiniteAxisValueRoot first, FiniteAxisValueRoot second)
+    {
+        if (first.Signs.SequenceEqual(second.Signs) && first.Coefficients.SequenceEqual(second.Coefficients))
+            return first.Ordinal.CompareTo(second.Ordinal);
+        int firstBits = GetFiniteRootCoefficientBits(first.Coefficients, first.Signs.Length);
+        int secondBits = GetFiniteRootCoefficientBits(second.Coefficients, second.Signs.Length);
+        // For unequal selected roots, the resultant/factor separation bound
+        // is >2^(-8*(Bf+Bg+22)-89), including a shared irreducible factor.
+        // Equal-width overlapping cells below that gap prove equality.
+        int certifiedShift = 8 * (firstBits + secondBits + 22) + 91;
+        int shift = Math.Max(first.DenominatorShift, second.DenominatorShift);
+        certifiedShift = Math.Max(certifiedShift, shift);
+        int words = (certifiedShift + 127) / 64;
+        Span<ulong> firstCell = stackalloc ulong[words];
+        Span<ulong> secondCell = stackalloc ulong[words];
+        CopyFiniteRootMagnitude(first.LowerNumerator, firstCell);
+        CopyFiniteRootMagnitude(second.LowerNumerator, secondCell);
+        var left = new FiniteAxisValueRoot
+        {
+            Coefficients = first.Coefficients, Signs = first.Signs,
+            LowerNumerator = firstCell, DenominatorShift = first.DenominatorShift,
+            IsRational = first.IsRational, Ordinal = first.Ordinal
+        };
+        var right = new FiniteAxisValueRoot
+        {
+            Coefficients = second.Coefficients, Signs = second.Signs,
+            LowerNumerator = secondCell, DenominatorShift = second.DenominatorShift,
+            IsRational = second.IsRational, Ordinal = second.Ordinal
+        };
+        int comparison;
+        bool finished;
+        do
+        {
+            RefineFiniteValueRoot(ref left, shift);
+            RefineFiniteValueRoot(ref right, shift);
+            // A singleton can be expressed at any finer denominator without
+            // changing its value. Ordinary cells have exactly this width.
+            ShiftFiniteRootLeft(firstCell, shift - left.DenominatorShift);
+            ShiftFiniteRootLeft(secondCell, shift - right.DenominatorShift);
+            left.DenominatorShift = right.DenominatorShift = shift;
+            comparison = WideArithmetic.CompareMagnitudeEqualLength(firstCell, secondCell);
+            bool singleton = left.IsRational || right.IsRational;
+            if (comparison == 0 && singleton)
+                comparison = left.IsRational == right.IsRational ? 0 : left.IsRational ? -1 : 1;
+            finished = comparison != 0 || singleton || shift == certifiedShift;
+            shift = Math.Min(certifiedShift, Math.Max(32, 2 * shift));
+        } while (!finished);
+        return comparison;
+    }
+
+    internal static int GetSignAtFiniteValueRoot(FiniteAxisValueRoot root,
+        scoped ReadOnlySpan<ulong> coefficients, scoped ReadOnlySpan<sbyte> signs) =>
+        GetSignAtFiniteValueRootCore(ref root, coefficients, signs, retainRefinement: false);
+
+    /// <summary>
+    /// Evaluates a sign and retains certified cell refinement when the caller's
+    /// numerator storage has room. The numerator and its metadata are updated
+    /// together; refinements beyond that storage remain local to this query.
+    /// </summary>
+    internal static int GetSignAtFiniteValueRootAndRefine(scoped ref FiniteAxisValueRoot root,
+        scoped ReadOnlySpan<ulong> coefficients, scoped ReadOnlySpan<sbyte> signs) =>
+        GetSignAtFiniteValueRootCore(ref root, coefficients, signs, retainRefinement: true);
+
+    private static int GetSignAtFiniteValueRootCore(scoped ref FiniteAxisValueRoot root,
+        scoped ReadOnlySpan<ulong> coefficients, scoped ReadOnlySpan<sbyte> signs, bool retainRefinement)
+    {
+        int degree = signs.Length - 1;
+        int inputWords = coefficients.Length / signs.Length;
+        while (degree > 0 && signs[degree] == 0)
+            degree--;
+        if (degree == 0)
+            return signs[0];
+        coefficients = coefficients[..((degree + 1) * inputWords)];
+        signs = signs[..(degree + 1)];
+        if (root.IsRational)
+            return EvaluateFiniteRootPolynomial(coefficients, signs,
+                root.LowerNumerator, root.DenominatorShift, 0);
+
+        int n = root.Signs.Length - 1;
+        int rootBits = GetFiniteRootCoefficientBits(root.Coefficients, n + 1);
+        int queryBits = GetFiniteRootCoefficientBits(coefficients, degree + 1);
+        int queryCountBits = GetFiniteValueCeilingLog2(degree + 1);
+        // If Q(alpha)!=0, the integer resultant of Q and alpha's primitive
+        // minimal polynomial has magnitude >=1. Mahler measure of that
+        // factor is <=M(F)<=sqrt(n+1)*height(F). Since alpha is in (0,1],
+        // |Q(alpha)| > 2^-nonzeroBits. No irreducible factor is constructed.
+        int nonzeroBits = (n - 1) * (queryBits + queryCountBits)
+            + degree * (rootBits + GetFiniteValueCeilingLog2(n + 1));
+        // Evaluate Q/2^queryBits, so ordinary separated signs need only a
+        // small relative precision even when Q has very large coefficients.
+        // The normalized nonzero bound gains queryBits. Consequently the
+        // final root shift and largest accumulator are exactly the same as
+        // for unnormalized Horner; only the early passes become smaller.
+        int certifiedPrecision = nonzeroBits + queryBits + queryCountBits + 4;
+        int maximumShift = Math.Max(root.DenominatorShift,
+            certifiedPrecision + 2 * queryCountBits);
+        Span<ulong> cell = stackalloc ulong[(maximumShift + 127) / 64];
+        CopyFiniteRootMagnitude(root.LowerNumerator, cell);
+        var refined = new FiniteAxisValueRoot
+        {
+            Coefficients = root.Coefficients,
+            Signs = root.Signs,
+            LowerNumerator = cell,
+            DenominatorShift = root.DenominatorShift,
+            Ordinal = root.Ordinal
+        };
+        int precision = Math.Min(32, certifiedPrecision);
+        int result;
+        bool finished;
+        do
+        {
+            RefineFiniteValueRoot(ref refined, precision + 2 * queryCountBits);
+            if (retainRefinement)
+            {
+                int activeWords = GetRoundedCylinderWideLength(refined.LowerNumerator);
+                bool fits = activeWords <= root.LowerNumerator.Length;
+                if (fits && !refined.IsRational && activeWords == root.LowerNumerator.Length)
+                {
+                    // An open cell also owns its upper endpoint. An all-ones
+                    // lower numerator fits, but incrementing it would not.
+                    int word = 0;
+                    while (word < activeWords && refined.LowerNumerator[word] == ulong.MaxValue)
+                        word++;
+                    fits = word < activeWords;
+                }
+                if (fits)
+                {
+                    // Reuse only a complete proved cell, never a truncated
+                    // numerator. The local expanded cell still owns all work
+                    // beyond caller capacity, preserving the same final bound.
+                    refined.LowerNumerator[..activeWords].CopyTo(root.LowerNumerator);
+                    root.LowerNumerator[activeWords..].Clear();
+                    root.DenominatorShift = refined.DenominatorShift;
+                    root.IsRational = refined.IsRational;
+                }
+            }
+            if (refined.IsRational)
+                return EvaluateFiniteRootPolynomial(coefficients, signs,
+                    refined.LowerNumerator, refined.DenominatorShift, 0);
+            result = GetFiniteValueApproximateSign(refined.LowerNumerator, refined.DenominatorShift,
+                coefficients, signs, precision, queryBits);
+            finished = result != 0 || precision == certifiedPrecision;
+            precision = Math.Min(certifiedPrecision, 2 * precision);
+        } while (!finished);
+        return result;
+    }
+
+    private static int GetFiniteValueApproximateSign(ReadOnlySpan<ulong> numerator, int shift,
+        ReadOnlySpan<ulong> coefficients, ReadOnlySpan<sbyte> signs, int precision, int coefficientBits) =>
+        GetFiniteValueApproximateSign(numerator, shift, coefficients, signs, precision, coefficientBits,
+            out _, out _);
+
+    private static int GetFiniteValueApproximateSign(ReadOnlySpan<ulong> numerator, int shift,
+        ReadOnlySpan<ulong> coefficients, ReadOnlySpan<sbyte> signs, int precision, int coefficientBits,
+        out uint leadingMagnitude, out int magnitudeBits)
+    {
+        int degree = signs.Length - 1;
+        int inputWords = coefficients.Length / signs.Length;
+        int words = (precision + GetFiniteValueCeilingLog2(degree + 1) + 127) / 64;
+        Span<ulong> result = stackalloc ulong[words];
+        Span<ulong> product = stackalloc ulong[words + (shift + 64) / 64];
+        result.Clear();
+        int resultSign = 0;
+        // Evaluate Q/2^coefficientBits at the supplied dyadic point in [0,1].
+        // Coefficient quantization contributes <degree+1 units and product
+        // truncation <degree units. A nonzero result certifies the point sign;
+        // zero alone is uncertain, and midpoint refinement then evaluates exactly.
+        // The root-query caller additionally enforces
+        // shift>=precision+2*ceilLog2(m+1), so the normalized derivative
+        // m(m+1)/2 bounds its cell error by <1/2 unit. Its total error remains
+        // <2*(degree+1). At that caller's final precision any nonzero
+        // normalized value exceeds 16*(degree+1) units: an uncertain result
+        // there proves exact zero, just as in the unnormalized formulation.
+        for (int index = degree; index >= 0; index--)
+        {
+            WideArithmetic.MultiplyMagnitudes(result, numerator, product);
+            ShiftRoundedCylinderWideRight(product, shift);
+            product[..words].CopyTo(result);
+            if (GetRoundedCylinderWideLength(result) == 0)
+                resultSign = 0;
+            ReadOnlySpan<ulong> coefficient = coefficients.Slice(index * inputWords, inputWords);
+            if (precision >= coefficientBits)
+            {
+                WideArithmetic.AddShiftedSignedMagnitude(coefficient, signs[index],
+                    precision - coefficientBits, result, ref resultSign);
+            }
+            else
+            {
+                // Drop whole low words before copying, so even a huge input
+                // coefficient fits the compact product buffer. Only 0..63
+                // remaining low bits need shifting. Magnitude truncation
+                // followed by the original sign is truncation toward zero.
+                int discarded = coefficientBits - precision;
+                CopyFiniteRootMagnitude(coefficient[(discarded / 64)..], product);
+                ShiftRoundedCylinderWideRight(product, discarded % 64);
+                int coefficientSign = GetRoundedCylinderWideLength(product) == 0 ? 0 : signs[index];
+                WideArithmetic.AddShiftedSignedMagnitude(product, coefficientSign, 0, result, ref resultSign);
+            }
+        }
+        int length = GetRoundedCylinderWideLength(result);
+        // A compact value hint for secant prediction only. The certified sign
+        // below remains the authority, and callers must align the exponents
+        // of hints obtained at the same normalized precision before dividing.
+        magnitudeBits = length == 0 ? 0 : 64 * length - Fixed64.CountLeadingZeroes(result[length - 1]);
+        if (magnitudeBits <= 32)
+            leadingMagnitude = magnitudeBits == 0 ? 0U : (uint)result[0] << (32 - magnitudeBits);
+        else
+        {
+            int discarded = magnitudeBits - 32;
+            int word = discarded / 64;
+            int offset = discarded % 64;
+            ulong leading = result[word] >> offset;
+            if (offset > 32)
+                leading |= result[word + 1] << (64 - offset);
+            leadingMagnitude = (uint)leading;
+        }
+        return length > 1 || (length == 1 && result[0] > 2UL * (ulong)(degree + 1)) ? resultSign : 0;
+    }
+
+    private static int GetFiniteValueCeilingLog2(int value) =>
+        // Only nonconstant defining and query polynomials reach these callers.
+        64 - Fixed64.CountLeadingZeroes((ulong)(value - 1));
+}

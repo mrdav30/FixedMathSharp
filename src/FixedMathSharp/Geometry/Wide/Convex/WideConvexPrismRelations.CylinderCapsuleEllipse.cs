@@ -78,7 +78,7 @@ internal static partial class WideConvexPrismRelations
     private static bool TryPrepareCylinderCapsuleEllipse(
         Vector3d cylinderCenter,
         in RigidAxis3 cylinderAxis,
-        Fixed64 cylinderLength,
+        Signed192 cylinderLength,
         Fixed64 cylinderRadius,
         Vector3d capsuleCenter,
         in RigidAxis3 capsuleAxis,
@@ -113,7 +113,7 @@ internal static partial class WideConvexPrismRelations
             default,
             WideArithmetic.MultiplySigned576(GetMagnitude576(majorProjection), f));
         Signed576 q = WideArithmetic.SubtractSigned576(
-            WideArithmetic.MultiplySigned576(e, cylinderLength.m_rawValue),
+            WideArithmetic.MultiplySigned576(e, cylinderLength),
             WideArithmetic.MultiplySigned576(GetMagnitude576(minorProjection), f));
 
         // Both reflection choices can only decrease the support gap: the
@@ -131,85 +131,14 @@ internal static partial class WideConvexPrismRelations
     private static RigidAxis3 ReduceCylinderCapsuleEllipseAxis(
         in RigidAxis3 axis, ref Signed192 denominator)
     {
-        Signed192 divisor = GetCylinderCapsuleEllipseGreatestCommonDivisor(
-            GetCylinderCapsuleEllipseGreatestCommonDivisor(axis.X, axis.Y),
-            GetCylinderCapsuleEllipseGreatestCommonDivisor(axis.Z, denominator));
-        denominator = DivideCylinderCapsuleEllipseInteger(denominator, divisor);
+        Signed192 divisor = WideArithmetic.GetGreatestCommonDivisor(
+            WideArithmetic.GetGreatestCommonDivisor(axis.X, axis.Y),
+            WideArithmetic.GetGreatestCommonDivisor(axis.Z, denominator));
+        denominator = WideArithmetic.DivideExactSigned192(denominator, divisor);
         return new RigidAxis3(
-            DivideCylinderCapsuleEllipseInteger(axis.X, divisor),
-            DivideCylinderCapsuleEllipseInteger(axis.Y, divisor),
-            DivideCylinderCapsuleEllipseInteger(axis.Z, divisor), default);
-    }
-
-    // Binary Euclid and exact integer division stay in three words. Inputs
-    // are below 2^100; remainders below twice the divisor and reconstructed
-    // quotients are below the original magnitude. No runtime-size integer,
-    // rounded ratio, or bound-dependent storage is needed.
-    private static Signed192 GetCylinderCapsuleEllipseGreatestCommonDivisor(
-        Signed192 first, Signed192 second)
-    {
-        if (first.Sign < 0)
-            first = WideArithmetic.Negate(first);
-        if (second.Sign < 0)
-            second = WideArithmetic.Negate(second);
-        if (first.IsZero)
-            return second;
-        if (second.IsZero)
-            return first;
-
-        int commonShift = 0;
-        while (((first.Low | second.Low) & 1UL) == 0UL)
-        {
-            first = HalveCylinderCapsuleEllipseInteger(first);
-            second = HalveCylinderCapsuleEllipseInteger(second);
-            commonShift++;
-        }
-        while ((first.Low & 1UL) == 0UL)
-            first = HalveCylinderCapsuleEllipseInteger(first);
-        do
-        {
-            while ((second.Low & 1UL) == 0UL)
-                second = HalveCylinderCapsuleEllipseInteger(second);
-            if (WideArithmetic.CompareMagnitude(first, second) > 0)
-                (first, second) = (second, first);
-            second = WideArithmetic.SubtractSigned192(second, first);
-        }
-        while (!second.IsZero);
-        while (commonShift-- > 0)
-            first = WideArithmetic.Double(first);
-        return first;
-    }
-
-    private static Signed192 HalveCylinderCapsuleEllipseInteger(Signed192 value) =>
-        new(value.High >> 1, (value.Middle >> 1) | (value.High << 63),
-            (value.Low >> 1) | (value.Middle << 63));
-
-    private static Signed192 DivideCylinderCapsuleEllipseInteger(
-        Signed192 value, Signed192 divisor)
-    {
-        if (value.IsZero || (divisor.Middle == 0UL && divisor.Low == 1UL))
-            return value;
-        int sign = value.Sign;
-        if (sign < 0)
-            value = WideArithmetic.Negate(value);
-        Signed192 quotient = default;
-        Signed192 remainder = default;
-        int bit = WideArithmetic.GetBitLength(value.High, value.Middle, value.Low);
-        while (bit-- > 0)
-        {
-            // Preparation inputs are below 2^100, so no high-word bit exists.
-            ulong word = bit < 64 ? value.Low : value.Middle;
-            remainder = WideArithmetic.Double(remainder);
-            remainder = new Signed192(remainder.High, remainder.Middle,
-                remainder.Low | ((word >> (bit & 63)) & 1UL));
-            quotient = WideArithmetic.Double(quotient);
-            if (WideArithmetic.CompareMagnitude(remainder, divisor) >= 0)
-            {
-                remainder = WideArithmetic.SubtractSigned192(remainder, divisor);
-                quotient = new Signed192(quotient.High, quotient.Middle, quotient.Low | 1UL);
-            }
-        }
-        return sign < 0 ? WideArithmetic.Negate(quotient) : quotient;
+            WideArithmetic.DivideExactSigned192(axis.X, divisor),
+            WideArithmetic.DivideExactSigned192(axis.Y, divisor),
+            WideArithmetic.DivideExactSigned192(axis.Z, divisor), default);
     }
 
     private static Axis3 OrientCylinderCapsuleEllipseAxis(Axis3 axis, int sign) =>
@@ -241,7 +170,7 @@ internal static partial class WideConvexPrismRelations
     /// </summary>
     private static bool TryImproveCylinderCapsuleEllipse(
         in CylinderCapsuleEllipse ellipse,
-        in CylinderCapsuleAnalyticCandidate analytic,
+        in ConvexContactCandidate analytic,
         Fixed64 cylinderRadius, Fixed64 capsuleRadius,
         out bool intersects,
         out Vector3d normal,
@@ -315,9 +244,9 @@ internal static partial class WideConvexPrismRelations
 
     private static int CompareCylinderCapsuleEllipseSquaredGap(
         ref FiniteAxisPolynomialRoot root,
-        ReadOnlySpan<ulong> numerator, ReadOnlySpan<sbyte> numeratorSigns,
-        ReadOnlySpan<ulong> denominator, ReadOnlySpan<sbyte> denominatorSigns,
-        in CylinderCapsuleAnalyticCandidate analytic)
+        scoped ReadOnlySpan<ulong> numerator, scoped ReadOnlySpan<sbyte> numeratorSigns,
+        scoped ReadOnlySpan<ulong> denominator, scoped ReadOnlySpan<sbyte> denominatorSigns,
+        scoped in ConvexContactCandidate analytic)
     {
         const int sourceWords = CylinderCapsuleEllipseWords;
         const int words = CylinderCapsuleEllipseComparisonWords;
@@ -351,9 +280,9 @@ internal static partial class WideConvexPrismRelations
 
         Span<ulong> query = stackalloc ulong[9 * words];
         Span<sbyte> querySigns = stackalloc sbyte[9];
-        MultiplyCylinderCapsuleEllipsePolynomials(
+        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(
             difference, differenceSigns, difference, differenceSigns,
-            query, querySigns, words);
+            query, querySigns, term);
         difference.Clear();
         for (int index = 0; index < 5; index++)
         {
@@ -363,9 +292,9 @@ internal static partial class WideConvexPrismRelations
         }
         Span<ulong> squaredDenominator = stackalloc ulong[9 * words];
         Span<sbyte> squaredDenominatorSigns = stackalloc sbyte[9];
-        MultiplyCylinderCapsuleEllipsePolynomials(
+        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(
             difference, differenceSigns, difference, differenceSigns,
-            squaredDenominator, squaredDenominatorSigns, words);
+            squaredDenominator, squaredDenominatorSigns, term);
         WideArithmetic.MultiplyMagnitudes(
             analytic.GapRadical, analytic.GapRadical, term);
         MultiplyBy(term, analytic.GapRadicand);
@@ -383,8 +312,8 @@ internal static partial class WideConvexPrismRelations
 
     private static int CompareCylinderCapsuleEllipseDepthToTwiceRaw(
         ref FiniteAxisPolynomialRoot root,
-        ReadOnlySpan<ulong> numerator, ReadOnlySpan<sbyte> numeratorSigns,
-        ReadOnlySpan<ulong> denominator, ReadOnlySpan<sbyte> denominatorSigns,
+        scoped ReadOnlySpan<ulong> numerator, scoped ReadOnlySpan<sbyte> numeratorSigns,
+        scoped ReadOnlySpan<ulong> denominator, scoped ReadOnlySpan<sbyte> denominatorSigns,
         int gapSign, Fixed64 capsuleRadius, ulong twiceRaw)
     {
         ulong twiceRadius = (ulong)capsuleRadius.m_rawValue << 1;
@@ -568,8 +497,9 @@ internal static partial class WideConvexPrismRelations
         jSigns[1] = 1; // P < 0, B > 0: J = Q - B P t.
         Span<ulong> jSquared = stackalloc ulong[3 * words];
         Span<sbyte> jSquaredSigns = stackalloc sbyte[3];
-        MultiplyCylinderCapsuleEllipsePolynomials(
-            j, jSigns, j, jSigns, jSquared, jSquaredSigns, words);
+        Span<ulong> term = stackalloc ulong[words];
+        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(
+            j, jSigns, j, jSigns, jSquared, jSquaredSigns, term);
 
         Span<ulong> radial = stackalloc ulong[3 * words];
         Span<sbyte> radialSigns = stackalloc sbyte[3];
@@ -579,10 +509,9 @@ internal static partial class WideConvexPrismRelations
         WideArithmetic.MultiplyMagnitudes(u, cSquared, radial.Slice(2 * words, words));
         radialSigns[0] = 1;
         radialSigns[2] = 1;
-        MultiplyCylinderCapsuleEllipsePolynomials(
+        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(
             radial, radialSigns, jSquared, jSquaredSigns,
-            stationary, stationarySigns, words);
-        Span<ulong> term = stackalloc ulong[words];
+            stationary, stationarySigns, term);
         kSquared.CopyTo(term);
         MultiplyBy(term, e);
         MultiplyBy(term, e);
@@ -600,18 +529,18 @@ internal static partial class WideConvexPrismRelations
         q.CopyTo(radial.Slice(words, words));
         radialSigns[0] = -1;
         radialSigns[1] = (sbyte)ellipse.Q.Sign;
-        MultiplyCylinderCapsuleEllipsePolynomials(
+        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(
             j, jSigns, radial.Slice(0, 2 * words), radialSigns.Slice(0, 2),
-            signedGap, signedGapSigns, words);
+            signedGap, signedGapSigns, term);
         ScaleCylinderCapsuleEllipsePolynomial(signedGap, u, words);
         kSquared.CopyTo(term);
         MultiplyBy(term, e);
         MultiplyBy(term, e);
         AddCylinderCapsuleEllipseCoefficient(
             signedGap, signedGapSigns, 1, term, 1, words);
-        MultiplyCylinderCapsuleEllipsePolynomials(
+        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(
             signedGap, signedGapSigns, signedGap, signedGapSigns,
-            squaredGapNumerator, numeratorSigns, words);
+            squaredGapNumerator, numeratorSigns, term);
 
         radial.Clear();
         radialSigns.Clear();
@@ -619,9 +548,9 @@ internal static partial class WideConvexPrismRelations
         b.CopyTo(radial.Slice(2 * words, words));
         radialSigns[0] = 1;
         radialSigns[2] = 1;
-        MultiplyCylinderCapsuleEllipsePolynomials(
+        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(
             jSquared, jSquaredSigns, radial, radialSigns,
-            squaredGapDenominator, denominatorSigns, words);
+            squaredGapDenominator, denominatorSigns, term);
         WideArithmetic.MultiplyMagnitudes(f, f, term);
         MultiplyBy(term, u);
         MultiplyBy(term, u);
@@ -673,9 +602,10 @@ internal static partial class WideConvexPrismRelations
         CopyCylinderCapsuleEllipseMagnitude(second, direction.Slice(words, words));
         directionSigns[0] = (sbyte)first.Sign;
         directionSigns[1] = (sbyte)second.Sign;
-        MultiplyCylinderCapsuleEllipsePolynomials(
+        Span<ulong> factor = stackalloc ulong[words];
+        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(
             direction, directionSigns, direction, directionSigns,
-            numerator, numeratorSigns, words);
+            numerator, numeratorSigns, factor);
         // Raw squared normal = 2^64 * component(t)^2 / (E(1+B t^2)).
         // The shared half-raw comparison supplies the remaining factor four.
         for (int index = 0; index < 3; index++)
@@ -683,7 +613,6 @@ internal static partial class WideConvexPrismRelations
         denominator.Clear();
         denominatorSigns.Clear();
         WideArithmetic.GetMagnitude(ellipse.E, denominator.Slice(0, words));
-        Span<ulong> factor = stackalloc ulong[words];
         CopyCylinderCapsuleEllipseMagnitude(ellipse.B, factor);
         WideArithmetic.MultiplyMagnitudes(denominator.Slice(0, words), factor,
             denominator.Slice(2 * words, words));
@@ -710,32 +639,6 @@ internal static partial class WideConvexPrismRelations
     {
         for (int index = 0; index < coefficients.Length; index += words)
             MultiplyBy(coefficients.Slice(index, words), factor);
-    }
-
-    private static void MultiplyCylinderCapsuleEllipsePolynomials(
-        ReadOnlySpan<ulong> left, ReadOnlySpan<sbyte> leftSigns,
-        ReadOnlySpan<ulong> right, ReadOnlySpan<sbyte> rightSigns,
-        Span<ulong> result, Span<sbyte> resultSigns, int words)
-    {
-        result.Clear();
-        resultSigns.Clear();
-        Span<ulong> product = stackalloc ulong[words];
-        for (int first = 0; first < leftSigns.Length; first++)
-        {
-            if (leftSigns[first] == 0)
-                continue;
-            for (int second = 0; second < rightSigns.Length; second++)
-            {
-                if (rightSigns[second] == 0)
-                    continue;
-                WideArithmetic.MultiplyMagnitudes(
-                    left.Slice(first * words, words),
-                    right.Slice(second * words, words), product);
-                AddCylinderCapsuleEllipseCoefficient(
-                    result, resultSigns, first + second, product,
-                    leftSigns[first] * rightSigns[second], words);
-            }
-        }
     }
 
     private static void AddCylinderCapsuleEllipseCoefficient(

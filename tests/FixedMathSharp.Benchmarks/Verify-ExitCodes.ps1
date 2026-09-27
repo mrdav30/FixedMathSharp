@@ -77,6 +77,19 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Probe build failed; see $scratch/build.log" }
     $script:runner = Join-Path $scratch "bin/Release/net8.0/$probeName.dll"
     $dry = @('-j', 'Dry', '--artifacts', (Join-Path $scratch 'bdn'))
+    Assert-LauncherExit 'alias-unknown-option' 1 @('exit-probe', '--gcConcurrent', 'false') 'gcConcurrent'
+    Assert-LauncherExit 'all-unknown-option' 1 @('all', '--gcConcurrent', 'false') 'gcConcurrent'
+    Assert-LauncherExit 'direct-unknown-option' 1 @('--gcConcurrent', 'false') 'gcConcurrent'
+    Assert-LauncherExit 'list-invalid-option' 1 @('all', '--list', 'flat', '--gcConcurrent', 'false') 'gcConcurrent'
+    Assert-LauncherExit 'list-invalid-value' 1 @('all', '--list', 'not-a-mode') 'list'
+    Assert-LauncherExit 'help-invalid-option' 1 @('all', '--help', '--gcConcurrent', 'false') 'gcConcurrent'
+    Assert-LauncherExit 'version-invalid-option' 1 @('all', '--version', '--gcConcurrent', 'false') 'gcConcurrent'
+    Assert-LauncherExit 'help-invalid-job' 1 @('all', '--help', '--job', 'DefinitelyNotAJob') 'DefinitelyNotAJob'
+    Assert-LauncherExit 'empty-filter' 1 @('exit-probe', '--filter', '*DefinitelyNoBenchmarkMatch*') 'returned 0 benchmarks'
+    Assert-LauncherExit 'bdn-help' 0 @('all', '--help') '--list'
+    Assert-LauncherExit 'bdn-version' 0 @('all', '--version') $probeName
+    Assert-LauncherExit 'bdn-info' 0 @('all', '--info') 'BenchmarkDotNet'
+    Assert-LauncherExit 'bdn-help-valid-options' 0 @('all', '--help', '--job', 'Dry') '--list'
     Assert-LauncherExit 'alias-failure' 1 (@('exit-probe', '--filter', '*Failure*') + $dry) 'EXPECTED_CHILD_FAILURE'
     Assert-LauncherExit 'all-failure' 1 (@('all', '--filter', '*Failure*') + $dry) 'EXPECTED_CHILD_FAILURE'
     Assert-LauncherExit 'direct-failure' 1 (@('--filter', '*Failure*') + $dry) 'EXPECTED_CHILD_FAILURE'
@@ -94,6 +107,7 @@ try {
     Assert-LauncherExit 'list' 0 @('list') 'exit-probe'
     Assert-LauncherExit 'bdn-list' 0 @('all', '--list', 'flat') 'ExitProbeBenchmarks.Success'
     Assert-LauncherExit 'help' 0 @('help') 'Usage:'
+    Assert-LauncherExit 'help-extra-arguments' 1 @('help', '--gcConcurrent', 'false') 'Unknown benchmark selection'
     Assert-LauncherExit 'unknown-alias' 1 @('missing-alias') 'Unknown benchmark selection'
     Write-Host "Launcher checks passed. Logs: $scratch"
 }

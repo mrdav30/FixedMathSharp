@@ -9,7 +9,7 @@ namespace FixedMathSharp.Tests;
 public sealed class CenteredCylinderRigidFrameTests
 {
     [Fact]
-    public void Contact_UsesExactMultiRadicalCapToInteriorWinner()
+    public void Contact_SkewRimMinimumBeatsAnIndependentSeparatingTranslation()
     {
         FixedQuaternion firstRotation =
             FixedQuaternion.FromAxisAngle(
@@ -20,33 +20,55 @@ public sealed class CenteredCylinderRigidFrameTests
                 Vector3d.Right,
                 Fixed64.PiOver6);
 
-        Assert.True(WideConvexPrismRelations
+        // Independently recover the exact authored axes a=(-S,C,0),
+        // b=(0,C,S) from the quaternion integer words, not contact helpers.
+        Assert.Equal(firstRotation.Z, secondRotation.X);
+        Assert.Equal(firstRotation.W, secondRotation.W);
+        BigInteger z = firstRotation.Z.m_rawValue, w = firstRotation.W.m_rawValue;
+        BigInteger denominator = w * w + z * z;
+        BigInteger sine = 2 * w * z, cosine = w * w - z * z;
+        Assert.True(499 * denominator < 1000 * sine && 1000 * sine < 501 * denominator);
+        Assert.True(865 * denominator < 1000 * cosine && 1000 * cosine < 867 * denominator);
+
+        // For N=(-7,-4,-1), |N|²=66 and d.N=23. Its support gap is
+        // [16S+sqrt(66-(7S-4C)²)+sqrt(66-(4C+S)²)-23]/sqrt(66).
+        // The bounds above give 7S-4C>0 and 4C+S>3959/1000.
+        // Thus the numerator is <(16*501+8125+7095-23000)/1000=236/1000.
+        Assert.True(66 * 64 < 65 * 65); // sqrt(66)<65/8=8.125.
+        Assert.True(66L * 1_000_000 - 3959L * 3959 < 7095L * 7095);
+        Assert.True(81 * 81 < 66 * 100); // sqrt(66)>8.1.
+        // Gap<236/8100<59/2000, with more than half a raw unit of margin.
+        Assert.True(((BigInteger)59 * 8100 - 236 * 2000) * (BigInteger.One << 33) > 2000 * 8100);
+
+        Vector3d secondCenter = new(-2, -2, -1);
+        Assert.True(FixedSegment
             .TryGetCenteredFiniteCylindersContact(
                 Vector3d.Zero,
                 firstRotation,
                 Vector3d.Up,
                 (Fixed64)4,
                 Fixed64.One,
-                new Vector3d(-2, -2, -1),
+                secondCenter,
                 secondRotation,
                 Vector3d.Up,
                 (Fixed64)4,
                 Fixed64.One,
-                out FixedContactAnchors contact,
-                out bool usedWide,
-                out bool usedMulti));
-
-        Assert.False(usedWide);
-        Assert.True(usedMulti);
-        Assert.Equal(
-            new Vector3d(
-                Fixed64.FromRaw(-3_719_550_790L),
-                Fixed64.FromRaw(-2_147_483_642L),
-                Fixed64.FromRaw(-6L)),
-            contact.Normal);
-        Assert.Equal(
-            Fixed64.FromRaw(151_880_415L),
-            contact.Depth);
+                out FixedContactAnchors contact));
+        Assert.True(FixedSegment.TryGetCenteredFiniteCylindersContact(
+            secondCenter, secondRotation, Vector3d.Up, (Fixed64)4, Fixed64.One,
+            Vector3d.Zero, firstRotation, Vector3d.Up, (Fixed64)4, Fixed64.One,
+            out FixedContactAnchors reversed));
+        Assert.True(contact.Depth > Fixed64.Zero);
+        Assert.True((BigInteger)contact.Depth.m_rawValue * 2000 < ((BigInteger)59 << 32));
+        Assert.Equal(contact.Depth, reversed.Depth);
+        Assert.True(contact.Normal.IsNormalized());
+        Assert.Equal(-contact.Normal, reversed.Normal);
+        Assert.Equal(Vector3d.Zero, contact.FirstAnchor.Origin);
+        Assert.Equal(secondCenter, contact.SecondAnchor.Origin);
+        Assert.Equal(secondCenter, reversed.FirstAnchor.Origin);
+        Assert.Equal(Vector3d.Zero, reversed.SecondAnchor.Origin);
+        Assert.False(contact.DepthIsClamped);
+        Assert.False(reversed.DepthIsClamped);
     }
 
     [Fact]
@@ -93,13 +115,10 @@ public sealed class CenteredCylinderRigidFrameTests
                 Vector3d.Up,
                 Fixed64.MaxValue,
                 Fixed64.MaxValue,
-                out FixedContactAnchors contact,
-                out bool usedWideCandidate,
-                out _));
+                out FixedContactAnchors contact));
 
         Assert.Equal(Fixed64.MaxValue, contact.Depth);
         Assert.True(contact.DepthIsClamped);
-        Assert.False(usedWideCandidate);
     }
 
     [Fact]
@@ -280,18 +299,14 @@ public sealed class CenteredCylinderRigidFrameTests
     }
 
     [Fact]
-    public void Contact_IrreducibleFullDomainCandidateUsesWideFallback()
+    public void Contact_IrreducibleFullDomainCandidatePreservesContactAndAllocationInvariants()
     {
         Assert.True(TryGetIrreducibleFullDomainContact(
             reverse: false,
-            out FixedContactAnchors contact,
-            out bool usedWide));
+            out FixedContactAnchors contact));
         Assert.True(TryGetIrreducibleFullDomainContact(
             reverse: true,
-            out FixedContactAnchors reversed,
-            out bool reversedWide));
-        Assert.True(usedWide);
-        Assert.True(reversedWide);
+            out FixedContactAnchors reversed));
         Assert.True(contact.Normal.IsNormalized());
         Assert.True(contact.Depth > Fixed64.Zero);
         Assert.False(contact.DepthIsClamped);
@@ -315,22 +330,19 @@ public sealed class CenteredCylinderRigidFrameTests
             PolluteStack(unchecked((ulong)iteration + 1UL));
             Assert.True(TryGetIrreducibleFullDomainContact(
                 reverse: false,
-                out FixedContactAnchors actual,
-                out bool actualWide));
-            Assert.True(actualWide);
+                out FixedContactAnchors actual));
             Assert.Equal(contact.Normal, actual.Normal);
             Assert.Equal(contact.Depth, actual.Depth);
         }
 
         for (int iteration = 0; iteration < 4; iteration++)
-            _ = TryGetIrreducibleFullDomainContact(false, out _, out _);
+            _ = TryGetIrreducibleFullDomainContact(false, out _);
         long before = GC.GetAllocatedBytesForCurrentThread();
         int contacts = 0;
         for (int iteration = 0; iteration < 8; iteration++)
         {
             if (TryGetIrreducibleFullDomainContact(
                     reverse: false,
-                    out _,
                     out _))
             {
                 contacts++;
@@ -347,15 +359,10 @@ public sealed class CenteredCylinderRigidFrameTests
     {
         Assert.True(TryGetFormerWideFixture(
             reduceTranslation: false,
-            out FixedContactAnchors extreme,
-            out bool extremeWide));
+            out FixedContactAnchors extreme));
         Assert.True(TryGetFormerWideFixture(
             reduceTranslation: true,
-            out FixedContactAnchors reduced,
-            out bool reducedWide));
-
-        Assert.False(extremeWide);
-        Assert.False(reducedWide);
+            out FixedContactAnchors reduced));
         Assert.Equal(reduced.Normal, extreme.Normal);
         Assert.Equal(reduced.Depth, extreme.Depth);
         Assert.Equal(
@@ -437,23 +444,6 @@ public sealed class CenteredCylinderRigidFrameTests
             out FixedContactAnchors contact));
         Assert.Equal(Vector3d.Right, contact.Normal);
         Assert.Equal(Fixed64.Zero, contact.Depth);
-        Assert.True(WideConvexPrismRelations
-            .TryGetCenteredFiniteCylindersContact(
-                firstCenter,
-                FixedQuaternion.Identity,
-                Vector3d.Up,
-                Fixed64.Two,
-                Fixed64.One,
-                secondCenter,
-                FixedQuaternion.Identity,
-                Vector3d.Up,
-                Fixed64.Two,
-                Fixed64.One,
-                out _,
-                out bool usedWide,
-                out _));
-        Assert.False(usedWide);
-
         Assert.False(FixedSegment.TryGetCenteredFiniteCylindersContact(
             firstCenter,
             FixedQuaternion.Identity,
@@ -534,51 +524,16 @@ public sealed class CenteredCylinderRigidFrameTests
     [Fact]
     public void Contact_WarmedOrdinaryAndIrreducibleMultiRadicalPathsDoNotAllocate()
     {
-        for (int iteration = 0; iteration < 32; iteration++)
-        {
-            Assert.True(TryGetOrdinaryContact(
-                out _,
-                out bool ordinaryWide,
-                out bool ordinaryMulti));
-            Assert.False(ordinaryWide);
-            Assert.False(ordinaryMulti);
-            Assert.True(TryGetIrreducibleMultiRadicalContact(
-                out _,
-                out bool irreducibleWide,
-                out bool irreducibleMulti));
-            Assert.False(irreducibleWide);
-            Assert.True(irreducibleMulti);
-        }
-
-        long ordinaryBefore = GC.GetAllocatedBytesForCurrentThread();
-        int ordinaryContacts = 0;
-        for (int iteration = 0; iteration < 8; iteration++)
-        {
-            if (TryGetOrdinaryContact(out _, out _, out _))
-                ordinaryContacts++;
-        }
-        long ordinaryAfter = GC.GetAllocatedBytesForCurrentThread();
-
-        long multiBefore = GC.GetAllocatedBytesForCurrentThread();
-        int multiContacts = 0;
-        for (int iteration = 0; iteration < 8; iteration++)
-        {
-            if (TryGetIrreducibleMultiRadicalContact(
-                    out _,
-                    out _,
-                    out _))
-                multiContacts++;
-        }
-        long multiAfter = GC.GetAllocatedBytesForCurrentThread();
-
-        Assert.Equal(8, ordinaryContacts);
-        Assert.Equal(8, multiContacts);
-        Assert.Equal(
-            0,
-            ordinaryAfter - ordinaryBefore);
-        Assert.Equal(
-            0,
-            multiAfter - multiBefore);
+        bool ordinaryHit = false;
+        bool multiHit = false;
+        long ordinaryBytes = FixedMathTestHelper.MeasureWarmedAllocations(() =>
+            ordinaryHit = TryGetOrdinaryContact(out _));
+        long multiBytes = FixedMathTestHelper.MeasureWarmedAllocations(() =>
+            multiHit = TryGetIrreducibleMultiRadicalContact(out _));
+        Assert.True(ordinaryHit);
+        Assert.True(multiHit);
+        Assert.Equal(0, ordinaryBytes);
+        Assert.Equal(0, multiBytes);
     }
 
     [Fact]
@@ -909,9 +864,7 @@ public sealed class CenteredCylinderRigidFrameTests
                     secondAxis,
                     secondLength,
                     secondRadius,
-                    out FixedContactAnchors forward,
-                    out bool forwardUsedWide,
-                    out bool forwardUsedMulti);
+                    out FixedContactAnchors forward);
             bool reverseHit = WideConvexPrismRelations
                 .TryGetCenteredFiniteCylindersContact(
                     secondCenter,
@@ -924,9 +877,7 @@ public sealed class CenteredCylinderRigidFrameTests
                     firstAxis,
                     firstLength,
                     firstRadius,
-                    out FixedContactAnchors reverse,
-                    out bool reverseUsedWide,
-                    out bool reverseUsedMulti);
+                    out FixedContactAnchors reverse);
 
             Assert.Equal(forwardHit, reverseHit);
             if (!forwardHit)
@@ -935,7 +886,7 @@ public sealed class CenteredCylinderRigidFrameTests
             Assert.True(forward.Depth >= Fixed64.Zero);
             Assert.True(
                 forward.Depth == reverse.Depth,
-                $"Topology index {index}: forward depth {forward.Depth}, reverse depth {reverse.Depth}; normals {forward.Normal}/{reverse.Normal}; wide {forwardUsedWide}/{reverseUsedWide}; multi {forwardUsedMulti}/{reverseUsedMulti}.");
+                $"Topology index {index}: forward depth {forward.Depth}, reverse depth {reverse.Depth}; normals {forward.Normal}/{reverse.Normal}.");
             Assert.Equal(
                 forward.DepthIsClamped,
                 reverse.DepthIsClamped);
@@ -1001,9 +952,7 @@ public sealed class CenteredCylinderRigidFrameTests
                     secondAxis,
                     secondLength,
                     secondRadius,
-                    out FixedContactAnchors forward,
-                    out bool forwardWide,
-                    out bool forwardMulti);
+                    out FixedContactAnchors forward);
             bool reverseHit = WideConvexPrismRelations
                 .TryGetCenteredFiniteCylindersContact(
                     secondCenter,
@@ -1016,9 +965,7 @@ public sealed class CenteredCylinderRigidFrameTests
                     firstAxis,
                     firstLength,
                     firstRadius,
-                    out FixedContactAnchors reverse,
-                    out bool reverseWide,
-                    out bool reverseMulti);
+                    out FixedContactAnchors reverse);
 
             Assert.Equal(forwardHit, reverseHit);
             if (!forwardHit)
@@ -1026,7 +973,7 @@ public sealed class CenteredCylinderRigidFrameTests
             contacts++;
             Assert.True(
                 forward.Depth == reverse.Depth,
-                $"Sample {index}: depths {forward.Depth}/{reverse.Depth}; normals {forward.Normal}/{reverse.Normal}; wide {forwardWide}/{reverseWide}; multi {forwardMulti}/{reverseMulti}; center raw {secondCenter.X.m_rawValue},{secondCenter.Y.m_rawValue},{secondCenter.Z.m_rawValue}; rotations {firstRotation}/{secondRotation}; axes {firstAxis}/{secondAxis}; lengths raw {firstLength.m_rawValue}/{secondLength.m_rawValue}; radii raw {firstRadius.m_rawValue}/{secondRadius.m_rawValue}.");
+                $"Sample {index}: depths {forward.Depth}/{reverse.Depth}; normals {forward.Normal}/{reverse.Normal}; center raw {secondCenter.X.m_rawValue},{secondCenter.Y.m_rawValue},{secondCenter.Z.m_rawValue}; rotations {firstRotation}/{secondRotation}; axes {firstAxis}/{secondAxis}; lengths raw {firstLength.m_rawValue}/{secondLength.m_rawValue}; radii raw {firstRadius.m_rawValue}/{secondRadius.m_rawValue}.");
             Assert.Equal(
                 forward.DepthIsClamped,
                 reverse.DepthIsClamped);
@@ -1218,9 +1165,7 @@ public sealed class CenteredCylinderRigidFrameTests
     }
 
     private static bool TryGetOrdinaryContact(
-        out FixedContactAnchors contact,
-        out bool usedWide,
-        out bool usedMulti)
+        out FixedContactAnchors contact)
     {
         return WideConvexPrismRelations
             .TryGetCenteredFiniteCylindersContact(
@@ -1237,15 +1182,12 @@ public sealed class CenteredCylinderRigidFrameTests
                 Vector3d.Up,
                 Fixed64.Two,
                 Fixed64.One,
-                out contact,
-                out usedWide,
-                out usedMulti);
+                out contact);
     }
 
     private static bool TryGetIrreducibleFullDomainContact(
         bool reverse,
-        out FixedContactAnchors contact,
-        out bool usedWide)
+        out FixedContactAnchors contact)
     {
         Vector3d firstCenter = new(
             Fixed64.FromRaw(-9_223_371_836_141_996_263L),
@@ -1292,15 +1234,12 @@ public sealed class CenteredCylinderRigidFrameTests
                 Vector3d.Forward,
                 secondLength,
                 secondRadius,
-                out contact,
-                out usedWide,
-                out _);
+                out contact);
     }
 
     private static bool TryGetFormerWideFixture(
         bool reduceTranslation,
-        out FixedContactAnchors contact,
-        out bool usedWide)
+        out FixedContactAnchors contact)
     {
         Vector3d firstCenter = reduceTranslation
             ? Vector3d.Zero
@@ -1335,9 +1274,7 @@ public sealed class CenteredCylinderRigidFrameTests
                 Vector3d.Up,
                 Fixed64.MaxValue - Fixed64.One,
                 Fixed64.MaxValue / (Fixed64)8,
-                out contact,
-                out usedWide,
-                out _);
+                out contact);
     }
 
     private static bool TryGetConcentricCoaxialContact(
@@ -1371,9 +1308,7 @@ public sealed class CenteredCylinderRigidFrameTests
     }
 
     private static bool TryGetIrreducibleMultiRadicalContact(
-        out FixedContactAnchors contact,
-        out bool usedWide,
-        out bool usedMulti)
+        out FixedContactAnchors contact)
     {
         return WideConvexPrismRelations
             .TryGetCenteredFiniteCylindersContact(
@@ -1391,9 +1326,7 @@ public sealed class CenteredCylinderRigidFrameTests
                 Vector3d.Up,
                 (Fixed64)4,
                 Fixed64.One,
-                out contact,
-                out usedWide,
-                out usedMulti);
+                out contact);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

@@ -1,5 +1,5 @@
 //=======================================================================
-// WideConvexPrismRelations.CylinderCapsuleCandidate.cs
+// WideConvexPrismRelations.ContactCandidate.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
@@ -10,59 +10,11 @@ using System;
 namespace FixedMathSharp.Geometry;
 
 /// <content>
-/// Exact comparison and final rounding of analytic cylinder/capsule contact
+/// Exact comparison and final rounding of analytic convex contact
 /// candidates. Geometry and candidate-buffer ownership remain with the caller.
 /// </content>
 internal static partial class WideConvexPrismRelations
 {
-    private const int CylinderCapsuleCandidateWords = 40;
-    private const int CylinderCapsuleCandidateSlots = 11;
-
-    /// <summary>
-    /// A nonzero normal a+b sqrt(K) and signed raw gap
-    /// GapSign sqrt((A+B sqrt(C))/D), with positive D and nonnegative radicand.
-    /// </summary>
-    /// <remarks>
-    /// Each little-endian magnitude occupies forty words. Slots 0..2 are a,
-    /// 3..5 are b, 6 is K, and 7..10 are A, B, C, D. Signs 0..5, 7, and 8
-    /// are -1, 0, or 1, with zero sign exactly for zero magnitude; unused
-    /// signs do not affect the value. GapSign is zero
-    /// exactly when the gap is zero. Builders prove these invariants before
-    /// admission; this view neither copies nor mutates their stack storage.
-    /// </remarks>
-    private readonly ref struct CylinderCapsuleAnalyticCandidate
-    {
-        internal CylinderCapsuleAnalyticCandidate(
-            ReadOnlySpan<ulong> values,
-            ReadOnlySpan<int> signs,
-            int gapSign)
-        {
-            Values = values;
-            Signs = signs;
-            GapSign = gapSign;
-        }
-
-        internal ReadOnlySpan<ulong> Values { get; }
-        internal ReadOnlySpan<int> Signs { get; }
-        internal int GapSign { get; }
-
-        internal ReadOnlySpan<ulong> NormalRational(int component) =>
-            Slot(component);
-        internal ReadOnlySpan<ulong> NormalRadical(int component) =>
-            Slot(component + 3);
-        internal ReadOnlySpan<ulong> NormalRadicand => Slot(6);
-        internal ReadOnlySpan<ulong> GapRational => Slot(7);
-        internal int GapRationalSign => Signs[7];
-        internal ReadOnlySpan<ulong> GapRadical => Slot(8);
-        internal int GapRadicalSign => Signs[8];
-        internal ReadOnlySpan<ulong> GapRadicand => Slot(9);
-        internal ReadOnlySpan<ulong> GapDenominator => Slot(10);
-
-        private ReadOnlySpan<ulong> Slot(int slot) => Values.Slice(
-            slot * CylinderCapsuleCandidateWords,
-            CylinderCapsuleCandidateWords);
-    }
-
     // No fixed-width operation below truncates an input to fit a scratch span.
     // Multiplication reserves the sum of active operand lengths; a signed sum
     // reserves an additional word. For forty-word candidate fields, cross-
@@ -72,9 +24,9 @@ internal static partial class WideConvexPrismRelations
     // Normal-square coefficients use at most 122 words (three 40-word factors
     // and two carry words). Integer midpoint factors add at most two words.
     // Actual active lengths, not those maxima, size every arithmetic scratch.
-    private static int CompareCylinderCapsuleCandidates(
-        CylinderCapsuleAnalyticCandidate left,
-        CylinderCapsuleAnalyticCandidate right)
+    internal static int CompareConvexContactCandidates(
+        ConvexContactCandidate left,
+        ConvexContactCandidate right)
     {
         if (left.GapSign != right.GapSign)
             return left.GapSign.CompareTo(right.GapSign);
@@ -82,9 +34,9 @@ internal static partial class WideConvexPrismRelations
             return 0;
 
         int words = Math.Max(
-            CylinderCapsuleCandidateProductWords(
+            ConvexContactCandidateProductWords(
                 left.GapRational, right.GapDenominator),
-            CylinderCapsuleCandidateProductWords(
+            ConvexContactCandidateProductWords(
                 right.GapRational, left.GapDenominator)) + 1;
         Span<ulong> first = stackalloc ulong[words];
         Span<ulong> second = stackalloc ulong[words];
@@ -99,30 +51,30 @@ internal static partial class WideConvexPrismRelations
             rational, out int rationalSign);
 
         Span<ulong> leftRadical = stackalloc ulong[
-            CylinderCapsuleCandidateProductWords(
+            ConvexContactCandidateProductWords(
                 left.GapRadical, right.GapDenominator)];
         Span<ulong> rightRadical = stackalloc ulong[
-            CylinderCapsuleCandidateProductWords(
+            ConvexContactCandidateProductWords(
                 right.GapRadical, left.GapDenominator)];
         WideArithmetic.MultiplyMagnitudes(
             left.GapRadical, right.GapDenominator, leftRadical);
         WideArithmetic.MultiplyMagnitudes(
             right.GapRadical, left.GapDenominator, rightRadical);
-        return left.GapSign * GetCylinderCapsuleCandidateThreeTermSign(
+        return left.GapSign * GetConvexContactCandidateThreeTermSign(
             rational, rationalSign,
             leftRadical, left.GapRadicalSign, left.GapRadicand,
             rightRadical, -right.GapRadicalSign, right.GapRadicand);
     }
 
-    private static int CompareCylinderCapsuleCandidateDepthToTwiceRaw(
-        CylinderCapsuleAnalyticCandidate candidate,
-        Fixed64 capsuleRadius,
+    internal static int CompareConvexContactCandidateDepthToTwiceRaw(
+        ConvexContactCandidate candidate,
+        Fixed64 radiusOffset,
         Signed192 twiceRaw)
     {
         Signed192 target = WideArithmetic.SubtractSigned192(
             twiceRaw,
             new Signed192(0UL, 0UL,
-                unchecked((ulong)capsuleRadius.m_rawValue << 1)));
+                unchecked((ulong)radiusOffset.m_rawValue << 1)));
         if (candidate.GapSign != target.Sign)
             return candidate.GapSign.CompareTo(target.Sign);
         if (candidate.GapSign == 0)
@@ -133,20 +85,20 @@ internal static partial class WideConvexPrismRelations
             out targetMagnitude[2], out targetMagnitude[1],
             out targetMagnitude[0]);
         Span<ulong> targetSquare = stackalloc ulong[
-            CylinderCapsuleCandidateProductWords(
+            ConvexContactCandidateProductWords(
                 targetMagnitude, targetMagnitude)];
         WideArithmetic.MultiplyMagnitudes(
             targetMagnitude, targetMagnitude, targetSquare);
         int words = Math.Max(
-            CylinderCapsuleCandidateLength(candidate.GapRational) + 1,
-            CylinderCapsuleCandidateProductWords(
+            ConvexContactCandidateLength(candidate.GapRational) + 1,
+            ConvexContactCandidateProductWords(
                 targetSquare, candidate.GapDenominator)) + 1;
         Span<ulong> rational = stackalloc ulong[words];
         Span<ulong> threshold = stackalloc ulong[words];
         Span<ulong> difference = stackalloc ulong[words];
         rational.Clear();
         candidate.GapRational.Slice(0,
-            CylinderCapsuleCandidateLength(candidate.GapRational))
+            ConvexContactCandidateLength(candidate.GapRational))
             .CopyTo(rational);
         ShiftLeft(rational, 2);
         WideArithmetic.MultiplyMagnitudes(
@@ -155,37 +107,37 @@ internal static partial class WideConvexPrismRelations
             rational, candidate.GapRationalSign,
             threshold, -1, difference, out int differenceSign);
         Span<ulong> radical = stackalloc ulong[
-            CylinderCapsuleCandidateLength(candidate.GapRadical) + 1];
+            ConvexContactCandidateLength(candidate.GapRadical) + 1];
         radical.Clear();
         candidate.GapRadical.Slice(0,
-            CylinderCapsuleCandidateLength(candidate.GapRadical))
+            ConvexContactCandidateLength(candidate.GapRadical))
             .CopyTo(radical);
         ShiftLeft(radical, 2);
-        return candidate.GapSign * GetCylinderCapsuleCandidateQuadraticSign(
+        return candidate.GapSign * GetConvexContactCandidateQuadraticSign(
             difference, differenceSign,
             radical, candidate.GapRadicalSign, candidate.GapRadicand);
     }
 
     /// <summary>
-    /// Rounds an admitted nonnegative depth, including the capsule radius,
+    /// Rounds an admitted nonnegative depth, including the supplied radius offset,
     /// once to nearest-even; clamping describes the exact value, not rounding.
     /// </summary>
-    private static void GetRoundedCylinderCapsuleCandidateDepth(
-        CylinderCapsuleAnalyticCandidate candidate,
-        Fixed64 capsuleRadius,
+    internal static void GetRoundedConvexContactCandidateDepth(
+        ConvexContactCandidate candidate,
+        Fixed64 radiusOffset,
         out Fixed64 rounded,
         out bool isClamped)
     {
         if (candidate.GapSign == 0)
         {
-            rounded = capsuleRadius;
+            rounded = radiusOffset;
             isClamped = false;
             return;
         }
 
         ulong low = 0UL;
         ulong high = 1UL << 63;
-        ulong radiusRaw = unchecked((ulong)capsuleRadius.m_rawValue);
+        ulong radiusRaw = unchecked((ulong)radiusOffset.m_rawValue);
         if (candidate.GapSign < 0)
         {
             high = radiusRaw + 1UL;
@@ -205,8 +157,8 @@ internal static partial class WideConvexPrismRelations
         while (low < high)
         {
             ulong midpoint = low + ((high - low) >> 1);
-            int comparison = CompareCylinderCapsuleCandidateDepthToTwiceRaw(
-                candidate, capsuleRadius,
+            int comparison = CompareConvexContactCandidateDepthToTwiceRaw(
+                candidate, radiusOffset,
                 new Signed192(0UL, 0UL, midpoint << 1));
             if (comparison >= 0)
                 low = midpoint + 1UL;
@@ -218,29 +170,29 @@ internal static partial class WideConvexPrismRelations
         if (floor == unchecked((ulong)long.MaxValue))
         {
             rounded = Fixed64.MaxValue;
-            isClamped = CompareCylinderCapsuleCandidateDepthToTwiceRaw(
-                candidate, capsuleRadius,
+            isClamped = CompareConvexContactCandidateDepthToTwiceRaw(
+                candidate, radiusOffset,
                 new Signed192(0UL, 0UL, floor << 1)) > 0;
             return;
         }
 
         int midpointComparison =
-            CompareCylinderCapsuleCandidateDepthToTwiceRaw(
-                candidate, capsuleRadius,
+            CompareConvexContactCandidateDepthToTwiceRaw(
+                candidate, radiusOffset,
                 new Signed192(0UL, 0UL, (floor << 1) | 1UL));
         rounded = Fixed64.FromRaw((long)(floor + GetNearestEvenIncrement(
             midpointComparison, floor)));
         isClamped = false;
     }
 
-    private static Vector3d GetCylinderCapsuleCandidateNormal(
-        CylinderCapsuleAnalyticCandidate candidate)
+    internal static Vector3d GetConvexContactCandidateNormal(
+        ConvexContactCandidate candidate)
     {
-        int xSign = GetCylinderCapsuleCandidateQuadraticSign(candidate.NormalRational(0), candidate.Signs[0],
+        int xSign = GetConvexContactCandidateQuadraticSign(candidate.NormalRational(0), candidate.Signs[0],
             candidate.NormalRadical(0), candidate.Signs[3], candidate.NormalRadicand);
-        int ySign = GetCylinderCapsuleCandidateQuadraticSign(candidate.NormalRational(1), candidate.Signs[1],
+        int ySign = GetConvexContactCandidateQuadraticSign(candidate.NormalRational(1), candidate.Signs[1],
             candidate.NormalRadical(1), candidate.Signs[4], candidate.NormalRadicand);
-        int zSign = GetCylinderCapsuleCandidateQuadraticSign(candidate.NormalRational(2), candidate.Signs[2],
+        int zSign = GetConvexContactCandidateQuadraticSign(candidate.NormalRational(2), candidate.Signs[2],
             candidate.NormalRadical(2), candidate.Signs[5], candidate.NormalRadicand);
         if ((xSign == 0 ? 0 : 1) + (ySign == 0 ? 0 : 1) + (zSign == 0 ? 0 : 1) == 1)
             return new Vector3d((Fixed64)xSign, (Fixed64)ySign, (Fixed64)zSign);
@@ -250,16 +202,16 @@ internal static partial class WideConvexPrismRelations
         for (int component = 0; component < 3; component++)
         {
             rationalWords = Math.Max(rationalWords,
-                CylinderCapsuleCandidateLength(
+                ConvexContactCandidateLength(
                     candidate.NormalRational(component)));
             radicalWords = Math.Max(radicalWords,
-                CylinderCapsuleCandidateLength(
+                ConvexContactCandidateLength(
                     candidate.NormalRadical(component)));
         }
 
         int words = Math.Max(
             Math.Max(rationalWords * 2,
-                radicalWords * 2 + CylinderCapsuleCandidateLength(
+                radicalWords * 2 + ConvexContactCandidateLength(
                     candidate.NormalRadicand)),
             rationalWords + radicalWords + 1) + 2;
         // Slots 0..2 and 3..5 hold each component square's rational/radical
@@ -275,7 +227,7 @@ internal static partial class WideConvexPrismRelations
         {
             Span<ulong> rational = squares.Slice(component * words, words);
             Span<ulong> radical = squares.Slice((component + 3) * words, words);
-            BuildCylinderCapsuleCandidateNormalSquare(
+            BuildConvexContactCandidateNormalSquare(
                 candidate, component, rational, radical,
                 out signs[component]);
             WideArithmetic.AddMagnitudeInto(rational, normRational);
@@ -286,16 +238,16 @@ internal static partial class WideConvexPrismRelations
         }
 
         return new Vector3d(
-            GetRoundedCylinderCapsuleCandidateNormalComponent(
+            GetRoundedConvexContactCandidateNormalComponent(
                 candidate, 0, squares, signs, words),
-            GetRoundedCylinderCapsuleCandidateNormalComponent(
+            GetRoundedConvexContactCandidateNormalComponent(
                 candidate, 1, squares, signs, words),
-            GetRoundedCylinderCapsuleCandidateNormalComponent(
+            GetRoundedConvexContactCandidateNormalComponent(
                 candidate, 2, squares, signs, words));
     }
 
-    private static void BuildCylinderCapsuleCandidateNormalSquare(
-        CylinderCapsuleAnalyticCandidate candidate,
+    private static void BuildConvexContactCandidateNormalSquare(
+        ConvexContactCandidate candidate,
         int component,
         Span<ulong> rational,
         Span<ulong> radical,
@@ -317,14 +269,14 @@ internal static partial class WideConvexPrismRelations
             : candidate.Signs[component] * candidate.Signs[component + 3];
     }
 
-    private static Fixed64 GetRoundedCylinderCapsuleCandidateNormalComponent(
-        CylinderCapsuleAnalyticCandidate candidate,
+    private static Fixed64 GetRoundedConvexContactCandidateNormalComponent(
+        ConvexContactCandidate candidate,
         int component,
         ReadOnlySpan<ulong> squares,
         ReadOnlySpan<int> signs,
         int words)
     {
-        int sign = GetCylinderCapsuleCandidateQuadraticSign(
+        int sign = GetConvexContactCandidateQuadraticSign(
             candidate.NormalRational(component), candidate.Signs[component],
             candidate.NormalRadical(component), candidate.Signs[component + 3],
             candidate.NormalRadicand);
@@ -341,7 +293,7 @@ internal static partial class WideConvexPrismRelations
         {
             ulong midpoint = low + ((high - low) >> 1);
             int comparison =
-                CompareCylinderCapsuleCandidateNormalComponentToTwiceRaw(
+                CompareConvexContactCandidateNormalComponentToTwiceRaw(
                     squares, signs, words, component,
                     candidate.NormalRadicand, midpoint << 1);
             if (comparison >= 0)
@@ -352,14 +304,14 @@ internal static partial class WideConvexPrismRelations
 
         ulong floor = low - 1UL;
         int midpointComparison =
-            CompareCylinderCapsuleCandidateNormalComponentToTwiceRaw(
+            CompareConvexContactCandidateNormalComponentToTwiceRaw(
                 squares, signs, words, component,
                 candidate.NormalRadicand, (floor << 1) | 1UL);
         floor += GetNearestEvenIncrement(midpointComparison, floor);
         return Fixed64.FromRaw(sign * (long)floor);
     }
 
-    private static int CompareCylinderCapsuleCandidateNormalComponentToTwiceRaw(
+    private static int CompareConvexContactCandidateNormalComponentToTwiceRaw(
         ReadOnlySpan<ulong> squares,
         ReadOnlySpan<int> signs,
         int words,
@@ -393,11 +345,11 @@ internal static partial class WideConvexPrismRelations
         CombineWideSignedMagnitudes(
             first, signs[component], second, -signs[3],
             radical, out int radicalSign);
-        return GetCylinderCapsuleCandidateQuadraticSign(
+        return GetConvexContactCandidateQuadraticSign(
             rational, rationalSign, radical, radicalSign, radicand);
     }
 
-    private static int GetCylinderCapsuleCandidateQuadraticSign(
+    internal static int GetConvexContactCandidateQuadraticSign(
         ReadOnlySpan<ulong> rational,
         int rationalSign,
         ReadOnlySpan<ulong> radical,
@@ -414,9 +366,9 @@ internal static partial class WideConvexPrismRelations
             return rationalSign;
 
         int words = Math.Max(
-            CylinderCapsuleCandidateLength(rational) * 2,
-            CylinderCapsuleCandidateLength(radical) * 2
-                + CylinderCapsuleCandidateLength(radicand));
+            ConvexContactCandidateLength(rational) * 2,
+            ConvexContactCandidateLength(radical) * 2
+                + ConvexContactCandidateLength(radicand));
         Span<ulong> rationalSquared = stackalloc ulong[words];
         Span<ulong> radicalSquared = stackalloc ulong[words];
         Span<ulong> radicalSquaredK = stackalloc ulong[words];
@@ -428,7 +380,7 @@ internal static partial class WideConvexPrismRelations
             rationalSquared, radicalSquaredK);
     }
 
-    private static int GetCylinderCapsuleCandidateThreeTermSign(
+    private static int GetConvexContactCandidateThreeTermSign(
         ReadOnlySpan<ulong> rational,
         int rationalSign,
         ReadOnlySpan<ulong> firstCoefficient,
@@ -445,46 +397,46 @@ internal static partial class WideConvexPrismRelations
         if (IsZero(secondCoefficient) || IsZero(secondRadicand))
             secondSign = 0;
         if (firstSign == 0)
-            return GetCylinderCapsuleCandidateQuadraticSign(
+            return GetConvexContactCandidateQuadraticSign(
                 rational, rationalSign,
                 secondCoefficient, secondSign, secondRadicand);
         if (secondSign == 0)
-            return GetCylinderCapsuleCandidateQuadraticSign(
+            return GetConvexContactCandidateQuadraticSign(
                 rational, rationalSign,
                 firstCoefficient, firstSign, firstRadicand);
         if (firstSign == secondSign && rationalSign != -firstSign)
             return firstSign;
 
         int words = Math.Max(
-            CylinderCapsuleCandidateLength(rational) * 2,
+            ConvexContactCandidateLength(rational) * 2,
             Math.Max(
-                CylinderCapsuleCandidateLength(firstCoefficient) * 2
-                    + CylinderCapsuleCandidateLength(firstRadicand),
-                CylinderCapsuleCandidateLength(secondCoefficient) * 2
-                    + CylinderCapsuleCandidateLength(secondRadicand))) + 1;
+                ConvexContactCandidateLength(firstCoefficient) * 2
+                    + ConvexContactCandidateLength(firstRadicand),
+                ConvexContactCandidateLength(secondCoefficient) * 2
+                    + ConvexContactCandidateLength(secondRadicand))) + 1;
         Span<ulong> radicands = stackalloc ulong[4 * words];
         Span<ulong> square = stackalloc ulong[words];
         Span<ulong> product = stackalloc ulong[words];
         radicands.Clear();
         WideArithmetic.MultiplyMagnitudes(rational, rational, square);
-        CopyCylinderCapsuleCandidateSignedRadicand(
+        CopyConvexContactCandidateSignedRadicand(
             square, rationalSign, radicands, words);
         WideArithmetic.MultiplyMagnitudes(
             firstCoefficient, firstCoefficient, square);
         WideArithmetic.MultiplyMagnitudes(square, firstRadicand, product);
-        CopyCylinderCapsuleCandidateSignedRadicand(
+        CopyConvexContactCandidateSignedRadicand(
             product, firstSign, radicands, words);
         WideArithmetic.MultiplyMagnitudes(
             secondCoefficient, secondCoefficient, square);
         WideArithmetic.MultiplyMagnitudes(square, secondRadicand, product);
-        CopyCylinderCapsuleCandidateSignedRadicand(
+        CopyConvexContactCandidateSignedRadicand(
             product, secondSign, radicands, words);
         return CompareRadicalPairs(
             radicands.Slice(0, words), radicands.Slice(words, words),
             radicands.Slice(2 * words, words), radicands.Slice(3 * words, words));
     }
 
-    private static void CopyCylinderCapsuleCandidateSignedRadicand(
+    private static void CopyConvexContactCandidateSignedRadicand(
         ReadOnlySpan<ulong> value,
         int sign,
         Span<ulong> radicands,
@@ -498,13 +450,13 @@ internal static partial class WideConvexPrismRelations
             radicands.Slice(offset + words, words));
     }
 
-    private static int CylinderCapsuleCandidateLength(
+    private static int ConvexContactCandidateLength(
         ReadOnlySpan<ulong> value) =>
         WideArithmetic.GetActiveMagnitudeLength(value);
 
-    private static int CylinderCapsuleCandidateProductWords(
+    private static int ConvexContactCandidateProductWords(
         ReadOnlySpan<ulong> left,
         ReadOnlySpan<ulong> right) => Math.Max(1,
-            CylinderCapsuleCandidateLength(left)
-                + CylinderCapsuleCandidateLength(right));
+            ConvexContactCandidateLength(left)
+                + ConvexContactCandidateLength(right));
 }

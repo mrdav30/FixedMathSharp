@@ -49,13 +49,13 @@ internal static partial class WideConvexPrismRelations
         internal readonly Axis3 CylinderHalf;
         internal readonly Axis3 CapsuleHalf;
         internal readonly Signed320 CylinderSquared;
-        internal readonly Fixed64 CylinderLength;
-        internal readonly Fixed64 CapsuleLength;
+        internal readonly Signed192 CylinderLength;
+        internal readonly Signed192 CapsuleLength;
         internal readonly Fixed64 Radius;
 
         internal CylinderCapsuleFeatureGeometry(
-            Vector3d cylinderCenter, RigidAxis3 cylinder, Fixed64 cylinderLength, Fixed64 radius,
-            Vector3d capsuleCenter, RigidAxis3 capsule, Fixed64 capsuleLength)
+            Vector3d cylinderCenter, RigidAxis3 cylinder, Signed192 cylinderLength, Fixed64 radius,
+            Vector3d capsuleCenter, RigidAxis3 capsule, Signed192 capsuleLength)
         {
             Cylinder = cylinder;
             Capsule = capsule;
@@ -83,13 +83,13 @@ internal static partial class WideConvexPrismRelations
             GetCylinderCapsuleEndpointCoordinate(CenterZ, CylinderHalf.Z, cylinderSign, CapsuleHalf.Z, capsuleSign));
     }
 
-    private static Axis3 GetCylinderCapsuleScaledHalf(RigidAxis3 axis, Fixed64 length, Signed192 otherDenominator) => new(
+    private static Axis3 GetCylinderCapsuleScaledHalf(RigidAxis3 axis, Signed192 length, Signed192 otherDenominator) => new(
         Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
-            WideArithmetic.MultiplySigned192(axis.X, Signed192.Raw(length)), otherDenominator)),
+            WideArithmetic.MultiplySigned192(axis.X, length), otherDenominator)),
         Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
-            WideArithmetic.MultiplySigned192(axis.Y, Signed192.Raw(length)), otherDenominator)),
+            WideArithmetic.MultiplySigned192(axis.Y, length), otherDenominator)),
         Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
-            WideArithmetic.MultiplySigned192(axis.Z, Signed192.Raw(length)), otherDenominator)));
+            WideArithmetic.MultiplySigned192(axis.Z, length), otherDenominator)));
 
     private static Signed320 GetCylinderCapsuleEndpointCoordinate(
         Signed320 center, Signed320 cylinderHalf, int cylinderSign, Signed320 capsuleHalf, int capsuleSign)
@@ -163,7 +163,7 @@ internal static partial class WideConvexPrismRelations
     }
 
     private static Span<ulong> CylinderCapsuleFeatureSlot(Span<ulong> values, int slot) =>
-        values.Slice(slot * CylinderCapsuleCandidateWords, CylinderCapsuleCandidateWords);
+        values.Slice(slot * ConvexContactCandidate.Words, ConvexContactCandidate.Words);
 
     private static bool BuildCylinderCapsuleAxisCandidate(
         in CylinderCapsuleFeatureGeometry geometry, CylinderCapsuleDirection direction,
@@ -191,12 +191,12 @@ internal static partial class WideConvexPrismRelations
         // squared-gap coefficients are below 2^1780 (40 words give 2560 bits).
         Signed832 rational = WideArithmetic.SubtractSigned832(WideArithmetic.AddSigned832(
             WideArithmetic.MultiplySigned576ToSigned832(GetMagnitude576(cylinderAlignment),
-                WideArithmetic.MultiplySigned192(Signed192.Raw(geometry.CylinderLength), geometry.Capsule.RotationDenominator)),
+                WideArithmetic.MultiplySigned192(geometry.CylinderLength, geometry.Capsule.RotationDenominator)),
             WideArithmetic.MultiplySigned576ToSigned832(GetMagnitude576(capsuleAlignment),
-                WideArithmetic.MultiplySigned192(Signed192.Raw(geometry.CapsuleLength), geometry.Cylinder.RotationDenominator))),
+                WideArithmetic.MultiplySigned192(geometry.CapsuleLength, geometry.Cylinder.RotationDenominator))),
             WideArithmetic.MultiplySigned576ToSigned832(GetMagnitude576(centerAlignment), Signed320.ExtendValue(geometry.Scale)));
 
-        const int words = CylinderCapsuleCandidateWords;
+        const int words = ConvexContactCandidate.Words;
         Span<ulong> work = stackalloc ulong[10 * words];
         Span<ulong> u = CylinderCapsuleFeatureSlot(work, 0);
         Span<ulong> axisSquared = CylinderCapsuleFeatureSlot(work, 1);
@@ -273,7 +273,7 @@ internal static partial class WideConvexPrismRelations
 
         values.Clear();
         signs.Clear();
-        const int words = CylinderCapsuleCandidateWords;
+        const int words = ConvexContactCandidate.Words;
         Span<ulong> work = stackalloc ulong[3 * words];
         Span<ulong> first = CylinderCapsuleFeatureSlot(work, 0);
         Span<ulong> second = CylinderCapsuleFeatureSlot(work, 1);
@@ -302,14 +302,14 @@ internal static partial class WideConvexPrismRelations
         signs[4] = offset.Y.Sign;
         signs[5] = offset.Z.Sign;
 
-        if (geometry.CapsuleLength != Fixed64.Zero)
+        if (!geometry.CapsuleLength.IsZero)
         {
             Signed576 projection = DotCylinderCapsuleDirection(direction, geometry.Capsule);
             Signed576 radialProjection = DotCylinderCapsuleDirection(radial, geometry.Capsule);
             Signed832 rational = WideArithmetic.MultiplySigned576ToSigned832(radialProjection, rf);
             ImportCylinderCapsuleFeature(rational, first);
             ImportCylinderCapsuleFeature(projection, second);
-            if (GetCylinderCapsuleCandidateQuadraticSign(first, -rational.Sign, second, projection.Sign, root) * capsuleSign < 0)
+            if (GetConvexContactCandidateQuadraticSign(first, -rational.Sign, second, projection.Sign, root) * capsuleSign < 0)
                 return false;
         }
 
@@ -326,7 +326,7 @@ internal static partial class WideConvexPrismRelations
         signs[10] = 1;
         // A zero residual has no normal. Shared cap/side boundaries represent
         // this exact-touch case, including the continuous tie at the rim.
-        return GetCylinderCapsuleCandidateQuadraticSign(CylinderCapsuleFeatureSlot(values, 7), signs[7],
+        return GetConvexContactCandidateQuadraticSign(CylinderCapsuleFeatureSlot(values, 7), signs[7],
             CylinderCapsuleFeatureSlot(values, 8), signs[8], root) > 0;
     }
 
@@ -377,7 +377,7 @@ internal static partial class WideConvexPrismRelations
         ImportCylinderCapsuleFeature(e, CylinderCapsuleFeatureSlot(values, 9));
         signs[6] = signs[9] = 1;
 
-        const int words = CylinderCapsuleCandidateWords;
+        const int words = ConvexContactCandidate.Words;
         Span<ulong> work = stackalloc ulong[5 * words];
         Span<ulong> squared = CylinderCapsuleFeatureSlot(work, 0);
         Span<ulong> product = CylinderCapsuleFeatureSlot(work, 1);
@@ -418,9 +418,9 @@ internal static partial class WideConvexPrismRelations
         ReadOnlySpan<ulong> values, ReadOnlySpan<int> signs, int gapSign,
         Span<ulong> bestValues, Span<int> bestSigns, ref int bestGapSign, ref bool hasBest)
     {
-        var candidate = new CylinderCapsuleAnalyticCandidate(values, signs, gapSign);
-        if (hasBest && CompareCylinderCapsuleCandidates(candidate,
-                new CylinderCapsuleAnalyticCandidate(bestValues, bestSigns, bestGapSign)) >= 0)
+        var candidate = new ConvexContactCandidate(values, signs, gapSign);
+        if (hasBest && CompareConvexContactCandidates(candidate,
+                new ConvexContactCandidate(bestValues, bestSigns, bestGapSign)) >= 0)
             return;
         values.CopyTo(bestValues);
         signs.CopyTo(bestSigns);
@@ -449,13 +449,13 @@ internal static partial class WideConvexPrismRelations
             out Signed192 bx, out Signed192 by, out Signed192 bz, out Signed192 bd);
         var cylinder = new RigidAxis3(ax, ay, az, ad);
         var capsule = new RigidAxis3(bx, by, bz, bd);
-        var geometry = new CylinderCapsuleFeatureGeometry(cylinderCenter, cylinder, cylinderLength,
-            cylinderRadius, capsuleCenter, capsule, capsuleLength);
-        const int valueCount = CylinderCapsuleCandidateWords * CylinderCapsuleCandidateSlots;
+        var geometry = new CylinderCapsuleFeatureGeometry(cylinderCenter, cylinder, Signed192.Raw(cylinderLength),
+            cylinderRadius, capsuleCenter, capsule, Signed192.Raw(capsuleLength));
+        const int valueCount = ConvexContactCandidate.Words * ConvexContactCandidate.Slots;
         Span<ulong> values = stackalloc ulong[valueCount];
-        Span<int> signs = stackalloc int[CylinderCapsuleCandidateSlots];
+        Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
         Span<ulong> bestValues = stackalloc ulong[valueCount];
-        Span<int> bestSigns = stackalloc int[CylinderCapsuleCandidateSlots];
+        Span<int> bestSigns = stackalloc int[ConvexContactCandidate.Slots];
         int bestGapSign = 0;
         bool hasBest = false;
 
@@ -490,7 +490,7 @@ internal static partial class WideConvexPrismRelations
                 // inside either its axial slab or radial cylinder, the nearest
                 // boundary is a cap or side; a rim cannot improve either gap.
                 return MaterializeCylinderCapsuleContact(
-                    new CylinderCapsuleAnalyticCandidate(bestValues, bestSigns, bestGapSign), capsuleRadius,
+                    new ConvexContactCandidate(bestValues, bestSigns, bestGapSign), capsuleRadius,
                     cylinderCenter, cylinderRotation, cylinderLocalAxis, cylinderLength, cylinderRadius,
                     capsuleCenter, capsuleRotation, capsuleLocalAxis, capsuleLength, out contact);
             }
@@ -503,7 +503,7 @@ internal static partial class WideConvexPrismRelations
                     // closest point of the whole convex Minkowski sum. Unlike
                     // an arbitrary separating direction, this is a global MTD.
                     return MaterializeCylinderCapsuleContact(
-                        new CylinderCapsuleAnalyticCandidate(values, signs, rimGapSign), capsuleRadius,
+                        new ConvexContactCandidate(values, signs, rimGapSign), capsuleRadius,
                         cylinderCenter, cylinderRotation, cylinderLocalAxis, cylinderLength, cylinderRadius,
                         capsuleCenter, capsuleRotation, capsuleLocalAxis, capsuleLength, out contact);
                 }
@@ -535,10 +535,10 @@ internal static partial class WideConvexPrismRelations
                         KeepCylinderCapsuleCandidate(values, signs, cornerGapSign,
                             bestValues, bestSigns, ref bestGapSign, ref hasBest);
             }
-            else if (TryPrepareCylinderCapsuleEllipse(cylinderCenter, cylinder, cylinderLength,
+            else if (TryPrepareCylinderCapsuleEllipse(cylinderCenter, cylinder, Signed192.Raw(cylinderLength),
                     cylinderRadius, capsuleCenter, capsule, out CylinderCapsuleEllipse ellipse)
                 && TryImproveCylinderCapsuleEllipse(ellipse,
-                    new CylinderCapsuleAnalyticCandidate(bestValues, bestSigns, bestGapSign), cylinderRadius, capsuleRadius,
+                    new ConvexContactCandidate(bestValues, bestSigns, bestGapSign), cylinderRadius, capsuleRadius,
                     out bool intersects, out Vector3d normal, out Fixed64 depth, out bool depthIsClamped))
             {
                 contact = intersects ? CreateCylinderCapsuleFeatureContact(normal, depth, depthIsClamped,
@@ -548,19 +548,19 @@ internal static partial class WideConvexPrismRelations
             }
         }
         return MaterializeCylinderCapsuleContact(
-            new CylinderCapsuleAnalyticCandidate(bestValues, bestSigns, bestGapSign), capsuleRadius,
+            new ConvexContactCandidate(bestValues, bestSigns, bestGapSign), capsuleRadius,
             cylinderCenter, cylinderRotation, cylinderLocalAxis, cylinderLength, cylinderRadius,
             capsuleCenter, capsuleRotation, capsuleLocalAxis, capsuleLength, out contact);
     }
 
     private static bool MaterializeCylinderCapsuleContact(
-        in CylinderCapsuleAnalyticCandidate candidate, Fixed64 capsuleRadius,
+        in ConvexContactCandidate candidate, Fixed64 capsuleRadius,
         Vector3d cylinderCenter, FixedQuaternion cylinderRotation, Vector3d cylinderLocalAxis,
         Fixed64 cylinderLength, Fixed64 cylinderRadius,
         Vector3d capsuleCenter, FixedQuaternion capsuleRotation, Vector3d capsuleLocalAxis,
         Fixed64 capsuleLength, out FixedContactAnchors contact)
     {
-        int depthSign = CompareCylinderCapsuleCandidateDepthToTwiceRaw(candidate, capsuleRadius, default);
+        int depthSign = CompareConvexContactCandidateDepthToTwiceRaw(candidate, capsuleRadius, default);
         if (depthSign < 0)
         {
             contact = default;
@@ -569,8 +569,8 @@ internal static partial class WideConvexPrismRelations
         Fixed64 depth = Fixed64.Zero;
         bool clamped = false;
         if (depthSign > 0)
-            GetRoundedCylinderCapsuleCandidateDepth(candidate, capsuleRadius, out depth, out clamped);
-        contact = CreateCylinderCapsuleFeatureContact(GetCylinderCapsuleCandidateNormal(candidate), depth, clamped,
+            GetRoundedConvexContactCandidateDepth(candidate, capsuleRadius, out depth, out clamped);
+        contact = CreateCylinderCapsuleFeatureContact(GetConvexContactCandidateNormal(candidate), depth, clamped,
             cylinderCenter, cylinderRotation, cylinderLocalAxis, cylinderLength, cylinderRadius,
             capsuleCenter, capsuleRotation, capsuleLocalAxis, capsuleLength, capsuleRadius);
         return true;

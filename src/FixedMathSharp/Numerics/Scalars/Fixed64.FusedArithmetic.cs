@@ -663,7 +663,7 @@ public partial struct Fixed64
     /// Divides an unsigned 128-bit numerator by a 64-bit divisor when the quotient
     /// is known to fit in 64 bits.
     /// </summary>
-    private static ulong Divide128By64(
+    internal static ulong Divide128By64(
         ulong high,
         ulong low,
         ulong divisor,
@@ -686,19 +686,40 @@ public partial struct Fixed64
             return (quotientHigh << 32) | quotientLow;
         }
 
+        // Two base-2^32 quotient digits (normalized Algorithm D). The
+        // existing quotient-fit precondition is high < divisor, so shifting
+        // cannot discard a high numerator bit and each partial remainder
+        // stays below the normalized divisor.
+        const ulong radix = 1UL << 32;
+        int shift = CountLeadingZeroes(divisor);
+        divisor <<= shift;
+        remainder = shift == 0 ? high : (high << shift) | (low >> (64 - shift));
+        ulong normalizedLow = low << shift;
+        ulong divisorHigh = divisor >> 32;
+        ulong divisorLow = (uint)divisor;
         ulong quotient = 0UL;
-        remainder = high;
-        for (int bit = 63; bit >= 0; bit--)
+        for (int digit = 1; digit >= 0; digit--)
         {
-            bool carry = (remainder & (1UL << 63)) != 0UL;
-            remainder = (remainder << 1) | ((low >> bit) & 1UL);
-            if (carry || remainder >= divisor)
+            ulong next = (uint)(normalizedLow >> (digit * 32));
+            ulong trial = remainder / divisorHigh;
+            ulong trialRemainder = remainder - trial * divisorHigh;
+            // Normalization bounds the overestimate by two. Once the trial
+            // remainder reaches radix, the comparison is necessarily false;
+            // stop before forming its overflowing radix product.
+            while (trial >= radix || trial * divisorLow > (trialRemainder << 32) + next)
             {
-                remainder = unchecked(remainder - divisor);
-                quotient |= 1UL << bit;
+                trial--;
+                trialRemainder += divisorHigh;
+                if (trialRemainder >= radix)
+                    break;
             }
+            // The exact difference is in [0, divisor), so retaining this
+            // 96-bit subtraction modulo 2^64 loses no remainder information.
+            remainder = unchecked((remainder << 32) + next - trial * divisor);
+            quotient = (quotient << 32) | trial;
         }
 
+        remainder >>= shift;
         return quotient;
     }
 

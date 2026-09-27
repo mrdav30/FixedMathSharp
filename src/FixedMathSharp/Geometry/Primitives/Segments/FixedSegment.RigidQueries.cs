@@ -166,10 +166,10 @@ public partial struct FixedSegment
     /// <remarks>
     /// Both finite axes remain authoritative in their normalized rigid frames.
     /// The returned normal points from the first cylinder toward the second.
-    /// Zero-radius cylinders are finite segments. Their oblique contacts can
-    /// require hundreds of KiB of bounded stack scratch, without managed
-    /// allocation. Allow at least a 1 MiB thread stack with adequate caller
-    /// headroom; avoid deliberately small-stack workers.
+    /// Zero-radius cylinders are finite segments. Oblique contacts, including
+    /// positive-radius cylinder pairs, can require hundreds of KiB of bounded
+    /// stack scratch without managed allocation. Allow at least a 1 MiB thread
+    /// stack with adequate caller headroom; avoid deliberately small-stack workers.
     /// </remarks>
     public static bool TryGetCenteredFiniteCylindersContact(
         Vector3d firstCenter,

@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using BenchmarkDotNet.ConsoleArguments;
+using BenchmarkDotNet.ConsoleArguments.ListBenchmarks;
+using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 
@@ -14,7 +17,7 @@ internal static class Program
     {
         if (args.Length == 0)
         {
-            return GetExitCode(BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args));
+            return RunBenchmarks(BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly), args);
         }
 
         string command = args[0];
@@ -27,7 +30,7 @@ internal static class Program
             return 0;
         }
 
-        if (string.Equals(command, "help", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(command, "help", StringComparison.OrdinalIgnoreCase) && args.Length == 1)
         {
             WriteUsage();
             return 0;
@@ -43,8 +46,8 @@ internal static class Program
                 return 1;
             }
 
-            return GetExitCode(BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(
-                EnsureAllBenchmarksSelected(CopyRange(args, 1, args.Length - 1))));
+            return RunBenchmarks(BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly),
+                EnsureAllBenchmarksSelected(CopyRange(args, 1, args.Length - 1)));
         }
 
         int aliasCount = 0;
@@ -53,7 +56,7 @@ internal static class Program
 
         if (aliasCount == 0)
         {
-            return GetExitCode(BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args));
+            return RunBenchmarks(BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly), args);
         }
 
         Type[] selectedTypes = _catalog.Resolve(CopyRange(args, 0, aliasCount), out string unknownAlias);
@@ -65,14 +68,35 @@ internal static class Program
             return 1;
         }
 
-        return GetExitCode(BenchmarkSwitcher.FromTypes(selectedTypes).Run(
-            EnsureAllBenchmarksSelected(CopyRange(args, aliasCount, args.Length - aliasCount))));
+        return RunBenchmarks(BenchmarkSwitcher.FromTypes(selectedTypes),
+            EnsureAllBenchmarksSelected(CopyRange(args, aliasCount, args.Length - aliasCount)));
     }
 
-    private static int GetExitCode(IEnumerable<Summary> summaries)
+    private static int RunBenchmarks(BenchmarkSwitcher switcher, string[] args)
     {
+        bool helpOrVersion = args.Length > 0 &&
+            (string.Equals(args[0], "--help", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(args[0], "--version", StringComparison.OrdinalIgnoreCase));
+
+        // BDN returns no summaries for both parse failures and informational
+        // commands. Its leading help/version handler skips the remaining args,
+        // so validate those too before treating an empty result as success.
+        var (parsed, _, options) = ConfigParser.Parse(
+            helpOrVersion ? CopyRange(args, 1, args.Length - 1) : args,
+            ConsoleLogger.Default);
+        if (!parsed)
+            return 1;
+
+        return GetExitCode(switcher.Run(args), helpOrVersion || options.PrintInformation ||
+            options.ListBenchmarkCaseMode != ListBenchmarkCaseMode.Disabled);
+    }
+
+    private static int GetExitCode(IEnumerable<Summary> summaries, bool allowEmpty)
+    {
+        bool hasSummary = false;
         foreach (Summary summary in summaries)
         {
+            hasSummary = true;
             // Earlier launches can leave a populated summary after a later
             // child fails. Check every reported execution, not just aggregate results.
             if (summary.HasCriticalValidationErrors || summary.Reports.Any(report =>
@@ -81,8 +105,7 @@ internal static class Program
                 return 1;
         }
 
-        // Listing/help commands intentionally produce no summaries.
-        return 0;
+        return hasSummary || allowEmpty ? 0 : 1;
     }
 
     private static string[] EnsureAllBenchmarksSelected(string[] benchmarkArgs)

@@ -240,39 +240,42 @@ internal static partial class WideFiniteAxisIntersection
         return resultSign;
     }
 
-    private static void RefineFiniteCrossingRoot(ref FiniteAxisPolynomialRoot root)
+    private static void RefineFiniteCrossingRoot(ref FiniteAxisPolynomialRoot root) =>
+        RefineFiniteCrossingRoot(root.Coefficients, root.Signs, root.LowerNumerator,
+            ref root.DenominatorShift, ref root.IsRational, root.CrossingSign);
+
+    private static void RefineFiniteCrossingRoot(scoped ReadOnlySpan<ulong> coefficients,
+        scoped ReadOnlySpan<sbyte> signs, scoped Span<ulong> lowerNumerator,
+        ref int denominatorShift, ref bool isRational, int crossingSign,
+        int unitIntervalCoefficientBits = 0)
     {
         // Opposite endpoint signs and exactly one distinct enclosed root
         // permit ordinary sign bisection, even for an odd multiple root.
         // No Sturm sequence is needed again unless the root does not cross.
-        ShiftFiniteRootLeft(root.LowerNumerator, 1);
-        AddRoundedCylinderWord(root.LowerNumerator, 0, 1);
-        root.DenominatorShift++;
-        int sign = EvaluateFiniteRootPolynomial(root.Coefficients, root.Signs,
-            root.LowerNumerator, root.DenominatorShift, 0);
+        ShiftFiniteRootLeft(lowerNumerator, 1);
+        AddRoundedCylinderWord(lowerNumerator, 0, 1);
+        denominatorShift++;
+        // A value-root midpoint lies in (0,1). Reuse the normalized Horner
+        // certificate: coefficient and product truncation together contribute
+        // less than 2*(degree+1) units. Nonzero results therefore prove the
+        // exact sign. An uncertain result still uses full integer evaluation,
+        // including every exact dyadic root and ill-conditioned crossing.
+        // The wider quartic root domain keeps its existing exact evaluator.
+        // This precision is a work budget, not an acceptance tolerance. The
+        // extra degree*k bits cover small-x attenuation; for a retained
+        // positive cell, k <= min(shift, coefficientBits+3) by Cauchy's bound.
+        int sign = unitIntervalCoefficientBits == 0 ? 0 : GetFiniteValueApproximateSign(
+            lowerNumerator, denominatorShift, coefficients, signs,
+            denominatorShift + 64 + (signs.Length - 1)
+                * (denominatorShift - GetFiniteRootBits(lowerNumerator) + 1),
+            unitIntervalCoefficientBits);
         if (sign == 0)
-            root.IsRational = true;
-        else if (sign != root.CrossingSign)
-            root.LowerNumerator[0]--;
-    }
-
-    internal static void NormalizeFiniteAxisPolynomialPowerOfTwo(
-        Span<ulong> coefficients, ReadOnlySpan<sbyte> signs)
-    {
-        int words = coefficients.Length / signs.Length;
-        int shift = int.MaxValue;
-        for (int index = 0; index < signs.Length; index++)
-        {
-            if (signs[index] != 0)
-                shift = Math.Min(shift, CountRoundedCylinderTrailingZeroes(coefficients.Slice(index * words, words)));
-        }
-        if (shift == int.MaxValue || shift == 0)
-            return;
-        for (int index = 0; index < signs.Length; index++)
-        {
-            if (signs[index] != 0)
-                ShiftRoundedCylinderWideRight(coefficients.Slice(index * words, words), shift);
-        }
+            sign = EvaluateFiniteRootPolynomial(coefficients, signs,
+                lowerNumerator, denominatorShift, 0);
+        if (sign == 0)
+            isRational = true;
+        else if (sign != crossingSign)
+            lowerNumerator[0]--;
     }
 
     private static int ReduceFiniteRootQuery(FiniteAxisPolynomialRoot root,
@@ -374,38 +377,71 @@ internal static partial class WideFiniteAxisIntersection
         return variations;
     }
 
-    private static int EvaluateFiniteRootPolynomial(ReadOnlySpan<ulong> coefficients,
+    internal static int EvaluateFiniteRootPolynomial(ReadOnlySpan<ulong> coefficients,
         ReadOnlySpan<sbyte> signs, ReadOnlySpan<ulong> numerator, int shift, int derivative)
     {
-        int degree = signs.Length - 1;
-        if (degree == derivative)
-            return signs[degree];
-        int inputWords = coefficients.Length / signs.Length;
+        if (signs.Length - 1 == derivative)
+            return signs[derivative];
+        int words = GetFiniteRootEvaluationWords(coefficients, signs, numerator, shift, derivative,
+            out int coefficientWords);
+        Span<ulong> scratch = stackalloc ulong[2 * words + coefficientWords + 1];
+        return EvaluateFiniteRootPolynomialCore(coefficients, signs, numerator, shift, derivative,
+            words, coefficientWords, scratch);
+    }
+
+    private static int EvaluateFiniteRootPolynomial(ReadOnlySpan<ulong> coefficients,
+        ReadOnlySpan<sbyte> signs, ReadOnlySpan<ulong> numerator, int shift, int derivative,
+        Span<ulong> scratch)
+    {
+        if (signs.Length - 1 == derivative)
+            return signs[derivative];
+        int words = GetFiniteRootEvaluationWords(coefficients, signs, numerator, shift, derivative,
+            out int coefficientWords);
+        return EvaluateFiniteRootPolynomialCore(coefficients, signs, numerator, shift, derivative,
+            words, coefficientWords, scratch);
+    }
+
+    private static int GetFiniteRootEvaluationWords(ReadOnlySpan<ulong> coefficients,
+        ReadOnlySpan<sbyte> signs, ReadOnlySpan<ulong> numerator, int shift, int derivative,
+        out int coefficientWords)
+    {
         int boundBits = Math.Max(GetFiniteRootBits(numerator) + Math.Max(-shift, 0), Math.Max(shift, 0) + 1);
-        int words = (GetFiniteRootCoefficientBits(coefficients, signs.Length)
-            + (degree - derivative) * boundBits + 95) / 64;
-        Span<ulong> n = stackalloc ulong[words];
-        Span<ulong> result = stackalloc ulong[words];
-        Span<ulong> product = stackalloc ulong[words];
-        Span<ulong> term = stackalloc ulong[words];
-        Span<ulong> sum = stackalloc ulong[words];
-        n.Clear();
-        numerator[..GetRoundedCylinderWideLength(numerator)].CopyTo(n);
-        if (shift < 0)
-            ShiftFiniteRootLeft(n, -shift);
+        int coefficientBits = GetFiniteRootCoefficientBits(coefficients, signs.Length);
+        coefficientWords = (coefficientBits + 63) / 64;
+        return (coefficientBits
+            + (signs.Length - 1 - derivative) * boundBits + 95) / 64;
+    }
+
+    private static int EvaluateFiniteRootPolynomialCore(ReadOnlySpan<ulong> coefficients,
+        ReadOnlySpan<sbyte> signs, ReadOnlySpan<ulong> numerator, int shift, int derivative,
+        int words, int coefficientWords, Span<ulong> scratch)
+    {
+        if (GetRoundedCylinderWideLength(numerator) == 0)
+            return signs[derivative];
+        int degree = signs.Length - 1;
+        int inputWords = coefficients.Length / signs.Length;
+        Span<ulong> result = scratch[..words];
+        Span<ulong> product = scratch.Slice(words, words);
+        // Homogeneous Horner needs only two large accumulators. Borrow the
+        // numerator and add shifted coefficients directly; derivative factors
+        // fit in one word, so their temporary needs just one extra input word.
+        Span<ulong> term = scratch.Slice(2 * words, coefficientWords + 1);
         result.Clear();
-        sbyte resultSign = 0;
+        int resultSign = 0;
         for (int index = degree; index >= derivative; index--)
         {
-            MultiplyRoundedCylinderWide(result, n, product);
+            WideArithmetic.MultiplyMagnitudes(result, numerator, product);
+            if (shift < 0)
+                ShiftFiniteRootLeft(product, -shift);
             ulong binomial = 1;
             for (int factor = 1; factor <= derivative; factor++)
                 binomial = binomial * (ulong)(index - factor + 1) / (ulong)factor;
             MultiplyRoundedCylinderWideByWord(coefficients.Slice(index * inputWords, inputWords), binomial, term);
-            if (shift > 0)
-                ShiftFiniteRootLeft(term, (degree - index) * shift);
-            AddRoundedCylinderSigned(product, resultSign, term, signs[index], sum, out resultSign);
-            sum.CopyTo(result);
+            WideArithmetic.AddShiftedSignedMagnitude(term, signs[index],
+                shift > 0 ? (degree - index) * shift : 0, product, ref resultSign);
+            Span<ulong> swap = result;
+            result = product;
+            product = swap;
         }
         return resultSign;
     }

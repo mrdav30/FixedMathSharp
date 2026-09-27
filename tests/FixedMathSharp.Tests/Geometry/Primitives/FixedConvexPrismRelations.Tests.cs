@@ -33,6 +33,29 @@ public sealed class FixedConvexPrismRelationsTests
         VerticalTriangle[1],
         VerticalTriangle[2]);
 
+    [Theory]
+    [InlineData(-1, true)]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    public void ConeApexContact_PreservesOneRawSeparationFromThePrismFace(int offset, bool expected)
+    {
+        // The cone apex is exactly y=1. The square prism's lower face is
+        // y=1+offset raw units; no radial contribution changes this axis.
+        Vector3d prismOrigin = new(Fixed64.Zero, Fixed64.Two + Fixed64.FromRaw(offset), Fixed64.Zero);
+        bool hit = FixedConvexPrismRelations.TryGetCenteredConeContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.One,
+            prismOrigin, Fixed64.Zero, UnitSquare, Fixed64.One, out FixedContactAnchors contact);
+        Assert.Equal(expected, hit);
+        if (hit)
+        {
+            Assert.Equal(Fixed64.FromRaw(-offset), contact.Depth);
+            Assert.Equal(Vector3d.Up, contact.Normal);
+            Assert.False(contact.DepthIsClamped);
+        }
+        else
+            Assert.Equal(default, contact);
+    }
+
     [Fact]
     public void FiniteShapeContacts_RemainOriginRelativeAtTheScalarFace()
     {

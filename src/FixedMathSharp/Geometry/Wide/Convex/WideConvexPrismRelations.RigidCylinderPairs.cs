@@ -5,8 +5,6 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
-using System;
-
 namespace FixedMathSharp.Geometry;
 
 /// <content>
@@ -25,39 +23,8 @@ internal static partial class WideConvexPrismRelations
         Vector3d secondLocalAxis,
         Fixed64 secondLength,
         Fixed64 secondRadius,
-        out FixedContactAnchors contact) =>
-        TryGetCenteredFiniteCylindersContact(
-            firstCenter,
-            firstRotation,
-            firstLocalAxis,
-            firstLength,
-            firstRadius,
-            secondCenter,
-            secondRotation,
-            secondLocalAxis,
-            secondLength,
-            secondRadius,
-            out contact,
-            out _,
-            out _);
-
-    internal static bool TryGetCenteredFiniteCylindersContact(
-        Vector3d firstCenter,
-        FixedQuaternion firstRotation,
-        Vector3d firstLocalAxis,
-        Fixed64 firstLength,
-        Fixed64 firstRadius,
-        Vector3d secondCenter,
-        FixedQuaternion secondRotation,
-        Vector3d secondLocalAxis,
-        Fixed64 secondLength,
-        Fixed64 secondRadius,
-        out FixedContactAnchors contact,
-        out bool usedWideCandidate,
-        out bool usedMultiRadicalRanking)
+        out FixedContactAnchors contact)
     {
-        usedWideCandidate = false;
-        usedMultiRadicalRanking = false;
         // A zero-radius cylinder is exactly its finite core segment. Keep
         // that family with the complete cylinder/capsule authority, including
         // oblique side/rim minima and zero-depth segment/segment contacts.
@@ -80,6 +47,38 @@ internal static partial class WideConvexPrismRelations
                 -reversed.Normal, reversed.Depth, reversed.DepthIsClamped);
             return true;
         }
+        if (!TryGetPositiveRadiusCylinderPairPenetration(
+                firstCenter, firstRotation, firstLocalAxis, Signed192.Raw(firstLength), firstRadius,
+                secondCenter, secondRotation, secondLocalAxis, Signed192.Raw(secondLength), secondRadius,
+                out Vector3d normal, out Fixed64 depth, out bool depthIsClamped))
+        {
+            contact = default;
+            return false;
+        }
+        contact = new FixedContactAnchors(
+            WideGeometry.GetCenteredCylinderSupportAnchor(firstCenter, firstRotation,
+                firstLocalAxis, firstLength, firstRadius, normal),
+            WideGeometry.GetCenteredCylinderSupportAnchor(secondCenter, secondRotation,
+                secondLocalAxis, secondLength, secondRadius, -normal),
+            normal, depth, depthIsClamped);
+        return true;
+    }
+
+    /// <summary>
+    /// Exact relation for admitted rigid cylinders with positive radii. Raw full
+    /// lengths may occupy 64 unsigned bits, including twice a slab half-thickness.
+    /// This does not widen authored positions, radii, or quaternion admission.
+    /// </summary>
+    internal static bool TryGetPositiveRadiusCylinderPairPenetration(
+        Vector3d firstCenter, FixedQuaternion firstRotation, Vector3d firstLocalAxis,
+        Signed192 firstLength, Fixed64 firstRadius,
+        Vector3d secondCenter, FixedQuaternion secondRotation, Vector3d secondLocalAxis,
+        Signed192 secondLength, Fixed64 secondRadius,
+        out Vector3d normal, out Fixed64 depth, out bool depthIsClamped)
+    {
+        normal = default;
+        depth = default;
+        depthIsClamped = false;
         WideOrientedBox.GetRotatedLocalAxisNumerators(
             firstRotation,
             firstLocalAxis,
@@ -106,6 +105,12 @@ internal static partial class WideConvexPrismRelations
             secondDenominator);
         Axis3 firstCandidate = firstAxis.ToWide();
         Axis3 secondCandidate = secondAxis.ToWide();
+        if (!Cross(firstCandidate, secondCandidate).IsZero)
+        {
+            return TryGetNonparallelCylinderPairPenetration(firstCenter, firstRotation, firstLocalAxis,
+                firstLength, firstRadius, secondCenter, secondRotation, secondLocalAxis,
+                secondLength, secondRadius, out normal, out depth, out depthIsClamped);
+        }
         var best = default(CylinderCylinderPenetration);
         if (!TryKeepCylinderCylinderAxis(
                 firstCandidate,
@@ -117,179 +122,62 @@ internal static partial class WideConvexPrismRelations
                 secondAxis,
                 secondLength,
                 secondRadius,
-                ref best)
-            || !TryKeepCylinderCylinderAxis(
-                secondCandidate,
-                firstCenter,
-                firstAxis,
-                firstLength,
-                firstRadius,
-                secondCenter,
-                secondAxis,
-                secondLength,
-                secondRadius,
-                ref best)
-            || !TryKeepCylinderCylinderAxis(
-                Cross(firstCandidate, secondCandidate),
-                firstCenter,
-                firstAxis,
-                firstLength,
-                firstRadius,
-                secondCenter,
-                secondAxis,
-                secondLength,
-                secondRadius,
                 ref best))
         {
-            contact = default;
             return false;
         }
-        if (!WideOrientedBox
-            .TryKeepCenteredRigidCylinderCylinderClosestAxis(
-                firstCenter,
-                firstRotation,
-                firstLocalAxis,
-                firstLength,
-                firstRadius,
-                secondCenter,
-                secondRotation,
-                secondLocalAxis,
-                secondLength,
-                secondRadius,
-                ref best))
+        // Coincident or overlapping coaxial cores have a zero closest-core
+        // direction. Their radial minimum still needs a representative;
+        // reuse the cylinder/capsule authored-frame tie direction. For an
+        // off-axis pair the closest-core radial candidate remains minimal.
+        CylinderCapsuleDirection perpendicular = GetCylinderCapsulePerpendicular(firstRotation, firstLocalAxis);
+        if (!TryKeepCylinderCylinderAxis(
+                new Axis3(Signed320.NarrowValue(perpendicular.X),
+                    Signed320.NarrowValue(perpendicular.Y), Signed320.NarrowValue(perpendicular.Z)),
+                firstCenter, firstAxis, firstLength, firstRadius,
+                secondCenter, secondAxis, secondLength, secondRadius, ref best))
         {
-            contact = default;
             return false;
         }
-        Vector3d normal;
-        Fixed64 depth;
-        bool depthIsClamped;
-        if (best.IsWide)
+        // Parallel finite cylinders need their cap axis and the perpendicular
+        // center difference, not clamped closest points on their core segments.
+        // |A_i|<2^100 and |d_i|<2^64 bound the two cross products by
+        // 2^167 and 2^269 per component, including subtraction headroom.
+        // The squared norm is <2^540, alignment <2^371, and radial plane
+        // product <2^742, within the existing 576/832-bit slots.
+        var difference = new Axis3(
+            Signed320.ExtendValue(WideArithmetic.Difference(secondCenter.X, firstCenter.X)),
+            Signed320.ExtendValue(WideArithmetic.Difference(secondCenter.Y, firstCenter.Y)),
+            Signed320.ExtendValue(WideArithmetic.Difference(secondCenter.Z, firstCenter.Z)));
+        Axis3 radial = Cross(firstCandidate, Cross(difference, firstCandidate));
+        if (!TryKeepCylinderCylinderAxis(radial,
+                firstCenter, firstAxis, firstLength, firstRadius,
+                secondCenter, secondAxis, secondLength, secondRadius, ref best))
         {
-            normal = best.WideNormal;
-            depth = best.WideDepth;
-            depthIsClamped = best.WideDepthIsClamped;
+            return false;
         }
-        else
-        {
-            Axis3 orientedAxis = best.Negate
-                ? new Axis3(
-                    WideArithmetic.Negate(best.Axis.X),
-                    WideArithmetic.Negate(best.Axis.Y),
-                    WideArithmetic.Negate(best.Axis.Z))
-                : best.Axis;
-            normal = WideNormalization.GetNormalized(
-                Signed576.ExtendValue(orientedAxis.X),
-                Signed576.ExtendValue(orientedAxis.Y),
-                Signed576.ExtendValue(orientedAxis.Z));
-            GetRoundedCylinderCylinderDepth(
-                best.Depth,
-                out depth,
-                out depthIsClamped);
-        }
-        FixedPointAnchor firstAnchor =
-            WideGeometry.GetCenteredCylinderSupportAnchor(
-                firstCenter,
-                firstRotation,
-                firstLocalAxis,
-                firstLength,
-                firstRadius,
-                normal);
-        FixedPointAnchor secondAnchor =
-            WideGeometry.GetCenteredCylinderSupportAnchor(
-                secondCenter,
-                secondRotation,
-                secondLocalAxis,
-                secondLength,
-                secondRadius,
-                -normal);
-        contact = new FixedContactAnchors(
-            firstAnchor,
-            secondAnchor,
-            normal,
-            depth,
-            depthIsClamped);
-        usedWideCandidate = best.IsWide;
-        usedMultiRadicalRanking =
-            best.IsWide
-            || !best.Depth.TryGetFastDepth(out _);
+        Axis3 orientedAxis = best.Negate
+            ? new Axis3(WideArithmetic.Negate(best.Axis.X),
+                WideArithmetic.Negate(best.Axis.Y), WideArithmetic.Negate(best.Axis.Z))
+            : best.Axis;
+        normal = WideNormalization.GetNormalized(
+            Signed576.ExtendValue(orientedAxis.X),
+            Signed576.ExtendValue(orientedAxis.Y),
+            Signed576.ExtendValue(orientedAxis.Z));
+        GetRoundedCylinderCylinderDepth(best, out depth, out depthIsClamped);
         return true;
     }
 
-    internal static bool TryKeepWideCylinderCylinderAxis(
-        WideCandidateAxis3 candidate,
-        Vector3d firstCenter,
-        FixedQuaternion firstRotation,
-        Vector3d firstLocalAxis,
-        Fixed64 firstLength,
-        Fixed64 firstRadius,
-        Vector3d secondCenter,
-        FixedQuaternion secondRotation,
-        Vector3d secondLocalAxis,
-        Fixed64 secondLength,
-        Fixed64 secondRadius,
-        ref CylinderCylinderPenetration best)
-    {
-        WideOrientedBox.GetRotatedLocalAxisNumerators(
-            firstRotation,
-            firstLocalAxis,
-            out Signed192 firstAxisX,
-            out Signed192 firstAxisY,
-            out Signed192 firstAxisZ,
-            out Signed192 firstDenominator);
-        WideOrientedBox.GetRotatedLocalAxisNumerators(
-            secondRotation,
-            secondLocalAxis,
-            out Signed192 secondAxisX,
-            out Signed192 secondAxisY,
-            out Signed192 secondAxisZ,
-            out Signed192 secondDenominator);
-        var firstAxis = new RigidAxis3(
-            firstAxisX,
-            firstAxisY,
-            firstAxisZ,
-            firstDenominator);
-        var secondAxis = new RigidAxis3(
-            secondAxisX,
-            secondAxisY,
-            secondAxisZ,
-            secondDenominator);
-        if (!candidate.TryNarrow(out Axis3 axis))
-        {
-            return TryKeepWideCylinderCylinderAxisFallback(
-                candidate,
-                firstCenter,
-                firstAxis,
-                firstLength,
-                firstRadius,
-                secondCenter,
-                secondAxis,
-                secondLength,
-                secondRadius,
-                ref best);
-        }
-        return TryKeepCylinderCylinderAxis(
-            axis,
-            firstCenter,
-            firstAxis,
-            firstLength,
-            firstRadius,
-            secondCenter,
-            secondAxis,
-            secondLength,
-            secondRadius,
-            ref best);
-    }
 
     private static bool TryKeepCylinderCylinderAxis(
         Axis3 axis,
         Vector3d firstCenter,
         RigidAxis3 firstAxis,
-        Fixed64 firstLength,
+        Signed192 firstLength,
         Fixed64 firstRadius,
         Vector3d secondCenter,
         RigidAxis3 secondAxis,
-        Fixed64 secondLength,
+        Signed192 secondLength,
         Fixed64 secondRadius,
         ref CylinderCylinderPenetration best)
     {
@@ -307,12 +195,12 @@ internal static partial class WideConvexPrismRelations
         Signed576 firstAxial = WideArithmetic.MultiplySigned576(
             WideArithmetic.MultiplySigned576(
                 GetMagnitude576(firstAlignment),
-                Signed192.Raw(firstLength)),
+                firstLength),
             secondAxis.RotationDenominator);
         Signed576 secondAxial = WideArithmetic.MultiplySigned576(
             WideArithmetic.MultiplySigned576(
                 GetMagnitude576(secondAlignment),
-                Signed192.Raw(secondLength)),
+                secondLength),
             firstAxis.RotationDenominator);
         Signed576 scaledCenter = WideArithmetic.MultiplySigned576(
             WideArithmetic.MultiplySigned576(
@@ -328,16 +216,6 @@ internal static partial class WideConvexPrismRelations
                     secondAxial),
                 scaledCenter));
         Signed576 axisSquared = GetAxisSquared(axis);
-        Signed320 firstAxisSquared = GetAxisSquared(firstAxis);
-        Signed320 secondAxisSquared = GetAxisSquared(secondAxis);
-        Signed832 firstPlaneSquared = GetPlaneSquared(
-            axisSquared,
-            firstAxisSquared,
-            firstAlignment);
-        Signed832 secondPlaneSquared = GetPlaneSquared(
-            axisSquared,
-            secondAxisSquared,
-            secondAlignment);
         Signed576 commonWide = WideArithmetic.MultiplySigned576(
             Signed576.ExtendValue(
                 WideArithmetic.MultiplySigned192(
@@ -347,17 +225,15 @@ internal static partial class WideConvexPrismRelations
         _ = Signed192.TryNarrowSigned(
             commonWide,
             out Signed192 common);
-        var depth = new CylinderPairDepth(
-            rational,
-            common,
-            firstRadius,
-            secondRadius,
-            axisSquared,
-            firstAxisSquared,
-            secondAxisSquared,
-            firstPlaneSquared,
-            secondPlaneSquared);
-        if (!IsCylinderPairDepthNonNegative(depth))
+        // Only cap normals and perpendiculars reach this parallel selector.
+        // The radial support is respectively zero or the sum of both radii.
+        // Each admitted radius raw value is <= 2^63-1, so their exact sum
+        // is <= 2^64-2 and must not be narrowed through Fixed64.
+        ulong radiusRaw = firstAlignment.IsZero
+            ? unchecked((ulong)firstRadius.m_rawValue + (ulong)secondRadius.m_rawValue)
+            : 0UL;
+        var depth = new CylinderPairDepth(rational, common, axisSquared, radiusRaw);
+        if (GetCylinderPairDepthSign(depth) < 0)
             return false;
         if (!best.HasValue
             || CompareCylinderPairDepths(
@@ -372,310 +248,23 @@ internal static partial class WideConvexPrismRelations
         return true;
     }
 
-    private static bool IsCylinderPairDepthNonNegative(
-        in CylinderPairDepth depth)
-    {
-        if (depth.TryGetFastDepth(
-                out ProjectionDepth fastDepth))
-        {
-            return IsProjectionNonNegative(fastDepth);
-        }
-
-        Span<ulong> radicands = stackalloc ulong[
-            CylinderPairRadicandWords * 3];
-        Span<int> signs = stackalloc int[3];
-        radicands.Clear();
-        signs.Clear();
-        BuildCylinderPairLocalRadicands(
-            depth,
-            radicands,
-            signs);
-        return WideArithmetic.GetLinearRadicalSumSign(
-            radicands,
-            CylinderPairRadicandWords,
-            signs) >= 0;
-    }
+    private static int GetCylinderPairDepthSign(in CylinderPairDepth depth) =>
+        WideArithmetic.CompareSignedLinearRadicalToZero(
+            Signed832.ExtendValue(depth.Rational),
+            Signed704.ExtendValue(Signed576.ExtendValue(depth.RadialCoefficient)),
+            depth.AxisSquared,
+            Signed320.ExtendValue(Signed192.Signed(1L)));
 
     private static int CompareCylinderPairDepths(
         in CylinderPairDepth left,
         in CylinderPairDepth right)
     {
-        if (left.TryGetFastDepth(
-                out ProjectionDepth leftFast)
-            && right.TryGetFastDepth(
-                out ProjectionDepth rightFast))
-        {
-            return CompareProjectionDepths(
-                leftFast,
-                rightFast);
-        }
-
-        Span<ulong> radicands = stackalloc ulong[
-            CylinderPairRadicandWords * 6];
-        Span<int> signs = stackalloc int[6];
-        radicands.Clear();
-        signs.Clear();
-        BuildCylinderPairCrossRadicands(
-            left,
-            right,
-            radicands,
-            signs);
-        return WideArithmetic.GetLinearRadicalSumSign(
-            radicands,
-            CylinderPairRadicandWords,
-            signs);
-    }
-
-    private static void BuildCylinderPairLocalRadicands(
-        in CylinderPairDepth depth,
-        Span<ulong> radicands,
-        Span<int> signs)
-    {
-        Span<ulong> rational = radicands.Slice(
-            0,
-            CylinderPairRadicandWords);
-        BuildCylinderPairRationalRadicand(
-            depth.Rational,
-            depth.FirstAxisSquared,
-            depth.SecondAxisSquared,
-            rational);
-        signs[0] = depth.Rational.Sign;
-
-        Span<ulong> firstDisk = radicands.Slice(
-            CylinderPairRadicandWords,
-            CylinderPairRadicandWords);
-        Signed320 firstCoefficient =
-            WideArithmetic.MultiplySigned192(
-                depth.Common,
-                Signed192.Raw(depth.FirstRadius));
-        BuildCylinderPairDiskRadicand(
-            firstCoefficient,
-            depth.FirstPlaneSquared,
-            depth.SecondAxisSquared,
-            firstDisk);
-        signs[1] = 1;
-
-        Span<ulong> secondDisk = radicands.Slice(
-            CylinderPairRadicandWords * 2,
-            CylinderPairRadicandWords);
-        Signed320 secondCoefficient =
-            WideArithmetic.MultiplySigned192(
-                depth.Common,
-                Signed192.Raw(depth.SecondRadius));
-        BuildCylinderPairDiskRadicand(
-            secondCoefficient,
-            depth.SecondPlaneSquared,
-            depth.FirstAxisSquared,
-            secondDisk);
-        signs[2] = 1;
-    }
-
-    private static void BuildCylinderPairCrossRadicands(
-        in CylinderPairDepth left,
-        in CylinderPairDepth right,
-        Span<ulong> radicands,
-        Span<int> signs)
-    {
-        BuildCylinderPairCrossRationalRadicand(
-            left,
-            right,
-            radicands.Slice(
-                0,
-                CylinderPairRadicandWords));
-        signs[0] = left.Rational.Sign;
-        BuildCylinderPairCrossDiskRadicand(
-            left,
-            firstDisk: true,
-            right,
-            radicands.Slice(
-                CylinderPairRadicandWords,
-                CylinderPairRadicandWords));
-        signs[1] = 1;
-        BuildCylinderPairCrossDiskRadicand(
-            left,
-            firstDisk: false,
-            right,
-            radicands.Slice(
-                CylinderPairRadicandWords * 2,
-                CylinderPairRadicandWords));
-        signs[2] = 1;
-
-        BuildCylinderPairCrossRationalRadicand(
-            right,
-            left,
-            radicands.Slice(
-                CylinderPairRadicandWords * 3,
-                CylinderPairRadicandWords));
-        signs[3] = -right.Rational.Sign;
-        BuildCylinderPairCrossDiskRadicand(
-            right,
-            firstDisk: true,
-            left,
-            radicands.Slice(
-                CylinderPairRadicandWords * 4,
-                CylinderPairRadicandWords));
-        signs[4] = -1;
-        BuildCylinderPairCrossDiskRadicand(
-            right,
-            firstDisk: false,
-            left,
-            radicands.Slice(
-                CylinderPairRadicandWords * 5,
-                CylinderPairRadicandWords));
-        signs[5] = -1;
-    }
-
-    private static void BuildCylinderPairRationalRadicand(
-        Signed704 rational,
-        Signed320 firstAxisSquared,
-        Signed320 secondAxisSquared,
-        Span<ulong> result)
-    {
-        Span<ulong> words = stackalloc ulong[11];
-        WideArithmetic.GetMagnitude(rational, words);
-        WideArithmetic.MultiplyMagnitudes(words, words, result);
-        MultiplyCylinderPairBy(
-            result,
-            firstAxisSquared);
-        MultiplyCylinderPairBy(
-            result,
-            secondAxisSquared);
-    }
-
-    private static void BuildCylinderPairDiskRadicand(
-        Signed320 coefficient,
-        Signed832 planeSquared,
-        Signed320 otherAxisSquared,
-        Span<ulong> result)
-    {
-        Span<ulong> coefficientWords =
-            stackalloc ulong[5];
-        GetMagnitude(coefficient, coefficientWords);
-        WideArithmetic.MultiplyMagnitudes(
-            coefficientWords,
-            coefficientWords,
-            result);
-        MultiplyCylinderPairBy(
-            result,
-            planeSquared);
-        MultiplyCylinderPairBy(
-            result,
-            otherAxisSquared);
-    }
-
-    private static void BuildCylinderPairCrossRationalRadicand(
-        in CylinderPairDepth depth,
-        in CylinderPairDepth other,
-        Span<ulong> result)
-    {
-        Span<ulong> rationalWords =
-            stackalloc ulong[11];
-        WideArithmetic.GetMagnitude(
-            depth.Rational,
-            rationalWords);
-        WideArithmetic.MultiplyMagnitudes(
-            rationalWords,
-            rationalWords,
-            result);
-        MultiplyCylinderPairBy(
-            result,
-            other.AxisSquared);
-        MultiplyCylinderPairBy(
-            result,
-            depth.FirstAxisSquared);
-        MultiplyCylinderPairBy(
-            result,
-            depth.SecondAxisSquared);
-        MultiplyCylinderPairBy(
-            result,
-            other.FirstAxisSquared);
-        MultiplyCylinderPairBy(
-            result,
-            other.SecondAxisSquared);
-    }
-
-    private static void BuildCylinderPairCrossDiskRadicand(
-        in CylinderPairDepth depth,
-        bool firstDisk,
-        in CylinderPairDepth other,
-        Span<ulong> result)
-    {
-        Fixed64 radius = firstDisk
-            ? depth.FirstRadius
-            : depth.SecondRadius;
-        Signed832 planeSquared = firstDisk
-            ? depth.FirstPlaneSquared
-            : depth.SecondPlaneSquared;
-        Signed320 uncancelledAxisSquared = firstDisk
-            ? depth.SecondAxisSquared
-            : depth.FirstAxisSquared;
-        Signed320 coefficient =
-            WideArithmetic.MultiplySigned192(
-                depth.Common,
-                Signed192.Raw(radius));
-        Span<ulong> coefficientWords =
-            stackalloc ulong[5];
-        GetMagnitude(
-            coefficient,
-            coefficientWords);
-        WideArithmetic.MultiplyMagnitudes(
-            coefficientWords,
-            coefficientWords,
-            result);
-        MultiplyCylinderPairBy(
-            result,
-            planeSquared);
-        MultiplyCylinderPairBy(
-            result,
-            other.AxisSquared);
-        MultiplyCylinderPairBy(
-            result,
-            uncancelledAxisSquared);
-        MultiplyCylinderPairBy(
-            result,
-            other.FirstAxisSquared);
-        MultiplyCylinderPairBy(
-            result,
-            other.SecondAxisSquared);
-    }
-
-    private static void MultiplyCylinderPairBy(
-        Span<ulong> value,
-        Signed320 factor)
-    {
-        Span<ulong> words = stackalloc ulong[5];
-        GetMagnitude(factor, words);
-        MultiplyCylinderPairBy(value, words);
-    }
-
-    private static void MultiplyCylinderPairBy(
-        Span<ulong> value,
-        Signed576 factor)
-    {
-        Span<ulong> words = stackalloc ulong[9];
-        WideArithmetic.GetMagnitude(factor, words);
-        MultiplyCylinderPairBy(value, words);
-    }
-
-    private static void MultiplyCylinderPairBy(
-        Span<ulong> value,
-        Signed832 factor)
-    {
-        Span<ulong> words = stackalloc ulong[13];
-        WideArithmetic.GetMagnitude(factor, words);
-        MultiplyCylinderPairBy(value, words);
-    }
-
-    private static void MultiplyCylinderPairBy(
-        Span<ulong> value,
-        ReadOnlySpan<ulong> factor)
-    {
-        Span<ulong> product =
-            stackalloc ulong[CylinderPairRadicandWords];
-        WideArithmetic.MultiplyMagnitudes(
-            value,
-            factor,
-            product);
-        product.CopyTo(value);
+        // All candidates in this query share the same positive Common.
+        Signed576 unit = Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1L)));
+        return WideArithmetic.CompareRadialProjectionDepths(
+            left.Rational, left.RadialCoefficient,
+            Signed832.ExtendValue(left.AxisSquared), unit, left.AxisSquared,
+            right.Rational, right.RadialCoefficient,
+            Signed832.ExtendValue(right.AxisSquared), unit, right.AxisSquared);
     }
 }

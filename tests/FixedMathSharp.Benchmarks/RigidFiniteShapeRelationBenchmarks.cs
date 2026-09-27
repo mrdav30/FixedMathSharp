@@ -80,6 +80,8 @@ public class RigidFiniteShapeRelationBenchmarks
             || !IrreducibleWideCylinderCapsule()
             || !OrdinaryCylinderCylinder()
             || !PenetratingRimsCylinderCylinder()
+            || SeparatedRimsCylinderCylinder()
+            || !TangentRimsCylinderCylinder()
             || !ZeroRadiusCylinderCylinder()
             || !OrdinaryCylinderCapsuleStrict()
             || !OrdinaryCylinderCylinderStrict()
@@ -130,9 +132,6 @@ public class RigidFiniteShapeRelationBenchmarks
             FixedQuaternion.Identity, Vector3d.Right, Fixed64.Two, Fixed64.One,
             out _);
 
-    // These two contact results are deliberately not asserted in Setup:
-    // FMS-Issue-024's enabled regression tests expose the current incorrect
-    // classification/depth. Keep the same geometry when measuring its repair.
     [Benchmark]
     public bool SeparatedRimsCylinderCylinder() =>
         FixedSegment.TryGetCenteredFiniteCylindersContact(
@@ -297,7 +296,7 @@ public class RigidFiniteShapeRelationBenchmarks
     [Benchmark]
     public bool OrdinaryCylinderCylinder()
     {
-        bool result = WideConvexPrismRelations
+        return FixedSegment
             .TryGetCenteredFiniteCylindersContact(
                 Vector3d.Zero,
                 FixedQuaternion.Identity,
@@ -312,18 +311,13 @@ public class RigidFiniteShapeRelationBenchmarks
                 Vector3d.Up,
                 Fixed64.Two,
                 Fixed64.One,
-                out _,
-                out bool usedWideCandidate,
-                out bool usedMultiRadicalRanking);
-        return result
-            && !usedWideCandidate
-            && !usedMultiRadicalRanking;
+                out _);
     }
 
     [Benchmark]
     public bool MultiRadicalCylinderCylinder()
     {
-        bool result = WideConvexPrismRelations
+        return FixedSegment
             .TryGetCenteredFiniteCylindersContact(
                 Vector3d.Zero,
                 _tiltedCylinder,
@@ -335,12 +329,7 @@ public class RigidFiniteShapeRelationBenchmarks
                 Vector3d.Up,
                 (Fixed64)4,
                 Fixed64.One,
-                out _,
-                out bool usedWideCandidate,
-                out bool usedMultiRadicalRanking);
-        return result
-            && !usedWideCandidate
-            && usedMultiRadicalRanking;
+                out _);
     }
 
     [Benchmark]

@@ -16,8 +16,6 @@ namespace FixedMathSharp.Geometry;
 internal static partial class WideConvexPrismRelations
 {
     private static readonly Signed192 Scale = Signed192.One;
-    private const int CylinderPairRadicandWords = 64;
-    private const int WideCandidateWords = 160;
 
     #region Nested Types
 
@@ -176,10 +174,6 @@ internal static partial class WideConvexPrismRelations
         internal readonly Axis3 Axis;
         internal readonly bool Negate;
         internal readonly CylinderPairDepth Depth;
-        internal readonly Vector3d WideNormal;
-        internal readonly Fixed64 WideDepth;
-        internal readonly bool WideDepthIsClamped;
-        internal readonly bool IsWide;
 
         internal CylinderCylinderPenetration(
             Axis3 axis,
@@ -189,277 +183,37 @@ internal static partial class WideConvexPrismRelations
             Axis = axis;
             Negate = negate;
             Depth = depth;
-            WideNormal = default;
-            WideDepth = default;
-            WideDepthIsClamped = false;
-            IsWide = false;
-            HasValue = true;
-        }
-
-        internal CylinderCylinderPenetration(
-            Vector3d normal,
-            Fixed64 depth,
-            bool depthIsClamped)
-        {
-            Axis = default;
-            Negate = false;
-            Depth = default;
-            WideNormal = normal;
-            WideDepth = depth;
-            WideDepthIsClamped = depthIsClamped;
-            IsWide = true;
             HasValue = true;
         }
 
         internal bool HasValue { get; }
     }
 
+    /// <summary>
+    /// Parallel cap/perpendicular depth R / (C sqrt(A)) + radiusRaw.
+    /// Authored axes need not have an exact unit squared length.
+    /// </summary>
     internal readonly struct CylinderPairDepth
     {
         internal readonly Signed704 Rational;
         internal readonly Signed192 Common;
-        internal readonly Fixed64 FirstRadius;
-        internal readonly Fixed64 SecondRadius;
         internal readonly Signed576 AxisSquared;
-        internal readonly Signed320 FirstAxisSquared;
-        internal readonly Signed320 SecondAxisSquared;
-        internal readonly Signed832 FirstPlaneSquared;
-        internal readonly Signed832 SecondPlaneSquared;
+        internal readonly ulong RadiusRaw;
 
         internal CylinderPairDepth(
             Signed704 rational,
             Signed192 common,
-            Fixed64 firstRadius,
-            Fixed64 secondRadius,
             Signed576 axisSquared,
-            Signed320 firstAxisSquared,
-            Signed320 secondAxisSquared,
-            Signed832 firstPlaneSquared,
-            Signed832 secondPlaneSquared)
+            ulong radiusRaw)
         {
             Rational = rational;
             Common = common;
-            FirstRadius = firstRadius;
-            SecondRadius = secondRadius;
             AxisSquared = axisSquared;
-            FirstAxisSquared = firstAxisSquared;
-            SecondAxisSquared = secondAxisSquared;
-            FirstPlaneSquared = firstPlaneSquared;
-            SecondPlaneSquared = secondPlaneSquared;
+            RadiusRaw = radiusRaw;
         }
 
-        internal bool TryGetFastDepth(
-            out ProjectionDepth depth)
-        {
-            // Zero-radius shapes dispatch to the segment contact authority
-            // before this positive-radius pair representation is constructed.
-            bool firstZero = FirstPlaneSquared.IsZero;
-            bool secondZero = SecondPlaneSquared.IsZero;
-            bool firstFull =
-                !firstZero
-                && IsFullDiskProjection(
-                    AxisSquared,
-                    FirstAxisSquared,
-                    FirstPlaneSquared);
-            bool secondFull =
-                !secondZero
-                && IsFullDiskProjection(
-                    AxisSquared,
-                    SecondAxisSquared,
-                    SecondPlaneSquared);
-            if (firstZero && secondZero)
-            {
-                depth = new ProjectionDepth(
-                    Rational,
-                    Common,
-                    Fixed64.Zero,
-                    RadialKind.None,
-                    AxisSquared,
-                    FirstAxisSquared,
-                    default);
-                return true;
-            }
-            if (firstZero || secondZero)
-            {
-                bool useFirst = secondZero;
-                depth = new ProjectionDepth(
-                    Rational,
-                    Common,
-                    useFirst
-                        ? FirstRadius
-                        : SecondRadius,
-                    useFirst
-                        ? (firstFull
-                            ? RadialKind.Capsule
-                            : RadialKind.Disk)
-                        : (secondFull
-                            ? RadialKind.Capsule
-                            : RadialKind.Disk),
-                    AxisSquared,
-                    useFirst
-                        ? FirstAxisSquared
-                        : SecondAxisSquared,
-                    useFirst
-                        ? FirstPlaneSquared
-                        : SecondPlaneSquared);
-                return true;
-            }
-            if (firstFull
-                && secondFull
-                && Fixed64.TryAdd(
-                    FirstRadius,
-                    SecondRadius,
-                    out Fixed64 combinedRadius))
-            {
-                depth = new ProjectionDepth(
-                    Rational,
-                    Common,
-                    combinedRadius,
-                    RadialKind.Capsule,
-                    AxisSquared,
-                    FirstAxisSquared,
-                    default);
-                return true;
-            }
-
-            depth = default;
-            return false;
-        }
-
-        internal ProjectionDepth CreateFirstDiskDepth() =>
-            new(
-                default,
-                Common,
-                FirstRadius,
-                RadialKind.Disk,
-                AxisSquared,
-                FirstAxisSquared,
-                FirstPlaneSquared);
-
-        internal ProjectionDepth CreateSecondDiskDepth() =>
-            new(
-                default,
-                Common,
-                SecondRadius,
-                RadialKind.Disk,
-                AxisSquared,
-                SecondAxisSquared,
-                SecondPlaneSquared);
-
-        private static bool IsFullDiskProjection(
-            Signed576 axisSquared,
-            Signed320 shapeAxisSquared,
-            Signed832 planeSquared)
-        {
-            Signed832 fullPlane =
-                WideArithmetic.MultiplyNonNegativeToSigned832(
-                    Signed832.ExtendValue(
-                        axisSquared),
-                    shapeAxisSquared);
-            return fullPlane.Equals(planeSquared);
-        }
-    }
-
-    internal readonly ref struct WideCandidateAxis3
-    {
-        internal readonly ReadOnlySpan<ulong> X;
-        internal readonly ReadOnlySpan<ulong> Y;
-        internal readonly ReadOnlySpan<ulong> Z;
-        internal readonly int XSign;
-        internal readonly int YSign;
-        internal readonly int ZSign;
-
-        internal WideCandidateAxis3(
-            ReadOnlySpan<ulong> x,
-            int xSign,
-            ReadOnlySpan<ulong> y,
-            int ySign,
-            ReadOnlySpan<ulong> z,
-            int zSign)
-        {
-            X = x;
-            Y = y;
-            Z = z;
-            XSign = xSign;
-            YSign = ySign;
-            ZSign = zSign;
-        }
-
-        internal bool TryNarrow(out Axis3 axis)
-        {
-            bool representable =
-                TryNarrowComponent(X, XSign, out Signed320 x)
-                & TryNarrowComponent(Y, YSign, out Signed320 y)
-                & TryNarrowComponent(Z, ZSign, out Signed320 z);
-            axis = representable
-                ? new Axis3(x, y, z)
-                : default;
-            return representable;
-        }
-
-        private static bool TryNarrowComponent(
-            ReadOnlySpan<ulong> magnitude,
-            int sign,
-            out Signed320 result)
-        {
-            int length = WideArithmetic.GetActiveMagnitudeLength(magnitude);
-            if (length > 5
-                || (length == 5
-                    && (magnitude[4] & (1UL << 63)) != 0UL))
-            {
-                result = default;
-                return false;
-            }
-
-            Signed320 positive = new(
-                length > 4 ? magnitude[4] : 0UL,
-                length > 3 ? magnitude[3] : 0UL,
-                length > 2 ? magnitude[2] : 0UL,
-                length > 1 ? magnitude[1] : 0UL,
-                length > 0 ? magnitude[0] : 0UL);
-            result = sign < 0
-                ? WideArithmetic.SubtractSigned320(default, positive)
-                : positive;
-            return true;
-        }
-    }
-
-    private readonly ref struct WideCylinderPairDepth
-    {
-        internal readonly ReadOnlySpan<ulong> Rational;
-        internal readonly int RationalSign;
-        internal readonly Signed192 Common;
-        internal readonly Fixed64 FirstRadius;
-        internal readonly Fixed64 SecondRadius;
-        internal readonly ReadOnlySpan<ulong> AxisSquared;
-        internal readonly Signed320 FirstAxisSquared;
-        internal readonly Signed320 SecondAxisSquared;
-        internal readonly ReadOnlySpan<ulong> FirstPlaneSquared;
-        internal readonly ReadOnlySpan<ulong> SecondPlaneSquared;
-
-        internal WideCylinderPairDepth(
-            ReadOnlySpan<ulong> rational,
-            int rationalSign,
-            Signed192 common,
-            Fixed64 firstRadius,
-            Fixed64 secondRadius,
-            ReadOnlySpan<ulong> axisSquared,
-            Signed320 firstAxisSquared,
-            Signed320 secondAxisSquared,
-            ReadOnlySpan<ulong> firstPlaneSquared,
-            ReadOnlySpan<ulong> secondPlaneSquared)
-        {
-            Rational = rational;
-            RationalSign = rationalSign;
-            Common = common;
-            FirstRadius = firstRadius;
-            SecondRadius = secondRadius;
-            AxisSquared = axisSquared;
-            FirstAxisSquared = firstAxisSquared;
-            SecondAxisSquared = secondAxisSquared;
-            FirstPlaneSquared = firstPlaneSquared;
-            SecondPlaneSquared = secondPlaneSquared;
-        }
+        internal Signed320 RadialCoefficient => WideArithmetic.MultiplySigned192(
+            Common, new Signed192(0UL, 0UL, RadiusRaw));
     }
 
     #endregion

@@ -45,7 +45,52 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ## Active Signals
 
-No active benchmark signals.
+### Complete nonparallel cylinder contacts are expensive
+
+- **Status / priority:** Isolated, high; measured on 2026-09-26 while closing
+  FMS-Issue-024. The complete exact relation is correct, but its general positive
+  contacts have not met a high-volume physics budget. This is distinct from
+  the explicitly accepted zero-radius dispatch trade-off.
+- **Source:** `RigidFiniteShapeRelationBenchmarks` on the working tree based on
+  `ad9c88b`. The [completed design](done/2026-09-25-cylinder-pair-contact-design.md)
+  retains exact geometry, arithmetic/resource proofs, prior profiles, matched
+  controls and validation evidence.
+- **Environment:** Windows 11, i7-9700K, SDK 10.0.302, .NET 8.0.29, Release,
+  BenchmarkDotNet 0.15.8, concurrent workstation GC, two-core affinity and
+  below-normal launcher; two launches, three warmups, twelve measurements.
+  Source mode used `UseLocalLsfStack=true`, `BuildInParallel=false`,
+  `UseSharedCompilation=false` and `DOTNET_PROCESSOR_COUNT=2`.
+- **Measurement:** Penetrating rims **11.566 +/- 0.110ms**; multi-radical contact
+  **25.137 +/- 0.164ms**, mean and 99.9% confidence half-width. Separated/tangent
+  rim workloads cost **5.409 / 5.141ms**. By contrast, ordinary parallel contact
+  costs **19.448 +/- 0.098us** and its strict predicate **0.856 +/- 0.008us**.
+  All 22 matched child launches exited zero. Artifacts:
+  `artifacts/fms024-matched-final`. The old limited-direction rim answers were
+  wrong and cannot serve as equivalent-correctness throughput targets.
+- **Allocation boundary:** Direct warmed calling-thread guards pass at zero.
+  One matched penetrating-rim child reported 12,336 process-wide bytes across
+  64 calls, although the second child and summary reported zero. The completed
+  plan records the bounded counter investigation; do not silently round this
+  discrepancy away or attribute it to the solver without evidence.
+- **Impact:** A few difficult oblique contacts can dominate a fixed frame.
+  No observed game workload or contact-count budget establishes acceptability.
+  Exact determinism, minimum-depth selection and rounding remain mandatory.
+- **Next isolation step:** Profile the retained complete solver on these frozen
+  cases, distinguishing feature construction, admissibility/selection and final
+  rounding. Establish the intended contact-count/frame budget before proposing
+  a larger exact-algorithm redesign. Existing profiles already removed repeated
+  GCDs/chains, redundant normals and worst-case mapping refinement; do not
+  repeat those experiments or add another approximate fallback.
+
+After the baseline build above, reproduce the two expensive positive contacts:
+
+```powershell
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll rigid-finite-shape-relation --filter '*PenetratingRimsCylinderCylinder*' '*MultiRadicalCylinderCylinder*' --warmupCount 3 --iterationCount 12 --launchCount 2 --keepFiles --exporters json --artifacts artifacts/benchmarks/cylinder-pair-cost
+```
+
+Serialize runs with other build/test/profile work. Inspect each child exit and
+GC record as well as the aggregate report. Recheck shared cylinder/capsule and
+parallel controls for any retained optimization.
 
 ## Signal Template
 

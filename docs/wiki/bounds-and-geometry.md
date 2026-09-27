@@ -231,13 +231,20 @@ and
 [`FixedSegment`](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.Geometry.FixedSegment.html)
 API pages.
 
-### Cylinder/capsule contacts
+### Cylinder contacts
 
 `FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact` includes the finite
 cylinder's caps, side, and rims when finding the minimum translation. It also
 handles a capsule core that enters the cylinder: depth is not necessarily just
 the capsule radius. A zero-length capsule core is a sphere; a zero-radius
 cylinder is its finite axis segment.
+
+`FixedSegment.TryGetCenteredFiniteCylindersContact` similarly finds the minimum
+translation between two finite cylinders, including side/rim and rim/rim
+constraints. Testing only the axes and their cross product is insufficient for
+general finite cylinders. Parallel pairs use a simpler exact path; general
+interacting rims require substantially more work. Measure the contact workloads
+that occur in your simulation, not only the ordinary parallel case.
 
 Classification and depth ordering use the exact authored geometry. Exact
 tangency is contact with zero depth, and a sub-raw separation remains a miss.
@@ -255,11 +262,11 @@ The query allocates no managed memory, but its exact fallback can use hundreds
 of KiB of bounded stack scratch. Avoid deliberately small-stack worker threads;
 allow at least a 1 MiB thread stack with adequate headroom for the caller.
 
-`FixedSegment.TryGetCenteredFiniteCylindersContact` uses the same finite-segment
-contact path when either cylinder has zero radius. The stack guidance above
-therefore also applies to oblique zero-radius cylinder pairs. A zero-radius
-shape's anchor can lie at the segment center when its whole core supports the
-selected normal; callers should not require a particular endpoint in a tie.
+Cylinder pairs use the same finite-segment contact path when either radius is
+zero. The stack guidance above applies to both positive-radius and zero-radius
+oblique pairs. A zero-radius shape's anchor can lie at the segment center when
+its whole core supports the selected normal; callers should not require a
+particular endpoint in a tie.
 
 ## Sweeps and finite-shape intervals
 

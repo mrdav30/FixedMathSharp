@@ -43,27 +43,42 @@ internal static partial class WideArithmetic
         product.Clear();
         int leftLength = GetActiveMagnitudeLength(left);
         int rightLength = GetActiveMagnitudeLength(right);
-        for (int leftIndex = 0; leftIndex < leftLength; leftIndex++)
+        int retainedLeft = Math.Min(leftLength, product.Length);
+        for (int leftIndex = 0; leftIndex < retainedLeft; leftIndex++)
         {
             ulong leftWord = left[leftIndex];
             if (leftWord == 0UL)
                 continue;
 
-            for (int rightIndex = 0; rightIndex < rightLength; rightIndex++)
+            ulong carry = 0;
+            int retainedRight = Math.Min(rightLength, product.Length - leftIndex);
+            for (int rightIndex = 0; rightIndex < retainedRight; rightIndex++)
             {
+                int productIndex = leftIndex + rightIndex;
                 ulong rightWord = right[rightIndex];
-                if (rightWord == 0UL)
+                if (rightWord == 0)
+                {
+                    // A sparse zero limb still owns the preceding carry.
+                    // Flush it once before skipping this multiplication.
+                    AddWord(product, productIndex, carry);
+                    carry = 0;
                     continue;
-
+                }
                 Fixed64.Multiply64To128(
                     leftWord,
                     rightWord,
                     out ulong high,
                     out ulong low);
-                int productIndex = leftIndex + rightIndex;
-                AddWord(product, productIndex, low);
-                AddWord(product, productIndex + 1, high);
+                ulong sum = unchecked(low + product[productIndex]);
+                high += sum < low ? 1UL : 0UL;
+                ulong value = unchecked(sum + carry);
+                carry = high + (value < sum ? 1UL : 0UL);
+                product[productIndex] = value;
             }
+            // One carry per row replaces two ripple additions per limb.
+            // A limb product plus the old word and carry is at most 2^128-1,
+            // so the next carry always fits. Preserve low-word truncation.
+            AddWord(product, leftIndex + retainedRight, carry);
         }
     }
 
@@ -130,5 +145,65 @@ internal static partial class WideArithmetic
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Accumulates a signed magnitude shifted left by a nonnegative bit count.
+    /// Source and destination are disjoint; the destination has proven room
+    /// for the complete result. No shifted copy or subtraction buffer is made.
+    /// </summary>
+    internal static void AddShiftedSignedMagnitude(ReadOnlySpan<ulong> addend,
+        int addendSign, int shift, Span<ulong> result, ref int resultSign)
+    {
+        if (addendSign == 0)
+            return;
+        int wordShift = shift >> 6;
+        int bitShift = shift & 63;
+        if (resultSign == 0)
+        {
+            for (int index = 0; index < result.Length; index++)
+                result[index] = GetShiftedMagnitudeWord(addend, index, wordShift, bitShift);
+            resultSign = addendSign;
+            return;
+        }
+        if (resultSign == addendSign)
+        {
+            ulong carry = 0;
+            for (int index = 0; index < result.Length; index++)
+                result[index] = AddSignedWord(result[index],
+                    GetShiftedMagnitudeWord(addend, index, wordShift, bitShift), ref carry);
+            return;
+        }
+
+        int comparison = 0;
+        for (int index = result.Length - 1; index >= 0 && comparison == 0; index--)
+            comparison = result[index].CompareTo(GetShiftedMagnitudeWord(addend, index, wordShift, bitShift));
+        if (comparison == 0)
+        {
+            result.Clear();
+            resultSign = 0;
+            return;
+        }
+        ulong borrow = 0;
+        for (int index = 0; index < result.Length; index++)
+        {
+            ulong shifted = GetShiftedMagnitudeWord(addend, index, wordShift, bitShift);
+            result[index] = comparison > 0
+                ? SubtractWord(result[index], shifted, ref borrow)
+                : SubtractWord(shifted, result[index], ref borrow);
+        }
+        if (comparison < 0)
+            resultSign = addendSign;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong GetShiftedMagnitudeWord(ReadOnlySpan<ulong> source,
+        int index, int wordShift, int bitShift)
+    {
+        int lowIndex = index - wordShift;
+        ulong low = (uint)lowIndex < (uint)source.Length ? source[lowIndex] : 0UL;
+        ulong high = bitShift != 0 && (uint)(lowIndex - 1) < (uint)source.Length
+            ? source[lowIndex - 1] >> (64 - bitShift) : 0UL;
+        return (low << bitShift) | high;
     }
 }

@@ -10,259 +10,64 @@ using System;
 namespace FixedMathSharp.Geometry;
 
 /// <content>
-/// Provides correctly-rounded penetration depth calculations for rigid cylinder
-/// pairs, using fast scalar approximations corrected by exact fixed-point
-/// comparisons, with a bounded exact binary-search fallback.
+/// Parallel cylinder depth materialization through the shared projection and
+/// quadratic-contact rounding authorities.
 /// </content>
 internal static partial class WideConvexPrismRelations
 {
     private static void GetRoundedCylinderCylinderDepth(
-        in CylinderPairDepth depth,
+        in CylinderCylinderPenetration penetration,
         out Fixed64 result,
         out bool isClamped)
     {
-        if (!TryGetCylinderPairDepthApproximation(
-                depth,
-                out Fixed64 approximation))
+        CylinderPairDepth depth = penetration.Depth;
+        if (depth.RadiusRaw <= (ulong)long.MaxValue)
         {
-            Signed192 maximumTwiceRaw = new(
-                0UL,
-                0UL,
-                unchecked((ulong)long.MaxValue << 1));
-            int maximumComparison =
-                CompareCylinderPairDepthToTwiceRaw(
-                    depth,
-                    maximumTwiceRaw);
-            if (maximumComparison >= 0)
-            {
-                result = Fixed64.MaxValue;
-                isClamped = maximumComparison > 0;
-                return;
-            }
-            result = GetRoundedCylinderPairDepthBySearch(depth);
-            isClamped = false;
-            return;
-        }
-        // Reduced closest-core axes can have small nonsquare lengths, so the
-        // scalar square-root estimate has no small raw-error bound. Preserve
-        // the cheap exact corrections for ordinary axes, but limit that work;
-        // four is a fast-path budget, never a geometric or rounding tolerance.
-        for (int correction = 0; correction < 4; correction++)
-        {
-            if (approximation == Fixed64.MaxValue)
-            {
-                Signed192 maximumTwiceRaw = new(
-                    0UL,
-                    0UL,
-                    unchecked((ulong)long.MaxValue << 1));
-                result = GetRoundedCylinderPairDepthBySearch(depth);
-                isClamped =
-                    CompareCylinderPairDepthToTwiceRaw(
-                        depth,
-                        maximumTwiceRaw) > 0;
-                return;
-            }
-
-            if (approximation > Fixed64.Zero)
-            {
-                Signed192 lowerMidpoint = new(
-                    0UL,
-                    0UL,
-                    unchecked((ulong)(
-                        approximation.m_rawValue
-                        + approximation.m_rawValue
-                        - 1L)));
-                int lowerComparison =
-                    CompareCylinderPairDepthToTwiceRaw(
-                        depth,
-                        lowerMidpoint);
-                if (lowerComparison
-                    < (approximation.m_rawValue & 1L))
-                {
-                    approximation = Fixed64.FromRaw(
-                        approximation.m_rawValue - 1L);
-                    continue;
-                }
-            }
-
-            Signed192 upperMidpoint = new(
-                0UL,
-                0UL,
-                unchecked((ulong)approximation.m_rawValue << 1) | 1UL);
-            int upperComparison =
-                CompareCylinderPairDepthToTwiceRaw(
-                    depth,
-                    upperMidpoint);
-            if (upperComparison
-                + (approximation.m_rawValue & 1L) > 0)
-            {
-                approximation = Fixed64.FromRaw(
-                    approximation.m_rawValue + 1L);
-                continue;
-            }
-
-            result = approximation;
-            isClamped = false;
+            var projection = new ProjectionDepth(
+                depth.Rational, depth.Common, Fixed64.FromRaw((long)depth.RadiusRaw),
+                depth.RadiusRaw == 0UL ? RadialKind.None : RadialKind.Capsule,
+                depth.AxisSquared, Signed320.ExtendValue(Signed192.Signed(1L)), default);
+            result = GetRoundedDepth(projection, out isClamped);
             return;
         }
 
-        result = GetRoundedCylinderPairDepthBySearch(depth);
-        isClamped = CompareCylinderPairDepthToTwiceRaw(
-            depth,
-            new Signed192(
-                0UL,
-                0UL,
-                unchecked((ulong)long.MaxValue << 1))) > 0;
-    }
-
-    private static bool TryGetCylinderPairDepthApproximation(
-        in CylinderPairDepth depth,
-        out Fixed64 approximation)
-    {
-        Signed576 axisLength =
-            WideArithmetic.GetFloorSquareRoot(
-                Signed704.ExtendValue(
-                    depth.AxisSquared));
-        Signed576 rationalDenominator =
-            WideArithmetic.MultiplySigned576(
-                axisLength,
-                depth.Common);
-        if (!Fixed64.TryGetSignedRawRatio(
-                depth.Rational,
-                Signed704.ExtendValue(
-                    rationalDenominator),
-                out Fixed64 rational))
-        {
-            approximation = default;
-            return false;
-        }
-        Fixed64 firstDisk =
-            GetDiskDepthApproximation(
-                depth.CreateFirstDiskDepth(),
-                axisLength);
-        Fixed64 secondDisk =
-            GetDiskDepthApproximation(
-                depth.CreateSecondDiskDepth(),
-                axisLength);
-        Signed192 combined = WideArithmetic.AddSigned192(
-            WideArithmetic.AddSigned192(
-                Signed192.Raw(rational),
-                Signed192.Raw(firstDisk)),
-            Signed192.Raw(secondDisk));
-        if (combined.Sign <= 0)
-        {
-            approximation = Fixed64.Zero;
-            return true;
-        }
-        // Any upper word or low sign bit exceeds the nonnegative Fixed64 raw domain.
-        if ((combined.High
-                | combined.Middle
-                | (combined.Low >> 63)) != 0UL)
-        {
-            approximation = default;
-            return false;
-        }
-        approximation = Fixed64.FromRaw((long)combined.Low);
-        return true;
-    }
-
-    private static Fixed64 GetRoundedCylinderPairDepthBySearch(
-        in CylinderPairDepth depth)
-    {
-        Signed192 maximumTwiceRaw = new(
-            0UL,
-            0UL,
-            unchecked((ulong)long.MaxValue << 1));
-        if (CompareCylinderPairDepthToTwiceRaw(
-                depth,
-                maximumTwiceRaw) >= 0)
-        {
-            return Fixed64.MaxValue;
-        }
-
-        ulong low = 0UL;
-        ulong high = 1UL << 63;
-        // The nonnegative Fixed64 raw domain contains exactly 2^63 values.
-        // This upper-bound search therefore completes in at most 64 steps.
-        while (low < high)
-        {
-            ulong midpoint = low + ((high - low) >> 1);
-            int comparison =
-                CompareCylinderPairDepthToTwiceRaw(
-                    depth,
-                    new Signed192(
-                        0UL,
-                        0UL,
-                        midpoint << 1));
-            if (comparison >= 0)
-                low = midpoint + 1UL;
-            else
-                high = midpoint;
-        }
-
-        ulong floor = low - 1UL;
-        int midpointComparison =
-            CompareCylinderPairDepthToTwiceRaw(
-                depth,
-                new Signed192(
-                    0UL,
-                    0UL,
-                    (floor << 1) | 1UL));
-        return Fixed64.FromRaw(
-            (long)(floor + GetNearestEvenIncrement(
-                midpointComparison,
-                floor)));
-    }
-
-    private static int CompareCylinderPairDepthToTwiceRaw(
-        in CylinderPairDepth depth,
-        Signed192 twiceRaw)
-    {
-        Span<ulong> radicands = stackalloc ulong[
-            CylinderPairRadicandWords * 4];
-        Span<int> signs = stackalloc int[4];
-        radicands.Clear();
+        // Only an unsigned radius sum above Fixed64.MaxValue needs the shared
+        // quadratic path. For g=R/(C sqrt(A))+r, its squared raw gap is
+        // (R²+(rC)²A+2RrC sqrt(A))/(C²A).
+        // The admitted axes give |R|<2^502, C<2^163, A<2^540, r<2^64:
+        // gap slots A/B/C/D use <1005/730/540/866 bits respectively.
+        // Thus every construction product fits the existing forty-word slots.
+        const int words = ConvexContactCandidate.Words;
+        Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * words];
+        Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
+        values.Clear();
         signs.Clear();
-        BuildCylinderPairLocalRadicands(
-            depth,
-            radicands,
-            signs);
-        for (int index = 0; index < 3; index++)
-            ShiftLeft(
-                radicands.Slice(
-                    index * CylinderPairRadicandWords,
-                    CylinderPairRadicandWords),
-                2);
+        GetMagnitude(penetration.Axis.X, values[..words]);
+        GetMagnitude(penetration.Axis.Y, values.Slice(words, words));
+        GetMagnitude(penetration.Axis.Z, values.Slice(2 * words, words));
+        signs[0] = penetration.Axis.X.Sign;
+        signs[1] = penetration.Axis.Y.Sign;
+        signs[2] = penetration.Axis.Z.Sign;
 
-        Signed320 thresholdCoefficient =
-            WideArithmetic.MultiplySigned192(
-                depth.Common,
-                twiceRaw);
-        Span<ulong> threshold = radicands.Slice(
-            CylinderPairRadicandWords * 3,
-            CylinderPairRadicandWords);
-        Span<ulong> coefficientWords =
-            stackalloc ulong[5];
-        GetMagnitude(
-            thresholdCoefficient,
-            coefficientWords);
-        WideArithmetic.MultiplyMagnitudes(
-            coefficientWords,
-            coefficientWords,
-            threshold);
-        MultiplyCylinderPairBy(
-            threshold,
-            depth.AxisSquared);
-        MultiplyCylinderPairBy(
-            threshold,
-            depth.FirstAxisSquared);
-        MultiplyCylinderPairBy(
-            threshold,
-            depth.SecondAxisSquared);
-        signs[3] = -1;
-        return WideArithmetic.GetLinearRadicalSumSign(
-            radicands,
-            CylinderPairRadicandWords,
-            signs);
+        Signed320 coefficient = depth.RadialCoefficient;
+        Span<ulong> rational = values.Slice(7 * words, words);
+        Span<ulong> radical = values.Slice(8 * words, words);
+        Span<ulong> radicand = values.Slice(9 * words, words);
+        Span<ulong> denominator = values.Slice(10 * words, words);
+        Span<ulong> rationalSquared = stackalloc ulong[words];
+        BuildProduct(depth.Rational, depth.Rational, rationalSquared);
+        BuildProduct(coefficient, coefficient, depth.AxisSquared, rational);
+        WideArithmetic.AddEqualMagnitudes(rational, rationalSquared, rational);
+        BuildProduct(depth.Rational,
+            Signed704.ExtendValue(Signed576.ExtendValue(coefficient)), radical);
+        ShiftLeft(radical, 1);
+        WideArithmetic.GetMagnitude(depth.AxisSquared, radicand[..9]);
+        Signed320 common = Signed320.ExtendValue(depth.Common);
+        BuildProduct(common, common, depth.AxisSquared, denominator);
+        signs[7] = 1;
+        signs[8] = depth.Rational.Sign;
+        GetRoundedConvexContactCandidateDepth(
+            new ConvexContactCandidate(values, signs, GetCylinderPairDepthSign(depth)),
+            Fixed64.Zero, out result, out isClamped);
     }
 }

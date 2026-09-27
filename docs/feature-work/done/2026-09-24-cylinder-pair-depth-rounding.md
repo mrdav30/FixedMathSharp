@@ -13,7 +13,7 @@ the distinction between an exact maximum and a depth that must be clamped.
 Candidate enumeration, ranking, normal generation, support anchors, and the
 comparison arithmetic are unchanged. This is a result-preserving runtime
 correction, not a repair for the incomplete cylinder-pair contact geometry in
-[FMS-Issue-024](../issue-tracker.md). No floating-point runtime math, new
+[FMS-Issue-024](2026-09-25-cylinder-pair-contact-design.md). No floating-point runtime math, new
 allocation, public API, or approximate fallback was added.
 
 ## Root cause
