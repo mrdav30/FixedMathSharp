@@ -10,6 +10,69 @@ namespace FixedMathSharp.Geometry;
 /// <summary>Exact comparison and materialization of retained convex contact value roots.</summary>
 internal static class ConvexContactValueRoot
 {
+    /// <summary>Maps one admitted stationary parameter to its exact squared-gap value root.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static FiniteAxisValueRoot MapSquaredValue(Signed192 rawScale, int valueShift,
+        scoped ref FiniteAxisValueRoot parameter, scoped ReadOnlySpan<ulong> numerator,
+        scoped ReadOnlySpan<sbyte> numeratorSigns, scoped ReadOnlySpan<ulong> denominator,
+        scoped ReadOnlySpan<sbyte> denominatorSigns,
+        ReadOnlySpan<ulong> values, ReadOnlySpan<sbyte> signs, Span<ulong> cell)
+    {
+        Span<ulong> batchCells = stackalloc ulong[64];
+        Span<int> batchShifts = stackalloc int[8];
+        FiniteAxisValueRoots roots = WideFiniteAxisIntersection.GetFiniteValueRoots(values, signs, batchCells, batchShifts);
+        Span<ulong> upper = stackalloc ulong[cell.Length];
+        for (int ordinal = 0; ordinal < roots.Count - 1; ordinal++)
+        {
+            FiniteAxisValueRoot root = FiniteAxisValueRoots.GetRoot(roots, ordinal, values, signs, cell);
+            if (root.IsRational)
+            {
+                if (CompareSquaredValueEndpoint(rawScale, valueShift, ref parameter,
+                        numerator, numeratorSigns, denominator, denominatorSigns, cell, root.DenominatorShift) == 0)
+                    return root;
+            }
+            else
+            {
+                cell.CopyTo(upper);
+                WideArithmetic.AddWord(upper, 0, 1);
+                if (CompareSquaredValueEndpoint(rawScale, valueShift, ref parameter,
+                        numerator, numeratorSigns, denominator, denominatorSigns, upper, root.DenominatorShift) < 0)
+                    return root;
+            }
+        }
+        System.Diagnostics.Debug.Assert(roots.Count > 0);
+        return FiniteAxisValueRoots.GetRoot(roots, roots.Count - 1, values, signs, cell);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static int CompareSquaredValueEndpoint(Signed192 rawScale, int valueShift,
+        scoped ref FiniteAxisValueRoot parameter, scoped ReadOnlySpan<ulong> numerator,
+        scoped ReadOnlySpan<sbyte> numeratorSigns, scoped ReadOnlySpan<ulong> denominator,
+        scoped ReadOnlySpan<sbyte> denominatorSigns, scoped ReadOnlySpan<ulong> endpoint, int shift)
+    {
+        int sourceWords = numerator.Length / numeratorSigns.Length;
+        int words = (shift + valueShift + sourceWords * 64 + 384 + 127) / 64;
+        Span<ulong> query = stackalloc ulong[5 * words];
+        Span<sbyte> signs = stackalloc sbyte[5];
+        Span<ulong> product = stackalloc ulong[words];
+        Span<ulong> scale = stackalloc ulong[3];
+        Span<ulong> scaleSquared = stackalloc ulong[6];
+        query.Clear(); signs.Clear();
+        WideArithmetic.GetMagnitude(rawScale, out scale[2], out scale[1], out scale[0]);
+        WideArithmetic.MultiplyMagnitudes(scale, scale, scaleSquared);
+        for (int index = 0; index < 5; index++)
+        {
+            Span<ulong> target = query.Slice(index * words, words);
+            int sign = 0;
+            WideArithmetic.MultiplyMagnitudes(numerator.Slice(index * sourceWords, sourceWords), scaleSquared, product);
+            WideArithmetic.AddShiftedSignedMagnitude(product, numeratorSigns[index], shift, target, ref sign);
+            WideArithmetic.MultiplyMagnitudes(denominator.Slice(index * sourceWords, sourceWords), endpoint, product);
+            WideArithmetic.AddShiftedSignedMagnitude(product, -denominatorSigns[index], valueShift, target, ref sign);
+            signs[index] = (sbyte)sign;
+        }
+        return WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref parameter, query, signs);
+    }
+
     /// <summary>
     /// Compares S/RawScale², where S=2^ValueShift*t, to an analytic squared
     /// raw gap. Gap signs are deliberately excluded; the caller ranks them first.
@@ -65,7 +128,11 @@ internal static class ConvexContactValueRoot
     }
 
     internal static Vector3d GetNormalizedDirection(ref FiniteAxisValueRoot root,
-        scoped ReadOnlySpan<ulong> gradient, scoped ReadOnlySpan<sbyte> gradientSigns, int orientation)
+        scoped ReadOnlySpan<ulong> gradient, scoped ReadOnlySpan<sbyte> gradientSigns, int orientation) =>
+        GetScaledNormalizedDirection(ref root, gradient, gradientSigns, Fixed64.One, orientation);
+
+    internal static Vector3d GetScaledNormalizedDirection(ref FiniteAxisValueRoot root,
+        scoped ReadOnlySpan<ulong> gradient, scoped ReadOnlySpan<sbyte> gradientSigns, Fixed64 scale, int orientation)
     {
         int count = gradientSigns.Length / 3;
         int words = gradient.Length / gradientSigns.Length;
@@ -75,11 +142,11 @@ internal static class ConvexContactValueRoot
         BuildSquaredLength(gradient, gradientSigns, squaredLength, squaredLengthSigns);
         return new Vector3d(
             GetRoundedNormalComponent(ref root, gradient[..(count * words)], gradientSigns[..count],
-                squaredLength, squaredLengthSigns, orientation),
+                squaredLength, squaredLengthSigns, scale, orientation),
             GetRoundedNormalComponent(ref root, gradient.Slice(count * words, count * words),
-                gradientSigns.Slice(count, count), squaredLength, squaredLengthSigns, orientation),
+                gradientSigns.Slice(count, count), squaredLength, squaredLengthSigns, scale, orientation),
             GetRoundedNormalComponent(ref root, gradient[(2 * count * words)..], gradientSigns[(2 * count)..],
-                squaredLength, squaredLengthSigns, orientation));
+                squaredLength, squaredLengthSigns, scale, orientation));
     }
 
     internal static void GetRoundedDepth(Signed192 rawScale, int valueShift, ref FiniteAxisValueRoot root,
@@ -146,24 +213,24 @@ internal static class ConvexContactValueRoot
 
     private static Fixed64 GetRoundedNormalComponent(ref FiniteAxisValueRoot root,
         scoped ReadOnlySpan<ulong> component, scoped ReadOnlySpan<sbyte> componentSigns,
-        scoped ReadOnlySpan<ulong> squaredLength, scoped ReadOnlySpan<sbyte> squaredLengthSigns, int orientation)
+        scoped ReadOnlySpan<ulong> squaredLength, scoped ReadOnlySpan<sbyte> squaredLengthSigns, Fixed64 scale, int orientation)
     {
         int sign = orientation * WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, component, componentSigns);
-        if (sign == 0)
+        if (sign == 0 || scale == Fixed64.Zero)
             return Fixed64.Zero;
         int squareCount = squaredLengthSigns.Length;
         int queryWords = squaredLength.Length / squareCount + 2;
         Span<ulong> query = stackalloc ulong[squareCount * queryWords];
         Span<sbyte> querySigns = stackalloc sbyte[squareCount];
         ulong lower = 0;
-        ulong upper = (1UL << 32) + 1;
+        ulong upper = (ulong)scale.m_rawValue + 1;
         ulong previousTwiceRaw = 0;
         int removedShift = -1;
         while (lower < upper)
         {
             ulong midpoint = lower + ((upper - lower) >> 1);
             BuildNormalThreshold(component, componentSigns, squaredLength, squaredLengthSigns,
-                midpoint << 1, ref previousTwiceRaw, ref removedShift, query, querySigns);
+                midpoint << 1, (ulong)scale.m_rawValue, ref previousTwiceRaw, ref removedShift, query, querySigns);
             if (WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns) >= 0)
                 lower = midpoint + 1;
             else
@@ -171,7 +238,7 @@ internal static class ConvexContactValueRoot
         }
         ulong floor = lower - 1;
         BuildNormalThreshold(component, componentSigns, squaredLength, squaredLengthSigns,
-            (floor << 1) | 1, ref previousTwiceRaw, ref removedShift, query, querySigns);
+            (floor << 1) | 1, (ulong)scale.m_rawValue, ref previousTwiceRaw, ref removedShift, query, querySigns);
         int comparison = WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns);
         ulong rounded = floor + (comparison > 0 || (comparison == 0 && (floor & 1) != 0) ? 1UL : 0);
         return Fixed64.FromRaw(sign * (long)rounded);
@@ -180,7 +247,7 @@ internal static class ConvexContactValueRoot
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void BuildNormalThreshold(ReadOnlySpan<ulong> component, ReadOnlySpan<sbyte> componentSigns,
         ReadOnlySpan<ulong> squaredLength, ReadOnlySpan<sbyte> squaredLengthSigns,
-        ulong twiceRaw, ref ulong previousTwiceRaw, ref int removedShift,
+        ulong twiceRaw, ulong scale, ref ulong previousTwiceRaw, ref int removedShift,
         Span<ulong> query, Span<sbyte> querySigns)
     {
         int squareCount = squaredLengthSigns.Length;
@@ -191,12 +258,25 @@ internal static class ConvexContactValueRoot
         {
             WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(component, componentSigns,
                 component, componentSigns, query, querySigns, product);
-            removedShift = 66;
+            if (scale == (ulong)Fixed64.One.m_rawValue)
+                removedShift = 66;
+            else
+            {
+                Span<ulong> factor = stackalloc ulong[2];
+                Fixed64.Multiply64To128(scale << 1, scale << 1, out factor[1], out factor[0]);
+                for (int index = 0; index < squareCount; index++)
+                {
+                    Span<ulong> target = query.Slice(index * queryWords, queryWords);
+                    WideArithmetic.MultiplyMagnitudes(target, factor, product);
+                    product.CopyTo(target);
+                }
+                removedShift = 0;
+            }
         }
-        // Q_k=2^66*C²-k²*L. Restore the previous normalization and use
+        // Q_k=4*scale²*C²-k²*L. Restore the previous normalization and use
         // Q_new=Q_old+(old²-new²)*L, retaining C² without a separate buffer.
-        // Both k values are <=2^33+1, so the signed difference needs at most
-        // 67 magnitude bits. The raw polynomial has exactly the old height
+        // Both k values fit 64 unsigned bits, so the signed difference needs
+        // at most 128 magnitude bits. The raw polynomial has the same height
         // bound; the existing two extra coefficient words remain sufficient.
         Fixed64.Multiply64To128(previousTwiceRaw, previousTwiceRaw, out ulong previousHigh, out ulong previousLow);
         Fixed64.Multiply64To128(twiceRaw, twiceRaw, out ulong high, out ulong low);

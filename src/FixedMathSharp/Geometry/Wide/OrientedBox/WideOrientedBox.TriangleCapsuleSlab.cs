@@ -27,6 +27,8 @@ internal static partial class WideOrientedBox
         Fixed64 slabHalfThickness,
         out FixedContactAnchors contact)
     {
+        // The public zero-core alias is owned by TriangleCylinderContact.
+        System.Diagnostics.Debug.Assert(capsuleAxisLength > Fixed64.Zero);
         if (triangle.IsDegenerate)
         {
             contact = default;
@@ -183,12 +185,11 @@ internal static partial class WideOrientedBox
             }
         }
 
-        int endpointStart = capsuleAxisLength == Fixed64.Zero ? 1 : -1;
         for (int vertexIndex = 0;
             vertexIndex < trianglePoints.Length;
             vertexIndex++)
         {
-            for (int endpointSign = endpointStart;
+            for (int endpointSign = -1;
                 endpointSign <= 1;
                 endpointSign += 2)
             {

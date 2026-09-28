@@ -3,6 +3,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 using System;
+using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
@@ -177,7 +178,7 @@ internal static class BoxCylinderAnalyticFeatures
         Span<ulong> work = stackalloc ulong[11 * Words];
         Span<ulong> u = Slot(work, 0), n2 = Slot(work, 1), axial = Slot(work, 2);
         Span<ulong> rational = Slot(work, 3), temporary = Slot(work, 4), product = Slot(work, 5);
-        Span<ulong> p = Slot(work, 6), p2 = Slot(work, 7), q = Slot(work, 8);
+        Span<ulong> p = Slot(work, 6), q = Slot(work, 8);
         Span<ulong> radius = Slot(work, 9), scale = Slot(work, 10);
         Import(geometry.Axis.SquaredLength, u);
         SumSquares(direction, n2);
@@ -200,7 +201,6 @@ internal static class BoxCylinderAnalyticFeatures
         // Projected vertex directions need up to 577 bits. With authored
         // coordinates below 2^237, p²,q and every denominator fit 2,560 bits.
         WideArithmetic.MultiplyMagnitudes(rational, u, p);
-        WideArithmetic.MultiplyMagnitudes(p, p, p2);
         Dot(geometry.Axis, direction, directionSigns, axial, out _);
         WideArithmetic.MultiplyMagnitudes(axial, axial, temporary);
         WideArithmetic.MultiplyMagnitudes(u, n2, product);
@@ -210,25 +210,14 @@ internal static class BoxCylinderAnalyticFeatures
         WideArithmetic.MultiplyMagnitudes(temporary, u, product);
         WideArithmetic.MultiplyMagnitudes(product, q, temporary);
         temporary.CopyTo(q);
-        WideArithmetic.AddEqualMagnitudes(p2, q, Slot(values, 7));
-        WideArithmetic.AddEqualMagnitudes(p, p, Slot(values, 8));
-        q.CopyTo(Slot(values, 9));
         Import(Signed320.ExtendValue(geometry.RawScale), scale);
         WideArithmetic.MultiplyMagnitudes(u, scale, temporary);
         WideArithmetic.MultiplyMagnitudes(temporary, temporary, product);
         WideArithmetic.MultiplyMagnitudes(product, n2, Slot(values, 10));
-        signs[7] = IsZero(Slot(values, 7)) ? 0 : 1;
-        signs[8] = rationalSign;
-        gapSign = rationalSign < 0 ? WideArithmetic.CompareMagnitudeEqualLength(q, p2)
-            : rationalSign > 0 || !IsZero(q) ? 1 : 0;
-        for (int component = 0; component < 3; component++)
-        {
-            WideRationalBasis3d basis = geometry.WorldBasis;
-            WideAxis3 row = component == 0 ? Axis(basis.Xx, basis.Yx, basis.Zx)
-                : component == 1 ? Axis(basis.Xy, basis.Yy, basis.Zy) : Axis(basis.Xz, basis.Yz, basis.Zz);
-            Dot(row, direction, directionSigns, Slot(values, component), out int sign);
-            signs[component] = orientation * sign;
-        }
+        gapSign = CylinderContactAlgebra.BuildRadialCandidate(p, rationalSign, q,
+            Slot(values, 10), values, signs);
+        CylinderContactAlgebra.WriteWorldDirection(geometry.WorldBasis, direction,
+            directionSigns, values, signs, orientation);
     }
 
     private static bool HasVertexRimSeparation(in BoxCylinderGeometry geometry, int corner, int cap)
@@ -278,56 +267,6 @@ internal static class BoxCylinderAnalyticFeatures
         return true;
     }
 
-    private static void ProjectPerpendicular(WideAxis3 axis, WideAxis3 value,
-        Span<ulong> direction, Span<int> signs)
-    {
-        Span<ulong> work = stackalloc ulong[4 * Words];
-        Span<ulong> u = Slot(work, 0), dot = Slot(work, 1), component = Slot(work, 2), product = Slot(work, 3);
-        Import(axis.SquaredLength, u);
-        Signed576 projection = WideAxis3.Dot(axis, value);
-        Import(projection, dot);
-        for (int index = 0; index < 3; index++)
-        {
-            Signed320 v = BoxCylinderGeometry.GetComponent(value, index);
-            Signed320 a = BoxCylinderGeometry.GetComponent(axis, index);
-            Import(v, component);
-            WideArithmetic.MultiplyMagnitudes(u, component, Slot(direction, index));
-            int sign = v.Sign;
-            Import(a, component);
-            WideArithmetic.MultiplyMagnitudes(dot, component, product);
-            Add(product, -projection.Sign * a.Sign, Slot(direction, index), ref sign);
-            signs[index] = sign;
-        }
-    }
-
-    private static void Dot(WideAxis3 axis, ReadOnlySpan<ulong> direction, ReadOnlySpan<int> signs,
-        Span<ulong> result, out int sign)
-    {
-        Span<ulong> component = stackalloc ulong[Words];
-        Span<ulong> product = stackalloc ulong[Words];
-        result.Clear();
-        sign = 0;
-        for (int index = 0; index < 3; index++)
-        {
-            Signed320 value = BoxCylinderGeometry.GetComponent(axis, index);
-            Import(value, component);
-            WideArithmetic.MultiplyMagnitudes(component, Slot(direction, index), product);
-            Add(product, value.Sign * signs[index], result, ref sign);
-        }
-    }
-
-    private static void SumSquares(ReadOnlySpan<ulong> direction, Span<ulong> result)
-    {
-        Span<ulong> product = stackalloc ulong[Words];
-        result.Clear();
-        for (int index = 0; index < 3; index++)
-        {
-            ReadOnlySpan<ulong> component = Slot(direction, index);
-            WideArithmetic.MultiplyMagnitudes(component, component, product);
-            WideArithmetic.AddMagnitudeInto(product, result);
-        }
-    }
-
     private static void WritePlaneDirection(int j, int k, Signed320 u, Signed320 v,
         Span<ulong> direction, Span<int> signs)
     {
@@ -337,34 +276,10 @@ internal static class BoxCylinderAnalyticFeatures
         Import(v, Slot(direction, k)); signs[k] = v.Sign;
     }
 
-    private static void WriteDirection(WideAxis3 axis, Span<ulong> direction, Span<int> signs)
-    {
-        for (int index = 0; index < 3; index++)
-        {
-            Signed320 value = BoxCylinderGeometry.GetComponent(axis, index);
-            Import(value, Slot(direction, index));
-            signs[index] = value.Sign;
-        }
-    }
-
-    private static void Add(ReadOnlySpan<ulong> value, int sign, Span<ulong> destination, ref int destinationSign) =>
-        WideArithmetic.AddShiftedSignedMagnitude(value, sign, 0, destination, ref destinationSign);
-    private static bool IsZero(ReadOnlySpan<ulong> value) => WideArithmetic.GetActiveMagnitudeLength(value) == 0;
-    private static Span<ulong> Slot(Span<ulong> values, int index) => values.Slice(index * Words, Words);
-    private static ReadOnlySpan<ulong> Slot(ReadOnlySpan<ulong> values, int index) => values.Slice(index * Words, Words);
-    private static void Import(Signed320 value, Span<ulong> result) => Import(Signed576.ExtendValue(value), result);
-    private static void Import(Signed576 value, Span<ulong> result)
-    {
-        result.Clear();
-        WideArithmetic.GetMagnitude(value, result[..9]);
-    }
     private static WideAxis3 Unit(int axis) => new(
         Signed320.ExtendValue(Signed192.Signed(axis == 0 ? 1 : 0)),
         Signed320.ExtendValue(Signed192.Signed(axis == 1 ? 1 : 0)),
         Signed320.ExtendValue(Signed192.Signed(axis == 2 ? 1 : 0)));
-    private static WideAxis3 Axis(Signed192 x, Signed192 y, Signed192 z) => new(
-        Signed320.ExtendValue(x), Signed320.ExtendValue(y), Signed320.ExtendValue(z));
-
     private ref struct Selection
     {
         internal Span<ulong> Values;

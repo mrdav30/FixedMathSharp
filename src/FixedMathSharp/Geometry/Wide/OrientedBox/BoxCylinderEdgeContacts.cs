@@ -151,8 +151,9 @@ internal static class BoxCylinderEdgeContacts
                 BuildValues(geometry, edge, first, second, firstSign, secondSign, capSign, values, valueSigns);
                 valuesReady = true;
             }
-            scoped FiniteAxisValueRoot value = MapValue(geometry, ref root, numerator, denominator,
-                values, valueSigns, valueCell);
+            scoped FiniteAxisValueRoot value = ConvexContactValueRoot.MapSquaredValue(
+                geometry.RawScale, geometry.ValueShift, ref root, numerator.Values, numerator.Signs,
+                denominator.Values, denominator.Signs, values, valueSigns, valueCell);
             int comparison = best.HasValue
                 ? WideFiniteAxisIntersection.CompareFiniteValueRoots(value,
                     RestoreValueRoot(bestValues, bestSigns, bestCell, best))
@@ -200,9 +201,7 @@ internal static class BoxCylinderEdgeContacts
         // include every coefficient-sum carry, before positive normalization.
         data.Clear(); signs.Clear();
         Polynomial storage = new(data, signs, Words);
-        Polynomial w = storage.Slice(0, 5), radial = storage.Slice(5, 3);
-        Polynomial k = storage.Slice(8, 2), l = storage.Slice(10, 3), j = storage.Slice(13, 3);
-        Polynomial numerator = storage.Slice(16, 5), denominator = storage.Slice(21, 5);
+        Polynomial radial = storage.Slice(5, 3);
         Polynomial cap = storage.Slice(26, 2);
         Span<ulong> scratch = stackalloc ulong[24 * Words];
         Span<sbyte> scratchSigns = stackalloc sbyte[24];
@@ -210,7 +209,7 @@ internal static class BoxCylinderEdgeContacts
         Polynomial temp = new(scratch, scratchSigns, Words);
         Polynomial p = temp.Slice(0, 2), u = temp.Slice(2, 1), radius = temp.Slice(3, 1);
         Polynomial factor = temp.Slice(4, 1), axis = temp.Slice(5, 2), axisSquared = temp.Slice(7, 3);
-        Polynomial one = temp.Slice(10, 3), temporary = temp.Slice(13, 5), kSquared = temp.Slice(18, 3);
+        Polynomial one = temp.Slice(10, 3), temporary = temp.Slice(13, 5);
         Polynomial scalar = temp.Slice(21, 1), scale = temp.Slice(22, 1);
         Span<ulong> product = scratch.Slice(23 * Words, Words);
         Signed320 au = Signed(Component(geometry.Axis, first), firstSign);
@@ -228,37 +227,14 @@ internal static class BoxCylinderEdgeContacts
         Multiply(axisSquared, axis, axis, product);
         Add(radial, axisSquared, -1);
         Multiply(temporary.Slice(0, 3), radial, factor, product);
-        Copy(radial, temporary.Slice(0, 3));
-        // B=-R² U au av. Build it directly rather than divide Q's middle
-        // coefficient, keeping the construction entirely in shared arithmetic.
-        Write(scalar, 0, WideArithmetic.MultiplySigned320(au, av));
-        Multiply(temporary.Slice(0, 1), factor, scalar, product);
-        Add(l.Slice(0, 1), temporary.Slice(0, 1), -1);
-        Add(l.Slice(2, 1), temporary.Slice(0, 1), 1);
-        Add(l.Slice(1, 1), radial.Slice(2, 1), 1);
-        Add(l.Slice(1, 1), radial.Slice(0, 1), -1);
         Write(axis, 0, Signed576.ExtendValue(Signed(Component(offset, first), firstSign)));
         Write(axis, 1, Signed576.ExtendValue(Signed(Component(offset, second), secondSign)));
         Multiply(p, u, axis, product);
-        Add(k.Slice(0, 1), p.Slice(1, 1), 1);
-        Add(k.Slice(1, 1), p.Slice(0, 1), -1);
-        Multiply(w, l, l, product);
-        Multiply(kSquared, k, k, product);
-        Multiply(temporary, kSquared, radial, product);
-        Add(w, temporary, -1);
-        Multiply(j, p, k, product);
-        Add(j, l, -1);
-        Multiply(numerator, j, j, product);
         Write(scale, 0, Signed576.ExtendValue(Signed320.ExtendValue(geometry.RawScale)));
         Multiply(scalar, u, scale, product);
-        Multiply(temporary.Slice(0, 1), scalar, scalar, product);
-        Copy(scalar, temporary.Slice(0, 1));
-        Multiply(temporary, kSquared, one, product);
-        Multiply(denominator, temporary, scalar, product);
-        WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(w.Values, w.Signs);
-        // N and D share one scale. The other polynomials are sign queries only.
-        Polynomial ratio = storage.Slice(16, 10);
-        WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(ratio.Values, ratio.Signs);
+        CylinderEdgeContactPolynomial.Build(p.Values, p.Signs,
+            temporary.Slice(0, 3).Values, temporary.Slice(0, 3).Signs,
+            one.Values, one.Signs, scalar.Values, data[..(26 * Words)], signs[..26]);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -282,66 +258,6 @@ internal static class BoxCylinderEdgeContacts
         // ValueShift<=480 and |c_i|<2^237. Fifty-six words provide 3584 bits.
         WideFiniteAxisIntersection.ScaleFiniteAxisPolynomialVariable(values, 5, geometry.ValueShift);
         WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(values, signs);
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static FiniteAxisValueRoot MapValue(in BoxCylinderGeometry geometry,
-        scoped ref FiniteAxisValueRoot parameter, scoped Polynomial numerator, scoped Polynomial denominator,
-        ReadOnlySpan<ulong> values, ReadOnlySpan<sbyte> signs, Span<ulong> cell)
-    {
-        Span<ulong> batchCells = stackalloc ulong[64];
-        Span<int> batchShifts = stackalloc int[8];
-        FiniteAxisValueRoots roots = WideFiniteAxisIntersection.GetFiniteValueRoots(values, signs, batchCells, batchShifts);
-        Span<ulong> upper = stackalloc ulong[cell.Length];
-        for (int ordinal = 0; ordinal < roots.Count - 1; ordinal++)
-        {
-            FiniteAxisValueRoot root = FiniteAxisValueRoots.GetRoot(roots, ordinal, values, signs, cell);
-            if (root.IsRational)
-            {
-                if (CompareValueEndpoint(geometry, ref parameter, numerator, denominator,
-                        cell, root.DenominatorShift) == 0)
-                    return root;
-            }
-            else
-            {
-                cell.CopyTo(upper);
-                WideArithmetic.AddWord(upper, 0, 1);
-                // Membership is known from the stationary equation. Earlier
-                // value roots were excluded, so only this upper bound matters.
-                if (CompareValueEndpoint(geometry, ref parameter, numerator, denominator,
-                        upper, root.DenominatorShift) < 0)
-                    return root;
-            }
-        }
-        System.Diagnostics.Debug.Assert(roots.Count > 0);
-        return FiniteAxisValueRoots.GetRoot(roots, roots.Count - 1, values, signs, cell);
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static int CompareValueEndpoint(in BoxCylinderGeometry geometry,
-        scoped ref FiniteAxisValueRoot parameter, scoped Polynomial numerator, scoped Polynomial denominator,
-        scoped ReadOnlySpan<ulong> endpoint, int shift)
-    {
-        int words = (shift + geometry.ValueShift + Words * 64 + 384 + 127) / 64;
-        Span<ulong> query = stackalloc ulong[5 * words];
-        Span<sbyte> signs = stackalloc sbyte[5];
-        Span<ulong> product = stackalloc ulong[words];
-        Span<ulong> scale = stackalloc ulong[3];
-        Span<ulong> scaleSquared = stackalloc ulong[6];
-        query.Clear(); signs.Clear();
-        WideArithmetic.GetMagnitude(geometry.RawScale, out scale[2], out scale[1], out scale[0]);
-        WideArithmetic.MultiplyMagnitudes(scale, scale, scaleSquared);
-        for (int index = 0; index < 5; index++)
-        {
-            Span<ulong> target = query.Slice(index * words, words);
-            int sign = 0;
-            WideArithmetic.MultiplyMagnitudes(numerator.Values.Slice(index * Words, Words), scaleSquared, product);
-            WideArithmetic.AddShiftedSignedMagnitude(product, numerator.Signs[index], shift, target, ref sign);
-            WideArithmetic.MultiplyMagnitudes(denominator.Values.Slice(index * Words, Words), endpoint, product);
-            WideArithmetic.AddShiftedSignedMagnitude(product, -denominator.Signs[index], geometry.ValueShift, target, ref sign);
-            signs[index] = (sbyte)sign;
-        }
-        return WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref parameter, query, signs);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -409,12 +325,6 @@ internal static class BoxCylinderEdgeContacts
     private static void Add(Polynomial result, Polynomial source, int multiplier) =>
         WideFiniteAxisIntersection.AddFiniteAxisPolynomial(source.Values, source.Signs,
             result.Values, result.Signs, multiplier);
-    private static void Copy(Polynomial result, Polynomial source)
-    {
-        source.Values.CopyTo(result.Values);
-        source.Signs.CopyTo(result.Signs);
-    }
-
     private readonly ref struct Polynomial
     {
         internal readonly Span<ulong> Values;

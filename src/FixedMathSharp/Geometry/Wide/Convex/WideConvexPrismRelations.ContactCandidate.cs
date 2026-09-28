@@ -186,8 +186,13 @@ internal static partial class WideConvexPrismRelations
     }
 
     internal static Vector3d GetConvexContactCandidateNormal(
-        ConvexContactCandidate candidate)
+        ConvexContactCandidate candidate) => GetConvexContactCandidateScaledNormal(candidate, Fixed64.One);
+
+    internal static Vector3d GetConvexContactCandidateScaledNormal(
+        ConvexContactCandidate candidate, Fixed64 scale)
     {
+        if (scale == Fixed64.Zero)
+            return Vector3d.Zero;
         int xSign = GetConvexContactCandidateQuadraticSign(candidate.NormalRational(0), candidate.Signs[0],
             candidate.NormalRadical(0), candidate.Signs[3], candidate.NormalRadicand);
         int ySign = GetConvexContactCandidateQuadraticSign(candidate.NormalRational(1), candidate.Signs[1],
@@ -195,7 +200,7 @@ internal static partial class WideConvexPrismRelations
         int zSign = GetConvexContactCandidateQuadraticSign(candidate.NormalRational(2), candidate.Signs[2],
             candidate.NormalRadical(2), candidate.Signs[5], candidate.NormalRadicand);
         if ((xSign == 0 ? 0 : 1) + (ySign == 0 ? 0 : 1) + (zSign == 0 ? 0 : 1) == 1)
-            return new Vector3d((Fixed64)xSign, (Fixed64)ySign, (Fixed64)zSign);
+            return new Vector3d(xSign * scale, ySign * scale, zSign * scale);
 
         int rationalWords = 0;
         int radicalWords = 0;
@@ -239,11 +244,11 @@ internal static partial class WideConvexPrismRelations
 
         return new Vector3d(
             GetRoundedConvexContactCandidateNormalComponent(
-                candidate, 0, squares, signs, words),
+                candidate, 0, squares, signs, words, (ulong)scale.m_rawValue),
             GetRoundedConvexContactCandidateNormalComponent(
-                candidate, 1, squares, signs, words),
+                candidate, 1, squares, signs, words, (ulong)scale.m_rawValue),
             GetRoundedConvexContactCandidateNormalComponent(
-                candidate, 2, squares, signs, words));
+                candidate, 2, squares, signs, words, (ulong)scale.m_rawValue));
     }
 
     private static void BuildConvexContactCandidateNormalSquare(
@@ -274,7 +279,8 @@ internal static partial class WideConvexPrismRelations
         int component,
         ReadOnlySpan<ulong> squares,
         ReadOnlySpan<int> signs,
-        int words)
+        int words,
+        ulong scale)
     {
         int sign = GetConvexContactCandidateQuadraticSign(
             candidate.NormalRational(component), candidate.Signs[component],
@@ -283,7 +289,6 @@ internal static partial class WideConvexPrismRelations
         if (sign == 0)
             return Fixed64.Zero;
 
-        const ulong scale = (ulong)FixedMath.ONE_L;
         ulong low = 0UL;
         // Exact one-component normals already returned above. Every remaining
         // nonzero component is strictly below the norm, so its raw floor is
@@ -295,7 +300,7 @@ internal static partial class WideConvexPrismRelations
             int comparison =
                 CompareConvexContactCandidateNormalComponentToTwiceRaw(
                     squares, signs, words, component,
-                    candidate.NormalRadicand, midpoint << 1);
+                    candidate.NormalRadicand, midpoint << 1, scale);
             if (comparison >= 0)
                 low = midpoint + 1UL;
             else
@@ -306,7 +311,7 @@ internal static partial class WideConvexPrismRelations
         int midpointComparison =
             CompareConvexContactCandidateNormalComponentToTwiceRaw(
                 squares, signs, words, component,
-                candidate.NormalRadicand, (floor << 1) | 1UL);
+                candidate.NormalRadicand, (floor << 1) | 1UL, scale);
         floor += GetNearestEvenIncrement(midpointComparison, floor);
         return Fixed64.FromRaw(sign * (long)floor);
     }
@@ -317,13 +322,14 @@ internal static partial class WideConvexPrismRelations
         int words,
         int component,
         ReadOnlySpan<ulong> radicand,
-        ulong twiceRaw)
+        ulong twiceRaw,
+        ulong scale)
     {
         // (2 S n_i)^2 - twiceRaw^2 |n|^2 has the sign of the unsquared
         // comparison, since both magnitudes and the norm are nonnegative.
         Span<ulong> scaleSquared = stackalloc ulong[2];
-        scaleSquared[0] = 0UL;
-        scaleSquared[1] = 4UL;
+        Fixed64.Multiply64To128(scale << 1, scale << 1,
+            out scaleSquared[1], out scaleSquared[0]);
         Span<ulong> thresholdSquared = stackalloc ulong[2];
         Fixed64.Multiply64To128(twiceRaw, twiceRaw,
             out thresholdSquared[1], out thresholdSquared[0]);

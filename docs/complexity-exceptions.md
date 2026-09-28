@@ -210,7 +210,7 @@ exception table: their reported complexities are at most 10.
 | `CylinderPairRepeatedRim.GetRegularNormal(...)` | 24 | 100% line / 100% branch (Release / ReleaseLean) | Line-circle recovery retains merged tangent branches, unsquared radial signs and finite cap inequalities in the same quadratic extension; dominated H=0 values are excluded. | A shared recovery representation reduces work without admitting a squared conjugate or losing a true rank-one minimum. |
 | `CylinderPairRepeatedRim.RoundNormal(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Three exact world-normal components retain both quadratic extensions through signed nearest-even midpoint comparisons. | Another exact rounding owner supports these nested radicals within the same scratch bound. |
 | `ConvexContactValueRoot.GetRoundedDepth(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Shared root-to-dyadic comparisons distinguish conceptual overflow, representable endpoints and nearest-even half-raw depth ties for cylinder-pair and box/cylinder contacts. | The physical-value scale or shared algebraic conversion contract changes. |
-| `ConvexContactValueRoot.GetRoundedNormalComponent(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Shared exact direction polynomials determine component signs and midpoint squares without approximating the selected algebraic root. | A cheaper normal certificate preserves slope orientation, zero components and nearest-even ties. |
+| `ConvexContactValueRoot.GetRoundedNormalComponent(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Shared exact direction polynomials determine component signs and midpoint squares without approximating the selected algebraic root; radius-scaled witnesses multiply before final rounding. | A cheaper normal certificate preserves slope orientation, zero components and nearest-even ties. |
 | `CylinderPairSideValuePolynomial.Build(in CylinderPairGeometry, ...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Side/cap orientation selects exact geometry invariants for the shared unshifted quartic and full-radius octic construction. | Side ownership or exact first/second-frame scaling changes. |
 | `CylinderPairValuePolynomial.Build(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | One fixed cubic-pencil construction produces the squared-distance discriminant and optional analytic derivatives with shared polynomial arithmetic. | The feature proof or derivative consumers change, or a simpler exact construction lowers degree or live workspace. |
 | `WideConvexPrismRelations.TryImproveCylinderCapsuleEllipse(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | The existing quartic ellipse winner competes against the shared analytic candidate before exact full-gap classification and final rounding. | Winner ordering, signed radius offsets or the ellipse's sole-interior-minimum proof changes. |
@@ -253,14 +253,71 @@ The Release and ReleaseLean reports in `artifacts/fms025-final-release` and
 | --- | ---: | --- | --- | --- |
 | `BoxCylinderAnalyticFeatures.TryGetBest(...)` | 34 | 100% line / 100% branch (Release / ReleaseLean) | Canonical poles, face/side boundaries, radial vertices and exceptional edge directions exhaust the analytic feature set; smooth vertex/rim certificates still detect separation. | The complete support-feature proof changes or measured pruning removes repeated directions. |
 | `BoxCylinderAnalyticFeatures.KeepAxis(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Zero directions, separation and exact stable ties are handled before copying the shared candidate. | Candidate ownership or canonical tie order changes. |
-| `BoxCylinderAnalyticFeatures.BuildAxis(...)` | 20 | 100% line / 100% branch (Release / ReleaseLean) | Full authored support retains signed axial, box and radical radial terms, along with exact local and world normal signs. | A narrower representation preserves the same full-domain support and rounding contract. |
 | `BoxCylinderAnalyticFeatures.HasVertexRimSeparation(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | A smooth rim residual is a separator only after finite-cap, radial and exact box-cone admission; positive penetration minima belong to boundary features. | The zero-curvature proof or cap/cone ownership changes. |
 | `BoxCylinderEdgeContacts.TryGetContact(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | Bounded signed edge/cap charts retain exact zero and stable winners, with proven circle/rectangle reductions and cone-wide dominance pruning. | A smaller complete parameterization removes charts without approximating geometry. |
 | `BoxCylinderEdgeContacts.TryChart(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Quartic roots retain cap and unsquared stationary signs before separation, exact zero, squared-value mapping and winner selection. | Exact nonwinning-value rejection can safely precede mapping or admission becomes simpler. |
 | `WideOrientedBox.TryGetCenteredCylinderContact(..., out CenteredCylinderContactFeature)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | One boundary owns conservative broad rejection, analytic/edge selection, final rounding, exact box support signs and manifold feature metadata. | Contact or manifold ownership changes. |
 | `WideOrientedBox.GetCylinderCapFace(...)` | 30 | 100% line / 100% branch (Release / ReleaseLean) | Three explicit component tests admit only exact parallel box-face/cylinder-cap pairs; rounded world normals cannot fabricate a manifold. | Another consumer shares this exact three-axis classification. |
 
+### Triangle/cylinder contacts
+
+Triangle/cylinder contact shares support algebra, stationary quartics and exact
+root signs with the box/cylinder owner. It keeps triangle feature selection and
+paired witness construction local. The shared extraction reduces
+`BoxCylinderAnalyticFeatures.BuildAxis` below this register's threshold.
+The GRV-Issue-082 validation reports under `artifacts/grv082-final-*-report`
+provide the refreshed measurements.
+
+| Method | Complexity | Coverage | Rationale | Revisit if |
+| --- | ---: | --- | --- | --- |
+| `TriangleCylinderAnalyticFeatures.TryGetBest(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Ordered face, pole, side and edge boundaries exhaust the analytic partition; smooth vertex/rim residuals still certify separation. | A new exact certificate removes feature work while preserving canonical ties. |
+| `TriangleCylinderAnalyticFeatures.KeepAxis(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | Exact support signs, stable candidate comparison and winner-only world transformation share one admission boundary. | Support ownership or retained candidate layout changes. |
+| `TriangleCylinderContact.TryGetContact(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | One owner selects analytic/root winners and materializes matching cap, side or rim witnesses with exact cap metadata. | Another shape can share materialization without weakening authored-frame or feature contracts. |
+| `TriangleCylinderContact.GetAnalyticDepth(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Principal directions cancel their common scale before exact rational rounding; other directions retain the shared radical depth comparison. | A cheaper full-domain reducer preserves odd raw dimensions and conceptual overflow flags. |
+| `TriangleCylinderEdgeContacts.TryGetContact(...)` | 28 | 100% line / 100% branch (Release / ReleaseLean) | Both finite caps and every nondegenerate triangle edge retain the complete bounded chart traversal. | The stationary-feature proof permits fewer charts. |
+| `TriangleCylinderEdgeContacts.TryChart(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | Quartic roots pass exact cap, stationary-sign and triangle-cone admission before separation and stable winner selection; analytic boundaries keep their earlier ownership. | A cheaper exact admission or nonwinning-value certificate preserves completeness. |
+| `TriangleCylinderGeometry.HasFaceMinimumCertificate(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Exact triangle projection and an inscribed cylinder ball prove the selected face already attains the global minimum. | A broader exact certificate reduces measured feature traversal without replacing the complete fallback. |
+| `TriangleCylinderRimWitnesses.GetAnalyticPoint(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Vertex, edge and face support retain rational-plus-radical coordinates until a single nearest-even conversion. | An existing exact reducer can share this representation without rounded intermediate witnesses. |
+| `TriangleCylinderWitnesses.GetSidePoint(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Tangent-plane intersection and finite axial clipping select a paired witness on the winning triangle support feature. | Feature representation changes or the same exact clipping is needed by another contact owner. |
+| `TriangleCylinderWitnesses.GetFaceWeights(...)` | 24 | 100% line / 100% branch (Release / ReleaseLean) | Exact Voronoi regions retain barycentric weights for independently rounded triangle/cylinder anchors. | A shared projection owner preserves full-width weights and first-feature boundary ownership. |
+
 ## Fixed-Width Workspace Bounds
+
+Triangle/cylinder contact shares the cylinder support algebra, edge stationary
+polynomial and squared-value root mapping with box/cylinder contact. Its normal
+partition consists of triangle face directions, edge normal-cone arcs and vertex
+cone interiors, intersected with cylinder cap poles, side directions and rim
+hemispheres. Analytic candidates own the face/pole and side boundaries. Smooth
+vertex/rim interiors cannot own a strict positive minimum because meridional
+support curvature is zero; their exact residual still detects separation. Edge
+arcs retain every admitted stationary quartic root, with unsquared sign, finite
+cap and triangle-cone checks. Analytic chart endpoints also cover the root
+owner's excluded zero parameter.
+
+After nonnegative pole/face admission, horizontal and vertical faces can also
+certify the global minimum without enumerating the remaining features. The
+origin's exact projection must lie inside the triangle, and a ball centered at
+that projection with radius equal to the face gap must fit inside the cylinder.
+That ball supplies the lower bound attained by the selected face. A failed
+certificate continues through the complete feature set; a successful one keeps
+the already-selected candidate and its canonical tie ownership.
+
+Transformed triangle coordinates remain below `2^197`, and edge/cap differences
+below `2^198`. The parameter polynomial and value-map coefficients remain below
+`2^2403`, inside forty-word fields; the scaled squared-value quartic fits 3,240
+bits inside fifty-six words. Face-projection dot products need fewer than 400
+bits and their minors fewer than 802, fitting `Signed832`. Side-feature blending
+and final coordinate products remain below 2,000 bits in the shared forty-word
+storage. Barycentric weights remain exact until final coordinate rounding, and
+radial witnesses scale by the full authored radius before rounding. Rim-edge
+witness coordinates retain the selected parameter root as a linear ratio;
+their midpoint queries fit `Signed576`. Analytic rim witnesses compare the
+complete rational-plus-radical coordinate through the existing quadratic sign
+owner. Neither path projects an already-rounded radial support point.
+Resource tests exercise ordinary interior-root and large-extent, distinct rigid-frame
+contacts on a 1 MiB thread stack with 64 KiB of live, dirty caller storage.
+The latter uses a shared extreme origin, so it supplements rather than replaces
+the full-domain translated-coordinate width proof.
 
 Box/cylinder geometry uses the authored rational box frame, an independently
 primitive cylinder axis and one reduced coordinate scale. Coordinates remain

@@ -13,6 +13,39 @@ namespace FixedMathSharp.Tests;
 
 public sealed class FixedTriangleCapsuleSlabTests
 {
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public void PositiveCapsuleSlab_PreservesBothTriangleFaceOrientations(int side)
+    {
+        Assert.True(CreateVerticalTriangle().TryGetCenteredCapsuleSlabContact(
+            Vector3d.Zero, FixedQuaternion.Identity,
+            new Vector3d(side * Fixed64.Half, Fixed64.Zero, Fixed64.Zero),
+            Fixed64.Zero, Vector2d.Forward, Fixed64.Two, Fixed64.One, Fixed64.One,
+            out FixedContactAnchors contact));
+        Assert.Equal(new Vector3d((Fixed64)side, Fixed64.Zero, Fixed64.Zero), contact.Normal);
+        Assert.Equal(Fixed64.Half, contact.Depth);
+    }
+
+    [Fact]
+    public void PositiveCapsuleSlab_RejectsDegenerateAndCardinalOrEdgeGaps()
+    {
+        Assert.False(new FixedTriangle(Vector3d.Zero, Vector3d.Right, Vector3d.Right)
+            .TryGetCenteredCapsuleSlabContact(Vector3d.Zero, FixedQuaternion.Identity,
+                Vector3d.Zero, Fixed64.Zero, Vector2d.Right, Fixed64.One, Fixed64.One, Fixed64.One, out _));
+        FixedTriangle triangle = CreateVerticalTriangle();
+        Assert.False(triangle.TryGetCenteredCapsuleSlabContact(Vector3d.Zero, FixedQuaternion.Identity,
+            new Vector3d(Fixed64.FromFraction(5, 2), Fixed64.Zero, Fixed64.Zero),
+            Fixed64.Zero, Vector2d.Forward, Fixed64.Two, Fixed64.One, Fixed64.One, out _));
+        Assert.False(triangle.TryGetCenteredCapsuleSlabContact(Vector3d.Zero, FixedQuaternion.Identity,
+            new Vector3d(0, 3, 0), Fixed64.Zero, Vector2d.Forward, Fixed64.Two,
+            Fixed64.One, Fixed64.One, out _));
+        var corner = new FixedTriangle(Vector3d.Zero, new Vector3d(2, 0, 0), new Vector3d(0, 0, 2));
+        Assert.False(corner.TryGetCenteredCapsuleSlabContact(Vector3d.Zero, FixedQuaternion.Identity,
+            new Vector3d(Fixed64.FromFraction(3, 2), Fixed64.Zero, Fixed64.FromFraction(3, 2)),
+            Fixed64.Zero, Vector2d.Right, Fixed64.Half, Fixed64.FromFraction(1, 4), Fixed64.One, out _));
+    }
+
     [Fact]
     public void CircleSlab_ReturnsCanonicalContact()
     {

@@ -240,6 +240,19 @@ radius is a finite axis segment. The manifold overload additionally clips up
 to four matched contacts when a parallel box face and cylinder cap are selected;
 other features use the primary contact with a zero manifold count.
 
+`FixedTriangle.TryGetCenteredFiniteCylinderContact` includes the triangle's
+face, edges and vertices against the finite cylinder's caps, side and rims.
+It returns a triangle-to-cylinder normal, depth and shape-local contact anchors.
+A triangle's closest point to the cylinder center is not sufficient to decide
+contact: another part of the triangle can cross a flat cap or a curved rim.
+Degenerate triangles return false, matching the triangle/slab contact APIs.
+`TryGetCircleSlabContact` uses the same geometry for an upright finite cylinder,
+while retaining the circle's authored yaw and half-thickness. Half-thickness
+is not doubled in `Fixed64`, so a representable slab is not shortened when its
+full height exceeds the scalar range.
+`TryGetCenteredCapsuleSlabContact` uses this same path when its core length is
+zero, including the same contact anchors and authored yaw.
+
 `FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact` includes the finite
 cylinder's caps, side, and rims when finding the minimum translation. It also
 handles a capsule core that enters the cylinder: depth is not necessarily just

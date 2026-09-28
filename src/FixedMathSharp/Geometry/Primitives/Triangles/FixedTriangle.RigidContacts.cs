@@ -12,13 +12,48 @@ namespace FixedMathSharp.Geometry;
 /// <content>
 /// Rigid-frame contact generation for <see cref="FixedTriangle"/> against
 /// centered convex shapes (cylinders, cones, etc.) that are transformed by
-/// their own position/rotation. Validates that the supplied triangle and
-/// shape frames are rigid (uniform, non-degenerate) before computing a
-/// support point on the shape and projecting/clamping it onto the triangle
-/// to produce a <see cref="FixedContactAnchors"/> result.
+/// their own position/rotation. Complete contact queries select exact shape
+/// features before materialization; explicitly named support-contact queries
+/// project caller-selected supports onto the triangle. Both validate the
+/// supplied rigid frames and retain authored contact-anchor ownership.
 /// </content>
 public partial struct FixedTriangle
 {
+    /// <summary>
+    /// Attempts to construct a minimum-depth inclusive contact between this
+    /// rigid triangle and a finite cylinder whose local axis is +Y.
+    /// </summary>
+    /// <remarks>
+    /// The normal points from the triangle toward the cylinder. Triangle face,
+    /// vertex/side, edge/side and admitted edge/rim stationary features share
+    /// exact selection before final Q32.32 rounding. Anchors retain their
+    /// authored frames, including unrepresentable absolute world points.
+    /// Degenerate triangles and separated shapes return false.
+    /// </remarks>
+    public readonly bool TryGetCenteredFiniteCylinderContact(
+        Vector3d triangleOrigin, FixedQuaternion triangleRotation,
+        Vector3d cylinderCenter, FixedQuaternion cylinderRotation,
+        Fixed64 cylinderHeight, Fixed64 cylinderRadius, out FixedContactAnchors contact) =>
+        TryGetCenteredFiniteCylinderContact(triangleOrigin, triangleRotation,
+            cylinderCenter, cylinderRotation, cylinderHeight, cylinderRadius, out contact, out _);
+
+    internal readonly bool TryGetCenteredFiniteCylinderContact(
+        Vector3d triangleOrigin, FixedQuaternion triangleRotation,
+        Vector3d cylinderCenter, FixedQuaternion cylinderRotation,
+        Fixed64 cylinderHeight, Fixed64 cylinderRadius, out FixedContactAnchors contact,
+        out bool isCapFaceContact)
+    {
+        ValidateRigidTriangleFrame(triangleRotation);
+        ValidateRigidShapeFrame(cylinderRotation, nameof(cylinderRotation));
+        if (cylinderHeight <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(cylinderHeight));
+        if (cylinderRadius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(cylinderRadius));
+        return TriangleCylinderContact.TryGetContact(this, triangleOrigin, triangleRotation,
+            cylinderCenter, cylinderRotation, Signed192.Raw(cylinderHeight), cylinderRadius,
+            out contact, out isCapFaceContact);
+    }
+
     /// <summary>
     /// Attempts to project one centered finite-cylinder support onto this
     /// rigidly transformed triangle.

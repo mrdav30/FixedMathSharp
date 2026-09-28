@@ -34,17 +34,10 @@ public partial struct FixedTriangle
             Fixed64.Zero,
             circleRadius,
             slabHalfThickness);
-        return WideOrientedBox.TryGetTriangleCapsuleSlabContact(
-            triangleOrigin,
-            triangleRotation,
-            this,
-            slabCenter,
-            circleFrameRotation,
-            Vector2d.Right,
-            Fixed64.Zero,
-            circleRadius,
-            slabHalfThickness,
-            out contact);
+        return TriangleCylinderContact.TryGetContact(this, triangleOrigin, triangleRotation,
+            slabCenter, FixedQuaternion.FromAxisAngle(Vector3d.Up, -circleFrameRotation),
+            WideArithmetic.AddSigned192(Signed192.Raw(slabHalfThickness), Signed192.Raw(slabHalfThickness)),
+            circleRadius, out contact, out _);
     }
 
     /// <summary>
@@ -68,6 +61,11 @@ public partial struct FixedTriangle
             capsuleAxisLength,
             capsuleRadius,
             slabHalfThickness);
+        if (capsuleAxisLength == Fixed64.Zero)
+            return TriangleCylinderContact.TryGetContact(this, triangleOrigin, triangleRotation,
+                slabCenter, FixedQuaternion.FromAxisAngle(Vector3d.Up, -capsuleFrameRotation),
+                WideArithmetic.AddSigned192(Signed192.Raw(slabHalfThickness), Signed192.Raw(slabHalfThickness)),
+                capsuleRadius, out contact, out _);
         return WideOrientedBox.TryGetTriangleCapsuleSlabContact(
             triangleOrigin,
             triangleRotation,
