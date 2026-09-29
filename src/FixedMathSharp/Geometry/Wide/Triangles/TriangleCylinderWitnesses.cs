@@ -19,7 +19,7 @@ internal static class TriangleCylinderWitnesses
     /// numerators below 1098, and blended weights below 1964. Their coordinate
     /// products remain below 2200 bits, inside forty-word candidate storage.
     /// </summary>
-    internal static Vector3d GetSidePoint(in TriangleCylinderGeometry geometry, FixedTriangle triangle,
+    internal static Vector3d GetSidePoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
         int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns,
         out Fixed64 axial, out int cap)
     {
@@ -107,7 +107,7 @@ internal static class TriangleCylinderWitnesses
     /// A cap-pole minimum proves the projected radial point is in the disk;
     /// its final-rounded coordinates must not be normalized a second time.
     /// </summary>
-    internal static Vector3d GetCapPoint(in TriangleCylinderGeometry geometry, FixedTriangle triangle,
+    internal static Vector3d GetCapPoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
         int mask, out Vector3d projectedRadial)
     {
         Span<ulong> weights = stackalloc ulong[3 * Words];
@@ -129,7 +129,7 @@ internal static class TriangleCylinderWitnesses
         return point;
     }
 
-    internal static void GetCapWeights(in TriangleCylinderGeometry geometry, int mask, Span<ulong> weights)
+    internal static void GetCapWeights(in TriangleCircularGeometry geometry, int mask, Span<ulong> weights)
     {
         weights.Clear();
         if (mask == 7)
@@ -140,14 +140,14 @@ internal static class TriangleCylinderWitnesses
             GetEdgeWeights(geometry, mask, weights);
     }
 
-    private static void GetEdgeWeights(in TriangleCylinderGeometry geometry, int mask, Span<ulong> weights)
+    private static void GetEdgeWeights(in TriangleCircularGeometry geometry, int mask, Span<ulong> weights)
     {
         int first = (mask & 1) != 0 ? 0 : 1;
         int second = (mask & 4) != 0 ? 2 : 1;
         WideAxis3 edge = geometry.EdgeFromTo(first, second);
         // A pole's selected feature has constant local Y. Projecting the
         // origin is identical to projecting either cap center onto it.
-        Signed576 parameter = WideAxis3.Dot(TriangleCylinderGeometry.Subtract(default, geometry.Vertex(first)), edge);
+        Signed576 parameter = WideAxis3.Dot(TriangleCircularGeometry.Subtract(default, geometry.Vertex(first)), edge);
         Signed576 denominatorValue = WideArithmetic.MultiplySigned576(edge.SquaredLength, geometry.EdgeScale);
         if (parameter.Sign <= 0)
         {
@@ -163,10 +163,10 @@ internal static class TriangleCylinderWitnesses
         Import(remainder, Slot(weights, first)); Import(parameter, Slot(weights, second));
     }
 
-    private static void GetFaceWeights(in TriangleCylinderGeometry geometry, Span<ulong> weights)
+    private static void GetFaceWeights(in TriangleCircularGeometry geometry, Span<ulong> weights)
     {
         WideAxis3 e = geometry.Edge(0), f = -geometry.Edge(2);
-        WideAxis3 offset = TriangleCylinderGeometry.Subtract(default, geometry.A);
+        WideAxis3 offset = TriangleCircularGeometry.Subtract(default, geometry.A);
         Signed576 d1 = WideAxis3.Dot(e, offset), d2 = WideAxis3.Dot(f, offset);
         if (d1.Sign <= 0 && d2.Sign <= 0)
         {
@@ -261,7 +261,7 @@ internal static class TriangleCylinderWitnesses
         WideArithmetic.AddMagnitudeInto(Slot(weights, 2), denominator);
     }
 
-    private static void SumCoordinates(in TriangleCylinderGeometry geometry, ReadOnlySpan<ulong> weights,
+    private static void SumCoordinates(in TriangleCircularGeometry geometry, ReadOnlySpan<ulong> weights,
         int component, Span<ulong> result, out int sign)
     {
         Span<ulong> coordinate = stackalloc ulong[Words];

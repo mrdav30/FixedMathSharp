@@ -18,7 +18,7 @@ internal static class TriangleCylinderContact
         contact = default; isCapFaceContact = false;
         if (triangle.IsDegenerate)
             return false;
-        var geometry = new TriangleCylinderGeometry(triangle, origin, rotation,
+        var geometry = new TriangleCircularGeometry(triangle, origin, rotation,
             cylinderCenter, cylinderRotation, height, radius);
         WideAxis3 coreOffset = default, coreAxis = default;
         if (coreLength != Fixed64.Zero)
@@ -51,12 +51,12 @@ internal static class TriangleCylinderContact
                 mask = edgeMask; cap = edgeCap; coreSign = edgeCoreSign;
             }
         }
-        TriangleCylinderGeometry winner = coreSign == 0 ? geometry : geometry.AtCoreRegion(coreOffset, coreSign);
+        TriangleCircularGeometry winner = coreSign == 0 ? geometry : geometry.AtCoreRegion(coreOffset, coreSign);
         bool pole = !edgeWinner && directionSigns[0] == 0 && directionSigns[2] == 0;
         if (!edgeWinner)
         {
             normal = WideConvexPrismRelations.GetConvexContactCandidateNormal(best);
-            GetAnalyticDepth(winner, best, directionSigns, mask, out depth, out clamped);
+            winner.GetAnalyticDepth(best, directionSigns, mask, out depth, out clamped);
             if (!pole && (coreAxis.IsZero || coreSign != 0))
             {
                 // Round R*Nrad/|Nrad| directly from the selected exact direction.
@@ -77,7 +77,7 @@ internal static class TriangleCylinderContact
                     radius, core, term, radialPoint, out integralRadialMask);
         }
         isCapFaceContact = pole && mask == 7;
-        FixedPointAnchor cylinderAnchor = GetSupport(cylinderCenter, cylinderRotation,
+        FixedPointAnchor cylinderAnchor = TriangleCircularGeometry.GetSupport(cylinderCenter, cylinderRotation,
             height, radialPoint, cap);
         FixedPointAnchor triangleAnchor;
         if (!coreAxis.IsZero && coreSign == 0)
@@ -94,7 +94,7 @@ internal static class TriangleCylinderContact
                 direction, directionSigns, out Fixed64 axial, out int boundaryCap);
             triangleAnchor = new FixedPointAnchor(origin, rotation, point);
             cylinderAnchor = boundaryCap != 0
-                ? GetSupport(cylinderCenter, cylinderRotation, height, radialPoint, boundaryCap)
+                ? TriangleCircularGeometry.GetSupport(cylinderCenter, cylinderRotation, height, radialPoint, boundaryCap)
                 : new FixedPointAnchor(cylinderCenter, cylinderRotation,
                     new Vector3d(Fixed64.Zero, axial, Fixed64.Zero), radialPoint);
         }
@@ -103,7 +103,7 @@ internal static class TriangleCylinderContact
             Vector3d projectedRadial = default;
             Vector3d point = edgeWinner ? rootPoint
                 : pole ? TriangleCylinderWitnesses.GetCapPoint(winner, triangle, mask, out projectedRadial)
-                : TriangleCylinderRimWitnesses.GetAnalyticPoint(winner, triangle, mask, direction, directionSigns, cap);
+                : TriangleCylinderRimWitnesses.GetAnalyticPoint(winner, triangle, mask, direction, directionSigns, cap, winner.Radius);
             triangleAnchor = new FixedPointAnchor(origin, rotation, point);
             if (pole)
                 cylinderAnchor = new FixedPointAnchor(cylinderCenter, cylinderRotation,
@@ -124,55 +124,6 @@ internal static class TriangleCylinderContact
         // cap coordinate is exact and only the half-core residual remains.
         return new FixedPointAnchor(anchor.Origin, anchor.Rotation,
             new Vector3d(core.X, anchor.LocalPoint.Y, core.Z), anchor.LocalDisplacement, term);
-    }
-
-    private static void GetAnalyticDepth(in TriangleCylinderGeometry geometry,
-        ConvexContactCandidate candidate, ReadOnlySpan<int> directionSigns, int mask,
-        out Fixed64 depth, out bool clamped)
-    {
-        int components = (directionSigns[0] == 0 ? 0 : 1)
-            + (directionSigns[1] == 0 ? 0 : 1) + (directionSigns[2] == 0 ? 0 : 1);
-        if (components != 1)
-        {
-            WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(candidate, Fixed64.Zero, out depth, out clamped);
-            return;
-        }
-        // A single local component cancels its magnitude from the normalized
-        // support gap. Every vertex in the selected mask has this coordinate.
-        int axis = directionSigns[0] != 0 ? 0 : directionSigns[1] != 0 ? 1 : 2;
-        int vertex = (mask & 1) != 0 ? 0 : (mask & 2) != 0 ? 1 : 2;
-        Signed320 coordinate = Component(geometry.Vertex(vertex), axis);
-        Signed320 numerator = WideArithmetic.AddSigned320(axis == 1 ? geometry.HalfHeight : geometry.Radius,
-            directionSigns[axis] < 0 ? WideArithmetic.Negate(coordinate) : coordinate);
-        // Shifted numerator and exact clamp threshold fit 233 bits. Test exact
-        // overflow before nearest-even rounding, including Max+fractions.
-        Signed320 maximum = WideArithmetic.MultiplySigned192(geometry.RawScale, Signed192.Raw(Fixed64.MaxValue));
-        clamped = WideArithmetic.SubtractSigned320(numerator, maximum).Sign > 0;
-        if (clamped)
-        {
-            depth = Fixed64.MaxValue;
-            return;
-        }
-        bool represented = Fixed64.TryGetSignedRawRatio(Signed576.ExtendValue(numerator),
-            Signed576.ExtendValue(Signed320.ExtendValue(geometry.RawScale)), out depth);
-        System.Diagnostics.Debug.Assert(represented);
-    }
-
-    private static FixedPointAnchor GetSupport(Vector3d center, FixedQuaternion rotation,
-        Signed192 height, Vector3d radialPoint, int cap)
-    {
-        ulong floor = height.Low >> 1;
-        Fixed64 halfHeight = Fixed64.FromRaw((long)(floor + ((height.Low & 1UL) != 0 && (floor & 1UL) != 0 ? 1UL : 0UL)));
-        Vector3d axial = new(Fixed64.Zero, cap >= 0 ? -halfHeight : halfHeight, Fixed64.Zero);
-        // Public cylinder heights fit one Fixed64 and can retain an odd raw
-        // half-height. Slab heights may span 64 unsigned bits but are even,
-        // because their authored half-thickness was representable and exact.
-        FixedPointAnchorTerm3d term = height.Low <= long.MaxValue
-            ? FixedPointAnchorTerm3d.CreateCenteredAxisSupport(Vector3d.Up,
-                Fixed64.FromRaw(cap >= 0 ? -(long)height.Low : (long)height.Low),
-                Vector3d.Zero, Fixed64.Zero, axial, Vector3d.Zero)
-            : default;
-        return new FixedPointAnchor(center, rotation, axial, radialPoint, term);
     }
 
 }

@@ -7,8 +7,8 @@ using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
-/// <summary>Exact triangle coordinates in the cylinder's canonical +Y frame.</summary>
-internal readonly struct TriangleCylinderGeometry
+/// <summary>Exact triangle coordinates and circular extents in a canonical +Y frame.</summary>
+internal readonly struct TriangleCircularGeometry
 {
     internal readonly WideRationalBasis3d WorldBasis;
     internal readonly WideAxis3 A, B, C, FaceNormal;
@@ -18,7 +18,7 @@ internal readonly struct TriangleCylinderGeometry
     internal readonly int ValueShift;
     private readonly WideAxis3 firstEdge, secondEdge;
 
-    internal TriangleCylinderGeometry(FixedTriangle triangle, Vector3d origin, FixedQuaternion rotation,
+    internal TriangleCircularGeometry(FixedTriangle triangle, Vector3d origin, FixedQuaternion rotation,
         Vector3d cylinderCenter, FixedQuaternion cylinderRotation, Signed192 height, Fixed64 radius)
     {
         WorldBasis = new WideRationalBasis3d(cylinderRotation);
@@ -54,7 +54,7 @@ internal readonly struct TriangleCylinderGeometry
         ValueShift = GetValueShift(coordinates[1..], 4);
     }
 
-    private TriangleCylinderGeometry(in TriangleCylinderGeometry source, Signed192 multiplier, WideAxis3 coreOffset)
+    private TriangleCircularGeometry(in TriangleCircularGeometry source, Signed192 multiplier, WideAxis3 coreOffset)
     {
         WorldBasis = source.WorldBasis; FaceNormal = source.FaceNormal;
         A = Multiply(source.A, multiplier);
@@ -76,13 +76,13 @@ internal readonly struct TriangleCylinderGeometry
         ValueShift = GetValueShift(bounds, 5);
     }
 
-    private TriangleCylinderGeometry(in TriangleCylinderGeometry source, WideAxis3 offset)
+    private TriangleCircularGeometry(in TriangleCircularGeometry source, WideAxis3 offset)
     {
         this = source;
         A = Add(source.A, offset); B = Add(source.B, offset); C = Add(source.C, offset);
     }
 
-    internal TriangleCylinderGeometry WithCore(Vector2d axis, Fixed64 length, out WideAxis3 coreOffset)
+    internal TriangleCircularGeometry WithCore(Vector2d axis, Fixed64 length, out WideAxis3 coreOffset)
     {
         // The reduced cylinder scale need not retain its original factor two.
         // One common 2Q multiplier represents L*axis/(2Q) at either endpoint,
@@ -92,10 +92,10 @@ internal readonly struct TriangleCylinderGeometry
         coreOffset = new WideAxis3(Multiply(lengthScale, Signed192.Raw(axis.X)), default,
             Multiply(lengthScale, Signed192.Raw(axis.Y)));
         // Both endpoint regions retain one actual-bound-based value scale.
-        return new TriangleCylinderGeometry(this, multiplier, coreOffset);
+        return new TriangleCircularGeometry(this, multiplier, coreOffset);
     }
 
-    internal TriangleCylinderGeometry AtCoreRegion(WideAxis3 coreOffset, int sign) =>
+    internal TriangleCircularGeometry AtCoreRegion(WideAxis3 coreOffset, int sign) =>
         new(this, sign > 0 ? coreOffset : -coreOffset);
 
     internal WideAxis3 EdgeFromTo(int from, int to) => (from + 1) % 3 == to ? Edge(from) : -Edge(to);
@@ -165,9 +165,9 @@ internal readonly struct TriangleCylinderGeometry
     {
         if (!WideAxis3.Cross(FaceNormal, coreAxis).IsZero)
             return false;
-        // Both core regions have already tested +/-face: d<=s-|a|, where
-        // the stadium contains the normal-axis segment [-s,s] and the plane
-        // is u.x=a. A face-plane disk(q,d), q=a*u, minus that segment contains
+        // The caller has tested +/-face with d>=0 and proved that its shape
+        // contains the normal-axis segment [-s,s], with d<=s-|a| for plane
+        // u.x=a. A face-plane disk(q,d), q=a*u, minus that segment contains
         // the origin ball(d). Its three inward edge clearances therefore
         // certify the retained d globally, without changing its earlier tie.
         Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * Words];
@@ -203,6 +203,38 @@ internal readonly struct TriangleCylinderGeometry
         WideArithmetic.SubtractSigned832(WideArithmetic.MultiplySigned576ToSigned832(a, b),
             WideArithmetic.MultiplySigned576ToSigned832(c, d));
 
+    /// <summary>Rounds a rational local normal's support gap, cancelling principal-axis scale exactly.</summary>
+    internal void GetAnalyticDepth(ConvexContactCandidate candidate, ReadOnlySpan<int> directionSigns, int mask,
+        out Fixed64 depth, out bool clamped)
+    {
+        int components = (directionSigns[0] == 0 ? 0 : 1)
+            + (directionSigns[1] == 0 ? 0 : 1) + (directionSigns[2] == 0 ? 0 : 1);
+        if (components != 1)
+        {
+            WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(candidate, Fixed64.Zero, out depth, out clamped);
+            return;
+        }
+        // A single local component cancels its magnitude from the normalized
+        // support gap. Every vertex in the selected mask has this coordinate.
+        int axis = directionSigns[0] != 0 ? 0 : directionSigns[1] != 0 ? 1 : 2;
+        int vertex = (mask & 1) != 0 ? 0 : (mask & 2) != 0 ? 1 : 2;
+        Signed320 coordinate = Component(Vertex(vertex), axis);
+        Signed320 numerator = WideArithmetic.AddSigned320(axis == 1 ? HalfHeight : Radius,
+            directionSigns[axis] < 0 ? WideArithmetic.Negate(coordinate) : coordinate);
+        // Shifted numerator and exact clamp threshold fit 233 bits. Test exact
+        // overflow before nearest-even rounding, including Max+fractions.
+        Signed320 maximum = WideArithmetic.MultiplySigned192(RawScale, Signed192.Raw(Fixed64.MaxValue));
+        clamped = WideArithmetic.SubtractSigned320(numerator, maximum).Sign > 0;
+        if (clamped)
+        {
+            depth = Fixed64.MaxValue;
+            return;
+        }
+        bool represented = Fixed64.TryGetSignedRawRatio(Signed576.ExtendValue(numerator),
+            Signed576.ExtendValue(Signed320.ExtendValue(RawScale)), out depth);
+        System.Diagnostics.Debug.Assert(represented);
+    }
+
     internal WideAxis3 Vertex(int index) => index == 0 ? A : index == 1 ? B : C;
     internal WideAxis3 Edge(int index) => index == 0 ? firstEdge : index == 1 ? secondEdge : -Add(firstEdge, secondEdge);
     internal WideAxis3 CapOffset(int vertex, int cap) => new(Vertex(vertex).X,
@@ -212,4 +244,20 @@ internal readonly struct TriangleCylinderGeometry
         WideArithmetic.SubtractSigned320(first.X, second.X),
         WideArithmetic.SubtractSigned320(first.Y, second.Y),
         WideArithmetic.SubtractSigned320(first.Z, second.Z));
+    internal static FixedPointAnchor GetSupport(Vector3d center, FixedQuaternion rotation,
+        Signed192 height, Vector3d radialPoint, int cap)
+    {
+        ulong floor = height.Low >> 1;
+        Fixed64 halfHeight = Fixed64.FromRaw((long)(floor + ((height.Low & 1UL) != 0 && (floor & 1UL) != 0 ? 1UL : 0UL)));
+        Vector3d axial = new(Fixed64.Zero, cap >= 0 ? -halfHeight : halfHeight, Fixed64.Zero);
+        // Public cylinder heights fit one Fixed64 and can retain an odd raw
+        // half-height. Slab heights may span 64 unsigned bits but are even,
+        // because their authored half-thickness was representable and exact.
+        FixedPointAnchorTerm3d term = height.Low <= long.MaxValue
+            ? FixedPointAnchorTerm3d.CreateCenteredAxisSupport(Vector3d.Up,
+                Fixed64.FromRaw(cap >= 0 ? -(long)height.Low : (long)height.Low),
+                Vector3d.Zero, Fixed64.Zero, axial, Vector3d.Zero)
+            : default;
+        return new FixedPointAnchor(center, rotation, axial, radialPoint, term);
+    }
 }

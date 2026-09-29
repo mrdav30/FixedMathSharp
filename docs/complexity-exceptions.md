@@ -275,21 +275,62 @@ bounded straight-section seam, rather than introducing another contact solver.
 | `TriangleCylinderAnalyticFeatures.KeepAxis(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Region admission precedes exact support signs, stable comparison and winner-only world transformation. | Support ownership or retained candidate layout changes. |
 | `TriangleCylinderAnalyticFeatures.HasVertexRimSeparation(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | A closest-rim residual proves separation only inside both the triangle vertex cone and the selected core hemisphere. | A shared residual authority preserves both admission conditions. |
 | `TriangleCylinderContact.TryGetContact(...)` | 52 | 100% line / 100% branch (Release / ReleaseLean) | One owner selects analytic/root winners and materializes matched cap, side, rim or seam witnesses with retained exact endpoint metadata. | Another shape can share materialization without weakening authored-frame or feature contracts. |
-| `TriangleCylinderContact.GetAnalyticDepth(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Principal directions cancel their common scale before exact rational rounding; other directions retain the shared radical depth comparison. | A cheaper full-domain reducer preserves odd raw dimensions and conceptual overflow flags. |
+| `TriangleCircularGeometry.GetAnalyticDepth(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Principal directions cancel their common scale before exact rational rounding; other directions retain the shared radical depth comparison. | A cheaper full-domain reducer preserves odd raw dimensions and conceptual overflow flags. |
 | `TriangleCylinderEdgeContacts.TryGetContact(...)` | 36 | 100% line / 100% branch (Release / ReleaseLean) | Both endpoint regions, finite caps and nondegenerate triangle edges retain one complete bounded chart traversal and exact winner. | The stationary-feature proof permits fewer charts. |
 | `TriangleCylinderEdgeContacts.TryChart(...)` | 36 | 100% line / 100% branch (Release / ReleaseLean) | Quartic roots pass exact cap, stationary-sign, triangle-cone and core-region admission before separation and ranking; analytic boundaries retain earlier ownership. | A cheaper exact admission or nonwinning-value certificate preserves completeness. |
-| `TriangleCylinderEdgeContacts.BuildParameter(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Retained unscaled edge charts share the existing polynomial and append exact cap, triangle and core-region constraints. | A common bounded constraint representation reduces work without extra storage. |
-| `TriangleCylinderGeometry.HasFaceMinimumCertificate(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Exact triangle projection and an inscribed cylinder ball prove the selected face already attains the global minimum. | A broader exact certificate reduces measured feature traversal without replacing the complete fallback. |
-| `TriangleCylinderRimWitnesses.GetAnalyticPoint(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Vertex, edge and face support retain rational-plus-radical coordinates until a single nearest-even conversion. | An existing exact reducer can share this representation without rounded intermediate witnesses. |
+| `TriangleCylinderEdgeContacts.BuildParameter(...)` | 10 | 100% line / 100% branch (Release / ReleaseLean) | Retained unscaled edge charts share the existing polynomial and append exact cap, triangle and core-region constraints. | A common bounded constraint representation reduces work without extra storage. |
+| `TriangleCircularGeometry.HasFaceMinimumCertificate(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Exact triangle projection and an inscribed cylinder ball prove the selected face already attains the global minimum. | A broader exact certificate reduces measured feature traversal without replacing the complete fallback. |
+| `TriangleCylinderRimWitnesses.GetAnalyticPoint(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | Vertex, edge and face support retain rational-plus-radical coordinates until a single nearest-even conversion. | An existing exact reducer can share this representation without rounded intermediate witnesses. |
 | `TriangleCylinderWitnesses.GetSidePoint(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Tangent-plane intersection and finite axial clipping select a paired witness on the winning triangle support feature. | Feature representation changes or the same exact clipping is needed by another contact owner. |
 | `TriangleCylinderWitnesses.GetFaceWeights(...)` | 24 | 100% line / 100% branch (Release / ReleaseLean) | Exact Voronoi regions retain barycentric weights for independently rounded triangle/cylinder anchors. | A shared projection owner preserves full-width weights and first-feature boundary ownership. |
 | `TriangleCapsuleSlabWitnesses.GetSideWeights(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | Admitted vertices and finite rectangle boundaries recover a paired witness on the selected straight-side feature. | The same exact clipping contract gains another consumer. |
 | `TriangleCapsuleSlabWitnesses.GetCapWeights(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Core intersections, triangle vertices and nearest endpoint features exhaust the cap's planar closest-feature cases. | Another owner can share this finite feature reduction without rounding admission. |
-| `TriangleCapsuleSlabWitnesses.TrySlice(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Exact support-plane crossings and finite interval clipping retain rational or quadratic weights, including closed boundaries. | A shared bounded slice owner preserves feature ordering with lower measured cost. |
+| `TriangleQuadraticSlice.TryGetWeights(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Shared slab/cone support-plane crossings and finite interval clipping retain rational or quadratic weights, including closed boundaries. | A simpler bounded slice preserves feature ordering with lower measured cost. |
 | `TriangleCapsuleSlabWitnesses.GetMaterials(...)` | 28 | 100% line / 100% branch (Release / ReleaseLean) | Paired triangle/core/radial expressions stay exact until combined-coordinate rounding; integral radial coordinates alone retain exact endpoint residuals. | Anchor storage gains a simpler representation of the same exact feature identity. |
-| `TriangleCapsuleSlabWitnesses.RoundRatio(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | One bounded nearest-even ratio conversion handles signed quadratic coordinates and total-coordinate parity without rounded intermediate admission. | An existing ratio owner can consume this representation with the same proven width and rounding contract. |
+| `ContactQuadratic.RoundRatio(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Shared slab/cone nearest-even conversion handles signed quadratic coordinates and total-coordinate parity without rounded intermediate admission. | Another ratio owner can consume this representation with the same proven width and rounding contract. |
+
+The cone-specific owners retain the same collector-reported complexity
+convention as the rows above. A source-decision audit of these nine methods
+counts standard complexity from 7 to 16; the collector counts instrumented
+branch outcomes and can omit branchless conditional expressions. With full
+coverage, each reported CRAP score equals its listed complexity: no uncovered
+coverage multiplier remains. Keep the complete feature proofs together rather
+than extracting forwarding methods to lower a metric.
+
+| Method | Complexity | Coverage | Rationale | Revisit if |
+| --- | ---: | --- | --- | --- |
+| `TriangleConeContact.TryGetContact(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | One winner owns complete classification, feature-specific witnesses and exact final materialization; radius zero shares the cylinder segment. | Another shape shares the same feature/witness contract without a generic mode flag. |
+| `TriangleConeContact.KeepAnalytic(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Stable poles, face directions, generator fan and analytic rim boundaries precede stationary roots. | A proven boundary reduction removes measured redundant work. |
+| `TriangleConeContact.HasFaceMinimumCertificate(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Cardinal faces reuse an exact contained-segment disk certificate without mutating the winner or witness frame. | A broader certificate preserves full-domain bounds and improves measured general-face cost. |
+| `TriangleConeContact.KeepAxis(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Both orientations of a nonzero direction use the same exact admission and stop after proven separation. | Axis representation or feature ownership changes. |
+| `TriangleConeContact.KeepDirection(...)` | 20 | 100% line / 100% branch (Release / ReleaseLean) | Triangle support masks and cone apex/rim/generator regions are selected before exact gap ranking. | A shared support partition avoids repeated work without weakening admission. |
+| `TriangleConeGeneratorFeatures.KeepAll(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Constant azimuth, vertex extrema and both edge-circle roots include double tangencies and zero-radial degeneracies. | The complete normal-circle enumeration can be reduced with a proof. |
+| `TriangleConeRimContacts.TryGetContact(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Bounded edge charts preserve one exact analytic/algebraic winner and materialize only its paired witness. | A measured nonwinning-root certificate removes chart work. |
+| `TriangleConeRimContacts.TryChart(...)` | 30 | 100% line / 100% branch (Release / ReleaseLean) | Unsquared stationary signs and triangle/cone region admission precede separation, zero-depth handling and root ranking. | A simpler exact admission or value-comparison path preserves every boundary. |
+| `TriangleConeWitnesses.GetGenerator(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | One supported-feature slice produces matched generator parameters, exact endpoint terms and once-rounded interior coordinates. | Another contact needs the same slice/materialization contract. |
 
 ## Fixed-Width Workspace Bounds
+
+Triangle/cone contact shares the triangle circular frame, rim chart/value
+algebra and exact supported-feature slice rather than copying a root or wide
+arithmetic engine. Relative coordinates and chart directions remain below
+198 bits. Rim parameter coefficients fit the existing forty-word slots;
+the cone-region constraint is below 528 bits and value polynomials retain the
+existing fifty-six-word storage. Generator effective normal heights are below
+458 bits, support coefficients below 658 and squared-gap coefficients below
+1,320. Endpoint witness numerators stay below 2,040 bits; straddling slices use
+their exact midpoint parameter directly, with triangle-coordinate expressions
+below 2,176 bits. These bounds fit forty-word quadratic fields.
+
+The cone's largest explicit simultaneous scratch remains below 512 KiB,
+including the existing 405,376-byte value Sturm arena and retained cells.
+Its separate mapped-value sign path stays below 424 KiB. Analytic generator
+and witness frames are not live concurrently with the polynomial arena. A 1 MiB
+worker with 64 KiB of live dirty caller storage exercises both an ordinary
+interior stationary root and large extents in distinct rational frames;
+these checks supplement the full-domain width proof, not replace it.
+Horizontal and local X/Z face certificates reuse the existing contained-segment
+disk proof and avoid the curved search only when its global lower bound is met.
 
 Triangle/cylinder contact shares the cylinder support algebra, edge stationary
 polynomial and squared-value root mapping with box/cylinder contact. Its normal

@@ -11,6 +11,20 @@ internal static class CylinderContactAlgebra
 {
     internal const int Words = ConvexContactCandidate.Words;
 
+    /// <summary>Encodes a signed quadratic numerator over a positive square-root denominator.</summary>
+    internal static int BuildQuadraticCandidate(ContactQuadratic numerator, ReadOnlySpan<ulong> root,
+        ReadOnlySpan<ulong> denominator, Span<ulong> values, Span<int> signs)
+    {
+        Span<ulong> work = stackalloc ulong[2 * Words];
+        Span<int> workSigns = stackalloc int[2];
+        var square = new ContactQuadratic(work, workSigns);
+        ContactQuadratic.Multiply(numerator, numerator, root, square);
+        square.Rational.CopyTo(Slot(values, 7)); square.Radical.CopyTo(Slot(values, 8));
+        root.CopyTo(Slot(values, 9)); denominator.CopyTo(Slot(values, 10));
+        signs[7] = square.Signs[0]; signs[8] = square.Signs[1];
+        return numerator.Sign(root);
+    }
+
     /// <summary>Encodes (p+sqrt(q))/sqrt(d), including its signed gap.</summary>
     internal static int BuildRadialCandidate(ReadOnlySpan<ulong> p, int pSign,
         ReadOnlySpan<ulong> q, ReadOnlySpan<ulong> d, Span<ulong> values, Span<int> signs)

@@ -5,13 +5,13 @@
 using System;
 using System.Runtime.CompilerServices;
 using static FixedMathSharp.Geometry.CylinderContactAlgebra;
+using static FixedMathSharp.Geometry.TriangleRimContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
 /// <summary>Every admitted triangle-edge/cylinder-rim stationary support root.</summary>
 internal static class TriangleCylinderEdgeContacts
 {
-    private const int ValueWords = 56;
     private const int ParameterSlots = 32;
     private const int ValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
 
@@ -22,7 +22,7 @@ internal static class TriangleCylinderEdgeContacts
         internal int Edge, Cap, CoreSign, ParameterOrdinal, ValueOrdinal, ValueShift;
     }
 
-    internal static bool TryGetContact(in TriangleCylinderGeometry geometry, WideAxis3 coreOffset, WideAxis3 coreAxis,
+    internal static bool TryGetContact(in TriangleCircularGeometry geometry, WideAxis3 coreOffset, WideAxis3 coreAxis,
         Vector2d coreDirection, Fixed64 coreLength, FixedTriangle triangle,
         in ConvexContactCandidate analytic, Fixed64 radius, out bool hasBetter, out Vector3d normal,
         out Vector3d radialPoint, out Vector3d trianglePoint, out Fixed64 depth, out bool clamped,
@@ -38,7 +38,7 @@ internal static class TriangleCylinderEdgeContacts
         int regionStart = coreAxis.IsZero ? 0 : -1;
         for (int region = regionStart; region <= (coreAxis.IsZero ? 0 : 1); region += 2)
         {
-            TriangleCylinderGeometry endpoint = region == 0 ? geometry : geometry.AtCoreRegion(coreOffset, region);
+            TriangleCircularGeometry endpoint = region == 0 ? geometry : geometry.AtCoreRegion(coreOffset, region);
             for (int edge = 0; edge < 3; edge++)
             {
                 WideAxis3 e = endpoint.Edge(edge);
@@ -65,7 +65,7 @@ internal static class TriangleCylinderEdgeContacts
         if (!best.HasValue)
             return true;
         hasBetter = true; mask = (1 << best.Edge) | (1 << ((best.Edge + 1) % 3)); cap = best.Cap; coreSign = best.CoreSign;
-        TriangleCylinderGeometry winner = coreSign == 0 ? geometry : geometry.AtCoreRegion(coreOffset, coreSign);
+        TriangleCircularGeometry winner = coreSign == 0 ? geometry : geometry.AtCoreRegion(coreOffset, coreSign);
         GetMaterials(winner, coreAxis, coreDirection, coreLength, triangle, best, radius,
             out normal, out radialPoint, out trianglePoint, out integralRadialMask);
         if (!best.IsZero)
@@ -78,12 +78,12 @@ internal static class TriangleCylinderEdgeContacts
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static bool TryChart(in TriangleCylinderGeometry geometry, WideAxis3 coreAxis, int region, int edge,
+    private static bool TryChart(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region, int edge,
         WideAxis3 first, WideAxis3 second, int cap, scoped ConvexContactCandidate analytic,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
         ref Selection best)
     {
-        WideAxis3 outward = TriangleCylinderGeometry.Subtract(geometry.Vertex(edge), geometry.Vertex((edge + 2) % 3));
+        WideAxis3 outward = TriangleCircularGeometry.Subtract(geometry.Vertex(edge), geometry.Vertex((edge + 2) % 3));
         if (first.Y.Sign * cap < 0 && WideArithmetic.AddSigned320(first.Y, second.Y).Sign * cap <= 0)
             return true;
         Signed576 firstCone = WideAxis3.Dot(first, outward), secondCone = WideAxis3.Dot(second, outward);
@@ -158,41 +158,13 @@ internal static class TriangleCylinderEdgeContacts
         return true;
     }
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void BuildParameter(in TriangleCylinderGeometry geometry, WideAxis3 coreAxis, int region, int edge,
+    private static void BuildParameter(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region, int edge,
         WideAxis3 first, WideAxis3 second, int cap, Span<ulong> data, Span<sbyte> signs)
     {
-        // Shifted core-region coordinates are <2^232 but chart directions
-        // retain original edges (<2^198), never scaled vertex differences.
-        // M<2^398,P<2^432,Q<2^852,K<2^832,L<2^1252,W<2^2520,
-        // N<2^2534,D<2^2396. Forty words give 2560 bits for either region.
-        Span<ulong> inputs = stackalloc ulong[11 * Words];
-        Span<sbyte> inputSigns = stackalloc sbyte[9];
-        inputs.Clear(); inputSigns.Clear();
-        Span<ulong> p = inputs[..(2 * Words)], q = inputs.Slice(2 * Words, 3 * Words);
-        Span<ulong> metric = inputs.Slice(5 * Words, 3 * Words), scale = Slot(inputs, 8);
-        Span<ulong> radiusSquared = Slot(inputs, 9), product = Slot(inputs, 10);
-        WideAxis3 c = geometry.CapOffset(edge, cap);
-        Write(p, inputSigns[..2], 0, WideAxis3.Dot(c, first));
-        Write(p, inputSigns[..2], 1, WideAxis3.Dot(c, second));
-        Write(metric, inputSigns.Slice(5, 3), 0, first.SquaredLength);
-        Write(metric, inputSigns.Slice(5, 3), 1, Twice(WideAxis3.Dot(first, second)));
-        Write(metric, inputSigns.Slice(5, 3), 2, second.SquaredLength);
-        Write(q, inputSigns.Slice(2, 3), 0, RadialDot(first, first));
-        Write(q, inputSigns.Slice(2, 3), 1, Twice(RadialDot(first, second)));
-        Write(q, inputSigns.Slice(2, 3), 2, RadialDot(second, second));
-        Import(WideArithmetic.MultiplySigned320(geometry.Radius, geometry.Radius), radiusSquared);
-        for (int index = 0; index < 3; index++)
-        {
-            WideArithmetic.MultiplyMagnitudes(Slot(q, index), radiusSquared, product);
-            product.CopyTo(Slot(q, index));
-        }
-        Import(Signed320.ExtendValue(geometry.RawScale), scale);
-        CylinderEdgeContactPolynomial.Build(p, inputSigns[..2], q, inputSigns.Slice(2, 3),
-            metric, inputSigns.Slice(5, 3), scale, data[..(26 * Words)], signs[..26]);
+        TriangleRimContactAlgebra.BuildParameter(geometry, edge, first, second, cap, data, signs);
         Write(data, signs, 26, Signed576.ExtendValue(cap > 0 ? first.Y : WideArithmetic.Negate(first.Y)));
         Write(data, signs, 27, Signed576.ExtendValue(cap > 0 ? second.Y : WideArithmetic.Negate(second.Y)));
-        WideAxis3 outward = TriangleCylinderGeometry.Subtract(geometry.Vertex(edge), geometry.Vertex((edge + 2) % 3));
+        WideAxis3 outward = TriangleCircularGeometry.Subtract(geometry.Vertex(edge), geometry.Vertex((edge + 2) % 3));
         Write(data, signs, 28, WideAxis3.Dot(outward, first));
         Write(data, signs, 29, WideAxis3.Dot(outward, second));
         if (!coreAxis.IsZero)
@@ -204,31 +176,7 @@ internal static class TriangleCylinderEdgeContacts
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void BuildValues(in TriangleCylinderGeometry geometry, int edge, int cap,
-        Span<ulong> values, Span<sbyte> signs)
-    {
-        WideAxis3 e = geometry.Edge(edge), c = geometry.CapOffset(edge, cap);
-        Span<ulong> invariants = stackalloc ulong[8 * ValueWords];
-        Span<sbyte> invariantSigns = stackalloc sbyte[8];
-        invariants.Clear(); invariantSigns.Clear();
-        Write(invariants, invariantSigns, 0, Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1))), ValueWords);
-        Write(invariants, invariantSigns, 1, e.SquaredLength, ValueWords);
-        Write(invariants, invariantSigns, 2, Signed576.ExtendValue(e.Y), ValueWords);
-        Write(invariants, invariantSigns, 3, c.SquaredLength, ValueWords);
-        Write(invariants, invariantSigns, 4, Signed576.ExtendValue(c.Y), ValueWords);
-        Write(invariants, invariantSigns, 5, WideAxis3.Dot(e, c), ValueWords);
-        Write(invariants, invariantSigns, 6, WideArithmetic.MultiplySigned320(geometry.Radius, geometry.Radius), ValueWords);
-        CylinderPairSideValuePolynomial.BuildUnshifted(invariants, invariantSigns, ValueWords, values, signs);
-        // Retained edges keep B<398,C<198 bits; shifted c gives q<466,
-        // x<232,y<432,rho<454. At ValueShift<=472, weighted linear
-        // invariant heights are <872. Quartic convolutions including their
-        // carries stay below 3500 bits, inside 56 words (3584 bits).
-        WideFiniteAxisIntersection.ScaleFiniteAxisPolynomialVariable(values, 5, geometry.ValueShift);
-        WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(values, signs);
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void GetMaterials(in TriangleCylinderGeometry geometry, WideAxis3 coreAxis,
+    private static void GetMaterials(in TriangleCircularGeometry geometry, WideAxis3 coreAxis,
         Vector2d coreDirection, Fixed64 coreLength, FixedTriangle triangle, Selection best, Fixed64 radius,
         out Vector3d normal, out Vector3d radialPoint, out Vector3d trianglePoint, out int integralRadialMask)
     {
@@ -257,48 +205,6 @@ internal static class TriangleCylinderEdgeContacts
         normal = ConvexContactValueRoot.GetNormalizedDirection(ref root, gradient, gradientSigns, 1);
     }
 
-    internal static void GetBasis(WideAxis3 edge, out WideAxis3 first, out WideAxis3 second)
-    {
-        if (!edge.X.IsZero)
-        {
-            first = new WideAxis3(WideArithmetic.Negate(edge.Y), edge.X, default);
-            second = new WideAxis3(WideArithmetic.Negate(edge.Z), default, edge.X);
-        }
-        else
-        {
-            first = new WideAxis3(default, WideArithmetic.Negate(edge.Z), edge.Y);
-            second = new WideAxis3(edge.Y, default, default);
-        }
-    }
-
-    private static void WriteGradient(WideAxis3 first, WideAxis3 second, Span<ulong> values, Span<sbyte> signs)
-    {
-        values.Clear();
-        for (int component = 0; component < 3; component++)
-        {
-            Signed320 a = Component(first, component), b = Component(second, component);
-            Span<ulong> firstSlot = values.Slice(component * 10, 5), secondSlot = values.Slice(component * 10 + 5, 5);
-            WideArithmetic.GetMagnitude(a, out firstSlot[4], out firstSlot[3], out firstSlot[2], out firstSlot[1], out firstSlot[0]);
-            WideArithmetic.GetMagnitude(b, out secondSlot[4], out secondSlot[3], out secondSlot[2], out secondSlot[1], out secondSlot[0]);
-            signs[2 * component] = (sbyte)a.Sign; signs[2 * component + 1] = (sbyte)b.Sign;
-        }
-    }
-    private static WideAxis3 Transform(WideRationalBasis3d basis, WideAxis3 axis) => new(
-        TransformComponent(basis.Xx, basis.Yx, basis.Zx, axis),
-        TransformComponent(basis.Xy, basis.Yy, basis.Zy, axis),
-        TransformComponent(basis.Xz, basis.Yz, basis.Zz, axis));
-    private static Signed320 TransformComponent(Signed192 x, Signed192 y, Signed192 z, WideAxis3 axis) =>
-        Signed320.NarrowValue(WideAxis3.Dot(new WideAxis3(Signed320.ExtendValue(x), Signed320.ExtendValue(y), Signed320.ExtendValue(z)), axis));
-    private static Signed576 RadialDot(WideAxis3 a, WideAxis3 b) => WideArithmetic.AddSigned576(
-        WideArithmetic.MultiplySigned320(a.X, b.X), WideArithmetic.MultiplySigned320(a.Z, b.Z));
-    private static Signed576 Twice(Signed576 value) => WideArithmetic.AddSigned576(value, value);
-    private static int Sign(ref FiniteAxisValueRoot root, ReadOnlySpan<ulong> data, ReadOnlySpan<sbyte> signs, int start, int count) =>
-        WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, data.Slice(start * Words, count * Words), signs.Slice(start, count));
-    private static void Write(Span<ulong> values, Span<sbyte> signs, int index, Signed576 value, int words = Words)
-    {
-        Span<ulong> target = values.Slice(index * words, words);
-        target.Clear(); WideArithmetic.GetMagnitude(value, target[..9]); signs[index] = (sbyte)value.Sign;
-    }
     private static FiniteAxisValueRoot Restore(ReadOnlySpan<ulong> values, ReadOnlySpan<sbyte> signs,
         Span<ulong> cell, Selection selection) => new()
     {

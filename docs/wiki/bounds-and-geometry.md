@@ -296,6 +296,32 @@ oblique pairs. A zero-radius shape's anchor can lie at the segment center when
 its whole core supports the selected normal; callers should not require a
 particular endpoint in a tie.
 
+### Triangle/cone contacts
+
+`FixedTriangle.TryGetCenteredFiniteConeContact` finds an inclusive minimum-depth
+contact with a finite cone whose local axis is +Y: the base is at `-height/2`
+and the apex at `+height/2`. It includes triangle face, edge and vertex features
+against the base disk, curved rim, apex and lateral generators. The normal
+points from triangle toward cone; depth and both anchors come from that same
+selected feature.
+
+Both frame rotations must be normalized, height must be positive, and radius
+must be nonnegative. A zero radius is the identical axial-segment relation used
+by the cylinder contact query. A segment piercing a triangle can require a
+positive exit distance even though the segment has no volume. Degenerate
+triangles follow `FixedTriangle.IsDegenerate` and return false.
+
+Classification precedes final rounding: exact touching is contact, a genuine
+positive gap is not, and a tiny overlap can round to zero depth. Anchors retain
+the authored frames even when the relative center or absolute world witness
+cannot be materialized as a `Vector3d`. Curved contacts have the same bounded
+stack-scratch considerations described above.
+
+`TryGetCenteredFiniteConeSupportContact` is a different operation: it projects
+one caller-selected cone support onto the triangle. A failed support projection
+does not prove that the complete shapes are separated. Use the complete contact
+query when deciding whether the shapes intersect.
+
 ## Sweeps and finite-shape intervals
 
 Interval queries return the closed portion of a bounded segment or ray that

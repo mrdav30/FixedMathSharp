@@ -12,7 +12,7 @@ internal static class TriangleCylinderAnalyticFeatures
 {
     private static WideAxis3 Up => new(default, Signed320.One, default);
 
-    internal static bool TryGetBest(in TriangleCylinderGeometry geometry, WideAxis3 coreOffset, WideAxis3 coreAxis,
+    internal static bool TryGetBest(in TriangleCircularGeometry geometry, WideAxis3 coreOffset, WideAxis3 coreAxis,
         Span<ulong> bestValues, Span<int> bestSigns, Span<ulong> bestDirection,
         Span<int> bestDirectionSigns, out int gapSign, out int supportMask, out int coreSign, out bool faceMinimumCertified)
     {
@@ -32,7 +32,7 @@ internal static class TriangleCylinderAnalyticFeatures
                 && geometry.HasFaceMinimumCertificate();
             for (int region = -1; region <= 1 && selection.GapSign >= 0 && !faceMinimumCertified; region += 2)
             {
-                TriangleCylinderGeometry endpoint = geometry.AtCoreRegion(coreOffset, region);
+                TriangleCircularGeometry endpoint = geometry.AtCoreRegion(coreOffset, region);
                 KeepRegion(endpoint, coreAxis, region, ref selection, out _);
             }
             if (!faceMinimumCertified && selection.GapSign >= 0)
@@ -43,7 +43,7 @@ internal static class TriangleCylinderAnalyticFeatures
         return gapSign >= 0;
     }
 
-    private static void KeepSeam(in TriangleCylinderGeometry geometry, WideAxis3 coreAxis, ref Selection selection)
+    private static void KeepSeam(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, ref Selection selection)
     {
         Span<ulong> direction = stackalloc ulong[3 * Words];
         Span<int> signs = stackalloc int[3];
@@ -58,7 +58,7 @@ internal static class TriangleCylinderAnalyticFeatures
         }
     }
 
-    private static void KeepRegion(in TriangleCylinderGeometry geometry, WideAxis3 coreAxis, int region,
+    private static void KeepRegion(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region,
         ref Selection selection, out bool faceMinimumCertified)
     {
         Span<ulong> direction = stackalloc ulong[3 * Words];
@@ -82,7 +82,7 @@ internal static class TriangleCylinderAnalyticFeatures
             bool oblique = !edge.Y.IsZero && (!edge.X.IsZero || !edge.Z.IsZero);
             if (oblique)
             {
-                TriangleCylinderEdgeContacts.GetBasis(edge, out WideAxis3 first, out WideAxis3 second);
+                TriangleRimContactAlgebra.GetBasis(edge, out WideAxis3 first, out WideAxis3 second);
                 WriteDirection(first, direction, signs);
                 KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
                 WriteDirection(second, direction, signs);
@@ -117,7 +117,7 @@ internal static class TriangleCylinderAnalyticFeatures
         }
     }
 
-    private static void KeepAxis(in TriangleCylinderGeometry geometry, WideAxis3 coreAxis, int region, scoped Span<ulong> direction,
+    private static void KeepAxis(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region, scoped Span<ulong> direction,
         scoped Span<int> directionSigns, ref Selection selection)
     {
         if (selection.HasValue && selection.GapSign < 0)
@@ -154,7 +154,7 @@ internal static class TriangleCylinderAnalyticFeatures
         }
     }
 
-    private static int BuildAxis(in TriangleCylinderGeometry geometry,
+    private static int BuildAxis(in TriangleCircularGeometry geometry,
         ReadOnlySpan<ulong> direction, ReadOnlySpan<int> directionSigns,
         Span<ulong> values, Span<int> signs, out int mask)
     {
@@ -194,7 +194,7 @@ internal static class TriangleCylinderAnalyticFeatures
         return BuildRadialCandidate(rational, rationalSign, current, denominator, values, signs);
     }
 
-    private static bool HasVertexRimSeparation(in TriangleCylinderGeometry geometry, int vertex, int cap,
+    private static bool HasVertexRimSeparation(in TriangleCircularGeometry geometry, int vertex, int cap,
         WideAxis3 coreAxis, int region)
     {
         WideAxis3 c = geometry.CapOffset(vertex, cap);

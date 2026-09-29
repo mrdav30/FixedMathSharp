@@ -93,6 +93,31 @@ public partial struct FixedTriangle
     }
 
     /// <summary>
+    /// Attempts to construct a minimum-depth inclusive contact with a finite
+    /// cone whose local apex is at +height/2 and base disk at -height/2.
+    /// </summary>
+    /// <remarks>
+    /// Exact feature admission rejects every positive gap before nearest-even
+    /// output rounding. The normal points from triangle toward cone and both
+    /// anchors retain their authored rigid frames. Degenerate triangles return
+    /// false. Zero radius is an axial segment and may have positive exit depth.
+    /// </remarks>
+    public readonly bool TryGetCenteredFiniteConeContact(
+        Vector3d triangleOrigin, FixedQuaternion triangleRotation,
+        Vector3d coneCenter, FixedQuaternion coneRotation,
+        Fixed64 coneHeight, Fixed64 coneRadius, out FixedContactAnchors contact)
+    {
+        ValidateRigidTriangleFrame(triangleRotation);
+        ValidateRigidShapeFrame(coneRotation, nameof(coneRotation));
+        if (coneHeight <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(coneHeight));
+        if (coneRadius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(coneRadius));
+        return TriangleConeContact.TryGetContact(this, triangleOrigin, triangleRotation,
+            coneCenter, coneRotation, coneHeight, coneRadius, out contact);
+    }
+
+    /// <summary>
     /// Attempts to project one centered finite-cone support onto this rigidly
     /// transformed triangle.
     /// </summary>

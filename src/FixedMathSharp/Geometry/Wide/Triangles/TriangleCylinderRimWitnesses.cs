@@ -10,8 +10,8 @@ namespace FixedMathSharp.Geometry;
 /// <summary>Selected rim witnesses before either support point is rounded.</summary>
 internal static class TriangleCylinderRimWitnesses
 {
-    internal static Vector3d GetAnalyticPoint(in TriangleCylinderGeometry geometry, FixedTriangle triangle,
-        int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns, int cap)
+    internal static Vector3d GetAnalyticPoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
+        int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns, int cap, Signed320 radialRadius)
     {
         int first = (mask & 1) != 0 ? 0 : 1;
         if ((mask & (mask - 1)) == 0)
@@ -21,7 +21,7 @@ internal static class TriangleCylinderRimWitnesses
         WideAxis3 e = geometry.EdgeFromTo(first, second);
         WideAxis3 f = face ? -geometry.Edge(2) : default;
         WideAxis3 p0 = new(default, cap > 0 ? WideArithmetic.Negate(geometry.HalfHeight) : geometry.HalfHeight, default);
-        WideAxis3 offset = TriangleCylinderGeometry.Subtract(p0, geometry.Vertex(first));
+        WideAxis3 offset = TriangleCircularGeometry.Subtract(p0, geometry.Vertex(first));
         Signed576 ee = e.SquaredLength, ff = f.SquaredLength, ef = WideAxis3.Dot(e, f);
         Signed576 a = WideAxis3.Dot(offset, e), b = WideAxis3.Dot(offset, f);
         Span<ulong> radial = stackalloc ulong[3 * Words];
@@ -34,12 +34,16 @@ internal static class TriangleCylinderRimWitnesses
         // Slots: denominator, edge rational/radical, face rational/radical,
         // radial norm squared. Coordinates are (A+B/sqrt(K))/D.
         SumSquares(radial, Slot(weights, 5));
+        if (radialRadius.IsZero)
+        {
+            Slot(weights, 5).Clear(); Slot(weights, 5)[0] = 1;
+        }
         Span<ulong> edgeRadical = stackalloc ulong[Words];
         Span<ulong> faceRadical = stackalloc ulong[Words];
-        GetRadialProjection(geometry.Radius, e, radial, radialSigns, edgeRadical, out int edgeSign);
+        GetRadialProjection(radialRadius, e, radial, radialSigns, edgeRadical, out int edgeSign);
         if (face)
         {
-            GetRadialProjection(geometry.Radius, f, radial, radialSigns, faceRadical, out int faceSign);
+            GetRadialProjection(radialRadius, f, radial, radialSigns, faceRadical, out int faceSign);
             Import(WideArithmetic.MultiplySigned832(DifferenceOfProducts(ee, ff, ef, ef), geometry.EdgeScale), Slot(weights, 0));
             Signed832 firstWeight = DifferenceOfProducts(ff, a, ef, b);
             Signed832 secondWeight = DifferenceOfProducts(ee, b, ef, a);
@@ -62,7 +66,7 @@ internal static class TriangleCylinderRimWitnesses
             RoundAnalyticCoordinate(va.Z, vb.Z, vc.Z, weights, signs));
     }
 
-    internal static Vector3d GetRootPoint(in TriangleCylinderGeometry geometry, FixedTriangle triangle,
+    internal static Vector3d GetRootPoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
         int edge, WideAxis3 first, WideAxis3 second, ref FiniteAxisValueRoot root)
     {
         int next = (edge + 1) % 3;
