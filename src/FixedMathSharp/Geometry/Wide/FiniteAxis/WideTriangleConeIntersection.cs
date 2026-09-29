@@ -1,753 +1,338 @@
 //=======================================================================
-// WideTriangleConeIntersection.cs
-//=======================================================================
 // MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
+using System;
 
 namespace FixedMathSharp.Geometry;
 
-/// <summary>
-/// Owns exact full-domain triangle-face reduction against finite cones.
-/// </summary>
+/// <summary>Exact edge/face minimum-axial reduction in the triangle's authored frame.</summary>
 internal static class WideTriangleConeIntersection
 {
-    private static readonly Signed192 Scale = Signed192.Signed(Fixed64.One.m_rawValue);
-    private static readonly Signed192 MaximumParameter = Signed192.Signed(Fixed64.MaxValue.m_rawValue);
+    private static readonly Signed192 Scale = Signed192.Raw(Fixed64.One);
+    private static readonly Signed192 MaximumParameter = Signed192.Raw(Fixed64.MaxValue);
 
-    internal static bool TryGetFaceMinimumAxialPoint(
-        FixedTriangle triangle,
-        Signed192 normalX,
-        Signed192 normalY,
-        Signed192 normalZ,
-        Signed320 normalSquared,
-        Vector3d apex,
-        Vector3d axisDirection,
-        Fixed64 height,
-        Fixed64 baseRadius,
-        bool hasEdgeIntersection,
-        out Vector3d point,
-        out Fixed64 axialParameter)
+    internal static bool TryGetMinimumAxialPoint(FixedTriangle triangle, Vector3d origin,
+        FixedQuaternion rotation, Vector3d apex, Vector3d axis, Fixed64 height, Fixed64 radius,
+        out Vector3d point)
     {
-        Signed192 q = GetDot(axisDirection, Vector3d.Zero, axisDirection, Vector3d.Zero);
-        Signed320 bWide = GetDot(normalX, normalY, normalZ, axisDirection, Vector3d.Zero);
-        Signed192 b = Signed192.NarrowValue(bWide);
-        Signed320 c = GetDot(normalX, normalY, normalZ, triangle.A, apex);
-        Signed576 p = WideArithmetic.SubtractSigned576(
-            WideArithmetic.MultiplySigned576(Signed576.ExtendValue(normalSquared), q),
-            WideArithmetic.MultiplySigned320(bWide, bWide));
-
-        if (p.IsZero)
-            return TryGetPerpendicularPlanePoint(
-                triangle,
-                normalX,
-                normalY,
-                normalZ,
-                apex,
-                axisDirection,
-                height,
-                b,
-                c,
-                hasEdgeIntersection,
-                out point,
-                out axialParameter);
-
-        Signed320 vX = GetRadialNormalComponent(q, normalX, b, axisDirection.X);
-        Signed320 vY = GetRadialNormalComponent(q, normalY, b, axisDirection.Y);
-        Signed320 vZ = GetRadialNormalComponent(q, normalZ, b, axisDirection.Z);
-        Signed576 wX = GetStationaryDirectionComponent(p, axisDirection.X, bWide, vX);
-        Signed576 wY = GetStationaryDirectionComponent(p, axisDirection.Y, bWide, vY);
-        Signed576 wZ = GetStationaryDirectionComponent(p, axisDirection.Z, bWide, vZ);
-
-        CreatePolynomial(
-            q,
-            bWide,
-            c,
-            p,
-            height,
-            baseRadius,
-            out Signed576 coefficient,
-            out Signed576 projection,
-            out Signed576 constant);
-        if (!TryGetMinimumScaledParameter(
-                coefficient,
-                projection,
-                constant,
-                b,
-                c,
-                height,
-                out Fixed64 entry))
+        var frame = new QueryFrame(origin, rotation, apex, axis);
+        bool found = false;
+        point = default;
+        Fixed64 bestAxial = Fixed64.MaxValue;
+        for (int index = 0; index < 3; index++)
         {
-            point = default;
-            axialParameter = default;
-            return false;
+            FixedSegment edge = triangle.GetEdge(index);
+            if (!frame.TryGetEdgePoint(edge, height, radius, out Vector3d candidate))
+                continue;
+            // Equal candidates retain authored AB, BC, CA order after the same
+            // local-point rounding and cone-parameter projection in either frame.
+            Fixed64 axial = frame.GetAxialParameter(candidate, height);
+            if (found && axial >= bestAxial)
+                continue;
+            found = true;
+            point = candidate;
+            bestAxial = axial;
         }
-
-        bool keepFace;
-        if (!hasEdgeIntersection)
+        triangle.GetExactNormal(out Signed192 nx, out Signed192 ny, out Signed192 nz, out Signed320 nSquared);
+        if (!WideGeometry.IsQ128MagnitudeAtMostEpsilon(nSquared)
+            && TryGetFacePoint(triangle, frame, Axis(nx, ny, nz), nSquared, height, radius, found,
+                out Vector3d facePoint, out Fixed64 faceAxial)
+            && (!found || faceAxial < bestAxial))
         {
-            keepFace = ContainsNoEdgeProbe(
-                triangle,
-                normalX,
-                normalY,
-                normalZ,
-                normalSquared,
-                apex,
-                axisDirection,
-                height,
-                q,
-                b,
-                bWide,
-                c,
-                p,
-                coefficient,
-                projection,
-                constant);
+            found = true;
+            point = facePoint;
         }
-        else
-        {
-            GetLowerRootLatticeBracket(
-                coefficient,
-                projection,
-                constant,
-                entry,
-                out Fixed64 lowerParameter,
-                out Fixed64 upperParameter);
-            keepFace = ContainsStationaryPoint(
-                triangle,
-                normalX,
-                normalY,
-                normalZ,
-                normalSquared,
-                apex,
-                axisDirection,
-                height,
-                q,
-                bWide,
-                c,
-                p,
-                lowerParameter)
-                && (upperParameter == lowerParameter
-                    || ContainsStationaryPoint(
-                        triangle,
-                        normalX,
-                        normalY,
-                        normalZ,
-                        normalSquared,
-                        apex,
-                        axisDirection,
-                        height,
-                        q,
-                        bWide,
-                        c,
-                        p,
-                        upperParameter));
-        }
-        if (!keepFace)
-        {
-            point = default;
-            axialParameter = default;
-            return false;
-        }
-
-        point = new Vector3d(
-            GetWitnessCoordinate(apex.X, vX, wX, c, p, height, entry),
-            GetWitnessCoordinate(apex.Y, vY, wY, c, p, height, entry),
-            GetWitnessCoordinate(apex.Z, vZ, wZ, c, p, height, entry));
-        axialParameter = Fixed64.GetSignedRawRatio(
-            WideArithmetic.MultiplySigned192(
-                Signed192.Signed(height.m_rawValue),
-                Signed192.Signed(entry.m_rawValue)),
-            MaximumParameter);
-        return true;
+        return found;
     }
 
-    private static bool TryGetMinimumScaledParameter(
-        Signed576 coefficient,
-        Signed576 projection,
-        Signed576 constant,
-        Signed192 b,
-        Signed320 c,
-        Fixed64 height,
-        out Fixed64 entry)
+    private readonly struct QueryFrame
     {
-        if (FitsSigned832Product(projection, projection)
-            && FitsSigned832Product(coefficient, constant))
+        internal readonly WideAxis3 Apex, Axis;
+        internal readonly Signed192 Denominator, AxisSquared;
+        internal readonly bool Compact;
+        internal readonly Vector3d LocalApex;
+        private readonly WideRationalBasis3d basis;
+        private readonly Vector3d origin, worldApex, worldAxis;
+        private readonly bool identity;
+
+        internal QueryFrame(Vector3d origin, FixedQuaternion rotation, Vector3d apex, Vector3d axis)
         {
-            return WideFiniteConeIntersection.TrySolveUnitPolynomial(
-                coefficient,
-                projection,
-                constant,
-                Fixed64.MaxValue,
-                out entry,
-                out _);
+            this.origin = origin; worldApex = apex; worldAxis = axis;
+            identity = rotation == FixedQuaternion.Identity;
+            basis = identity ? default : new WideRationalBasis3d(rotation);
+            Vector3d localApex = default;
+            Compact = identity && Vector3d.TrySubtract(apex, origin, out localApex);
+            LocalApex = localApex;
+            AxisSquared = Signed192.NarrowProven(Dot(Raw(axis), Raw(axis)));
+            if (identity)
+            {
+                Denominator = Signed192.Signed(1);
+                Apex = Difference(apex, origin);
+                Axis = Raw(axis);
+                return;
+            }
+            WideOrientedBox.GetRelativeLocalPointNumerators(apex, origin, basis,
+                out Signed192 ax, out Signed192 ay, out Signed192 az);
+            WideOrientedBox.GetRelativeLocalPointNumerators(axis, Vector3d.Zero, basis,
+                out Signed192 dx, out Signed192 dy, out Signed192 dz);
+            Span<Signed320> values = stackalloc Signed320[7]
+            {
+                Signed320.ExtendValue(basis.Denominator), Signed320.ExtendValue(ax),
+                Signed320.ExtendValue(ay), Signed320.ExtendValue(az), Signed320.ExtendValue(dx),
+                Signed320.ExtendValue(dy), Signed320.ExtendValue(dz)
+            };
+            WideArithmetic.ReduceCommonScale(values);
+            Denominator = Signed192.NarrowProven(values[0]);
+            Apex = new WideAxis3(values[1], values[2], values[3]);
+            Axis = new WideAxis3(values[4], values[5], values[6]);
         }
 
-        if (!TryGetContainedUpperBound(
-                coefficient,
-                projection,
-                constant,
-                b,
-                c,
-                height,
-                out Signed576 upperNumerator,
-                out Signed576 upperDenominator))
+        internal Fixed64 GetAxialParameter(Vector3d point, Fixed64 height)
         {
-            entry = default;
-            return false;
+            if (Compact)
+                return FixedMath.Min(Vector3d.ProjectNonNegativeDifferenceParameter(point, LocalApex, worldAxis), height);
+
+            // Compare the same nearest-even cone parameter as face candidates,
+            // not a floored dot: an admitted unit axis need not have exact length 1.
+            Signed320 numerator = Dot(Subtract(Multiply(Raw(point), Denominator), Apex), Axis);
+            Signed320 denominator = Signed320.NarrowValue(WideArithmetic.MultiplySigned576(
+                Signed576.ExtendValue(WideArithmetic.MultiplySigned192(AxisSquared, Denominator)), Denominator));
+            return FixedMath.Clamp(Fixed64.GetSignedRatio(numerator, denominator), Fixed64.Zero, height);
         }
 
-        ulong low = 0UL;
-        ulong high = (ulong)Fixed64.MaxValue.m_rawValue;
-        Signed192 midpointDenominator = new(0UL, 0UL, high << 1);
-        while (low < high)
+        internal bool TryGetEdgePoint(FixedSegment edge, Fixed64 height, Fixed64 radius, out Vector3d point)
         {
-            ulong candidate = low + ((high - low) >> 1);
-            Signed192 midpointNumerator = new(0UL, 0UL, (candidate << 1) | 1UL);
-            int upperComparison = CompareRationals(
-                midpointNumerator,
-                midpointDenominator,
-                upperNumerator,
-                upperDenominator);
-            int polynomialSign = upperComparison > 0
-                ? -1
-                : WideFiniteConeIntersection.GetPolynomialSignAtRationalParameter(
-                    coefficient,
-                    projection,
-                    constant,
-                    midpointNumerator,
-                    midpointDenominator);
-            bool midpointPrecedesRoot = polynomialSign > 0
-                || (polynomialSign == 0 && (candidate & 1UL) != 0UL);
-            if (midpointPrecedesRoot)
-                low = candidate + 1UL;
+            // Only an exact translation qualifies for the compact segment path.
+            // Rounded rotation or saturating origin subtraction cannot do so.
+            if (Compact)
+                return edge.TryGetFiniteConeIntersectionMinimumAxialPoint(LocalApex, worldAxis, height, radius, out point);
+
+            WideAxis3 start, delta;
+            Signed192 denominator;
+            if (identity)
+            {
+                start = Subtract(Raw(edge.Start), Apex);
+                delta = Difference(edge.End, edge.Start);
+                denominator = Signed192.Signed(1);
+            }
             else
-                high = candidate;
-        }
-
-        entry = Fixed64.FromRaw((long)low);
-        return true;
-    }
-
-    private static bool TryGetContainedUpperBound(
-        Signed576 coefficient,
-        Signed576 projection,
-        Signed576 constant,
-        Signed192 b,
-        Signed320 c,
-        Fixed64 height,
-        out Signed576 numerator,
-        out Signed576 denominator)
-    {
-        if (TryGetNonNegativeAxisPlaneRatio(
-                b,
-                c,
-                height,
-                out Signed192 axisDenominator,
-                out Signed320 axisNumerator))
-        {
-            numerator = WideArithmetic.MultiplySigned576(
-                Signed576.ExtendValue(axisNumerator),
-                Scale);
-            denominator = Signed576.ExtendValue(
-                WideArithmetic.MultiplySigned192(
-                    axisDenominator,
-                    Signed192.Signed(height.m_rawValue)));
+            {
+                WideAxis3 offset = Difference(origin, worldApex);
+                start = Add(Transform(edge.Start), Multiply(offset, basis.Denominator));
+                WideAxis3 localDelta = Difference(edge.End, edge.Start);
+                delta = WideRigidProjection.TransformLocalAxis(basis, Narrow(localDelta.X), Narrow(localDelta.Y), Narrow(localDelta.Z));
+                denominator = basis.Denominator;
+            }
+            Signed192 startProjection = Signed192.NarrowProven(Dot(start, Raw(worldAxis)));
+            Signed192 velocityProjection = Signed192.NarrowProven(Dot(delta, Raw(worldAxis)));
+            Signed320 startAxial = WideArithmetic.MultiplySigned192(startProjection, Scale);
+            Signed320 velocity = WideArithmetic.MultiplySigned192(velocityProjection, Scale);
+            Signed320 maximum = Signed320.NarrowValue(WideArithmetic.MultiplySigned576(
+                Signed576.ExtendValue(WideArithmetic.MultiplySigned192(AxisSquared, Signed192.Raw(height))), denominator));
+            Signed320 lowerN = default, lowerD = Signed320.ExtendValue(Signed192.Signed(1)), upperN = Signed320.ExtendValue(Signed192.Signed(1)), upperD = Signed320.ExtendValue(Signed192.Signed(1));
+            if (velocity.IsZero)
+            {
+                if (startAxial.Sign < 0 || WideArithmetic.SubtractSigned320(startAxial, maximum).Sign > 0)
+                { point = default; return false; }
+            }
+            else
+            {
+                Signed320 first = WideArithmetic.Negate(startAxial);
+                Signed320 second = WideArithmetic.SubtractSigned320(maximum, startAxial);
+                Signed320 divisor = velocity;
+                if (velocity.Sign < 0)
+                {
+                    (first, second) = (WideArithmetic.Negate(second), WideArithmetic.Negate(first));
+                    divisor = WideArithmetic.Negate(divisor);
+                }
+                if (second.Sign < 0 || WideArithmetic.SubtractSigned320(first, divisor).Sign > 0)
+                { point = default; return false; }
+                if (first.Sign > 0) { lowerN = first; lowerD = divisor; }
+                if (WideArithmetic.SubtractSigned320(second, divisor).Sign < 0) { upperN = second; upperD = divisor; }
+            }
+            Signed576 a = GetEdgeCoefficient(Dot(delta, delta), velocityProjection, velocityProjection, AxisSquared, height, radius);
+            Signed576 b = GetEdgeCoefficient(Dot(start, delta), startProjection, velocityProjection, AxisSquared, height, radius);
+            Signed576 c = GetEdgeCoefficient(Dot(start, start), startProjection, startProjection, AxisSquared, height, radius);
+            if (!WideFiniteConeIntersection.TrySolveBoundedUnitPolynomial(
+                    Signed832.ExtendValue(a), Signed832.ExtendValue(b), Signed832.ExtendValue(c),
+                    lowerN, lowerD, upperN, upperD, Fixed64.MaxValue, out Fixed64 entry, out Fixed64 exit))
+            { point = default; return false; }
+            point = edge.GetPointAtDistance(velocity.Sign < 0 ? exit : entry, Fixed64.MaxValue);
             return true;
         }
 
-        // Without an in-range axis crossing, the absolute plane distance is
-        // linear on [0, 1]; any admitted interval therefore reaches the cap.
-        if (WideFiniteConeIntersection.GetPolynomialSignAtScaledParameter(
-                coefficient,
-                projection,
-                constant,
-                Fixed64.One,
-                Fixed64.One) > 0)
-        {
-            numerator = default;
-            denominator = default;
-            return false;
-        }
+        private WideAxis3 Transform(Vector3d point) => WideRigidProjection.TransformLocalAxis(basis,
+            Signed192.Raw(point.X), Signed192.Raw(point.Y), Signed192.Raw(point.Z));
+    }
 
-        numerator = Signed576.ExtendValue(
-            Signed320.ExtendValue(Signed192.Signed(1L)));
-        denominator = numerator;
+    private static Signed576 GetEdgeCoefficient(Signed320 squared, Signed192 first, Signed192 second,
+        Signed192 q, Fixed64 height, Fixed64 radius)
+    {
+        // For P(t)=start+t*delta and q=axis.axis, radial distance is
+        // (q*P.P-(P.axis)^2)/q. Keep t's axial clipping separate and expand
+        // H²*q*(q*P.P-(P.axis)^2)-R²*Q²*(P.axis)^2 <= 0 exactly.
+        // P and E have <133 bits, their axial dots <168. After retaining the
+        // common rigid denominator, cone coefficients still fit below 530 bits.
+        Signed576 axial = WideArithmetic.MultiplySigned320(Signed320.ExtendValue(first), Signed320.ExtendValue(second));
+        Signed576 radial = WideArithmetic.SubtractSigned576(
+            WideArithmetic.MultiplySigned576(Signed576.ExtendValue(squared), q), axial);
+        return WideArithmetic.SubtractSigned576(
+            WideArithmetic.MultiplySigned576(radial, q, Signed192.Raw(height), Signed192.Raw(height)),
+            WideArithmetic.MultiplySigned576(axial, Scale, Scale, Signed192.Raw(radius), Signed192.Raw(radius)));
+    }
+
+    private static bool TryGetFacePoint(FixedTriangle triangle, in QueryFrame frame, WideAxis3 normal,
+        Signed320 normalSquared, Fixed64 height, Fixed64 radius, bool hasEdge,
+        out Vector3d point, out Fixed64 axial)
+    {
+        point = default; axial = default;
+        // The plane is n.(X-apex)=c/D and its axial slope is b/D.
+        // p=|n|²*|axisNumerator|²-b² is the squared radial plane normal.
+        // At each axial parameter the stationary radial point is the first
+        // place that plane's cone section can touch the triangle interior.
+        Signed320 b = Dot(normal, frame.Axis);
+        Signed320 c = Dot(normal, Subtract(Multiply(Raw(triangle.A), frame.Denominator), frame.Apex));
+        Signed320 qScaled = Signed320.NarrowValue(WideArithmetic.MultiplySigned576(
+            Signed576.ExtendValue(WideArithmetic.MultiplySigned192(frame.AxisSquared, frame.Denominator)), frame.Denominator));
+        Signed576 p = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned320(normalSquared, qScaled),
+            WideArithmetic.MultiplySigned320(b, b));
+        bool crossesAxis = TryGetAxisPlaneRatio(b, c, height, out Signed320 axisN, out Signed320 axisD);
+        if (p.IsZero)
+        {
+            if (hasEdge || !crossesAxis || !ContainsAxisPoint(triangle, normal, frame, axisN, axisD))
+                return false;
+            point = new Vector3d(AxisCoordinate(frame.Apex.X, frame.Axis.X, frame.Denominator, axisN, axisD),
+                AxisCoordinate(frame.Apex.Y, frame.Axis.Y, frame.Denominator, axisN, axisD),
+                AxisCoordinate(frame.Apex.Z, frame.Axis.Z, frame.Denominator, axisN, axisD));
+            axial = Ratio(WideArithmetic.MultiplySigned832(Extend(axisN), Scale), Extend(axisD));
+            return true;
+        }
+        // n<130, b<230, c<263, p<460 bits. Cancel the common D² from
+        // the polynomial before multiplying: coefficients then need <660 bits.
+        Signed832 coefficient = WideArithmetic.SubtractSigned832(
+            Product(WideArithmetic.MultiplySigned320(b, b), frame.AxisSquared, Signed192.Raw(height), Signed192.Raw(height)),
+            Product(p, Signed192.Raw(radius), Signed192.Raw(radius), Scale, Scale));
+        Signed832 projection = WideArithmetic.SubtractSigned832(default,
+            Product(WideArithmetic.MultiplySigned320(b, c), frame.AxisSquared, Scale, Signed192.Raw(height)));
+        Signed832 constant = Product(WideArithmetic.MultiplySigned320(c, c), frame.AxisSquared, Scale, Scale);
+        if (!WideFiniteConeIntersection.TrySolveBoundedUnitPolynomial(coefficient, projection, constant,
+                default, Signed320.ExtendValue(Signed192.Signed(1)), Signed320.ExtendValue(Signed192.Signed(1)), Signed320.ExtendValue(Signed192.Signed(1)), Fixed64.MaxValue, out Fixed64 entry, out _))
+            return false;
+        bool contained;
+        if (!hasEdge)
+            contained = crossesAxis ? ContainsAxisPoint(triangle, normal, frame, axisN, axisD)
+                : ContainsStationaryPoint(triangle, normal, normalSquared, frame, b, c, p, height, Fixed64.MaxValue);
+        else
+        {
+            int sign = WideFiniteConeIntersection.GetPolynomialSignAtRationalParameter(coefficient, projection, constant,
+                Signed320.ExtendValue(Signed192.Raw(entry)), Signed320.ExtendValue(MaximumParameter));
+            Fixed64 lower = sign < 0 ? Fixed64.FromRaw(entry.m_rawValue - 1) : entry;
+            Fixed64 upper = sign > 0 ? Fixed64.FromRaw(entry.m_rawValue + 1) : entry;
+            contained = ContainsStationaryPoint(triangle, normal, normalSquared, frame, b, c, p, height, lower)
+                && (lower == upper || ContainsStationaryPoint(triangle, normal, normalSquared, frame, b, c, p, height, upper));
+        }
+        if (!contained) return false;
+        point = new Vector3d(WitnessCoordinate(frame.Apex.X, frame.Axis.X, normal.X, frame.Denominator, qScaled, b, c, p, height, entry),
+            WitnessCoordinate(frame.Apex.Y, frame.Axis.Y, normal.Y, frame.Denominator, qScaled, b, c, p, height, entry),
+            WitnessCoordinate(frame.Apex.Z, frame.Axis.Z, normal.Z, frame.Denominator, qScaled, b, c, p, height, entry));
+        axial = Fixed64.GetSignedRawRatio(WideArithmetic.MultiplySigned192(Signed192.Raw(height), Signed192.Raw(entry)), MaximumParameter);
         return true;
     }
 
-    private static int CompareRationals(
-        Signed192 leftNumerator,
-        Signed192 leftDenominator,
-        Signed576 rightNumerator,
-        Signed576 rightDenominator) =>
-        WideArithmetic.CompareNonNegative(
-            WideArithmetic.MultiplySigned576(rightDenominator, leftNumerator),
-            WideArithmetic.MultiplySigned576(rightNumerator, leftDenominator));
-
-    private static bool FitsSigned832Product(Signed576 left, Signed576 right)
+    private static bool TryGetAxisPlaneRatio(Signed320 b, Signed320 c, Fixed64 height, out Signed320 numerator, out Signed320 denominator)
     {
-        int leftBits = GetMagnitudeBitLength(left);
-        int rightBits = GetMagnitudeBitLength(right);
-        return leftBits == 0 || rightBits == 0 || leftBits + rightBits <= 830;
+        denominator = b.Sign < 0 ? WideArithmetic.Negate(b) : b;
+        numerator = b.Sign < 0 ? WideArithmetic.Negate(c) : c;
+        return !b.IsZero && numerator.Sign >= 0 && WideArithmetic.SubtractSigned576(
+            WideArithmetic.MultiplySigned576(Signed576.ExtendValue(numerator), Scale),
+            WideArithmetic.MultiplySigned576(Signed576.ExtendValue(denominator), Signed192.Raw(height))).Sign <= 0;
     }
 
-    private static int GetMagnitudeBitLength(Signed576 value)
+    private static bool ContainsAxisPoint(FixedTriangle triangle, WideAxis3 normal, in QueryFrame frame, Signed320 numerator, Signed320 denominator)
     {
-        System.Span<ulong> magnitude = stackalloc ulong[9];
-        WideArithmetic.GetMagnitude(value, magnitude);
-        return WideArithmetic.GetMagnitudeBitLength(magnitude);
-    }
-
-    private static void CreatePolynomial(
-        Signed192 q,
-        Signed320 b,
-        Signed320 c,
-        Signed576 p,
-        Fixed64 height,
-        Fixed64 baseRadius,
-        out Signed576 coefficient,
-        out Signed576 projection,
-        out Signed576 constant)
-    {
-        Signed192 heightRaw = Signed192.Signed(height.m_rawValue);
-        Signed192 radiusRaw = Signed192.Signed(baseRadius.m_rawValue);
-        Signed576 bSquared = WideArithmetic.MultiplySigned320(b, b);
-        Signed576 firstCoefficient = WideArithmetic.MultiplySigned576(bSquared, q, heightRaw, heightRaw);
-        Signed576 secondCoefficient = WideArithmetic.MultiplySigned576(p, radiusRaw, radiusRaw, Scale, Scale);
-        coefficient = WideArithmetic.SubtractSigned576(firstCoefficient, secondCoefficient);
-
-        Signed576 bc = WideArithmetic.MultiplySigned320(b, c);
-        projection = WideArithmetic.SubtractSigned576(
-            default,
-            WideArithmetic.MultiplySigned576(bc, q, Scale, heightRaw));
-        constant = WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(c, c), q, Scale, Scale);
-    }
-
-    private static void GetLowerRootLatticeBracket(
-        Signed576 coefficient,
-        Signed576 projection,
-        Signed576 constant,
-        Fixed64 entry,
-        out Fixed64 lowerParameter,
-        out Fixed64 upperParameter)
-    {
-        int entrySign = WideFiniteConeIntersection.GetPolynomialSignAtScaledParameter(
-                coefficient,
-                projection,
-                constant,
-                entry,
-                Fixed64.MaxValue);
-        if (entrySign == 0)
+        for (int index = 0; index < 3; index++)
         {
-            lowerParameter = entry;
-            upperParameter = entry;
-            return;
+            GetEdgeProducts(triangle.GetEdge(index), normal, frame, out Signed576 h, out Signed576 l);
+            if (SumProductSign(Extend(denominator), h, Extend(numerator), l) < 0)
+                return false;
         }
-
-        if (entrySign > 0)
-        {
-            lowerParameter = entry;
-            upperParameter = Fixed64.FromRaw(entry.m_rawValue + 1L);
-            return;
-        }
-
-        upperParameter = entry;
-        lowerParameter = Fixed64.FromRaw(entry.m_rawValue - 1L);
-    }
-
-    private static bool ContainsNoEdgeProbe(
-        FixedTriangle triangle,
-        Signed192 normalX,
-        Signed192 normalY,
-        Signed192 normalZ,
-        Signed320 normalSquared,
-        Vector3d apex,
-        Vector3d axisDirection,
-        Fixed64 height,
-        Signed192 q,
-        Signed192 b,
-        Signed320 bWide,
-        Signed320 c,
-        Signed576 p,
-        Signed576 coefficient,
-        Signed576 projection,
-        Signed576 constant)
-    {
-        if (TryGetNonNegativeAxisPlaneRatio(b, c, height, out Signed192 denominator, out Signed320 numerator))
-        {
-            return ContainsAxisPlanePoint(
-                triangle,
-                normalX,
-                normalY,
-                normalZ,
-                apex,
-                axisDirection,
-                denominator,
-                numerator);
-        }
-
-        return ContainsStationaryPoint(
-            triangle,
-            normalX,
-            normalY,
-            normalZ,
-            normalSquared,
-            apex,
-            axisDirection,
-            height,
-            q,
-            bWide,
-            c,
-            p,
-            Fixed64.MaxValue);
-    }
-
-    private static bool TryGetPerpendicularPlanePoint(
-        FixedTriangle triangle,
-        Signed192 normalX,
-        Signed192 normalY,
-        Signed192 normalZ,
-        Vector3d apex,
-        Vector3d axisDirection,
-        Fixed64 height,
-        Signed192 b,
-        Signed320 c,
-        bool hasEdgeIntersection,
-        out Vector3d point,
-        out Fixed64 axialParameter)
-    {
-        if (hasEdgeIntersection
-            || !TryGetNonNegativeAxisPlaneRatio(b, c, height, out Signed192 denominator, out Signed320 numerator)
-            || !ContainsAxisPlanePoint(
-                triangle,
-                normalX,
-                normalY,
-                normalZ,
-                apex,
-                axisDirection,
-                denominator,
-                numerator))
-        {
-            point = default;
-            axialParameter = default;
-            return false;
-        }
-
-        point = new Vector3d(
-            GetAxisPlaneCoordinate(apex.X, axisDirection.X, denominator, numerator),
-            GetAxisPlaneCoordinate(apex.Y, axisDirection.Y, denominator, numerator),
-            GetAxisPlaneCoordinate(apex.Z, axisDirection.Z, denominator, numerator));
-        Signed576 axialNumerator = WideArithmetic.MultiplySigned576(
-            Signed576.ExtendValue(numerator),
-            Scale);
-        _ = Fixed64.TryGetSignedRawRatio(
-            axialNumerator,
-            Signed576.ExtendValue(Signed320.ExtendValue(denominator)),
-            out axialParameter);
         return true;
     }
 
-    private static bool TryGetNonNegativeAxisPlaneRatio(
-        Signed192 b,
-        Signed320 c,
-        Fixed64 height,
-        out Signed192 denominator,
-        out Signed320 numerator)
+    private static bool ContainsStationaryPoint(FixedTriangle triangle, WideAxis3 normal, Signed320 normalSquared,
+        in QueryFrame frame, Signed320 b, Signed320 c, Signed576 p, Fixed64 height, Fixed64 parameter)
     {
-        if (b.Sign == 0)
+        Signed832 originScale = Product(p, MaximumParameter, Scale);
+        Signed832 axisScale = WideArithmetic.SubtractSigned832(
+            Product(Signed576.ExtendValue(normalSquared), frame.AxisSquared, Signed192.Raw(height), Signed192.Raw(parameter), frame.Denominator, frame.Denominator),
+            Product(WideArithmetic.MultiplySigned320(b, c), MaximumParameter, Scale));
+        for (int index = 0; index < 3; index++)
         {
-            denominator = default;
-            numerator = default;
-            return false;
+            GetEdgeProducts(triangle.GetEdge(index), normal, frame, out Signed576 h, out Signed576 l);
+            // These halfspace products can exceed 832 bits; compare magnitudes
+            // in existing transient product storage rather than truncating.
+            if (SumProductSign(originScale, h, axisScale, l) < 0)
+                return false;
         }
-
-        denominator = b.Sign > 0
-            ? b
-            : WideArithmetic.SubtractSigned192(default, b);
-        numerator = b.Sign > 0
-            ? c
-            : WideArithmetic.SubtractSigned320(default, c);
-        if (numerator.Sign < 0)
-            return false;
-
-        Signed576 scaledNumerator = WideArithmetic.MultiplySigned576(
-            Signed576.ExtendValue(numerator),
-            Scale);
-        Signed576 maximumNumerator = Signed576.ExtendValue(
-            WideArithmetic.MultiplySigned192(
-                denominator,
-                Signed192.Signed(height.m_rawValue)));
-        return WideArithmetic.CompareNonNegative(scaledNumerator, maximumNumerator) <= 0;
+        return true;
     }
 
-    private static bool ContainsAxisPlanePoint(
-        FixedTriangle triangle,
-        Signed192 normalX,
-        Signed192 normalY,
-        Signed192 normalZ,
-        Vector3d apex,
-        Vector3d axisDirection,
-        Signed192 denominator,
-        Signed320 numerator) =>
-        GetAxisPlaneHalfspaceSign(triangle.A, triangle.B, normalX, normalY, normalZ, apex, axisDirection, denominator, numerator) >= 0
-        && GetAxisPlaneHalfspaceSign(triangle.B, triangle.C, normalX, normalY, normalZ, apex, axisDirection, denominator, numerator) >= 0
-        && GetAxisPlaneHalfspaceSign(triangle.C, triangle.A, normalX, normalY, normalZ, apex, axisDirection, denominator, numerator) >= 0;
-
-    private static int GetAxisPlaneHalfspaceSign(
-        Vector3d edgeStart,
-        Vector3d edgeEnd,
-        Signed192 normalX,
-        Signed192 normalY,
-        Signed192 normalZ,
-        Vector3d apex,
-        Vector3d axisDirection,
-        Signed192 denominator,
-        Signed320 numerator)
+    private static void GetEdgeProducts(FixedSegment edge, WideAxis3 normal, in QueryFrame frame, out Signed576 h, out Signed576 l)
     {
-        GetEdgeProducts(
-            edgeStart,
-            edgeEnd,
-            normalX,
-            normalY,
-            normalZ,
-            apex,
-            axisDirection,
-            out Signed320 hO,
-            out Signed320 l);
-        Signed576 first = WideArithmetic.MultiplySigned576(
-            Signed576.ExtendValue(hO),
-            denominator);
-        Signed576 second = WideArithmetic.MultiplySigned320(numerator, l);
-        return WideArithmetic.AddSigned576(first, second).Sign;
+        WideAxis3 inward = WideAxis3.Cross(normal, Difference(edge.End, edge.Start));
+        h = WideAxis3.Dot(inward, Subtract(frame.Apex, Multiply(Raw(edge.Start), frame.Denominator)));
+        l = WideAxis3.Dot(inward, frame.Axis);
     }
 
-    private static bool ContainsStationaryPoint(
-        FixedTriangle triangle,
-        Signed192 normalX,
-        Signed192 normalY,
-        Signed192 normalZ,
-        Signed320 normalSquared,
-        Vector3d apex,
-        Vector3d axisDirection,
-        Fixed64 height,
-        Signed192 q,
-        Signed320 b,
-        Signed320 c,
-        Signed576 p,
-        Fixed64 scaledParameter) =>
-        GetStationaryHalfspaceSign(triangle.A, triangle.B, normalX, normalY, normalZ, normalSquared, apex, axisDirection, height, q, b, c, p, scaledParameter) >= 0
-        && GetStationaryHalfspaceSign(triangle.B, triangle.C, normalX, normalY, normalZ, normalSquared, apex, axisDirection, height, q, b, c, p, scaledParameter) >= 0
-        && GetStationaryHalfspaceSign(triangle.C, triangle.A, normalX, normalY, normalZ, normalSquared, apex, axisDirection, height, q, b, c, p, scaledParameter) >= 0;
-
-    private static int GetStationaryHalfspaceSign(
-        Vector3d edgeStart,
-        Vector3d edgeEnd,
-        Signed192 normalX,
-        Signed192 normalY,
-        Signed192 normalZ,
-        Signed320 normalSquared,
-        Vector3d apex,
-        Vector3d axisDirection,
-        Fixed64 height,
-        Signed192 q,
-        Signed320 b,
-        Signed320 c,
-        Signed576 p,
-        Fixed64 scaledParameter)
+    private static Fixed64 WitnessCoordinate(Signed320 apex, Signed320 axis, Signed320 normal, Signed192 denominator,
+        Signed320 q, Signed320 b, Signed320 c, Signed576 p, Fixed64 height, Fixed64 parameter)
     {
-        GetEdgeProducts(
-            edgeStart,
-            edgeEnd,
-            normalX,
-            normalY,
-            normalZ,
-            apex,
-            axisDirection,
-            out Signed320 hO,
-            out Signed320 l);
-        Signed192 scaleParameter = Signed192.Signed(Fixed64.MaxValue.m_rawValue);
-        Signed192 parameter = Signed192.Signed(scaledParameter.m_rawValue);
-        Signed192 heightRaw = Signed192.Signed(height.m_rawValue);
-
-        Signed576 pScale = WideArithmetic.MultiplySigned576(p, scaleParameter, Scale);
-        Signed704 first = WideArithmetic.MultiplySigned576ToSigned704(pScale, hO);
-
-        Signed576 negativeBC = WideArithmetic.SubtractSigned576(
-            default,
-            WideArithmetic.MultiplySigned320(b, c));
-        Signed704 second = WideArithmetic.MultiplySigned576ToSigned704(
-            WideArithmetic.MultiplySigned576(negativeBC, scaleParameter, Scale),
-            l);
-
-        Signed576 normalEdge = WideArithmetic.MultiplySigned320(normalSquared, l);
-        Signed192 qHeight = Signed192.NarrowValue(
-            WideArithmetic.MultiplySigned192(q, heightRaw));
-        Signed320 qHeightParameter = WideArithmetic.MultiplySigned192(qHeight, parameter);
-        Signed704 third = WideArithmetic.MultiplySigned576ToSigned704(
-            normalEdge,
-            qHeightParameter);
-        return WideArithmetic.AddSigned704(
-            WideArithmetic.AddSigned704(first, second),
-            third).Sign;
+        Signed576 v = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned320(q, normal), WideArithmetic.MultiplySigned320(b, axis));
+        Signed832 w = WideArithmetic.SubtractSigned832(WideArithmetic.MultiplySigned576ToSigned832(p, axis),
+            WideArithmetic.MultiplySigned576ToSigned832(v, b));
+        Signed832 first = WideArithmetic.AddSigned832(WideArithmetic.MultiplySigned576ToSigned832(p, apex),
+            WideArithmetic.MultiplySigned576ToSigned832(v, c));
+        first = WideArithmetic.MultiplySigned832(WideArithmetic.MultiplySigned832(first, MaximumParameter), Scale);
+        Signed832 second = WideArithmetic.MultiplySigned832(WideArithmetic.MultiplySigned832(w, Signed192.Raw(height)), Signed192.Raw(parameter));
+        return Ratio(WideArithmetic.AddSigned832(first, second), Product(p, denominator, MaximumParameter, Scale));
     }
 
-    private static void GetEdgeProducts(
-        Vector3d edgeStart,
-        Vector3d edgeEnd,
-        Signed192 normalX,
-        Signed192 normalY,
-        Signed192 normalZ,
-        Vector3d apex,
-        Vector3d axisDirection,
-        out Signed320 hO,
-        out Signed320 l)
+    private static Fixed64 AxisCoordinate(Signed320 apex, Signed320 axis, Signed192 frameD, Signed320 numerator, Signed320 denominator) =>
+        Ratio(Signed832.ExtendValue(WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned320(apex, denominator),
+            WideArithmetic.MultiplySigned320(axis, numerator))),
+            WideArithmetic.MultiplySigned832(Extend(denominator), frameD));
+
+    private static int SumProductSign(Signed832 a, Signed576 b, Signed832 c, Signed576 d)
     {
-        Signed192 edgeX = WideArithmetic.Difference(edgeEnd.X, edgeStart.X);
-        Signed192 edgeY = WideArithmetic.Difference(edgeEnd.Y, edgeStart.Y);
-        Signed192 edgeZ = WideArithmetic.Difference(edgeEnd.Z, edgeStart.Z);
-        GetCross(
-            edgeX,
-            edgeY,
-            edgeZ,
-            WideArithmetic.Difference(apex.X, edgeStart.X),
-            WideArithmetic.Difference(apex.Y, edgeStart.Y),
-            WideArithmetic.Difference(apex.Z, edgeStart.Z),
-            out Signed192 originCrossX,
-            out Signed192 originCrossY,
-            out Signed192 originCrossZ);
-        GetCross(
-            edgeX,
-            edgeY,
-            edgeZ,
-            Signed192.Signed(axisDirection.X.m_rawValue),
-            Signed192.Signed(axisDirection.Y.m_rawValue),
-            Signed192.Signed(axisDirection.Z.m_rawValue),
-            out Signed192 axisCrossX,
-            out Signed192 axisCrossY,
-            out Signed192 axisCrossZ);
-        hO = GetDot(normalX, normalY, normalZ, originCrossX, originCrossY, originCrossZ);
-        l = GetDot(normalX, normalY, normalZ, axisCrossX, axisCrossY, axisCrossZ);
+        int first = a.Sign * b.Sign, second = c.Sign * d.Sign;
+        if (first == 0) return second;
+        if (second == 0 || first == second) return first;
+        return first * WideArithmetic.CompareNonNegativeProducts(a, Signed832.ExtendValue(b), c, Signed832.ExtendValue(d));
     }
 
-    private static Fixed64 GetWitnessCoordinate(
-        Fixed64 apexCoordinate,
-        Signed320 v,
-        Signed576 w,
-        Signed320 c,
-        Signed576 p,
-        Fixed64 height,
-        Fixed64 scaledParameter)
+    private static Fixed64 Ratio(Signed832 numerator, Signed832 denominator)
     {
-        Signed576 baseValue = WideArithmetic.AddSigned576(
-            WideArithmetic.MultiplySigned576(
-                p,
-                Signed192.Signed(apexCoordinate.m_rawValue)),
-            WideArithmetic.MultiplySigned320(c, v));
-        Signed576 first = WideArithmetic.MultiplySigned576(baseValue, MaximumParameter, Scale);
-        Signed576 second = WideArithmetic.MultiplySigned576(
-            w,
-            Signed192.Signed(scaledParameter.m_rawValue),
-            Signed192.Signed(height.m_rawValue));
-        Signed576 denominator = WideArithmetic.MultiplySigned576(p, MaximumParameter, Scale);
-        _ = Fixed64.TryGetSignedRawRatio(
-            WideArithmetic.AddSigned576(first, second),
-            denominator,
-            out Fixed64 coordinate);
-        return coordinate;
+        bool represented = Fixed64.TryGetSignedRawRatio(numerator, denominator, 0, out Fixed64 value);
+        System.Diagnostics.Debug.Assert(represented);
+        return value;
     }
 
-    private static Fixed64 GetAxisPlaneCoordinate(
-        Fixed64 apexCoordinate,
-        Fixed64 axisCoordinate,
-        Signed192 denominator,
-        Signed320 numerator)
-    {
-        Signed576 first = Signed576.ExtendValue(
-            WideArithmetic.MultiplySigned192(
-                denominator,
-                Signed192.Signed(apexCoordinate.m_rawValue)));
-        Signed576 second = WideArithmetic.MultiplySigned576(
-            Signed576.ExtendValue(numerator),
-            Signed192.Signed(axisCoordinate.m_rawValue));
-        _ = Fixed64.TryGetSignedRawRatio(
-            WideArithmetic.AddSigned576(first, second),
-            Signed576.ExtendValue(Signed320.ExtendValue(denominator)),
-            out Fixed64 coordinate);
-        return coordinate;
-    }
-
-    private static Signed320 GetRadialNormalComponent(
-        Signed192 q,
-        Signed192 normal,
-        Signed192 b,
-        Fixed64 axis) =>
-        WideArithmetic.SubtractSigned320(
-            WideArithmetic.MultiplySigned192(q, normal),
-            WideArithmetic.MultiplySigned192(
-                b,
-                Signed192.Signed(axis.m_rawValue)));
-
-    private static Signed576 GetStationaryDirectionComponent(
-        Signed576 p,
-        Fixed64 axis,
-        Signed320 b,
-        Signed320 v) =>
-        WideArithmetic.SubtractSigned576(
-            WideArithmetic.MultiplySigned576(
-                p,
-                Signed192.Signed(axis.m_rawValue)),
-            WideArithmetic.MultiplySigned320(b, v));
-
-    private static Signed192 GetDot(
-        Vector3d leftEnd,
-        Vector3d leftStart,
-        Vector3d rightEnd,
-        Vector3d rightStart) =>
-        WideGeometry.GetDifferenceDotProduct3D(
-            leftEnd.X, leftStart.X, leftEnd.Y, leftStart.Y, leftEnd.Z, leftStart.Z,
-            rightEnd.X, rightStart.X, rightEnd.Y, rightStart.Y, rightEnd.Z, rightStart.Z);
-
-    private static Signed320 GetDot(
-        Signed192 leftX,
-        Signed192 leftY,
-        Signed192 leftZ,
-        Vector3d rightEnd,
-        Vector3d rightStart) =>
-        GetDot(
-            leftX,
-            leftY,
-            leftZ,
-            WideArithmetic.Difference(rightEnd.X, rightStart.X),
-            WideArithmetic.Difference(rightEnd.Y, rightStart.Y),
-            WideArithmetic.Difference(rightEnd.Z, rightStart.Z));
-
-    private static Signed320 GetDot(
-        Signed192 leftX,
-        Signed192 leftY,
-        Signed192 leftZ,
-        Signed192 rightX,
-        Signed192 rightY,
-        Signed192 rightZ) =>
-        WideArithmetic.AddSigned320(
-            WideArithmetic.AddSigned320(
-                WideArithmetic.MultiplySigned192(leftX, rightX),
-                WideArithmetic.MultiplySigned192(leftY, rightY)),
-            WideArithmetic.MultiplySigned192(leftZ, rightZ));
-
-    private static void GetCross(
-        Signed192 leftX,
-        Signed192 leftY,
-        Signed192 leftZ,
-        Signed192 rightX,
-        Signed192 rightY,
-        Signed192 rightZ,
-        out Signed192 x,
-        out Signed192 y,
-        out Signed192 z)
-    {
-        x = Signed192.NarrowValue(WideArithmetic.MultiplySubtract(leftY, rightZ, leftZ, rightY));
-        y = Signed192.NarrowValue(WideArithmetic.MultiplySubtract(leftZ, rightX, leftX, rightZ));
-        z = Signed192.NarrowValue(WideArithmetic.MultiplySubtract(leftX, rightY, leftY, rightX));
-    }
+    private static Signed832 Product(Signed576 value, Signed192 a, Signed192 b) =>
+        WideArithmetic.MultiplySigned832(WideArithmetic.MultiplySigned832(Signed832.ExtendValue(value), a), b);
+    private static Signed832 Product(Signed576 value, Signed192 a, Signed192 b, Signed192 c) =>
+        WideArithmetic.MultiplySigned832(Product(value, a, b), c);
+    private static Signed832 Product(Signed576 value, Signed192 a, Signed192 b, Signed192 c, Signed192 d) =>
+        WideArithmetic.MultiplySigned832(Product(value, a, b, c), d);
+    private static Signed832 Product(Signed576 value, Signed192 a, Signed192 b, Signed192 c, Signed192 d, Signed192 e) =>
+        WideArithmetic.MultiplySigned832(Product(value, a, b, c, d), e);
+    private static Signed832 Extend(Signed320 value) => Signed832.ExtendValue(Signed576.ExtendValue(value));
+    private static Signed192 Narrow(Signed320 value) => Signed192.NarrowProven(value);
+    private static WideAxis3 Axis(Signed192 x, Signed192 y, Signed192 z) => new(Signed320.ExtendValue(x), Signed320.ExtendValue(y), Signed320.ExtendValue(z));
+    private static WideAxis3 Raw(Vector3d value) => Axis(Signed192.Raw(value.X), Signed192.Raw(value.Y), Signed192.Raw(value.Z));
+    private static WideAxis3 Difference(Vector3d a, Vector3d b) => Axis(WideArithmetic.Difference(a.X, b.X), WideArithmetic.Difference(a.Y, b.Y), WideArithmetic.Difference(a.Z, b.Z));
+    private static WideAxis3 Add(WideAxis3 a, WideAxis3 b) => new(WideArithmetic.AddSigned320(a.X, b.X), WideArithmetic.AddSigned320(a.Y, b.Y), WideArithmetic.AddSigned320(a.Z, b.Z));
+    private static WideAxis3 Subtract(WideAxis3 a, WideAxis3 b) => new(WideArithmetic.SubtractSigned320(a.X, b.X), WideArithmetic.SubtractSigned320(a.Y, b.Y), WideArithmetic.SubtractSigned320(a.Z, b.Z));
+    private static WideAxis3 Multiply(WideAxis3 value, Signed192 scale) => new(WideArithmetic.MultiplySigned192(Narrow(value.X), scale), WideArithmetic.MultiplySigned192(Narrow(value.Y), scale), WideArithmetic.MultiplySigned192(Narrow(value.Z), scale));
+    private static Signed320 Dot(WideAxis3 a, WideAxis3 b) => Signed320.NarrowValue(WideAxis3.Dot(a, b));
 }

@@ -5,6 +5,8 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
+
 namespace FixedMathSharp.Geometry;
 
 /// <summary>
@@ -99,28 +101,6 @@ internal static class WideFiniteConeIntersection
             outputScale,
             out entry,
             out exit);
-
-    internal static int GetPolynomialSignAtScaledParameter(
-        Signed576 coefficient,
-        Signed576 projection,
-        Signed576 constant,
-        Fixed64 parameter,
-        Fixed64 scale) =>
-        Evaluate(
-            new ConeData(default, default, default, coefficient, projection, constant),
-            Signed192.Signed(parameter.m_rawValue),
-            Signed192.Signed(scale.m_rawValue)).Sign;
-
-    internal static int GetPolynomialSignAtRationalParameter(
-        Signed576 coefficient,
-        Signed576 projection,
-        Signed576 constant,
-        Signed192 numerator,
-        Signed192 denominator) =>
-        Evaluate(
-            new ConeData(default, default, default, coefficient, projection, constant),
-            numerator,
-            denominator).Sign;
 
     internal static bool TryGetApexDistanceInterval(
         FixedSegment query,
@@ -316,35 +296,57 @@ internal static class WideFiniteConeIntersection
         RationalBound upper,
         Fixed64 outputScale,
         out Fixed64 entry,
+        out Fixed64 exit) =>
+        TrySolveBoundedUnitPolynomial(
+            Signed832.ExtendValue(data.Coefficient),
+            Signed832.ExtendValue(data.Projection),
+            Signed832.ExtendValue(data.Constant),
+            Signed320.ExtendValue(lower.Numerator),
+            Signed320.ExtendValue(lower.Denominator),
+            Signed320.ExtendValue(upper.Numerator),
+            Signed320.ExtendValue(upper.Denominator),
+            outputScale,
+            out entry,
+            out exit);
+
+    /// <summary>
+    /// Reduces an axially clipped conic on [0, 1]. Rigid triangle coefficients
+    /// have fewer than 660 magnitude bits and clip ratios at most 200; midpoint
+    /// root evaluations fit Signed832, while clipped evaluations use fixed
+    /// transient magnitude storage. The admitted cone interval is connected.
+    /// </summary>
+    internal static bool TrySolveBoundedUnitPolynomial(
+        Signed832 coefficient,
+        Signed832 projection,
+        Signed832 constant,
+        Signed320 lowerNumerator,
+        Signed320 lowerDenominator,
+        Signed320 upperNumerator,
+        Signed320 upperDenominator,
+        Fixed64 outputScale,
+        out Fixed64 entry,
         out Fixed64 exit)
     {
-        Signed832 lowerValue = Evaluate(data, lower.Numerator, lower.Denominator);
-        Signed832 upperValue = Evaluate(data, upper.Numerator, upper.Denominator);
-        bool lowerContained = lowerValue.Sign <= 0;
-        bool upperContained = upperValue.Sign <= 0;
+        bool compact = TryGetCompactPolynomial(
+            coefficient, projection, constant,
+            lowerNumerator, lowerDenominator, upperNumerator, upperDenominator,
+            out ConeData data);
+        bool lowerContained = (compact
+            ? Evaluate(data, Signed192.NarrowValue(lowerNumerator), Signed192.NarrowValue(lowerDenominator)).Sign
+            : GetPolynomialSignAtRationalParameter(coefficient, projection, constant, lowerNumerator, lowerDenominator)) <= 0;
+        bool upperContained = (compact
+            ? Evaluate(data, Signed192.NarrowValue(upperNumerator), Signed192.NarrowValue(upperDenominator)).Sign
+            : GetPolynomialSignAtRationalParameter(coefficient, projection, constant, upperNumerator, upperDenominator)) <= 0;
 
-        if (data.Coefficient.IsZero)
+        if (lowerContained && upperContained)
         {
-            if (data.Projection.IsZero)
-            {
-                if (!lowerContained)
-                {
-                    entry = default;
-                    exit = default;
-                    return false;
-                }
+            entry = Round(lowerNumerator, lowerDenominator, outputScale);
+            exit = Round(upperNumerator, upperDenominator, outputScale);
+            return true;
+        }
 
-                entry = Round(lower, outputScale);
-                exit = Round(upper, outputScale);
-                return true;
-            }
-
-            if (lowerContained && upperContained)
-            {
-                entry = Round(lower, outputScale);
-                exit = Round(upper, outputScale);
-                return true;
-            }
+        if (coefficient.IsZero)
+        {
             if (!lowerContained && !upperContained)
             {
                 entry = default;
@@ -352,20 +354,15 @@ internal static class WideFiniteConeIntersection
                 return false;
             }
 
-            Fixed64 root = RoundLinearRoot(data, outputScale);
-            entry = lowerContained ? Round(lower, outputScale) : root;
-            exit = upperContained ? Round(upper, outputScale) : root;
+            Fixed64 root = compact
+                ? RoundLinearRoot(data, outputScale)
+                : RoundLinearRoot(projection, constant, outputScale);
+            entry = lowerContained ? Round(lowerNumerator, lowerDenominator, outputScale) : root;
+            exit = upperContained ? Round(upperNumerator, upperDenominator, outputScale) : root;
             return true;
         }
 
-        if (lowerContained && upperContained)
-        {
-            entry = Round(lower, outputScale);
-            exit = Round(upper, outputScale);
-            return true;
-        }
-
-        bool opensUp = data.Coefficient.Sign > 0;
+        bool opensUp = coefficient.Sign > 0;
         if (!opensUp && !lowerContained && !upperContained)
         {
             entry = default;
@@ -374,19 +371,34 @@ internal static class WideFiniteConeIntersection
         }
 
         if (opensUp
-            && ((!lowerContained && EvaluateDerivative(data, lower).Sign >= 0)
-                || (!upperContained && EvaluateDerivative(data, upper).Sign <= 0)))
+            && ((!lowerContained && (compact
+                    ? EvaluateDerivative(data, new RationalBound(Signed192.NarrowValue(lowerNumerator), Signed192.NarrowValue(lowerDenominator))).Sign
+                    : GetDerivativeSign(coefficient, projection, lowerNumerator, lowerDenominator)) >= 0)
+                || (!upperContained && (compact
+                    ? EvaluateDerivative(data, new RationalBound(Signed192.NarrowValue(upperNumerator), Signed192.NarrowValue(upperDenominator))).Sign
+                    : GetDerivativeSign(coefficient, projection, upperNumerator, upperDenominator)) <= 0)))
         {
             entry = default;
             exit = default;
             return false;
         }
 
+        if (!opensUp)
+        {
+            coefficient = WideArithmetic.SubtractSigned832(default, coefficient);
+            projection = WideArithmetic.SubtractSigned832(default, projection);
+            constant = WideArithmetic.SubtractSigned832(default, constant);
+        }
         ConeData normalized = opensUp ? data : data.NegatedPolynomial();
-        Signed832 discriminant = WideArithmetic.SubtractSigned832(
-            WideArithmetic.MultiplySigned576ToSigned832(normalized.Projection, normalized.Projection),
-            WideArithmetic.MultiplySigned576ToSigned832(normalized.Coefficient, normalized.Constant));
-        if (discriminant.Sign < 0)
+        Signed832 discriminant = compact
+            ? WideArithmetic.SubtractSigned832(
+                WideArithmetic.MultiplySigned576ToSigned832(normalized.Projection, normalized.Projection),
+                WideArithmetic.MultiplySigned576ToSigned832(normalized.Coefficient, normalized.Constant))
+            : default;
+        int discriminantSign = compact ? discriminant.Sign
+            : constant.Sign < 0 ? 1
+            : WideArithmetic.CompareNonNegativeProducts(projection, projection, coefficient, constant);
+        if (discriminantSign < 0)
         {
             entry = default;
             exit = default;
@@ -395,28 +407,203 @@ internal static class WideFiniteConeIntersection
 
         Signed192 outputScaleRaw = Signed192.Signed(outputScale.m_rawValue);
         Signed192 outputScaleSquared = SquareRaw(outputScale.m_rawValue);
-        Signed576 scaledSquareRoot = WideArithmetic.GetFloorSquareRootOfProduct(
-            discriminant,
-            outputScaleSquared);
+        Signed576 scaledSquareRoot = compact
+            ? WideArithmetic.GetFloorSquareRootOfProduct(discriminant, outputScaleSquared)
+            : default;
 
         if (opensUp)
         {
             entry = lowerContained
-                ? Round(lower, outputScale)
-                : RoundLowerRoot(normalized, scaledSquareRoot, outputScaleRaw);
+                ? Round(lowerNumerator, lowerDenominator, outputScale)
+                : compact ? RoundLowerRoot(normalized, scaledSquareRoot, outputScaleRaw)
+                : RoundRoot(coefficient, projection, constant, outputScale, upperRoot: false);
             exit = upperContained
-                ? Round(upper, outputScale)
-                : RoundUpperRoot(normalized, scaledSquareRoot, outputScaleRaw);
+                ? Round(upperNumerator, upperDenominator, outputScale)
+                : compact ? RoundUpperRoot(normalized, scaledSquareRoot, outputScaleRaw)
+                : RoundRoot(coefficient, projection, constant, outputScale, upperRoot: true);
             return true;
         }
 
         entry = lowerContained
-            ? Round(lower, outputScale)
-            : RoundUpperRoot(normalized, scaledSquareRoot, outputScaleRaw);
+            ? Round(lowerNumerator, lowerDenominator, outputScale)
+            : compact ? RoundUpperRoot(normalized, scaledSquareRoot, outputScaleRaw)
+            : RoundRoot(coefficient, projection, constant, outputScale, upperRoot: true);
         exit = upperContained
-            ? Round(upper, outputScale)
-            : RoundLowerRoot(normalized, scaledSquareRoot, outputScaleRaw);
+            ? Round(upperNumerator, upperDenominator, outputScale)
+            : compact ? RoundLowerRoot(normalized, scaledSquareRoot, outputScaleRaw)
+            : RoundRoot(coefficient, projection, constant, outputScale, upperRoot: false);
         return true;
+    }
+
+    private static bool TryGetCompactPolynomial(
+        Signed832 coefficient,
+        Signed832 projection,
+        Signed832 constant,
+        Signed320 lowerNumerator,
+        Signed320 lowerDenominator,
+        Signed320 upperNumerator,
+        Signed320 upperDenominator,
+        out ConeData data)
+    {
+        int coefficientBits = GetMagnitudeBitLength(coefficient);
+        int projectionBits = GetMagnitudeBitLength(projection);
+        int constantBits = GetMagnitudeBitLength(constant);
+        int coefficientMaximum = Math.Max(coefficientBits, Math.Max(projectionBits, constantBits));
+        int boundMaximum = Math.Max(
+            Math.Max(GetMagnitudeBitLength(lowerNumerator), GetMagnitudeBitLength(lowerDenominator)),
+            Math.Max(GetMagnitudeBitLength(upperNumerator), GetMagnitudeBitLength(upperDenominator)));
+        // Rational squares fit Signed320, evaluated sums and the discriminant
+        // fit Signed832, and the linear numerator retains its 63-bit scale.
+        // The discriminant proof also bounds the scaled quadratic-root
+        // numerator below 480 bits, inside the existing Signed576 owner.
+        if (coefficientMaximum > 575 || boundMaximum > 159
+            || coefficientMaximum + 2 * boundMaximum > 828
+            || 2 * projectionBits > 830 || coefficientBits + constantBits > 830
+            || (coefficient.IsZero && constantBits > 512))
+        {
+            data = default;
+            return false;
+        }
+
+        data = new ConeData(default, default, default,
+            NarrowCoefficient(coefficient), NarrowCoefficient(projection), NarrowCoefficient(constant));
+        return true;
+    }
+
+    private static Signed576 NarrowCoefficient(Signed832 value) =>
+        new(value.Word8, value.Word7, value.Word6, value.Word5, value.Word4,
+            value.Word3, value.Word2, value.Word1, value.Word0);
+
+    private static int GetMagnitudeBitLength(Signed832 value)
+    {
+        Span<ulong> magnitude = stackalloc ulong[13];
+        WideArithmetic.GetMagnitude(value, magnitude);
+        return WideArithmetic.GetMagnitudeBitLength(magnitude);
+    }
+
+    private static int GetMagnitudeBitLength(Signed320 value)
+    {
+        Span<ulong> magnitude = stackalloc ulong[5];
+        WideArithmetic.GetMagnitude(value, out magnitude[4], out magnitude[3],
+            out magnitude[2], out magnitude[1], out magnitude[0]);
+        return WideArithmetic.GetMagnitudeBitLength(magnitude);
+    }
+
+    /// <summary>
+    /// Returns the exact sign of A*n*n + 2*B*n*d + C*d*d without narrowing
+    /// rigid-frame clip ratios or their homogenized products.
+    /// </summary>
+    internal static int GetPolynomialSignAtRationalParameter(
+        Signed832 coefficient,
+        Signed832 projection,
+        Signed832 constant,
+        Signed320 numerator,
+        Signed320 denominator) =>
+        EvaluateWidePolynomialSign(coefficient, projection, constant, numerator, denominator, derivative: false);
+
+    private static int GetDerivativeSign(
+        Signed832 coefficient,
+        Signed832 projection,
+        Signed320 numerator,
+        Signed320 denominator) =>
+        EvaluateWidePolynomialSign(coefficient, projection, default, numerator, denominator, derivative: true);
+
+    private static int EvaluateWidePolynomialSign(
+        Signed832 coefficient,
+        Signed832 projection,
+        Signed832 constant,
+        Signed320 numerator,
+        Signed320 denominator,
+        bool derivative)
+    {
+        // Even the full carrier products occupy fewer than 1,474 bits including
+        // the doubled middle term and addition carries; 24 words retain them.
+        // Current rigid query bounds are smaller: 660 + 2*200 + 2 < 1,063 bits.
+        Span<ulong> n = stackalloc ulong[5];
+        Span<ulong> d = stackalloc ulong[5];
+        Span<ulong> factor = stackalloc ulong[10];
+        Span<ulong> coefficientMagnitude = stackalloc ulong[13];
+        Span<ulong> product = stackalloc ulong[24];
+        Span<ulong> sum = stackalloc ulong[24];
+        WideArithmetic.GetMagnitude(numerator, out n[4], out n[3], out n[2], out n[1], out n[0]);
+        WideArithmetic.GetMagnitude(denominator, out d[4], out d[3], out d[2], out d[1], out d[0]);
+        sum.Clear();
+        int sign = 0;
+        for (int term = 0; term < (derivative ? 2 : 3); term++)
+        {
+            Signed832 value = term == 0 ? coefficient : term == 1 ? projection : constant;
+            WideArithmetic.GetMagnitude(value, coefficientMagnitude);
+            int factorSign;
+            if (derivative)
+            {
+                factor.Clear();
+                (term == 0 ? n : d).CopyTo(factor);
+                factorSign = term == 0 ? numerator.Sign : denominator.Sign;
+            }
+            else
+            {
+                WideArithmetic.MultiplyMagnitudes(term == 2 ? d : n, term == 0 ? n : d, factor);
+                factorSign = term == 0 ? numerator.Sign * numerator.Sign
+                    : term == 1 ? numerator.Sign * denominator.Sign : denominator.Sign * denominator.Sign;
+            }
+            WideArithmetic.MultiplyMagnitudes(coefficientMagnitude, factor, product);
+            WideArithmetic.AddShiftedSignedMagnitude(product, value.Sign * factorSign,
+                !derivative && term == 1 ? 1 : 0, sum, ref sign);
+        }
+        return sign;
+    }
+
+    private static Fixed64 RoundRoot(
+        Signed832 coefficient,
+        Signed832 projection,
+        Signed832 constant,
+        Fixed64 outputScale,
+        bool upperRoot)
+    {
+        ulong low = 0UL;
+        ulong high = (ulong)outputScale.m_rawValue;
+        Signed192 denominator = new(0UL, 0UL, high << 1);
+        while (low < high)
+        {
+            ulong candidate = low + ((high - low) >> 1);
+            Signed192 numerator = new(0UL, 0UL, (candidate << 1) | 1UL);
+            Signed832 first = WideArithmetic.MultiplySigned832(coefficient, numerator);
+            Signed832 second = WideArithmetic.MultiplySigned832(projection, denominator);
+            int derivativeSign = WideArithmetic.AddSigned832(first, second).Sign;
+            Signed832 mixed = WideArithmetic.MultiplySigned832(second, numerator);
+            int polynomialSign = WideArithmetic.AddSigned832(
+                WideArithmetic.AddSigned832(
+                    WideArithmetic.MultiplySigned832(first, numerator),
+                    WideArithmetic.AddSigned832(mixed, mixed)),
+                WideArithmetic.MultiplySigned832(
+                    WideArithmetic.MultiplySigned832(constant, denominator), denominator)).Sign;
+            bool exactRoot = polynomialSign == 0 && (upperRoot ? derivativeSign >= 0 : derivativeSign <= 0);
+            bool precedes = exactRoot ? (candidate & 1UL) != 0UL
+                : upperRoot ? derivativeSign < 0 || polynomialSign < 0
+                : derivativeSign < 0 && polynomialSign > 0;
+            if (precedes)
+                low = candidate + 1UL;
+            else
+                high = candidate;
+        }
+        return Fixed64.FromRaw((long)low);
+    }
+
+    private static Fixed64 RoundLinearRoot(Signed832 projection, Signed832 constant, Fixed64 outputScale)
+    {
+        Signed832 numerator = WideArithmetic.MultiplySigned832(
+            WideArithmetic.SubtractSigned832(default, constant), Signed192.Raw(outputScale));
+        Signed832 denominator = WideArithmetic.AddSigned832(projection, projection);
+        _ = Fixed64.TryGetSignedRawRatio(numerator, denominator, 0, out Fixed64 root);
+        return root;
+    }
+
+    private static Fixed64 Round(Signed320 numerator, Signed320 denominator, Fixed64 outputScale)
+    {
+        _ = Fixed64.TryGetSignedRawRatio(
+            WideArithmetic.MultiplySigned320(numerator, Signed192.Raw(outputScale)),
+            Signed576.ExtendValue(denominator), out Fixed64 result);
+        return result;
     }
 
     private static Fixed64 RoundLinearRoot(ConeData data, Fixed64 outputScale)
@@ -779,18 +966,6 @@ internal static class WideFiniteConeIntersection
             right.Denominator,
             right.Numerator,
             left.Denominator).Sign;
-
-    private static Fixed64 Round(RationalBound value, Fixed64 outputScale)
-    {
-        Signed320 numerator = WideArithmetic.MultiplySigned192(
-            value.Numerator,
-            Signed192.Signed(outputScale.m_rawValue));
-        _ = Fixed64.TryGetSignedRawRatio(
-            Signed576.ExtendValue(numerator),
-            Signed576.ExtendValue(Signed320.ExtendValue(value.Denominator)),
-            out Fixed64 result);
-        return result;
-    }
 
     private static Signed192 GetDot(
         Vector3d leftEnd,

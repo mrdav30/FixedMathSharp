@@ -225,67 +225,30 @@ public partial struct FixedTriangle
             nameof(apexToBaseDirection),
             nameof(height));
 
-        bool found = false;
-        Vector3d bestPoint = default;
-        Fixed64 bestAxial = Fixed64.MaxValue;
-        KeepEdgeCandidate(GetEdge(0), apex, apexToBaseDirection, height, baseRadius, ref found, ref bestPoint, ref bestAxial);
-        KeepEdgeCandidate(GetEdge(1), apex, apexToBaseDirection, height, baseRadius, ref found, ref bestPoint, ref bestAxial);
-        KeepEdgeCandidate(GetEdge(2), apex, apexToBaseDirection, height, baseRadius, ref found, ref bestPoint, ref bestAxial);
-
-        GetExactNormal(out Signed192 normalX, out Signed192 normalY, out Signed192 normalZ, out Signed320 normalSquared);
-        if (!WideGeometry.IsQ128MagnitudeAtMostEpsilon(normalSquared)
-            && WideTriangleConeIntersection.TryGetFaceMinimumAxialPoint(
-                this,
-                normalX,
-                normalY,
-                normalZ,
-                normalSquared,
-                apex,
-                apexToBaseDirection,
-                height,
-                baseRadius,
-                found,
-                out Vector3d facePoint,
-                out Fixed64 faceAxial)
-            && (!found || faceAxial < bestAxial))
-        {
-            found = true;
-            bestPoint = facePoint;
-        }
-
-        point = bestPoint;
-        return found;
+        return WideTriangleConeIntersection.TryGetMinimumAxialPoint(this,
+            Vector3d.Zero, FixedQuaternion.Identity, apex, apexToBaseDirection, height, baseRadius, out point);
     }
 
-    private static void KeepEdgeCandidate(
-        FixedSegment edge,
-        Vector3d apex,
-        Vector3d axisDirection,
-        Fixed64 height,
-        Fixed64 baseRadius,
-        ref bool found,
-        ref Vector3d bestPoint,
-        ref Fixed64 bestAxial)
+    /// <summary>
+    /// Finds the minimum-axial cone intersection while retaining the triangle's
+    /// rigid frame and the cone's world-space definition.
+    /// </summary>
+    /// <remarks>
+    /// Neither the cone apex nor the triangle vertices must fit in the other's
+    /// scalar coordinate frame. Classification uses exact rational rotation;
+    /// only the selected triangle-local witness is rounded.
+    /// </remarks>
+    public bool TryGetFiniteConeIntersectionMinimumAxialPoint(
+        Vector3d triangleOrigin, FixedQuaternion triangleRotation,
+        Vector3d apex, Vector3d apexToBaseDirection, Fixed64 height, Fixed64 baseRadius,
+        out FixedPointAnchor point)
     {
-        if (!edge.TryGetFiniteConeIntersectionMinimumAxialPoint(
-                apex,
-                axisDirection,
-                height,
-                baseRadius,
-                out Vector3d candidate))
-        {
-            return;
-        }
-
-        Fixed64 axial = FixedMath.Min(
-            Vector3d.ProjectNonNegativeDifferenceParameter(candidate, apex, axisDirection),
-            height);
-        if (found && axial >= bestAxial)
-            return;
-
-        found = true;
-        bestPoint = candidate;
-        bestAxial = axial;
+        ValidateRigidTriangleFrame(triangleRotation);
+        ValidateFiniteCone(apexToBaseDirection, height, baseRadius, nameof(apexToBaseDirection), nameof(height));
+        bool found = WideTriangleConeIntersection.TryGetMinimumAxialPoint(this,
+            triangleOrigin, triangleRotation, apex, apexToBaseDirection, height, baseRadius, out Vector3d localPoint);
+        point = found ? FixedPointAnchor.FromValidatedFrame(triangleOrigin, triangleRotation, localPoint) : default;
+        return found;
     }
 
     private static void ValidateFiniteCone(

@@ -324,6 +324,17 @@ query when deciding whether the shapes intersect.
 
 ## Sweeps and finite-shape intervals
 
+`FixedTriangle.TryGetFiniteConeIntersectionMinimumAxialPoint` finds the first
+intersecting surface point along an apex-authored cone's axis. This is not a
+minimum-penetration contact. Its rigid-frame overload keeps the triangle origin
+and rotation separate from the world-space apex and direction, returning a
+`FixedPointAnchor` in the triangle's authored frame. Neither the apex in triangle
+space nor transformed vertices in world space need to fit a scalar coordinate.
+Classification uses exact rational rotation and a bounded maximum-scale
+parameter lattice; the selected local point is rounded only at the end.
+Equal candidates retain AB, BC, CA, face order. Axis direction and rotation
+must be normalized, height positive, and radius nonnegative.
+
 Interval queries return the closed portion of a bounded segment or ray that
 intersects the requested shape. Advanced overloads can also report endpoint
 containment independently of rounded interval parameters.

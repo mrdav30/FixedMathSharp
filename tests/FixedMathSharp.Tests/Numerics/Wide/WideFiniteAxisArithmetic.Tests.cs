@@ -772,6 +772,71 @@ public sealed class WideFiniteAxisArithmeticTests
         }
     }
 
+    [Theory]
+    [InlineData(16, -8, 3, 16, true, 4, 12)]
+    [InlineData(4, -2, 1, 3, true, 2, 2)]
+    [InlineData(4, -2, 1, 5, true, 2, 2)]
+    [InlineData(2, 0, -1, 1000, true, 0, 707)]
+    [InlineData(-4, 0, 1, 16, true, 8, 16)]
+    [InlineData(-4, 4, -3, 16, true, 0, 8)]
+    [InlineData(0, -1, 1, 16, true, 8, 16)]
+    [InlineData(0, 1, -1, 16, true, 0, 8)]
+    [InlineData(0, 0, -1, 16, true, 0, 16)]
+    [InlineData(0, 0, 1, 16, false, 0, 0)]
+    [InlineData(4, -2, 2, 16, false, 0, 0)]
+    [InlineData(1, 1, 1, 16, false, 0, 0)]
+    [InlineData(1, -2, 4, 16, false, 0, 0)]
+    public void BoundedConeRoots_AreInvariantUnderFullWidthHomogeneousScaling(
+        int a, int b, int c, long scale, bool expected, long first, long last)
+    {
+        // Same conic, not a different tolerance: only its homogeneous scale
+        // changes. The literal intervals include tangency and both half-even ties.
+        foreach (int shift in new[] { 0, 600 })
+        {
+            BigInteger common = BigInteger.One << shift;
+            bool found = WideFiniteConeIntersection.TrySolveBoundedUnitPolynomial(
+                ToSigned832(a * common), ToSigned832(b * common), ToSigned832(c * common),
+                default, ToSigned320(1), ToSigned320(1), ToSigned320(1),
+                Fixed64.FromRaw(scale), out Fixed64 entry, out Fixed64 exit);
+            Assert.Equal(expected, found);
+            Assert.Equal(first, entry.m_rawValue);
+            Assert.Equal(last, exit.m_rawValue);
+        }
+    }
+
+    [Fact]
+    public void BoundedConeRoots_RetainFullWidthAxialClipping()
+    {
+        BigInteger common = BigInteger.One << 520;
+        BigInteger boundScale = BigInteger.One << 200;
+        Assert.True(WideFiniteConeIntersection.TrySolveBoundedUnitPolynomial(
+            ToSigned832(16 * common), ToSigned832(-8 * common), ToSigned832(3 * common),
+            ToSigned320(3 * boundScale), ToSigned320(8 * boundScale),
+            ToSigned320(5 * boundScale), ToSigned320(8 * boundScale),
+            Fixed64.FromRaw(16), out Fixed64 entry, out Fixed64 exit));
+        Assert.Equal(6, entry.m_rawValue);
+        Assert.Equal(10, exit.m_rawValue);
+        for (int index = 0; index < 8; index++)
+        {
+            BigInteger numerator = (index - 2) * boundScale + 1;
+            BigInteger denominator = 8 * boundScale + index;
+            BigInteger expected = common * (16 * numerator * numerator - 16 * numerator * denominator + 3 * denominator * denominator);
+            Assert.Equal(expected.Sign, WideFiniteConeIntersection.GetPolynomialSignAtRationalParameter(
+                ToSigned832(16 * common), ToSigned832(-8 * common), ToSigned832(3 * common),
+                ToSigned320(numerator), ToSigned320(denominator)));
+        }
+
+        // The equivalent 0/D..D/D clip must not overflow evaluation merely
+        // because D is large. Its nonempty interval rounds to a single raw tick.
+        BigInteger equivalentScale = BigInteger.One << 150;
+        Assert.True(WideFiniteConeIntersection.TrySolveBoundedUnitPolynomial(
+            ToSigned832(BigInteger.One << 530), default, ToSigned832(-(BigInteger.One << 260)),
+            default, ToSigned320(equivalentScale), ToSigned320(equivalentScale), ToSigned320(equivalentScale),
+            Fixed64.MaxValue, out entry, out exit));
+        Assert.Equal(Fixed64.Zero, entry);
+        Assert.Equal(Fixed64.Zero, exit);
+    }
+
     [Fact]
     public void AdaptiveWideOperations_MatchBigIntegerForDeterministicSparseOperands()
     {
