@@ -14,6 +14,24 @@ namespace FixedMathSharp.Tests;
 public sealed class FixedTriangleCapsuleSlabTests
 {
     [Theory]
+    [InlineData(1L)]
+    [InlineData(4294967296L)]
+    public void PositiveCapsuleSlab_RejectsCertifiedObliqueRimGap(long coreRaw)
+    {
+        // The triangle's minimum projection onto n=(3/5,4/5,0) is 117/16.
+        // The slab's maximum is 7+3*L/10: even L=1 leaves a gap of 1/80.
+        // This catches the incomplete positive-core candidate-axis search.
+        var triangle = new FixedTriangle(
+            new Vector3d(Fixed64.FromFraction(99, 16), Fixed64.FromFraction(9, 2), Fixed64.FromFraction(5, 4)),
+            new Vector3d(Fixed64.FromFraction(67, 16), (Fixed64)6, Fixed64.FromFraction(-5, 4)),
+            new Vector3d(Fixed64.FromFraction(131, 16), Fixed64.FromFraction(37, 4), Fixed64.Zero));
+
+        Assert.False(triangle.TryGetCenteredCapsuleSlabContact(
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero, Fixed64.Zero,
+            Vector2d.Right, Fixed64.FromRaw(coreRaw), (Fixed64)5, (Fixed64)5, out _));
+    }
+
+    [Theory]
     [InlineData(-1)]
     [InlineData(1)]
     public void PositiveCapsuleSlab_PreservesBothTriangleFaceOrientations(int side)
@@ -270,33 +288,22 @@ public sealed class FixedTriangleCapsuleSlabTests
             Fixed64.One,
             out _);
 
-        long before = GC.GetAllocatedBytesForCurrentThread();
         bool allSucceeded = true;
-        for (int iteration = 0; iteration < 32; iteration++)
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            allSucceeded &= triangle.TryGetCircleSlabContact(
-                Vector3d.Zero,
-                FixedQuaternion.Identity,
-                center,
-                Fixed64.Zero,
-                Fixed64.One,
-                Fixed64.One,
-                out _);
-            allSucceeded &= triangle.TryGetCenteredCapsuleSlabContact(
-                Vector3d.Zero,
-                FixedQuaternion.Identity,
-                center,
-                Fixed64.Zero,
-                Vector2d.Forward,
-                Fixed64.Two,
-                Fixed64.One,
-                Fixed64.One,
-                out _);
-        }
-        long after = GC.GetAllocatedBytesForCurrentThread();
+            for (int iteration = 0; iteration < 32; iteration++)
+            {
+                allSucceeded &= triangle.TryGetCircleSlabContact(
+                    Vector3d.Zero, FixedQuaternion.Identity, center,
+                    Fixed64.Zero, Fixed64.One, Fixed64.One, out _);
+                allSucceeded &= triangle.TryGetCenteredCapsuleSlabContact(
+                    Vector3d.Zero, FixedQuaternion.Identity, center,
+                    Fixed64.Zero, Vector2d.Forward, Fixed64.Two, Fixed64.One, Fixed64.One, out _);
+            }
+        });
 
         Assert.True(allSucceeded);
-        Assert.Equal(before, after);
+        Assert.Equal(0, allocated);
     }
 
     [Fact]

@@ -259,27 +259,35 @@ The Release and ReleaseLean reports in `artifacts/fms025-final-release` and
 | `WideOrientedBox.TryGetCenteredCylinderContact(..., out CenteredCylinderContactFeature)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | One boundary owns conservative broad rejection, analytic/edge selection, final rounding, exact box support signs and manifold feature metadata. | Contact or manifold ownership changes. |
 | `WideOrientedBox.GetCylinderCapFace(...)` | 30 | 100% line / 100% branch (Release / ReleaseLean) | Three explicit component tests admit only exact parallel box-face/cylinder-cap pairs; rounded world normals cannot fabricate a manifold. | Another consumer shares this exact three-axis classification. |
 
-### Triangle/cylinder contacts
+### Triangle/cylinder and capsule-slab contacts
 
 Triangle/cylinder contact shares support algebra, stationary quartics and exact
 root signs with the box/cylinder owner. It keeps triangle feature selection and
 paired witness construction local. The shared extraction reduces
 `BoxCylinderAnalyticFeatures.BuildAxis` below this register's threshold.
-The GRV-Issue-082 validation reports under `artifacts/grv082-final-*-report`
-provide the refreshed measurements.
+Positive-core slabs reuse that owner in two admitted endpoint regions and a
+bounded straight-section seam, rather than introducing another contact solver.
 
 | Method | Complexity | Coverage | Rationale | Revisit if |
 | --- | ---: | --- | --- | --- |
-| `TriangleCylinderAnalyticFeatures.TryGetBest(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Ordered face, pole, side and edge boundaries exhaust the analytic partition; smooth vertex/rim residuals still certify separation. | A new exact certificate removes feature work while preserving canonical ties. |
-| `TriangleCylinderAnalyticFeatures.KeepAxis(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | Exact support signs, stable candidate comparison and winner-only world transformation share one admission boundary. | Support ownership or retained candidate layout changes. |
-| `TriangleCylinderContact.TryGetContact(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | One owner selects analytic/root winners and materializes matching cap, side or rim witnesses with exact cap metadata. | Another shape can share materialization without weakening authored-frame or feature contracts. |
+| `TriangleCylinderAnalyticFeatures.TryGetBest(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | One exact selection spans the seam and admitted endpoint regions, with proven face certificates. | A new exact certificate removes feature work while preserving canonical ties. |
+| `TriangleCylinderAnalyticFeatures.KeepRegion(...)` | 28 | 100% line / 100% branch (Release / ReleaseLean) | Ordered face, pole, side and edge boundaries exhaust one analytic region; smooth vertex/rim residuals still certify separation. | The support partition admits fewer necessary boundaries. |
+| `TriangleCylinderAnalyticFeatures.KeepAxis(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Region admission precedes exact support signs, stable comparison and winner-only world transformation. | Support ownership or retained candidate layout changes. |
+| `TriangleCylinderAnalyticFeatures.HasVertexRimSeparation(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | A closest-rim residual proves separation only inside both the triangle vertex cone and the selected core hemisphere. | A shared residual authority preserves both admission conditions. |
+| `TriangleCylinderContact.TryGetContact(...)` | 52 | 100% line / 100% branch (Release / ReleaseLean) | One owner selects analytic/root winners and materializes matched cap, side, rim or seam witnesses with retained exact endpoint metadata. | Another shape can share materialization without weakening authored-frame or feature contracts. |
 | `TriangleCylinderContact.GetAnalyticDepth(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Principal directions cancel their common scale before exact rational rounding; other directions retain the shared radical depth comparison. | A cheaper full-domain reducer preserves odd raw dimensions and conceptual overflow flags. |
-| `TriangleCylinderEdgeContacts.TryGetContact(...)` | 28 | 100% line / 100% branch (Release / ReleaseLean) | Both finite caps and every nondegenerate triangle edge retain the complete bounded chart traversal. | The stationary-feature proof permits fewer charts. |
-| `TriangleCylinderEdgeContacts.TryChart(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | Quartic roots pass exact cap, stationary-sign and triangle-cone admission before separation and stable winner selection; analytic boundaries keep their earlier ownership. | A cheaper exact admission or nonwinning-value certificate preserves completeness. |
+| `TriangleCylinderEdgeContacts.TryGetContact(...)` | 36 | 100% line / 100% branch (Release / ReleaseLean) | Both endpoint regions, finite caps and nondegenerate triangle edges retain one complete bounded chart traversal and exact winner. | The stationary-feature proof permits fewer charts. |
+| `TriangleCylinderEdgeContacts.TryChart(...)` | 36 | 100% line / 100% branch (Release / ReleaseLean) | Quartic roots pass exact cap, stationary-sign, triangle-cone and core-region admission before separation and ranking; analytic boundaries retain earlier ownership. | A cheaper exact admission or nonwinning-value certificate preserves completeness. |
+| `TriangleCylinderEdgeContacts.BuildParameter(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Retained unscaled edge charts share the existing polynomial and append exact cap, triangle and core-region constraints. | A common bounded constraint representation reduces work without extra storage. |
 | `TriangleCylinderGeometry.HasFaceMinimumCertificate(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Exact triangle projection and an inscribed cylinder ball prove the selected face already attains the global minimum. | A broader exact certificate reduces measured feature traversal without replacing the complete fallback. |
 | `TriangleCylinderRimWitnesses.GetAnalyticPoint(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Vertex, edge and face support retain rational-plus-radical coordinates until a single nearest-even conversion. | An existing exact reducer can share this representation without rounded intermediate witnesses. |
 | `TriangleCylinderWitnesses.GetSidePoint(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Tangent-plane intersection and finite axial clipping select a paired witness on the winning triangle support feature. | Feature representation changes or the same exact clipping is needed by another contact owner. |
 | `TriangleCylinderWitnesses.GetFaceWeights(...)` | 24 | 100% line / 100% branch (Release / ReleaseLean) | Exact Voronoi regions retain barycentric weights for independently rounded triangle/cylinder anchors. | A shared projection owner preserves full-width weights and first-feature boundary ownership. |
+| `TriangleCapsuleSlabWitnesses.GetSideWeights(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | Admitted vertices and finite rectangle boundaries recover a paired witness on the selected straight-side feature. | The same exact clipping contract gains another consumer. |
+| `TriangleCapsuleSlabWitnesses.GetCapWeights(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Core intersections, triangle vertices and nearest endpoint features exhaust the cap's planar closest-feature cases. | Another owner can share this finite feature reduction without rounding admission. |
+| `TriangleCapsuleSlabWitnesses.TrySlice(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Exact support-plane crossings and finite interval clipping retain rational or quadratic weights, including closed boundaries. | A shared bounded slice owner preserves feature ordering with lower measured cost. |
+| `TriangleCapsuleSlabWitnesses.GetMaterials(...)` | 28 | 100% line / 100% branch (Release / ReleaseLean) | Paired triangle/core/radial expressions stay exact until combined-coordinate rounding; integral radial coordinates alone retain exact endpoint residuals. | Anchor storage gains a simpler representation of the same exact feature identity. |
+| `TriangleCapsuleSlabWitnesses.RoundRatio(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | One bounded nearest-even ratio conversion handles signed quadratic coordinates and total-coordinate parity without rounded intermediate admission. | An existing ratio owner can consume this representation with the same proven width and rounding contract. |
 
 ## Fixed-Width Workspace Bounds
 
@@ -302,22 +310,74 @@ That ball supplies the lower bound attained by the selected face. A failed
 certificate continues through the complete feature set; a successful one keeps
 the already-selected candidate and its canonical tie ownership.
 
-Transformed triangle coordinates remain below `2^197`, and edge/cap differences
-below `2^198`. The parameter polynomial and value-map coefficients remain below
-`2^2403`, inside forty-word fields; the scaled squared-value quartic fits 3,240
-bits inside fifty-six words. Face-projection dot products need fewer than 400
-bits and their minors fewer than 802, fitting `Signed832`. Side-feature blending
-and final coordinate products remain below 2,000 bits in the shared forty-word
-storage. Barycentric weights remain exact until final coordinate rounding, and
-radial witnesses scale by the full authored radius before rounding. Rim-edge
-witness coordinates retain the selected parameter root as a linear ratio;
-their midpoint queries fit `Signed576`. Analytic rim witnesses compare the
-complete rational-plus-radical coordinate through the existing quadratic sign
-owner. Neither path projects an already-rounded radial support point.
-Resource tests exercise ordinary interior-root and large-extent, distinct rigid-frame
-contacts on a 1 MiB thread stack with 64 KiB of live, dirty caller storage.
-The latter uses a shared extreme origin, so it supplements rather than replaces
-the full-domain translated-coordinate width proof.
+For a positive core parallel to the triangle's face normal, a second exact
+certificate uses the stadium's contained normal-axis segment. After both
+endpoint regions are tested, the retained depth is no greater than the nearest
+whole-stadium face gap. If the triangle contains a face-plane disk of that
+radius centered at the origin's projection, subtracting the contained segment
+produces a set containing the corresponding origin-centered ball. The retained
+support attains this lower bound, so the edge quartics cannot improve it.
+Three inward edge clearances prove disk containment with the existing exact
+candidate comparator. The parallelism cross product stays below 295 bits;
+using the raw core axis crossed with each retained edge keeps clearance
+tangents below 231 bits, projection numerators below 465 bits, and squared
+denominators below 792 bits. No new polynomial or rounded admission is needed.
+
+Positive-core capsule slabs reuse that partition in each open core-normal
+hemisphere. Every candidate and separation certificate is admitted to its
+hemisphere before ranking. On the shared seam, the support function is that of
+a rectangle in the plane perpendicular to the core. Its cap poles, planar
+side normals and triangle-edge crossings complete the partition. One exact
+winner spans both endpoint regions and the seam; independent cylinder-query
+winners would not describe the stadium. The face certificate also applies on
+the seam: the centered cylinder is a subset of the stadium, and an exactly
+core-perpendicular face attains the same lower bound.
+
+The positive core adds an exact common `2*Q32` scale to coordinates and
+extents, retaining odd half-raw endpoints. Original edges remain unscaled;
+`EdgeScale` records their relation to the shifted coordinates. Exact quaternion
+norm bounds and orthogonality keep those edges below 196 bits. Shifted
+coordinates remain below 232 bits, radius below 227 and raw scale below 164.
+Parameter polynomials and value-map numerators remain below 2,534 bits, inside
+forty-word fields. Both endpoint regions share a squared-value scale chosen
+from their actual coordinate, extent and core-offset bounds; the value quartic
+stays below 3,500 bits inside fifty-six words. Cancelling the common edge scale
+before forming barycentric minors keeps them below 827 bits in `Signed832`.
+
+Side-feature weighted-coordinate products stay below 2,200 bits. The seam's
+quadratic interval blends stay below 1,740 bits, rational cap-radius checks
+below 2,300, and combined curved-coordinate queries below 2,520, all inside
+forty words. Barycentric weights remain exact until final coordinate rounding,
+and radial witnesses scale by the full authored radius before rounding.
+Rim-edge witness coordinates retain the selected parameter root as a linear
+ratio; their midpoint queries remain below 500 bits in `Signed576`. Analytic
+rim witnesses compare the complete rational-plus-radical coordinate through
+the existing quadratic sign owner. Neither path projects an already-rounded
+radial support point.
+At an endpoint, integral radial coordinates retain the exact half-core term.
+Other coordinates use exact comparisons against neighboring rounding cells;
+the correction is at most one raw unit and tie parity belongs to the combined
+coordinate. Thresholds and scaled-radius factors stay below 98 bits. Analytic
+products stay below 730 bits, while root comparison coefficients require four
+additional words beyond the squared-gradient width. No extra root isolation or
+binary rounding search is introduced.
+The positive-core contact uses `FiniteAxisValueRoot` isolation and bounded
+Horner signs, not the ellipse owner's Hermite path described below. Using full
+storage widths (2,560 parameter bits and 3,584 value bits), its largest value
+Sturm arena uses 405,376 bytes. Outer contact/chart buffers and two retained
+value-root cells bring the explicit simultaneous scratch below 512 KiB,
+including sign/index arrays. The separate value-mapping endpoint-sign path
+stays below 420 KiB: even its conservative 61,248-bit query fits the parameter
+arena's precision bound without expansion. Endpoint joint rounding's extra
+query words do not raise either peak. These are source-derived scratch bounds,
+not total JIT stack measurements; structs, spills, alignment and host frames
+require additional headroom.
+
+Resource tests exercise ordinary interior-root and large-extent, distinct
+rigid-frame contacts on a 1 MiB thread stack with 64 KiB of live, dirty caller
+storage, for both cylinders and positive-core slabs. The large cases use a
+shared extreme origin, so they supplement rather than replace the full-domain
+translated-coordinate width proof.
 
 Box/cylinder geometry uses the authored rational box frame, an independently
 primitive cylinder axis and one reduced coordinate scale. Coordinates remain
@@ -375,7 +435,7 @@ Hermite traces and matrix entries also use coefficient-sized bounded spans.
 For root/query heights `Bp`/`Bq` and maximum trace order `K`, entries require
 at most `Bq+K(Bp+1)+7` bits; determinants of order at most four fit
 `4*entryBits+8` bits. A conservative simultaneous-buffer calculation for the
-contact caller (`B <= 1818`, query slots at most 202 words) includes eight
+ellipse contact caller (`B <= 1818`, query slots at most 202 words) includes eight
 pseudo-eliminations, retained Sturm storage, weighted query, trace powers,
 Hermite matrix/determinants, and outer feature/comparison buffers: fewer than
 448 KiB of explicit stack scratch, including sign/index arrays. This is a

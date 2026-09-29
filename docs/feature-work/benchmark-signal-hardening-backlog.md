@@ -162,6 +162,73 @@ After the baseline build above, reproduce all matched controls:
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll oriented-box-anchor --filter '*Cylinder*' --launchCount 2 --warmupCount 3 --iterationCount 12 --exporters json --artifacts artifacts/benchmarks/box-cylinder-cost
 ```
 
+### General triangle/capsule-slab rim contacts need throughput work
+
+- **Status / priority:** Isolated, high; measured on 2026-09-28 while repairing
+  FMS-Issue-027. Ordinary cap and side contacts became faster, but a positive
+  oblique edge/rim contact remains substantially more expensive. No observed
+  game workload establishes an acceptable contact-count/frame budget.
+- **Source:** `TriangleCapsuleSlabContactBenchmarks`, working tree based on
+  `04c2f21`. `FixedTriangleCapsuleSlabFeatureTests` retains the separated-rim,
+  exact interior-root, touch/raw-neighbor and paired-witness regressions.
+  This is a flat-capped planar stadium prism, not a rounded 3D capsule.
+- **Environment:** Windows 11, i7-9700K, SDK 10.0.302, .NET 8.0.29, Release,
+  BenchmarkDotNet 0.15.8, concurrent workstation GC, two-core affinity and
+  below-normal launcher. Two launches, five warmups, fifteen measurements;
+  `UseLocalLsfStack=true`, `DOTNET_PROCESSOR_COUNT=2`, serialized with all other
+  build/test/benchmark work.
+- **Measurement:** Mean +/- 99.9% confidence half-width, microseconds per
+  contact. Inputs and measured calls are unchanged. The historical solver
+  demonstrably misclassified the gap; its incomplete feature set is not an
+  equivalent-correctness baseline. This does not establish that every positive
+  fixture's historical result was wrong.
+
+  | Frozen fixture | Historical solver | Complete solver, retained pruning |
+  | --- | ---: | ---: |
+  | `CapFace` | 188.3 +/- 0.77 | 57.50 +/- 0.160 |
+  | `StraightSideSeam` | 229.9 +/- 0.26 | 93.65 +/- 0.223 |
+  | `RoundedEndOddCore` | 235.8 +/- 1.66 | 226.95 +/- 0.913 |
+  | `ObliqueRimOverlap` | 235.0 +/- 0.69 | 1,560.62 +/- 10.562 |
+  | `CertifiedRimGap` | 232.7 +/- 0.40 (wrong hit) | 60.23 +/- 0.212 (miss) |
+  | `UnmaterializedScalarFace` | 230.8 +/- 0.59 | 97.34 +/- 0.761 |
+
+- **Impact:** The oblique positive fixture costs approximately 1.33 ms more
+  than the incomplete solver, or 6.64x historical cost. Correctness justifies
+  the complete feature set, not ignoring this throughput concern.
+- **Retained optimization:** Exact face certificates skip unnecessary rim
+  traversal without changing the winner or tie order. The core-perpendicular
+  certificate reuses the contained cylinder; the core-parallel certificate
+  proves a triangle disk plus contained normal-axis segment supplies the
+  attained lower bound. The latter reduced `RoundedEndOddCore` from
+  1,449.92 +/- 14.593 us to 226.95 +/- 0.913 us. It deliberately does not
+  certify the oblique rim fixture. Do not repeat these experiments as new work.
+- **Evidence / allocation:** `artifacts/fms027-baseline`,
+  `fms027-final-benchmarks` (before the disk certificate), and
+  `fms027-retained-benchmarks` contain the matched captures. All twelve final
+  child launches exited zero and reported zero allocated bytes and GC
+  collections. Fixtures and commands remain available without those artifacts.
+- **Shared-owner controls:** Gravitas's unchanged `mesh-cylinder-contact`
+  group also completed all twelve cylinder/circle-slab rows with the same
+  launch/warmup/iteration counts and two-core affinity. All twenty-four child
+  launches passed their classification/depth preflights with zero allocations
+  or collections. Compared with its `grv082-final-focused-bench` capture, no
+  row became slower; oblique contacts measured 1,026.97 / 1,024.35 us against
+  1,179.01 / 1,160.16 us previously. The fresh reports are under
+  `artifacts/fms027-cylinder-controls` in Gravitas.
+- **Next isolation step:** Profile `ObliqueRimOverlap`, separating necessary
+  endpoint-region/root admission from squared-value construction, mapping,
+  ranking and final witness rounding. Assess exact nonwinning-root rejection
+  using the existing shared contact owners before considering larger changes.
+  Preserve complete classification, minimum depth, deterministic ties,
+  nearest-even combined-coordinate rounding, full-domain anchors, bounded
+  stack scratch and zero allocations. Recheck zero-core cylinder contacts.
+
+After the baseline build above, reproduce the frozen group:
+
+```powershell
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll triangle-capsule-slab-contact --launchCount 2 --warmupCount 5 --iterationCount 15 --affinity 3 --exporters json --artifacts artifacts/benchmarks/triangle-capsule-slab-cost
+```
+
 ## Signal Template
 
 ```markdown

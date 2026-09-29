@@ -250,8 +250,14 @@ Degenerate triangles return false, matching the triangle/slab contact APIs.
 while retaining the circle's authored yaw and half-thickness. Half-thickness
 is not doubled in `Fixed64`, so a representable slab is not shortened when its
 full height exceeds the scalar range.
-`TryGetCenteredCapsuleSlabContact` uses this same path when its core length is
-zero, including the same contact anchors and authored yaw.
+`TryGetCenteredCapsuleSlabContact` describes a planar capsule (a rectangle with
+semicircular ends) extruded through a flat Y slab, not a rounded 3D capsule.
+Its contact query covers both rounded ends, the straight sides, and the flat
+caps, including oblique rim contacts.
+Contact points are paired on the selected features; a straight-side or cap
+contact can lie between the rounded ends. The query retains the authored local
+axis and yaw, including half-raw endpoints from odd raw core lengths. A zero
+core uses the cylinder path above, with the same contact anchors.
 
 `FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact` includes the finite
 cylinder's caps, side, and rims when finding the minimum translation. It also

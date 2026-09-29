@@ -44,6 +44,13 @@ public partial struct FixedTriangle
     /// Attempts to construct canonical contact anchors between this rigidly
     /// transformed triangle and one vertical centered-capsule slab.
     /// </summary>
+    /// <remarks>
+    /// The slab is a planar capsule extruded through flat Y caps, not a rounded
+    /// 3D capsule. Closed contact includes exact tangency. The complete cap,
+    /// straight-side and rounded-end feature set determines the minimum depth
+    /// before contact coordinates are rounded. A zero core reduces to a circle
+    /// slab; degenerate triangles return false.
+    /// </remarks>
     public readonly bool TryGetCenteredCapsuleSlabContact(
         Vector3d triangleOrigin,
         FixedQuaternion triangleRotation,
@@ -61,22 +68,10 @@ public partial struct FixedTriangle
             capsuleAxisLength,
             capsuleRadius,
             slabHalfThickness);
-        if (capsuleAxisLength == Fixed64.Zero)
-            return TriangleCylinderContact.TryGetContact(this, triangleOrigin, triangleRotation,
-                slabCenter, FixedQuaternion.FromAxisAngle(Vector3d.Up, -capsuleFrameRotation),
-                WideArithmetic.AddSigned192(Signed192.Raw(slabHalfThickness), Signed192.Raw(slabHalfThickness)),
-                capsuleRadius, out contact, out _);
-        return WideOrientedBox.TryGetTriangleCapsuleSlabContact(
-            triangleOrigin,
-            triangleRotation,
-            this,
-            slabCenter,
-            capsuleFrameRotation,
-            localCapsuleAxisDirection,
-            capsuleAxisLength,
-            capsuleRadius,
-            slabHalfThickness,
-            out contact);
+        return TriangleCylinderContact.TryGetContact(this, triangleOrigin, triangleRotation,
+            slabCenter, FixedQuaternion.FromAxisAngle(Vector3d.Up, -capsuleFrameRotation),
+            WideArithmetic.AddSigned192(Signed192.Raw(slabHalfThickness), Signed192.Raw(slabHalfThickness)),
+            capsuleRadius, out contact, out _, localCapsuleAxisDirection, capsuleAxisLength);
     }
 
     private static void ValidateCapsuleSlab(

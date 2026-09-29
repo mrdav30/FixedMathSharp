@@ -18,8 +18,8 @@ internal static class TriangleCylinderRimWitnesses
             return Vertex(triangle, (mask & 4) != 0 ? 2 : first);
         bool face = mask == 7;
         int second = face ? 1 : (mask & 4) != 0 ? 2 : 1;
-        WideAxis3 e = TriangleCylinderGeometry.Subtract(geometry.Vertex(second), geometry.Vertex(first));
-        WideAxis3 f = face ? TriangleCylinderGeometry.Subtract(geometry.C, geometry.A) : default;
+        WideAxis3 e = geometry.EdgeFromTo(first, second);
+        WideAxis3 f = face ? -geometry.Edge(2) : default;
         WideAxis3 p0 = new(default, cap > 0 ? WideArithmetic.Negate(geometry.HalfHeight) : geometry.HalfHeight, default);
         WideAxis3 offset = TriangleCylinderGeometry.Subtract(p0, geometry.Vertex(first));
         Signed576 ee = e.SquaredLength, ff = f.SquaredLength, ef = WideAxis3.Dot(e, f);
@@ -40,7 +40,7 @@ internal static class TriangleCylinderRimWitnesses
         if (face)
         {
             GetRadialProjection(geometry.Radius, f, radial, radialSigns, faceRadical, out int faceSign);
-            Import(DifferenceOfProducts(ee, ff, ef, ef), Slot(weights, 0));
+            Import(WideArithmetic.MultiplySigned832(DifferenceOfProducts(ee, ff, ef, ef), geometry.EdgeScale), Slot(weights, 0));
             Signed832 firstWeight = DifferenceOfProducts(ff, a, ef, b);
             Signed832 secondWeight = DifferenceOfProducts(ee, b, ef, a);
             Import(firstWeight, Slot(weights, 1)); signs[0] = firstWeight.Sign;
@@ -50,7 +50,7 @@ internal static class TriangleCylinderRimWitnesses
         }
         else
         {
-            CylinderContactAlgebra.Import(ee, Slot(weights, 0));
+            CylinderContactAlgebra.Import(WideArithmetic.MultiplySigned576(ee, geometry.EdgeScale), Slot(weights, 0));
             CylinderContactAlgebra.Import(a, Slot(weights, 1)); signs[0] = a.Sign;
             edgeRadical.CopyTo(Slot(weights, 2)); signs[1] = edgeSign;
         }
@@ -89,8 +89,8 @@ internal static class TriangleCylinderRimWitnesses
     private static Fixed64 RoundRootCoordinate(Fixed64 a, Fixed64 b, Signed576 a0, Signed576 a1,
         Signed576 b0, Signed576 b1, Signed576 d0, Signed576 d1, int denominatorSign, ref FiniteAxisValueRoot root)
     {
-        // Tangent-distance coefficients <400 bits; authored-coordinate
-        // numerators and midpoint queries <470, within Signed576. The
+        // Shifted tangent-distance coefficients <432 bits; authored-coordinate
+        // numerators and midpoint queries <500, within Signed576. The
         // retained root sign authority rounds the linear ratio directly.
         Signed576 n0 = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned576(b0, a.m_rawValue),
             WideArithmetic.MultiplySigned576(a0, b.m_rawValue));
@@ -141,8 +141,8 @@ internal static class TriangleCylinderRimWitnesses
         ReadOnlySpan<ulong> denominator = Slot(weights, 0);
         WideArithmetic.AddMagnitudeInto(radical, radical);
         // Compare x=(A+B/sqrt(K))/D with t/2 by the sign of
-        // 2B+(2A-tD)*sqrt(K). Direction <598 bits, K<1198 and Gram
-        // minors<802. A/B remain <866/<1465 bits, including raw midpoint
+        // 2B+(2A-tD)*sqrt(K). Shifted directions <630 bits, K<1262 and Gram
+        // minors<827. A/B remain <895/<1535 bits, including raw midpoint
         // products. Forty words suffice; the shared sign owner sizes squares.
         long low = Math.Min(a.m_rawValue, Math.Min(b.m_rawValue, c.m_rawValue));
         long high = Math.Max(a.m_rawValue, Math.Max(b.m_rawValue, c.m_rawValue));

@@ -196,7 +196,7 @@ internal static class ConvexContactValueRoot
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void BuildSquaredLength(ReadOnlySpan<ulong> gradient, ReadOnlySpan<sbyte> signs,
+    internal static void BuildSquaredLength(ReadOnlySpan<ulong> gradient, ReadOnlySpan<sbyte> signs,
         Span<ulong> squaredLength, Span<sbyte> squaredLengthSigns)
     {
         int count = signs.Length / 3;

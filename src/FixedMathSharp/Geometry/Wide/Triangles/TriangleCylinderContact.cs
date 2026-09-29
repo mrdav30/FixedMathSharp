@@ -12,41 +12,52 @@ internal static class TriangleCylinderContact
 {
     internal static bool TryGetContact(FixedTriangle triangle, Vector3d origin, FixedQuaternion rotation,
         Vector3d cylinderCenter, FixedQuaternion cylinderRotation, Signed192 height, Fixed64 radius,
-        out FixedContactAnchors contact, out bool isCapFaceContact)
+        out FixedContactAnchors contact, out bool isCapFaceContact,
+        Vector2d coreDirection = default, Fixed64 coreLength = default)
     {
         contact = default; isCapFaceContact = false;
         if (triangle.IsDegenerate)
             return false;
         var geometry = new TriangleCylinderGeometry(triangle, origin, rotation,
             cylinderCenter, cylinderRotation, height, radius);
+        WideAxis3 coreOffset = default, coreAxis = default;
+        if (coreLength != Fixed64.Zero)
+        {
+            geometry = geometry.WithCore(coreDirection, coreLength, out coreOffset);
+            coreAxis = new WideAxis3(Signed320.ExtendValue(Signed192.Raw(coreDirection.X)), default,
+                Signed320.ExtendValue(Signed192.Raw(coreDirection.Y)));
+        }
         Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * Words];
         Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
         Span<ulong> direction = stackalloc ulong[3 * Words];
         Span<int> directionSigns = stackalloc int[3];
-        if (!TriangleCylinderAnalyticFeatures.TryGetBest(geometry, values, signs, direction, directionSigns,
-                out int gapSign, out int mask, out bool faceMinimumCertified))
+        if (!TriangleCylinderAnalyticFeatures.TryGetBest(geometry, coreOffset, coreAxis, values, signs, direction, directionSigns,
+                out int gapSign, out int mask, out int coreSign, out bool faceMinimumCertified))
             return false;
         var best = new ConvexContactCandidate(values, signs, gapSign);
         Vector3d normal = default, radialPoint = default, rootPoint = default;
         Fixed64 depth = default;
         bool clamped = false, edgeWinner = false;
+        int integralRadialMask = 5;
         int cap = directionSigns[1];
         if (radius != Fixed64.Zero && !faceMinimumCertified)
         {
-            if (!TriangleCylinderEdgeContacts.TryGetContact(geometry, triangle, best, radius, out edgeWinner,
-                    out normal, out radialPoint, out rootPoint, out depth, out clamped, out int edgeMask, out int edgeCap))
+            if (!TriangleCylinderEdgeContacts.TryGetContact(geometry, coreOffset, coreAxis, coreDirection, coreLength,
+                    triangle, best, radius, out edgeWinner, out normal, out radialPoint, out rootPoint, out depth,
+                    out clamped, out int edgeMask, out int edgeCap, out int edgeCoreSign, out integralRadialMask))
                 return false;
             if (edgeWinner)
             {
-                mask = edgeMask; cap = edgeCap;
+                mask = edgeMask; cap = edgeCap; coreSign = edgeCoreSign;
             }
         }
+        TriangleCylinderGeometry winner = coreSign == 0 ? geometry : geometry.AtCoreRegion(coreOffset, coreSign);
         bool pole = !edgeWinner && directionSigns[0] == 0 && directionSigns[2] == 0;
         if (!edgeWinner)
         {
             normal = WideConvexPrismRelations.GetConvexContactCandidateNormal(best);
-            GetAnalyticDepth(geometry, best, directionSigns, mask, out depth, out clamped);
-            if (!pole)
+            GetAnalyticDepth(winner, best, directionSigns, mask, out depth, out clamped);
+            if (!pole && (coreAxis.IsZero || coreSign != 0))
             {
                 // Round R*Nrad/|Nrad| directly from the selected exact direction.
                 // A sub-raw full-normal component must not erase a finite rim.
@@ -56,13 +67,30 @@ internal static class TriangleCylinderContact
                 radialPoint = -WideConvexPrismRelations.GetConvexContactCandidateScaledNormal(best, radius);
             }
         }
+        Vector3d core = default;
+        if (coreSign != 0)
+        {
+            core = TriangleCapsuleSlabEndpointWitnesses.GetCore(coreDirection, coreLength, coreSign,
+                out FixedPointAnchorTerm3d term);
+            if (!edgeWinner && radius != Fixed64.Zero)
+                radialPoint = TriangleCapsuleSlabEndpointWitnesses.AdjustAnalytic(direction, directionSigns,
+                    radius, core, term, radialPoint, out integralRadialMask);
+        }
         isCapFaceContact = pole && mask == 7;
         FixedPointAnchor cylinderAnchor = GetSupport(cylinderCenter, cylinderRotation,
             height, radialPoint, cap);
         FixedPointAnchor triangleAnchor;
-        if (cap == 0)
+        if (!coreAxis.IsZero && coreSign == 0)
         {
-            Vector3d point = TriangleCylinderWitnesses.GetSidePoint(geometry, triangle, mask,
+            TriangleCapsuleSlabWitnesses.GetPoints(geometry, triangle, mask, direction, directionSigns,
+                coreOffset, coreDirection, coreLength, ref radialPoint, out Vector3d point,
+                out Vector3d coreAndAxialPoint, out FixedPointAnchorTerm3d exactTerm);
+            triangleAnchor = new FixedPointAnchor(origin, rotation, point);
+            cylinderAnchor = new FixedPointAnchor(cylinderCenter, cylinderRotation, coreAndAxialPoint, radialPoint, exactTerm);
+        }
+        else if (cap == 0)
+        {
+            Vector3d point = TriangleCylinderWitnesses.GetSidePoint(winner, triangle, mask,
                 direction, directionSigns, out Fixed64 axial, out int boundaryCap);
             triangleAnchor = new FixedPointAnchor(origin, rotation, point);
             cylinderAnchor = boundaryCap != 0
@@ -74,15 +102,28 @@ internal static class TriangleCylinderContact
         {
             Vector3d projectedRadial = default;
             Vector3d point = edgeWinner ? rootPoint
-                : pole ? TriangleCylinderWitnesses.GetCapPoint(geometry, triangle, mask, out projectedRadial)
-                : TriangleCylinderRimWitnesses.GetAnalyticPoint(geometry, triangle, mask, direction, directionSigns, cap);
+                : pole ? TriangleCylinderWitnesses.GetCapPoint(winner, triangle, mask, out projectedRadial)
+                : TriangleCylinderRimWitnesses.GetAnalyticPoint(winner, triangle, mask, direction, directionSigns, cap);
             triangleAnchor = new FixedPointAnchor(origin, rotation, point);
             if (pole)
                 cylinderAnchor = new FixedPointAnchor(cylinderCenter, cylinderRotation,
                     cylinderAnchor.LocalPoint, projectedRadial, cylinderAnchor.ExactLocalTerm);
         }
+        if (coreSign != 0)
+            cylinderAnchor = AddCoreEndpoint(cylinderAnchor, core, coreDirection, coreLength, coreSign, integralRadialMask);
         contact = new FixedContactAnchors(triangleAnchor, cylinderAnchor, normal, depth, clamped);
         return true;
+    }
+
+    private static FixedPointAnchor AddCoreEndpoint(FixedPointAnchor anchor, Vector3d core,
+        Vector2d axis, Fixed64 length, int coreSign, int integralRadialMask)
+    {
+        FixedPointAnchorTerm3d term = TriangleCapsuleSlabEndpointWitnesses.CreateTerm(axis,
+            coreSign > 0 ? -length : length, core, integralRadialMask);
+        // Stadium slab heights are twice an authored half-thickness, so the
+        // cap coordinate is exact and only the half-core residual remains.
+        return new FixedPointAnchor(anchor.Origin, anchor.Rotation,
+            new Vector3d(core.X, anchor.LocalPoint.Y, core.Z), anchor.LocalDisplacement, term);
     }
 
     private static void GetAnalyticDepth(in TriangleCylinderGeometry geometry,
@@ -103,7 +144,7 @@ internal static class TriangleCylinderContact
         Signed320 coordinate = Component(geometry.Vertex(vertex), axis);
         Signed320 numerator = WideArithmetic.AddSigned320(axis == 1 ? geometry.HalfHeight : geometry.Radius,
             directionSigns[axis] < 0 ? WideArithmetic.Negate(coordinate) : coordinate);
-        // Both numerator and exact clamp threshold fit 199 bits. Test exact
+        // Shifted numerator and exact clamp threshold fit 233 bits. Test exact
         // overflow before nearest-even rounding, including Max+fractions.
         Signed320 maximum = WideArithmetic.MultiplySigned192(geometry.RawScale, Signed192.Raw(Fixed64.MaxValue));
         clamped = WideArithmetic.SubtractSigned320(numerator, maximum).Sign > 0;

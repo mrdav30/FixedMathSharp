@@ -206,6 +206,16 @@ previously named `ReducedCoreAxisCylinderCylinder`; its historical selected-axis
 depth was not the global minimum. Timings from that incomplete implementation
 remain incorrect-answer costs, not equivalent-result performance baselines.
 
+`triangle-capsule-slab-contact` measures complete triangle contacts against a
+planar stadium extruded through a flat Y slab. The cases cover cap faces,
+straight sides, odd-raw rounded ends, oblique rims, a certified rim gap, and
+anchors beyond the scalar world-coordinate range. Setup validates overlap and
+separation. Compare these fixtures unchanged; the historical incomplete axis
+set misclassifies the certified gap, so its timings are not a baseline for an
+equally complete solver. This does not imply that every historical positive
+fixture had a wrong result. The `FixedTriangleCapsuleSlab*` tests provide exact
+geometry and paired-witness regressions.
+
 ## Baseline Artifacts
 
 Before starting optimization work, capture a baseline:
