@@ -5,7 +5,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using static FixedMathSharp.Geometry.CylinderContactAlgebra;
-using static FixedMathSharp.Geometry.TriangleRimContactAlgebra;
+using static FixedMathSharp.Geometry.CircularRimContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
@@ -138,7 +138,7 @@ internal static class TriangleCylinderEdgeContacts
             }
             if (!valuesReady)
             {
-                BuildValues(geometry, edge, cap, values, valueSigns);
+                BuildValues(geometry.Edge(edge), geometry.CapOffset(edge, cap), geometry.Radius, geometry.ValueShift, values, valueSigns);
                 valuesReady = true;
             }
             scoped FiniteAxisValueRoot value = ConvexContactValueRoot.MapSquaredValue(
@@ -161,7 +161,8 @@ internal static class TriangleCylinderEdgeContacts
     private static void BuildParameter(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region, int edge,
         WideAxis3 first, WideAxis3 second, int cap, Span<ulong> data, Span<sbyte> signs)
     {
-        TriangleRimContactAlgebra.BuildParameter(geometry, edge, first, second, cap, data, signs);
+        CircularRimContactAlgebra.BuildParameter(geometry.CapOffset(edge, cap), geometry.Radius, geometry.RawScale,
+            first, second, data, signs);
         Write(data, signs, 26, Signed576.ExtendValue(cap > 0 ? first.Y : WideArithmetic.Negate(first.Y)));
         Write(data, signs, 27, Signed576.ExtendValue(cap > 0 ? second.Y : WideArithmetic.Negate(second.Y)));
         WideAxis3 outward = TriangleCircularGeometry.Subtract(geometry.Vertex(edge), geometry.Vertex((edge + 2) % 3));

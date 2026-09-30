@@ -99,7 +99,7 @@ internal static class TriangleConeContact
             KeepAxis(geometry, direction, signs, false, ref selection);
             if (edge.Y.IsZero || edge.X.IsZero && edge.Z.IsZero)
                 continue;
-            TriangleRimContactAlgebra.GetBasis(edge, out WideAxis3 first, out WideAxis3 second);
+            CircularRimContactAlgebra.GetBasis(edge, out WideAxis3 first, out WideAxis3 second);
             WriteDirection(first, direction, signs); KeepAxis(geometry, direction, signs, false, ref selection);
             WriteDirection(second, direction, signs); KeepAxis(geometry, direction, signs, false, ref selection);
             ProjectPerpendicular(edge, new WideAxis3(default, Signed320.One, default), direction, signs);

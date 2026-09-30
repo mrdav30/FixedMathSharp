@@ -8,13 +8,13 @@ using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
-/// <summary>Shared triangle-edge/circular-rim chart, value and direction algebra.</summary>
-internal static class TriangleRimContactAlgebra
+/// <summary>Exact circular-rim chart, value and direction algebra on a normal plane.</summary>
+internal static class CircularRimContactAlgebra
 {
     internal const int ValueWords = 56;
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void BuildParameter(in TriangleCircularGeometry geometry, int edge,
-        WideAxis3 first, WideAxis3 second, int cap, Span<ulong> data, Span<sbyte> signs)
+    internal static void BuildParameter(WideAxis3 offset, Signed320 radius, Signed192 rawScale,
+        WideAxis3 first, WideAxis3 second, Span<ulong> data, Span<sbyte> signs)
     {
         // Shifted core-region coordinates are <2^232 but chart directions
         // retain original edges (<2^198), never scaled vertex differences.
@@ -26,7 +26,7 @@ internal static class TriangleRimContactAlgebra
         Span<ulong> p = inputs[..(2 * Words)], q = inputs.Slice(2 * Words, 3 * Words);
         Span<ulong> metric = inputs.Slice(5 * Words, 3 * Words), scale = Slot(inputs, 8);
         Span<ulong> radiusSquared = Slot(inputs, 9), product = Slot(inputs, 10);
-        WideAxis3 c = geometry.CapOffset(edge, cap);
+        WideAxis3 c = offset;
         Write(p, inputSigns[..2], 0, WideAxis3.Dot(c, first));
         Write(p, inputSigns[..2], 1, WideAxis3.Dot(c, second));
         Write(metric, inputSigns.Slice(5, 3), 0, first.SquaredLength);
@@ -35,23 +35,22 @@ internal static class TriangleRimContactAlgebra
         Write(q, inputSigns.Slice(2, 3), 0, RadialDot(first, first));
         Write(q, inputSigns.Slice(2, 3), 1, Twice(RadialDot(first, second)));
         Write(q, inputSigns.Slice(2, 3), 2, RadialDot(second, second));
-        Import(WideArithmetic.MultiplySigned320(geometry.Radius, geometry.Radius), radiusSquared);
+        Import(WideArithmetic.MultiplySigned320(radius, radius), radiusSquared);
         for (int index = 0; index < 3; index++)
         {
             WideArithmetic.MultiplyMagnitudes(Slot(q, index), radiusSquared, product);
             product.CopyTo(Slot(q, index));
         }
-        Import(Signed320.ExtendValue(geometry.RawScale), scale);
+        Import(Signed320.ExtendValue(rawScale), scale);
         CylinderEdgeContactPolynomial.Build(p, inputSigns[..2], q, inputSigns.Slice(2, 3),
             metric, inputSigns.Slice(5, 3), scale, data[..(26 * Words)], signs[..26]);
 
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void BuildValues(in TriangleCircularGeometry geometry, int edge, int cap,
+    internal static void BuildValues(WideAxis3 e, WideAxis3 c, Signed320 radius, int valueShift,
         Span<ulong> values, Span<sbyte> signs)
     {
-        WideAxis3 e = geometry.Edge(edge), c = geometry.CapOffset(edge, cap);
         Span<ulong> invariants = stackalloc ulong[8 * ValueWords];
         Span<sbyte> invariantSigns = stackalloc sbyte[8];
         invariants.Clear(); invariantSigns.Clear();
@@ -61,13 +60,13 @@ internal static class TriangleRimContactAlgebra
         Write(invariants, invariantSigns, 3, c.SquaredLength, ValueWords);
         Write(invariants, invariantSigns, 4, Signed576.ExtendValue(c.Y), ValueWords);
         Write(invariants, invariantSigns, 5, WideAxis3.Dot(e, c), ValueWords);
-        Write(invariants, invariantSigns, 6, WideArithmetic.MultiplySigned320(geometry.Radius, geometry.Radius), ValueWords);
+        Write(invariants, invariantSigns, 6, WideArithmetic.MultiplySigned320(radius, radius), ValueWords);
         CylinderPairSideValuePolynomial.BuildUnshifted(invariants, invariantSigns, ValueWords, values, signs);
         // Retained edges keep B<398,C<198 bits; shifted c gives q<466,
         // x<232,y<432,rho<454. At ValueShift<=472, weighted linear
         // invariant heights are <872. Quartic convolutions including their
         // carries stay below 3500 bits, inside 56 words (3584 bits).
-        WideFiniteAxisIntersection.ScaleFiniteAxisPolynomialVariable(values, 5, geometry.ValueShift);
+        WideFiniteAxisIntersection.ScaleFiniteAxisPolynomialVariable(values, 5, valueShift);
         WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(values, signs);
     }
 

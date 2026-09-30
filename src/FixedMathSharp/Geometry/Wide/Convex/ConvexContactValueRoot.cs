@@ -149,20 +149,27 @@ internal static class ConvexContactValueRoot
                 squaredLength, squaredLengthSigns, scale, orientation));
     }
 
-    internal static void GetRoundedDepth(Signed192 rawScale, int valueShift, ref FiniteAxisValueRoot root,
-        out Fixed64 depth, out bool clamped)
+    /// <summary>Classifies and rounds radiusOffset + gapSign*sqrt(value) as one exact value.</summary>
+    internal static bool GetRoundedDepth(Signed192 rawScale, int valueShift, ref FiniteAxisValueRoot root,
+        out Fixed64 depth, out bool clamped, int gapSign = 1, Fixed64 radiusOffset = default)
     {
+        depth = default; clamped = false;
+        // Isolated squared-value roots are strictly positive. Exact zero-gap
+        // features are retained separately by their geometry owner.
+        System.Diagnostics.Debug.Assert(gapSign is -1 or 1);
         Span<ulong> scale = stackalloc ulong[3];
         WideArithmetic.GetMagnitude(rawScale, out scale[2], out scale[1], out scale[0]);
         Span<ulong> squaredScale = stackalloc ulong[6];
         WideArithmetic.MultiplyMagnitudes(scale, scale, squaredScale);
+        if (gapSign < 0 && CompareDepthToTwiceRaw(root, squaredScale, valueShift, 0, gapSign, radiusOffset) < 0)
+            return false;
         int maximum = CompareDepthToTwiceRaw(root, squaredScale, valueShift,
-            unchecked((ulong)long.MaxValue << 1));
+            unchecked((ulong)long.MaxValue << 1), gapSign, radiusOffset);
         if (maximum >= 0)
         {
             depth = Fixed64.MaxValue;
             clamped = maximum > 0;
-            return;
+            return true;
         }
         // All rounding thresholds lie on this dyadic grid. Once the exact
         // selected root occupies one grid cell, none can be strictly inside
@@ -174,25 +181,33 @@ internal static class ConvexContactValueRoot
         while (lower < upper)
         {
             ulong midpoint = lower + ((upper - lower) >> 1);
-            if (CompareDepthToTwiceRaw(root, squaredScale, valueShift, midpoint << 1) >= 0)
+            if (CompareDepthToTwiceRaw(root, squaredScale, valueShift, midpoint << 1, gapSign, radiusOffset) >= 0)
                 lower = midpoint + 1;
             else
                 upper = midpoint;
         }
         ulong floor = lower - 1;
-        int comparison = CompareDepthToTwiceRaw(root, squaredScale, valueShift, (floor << 1) | 1);
+        int comparison = CompareDepthToTwiceRaw(root, squaredScale, valueShift, (floor << 1) | 1, gapSign, radiusOffset);
         depth = Fixed64.FromRaw((long)(floor + (comparison > 0 || (comparison == 0 && (floor & 1) != 0) ? 1UL : 0)));
         clamped = false;
+        return true;
     }
 
     private static int CompareDepthToTwiceRaw(FiniteAxisValueRoot root,
-        ReadOnlySpan<ulong> squaredScale, int valueShift, ulong twiceRaw)
+        ReadOnlySpan<ulong> squaredScale, int valueShift, ulong twiceRaw, int gapSign, Fixed64 radiusOffset)
     {
-        Fixed64.Multiply64To128(twiceRaw, twiceRaw, out ulong high, out ulong low);
+        Signed192 difference = WideArithmetic.SubtractSigned192(new Signed192(0, 0, twiceRaw),
+            WideArithmetic.AddSigned192(Signed192.Raw(radiusOffset), Signed192.Raw(radiusOffset)));
+        if (gapSign != difference.Sign)
+            return gapSign.CompareTo(difference.Sign);
+        // Both the nonnegative output threshold and doubled radius fit 64
+        // unsigned bits; their signed difference has the same magnitude bound.
+        WideArithmetic.GetMagnitude(difference, out _, out _, out ulong magnitude);
+        Fixed64.Multiply64To128(magnitude, magnitude, out ulong high, out ulong low);
         Span<ulong> squaredRaw = stackalloc ulong[2] { low, high };
         Span<ulong> threshold = stackalloc ulong[8];
         WideArithmetic.MultiplyMagnitudes(squaredScale, squaredRaw, threshold);
-        return WideFiniteAxisIntersection.CompareFiniteValueRootToDyadic(root, threshold, valueShift + 2);
+        return gapSign * WideFiniteAxisIntersection.CompareFiniteValueRootToDyadic(root, threshold, valueShift + 2);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

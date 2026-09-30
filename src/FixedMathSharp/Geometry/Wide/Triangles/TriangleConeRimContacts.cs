@@ -5,7 +5,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using static FixedMathSharp.Geometry.CylinderContactAlgebra;
-using static FixedMathSharp.Geometry.TriangleRimContactAlgebra;
+using static FixedMathSharp.Geometry.CircularRimContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
@@ -120,7 +120,7 @@ internal static class TriangleConeRimContacts
             }
             if (!valuesReady)
             {
-                BuildValues(geometry, edge, 1, values, valueSigns);
+                BuildValues(geometry.Edge(edge), geometry.CapOffset(edge, 1), geometry.Radius, geometry.ValueShift, values, valueSigns);
                 valuesReady = true;
             }
             scoped FiniteAxisValueRoot value = ConvexContactValueRoot.MapSquaredValue(
@@ -143,7 +143,7 @@ internal static class TriangleConeRimContacts
     private static void BuildConeParameter(in TriangleCircularGeometry geometry, Fixed64 height, Fixed64 radius,
         int edge, WideAxis3 first, WideAxis3 second, Span<ulong> data, Span<sbyte> signs)
     {
-        BuildParameter(geometry, edge, first, second, 1, data, signs);
+        BuildParameter(geometry.CapOffset(edge, 1), geometry.Radius, geometry.RawScale, first, second, data, signs);
         Write(data, signs, 26, Signed576.ExtendValue(first.Y));
         Write(data, signs, 27, Signed576.ExtendValue(second.Y));
         Signed192 h = Signed192.Raw(height), r = Signed192.Raw(radius);

@@ -82,7 +82,7 @@ internal static class TriangleCylinderAnalyticFeatures
             bool oblique = !edge.Y.IsZero && (!edge.X.IsZero || !edge.Z.IsZero);
             if (oblique)
             {
-                TriangleRimContactAlgebra.GetBasis(edge, out WideAxis3 first, out WideAxis3 second);
+                CircularRimContactAlgebra.GetBasis(edge, out WideAxis3 first, out WideAxis3 second);
                 WriteDirection(first, direction, signs);
                 KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
                 WriteDirection(second, direction, signs);

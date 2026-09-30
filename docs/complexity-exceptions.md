@@ -213,7 +213,7 @@ exception table: their reported complexities are at most 10.
 | `CylinderPairRepeatedRim.GetValueAndLine(...)` | 60 | 100% line / 100% branch (Release / ReleaseLean) | Independent, dependent and orthogonal projections require distinct exact eigenvalue compatibility cases before one certified rank-one line is retained. | A narrower exact parameterization preserves the unique-minimum rank-one family and all projection degeneracies. |
 | `CylinderPairRepeatedRim.GetRegularNormal(...)` | 24 | 100% line / 100% branch (Release / ReleaseLean) | Line-circle recovery retains merged tangent branches, unsquared radial signs and finite cap inequalities in the same quadratic extension; dominated H=0 values are excluded. | A shared recovery representation reduces work without admitting a squared conjugate or losing a true rank-one minimum. |
 | `CylinderPairRepeatedRim.RoundNormal(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Three exact world-normal components retain both quadratic extensions through signed nearest-even midpoint comparisons. | Another exact rounding owner supports these nested radicals within the same scratch bound. |
-| `ConvexContactValueRoot.GetRoundedDepth(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Shared root-to-dyadic comparisons distinguish conceptual overflow, representable endpoints and nearest-even half-raw depth ties for cylinder-pair and box/cylinder contacts. | The physical-value scale or shared algebraic conversion contract changes. |
+| `ConvexContactValueRoot.GetRoundedDepth(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Shared signed root-to-dyadic comparisons classify radius-plus-gap before rounding, distinguish conceptual overflow from an exact maximum, and preserve nearest-even half-raw depth ties for existing contact owners and capsule slabs. | The physical-value scale or shared algebraic conversion contract changes. |
 | `ConvexContactValueRoot.GetRoundedNormalComponent(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Shared exact direction polynomials determine component signs and midpoint squares without approximating the selected algebraic root; radius-scaled witnesses multiply before final rounding. | A cheaper normal certificate preserves slope orientation, zero components and nearest-even ties. |
 | `CylinderPairSideValuePolynomial.Build(in CylinderPairGeometry, ...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Side/cap orientation selects exact geometry invariants for the shared unshifted quartic and full-radius octic construction. | Side ownership or exact first/second-frame scaling changes. |
 | `CylinderPairValuePolynomial.Build(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | One fixed cubic-pencil construction produces the squared-distance discriminant and optional analytic derivatives with shared polynomial arithmetic. | The feature proof or derivative consumers change, or a simpler exact construction lowers degree or live workspace. |
@@ -313,7 +313,37 @@ than extracting forwarding methods to lower a metric.
 | `TriangleConeRimContacts.TryChart(...)` | 30 | 100% line / 100% branch (Release / ReleaseLean) | Unsquared stationary signs and triangle/cone region admission precede separation, zero-depth handling and root ranking. | A simpler exact admission or value-comparison path preserves every boundary. |
 | `TriangleConeWitnesses.GetGenerator(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | One supported-feature slice produces matched generator parameters, exact endpoint terms and once-rounded interior coordinates. | Another contact needs the same slice/materialization contract. |
 
+### Capsule/stadium-slab contacts
+
+The complete capsule/stadium-slab relation retains these focused feature owners:
+
+| Method | Complexity | Coverage | Rationale | Revisit if |
+| --- | ---: | --- | --- | --- |
+| `WideConvexPrismRelations.TryGetCenteredCapsuleSlabCapsulePenetration(...)` | 52 | 100% line / 100% branch (Release / ReleaseLean) | One ordered traversal owns analytic normal planes, exact whole-shape early certificates, degenerate reductions and curved-feature dispatch. Splitting its candidate state into separate solvers would obscure completeness and tie order. | A proved complete reduction removes features or a measured ownership change lowers cost without duplicate state. |
+| `WideConvexPrismRelations.BuildCapsuleSlabEndpointRim(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Strict cap, end and capsule support signs certify a global closest-point residual before retaining its exact radical normal and signed gap. | Another exact closest-feature consumer can reuse the same support proof. |
+| `WideConvexPrismRelations.TryImproveCapsuleSlabRim(...)` | 22 | 100% line / 100% branch (Release / ReleaseLean) | Stable signed and reciprocal charts share one retained winner; zero, positive and negative core gaps have explicit final conversion paths. | Fewer charts are proved sufficient without unrestricted-domain reflection assumptions. |
+| `WideConvexPrismRelations.KeepCapsuleSlabRimChart(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | Whole-chart sign admission, unsquared stationary equations and exact signed root ranking retain every regional minimum without comparing rounded depths. | An exact nonwinning-root certificate measurably avoids mapping or ranking work. |
+
 ## Fixed-Width Workspace Bounds
+
+The internal capsule/stadium-slab relation shares `CylinderContactAlgebra`,
+`CircularRimContactAlgebra` and the existing exact value-root owners. Its
+normal partition is the three support-sign planes (cap, slab core, capsule
+core), their intersections, and strictly admitted endpoint/rim residuals.
+Horizontal capsule axes project the disk to a rational segment; only genuinely
+oblique capsule-interior normals require quartic charts. Negative core gaps
+remain candidates until capsule radius is included in the exact depth test.
+
+Reduced slab-local extents and offsets are below 200 bits, retained rotation
+columns below 132 bits, and squared-value shift at most 410. Parameter/value-map
+coefficients stay below 1,900 bits in forty-word fields; value polynomials stay
+below 2,800 bits in fifty-six-word fields. Projected residual directions remain
+in wide spans because their numerators can exceed 320 bits. Root admission,
+mapping, comparison and materialization own separate returning scratch frames.
+The reviewed outer-buffer bound is 37,908 bytes before structs/control; reserving
+48 KiB for those frames, a live 64 KiB caller, nested refinement and a 16 KiB
+control/spill margin keeps the reviewed peak below 512 KiB. The 1 MiB worker
+test supplements this bound with a dirty live caller and an oblique winner.
 
 Triangle/cone contact shares the triangle circular frame, rim chart/value
 algebra and exact supported-feature slice rather than copying a root or wide

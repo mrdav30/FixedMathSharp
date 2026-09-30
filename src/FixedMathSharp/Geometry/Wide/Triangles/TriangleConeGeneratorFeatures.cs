@@ -31,7 +31,7 @@ internal static class TriangleConeGeneratorFeatures
         for (int vertex = 0; vertex < 3 && !selection.Separated; vertex++)
         {
             WideAxis3 p = geometry.Vertex(vertex);
-            Signed576 radial = TriangleRimContactAlgebra.RadialDot(p, p);
+            Signed576 radial = CircularRimContactAlgebra.RadialDot(p, p);
             if (radial.Sign != 0)
             {
                 for (int orientation = -1; orientation <= 1; orientation += 2)
@@ -46,7 +46,7 @@ internal static class TriangleConeGeneratorFeatures
                 }
             }
             WideAxis3 e = geometry.Edge(vertex);
-            Signed576 eSquared = TriangleRimContactAlgebra.RadialDot(e, e);
+            Signed576 eSquared = CircularRimContactAlgebra.RadialDot(e, e);
             if (eSquared.Sign == 0)
                 continue;
             values.Clear(); signs.Clear();
