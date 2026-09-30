@@ -276,11 +276,12 @@ internal static partial class WideFiniteAxisIntersection
             secondCenter,
             candidate.ParameterDenominator,
             secondAnchorRotation);
-        _ = TryGetCenteredCapsulesDepth(
+        GetCenteredCapsulesDepth(
             candidate.SquaredDistanceNumerator,
             candidate.ParameterDenominator,
             firstRadius,
             secondRadius,
+            firstLength == Fixed64.Zero && secondLength == Fixed64.Zero,
             out Fixed64 depth,
             out bool depthIsClamped);
         contact = new FixedContactAnchors2d(
@@ -384,11 +385,12 @@ internal static partial class WideFiniteAxisIntersection
             candidate.SecondParameterNumerator,
             candidate.ParameterDenominator,
             out Fixed64 secondZ);
-        _ = TryGetCenteredCapsulesDepth(
+        GetCenteredCapsulesDepth(
             candidate.SquaredDistanceNumerator,
             candidate.ParameterDenominator,
             firstRadius,
             secondRadius,
+            firstLength == Fixed64.Zero && secondLength == Fixed64.Zero,
             out Fixed64 depth,
             out bool depthIsClamped);
         depth = FixedMath.Max(depth, Fixed64.Zero);

@@ -56,6 +56,15 @@ internal static partial class WideOrientedBox
         Fixed64 secondRadius,
         bool strict = false)
     {
+        // Point cores have no orientation-dependent extent. Compare their raw
+        // center distance directly, retaining the exact radius sum and tangency rule.
+        if (firstLength == Fixed64.Zero && secondLength == Fixed64.Zero)
+        {
+            int comparison = WideGeometry.CompareDistanceToRadiusSum(
+                firstCenter, secondCenter, firstRadius, secondRadius);
+            return strict ? comparison < 0 : comparison <= 0;
+        }
+
         GetRotatedLocalAxisNumerators(
             firstRotation,
             firstLocalAxis,

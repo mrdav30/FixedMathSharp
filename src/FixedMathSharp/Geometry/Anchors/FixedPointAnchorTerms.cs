@@ -15,8 +15,6 @@ namespace FixedMathSharp.Geometry;
 /// </summary>
 internal readonly struct FixedPointAnchorTerm3d : IEquatable<FixedPointAnchorTerm3d>
 {
-    internal const long MaximumResidualMagnitude = 1L << 33;
-
     internal readonly long X;
     internal readonly long Y;
     internal readonly long Z;
@@ -79,7 +77,7 @@ internal readonly struct FixedPointAnchorTerm3d : IEquatable<FixedPointAnchorTer
         FixedPointAnchorTerm2d planarTerm) =>
         new(planarTerm.X, 0L, planarTerm.Y);
 
-    private static long GetResidual(
+    internal static long GetResidual(
         Fixed64 localAxis,
         Fixed64 signedAxisLength,
         Fixed64 localRadialDirection,
@@ -87,31 +85,17 @@ internal readonly struct FixedPointAnchorTerm3d : IEquatable<FixedPointAnchorTer
         Fixed64 roundedAxialOffset,
         Fixed64 roundedRadialOffset)
     {
-        Signed320 exact = WideArithmetic.AddSigned320(
-            WideArithmetic.MultiplySigned192(
-                Signed192.Raw(localAxis),
-                Signed192.Raw(signedAxisLength)),
-            WideArithmetic.AddSigned320(
-                WideArithmetic.MultiplySigned192(
-                    Signed192.Raw(localRadialDirection),
-                    Signed192.Raw(radius)),
-                WideArithmetic.MultiplySigned192(
-                    Signed192.Raw(localRadialDirection),
-                    Signed192.Raw(radius))));
-        Signed192 rounded = WideArithmetic.AddSigned192(
-            Signed192.Raw(roundedAxialOffset),
-            Signed192.Raw(roundedRadialOffset));
-        Signed320 residual = WideArithmetic.SubtractSigned320(
-            exact,
-            WideArithmetic.MultiplySigned192(
-                rounded,
-                Denominator));
-        // Each rounded term is within half of its source denominator. The
-        // axial full-length/2 residual is therefore at most one Q32 scale
-        // unit, as is the doubled radial product residual. Their sum is
-        // bounded inclusively by 2*Q32 (2^33), so the exact numerator fits in
-        // one signed word even at a pair of round-to-even ties.
-        return unchecked((long)residual.Word0);
+        // Retain the rounding residual of the local feature construction.
+        // The axial term can include two rounding steps (length/2, then
+        // multiplication by the axis), not just a single half-raw error.
+        // Only the low word is retained. Unchecked raw arithmetic preserves
+        // that word through cancellation even when intermediate products or
+        // the rounded-offset sum overflow; Fixed64 operators would not.
+        return unchecked(
+            localAxis.m_rawValue * signedAxisLength.m_rawValue
+            + 2L * localRadialDirection.m_rawValue * radius.m_rawValue
+            - Fixed64.Two.m_rawValue
+                * (roundedAxialOffset.m_rawValue + roundedRadialOffset.m_rawValue));
     }
 
     internal static Signed192 Denominator =>
@@ -158,14 +142,14 @@ internal readonly struct FixedPointAnchorTerm2d :
         Vector2d roundedAxialOffset,
         Vector2d roundedRadialOffset) =>
         new(
-            GetResidual(
+            FixedPointAnchorTerm3d.GetResidual(
                 localAxis.X,
                 signedAxisLength,
                 localRadialDirection.X,
                 radius,
                 roundedAxialOffset.X,
                 roundedRadialOffset.X),
-            GetResidual(
+            FixedPointAnchorTerm3d.GetResidual(
                 localAxis.Y,
                 signedAxisLength,
                 localRadialDirection.Y,
@@ -184,36 +168,6 @@ internal readonly struct FixedPointAnchorTerm2d :
             radius,
             Vector2d.Zero,
             roundedRadialOffset);
-
-    private static long GetResidual(
-        Fixed64 localAxis,
-        Fixed64 signedAxisLength,
-        Fixed64 localRadialDirection,
-        Fixed64 radius,
-        Fixed64 roundedAxialOffset,
-        Fixed64 roundedRadialOffset)
-    {
-        Signed320 exact = WideArithmetic.AddSigned320(
-            WideArithmetic.MultiplySigned192(
-                Signed192.Raw(localAxis),
-                Signed192.Raw(signedAxisLength)),
-            WideArithmetic.AddSigned320(
-                WideArithmetic.MultiplySigned192(
-                    Signed192.Raw(localRadialDirection),
-                    Signed192.Raw(radius)),
-                WideArithmetic.MultiplySigned192(
-                    Signed192.Raw(localRadialDirection),
-                    Signed192.Raw(radius))));
-        Signed192 rounded = WideArithmetic.AddSigned192(
-            Signed192.Raw(roundedAxialOffset),
-            Signed192.Raw(roundedRadialOffset));
-        Signed320 residual = WideArithmetic.SubtractSigned320(
-            exact,
-            WideArithmetic.MultiplySigned192(
-                rounded,
-                FixedPointAnchorTerm3d.Denominator));
-        return unchecked((long)residual.Word0);
-    }
 
     public bool Equals(FixedPointAnchorTerm2d other) =>
         X == other.X && Y == other.Y;

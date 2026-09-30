@@ -86,14 +86,8 @@ public sealed class CenteredCapsuleAnchorTests
         Assert.NotEqual(
             positive.GetLocalFeatureHash64(),
             negative.GetLocalFeatureHash64());
-        Assert.InRange(
-            positive.ExactLocalTerm.X,
-            -FixedPointAnchorTerm3d.MaximumResidualMagnitude,
-            FixedPointAnchorTerm3d.MaximumResidualMagnitude);
-        Assert.InRange(
-            negative.ExactLocalTerm.X,
-            -FixedPointAnchorTerm3d.MaximumResidualMagnitude,
-            FixedPointAnchorTerm3d.MaximumResidualMagnitude);
+        Assert.Equal(Fixed64.One.m_rawValue, positive.ExactLocalTerm.X);
+        Assert.Equal(-Fixed64.One.m_rawValue, negative.ExactLocalTerm.X);
     }
 
     [Fact]

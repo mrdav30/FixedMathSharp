@@ -715,6 +715,25 @@ public sealed class WideFiniteAxisArithmeticTests
             WideArithmetic.GetFloorSquareRootOfProduct(actualProduct, default));
     }
 
+    [Theory]
+    [InlineData(63, 1)]
+    [InlineData(127, 3)]
+    [InlineData(191, 3)]
+    [InlineData(317, 3)]
+    [InlineData(317, 4)]
+    [InlineData(317, 5)]
+    [InlineData(319, 1)]
+    public void ProductSquareRoot_PreservesFloorAcrossNarrowWidthBoundary(int bits, long factor)
+    {
+        foreach (int offset in new[] { -1, 0, 1 })
+        {
+            BigInteger value = (BigInteger.One << bits) + offset;
+            AssertSigned576(
+                IntegerSquareRoot(value * factor),
+                WideArithmetic.GetFloorSquareRootOfProduct(ToSigned832(value), ToSigned192(factor)));
+        }
+    }
+
     [Fact]
     public void BoundedConePolynomialEvaluation_MatchesBigIntegerAcrossRigidFrameWidths()
     {
@@ -953,6 +972,29 @@ public sealed class WideFiniteAxisArithmeticTests
             WideNormalization.GetNormalized(ToSigned320(4), ToSigned320(3), ToSigned320(1)));
         Assert.Equal(Vector4d.Zero, WideNormalization.GetNormalized(Vector4d.Zero));
         Assert.Equal(FixedQuaternion.Identity, WideNormalization.GetNormalized(default(FixedQuaternion)));
+    }
+
+    [Theory]
+    [InlineData(1L)]
+    [InlineData(-1L)]
+    [InlineData(long.MinValue)]
+    [InlineData(long.MaxValue)]
+    public void WideNormalization_PreservesCardinalDirectionAcrossScalarRange(long raw)
+    {
+        Fixed64 value = Fixed64.FromRaw(raw);
+        Fixed64 sign = raw < 0 ? -Fixed64.One : Fixed64.One;
+        Assert.Equal(new Vector2d(sign, Fixed64.Zero),
+            WideNormalization.GetNormalized(new Vector2d(value, Fixed64.Zero)));
+        Assert.Equal(new Vector2d(Fixed64.Zero, sign),
+            WideNormalization.GetNormalized(new Vector2d(Fixed64.Zero, value)));
+        Assert.Equal(new Vector3d(sign, Fixed64.Zero, Fixed64.Zero),
+            WideNormalization.GetNormalized(new Vector3d(value, Fixed64.Zero, Fixed64.Zero)));
+        Assert.Equal(new Vector3d(Fixed64.Zero, sign, Fixed64.Zero),
+            WideNormalization.GetNormalized(new Vector3d(Fixed64.Zero, value, Fixed64.Zero)));
+        Assert.Equal(new Vector3d(Fixed64.Zero, Fixed64.Zero, sign),
+            WideNormalization.GetNormalized(new Vector3d(Fixed64.Zero, Fixed64.Zero, value)));
+        Assert.Equal(Vector2d.Zero, WideNormalization.GetNormalized(Vector2d.Zero));
+        Assert.Equal(Vector3d.Zero, WideNormalization.GetNormalized(Vector3d.Zero));
     }
 
     private static BigInteger IntegerSquareRoot(BigInteger value)

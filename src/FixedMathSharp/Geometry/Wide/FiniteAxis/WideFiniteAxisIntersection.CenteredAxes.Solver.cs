@@ -164,6 +164,21 @@ internal static partial class WideFiniteAxisIntersection
         Fixed64 secondLength,
         out CenteredAxesCandidate2d candidate)
     {
+        // Point cores have no axis parameters. Keep their raw centers over
+        // denominator one rather than introducing and later cancelling an
+        // arbitrary axis-dependent scale. Two squared raw differences fit 129 bits.
+        if (firstLength == Fixed64.Zero && secondLength == Fixed64.Zero)
+        {
+            candidate = new CenteredAxesCandidate2d(
+                Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(firstCenter.X))),
+                Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(firstCenter.Y))),
+                Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(secondCenter.X))),
+                Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(secondCenter.Y))),
+                Signed320.ExtendValue(Scale),
+                Signed832.ExtendValue(GetDot(firstCenter, secondCenter, firstCenter, secondCenter)));
+            return;
+        }
+
         GetClosestCenteredAxisParameters(
             GetDot(firstAxis, Vector2d.Zero, firstAxis, Vector2d.Zero),
             GetDot(firstAxis, Vector2d.Zero, secondAxis, Vector2d.Zero),
@@ -239,6 +254,24 @@ internal static partial class WideFiniteAxisIntersection
         Fixed64 secondLength,
         out CenteredAxesCandidate candidate)
     {
+        // Three squared raw endpoint differences fit 130 bits, independently
+        // of the irrelevant axes and rotations of these point cores.
+        if (firstLength == Fixed64.Zero && secondLength == Fixed64.Zero)
+        {
+            candidate = new CenteredAxesCandidate(
+                Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(firstCenter.X))),
+                Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(firstCenter.Y))),
+                Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(firstCenter.Z))),
+                Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(secondCenter.X))),
+                Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(secondCenter.Y))),
+                Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(secondCenter.Z))),
+                default,
+                default,
+                Signed320.ExtendValue(Scale),
+                Signed832.ExtendValue(GetDot(firstCenter, secondCenter, firstCenter, secondCenter)));
+            return;
+        }
+
         GetClosestCenteredAxisParameters(
             GetDot(firstAxis, Vector3d.Zero, firstAxis, Vector3d.Zero),
             GetDot(firstAxis, Vector3d.Zero, secondAxis, Vector3d.Zero),
@@ -466,6 +499,12 @@ internal static partial class WideFiniteAxisIntersection
         Signed320 parameterDenominator,
         out Fixed64 coordinate)
     {
+        if (parameterNumerator.IsZero)
+        {
+            coordinate = center;
+            return true;
+        }
+
         Signed576 numerator = GetCenteredAxisPointNumerator(
             center,
             axis,
@@ -511,6 +550,9 @@ internal static partial class WideFiniteAxisIntersection
             WideArithmetic.SubtractSigned576(axisPointX, centerX);
         Signed576 deltaY =
             WideArithmetic.SubtractSigned576(axisPointY, centerY);
+        if (deltaX.IsZero && deltaY.IsZero)
+            return Vector2d.Zero;
+
         Fixed64 cosine = FixedMath.Cos(frameRotation);
         Fixed64 sine = FixedMath.Sin(frameRotation);
         Signed192 cosineRaw =
@@ -563,24 +605,52 @@ internal static partial class WideFiniteAxisIntersection
         roundedLocalOffset = localDirection * radius;
     }
 
-    private static bool TryGetCenteredCapsulesDepth(
+    private static void GetCenteredCapsulesDepth(
         Signed832 squaredDistanceNumerator,
         Signed320 distanceDenominator,
         Fixed64 firstRadius,
         Fixed64 secondRadius,
+        bool pointCores,
         out Fixed64 depth,
         out bool depthIsClamped)
     {
         Signed192 combinedRadius = WideArithmetic.AddSigned192(
             Signed192.Signed(firstRadius.m_rawValue),
             Signed192.Signed(secondRadius.m_rawValue));
+        if (pointCores)
+        {
+            // The canonical point candidate has denominator one and at most
+            // 130 squared-distance bits. Keep the root wide: a valid radius
+            // sum and center span can both exceed the public scalar range.
+            Signed192 root = WideArithmetic.GetFloorSquareRoot(
+                new Signed320(0UL, 0UL, squaredDistanceNumerator.Word2,
+                    squaredDistanceNumerator.Word1, squaredDistanceNumerator.Word0),
+                out Signed192 remainder);
+            Signed192 upperDepth = WideArithmetic.SubtractSigned192(combinedRadius, root);
+            // sqrt(n) - floor(sqrt(n)) is strictly below one, so this integer
+            // upper bound exceeds Max exactly when the conceptual depth does.
+            depthIsClamped = WideArithmetic.SubtractSigned192(
+                upperDepth, Signed192.Signed(long.MaxValue)).Sign > 0;
+            if (depthIsClamped)
+            {
+                depth = Fixed64.MaxValue;
+                return;
+            }
+
+            // Integer radicands cannot have half-integer roots. As in
+            // WideGeometry.TryRoundDistance, sqrt(n) rounds up iff remainder > root.
+            // Overlap admission guarantees a nonnegative final depth.
+            depth = Fixed64.FromRaw((long)upperDepth.Low
+                - (WideArithmetic.CompareMagnitude(remainder, root) > 0 ? 1L : 0L));
+            return;
+        }
+
         GetCenteredRadiusDepth(
             squaredDistanceNumerator,
             Signed576.ExtendValue(distanceDenominator),
             combinedRadius,
             out depth,
             out depthIsClamped);
-        return true;
     }
 
     private static void GetCenteredRadiusDepth(

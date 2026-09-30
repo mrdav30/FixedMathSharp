@@ -30,10 +30,17 @@ internal static class WideNormalization
     /// Returns the nearest representable normalized direction for a nonzero 2D
     /// vector using its exact raw components.
     /// </summary>
-    internal static Vector2d GetNormalized(Vector2d value) =>
-        GetNormalized(
+    internal static Vector2d GetNormalized(Vector2d value)
+    {
+        // Cardinal vectors (including zero) need neither a square root nor
+        // division, even when the nonzero raw component is MinValue.
+        if (value.X == Fixed64.Zero || value.Y == Fixed64.Zero)
+            return new Vector2d((Fixed64)Fixed64.Sign(value.X), (Fixed64)Fixed64.Sign(value.Y));
+
+        return GetNormalized(
             Signed192.Signed(value.X.m_rawValue),
             Signed192.Signed(value.Y.m_rawValue));
+    }
 
     internal static Vector2d GetNormalized(Signed192 x, Signed192 y)
     {
@@ -138,11 +145,20 @@ internal static class WideNormalization
     /// Returns the nearest representable normalized direction for a nonzero 3D
     /// vector using its exact raw components.
     /// </summary>
-    internal static Vector3d GetNormalized(Vector3d value) =>
-        GetNormalized(
+    internal static Vector3d GetNormalized(Vector3d value)
+    {
+        bool zeroX = value.X == Fixed64.Zero;
+        bool zeroY = value.Y == Fixed64.Zero;
+        bool zeroZ = value.Z == Fixed64.Zero;
+        if ((zeroX && zeroY) || (zeroX && zeroZ) || (zeroY && zeroZ))
+            return new Vector3d((Fixed64)Fixed64.Sign(value.X),
+                (Fixed64)Fixed64.Sign(value.Y), (Fixed64)Fixed64.Sign(value.Z));
+
+        return GetNormalized(
             Signed192.Signed(value.X.m_rawValue),
             Signed192.Signed(value.Y.m_rawValue),
             Signed192.Signed(value.Z.m_rawValue));
+    }
 
     internal static Vector3d GetNormalized(
         Signed192 x,

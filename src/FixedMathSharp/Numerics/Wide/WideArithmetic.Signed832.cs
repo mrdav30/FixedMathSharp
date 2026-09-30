@@ -297,6 +297,16 @@ internal static partial class WideArithmetic
         MultiplyMagnitudes(valueMagnitude, factorMagnitude, product);
 
         int productBitLength = GetBitLength(product);
+        // Reuse the scalar-limb root when the exact product fits its positive
+        // five-word domain. Point-core distances need at most 130 bits.
+        if (productBitLength <= 319)
+        {
+            Signed192 narrowRoot = GetFloorSquareRoot(
+                new Signed320(product[4], product[3], product[2], product[1], product[0]),
+                out _);
+            return Signed576.ExtendValue(Signed320.ExtendValue(narrowRoot));
+        }
+
         int rootBitLength = (productBitLength + 1) >> 1;
         int activeWords = System.Math.Min(9, (rootBitLength + 64) >> 6);
         Span<ulong> rootStorage = stackalloc ulong[9];

@@ -164,6 +164,14 @@ The matching `Strict*` rows measure classification alone, including a positive
 sub-raw overlap. Exact touch is intentionally false in strict rows and true in
 closed-contact rows.
 
+`zero-core-contact` pairs circle and sphere contact construction on axis,
+diagonal, rotated, coincident, large-coordinate and separated fixtures. Its
+`CapsuleControl` case retains nonzero core lengths to detect changes outside
+the point-core path. Setup verifies classification, normal, depth and clamping;
+the matching `ZeroCoreContactTests` cover raw boundaries and retained witnesses.
+These are complete direct geometry queries, not Boolean overlap tests or
+simulation-frame timings.
+
 `oriented-box-anchor` includes paired `SpherePrimary`/`SphereStrict`,
 `CapsulePrimary`/`CapsuleStrict`, and `CylinderManifold`/`CylinderStrict` rows
 on the same geometry. The `rigid-finite-shape-relation` selection similarly

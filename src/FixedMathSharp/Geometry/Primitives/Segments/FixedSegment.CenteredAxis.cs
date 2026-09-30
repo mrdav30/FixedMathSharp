@@ -993,14 +993,17 @@ public partial struct FixedSegment
             contact = default;
             return false;
         }
-        _ = firstRotation.TryRotate(
-            firstLocalAxisDirection,
-            out Vector3d firstAxisDirection);
-        _ = secondRotation.TryRotate(
-            secondLocalAxisDirection,
-            out Vector3d secondAxisDirection);
-        firstAxisDirection = firstAxisDirection.Normalized;
-        secondAxisDirection = secondAxisDirection.Normalized;
+        Vector3d firstAxisDirection = firstLocalAxisDirection;
+        Vector3d secondAxisDirection = secondLocalAxisDirection;
+        // Zero-core axes are irrelevant to the candidate; rotations still own
+        // the radial anchors. Keep the exact rigid classifier above for all pairs.
+        if (firstAxisLength != Fixed64.Zero || secondAxisLength != Fixed64.Zero)
+        {
+            _ = firstRotation.TryRotate(firstLocalAxisDirection, out firstAxisDirection);
+            _ = secondRotation.TryRotate(secondLocalAxisDirection, out secondAxisDirection);
+            firstAxisDirection = firstAxisDirection.Normalized;
+            secondAxisDirection = secondAxisDirection.Normalized;
+        }
 
         return WideFiniteAxisIntersection.TryGetCenteredCapsulesContact(
             firstCenter,
