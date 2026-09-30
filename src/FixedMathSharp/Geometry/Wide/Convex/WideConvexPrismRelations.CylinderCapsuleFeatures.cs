@@ -443,13 +443,44 @@ internal static partial class WideConvexPrismRelations
         Vector3d capsuleCenter, FixedQuaternion capsuleRotation, Vector3d capsuleLocalAxis,
         Fixed64 capsuleLength, Fixed64 capsuleRadius, out FixedContactAnchors contact)
     {
+        if (!TryGetCenteredFiniteCylinderCapsulePenetration(
+                cylinderCenter, cylinderRotation, cylinderLocalAxis, Signed192.Raw(cylinderLength), cylinderRadius,
+                capsuleCenter, capsuleRotation, capsuleLocalAxis, capsuleLength, capsuleRadius,
+                out Vector3d normal, out Fixed64 depth, out bool depthIsClamped))
+        {
+            contact = default;
+            return false;
+        }
+        contact = CreateCylinderCapsuleFeatureContact(normal, depth, depthIsClamped,
+            cylinderCenter, cylinderRotation, cylinderLocalAxis, cylinderLength, cylinderRadius,
+            capsuleCenter, capsuleRotation, capsuleLocalAxis, capsuleLength, capsuleRadius);
+        return true;
+    }
+
+    /// <summary>
+    /// Exact closed relation for an admitted finite cylinder and capsule. The
+    /// positive cylinder full length may occupy 64 unsigned raw bits, including
+    /// twice a slab half-thickness; all other authored inputs retain their
+    /// ordinary admission bounds. The cylinder-to-capsule normal and complete
+    /// nearest-even depth are rounded only after exact feature selection.
+    /// Separation returns default outputs; clamping reports conceptual overflow.
+    /// </summary>
+    internal static bool TryGetCenteredFiniteCylinderCapsulePenetration(
+        Vector3d cylinderCenter, FixedQuaternion cylinderRotation, Vector3d cylinderLocalAxis,
+        Signed192 cylinderLength, Fixed64 cylinderRadius,
+        Vector3d capsuleCenter, FixedQuaternion capsuleRotation, Vector3d capsuleLocalAxis,
+        Fixed64 capsuleLength, Fixed64 capsuleRadius,
+        out Vector3d normal, out Fixed64 depth, out bool depthIsClamped)
+    {
         WideOrientedBox.GetRotatedLocalAxisNumerators(cylinderRotation, cylinderLocalAxis,
             out Signed192 ax, out Signed192 ay, out Signed192 az, out Signed192 ad);
         WideOrientedBox.GetRotatedLocalAxisNumerators(capsuleRotation, capsuleLocalAxis,
             out Signed192 bx, out Signed192 by, out Signed192 bz, out Signed192 bd);
         var cylinder = new RigidAxis3(ax, ay, az, ad);
         var capsule = new RigidAxis3(bx, by, bz, bd);
-        var geometry = new CylinderCapsuleFeatureGeometry(cylinderCenter, cylinder, Signed192.Raw(cylinderLength),
+        // Full length < 2^64 keeps scaled half-axes < 2^229 and endpoint
+        // offsets < 2^231; the existing direction/candidate widths still hold.
+        var geometry = new CylinderCapsuleFeatureGeometry(cylinderCenter, cylinder, cylinderLength,
             cylinderRadius, capsuleCenter, capsule, Signed192.Raw(capsuleLength));
         const int valueCount = ConvexContactCandidate.Words * ConvexContactCandidate.Slots;
         Span<ulong> values = stackalloc ulong[valueCount];
@@ -489,10 +520,9 @@ internal static partial class WideConvexPrismRelations
                 // Parallel cores sum to one finite cylinder. If the query is
                 // inside either its axial slab or radial cylinder, the nearest
                 // boundary is a cap or side; a rim cannot improve either gap.
-                return MaterializeCylinderCapsuleContact(
+                return MaterializeCylinderCapsulePenetration(
                     new ConvexContactCandidate(bestValues, bestSigns, bestGapSign), capsuleRadius,
-                    cylinderCenter, cylinderRotation, cylinderLocalAxis, cylinderLength, cylinderRadius,
-                    capsuleCenter, capsuleRotation, capsuleLocalAxis, capsuleLength, out contact);
+                    out normal, out depth, out depthIsClamped);
             }
             for (int cylinderSign = -1; cylinderSign <= 1; cylinderSign += 2)
             {
@@ -502,10 +532,9 @@ internal static partial class WideConvexPrismRelations
                     // The support point plus its outward residual proves a
                     // closest point of the whole convex Minkowski sum. Unlike
                     // an arbitrary separating direction, this is a global MTD.
-                    return MaterializeCylinderCapsuleContact(
+                    return MaterializeCylinderCapsulePenetration(
                         new ConvexContactCandidate(values, signs, rimGapSign), capsuleRadius,
-                        cylinderCenter, cylinderRotation, cylinderLocalAxis, cylinderLength, cylinderRadius,
-                        capsuleCenter, capsuleRotation, capsuleLocalAxis, capsuleLength, out contact);
+                        out normal, out depth, out depthIsClamped);
                 }
                 if (cylinderRadius == Fixed64.Zero)
                 {
@@ -535,44 +564,33 @@ internal static partial class WideConvexPrismRelations
                         KeepCylinderCapsuleCandidate(values, signs, cornerGapSign,
                             bestValues, bestSigns, ref bestGapSign, ref hasBest);
             }
-            else if (TryPrepareCylinderCapsuleEllipse(cylinderCenter, cylinder, Signed192.Raw(cylinderLength),
+            else if (TryPrepareCylinderCapsuleEllipse(cylinderCenter, cylinder, cylinderLength,
                     cylinderRadius, capsuleCenter, capsule, out CylinderCapsuleEllipse ellipse)
                 && TryImproveCylinderCapsuleEllipse(ellipse,
                     new ConvexContactCandidate(bestValues, bestSigns, bestGapSign), cylinderRadius, capsuleRadius,
-                    out bool intersects, out Vector3d normal, out Fixed64 depth, out bool depthIsClamped))
+                    out bool intersects, out normal, out depth, out depthIsClamped))
             {
-                contact = intersects ? CreateCylinderCapsuleFeatureContact(normal, depth, depthIsClamped,
-                    cylinderCenter, cylinderRotation, cylinderLocalAxis, cylinderLength, cylinderRadius,
-                    capsuleCenter, capsuleRotation, capsuleLocalAxis, capsuleLength, capsuleRadius) : default;
                 return intersects;
             }
         }
-        return MaterializeCylinderCapsuleContact(
+        return MaterializeCylinderCapsulePenetration(
             new ConvexContactCandidate(bestValues, bestSigns, bestGapSign), capsuleRadius,
-            cylinderCenter, cylinderRotation, cylinderLocalAxis, cylinderLength, cylinderRadius,
-            capsuleCenter, capsuleRotation, capsuleLocalAxis, capsuleLength, out contact);
+            out normal, out depth, out depthIsClamped);
     }
 
-    private static bool MaterializeCylinderCapsuleContact(
+    private static bool MaterializeCylinderCapsulePenetration(
         in ConvexContactCandidate candidate, Fixed64 capsuleRadius,
-        Vector3d cylinderCenter, FixedQuaternion cylinderRotation, Vector3d cylinderLocalAxis,
-        Fixed64 cylinderLength, Fixed64 cylinderRadius,
-        Vector3d capsuleCenter, FixedQuaternion capsuleRotation, Vector3d capsuleLocalAxis,
-        Fixed64 capsuleLength, out FixedContactAnchors contact)
+        out Vector3d normal, out Fixed64 depth, out bool depthIsClamped)
     {
+        normal = default;
+        depth = default;
+        depthIsClamped = false;
         int depthSign = CompareConvexContactCandidateDepthToTwiceRaw(candidate, capsuleRadius, default);
         if (depthSign < 0)
-        {
-            contact = default;
             return false;
-        }
-        Fixed64 depth = Fixed64.Zero;
-        bool clamped = false;
         if (depthSign > 0)
-            GetRoundedConvexContactCandidateDepth(candidate, capsuleRadius, out depth, out clamped);
-        contact = CreateCylinderCapsuleFeatureContact(GetConvexContactCandidateNormal(candidate), depth, clamped,
-            cylinderCenter, cylinderRotation, cylinderLocalAxis, cylinderLength, cylinderRadius,
-            capsuleCenter, capsuleRotation, capsuleLocalAxis, capsuleLength, capsuleRadius);
+            GetRoundedConvexContactCandidateDepth(candidate, capsuleRadius, out depth, out depthIsClamped);
+        normal = GetConvexContactCandidateNormal(candidate);
         return true;
     }
 

@@ -23,7 +23,10 @@ internal static partial class WideConvexPrismRelations
     // F < 2^100, |P| < 2^367, |Q| < 2^470, and K < 2^164.
     // The cross axes are < 2^201 and < 2^302 per component. A center
     // difference is < 2^64, so their three-term projections are < 2^267
-    // and < 2^368. These bounds include unrestricted opposite-limit origins;
+    // and < 2^368. Full cylinder length < 2^64 gives E*length < 2^468;
+    // subtracting the minor projection times F keeps |Q| < 2^470.
+    // These bounds include unrestricted opposite-limit origins and doubled
+    // Fixed64 half-thicknesses without increasing the polynomial slots;
     // the positive GCD reduction below can only reduce them.
     // J has coefficients < 2^570; W < 2^1818 and S < 2^1244. Squaring S
     // sums at most three products, giving N < 2^2490; D < 2^2354.
