@@ -255,6 +255,7 @@ public sealed class CylinderPairRimFeaturesTests
             Assert.False(CylinderPairRimFeatures.TryAdmitSimple(geometry, 1, 1,
                 ref root, slope, derivatives, derivativeSigns, ref readyMask, out int gapSign));
             Assert.Equal(0, gapSign);
+            Assert.Equal(1, readyMask); // A zero first radial needs no other admission polynomial.
         }
         Assert.True(found);
     }

@@ -137,7 +137,17 @@ internal static class ConvexContactValueRoot
         int count = gradientSigns.Length / 3;
         int words = gradient.Length / gradientSigns.Length;
         int squareCount = 2 * count - 1;
-        Span<ulong> squaredLength = stackalloc ulong[squareCount * 2 * words];
+        int activeWords = 0;
+        for (int index = 0; index < gradientSigns.Length; index++)
+            activeWords = Math.Max(activeWords,
+                WideArithmetic.GetActiveMagnitudeLength(gradient.Slice(index * words, words)));
+        // Each coefficient sums at most 3*count products; one extra word
+        // covers that carry. Generated gradients also retain the existing
+        // proof that their squared coefficients fit twice the input stride.
+        // Taking the tighter bound avoids padding in every rounding threshold
+        // without increasing the worst-case stack; a zero gradient needs one word.
+        int squareWords = Math.Min(2 * words, 2 * activeWords + 1);
+        Span<ulong> squaredLength = stackalloc ulong[squareCount * squareWords];
         Span<sbyte> squaredLengthSigns = stackalloc sbyte[squareCount];
         BuildSquaredLength(gradient, gradientSigns, squaredLength, squaredLengthSigns);
         return new Vector3d(
@@ -216,7 +226,7 @@ internal static class ConvexContactValueRoot
     {
         int count = signs.Length / 3;
         int words = gradient.Length / signs.Length;
-        Span<ulong> product = stackalloc ulong[2 * words];
+        Span<ulong> product = stackalloc ulong[squaredLength.Length / squaredLengthSigns.Length];
         for (int axis = 0; axis < 3; axis++)
         {
             ReadOnlySpan<ulong> component = gradient.Slice(axis * count * words, count * words);

@@ -47,7 +47,9 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ### Complete nonparallel cylinder contacts are expensive
 
-- **Status / priority:** Isolated, high; measured on 2026-09-26 while closing
+- **Status / priority:** Partially improved, high; first throughput pass on
+  2026-09-30 reduces penetrating-rim cost by about 30%. The multi-radical case
+  remains about 25 ms. Originally measured on 2026-09-26 while closing
   FMS-Issue-024. The complete exact relation is correct, but its general positive
   contacts have not met a high-volume physics budget. This is distinct from
   the explicitly accepted zero-radius dispatch trade-off.
@@ -60,7 +62,7 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   below-normal launcher; two launches, three warmups, twelve measurements.
   Source mode used `UseLocalLsfStack=true`, `BuildInParallel=false`,
   `UseSharedCompilation=false` and `DOTNET_PROCESSOR_COUNT=2`.
-- **Measurement:** Penetrating rims **11.566 +/- 0.110ms**; multi-radical contact
+- **Historical measurement (2026-09-26):** Penetrating rims **11.566 +/- 0.110ms**; multi-radical contact
   **25.137 +/- 0.164ms**, mean and 99.9% confidence half-width. Separated/tangent
   rim workloads cost **5.409 / 5.141ms**. By contrast, ordinary parallel contact
   costs **19.448 +/- 0.098us** and its strict predicate **0.856 +/- 0.008us**.
@@ -72,12 +74,74 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   64 calls, although the second child and summary reported zero. The completed
   plan records the bounded counter investigation; do not silently round this
   discrepancy away or attribute it to the solver without evidence.
+- **Retained change (2026-09-30):** The shared exact normal owner sizes squared
+  coefficients from active gradient limbs, keeping the previous worst-case
+  capacity. One additional limb covers convolution/axis-summation carry; the
+  existing generated-gradient proof supplies the other capacity bound. This
+  removes padding from repeated nearest-even threshold queries without changing
+  coefficient values or increasing stack use. A zero first radial derivative
+  now rejects a simple rim before constructing the other admission queries.
+  No public API, root-selection policy, dependency or allocation was added.
+- **Fresh matched evidence:** Baseline is `f6d9a2a`; geometry and commands are
+  unchanged between captures. Same environment/job as above, with `--affinity 3`.
+  Values below are microseconds, mean +/- 99.9% confidence half-width.
+
+  | Frozen workload | Before | Retained change |
+  | --- | ---: | ---: |
+  | Penetrating rims | 11,393.033 +/- 287.947 | 7,970.354 +/- 110.001 |
+  | Multi-radical contact | 26,363.528 +/- 368.507 | 25,415.384 +/- 129.939 |
+  | Ordinary parallel contact | 19.611 +/- 0.227 | 19.066 +/- 0.079 |
+  | Ordinary cylinder strict | 0.895 +/- 0.010 | 0.893 +/- 0.010 |
+  | Ordinary cylinder/capsule | 20.268 +/- 0.360 | 19.402 +/- 0.345 |
+  | Ordinary cylinder/capsule strict | 0.421 +/- 0.005 | 0.412 +/- 0.005 |
+  | Oblique interior capsule rim | 558.685 +/- 12.912 | 564.926 +/- 7.455 |
+  | Intersecting capsule core | 436.615 +/- 6.318 | 422.260 +/- 3.808 |
+
+  Artifacts: `artifacts/cylinder-cost-baseline`, `cylinder-cost-profile`,
+  `cylinder-cost-pruning`, `cylinder-cost-final` (combined experiment), and
+  `cylinder-cost-retained` (final source). Both matched captures completed all
+  sixteen child launches with zero exits and collections. Allocation summaries
+  report zero; one retained strict cylinder/capsule child reported 336
+  process-wide bytes over 1,048,576 operations. Preserve that counter record;
+  it does not identify an allocation in the contact solver. Small changes in
+  unchanged controls limit interpretation of the modest multi-radical delta.
+- **Rejected experiment:** Ranking values before full radial/cap admission
+  skipped only potential positive nonwinners, preserving negative separation
+  candidates. It added comparisons for inadmissible roots and did not resolve
+  the multi-radical cost; that selection-policy change was removed. The retained
+  patch keeps the original exact ranking order and borrowed-root contracts.
+- **Validation:** Fresh source-backed solution builds pass in both repositories
+  for `Release` and `ReleaseLean`, targeting `netstandard2.1` and `net8.0`, with
+  zero warnings/errors. All tests pass with no skips or new coverage exclusions;
+  both Chronicler suites also pass all 49 tests. Exact covered/total counts from
+  ReportGenerator are below. The core suites include the warmed zero-allocation,
+  1 MiB worker stack / live 64 KiB caller-buffer, full-domain, deterministic tie
+  and nearest-even rounding gates. New tests independently check full-limb
+  summation carry, padded normal coefficients, input preservation and zero-radial
+  lazy admission. Independent correctness/resource and Ponytail reviews found
+  no actionable issues in the retained patch.
+
+  | Repository / configuration | Tests passed | Lines | Branches | Methods |
+  | --- | ---: | ---: | ---: | ---: |
+  | FixedMathSharp Release | 4,041 | 52,633 / 52,633 | 12,090 / 12,090 | 3,934 / 3,934 |
+  | FixedMathSharp ReleaseLean | 4,020 | 52,726 / 52,726 | 12,090 / 12,090 | 3,930 / 3,930 |
+  | Gravitas Release | 4,363 | 56,091 / 56,091 | 16,224 / 16,224 | 5,370 / 5,370 |
+  | Gravitas ReleaseLean | 4,304 | 56,091 / 56,091 | 16,224 / 16,224 | 5,370 / 5,370 |
+
+  Each repository's `artifacts/cylinder-cost-Release*-tests.log`,
+  `-coverage` and `-report/Summary.json` retain the raw validation evidence.
+  The benchmark catalog lists successfully, and all 459 cases pass the broad
+  out-of-process `all -j Short --iterationTime 10 --affinity 3` smoke run.
+  Its 10 ms iterations verify execution only; performance claims use the
+  separate matched captures above. Artifacts: `artifacts/cylinder-cost-smoke`.
 - **Impact:** A few difficult oblique contacts can dominate a fixed frame.
   No observed game workload or contact-count budget establishes acceptability.
   Exact determinism, minimum-depth selection and rounding remain mandatory.
-- **Next isolation step:** Profile the retained complete solver on these frozen
-  cases, distinguishing feature construction, admissibility/selection and final
-  rounding. Establish the intended contact-count/frame budget before proposing
+- **Next isolation step:** The fresh pre-change profile placed about 68% of the
+  multi-radical cost in cap-root selection and 61% in derivative sign queries
+  (inclusive costs overlap). Focus the next pass on necessary exact admission
+  and root refinement; shrinking normal scratch does not resolve this workload.
+  Establish the intended contact-count/frame budget before proposing
   a larger exact-algorithm redesign. Existing profiles already removed repeated
   GCDs/chains, redundant normals and worst-case mapping refinement; do not
   repeat those experiments or add another approximate fallback.

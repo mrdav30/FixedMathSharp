@@ -59,10 +59,14 @@ internal static class CylinderPairRimFeatures
         // q.v=-tau*W_tau/W_S. Both radii must choose the same support side.
         int firstRadial = GetDerivativeSign(geometry, firstSign, secondSign, ref root,
             0, derivatives, derivativeSigns, ref readyMask);
+        gapSign = -firstRadial * valueSlopeSign;
+        // Zero radial support is inadmissible, regardless of the other rim
+        // or cap signs; do not construct their polynomials for this boundary.
+        if (firstRadial == 0)
+            return false;
         int secondRadial = GetDerivativeSign(geometry, firstSign, secondSign, ref root,
             1, derivatives, derivativeSigns, ref readyMask);
-        gapSign = -firstRadial * valueSlopeSign;
-        if (firstRadial == 0 || firstRadial != secondRadial)
+        if (firstRadial != secondRadial)
             return false;
         int firstCap = GetDerivativeSign(geometry, firstSign, secondSign, ref root,
             2, derivatives, derivativeSigns, ref readyMask);
