@@ -47,9 +47,9 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ### Complete nonparallel cylinder contacts are expensive
 
-- **Status / priority:** Partially improved, high; the two throughput passes on
-  2026-09-30 reduce penetrating-rim cost to about 7 ms and multi-radical cost to
-  about 21.5 ms. Originally measured on 2026-09-26 while closing
+- **Status / priority:** Partially improved, high; four retained throughput
+  passes on 2026-09-30 reduce penetrating-rim cost to about 5.2 ms and
+  multi-radical cost to about 21.8 ms. Originally measured on 2026-09-26 while closing
   FMS-Issue-024. The complete exact relation is correct, but its general positive
   contacts have not met a high-volume physics budget. This is distinct from
   the explicitly accepted zero-radius dispatch trade-off.
@@ -137,11 +137,84 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   move modestly, so these are matched workload deltas rather than a universal
   speedup claim. Tiny-root regression fixtures independently reproduce the
   previous excessive refinement and verify exact signs/cell containment.
-- **Rejected experiment:** Ranking values before full radial/cap admission
+- **Third retained change (2026-09-30):** The existing cubic-pencil builder
+  narrows its construction workspace using the smaller of the caller's proven
+  capacity and the documented generic `32*b+128`-bit bound. The actual input
+  height includes optional direction invariants. Inputs and retained outputs
+  keep their original strides; shared polynomial addition already supports
+  independent source/output strides. This removes padded arithmetic and clears
+  for small invariants without another representation or arithmetic owner.
+  Caller stack allocations and worst-case capacity remain unchanged. Independent
+  BigInteger fixtures cover six-word scratch with sixteen-word outputs, exact
+  derivatives, a direction wider than the values, dirty padding and zero input.
+- **Third matched evidence:** Fresh baseline is committed `f5d4f43`, with the
+  same eight frozen workloads and environment/job above. Values are microseconds,
+  mean +/- 99.9% confidence half-width.
+
+  | Frozen workload | Before compact workspace | With compact workspace |
+  | --- | ---: | ---: |
+  | Penetrating rims | 6,894.589 +/- 87.459 | 5,251.505 +/- 53.626 |
+  | Multi-radical contact | 22,497.088 +/- 374.413 | 22,187.533 +/- 237.640 |
+  | Ordinary parallel contact | 19.922 +/- 0.218 | 20.270 +/- 0.343 |
+  | Ordinary cylinder strict | 0.919 +/- 0.012 | 0.893 +/- 0.006 |
+  | Ordinary cylinder/capsule | 19.702 +/- 0.200 | 19.428 +/- 0.173 |
+  | Ordinary cylinder/capsule strict | 0.420 +/- 0.004 | 0.415 +/- 0.003 |
+  | Oblique interior capsule rim | 565.759 +/- 8.205 | 546.317 +/- 4.842 |
+  | Intersecting capsule core | 445.729 +/- 5.331 | 439.319 +/- 5.463 |
+
+  Artifacts: `artifacts/cylinder-cost3-baseline` and `cylinder-cost3-compact`.
+  Both captures complete sixteen child launches with zero exits, collections
+  and process-wide bytes. Penetrating rims improve by about 24%; the
+  multi-radical confidence intervals overlap, so no gain is established there.
+  Unchanged controls drift modestly; these are matched workload measurements.
+- **Fourth retained change (2026-09-30):** The shared shifted-magnitude owner
+  limits same-sign addition to the shifted source's active support, then reuses
+  its existing carry helper. Lower limbs are unchanged; higher limbs need work
+  only while carry remains. The clipped support calculation uses wide integer
+  arithmetic and preserves destination-edge truncation and existing signs.
+  Zero/opposite-sign paths, disjoint storage, scratch bounds and allocations are
+  unchanged. Independent integer tests cover padded inputs, both signs,
+  cross-word shifts, carry beyond the source, input preservation and edge shifts.
+- **Fourth matched evidence:** Baseline is the third retained source, with the
+  same eight workloads and job. Values are microseconds, mean +/- 99.9%
+  confidence half-width.
+
+  | Frozen workload | Before bounded addition | With bounded addition |
+  | --- | ---: | ---: |
+  | Penetrating rims | 5,307.459 +/- 99.581 | 5,217.296 +/- 103.923 |
+  | Multi-radical contact | 22,446.355 +/- 459.394 | 21,817.759 +/- 374.135 |
+  | Ordinary parallel contact | 20.104 +/- 0.225 | 20.077 +/- 0.267 |
+  | Ordinary cylinder strict | 0.905 +/- 0.012 | 0.908 +/- 0.012 |
+  | Ordinary cylinder/capsule | 19.882 +/- 0.348 | 19.809 +/- 0.345 |
+  | Ordinary cylinder/capsule strict | 0.424 +/- 0.004 | 0.421 +/- 0.006 |
+  | Oblique interior capsule rim | 578.789 +/- 10.426 | 562.700 +/- 14.469 |
+  | Intersecting capsule core | 446.533 +/- 7.999 | 440.965 +/- 7.010 |
+
+  Artifacts: `artifacts/cylinder-cost4-baseline` and `cylinder-cost4-carry`.
+  The baseline has split timing modes and more interlaunch variation, so the
+  pooled 2.80% multi-radical gain was checked in reverse capture order. That
+  confirmation measures `22,512.525 +/- 440.588us` before bounded addition
+  versus `21,899.239 +/- 431.526us` with it, a 2.72% gain. All four prototype
+  launch means are below all four baseline launch means. Penetrating rims are
+  `5,385.256 +/- 80.650us` versus `5,271.773 +/- 101.187us` in the reversal;
+  no strong additional penetrating-rim gain is established. Report a modest
+  reproducible multi-radical workload improvement, not a universal speedup.
+  Artifacts: `artifacts/cylinder-cost4-baseline-confirm` and `-carry-confirm`.
+  The two broad captures complete sixteen children each and the two narrow
+  confirmations four each, all with zero exits, collections and process bytes.
+- **Rejected experiments:** Ranking values before full radial/cap admission
   skipped only potential positive nonwinners, preserving negative separation
   candidates. It added comparisons for inadmissible roots and did not resolve
   the multi-radical cost; that selection-policy change was removed. The retained
   patch keeps the original exact ranking order and borrowed-root contracts.
+  A third-pass experiment reused local dyadic scaling for byte-refinement
+  endpoint certificates while preserving the absolute error quantum and exact
+  fallback. It passed 153 focused exact tests but produced no measurable gain:
+  penetrating rims were `5,229.851 +/- 61.943us` and multi-radical contact
+  `22,448.588 +/- 268.844us`, compared with the compact-workspace column above.
+  All sixteen child launches passed with zero allocations/collections. That
+  runtime/test experiment was removed; do not repeat it as a new optimization.
+  Artifact: `artifacts/cylinder-cost3-refinement`.
 - **Validation:** Fresh source-backed solution builds pass in both repositories
   for `Release` and `ReleaseLean`, targeting `netstandard2.1` and `net8.0`, with
   zero warnings/errors. All tests pass with no skips or new coverage exclusions;
@@ -152,23 +225,34 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   summation carry, padded normal coefficients, input preservation, zero-radial
   lazy admission, relative precision for tiny/zero-lower cells, low-bit
   cancellation, negative normalization heights and upper-endpoint capacity.
+  Compact construction fixtures also check padded outputs, exact derivatives,
+  direction-dominant input height and canonical zero with dirty storage.
+  Shared arithmetic fixtures check carry beyond active support and retained
+  destination-edge behavior against independent integer results.
   Independent correctness/resource and Ponytail reviews found no actionable
-  issues in either retained patch.
+  issues in the retained changes.
 
   | Repository / configuration | Tests passed | Lines | Branches | Methods |
   | --- | ---: | ---: | ---: | ---: |
-  | FixedMathSharp Release | 4,049 | 52,646 / 52,646 | 12,096 / 12,096 | 3,934 / 3,934 |
-  | FixedMathSharp ReleaseLean | 4,028 | 52,739 / 52,739 | 12,096 / 12,096 | 3,930 / 3,930 |
+  | FixedMathSharp Release | 4,061 | 52,660 / 52,660 | 12,104 / 12,104 | 3,934 / 3,934 |
+  | FixedMathSharp ReleaseLean | 4,040 | 52,753 / 52,753 | 12,104 / 12,104 | 3,930 / 3,930 |
   | Gravitas Release | 4,363 | 56,091 / 56,091 | 16,224 / 16,224 | 5,370 / 5,370 |
   | Gravitas ReleaseLean | 4,304 | 56,091 / 56,091 | 16,224 / 16,224 | 5,370 / 5,370 |
 
-  Each repository's `artifacts/cylinder-cost2-Release*-tests.log`,
+  Every reported method is fully covered. Each repository's
+  `artifacts/cylinder-cost4-Release*-tests.log`,
   `-coverage` and `-report/Summary.json` retain the raw validation evidence.
   The benchmark catalog lists successfully. The first-pass broad smoke passed
   all 459 cases (`artifacts/cylinder-cost-smoke`). The fresh second-pass native
   capture and final ordinary confirmation both pass all 459 cases, with complete
   results and zero child/launcher exit codes (`artifacts/cylinder-cost2-native/broad`
   and `cylinder-cost2-smoke-confirm`). The intervening failure is recorded below.
+  The third-pass ordinary smoke also completes all 459 child launches with
+  complete statistics, zero child/launcher exits and no native fault
+  (`artifacts/cylinder-cost3-smoke`).
+  The final fourth-pass source-backed smoke also passes all 459 child launches,
+  with 459 complete statistics across 25 reports, zero child/launcher exits and
+  no native fault (`artifacts/cylinder-cost4-smoke`).
   These `all -j Short --iterationTime 10 --affinity 3` runs verify execution
   only; performance claims use the separate matched captures above.
 - **Native smoke follow-up:** The initial second-pass broad run failed two
@@ -189,25 +273,33 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   storage on recurrence. No runtime source or JIT/GC settings were changed
   during this investigation.
 - **Impact:** A few difficult oblique contacts can dominate a fixed frame.
+  At 32 FPS, the entire simulation has 31.25 ms per step: one latest penetrating
+  fixture consumes about 17% of that time and one multi-radical fixture about
+  70%, before other collision queries, solver and simulation work. These are
+  illustrative single-thread costs, not a universal acceptance threshold.
   No observed game workload or contact-count budget establishes acceptability.
   Exact determinism, minimum-depth selection and rounding remain mandatory.
-- **Next isolation step:** The latest retained-source profile places about 62%
-  of multi-radical cost in cap-root selection, 38% in exact root refinement,
-  32% in sign queries, 25% in derivative construction and 27% in side features
-  (inclusive costs overlap). The fresh committed baseline had about 42% in sign
-  queries. Penetrating rims now spend about 44% in derivative construction.
-  Focus the next pass on necessary construction/refinement work while preserving
-  the original width, ranking and certification contracts. Artifacts:
-  `artifacts/cylinder-cost2-after-profile` and `-after-profile-summary.json`.
-  Establish the intended contact-count/frame budget before proposing
-  a larger exact-algorithm redesign. Existing profiles already removed repeated
+- **Next isolation step:** The final retained-source profile places about 62% of
+  multi-radical cost in cap-root selection, 37% in exact root refinement, 31%
+  in sign queries, 25% in derivative construction and 28% in side features
+  (inclusive costs overlap). Penetrating rims now spend about 27% in derivative
+  construction, compared with about 44% before this change. Focus the next pass
+  on remaining active-word arithmetic and necessary refinement work while
+  preserving the original width, ranking and certification contracts. Artifacts:
+  `artifacts/cylinder-cost4-after-profile` and `-after-profile-summary.json`.
+  Existing profiles already removed repeated
   GCDs/chains, redundant normals and worst-case mapping refinement; do not
   repeat those experiments or add another approximate fallback.
 
-After the baseline build above, reproduce the two expensive positive contacts:
+In coordinated source mode, reproduce the two expensive positive contacts:
 
 ```powershell
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll rigid-finite-shape-relation --filter '*PenetratingRimsCylinderCylinder*' '*MultiRadicalCylinderCylinder*' --warmupCount 3 --iterationCount 12 --launchCount 2 --keepFiles --exporters json --artifacts artifacts/benchmarks/cylinder-pair-cost
+$env:UseLocalLsfStack = 'true'
+$env:BuildInParallel = 'false'
+$env:UseSharedCompilation = 'false'
+$env:DOTNET_PROCESSOR_COUNT = '2'
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 -p:UseLocalLsfStack=true -p:UseSharedCompilation=false -m:1
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll rigid-finite-shape-relation --filter '*PenetratingRimsCylinderCylinder*' '*MultiRadicalCylinderCylinder*' --warmupCount 3 --iterationCount 12 --launchCount 2 --affinity 3 --keepFiles --exporters json --artifacts artifacts/benchmarks/cylinder-pair-cost
 ```
 
 Serialize runs with other build/test/profile work. Inspect each child exit and

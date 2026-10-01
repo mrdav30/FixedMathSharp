@@ -168,10 +168,16 @@ internal static partial class WideArithmetic
         }
         if (resultSign == addendSign)
         {
+            // Below the shift and beyond the active source, only a carry can
+            // change the destination. Reuse the bounded carry owner rather
+            // than scanning padded words; retain truncation at its edge.
+            int end = (int)Math.Min(result.Length,
+                (long)wordShift + GetActiveMagnitudeLength(addend) + (bitShift == 0 ? 0 : 1));
             ulong carry = 0;
-            for (int index = 0; index < result.Length; index++)
+            for (int index = wordShift; index < end; index++)
                 result[index] = AddSignedWord(result[index],
                     GetShiftedMagnitudeWord(addend, index, wordShift, bitShift), ref carry);
+            AddWord(result, end, carry);
             return;
         }
 

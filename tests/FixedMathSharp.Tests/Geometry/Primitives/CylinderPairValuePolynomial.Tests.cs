@@ -66,6 +66,23 @@ public sealed class CylinderPairValuePolynomialTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Build_CompactWorkspacePreservesWideOutputAndExactDerivative(bool differentiate)
+    {
+        // Every input magnitude is <2^7. The independent 32b+128 bound
+        // therefore needs six words, even when retained slots have sixteen.
+        BigInteger[] invariants = { 5, 45, 29, 49, 121, 38, 8, -27, 7, -28, 32 };
+        BigInteger[]? direction = differentiate ? new BigInteger[] { 1, -2, -14, -7, 3, -9 } : null;
+        var derivative = new BigInteger[CylinderPairValuePolynomial.CoefficientCount];
+        BigInteger[] actual = Construct(invariants, 16, out int degree, direction, derivative, scratchWords: 6);
+        Assert.Equal(8, degree);
+        Assert.Equal(Pad(IndependentDiscriminant(invariants)), actual);
+        if (differentiate)
+            Assert.Equal(Pad(IndependentDirectionalDerivative(invariants, direction!)), derivative);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
@@ -120,6 +137,26 @@ public sealed class CylinderPairValuePolynomialTests
         AssertDirectionalConstruction(invariants, direction, 128);
     }
 
+    [Fact]
+    public void Build_DirectionHeightControlsTheCompactWorkspaceBound()
+    {
+        BigInteger[] invariants = { 5, 45, 29, 49, 121, 38, 8, -27, 7, -28, 32 };
+        BigInteger[] direction = { 0, 0, BigInteger.One << 500, 0, 0, 0 };
+        // Derivatives are linear in the direction, so the independent small
+        // base coefficients plus 500 bits fit 116 words. A workspace based
+        // only on the seven-bit values would silently truncate this direction.
+        AssertDirectionalConstruction(invariants, direction, 116);
+    }
+
+    [Fact]
+    public void Build_AllZeroInputsKeepCanonicalZeroCoefficients()
+    {
+        BigInteger[] actual = Construct(new BigInteger[CylinderPairValuePolynomial.InvariantCount],
+            16, out int degree);
+        Assert.Equal(-1, degree);
+        Assert.All(actual, coefficient => Assert.Equal(BigInteger.Zero, coefficient));
+    }
+
     private static void AssertDirectionalConstruction(BigInteger[] invariants, BigInteger[] direction,
         int words = 16)
     {
@@ -140,14 +177,14 @@ public sealed class CylinderPairValuePolynomialTests
     }
 
     private static BigInteger[] Construct(BigInteger[] invariants, int words, out int degree,
-        BigInteger[]? direction = null, BigInteger[]? actualDerivative = null)
+        BigInteger[]? direction = null, BigInteger[]? actualDerivative = null, int? scratchWords = null)
     {
         var input = new ulong[words * CylinderPairValuePolynomial.InvariantCount];
         var inputSigns = new sbyte[CylinderPairValuePolynomial.InvariantCount];
         Encode(invariants, words, input, inputSigns);
         var output = new ulong[words * CylinderPairValuePolynomial.CoefficientCount];
         var signs = new sbyte[CylinderPairValuePolynomial.CoefficientCount];
-        var scratch = new ulong[words * CylinderPairValuePolynomial.ScratchCoefficientCount];
+        var scratch = new ulong[(scratchWords ?? words) * CylinderPairValuePolynomial.ScratchCoefficientCount];
         var scratchSigns = new sbyte[CylinderPairValuePolynomial.ScratchCoefficientCount];
         Array.Fill(output, ulong.MaxValue);
         Array.Fill(signs, (sbyte)-1);
@@ -161,7 +198,7 @@ public sealed class CylinderPairValuePolynomialTests
             Encode(direction, words, derivativeInput, derivativeInputSigns);
             var derivativeOutput = new ulong[words * CylinderPairValuePolynomial.CoefficientCount];
             var derivativeSigns = new sbyte[CylinderPairValuePolynomial.CoefficientCount];
-            var derivativeScratch = new ulong[words * CylinderPairValueDerivative.ScratchCoefficientCount];
+            var derivativeScratch = new ulong[(scratchWords ?? words) * CylinderPairValueDerivative.ScratchCoefficientCount];
             var derivativeScratchSigns = new sbyte[CylinderPairValueDerivative.ScratchCoefficientCount];
             Array.Fill(derivativeOutput, ulong.MaxValue);
             Array.Fill(derivativeSigns, (sbyte)-1);

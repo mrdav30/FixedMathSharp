@@ -236,6 +236,45 @@ public sealed class WideMagnitudeArithmeticTests
         Assert.Equal(BigInteger.Zero, ToBigInteger(magnitude));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(63)]
+    [InlineData(64)]
+    [InlineData(65)]
+    [InlineData(129)]
+    public void ShiftedSignedAddition_PropagatesCarryBeyondPaddedSourceSupport(int shift)
+    {
+        // Carry must cross limbs beyond the shifted source, while the full
+        // destination and its untouched low/high padding remain exact.
+        BigInteger initial = (BigInteger.One << 320) - 1;
+        BigInteger addend = ulong.MaxValue;
+        ulong[] source = EncodeMagnitude(addend, 3);
+        ulong[] original = (ulong[])source.Clone();
+        foreach (int sign in new[] { -1, 1 })
+        {
+            ulong[] destination = EncodeMagnitude(initial, 8);
+            int actualSign = sign;
+            WideArithmetic.AddShiftedSignedMagnitude(source, sign, shift, destination, ref actualSign);
+            Assert.Equal(initial + (addend << shift), ToBigInteger(destination));
+            Assert.Equal(sign, actualSign);
+            Assert.Equal(original, source);
+        }
+    }
+
+    [Theory]
+    [InlineData(0, 0UL)]
+    [InlineData(64, ulong.MaxValue)]
+    [InlineData(int.MaxValue, ulong.MaxValue)]
+    public void ShiftedSignedAddition_PreservesTruncationAtTheDestinationBoundary(int shift, ulong expected)
+    {
+        // Internal limb truncation does not independently normalize the sign.
+        ulong[] destination = { ulong.MaxValue };
+        int sign = 1;
+        WideArithmetic.AddShiftedSignedMagnitude(new ulong[] { 1 }, 1, shift, destination, ref sign);
+        Assert.Equal(expected, destination[0]);
+        Assert.Equal(1, sign);
+    }
+
     private static void AssertDivision(BigInteger numerator, BigInteger divisor)
     {
         ulong[] left = EncodeMagnitude(numerator, 9);

@@ -42,6 +42,8 @@ internal static class CylinderPairValuePolynomial
     /// and derivative: allow up to two additional coefficient bits relative
     /// to a bound for the unscaled discriminant. Default direction storage
     /// performs no derivative convolutions.
+    /// Scratch slots use min(words, ceil((32*b+128)/64)) words; input and
+    /// retained output slots keep the caller's original words stride.
     /// </remarks>
     internal static int Build(ReadOnlySpan<ulong> invariants,
         ReadOnlySpan<sbyte> invariantSigns, int words,
@@ -49,27 +51,42 @@ internal static class CylinderPairValuePolynomial
         Span<ulong> scratch, Span<sbyte> scratchSigns,
         CylinderPairValueDerivative derivative = default)
     {
-        scratch = scratch.Slice(0, ScratchCoefficientCount * words);
+        bool differentiate = !derivative.Invariants.IsEmpty;
+        int inputBits = 1;
+        for (int index = 0; index < InvariantCount; index++)
+            inputBits = Math.Max(inputBits,
+                WideArithmetic.GetMagnitudeBitLength(invariants.Slice(index * words, words)));
+        if (differentiate)
+            for (int index = 0; index < CylinderPairValueDerivative.InvariantCount; index++)
+                inputBits = Math.Max(inputBits,
+                    WideArithmetic.GetMagnitudeBitLength(derivative.Invariants.Slice(index * words, words)));
+
+        // Both the generic bound and the caller's geometry-specific capacity
+        // bound every intermediate. Their minimum avoids scanning padded words
+        // without changing retained coefficients or truncating dual products.
+        int workWords = Math.Min(words, (32 * inputBits + 128 + 63) / 64);
+        scratch = scratch.Slice(0, ScratchCoefficientCount * workWords);
         scratchSigns = scratchSigns.Slice(0, ScratchCoefficientCount);
         scratch.Clear();
         scratchSigns.Clear();
-        invariants.Slice(0, InvariantCount * words).CopyTo(scratch);
+        for (int index = 0; index < InvariantCount; index++)
+            invariants.Slice(index * words, workWords)
+                .CopyTo(scratch.Slice(index * workWords, workWords));
         invariantSigns.Slice(0, InvariantCount).CopyTo(scratchSigns);
-        bool differentiate = !derivative.Invariants.IsEmpty;
         if (differentiate)
         {
-            derivative.Scratch.Slice(0, CylinderPairValueDerivative.ScratchCoefficientCount * words).Clear();
+            derivative.Scratch.Slice(0, CylinderPairValueDerivative.ScratchCoefficientCount * workWords).Clear();
             derivative.ScratchSigns.Slice(0, CylinderPairValueDerivative.ScratchCoefficientCount).Clear();
             for (int index = 0; index < CylinderPairValueDerivative.InvariantCount; index++)
             {
                 int target = index < 5 ? index + 3 : 10;
-                derivative.Invariants.Slice(index * words, words)
-                    .CopyTo(derivative.Scratch.Slice(target * words, words));
+                derivative.Invariants.Slice(index * words, workWords)
+                    .CopyTo(derivative.Scratch.Slice(target * workWords, workWords));
                 derivative.ScratchSigns[target] = derivative.InvariantSigns[index];
             }
         }
 
-        ConstructionScratch workspace = new(scratch, scratchSigns, words, derivative);
+        ConstructionScratch workspace = new(scratch, scratchSigns, workWords, derivative);
         Polynomial g = workspace.Slice(0, 1);
         Polynomial h = workspace.Slice(1, 1);
         Polynomial delta = workspace.Slice(2, 1);
@@ -103,7 +120,7 @@ internal static class CylinderPairValuePolynomial
         Polynomial n = workspace.Slice(49, 5);
         Polynomial temporary0 = workspace.Slice(54, 9);
         Polynomial temporary1 = workspace.Slice(63, 9);
-        Span<ulong> product = scratch.Slice(72 * words, words);
+        Span<ulong> product = scratch.Slice(72 * workWords, workWords);
 
         // e=(c0*b1-c1*b0)^2.
         Multiply(s0, c0, b1, product);
@@ -131,7 +148,7 @@ internal static class CylinderPairValuePolynomial
         Add(k, cSquared, 1);
         Add(k, rho, 1);
         Add(k, tau, -1);
-        k.Magnitudes[words] = 1UL;
+        k.Magnitudes[workWords] = 1UL;
         k.Signs[1] = -1;
 
         // L=g*(2*j*c1-k*b1)^2+h*(2*j*c0-k*b0)^2.
