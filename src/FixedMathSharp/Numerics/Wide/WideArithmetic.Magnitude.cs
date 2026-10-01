@@ -41,6 +41,22 @@ internal static partial class WideArithmetic
         Span<ulong> product)
     {
         product.Clear();
+        // High input limbs cannot contribute to retained low product limbs.
+        // Factor out whole powers of 2^64 before convolution; the cleared
+        // output prefix stays zero and both scans are bounded by output width.
+        left = left[..Math.Min(left.Length, product.Length)];
+        right = right[..Math.Min(right.Length, product.Length)];
+        int leftSkip = 0;
+        while (leftSkip < left.Length && left[leftSkip] == 0)
+            leftSkip++;
+        int rightSkip = 0;
+        while (rightSkip < right.Length && right[rightSkip] == 0)
+            rightSkip++;
+        if (leftSkip >= product.Length - rightSkip)
+            return;
+        left = left[leftSkip..];
+        right = right[rightSkip..];
+        product = product[(leftSkip + rightSkip)..];
         int leftLength = GetActiveMagnitudeLength(left);
         int rightLength = GetActiveMagnitudeLength(right);
         int retainedLeft = Math.Min(leftLength, product.Length);

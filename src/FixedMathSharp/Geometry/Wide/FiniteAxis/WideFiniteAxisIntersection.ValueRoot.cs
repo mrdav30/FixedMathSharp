@@ -212,14 +212,16 @@ internal static partial class WideFiniteAxisIntersection
     /// polynomial. Caller-owned numerator storage must preserve the existing
     /// cell and provide at least targetShift+1 bits for the refined cell and
     /// its upper endpoint. Rational roots and already finer cells are unchanged.
+    /// An optional knownLowerSign of -1 or +1 certifies that this same cell has
+    /// opposite nonzero endpoint signs; zero requests exact endpoint evaluation.
     /// </summary>
-    internal static void RefineFiniteValueRoot(ref FiniteAxisValueRoot root, int targetShift)
+    internal static void RefineFiniteValueRoot(ref FiniteAxisValueRoot root, int targetShift, int knownLowerSign = 0)
     {
         if (root.IsRational || root.DenominatorShift >= targetShift)
             return;
-        int lowerSign = EvaluateFiniteRootPolynomial(root.Coefficients, root.Signs,
+        int lowerSign = knownLowerSign != 0 ? knownLowerSign : EvaluateFiniteRootPolynomial(root.Coefficients, root.Signs,
             root.LowerNumerator, root.DenominatorShift, 0);
-        int upperSign = GetFiniteValueCellUpperSign(root);
+        int upperSign = knownLowerSign != 0 ? -knownLowerSign : GetFiniteValueCellUpperSign(root);
         if (lowerSign != 0 && lowerSign == -upperSign)
         {
             // The retained cell contains exactly one distinct root. Opposite

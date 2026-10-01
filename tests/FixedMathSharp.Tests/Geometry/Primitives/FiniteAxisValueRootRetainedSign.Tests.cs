@@ -68,6 +68,97 @@ public sealed class FiniteAxisValueRootRetainedSignTests
     }
 
     [Theory]
+    [InlineData(1, 1, 1)]
+    [InlineData(-1, 1, 1)]
+    [InlineData(1, 16, 1)]
+    [InlineData(-1, 16, 1)]
+    [InlineData(1, 1, 129)]
+    [InlineData(-1, 16, 129)]
+    public void MutableSign_KnownCrossingPreservesExactQueriesAndRetainedCells(int orientation, int words, int power)
+    {
+        Encode(new[] { new BigInteger(-orientation), BigInteger.Zero, orientation * (BigInteger.One << power) },
+            out ulong[] defining, out sbyte[] definingSigns);
+        var ordinaryCell = new ulong[words];
+        var knownCell = new ulong[words];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            0, ordinaryCell, out FiniteAxisValueRoot ordinary));
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            0, knownCell, out FiniteAxisValueRoot known));
+        BigInteger scale = (BigInteger.One << 256) + 17;
+        for (int offset = -1; offset <= 1; offset++)
+        {
+            // At sqrt(2^-power), each query is exactly offset. The tiny
+            // nonzero cases force refinement beyond a small caller cell.
+            Encode(new[] { -scale + offset, BigInteger.Zero, scale << power },
+                out ulong[] values, out sbyte[] signs);
+            Assert.Equal(offset, WideFiniteAxisIntersection.GetSignAtFiniteValueRoot(known, values, signs));
+            Assert.Equal(offset, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref ordinary, values, signs));
+            Assert.Equal(offset, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(
+                ref known, values, signs, -orientation));
+            Assert.Equal(ordinaryCell, knownCell);
+            Assert.Equal(ordinary.DenominatorShift, known.DenominatorShift);
+            Assert.Equal(ordinary.IsRational, known.IsRational);
+            Assert.Equal(ordinary.Ordinal, known.Ordinal);
+            AssertSquareRootCell(known, power);
+        }
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(-1)]
+    public void MutableSign_KnownCrossingExcludesZeroAndOtherRootEndpoints(int orientation)
+    {
+        // F=x(2x-1)(3x-2): zero is excluded, 1/2 is a different root,
+        // and the selected 2/3 cell must have two nonzero endpoints.
+        Encode(new BigInteger[] { 0, 2 * orientation, -7 * orientation, 6 * orientation },
+            out ulong[] defining, out sbyte[] definingSigns);
+        var ordinaryCell = new ulong[16];
+        var knownCell = new ulong[16];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            1, ordinaryCell, out FiniteAxisValueRoot ordinary));
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            1, knownCell, out FiniteAxisValueRoot known));
+        Assert.False(known.IsRational);
+        Assert.Equal(-orientation, WideFiniteAxisIntersection.EvaluateFiniteRootPolynomial(
+            defining, definingSigns, known.LowerNumerator, known.DenominatorShift, 0));
+        ulong[] upper = (ulong[])knownCell.Clone();
+        WideArithmetic.AddWord(upper, 0, 1);
+        Assert.Equal(orientation, WideFiniteAxisIntersection.EvaluateFiniteRootPolynomial(
+            defining, definingSigns, upper, known.DenominatorShift, 0));
+        BigInteger scale = (BigInteger.One << 256) + 17;
+        for (int offset = -1; offset <= 1; offset++)
+        {
+            Encode(new[] { -2 * scale + offset, 3 * scale }, out ulong[] values, out sbyte[] signs);
+            Assert.Equal(offset, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref ordinary, values, signs));
+            Assert.Equal(offset, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref known, values, signs, -orientation));
+            Assert.Equal(ordinaryCell, knownCell);
+            Assert.Equal(ordinary.DenominatorShift, known.DenominatorShift);
+            Assert.Equal(ordinary.IsRational, known.IsRational);
+            Assert.Equal(1, known.Ordinal);
+        }
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(-1)]
+    public void MutableSign_KnownCrossingRetainsDyadicDiscoveryAndSubsequentQueries(int orientation)
+    {
+        var cell = new ulong[1];
+        ulong[] defining = { 3, 8 };
+        sbyte[] definingSigns = { (sbyte)-orientation, (sbyte)orientation };
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            0, cell, out FiniteAxisValueRoot root));
+        Assert.False(root.IsRational);
+        Assert.Equal(0, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(
+            ref root, defining, definingSigns, -orientation));
+        Assert.True(root.IsRational);
+        Assert.Equal(3, root.DenominatorShift);
+        Assert.Equal(3UL, cell[0]);
+        Assert.Equal(-1, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root,
+            new ulong[] { 1, 2 }, new sbyte[] { -1, 1 }, -orientation));
+    }
+
+    [Theory]
     [InlineData(-1)]
     [InlineData(0)]
     [InlineData(1)]

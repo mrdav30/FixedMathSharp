@@ -121,13 +121,16 @@ internal static partial class WideFiniteAxisIntersection
     /// Evaluates a sign and retains certified cell refinement when the caller's
     /// numerator storage has room. The numerator and its metadata are updated
     /// together; refinements beyond that storage remain local to this query.
+    /// A knownLowerSign of -1 or +1 certifies opposite nonzero defining-polynomial
+    /// signs at this cell's endpoints and remains valid for its descendants;
+    /// zero requests exact endpoint evaluation.
     /// </summary>
     internal static int GetSignAtFiniteValueRootAndRefine(scoped ref FiniteAxisValueRoot root,
-        scoped ReadOnlySpan<ulong> coefficients, scoped ReadOnlySpan<sbyte> signs) =>
-        GetSignAtFiniteValueRootCore(ref root, coefficients, signs, retainRefinement: true);
+        scoped ReadOnlySpan<ulong> coefficients, scoped ReadOnlySpan<sbyte> signs, int knownLowerSign = 0) =>
+        GetSignAtFiniteValueRootCore(ref root, coefficients, signs, retainRefinement: true, knownLowerSign);
 
     private static int GetSignAtFiniteValueRootCore(scoped ref FiniteAxisValueRoot root,
-        scoped ReadOnlySpan<ulong> coefficients, scoped ReadOnlySpan<sbyte> signs, bool retainRefinement)
+        scoped ReadOnlySpan<ulong> coefficients, scoped ReadOnlySpan<sbyte> signs, bool retainRefinement, int knownLowerSign = 0)
     {
         int degree = signs.Length - 1;
         int inputWords = coefficients.Length / signs.Length;
@@ -192,7 +195,7 @@ internal static partial class WideFiniteAxisIntersection
         bool finished;
         do
         {
-            RefineFiniteValueRoot(ref refined, precision + 2 * queryCountBits + variableShift);
+            RefineFiniteValueRoot(ref refined, precision + 2 * queryCountBits + variableShift, knownLowerSign);
             if (retainRefinement)
             {
                 int activeWords = GetRoundedCylinderWideLength(refined.LowerNumerator);

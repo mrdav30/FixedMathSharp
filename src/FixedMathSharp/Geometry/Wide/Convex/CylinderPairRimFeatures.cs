@@ -58,22 +58,22 @@ internal static class CylinderPairRimFeatures
         // For a simple value root, v=-W_c/(2W_S), p.v=-rho*W_rho/W_S,
         // q.v=-tau*W_tau/W_S. Both radii must choose the same support side.
         int firstRadial = GetDerivativeSign(geometry, firstSign, secondSign, ref root,
-            0, derivatives, derivativeSigns, ref readyMask);
+            valueSlopeSign, 0, derivatives, derivativeSigns, ref readyMask);
         gapSign = -firstRadial * valueSlopeSign;
         // Zero radial support is inadmissible, regardless of the other rim
         // or cap signs; do not construct their polynomials for this boundary.
         if (firstRadial == 0)
             return false;
         int secondRadial = GetDerivativeSign(geometry, firstSign, secondSign, ref root,
-            1, derivatives, derivativeSigns, ref readyMask);
+            valueSlopeSign, 1, derivatives, derivativeSigns, ref readyMask);
         if (firstRadial != secondRadial)
             return false;
         int firstCap = GetDerivativeSign(geometry, firstSign, secondSign, ref root,
-            2, derivatives, derivativeSigns, ref readyMask);
+            valueSlopeSign, 2, derivatives, derivativeSigns, ref readyMask);
         if (firstRadial * firstSign * firstCap < 0)
             return false;
         int secondCap = GetDerivativeSign(geometry, firstSign, secondSign, ref root,
-            3, derivatives, derivativeSigns, ref readyMask);
+            valueSlopeSign, 3, derivatives, derivativeSigns, ref readyMask);
         return firstRadial * secondSign * secondCap >= 0;
     }
 
@@ -101,7 +101,7 @@ internal static class CylinderPairRimFeatures
     }
 
     private static int GetDerivativeSign(in CylinderPairGeometry geometry, int firstSign, int secondSign,
-        ref FiniteAxisValueRoot root, int query, scoped Span<ulong> derivatives,
+        ref FiniteAxisValueRoot root, int valueSlopeSign, int query, scoped Span<ulong> derivatives,
         scoped Span<sbyte> derivativeSigns, ref int readyMask)
     {
         Span<ulong> derivative = derivatives.Slice(query * Count * CoefficientWords, Count * CoefficientWords);
@@ -117,7 +117,11 @@ internal static class CylinderPairRimFeatures
             WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(derivative, signs);
             readyMask |= bit;
         }
-        return WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, derivative, signs);
+        // Isolation exports nonzero endpoints. A simple root has lower sign
+        // -slope in that cell and every nonrational descendant. Reuse that
+        // proof instead of reevaluating both defining endpoints;
+        // the ordinary refinement certificates and exact fallbacks still apply.
+        return WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, derivative, signs, -valueSlopeSign);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

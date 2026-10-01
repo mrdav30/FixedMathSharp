@@ -47,9 +47,10 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ### Complete nonparallel cylinder contacts are expensive
 
-- **Status / priority:** Partially improved, high; four retained throughput
-  passes on 2026-09-30 reduce penetrating-rim cost to about 5.2 ms and
-  multi-radical cost to about 21.8 ms. Originally measured on 2026-09-26 while closing
+- **Status / priority:** Partially improved, high; six retained throughput
+  passes on 2026-09-30 / 2026-10-01 reduce penetrating-rim cost to about 4.5 ms
+  and multi-radical cost to about 14.4 ms, with interlaunch variation.
+  Originally measured on 2026-09-26 while closing
   FMS-Issue-024. The complete exact relation is correct, but its general positive
   contacts have not met a high-volume physics budget. This is distinct from
   the explicitly accepted zero-radius dispatch trade-off.
@@ -202,6 +203,95 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   Artifacts: `artifacts/cylinder-cost4-baseline-confirm` and `-carry-confirm`.
   The two broad captures complete sixteen children each and the two narrow
   confirmations four each, all with zero exits, collections and process bytes.
+- **Fifth retained change (2026-10-01):** Simple rim admission already proves
+  the defining root's slope sign. Pass its negation through the existing
+  retained-sign query as the lower endpoint sign, avoiding two exact defining
+  polynomial evaluations whenever refinement is needed. A nonrational cell
+  isolating that simple root has opposite endpoint signs; its descendants
+  preserve that crossing. Rational discovery still exits through the existing
+  path, and repeated roots and generic callers retain exact endpoint evaluation.
+  The optional internal certificate adds no scratch or cache and leaves query
+  coefficients, metadata, ranking, refinement bounds and fallbacks unchanged.
+  Integer-oracle tests compare hinted and ordinary signs/cells for both slope
+  orientations, tiny roots, cancellation, undersized caller storage and dyadic
+  discovery followed by another query.
+- **Fifth matched evidence:** Fresh baseline is committed `e548376`. The same
+  eight frozen workloads and job above were captured before and after; a narrow
+  reverse-order baseline checks the modest gain. Values are microseconds, mean
+  +/- 99.9% confidence half-width.
+
+  | Frozen workload | Fresh baseline | Crossing reuse | Reverse baseline |
+  | --- | ---: | ---: | ---: |
+  | Penetrating rims | 5,195.724 +/- 85.085 | 5,166.120 +/- 73.863 | 5,321.807 +/- 95.625 |
+  | Multi-radical contact | 22,202.157 +/- 376.602 | 21,327.191 +/- 293.130 | 21,985.681 +/- 253.988 |
+
+  Artifacts: `artifacts/cylinder-cost5-baseline`, `-crossing` and
+  `-baseline-crossing-confirm`. Multi-radical cost improves by about 3% against
+  the reverse baseline; both prototype launch means are below both reversal
+  baseline means, and their pooled confidence intervals are disjoint.
+  Penetrating rims show no consistent additional improvement. Across the
+  captures, unchanged controls drift modestly, including an oblique capsule
+  rim increase; this is a modest measured workload gain, not a universal
+  speedup. All 36 child launches exit zero, with zero raw process bytes and
+  collections. The reverse baseline also agrees with an earlier two-case
+  baseline (`cylinder-cost5-baseline-confirm`, 21,833.825 +/- 342.645us).
+- **Sixth retained change (2026-10-01):** The existing shared magnitude
+  multiplier clips inputs to the retained product width and factors out their
+  whole zero low limbs before convolution. Limbs at or above the output width
+  cannot affect its low product; factoring `a+b` zero limbs leaves that cleared
+  output prefix zero and computes the same truncated product in the suffix.
+  The subtraction-based width guard avoids overflow when adding offsets. Both
+  prefix scans are bounded by output width, and the original convolution,
+  sparse carry and disjoint-output contracts remain intact. No scratch,
+  representation, dependency or helper signature is added. Shared integer
+  oracles cover full/truncated products, dirty output, sparse interior carry,
+  zero/empty inputs in either position, same-input squares and source preservation.
+- **Sixth matched evidence:** Baseline is the fifth retained source. Same eight
+  workloads, environment and job; values are microseconds, mean +/- 99.9%
+  confidence half-width.
+
+  | Frozen workload | Before factoring | With factoring |
+  | --- | ---: | ---: |
+  | Penetrating rims | 5,166.120 +/- 73.863 | 4,613.120 +/- 98.457 |
+  | Multi-radical contact | 21,327.191 +/- 293.130 | 15,402.844 +/- 613.027 |
+  | Ordinary parallel contact | 20.123 +/- 0.269 | 19.443 +/- 0.253 |
+  | Ordinary cylinder strict | 0.910 +/- 0.014 | 0.902 +/- 0.010 |
+  | Ordinary cylinder/capsule | 20.083 +/- 0.368 | 17.850 +/- 0.268 |
+  | Ordinary cylinder/capsule strict | 0.420 +/- 0.007 | 0.415 +/- 0.005 |
+  | Oblique interior capsule rim | 579.012 +/- 12.377 | 555.532 +/- 7.609 |
+  | Intersecting capsule core | 443.227 +/- 8.604 | 430.512 +/- 6.093 |
+
+  Artifacts: `artifacts/cylinder-cost5-crossing` and `-prefix`. The pooled
+  multi-radical gain is about 28%, with launch means of 14.718 / 16.149ms and
+  several detected timing modes; report that variation. Even the slower launch
+  remains substantially faster than either baseline launch. Penetrating rims
+  improve by about 11%. All sixteen prototype children exit zero with zero raw
+  process bytes and collections.
+  Four existing nonzero-low-limb controls check the shared helper's overhead:
+
+  | Existing workload | Before factoring | With factoring |
+  | --- | ---: | ---: |
+  | `RadialProjectionWorstCaseComparison` | 3.802 +/- 0.053 | 3.792 +/- 0.064 |
+  | `TrianglePairTinyAxisFallback` | 10.699 +/- 0.127 | 10.580 +/- 0.177 |
+  | `ArbitraryRawCylinderIntersectionInterval`, Scale=1 | 2.944 +/- 0.038 | 2.983 +/- 0.038 |
+  | Same interval, Scale=100000 | 7.373 +/- 0.096 | 7.375 +/- 0.096 |
+
+  No meaningful overhead regression is established in these controls. Artifacts:
+  `artifacts/cylinder-cost6-controls-before-box`, `-before-axis`, `-prefix-box`
+  and `-prefix-axis`; reuse these fixtures instead of adding benchmark scaffolding.
+  A reverse-order two-case baseline without factoring measures penetrating rims
+  at 5,101.971 +/- 76.136us and multi-radical contact at 20,956.847 +/- 339.380us
+  (`cylinder-cost5-crossing-prefix-confirm`). The final factoring-source
+  confirmation measures 4,497.877 +/- 56.579us and 14,388.334 +/- 117.786us
+  (`cylinder-cost5-prefix-confirm`). Both captures support substantial gains;
+  the multi-radical reduction ranges about 26.5--31.3% against that reverse
+  baseline. The original broad prototype has greater interlaunch variation,
+  so retain both reports rather than treating the final mean as a guarantee.
+  All eight confirmation children exit zero with zero collections. One final
+  penetrating-rim child reports 336 process-wide bytes across 128 operations,
+  while its paired child, both multi-radical children and JSON summaries report
+  zero. Preserve that discrepancy; it does not establish a solver allocation.
+  Direct warmed calling-thread guards remain the solver's allocation gate.
 - **Rejected experiments:** Ranking values before full radial/cap admission
   skipped only potential positive nonwinners, preserving negative separation
   candidates. It added comparisons for inadmissible roots and did not resolve
@@ -215,6 +305,21 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   All sixteen child launches passed with zero allocations/collections. That
   runtime/test experiment was removed; do not repeat it as a new optimization.
   Artifact: `artifacts/cylinder-cost3-refinement`.
+  A fifth-pass square-free root-order shortcut obtained slope signs from parity
+  instead of exact derivative queries. Its full capture measured multi-radical
+  cost at 22,124.165 +/- 413.197us versus 22,202.157 +/- 376.602us: no established
+  gain, so the additional API/tests were removed (`cylinder-cost5-slope`).
+  A dual-polynomial square shortcut replaced the second equal cross-product
+  with whole-span doubling. An initial apparent gain did not survive reversal:
+  21,801.680 +/- 389.358us with it versus 21,833.825 +/- 342.645us without it;
+  penetrating rims became slower. That runtime/test experiment was removed
+  (`cylinder-cost5-dual`, `-dual-confirm` and `-baseline-confirm`). Do not
+  repeat these as newly demonstrated optimizations.
+  Skipping the normalized Horner evaluator's initial zero multiplication and
+  zero-coefficient assembly passed 212 focused tests, but its 14,932.604 +/-
+  642.645us multi-radical result overlaps the factoring capture's range.
+  The extra branches were removed (`cylinder-cost5-horner`); no further gain
+  is established from that experiment.
 - **Validation:** Fresh source-backed solution builds pass in both repositories
   for `Release` and `ReleaseLean`, targeting `netstandard2.1` and `net8.0`, with
   zero warnings/errors. All tests pass with no skips or new coverage exclusions;
@@ -229,18 +334,21 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   direction-dominant input height and canonical zero with dirty storage.
   Shared arithmetic fixtures check carry beyond active support and retained
   destination-edge behavior against independent integer results.
+  Crossing fixtures additionally verify exported nonzero endpoints beside an
+  excluded zero and another dyadic root, while shared multiplication fixtures
+  verify full/truncated zero-prefix products and same-input squares.
   Independent correctness/resource and Ponytail reviews found no actionable
   issues in the retained changes.
 
   | Repository / configuration | Tests passed | Lines | Branches | Methods |
   | --- | ---: | ---: | ---: | ---: |
-  | FixedMathSharp Release | 4,061 | 52,660 / 52,660 | 12,104 / 12,104 | 3,934 / 3,934 |
-  | FixedMathSharp ReleaseLean | 4,040 | 52,753 / 52,753 | 12,104 / 12,104 | 3,930 / 3,930 |
+  | FixedMathSharp Release | 4,080 | 52,673 / 52,673 | 12,118 / 12,118 | 3,934 / 3,934 |
+  | FixedMathSharp ReleaseLean | 4,059 | 52,766 / 52,766 | 12,118 / 12,118 | 3,930 / 3,930 |
   | Gravitas Release | 4,363 | 56,091 / 56,091 | 16,224 / 16,224 | 5,370 / 5,370 |
   | Gravitas ReleaseLean | 4,304 | 56,091 / 56,091 | 16,224 / 16,224 | 5,370 / 5,370 |
 
   Every reported method is fully covered. Each repository's
-  `artifacts/cylinder-cost4-Release*-tests.log`,
+  `artifacts/cylinder-cost6-Release*-tests.log`,
   `-coverage` and `-report/Summary.json` retain the raw validation evidence.
   The benchmark catalog lists successfully. The first-pass broad smoke passed
   all 459 cases (`artifacts/cylinder-cost-smoke`). The fresh second-pass native
@@ -253,6 +361,10 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   The final fourth-pass source-backed smoke also passes all 459 child launches,
   with 459 complete statistics across 25 reports, zero child/launcher exits and
   no native fault (`artifacts/cylinder-cost4-smoke`).
+  The final sixth-pass source-backed smoke likewise passes all 459 child
+  launches, with 459 complete statistics across 25 reports, zero child/launcher
+  exits and no native fault (`artifacts/cylinder-cost6-smoke`). The fresh catalog
+  and both retained-source EventPipe profile children also pass.
   These `all -j Short --iterationTime 10 --affinity 3` runs verify execution
   only; performance claims use the separate matched captures above.
 - **Native smoke follow-up:** The initial second-pass broad run failed two
@@ -274,19 +386,26 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   during this investigation.
 - **Impact:** A few difficult oblique contacts can dominate a fixed frame.
   At 32 FPS, the entire simulation has 31.25 ms per step: one latest penetrating
-  fixture consumes about 17% of that time and one multi-radical fixture about
-  70%, before other collision queries, solver and simulation work. These are
+  fixture consumes about 14% of that time and one multi-radical fixture about
+  46%, before other collision queries, solver and simulation work. These are
   illustrative single-thread costs, not a universal acceptance threshold.
   No observed game workload or contact-count budget establishes acceptability.
   Exact determinism, minimum-depth selection and rounding remain mandatory.
-- **Next isolation step:** The final retained-source profile places about 62% of
-  multi-radical cost in cap-root selection, 37% in exact root refinement, 31%
-  in sign queries, 25% in derivative construction and 28% in side features
-  (inclusive costs overlap). Penetrating rims now spend about 27% in derivative
-  construction, compared with about 44% before this change. Focus the next pass
-  on remaining active-word arithmetic and necessary refinement work while
-  preserving the original width, ranking and certification contracts. Artifacts:
-  `artifacts/cylinder-cost4-after-profile` and `-after-profile-summary.json`.
+- **Next isolation step:** The sixth-pass retained-source profile places about
+  58% of multi-radical cost in cap-root selection, 37% in derivative construction,
+  34% in side features, 15% in exact root refinement and 15% in sign queries.
+  Inclusive costs overlap and must not be summed. The fourth-pass profile had
+  approximately 62 / 25 / 28 / 37 / 31% in those respective owners; shared
+  magnitude multiplication falls from about 53% to 40% of sampled time.
+  These are sampled shares, not separately measured phase-speedup claims.
+  Penetrating rims retain about 54% cap selection, 31% sign queries, 29%
+  derivative construction and 20% side features. Focus the next pass on exact
+  derivative construction and side-family polynomial work, preserving width,
+  ranking, certification and live stack bounds. Avoid retaining another large
+  polynomial cache across sign queries or reviving the rejected whole-span
+  square shortcut without new evidence. Artifacts:
+  `artifacts/cylinder-cost6-after-profile` and `-after-profile-summary.json`;
+  the earlier comparison is `cylinder-cost4-after-profile`.
   Existing profiles already removed repeated
   GCDs/chains, redundant normals and worst-case mapping refinement; do not
   repeat those experiments or add another approximate fallback.

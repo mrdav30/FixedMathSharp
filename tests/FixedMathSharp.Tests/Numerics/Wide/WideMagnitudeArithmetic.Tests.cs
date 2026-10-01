@@ -132,6 +132,57 @@ public sealed class WideMagnitudeArithmeticTests
         }
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(8)]
+    [InlineData(12)]
+    [InlineData(14)]
+    public void MultiplyMagnitudes_WholeWordFactorsPreserveSparseCarriesAndTruncation(int outputWords)
+    {
+        ulong[] left = { 0, 0, ulong.MaxValue, 0, ulong.MaxValue, 1, 0 };
+        ulong[] right = { 0, 0, 0, ulong.MaxValue, ulong.MaxValue, 0, 7 };
+        ulong[] originalLeft = (ulong[])left.Clone();
+        ulong[] originalRight = (ulong[])right.Clone();
+        BigInteger mask = (BigInteger.One << (64 * outputWords)) - 1;
+        BigInteger expected = (ToBigInteger(left) * ToBigInteger(right)) & mask;
+        var product = new ulong[outputWords];
+        Array.Fill(product, ulong.MaxValue);
+        WideArithmetic.MultiplyMagnitudes(left, right, product);
+        Assert.Equal(expected, ToBigInteger(product));
+        Array.Fill(product, ulong.MaxValue);
+        WideArithmetic.MultiplyMagnitudes(right, left, product);
+        Assert.Equal(expected, ToBigInteger(product));
+        Assert.Equal(originalLeft, left);
+        Assert.Equal(originalRight, right);
+    }
+
+    [Fact]
+    public void MultiplyMagnitudes_PrefixedSquareAndZeroOperands_ClearDirtyOutput()
+    {
+        ulong[] value = { 0, 0, ulong.MaxValue, 0, 17 };
+        ulong[] original = (ulong[])value.Clone();
+        ulong[] product = new ulong[10];
+        Array.Fill(product, ulong.MaxValue);
+        WideArithmetic.MultiplyMagnitudes(value, value, product);
+        Assert.Equal(BigInteger.Pow(ToBigInteger(value), 2), ToBigInteger(product));
+        Assert.Equal(original, value);
+
+        foreach (ulong[] zero in new[] { Array.Empty<ulong>(), new ulong[6] })
+        {
+            Array.Fill(product, ulong.MaxValue);
+            WideArithmetic.MultiplyMagnitudes(value, zero, product);
+            Assert.Equal(BigInteger.Zero, ToBigInteger(product));
+            Array.Fill(product, ulong.MaxValue);
+            WideArithmetic.MultiplyMagnitudes(zero, value, product);
+            Assert.Equal(BigInteger.Zero, ToBigInteger(product));
+        }
+        Assert.Equal(original, value);
+    }
+
     [Fact]
     public void DivideMagnitudes_ProducesExactQuotientAndRemainderAcrossWordBoundaries()
     {
