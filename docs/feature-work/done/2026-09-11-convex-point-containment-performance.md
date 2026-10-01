@@ -210,11 +210,10 @@ runtime optimization setting or dependency was changed for this investigation.
 The launcher previously discarded `BenchmarkSwitcher.Run` summaries and always
 returned zero. It now rejects critical validation errors, failed reports and
 reported child executions with missing workload results or nonzero exits,
-including failures after an earlier successful launch. The permanent
-[`Verify-ExitCodes.ps1`](../../../tests/FixedMathSharp.Benchmarks/Verify-ExitCodes.ps1)
-reproduced the old false-success result and passed all 11 checks after the fix.
-The [benchmark guide](../../../tests/FixedMathSharp.Benchmarks/README.md)
-documents how to rerun these checks; generated artifacts are disposable.
+including failures after an earlier successful launch. Temporary diagnostic
+probes reproduced the old false-success result and passed all 11 checks after
+the fix. The separate launcher verification script was removed on 2026-10-01
+by maintainer direction; benchmark verification uses the real runner.
 
 Verification on Windows 11 / .NET 8.0.29 x64 / BenchmarkDotNet 0.15.8:
 

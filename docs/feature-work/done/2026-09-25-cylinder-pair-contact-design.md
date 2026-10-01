@@ -7,8 +7,11 @@ Gravitas GRV-Issue-084 migration completed on 2026-09-26. Standard/Lean coverage
 consumer validation, matched timings and independent reviews are recorded below.
 This closes the incorrect-contact issue, not release validation or a claim that
 general nonparallel contacts are cheap enough for high-volume physics. Their
-measured 11.57–25.14ms positive-contact cost remains an explicit performance
-follow-up in the [benchmark backlog](../benchmark-signal-hardening-backlog.md).
+historical 11.57–25.14ms positive-contact cost prompted the
+[throughput refinement closed on 2026-10-01](#throughput-refinement-closure-2026-10-01).
+The [benchmark backlog archive](../benchmark-signal-hardening-backlog.md#archived-signals)
+records the completed diagnostic investigation and recurrence criteria; the
+original native-fault and historical allocation-counter causes remain unknown.
 The previously accepted zero-radius
 trade-off is not blanket acceptance of that much larger general-case cost.
 
@@ -502,7 +505,8 @@ Completion gates:
 - [x] Matched out-of-process benchmarks for repaired and unchanged workloads,
   including shared cylinder/capsule controls.
 - [x] Final independent correctness/Ponytail review and resolved findings;
-  preserve expensive general-case performance as an explicit follow-up.
+  preserve expensive general-case performance as a measured limitation, with
+  subsequent routine refinement recorded below.
 
 Cover exact touch/raw neighbors, positive sub-raw depth, nearest-even ties,
 clamping, coincident/near-parallel axes, zero-radius reductions, exact frames,
@@ -586,7 +590,8 @@ workload costs, not equivalent-correctness comparisons. Tangent and zero-radius
 distributions were bimodal. Parallel/shared paths improved, but the complete
 nonparallel solver is substantially more expensive. Retain the correctness
 repair and measured limitation together; do not declare a high-volume workload
-budget met. The benchmark backlog preserves the next profiling boundary.
+budget met. The subsequent throughput closure below preserves the completed
+refinement and the profiling evidence required to reopen it.
 
 The report summary shows zero bytes for every row, but penetrating-rim launch 1
 reported 12,336 process-wide bytes across 64 calls while launch 2 reported zero.
@@ -657,7 +662,7 @@ benchmark results and is not counted as a control. It exposed the runner
 treating an empty parse-error result as successful informational output.
 The runner now validates through BDN's own parser, permits empty results only
 for validated informational requests, and retains every child-exit check.
-The existing `Verify-ExitCodes.ps1` passed all 25 cases, including malformed
+Temporary launcher probes passed all 25 cases, including malformed
 alias/all/direct arguments, help/version/list combinations, no-match filters,
 valid informational commands and runtime/validation/partial/late-exit failures.
 Artifacts: `artifacts/benchmark-exit-codes/LauncherProbe_2fc0441ace0648a599f84b1189b591b0`.
@@ -679,3 +684,580 @@ g
 
 Keep the serialized two-core/below-normal launcher; debugger timings are not
 performance acceptance. Check child exits and complete results even without a dump.
+
+### Benchmark diagnostic hardening (2026-10-01)
+
+Investigation used `678818a` plus the benchmark reporting change below, Windows
+11 x64, SDK 10.0.302, .NET 8.0.29 and BDN 0.15.8. Every build and child build
+used `UseLocalLsfStack=true`; workloads remained serialized, below normal
+priority and on two cores. Runtime math, JIT/GC settings and exact allocation
+guards were unchanged. This record resolves the reporting gap and identifies a
+fresh counter mechanism; it does not establish a native fix or retroactively
+attribute the historical 12,336-byte observation.
+
+**Why the zero summary concealed positive launches.** BDN's
+[report constructor](https://github.com/dotnet/BenchmarkDotNet/blob/v0.15.8/src/BenchmarkDotNet/Reports/BenchmarkReport.cs)
+selects the final execution's GC statistics. Its
+[bytes/op conversion](https://github.com/dotnet/BenchmarkDotNet/blob/v0.15.8/src/BenchmarkDotNet/Engines/GcStats.cs)
+also rounds to an integer. Consequently, first-launch counts of 12,336/64 and
+336/128 disappear when the final launch is zero; a 336/1,048,576 count rounds
+to zero even when selected. This is neither averaging nor an empty-workload
+allocation subtraction.
+
+The existing launcher now warns when a zero memory summary conceals any positive
+raw child count, preserving the benchmark, PID, bytes and operations. It reuses
+BDN's public GC-line parser; it changes neither the summary nor the exit policy.
+Temporary launcher probes passed 29 checks. The allocation
+reproducer failed before the correction: launch one allocated 2,816 bytes
+across 32 calls, launch two reported zero, and the summary was zero. The corrected
+launcher reports that first count, as well as a 24-byte/64-call rounding case.
+Zero-counter and positive-summary controls emit no zero-summary warning.
+Artifacts: `artifacts/finite-shape-diagnostics/launcher-{red,green}.log` and
+`artifacts/benchmark-exit-codes/LauncherProbe_dc21aea09f4a44d18054eefc5dac0f21`.
+
+**Paired process and calling-thread controls.** A bounded ignored console probe
+reused the actual penetrating benchmark fixture and measured the calling-thread
+interval inside the precise process-counter interval. It matched BDN's pre-pass
+collection sequence and warmed the counter readers and operations first.
+Each of 32 samples executed 128 operations:
+
+| Operation | Calling-thread bytes | Process bytes | Positive process observations |
+| --- | ---: | ---: | ---: |
+| Penetrating contact | 0 | 0 or 336 | 17/32 |
+| Idle (`Thread.Sleep(1)`) | 0 | 0, 336 or 6,192 | 23/32 |
+| One `byte[64]` per call | 11,264 | 11,264 or 11,600 | 32/32 |
+
+The idle control reproduces the discrepancy without executing a solver. The
+positive control measures every real allocation. These results alone do not
+identify the allocator; the following native capture supplies that evidence.
+Artifact: `artifacts/finite-shape-diagnostics/counters.csv`.
+
+**Matched native attribution of a fresh 336-byte interval.** Process-scoped CDB
+breakpoints at `GCInterface::GetTotalAllocatedBytes` captured the returned precise
+totals; a breakpoint at `GCInterface::GetMemoryInfo` captured the finalizer stack
+and object address. Between main-thread returns 9 and 10, totals changed from
+816,960 to 817,296. The intervening finalizer-thread stack was
+`Gen2GcCallback.Finalize -> SharedArrayPool<char>.Trim -> GetMemoryPressure ->
+GC.GetGCMemoryInfo`. SOS identified its `GCMemoryInfoData` as 288 bytes and the
+immediately following pool `ConditionalWeakTable` enumerator as 48 bytes,
+accounting for the exact 336-byte increase. Returns 15/16 and 23/24 supply the
+same complete bracket. The calling-thread counter stayed zero. Artifact:
+`artifacts/finite-shape-diagnostics/counter-objects-matched.log`.
+
+This matches the pinned runtime sources: the
+[GC-info allocation](https://github.com/dotnet/runtime/blob/v8.0.29/src/coreclr/System.Private.CoreLib/src/System/GC.CoreCLR.cs#L76-L89),
+[pool enumeration](https://github.com/dotnet/runtime/blob/v8.0.29/src/libraries/System.Private.CoreLib/src/System/Buffers/SharedArrayPool.cs#L244),
+and [enumerator allocation/layout](https://github.com/dotnet/runtime/blob/v8.0.29/src/libraries/System.Private.CoreLib/src/System/Runtime/CompilerServices/ConditionalWeakTable.cs#L255-L290)
+explain the two real objects. BDN's
+[forced-collection sequence](https://github.com/dotnet/BenchmarkDotNet/blob/v0.15.8/src/BenchmarkDotNet/Engines/Engine.cs#L271-L276)
+is `Collect -> WaitForPendingFinalizers -> Collect`. The callback
+[re-registers itself](https://github.com/dotnet/runtime/blob/v8.0.29/src/libraries/System.Private.CoreLib/src/System/Gen2GcCallback.cs#L54-L110),
+so the second collection can queue another trim during the separate memory pass.
+Blocking GC does not prevent this asynchronous finalizer work. This is a real
+background allocation mechanism, distinct from the counter-accounting transition
+in [FMS-Issue-019](2026-09-21-allocation-counter-accounting.md).
+
+The historical 12,336-byte event and fresh 6,192-byte idle event lack matching
+allocation evidence and remain unattributed. Earlier BDN 336-byte events are
+consistent with the confirmed mechanism, but their original intervals were not
+captured. No runtime setting, tolerance or measured-byte subtraction was added.
+
+**Native failure preservation.** A fresh 12-launch capture of each affected row
+(`TangentRimsCylinderCylinder`, `ZeroCoreLengthCylinderCapsule`) passed all 24
+children with zero raw bytes and no AV. The selected zero-core row's original
+failure actually occurred in the earlier separated-rim check in shared setup.
+The original failing smoke omitted `--keepFiles`; its reused generated directory
+now contains newer binaries. It cannot supply the original faulting instructions.
+The fresh capture archives the generated directory and hashes its binaries/PDBs
+before any later build. Artifacts: `artifacts/finite-shape-diagnostics/native`,
+`debugger.log`, `binaries` and `binary-hashes.json`.
+
+For future recurrence, use a fresh ignored capture directory, `--keepFiles` and
+the process-scoped CDB recipe above. A first-chance alternative additionally
+captures the instruction and thread stack bounds:
+
+```text
+sxi ibp
+sxe -c ".dump /ma /u artifacts/<fresh-capture>/fault.dmp; .exr -1; r; kv; !teb; dq @rsp L40; u @rip-20 @rip+30; lmvm coreclr; gn" av
+g
+```
+
+Correlate first-chance exceptions with each child's final exit. Immediately copy
+the generated `FixedMathSharp.Benchmarks-*` directory to the capture directory,
+including source, runtime configuration, DLLs and PDBs; record SHA-256 hashes,
+revision, `dotnet --info`, command and loaded module paths. A later build can
+overwrite the same generated name even with `--keepFiles`. On an actual fault,
+inspect the native read address and the source span's pointer/length in that
+retained dump. Successful repetitions establish nonreproduction, not a fix.
+
+Final benchmark builds passed in Release and ReleaseLean with zero warnings or
+errors. The complete Release out-of-process Short smoke under CDB passed all
+459 children with 459 populated statistics across 25 reports and no AV. Its
+generated binaries/PDBs are separately archived and hashed in
+`artifacts/finite-shape-diagnostics/broad-binaries`; logs and exports are under
+`broad-debugger.log`, `broad-output.log` and `broad`. Together with the narrow
+capture, this adds 483 successful children, without establishing a native fix.
+Two independent reviews found no actionable reporting or minimality findings.
+
+The math runtime and its tests are identical to `c9485ef`, and Gravitas is
+unchanged. Their sixth-pass Release/ReleaseLean coverage matrix below remains
+applicable: 4,080/4,059 core tests, 49 Chronicler tests per configuration and
+4,363/4,304 Gravitas tests, with 100% reachable line, branch and full-method
+coverage. These are retained results, not newly rerun suites for the reporting
+change. Fresh validation exercises the changed benchmark launcher through the
+temporary diagnostic probes, both benchmark builds and the complete smoke above.
+
+The separate launcher verification script and its runnable documentation were
+removed on 2026-10-01 by maintainer direction. The historical probe captures
+above remain evidence; they are not a maintained test suite for the benchmark
+project. Future verification uses the real benchmark runner and disposable
+diagnostic captures.
+
+**Final disposition.** A further four-launch penetrating-contact capture used
+512 invocations per iteration, two warmups and three measurements under CDB,
+extending each memory pass to roughly two seconds. All four children passed,
+each reported zero raw bytes across 512 calls, and no AV recurred. Its generated
+directory and binary hashes are retained under
+`artifacts/finite-shape-diagnostics/final-long-pass*`. Together with the prior
+narrow and broad captures, this investigation completed 487 successful children.
+
+The benchmark signal is archived as complete with an explicit no-change decision
+for runtime math. The reporting gap is hardened and fresh 336-byte intervals are
+attributed; no actionable solver allocator or native defect was identified.
+The original AV, historical 12,336-byte count and fresh 6,192-byte idle count
+remain unattributed observations. Further blind repetitions or speculative
+runtime changes would not resolve missing original fault evidence. Reopen on a
+fresh fault dump with its exact binaries/PDBs or a reproducible allocator/counter
+failure attributable to the library; retain the procedure above for that event.
+
+## Throughput refinement closure (2026-10-01)
+
+Routine optimization of the complete nonparallel cylinder-contact signal is
+closed after six retained improvements and a final bounded shared-code audit.
+This accepts an explicit no-change decision for further speculative work; it
+neither establishes a universal physics budget nor makes difficult contacts
+cheap. Preserve the measured residual cost when budgeting callers.
+
+The expensive fixtures exercise simple positive nonparallel contacts with small
+coordinates and ordinary axis orientations, rather than a near-parallel limit,
+extreme arithmetic or repeated-root recovery. Their prevalence in a real
+simulation is unknown. Cheap parallel/strict controls measure different paths
+and cannot establish an average nonparallel-contact cost.
+
+The final audit found that generic triangular square convolution can change
+signed cancellation order or need another bit for a doubled term. Replacing
+binary scaled additions with a materialized product can also exceed existing
+capacity: one-word x=2^63-1, initial destination -x and multiplier3 produces zero
+then 2x within the current ordered steps, while materializing 3x exceeds a word.
+Stronger contracts, new scratch or additional paths are not justified by the
+current workload evidence. The existing shared owners remain unchanged.
+
+One last shared experiment cleared a zero-sign destination once and copied only
+clipped active shifted support. Its integer-oracle checks passed, but neither
+contact showed a gain beyond timing variation; the runtime/test prototype was
+removed. Reopen algorithmic work only when representative positive nonparallel
+fixtures or a consuming simulation identify a consequential residual bottleneck.
+Native-fault and allocation-counter diagnostics are archived with recurrence
+criteria in the [benchmark backlog](../benchmark-signal-hardening-backlog.md#archived-signals).
+
+The final bounded captures use committed `c9485ef`, the same two frozen inputs
+and the serialized source-mode job documented below. Values are microseconds,
+mean +/- 99.9% confidence half-width.
+
+| Workload | Fresh baseline | Shifted-copy prototype | Restored committed source |
+| --- | ---: | ---: | ---: |
+| Penetrating rims | 4,387.843 +/- 52.950 | 4,344.511 +/- 34.016 | 4,317.534 +/- 44.017 |
+| Multi-radical contact | 13,970.247 +/- 101.207 | 13,885.530 +/- 145.776 | 13,866.975 +/- 95.760 |
+
+The apparent initial gain is under 1%, intervals overlap, and the restored
+implementation is slightly faster than the prototype in both rows. Retaining
+extra code is not justified. Artifacts: `artifacts/cylinder-cost5-investigation-baseline`,
+`-copy` and `-close-final`. The unchanged implementation passes 210 fresh focused
+arithmetic/root/construction tests (`cylinder-cost7-close-tests.log`). Runtime
+and test files match the committed source exactly; the full Release/ReleaseLean
+coverage matrix below is the unchanged sixth-pass validation, not a rerun for
+this documentation-only closure.
+All twelve final-audit benchmark children exit zero, with zero raw process
+bytes and collections; all six exported rows report zero bytes per operation.
+
+The preserved measurements, proofs, rejected experiments and validation follow.
+### Complete nonparallel cylinder contacts are expensive
+
+- **Status:** Routine refinement closed by explicit no-change decision on
+  2026-10-01; six retained throughput
+  passes on 2026-09-30 / 2026-10-01 reduce penetrating-rim cost to about 4.5 ms
+  and multi-radical cost to about 14.4 ms, with interlaunch variation.
+  Originally measured on 2026-09-26 while closing
+  FMS-Issue-024. The complete exact relation is correct, but its general positive
+  contacts still have substantial measured cost. This is distinct from
+  the explicitly accepted zero-radius dispatch trade-off.
+- **Source:** `RigidFiniteShapeRelationBenchmarks` on the working tree based on
+  `ad9c88b`. Earlier sections of this completed design
+  retain exact geometry, arithmetic/resource proofs, prior profiles, matched
+  controls and validation evidence.
+- **Environment:** Windows 11, i7-9700K, SDK 10.0.302, .NET 8.0.29, Release,
+  BenchmarkDotNet 0.15.8, concurrent workstation GC, two-core affinity and
+  below-normal launcher; two launches, three warmups, twelve measurements.
+  Source mode used `UseLocalLsfStack=true`, `BuildInParallel=false`,
+  `UseSharedCompilation=false` and `DOTNET_PROCESSOR_COUNT=2`.
+- **Historical measurement (2026-09-26):** Penetrating rims **11.566 +/- 0.110ms**; multi-radical contact
+  **25.137 +/- 0.164ms**, mean and 99.9% confidence half-width. Separated/tangent
+  rim workloads cost **5.409 / 5.141ms**. By contrast, ordinary parallel contact
+  costs **19.448 +/- 0.098us** and its strict predicate **0.856 +/- 0.008us**.
+  All 22 matched child launches exited zero. Artifacts:
+  `artifacts/fms024-matched-final`. The old limited-direction rim answers were
+  wrong and cannot serve as equivalent-correctness throughput targets.
+- **Allocation boundary:** Direct warmed calling-thread guards pass at zero.
+  One matched penetrating-rim child reported 12,336 process-wide bytes across
+  64 calls, although the second child and summary reported zero. The completed
+  plan records the bounded counter investigation; do not silently round this
+  discrepancy away or attribute it to the solver without evidence.
+- **Retained change (2026-09-30):** The shared exact normal owner sizes squared
+  coefficients from active gradient limbs, keeping the previous worst-case
+  capacity. One additional limb covers convolution/axis-summation carry; the
+  existing generated-gradient proof supplies the other capacity bound. This
+  removes padding from repeated nearest-even threshold queries without changing
+  coefficient values or increasing stack use. A zero first radial derivative
+  now rejects a simple rim before constructing the other admission queries.
+  No public API, root-selection policy, dependency or allocation was added.
+- **Fresh matched evidence:** Baseline is `f6d9a2a`; geometry and commands are
+  unchanged between captures. Same environment/job as above, with `--affinity 3`.
+  Values below are microseconds, mean +/- 99.9% confidence half-width.
+
+  | Frozen workload | Before | Retained change |
+  | --- | ---: | ---: |
+  | Penetrating rims | 11,393.033 +/- 287.947 | 7,970.354 +/- 110.001 |
+  | Multi-radical contact | 26,363.528 +/- 368.507 | 25,415.384 +/- 129.939 |
+  | Ordinary parallel contact | 19.611 +/- 0.227 | 19.066 +/- 0.079 |
+  | Ordinary cylinder strict | 0.895 +/- 0.010 | 0.893 +/- 0.010 |
+  | Ordinary cylinder/capsule | 20.268 +/- 0.360 | 19.402 +/- 0.345 |
+  | Ordinary cylinder/capsule strict | 0.421 +/- 0.005 | 0.412 +/- 0.005 |
+  | Oblique interior capsule rim | 558.685 +/- 12.912 | 564.926 +/- 7.455 |
+  | Intersecting capsule core | 436.615 +/- 6.318 | 422.260 +/- 3.808 |
+
+  Artifacts: `artifacts/cylinder-cost-baseline`, `cylinder-cost-profile`,
+  `cylinder-cost-pruning`, `cylinder-cost-final` (combined experiment), and
+  `cylinder-cost-retained` (final source). Both matched captures completed all
+  sixteen child launches with zero exits and collections. Allocation summaries
+  report zero; one retained strict cylinder/capsule child reported 336
+  process-wide bytes over 1,048,576 operations. Preserve that counter record;
+  it does not identify an allocation in the contact solver. Small changes in
+  unchanged controls limit interpretation of the modest multi-radical delta.
+- **Second retained change (2026-09-30):** Exact sign queries use a root-local
+  dyadic change of variable inside the existing normalized Horner evaluator.
+  A certified cell-wide power-of-two bound keeps the virtual variable in
+  `[0,1]`; coefficient shifts are evaluated directly without a polynomial copy.
+  The original resultant bound still proves zero/nonzero termination. A fallback
+  keeps the previous worst-case stack/refinement bound whenever local scaling
+  would increase it. Negative normalization exponents and completely discarded
+  coefficients are handled explicitly. Point-refinement hints retain their
+  original scale, and borrowed numerator/denominator metadata remain unscaled.
+  No new solver, cache, dependency or public API was introduced.
+- **Second matched evidence:** Fresh baseline is committed `43de9db`; the same
+  eight frozen workloads and environment/job above are used before and after.
+  Values are microseconds, mean +/- 99.9% confidence half-width.
+
+  | Frozen workload | Before local scaling | With local scaling |
+  | --- | ---: | ---: |
+  | Penetrating rims | 7,808.041 +/- 47.540 | 7,066.599 +/- 138.217 |
+  | Multi-radical contact | 26,219.694 +/- 299.818 | 21,470.704 +/- 224.632 |
+  | Ordinary parallel contact | 19.764 +/- 0.333 | 18.628 +/- 0.086 |
+  | Ordinary cylinder strict | 0.906 +/- 0.013 | 0.889 +/- 0.006 |
+  | Ordinary cylinder/capsule | 20.373 +/- 0.130 | 19.210 +/- 0.200 |
+  | Ordinary cylinder/capsule strict | 0.426 +/- 0.001 | 0.418 +/- 0.002 |
+  | Oblique interior capsule rim | 553.774 +/- 14.819 | 552.398 +/- 7.443 |
+  | Intersecting capsule core | 435.926 +/- 5.307 | 422.410 +/- 6.086 |
+
+  Artifacts: `artifacts/cylinder-cost2-baseline`, `cylinder-cost2-profile` and
+  `cylinder-cost2-scaled`. Both captures complete all sixteen child launches
+  with zero exits, collections and process-wide bytes. The multi-radical mean
+  improves by about 18%; penetrating rims by about 9.5%. Unchanged controls also
+  move modestly, so these are matched workload deltas rather than a universal
+  speedup claim. Tiny-root regression fixtures independently reproduce the
+  previous excessive refinement and verify exact signs/cell containment.
+- **Third retained change (2026-09-30):** The existing cubic-pencil builder
+  narrows its construction workspace using the smaller of the caller's proven
+  capacity and the documented generic `32*b+128`-bit bound. The actual input
+  height includes optional direction invariants. Inputs and retained outputs
+  keep their original strides; shared polynomial addition already supports
+  independent source/output strides. This removes padded arithmetic and clears
+  for small invariants without another representation or arithmetic owner.
+  Caller stack allocations and worst-case capacity remain unchanged. Independent
+  BigInteger fixtures cover six-word scratch with sixteen-word outputs, exact
+  derivatives, a direction wider than the values, dirty padding and zero input.
+- **Third matched evidence:** Fresh baseline is committed `f5d4f43`, with the
+  same eight frozen workloads and environment/job above. Values are microseconds,
+  mean +/- 99.9% confidence half-width.
+
+  | Frozen workload | Before compact workspace | With compact workspace |
+  | --- | ---: | ---: |
+  | Penetrating rims | 6,894.589 +/- 87.459 | 5,251.505 +/- 53.626 |
+  | Multi-radical contact | 22,497.088 +/- 374.413 | 22,187.533 +/- 237.640 |
+  | Ordinary parallel contact | 19.922 +/- 0.218 | 20.270 +/- 0.343 |
+  | Ordinary cylinder strict | 0.919 +/- 0.012 | 0.893 +/- 0.006 |
+  | Ordinary cylinder/capsule | 19.702 +/- 0.200 | 19.428 +/- 0.173 |
+  | Ordinary cylinder/capsule strict | 0.420 +/- 0.004 | 0.415 +/- 0.003 |
+  | Oblique interior capsule rim | 565.759 +/- 8.205 | 546.317 +/- 4.842 |
+  | Intersecting capsule core | 445.729 +/- 5.331 | 439.319 +/- 5.463 |
+
+  Artifacts: `artifacts/cylinder-cost3-baseline` and `cylinder-cost3-compact`.
+  Both captures complete sixteen child launches with zero exits, collections
+  and process-wide bytes. Penetrating rims improve by about 24%; the
+  multi-radical confidence intervals overlap, so no gain is established there.
+  Unchanged controls drift modestly; these are matched workload measurements.
+- **Fourth retained change (2026-09-30):** The shared shifted-magnitude owner
+  limits same-sign addition to the shifted source's active support, then reuses
+  its existing carry helper. Lower limbs are unchanged; higher limbs need work
+  only while carry remains. The clipped support calculation uses wide integer
+  arithmetic and preserves destination-edge truncation and existing signs.
+  Zero/opposite-sign paths, disjoint storage, scratch bounds and allocations are
+  unchanged. Independent integer tests cover padded inputs, both signs,
+  cross-word shifts, carry beyond the source, input preservation and edge shifts.
+- **Fourth matched evidence:** Baseline is the third retained source, with the
+  same eight workloads and job. Values are microseconds, mean +/- 99.9%
+  confidence half-width.
+
+  | Frozen workload | Before bounded addition | With bounded addition |
+  | --- | ---: | ---: |
+  | Penetrating rims | 5,307.459 +/- 99.581 | 5,217.296 +/- 103.923 |
+  | Multi-radical contact | 22,446.355 +/- 459.394 | 21,817.759 +/- 374.135 |
+  | Ordinary parallel contact | 20.104 +/- 0.225 | 20.077 +/- 0.267 |
+  | Ordinary cylinder strict | 0.905 +/- 0.012 | 0.908 +/- 0.012 |
+  | Ordinary cylinder/capsule | 19.882 +/- 0.348 | 19.809 +/- 0.345 |
+  | Ordinary cylinder/capsule strict | 0.424 +/- 0.004 | 0.421 +/- 0.006 |
+  | Oblique interior capsule rim | 578.789 +/- 10.426 | 562.700 +/- 14.469 |
+  | Intersecting capsule core | 446.533 +/- 7.999 | 440.965 +/- 7.010 |
+
+  Artifacts: `artifacts/cylinder-cost4-baseline` and `cylinder-cost4-carry`.
+  The baseline has split timing modes and more interlaunch variation, so the
+  pooled 2.80% multi-radical gain was checked in reverse capture order. That
+  confirmation measures `22,512.525 +/- 440.588us` before bounded addition
+  versus `21,899.239 +/- 431.526us` with it, a 2.72% gain. All four prototype
+  launch means are below all four baseline launch means. Penetrating rims are
+  `5,385.256 +/- 80.650us` versus `5,271.773 +/- 101.187us` in the reversal;
+  no strong additional penetrating-rim gain is established. Report a modest
+  reproducible multi-radical workload improvement, not a universal speedup.
+  Artifacts: `artifacts/cylinder-cost4-baseline-confirm` and `-carry-confirm`.
+  The two broad captures complete sixteen children each and the two narrow
+  confirmations four each, all with zero exits, collections and process bytes.
+- **Fifth retained change (2026-10-01):** Simple rim admission already proves
+  the defining root's slope sign. Pass its negation through the existing
+  retained-sign query as the lower endpoint sign, avoiding two exact defining
+  polynomial evaluations whenever refinement is needed. A nonrational cell
+  isolating that simple root has opposite endpoint signs; its descendants
+  preserve that crossing. Rational discovery still exits through the existing
+  path, and repeated roots and generic callers retain exact endpoint evaluation.
+  The optional internal certificate adds no scratch or cache and leaves query
+  coefficients, metadata, ranking, refinement bounds and fallbacks unchanged.
+  Integer-oracle tests compare hinted and ordinary signs/cells for both slope
+  orientations, tiny roots, cancellation, undersized caller storage and dyadic
+  discovery followed by another query.
+- **Fifth matched evidence:** Fresh baseline is committed `e548376`. The same
+  eight frozen workloads and job above were captured before and after; a narrow
+  reverse-order baseline checks the modest gain. Values are microseconds, mean
+  +/- 99.9% confidence half-width.
+
+  | Frozen workload | Fresh baseline | Crossing reuse | Reverse baseline |
+  | --- | ---: | ---: | ---: |
+  | Penetrating rims | 5,195.724 +/- 85.085 | 5,166.120 +/- 73.863 | 5,321.807 +/- 95.625 |
+  | Multi-radical contact | 22,202.157 +/- 376.602 | 21,327.191 +/- 293.130 | 21,985.681 +/- 253.988 |
+
+  Artifacts: `artifacts/cylinder-cost5-baseline`, `-crossing` and
+  `-baseline-crossing-confirm`. Multi-radical cost improves by about 3% against
+  the reverse baseline; both prototype launch means are below both reversal
+  baseline means, and their pooled confidence intervals are disjoint.
+  Penetrating rims show no consistent additional improvement. Across the
+  captures, unchanged controls drift modestly, including an oblique capsule
+  rim increase; this is a modest measured workload gain, not a universal
+  speedup. All 36 child launches exit zero, with zero raw process bytes and
+  collections. The reverse baseline also agrees with an earlier two-case
+  baseline (`cylinder-cost5-baseline-confirm`, 21,833.825 +/- 342.645us).
+- **Sixth retained change (2026-10-01):** The existing shared magnitude
+  multiplier clips inputs to the retained product width and factors out their
+  whole zero low limbs before convolution. Limbs at or above the output width
+  cannot affect its low product; factoring `a+b` zero limbs leaves that cleared
+  output prefix zero and computes the same truncated product in the suffix.
+  The subtraction-based width guard avoids overflow when adding offsets. Both
+  prefix scans are bounded by output width, and the original convolution,
+  sparse carry and disjoint-output contracts remain intact. No scratch,
+  representation, dependency or helper signature is added. Shared integer
+  oracles cover full/truncated products, dirty output, sparse interior carry,
+  zero/empty inputs in either position, same-input squares and source preservation.
+- **Sixth matched evidence:** Baseline is the fifth retained source. Same eight
+  workloads, environment and job; values are microseconds, mean +/- 99.9%
+  confidence half-width.
+
+  | Frozen workload | Before factoring | With factoring |
+  | --- | ---: | ---: |
+  | Penetrating rims | 5,166.120 +/- 73.863 | 4,613.120 +/- 98.457 |
+  | Multi-radical contact | 21,327.191 +/- 293.130 | 15,402.844 +/- 613.027 |
+  | Ordinary parallel contact | 20.123 +/- 0.269 | 19.443 +/- 0.253 |
+  | Ordinary cylinder strict | 0.910 +/- 0.014 | 0.902 +/- 0.010 |
+  | Ordinary cylinder/capsule | 20.083 +/- 0.368 | 17.850 +/- 0.268 |
+  | Ordinary cylinder/capsule strict | 0.420 +/- 0.007 | 0.415 +/- 0.005 |
+  | Oblique interior capsule rim | 579.012 +/- 12.377 | 555.532 +/- 7.609 |
+  | Intersecting capsule core | 443.227 +/- 8.604 | 430.512 +/- 6.093 |
+
+  Artifacts: `artifacts/cylinder-cost5-crossing` and `-prefix`. The pooled
+  multi-radical gain is about 28%, with launch means of 14.718 / 16.149ms and
+  several detected timing modes; report that variation. Even the slower launch
+  remains substantially faster than either baseline launch. Penetrating rims
+  improve by about 11%. All sixteen prototype children exit zero with zero raw
+  process bytes and collections.
+  Four existing nonzero-low-limb controls check the shared helper's overhead:
+
+  | Existing workload | Before factoring | With factoring |
+  | --- | ---: | ---: |
+  | `RadialProjectionWorstCaseComparison` | 3.802 +/- 0.053 | 3.792 +/- 0.064 |
+  | `TrianglePairTinyAxisFallback` | 10.699 +/- 0.127 | 10.580 +/- 0.177 |
+  | `ArbitraryRawCylinderIntersectionInterval`, Scale=1 | 2.944 +/- 0.038 | 2.983 +/- 0.038 |
+  | Same interval, Scale=100000 | 7.373 +/- 0.096 | 7.375 +/- 0.096 |
+
+  No meaningful overhead regression is established in these controls. Artifacts:
+  `artifacts/cylinder-cost6-controls-before-box`, `-before-axis`, `-prefix-box`
+  and `-prefix-axis`; reuse these fixtures instead of adding benchmark scaffolding.
+  A reverse-order two-case baseline without factoring measures penetrating rims
+  at 5,101.971 +/- 76.136us and multi-radical contact at 20,956.847 +/- 339.380us
+  (`cylinder-cost5-crossing-prefix-confirm`). The final factoring-source
+  confirmation measures 4,497.877 +/- 56.579us and 14,388.334 +/- 117.786us
+  (`cylinder-cost5-prefix-confirm`). Both captures support substantial gains;
+  the multi-radical reduction ranges about 26.5--31.3% against that reverse
+  baseline. The original broad prototype has greater interlaunch variation,
+  so retain both reports rather than treating the final mean as a guarantee.
+  All eight confirmation children exit zero with zero collections. One final
+  penetrating-rim child reports 336 process-wide bytes across 128 operations,
+  while its paired child, both multi-radical children and JSON summaries report
+  zero. Preserve that discrepancy; it does not establish a solver allocation.
+  Direct warmed calling-thread guards remain the solver's allocation gate.
+- **Rejected experiments:** Ranking values before full radial/cap admission
+  skipped only potential positive nonwinners, preserving negative separation
+  candidates. It added comparisons for inadmissible roots and did not resolve
+  the multi-radical cost; that selection-policy change was removed. The retained
+  patch keeps the original exact ranking order and borrowed-root contracts.
+  A third-pass experiment reused local dyadic scaling for byte-refinement
+  endpoint certificates while preserving the absolute error quantum and exact
+  fallback. It passed 153 focused exact tests but produced no measurable gain:
+  penetrating rims were `5,229.851 +/- 61.943us` and multi-radical contact
+  `22,448.588 +/- 268.844us`, compared with the compact-workspace column above.
+  All sixteen child launches passed with zero allocations/collections. That
+  runtime/test experiment was removed; do not repeat it as a new optimization.
+  Artifact: `artifacts/cylinder-cost3-refinement`.
+  A fifth-pass square-free root-order shortcut obtained slope signs from parity
+  instead of exact derivative queries. Its full capture measured multi-radical
+  cost at 22,124.165 +/- 413.197us versus 22,202.157 +/- 376.602us: no established
+  gain, so the additional API/tests were removed (`cylinder-cost5-slope`).
+  A dual-polynomial square shortcut replaced the second equal cross-product
+  with whole-span doubling. An initial apparent gain did not survive reversal:
+  21,801.680 +/- 389.358us with it versus 21,833.825 +/- 342.645us without it;
+  penetrating rims became slower. That runtime/test experiment was removed
+  (`cylinder-cost5-dual`, `-dual-confirm` and `-baseline-confirm`). Do not
+  repeat these as newly demonstrated optimizations.
+  Skipping the normalized Horner evaluator's initial zero multiplication and
+  zero-coefficient assembly passed 212 focused tests, but its 14,932.604 +/-
+  642.645us multi-radical result overlaps the factoring capture's range.
+  The extra branches were removed (`cylinder-cost5-horner`); no further gain
+  is established from that experiment.
+- **Validation:** Fresh source-backed solution builds pass in both repositories
+  for `Release` and `ReleaseLean`, targeting `netstandard2.1` and `net8.0`, with
+  zero warnings/errors. All tests pass with no skips or new coverage exclusions;
+  both Chronicler suites also pass all 49 tests. Exact covered/total counts from
+  ReportGenerator are below. The core suites include the warmed zero-allocation,
+  1 MiB worker stack / live 64 KiB caller-buffer, full-domain, deterministic tie
+  and nearest-even rounding gates. New tests independently check full-limb
+  summation carry, padded normal coefficients, input preservation, zero-radial
+  lazy admission, relative precision for tiny/zero-lower cells, low-bit
+  cancellation, negative normalization heights and upper-endpoint capacity.
+  Compact construction fixtures also check padded outputs, exact derivatives,
+  direction-dominant input height and canonical zero with dirty storage.
+  Shared arithmetic fixtures check carry beyond active support and retained
+  destination-edge behavior against independent integer results.
+  Crossing fixtures additionally verify exported nonzero endpoints beside an
+  excluded zero and another dyadic root, while shared multiplication fixtures
+  verify full/truncated zero-prefix products and same-input squares.
+  Independent correctness/resource and Ponytail reviews found no actionable
+  issues in the retained changes.
+
+  | Repository / configuration | Tests passed | Lines | Branches | Methods |
+  | --- | ---: | ---: | ---: | ---: |
+  | FixedMathSharp Release | 4,080 | 52,673 / 52,673 | 12,118 / 12,118 | 3,934 / 3,934 |
+  | FixedMathSharp ReleaseLean | 4,059 | 52,766 / 52,766 | 12,118 / 12,118 | 3,930 / 3,930 |
+  | Gravitas Release | 4,363 | 56,091 / 56,091 | 16,224 / 16,224 | 5,370 / 5,370 |
+  | Gravitas ReleaseLean | 4,304 | 56,091 / 56,091 | 16,224 / 16,224 | 5,370 / 5,370 |
+
+  Every reported method is fully covered. Each repository's
+  `artifacts/cylinder-cost6-Release*-tests.log`,
+  `-coverage` and `-report/Summary.json` retain the raw validation evidence.
+  The benchmark catalog lists successfully. The first-pass broad smoke passed
+  all 459 cases (`artifacts/cylinder-cost-smoke`). The fresh second-pass native
+  capture and final ordinary confirmation both pass all 459 cases, with complete
+  results and zero child/launcher exit codes (`artifacts/cylinder-cost2-native/broad`
+  and `cylinder-cost2-smoke-confirm`). The intervening failure is recorded below.
+  The third-pass ordinary smoke also completes all 459 child launches with
+  complete statistics, zero child/launcher exits and no native fault
+  (`artifacts/cylinder-cost3-smoke`).
+  The final fourth-pass source-backed smoke also passes all 459 child launches,
+  with 459 complete statistics across 25 reports, zero child/launcher exits and
+  no native fault (`artifacts/cylinder-cost4-smoke`).
+  The final sixth-pass source-backed smoke likewise passes all 459 child
+  launches, with 459 complete statistics across 25 reports, zero child/launcher
+  exits and no native fault (`artifacts/cylinder-cost6-smoke`). The fresh catalog
+  and both retained-source EventPipe profile children also pass.
+  These `all -j Short --iterationTime 10 --affinity 3` runs verify execution
+  only; performance claims use the separate matched captures above.
+- **Native smoke follow-up:** The initial second-pass broad run failed two
+  children with `0xC0000005` in the shared finite-shape setup, at
+  `GetShiftedMagnitudeWord` during unchanged value/derivative construction.
+  Tangency and zero-core capsule selections were affected; the latter failed
+  while setup checked a separated-rim fixture. There were no workload results
+  for those children, and the launcher correctly returned failure. Preserve
+  `artifacts/cylinder-cost2-smoke`; it is not a successful smoke capture.
+  A twelve-child ordinary rerun, forty-eight-child process-scoped CDB rerun,
+  full 459-child CDB capture and final ordinary 459-child confirmation all pass,
+  with no AV dump. Artifacts:
+  `artifacts/cylinder-cost2-smoke-repro` and `cylinder-cost2-native`.
+  Safe-span/resource review found no corruption path, and the completed design
+  records an unexplained pre-optimization AV on 2026-09-26. These reruns do not
+  establish a JIT/harness cause or explain the new failures. Keep this native
+  follow-up open; capture the faulting instruction, registers and span backing
+  storage on recurrence. No runtime source or JIT/GC settings were changed
+  during this investigation.
+- **Impact:** A few difficult oblique contacts can dominate a fixed frame.
+  At 32 FPS, the entire simulation has 31.25 ms per step: one latest penetrating
+  fixture consumes about 14% of that time and one multi-radical fixture about
+  46%, before other collision queries, solver and simulation work. These are
+  illustrative single-thread costs, not a universal acceptance threshold.
+  No observed game workload or contact-count budget establishes acceptability.
+  Exact determinism, minimum-depth selection and rounding remain mandatory.
+- **Evidence required to reopen:** The sixth-pass retained-source profile places about
+  58% of multi-radical cost in cap-root selection, 37% in derivative construction,
+  34% in side features, 15% in exact root refinement and 15% in sign queries.
+  Inclusive costs overlap and must not be summed. The fourth-pass profile had
+  approximately 62 / 25 / 28 / 37 / 31% in those respective owners; shared
+  magnitude multiplication falls from about 53% to 40% of sampled time.
+  These are sampled shares, not separately measured phase-speedup claims.
+  Penetrating rims retain about 54% cap selection, 31% sign queries, 29%
+  derivative construction and 20% side features. Focus the next pass on exact
+  derivative construction and side-family polynomial work, preserving width,
+  ranking, certification and live stack bounds. Avoid retaining another large
+  polynomial cache across sign queries or reviving the rejected whole-span
+  square shortcut without new evidence. Artifacts:
+  `artifacts/cylinder-cost6-after-profile` and `-after-profile-summary.json`;
+  the earlier comparison is `cylinder-cost4-after-profile`.
+  Existing profiles already removed repeated
+  GCDs/chains, redundant normals and worst-case mapping refinement; do not
+  repeat those experiments or add another approximate fallback.
+
+In coordinated source mode, reproduce the two expensive positive contacts:
+
+```powershell
+$env:UseLocalLsfStack = 'true'
+$env:BuildInParallel = 'false'
+$env:UseSharedCompilation = 'false'
+$env:DOTNET_PROCESSOR_COUNT = '2'
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 -p:UseLocalLsfStack=true -p:UseSharedCompilation=false -m:1
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll rigid-finite-shape-relation --filter '*PenetratingRimsCylinderCylinder*' '*MultiRadicalCylinderCylinder*' --warmupCount 3 --iterationCount 12 --launchCount 2 --affinity 3 --keepFiles --exporters json --artifacts artifacts/benchmarks/cylinder-pair-cost
+```
+
+Serialize runs with other build/test/profile work. Inspect each child exit and
+GC record as well as the aggregate report. Recheck shared cylinder/capsule and
+parallel controls for any retained optimization.

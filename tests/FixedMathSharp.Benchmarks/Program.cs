@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BenchmarkDotNet.ConsoleArguments;
 using BenchmarkDotNet.ConsoleArguments.ListBenchmarks;
+using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
@@ -103,6 +104,28 @@ internal static class Program
                     !report.Success || report.ExecuteResults.Any(execution =>
                         !execution.IsSuccess || execution.ExitCode != 0)))
                 return 1;
+
+            // BDN selects the final launch's GC stats and rounds bytes/op.
+            // A zero summary can therefore hide positive raw process counters.
+            foreach (BenchmarkReport report in summary.Reports)
+            {
+                if (report.GcStats.GetBytesAllocatedPerOperation(report.BenchmarkCase) != 0)
+                    continue;
+                foreach (var execution in report.ExecuteResults)
+                {
+                    foreach (string line in execution.PrefixedLines)
+                    {
+                        if (!line.StartsWith("// GC: ", StringComparison.Ordinal))
+                            continue;
+                        GcStats stats = GcStats.Parse(line);
+                        long? bytes = stats.GetTotalAllocatedBytes(excludeAllocationQuantumSideEffects: false);
+                        if (bytes > 0)
+                            Console.Error.WriteLine($"Memory summary is zero for {report.BenchmarkCase.DisplayInfo}, " +
+                                $"but process {execution.ProcessId} reported {bytes} bytes / {stats.TotalOperations} operations. " +
+                                "These are raw process counters; retain the child log before assigning allocation attribution.");
+                    }
+                }
+            }
         }
 
         return hasSummary || allowEmpty ? 0 : 1;

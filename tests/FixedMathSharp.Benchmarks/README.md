@@ -72,19 +72,23 @@ help, version and information commands return zero. This checks the results expo
 retain logs and check expected launches before using a capture as performance
 evidence, including any separate diagnoser processes.
 
-Run the launcher regression checks with PowerShell 7:
+### Interpret allocation results
 
-```powershell
-pwsh -NoProfile -File tests/FixedMathSharp.Benchmarks/Verify-ExitCodes.ps1
-```
+BenchmarkDotNet 0.15.8 takes memory statistics from the final launch and rounds
+allocated bytes per operation to an integer. A zero table or JSON summary can
+therefore conceal an earlier positive launch or a small positive final count.
+The launcher warns when a zero summary hides positive raw child counters,
+including the benchmark, PID, byte total and operation count. The warning
+preserves BenchmarkDotNet's summaries and the successful exit status.
 
-The script builds the real launcher with small synthetic benchmarks in an
-isolated directory under `artifacts/benchmark-exit-codes`. It checks child and
-partial-launch failures, a nonzero exit after results, critical validation,
-malformed arguments, empty selections, successful execution and informational
-routing. It uses the benchmark project's
-BenchmarkDotNet version and adds no fixtures to the regular benchmark catalog.
-Its generated files and logs are disposable; the script recreates them.
+On .NET 8 these are process-wide counters from a separate memory workload pass,
+so other threads can contribute. Retain every raw `// GC:` record and use warmed
+calling-thread guards plus allocator/stack evidence before attributing bytes to
+the measured operation. The [finite-shape investigation](../../docs/feature-work/done/2026-09-25-cylinder-pair-contact-design.md#benchmark-diagnostic-hardening-2026-10-01)
+records the reporting mechanism, paired-counter controls and native capture
+procedure. For an intermittent native failure, `--keepFiles` alone is
+insufficient: archive the generated child directory before a later build
+reuses it.
 
 ### Fast development check
 
