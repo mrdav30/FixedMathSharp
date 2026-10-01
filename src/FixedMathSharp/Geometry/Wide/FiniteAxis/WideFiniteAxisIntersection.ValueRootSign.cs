@@ -145,20 +145,38 @@ internal static partial class WideFiniteAxisIntersection
         int rootBits = GetFiniteRootCoefficientBits(root.Coefficients, n + 1);
         int queryBits = GetFiniteRootCoefficientBits(coefficients, degree + 1);
         int queryCountBits = GetFiniteValueCeilingLog2(degree + 1);
+        // The entire cell satisfies alpha <= 2^-k: N+1 <= 2^bitLength(N).
+        // Evaluate z=2^k*alpha in [0,1], with virtual integer coefficients
+        // c[i]*2^((degree-i)*k). No coefficient or retained cell is rewritten.
+        int variableShift = Math.Max(0, root.DenominatorShift - GetFiniteRootBits(root.LowerNumerator));
+        int evaluationBits = 0;
+        for (int index = 0; index <= degree; index++)
+            if (signs[index] != 0)
+                evaluationBits = Math.Max(evaluationBits,
+                    GetFiniteRootBits(coefficients.Slice(index * inputWords, inputWords))
+                    + (degree - index) * variableShift);
+        int normalizationBits = evaluationBits - degree * variableShift;
+        // Scaling also needs k extra cell bits. Use it only when the final
+        // refinement/scratch bound does not exceed the original one.
+        if (normalizationBits + variableShift > queryBits)
+        {
+            variableShift = 0;
+            evaluationBits = normalizationBits = queryBits;
+        }
         // If Q(alpha)!=0, the integer resultant of Q and alpha's primitive
         // minimal polynomial has magnitude >=1. Mahler measure of that
         // factor is <=M(F)<=sqrt(n+1)*height(F). Since alpha is in (0,1],
         // |Q(alpha)| > 2^-nonzeroBits. No irreducible factor is constructed.
         int nonzeroBits = (n - 1) * (queryBits + queryCountBits)
             + degree * (rootBits + GetFiniteValueCeilingLog2(n + 1));
-        // Evaluate Q/2^queryBits, so ordinary separated signs need only a
-        // small relative precision even when Q has very large coefficients.
-        // The normalized nonzero bound gains queryBits. Consequently the
-        // final root shift and largest accumulator are exactly the same as
-        // for unnormalized Horner; only the early passes become smaller.
-        int certifiedPrecision = nonzeroBits + queryBits + queryCountBits + 4;
+        // P(z)/2^evaluationBits = Q(alpha)/2^normalizationBits, so the same
+        // resultant bound applies. normalizationBits may be negative. For an
+        // integer defining polynomial alpha>2^(-rootBits-1), hence k<=rootBits;
+        // its leading query term gives normalizationBits>=1-degree*k. The
+        // resulting certified precision is still strictly positive.
+        int certifiedPrecision = nonzeroBits + normalizationBits + queryCountBits + 4;
         int maximumShift = Math.Max(root.DenominatorShift,
-            certifiedPrecision + 2 * queryCountBits);
+            certifiedPrecision + 2 * queryCountBits + variableShift);
         Span<ulong> cell = stackalloc ulong[(maximumShift + 127) / 64];
         CopyFiniteRootMagnitude(root.LowerNumerator, cell);
         var refined = new FiniteAxisValueRoot
@@ -174,7 +192,7 @@ internal static partial class WideFiniteAxisIntersection
         bool finished;
         do
         {
-            RefineFiniteValueRoot(ref refined, precision + 2 * queryCountBits);
+            RefineFiniteValueRoot(ref refined, precision + 2 * queryCountBits + variableShift);
             if (retainRefinement)
             {
                 int activeWords = GetRoundedCylinderWideLength(refined.LowerNumerator);
@@ -203,7 +221,7 @@ internal static partial class WideFiniteAxisIntersection
                 return EvaluateFiniteRootPolynomial(coefficients, signs,
                     refined.LowerNumerator, refined.DenominatorShift, 0);
             result = GetFiniteValueApproximateSign(refined.LowerNumerator, refined.DenominatorShift,
-                coefficients, signs, precision, queryBits);
+                coefficients, signs, precision, evaluationBits, variableShift);
             finished = result != 0 || precision == certifiedPrecision;
             precision = Math.Min(certifiedPrecision, 2 * precision);
         } while (!finished);
@@ -211,22 +229,25 @@ internal static partial class WideFiniteAxisIntersection
     }
 
     private static int GetFiniteValueApproximateSign(ReadOnlySpan<ulong> numerator, int shift,
-        ReadOnlySpan<ulong> coefficients, ReadOnlySpan<sbyte> signs, int precision, int coefficientBits) =>
+        ReadOnlySpan<ulong> coefficients, ReadOnlySpan<sbyte> signs, int precision, int coefficientBits,
+        int variableShift = 0) =>
         GetFiniteValueApproximateSign(numerator, shift, coefficients, signs, precision, coefficientBits,
-            out _, out _);
+            out _, out _, variableShift);
 
     private static int GetFiniteValueApproximateSign(ReadOnlySpan<ulong> numerator, int shift,
         ReadOnlySpan<ulong> coefficients, ReadOnlySpan<sbyte> signs, int precision, int coefficientBits,
-        out uint leadingMagnitude, out int magnitudeBits)
+        out uint leadingMagnitude, out int magnitudeBits, int variableShift = 0)
     {
         int degree = signs.Length - 1;
         int inputWords = coefficients.Length / signs.Length;
+        shift -= variableShift;
         int words = (precision + GetFiniteValueCeilingLog2(degree + 1) + 127) / 64;
         Span<ulong> result = stackalloc ulong[words];
         Span<ulong> product = stackalloc ulong[words + (shift + 64) / 64];
         result.Clear();
         int resultSign = 0;
-        // Evaluate Q/2^coefficientBits at the supplied dyadic point in [0,1].
+        // Evaluate the virtual polynomial P/2^coefficientBits at the supplied
+        // dyadic point in [0,1]. Point-refinement callers use variableShift=0.
         // Coefficient quantization contributes <degree+1 units and product
         // truncation <degree units. A nonzero result certifies the point sign;
         // zero alone is uncertain, and midpoint refinement then evaluates exactly.
@@ -244,10 +265,11 @@ internal static partial class WideFiniteAxisIntersection
             if (GetRoundedCylinderWideLength(result) == 0)
                 resultSign = 0;
             ReadOnlySpan<ulong> coefficient = coefficients.Slice(index * inputWords, inputWords);
-            if (precision >= coefficientBits)
+            int retainedBits = precision - coefficientBits + (degree - index) * variableShift;
+            if (retainedBits >= 0)
             {
                 WideArithmetic.AddShiftedSignedMagnitude(coefficient, signs[index],
-                    precision - coefficientBits, result, ref resultSign);
+                    retainedBits, result, ref resultSign);
             }
             else
             {
@@ -255,8 +277,10 @@ internal static partial class WideFiniteAxisIntersection
                 // coefficient fits the compact product buffer. Only 0..63
                 // remaining low bits need shifting. Magnitude truncation
                 // followed by the original sign is truncation toward zero.
-                int discarded = coefficientBits - precision;
-                CopyFiniteRootMagnitude(coefficient[(discarded / 64)..], product);
+                int discarded = -retainedBits;
+                // Virtual normalization can discard the complete stored
+                // coefficient; an empty source quantizes to zero exactly.
+                CopyFiniteRootMagnitude(coefficient[Math.Min(discarded / 64, inputWords)..], product);
                 ShiftRoundedCylinderWideRight(product, discarded % 64);
                 int coefficientSign = GetRoundedCylinderWideLength(product) == 0 ? 0 : signs[index];
                 WideArithmetic.AddShiftedSignedMagnitude(product, coefficientSign, 0, result, ref resultSign);

@@ -119,6 +119,89 @@ public sealed class FiniteAxisValueRootRetainedSignTests
         Assert.Equal(retainedNumerator, cell[0]);
     }
 
+    [Theory]
+    [InlineData(65, false)]
+    [InlineData(257, false)]
+    [InlineData(65, true)]
+    public void TinyRootSeparatedSign_UsesRelativeCellPrecision(int initialShift, bool zeroLower)
+    {
+        // alpha=2^(-(2q-1)/2), so 2^q*alpha-1=sqrt(2)-1>0.
+        // Scaling the same separated geometry must not require q additional
+        // bisections just because the linear coefficient has q more bits.
+        int power = 2 * initialShift - 1;
+        Encode(new[] { -BigInteger.One, BigInteger.Zero, BigInteger.One << power },
+            out ulong[] defining, out sbyte[] definingSigns);
+        ulong[] cell = new ulong[16];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            0, cell, out FiniteAxisValueRoot root));
+        Assert.Equal(initialShift, root.DenominatorShift);
+        if (zeroLower)
+        {
+            // The wider cell (0,2^-(q-1)) still isolates this positive root.
+            // Its zero numerator must not be mistaken for a zero root.
+            cell.AsSpan().Clear();
+            root.DenominatorShift--;
+            AssertSquareRootCell(root, power);
+        }
+        Encode(new[] { -BigInteger.One, BigInteger.One << initialShift },
+            out ulong[] query, out sbyte[] querySigns);
+        Assert.Equal(1, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns));
+        Assert.InRange(root.DenominatorShift, initialShift + 1, initialShift + 40);
+        AssertSquareRootCell(root, power);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void TinyRootCancellation_PreservesLowCoefficientBits(int offset)
+    {
+        const int power = 129;
+        Encode(new[] { -BigInteger.One, BigInteger.Zero, BigInteger.One << power },
+            out ulong[] defining, out sbyte[] definingSigns);
+        ulong[] cell = new ulong[16];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            0, cell, out FiniteAxisValueRoot root));
+        BigInteger scale = (BigInteger.One << 193) + 17;
+        // The large terms cancel exactly at alpha. Neither discarded low
+        // bits nor a negative effective normalization may turn uncertainty
+        // into equality before the certified nonzero bound is reached.
+        Encode(new[] { -scale + offset, BigInteger.Zero, scale << power },
+            out ulong[] query, out sbyte[] querySigns);
+        ulong[] originalCell = (ulong[])cell.Clone();
+        ulong[] originalQuery = (ulong[])query.Clone();
+        int initialShift = root.DenominatorShift;
+        Assert.Equal(offset, WideFiniteAxisIntersection.GetSignAtFiniteValueRoot(root, query, querySigns));
+        Assert.Equal(originalCell, cell);
+        Assert.Equal(initialShift, root.DenominatorShift);
+        Assert.Equal(offset, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns));
+        Assert.Equal(originalQuery, query);
+        AssertSquareRootCell(root, power);
+    }
+
+    [Fact]
+    public void TinyRootQueries_HandleNegativeHeightAndCompletelyDiscardedCoefficients()
+    {
+        const int power = 129;
+        Encode(new[] { -BigInteger.One, BigInteger.Zero, BigInteger.One << power },
+            out ulong[] defining, out sbyte[] definingSigns);
+        ulong[] cell = new ulong[16];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            0, cell, out FiniteAxisValueRoot root));
+        BigInteger[][] queries =
+        {
+            new BigInteger[] { 0, 0, 1 }, // Q(alpha)=2^-129, with negative effective height.
+            new[] { BigInteger.One, BigInteger.Zero, BigInteger.Zero, BigInteger.Zero, BigInteger.One << power },
+            new BigInteger[] { 1, 0, 1 } // Constant-dominated query keeps the original normalization.
+        };
+        foreach (BigInteger[] query in queries)
+        {
+            Encode(query, out ulong[] values, out sbyte[] signs);
+            Assert.Equal(1, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, values, signs));
+            AssertSquareRootCell(root, power);
+        }
+    }
+
     private static void AssertSquareRootCell(FiniteAxisValueRoot root, int definingPower = 1)
     {
         Assert.False(root.IsRational);

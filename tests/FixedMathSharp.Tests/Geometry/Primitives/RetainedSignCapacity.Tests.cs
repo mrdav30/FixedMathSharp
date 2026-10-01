@@ -43,6 +43,25 @@ public sealed class RetainedSignCapacityTests
         AssertCell(root, numerator, denominator);
     }
 
+    [Fact]
+    public void UnscaledQuery_DoesNotRetainAnOverflowingUpperEndpoint()
+    {
+        // alpha lies just below1/16. Q=(16x-1)(3x+4) is negative there;
+        // its constant-dominated scaled height selects unscaled evaluation.
+        // At shift68 the lower numerator fits, but its upper endpoint does not.
+        ulong[] coefficients = { 0, 1UL << 36, 16, 1UL << 40 };
+        ulong[] cell = new ulong[1];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(coefficients,
+            new sbyte[] { -1, 1 }, 0, cell, out var root));
+        BigInteger numerator = BigInteger.One << 100;
+        BigInteger denominator = 16 * (numerator + 1);
+        int expected = (-4 * denominator * denominator + 61 * numerator * denominator + 48 * numerator * numerator).Sign;
+        Assert.Equal(-1, expected);
+        Assert.Equal(expected, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(
+            ref root, new ulong[] { 4, 61, 48 }, new sbyte[] { -1, 1, 1 }));
+        AssertCell(root, numerator, denominator);
+    }
+
     private static void AssertCell(FiniteAxisValueRoot root, BigInteger numerator, BigInteger denominator)
     {
         Assert.False(root.IsRational);

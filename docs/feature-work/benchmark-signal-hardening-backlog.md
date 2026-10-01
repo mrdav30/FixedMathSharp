@@ -47,9 +47,9 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ### Complete nonparallel cylinder contacts are expensive
 
-- **Status / priority:** Partially improved, high; first throughput pass on
-  2026-09-30 reduces penetrating-rim cost by about 30%. The multi-radical case
-  remains about 25 ms. Originally measured on 2026-09-26 while closing
+- **Status / priority:** Partially improved, high; the two throughput passes on
+  2026-09-30 reduce penetrating-rim cost to about 7 ms and multi-radical cost to
+  about 21.5 ms. Originally measured on 2026-09-26 while closing
   FMS-Issue-024. The complete exact relation is correct, but its general positive
   contacts have not met a high-volume physics budget. This is distinct from
   the explicitly accepted zero-radius dispatch trade-off.
@@ -105,6 +105,38 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   process-wide bytes over 1,048,576 operations. Preserve that counter record;
   it does not identify an allocation in the contact solver. Small changes in
   unchanged controls limit interpretation of the modest multi-radical delta.
+- **Second retained change (2026-09-30):** Exact sign queries use a root-local
+  dyadic change of variable inside the existing normalized Horner evaluator.
+  A certified cell-wide power-of-two bound keeps the virtual variable in
+  `[0,1]`; coefficient shifts are evaluated directly without a polynomial copy.
+  The original resultant bound still proves zero/nonzero termination. A fallback
+  keeps the previous worst-case stack/refinement bound whenever local scaling
+  would increase it. Negative normalization exponents and completely discarded
+  coefficients are handled explicitly. Point-refinement hints retain their
+  original scale, and borrowed numerator/denominator metadata remain unscaled.
+  No new solver, cache, dependency or public API was introduced.
+- **Second matched evidence:** Fresh baseline is committed `43de9db`; the same
+  eight frozen workloads and environment/job above are used before and after.
+  Values are microseconds, mean +/- 99.9% confidence half-width.
+
+  | Frozen workload | Before local scaling | With local scaling |
+  | --- | ---: | ---: |
+  | Penetrating rims | 7,808.041 +/- 47.540 | 7,066.599 +/- 138.217 |
+  | Multi-radical contact | 26,219.694 +/- 299.818 | 21,470.704 +/- 224.632 |
+  | Ordinary parallel contact | 19.764 +/- 0.333 | 18.628 +/- 0.086 |
+  | Ordinary cylinder strict | 0.906 +/- 0.013 | 0.889 +/- 0.006 |
+  | Ordinary cylinder/capsule | 20.373 +/- 0.130 | 19.210 +/- 0.200 |
+  | Ordinary cylinder/capsule strict | 0.426 +/- 0.001 | 0.418 +/- 0.002 |
+  | Oblique interior capsule rim | 553.774 +/- 14.819 | 552.398 +/- 7.443 |
+  | Intersecting capsule core | 435.926 +/- 5.307 | 422.410 +/- 6.086 |
+
+  Artifacts: `artifacts/cylinder-cost2-baseline`, `cylinder-cost2-profile` and
+  `cylinder-cost2-scaled`. Both captures complete all sixteen child launches
+  with zero exits, collections and process-wide bytes. The multi-radical mean
+  improves by about 18%; penetrating rims by about 9.5%. Unchanged controls also
+  move modestly, so these are matched workload deltas rather than a universal
+  speedup claim. Tiny-root regression fixtures independently reproduce the
+  previous excessive refinement and verify exact signs/cell containment.
 - **Rejected experiment:** Ranking values before full radial/cap admission
   skipped only potential positive nonwinners, preserving negative separation
   candidates. It added comparisons for inadmissible roots and did not resolve
@@ -117,30 +149,56 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   ReportGenerator are below. The core suites include the warmed zero-allocation,
   1 MiB worker stack / live 64 KiB caller-buffer, full-domain, deterministic tie
   and nearest-even rounding gates. New tests independently check full-limb
-  summation carry, padded normal coefficients, input preservation and zero-radial
-  lazy admission. Independent correctness/resource and Ponytail reviews found
-  no actionable issues in the retained patch.
+  summation carry, padded normal coefficients, input preservation, zero-radial
+  lazy admission, relative precision for tiny/zero-lower cells, low-bit
+  cancellation, negative normalization heights and upper-endpoint capacity.
+  Independent correctness/resource and Ponytail reviews found no actionable
+  issues in either retained patch.
 
   | Repository / configuration | Tests passed | Lines | Branches | Methods |
   | --- | ---: | ---: | ---: | ---: |
-  | FixedMathSharp Release | 4,041 | 52,633 / 52,633 | 12,090 / 12,090 | 3,934 / 3,934 |
-  | FixedMathSharp ReleaseLean | 4,020 | 52,726 / 52,726 | 12,090 / 12,090 | 3,930 / 3,930 |
+  | FixedMathSharp Release | 4,049 | 52,646 / 52,646 | 12,096 / 12,096 | 3,934 / 3,934 |
+  | FixedMathSharp ReleaseLean | 4,028 | 52,739 / 52,739 | 12,096 / 12,096 | 3,930 / 3,930 |
   | Gravitas Release | 4,363 | 56,091 / 56,091 | 16,224 / 16,224 | 5,370 / 5,370 |
   | Gravitas ReleaseLean | 4,304 | 56,091 / 56,091 | 16,224 / 16,224 | 5,370 / 5,370 |
 
-  Each repository's `artifacts/cylinder-cost-Release*-tests.log`,
+  Each repository's `artifacts/cylinder-cost2-Release*-tests.log`,
   `-coverage` and `-report/Summary.json` retain the raw validation evidence.
-  The benchmark catalog lists successfully, and all 459 cases pass the broad
-  out-of-process `all -j Short --iterationTime 10 --affinity 3` smoke run.
-  Its 10 ms iterations verify execution only; performance claims use the
-  separate matched captures above. Artifacts: `artifacts/cylinder-cost-smoke`.
+  The benchmark catalog lists successfully. The first-pass broad smoke passed
+  all 459 cases (`artifacts/cylinder-cost-smoke`). The fresh second-pass native
+  capture and final ordinary confirmation both pass all 459 cases, with complete
+  results and zero child/launcher exit codes (`artifacts/cylinder-cost2-native/broad`
+  and `cylinder-cost2-smoke-confirm`). The intervening failure is recorded below.
+  These `all -j Short --iterationTime 10 --affinity 3` runs verify execution
+  only; performance claims use the separate matched captures above.
+- **Native smoke follow-up:** The initial second-pass broad run failed two
+  children with `0xC0000005` in the shared finite-shape setup, at
+  `GetShiftedMagnitudeWord` during unchanged value/derivative construction.
+  Tangency and zero-core capsule selections were affected; the latter failed
+  while setup checked a separated-rim fixture. There were no workload results
+  for those children, and the launcher correctly returned failure. Preserve
+  `artifacts/cylinder-cost2-smoke`; it is not a successful smoke capture.
+  A twelve-child ordinary rerun, forty-eight-child process-scoped CDB rerun,
+  full 459-child CDB capture and final ordinary 459-child confirmation all pass,
+  with no AV dump. Artifacts:
+  `artifacts/cylinder-cost2-smoke-repro` and `cylinder-cost2-native`.
+  Safe-span/resource review found no corruption path, and the completed design
+  records an unexplained pre-optimization AV on 2026-09-26. These reruns do not
+  establish a JIT/harness cause or explain the new failures. Keep this native
+  follow-up open; capture the faulting instruction, registers and span backing
+  storage on recurrence. No runtime source or JIT/GC settings were changed
+  during this investigation.
 - **Impact:** A few difficult oblique contacts can dominate a fixed frame.
   No observed game workload or contact-count budget establishes acceptability.
   Exact determinism, minimum-depth selection and rounding remain mandatory.
-- **Next isolation step:** The fresh pre-change profile placed about 68% of the
-  multi-radical cost in cap-root selection and 61% in derivative sign queries
-  (inclusive costs overlap). Focus the next pass on necessary exact admission
-  and root refinement; shrinking normal scratch does not resolve this workload.
+- **Next isolation step:** The latest retained-source profile places about 62%
+  of multi-radical cost in cap-root selection, 38% in exact root refinement,
+  32% in sign queries, 25% in derivative construction and 27% in side features
+  (inclusive costs overlap). The fresh committed baseline had about 42% in sign
+  queries. Penetrating rims now spend about 44% in derivative construction.
+  Focus the next pass on necessary construction/refinement work while preserving
+  the original width, ranking and certification contracts. Artifacts:
+  `artifacts/cylinder-cost2-after-profile` and `-after-profile-summary.json`.
   Establish the intended contact-count/frame budget before proposing
   a larger exact-algorithm redesign. Existing profiles already removed repeated
   GCDs/chains, redundant normals and worst-case mapping refinement; do not
