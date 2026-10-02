@@ -236,11 +236,10 @@ public partial struct Vector2d
     {
         Fixed64 scale = FixedMath.Max(value.X.Abs(), value.Y.Abs());
         Vector2d scaled = value / scale;
-        Fixed64 scaledMagnitude = FixedMath.GetScaledMagnitude(
-            scaled.X,
-            scaled.Y,
-            Fixed64.Zero,
-            Fixed64.Zero);
+        // The dominant component rounds to +/-One, even when Abs(MinValue)
+        // saturates to MaxValue: the ratio excess is less than half a raw unit.
+        // The squared sum is bounded by Two, so a second rescaling is redundant.
+        Fixed64 scaledMagnitude = FixedMath.Sqrt(scaled.X * scaled.X + scaled.Y * scaled.Y);
         return scaled / scaledMagnitude;
     }
 

@@ -616,11 +616,11 @@ public partial struct Vector3d
     {
         Fixed64 scale = FixedMath.Max(value.X.Abs(), FixedMath.Max(value.Y.Abs(), value.Z.Abs()));
         Vector3d scaled = value / scale;
-        Fixed64 scaledMagnitude = FixedMath.GetScaledMagnitude(
-            scaled.X,
-            scaled.Y,
-            scaled.Z,
-            Fixed64.Zero);
+        // The dominant component rounds to +/-One, even when Abs(MinValue)
+        // saturates to MaxValue: the ratio excess is less than half a raw unit.
+        // The squared sum is bounded by Three, so a second rescaling is redundant.
+        Fixed64 scaledMagnitude = FixedMath.Sqrt(
+            scaled.X * scaled.X + scaled.Y * scaled.Y + scaled.Z * scaled.Z);
         return scaled / scaledMagnitude;
     }
 
