@@ -175,11 +175,11 @@ internal static class BoxCylinderAnalyticFeatures
     {
         values.Clear();
         signs.Clear();
-        Span<ulong> work = stackalloc ulong[11 * Words];
+        Span<ulong> work = stackalloc ulong[10 * Words];
         Span<ulong> u = Slot(work, 0), n2 = Slot(work, 1), axial = Slot(work, 2);
         Span<ulong> rational = Slot(work, 3), temporary = Slot(work, 4), product = Slot(work, 5);
-        Span<ulong> p = Slot(work, 6), q = Slot(work, 8);
-        Span<ulong> radius = Slot(work, 9), scale = Slot(work, 10);
+        Span<ulong> p = Slot(work, 6), q = Slot(work, 7);
+        Span<ulong> radius = Slot(work, 8), scale = Slot(work, 9);
         Import(geometry.Axis.SquaredLength, u);
         SumSquares(direction, n2);
         Dot(geometry.CenterDifference, direction, directionSigns, rational, out int centerSign);
@@ -196,26 +196,35 @@ internal static class BoxCylinderAnalyticFeatures
         if (IsZero(rational))
             rationalSign = 0;
 
-        // g=(p+sqrt(q))/(U*S*|n|), p=U*T,
-        // q=R²*U*(U*n²-(a.n)²), T=h_box(n)+|H.n|-|d.n|.
-        // Projected vertex directions need up to 577 bits. With authored
-        // coordinates below 2^237, p²,q and every denominator fit 2,560 bits.
-        WideArithmetic.MultiplyMagnitudes(rational, u, p);
+        // T=h_box(n)+|H.n|-|d.n|, U=a², V=U*n²-(a.n)² >= 0.
+        // g²=(U*T²+R²*V+2*T*R*sqrt(U*V))/(U*S²*n²). Cancel U
+        // before construction instead of carrying it through every ranking
+        // product; R>=0 permits moving it outside the radical exactly.
+        // Directions <2^577 and coordinates <2^237 give |T|<2^817,
+        // U<2^342, R<2^235, S<2^170, V<2^1498 give A<2^1977,
+        // B<2^1053, C<2^1840 and D<2^1838. All fit forty words,
+        // including coefficient-sum carries.
         Dot(geometry.Axis, direction, directionSigns, axial, out _);
         WideArithmetic.MultiplyMagnitudes(axial, axial, temporary);
         WideArithmetic.MultiplyMagnitudes(u, n2, product);
         WideArithmetic.SubtractEqualMagnitudes(product, temporary, q);
         Import(geometry.Radius, radius);
         WideArithmetic.MultiplyMagnitudes(radius, radius, temporary);
-        WideArithmetic.MultiplyMagnitudes(temporary, u, product);
-        WideArithmetic.MultiplyMagnitudes(product, q, temporary);
-        temporary.CopyTo(q);
+        WideArithmetic.MultiplyMagnitudes(temporary, q, product);
+        WideArithmetic.MultiplyMagnitudes(rational, rational, p);
+        WideArithmetic.MultiplyMagnitudes(p, u, temporary);
+        WideArithmetic.AddEqualMagnitudes(temporary, product, Slot(values, 7));
+        gapSign = rationalSign < 0 ? WideArithmetic.CompareMagnitudeEqualLength(product, temporary)
+            : rationalSign > 0 || !IsZero(product) ? 1 : 0;
+        WideArithmetic.MultiplyMagnitudes(rational, radius, p);
+        WideArithmetic.AddEqualMagnitudes(p, p, Slot(values, 8));
+        WideArithmetic.MultiplyMagnitudes(u, q, Slot(values, 9));
         Import(Signed320.ExtendValue(geometry.RawScale), scale);
-        WideArithmetic.MultiplyMagnitudes(u, scale, temporary);
-        WideArithmetic.MultiplyMagnitudes(temporary, temporary, product);
+        WideArithmetic.MultiplyMagnitudes(scale, scale, temporary);
+        WideArithmetic.MultiplyMagnitudes(u, temporary, product);
         WideArithmetic.MultiplyMagnitudes(product, n2, Slot(values, 10));
-        gapSign = CylinderContactAlgebra.BuildRadialCandidate(p, rationalSign, q,
-            Slot(values, 10), values, signs);
+        signs[7] = IsZero(Slot(values, 7)) ? 0 : 1;
+        signs[8] = IsZero(p) ? 0 : rationalSign;
         CylinderContactAlgebra.WriteWorldDirection(geometry.WorldBasis, direction,
             directionSigns, values, signs, orientation);
     }

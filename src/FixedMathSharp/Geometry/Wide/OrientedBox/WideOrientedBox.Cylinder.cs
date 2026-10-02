@@ -41,13 +41,15 @@ internal static partial class WideOrientedBox
                 out int gapSign, out Vector3d localSigns))
             return false;
         var best = new ConvexContactCandidate(values, signs, gapSign);
+        WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(best, Fixed64.Zero,
+            out Fixed64 analyticDepth, out bool analyticClamped);
         bool edgeWinner = false;
         Vector3d normal = default;
         Fixed64 depth = default;
         bool clamped = false;
         if (cylinderRadius != Fixed64.Zero)
         {
-            if (!BoxCylinderEdgeContacts.TryGetContact(geometry, best,
+            if (!BoxCylinderEdgeContacts.TryGetContact(geometry, best, analyticDepth, analyticClamped,
                     out edgeWinner, out normal, out depth, out clamped, out Vector3d edgeSigns))
                 return false;
             if (edgeWinner)
@@ -56,8 +58,8 @@ internal static partial class WideOrientedBox
         if (!edgeWinner)
         {
             normal = WideConvexPrismRelations.GetConvexContactCandidateNormal(best);
-            WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(best, Fixed64.Zero,
-                out depth, out clamped);
+            depth = analyticDepth;
+            clamped = analyticClamped;
             feature = GetCylinderCapFace(geometry.Axis, localSigns);
         }
 

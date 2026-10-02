@@ -47,7 +47,7 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ### General rotated manifold and oblique primary box/cylinder contacts need throughput work
 
-- **Status / priority:** Isolated, high; measured on 2026-09-27 while repairing
+- **Status / priority:** Refined, high; measured on 2026-09-27 while repairing
   FMS-Issue-025. Exact contact generation is substantially more expensive than
   Boolean classification. A high-volume physics workload must budget these
   contacts explicitly; no observed game workload establishes acceptability.
@@ -94,6 +94,14 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   changing contact semantics. The bound reuses the existing exact candidate
   comparator, not a second solver, approximate test, or cache. Do not repeat
   this experiment as new work.
+- **2026-10-01 refinement:** Cancelling the analytic candidate's positive axis
+  factor, reusing conclusive signs in the shared radical comparison, and rejecting
+  admitted positive edge roots against the analytic rounding upper bound reduced
+  fresh matched means from 1.804 / 2.576 ms to 1.118 / 1.643 ms (38.0% / 36.2%).
+  Both target fixtures improved; controls remain
+  consistent and all fourteen retained children report zero allocation and GC.
+  [Refinement evidence](done/2026-10-01-box-cylinder-contact-throughput.md)
+  records the commands, independent arithmetic oracle and rejected experiments.
 - **Evidence / allocation:** `artifacts/fms025-baseline`, `fms025-after`,
   `fms025-profile`, `fms025-pruning`, and `fms025-final-benchmarks` contain the
   successive captures. All 14 final child launches exited zero and reported zero
@@ -101,11 +109,20 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
   passes. The final separated-primary distribution is bimodal, so use its broad
   trend rather than its last digits. Fixtures and the command below remain
   available without those disposable artifacts.
-- **Next isolation step:** Profile both `CylinderManifold` and
-  `CylinderObliquePrimary` before more changes, separating necessary
-  parameter-root admission from squared-value construction/mapping and final
-  rounding. In particular, assess whether exact nonwinning-value rejection can
-  precede value mapping. Preserve full-domain geometry, minimum-depth ranking,
+- **Next isolation step:** Focus on retained parameter-root admission/refinement
+  and the shared three-term analytic candidate comparison. The final profile
+  puts edge work at 57% / 49%, parameter-root sign evaluation at 29% / 18%,
+  and shared candidate comparison at 14% / 27% of sampled target activity
+  (inclusive shares overlap). Value mapping is no longer among the top twenty-four
+  methods in either target. Disposable counts found no chart
+  with repeated mappings and no edge-value incumbent at mapping in these two
+  fixtures; batch reuse and incumbent-upper-bound rejection are not useful here.
+  Analytic-upper-bound rejection is retained instead, with exact ranking as its
+  fallback and clamped analytic depths bypassing the bound.
+  An exact positive-gap shortcut also regressed throughput; it omits potential
+  retained refinement as well as the sign query. Profile before choosing another
+  shared root-proof reduction.
+  Preserve full-domain geometry, minimum-depth ranking,
   deterministic ties, nearest-even rounding, zero allocations, and the verified
   1 MiB stack with 64 KiB caller headroom.
 

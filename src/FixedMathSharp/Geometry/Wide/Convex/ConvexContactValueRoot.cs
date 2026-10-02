@@ -10,6 +10,17 @@ namespace FixedMathSharp.Geometry;
 /// <summary>Exact comparison and materialization of retained convex contact value roots.</summary>
 internal static class ConvexContactValueRoot
 {
+    /// <summary>Compares a positive raw squared gap N/D to (twiceRaw/2)²; D must be positive at the admitted parameter.</summary>
+    internal static int CompareSquaredGapToTwiceRaw(scoped ref FiniteAxisValueRoot parameter,
+        scoped ReadOnlySpan<ulong> numerator, scoped ReadOnlySpan<sbyte> numeratorSigns,
+        scoped ReadOnlySpan<ulong> denominator, scoped ReadOnlySpan<sbyte> denominatorSigns, ulong twiceRaw)
+    {
+        Span<ulong> endpoint = stackalloc ulong[2];
+        Fixed64.Multiply64To128(twiceRaw, twiceRaw, out endpoint[1], out endpoint[0]);
+        return CompareSquaredValueEndpoint(Signed192.Signed(1), 0, ref parameter,
+            numerator, numeratorSigns, denominator, denominatorSigns, endpoint, 2);
+    }
+
     /// <summary>Maps one admitted stationary parameter to its exact squared-gap value root.</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static FiniteAxisValueRoot MapSquaredValue(Signed192 rawScale, int valueShift,

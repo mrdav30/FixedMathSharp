@@ -32,7 +32,7 @@ internal static class BoxCylinderEdgeContacts
     /// edge candidate. Principal and zero-radial directions belong to the caller.
     /// </summary>
     internal static bool TryGetContact(in BoxCylinderGeometry geometry,
-        in ConvexContactCandidate analyticBest, out bool hasBetter,
+        in ConvexContactCandidate analyticBest, Fixed64 analyticDepth, bool analyticClamped, out bool hasBetter,
         out Vector3d normal, out Fixed64 depth, out bool depthIsClamped,
         out Vector3d localSupportSigns)
     {
@@ -72,6 +72,7 @@ internal static class BoxCylinderEdgeContacts
                             int su = chart == 0 ? firstSign : secondSign;
                             int sv = chart == 0 ? secondSign : firstSign;
                             if (!TryChart(geometry, edge, u, v, su, sv, cap, analyticBest,
+                                    ((ulong)analyticDepth.m_rawValue << 1) | 1UL, !analyticClamped,
                                     bestValues, bestSigns, bestCell, ref best))
                                 return false;
                         }
@@ -95,6 +96,7 @@ internal static class BoxCylinderEdgeContacts
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool TryChart(in BoxCylinderGeometry geometry, int edge, int first, int second,
         int firstSign, int secondSign, int capSign, scoped ConvexContactCandidate analytic,
+        ulong upperTwiceRaw, bool hasUpperBound,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
         ref Selection best)
     {
@@ -146,6 +148,12 @@ internal static class BoxCylinderEdgeContacts
                 best.IsZero = true;
                 continue;
             }
+            // An unclamped nearest-even depth d bounds the analytic gap by
+            // d+1/2 raw. A positive edge at or above that bound cannot win;
+            // ties retain the analytic feature. Admit negative/zero gaps first.
+            if (hasUpperBound && ConvexContactValueRoot.CompareSquaredGapToTwiceRaw(ref root,
+                    numerator.Values, numerator.Signs, denominator.Values, denominator.Signs, upperTwiceRaw) >= 0)
+                continue;
             if (!valuesReady)
             {
                 BuildValues(geometry, edge, first, second, firstSign, secondSign, capSign, values, valueSigns);

@@ -538,24 +538,29 @@ internal static partial class WideConvexPrismRelations
         WideArithmetic.AddEqualMagnitudes(leftFirst, leftSecond, leftBase);
         WideArithmetic.AddEqualMagnitudes(rightFirst, rightSecond, rightBase);
         int baseComparison = WideArithmetic.CompareMagnitudeEqualLength(leftBase, rightBase);
-        Span<ulong> baseMagnitude = stackalloc ulong[termWords];
-        if (baseComparison >= 0)
-            WideArithmetic.SubtractEqualMagnitudes(leftBase, rightBase, baseMagnitude);
-        else
-            WideArithmetic.SubtractEqualMagnitudes(rightBase, leftBase, baseMagnitude);
-
         Span<ulong> leftProduct = stackalloc ulong[productWords];
         Span<ulong> rightProduct = stackalloc ulong[productWords];
         WideArithmetic.MultiplyMagnitudes(leftFirst, leftSecond, leftProduct);
         WideArithmetic.MultiplyMagnitudes(rightFirst, rightSecond, rightProduct);
+        // Squared radical sums differ by (a+b-c-d)+2*(sqrt(ab)-sqrt(cd)).
+        // Agreeing signs decide this exactly; only opposing signs need the
+        // larger squared comparison. Zero differences preserve exact ties.
+        int productComparison = WideArithmetic.CompareMagnitudeEqualLength(leftProduct, rightProduct);
+        if (baseComparison == 0)
+            return productComparison;
+        if (productComparison == 0 || productComparison == baseComparison)
+            return baseComparison;
+        Span<ulong> baseMagnitude = stackalloc ulong[termWords];
         if (baseComparison >= 0)
         {
+            WideArithmetic.SubtractEqualMagnitudes(leftBase, rightBase, baseMagnitude);
             return ComparePositiveRadicalDifference(
                 baseMagnitude,
                 leftProduct,
                 rightProduct);
         }
 
+        WideArithmetic.SubtractEqualMagnitudes(rightBase, leftBase, baseMagnitude);
         return -ComparePositiveRadicalDifference(
             baseMagnitude,
             rightProduct,

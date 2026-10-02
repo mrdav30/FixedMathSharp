@@ -65,6 +65,29 @@ public sealed class FixedOrientedBoxCylinderEdgeFeatureTests
     }
 
     [Fact]
+    public void EdgeRim_ClampedAnalyticDepthRetainsMultipleNonwinningStationaryValues()
+    {
+        Fixed64 maximum = Fixed64.MaxValue;
+        var box = new FixedOrientedBox(Vector3d.Zero, FixedQuaternion.Identity,
+            new Vector3d(maximum, maximum, maximum));
+        Vector3d center = new(Fixed64.Zero, Fixed64.FromRaw(maximum.m_rawValue / 64), Fixed64.Zero);
+        const long scale = 784_150_157L;
+        FixedQuaternion rotation = new(Fixed64.FromRaw(scale), Fixed64.Zero,
+            Fixed64.FromRaw(-2 * scale), Fixed64.FromRaw(5 * scale));
+        // Contained balls give depth >= (3/2-1/64)*MaxValue, proving clamping.
+        // In the +cap/+X/+Y edge-Z chart, the exact derivative is positive
+        // at t=0, negative at t=3/4, and positive at t=1: two admitted roots
+        // share one chart. Both lose to the analytic Y face. A clamped depth
+        // cannot bound them, so construction reuse and exact ranking remain.
+        Assert.True(box.TryGetCenteredCylinderContact(center, rotation, Vector3d.Up,
+            maximum, maximum, out FixedContactAnchors contact));
+        Assert.Equal(maximum, contact.Depth);
+        Assert.True(contact.DepthIsClamped);
+        Assert.Equal(Vector3d.Zero, contact.FirstAnchor.Origin);
+        Assert.Equal(center, contact.SecondAnchor.Origin);
+    }
+
+    [Fact]
     public void FaceTouch_RemainsZeroWhileNonwinningEdgeStationaryGapsArePositive()
     {
         var box = new FixedOrientedBox(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.One);
