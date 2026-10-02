@@ -20,7 +20,7 @@ internal static partial class WideConvexPrismRelations
     // reserves an additional word. For forty-word candidate fields, cross-
     // denominated A/B have at most 81/80 words. Their radical radicands have
     // at most 200 words, plus one guard word for CompareRadicalPairs' additions
-    // and shifts. Its nested products therefore fit its 2x/4x scratch widths.
+    // and shifts. Its three-term reduction fits twice that scratch width.
     // Normal-square coefficients use at most 122 words (three 40-word factors
     // and two carry words). Integer midpoint factors add at most two words.
     // Actual active lengths, not those maxima, size every arithmetic scratch.

@@ -55,6 +55,7 @@ internal static class BoxCylinderAnalyticFeatures
                 {
                     if (HasVertexRimSeparation(geometry, corner, cap))
                     {
+                        RestoreRawGapDenominator(geometry, bestValues, direction);
                         bestGapSign = -1;
                         localSupportSigns = default;
                         return false;
@@ -96,6 +97,7 @@ internal static class BoxCylinderAnalyticFeatures
                 }
             }
         }
+        RestoreRawGapDenominator(geometry, bestValues, direction);
         bestGapSign = selection.GapSign;
         localSupportSigns = selection.LocalSigns;
         return bestGapSign >= 0;
@@ -156,7 +158,7 @@ internal static class BoxCylinderAnalyticFeatures
             return;
         Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * Words];
         Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
-        BuildAxis(geometry, direction, directionSigns, values, signs, out int gapSign, out int orientation);
+        BuildRankingAxis(geometry, direction, directionSigns, values, signs, out int gapSign, out int orientation);
         var candidate = new ConvexContactCandidate(values, signs, gapSign);
         if (selection.HasValue && WideConvexPrismRelations.CompareConvexContactCandidates(candidate,
                 new ConvexContactCandidate(selection.Values, selection.Signs, selection.GapSign)) >= 0)
@@ -169,17 +171,17 @@ internal static class BoxCylinderAnalyticFeatures
             (Fixed64)(orientation * directionSigns[1]), (Fixed64)(orientation * directionSigns[2]));
     }
 
-    private static void BuildAxis(in BoxCylinderGeometry geometry,
+    private static void BuildRankingAxis(in BoxCylinderGeometry geometry,
         ReadOnlySpan<ulong> direction, ReadOnlySpan<int> directionSigns,
         Span<ulong> values, Span<int> signs, out int gapSign, out int orientation)
     {
         values.Clear();
         signs.Clear();
-        Span<ulong> work = stackalloc ulong[10 * Words];
+        Span<ulong> work = stackalloc ulong[9 * Words];
         Span<ulong> u = Slot(work, 0), n2 = Slot(work, 1), axial = Slot(work, 2);
         Span<ulong> rational = Slot(work, 3), temporary = Slot(work, 4), product = Slot(work, 5);
         Span<ulong> p = Slot(work, 6), q = Slot(work, 7);
-        Span<ulong> radius = Slot(work, 8), scale = Slot(work, 9);
+        Span<ulong> radius = Slot(work, 8);
         Import(geometry.Axis.SquaredLength, u);
         SumSquares(direction, n2);
         Dot(geometry.CenterDifference, direction, directionSigns, rational, out int centerSign);
@@ -204,6 +206,10 @@ internal static class BoxCylinderAnalyticFeatures
         // U<2^342, R<2^235, S<2^170, V<2^1498 give A<2^1977,
         // B<2^1053, C<2^1840 and D<2^1838. All fit forty words,
         // including coefficient-sum carries.
+        // All directions share positive U*S². Rank with denominator n²,
+        // preserving signed order and exact ties; restore raw units once
+        // before either TryGetBest exit. These private scaled values never
+        // enter cone pruning, edge-root ranking or public depth rounding.
         Dot(geometry.Axis, direction, directionSigns, axial, out _);
         WideArithmetic.MultiplyMagnitudes(axial, axial, temporary);
         WideArithmetic.MultiplyMagnitudes(u, n2, product);
@@ -219,14 +225,25 @@ internal static class BoxCylinderAnalyticFeatures
         WideArithmetic.MultiplyMagnitudes(rational, radius, p);
         WideArithmetic.AddEqualMagnitudes(p, p, Slot(values, 8));
         WideArithmetic.MultiplyMagnitudes(u, q, Slot(values, 9));
-        Import(Signed320.ExtendValue(geometry.RawScale), scale);
-        WideArithmetic.MultiplyMagnitudes(scale, scale, temporary);
-        WideArithmetic.MultiplyMagnitudes(u, temporary, product);
-        WideArithmetic.MultiplyMagnitudes(product, n2, Slot(values, 10));
+        n2.CopyTo(Slot(values, 10));
         signs[7] = IsZero(Slot(values, 7)) ? 0 : 1;
         signs[8] = IsZero(p) ? 0 : rationalSign;
         CylinderContactAlgebra.WriteWorldDirection(geometry.WorldBasis, direction,
             directionSigns, values, signs, orientation);
+    }
+
+    private static void RestoreRawGapDenominator(in BoxCylinderGeometry geometry,
+        Span<ulong> values, Span<ulong> scratch)
+    {
+        // The direction workspace is dead at either exit. Reuse its three
+        // slots to reconstruct the original D=U*S²*n² (<2^1838).
+        Span<ulong> u = Slot(scratch, 0), scale = Slot(scratch, 1), product = Slot(scratch, 2);
+        Import(geometry.Axis.SquaredLength, u);
+        Import(Signed320.ExtendValue(geometry.RawScale), scale);
+        WideArithmetic.MultiplyMagnitudes(scale, scale, product);
+        WideArithmetic.MultiplyMagnitudes(u, product, scale);
+        WideArithmetic.MultiplyMagnitudes(Slot(values, 10), scale, product);
+        product.CopyTo(Slot(values, 10));
     }
 
     private static bool HasVertexRimSeparation(in BoxCylinderGeometry geometry, int corner, int cap)
