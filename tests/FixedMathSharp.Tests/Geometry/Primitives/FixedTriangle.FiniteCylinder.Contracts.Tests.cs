@@ -12,6 +12,38 @@ namespace FixedMathSharp.Tests;
 public sealed partial class FixedTriangleFiniteCylinderTests
 {
     [Fact]
+    public void Cylinder_SubRawRimMinima_RankBothStationaryValuesBeforeRounding()
+    {
+        Fixed64 raw = Fixed64.MinIncrement;
+        var a = new Vector3d(3 * raw, -2 * raw, Fixed64.Zero);
+        // Long edges preserve the sub-raw support chart without falling below
+        // the public triangle-area degeneracy threshold.
+        var triangle = new FixedTriangle(a, a + new Vector3d(-1, 7, 20), a + new Vector3d(40, -30, 0));
+        const long k = 1920767767L;
+        var rotation = new FixedQuaternion(Fixed64.Zero, Fixed64.Zero,
+            Fixed64.FromRaw(k), Fixed64.FromRaw(2 * k));
+        // The exact cylinder frame rotates XY by [3,4;-4,3]/5.
+        // P=A+(B-A)*raw/50=(.3,-3.5,.4) raw is inside AB and centers a
+        // half-raw-radius ball in the cylinder. Its only boundary normals
+        // have nonzero projection on AB, making penetration strictly >.5 raw.
+        // The negative-X support gap is .8 raw, so nearest-even depth is one
+        // raw unit. Two admitted roots lie below the analytic half-raw bound;
+        // both must be ranked exactly even though their rounded depths agree.
+        Assert.True(triangle.TryGetCenteredFiniteCylinderContact(Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, rotation, 8 * raw, raw, out FixedContactAnchors contact));
+        Assert.Equal(raw, contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        // The minimum's parameter is between 221/1000 and 222/1000.
+        // These world-normal bounds distinguish it from the later maximum
+        // and analytic candidates, even though their public depths round alike.
+        FixedMathTestHelper.AssertWithinRange(contact.Normal.X, -Fixed64.FromFraction(17, 20), -Fixed64.FromFraction(21, 25));
+        FixedMathTestHelper.AssertWithinRange(contact.Normal.Y, Fixed64.FromFraction(49, 100), Fixed64.Half);
+        FixedMathTestHelper.AssertWithinRange(contact.Normal.Z, -Fixed64.FromFraction(11, 50), -Fixed64.FromFraction(21, 100));
+        Assert.True(contact.FirstAnchor.TryGetPoint(out _));
+        Assert.True(contact.SecondAnchor.TryGetPoint(out _));
+    }
+
+    [Fact]
     public void CapsuleSlab_ZeroCore_RejectsCertifiedObliqueCircleGap()
     {
         // Along n=(3/5,4/5,0), the minimum triangle support is

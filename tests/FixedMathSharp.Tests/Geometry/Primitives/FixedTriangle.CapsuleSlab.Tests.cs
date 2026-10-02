@@ -170,8 +170,10 @@ public sealed class FixedTriangleCapsuleSlabTests
             contact.FirstAnchor.Origin);
     }
 
-    [Fact]
-    public void CenteredCapsuleSlab_OddAxisRetainsExactEndpointFeature()
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public void CenteredCapsuleSlab_OddAxisRetainsExactEndpointFeature(int side)
     {
         var triangle = new FixedTriangle(
             new Vector3d(-Fixed64.One, -Fixed64.One, Fixed64.Zero),
@@ -183,7 +185,7 @@ public sealed class FixedTriangleCapsuleSlabTests
         Assert.True(triangle.TryGetCenteredCapsuleSlabContact(
             Vector3d.Zero,
             FixedQuaternion.Identity,
-            new Vector3d(Fixed64.Zero, Fixed64.Zero, Fixed64.Half),
+            new Vector3d(Fixed64.Zero, Fixed64.Zero, side * Fixed64.Half),
             Fixed64.Zero,
             Vector2d.Forward,
             oddAxisLength,
@@ -197,7 +199,10 @@ public sealed class FixedTriangleCapsuleSlabTests
             capsuleAnchor.LocalPoint,
             capsuleAnchor.LocalDisplacement);
 
-        Assert.Equal(Vector3d.Forward, contact.Normal);
+        Assert.Equal(new Vector3d(0, 0, side), contact.Normal);
+        // Exact endpoint depth is 1.5 + half a raw unit; nearest-even retains 1.5.
+        Assert.Equal(Fixed64.One + Fixed64.Half, contact.Depth);
+        Assert.False(contact.DepthIsClamped);
         Assert.NotEqual(
             0,
             capsuleAnchor.CompareLocalFeature(roundedOnly));

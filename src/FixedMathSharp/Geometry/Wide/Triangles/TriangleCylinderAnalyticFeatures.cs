@@ -39,6 +39,9 @@ internal static class TriangleCylinderAnalyticFeatures
                 faceMinimumCertified = geometry.HasFaceDiskMinimumCertificate(coreAxis,
                     new ConvexContactCandidate(selection.Values, selection.Signs, selection.GapSign));
         }
+        // Selection and its face certificates read gap fields only. Transform
+        // the retained local direction once, after the exact winner is known.
+        WriteWorldDirection(geometry.WorldBasis, selection.Direction, selection.DirectionSigns, selection.Values, selection.Signs);
         gapSign = selection.GapSign; supportMask = selection.SupportMask; coreSign = selection.CoreSign;
         return gapSign >= 0;
     }
@@ -139,9 +142,6 @@ internal static class TriangleCylinderAnalyticFeatures
                 if (!selection.HasValue || WideConvexPrismRelations.CompareConvexContactCandidates(candidate,
                         new ConvexContactCandidate(selection.Values, selection.Signs, selection.GapSign)) < 0)
                 {
-                    // Ranking uses gap fields only; materialize the world
-                    // direction only when this candidate becomes the winner.
-                    WriteWorldDirection(geometry.WorldBasis, direction, directionSigns, values, signs);
                     values.CopyTo(selection.Values); signs.CopyTo(selection.Signs);
                     direction.CopyTo(selection.Direction); directionSigns.CopyTo(selection.DirectionSigns);
                     selection.HasValue = true; selection.GapSign = gapSign; selection.SupportMask = mask;

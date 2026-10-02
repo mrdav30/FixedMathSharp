@@ -245,6 +245,34 @@ public sealed class FixedTriangleCapsuleSlabFeatureTests
         FixedMathTestHelper.AssertWithinRange(contact.Normal.Z, expected.Z - raw, expected.Z + raw);
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public void RoundedRimRootTouch_ChartEndingOnSeamRetainsInteriorRoot(int side)
+    {
+        Fixed64 raw = Fixed64.MinIncrement;
+        Vector3d outward = new(side * 6, 7, 8), edge = new(-side, -6, 6);
+        var center = new Vector3d(side * 4 * raw, Fixed64.One + 3 * raw, raw);
+        var triangle = new FixedTriangle(center - edge, center + edge, center + outward);
+        // outward·edge=0. Exact rim support (side*3.5 raw,1,4 raw)
+        // lies at center+edge*raw/2 and rounds both anchors to an even X.
+        // The admitted root is t=7/8, although its chart's core projection
+        // is proportional to 1-t and reaches the seam at t=1.
+        Assert.True(triangle.TryGetCenteredCapsuleSlabContact(Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, Fixed64.Zero, Vector2d.Right, raw, 5 * raw, Fixed64.One,
+            out FixedContactAnchors contact));
+        Assert.Equal(Fixed64.Zero, contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first));
+        Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));
+        Assert.Equal(new Vector3d(side * 4 * raw, Fixed64.One, 4 * raw), second);
+        Assert.Equal(first, second);
+        Vector3d expected = (-outward).Normalized;
+        FixedMathTestHelper.AssertWithinRange(contact.Normal.X, expected.X - raw, expected.X + raw);
+        FixedMathTestHelper.AssertWithinRange(contact.Normal.Y, expected.Y - raw, expected.Y + raw);
+        FixedMathTestHelper.AssertWithinRange(contact.Normal.Z, expected.Z - raw, expected.Z + raw);
+    }
+
     [Fact]
     public void RoundedRimRootTouch_PreservesExactlyZeroRadialComponent()
     {

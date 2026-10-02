@@ -35,28 +35,28 @@ internal static class TriangleCylinderContact
                 out int gapSign, out int mask, out int coreSign, out bool faceMinimumCertified))
             return false;
         var best = new ConvexContactCandidate(values, signs, gapSign);
+        TriangleCircularGeometry analyticGeometry = coreSign == 0 ? geometry : geometry.AtCoreRegion(coreOffset, coreSign);
+        analyticGeometry.GetAnalyticDepth(best, directionSigns, mask, out Fixed64 depth, out bool clamped);
         Vector3d normal = default, radialPoint = default, rootPoint = default;
-        Fixed64 depth = default;
-        bool clamped = false, edgeWinner = false;
+        bool edgeWinner = false;
         int integralRadialMask = 5;
         int cap = directionSigns[1];
         if (radius != Fixed64.Zero && !faceMinimumCertified)
         {
             if (!TriangleCylinderEdgeContacts.TryGetContact(geometry, coreOffset, coreAxis, coreDirection, coreLength,
-                    triangle, best, radius, out edgeWinner, out normal, out radialPoint, out rootPoint, out depth,
-                    out clamped, out int edgeMask, out int edgeCap, out int edgeCoreSign, out integralRadialMask))
+                    triangle, best, depth, clamped, radius, out edgeWinner, out normal, out radialPoint, out rootPoint, out Fixed64 edgeDepth,
+                    out bool edgeClamped, out int edgeMask, out int edgeCap, out int edgeCoreSign, out integralRadialMask))
                 return false;
             if (edgeWinner)
             {
                 mask = edgeMask; cap = edgeCap; coreSign = edgeCoreSign;
+                depth = edgeDepth; clamped = edgeClamped;
             }
         }
-        TriangleCircularGeometry winner = coreSign == 0 ? geometry : geometry.AtCoreRegion(coreOffset, coreSign);
         bool pole = !edgeWinner && directionSigns[0] == 0 && directionSigns[2] == 0;
         if (!edgeWinner)
         {
             normal = WideConvexPrismRelations.GetConvexContactCandidateNormal(best);
-            winner.GetAnalyticDepth(best, directionSigns, mask, out depth, out clamped);
             if (!pole && (coreAxis.IsZero || coreSign != 0))
             {
                 // Round R*Nrad/|Nrad| directly from the selected exact direction.
@@ -90,7 +90,7 @@ internal static class TriangleCylinderContact
         }
         else if (cap == 0)
         {
-            Vector3d point = TriangleCylinderWitnesses.GetSidePoint(winner, triangle, mask,
+            Vector3d point = TriangleCylinderWitnesses.GetSidePoint(analyticGeometry, triangle, mask,
                 direction, directionSigns, out Fixed64 axial, out int boundaryCap);
             triangleAnchor = new FixedPointAnchor(origin, rotation, point);
             cylinderAnchor = boundaryCap != 0
@@ -102,8 +102,8 @@ internal static class TriangleCylinderContact
         {
             Vector3d projectedRadial = default;
             Vector3d point = edgeWinner ? rootPoint
-                : pole ? TriangleCylinderWitnesses.GetCapPoint(winner, triangle, mask, out projectedRadial)
-                : TriangleCylinderRimWitnesses.GetAnalyticPoint(winner, triangle, mask, direction, directionSigns, cap, winner.Radius);
+                : pole ? TriangleCylinderWitnesses.GetCapPoint(analyticGeometry, triangle, mask, out projectedRadial)
+                : TriangleCylinderRimWitnesses.GetAnalyticPoint(analyticGeometry, triangle, mask, direction, directionSigns, cap, analyticGeometry.Radius);
             triangleAnchor = new FixedPointAnchor(origin, rotation, point);
             if (pole)
                 cylinderAnchor = new FixedPointAnchor(cylinderCenter, cylinderRotation,
