@@ -8,9 +8,11 @@ namespace FixedMathSharp.Benchmarks;
 public class FiniteAxisIntersectionBenchmarks
 {
     private FixedSegment2d _query2D;
+    private FixedSegment2d _movingAwayQuery2D;
     private FixedBoundCircle _circle;
     private FixedSegment2d _capsuleAxis2D;
     private FixedSegment _query3D;
+    private FixedSegment _movingAwayQuery3D;
     private FixedBoundSphere _sphere;
     private FixedSegment _capsuleAxis3D;
     private FixedSegment _cylinderAxis;
@@ -72,6 +74,11 @@ public class FiniteAxisIntersectionBenchmarks
         _circle = new FixedBoundCircle(_capsuleCenter2D, _radius);
         _query3D = new FixedSegment(
             new Vector3d(-doubleScale, Fixed64.Zero, Fixed64.Zero),
+            new Vector3d(doubleScale, Fixed64.Zero, Fixed64.Zero));
+        _movingAwayQuery2D = new FixedSegment2d(
+            new Vector2d(scale, Fixed64.Zero), new Vector2d(doubleScale, Fixed64.Zero));
+        _movingAwayQuery3D = new FixedSegment(
+            new Vector3d(scale, Fixed64.Zero, Fixed64.Zero),
             new Vector3d(doubleScale, Fixed64.Zero, Fixed64.Zero));
         _capsuleAxis3D = new FixedSegment(
             new Vector3d(Fixed64.Zero, -scale, Fixed64.Zero),
@@ -154,6 +161,9 @@ public class FiniteAxisIntersectionBenchmarks
         {
             throw new InvalidOperationException("Finite-axis benchmark scenarios must intersect their targets.");
         }
+
+        if (Circle2DMovingAwayDistanceInterval() || Sphere3DMovingAwayDistanceInterval())
+            throw new InvalidOperationException("Moving-away distance scenarios must miss their targets.");
     }
 
     [Benchmark]
@@ -171,6 +181,16 @@ public class FiniteAxisIntersectionBenchmarks
             _boundedRayMaximum,
             out _,
             out _);
+
+    [Benchmark]
+    public bool Circle2DMovingAwayDistanceInterval() =>
+        _movingAwayQuery2D.TryGetCircleIntersectionDistanceInterval(
+            _circle, _boundedRayMaximum, out _, out _);
+
+    [Benchmark]
+    public bool Sphere3DMovingAwayDistanceInterval() =>
+        _movingAwayQuery3D.TryGetSphereIntersectionDistanceInterval(
+            _sphere, _boundedRayMaximum, out _, out _);
 
     [Benchmark]
     public bool Capsule2DIntersectionInterval() =>

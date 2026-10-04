@@ -149,6 +149,12 @@ Start with hot paths that can be isolated and repeated deterministically:
 Keep support helpers specific. Remove copied template helpers when they stop
 serving a FixedMathSharp benchmark scenario.
 
+The `finite-axis-intersection` selection includes circle/sphere physical-distance
+intervals and moving-away misses at scales 1 and 100000. The caller-supplied
+distance domain is intentional; setup checks misses separately from successful
+intervals. Use both when changing shared unit-interval endpoint evaluation,
+alongside the selection's capsule and cylinder controls.
+
 `convex-point-containment` measures exact inside/outside queries against
 translated four- and six-vertex footprints, with zero and 30-degree rotations.
 Setup verifies the intended classifications. This isolates the public convex

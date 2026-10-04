@@ -49,6 +49,57 @@ No active signals remain.
 
 ## Archived Signals
 
+### Unit-interval radial distance endpoint evaluation
+
+- **Status:** Complete for review, 2026-10-02; coordinated with Gravitas
+  GRV-Benchmark-023's automatic grounding experiment.
+- **Change:** The existing bounded distance solver uses widened sums for the
+  signs of `C`, `A + 2B + C`, `B`, and `A + B` on `[0, 1]`. These have the same
+  signs as its general rational endpoint polynomial/derivative evaluations.
+  Other intervals, discriminants, roots, rounding and caller-supplied distance
+  mapping are unchanged. Circle, sphere, capsule-cap and rounded-cylinder-cap
+  consumers share the existing owner; there is no new public API or friendship.
+- **Matched controls:** At scales 1/100000, circle intervals change from
+  3828.9 +/- 18.00 / 5455.9 +/- 27.68 ns to 3304.82 +/- 17.454 /
+  4921.34 +/- 24.061 ns. Sphere intervals change from 3866.7 +/- 30.14 /
+  5514.1 +/- 69.26 ns to 3302.94 +/- 26.690 / 4980.02 +/- 53.401 ns.
+  Moving-away circle misses change from 539.1 +/- 3.72 / 554.3 +/- 17.01 ns
+  to 87.88 +/- 1.661 / 89.89 +/- 0.490 ns; sphere misses change from
+  576.6 +/- 7.16 / 569.5 +/- 5.26 ns to 120.68 +/- 1.388 / 122.01 +/- 0.208 ns.
+  All eight rows report 0 B/op. Error is half the 99.9% confidence interval.
+- **Integrated limit:** Gravitas's corrected-pose 1024-pair automatic probes
+  improve 7.0% with this math change alone. Its math-only full-step confidence
+  intervals overlap; do not infer an isolated full-step speedup.
+- **Reproduce:** From this repository, set `UseLocalLsfStack=true` and
+  `DOTNET_PROCESSOR_COUNT=2` in the environment, build the Release benchmark
+  project with `-p:UseLocalLsfStack=true -m:1 -p:BuildInParallel=false`, then run
+  `finite-axis-intersection --filter '*Circle2DDistanceInterval*' '*Sphere3DDistanceInterval*' '*MovingAwayDistanceInterval*' --launchCount 2 --warmupCount 5 --iterationCount 15 --iterationTime 250 --affinity 3 --exporters json`
+  through the compiled DLL. Captures use Windows 11, i7-9700K, SDK 10.0.302,
+  runtime 8.0.29 and BenchmarkDotNet 0.15.8. The source baseline is `00a38bd`;
+  results are retained in the sibling Gravitas repository under
+  `artifacts/grv-benchmark-023/refinement-math-before-verified` and
+  `refinement-math-after`. Keep the raw moving-away multimodality warnings.
+- **Compatibility:** Release FixedMathSharp first, then validate Gravitas
+  against that released package. The current evidence uses sibling source.
+- **Validation:** Local-stack Release/ReleaseLean solution builds cover both
+  target frameworks with no warnings/errors. All 4138/4117 core tests and 49
+  Chronicler tests per configuration pass with no failures/skips. Exact covered
+  sequence points/branches/methods are 52675/12138/3935 in Release and
+  52768/12138/3931 in Lean, each equal to its total. Gravitas also passes both
+  suites with 100% reachable coverage. No exclusion or allocation gate changes
+  were made; independent review finds no actionable issue. Logs, TRX and raw
+  coverage are retained under the sibling Gravitas repository's
+  `artifacts/grv-benchmark-023/refinement-<repository>-<configuration>-*`.
+  Rendered reports use core/FluentAssertions from the core suite and Chronicler
+  from its owning suite (85/85 lines, 12/12 branches, 18/18 fully covered methods).
+  A merged partial dependency capture lost three covered lines in Lean's rendered
+  aggregation; the complete raw and core-only rendered reports remain 100%.
+  Raw captures and the failed merged-format control are preserved.
+  All 463 Short smoke cases complete with successful child exits and populated
+  statistics (one launch, three warmups, three 10-ms iterations); all 62
+  finite-axis controls report zero allocation. Short timings are smoke evidence
+  only. Both repositories' DocFX, API resources and local-link checks pass.
+
 ### General triangle/capsule-slab rim contacts need throughput work
 
 - **Status:** Complete, 2026-10-02; bounded exact throughput refinements retained.

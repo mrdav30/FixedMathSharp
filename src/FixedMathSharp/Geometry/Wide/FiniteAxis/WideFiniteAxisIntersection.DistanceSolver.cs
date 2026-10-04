@@ -30,7 +30,8 @@ internal static partial class WideFiniteAxisIntersection
             new RationalBound320(one, one),
             segmentLength,
             out entryDistance,
-            out exitDistance);
+            out exitDistance,
+            unitInterval: true);
     }
 
     private static bool TrySolveBoundedQuadraticAtDistance(
@@ -41,7 +42,8 @@ internal static partial class WideFiniteAxisIntersection
         RationalBound320 upper,
         Fixed64 segmentLength,
         out Fixed64 entryDistance,
-        out Fixed64 exitDistance)
+        out Fixed64 exitDistance,
+        bool unitInterval = false)
     {
         entryDistance = default;
         exitDistance = default;
@@ -56,36 +58,59 @@ internal static partial class WideFiniteAxisIntersection
             return true;
         }
 
-        Signed704 lowerValue = EvaluatePolynomial(
-            coefficient,
-            projection,
-            constant,
-            lower.Numerator,
-            lower.Denominator);
-        Signed704 upperValue = EvaluatePolynomial(
-            coefficient,
-            projection,
-            constant,
-            upper.Numerator,
-            upper.Denominator);
-        int lowerDerivative = EvaluateDerivative(
-            coefficient,
-            projection,
-            lower.Numerator,
-            lower.Denominator).Sign;
-        int upperDerivative = EvaluateDerivative(
-            coefficient,
-            projection,
-            upper.Numerator,
-            upper.Denominator).Sign;
+        int lowerValueSign;
+        int upperValueSign;
+        int lowerDerivative;
+        int upperDerivative;
+        if (unitInterval)
+        {
+            // f(t) = A*t² + 2*B*t + C on [0, 1]. Endpoint signs need
+            // only sums; the general rational evaluations multiply by positive
+            // denominator powers and therefore have the same signs. Widen the
+            // sums so even full-width coefficients cannot overflow here.
+            Signed576 wideProjection = Signed576.ExtendValue(projection);
+            Signed576 coefficientAndProjection = WideArithmetic.AddSigned576(
+                Signed576.ExtendValue(coefficient), wideProjection);
+            lowerValueSign = constant.Sign;
+            upperValueSign = WideArithmetic.AddSigned576(
+                WideArithmetic.AddSigned576(coefficientAndProjection, wideProjection),
+                Signed576.ExtendValue(constant)).Sign;
+            lowerDerivative = projection.Sign;
+            upperDerivative = coefficientAndProjection.Sign;
+        }
+        else
+        {
+            lowerValueSign = EvaluatePolynomial(
+                coefficient,
+                projection,
+                constant,
+                lower.Numerator,
+                lower.Denominator).Sign;
+            upperValueSign = EvaluatePolynomial(
+                coefficient,
+                projection,
+                constant,
+                upper.Numerator,
+                upper.Denominator).Sign;
+            lowerDerivative = EvaluateDerivative(
+                coefficient,
+                projection,
+                lower.Numerator,
+                lower.Denominator).Sign;
+            upperDerivative = EvaluateDerivative(
+                coefficient,
+                projection,
+                upper.Numerator,
+                upper.Denominator).Sign;
+        }
 
-        if ((lowerValue.Sign > 0 && lowerDerivative >= 0)
-            || (upperValue.Sign > 0 && upperDerivative <= 0))
+        if ((lowerValueSign > 0 && lowerDerivative >= 0)
+            || (upperValueSign > 0 && upperDerivative <= 0))
         {
             return false;
         }
 
-        if (lowerValue.Sign <= 0 && upperValue.Sign <= 0)
+        if (lowerValueSign <= 0 && upperValueSign <= 0)
         {
             entryDistance = RoundAtDistance(lower, segmentLength);
             exitDistance = RoundAtDistance(upper, segmentLength);
@@ -101,7 +126,7 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 lengthSquared = SquareRaw(segmentLength.m_rawValue);
         Signed576 scaledSquareRoot = WideArithmetic.GetFloorSquareRoot(
             WideArithmetic.MultiplyNonNegative(discriminant, lengthSquared));
-        entryDistance = lowerValue.Sign <= 0
+        entryDistance = lowerValueSign <= 0
             ? RoundAtDistance(lower, segmentLength)
             : RoundLowerRootAtDistance(
                 coefficient,
@@ -109,7 +134,7 @@ internal static partial class WideFiniteAxisIntersection
                 constant,
                 scaledSquareRoot,
                 segmentLength);
-        exitDistance = upperValue.Sign <= 0
+        exitDistance = upperValueSign <= 0
             ? RoundAtDistance(upper, segmentLength)
             : RoundUpperRootAtDistance(
                 coefficient,
