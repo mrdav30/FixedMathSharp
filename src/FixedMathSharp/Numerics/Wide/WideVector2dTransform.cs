@@ -21,6 +21,13 @@ internal static class WideVector2dTransform
         Fixed64 angleInRadians,
         out Vector2d result)
     {
+        // Both rotated numerators are zero, so the exact final ratio is the origin.
+        if (localPoint == Vector2d.Zero && localDisplacement == Vector2d.Zero)
+        {
+            result = origin;
+            return true;
+        }
+
         Fixed64 cosine = FixedMath.Cos(angleInRadians);
         Fixed64 sine = FixedMath.Sin(angleInRadians);
         Signed320 denominatorWide = Product(Fixed64.One, Fixed64.One);

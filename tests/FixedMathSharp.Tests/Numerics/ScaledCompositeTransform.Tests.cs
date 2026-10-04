@@ -109,6 +109,71 @@ public sealed class ScaledCompositeTransformTests
     }
 
     [Fact]
+    public void PlanarTransform_ZeroLocalInputsPreserveFullDomainOriginForAnyScaleAndYaw()
+    {
+        Vector2d[] origins =
+        {
+            Vector2d.Zero,
+            new(Fixed64.MinValue, Fixed64.MaxValue),
+            new(Fixed64.MaxValue, Fixed64.MinValue),
+            new(Fixed64.FromRaw(1L), Fixed64.FromRaw(-3L))
+        };
+        Vector2d[] scales =
+        {
+            Vector2d.Zero,
+            Vector2d.One,
+            new(Fixed64.MinValue, Fixed64.MaxValue)
+        };
+        Fixed64[] angles =
+        {
+            Fixed64.Zero,
+            Fixed64.HalfPi,
+            Fixed64.Pi,
+            -Fixed64.PiOver4,
+            Fixed64.FromRaw(1L),
+            Fixed64.MinValue,
+            Fixed64.MaxValue
+        };
+
+        // A forward transform does not require invertible or positive scale.
+        // Both overloads must preserve the origin's exact raw coordinate bits.
+        foreach (Vector2d origin in origins)
+        foreach (Vector2d scale in scales)
+        foreach (Fixed64 angle in angles)
+        {
+            Assert.True(Vector2d.TryTransformScaledPoint(
+                origin, Vector2d.Zero, scale, angle, out Vector2d point));
+            Assert.Equal(origin, point);
+            Assert.True(Vector2d.TryTransformScaledPoint(
+                origin, Vector2d.Zero, scale, Vector2d.Zero, angle,
+                out Vector2d composite));
+            Assert.Equal(origin, composite);
+        }
+    }
+
+    [Fact]
+    public void PlanarTransform_ZeroPointStillRotatesUnscaledDisplacementAndRejectsOverflow()
+    {
+        Assert.True(Vector2d.TryTransformScaledPoint(
+            new Vector2d(3, 4),
+            Vector2d.Zero,
+            Vector2d.Zero,
+            Vector2d.Forward,
+            Fixed64.HalfPi,
+            out Vector2d rotated));
+        Assert.Equal(new Vector2d(2, 4), rotated);
+
+        Assert.False(Vector2d.TryTransformScaledPoint(
+            new Vector2d(Fixed64.MaxValue, Fixed64.Zero),
+            Vector2d.Zero,
+            Vector2d.Zero,
+            Vector2d.Right,
+            Fixed64.Zero,
+            out Vector2d rejected));
+        Assert.Equal(default, rejected);
+    }
+
+    [Fact]
     public void PlanarInverseTransform_RoundTripsAnisotropicMirroredScale()
     {
         Vector2d origin = new(10, 20);

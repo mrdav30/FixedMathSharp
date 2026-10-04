@@ -106,6 +106,40 @@ public class Vector2dBenchmarks
     }
 
     [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector2d TryTransformScaledPointCentered()
+    {
+        Vector2d result = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            _ = Vector2d.TryTransformScaledPoint(
+                _left[i],
+                Vector2d.Zero,
+                Vector2d.One,
+                _angles[i],
+                out result);
+        }
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
+    public Vector2d TryTransformScaledPointOffset()
+    {
+        Vector2d result = Vector2d.Zero;
+        for (int i = 0; i < _left.Length; i++)
+        {
+            _ = Vector2d.TryTransformScaledPoint(
+                _left[i],
+                _right[i],
+                Vector2d.One,
+                _angles[i],
+                out result);
+        }
+
+        return result;
+    }
+
+    [Benchmark(OperationsPerInvoke = BenchmarkFixtures.SampleCount)]
     public Vector2d TryInverseTransformScaledPointRotated()
     {
         Vector2d result = Vector2d.Zero;

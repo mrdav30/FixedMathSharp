@@ -49,6 +49,80 @@ No active signals remain.
 
 ## Archived Signals
 
+### Centered forward-scaled planar transforms repeat zero-offset wide arithmetic
+
+- **Status:** Implemented for review, 2026-10-04; coordinated with Gravitas
+  GRV-Benchmark-023.
+- **Change:** The existing `WideVector2dTransform.TryTransformScaledPoint` owner
+  returns the origin when both the local point and unscaled local displacement
+  are exactly zero. Both rotated numerators are then zero regardless of scale,
+  and the final ratio is the origin's exact raw coordinate. This retains the
+  forward-transform contract for zero, mirrored and extreme scales, all yaw
+  values, and scalar-boundary origins. Nonzero inputs retain the fused wide
+  arithmetic, one final half-even rounding per coordinate and atomic failure.
+  Caller-owned transform/scale admission and physics snapshot publication are
+  unchanged; no transform cache, public API or friendship was added.
+- **Matched controls:** `TryTransformScaledPointCentered` changes from
+  1196.941993 +/- 12.673961 ns to 16.279771 +/- 0.228879 ns, a 98.64% reduction.
+  The nonzero `TryTransformScaledPointOffset` control changes from
+  1536.411243 +/- 15.455714 ns to 1500.423388 +/- 18.672809 ns, with no observed
+  regression. Error is half the 99.9% confidence interval. Both rows use the
+  existing deterministic origin/angle arrays and unit scale, with 256 operations
+  per invocation. All eight child launches report exactly zero raw allocated
+  bytes and GC collections, as well as 0 B/op summaries.
+- **Reproduce:** From this repository, use the following environment/build and
+  compiled-DLL command. Repeat the measurement with the same arguments and
+  `refinement4-transform-after` artifact path after applying the owner change.
+  The source baseline is `6789c09`; captures use Windows 11, i7-9700K,
+  SDK 10.0.302, runtime 8.0.29 and BenchmarkDotNet 0.15.8.
+
+  ```powershell
+  $env:UseLocalLsfStack = 'true'
+  $env:DOTNET_PROCESSOR_COUNT = '2'
+  (Get-Process -Id $PID).PriorityClass = 'BelowNormal'
+  dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0 -p:UseLocalLsfStack=true
+  dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector2d --filter '*TryTransformScaledPointCentered*' '*TryTransformScaledPointOffset*' --launchCount 2 --warmupCount 5 --iterationCount 15 --iterationTime 500 --affinity 3 --exporters json --artifacts ../Gravitas/artifacts/grv-benchmark-023/refinement4-transform-before
+  ```
+
+  Before/after logs and exported statistics are retained in the sibling
+  Gravitas repository under `artifacts/grv-benchmark-023/refinement4-transform-{before,after}`.
+- **Integrated limit:** The initial math-only Gravitas consumer comparison
+  measures the complete 1024-pair circle step at 36.543975 +/- 0.468481 ms
+  before and 34.223361 +/- 0.549934 ms after. The automatic-grounding control,
+  which does not perform this centered transform work, instead changes from
+  9.478350 +/- 0.121474 ms to 9.963933 +/- 0.202656 ms. Both report 0 B/op.
+  A second matched pair measures 39.031101 +/- 0.605361 ms before and
+  33.779813 +/- 0.583872 ms after, with the grounding control at
+  9.926890 +/- 0.167635 / 9.767688 +/- 0.210000 ms (overlapping intervals).
+  All summaries report 0 B/op. The initial after grounding capture has one
+  raw child record with 24,624 allocated bytes over 53 operations, despite the
+  final-launch zero summary. Both repeat captures have exact zero raw allocated
+  bytes and collections in every child; the initial exception is retained.
+  Both full-step pairs improve, but baseline variation
+  makes a single precise percentage inappropriate. Preserve both captures;
+  no simulation-budget threshold has been accepted. Repetition uses the same
+  protocol and `refinement4-math-repeat-{before,after}` artifact directories.
+- **Validation:** All 16 focused `ScaledCompositeTransformTests` pass in Release
+  before the change and in Release/ReleaseLean afterward with
+  `-p:UseLocalLsfStack=true`. New characterization covers both public overloads,
+  full-domain origins/scales/yaw, and nonzero-displacement rotation and atomic
+  overflow controls. Both benchmark captures exit successfully. Full local-stack
+  solution builds and all 4140/4119 core tests plus 49 Chronicler tests per
+  configuration pass without skips. The owning core/FluentAssertions raw
+  captures cover 52678/52678 sequence points, 12142/12142 branches and
+  3935/3935 methods in Release, and 52771/52771, 12142/12142 and 3931/3931 in
+  ReleaseLean. Captures use `refinement4-FixedMathSharp-<configuration>-*` in the
+  sibling Gravitas artifact directory. Rendered owning core/FluentAssertions
+  reports confirm 100% lines, branches and fully covered methods with the same
+  counts; independently filtered Chronicler reports cover 85/85 lines,
+  12/12 branches and 18/18 methods in each configuration. The raw partial math
+  dependency capture from the Chronicler suite is not merged over the owning
+  core report. DocFX passes with warnings as errors, and API resources,
+  repository actions and local links are verified in
+  `refinement4-FixedMathSharp-docfx.log`. No coverage or allocation gate changed.
+- **Compatibility:** Release FixedMathSharp first, then validate Gravitas
+  against that released package. The current evidence uses sibling source.
+
 ### Unit-interval radial distance endpoint evaluation
 
 - **Status:** Complete for review, 2026-10-02; coordinated with Gravitas
