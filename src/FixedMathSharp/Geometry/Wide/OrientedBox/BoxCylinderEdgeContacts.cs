@@ -165,7 +165,7 @@ internal static class BoxCylinderEdgeContacts
             int comparison = best.HasValue
                 ? WideFiniteAxisIntersection.CompareFiniteValueRoots(value,
                     RestoreValueRoot(bestValues, bestSigns, bestCell, best))
-                : ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, value, analytic);
+                : ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref value, analytic);
             if (comparison >= 0)
                 continue;
             values.CopyTo(bestValues);

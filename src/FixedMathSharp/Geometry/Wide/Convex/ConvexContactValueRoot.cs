@@ -87,9 +87,10 @@ internal static class ConvexContactValueRoot
     /// <summary>
     /// Compares S/RawScale², where S=2^ValueShift*t, to an analytic squared
     /// raw gap. Gap signs are deliberately excluded; the caller ranks them first.
+    /// Retains certified cell refinement and its metadata when caller storage permits.
     /// </summary>
     internal static int CompareRootSquared(Signed192 rawScale, int valueShift,
-        FiniteAxisValueRoot root, ConvexContactCandidate candidate)
+        scoped ref FiniteAxisValueRoot root, ConvexContactCandidate candidate)
     {
         Span<ulong> scale = stackalloc ulong[3];
         WideArithmetic.GetMagnitude(rawScale, out scale[2], out scale[1], out scale[0]);
@@ -111,7 +112,7 @@ internal static class ConvexContactValueRoot
         candidate.GapDenominator.CopyTo(linear[words..]);
         linearSigns[1] = 1;
         WideFiniteAxisIntersection.ScaleFiniteAxisPolynomialVariable(linear, 2, valueShift);
-        int rationalSign = WideFiniteAxisIntersection.GetSignAtFiniteValueRoot(root, linear, linearSigns);
+        int rationalSign = WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, linear, linearSigns);
         int radicalSign = WideArithmetic.GetActiveMagnitudeLength(candidate.GapRadicand) == 0
             ? 0 : candidate.GapRadicalSign;
         if (rationalSign != radicalSign)
@@ -135,7 +136,7 @@ internal static class ConvexContactValueRoot
         WideArithmetic.AddShiftedSignedMagnitude(temporary, -1, 0, query[..words], ref constantSign);
         querySigns[0] = (sbyte)constantSign;
         WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(query, querySigns);
-        return rationalSign * WideFiniteAxisIntersection.GetSignAtFiniteValueRoot(root, query, querySigns);
+        return rationalSign * WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns);
     }
 
     internal static Vector3d GetNormalizedDirection(ref FiniteAxisValueRoot root,

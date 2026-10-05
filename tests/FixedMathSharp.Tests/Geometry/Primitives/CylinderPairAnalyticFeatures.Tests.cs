@@ -97,7 +97,7 @@ public sealed class CylinderPairAnalyticFeaturesTests
         Write(BigInteger.One << geometry.ValueShift, polynomial.AsSpan(8, 8));
         ulong[] cell = new ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(polynomial, polynomialSigns)];
         Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(polynomial, polynomialSigns, 0, cell, out FiniteAxisValueRoot root));
-        Assert.Equal(comparison, ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, root,
+        Assert.Equal(comparison, ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref root,
             new ConvexContactCandidate(values, signs, gapSign)));
     }
 
@@ -124,8 +124,86 @@ public sealed class CylinderPairAnalyticFeaturesTests
         Write((BigInteger)25 << geometry.ValueShift, polynomial.AsSpan(8, 8));
         ulong[] cell = new ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(polynomial, polynomialSigns)];
         Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(polynomial, polynomialSigns, 0, cell, out FiniteAxisValueRoot root));
-        Assert.Equal(comparison, ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, root,
+        Assert.Equal(comparison, ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref root,
             new ConvexContactCandidate(values, signs, gapSign)));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RootComparison_ShouldRetainDiscoveredRationalCellAndMetadata(bool radicalCandidate)
+    {
+        ulong[] polynomial = { 3, 8 };
+        sbyte[] polynomialSigns = { -1, 1 };
+        ulong[] cell = new ulong[16];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(polynomial, polynomialSigns,
+            0, cell, out FiniteAxisValueRoot root));
+        Assert.False(root.IsRational);
+        ulong[] values = new ulong[ConvexContactCandidate.Words * ConvexContactCandidate.Slots];
+        int[] signs = new int[ConvexContactCandidate.Slots];
+        values[0] = 1;
+        signs[0] = 1;
+        // The analytic squared gap is 3/8 in both cases. The radical case
+        // discovers equality in the squared query after the linear sign guard.
+        int numeratorSlot = radicalCandidate ? 8 : 7;
+        values[numeratorSlot * ConvexContactCandidate.Words] = 3;
+        signs[numeratorSlot] = 1;
+        if (radicalCandidate)
+            values[9 * ConvexContactCandidate.Words] = 1;
+        values[10 * ConvexContactCandidate.Words] = 8;
+
+        Assert.Equal(0, ConvexContactValueRoot.CompareRootSquared(Signed192.Signed(1), 0, ref root,
+            new ConvexContactCandidate(values, signs, 1)));
+
+        Assert.True(root.IsRational);
+        Assert.Equal(3, root.DenominatorShift);
+        Assert.Equal(3UL, cell[0]);
+        for (int index = 1; index < cell.Length; index++)
+            Assert.Equal(0UL, cell[index]);
+        Assert.Equal(0, root.Ordinal);
+        Assert.True(root.Coefficients.SequenceEqual(polynomial));
+        Assert.True(root.Signs.SequenceEqual(polynomialSigns));
+        Assert.True(ConvexContactValueRoot.GetRoundedDepth(Signed192.Signed(1), 0, ref root,
+            out Fixed64 depth, out bool clamped));
+        Assert.Equal(Fixed64.MinIncrement, depth);
+        Assert.False(clamped);
+    }
+
+    [Fact]
+    public void RootComparison_ShouldRetainRefinedIrrationalCellWithoutChangingRootIdentity()
+    {
+        ulong[] polynomial = { 1, 0, 2 };
+        sbyte[] polynomialSigns = { -1, 0, 1 };
+        ulong[] cell = new ulong[16];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(polynomial, polynomialSigns,
+            0, cell, out FiniteAxisValueRoot root));
+        int originalShift = root.DenominatorShift;
+        ulong[] values = new ulong[ConvexContactCandidate.Words * ConvexContactCandidate.Slots];
+        int[] signs = new int[ConvexContactCandidate.Slots];
+        values[0] = 1;
+        signs[0] = 1;
+        values[7 * ConvexContactCandidate.Words] = 7;
+        signs[7] = 1;
+        values[10 * ConvexContactCandidate.Words] = 10;
+        var candidate = new ConvexContactCandidate(values, signs, 1);
+
+        // sqrt(1/2) > 7/10; the original coarse cell straddles 7/10.
+        Assert.Equal(1, ConvexContactValueRoot.CompareRootSquared(Signed192.Signed(1), 0, ref root, candidate));
+
+        Assert.True(root.DenominatorShift > originalShift);
+        Assert.False(root.IsRational);
+        Assert.Equal(0, root.Ordinal);
+        Assert.True(root.Coefficients.SequenceEqual(polynomial));
+        Assert.True(root.Signs.SequenceEqual(polynomialSigns));
+        int refinedShift = root.DenominatorShift;
+        Assert.Equal(1, ConvexContactValueRoot.CompareRootSquared(Signed192.Signed(1), 0, ref root, candidate));
+        Assert.True(root.DenominatorShift >= refinedShift);
+        BigInteger lowerNumerator = BigInteger.Zero;
+        for (int index = cell.Length - 1; index >= 0; index--)
+            lowerNumerator = (lowerNumerator << 64) | cell[index];
+        BigInteger denominatorSquared = BigInteger.One << (2 * root.DenominatorShift);
+        Assert.True(2 * lowerNumerator * lowerNumerator < denominatorSquared);
+        Assert.True(2 * (lowerNumerator + 1) * (lowerNumerator + 1) > denominatorSquared);
     }
 
     [Theory]

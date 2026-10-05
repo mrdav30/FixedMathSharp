@@ -296,6 +296,50 @@ public sealed class CenteredCapsuleSlabContactTests
         Assert.Equal(new Vector3d(Fixed64.Zero, Fixed64.FromFraction(4, 5), Fixed64.FromFraction(3, 5)), normal);
     }
 
+    [Fact]
+    public void TinyNegativeAnalyticGap_RetainsSubHalfRawMagnitude()
+    {
+        // Axis Y=24/25 leaves a 1/25-raw cap gap at the lower endpoint.
+        // Rounding its magnitude to zero cannot certify a negative-gap loser.
+        Assert.True(Query(Fixed64.MinIncrement, Fixed64.FromRaw(2), Fixed64.MinIncrement,
+            new Vector3d(Fixed64.Zero, Fixed64.FromRaw(2), Fixed64.Zero), Proportional(0, 0, 1, 7),
+            Fixed64.FromRaw(2), Fixed64.MinIncrement, out Vector3d normal, out Fixed64 depth, out bool clamped));
+        Assert.Equal(Vector3d.Up, normal);
+        Assert.Equal(Fixed64.MinIncrement, depth);
+        Assert.False(clamped);
+    }
+
+    [Fact]
+    public void ClampedPositiveAnalyticGap_PreservesWholeShapeContainment()
+    {
+        // The slab contains the MaxValue-radius ball. The +/-X and +/-Y
+        // minima gain tilted-core support; |axis.Y|=9/25 is smaller than |axis.X|=20/25.
+        Assert.True(Query(Fixed64.MaxValue, Fixed64.MaxValue, Fixed64.MaxValue,
+            Vector3d.Zero, Proportional(1, 2, -4, 2), Fixed64.MinIncrement, Fixed64.Zero,
+            out Vector3d normal, out Fixed64 depth, out bool clamped));
+        Assert.Equal(Fixed64.MaxValue, depth);
+        Assert.True(clamped);
+        Assert.Equal(Vector3d.Up, normal);
+    }
+
+    [Fact]
+    public void ClampedNegativeAnalyticMagnitude_PreservesCurvedSeparation()
+    {
+        const long k = 1L << 61;
+        // The same oblique interior-rim certificate as the raw-neighbor case:
+        // residual (0,4k,-3k) is perpendicular to axis (20,-9,-12)/25.
+        // Its magnitude 5k exceeds MaxValue; even the largest radius cannot bridge it.
+        Assert.False(WideConvexPrismRelations.TryGetCenteredCapsuleSlabCapsulePenetration(
+            new Vector3d(Fixed64.Zero, Fixed64.FromRaw(-2 * k), Fixed64.FromRaw(2 * k)), Fixed64.Zero,
+            Fixed64.FromRaw(2), Fixed64.MinIncrement, Fixed64.MinIncrement,
+            new Vector3d(Fixed64.Zero, Fixed64.FromRaw(2 * k + 1), Fixed64.FromRaw(-k - 2)),
+            Proportional(1, 2, -4, 2), Fixed64.Two, Fixed64.MaxValue,
+            out Vector3d normal, out Fixed64 depth, out bool clamped));
+        Assert.Equal(Vector3d.Zero, normal);
+        Assert.Equal(Fixed64.Zero, depth);
+        Assert.False(clamped);
+    }
+
     [Theory]
     [InlineData(-1, -1, false)]
     [InlineData(-1, 1, false)]
@@ -424,6 +468,41 @@ public sealed class CenteredCapsuleSlabContactTests
             Proportional(1, -2, -1, 2), (Fixed64)20000, Fixed64.Zero,
             out Vector3d normal, out Fixed64 depth, out bool clamped));
         Assert.Equal(-Vector3d.Right, normal); Assert.Equal((Fixed64)2101, depth); Assert.False(clamped);
+    }
+
+    [Fact]
+    public void ReciprocalChartEndpoint_RetainsTheEarlierNegativeGapWinner()
+    {
+        // Axis (20,-9,-12)/25 is perpendicular to n=(21,20,20).
+        // The +cap/+end rim supports n at p=(21,20,21): its X/Z
+        // radial length is 29. Center=p+n, so the complete core gap is
+        // -sqrt(1241). n=u+v lies at t=1 in both reciprocal charts.
+        Assert.True(Query((Fixed64)29, Fixed64.Two, (Fixed64)20, new Vector3d(42, 40, 41),
+            Proportional(1, 2, -4, 2), Fixed64.Two, (Fixed64)36,
+            out Vector3d normal, out Fixed64 depth, out bool clamped));
+        // Independent integer-square midpoint bounds give depth and n/|n|.
+        Assert.Equal(Fixed64.FromRaw(3_316_445_294L), depth);
+        Assert.Equal(new Vector3d(Fixed64.FromRaw(2_560_314_202L), Fixed64.FromRaw(2_438_394_478L),
+            Fixed64.FromRaw(2_438_394_478L)), normal);
+        Assert.False(clamped);
+    }
+
+    [Fact]
+    public void SubHalfRawNonwinningRoot_ReusesTheChartValuesAndRetainedWinner()
+    {
+        // Axis (-12,-45,116)/125 is perpendicular to n=(12,20,9)/25.
+        // The +cap/+end rim supports n at p=(72/5,4,59/5) raw; center=p-5*n.
+        // The chart's first root t=9/20 gives gap5. Its second root has
+        // gap5.298... and also passes the analytic upper bound5.5.
+        // Both round to5: exact ranking must keep the first depth and normal.
+        Assert.True(Query(Fixed64.FromRaw(18), Fixed64.FromRaw(2), Fixed64.FromRaw(4),
+            new Vector3d(Fixed64.FromRaw(12), Fixed64.Zero, Fixed64.FromRaw(10)),
+            Proportional(9, -2, -2, 6), Fixed64.FromRaw(200), Fixed64.Zero,
+            out Vector3d normal, out Fixed64 depth, out bool clamped));
+        Assert.Equal(Fixed64.FromRaw(5), depth);
+        Assert.Equal(new Vector3d(Fixed64.FromFraction(12, 25), Fixed64.FromFraction(4, 5),
+            Fixed64.FromFraction(9, 25)), normal);
+        Assert.False(clamped);
     }
 
     [Fact]

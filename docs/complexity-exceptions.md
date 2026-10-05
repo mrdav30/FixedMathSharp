@@ -323,8 +323,8 @@ The complete capsule/stadium-slab relation retains these focused feature owners:
 | --- | ---: | --- | --- | --- |
 | `WideConvexPrismRelations.TryGetCenteredCapsuleSlabCapsulePenetration(...)` | 52 | 100% line / 100% branch (Release / ReleaseLean) | One ordered traversal owns analytic normal planes, exact whole-shape early certificates, degenerate reductions and curved-feature dispatch. Splitting its candidate state into separate solvers would obscure completeness and tie order. | A proved complete reduction removes features or a measured ownership change lowers cost without duplicate state. |
 | `WideConvexPrismRelations.BuildCapsuleSlabEndpointRim(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Strict cap, end and capsule support signs certify a global closest-point residual before retaining its exact radical normal and signed gap. | Another exact closest-feature consumer can reuse the same support proof. |
-| `WideConvexPrismRelations.TryImproveCapsuleSlabRim(...)` | 22 | 100% line / 100% branch (Release / ReleaseLean) | Stable signed and reciprocal charts share one retained winner; zero, positive and negative core gaps have explicit final conversion paths. | Fewer charts are proved sufficient without unrestricted-domain reflection assumptions. |
-| `WideConvexPrismRelations.KeepCapsuleSlabRimChart(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | Whole-chart sign admission, unsquared stationary equations and exact signed root ranking retain every regional minimum without comparing rounded depths. | An exact nonwinning-root certificate measurably avoids mapping or ranking work. |
+| `WideConvexPrismRelations.TryImproveCapsuleSlabRim(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Stable signed and reciprocal charts share retained parameter/value roots; positive analytic gaps provide a proved upper certificate, while zero, positive and negative winners have explicit final conversion paths. | Fewer charts are proved sufficient without unrestricted-domain reflection assumptions. |
+| `WideConvexPrismRelations.KeepCapsuleSlabRimChart(...)` | 38 | 100% line / 100% branch (Release / ReleaseLean) | Whole-chart admission, unsquared stationary equations, positive nonwinning-root rejection and exact signed ranking retain every regional minimum without comparing rounded depths. | Exact threshold-sign refinement or chart root reuse lowers measured cost without weakening admission or stable ties. |
 
 ## Fixed-Width Workspace Bounds
 
@@ -342,10 +342,18 @@ coefficients stay below 1,900 bits in forty-word fields; value polynomials stay
 below 2,800 bits in fifty-six-word fields. Projected residual directions remain
 in wide spans because their numerators can exceed 320 bits. Root admission,
 mapping, comparison and materialization own separate returning scratch frames.
-The reviewed outer-buffer bound is 37,908 bytes before structs/control; reserving
-48 KiB for those frames, a live 64 KiB caller, nested refinement and a 16 KiB
-control/spill margin keeps the reviewed peak below 512 KiB. The 1 MiB worker
-test supplements this bound with a dirty live caller and an oblique winner.
+The winner retains independent parameter and value roots, including active
+polynomial spans and refined cell metadata, rather than reconstructing its
+parameter for normal rounding. Parameter storage reserves 636 words from the
+shared stationary coefficient bound below 2,520 bits; stadium parameters remain
+below 1,900 bits. The additional retained buffers consume 6,693 bytes, raising
+the reviewed outer-buffer bound to 44,601 bytes before structs/control, within
+the existing 48 KiB reserve. Stadium value height at most 2,800 bits gives a
+319,136-byte Sturm arena; the generic field-capacity arena is not the stadium
+bound. Including copied comparison cells, the 48 KiB outer reserve, a live
+64 KiB caller and a 16 KiB control/spill margin keeps the reviewed peak below
+512 KiB. The 1 MiB worker test supplements this bound with a dirty live caller
+and an oblique winner.
 
 Triangle/cone contact shares the triangle circular frame, rim chart/value
 algebra and exact supported-feature slice rather than copying a root or wide

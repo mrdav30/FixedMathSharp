@@ -98,7 +98,7 @@ internal static partial class WideConvexPrismRelations
                 return false;
             if (sideGapSign == 0)
                 best.KeepTouch(sideNormal);
-            else if (ShouldKeepCylinderPairValue(geometry, sideRoot, analytic, best))
+            else if (ShouldKeepCylinderPairValue(geometry, ref sideRoot, analytic, best))
                 best.KeepRoot(sideRoot, sideNormal);
         }
         for (int firstSign = -1; firstSign <= 1; firstSign += 2)
@@ -156,16 +156,16 @@ internal static partial class WideConvexPrismRelations
                 continue;
             if (gapSign < 0)
                 return false;
-            if (ShouldKeepCylinderPairValue(geometry, root, analytic, best))
+            if (ShouldKeepCylinderPairValue(geometry, ref root, analytic, best))
                 best.KeepSimpleRoot(root, firstSign, secondSign, slope);
         }
         return true;
     }
 
-    private static bool ShouldKeepCylinderPairValue(in CylinderPairGeometry geometry, FiniteAxisValueRoot root,
+    private static bool ShouldKeepCylinderPairValue(in CylinderPairGeometry geometry, scoped ref FiniteAxisValueRoot root,
         ConvexContactCandidate analytic, CylinderPairSelection best) => !best.IsZero && (best.HasRoot
             ? WideFiniteAxisIntersection.CompareFiniteValueRoots(root, best.Root) < 0
-            : ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, root, analytic) < 0);
+            : ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref root, analytic) < 0);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool TryHandleRepeatedCylinderPairValue(in CylinderPairGeometry geometry,
@@ -191,7 +191,7 @@ internal static partial class WideConvexPrismRelations
                 continue;
             // Repeated families cannot separate. Once this value cannot
             // improve, neither admission nor another equal-depth branch matters.
-            if (!ShouldKeepCylinderPairValue(geometry, root, analytic, best))
+            if (!ShouldKeepCylinderPairValue(geometry, ref root, analytic, best))
                 return true;
             for (int branch = 0; branch < 8; branch++)
             {
@@ -244,16 +244,7 @@ internal static partial class WideConvexPrismRelations
 
         internal void KeepRoot(scoped FiniteAxisValueRoot root, Vector3d normal)
         {
-            root.Coefficients.CopyTo(_values);
-            root.Signs.CopyTo(_signs);
-            _cell.Clear();
-            root.LowerNumerator.CopyTo(_cell);
-            Root = new FiniteAxisValueRoot
-            {
-                Coefficients = _values[..root.Coefficients.Length], Signs = _signs[..root.Signs.Length],
-                LowerNumerator = _cell, DenominatorShift = root.DenominatorShift,
-                IsRational = root.IsRational, Ordinal = root.Ordinal
-            };
+            Root = FiniteAxisValueRoot.CopyTo(root, _values, _signs, _cell);
             HasRoot = NormalReady = true;
             Normal = normal;
         }

@@ -129,7 +129,7 @@ internal static class TriangleConeRimContacts
                 data.Slice(21 * Words, 5 * Words), signs.Slice(21, 5), values, valueSigns, valueCell);
             int comparison = best.HasValue
                 ? WideFiniteAxisIntersection.CompareFiniteValueRoots(value, Restore(bestValues, bestSigns, bestCell, best))
-                : ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, value, analytic);
+                : ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref value, analytic);
             if (comparison >= 0)
                 continue;
             values.CopyTo(bestValues); valueSigns.CopyTo(bestSigns); valueCell.CopyTo(bestCell);
