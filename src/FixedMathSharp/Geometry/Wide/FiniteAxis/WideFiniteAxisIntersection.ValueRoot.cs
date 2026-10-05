@@ -219,21 +219,11 @@ internal static partial class WideFiniteAxisIntersection
     {
         if (root.IsRational || root.DenominatorShift >= targetShift)
             return;
-        int lowerSign = knownLowerSign != 0 ? knownLowerSign : EvaluateFiniteRootPolynomial(root.Coefficients, root.Signs,
-            root.LowerNumerator, root.DenominatorShift, 0);
-        int upperSign = knownLowerSign != 0 ? -knownLowerSign : GetFiniteValueCellUpperSign(root);
-        if (lowerSign != 0 && lowerSign == -upperSign)
-        {
-            // The retained cell contains exactly one distinct root. Opposite
-            // nonzero endpoint signs therefore certify an odd crossing, even
-            // for repeated roots, using the same step as the quartic owner.
-            // No Sturm construction or multi-row evaluation is needed here.
-            int coefficientBits = GetFiniteRootCoefficientBits(root.Coefficients, root.Signs.Length);
-            RefineFiniteValueCrossingRoot(ref root, targetShift, lowerSign, coefficientBits);
+        int coefficientBits = GetFiniteRootCoefficientBits(root.Coefficients, root.Signs.Length);
+        if (TryRefineFiniteValueCrossingRoot(ref root, targetShift, knownLowerSign, coefficientBits))
             return;
-        }
         int degree = root.Signs.Length - 1;
-        int bits = GetFiniteRootCoefficientBits(root.Coefficients, degree + 1);
+        int bits = coefficientBits;
         int unitBits = bits + 64;
         int retainedBits = (3 * degree + 1) * unitBits;
         int evaluationBits = 0;

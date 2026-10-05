@@ -266,7 +266,7 @@ internal static partial class WideFiniteAxisIntersection
         // positive cell, k <= min(shift, coefficientBits+3) by Cauchy's bound.
         int sign = unitIntervalCoefficientBits == 0 ? 0 : GetFiniteValueApproximateSign(
             lowerNumerator, denominatorShift, coefficients, signs,
-            denominatorShift + 64 + (signs.Length - 1)
+            denominatorShift + FiniteValuePointGuardBits + (signs.Length - 1)
                 * (denominatorShift - GetFiniteRootBits(lowerNumerator) + 1),
             unitIntervalCoefficientBits);
         if (sign == 0)

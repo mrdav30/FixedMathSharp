@@ -166,6 +166,19 @@ internal static partial class WideFiniteAxisIntersection
             variableShift = 0;
             evaluationBits = normalizationBits = queryBits;
         }
+        // Earlier queries may already have narrowed this exact cell. Reuse
+        // its certified width before copying or refining it: the same error
+        // proof requires effective shift >= precision + 2*ceilLog2(m+1).
+        // A nonzero result proves the sign at the retained root; uncertainty
+        // must still reach the full resultant/equality bound below.
+        int retainedPrecision = Math.Min(32, root.DenominatorShift - variableShift - 2 * queryCountBits);
+        if (retainedPrecision > 0)
+        {
+            int retainedSign = GetFiniteValueApproximateSign(root.LowerNumerator, root.DenominatorShift,
+                coefficients, signs, retainedPrecision, evaluationBits, variableShift);
+            if (retainedSign != 0)
+                return retainedSign;
+        }
         // If Q(alpha)!=0, the integer resultant of Q and alpha's primitive
         // minimal polynomial has magnitude >=1. Mahler measure of that
         // factor is <=M(F)<=sqrt(n+1)*height(F). Since alpha is in (0,1],

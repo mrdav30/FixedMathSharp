@@ -7,6 +7,54 @@ namespace FixedMathSharp.Tests;
 
 public sealed class FiniteAxisValueRootRetainedSignTests
 {
+    [Theory]
+    [InlineData(16, 1, -3, 4, -1)]
+    [InlineData(16, 4096, -2, 3, 1)]
+    [InlineData(96, 1, -2, 3, 1)]
+    public void CertifiedRetainedCell_AnswersSeparatedSignsWithoutFurtherRefinement(
+        int shift, int scaleBits, int constant, int linear, int expected)
+    {
+        ulong[] defining = { 1, 0, 2 };
+        sbyte[] definingSigns = { -1, 0, 1 };
+        ulong[] cell = new ulong[16];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            0, cell, out FiniteAxisValueRoot root));
+        WideFiniteAxisIntersection.RefineFiniteValueRoot(ref root, shift);
+        ulong[] original = (ulong[])cell.Clone();
+        int originalShift = root.DenominatorShift;
+        BigInteger scale = (BigInteger.One << scaleBits) + 3;
+        Encode(new[] { constant * scale, linear * scale }, out ulong[] query, out sbyte[] signs);
+        // sqrt(1/2) lies strictly between 2/3 and 3/4. Common integer
+        // content must not force more refinement of an already decisive cell.
+        Assert.Equal(expected, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, signs));
+        Assert.Equal(originalShift, root.DenominatorShift);
+        Assert.Equal(original, cell);
+        AssertSquareRootCell(root);
+        Assert.Equal(0, root.Ordinal);
+    }
+
+    [Fact]
+    public void CertifiedTinyRetainedCell_UsesTheExistingVariableNormalization()
+    {
+        const int power = 129;
+        Encode(new[] { -BigInteger.One, BigInteger.Zero, BigInteger.One << power },
+            out ulong[] defining, out sbyte[] definingSigns);
+        ulong[] cell = new ulong[16];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            0, cell, out FiniteAxisValueRoot root));
+        WideFiniteAxisIntersection.RefineFiniteValueRoot(ref root, 80);
+        ulong[] original = (ulong[])cell.Clone();
+        int originalShift = root.DenominatorShift;
+        // 2^64*alpha=sqrt(1/2)>2/3; virtual variable scaling must use
+        // the cell's effective width, rather than its absolute denominator.
+        Encode(new[] { new BigInteger(-2), 3 * (BigInteger.One << 64) },
+            out ulong[] query, out sbyte[] signs);
+        Assert.Equal(1, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, signs));
+        Assert.Equal(originalShift, root.DenominatorShift);
+        Assert.Equal(original, cell);
+        AssertSquareRootCell(root, power);
+    }
+
     [Fact]
     public void PreservingSign_LeavesTheCellAndItsMetadataUnchanged()
     {

@@ -225,7 +225,7 @@ exception table: their reported complexities are at most 10.
 | `WideFiniteAxisIntersection.AddFiniteAxisPolynomial(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Signed integer multipliers and degree offsets accumulate into independently strided caller storage using the shared shifted-magnitude owner. | Construction callers no longer need signed scaling/offsets or coefficient-width preconditions change. |
 | `WideFiniteAxisIntersection.TryGetFiniteValueRoots(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | One bounded certificate or Sturm construction yields authoritative distinct-root count, repeated-root state and compact cells; capacity failure discards only reusable cell metadata. | The degree-eight domain, compact layout or exact fallback contract changes. |
 | `WideFiniteAxisIntersection.IsolateFiniteValueRoot(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Ordinal isolation preserves excluded zero, exact singleton roots, nonroot open endpoints and explicit compact capacity without tolerance decisions. | Root interval policy or the proven separation/storage bounds change. |
-| `WideFiniteAxisIntersection.RefineFiniteValueRoot(...)` | 22 | 100% line / 100% branch (Release / ReleaseLean) | Singleton/finer cells are unchanged; certified crossings use shared sign refinement while noncrossing roots retain exact Sturm identity. Simple-root callers may reuse proven nonzero endpoint signs; default callers still evaluate them exactly. | A new refinement certificate preserves repeated roots and caller-owned cell capacity at lower cost. |
+| `WideFiniteAxisIntersection.RefineFiniteValueRoot(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Singleton/finer cells are unchanged; the shared crossing classifier/refiner accepts certified opposite signs while noncrossing roots retain exact Sturm identity. Simple-root callers may reuse proven nonzero endpoint signs. | A new refinement certificate preserves repeated roots and caller-owned cell capacity at lower cost. |
 | `WideFiniteAxisIntersection.BuildFiniteValueSturm(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Brown subresultant recurrence tracks positive power-of-two content and separate Sturm row orientation in graded storage, including abnormal degree drops. | Degree, coefficient-height or exact scalar-divisibility proofs change. |
 | `WideFiniteAxisIntersection.BuildFiniteValueSubresultant(...)` | 28 | 100% line / 100% branch (Release / ReleaseLean) | Signed pseudo-division, exact Brown scalar division and degree trimming remain one bounded arithmetic operation with proven intermediate widths. | A simpler exact PRS preserves signs and abnormal drops while reducing measured work or live scratch. |
 | `WideFiniteAxisIntersection.NormalizeFiniteValueContent(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Shared magnitude GCD and exact division remove only positive polynomial content, preserving every root and Sturm sign. | Content policy changes or a cheaper exact reducer preserves canonical coefficients. |
@@ -234,10 +234,10 @@ exception table: their reported complexities are at most 10.
 | `WideFiniteAxisIntersection.MapKnownFiniteValueRootRadicalOffset(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Exact mapped cells identify a proven target member; source/target precision bounds certify unresolved overlap without another polynomial-composition solver. | The known-membership, signed-radius branch or root-separation contract changes. |
 | `WideFiniteAxisIntersection.ClassifyRadicalOffsetCells(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Ordered known-member search combines negative-branch clipping, exact singleton handling and strict mapped containment without redundant maximum rejection. | Candidate order or the admitted negative-offset domain changes. |
 | `WideFiniteAxisIntersection.CompareRadicalOffsetEndpoints(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Exponent-aligned rational/radical signs compare dyadic endpoints exactly, retaining zero terms and cancellation before squaring. | Endpoint domain, radius scaling or the five-exponent-width scratch proof changes. |
-| `WideFiniteAxisIntersection.RefineFiniteValueCrossingRoot(...)` | 34 | 100% line / 100% branch (Release / ReleaseLean) | Secant hints predict byte cells only; exact opposite endpoint signs certify acceptance, with singleton detection and restoring bisection after an inconclusive prediction. | Prediction ceases to improve measured refinement or sign/error bounds change. |
+| `WideFiniteAxisIntersection.TryRefineFiniteValueCrossingRoot(...)` | 46 | 100% line / 100% branch (Release / ReleaseLean) | Shared endpoint certificates classify an odd crossing and supply secant hints; uncertain points use exact evaluation. Equal/zero parent signs retain Sturm fallback. Hints predict byte cells only; certified opposite signs admit the same root, with singleton detection and restoring bisection after an inconclusive prediction. | Prediction ceases to improve measured refinement or sign/error bounds change. |
 | `WideFiniteAxisIntersection.CompareFiniteValueRootToDyadic(...)` | 22 | 100% line / 100% branch (Release / ReleaseLean) | Positive-domain boundaries, singleton equality, cell order and exact interior evaluation preserve root identity without rounding the comparison point. | The root domain or excluded-endpoint policy changes. |
 | `WideFiniteAxisIntersection.CompareFiniteValueRoots(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Shared-factor equality and exact dyadic ordering distinguish equal roots from different ordinals before bounded refinement. | Factor identity, cell ownership or the joint separation proof changes. |
-| `WideFiniteAxisIntersection.GetSignAtFiniteValueRootCore(...)` | 34 | 100% line / 100% branch (Release / ReleaseLean) | Constant/singleton cases, caller-capacity-aware retained refinement and certified root-local normalized signs share one exact equality/sign authority. Virtual dyadic scaling preserves the resultant bound and never increases the previous worst-case scratch/refinement bound. | Query degree/height, normalization proof or retained-cell mutation policy changes. |
+| `WideFiniteAxisIntersection.GetSignAtFiniteValueRootCore(...)` | 38 | 100% line / 100% branch (Release / ReleaseLean) | Constant/singleton cases, a certified retained-cell trial, caller-capacity-aware retained refinement and root-local normalized signs share one exact equality/sign authority. A decisive trial leaves the cell unchanged; uncertainty retains the resultant bound and equality fallback. Virtual dyadic scaling preserves the scratch/refinement bound. | Query degree/height, normalization proof or retained-cell mutation policy changes. |
 | `WideFiniteAxisIntersection.GetFiniteValueApproximateSign(..., out uint, out int)` | 22 | 100% line / 100% branch (Release / ReleaseLean) | Normalized Horner retains a proved truncation/cell-error bound; nonzero results certify signs, while magnitude hints only guide refinement and uncertain points retain exact fallback. | Precision, small-value attenuation or coefficient-quantization bounds change. |
 | `WideArithmetic.AddShiftedSignedMagnitude(...)` | 22 | 100% line / 100% branch (Release / ReleaseLean) | One shared in-place owner handles shifted carry, borrow, cancellation and result sign without a shifted copy or subtraction buffer. Same-sign addition visits active source words and reuses bounded carry propagation beyond them. | Aliasing, canonical sign or destination-capacity preconditions change. |
 | `WideArithmetic.MultiplyMagnitudes(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | One shared truncated convolution retains sparse-row carry and dirty-output clearing. Input clipping and bounded zero-prefix factoring remove terms that cannot affect retained product limbs, with no additional scratch. | Product/input overlap, retained width, carry bounds or the exact whole-word factoring contract changes. |
@@ -317,6 +317,13 @@ than extracting forwarding methods to lower a metric.
 
 ### Capsule/stadium-slab contacts
 
+The shared `RefineFiniteValueRoot`, `TryRefineFiniteValueCrossingRoot` and
+`GetSignAtFiniteValueRootCore` rows above were refreshed from exact Release
+and ReleaseLean OpenCover captures on 2026-10-05 (complexities 16/46/38).
+Both complete owning suites retain 100% reachable line, branch and method
+coverage. Evidence is in the sibling Gravitas repository under
+`artifacts/grv-benchmark-021/final-gates-20261005T154851161Z-61242ac51b9c43faa6fe3d5bc733936e/`.
+
 The complete capsule/stadium-slab relation retains these focused feature owners:
 
 | Method | Complexity | Coverage | Rationale | Revisit if |
@@ -354,6 +361,23 @@ bound. Including copied comparison cells, the 48 KiB outer reserve, a live
 64 KiB caller and a 16 KiB control/spill margin keeps the reviewed peak below
 512 KiB. The 1 MiB worker test supplements this bound with a dirty live caller
 and an oblique winner.
+
+Retained-cell sign trials use the same normalized Horner certificate at
+`precision<=DenominatorShift-variableShift-2*ceilLog2(degree+1)`. Only a
+certified nonzero sign returns early; uncertainty still reaches the original
+resultant/equality bound. Crossing classification reuses its endpoint signs
+and byte-prediction hints, with exact point evaluation when uncertain and
+Sturm fallback for equal signs or zero parent endpoints. Neither adds a
+retained cell, root field, arena or overlapping scratch lifetime.
+
+The measured point guard is 128 bits rather than 64, shared by endpoint,
+byte-step and midpoint certificates. Sign acceptance and root target shifts
+are unchanged. Adding 64 precision bits adds one word to each approximate
+result/product buffer: 16 bytes per active call. The returning call frames
+do not accumulate this increment. Conservatively adding it to the reviewed
+stadium comparison and mapped-sign budgets gives 462,240 and 418,685 bytes,
+including caller/control reserves, still below 512 KiB. Exact integer fallback
+remains available at every uncertain point, including repeated and dyadic roots.
 
 Triangle/cone contact shares the triangle circular frame, rim chart/value
 algebra and exact supported-feature slice rather than copying a root or wide

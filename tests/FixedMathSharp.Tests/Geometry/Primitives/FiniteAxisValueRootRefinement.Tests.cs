@@ -7,6 +7,64 @@ namespace FixedMathSharp.Tests;
 
 public sealed class FiniteAxisValueRootRefinementTests
 {
+    [Fact]
+    public void Refine_UncertainUpperEndpointRestoresTheCellAcrossWordCarry()
+    {
+        // alpha=1-2^-256 lies inside the cell immediately below one. Its
+        // upper endpoint needs exact evaluation: adding one carries into the
+        // second word, and restoration must borrow through the zero low word.
+        BigInteger scale = BigInteger.One << 256;
+        Encode(new[] { -(scale - 1), scale }, out ulong[] coefficients, out sbyte[] signs);
+        ulong[] cell = new ulong[8];
+        cell[0] = ulong.MaxValue;
+        var root = new FiniteAxisValueRoot
+        {
+            Coefficients = coefficients, Signs = signs, LowerNumerator = cell,
+            DenominatorShift = 64, Ordinal = 0
+        };
+
+        WideFiniteAxisIntersection.RefineFiniteValueRoot(ref root, 128);
+
+        Assert.False(root.IsRational);
+        Assert.Equal(128, root.DenominatorShift);
+        Assert.Equal(0, root.Ordinal);
+        BigInteger numerator = 0;
+        for (int word = cell.Length - 1; word >= 0; word--)
+            numerator = (numerator << 64) + cell[word];
+        BigInteger scaledRoot = (scale - 1) << root.DenominatorShift;
+        Assert.True(numerator * scale < scaledRoot);
+        Assert.True(scaledRoot < (numerator + 1) * scale);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Refine_ZeroParentEndpointDoesNotReplaceTheSelectedInteriorRoot(bool zeroUpper)
+    {
+        // F=(t-1)(4t²-3) or (2t-1)(4t²-3). The selected root
+        // sqrt(3/4) is strictly inside (1/2,1); an excluded parent
+        // endpoint is another root, never the selected rational singleton.
+        ulong[] coefficients = zeroUpper ? new ulong[] { 3, 3, 4, 4 } : new ulong[] { 3, 6, 4, 8 };
+        sbyte[] signs = { 1, -1, -1, 1 };
+        ulong[] cell = new ulong[8];
+        cell[0] = 1;
+        var root = new FiniteAxisValueRoot
+        {
+            Coefficients = coefficients, Signs = signs, LowerNumerator = cell,
+            DenominatorShift = 1, Ordinal = zeroUpper ? 0 : 1
+        };
+        WideFiniteAxisIntersection.RefineFiniteValueRoot(ref root, 96);
+        Assert.False(root.IsRational);
+        Assert.Equal(96, root.DenominatorShift);
+        Assert.Equal(zeroUpper ? 0 : 1, root.Ordinal);
+        BigInteger numerator = 0;
+        for (int word = cell.Length - 1; word >= 0; word--)
+            numerator = (numerator << 64) + cell[word];
+        BigInteger exactSquare = 3 * (BigInteger.One << 192);
+        Assert.True(4 * numerator * numerator < exactSquare);
+        Assert.True(exactSquare < 4 * (numerator + 1) * (numerator + 1));
+    }
+
     [Theory]
     [InlineData(320, 1, 1)]
     [InlineData(512, -1, 1)]

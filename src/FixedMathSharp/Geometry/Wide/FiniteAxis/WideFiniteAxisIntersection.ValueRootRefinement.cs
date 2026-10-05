@@ -9,7 +9,11 @@ namespace FixedMathSharp.Geometry;
 /// <content>Certified byte-sized refinement of an isolated value-root crossing.</content>
 internal static partial class WideFiniteAxisIntersection
 {
-    private static void RefineFiniteValueCrossingRoot(ref FiniteAxisValueRoot root,
+    // Extra relative-precision bits reduce exact fallback near ill-conditioned
+    // crossings. This is a measured work budget; it never decides acceptance.
+    private const int FiniteValuePointGuardBits = 128;
+
+    private static bool TryRefineFiniteValueCrossingRoot(ref FiniteAxisValueRoot root,
         int targetShift, int lowerSign, int coefficientBits)
     {
         // Secant values only predict one of 256 child cells. The retained
@@ -21,10 +25,10 @@ internal static partial class WideFiniteAxisIntersection
         uint upperHint = 0;
         int lowerBits = 0;
         int upperBits = 0;
-        if (useByteSteps)
+        if (lowerSign == 0 || useByteSteps)
         {
             int shift = root.DenominatorShift;
-            int precision = shift + 64 + (root.Signs.Length - 1)
+            int precision = shift + FiniteValuePointGuardBits + (root.Signs.Length - 1)
                 * (shift - GetFiniteRootBits(root.LowerNumerator) + 1);
             int lowerCertificate = GetFiniteValueApproximateSign(root.LowerNumerator, shift,
                 root.Coefficients, root.Signs, precision, coefficientBits, out lowerHint, out lowerBits);
@@ -34,7 +38,20 @@ internal static partial class WideFiniteAxisIntersection
             ulong borrow = 1;
             for (int word = 0; borrow != 0; word++)
                 root.LowerNumerator[word] = WideArithmetic.SubtractWord(root.LowerNumerator[word], 0, ref borrow);
-            useByteSteps = lowerCertificate == lowerSign && upperCertificate == -lowerSign;
+            if (lowerSign == 0)
+            {
+                // The same endpoint certificates both identify an odd crossing
+                // and supply its prediction hints. An uncertain point is still
+                // evaluated exactly. Equal signs or a zero parent endpoint
+                // leave the original cell untouched for the Sturm fallback.
+                lowerSign = lowerCertificate != 0 ? lowerCertificate
+                    : EvaluateFiniteRootPolynomial(root.Coefficients, root.Signs,
+                        root.LowerNumerator, shift, 0);
+                int upperSign = upperCertificate != 0 ? upperCertificate : GetFiniteValueCellUpperSign(root);
+                if (lowerSign == 0 || lowerSign != -upperSign)
+                    return false;
+            }
+            useByteSteps = useByteSteps && lowerCertificate == lowerSign && upperCertificate == -lowerSign;
         }
 
         while (!root.IsRational && root.DenominatorShift < targetShift)
@@ -55,7 +72,7 @@ internal static partial class WideFiniteAxisIntersection
                 // Every candidate is inside the positive parent cell, so
                 // k<=min(q,B+3), and the existing point scratch bound holds.
                 // Hints are four scalars; no additional cell/arena is retained.
-                int precision = nextShift + 64 + (root.Signs.Length - 1)
+                int precision = nextShift + FiniteValuePointGuardBits + (root.Signs.Length - 1)
                     * (nextShift - GetFiniteRootBits(root.LowerNumerator) + 1);
                 int lowerCertificate = GetFiniteValueApproximateSign(root.LowerNumerator, nextShift,
                     root.Coefficients, root.Signs, precision, coefficientBits, out lowerHint, out lowerBits);
@@ -64,7 +81,7 @@ internal static partial class WideFiniteAxisIntersection
                 if (lowerPointSign == 0)
                 {
                     KeepFiniteValueRefinementSingleton(ref root, nextShift);
-                    return;
+                    return true;
                 }
                 AddRoundedCylinderWord(root.LowerNumerator, 0, 1);
                 int upperCertificate = GetFiniteValueApproximateSign(root.LowerNumerator, nextShift,
@@ -74,7 +91,7 @@ internal static partial class WideFiniteAxisIntersection
                 if (upperPointSign == 0)
                 {
                     KeepFiniteValueRefinementSingleton(ref root, nextShift);
-                    return;
+                    return true;
                 }
                 ulong borrow = 1;
                 for (int word = 0; borrow != 0; word++)
@@ -96,6 +113,7 @@ internal static partial class WideFiniteAxisIntersection
             RefineFiniteCrossingRoot(root.Coefficients, root.Signs, root.LowerNumerator,
                 ref root.DenominatorShift, ref root.IsRational, lowerSign, coefficientBits);
         }
+        return true;
     }
 
     private static void KeepFiniteValueRefinementSingleton(ref FiniteAxisValueRoot root, int shift)
