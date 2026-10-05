@@ -51,8 +51,9 @@ No active signals remain.
 
 ### Centered forward-scaled planar transforms repeat zero-offset wide arithmetic
 
-- **Status:** Implemented for review, 2026-10-04; coordinated with Gravitas
-  GRV-Benchmark-023.
+- **Status:** Committed as `5447b34` on 2026-10-04; coordinated with Gravitas
+  GRV-Benchmark-023. Local source-stack validation is complete; released-package
+  validation remains a future release gate.
 - **Change:** The existing `WideVector2dTransform.TryTransformScaledPoint` owner
   returns the origin when both the local point and unscaled local displacement
   are exactly zero. Both rotated numerators are then zero regardless of scale,
