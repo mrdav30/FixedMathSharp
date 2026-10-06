@@ -7,6 +7,90 @@ namespace FixedMathSharp.Tests;
 public sealed partial class FixedTriangleFiniteConeContactTests
 {
     [Theory]
+    [InlineData(-3, 4, 1)]
+    [InlineData(0, 1, 1)]
+    [InlineData(7, 8, -1)]
+    public void HorizontalFace_AxialWinnerPreservesWindingAndCyclicOrder(int numerator, int denominator, int normalY)
+    {
+        Fixed64 y = Fixed64.FromFraction(numerator, denominator);
+        FixedTriangle source = HorizontalTriangle(y);
+        for (int winding = 0; winding < 2; winding++)
+        {
+            FixedTriangle triangle = winding == 0 ? source : new FixedTriangle(source.A, source.C, source.B);
+            for (int order = 0; order < 3; order++)
+            {
+                Assert.True(Contact(triangle, out FixedContactAnchors contact));
+                // At Y=0 the two axial exits tie. The earlier +Up candidate
+                // owns the canonical base witness for either face orientation.
+                Assert.Equal(new Vector3d(0, normalY, 0), contact.Normal);
+                Assert.Equal(Fixed64.One - FixedMath.Abs(y), contact.Depth);
+                Assert.False(contact.DepthIsClamped);
+                AssertPoints(contact, new Vector3d(Fixed64.Zero, y, Fixed64.Zero), new Vector3d(0, -normalY, 0));
+                triangle = new FixedTriangle(triangle.B, triangle.C, triangle.A);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(1L, 0L, false)]
+    [InlineData(3L, 2L, false)]
+    [InlineData(5L, 2L, false)]
+    [InlineData(7L, 4L, false)]
+    [InlineData(1L, 0L, true)]
+    [InlineData(3L, 2L, true)]
+    [InlineData(5L, 2L, true)]
+    [InlineData(7L, 4L, true)]
+    public void ApexEdgeProjection_RoundsSignedHalfRawCoordinatesToEven(long apexRaw, long expectedRaw, bool negativeX)
+    {
+        int sign = negativeX ? -1 : 1;
+        var triangle = new FixedTriangle(new Vector3d(-sign, -1, 0), new Vector3d(sign, 1, 0), new Vector3d(0, 1, 1));
+        Fixed64 height = Fixed64.FromRaw(2 * apexRaw);
+        var geometry = new TriangleCircularGeometry(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, Signed192.Raw(height), Fixed64.MinIncrement);
+        Span<ulong> normal = stackalloc ulong[3 * CylinderContactAlgebra.Words];
+        Span<int> signs = stackalloc int[3];
+        CylinderContactAlgebra.WriteDirection(new WideAxis3(Signed320.ExtendValue(Signed192.Signed(sign)),
+            Signed320.ExtendValue(Signed192.Signed(-1)), default), normal, signs);
+        // The apex (0,apexRaw,0) projects onto the admitted edge x=+/-y
+        // at (+/-apexRaw/2,apexRaw/2,0), independently of query selection.
+        Vector3d point = TriangleCylinderRimWitnesses.GetAnalyticPoint(geometry, triangle, 3, normal, signs, -1, default);
+        Assert.Equal(new Vector3d(Fixed64.FromRaw(sign * expectedRaw), Fixed64.FromRaw(expectedRaw), Fixed64.Zero), point);
+    }
+
+    [Fact]
+    public void AnalyticFaceProjection_CancelsNonzeroRadicalContributionsBeforeRounding()
+    {
+        var triangle = new FixedTriangle(new Vector3d(-8, 8, -8), new Vector3d(8, -8, 0), new Vector3d(0, 0, 8));
+        var geometry = new TriangleCircularGeometry(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, Signed192.Raw((Fixed64)4), Fixed64.One);
+        Span<ulong> normal = stackalloc ulong[3 * CylinderContactAlgebra.Words];
+        Span<int> signs = stackalloc int[3];
+        CylinderContactAlgebra.WriteDirection(new WideAxis3(Signed320.One, Signed320.One, default), normal, signs);
+        // The base rim (-1,-2,0) projects to (1/2,-1/2,0) on X+Y=0.
+        // Its two nonzero radical barycentric terms cancel in Z; X/Y retain
+        // radical terms. The projected point is strictly inside the triangle.
+        Assert.Equal(new Vector3d(Fixed64.Half, -Fixed64.Half, Fixed64.Zero),
+            TriangleCylinderRimWitnesses.GetAnalyticPoint(geometry, triangle, 7, normal, signs, 1, geometry.Radius));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnalyticFaceProjection_RetainsExtremeAuthoredCoordinates(bool minimum)
+    {
+        Fixed64 x = minimum ? Fixed64.MinValue : Fixed64.MaxValue;
+        var triangle = new FixedTriangle(new Vector3d(x, (Fixed64)(-16), (Fixed64)(-16)),
+            new Vector3d(x, (Fixed64)16, (Fixed64)(-16)), new Vector3d(x, Fixed64.Zero, (Fixed64)16));
+        var geometry = new TriangleCircularGeometry(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+            new Vector3d(x, Fixed64.Zero, Fixed64.Zero), FixedQuaternion.Identity, Signed192.Raw(Fixed64.Two), Fixed64.One);
+        Span<ulong> normal = stackalloc ulong[3 * CylinderContactAlgebra.Words];
+        Span<int> signs = stackalloc int[3];
+        CylinderContactAlgebra.WriteDirection(new WideAxis3(Signed320.One, default, default), normal, signs);
+        Assert.Equal(new Vector3d(x, -Fixed64.One, Fixed64.Zero),
+            TriangleCylinderRimWitnesses.GetAnalyticPoint(geometry, triangle, 7, normal, signs, 1, geometry.Radius));
+    }
+
+    [Theory]
     [InlineData(-3, 4, 1, 4, 1)]
     [InlineData(7, 8, 1, 8, -1)]
     public void HorizontalFace_ReturnsMinimumExitAndPairedWitnesses(

@@ -23,12 +23,15 @@ internal static class TriangleConeRimContacts
     }
 
     internal static bool TryGetContact(in TriangleCircularGeometry geometry, FixedTriangle triangle,
-        Fixed64 height, Fixed64 radius, scoped ConvexContactCandidate analytic,
+        Fixed64 height, Fixed64 radius, scoped ConvexContactCandidate analytic, Fixed64 analyticDepth,
         out bool hasBetter, out Vector3d normal, out Vector3d radialPoint,
         out Vector3d trianglePoint, out Fixed64 depth, out bool clamped)
     {
         hasBetter = false; normal = radialPoint = trianglePoint = default;
-        depth = default; clamped = false;
+        depth = analyticDepth; clamped = false;
+        // The caller's exact face-width proof excludes a clamped analytic gap.
+        // Its rounded value d bounds the original gap by d+1/2 raw, including Max.
+        ulong upperTwiceRaw = ((ulong)analyticDepth.m_rawValue << 1) | 1UL;
         Span<ulong> bestValues = stackalloc ulong[5 * ValueWords];
         Span<sbyte> bestSigns = stackalloc sbyte[5];
         Span<ulong> bestCell = stackalloc ulong[ValueCellWords];
@@ -49,7 +52,7 @@ internal static class TriangleConeRimContacts
                         WideAxis3 second = secondSign > 0 ? v : -v;
                         if (chart != 0) (first, second) = (second, first);
                         if (!TryChart(geometry, height, radius, edge, first, second,
-                                analytic, bestValues, bestSigns, bestCell, ref best))
+                                analytic, upperTwiceRaw, bestValues, bestSigns, bestCell, ref best))
                             return false;
                     }
         }
@@ -57,7 +60,9 @@ internal static class TriangleConeRimContacts
             return true;
         hasBetter = true;
         GetMaterials(geometry, triangle, height, radius, best, out normal, out radialPoint, out trianglePoint);
-        if (!best.IsZero)
+        if (best.IsZero)
+            depth = Fixed64.Zero;
+        else
         {
             FiniteAxisValueRoot root = Restore(bestValues, bestSigns, bestCell, best);
             ConvexContactValueRoot.GetRoundedDepth(geometry.RawScale, geometry.ValueShift,
@@ -68,13 +73,15 @@ internal static class TriangleConeRimContacts
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool TryChart(in TriangleCircularGeometry geometry, Fixed64 height, Fixed64 radius,
-        int edge, WideAxis3 first, WideAxis3 second, scoped ConvexContactCandidate analytic,
+        int edge, WideAxis3 first, WideAxis3 second, scoped ConvexContactCandidate analytic, ulong upperTwiceRaw,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
         ref Selection best)
     {
         WideAxis3 outward = geometry.EdgeFromTo((edge + 2) % 3, edge);
         Signed576 a = WideAxis3.Dot(first, outward), b = WideAxis3.Dot(second, outward);
-        if (a.Sign < 0 && WideArithmetic.AddSigned576(a, b).Sign <= 0)
+        // Each root needs positive outward projection a+t*b on t in (0,1].
+        // Nonpositive endpoints exclude the complete affine chart before construction.
+        if (a.Sign <= 0 && WideArithmetic.AddSigned576(a, b).Sign <= 0)
             return true;
         Span<ulong> data = stackalloc ulong[ParameterSlots * Words];
         Span<sbyte> signs = stackalloc sbyte[ParameterSlots];
@@ -88,7 +95,6 @@ internal static class TriangleConeRimContacts
         Span<ulong> values = stackalloc ulong[5 * ValueWords];
         Span<sbyte> valueSigns = stackalloc sbyte[5];
         Span<ulong> valueCell = stackalloc ulong[ValueCellWords];
-        bool valuesReady = false;
         for (int ordinal = 0; ordinal < roots.Count; ordinal++)
         {
             scoped FiniteAxisValueRoot root = FiniteAxisValueRoots.GetRoot(roots, ordinal,
@@ -118,11 +124,15 @@ internal static class TriangleConeRimContacts
                 candidate.IsZero = true; best = candidate;
                 continue;
             }
-            if (!valuesReady)
-            {
-                BuildValues(geometry.Edge(edge), geometry.CapOffset(edge, 1), geometry.Radius, geometry.ValueShift, values, valueSigns);
-                valuesReady = true;
-            }
+            // Positive roots at or above the analytic half-raw upper bound
+            // cannot win. Negative/zero gaps have already retained classification.
+            if (ConvexContactValueRoot.CompareSquaredGapToTwiceRaw(ref root,
+                    data.Slice(16 * Words, 5 * Words), signs.Slice(16, 5),
+                    data.Slice(21 * Words, 5 * Words), signs.Slice(21, 5), upperTwiceRaw) >= 0)
+                continue;
+            // Materialize only roots that survive feature admission and the
+            // analytic bound. Rebuilding is valid for any number of survivors.
+            BuildValues(geometry.Edge(edge), geometry.CapOffset(edge, 1), geometry.Radius, geometry.ValueShift, values, valueSigns);
             scoped FiniteAxisValueRoot value = ConvexContactValueRoot.MapSquaredValue(
                 geometry.RawScale, geometry.ValueShift, ref root,
                 data.Slice(16 * Words, 5 * Words), signs.Slice(16, 5),

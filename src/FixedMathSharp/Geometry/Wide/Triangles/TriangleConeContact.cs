@@ -31,10 +31,21 @@ internal static class TriangleConeContact
         if (selection.Separated)
             return false;
         var best = selection.Candidate;
-        bool rootWinner = false, clamped = false;
+        bool rootWinner = false;
         Vector3d normal = default, radialPoint = default, point = default;
-        Fixed64 depth = default;
-        if (!faceMinimumCertified && !TriangleConeRimContacts.TryGetContact(geometry, triangle, height, radius, best,
+        // Generator normals can mix rational and radical components;
+        // only rational local normals use the principal-axis cancellation.
+        Fixed64 depth;
+        bool clamped;
+        if (selection.Feature == TriangleConeContactSelection.Generator)
+            WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(best, Fixed64.Zero, out depth, out clamped);
+        else
+            geometry.GetAnalyticDepth(best, localSigns, selection.Mask, out depth, out clamped);
+        // Both exact face orientations bound this winner by half the cone's
+        // width. Diameter=max(2R,sqrt(R^2+H^2))<=2*MaxValue, so it cannot clamp.
+        // Exact orthogonal frames and the generator seam preserve this bound.
+        System.Diagnostics.Debug.Assert(!clamped);
+        if (!faceMinimumCertified && !TriangleConeRimContacts.TryGetContact(geometry, triangle, height, radius, best, depth,
                 out rootWinner, out normal, out radialPoint, out point, out depth, out clamped))
             return false;
         FixedPointAnchor coneAnchor;
@@ -43,12 +54,6 @@ internal static class TriangleConeContact
         else
         {
             normal = WideConvexPrismRelations.GetConvexContactCandidateNormal(best);
-            // Generator normals can mix rational and radical components;
-            // only rational local normals use the principal-axis cancellation.
-            if (selection.Feature == TriangleConeContactSelection.Generator)
-                WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(best, Fixed64.Zero, out depth, out clamped);
-            else
-                geometry.GetAnalyticDepth(best, localSigns, selection.Mask, out depth, out clamped);
             if (selection.Feature == TriangleConeContactSelection.Generator)
                 TriangleConeWitnesses.GetGenerator(geometry, triangle, height, radius, selection.Mask,
                     localNormal, localSigns, center, coneRotation, out point, out coneAnchor);
@@ -85,8 +90,13 @@ internal static class TriangleConeContact
         Span<int> signs = stackalloc int[3];
         WriteDirection(new WideAxis3(default, Signed320.One, default), direction, signs);
         KeepAxis(geometry, direction, signs, true, ref selection);
-        WriteDirection(geometry.FaceNormal, direction, signs);
-        KeepAxis(geometry, direction, signs, true, ref selection);
+        // Horizontal faces duplicate the already tested +/-Up support masks
+        // and gaps. Their equal candidates retain the earlier axial winner.
+        if (!geometry.FaceNormal.X.IsZero || !geometry.FaceNormal.Z.IsZero)
+        {
+            WriteDirection(geometry.FaceNormal, direction, signs);
+            KeepAxis(geometry, direction, signs, true, ref selection);
+        }
         if (selection.Separated) return false;
         if (HasFaceMinimumCertificate(geometry, selection.Candidate)) return true;
         TriangleConeGeneratorFeatures.KeepAll(geometry, height, radius, ref selection);

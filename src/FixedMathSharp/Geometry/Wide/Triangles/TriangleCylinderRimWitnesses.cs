@@ -143,6 +143,15 @@ internal static class TriangleCylinderRimWitnesses
         Accumulate(f, Slot(weights, 4), signs[3], radical, ref radicalSign);
         ReadOnlySpan<ulong> k = Slot(weights, 5);
         ReadOnlySpan<ulong> denominator = Slot(weights, 0);
+        if (radicalSign == 0)
+        {
+            // Apex projections and exact cancellation are rational A/D.
+            // Feature admission bounds A/D within the authored coordinates;
+            // the existing raw-ratio owner performs the same nearest-even rounding.
+            bool represented = Fixed64.TryGetSignedRawRatio(rational, denominator, rationalSign < 0, out Fixed64 result);
+            System.Diagnostics.Debug.Assert(represented);
+            return result;
+        }
         WideArithmetic.AddMagnitudeInto(radical, radical);
         // Compare x=(A+B/sqrt(K))/D with t/2 by the sign of
         // 2B+(2A-tD)*sqrt(K). Shifted directions <630 bits, K<1262 and Gram
@@ -183,7 +192,9 @@ internal static class TriangleCylinderRimWitnesses
         Span<ulong> magnitude = stackalloc ulong[Words];
         Dot(edge, radial, signs, dot, out sign);
         CylinderContactAlgebra.Import(radius, magnitude);
-        WideArithmetic.MultiplyMagnitudes(dot, magnitude, result); sign = -sign;
+        // Apex witnesses use zero radius: its product must also have zero sign
+        // before combining weights, even when the unscaled projection is nonzero.
+        WideArithmetic.MultiplyMagnitudes(dot, magnitude, result); sign = -sign * radius.Sign;
     }
 
     private static void Combine(Signed576 a, ReadOnlySpan<ulong> first, int firstSign,

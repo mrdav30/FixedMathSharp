@@ -305,6 +305,11 @@ against the base disk, curved rim, apex and lateral generators. The normal
 points from triangle toward cone; depth and both anchors come from that same
 selected feature.
 
+Equal minima retain the earlier feature. When both axial exits share the
+minimum for a horizontal face, the earlier +Up candidate retains the base
+witness. Witness coordinates whose radical terms vanish or cancel use exact rational
+nearest-even rounding, including signed half-raw ties and scalar extrema.
+
 Both frame rotations must be normalized, height must be positive, and radius
 must be nonnegative. A zero radius is the identical axial-segment relation used
 by the cylinder contact query. A segment piercing a triangle can require a

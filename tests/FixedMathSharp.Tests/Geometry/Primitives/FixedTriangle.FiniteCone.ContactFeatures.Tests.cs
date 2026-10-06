@@ -9,6 +9,47 @@ public sealed partial class FixedTriangleFiniteConeContactTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void ReciprocalRimChartBoundary_KeepsTheSameExactWitness(bool reverse)
+    {
+        Vector3d n = new(-3, 4, 4), e = new(4, 1, 2), rim = new(3, -5, -4);
+        Vector3d point = rim + n * Fixed64.FromFraction(1, 64);
+        var source = new FixedTriangle(point - e * Fixed64.Quarter, point + e * Fixed64.Quarter, point - n);
+        FixedTriangle triangle = reverse ? new FixedTriangle(source.A, source.C, source.B) : source;
+        for (int order = 0; order < 3; order++)
+        {
+            Assert.True(triangle.TryGetCenteredFiniteConeContact(Vector3d.Zero, FixedQuaternion.Identity,
+                Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)10, (Fixed64)5, out FixedContactAnchors contact));
+            // Both reciprocal charts select t=1. AB minus the base disk
+            // contains the radius-sqrt(41)/64 ball: its disk trust-region
+            // multiplier 64 exceeds the radial slice map's spectral bound 21.
+            // These raw constants independently round sqrt(41)/64 and n/sqrt(41).
+            Assert.Equal(Fixed64.FromRaw(429706394L), contact.Depth);
+            Assert.Equal(new Vector3d(Fixed64.FromRaw(-2012283599L), Fixed64.FromRaw(2683044799L),
+                Fixed64.FromRaw(2683044799L)), contact.Normal);
+            Assert.False(contact.DepthIsClamped);
+            AssertPoints(contact, point, rim);
+            triangle = new FixedTriangle(triangle.B, triangle.C, triangle.A);
+        }
+    }
+
+    [Fact]
+    public void FullDomainSideFace_RetainsExactMaximumDepthWithoutClamping()
+    {
+        var triangle = new FixedTriangle(new Vector3d(Fixed64.Zero, Fixed64.MinValue, Fixed64.MinValue),
+            new Vector3d(Fixed64.Zero, Fixed64.MinValue, Fixed64.MaxValue),
+            new Vector3d(Fixed64.Zero, Fixed64.MaxValue, Fixed64.Zero));
+        Assert.True(triangle.TryGetCenteredFiniteConeContact(Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.One, Fixed64.MaxValue, out FixedContactAnchors contact));
+        Assert.Equal(Fixed64.MaxValue, contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        Assert.Equal(Vector3d.Left, contact.Normal);
+        AssertPoints(contact, new Vector3d(Fixed64.Zero, -Fixed64.Half, Fixed64.Zero),
+            new Vector3d(Fixed64.MaxValue, -Fixed64.Half, Fixed64.Zero));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void GeneratorEndpointTouch_RetainsTheExactSharedEndpoint(bool apex)
     {
         Vector3d endpoint = apex ? new Vector3d(0, 1, 0) : new Vector3d(-1, -1, 0);
