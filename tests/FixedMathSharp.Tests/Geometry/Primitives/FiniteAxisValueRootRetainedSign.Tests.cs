@@ -8,6 +8,44 @@ namespace FixedMathSharp.Tests;
 public sealed class FiniteAxisValueRootRetainedSignTests
 {
     [Theory]
+    [InlineData(36, 1, 1)]
+    [InlineData(48, 1, 1)]
+    [InlineData(48, 4096, 1)]
+    [InlineData(48, 1, 129)]
+    [InlineData(48, 4096, 129)]
+    public void RetainedCell_PreservesNeighboringLinearThresholdSigns(int thresholdBits, int scaleBits, int definingPower)
+    {
+        Encode(new[] { -BigInteger.One, BigInteger.Zero, BigInteger.One << definingPower },
+            out ulong[] defining, out sbyte[] definingSigns);
+        ulong[] cell = new ulong[16];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            0, cell, out FiniteAxisValueRoot root));
+        int variableShift = (definingPower - 1) / 2;
+        WideFiniteAxisIntersection.RefineFiniteValueRoot(ref root, 64 + variableShift);
+        ulong[] original = (ulong[])cell.Clone();
+        int originalShift = root.DenominatorShift;
+        BigInteger scaledSquare = BigInteger.One << (2 * thresholdBits - 1);
+        BigInteger floor = BigInteger.Zero;
+        // Independent integer construction of floor(2^bits*sqrt(1/2)).
+        for (int bit = thresholdBits - 1; bit >= 0; bit--)
+        {
+            BigInteger candidate = floor | (BigInteger.One << bit);
+            if (candidate * candidate <= scaledSquare) floor = candidate;
+        }
+        BigInteger content = (BigInteger.One << scaleBits) + 3;
+        foreach (int neighbor in new[] { 0, 1 })
+        {
+            Encode(new[] { -(floor + neighbor) * content, (BigInteger.One << (thresholdBits + variableShift)) * content },
+                out ulong[] query, out sbyte[] signs);
+            Assert.Equal(neighbor == 0 ? 1 : -1,
+                WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, signs));
+            Assert.Equal(originalShift, root.DenominatorShift);
+            Assert.Equal(original, cell);
+            AssertSquareRootCell(root, definingPower);
+        }
+    }
+
+    [Theory]
     [InlineData(16, 1, -3, 4, -1)]
     [InlineData(16, 4096, -2, 3, 1)]
     [InlineData(96, 1, -2, 3, 1)]

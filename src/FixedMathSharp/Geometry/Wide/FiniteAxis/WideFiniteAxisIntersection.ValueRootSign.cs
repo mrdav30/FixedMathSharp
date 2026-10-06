@@ -145,7 +145,6 @@ internal static partial class WideFiniteAxisIntersection
                 root.LowerNumerator, root.DenominatorShift, 0);
 
         int n = root.Signs.Length - 1;
-        int rootBits = GetFiniteRootCoefficientBits(root.Coefficients, n + 1);
         int queryBits = GetFiniteRootCoefficientBits(coefficients, degree + 1);
         int queryCountBits = GetFiniteValueCeilingLog2(degree + 1);
         // The entire cell satisfies alpha <= 2^-k: N+1 <= 2^bitLength(N).
@@ -171,7 +170,9 @@ internal static partial class WideFiniteAxisIntersection
         // proof requires effective shift >= precision + 2*ceilLog2(m+1).
         // A nonzero result proves the sign at the retained root; uncertainty
         // must still reach the full resultant/equality bound below.
-        int retainedPrecision = Math.Min(32, root.DenominatorShift - variableShift - 2 * queryCountBits);
+        // 59 uses more of the proved cell while retaining the same two-word
+        // result budget for production queries of degree at most sixteen.
+        int retainedPrecision = Math.Min(59, root.DenominatorShift - variableShift - 2 * queryCountBits);
         if (retainedPrecision > 0)
         {
             int retainedSign = GetFiniteValueApproximateSign(root.LowerNumerator, root.DenominatorShift,
@@ -183,6 +184,7 @@ internal static partial class WideFiniteAxisIntersection
         // minimal polynomial has magnitude >=1. Mahler measure of that
         // factor is <=M(F)<=sqrt(n+1)*height(F). Since alpha is in (0,1],
         // |Q(alpha)| > 2^-nonzeroBits. No irreducible factor is constructed.
+        int rootBits = GetFiniteRootCoefficientBits(root.Coefficients, n + 1);
         int nonzeroBits = (n - 1) * (queryBits + queryCountBits)
             + degree * (rootBits + GetFiniteValueCeilingLog2(n + 1));
         // P(z)/2^evaluationBits = Q(alpha)/2^normalizationBits, so the same
