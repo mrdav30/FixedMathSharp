@@ -9,6 +9,9 @@ using static FixedMathSharp.Geometry.CircularRimContactAlgebra;
 
 namespace FixedMathSharp.Geometry;
 
+/// <content>
+/// Exact constrained circular-rim selection for capsule/stadium-slab contacts.
+/// </content>
 internal static partial class WideConvexPrismRelations
 {
     private const int CapsuleSlabParameterSlots = 26;
@@ -60,12 +63,12 @@ internal static partial class WideConvexPrismRelations
             for (int end = -1; end <= 1; end += 2)
                 for (int firstSign = -1; firstSign <= 1; firstSign += 2)
                     for (int secondSign = -1; secondSign <= 1; secondSign += 2)
-                        for (int chart = 0; chart < 2; chart++)
                         {
                             WideAxis3 first = firstSign > 0 ? u : -u, second = secondSign > 0 ? v : -v;
-                            if (chart != 0) (first, second) = (second, first);
-                            KeepCapsuleSlabRimChart(geometry, cap, end, first, second, analytic, ref best);
+                            if (KeepCapsuleSlabRimCharts(geometry, cap, end, first, second, analytic, ref best))
+                                goto RimSelected;
                         }
+        RimSelected:
         if (!best.HasValue) return false;
         if (best.GapSign == 0)
         {
@@ -81,7 +84,7 @@ internal static partial class WideConvexPrismRelations
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void KeepCapsuleSlabRimChart(in CapsuleSlabGeometry geometry, int cap, int end,
+    private static bool KeepCapsuleSlabRimCharts(in CapsuleSlabGeometry geometry, int cap, int end,
         WideAxis3 first, WideAxis3 second, scoped ConvexContactCandidate analytic,
         ref CapsuleSlabRimSelection best)
     {
@@ -89,16 +92,41 @@ internal static partial class WideConvexPrismRelations
         // directions. Its sign is therefore constant on the open chart
         // (0,1], even after swapping/sign changes. Admit the whole chart here;
         // no per-root cap/end polynomials or sign queries are needed.
-        if (first.Y.Sign * cap < 0 || second.Y.Sign * cap < 0
+        // This paired owner receives the original GetBasis order: second.Y is zero.
+        if (first.Y.Sign * cap < 0
             || first.Z.Sign * end < 0 || second.Z.Sign * end < 0)
-            return;
+            return false;
         Span<ulong> data = stackalloc ulong[CapsuleSlabParameterSlots * Words];
         Span<sbyte> signs = stackalloc sbyte[CapsuleSlabParameterSlots];
         BuildParameter(geometry.CapOffset(cap, end), geometry.Radius, geometry.RawScale, first, second, data, signs);
         Span<ulong> batchCells = stackalloc ulong[64];
         Span<int> batchShifts = stackalloc int[8];
-        FiniteAxisValueRoots roots = WideFiniteAxisIntersection.GetFiniteValueRoots(data[..(5 * Words)], signs[..5],
-            batchCells, batchShifts);
+        Span<ulong> reciprocal = stackalloc ulong[5 * Words];
+        Span<sbyte> reciprocalSigns = stackalloc sbyte[5];
+        Span<ulong> reciprocalCells = stackalloc ulong[64];
+        Span<int> reciprocalShifts = stackalloc int[8];
+        WideFiniteAxisIntersection.GetFiniteValueReciprocalRoots(data[..(5 * Words)], signs[..5],
+            reciprocal, reciprocalSigns, batchCells, batchShifts, reciprocalCells, reciprocalShifts,
+            out FiniteAxisValueRoots roots, out FiniteAxisValueRoots reciprocalRoots);
+        if (KeepCapsuleSlabRimChart(geometry, cap, end, first, second, analytic, data, signs, roots, ref best))
+            return true;
+        // Swapping the basis reverses the homogeneous stationary quartic;
+        // both original charts and their order remain. Rebuild admission/value
+        // data in the same buffer after chart zero's independent winner copies.
+        BuildParameter(geometry.CapOffset(cap, end), geometry.Radius, geometry.RawScale, second, first, data, signs);
+#if DEBUG
+        System.Diagnostics.Debug.Assert(signs[..5].SequenceEqual(reciprocalSigns)
+            && data[..(5 * Words)].SequenceEqual(reciprocal));
+#endif
+        return KeepCapsuleSlabRimChart(geometry, cap, end, second, first, analytic, data, signs, reciprocalRoots, ref best);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static bool KeepCapsuleSlabRimChart(in CapsuleSlabGeometry geometry, int cap, int end,
+        WideAxis3 first, WideAxis3 second, scoped ConvexContactCandidate analytic,
+        scoped Span<ulong> data, scoped Span<sbyte> signs, scoped FiniteAxisValueRoots roots,
+        ref CapsuleSlabRimSelection best)
+    {
         Span<ulong> cell = stackalloc ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(data[..(5 * Words)], signs[..5])];
         Span<ulong> values = stackalloc ulong[5 * ValueWords];
         Span<sbyte> valueSigns = stackalloc sbyte[5];
@@ -145,8 +173,20 @@ internal static partial class WideConvexPrismRelations
                 if (gapSign * squaredComparison >= 0) continue;
             }
             best.Value = FiniteAxisValueRoot.CopyTo(value, best.Values, best.Signs, best.Cell);
+            // For a negative admitted stationary gap g, a feasible finite-core
+            // projection gives q=RawScale*g*n and q.(x-q)>=0 throughout the
+            // convex Minkowski difference. Thus q is its unique closest point,
+            // g is the global minimum, and no later chart can change its normal.
+            // Strict ranking above still keeps earlier ties. Positive/zero gaps
+            // retain full traversal. The mapped cell is dead after the value copy;
+            // borrow it for the certificate, then retain any parameter refinement.
+            bool complete = gapSign < 0 && HasSegmentSupport(geometry.CapsuleAxis, geometry.CapsuleHalf,
+                geometry.CapOffset(cap, end), geometry.Radius, first, second, ref root,
+                data.Slice(5 * Words, 3 * Words), signs.Slice(5, 3), valueCell);
             best.KeepParameter(root, first, second, gapSign);
+            if (complete) return true;
         }
+        return false;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

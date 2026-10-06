@@ -103,6 +103,35 @@ public sealed class CenteredCapsuleSlabContactTests
             center, rotation, capsuleCore, capsuleRadius, out normal, out depth, out clamped);
 
     [Theory]
+    [InlineData(-4)]
+    [InlineData(-3)]
+    [InlineData(-1)]
+    [InlineData(1)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void ObliqueInteriorRim_AxialTranslationPreservesClosestPointAndTouching(int translation)
+    {
+        const long scale = 858_993_459L;
+        FixedQuaternion rotation = new(Fixed64.FromRaw(scale), Fixed64.FromRaw(2 * scale),
+            Fixed64.FromRaw(-4 * scale), Fixed64.FromRaw(2 * scale));
+        // Translating along (20,-9,-12)/25 preserves the residual 5*n.
+        // The closest point moves by -25*translation along a half-core of 100:
+        // ±4 owns exact finite endpoints; the other cases own its interior.
+        Vector3d center = new(20 * translation, 5 - 9 * translation, -5 - 12 * translation);
+        for (long offset = -1; offset <= 1; offset++)
+        {
+            bool hit = Query(Fixed64.One, Fixed64.Two, Fixed64.One, center, rotation,
+                (Fixed64)200, (Fixed64)5 + Fixed64.FromRaw(offset),
+                out Vector3d normal, out Fixed64 depth, out bool clamped);
+            Assert.Equal(offset >= 0, hit);
+            Assert.Equal(offset >= 0 ? new Vector3d(Fixed64.Zero, Fixed64.FromFraction(4, 5),
+                -Fixed64.FromFraction(3, 5)) : Vector3d.Zero, normal);
+            Assert.Equal(Fixed64.FromRaw(Math.Max(offset, 0)), depth);
+            Assert.False(clamped);
+        }
+    }
+
+    [Theory]
     [InlineData(false, -1)]
     [InlineData(false, 0)]
     [InlineData(false, 1)]

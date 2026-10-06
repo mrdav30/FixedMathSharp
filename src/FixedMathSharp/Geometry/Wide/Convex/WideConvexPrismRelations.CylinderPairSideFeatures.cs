@@ -7,6 +7,9 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp.Geometry;
 
+/// <content>
+/// Exact projected side-feature selection for cylinder-pair contacts.
+/// </content>
 internal static partial class WideConvexPrismRelations
 {
     /// <summary>

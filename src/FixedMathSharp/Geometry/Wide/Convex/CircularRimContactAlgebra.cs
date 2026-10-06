@@ -12,6 +12,68 @@ namespace FixedMathSharp.Geometry;
 internal static class CircularRimContactAlgebra
 {
     internal const int ValueWords = 56;
+
+    /// <summary>
+    /// Tests whether the radial support point projects within a finite segment.
+    /// halfAxis must be a positive multiple of axis; radius and Q are positive,
+    /// Q=radius²|first_h+t*second_h|². Scratch needs seven disjoint forty-word
+    /// slots and must not overlap root or Q. No stationarity is assumed here.
+    /// Axis/chart components are below 2^198; offset/halfAxis/radius below 2^232,
+    /// following the shared circular chart bounds.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static bool HasSegmentSupport(WideAxis3 axis, WideAxis3 halfAxis, WideAxis3 offset,
+        Signed320 radius, WideAxis3 first, WideAxis3 second, scoped ref FiniteAxisValueRoot root,
+        ReadOnlySpan<ulong> q, ReadOnlySpan<sbyte> qSigns, Span<ulong> scratch)
+    {
+        // lambda=a+T/sqrt(Q), H=axis.halfAxis>0. All terms use the same
+        // coordinate scale, which cancels from -H<=lambda<=H. Do not use the
+        // independently normalized stationary/value polynomials in place of Q.
+        Signed576 a = WideAxis3.Dot(axis, offset), h = WideAxis3.Dot(axis, halfAxis);
+        Span<ulong> t = scratch[..(2 * Words)], quadratic = scratch.Slice(2 * Words, 3 * Words);
+        Span<ulong> square = Slot(scratch, 5), product = Slot(scratch, 6);
+        Span<sbyte> tSigns = stackalloc sbyte[2], quadraticSigns = stackalloc sbyte[3];
+        Write(t, tSigns, 0, RadialDot(axis, first));
+        Write(t, tSigns, 1, RadialDot(axis, second));
+        Import(WideArithmetic.MultiplySigned320(radius, radius), square);
+        for (int index = 0; index < 2; index++)
+        {
+            WideArithmetic.MultiplyMagnitudes(Slot(t, index), square, product);
+            product.CopyTo(Slot(t, index));
+        }
+        int tSign = WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, t, tSigns);
+        for (int bound = 0; bound < 2; bound++)
+        {
+            Signed576 b = bound == 0 ? WideArithmetic.AddSigned576(a, h) : WideArithmetic.SubtractSigned576(a, h);
+            int sign;
+            if (tSign == 0) sign = b.Sign;
+            else if (b.Sign == 0 || b.Sign == tSign) sign = tSign;
+            else
+            {
+                // Opposite unsquared signs: sign(T+b*sqrt(Q)) is
+                // sign(T)*sign(T²-b²Q), including exact equality. Equal signs
+                // must be handled first; squaring them would admit false support.
+                WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(t, tSigns, t, tSigns,
+                    quadratic, quadraticSigns, product);
+                Import(b, square);
+                WideArithmetic.MultiplyMagnitudes(square, square, product);
+                product.CopyTo(square);
+                for (int index = 0; index < 3; index++)
+                {
+                    WideArithmetic.MultiplyMagnitudes(Slot(q, index), square, product);
+                    int coefficientSign = quadraticSigns[index];
+                    Add(product, -qSigns[index], Slot(quadratic, index), ref coefficientSign);
+                    quadraticSigns[index] = (sbyte)coefficientSign;
+                }
+                sign = tSign * WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, quadratic, quadraticSigns);
+            }
+            if (bound == 0 ? sign < 0 : sign > 0) return false;
+        }
+        // a,H<2^432; T<2^861; comparison coefficients<2^1723 under the
+        // shared chart bounds. Forty-word arithmetic needs no wider owner.
+        return true;
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void BuildParameter(WideAxis3 offset, Signed320 radius, Signed192 rawScale,
         WideAxis3 first, WideAxis3 second, Span<ulong> data, Span<sbyte> signs)

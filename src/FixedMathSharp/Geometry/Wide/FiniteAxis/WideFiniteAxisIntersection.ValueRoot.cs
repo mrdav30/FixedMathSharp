@@ -104,16 +104,89 @@ internal static partial class WideFiniteAxisIntersection
         hasRepeatedRoots = degrees[chainCount - 1] > 0;
         count = GetFiniteValueRootCount(cells[..cellWords], arena[..retainedWords], offsets,
             widths, degrees, sturmSigns, chainCount, arena[retainedWords..], out int lowerVariations);
-        for (int ordinal = 0; ordinal < count; ordinal++)
+        return TryIsolateFiniteValueRootCells(coefficients, signs, cells, shifts, count, lowerVariations,
+            arena[..retainedWords], offsets, widths, degrees, sturmSigns, chainCount,
+            arena[retainedWords..], out rationalMask);
+    }
+
+    private static bool TryIsolateFiniteValueRootCells(ReadOnlySpan<ulong> coefficients,
+        ReadOnlySpan<sbyte> signs, Span<ulong> cells, Span<int> shifts, int rootCount, int lowerVariations,
+        scoped ReadOnlySpan<ulong> chain, scoped ReadOnlySpan<int> offsets, scoped ReadOnlySpan<int> widths,
+        scoped ReadOnlySpan<int> degrees, scoped ReadOnlySpan<sbyte> sturmSigns, int chainCount,
+        scoped Span<ulong> evaluation, out int rationalMask)
+    {
+        rationalMask = 0;
+        if (rootCount == 0)
+            return true;
+        int cellWords = cells.Length / 8;
+        // A pending node owns the output slot of its first root. Continue left
+        // and save only a genuine right sibling. Finalizing roots in ascending
+        // order makes the next ordinal its next pending node, regardless of
+        // subdivision depth. No second set of numerator cells is live.
+        Span<int> remainingCounts = stackalloc int[8];
+        Span<int> lowerCounts = stackalloc int[8];
+        remainingCounts[0] = rootCount;
+        lowerCounts[0] = lowerVariations;
+        cells[..cellWords].Clear();
+        shifts[0] = 0;
+        for (int ordinal = 0; ordinal < rootCount; ordinal++)
         {
-            FiniteAxisValueRoot root = IsolateFiniteValueRoot(coefficients, signs, ordinal, count, lowerVariations,
-                    cells.Slice(ordinal * cellWords, cellWords), cellWords * 64 - 1,
-                    arena[..retainedWords], offsets, widths, degrees, sturmSigns, chainCount,
-                    arena[retainedWords..], out bool fits);
-            if (!fits)
+            int remaining = remainingCounts[ordinal];
+            int lowerCount = lowerCounts[ordinal];
+            var root = new FiniteAxisValueRoot
             {
-                rationalMask = 0;
-                return false;
+                Coefficients = coefficients, Signs = signs, Ordinal = ordinal,
+                LowerNumerator = cells.Slice(ordinal * cellWords, cellWords),
+                DenominatorShift = shifts[ordinal]
+            };
+            while (remaining > 1)
+            {
+                if (root.DenominatorShift >= cellWords * 64 - 1)
+                {
+                    rationalMask = 0;
+                    return false;
+                }
+                ShiftFiniteRootLeft(root.LowerNumerator, 1);
+                AddRoundedCylinderWord(root.LowerNumerator, 0, 1);
+                root.DenominatorShift++;
+                int midpointCount = GetFiniteValueVariations(chain, offsets, widths, degrees,
+                    sturmSigns, chainCount, root.LowerNumerator, root.DenominatorShift, evaluation);
+                int leftCount = lowerCount - midpointCount;
+                if (leftCount == 0)
+                    lowerCount = midpointCount;
+                else
+                {
+                    if (leftCount < remaining)
+                    {
+                        int rightOrdinal = ordinal + leftCount;
+                        root.LowerNumerator.CopyTo(cells.Slice(rightOrdinal * cellWords, cellWords));
+                        shifts[rightOrdinal] = root.DenominatorShift;
+                        remainingCounts[rightOrdinal] = remaining - leftCount;
+                        lowerCounts[rightOrdinal] = midpointCount;
+                    }
+                    root.LowerNumerator[0]--; // Odd midpoint; left interval includes it, right excludes it.
+                    remaining = leftCount;
+                }
+            }
+            // A dyadic upper endpoint may have been recognized later than in
+            // ordinal isolation. Restore its minimal denominator, including one.
+            if (GetFiniteValueCellUpperSign(root, evaluation) == 0)
+            {
+                AddRoundedCylinderWord(root.LowerNumerator, 0, 1);
+                int power = CountRoundedCylinderTrailingZeroes(root.LowerNumerator);
+                ShiftRoundedCylinderWideRight(root.LowerNumerator, power);
+                root.DenominatorShift -= power;
+                root.IsRational = true;
+            }
+            else
+            {
+                IsolateFiniteValueCell(ref root, 0, 1, lowerCount, cellWords * 64 - 1,
+                    chain, offsets, widths, degrees, sturmSigns, chainCount, evaluation, out bool fits);
+                if (!fits)
+                {
+                    rationalMask = 0;
+                    return false;
+                }
             }
             shifts[ordinal] = root.DenominatorShift;
             if (root.IsRational)
@@ -182,12 +255,25 @@ internal static partial class WideFiniteAxisIntersection
         }
         cell.Clear();
 
+        IsolateFiniteValueCell(ref root, ordinal, remaining, lowerVariations, maximumShift,
+            chain, offsets, widths, degrees, sturmSigns, count, evaluation, out fits);
+        return root;
+    }
+
+    private static void IsolateFiniteValueCell(ref FiniteAxisValueRoot root,
+        int ordinal, int remaining, int lowerVariations, int maximumShift,
+        scoped ReadOnlySpan<ulong> chain, scoped ReadOnlySpan<int> offsets,
+        scoped ReadOnlySpan<int> widths, scoped ReadOnlySpan<int> degrees,
+        scoped ReadOnlySpan<sbyte> sturmSigns, int count, scoped Span<ulong> evaluation, out bool fits)
+    {
+        fits = true;
+
         // Distinct roots of degree-eight integer polynomials of height B,
         // including their factors, have separation >2^(-16*(B+11)-89).
         // The physical value interval is (0,1], so the retained numerator
         // needs no extra Cauchy-scale integer part. Zero is excluded.
-        while (remaining != 1 || GetRoundedCylinderWideLength(cell) == 0
-            || EvaluateFiniteRootPolynomial(coefficients, signs, cell, root.DenominatorShift, 0, evaluation) == 0
+        while (remaining != 1 || GetRoundedCylinderWideLength(root.LowerNumerator) == 0
+            || EvaluateFiniteRootPolynomial(root.Coefficients, root.Signs, root.LowerNumerator, root.DenominatorShift, 0, evaluation) == 0
             || GetFiniteValueCellUpperSign(root, evaluation) == 0)
         {
             // For x in (0,1), a shift q needs at most q+1 numerator bits
@@ -197,14 +283,13 @@ internal static partial class WideFiniteAxisIntersection
             if (root.DenominatorShift >= maximumShift)
             {
                 fits = false;
-                return root;
+                return;
             }
             RefineFiniteValueCell(ref root, chain, offsets, widths, degrees, sturmSigns,
                 count, evaluation, ref ordinal, ref remaining, ref lowerVariations);
             if (root.IsRational)
-                return root;
+                return;
         }
-        return root;
     }
 
     /// <summary>
@@ -614,13 +699,32 @@ internal static partial class WideFiniteAxisIntersection
     {
         int previous = 0;
         int variations = 0;
+        int numeratorBits = GetFiniteRootBits(numerator);
         for (int index = 0; index < count; index++)
         {
+            ReadOnlySpan<ulong> row = chain.Slice(offsets[index], (degrees[index] + 1) * widths[index]);
+            ReadOnlySpan<sbyte> rowSigns = signs.Slice(index * 9, degrees[index] + 1);
             int sign = 0;
+            if (degrees[index] > 0 && numeratorBits > 0 && numeratorBits <= shift)
+            {
+                // A certified point sign can replace homogeneous evaluation.
+                // Reuse the caller's returning evaluation scratch; cap only
+                // work precision to fit, never the sign acceptance threshold.
+                int countBits = GetFiniteValueCeilingLog2(degrees[index] + 1);
+                int productWords = (shift + 64) / 64;
+                int maximumPrecision = 64 * ((evaluation.Length - productWords) / 2) - countBits - 64;
+                int precision = Math.Min(maximumPrecision,
+                    shift + FiniteValuePointGuardBits + degrees[index] * (shift - numeratorBits + 1));
+                System.Diagnostics.Debug.Assert(precision > 0);
+                int words = (precision + countBits + 127) / 64;
+                sign = GetFiniteValueApproximateSignCore(numerator, shift, row, rowSigns,
+                    precision, GetFiniteRootCoefficientBits(row, rowSigns.Length),
+                    evaluation[..words], evaluation.Slice(words, words + productWords), out _);
+            }
+            // Uncertainty is not zero evidence. At a vanishing Sturm row,
+            // its first nonzero derivative supplies the exact right-limit sign.
             for (int derivative = 0; derivative <= degrees[index] && sign == 0; derivative++)
-                sign = EvaluateFiniteRootPolynomial(
-                    chain.Slice(offsets[index], (degrees[index] + 1) * widths[index]),
-                    signs.Slice(index * 9, degrees[index] + 1), numerator, shift, derivative, evaluation);
+                sign = EvaluateFiniteRootPolynomial(row, rowSigns, numerator, shift, derivative, evaluation);
             if (previous != 0 && previous != sign)
                 variations++;
             previous = sign;

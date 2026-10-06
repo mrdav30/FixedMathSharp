@@ -255,11 +255,37 @@ internal static partial class WideFiniteAxisIntersection
         out uint leadingMagnitude, out int magnitudeBits, int variableShift = 0)
     {
         int degree = signs.Length - 1;
-        int inputWords = coefficients.Length / signs.Length;
-        shift -= variableShift;
         int words = (precision + GetFiniteValueCeilingLog2(degree + 1) + 127) / 64;
         Span<ulong> result = stackalloc ulong[words];
-        Span<ulong> product = stackalloc ulong[words + (shift + 64) / 64];
+        Span<ulong> product = stackalloc ulong[words + (shift - variableShift + 64) / 64];
+        int sign = GetFiniteValueApproximateSignCore(numerator, shift, coefficients, signs, precision, coefficientBits,
+            result, product, out int length, variableShift);
+        // Only prediction callers need a magnitude hint. Sturm counting borrows
+        // the same evaluator directly and consumes only its certified sign.
+        magnitudeBits = length == 0 ? 0 : 64 * length - Fixed64.CountLeadingZeroes(result[length - 1]);
+        if (magnitudeBits <= 32)
+            leadingMagnitude = magnitudeBits == 0 ? 0U : (uint)result[0] << (32 - magnitudeBits);
+        else
+        {
+            int discarded = magnitudeBits - 32;
+            int word = discarded / 64;
+            int offset = discarded % 64;
+            ulong leading = result[word] >> offset;
+            if (offset > 32)
+                leading |= result[word + 1] << (64 - offset);
+            leadingMagnitude = (uint)leading;
+        }
+        return sign;
+    }
+
+    private static int GetFiniteValueApproximateSignCore(ReadOnlySpan<ulong> numerator, int shift,
+        ReadOnlySpan<ulong> coefficients, ReadOnlySpan<sbyte> signs, int precision, int coefficientBits,
+        Span<ulong> result, Span<ulong> product, out int length, int variableShift = 0)
+    {
+        int degree = signs.Length - 1;
+        int inputWords = coefficients.Length / signs.Length;
+        int words = result.Length;
+        shift -= variableShift;
         result.Clear();
         int resultSign = 0;
         // Evaluate the virtual polynomial P/2^coefficientBits at the supplied
@@ -302,23 +328,7 @@ internal static partial class WideFiniteAxisIntersection
                 WideArithmetic.AddShiftedSignedMagnitude(product, coefficientSign, 0, result, ref resultSign);
             }
         }
-        int length = GetRoundedCylinderWideLength(result);
-        // A compact value hint for secant prediction only. The certified sign
-        // below remains the authority, and callers must align the exponents
-        // of hints obtained at the same normalized precision before dividing.
-        magnitudeBits = length == 0 ? 0 : 64 * length - Fixed64.CountLeadingZeroes(result[length - 1]);
-        if (magnitudeBits <= 32)
-            leadingMagnitude = magnitudeBits == 0 ? 0U : (uint)result[0] << (32 - magnitudeBits);
-        else
-        {
-            int discarded = magnitudeBits - 32;
-            int word = discarded / 64;
-            int offset = discarded % 64;
-            ulong leading = result[word] >> offset;
-            if (offset > 32)
-                leading |= result[word + 1] << (64 - offset);
-            leadingMagnitude = (uint)leading;
-        }
+        length = GetRoundedCylinderWideLength(result);
         return length > 1 || (length == 1 && result[0] > 2UL * (ulong)(degree + 1)) ? resultSign : 0;
     }
 
