@@ -35,6 +35,163 @@ public sealed class FiniteAxisPolynomialRootTests
         Assert.False(HasPositiveRoot(new BigInteger[] { 1, 0, 1 }));
 
     [Theory]
+    [InlineData(1, 1)]
+    [InlineData(1, -1)]
+    [InlineData(2, 1)]
+    [InlineData(2, -1)]
+    public void LargestPositiveRoot_PreservesSubunitIrrationalMultiplicity(int multiplicity, int leading)
+    {
+        BigInteger[] polynomial = { leading };
+        for (int factor = 0; factor < multiplicity; factor++)
+            polynomial = Multiply(polynomial, new BigInteger[] { -1, 0, 2 });
+        AssertSign(polynomial, new BigInteger[] { -1, 0, 2 }, 0);
+        AssertSign(polynomial, new BigInteger[] { -7, 10 }, 1);
+        AssertSign(polynomial, new BigInteger[] { -3, 4 }, -1);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LargestPositiveRoot_PreservesDyadicRightLimitAndOrdering(bool repeated)
+    {
+        BigInteger[] polynomial = Multiply(new BigInteger[] { -3, 4 },
+            new BigInteger[] { repeated ? -3 : -1, 4 });
+        AssertSign(polynomial, new BigInteger[] { -3, 4 }, 0);
+        AssertSign(polynomial, new BigInteger[] { -1, 2 }, 1);
+        AssertSign(polynomial, new BigInteger[] { -1, 1 }, -1);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(-1)]
+    public void LargestPositiveRoot_PreservesCloseSubunitRootsWhenPointSignIsUncertain(int leading)
+    {
+        BigInteger scale = BigInteger.One << 201;
+        BigInteger center = BigInteger.One << 200;
+        // At x=1/2 the unscaled product is -1. Coefficient quantization at
+        // ordinary work precision cannot certify that sign. Exact fallback
+        // must retain the larger root 1/2+2^-201, rather than its neighbor.
+        BigInteger[] polynomial = Multiply(new BigInteger[] { leading * (-center - 1), leading * scale },
+            new BigInteger[] { -center + 1, scale });
+        AssertSign(polynomial, new BigInteger[] { -center - 1, scale }, 0);
+        AssertSign(polynomial, new BigInteger[] { -center, scale }, 1);
+        AssertSign(polynomial, new BigInteger[] { -center - 2, scale }, -1);
+    }
+
+    [Theory]
+    [InlineData(1, -2)]
+    [InlineData(1, -1)]
+    [InlineData(1, 0)]
+    [InlineData(1, 1)]
+    [InlineData(1, 2)]
+    [InlineData(2, -2)]
+    [InlineData(2, -1)]
+    [InlineData(2, 0)]
+    [InlineData(2, 1)]
+    [InlineData(2, 2)]
+    public void SignAtRoot_DeepSubunitCellsPreserveDecisiveSignsAndTinyExactValues(
+        int multiplicity, int queryChoice)
+    {
+        BigInteger[] factor = { -1, 0, 2 };
+        BigInteger[] polynomial = Multiply(factor, multiplicity == 1
+            ? new BigInteger[] { 1, 1 } : factor);
+        Encode(polynomial, out ulong[] coefficients, out sbyte[] signs);
+        Encode(factor, out ulong[] seed, out sbyte[] seedSigns);
+        ulong[] originalCoefficients = (ulong[])coefficients.Clone();
+        sbyte[] originalSigns = (sbyte[])signs.Clone();
+        ulong[] originalSeed = (ulong[])seed.Clone();
+        sbyte[] originalSeedSigns = (sbyte[])seedSigns.Clone();
+        var cell = new ulong[WideFiniteAxisIntersection.GetFiniteAxisRootCellWords(coefficients, signs)];
+        Assert.True(WideFiniteAxisIntersection.TryGetLargestPositiveFiniteAxisRoot(
+            coefficients, signs, cell, out var root));
+        // The sole positive root is 1/sqrt(2), simple or repeated. A partial
+        // defining factor has exact zero there and retains a deep cell without
+        // replacing that irrational root by a rounded or rational value.
+        Assert.Equal(0, WideFiniteAxisIntersection.GetSignAtFiniteAxisRoot(ref root, seed, seedSigns));
+        Assert.False(root.IsRational);
+        Assert.True(root.DenominatorShift > 32);
+        ulong[] retainedCell = (ulong[])cell.Clone();
+        int retainedShift = root.DenominatorShift;
+        BigInteger scale = (BigInteger.One << 400) + 3;
+        BigInteger[] query = Math.Abs(queryChoice) == 2
+            ? new BigInteger[] { Math.Sign(queryChoice), Math.Sign(queryChoice) }
+            : new BigInteger[] { -scale + queryChoice, 0, 2 * scale };
+        Encode(query, out ulong[] queryCoefficients, out sbyte[] querySigns);
+        ulong[] originalQuery = (ulong[])queryCoefficients.Clone();
+        sbyte[] originalQuerySigns = (sbyte[])querySigns.Clone();
+
+        // +/- (x+1) is decisive across the retained positive cell. In the
+        // remaining cases Q=scale*(2x^2-1)+delta has the exact value delta,
+        // despite its arbitrarily small normalized magnitude and exact ties.
+        int expected = Math.Abs(queryChoice) == 2 ? Math.Sign(queryChoice) : queryChoice;
+        Assert.Equal(expected, WideFiniteAxisIntersection.GetSignAtFiniteAxisRoot(
+            ref root, queryCoefficients, querySigns));
+        if (Math.Abs(queryChoice) == 2)
+        {
+            Assert.Equal(retainedCell, cell);
+            Assert.Equal(retainedShift, root.DenominatorShift);
+        }
+        Assert.Equal(originalCoefficients, coefficients);
+        Assert.Equal(originalSigns, signs);
+        Assert.Equal(originalSeed, seed);
+        Assert.Equal(originalSeedSigns, seedSigns);
+        Assert.Equal(originalQuery, queryCoefficients);
+        Assert.Equal(originalQuerySigns, querySigns);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(-1)]
+    public void SignAtRoot_LinearZeroInsideDeepCellRetainsExactBoundaryComparison(int querySign)
+    {
+        BigInteger[] factor = { -1, 3 };
+        Encode(Multiply(factor, new BigInteger[] { 1, 0, 1 }),
+            out ulong[] coefficients, out sbyte[] signs);
+        Encode(Multiply(factor, new BigInteger[] { 2, 1 }),
+            out ulong[] seed, out sbyte[] seedSigns);
+        ulong[] originalCoefficients = (ulong[])coefficients.Clone();
+        sbyte[] originalSigns = (sbyte[])signs.Clone();
+        ulong[] originalSeed = (ulong[])seed.Clone();
+        sbyte[] originalSeedSigns = (sbyte[])seedSigns.Clone();
+        var cell = new ulong[WideFiniteAxisIntersection.GetFiniteAxisRootCellWords(coefficients, signs)];
+        Assert.True(WideFiniteAxisIntersection.TryGetLargestPositiveFiniteAxisRoot(
+            coefficients, signs, cell, out var root));
+        // P=(3x-1)(x^2+1) selects exactly 1/3. Its shared quadratic
+        // factor Q=(3x-1)(x+2) seeds a deep, still non-dyadic cell.
+        Assert.Equal(0, WideFiniteAxisIntersection.GetSignAtFiniteAxisRoot(ref root, seed, seedSigns));
+        Assert.False(root.IsRational);
+        Assert.True(root.DenominatorShift > 32);
+        BigInteger numerator = 0;
+        for (int word = cell.Length - 1; word >= 0; word--)
+            numerator = (numerator << 64) | cell[word];
+        int retainedShift = root.DenominatorShift;
+        ulong[] retainedCell = (ulong[])cell.Clone();
+        BigInteger scale = BigInteger.One << (retainedShift + 1);
+        BigInteger midpoint = 2 * numerator + 1;
+        Encode(new BigInteger[] { -querySign * midpoint, querySign * scale },
+            out ulong[] queryCoefficients, out sbyte[] querySigns);
+        ulong[] originalQuery = (ulong[])queryCoefficients.Clone();
+        sbyte[] originalQuerySigns = (sbyte[])querySigns.Clone();
+        // scale*x-midpoint is -1/+1 at the cell's lower/upper endpoints.
+        // No uniform cell sign exists. At the independent exact root 1/3,
+        // multiplying by positive 3 gives scale-3*midpoint instead.
+        int expected = querySign * (scale - 3 * midpoint).Sign;
+        Assert.NotEqual(0, expected);
+
+        Assert.Equal(expected, WideFiniteAxisIntersection.GetSignAtFiniteAxisRoot(
+            ref root, queryCoefficients, querySigns));
+
+        Assert.Equal(retainedCell, cell);
+        Assert.Equal(retainedShift, root.DenominatorShift);
+        Assert.Equal(originalCoefficients, coefficients);
+        Assert.Equal(originalSigns, signs);
+        Assert.Equal(originalSeed, seed);
+        Assert.Equal(originalSeedSigns, seedSigns);
+        Assert.Equal(originalQuery, queryCoefficients);
+        Assert.Equal(originalQuerySigns, querySigns);
+    }
+
+    [Theory]
     [InlineData(1)]
     [InlineData(-1)]
     public void SignAtRoot_SelectsLargestRootAndPreservesExactEquality(int leading)

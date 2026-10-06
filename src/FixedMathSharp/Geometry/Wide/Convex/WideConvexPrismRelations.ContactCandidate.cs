@@ -135,24 +135,27 @@ internal static partial class WideConvexPrismRelations
             return;
         }
 
-        ulong low = 0UL;
-        ulong high = 1UL << 63;
         ulong radiusRaw = unchecked((ulong)radiusOffset.m_rawValue);
+        GetConvexContactCandidateMagnitudeFloorBounds(candidate,
+            candidate.GapSign < 0 ? radiusRaw : (ulong)long.MaxValue,
+            out ulong lowerMagnitude, out ulong upperMagnitude);
+        ulong low;
+        ulong high;
         if (candidate.GapSign < 0)
         {
-            high = radiusRaw + 1UL;
+            // Magnitude bounds describe floors. Subtraction can cross one
+            // additional raw unit when the magnitude is nonintegral; contact
+            // admission proves its exact value is at most the radius.
+            low = upperMagnitude >= radiusRaw ? 0 : radiusRaw - upperMagnitude - 1;
+            high = radiusRaw - lowerMagnitude + 1;
         }
-        else if (candidate.GapRadicalSign <= 0 || IsZero(candidate.GapRadicand))
+        else
         {
-            // Here 0 < A+B sqrt(C) <= A. If A and D have a/d bits,
-            // sqrt(A/D) < 2^ceil((a-d+1)/2). This is an exact upper
-            // bound only; all floor, midpoint and clamp decisions below
-            // still compare the complete candidate. Radius plus the bound
-            // fits ulong even when it exceeds the Fixed64 search domain.
-            int exponent = Math.Min(63, Math.Max(0,
-                (WideArithmetic.GetMagnitudeBitLength(candidate.GapRational)
-                    - WideArithmetic.GetMagnitudeBitLength(candidate.GapDenominator) + 2) / 2));
-            high = Math.Min(high, radiusRaw + (1UL << exponent));
+            // Clipped magnitude floors also cover conceptual overflow. Search
+            // includes MaxValue itself; its exact comparison below still owns
+            // clamping, even when both enclosure floors already equal the cap.
+            low = Math.Min((ulong)long.MaxValue, radiusRaw + lowerMagnitude);
+            high = Math.Min(1UL << 63, radiusRaw + upperMagnitude + 1);
         }
         while (low < high)
         {
@@ -242,13 +245,40 @@ internal static partial class WideConvexPrismRelations
             sum.CopyTo(normRadical);
         }
 
+        WideArithmetic.GetMagnitudeSquareRootBounds(candidate.NormalRadicand,
+            out Signed192 lowerRoot, out Signed192 upperRoot, out int rootShift);
+        Span<ulong> roots = stackalloc ulong[4]
+            { lowerRoot.Low, lowerRoot.Middle, upperRoot.Low, upperRoot.Middle };
+        // A coefficient times the <=97-bit prefix root, shifted by k, needs
+        // at most coefficientWords+2+ceil(k/64)+1 words. Use the scaled
+        // component width too, so numerator and denominator bounds share one
+        // padded division width. Forty-word fields give at most 147 words.
+        int boundWords = words + 6 + ((rootShift + 63) >> 6);
+        Span<ulong> denominatorBounds = stackalloc ulong[2 * boundWords];
+        GetConvexContactCandidateQuadraticBounds(normRational, 1,
+            normRadical, signs[3], roots, rootShift,
+            denominatorBounds[..boundWords], denominatorBounds[boundWords..],
+            out int denominatorSign);
+        if (denominatorSign > 0)
+        {
+            // scaledSquares=(2S)^2*n_i^2, so its matching denominator is
+            // 4*|n|^2. A nonpositive lower enclosure is uncertainty, not a
+            // zero norm: retain the existing full search in that case.
+            ShiftLeft(denominatorBounds[..boundWords], 2);
+            ShiftLeft(denominatorBounds[boundWords..], 2);
+        }
+        ReadOnlySpan<ulong> positiveDenominatorBounds = denominatorSign > 0
+            ? denominatorBounds : ReadOnlySpan<ulong>.Empty;
         return new Vector3d(
             GetRoundedConvexContactCandidateNormalComponent(
-                candidate, 0, squares, signs, words, (ulong)scale.m_rawValue),
+                candidate, 0, squares, signs, words, (ulong)scale.m_rawValue,
+                roots, rootShift, positiveDenominatorBounds),
             GetRoundedConvexContactCandidateNormalComponent(
-                candidate, 1, squares, signs, words, (ulong)scale.m_rawValue),
+                candidate, 1, squares, signs, words, (ulong)scale.m_rawValue,
+                roots, rootShift, positiveDenominatorBounds),
             GetRoundedConvexContactCandidateNormalComponent(
-                candidate, 2, squares, signs, words, (ulong)scale.m_rawValue));
+                candidate, 2, squares, signs, words, (ulong)scale.m_rawValue,
+                roots, rootShift, positiveDenominatorBounds));
     }
 
     private static void BuildConvexContactCandidateNormalSquare(
@@ -280,7 +310,10 @@ internal static partial class WideConvexPrismRelations
         ReadOnlySpan<ulong> squares,
         ReadOnlySpan<int> signs,
         int words,
-        ulong scale)
+        ulong scale,
+        ReadOnlySpan<ulong> roots,
+        int rootShift,
+        ReadOnlySpan<ulong> denominatorBounds)
     {
         int sign = GetConvexContactCandidateQuadraticSign(
             candidate.NormalRational(component), candidate.Signs[component],
@@ -289,18 +322,38 @@ internal static partial class WideConvexPrismRelations
         if (sign == 0)
             return Fixed64.Zero;
 
+        // These two products do not depend on the searched threshold. Keep
+        // them in this returning component frame, including the final tie
+        // comparison; do not enlarge or mutate the borrowed square slots.
+        int productWords = words + 3;
+        Span<ulong> scaledSquares = stackalloc ulong[2 * productWords];
+        Span<ulong> scaleSquared = stackalloc ulong[2];
+        Fixed64.Multiply64To128(scale << 1, scale << 1,
+            out scaleSquared[1], out scaleSquared[0]);
+        WideArithmetic.MultiplyMagnitudes(
+            squares.Slice(component * words, words), scaleSquared, scaledSquares[..productWords]);
+        WideArithmetic.MultiplyMagnitudes(
+            squares.Slice((component + 3) * words, words), scaleSquared, scaledSquares[productWords..]);
+
         ulong low = 0UL;
         // Exact one-component normals already returned above. Every remaining
         // nonzero component is strictly below the norm, so its raw floor is
         // below scale; nearest-even rounding may still produce scale.
         ulong high = scale;
+        if (!denominatorBounds.IsEmpty)
+        {
+            GetConvexContactCandidateNormalFloorBounds(scaledSquares,
+                signs[component], roots, rootShift, denominatorBounds, scale,
+                out low, out ulong upperFloor);
+            high = Math.Min(high, upperFloor + 1);
+        }
         while (low < high)
         {
             ulong midpoint = low + ((high - low) >> 1);
             int comparison =
                 CompareConvexContactCandidateNormalComponentToTwiceRaw(
                     squares, signs, words, component,
-                    candidate.NormalRadicand, midpoint << 1, scale);
+                    candidate.NormalRadicand, midpoint << 1, scaledSquares);
             if (comparison >= 0)
                 low = midpoint + 1UL;
             else
@@ -311,9 +364,82 @@ internal static partial class WideConvexPrismRelations
         int midpointComparison =
             CompareConvexContactCandidateNormalComponentToTwiceRaw(
                 squares, signs, words, component,
-                candidate.NormalRadicand, (floor << 1) | 1UL, scale);
+                candidate.NormalRadicand, (floor << 1) | 1UL, scaledSquares);
         floor += GetNearestEvenIncrement(midpointComparison, floor);
         return Fixed64.FromRaw(sign * (long)floor);
+    }
+
+    private static void GetConvexContactCandidateMagnitudeFloorBounds(
+        ConvexContactCandidate candidate, ulong cap,
+        out ulong lower, out ulong upper)
+    {
+        WideArithmetic.GetMagnitudeSquareRootBounds(candidate.GapRadicand,
+            out Signed192 lowerRoot, out Signed192 upperRoot, out int shift);
+        Span<ulong> roots = stackalloc ulong[4]
+            { lowerRoot.Low, lowerRoot.Middle, upperRoot.Low, upperRoot.Middle };
+        int words = Math.Max(2, Math.Max(
+            Math.Max(ConvexContactCandidateLength(candidate.GapRational),
+                ConvexContactCandidateLength(candidate.GapDenominator)),
+            ConvexContactCandidateLength(candidate.GapRadical) + 2 + ((shift + 63) >> 6)) + 1);
+        Span<ulong> bounds = stackalloc ulong[3 * words];
+        Span<ulong> minimum = bounds[..words], maximum = bounds.Slice(words, words);
+        Span<ulong> denominator = bounds[(2 * words)..];
+        GetConvexContactCandidateQuadraticBounds(candidate.GapRational,
+            candidate.GapRationalSign, candidate.GapRadical,
+            candidate.GapRadicalSign, roots, shift, minimum, maximum,
+            out int minimumSign);
+        denominator.Clear();
+        candidate.GapDenominator[..ConvexContactCandidateLength(candidate.GapDenominator)].CopyTo(denominator);
+        // The true squared magnitude is nonnegative. A negative interval
+        // minimum is cancellation in the enclosure, so its lower bound is 0.
+        lower = minimumSign > 0
+            ? WideArithmetic.GetRatioFloorSquareRoot(minimum, denominator, cap) : 0;
+        upper = WideArithmetic.GetRatioFloorSquareRoot(maximum, denominator, cap);
+    }
+
+    private static void GetConvexContactCandidateNormalFloorBounds(
+        ReadOnlySpan<ulong> scaledSquares, int radicalSign,
+        ReadOnlySpan<ulong> roots, int shift,
+        ReadOnlySpan<ulong> denominatorBounds, ulong cap,
+        out ulong lower, out ulong upper)
+    {
+        // This frame returns before exact searches. Keep its numerator bounds
+        // out of the live stack of the wide quadratic sign comparisons.
+        int words = denominatorBounds.Length / 2;
+        int coefficientWords = scaledSquares.Length / 2;
+        Span<ulong> minimum = stackalloc ulong[words];
+        Span<ulong> maximum = stackalloc ulong[words];
+        GetConvexContactCandidateQuadraticBounds(scaledSquares[..coefficientWords], 1,
+            scaledSquares[coefficientWords..], radicalSign, roots, shift,
+            minimum, maximum, out int minimumSign);
+        lower = minimumSign > 0
+            ? WideArithmetic.GetRatioFloorSquareRoot(minimum, denominatorBounds[words..], cap) : 0;
+        upper = WideArithmetic.GetRatioFloorSquareRoot(maximum, denominatorBounds[..words], cap);
+    }
+
+    private static void GetConvexContactCandidateQuadraticBounds(
+        ReadOnlySpan<ulong> rational, int rationalSign,
+        ReadOnlySpan<ulong> radical, int radicalSign,
+        ReadOnlySpan<ulong> roots, int shift,
+        Span<ulong> minimum, Span<ulong> maximum, out int minimumSign)
+    {
+        minimum.Clear();
+        rational[..ConvexContactCandidateLength(rational)].CopyTo(minimum);
+        minimum.CopyTo(maximum);
+        minimumSign = IsZero(rational) ? 0 : rationalSign;
+        int maximumSign = minimumSign;
+        Span<ulong> product = stackalloc ulong[ConvexContactCandidateLength(radical) + 2];
+        // Negative coefficients reverse the root endpoints. Accumulate the
+        // factored root directly, including signed cancellation and the upper
+        // carry at 2^96, without constructing a much wider shifted root copy.
+        WideArithmetic.MultiplyMagnitudes(radical,
+            radicalSign < 0 ? roots[2..] : roots[..2], product);
+        WideArithmetic.AddShiftedSignedMagnitude(product, radicalSign, shift, minimum, ref minimumSign);
+        WideArithmetic.MultiplyMagnitudes(radical,
+            radicalSign < 0 ? roots[..2] : roots[2..], product);
+        WideArithmetic.AddShiftedSignedMagnitude(product, radicalSign, shift, maximum, ref maximumSign);
+        if (IsZero(minimum))
+            minimumSign = 0;
     }
 
     private static int CompareConvexContactCandidateNormalComponentToTwiceRaw(
@@ -323,33 +449,25 @@ internal static partial class WideConvexPrismRelations
         int component,
         ReadOnlySpan<ulong> radicand,
         ulong twiceRaw,
-        ulong scale)
+        ReadOnlySpan<ulong> scaledSquares)
     {
         // (2 S n_i)^2 - twiceRaw^2 |n|^2 has the sign of the unsquared
         // comparison, since both magnitudes and the norm are nonnegative.
-        Span<ulong> scaleSquared = stackalloc ulong[2];
-        Fixed64.Multiply64To128(scale << 1, scale << 1,
-            out scaleSquared[1], out scaleSquared[0]);
         Span<ulong> thresholdSquared = stackalloc ulong[2];
         Fixed64.Multiply64To128(twiceRaw, twiceRaw,
             out thresholdSquared[1], out thresholdSquared[0]);
         int productWords = words + 3;
-        Span<ulong> first = stackalloc ulong[productWords];
-        Span<ulong> second = stackalloc ulong[productWords];
+        Span<ulong> product = stackalloc ulong[productWords];
         Span<ulong> rational = stackalloc ulong[productWords];
         Span<ulong> radical = stackalloc ulong[productWords];
         WideArithmetic.MultiplyMagnitudes(
-            squares.Slice(component * words, words), scaleSquared, first);
-        WideArithmetic.MultiplyMagnitudes(
-            squares.Slice(6 * words, words), thresholdSquared, second);
-        CombineWideSignedMagnitudes(first, 1, second, -1,
+            squares.Slice(6 * words, words), thresholdSquared, product);
+        CombineWideSignedMagnitudes(scaledSquares[..productWords], 1, product, -1,
             rational, out int rationalSign);
         WideArithmetic.MultiplyMagnitudes(
-            squares.Slice((component + 3) * words, words), scaleSquared, first);
-        WideArithmetic.MultiplyMagnitudes(
-            squares.Slice(7 * words, words), thresholdSquared, second);
+            squares.Slice(7 * words, words), thresholdSquared, product);
         CombineWideSignedMagnitudes(
-            first, signs[component], second, -signs[3],
+            scaledSquares[productWords..], signs[component], product, -signs[3],
             radical, out int radicalSign);
         return GetConvexContactCandidateQuadraticSign(
             rational, rationalSign, radical, radicalSign, radicand);

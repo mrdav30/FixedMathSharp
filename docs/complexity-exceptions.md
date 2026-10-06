@@ -31,14 +31,17 @@ behavior changes, or the implementation becomes harder to reason about.
 | --------------------------------- | ----------------------------------------------------------------------------------- | ---------: | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FixedMathSharp` | `WideConvexPrismRelations.BuildCylinderCapsuleAxisCandidate(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Exact authored axes, signed axial support and radial support form one shared squared-gap candidate without normalizing geometry or rounding classification inputs. | A simpler candidate representation preserves full-domain support and its width proof. |
 | `FixedMathSharp` | `WideConvexPrismRelations.TryGetCenteredFiniteCylinderCapsulePenetration(...)` | 40 | 100% line / 100% branch (Release / ReleaseLean) | One canonical feature traversal owns cap, side, endpoint-rim and capsule-interior candidates, degenerate reductions and certified early returns for public contacts and admitted full slab lengths. | The complete feature proof changes or measured equivalent pruning removes work without weakening minimum-depth selection. |
+| `FixedMathSharp` | `WideConvexPrismRelations.GetConvexContactCandidateScaledNormal(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Shared quadratic bounds prepare one denominator enclosure for all components while retaining exact axis shortcuts, signs, scale, and uncertain-denominator fallback. | A simpler exact normal conversion preserves scaled anchors and cancellation without duplicating the sign owner. |
 | `FixedMathSharp` | `WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | The shared cylinder/capsule, analytic cylinder-pair and large parallel-radius owner narrows exact depth search while preserving zero gaps, nearest-even ties and conceptual clamping. | A cheaper exact conversion preserves half-raw ties and maximum-range behavior for every consumer. |
 | `FixedMathSharp` | `WideConvexPrismRelations.GetRoundedCylinderCapsuleEllipseDepth(...)` | 20 | 100% line / 100% branch (Release / ReleaseLean) | Exact magnitude-floor bounds narrow the signed depth search; paired positive pseudo-reduction is reused across thresholds while final half-raw comparisons and conceptual clamping remain authoritative. | A cheaper exact conversion preserves zero gap, half-raw ties and maximum-range behavior. |
 | `FixedMathSharp` | `WideConvexPrismRelations.GetConvexContactCandidateQuadraticSign(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Zero terms and like signs resolve directly; opposing rational/radical terms use one exact squared comparison shared by the existing contact consumers. | The shared sign or input-width contract expands, or a cheaper exact comparator preserves cancellation. |
 | `FixedMathSharp` | `WideConvexPrismRelations.GetConvexContactCandidateThreeTermSign(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | Cross-candidate comparison retains both radicals, sign reductions and exact equality before deterministic winner selection. | A simpler comparison preserves distinct algebraic depths that round to the same scalar. |
 | `FixedMathSharp` | `WideConvexPrismRelations.CompareCylinderCapsuleEllipseSquaredGap(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Sign admission precedes radical elimination, then an exact degree-at-most-eight query compares the retained ellipse root with the shared analytic winner. | The candidate representation or degree/width contract changes. |
+| `FixedMathSharp` | `WideArithmetic.GetMagnitudeSquareRootBounds(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Even-bit truncation reuses the existing narrow root, preserves discarded-bit exactness and returns factored 97-bit endpoints without a general wide square-root solver. | The unsigned input domain or endpoint width changes, or a measured simpler enclosure preserves perfect-square and carry boundaries. |
 | `FixedMathSharp` | `WideArithmetic.GetGreatestCommonDivisor(Signed192, Signed192)` | 20 | 100% line / 100% branch (Release / ReleaseLean) | Shared three-word binary Euclid removes positive integer content for ellipse preparation and cylinder-pair primitive axes without changing authored geometry. | The admitted signed domain changes or another exact content reducer has equal or lower measured cost. |
 | `FixedMathSharp` | `WideArithmetic.DivideExactSigned192(...)` | 20 | 100% line / 100% branch (Release / ReleaseLean) | Shared bounded signed division applies a proven positive divisor without rounding; the consumed-prefix bound protects remainder shifts throughout the admitted signed domain. | Exact-divisibility, signed-range or consumer-width preconditions change. |
 | `FixedMathSharp` | `WideFiniteAxisIntersection.TryGetLargestPositiveFiniteAxisRoot(...)` | 28 | 100% line / 100% branch | Degree reduction, excluded zero roots, Sturm counts and dyadic isolation retain the largest positive root with explicit rational and repeated-root ownership. | The degree or root-selection contract changes, or a simpler exact isolation proof reduces work. |
+| `FixedMathSharp` | `WideFiniteAxisIntersection.GetFiniteRootVariations(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Nonconstant unit-interval rows reuse a certified integer point sign; uncertain, zero, out-of-domain and derivative right-limit cases retain exact Sturm counting. | The root domain, precision or sign acceptance proof changes, or a measured simpler evaluator removes the certificate. |
 | `FixedMathSharp` | `WideFiniteAxisIntersection.GetSignAtFiniteAxisRoot(...)` | 16 | 100% line / 100% branch | Constant/rational queries and sign-preserving pseudo-reduction evaluate the same retained root exactly, including equality. | Query degree exceeds eight or another representation reduces exact sign work without losing root identity. |
 | `FixedMathSharp` | `WideFiniteAxisIntersection.GetReducedSignAtFiniteAxisRoot(...)` | 28 | 100% line / 100% branch | Certified interval signs and exact linear-boundary evaluation precede bounded crossing/Sturm refinement and the Hermite fallback; the fast-path budget never determines the answer. | A cheaper exact equality/sign certificate replaces refinement or the fallback without losing multiple-root behavior. |
 | `FixedMathSharp` | `WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | The shared polynomial owner removes and returns a common positive power-of-two factor across nonzero coefficients, preserving roots, signs and jointly normalized ratios. | Coefficient storage or normalization policy changes. |
@@ -567,6 +570,54 @@ ceiling is `8B+128`. The 64-refinement fast-path budget is not a tolerance or
 termination fallback: unresolved signs and equality proceed to the exact
 Hermite query. Positive pseudo-division adds at most `B+1` bits per eliminated
 coefficient, with at most eight eliminations.
+
+Sturm variation counting reuses the value-root normalized point certificate
+for nonconstant rows strictly inside `(0,1)`. A nonzero certificate proves
+the point sign; uncertainty retains exact derivative/right-limit evaluation.
+For numerator bits `b` and dyadic shift `q`, work precision is
+`p=q+128+d*(q-b+1)`, with `1<=b<=q` and `d<=4`. Acquisition and later
+noncrossing refinement together give `q<=max(9B+64,8B+129)`. At `B<=1818`,
+the returning certificate uses at most **22,648 bytes** beside the existing
+40,000-byte Sturm arena; it returns before exact fallback evaluation. Root
+cells, separation bounds and equality decisions remain unchanged.
+
+Analytic normal rounding retains its two threshold-independent products
+`(2*scale)^2` times each component-square coefficient once per returning
+component frame. Rational/radical norm slots use
+`W=max(2R,2L+K,R+L+1)+2<=122`, with each candidate field at most forty words.
+Products reserve `P=W+3<=125` words. Two retained products replace one of
+the comparator's four scratch products, for a net maximum explicit live
+increase of **1,000 bytes**. The doubled nonnegative Fixed64 raw scale fits
+ulong even at MaxValue; its square fits two words. Threshold and quadratic
+sign decisions retain the original full-width arithmetic and rounding rules.
+
+Analytic depth and scaled-normal rounding also narrow searches using
+policy-neutral factored square-root bounds. With radicand bit length `b`,
+`k=max(0,ceil((b-192)/2))` and `T=floor(C/2^(2k))`, the existing narrow
+integer root `q=floor(sqrt(T))` gives endpoints `q*2^k` and `(q+1)*2^k`.
+Only a zero root remainder and entirely zero discarded bits permit collapse.
+The endpoints remain at most 97 bits plus `k`; the upper `2^96` carry is
+retained. Existing shifted signed-magnitude accumulation bounds each
+quadratic expression, reversing endpoints for negative radical coefficients.
+
+For forty-word fields, `k<=1184`. Depth bounds reserve at most **62 words**;
+normal bounds reserve `W+6+ceil(k/64)<=147` words, including the invariant
+scale products and denominator multiplication by four. The exact clipped
+ratio-floor owner requires equal padded magnitudes of at least two words
+and a positive denominator; it retains full-width division before its proved
+low-128-bit packing. Nonpositive denominator minima retain full normal
+searches, while nonpositive numerator minima bound the true square by zero.
+Negative-gap depth bounds include the additional fractional raw unit from
+radius subtraction. Exact midpoint and MaxValue comparisons still determine
+rounding and conceptual clamping.
+
+Shared normal denominator bounds and factored endpoints retain at most
+`2*147+4=298` additional words. Component numerator bounds return before the
+exact sign comparisons. The maximum analytic-normal exact-sign explicit
+buffer peak is **23,176 bytes**, excluding caller frames, alignment and JIT
+spills. Prefix/root interval bounds never truncate a full signed result to
+fit scratch storage; the upper carry of a forty-word radicand is preserved
+without allocating a twenty-one-word shifted root.
 
 The same signed interval Horner owner supplies exact square-root ratio floor
 bounds for output materialization. Numerator and denominator retain an equal

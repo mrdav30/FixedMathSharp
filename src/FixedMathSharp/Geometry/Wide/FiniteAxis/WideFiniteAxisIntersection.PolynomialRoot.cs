@@ -432,14 +432,26 @@ internal static partial class WideFiniteAxisIntersection
         int previous = 0;
         int variations = 0;
         int words = sturm.Length / 25;
+        int numeratorBits = GetFiniteRootBits(numerator);
         for (int index = 0; index < count; index++)
         {
             int degree = degrees[index];
+            ReadOnlySpan<ulong> row = sturm.Slice(index * 5 * words, (degree + 1) * words);
+            ReadOnlySpan<sbyte> rowSigns = signs.Slice(index * 5, degree + 1);
             int sign = 0;
+            if (degree > 0 && numeratorBits > 0 && numeratorBits <= shift)
+            {
+                // Reuse the value-root point certificate only in (0,1).
+                // Nonzero certifies the exact sign; uncertainty must still
+                // use the first nonzero derivative for Sturm's right limit.
+                int precision = shift + FiniteValuePointGuardBits
+                    + degree * (shift - numeratorBits + 1);
+                sign = GetFiniteValueApproximateSign(numerator, shift, row, rowSigns,
+                    precision, GetFiniteRootCoefficientBits(row, rowSigns.Length));
+            }
             for (int order = 0; order <= degree && sign == 0; order++)
             {
-                sign = EvaluateFiniteRootPolynomial(sturm.Slice(index * 5 * words, (degree + 1) * words),
-                    signs.Slice(index * 5, degree + 1), numerator, shift, order);
+                sign = EvaluateFiniteRootPolynomial(row, rowSigns, numerator, shift, order);
             }
             if (previous != 0 && previous != sign)
                 variations++;
@@ -551,32 +563,8 @@ internal static partial class WideFiniteAxisIntersection
         // A negative N minimum is dependency in the interval, not permission
         // to take a square root of it; the proven nonnegative value bounds it by 0.
         if (minimumSign > 0)
-            lowerFloor = GetFiniteRootRatioFloorSquareRoot(nMin, dMax, cap);
-        upperFloor = GetFiniteRootRatioFloorSquareRoot(nMax, dMin, cap);
-    }
-
-    private static ulong GetFiniteRootRatioFloorSquareRoot(ReadOnlySpan<ulong> numerator,
-        ReadOnlySpan<ulong> denominator, ulong cap)
-    {
-        int words = numerator.Length;
-        // cap^2*D needs two extra words even though both interval bounds fit W.
-        // Division still needs a full-width quotient, not merely its low128 bits.
-        Span<ulong> storage = stackalloc ulong[5 * words + 5];
-        Span<ulong> product = storage[..(words + 2)];
-        Span<ulong> quotient = storage.Slice(words + 2, words + 2);
-        Span<ulong> remainder = storage.Slice(2 * words + 4, words);
-        Span<ulong> division = storage[(3 * words + 4)..];
-        Span<ulong> squareCap = stackalloc ulong[2];
-        Fixed64.Multiply64To128(cap, cap, out squareCap[1], out squareCap[0]);
-        WideArithmetic.MultiplyMagnitudes(denominator, squareCap, product);
-        quotient.Clear();
-        numerator.CopyTo(quotient);
-        if (WideArithmetic.CompareMagnitudeEqualLength(quotient, product) >= 0)
-            return cap;
-        WideArithmetic.DivideMagnitudes(numerator, denominator, quotient[..words], remainder, division);
-        // The unclipped quotient is <cap^2<2^128, so packing its two low words
-        // loses no bits. floor(sqrt(floor(N/D))) equals floor(sqrt(N/D)).
-        return WideArithmetic.GetFloorSquareRoot(new Signed320(0, 0, 0, quotient[1], quotient[0]), out _).Low;
+            lowerFloor = WideArithmetic.GetRatioFloorSquareRoot(nMin, dMax, cap);
+        upperFloor = WideArithmetic.GetRatioFloorSquareRoot(nMax, dMin, cap);
     }
 
     private static int GetFiniteRootIntervalSign(FiniteAxisPolynomialRoot root,

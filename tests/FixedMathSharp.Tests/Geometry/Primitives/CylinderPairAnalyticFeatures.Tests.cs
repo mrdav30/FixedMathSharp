@@ -240,6 +240,308 @@ public sealed class CylinderPairAnalyticFeaturesTests
         Assert.Equal(0L, normal.Z.m_rawValue);
     }
 
+    [Theory]
+    [InlineData(1L, 1UL, 1, 0L, 1L)]
+    [InlineData(2L, 3UL, 1, 2L, 1L)]
+    [InlineData(2L, 3UL, -1, -2L, 1L)]
+    [InlineData(4_294_967_296L, 1UL, 1, 0L, 4_294_967_296L)]
+    [InlineData(long.MaxValue, 3UL, -1, -2L, long.MaxValue)]
+    public void ScaledAnalyticNormal_PreservesExactHalfRawTies(
+        long scaleRaw, ulong odd, int orientation, long expectedRaw, long expectedY)
+    {
+        // n=(odd,sqrt((2S)^2-odd^2),0) has norm exactly 2S. Scaling
+        // its X component by S therefore produces an exact odd/2 raw tie.
+        ulong[] values = new ulong[ConvexContactCandidate.Words * ConvexContactCandidate.Slots];
+        int[] signs = new int[ConvexContactCandidate.Slots];
+        values[0] = odd; signs[0] = orientation;
+        values[4 * ConvexContactCandidate.Words] = 1; signs[4] = 1;
+        Write(4 * (BigInteger)scaleRaw * scaleRaw - odd * odd,
+            values.AsSpan(6 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+        ulong[] original = (ulong[])values.Clone();
+        Vector3d normal = WideConvexPrismRelations.GetConvexContactCandidateScaledNormal(
+            new ConvexContactCandidate(values, signs, 0), Fixed64.FromRaw(scaleRaw));
+        Assert.Equal(expectedRaw, normal.X.m_rawValue);
+        Assert.Equal(expectedY, normal.Y.m_rawValue);
+        Assert.Equal(0L, normal.Z.m_rawValue);
+        Assert.Equal(original, values);
+    }
+
+    [Theory]
+    [InlineData(64, 0L, false)]
+    [InlineData(64, 1L, false)]
+    [InlineData(64, 4_294_967_296L, false)]
+    [InlineData(2500, long.MaxValue, false)]
+    [InlineData(2500, long.MaxValue, true)]
+    public void ScaledAnalyticNormal_PreservesWideSharedRadicalCancellation(
+        int coefficientBits, long scaleRaw, bool wideRadicand)
+    {
+        // A common positive factor (2^bits-1)-sqrt(2) cancels exactly.
+        // The resulting direction is (-3,4,0)/5 at every authored scale.
+        ulong[] values = new ulong[ConvexContactCandidate.Words * ConvexContactCandidate.Slots];
+        int[] signs = new int[ConvexContactCandidate.Slots];
+        BigInteger common = (BigInteger.One << coefficientBits) - 1;
+        Write(3 * common, values.AsSpan(0, ConvexContactCandidate.Words)); signs[0] = -1;
+        Write(4 * common, values.AsSpan(ConvexContactCandidate.Words, ConvexContactCandidate.Words)); signs[1] = 1;
+        values[3 * ConvexContactCandidate.Words] = 3; signs[3] = 1;
+        values[4 * ConvexContactCandidate.Words] = 4; signs[4] = -1;
+        values[6 * ConvexContactCandidate.Words] = 2;
+        if (wideRadicand)
+        {
+            // H*(1+sqrt(H)) fills all three field widths. Its exact common
+            // factor cancels too, while exercising the 122-word norm slots.
+            Write(3 * common, values.AsSpan(3 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+            Write(4 * common, values.AsSpan(4 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+            Write(common, values.AsSpan(6 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+            signs[3] = -1; signs[4] = 1;
+        }
+        ulong[] original = (ulong[])values.Clone();
+        Vector3d normal = WideConvexPrismRelations.GetConvexContactCandidateScaledNormal(
+            new ConvexContactCandidate(values, signs, 0), Fixed64.FromRaw(scaleRaw));
+        Assert.Equal(-RoundFifths(3 * (BigInteger)scaleRaw), normal.X.m_rawValue);
+        Assert.Equal(RoundFifths(4 * (BigInteger)scaleRaw), normal.Y.m_rawValue);
+        Assert.Equal(0L, normal.Z.m_rawValue);
+        Assert.Equal(original, values);
+    }
+
+    [Theory]
+    [InlineData(1, 3, 1L)]
+    [InlineData(1, 3, 4_294_967_296L)]
+    [InlineData(1, 3, long.MaxValue)]
+    [InlineData(2, 3, 1L)]
+    [InlineData(2, 3, 4_294_967_296L)]
+    [InlineData(2, 3, long.MaxValue)]
+    [InlineData(4, 2, 1L)]
+    [InlineData(4, 2, 4_294_967_296L)]
+    [InlineData(4, 2, long.MaxValue)]
+    [InlineData(1, 0, 1L)]
+    [InlineData(1, 0, long.MaxValue)]
+    public void ScaledAnalyticNormal_PreservesCanceledDirectionsAcrossUncertainDenominatorBounds(
+        int rationalFactor, int smallRadicand, long scaleRaw)
+    {
+        // n=(-3,4,0)*(H-sqrt(C)). The common factor cancels exactly,
+        // including its sign. With the integer sqrt(C) enclosure [1,2],
+        // (H,C)=(1,3) gives norm lower bound 0 and (2,3) gives -25,
+        // although both exact norms are positive; (4,2) has a positive bound.
+        // The forty-word radicand also exercises an upper-root carry beyond
+        // the twenty words sufficient for its floor root.
+        BigInteger radicand = smallRadicand == 0
+            ? (BigInteger.One << (64 * ConvexContactCandidate.Words)) - 1
+            : smallRadicand;
+        int factorSign = (rationalFactor * rationalFactor - radicand).Sign;
+        ulong[] values = new ulong[ConvexContactCandidate.Words * ConvexContactCandidate.Slots];
+        int[] signs = new int[ConvexContactCandidate.Slots];
+        values[0] = (ulong)(3 * rationalFactor); signs[0] = -1;
+        values[ConvexContactCandidate.Words] = (ulong)(4 * rationalFactor); signs[1] = 1;
+        values[3 * ConvexContactCandidate.Words] = 3; signs[3] = 1;
+        values[4 * ConvexContactCandidate.Words] = 4; signs[4] = -1;
+        Write(radicand, values.AsSpan(6 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+        ulong[] originalValues = (ulong[])values.Clone();
+        int[] originalSigns = (int[])signs.Clone();
+
+        Vector3d normal = WideConvexPrismRelations.GetConvexContactCandidateScaledNormal(
+            new ConvexContactCandidate(values, signs, 0), Fixed64.FromRaw(scaleRaw));
+
+        Assert.Equal(-factorSign * RoundFifths(3 * (BigInteger)scaleRaw), normal.X.m_rawValue);
+        Assert.Equal(factorSign * RoundFifths(4 * (BigInteger)scaleRaw), normal.Y.m_rawValue);
+        Assert.Equal(0L, normal.Z.m_rawValue);
+        Assert.Equal(originalValues, values);
+        Assert.Equal(originalSigns, signs);
+    }
+
+    [Theory]
+    [InlineData(1, 0L, 1, false, -1)]
+    [InlineData(1, 0L, 1, false, 0)]
+    [InlineData(1, 0L, 1, false, 1)]
+    [InlineData(1, 1L, 1, true, -1)]
+    [InlineData(1, 1L, 1, true, 0)]
+    [InlineData(1, 1L, 1, true, 1)]
+    [InlineData(-1, 2L, 3, false, -1)]
+    [InlineData(-1, 2L, 3, false, 0)]
+    [InlineData(-1, 2L, 3, false, 1)]
+    [InlineData(-1, 3L, 3, true, -1)]
+    [InlineData(-1, 3L, 3, true, 0)]
+    [InlineData(-1, 3L, 3, true, 1)]
+    public void AnalyticDepth_PreservesHalfRawNeighborsAndTotalDepthParity(
+        int gapSign, long radiusRaw, int odd, bool negativeRational, int offset)
+    {
+        BigInteger common = (BigInteger.One << 200) + 1;
+        BigInteger numerator = odd * odd * common + offset;
+        ulong[] values = new ulong[ConvexContactCandidate.Words * ConvexContactCandidate.Slots];
+        int[] signs = new int[ConvexContactCandidate.Slots];
+        // Both A=T+2,B=-1 and A=-T,B=T give A+B*sqrt(4)=T.
+        // The exact squared gap is odd^2/4 + offset/(4*common).
+        Write(negativeRational ? numerator : numerator + 2,
+            values.AsSpan(7 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+        signs[7] = negativeRational ? -1 : 1;
+        Write(negativeRational ? numerator : BigInteger.One,
+            values.AsSpan(8 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+        signs[8] = negativeRational ? 1 : -1;
+        values[9 * ConvexContactCandidate.Words] = 4;
+        Write(4 * common, values.AsSpan(10 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+        ulong[] originalValues = (ulong[])values.Clone();
+        int[] originalSigns = (int[])signs.Clone();
+        long midpointFloor = radiusRaw + (gapSign > 0 ? (odd - 1) / 2 : -(odd + 1) / 2);
+        long increment = offset == 0 ? midpointFloor & 1L : gapSign * offset > 0 ? 1L : 0L;
+
+        WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(
+            new ConvexContactCandidate(values, signs, gapSign), Fixed64.FromRaw(radiusRaw),
+            out Fixed64 depth, out bool clamped);
+
+        Assert.Equal(midpointFloor + increment, depth.m_rawValue);
+        Assert.False(clamped);
+        Assert.Equal(originalValues, values);
+        Assert.Equal(originalSigns, signs);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void AnalyticDepth_ClassifiesExactMaximumNeighborsBeforeRoundedClamping(int offset)
+    {
+        BigInteger common = (BigInteger.One << 200) + 1;
+        BigInteger twiceMaximum = 2 * (BigInteger)long.MaxValue;
+        BigInteger numerator = twiceMaximum * twiceMaximum * common + offset;
+        ulong[] values = new ulong[ConvexContactCandidate.Words * ConvexContactCandidate.Slots];
+        int[] signs = new int[ConvexContactCandidate.Slots];
+        // A=-T,B=T,C=4 again leaves exact positive numerator T.
+        // The +/-1 neighbors round to MaxValue but only +1 exceeds it.
+        Write(numerator, values.AsSpan(7 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+        Write(numerator, values.AsSpan(8 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+        signs[7] = -1; signs[8] = 1;
+        values[9 * ConvexContactCandidate.Words] = 4;
+        Write(4 * common, values.AsSpan(10 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+        ulong[] originalValues = (ulong[])values.Clone();
+        int[] originalSigns = (int[])signs.Clone();
+
+        WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(
+            new ConvexContactCandidate(values, signs, 1), Fixed64.Zero,
+            out Fixed64 depth, out bool clamped);
+
+        Assert.Equal(long.MaxValue, depth.m_rawValue);
+        Assert.Equal(offset > 0, clamped);
+        Assert.Equal(originalValues, values);
+        Assert.Equal(originalSigns, signs);
+    }
+
+    [Theory]
+    [InlineData(-1, 1L)]
+    [InlineData(0, 2L)]
+    [InlineData(1, 2L)]
+    public void AnalyticDepth_PreservesHalfRawNeighborsWithFortyWordRadicandCancellation(
+        int offset, long expectedRaw)
+    {
+        BigInteger common = (BigInteger.One << 200) + 1;
+        BigInteger numerator = common + offset;
+        BigInteger radicalRoot = (BigInteger.One << 1279) + (BigInteger.One << 1100) + 3;
+        ulong[] values = new ulong[ConvexContactCandidate.Words * ConvexContactCandidate.Slots];
+        int[] signs = new int[ConvexContactCandidate.Slots];
+        // The forty-word perfect square has nonzero discarded bits in the
+        // prefix enclosure. Its sqrt is still exactly radicalRoot, so the
+        // signed cancellation -(radicalRoot-T)+sqrt(C) leaves T without
+        // any approximation, even though the enclosure's numerator minimum
+        // is negative. Radius one adds before final nearest-even rounding.
+        Write(radicalRoot - numerator,
+            values.AsSpan(7 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+        signs[7] = -1;
+        values[8 * ConvexContactCandidate.Words] = 1; signs[8] = 1;
+        Write(radicalRoot * radicalRoot,
+            values.AsSpan(9 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+        Write(4 * common, values.AsSpan(10 * ConvexContactCandidate.Words, ConvexContactCandidate.Words));
+        ulong[] originalValues = (ulong[])values.Clone();
+        int[] originalSigns = (int[])signs.Clone();
+
+        WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(
+            new ConvexContactCandidate(values, signs, 1), Fixed64.FromRaw(1),
+            out Fixed64 depth, out bool clamped);
+
+        Assert.Equal(expectedRaw, depth.m_rawValue);
+        Assert.False(clamped);
+        Assert.Equal(originalValues, values);
+        Assert.Equal(originalSigns, signs);
+    }
+
+    [Theory]
+    [InlineData(1L)]
+    [InlineData(long.MaxValue)]
+    public void ScaledAnalyticNormal_ZeroDirectionPreservesBorrowedInputs(long scaleRaw)
+    {
+        ulong[] values = new ulong[ConvexContactCandidate.Words * ConvexContactCandidate.Slots];
+        int[] signs = new int[ConvexContactCandidate.Slots];
+        ulong[] originalValues = (ulong[])values.Clone();
+        int[] originalSigns = (int[])signs.Clone();
+
+        Vector3d normal = WideConvexPrismRelations.GetConvexContactCandidateScaledNormal(
+            new ConvexContactCandidate(values, signs, 0), Fixed64.FromRaw(scaleRaw));
+
+        Assert.Equal(Vector3d.Zero, normal);
+        Assert.Equal(originalValues, values);
+        Assert.Equal(originalSigns, signs);
+    }
+
+    [Theory]
+    [InlineData(1, 1L, 3L)]
+    [InlineData(-1, 3L, 1L)]
+    [InlineData(-1, 2L, 0L)]
+    public void AnalyticDepth_PureRadicalSquaredGapPreservesSignedRadiusOffset(
+        int gapSign, long radiusRaw, long expectedRaw)
+    {
+        ulong[] values = new ulong[ConvexContactCandidate.Words * ConvexContactCandidate.Slots];
+        int[] signs = new int[ConvexContactCandidate.Slots];
+        // A=0,B=1,C=16,D=1 gives squared gap sqrt(16)=4, hence
+        // magnitude 2 raw units before adding or subtracting the radius.
+        values[8 * ConvexContactCandidate.Words] = 1; signs[8] = 1;
+        values[9 * ConvexContactCandidate.Words] = 16;
+        values[10 * ConvexContactCandidate.Words] = 1;
+        ulong[] originalValues = (ulong[])values.Clone();
+        int[] originalSigns = (int[])signs.Clone();
+
+        WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(
+            new ConvexContactCandidate(values, signs, gapSign), Fixed64.FromRaw(radiusRaw),
+            out Fixed64 depth, out bool clamped);
+
+        Assert.Equal(expectedRaw, depth.m_rawValue);
+        Assert.False(clamped);
+        Assert.Equal(originalValues, values);
+        Assert.Equal(originalSigns, signs);
+    }
+
+    [Theory]
+    [InlineData(1L, 0L, 1L)]
+    [InlineData(5L, 1L, 5L)]
+    public void ScaledAnalyticNormal_NegativeComponentSquareEnclosureKeepsExactRounding(
+        long scaleRaw, long expectedX, long expectedY)
+    {
+        ulong[] values = new ulong[ConvexContactCandidate.Words * ConvexContactCandidate.Slots];
+        int[] signs = new int[ConvexContactCandidate.Slots];
+        // n=(sqrt(2)-1,4,0), norm^2=19-2sqrt(2). The sqrt enclosure
+        // [1,2] gives X^2 minimum -1 but norm^2 minimum 15, so only
+        // the numerator lower bound is uncertain. At scale 1, 0<X<1/2
+        // and 1/2<Y<1. At scale 5, 1/2<X<3/2 and 9/2<Y<5;
+        // the strict X>1/2 test follows from 281^2>2*198^2.
+        values[0] = 1; signs[0] = -1;
+        values[ConvexContactCandidate.Words] = 4; signs[1] = 1;
+        values[3 * ConvexContactCandidate.Words] = 1; signs[3] = 1;
+        values[6 * ConvexContactCandidate.Words] = 2;
+        ulong[] originalValues = (ulong[])values.Clone();
+        int[] originalSigns = (int[])signs.Clone();
+
+        Vector3d normal = WideConvexPrismRelations.GetConvexContactCandidateScaledNormal(
+            new ConvexContactCandidate(values, signs, 0), Fixed64.FromRaw(scaleRaw));
+
+        Assert.Equal(expectedX, normal.X.m_rawValue);
+        Assert.Equal(expectedY, normal.Y.m_rawValue);
+        Assert.Equal(0L, normal.Z.m_rawValue);
+        Assert.Equal(originalValues, values);
+        Assert.Equal(originalSigns, signs);
+    }
+
+    private static long RoundFifths(BigInteger numerator)
+    {
+        BigInteger floor = BigInteger.DivRem(numerator, 5, out BigInteger remainder);
+        return (long)(floor + (remainder > 2 ? 1 : 0));
+    }
+
     [Fact]
     public void Depth_ClassifiesClampingFromExactUnroundedValue()
     {
