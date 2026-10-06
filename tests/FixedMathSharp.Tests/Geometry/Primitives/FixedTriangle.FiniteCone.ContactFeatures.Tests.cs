@@ -222,6 +222,33 @@ public sealed partial class FixedTriangleFiniteConeContactTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void RotatedVertexGenerator_PreservesExactNormalAndLocalWitnesses(bool reverse)
+    {
+        // The normalized quaternion represents [3,-4;4,3]/5 exactly.
+        // It maps the unique generator normal (-4,-3,0)/5 to world down.
+        const long k = 1920767767L;
+        var rotation = new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.FromRaw(k), Fixed64.FromRaw(2 * k));
+        var vertex = new Vector3d(Fixed64.FromFraction(1, 8), Fixed64.Zero, Fixed64.Zero);
+        var source = new FixedTriangle(vertex, new Vector3d(1, 2, 0), new Vector3d(0, 2, 1));
+        var triangle = reverse ? new FixedTriangle(source.A, source.C, source.B) : source;
+        var origin = new Vector3d(7, -11, 13);
+        for (int index = 0; index < 3; index++)
+        {
+            Assert.True(triangle.TryGetCenteredFiniteConeContact(origin, rotation,
+                origin, rotation, (Fixed64)4, (Fixed64)3, out FixedContactAnchors contact));
+            Assert.Equal(Vector3d.Down, contact.Normal);
+            Assert.Equal(Fixed64.FromFraction(11, 10), contact.Depth);
+            Assert.True(contact.FirstAnchor.TryGetLocalPointIn(origin, rotation, out Vector3d first));
+            Assert.True(contact.SecondAnchor.TryGetLocalPointIn(origin, rotation, out Vector3d second));
+            Assert.Equal(vertex, first);
+            Assert.Equal(new Vector3d(Fixed64.FromFraction(201, 200), Fixed64.FromFraction(33, 50), Fixed64.Zero), second);
+            triangle = new FixedTriangle(triangle.B, triangle.C, triangle.A);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void ObliqueBaseRim_UniqueMinimumPreservesWindingAndCyclicOrder(bool reverse)
     {
         FixedTriangle source = ObliqueRimTriangle();

@@ -8,6 +8,50 @@ namespace FixedMathSharp.Tests.Geometry.Wide;
 public sealed class ConvexContactCandidateTests
 {
     [Theory]
+    [InlineData(0, 0, 3, 0)]
+    [InlineData(0, 2, 3, 1)]
+    [InlineData(0, -2, 3, -1)]
+    [InlineData(0, -2, 0, 0)]
+    [InlineData(3, 0, 2, 1)]
+    [InlineData(-3, 0, 2, -1)]
+    [InlineData(3, -2, 2, 1)]
+    [InlineData(-3, 2, 2, -1)]
+    [InlineData(2, -1, 4, 0)]
+    [InlineData(-2, 1, 4, 0)]
+    [InlineData(1, -2, 3, -1)]
+    [InlineData(-1, 2, 3, 1)]
+    public void QuadraticGapEncoding_PreservesExactSquareAndOriginalSign(int a, int b, int k, int expectedSign)
+    {
+        foreach (int word in new[] { 0, 12 })
+        {
+            const int words = ConvexContactCandidate.Words;
+            var numeratorValues = new ulong[2 * words];
+            var numeratorSigns = new[] { Math.Sign(a), Math.Sign(b) };
+            numeratorValues[word] = (ulong)Math.Abs(a);
+            numeratorValues[words + word] = (ulong)Math.Abs(b);
+            var root = new ulong[words]; root[0] = (ulong)k;
+            var denominator = new ulong[words]; denominator[0] = 7;
+            var values = new ulong[ConvexContactCandidate.Slots * words];
+            var signs = new int[ConvexContactCandidate.Slots];
+            int gapSign = CylinderContactAlgebra.BuildQuadraticCandidate(
+                new ContactQuadratic(numeratorValues, numeratorSigns), root, denominator, values, signs);
+            var candidate = new ConvexContactCandidate(values, signs, gapSign);
+            // Independent integer coefficients of (A+B*sqrt(K))², including
+            // opposite signs, exact cancellation and coefficients beyond 64 bits.
+            BigInteger scale = BigInteger.One << (128 * word);
+            BigInteger rational = (a * a + b * b * k) * scale;
+            BigInteger radical = (2 * a * b) * scale;
+            Assert.Equal(rational, Magnitude(candidate.GapRational));
+            Assert.Equal(radical, candidate.GapRadicalSign * Magnitude(candidate.GapRadical));
+            Assert.Equal(rational.Sign, signs[7]);
+            Assert.Equal(radical.Sign, signs[8]);
+            Assert.Equal((BigInteger)k, Magnitude(candidate.GapRadicand));
+            Assert.Equal((BigInteger)7, Magnitude(candidate.GapDenominator));
+            Assert.Equal(expectedSign, gapSign);
+        }
+    }
+
+    [Theory]
     [InlineData(1L << 32)]
     [InlineData(17L << 32)]
     [InlineData(long.MaxValue / 4)]

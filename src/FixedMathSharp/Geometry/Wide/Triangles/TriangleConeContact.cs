@@ -24,9 +24,7 @@ internal static class TriangleConeContact
             Signed192.Raw(height), radius);
         Span<ulong> bestValues = stackalloc ulong[ConvexContactCandidate.Slots * Words];
         Span<int> bestSigns = stackalloc int[ConvexContactCandidate.Slots];
-        Span<ulong> localNormal = stackalloc ulong[7 * Words];
-        Span<int> localSigns = stackalloc int[7];
-        var selection = new TriangleConeContactSelection(geometry.WorldBasis, bestValues, bestSigns, localNormal, localSigns);
+        var selection = new TriangleConeContactSelection(bestValues, bestSigns);
         bool faceMinimumCertified = KeepAnalytic(geometry, height, radius, ref selection);
         if (selection.Separated)
             return false;
@@ -40,7 +38,7 @@ internal static class TriangleConeContact
         if (selection.Feature == TriangleConeContactSelection.Generator)
             WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(best, Fixed64.Zero, out depth, out clamped);
         else
-            geometry.GetAnalyticDepth(best, localSigns, selection.Mask, out depth, out clamped);
+            geometry.GetAnalyticDepth(best, bestSigns, selection.Mask, out depth, out clamped);
         // Both exact face orientations bound this winner by half the cone's
         // width. Diameter=max(2R,sqrt(R^2+H^2))<=2*MaxValue, so it cannot clamp.
         // Exact orthogonal frames and the generator seam preserve this bound.
@@ -53,6 +51,15 @@ internal static class TriangleConeContact
             coneAnchor = TriangleCircularGeometry.GetSupport(center, coneRotation, Signed192.Raw(height), radialPoint, 1);
         else
         {
+            // Ranking and rim admission use only exact gap fields. Transform
+            // the retained analytic normal once; witnesses keep its local form.
+            Span<ulong> localNormal = stackalloc ulong[7 * Words];
+            Span<int> localSigns = stackalloc int[7];
+            bestValues[..(7 * Words)].CopyTo(localNormal); bestSigns[..7].CopyTo(localSigns);
+            WriteWorldDirection(geometry.WorldBasis, localNormal[..(3 * Words)], localSigns[..3],
+                bestValues[..(3 * Words)], bestSigns[..3]);
+            WriteWorldDirection(geometry.WorldBasis, localNormal.Slice(3 * Words, 3 * Words), localSigns.Slice(3, 3),
+                bestValues.Slice(3 * Words, 3 * Words), bestSigns.Slice(3, 3));
             normal = WideConvexPrismRelations.GetConvexContactCandidateNormal(best);
             if (selection.Feature == TriangleConeContactSelection.Generator)
                 TriangleConeWitnesses.GetGenerator(geometry, triangle, height, radius, selection.Mask,
@@ -193,20 +200,21 @@ internal static class TriangleConeContact
             side = WideArithmetic.CompareMagnitudeEqualLength(radiusSquared, temporary);
         }
         SumSquares(direction, metric);
+        // Larger K=0/projected chart directions defer generator equality to
+        // the complete fan, without building an unused normalized denominator.
+        if (side == 0 && !compactGenerator)
+            return;
+        Import(Signed320.ExtendValue(geometry.RawScale), scale);
+        WideArithmetic.MultiplyMagnitudes(scale, scale, temporary);
+        WideArithmetic.MultiplyMagnitudes(metric, temporary, denominator);
         if (side == 0)
         {
-            // Only face-sized axes reach this owner. Larger K=0/projected
-            // chart directions defer equality to the complete generator fan.
-            if (compactGenerator)
-                TriangleConeGeneratorFeatures.Keep(geometry, values, signs, metric, ref selection);
+            TriangleConeGeneratorFeatures.Keep(geometry, values, signs, denominator, ref selection);
             return;
         }
         bool apex = side < 0;
         Add(axial, directionSigns[1] * (apex ? -1 : 1), rational, ref rationalSign);
         if (apex) radiusSquared.Clear();
-        Import(Signed320.ExtendValue(geometry.RawScale), scale);
-        WideArithmetic.MultiplyMagnitudes(scale, scale, temporary);
-        WideArithmetic.MultiplyMagnitudes(metric, temporary, denominator);
         int gapSign = BuildRadialCandidate(rational, rationalSign, radiusSquared, denominator, values, signs);
         int feature = apex ? TriangleConeContactSelection.Apex
             : IsZero(radial) ? TriangleConeContactSelection.BasePole : TriangleConeContactSelection.BaseRim;

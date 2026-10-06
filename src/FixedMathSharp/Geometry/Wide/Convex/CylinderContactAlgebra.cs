@@ -15,13 +15,19 @@ internal static class CylinderContactAlgebra
     internal static int BuildQuadraticCandidate(ContactQuadratic numerator, ReadOnlySpan<ulong> root,
         ReadOnlySpan<ulong> denominator, Span<ulong> values, Span<int> signs)
     {
-        Span<ulong> work = stackalloc ulong[2 * Words];
-        Span<int> workSigns = stackalloc int[2];
-        var square = new ContactQuadratic(work, workSigns);
-        ContactQuadratic.Multiply(numerator, numerator, root, square);
-        square.Rational.CopyTo(Slot(values, 7)); square.Radical.CopyTo(Slot(values, 8));
+        // (A+B*sqrt(K))²=(A²+B²K)+2AB*sqrt(K). Squaring needs one
+        // cross-product; its rational coefficient is always nonnegative.
+        Span<ulong> product = stackalloc ulong[Words];
+        Span<ulong> rational = Slot(values, 7), radical = Slot(values, 8);
+        WideArithmetic.MultiplyMagnitudes(numerator.Rational, numerator.Rational, rational);
+        WideArithmetic.MultiplyMagnitudes(numerator.Radical, numerator.Radical, product);
+        WideArithmetic.MultiplyMagnitudes(product, root, radical);
+        WideArithmetic.AddMagnitudeInto(radical, rational);
+        WideArithmetic.MultiplyMagnitudes(numerator.Rational, numerator.Radical, radical);
+        WideArithmetic.AddMagnitudeInto(radical, radical);
         root.CopyTo(Slot(values, 9)); denominator.CopyTo(Slot(values, 10));
-        signs[7] = square.Signs[0]; signs[8] = square.Signs[1];
+        signs[7] = IsZero(rational) ? 0 : 1;
+        signs[8] = IsZero(radical) ? 0 : numerator.Signs[0] * numerator.Signs[1];
         return numerator.Sign(root);
     }
 

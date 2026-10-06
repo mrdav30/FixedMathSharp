@@ -16,13 +16,19 @@ internal static class TriangleConeGeneratorFeatures
     {
         Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * Words];
         Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
-        Span<ulong> work = stackalloc ulong[6 * Words];
+        Span<ulong> work = stackalloc ulong[7 * Words];
         Span<ulong> hSquared = Slot(work, 0), rSquared = Slot(work, 1), length = Slot(work, 2);
         Span<ulong> metric = Slot(work, 3), product = Slot(work, 4);
         Signed192 h = Signed192.Raw(height), r = Signed192.Raw(radius);
         Import(WideArithmetic.MultiplySigned192(h, h), hSquared);
         Import(WideArithmetic.MultiplySigned192(r, r), rSquared);
         WideArithmetic.AddEqualMagnitudes(hSquared, rSquared, length);
+        // All generator directions share the raw-coordinate scale. Include
+        // its square once in the length factor used by every gap denominator.
+        Import(Signed320.ExtendValue(geometry.RawScale), product);
+        WideArithmetic.MultiplyMagnitudes(product, product, Slot(work, 6));
+        WideArithmetic.MultiplyMagnitudes(length, Slot(work, 6), product);
+        product.CopyTo(length);
         values.Clear(); signs.Clear();
         Write(values, signs, 0, Signed576.ExtendValue(Signed320.ExtendValue(h)));
         Write(values, signs, 1, Signed576.ExtendValue(Signed320.ExtendValue(WideArithmetic.SubtractSigned192(default, r))));
@@ -34,15 +40,16 @@ internal static class TriangleConeGeneratorFeatures
             Signed576 radial = CircularRimContactAlgebra.RadialDot(p, p);
             if (radial.Sign != 0)
             {
+                values.Clear(); signs.Clear();
+                Write(values, signs, 0, WideArithmetic.MultiplySigned320(p.X, h), -1);
+                Write(values, signs, 2, WideArithmetic.MultiplySigned320(p.Z, h), -1);
+                Write(values, signs, 4, Signed576.ExtendValue(Signed320.ExtendValue(r)), -1);
+                Import(radial, Slot(values, 6));
+                WideArithmetic.MultiplyMagnitudes(Slot(values, 6), length, metric);
                 for (int orientation = -1; orientation <= 1; orientation += 2)
                 {
-                    values.Clear(); signs.Clear();
-                    Write(values, signs, 0, WideArithmetic.MultiplySigned320(p.X, h), orientation);
-                    Write(values, signs, 2, WideArithmetic.MultiplySigned320(p.Z, h), orientation);
-                    Write(values, signs, 4, Signed576.ExtendValue(Signed320.ExtendValue(r)), -1);
-                    Import(radial, Slot(values, 6));
-                    WideArithmetic.MultiplyMagnitudes(Slot(values, 6), length, metric);
                     Keep(geometry, values, signs, metric, ref selection);
+                    signs[0] = -signs[0]; signs[2] = -signs[2];
                 }
             }
             WideAxis3 e = geometry.Edge(vertex);
@@ -68,23 +75,18 @@ internal static class TriangleConeGeneratorFeatures
             Keep(geometry, values, signs, metric, ref selection);
             if (discriminantSign != 0 && !selection.Separated)
             {
-                // Keep transforms the candidate normal only when selected.
-                // Rebuild the local rational terms before the other branch.
-                Write(values, signs, 0, WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(e.Y, e.X), radius.m_rawValue));
-                Write(values, signs, 1, WideArithmetic.MultiplySigned576(eSquared, radius.m_rawValue), -1);
-                Write(values, signs, 2, WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(e.Y, e.Z), radius.m_rawValue));
-                Write(values, signs, 3, Signed576.ExtendValue(e.Z));
-                Slot(values, 4).Clear(); signs[4] = 0;
-                Write(values, signs, 5, Signed576.ExtendValue(e.X), -1);
+                // Selection preserves the local input: the other quadratic
+                // branch changes only the two radial radical signs.
+                signs[3] = -signs[3]; signs[5] = -signs[5];
                 Keep(geometry, values, signs, metric, ref selection);
             }
         }
     }
 
     internal static void Keep(in TriangleCircularGeometry geometry, scoped Span<ulong> values, scoped Span<int> signs,
-        scoped ReadOnlySpan<ulong> metric, ref TriangleConeContactSelection selection)
+        scoped ReadOnlySpan<ulong> denominator, ref TriangleConeContactSelection selection)
     {
-        Span<ulong> work = stackalloc ulong[8 * Words];
+        Span<ulong> work = stackalloc ulong[6 * Words];
         Span<int> workSigns = stackalloc int[6];
         ContactQuadratic maximum = At(work, workSigns, 0), current = At(work, workSigns, 1), difference = At(work, workSigns, 2);
         ReadOnlySpan<ulong> root = Slot(values, 6);
@@ -101,10 +103,7 @@ internal static class TriangleConeGeneratorFeatures
         Component(values, signs, 1, current);
         Scale(current, Signed576.ExtendValue(geometry.HalfHeight), difference);
         maximum.Add(difference, -1);
-        Import(Signed320.ExtendValue(geometry.RawScale), Slot(work, 6));
-        WideArithmetic.MultiplyMagnitudes(Slot(work, 6), Slot(work, 6), Slot(work, 7));
-        WideArithmetic.MultiplyMagnitudes(Slot(work, 7), metric, Slot(work, 6));
-        int gapSign = BuildQuadraticCandidate(maximum, root, Slot(work, 6), values, signs);
+        int gapSign = BuildQuadraticCandidate(maximum, root, denominator, values, signs);
         selection.Keep(values, signs, gapSign, mask, TriangleConeContactSelection.Generator);
     }
 
