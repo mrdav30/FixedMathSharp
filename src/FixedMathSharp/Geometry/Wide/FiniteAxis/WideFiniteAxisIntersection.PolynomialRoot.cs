@@ -3,6 +3,7 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 using System;
+using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp.Geometry;
 
@@ -281,33 +282,9 @@ internal static partial class WideFiniteAxisIntersection
     private static int ReduceFiniteRootQuery(FiniteAxisPolynomialRoot root,
         Span<ulong> remainder, Span<sbyte> signs, int degree)
     {
-        int words = remainder.Length / signs.Length;
-        int rootDegree = root.Signs.Length - 1;
-        int rootWords = root.Coefficients.Length / root.Signs.Length;
-        ReadOnlySpan<ulong> leading = root.Coefficients.Slice(rootDegree * rootWords, rootWords);
-        Span<ulong> factor = stackalloc ulong[words];
-        Span<ulong> first = stackalloc ulong[words];
-        Span<ulong> second = stackalloc ulong[words];
-        while (degree >= rootDegree)
+        while (degree >= root.Signs.Length - 1)
         {
-            remainder.Slice(degree * words, words).CopyTo(factor);
-            sbyte factorSign = (sbyte)(signs[degree] * root.Signs[rootDegree]);
-            int offset = degree - rootDegree;
-            for (int index = 0; index <= degree; index++)
-            {
-                Span<ulong> coefficient = remainder.Slice(index * words, words);
-                MultiplyRoundedCylinderWide(leading, coefficient, first);
-                sbyte secondSign = 0;
-                second.Clear();
-                if (index >= offset)
-                {
-                    MultiplyRoundedCylinderWide(factor,
-                        root.Coefficients.Slice((index - offset) * rootWords, rootWords), second);
-                    secondSign = (sbyte)(factorSign * root.Signs[index - offset]);
-                }
-                SubtractRoundedCylinderSigned(first, signs[index], second, secondSign,
-                    coefficient, out signs[index]);
-            }
+            ReduceFiniteRootQueryStep(root, remainder, signs, degree);
             while (degree >= 0 && signs[degree] == 0)
                 degree--;
             if (degree < 0)
@@ -315,6 +292,100 @@ internal static partial class WideFiniteAxisIntersection
             NormalizeFiniteAxisPolynomialPowerOfTwo(remainder, signs);
         }
         return degree;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)] // Return the three product buffers after each step.
+    private static void ReduceFiniteRootQueryStep(FiniteAxisPolynomialRoot root,
+        Span<ulong> remainder, Span<sbyte> signs, int degree)
+    {
+        int words = remainder.Length / signs.Length;
+        int rootDegree = root.Signs.Length - 1;
+        int rootWords = root.Coefficients.Length / root.Signs.Length;
+        ReadOnlySpan<ulong> leading = root.Coefficients.Slice(rootDegree * rootWords, rootWords);
+        Span<ulong> factor = stackalloc ulong[words];
+        Span<ulong> first = stackalloc ulong[words];
+        Span<ulong> second = stackalloc ulong[words];
+        remainder.Slice(degree * words, words).CopyTo(factor);
+        sbyte factorSign = (sbyte)(signs[degree] * root.Signs[rootDegree]);
+        int offset = degree - rootDegree;
+        for (int index = 0; index <= degree; index++)
+        {
+            Span<ulong> coefficient = remainder.Slice(index * words, words);
+            MultiplyRoundedCylinderWide(leading, coefficient, first);
+            sbyte secondSign = 0;
+            second.Clear();
+            if (index >= offset)
+            {
+                MultiplyRoundedCylinderWide(factor,
+                    root.Coefficients.Slice((index - offset) * rootWords, rootWords), second);
+                secondSign = (sbyte)(factorSign * root.Signs[index - offset]);
+            }
+            SubtractRoundedCylinderSigned(first, signs[index], second, secondSign,
+                coefficient, out signs[index]);
+        }
+    }
+
+    /// <summary>
+    /// Sizes a paired positive pseudo-remainder after canceling common powers
+    /// of the strictly positive root. Inputs have the same padded count and
+    /// a denominator nonzero at the root. The returned slice applies to both.
+    /// </summary>
+    internal static int GetFiniteAxisRootRatioWords(FiniteAxisPolynomialRoot root,
+        ReadOnlySpan<ulong> numerator, ReadOnlySpan<sbyte> numeratorSigns,
+        ReadOnlySpan<ulong> denominator, ReadOnlySpan<sbyte> denominatorSigns,
+        out int first, out int count)
+    {
+        first = 0;
+        int last = numeratorSigns.Length - 1;
+        while (last > 0 && numeratorSigns[last] == 0 && denominatorSigns[last] == 0)
+            last--;
+        while (first < last && numeratorSigns[first] == 0 && denominatorSigns[first] == 0)
+            first++;
+        count = last - first + 1;
+        int bits = Math.Max(GetFiniteRootCoefficientBits(numerator, numeratorSigns.Length),
+            GetFiniteRootCoefficientBits(denominator, denominatorSigns.Length));
+        // Each positive pseudo-step adds at most Bp+1 bits, including the
+        // subtraction carry. Joint degree drops can only reduce this count.
+        int steps = Math.Max(0, count - root.Signs.Length + 1);
+        return (bits + steps * (root.CoefficientBits + 1) + 127) / 64;
+    }
+
+    /// <summary>
+    /// Reduces N and D at the same retained root with identical positive
+    /// scale factors. Paired output storage has two equally sized polynomial
+    /// halves; each keeps the input count even when the returned count shrinks.
+    /// </summary>
+    internal static int ReduceFiniteAxisRootRatio(FiniteAxisPolynomialRoot root,
+        ReadOnlySpan<ulong> numerator, ReadOnlySpan<sbyte> numeratorSigns,
+        ReadOnlySpan<ulong> denominator, ReadOnlySpan<sbyte> denominatorSigns,
+        Span<ulong> pair, Span<sbyte> pairSigns)
+    {
+        int count = numeratorSigns.Length;
+        int words = pair.Length / (2 * count);
+        int sourceWords = numerator.Length / count;
+        int denominatorWords = denominator.Length / count;
+        pair.Clear();
+        numeratorSigns.CopyTo(pairSigns[..count]);
+        denominatorSigns.CopyTo(pairSigns[count..]);
+        for (int index = 0; index < count; index++)
+        {
+            CopyFiniteRootMagnitude(numerator.Slice(index * sourceWords, sourceWords),
+                pair.Slice(index * words, words));
+            CopyFiniteRootMagnitude(denominator.Slice(index * denominatorWords, denominatorWords),
+                pair.Slice((count + index) * words, words));
+        }
+        int degree = count - 1;
+        while (degree >= root.Signs.Length - 1)
+        {
+            // Even a zero leading coefficient must receive |leading(P)|:
+            // independent reductions would change N/D's relative scale.
+            ReduceFiniteRootQueryStep(root, pair[..(count * words)], pairSigns[..count], degree);
+            ReduceFiniteRootQueryStep(root, pair[(count * words)..], pairSigns[count..], degree);
+            while (degree > 0 && pairSigns[degree] == 0 && pairSigns[count + degree] == 0)
+                degree--;
+        }
+        NormalizeFiniteAxisPolynomialPowerOfTwo(pair, pairSigns);
+        return degree + 1;
     }
 
     private static int BuildFiniteRootSturm(FiniteAxisPolynomialRoot root,
@@ -446,25 +517,108 @@ internal static partial class WideFiniteAxisIntersection
         return resultSign;
     }
 
+    /// <summary>
+    /// Bounds the integer floor of sqrt(N(alpha)/D(alpha)) at a retained root.
+    /// The caller proves D(alpha)>0 and 0&lt;=N(alpha)/D(alpha)&lt;=cap^2. Both
+    /// polynomials retain the same padded coefficient count: their homogeneous
+    /// interval scales must cancel. An uncertain denominator returns [0,cap].
+    /// Inputs and root storage are borrowed without mutation.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)] // Return interval/division scratch before exact sign queries.
+    internal static void GetFiniteAxisRootSquareRootBounds(FiniteAxisPolynomialRoot root,
+        ReadOnlySpan<ulong> numerator, ReadOnlySpan<sbyte> numeratorSigns,
+        ReadOnlySpan<ulong> denominator, ReadOnlySpan<sbyte> denominatorSigns,
+        ulong cap, out ulong lowerFloor, out ulong upperFloor)
+    {
+        lowerFloor = 0;
+        upperFloor = cap;
+        int degree = numeratorSigns.Length - 1;
+        int boundBits = Math.Max(GetFiniteRootBits(root.LowerNumerator) + 1
+            + Math.Max(-root.DenominatorShift, 0), Math.Max(root.DenominatorShift, 0) + 1);
+        int bits = Math.Max(GetFiniteRootCoefficientBits(numerator, numeratorSigns.Length),
+            GetFiniteRootCoefficientBits(denominator, denominatorSigns.Length));
+        int words = Math.Max(2, (bits + degree * boundBits + 95) / 64);
+        Span<ulong> bounds = stackalloc ulong[4 * words];
+        Span<ulong> nMin = bounds[..words], nMax = bounds.Slice(words, words);
+        Span<ulong> dMin = bounds.Slice(2 * words, words), dMax = bounds.Slice(3 * words, words);
+        GetFiniteRootPolynomialBounds(root, numerator, numeratorSigns, nMin, nMax,
+            out int minimumSign, out _);
+        GetFiniteRootPolynomialBounds(root, denominator, denominatorSigns, dMin, dMax,
+            out int denominatorSign, out _);
+        if (denominatorSign <= 0)
+            return;
+        // Positive denominator bounds permit independent division bounds.
+        // A negative N minimum is dependency in the interval, not permission
+        // to take a square root of it; the proven nonnegative value bounds it by 0.
+        if (minimumSign > 0)
+            lowerFloor = GetFiniteRootRatioFloorSquareRoot(nMin, dMax, cap);
+        upperFloor = GetFiniteRootRatioFloorSquareRoot(nMax, dMin, cap);
+    }
+
+    private static ulong GetFiniteRootRatioFloorSquareRoot(ReadOnlySpan<ulong> numerator,
+        ReadOnlySpan<ulong> denominator, ulong cap)
+    {
+        int words = numerator.Length;
+        // cap^2*D needs two extra words even though both interval bounds fit W.
+        // Division still needs a full-width quotient, not merely its low128 bits.
+        Span<ulong> storage = stackalloc ulong[5 * words + 5];
+        Span<ulong> product = storage[..(words + 2)];
+        Span<ulong> quotient = storage.Slice(words + 2, words + 2);
+        Span<ulong> remainder = storage.Slice(2 * words + 4, words);
+        Span<ulong> division = storage[(3 * words + 4)..];
+        Span<ulong> squareCap = stackalloc ulong[2];
+        Fixed64.Multiply64To128(cap, cap, out squareCap[1], out squareCap[0]);
+        WideArithmetic.MultiplyMagnitudes(denominator, squareCap, product);
+        quotient.Clear();
+        numerator.CopyTo(quotient);
+        if (WideArithmetic.CompareMagnitudeEqualLength(quotient, product) >= 0)
+            return cap;
+        WideArithmetic.DivideMagnitudes(numerator, denominator, quotient[..words], remainder, division);
+        // The unclipped quotient is <cap^2<2^128, so packing its two low words
+        // loses no bits. floor(sqrt(floor(N/D))) equals floor(sqrt(N/D)).
+        return WideArithmetic.GetFloorSquareRoot(new Signed320(0, 0, 0, quotient[1], quotient[0]), out _).Low;
+    }
+
     private static int GetFiniteRootIntervalSign(FiniteAxisPolynomialRoot root,
         ReadOnlySpan<ulong> coefficients, ReadOnlySpan<sbyte> signs)
     {
         int degree = signs.Length - 1;
-        int inputWords = coefficients.Length / signs.Length;
         int boundBits = Math.Max(GetFiniteRootBits(root.LowerNumerator) + 1
             + Math.Max(-root.DenominatorShift, 0), Math.Max(root.DenominatorShift, 0) + 1);
         int words = (GetFiniteRootCoefficientBits(coefficients, signs.Length) + degree * boundBits + 95) / 64;
-        Span<ulong> lower = stackalloc ulong[words];
-        Span<ulong> upper = stackalloc ulong[words];
         Span<ulong> minimum = stackalloc ulong[words];
         Span<ulong> maximum = stackalloc ulong[words];
+        GetFiniteRootPolynomialBounds(root, coefficients, signs, minimum, maximum,
+            out int minimumSign, out int maximumSign);
+        return minimumSign > 0 ? 1 : maximumSign < 0 ? -1 : 0;
+    }
+
+    private static void GetFiniteRootPolynomialBounds(FiniteAxisPolynomialRoot root,
+        ReadOnlySpan<ulong> coefficients, ReadOnlySpan<sbyte> signs,
+        Span<ulong> minimum, Span<ulong> maximum, out int minimumSign, out int maximumSign)
+    {
+        int degree = signs.Length - 1;
+        int inputWords = coefficients.Length / signs.Length;
+        // Constants need no interval coordinates. A deeply retained numerator
+        // may be wider than either coefficient, without affecting this bound.
+        if (degree == 0)
+        {
+            CopyFiniteRootMagnitude(coefficients, minimum);
+            minimum.CopyTo(maximum);
+            minimumSign = maximumSign = signs[0];
+            return;
+        }
+        int words = minimum.Length;
+        Span<ulong> lower = stackalloc ulong[words];
+        Span<ulong> upper = stackalloc ulong[words];
         Span<ulong> product = stackalloc ulong[words];
         Span<ulong> term = stackalloc ulong[words];
         Span<ulong> sum = stackalloc ulong[words];
         lower.Clear();
         root.LowerNumerator[..GetRoundedCylinderWideLength(root.LowerNumerator)].CopyTo(lower);
         lower.CopyTo(upper);
-        AddRoundedCylinderWord(upper, 0, 1);
+        if (!root.IsRational)
+            AddRoundedCylinderWord(upper, 0, 1);
         if (root.DenominatorShift < 0)
         {
             ShiftFiniteRootLeft(lower, -root.DenominatorShift);
@@ -472,22 +626,23 @@ internal static partial class WideFiniteAxisIntersection
         }
         minimum.Clear();
         maximum.Clear();
-        sbyte minimumSign = 0;
-        sbyte maximumSign = 0;
+        sbyte minSign = 0;
+        sbyte maxSign = 0;
         for (int index = degree; index >= 0; index--)
         {
             term.Clear();
             CopyFiniteRootMagnitude(coefficients.Slice(index * inputWords, inputWords), term);
             if (root.DenominatorShift > 0)
                 ShiftFiniteRootLeft(term, (degree - index) * root.DenominatorShift);
-            MultiplyRoundedCylinderWide(minimum, minimumSign < 0 ? upper : lower, product);
-            AddRoundedCylinderSigned(product, minimumSign, term, signs[index], sum, out minimumSign);
+            MultiplyRoundedCylinderWide(minimum, minSign < 0 ? upper : lower, product);
+            AddRoundedCylinderSigned(product, minSign, term, signs[index], sum, out minSign);
             sum.CopyTo(minimum);
-            MultiplyRoundedCylinderWide(maximum, maximumSign < 0 ? lower : upper, product);
-            AddRoundedCylinderSigned(product, maximumSign, term, signs[index], sum, out maximumSign);
+            MultiplyRoundedCylinderWide(maximum, maxSign < 0 ? lower : upper, product);
+            AddRoundedCylinderSigned(product, maxSign, term, signs[index], sum, out maxSign);
             sum.CopyTo(maximum);
         }
-        return minimumSign > 0 ? 1 : maximumSign < 0 ? -1 : 0;
+        minimumSign = minSign;
+        maximumSign = maxSign;
     }
 
     private static int GetFiniteRootCoefficientBits(ReadOnlySpan<ulong> coefficients, int count)

@@ -338,9 +338,9 @@ internal static partial class WideConvexPrismRelations
         scoped ReadOnlySpan<ulong> denominator, scoped ReadOnlySpan<sbyte> denominatorSigns,
         ulong twiceRaw)
     {
-        const int sourceWords = CylinderCapsuleEllipseWords;
-        const int words = sourceWords + 3;
         int count = numeratorSigns.Length;
+        int sourceWords = numerator.Length / count;
+        int words = sourceWords + 3;
         Span<ulong> query = stackalloc ulong[count * words];
         Span<sbyte> querySigns = stackalloc sbyte[count];
         Span<ulong> threshold = stackalloc ulong[words];
@@ -368,8 +368,8 @@ internal static partial class WideConvexPrismRelations
 
     private static void GetRoundedCylinderCapsuleEllipseDepth(
         ref FiniteAxisPolynomialRoot root,
-        ReadOnlySpan<ulong> numerator, ReadOnlySpan<sbyte> numeratorSigns,
-        ReadOnlySpan<ulong> denominator, ReadOnlySpan<sbyte> denominatorSigns,
+        scoped ReadOnlySpan<ulong> numerator, scoped ReadOnlySpan<sbyte> numeratorSigns,
+        scoped ReadOnlySpan<ulong> denominator, scoped ReadOnlySpan<sbyte> denominatorSigns,
         int gapSign, Fixed64 cylinderRadius, Fixed64 capsuleRadius,
         out Fixed64 depth, out bool depthIsClamped)
     {
@@ -398,6 +398,41 @@ internal static partial class WideConvexPrismRelations
             }
             upper = (ulong)long.MaxValue;
         }
+        WideFiniteAxisIntersection.GetFiniteAxisRootSquareRootBounds(root,
+            numerator, numeratorSigns, denominator, denominatorSigns,
+            gapSign < 0 ? radiusRaw : (ulong)cylinderRadius.m_rawValue,
+            out ulong lowerMagnitude, out ulong upperMagnitude);
+        // These bound the FLOOR of the magnitude, not its real value. For a
+        // negative gap m<upperMagnitude+1, so floor(radius-m) may be one less.
+        // Contact admission proves m<=radius; the positive winning gap is <R.
+        // The exact overflow comparison above retains sole ownership of clamping.
+        if (gapSign < 0)
+        {
+            lower = upperMagnitude >= radiusRaw ? 0 : radiusRaw - upperMagnitude - 1;
+            upper = radiusRaw - lowerMagnitude;
+        }
+        else
+        {
+            lower = radiusRaw + lowerMagnitude;
+            upper = Math.Min(upper, radiusRaw + upperMagnitude);
+        }
+        // Every remaining threshold uses the same N/D. Reduce the pair once,
+        // with a shared positive scale, rather than pseudo-dividing each query.
+        // Bound the original structured denominator first: reduction can weaken
+        // its interval enclosure even though the exact quotient is unchanged.
+        int sourceWords = numerator.Length / numeratorSigns.Length;
+        int ratioWords = WideFiniteAxisIntersection.GetFiniteAxisRootRatioWords(root,
+            numerator, numeratorSigns, denominator, denominatorSigns, out int first, out int count);
+        Span<ulong> ratio = stackalloc ulong[2 * count * ratioWords];
+        Span<sbyte> ratioSigns = stackalloc sbyte[2 * count];
+        int reducedCount = WideFiniteAxisIntersection.ReduceFiniteAxisRootRatio(root,
+            numerator.Slice(first * sourceWords, count * sourceWords), numeratorSigns.Slice(first, count),
+            denominator.Slice(first * sourceWords, count * sourceWords), denominatorSigns.Slice(first, count),
+            ratio, ratioSigns);
+        numerator = ratio[..(reducedCount * ratioWords)];
+        numeratorSigns = ratioSigns[..reducedCount];
+        denominator = ratio.Slice(count * ratioWords, reducedCount * ratioWords);
+        denominatorSigns = ratioSigns.Slice(count, reducedCount);
         while (lower < upper)
         {
             ulong middle = lower + ((upper - lower + 1UL) >> 1);
@@ -436,8 +471,9 @@ internal static partial class WideConvexPrismRelations
         if (sign == 0)
             return Fixed64.Zero;
 
-        ulong lower = 0UL;
-        ulong upper = 1UL << FixedMath.SHIFT_AMOUNT_I;
+        WideFiniteAxisIntersection.GetFiniteAxisRootSquareRootBounds(root,
+            numerator, numeratorSigns, denominator, denominatorSigns,
+            1UL << FixedMath.SHIFT_AMOUNT_I, out ulong lower, out ulong upper);
         while (lower < upper)
         {
             ulong middle = lower + ((upper - lower + 1UL) >> 1);

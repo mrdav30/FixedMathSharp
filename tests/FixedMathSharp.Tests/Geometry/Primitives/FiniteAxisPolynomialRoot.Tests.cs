@@ -297,6 +297,190 @@ public sealed class FiniteAxisPolynomialRootTests
         }
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    [InlineData(10)]
+    [InlineData(11)]
+    [InlineData(12)]
+    [InlineData(13)]
+    [InlineData(14)]
+    public void SquareRootBounds_EncloseExactFloorsWithoutMutatingBorrowedInputs(int geometry)
+    {
+        BigInteger scale = geometry == 9 ? BigInteger.One << 80 : BigInteger.One;
+        BigInteger[] polynomial = geometry == 0 ? new BigInteger[] { -1, 1 }
+            : geometry == 8 ? new BigInteger[] { -1, 0, 8 }
+            : geometry == 14 ? new BigInteger[] { 4, 0, -4, 0, 1 }
+            : new BigInteger[] { -2 * scale * scale, 0, 1 };
+        BigInteger[] numerator = { 1, 0, 0 }, denominator = { 1, 0, 0 };
+        ulong cap = 10, expectedLower = 1, expectedUpper = 1;
+        switch (geometry)
+        {
+            case 1: numerator = new BigInteger[] { 0, 0, 1 }; expectedUpper = 2; break;
+            // D(alpha)>0, but D's cell minimum is zero: retain the full range.
+            case 2: denominator = new BigInteger[] { -1, 1, 0 }; expectedLower = 0; expectedUpper = cap; break;
+            case 3: numerator = new BigInteger[] { -1, 1, 0 }; expectedLower = 0; break;
+            case 4: numerator[0] = 4; cap = expectedLower = expectedUpper = 2; break;
+            case 5: numerator = new BigInteger[] { 0, 0, 1 }; cap = expectedUpper = 2; break;
+            case 6:
+                // A two-word quotient after division of much wider operands.
+                // Its exact square root is below the full unsigned cap.
+                BigInteger content = (BigInteger.One << 240) + 3;
+                numerator[0] = content * BigInteger.Pow((BigInteger)ulong.MaxValue - 1, 2);
+                denominator[0] = content;
+                cap = ulong.MaxValue; expectedLower = expectedUpper = cap - 1;
+                break;
+            case 7: numerator[0] = 0; expectedLower = expectedUpper = 0; break;
+            case 9:
+                // Negative denominator shift: alpha=2^80*sqrt(2)>1.
+                numerator = new BigInteger[] { 0, 0, 1 }; denominator[0] = scale * scale;
+                expectedUpper = 2; break;
+            // (alpha-1)^2>=0, but dependency gives a negative interval minimum.
+            case 10: numerator = new BigInteger[] { 1, -2, 1 }; expectedLower = 0; break;
+            case 11: denominator = new BigInteger[] { 1, -2, 1 }; expectedLower = 0; expectedUpper = cap; break;
+            case 12: numerator[0] = 0; cap = expectedLower = expectedUpper = 0; break;
+            case 13:
+            case 14:
+                // Unpadded constants do not need the retained root's coordinates,
+                // including a numerator wider than the entire constant buffer.
+                numerator = denominator = new BigInteger[] { 1 }; break;
+        }
+        Encode(polynomial, out ulong[] coefficients, out sbyte[] signs);
+        Encode(numerator, out ulong[] n, out sbyte[] ns);
+        Encode(denominator, out ulong[] d, out sbyte[] ds);
+        var cell = new ulong[WideFiniteAxisIntersection.GetFiniteAxisRootCellWords(coefficients, signs)];
+        Assert.True(WideFiniteAxisIntersection.TryGetLargestPositiveFiniteAxisRoot(coefficients, signs, cell, out var root));
+        if (geometry == 14)
+        {
+            // P=(x^2-2)^2 and Q=2^400*(x^2-2)+1 share no root;
+            // Q(alpha)=1, while its nearby zero forces repeated refinement.
+            BigInteger content = BigInteger.One << 400;
+            Encode(new BigInteger[] { 1 - 2 * content, 0, content }, out ulong[] query, out sbyte[] querySigns);
+            for (int attempt = 0; attempt < 3; attempt++)
+                Assert.Equal(1, WideFiniteAxisIntersection.GetSignAtFiniteAxisRoot(ref root, query, querySigns));
+            Assert.True(root.DenominatorShift > 128);
+        }
+        ulong[] originalCell = (ulong[])cell.Clone(), originalN = (ulong[])n.Clone(), originalD = (ulong[])d.Clone();
+        int shift = root.DenominatorShift;
+        WideFiniteAxisIntersection.GetFiniteAxisRootSquareRootBounds(root, n, ns, d, ds,
+            cap, out ulong lower, out ulong upper);
+        Assert.Equal(expectedLower, lower);
+        Assert.Equal(expectedUpper, upper);
+        Assert.Equal(shift, root.DenominatorShift);
+        Assert.Equal(originalCell, cell);
+        Assert.Equal(originalN, n);
+        Assert.Equal(originalD, d);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    public void ReducedRatio_PreservesSharedScaleAndQuadraticFieldValue(int geometry)
+    {
+        BigInteger[] polynomial = { -6, 0, -3, 0, 3 }; // 3(x²-2)(x²+1).
+        BigInteger[] numerator = { 1, 0, 0, 0, 1 }, denominator = { 2, 0, 0, 0, 1 };
+        if (geometry == 1)
+            for (int index = 0; index < polynomial.Length; index++) polynomial[index] = -polynomial[index];
+        if (geometry == 2) numerator = new BigInteger[] { 1, 0, 0, 0, 0 };
+        if (geometry == 3)
+        {
+            polynomial = new BigInteger[] { -6, 0, 3 };
+            numerator = new BigInteger[] { 0, 0, 5, 0, 0 };
+            denominator = new BigInteger[] { 0, 0, 1, 0, 2 };
+        }
+        if (geometry == 4) numerator = new BigInteger[5];
+        if (geometry == 5)
+        {
+            numerator = new BigInteger[] { 8, 8, 0, 0, 0 };
+            denominator = new BigInteger[] { 16, 8, 0, 0, 0 };
+        }
+        if (geometry == 6)
+        {
+            polynomial = new BigInteger[] { -4, 0, 2 };
+            numerator = new BigInteger[] { 0, 0, 0, 0, 1, 0, 1 };
+            denominator = new BigInteger[] { 1, 0, 0, 0, 0, 0, 1 };
+        }
+        if (geometry == 7) polynomial = new BigInteger[] { 4, 0, -4, 0, 1 };
+        if (geometry == 8)
+        {
+            // Different input widths plus a wide leading scale exercise the
+            // paired carry budget without depending on the production geometry.
+            for (int index = 0; index < polynomial.Length; index++) polynomial[index] *= (BigInteger.One << 160) + 1;
+            for (int index = 0; index < numerator.Length; index++) numerator[index] *= (BigInteger.One << 240) + 3;
+            for (int index = 0; index < denominator.Length; index++) denominator[index] *= (BigInteger.One << 128) + 1;
+        }
+        if (geometry == 9) { numerator = new BigInteger[] { 8 }; denominator = new BigInteger[] { 16 }; }
+        Encode(polynomial, out ulong[] p, out sbyte[] ps);
+        Encode(numerator, out ulong[] n, out sbyte[] ns);
+        Encode(denominator, out ulong[] d, out sbyte[] ds);
+        var cell = new ulong[WideFiniteAxisIntersection.GetFiniteAxisRootCellWords(p, ps)];
+        Assert.True(WideFiniteAxisIntersection.TryGetLargestPositiveFiniteAxisRoot(p, ps, cell, out var root));
+        ulong[] oldCell = (ulong[])cell.Clone(), oldN = (ulong[])n.Clone(), oldD = (ulong[])d.Clone();
+        int words = WideFiniteAxisIntersection.GetFiniteAxisRootRatioWords(root, n, ns, d, ds,
+            out int first, out int count);
+        var pair = new ulong[2 * count * words];
+        var signs = new sbyte[2 * count];
+        Array.Fill(pair, ulong.MaxValue);
+        Array.Fill(signs, (sbyte)99);
+        int reducedCount = WideFiniteAxisIntersection.ReduceFiniteAxisRootRatio(root,
+            n.AsSpan(first * (n.Length / ns.Length), count * (n.Length / ns.Length)), ns.AsSpan(first, count),
+            d.AsSpan(first * (d.Length / ds.Length), count * (d.Length / ds.Length)), ds.AsSpan(first, count), pair, signs);
+        Assert.InRange(reducedCount, 1, root.Signs.Length - 1);
+        (BigInteger nr, BigInteger nx) = EvaluateQuadraticField(numerator);
+        (BigInteger dr, BigInteger dx) = EvaluateQuadraticField(denominator);
+        var reducedN = new BigInteger[reducedCount];
+        var reducedD = new BigInteger[reducedCount];
+        for (int index = 0; index < count; index++)
+        {
+            BigInteger a = 0, b = 0;
+            for (int word = words - 1; word >= 0; word--)
+            {
+                a = (a << 64) + pair[index * words + word];
+                b = (b << 64) + pair[(count + index) * words + word];
+            }
+            if (index < reducedCount)
+            {
+                reducedN[index] = a * signs[index];
+                reducedD[index] = b * signs[count + index];
+            }
+            else { Assert.Equal(BigInteger.Zero, a); Assert.Equal(BigInteger.Zero, b); }
+        }
+        (BigInteger rr, BigInteger rx) = EvaluateQuadraticField(reducedN);
+        (BigInteger sr, BigInteger sx) = EvaluateQuadraticField(reducedD);
+        Assert.Equal(nr * sr + 2 * nx * sx, dr * rr + 2 * dx * rx);
+        Assert.Equal(nr * sx + nx * sr, dr * rx + dx * rr);
+        Assert.Equal(1, GetQuadraticFieldSign(sr, sx, 2));
+        Assert.Equal(oldCell, cell); Assert.Equal(oldN, n); Assert.Equal(oldD, d);
+    }
+
+    private static (BigInteger Rational, BigInteger Radical) EvaluateQuadraticField(BigInteger[] coefficients)
+    {
+        BigInteger rational = 0, radical = 0;
+        for (int index = 0; index < coefficients.Length; index++)
+        {
+            BigInteger term = coefficients[index] * BigInteger.Pow(2, index / 2);
+            if ((index & 1) == 0) rational += term;
+            else radical += term;
+        }
+        return (rational, radical);
+    }
+
     private static int GetQuadraticFieldSign(BigInteger rational, BigInteger radical, int radicand)
     {
         if (rational.IsZero)
