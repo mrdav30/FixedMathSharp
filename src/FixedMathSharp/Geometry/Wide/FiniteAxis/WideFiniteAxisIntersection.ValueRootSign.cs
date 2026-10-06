@@ -278,6 +278,33 @@ internal static partial class WideFiniteAxisIntersection
         return sign;
     }
 
+    /// <summary>
+    /// Encloses a polynomial nonnegative at the retained unit-interval root,
+    /// normalized by 2^coefficientBits, in units of 2^-precision. At most 17
+    /// coefficients and precision in [1,59] keep both endpoints within ulong:
+    /// 17*2^59 + 34 is less than 2^64.
+    /// coefficientBits must cover every coefficient. An open cell requires
+    /// shift >= precision + 2*ceilLog2(coefficientCount); a singleton needs no
+    /// cell-width margin. Neither coefficients nor the root are changed.
+    /// </summary>
+    internal static void GetFiniteValueRootNonnegativeBounds(FiniteAxisValueRoot root,
+        ReadOnlySpan<ulong> coefficients, ReadOnlySpan<sbyte> signs, int precision, int coefficientBits,
+        out ulong minimum, out ulong maximum)
+    {
+        Span<ulong> value = stackalloc ulong[2];
+        Span<ulong> product = stackalloc ulong[2 + (root.DenominatorShift + 64) / 64];
+        int sign = GetFiniteValueApproximateSignCore(root.LowerNumerator, root.DenominatorShift,
+            coefficients, signs, precision, coefficientBits, value, product, out _);
+        // The existing compact Horner proof bounds quantization, products and
+        // cell movement by <2*count units. Reuse its full compact magnitude:
+        // count*2^precision <2^64 proves the second result word is zero.
+        ulong error = 2UL * (ulong)signs.Length;
+        // A certified nonzero sign must be positive under the precondition.
+        // Its magnitude exceeds error; uncertainty retains the nonnegative zero.
+        minimum = sign == 0 ? 0 : value[0] - error;
+        maximum = value[0] + error;
+    }
+
     private static int GetFiniteValueApproximateSignCore(ReadOnlySpan<ulong> numerator, int shift,
         ReadOnlySpan<ulong> coefficients, ReadOnlySpan<sbyte> signs, int precision, int coefficientBits,
         Span<ulong> result, Span<ulong> product, out int length, int variableShift = 0)

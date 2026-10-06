@@ -633,7 +633,11 @@ internal static partial class WideFiniteAxisIntersection
         maximumSign = maxSign;
     }
 
-    private static int GetFiniteRootCoefficientBits(ReadOnlySpan<ulong> coefficients, int count)
+    /// <summary>
+    /// Maximum unsigned coefficient bit length in a uniformly padded,
+    /// little-endian polynomial with count >= 1; all-zero input returns zero.
+    /// </summary>
+    internal static int GetFiniteRootCoefficientBits(ReadOnlySpan<ulong> coefficients, int count)
     {
         int words = coefficients.Length / count;
         int bits = 0;

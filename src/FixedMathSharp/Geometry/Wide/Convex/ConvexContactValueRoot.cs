@@ -259,57 +259,104 @@ internal static class ConvexContactValueRoot
         int queryWords = squaredLength.Length / squareCount + 2;
         Span<ulong> query = stackalloc ulong[squareCount * queryWords];
         Span<sbyte> querySigns = stackalloc sbyte[squareCount];
-        ulong lower = 0;
-        ulong upper = (ulong)scale.m_rawValue + 1;
+        int removedShift = PrepareNormalThreshold(root, component, componentSigns,
+            squaredLength, squaredLengthSigns, (ulong)scale.m_rawValue, query, querySigns,
+            out ulong lowerFloor, out ulong upperFloor);
+        // The lower floor is already proven to pass its integer threshold.
+        // Search for the first failing integer strictly above that floor.
+        ulong lower = lowerFloor + 1;
+        ulong upper = upperFloor + 1;
         ulong previousTwiceRaw = 0;
-        int removedShift = -1;
         while (lower < upper)
         {
             ulong midpoint = lower + ((upper - lower) >> 1);
-            BuildNormalThreshold(component, componentSigns, squaredLength, squaredLengthSigns,
-                midpoint << 1, (ulong)scale.m_rawValue, ref previousTwiceRaw, ref removedShift, query, querySigns);
+            BuildNormalThreshold(squaredLength, squaredLengthSigns,
+                midpoint << 1, ref previousTwiceRaw, ref removedShift, query, querySigns);
             if (WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns) >= 0)
                 lower = midpoint + 1;
             else
                 upper = midpoint;
         }
         ulong floor = lower - 1;
-        BuildNormalThreshold(component, componentSigns, squaredLength, squaredLengthSigns,
-            (floor << 1) | 1, (ulong)scale.m_rawValue, ref previousTwiceRaw, ref removedShift, query, querySigns);
+        BuildNormalThreshold(squaredLength, squaredLengthSigns,
+            (floor << 1) | 1, ref previousTwiceRaw, ref removedShift, query, querySigns);
         int comparison = WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns);
         ulong rounded = floor + (comparison > 0 || (comparison == 0 && (floor & 1) != 0) ? 1UL : 0);
         return Fixed64.FromRaw(sign * (long)rounded);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void BuildNormalThreshold(ReadOnlySpan<ulong> component, ReadOnlySpan<sbyte> componentSigns,
+    private static int PrepareNormalThreshold(FiniteAxisValueRoot root,
+        ReadOnlySpan<ulong> component, ReadOnlySpan<sbyte> componentSigns,
+        ReadOnlySpan<ulong> squaredLength, ReadOnlySpan<sbyte> squaredLengthSigns, ulong scale,
+        Span<ulong> query, Span<sbyte> querySigns, out ulong lower, out ulong upper)
+    {
+        int queryWords = query.Length / querySigns.Length;
+        Span<ulong> product = stackalloc ulong[queryWords];
+        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(component, componentSigns,
+            component, componentSigns, query, querySigns, product);
+        GetNormalFloorBounds(root, query, querySigns, squaredLength, squaredLengthSigns, scale, out lower, out upper);
+        // Keep the same initialized threshold state as the original first
+        // search iteration. Bounds consume the unscaled square first, so the
+        // common normalization does not lose 64..126 useful precision bits.
+        if (scale == (ulong)Fixed64.One.m_rawValue) return 66;
+        Span<ulong> factor = stackalloc ulong[2];
+        Fixed64.Multiply64To128(scale << 1, scale << 1, out factor[1], out factor[0]);
+        for (int index = 0; index < querySigns.Length; index++)
+        {
+            Span<ulong> target = query.Slice(index * queryWords, queryWords);
+            WideArithmetic.MultiplyMagnitudes(target, factor, product);
+            product.CopyTo(target);
+        }
+        return 0;
+    }
+
+    private static void GetNormalFloorBounds(FiniteAxisValueRoot root,
+        ReadOnlySpan<ulong> componentSquared, ReadOnlySpan<sbyte> componentSigns,
+        ReadOnlySpan<ulong> squaredLength, ReadOnlySpan<sbyte> lengthSigns, ulong scale,
+        out ulong lower, out ulong upper)
+    {
+        lower = 0; upper = scale;
+        int count = lengthSigns.Length;
+        int margin = 2 * (64 - Fixed64.CountLeadingZeroes((ulong)(count - 1)));
+        // 59 is the largest fixed precision for which 17 normalized
+        // coefficients plus the error allowance fit unsigned 64-bit endpoints.
+        int precision = root.IsRational ? 59 : Math.Min(59, root.DenominatorShift - margin);
+        if (precision <= 0) return;
+        int bits = Math.Max(WideFiniteAxisIntersection.GetFiniteRootCoefficientBits(componentSquared, count),
+            WideFiniteAxisIntersection.GetFiniteRootCoefficientBits(squaredLength, count));
+        WideFiniteAxisIntersection.GetFiniteValueRootNonnegativeBounds(root, squaredLength, lengthSigns,
+            precision, bits, out ulong lengthMinimum, out ulong lengthMaximum);
+        if (lengthMinimum == 0) return;
+        WideFiniteAxisIntersection.GetFiniteValueRootNonnegativeBounds(root, componentSquared, componentSigns,
+            precision, bits, out ulong componentMinimum, out ulong componentMaximum);
+        // C² and L share one normalization. Scale only the bounded numerator:
+        // <=64-bit endpoints times <=126-bit scale² fit Signed320. Existing
+        // clipped ratio/square-root division gives outward raw floor bounds;
+        // exact integer and half-raw threshold signs remain the final authority.
+        Fixed64.Multiply64To128(scale, scale, out ulong high, out ulong low);
+        Signed192 factor = new(0, high, low);
+        Signed320 minimum = WideArithmetic.MultiplySigned192(new Signed192(0, 0, componentMinimum), factor);
+        Signed320 maximum = WideArithmetic.MultiplySigned192(new Signed192(0, 0, componentMaximum), factor);
+        Span<ulong> bounds = stackalloc ulong[20];
+        bounds.Clear();
+        WideArithmetic.GetMagnitude(minimum, out bounds[4], out bounds[3], out bounds[2], out bounds[1], out bounds[0]);
+        WideArithmetic.GetMagnitude(maximum, out bounds[9], out bounds[8], out bounds[7], out bounds[6], out bounds[5]);
+        bounds[10] = lengthMinimum; bounds[15] = lengthMaximum;
+        lower = WideArithmetic.GetRatioFloorSquareRoot(bounds[..5], bounds[15..], scale);
+        upper = WideArithmetic.GetRatioFloorSquareRoot(bounds.Slice(5, 5), bounds.Slice(10, 5), scale);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void BuildNormalThreshold(
         ReadOnlySpan<ulong> squaredLength, ReadOnlySpan<sbyte> squaredLengthSigns,
-        ulong twiceRaw, ulong scale, ref ulong previousTwiceRaw, ref int removedShift,
+        ulong twiceRaw, ref ulong previousTwiceRaw, ref int removedShift,
         Span<ulong> query, Span<sbyte> querySigns)
     {
         int squareCount = squaredLengthSigns.Length;
         int squareWords = squaredLength.Length / squareCount;
         int queryWords = query.Length / querySigns.Length;
         Span<ulong> product = stackalloc ulong[queryWords];
-        if (removedShift < 0)
-        {
-            WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(component, componentSigns,
-                component, componentSigns, query, querySigns, product);
-            if (scale == (ulong)Fixed64.One.m_rawValue)
-                removedShift = 66;
-            else
-            {
-                Span<ulong> factor = stackalloc ulong[2];
-                Fixed64.Multiply64To128(scale << 1, scale << 1, out factor[1], out factor[0]);
-                for (int index = 0; index < squareCount; index++)
-                {
-                    Span<ulong> target = query.Slice(index * queryWords, queryWords);
-                    WideArithmetic.MultiplyMagnitudes(target, factor, product);
-                    product.CopyTo(target);
-                }
-                removedShift = 0;
-            }
-        }
         // Q_k=4*scale²*C²-k²*L. Restore the previous normalization and use
         // Q_new=Q_old+(old²-new²)*L, retaining C² without a separate buffer.
         // Both k values fit 64 unsigned bits, so the signed difference needs
