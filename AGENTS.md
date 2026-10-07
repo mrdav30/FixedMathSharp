@@ -310,6 +310,13 @@ Packaging/versioning comes from
 GitVersion variables are consumed when present, otherwise version falls back to
 `0.0.0`.
 
+Build CI selects pinned sibling sources on develop pushes and PRs targeting
+develop; main and other branches validate released packages. A develop -> main
+PR uses package mode. Preserve explicit `UseLocalLsfStack` selection through
+restore/build/test, serial source builds, source/package cache separation and
+GitVersion's owning checkout path. See
+[branch-specific CI dependencies](CONTRIBUTING.md#branch-specific-ci-dependencies).
+
 ## Testing Patterns To Mirror
 
 `FixedMathSharp.Chronicler.FixedChronicleTime` owns the exact bridge to

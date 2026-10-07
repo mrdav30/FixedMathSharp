@@ -27,6 +27,12 @@ jobs:
 
   validate-dotnet:
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: FixedMathSharp
+    env:
+      # PRs use their target branch; develop -> main validates released packages.
+      UseLocalLsfStack: ${{ (github.base_ref == 'develop' || github.ref == 'refs/heads/develop') && 'true' || 'false' }}
 
     strategy:
       fail-fast: false
@@ -38,7 +44,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
+          path: FixedMathSharp
           fetch-depth: 0
+          persist-credentials: false
+
+      # Immutable sibling revisions are used only for develop source validation.
+      - if: env.UseLocalLsfStack == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: mrdav30/Chronicler
+          ref: 5397348a332a69a53eaf280985168841b26e75eb
+          path: Chronicler
           persist-credentials: false
 
       - name: Setup .NET
@@ -56,24 +72,26 @@ jobs:
       - name: Execute GitVersion
         id: gitversion
         uses: gittools/actions/gitversion/execute@v4
+        with:
+          targetPath: FixedMathSharp
 
       - name: Cache NuGet packages
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-${{ matrix.configuration }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+          key: ${{ runner.os }}-${{ matrix.configuration }}-lsf-${{ env.UseLocalLsfStack }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.configuration }}-nuget-
-            ${{ runner.os }}-nuget-
+            ${{ runner.os }}-${{ matrix.configuration }}-lsf-${{ env.UseLocalLsfStack }}-nuget-
+            ${{ runner.os }}-lsf-${{ env.UseLocalLsfStack }}-nuget-
 
       - name: Restore dependencies
-        run: dotnet restore FixedMathSharp.slnx --property:Configuration=${{ matrix.configuration }}
+        run: dotnet restore FixedMathSharp.slnx --property:Configuration=${{ matrix.configuration }} -p:UseLocalLsfStack=${{ env.UseLocalLsfStack }} -m:1
 
       - name: Build Solution
         run: |
           echo "Version: ${{ steps.gitversion.outputs.fullSemVer }}"
           echo "Assembly Version: ${{ steps.gitversion.outputs.assemblySemFileVer }}"
-          dotnet build FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-restore
+          dotnet build FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-restore -p:UseLocalLsfStack=${{ env.UseLocalLsfStack }} -m:1 -p:BuildInParallel=false
 
       - name: Run Tests
-        run: dotnet test FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-build --verbosity normal
+        run: dotnet test FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-build --no-restore -p:UseLocalLsfStack=${{ env.UseLocalLsfStack }} -m:1 --verbosity normal

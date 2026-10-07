@@ -38,6 +38,16 @@ This also selects the local shim for the core math library's Lean build.
 Local 0.4.0 identities only coordinate
 assembly resolution; generated source-mode packages are not release artifacts.
 
+## Branch-Specific CI Dependencies
+
+Develop pushes and PRs targeting `develop` use `UseLocalLsfStack=true` and
+immutable sibling source revisions in `build-and-test.yml`. Main and other
+branches use released packages with no sibling checkouts; a `develop` -> `main`
+PR validates packages. Release upstream dependencies before promotion and update
+source pins deliberately as the coordinated stack changes. Source/package NuGet
+caches are separated, and source graphs build serially to avoid shared-output
+races. Both Release/Lean Windows/Linux validation lanes remain required.
+
 ## Code of Conduct
 
 ### Our Pledge
