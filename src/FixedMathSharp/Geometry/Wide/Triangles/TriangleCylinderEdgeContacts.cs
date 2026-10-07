@@ -50,17 +50,14 @@ internal static class TriangleCylinderEdgeContacts
                 for (int firstSign = -1; firstSign <= 1; firstSign += 2)
                     for (int secondSign = -1; secondSign <= 1; secondSign += 2)
                         for (int capSign = -1; capSign <= 1; capSign += 2)
-                            for (int chart = 0; chart < 2; chart++)
-                            {
-                                WideAxis3 first = firstSign > 0 ? u : -u;
-                                WideAxis3 second = secondSign > 0 ? v : -v;
-                                if (chart != 0)
-                                    (first, second) = (second, first);
-                                if (!TryChart(endpoint, coreAxis, region, edge, first, second, capSign, analytic,
-                                        ((ulong)analyticDepth.m_rawValue << 1) | 1UL, !analyticClamped,
-                                        bestValues, bestSigns, bestCell, ref best))
-                                    return false;
-                            }
+                        {
+                            WideAxis3 first = firstSign > 0 ? u : -u;
+                            WideAxis3 second = secondSign > 0 ? v : -v;
+                            if (!TryCharts(endpoint, coreAxis, region, edge, first, second, capSign, analytic,
+                                    ((ulong)analyticDepth.m_rawValue << 1) | 1UL, !analyticClamped,
+                                    bestValues, bestSigns, bestCell, ref best))
+                                return false;
+                        }
             }
         }
         if (!best.HasValue)
@@ -79,32 +76,59 @@ internal static class TriangleCylinderEdgeContacts
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static bool TryChart(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region, int edge,
+    private static bool TryCharts(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region, int edge,
         WideAxis3 first, WideAxis3 second, int cap, scoped ConvexContactCandidate analytic,
         ulong upperTwiceRaw, bool hasUpperBound,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
         ref Selection best)
     {
+        bool firstAdmitted = IsChartAdmitted(geometry, coreAxis, region, edge, first, second, cap);
+        bool secondAdmitted = IsChartAdmitted(geometry, coreAxis, region, edge, second, first, cap);
+        if (!firstAdmitted && !secondAdmitted) return true;
+        if (!firstAdmitted) (first, second) = (second, first);
+        Span<ulong> data = stackalloc ulong[ParameterSlots * Words];
+        Span<sbyte> signs = stackalloc sbyte[ParameterSlots];
+        BuildParameter(geometry, coreAxis, region, edge, first, second, cap, data, signs);
+        if (!TryChart(geometry, coreAxis, region, edge, first, second, cap, analytic, upperTwiceRaw, hasUpperBound,
+                data, signs, bestValues, bestSigns, bestCell, ref best)) return false;
+        if (!firstAdmitted || !secondAdmitted) return true;
+        // Finish the first chart before mutation; winners already own copied
+        // value algebra. Preserve its earlier canonical rank when depths tie.
+        ReverseParameterChart(data, signs);
+        WriteAdmission(geometry, coreAxis, region, edge, second, first, data, signs);
+        return TryChart(geometry, coreAxis, region, edge, second, first, cap, analytic, upperTwiceRaw, hasUpperBound,
+            data, signs, bestValues, bestSigns, bestCell, ref best);
+    }
+
+    private static bool IsChartAdmitted(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region, int edge,
+        WideAxis3 first, WideAxis3 second, int cap)
+    {
         // Each admission projection is affine on t in (0,1] and must be
         // positive. Nonpositive endpoints exclude every root before construction.
-        WideAxis3 outward = TriangleCircularGeometry.Subtract(geometry.Vertex(edge), geometry.Vertex((edge + 2) % 3));
         // GetBasis gives exactly one nonzero Y component. Its cap projection
         // cannot change sign inside this chart, so this check fully admits it.
         if (first.Y.Sign * cap <= 0 && WideArithmetic.AddSigned320(first.Y, second.Y).Sign * cap <= 0)
-            return true;
+            return false;
+        WideAxis3 outward = TriangleCircularGeometry.Subtract(geometry.Vertex(edge), geometry.Vertex((edge + 2) % 3));
         Signed576 firstCone = WideAxis3.Dot(first, outward), secondCone = WideAxis3.Dot(second, outward);
         if (firstCone.Sign <= 0 && WideArithmetic.AddSigned576(firstCone, secondCone).Sign <= 0)
-            return true;
+            return false;
         if (!coreAxis.IsZero)
         {
             Signed576 firstCore = WideAxis3.Dot(coreAxis, first), secondCore = WideAxis3.Dot(coreAxis, second);
             if (firstCore.Sign * region <= 0 && WideArithmetic.AddSigned576(firstCore, secondCore).Sign * region <= 0)
-                return true;
+                return false;
         }
+        return true;
+    }
 
-        Span<ulong> data = stackalloc ulong[ParameterSlots * Words];
-        Span<sbyte> signs = stackalloc sbyte[ParameterSlots];
-        BuildParameter(geometry, coreAxis, region, edge, first, second, cap, data, signs);
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static bool TryChart(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region, int edge,
+        WideAxis3 first, WideAxis3 second, int cap, scoped ConvexContactCandidate analytic,
+        ulong upperTwiceRaw, bool hasUpperBound, scoped Span<ulong> data, scoped Span<sbyte> signs,
+        scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
+        ref Selection best)
+    {
         Span<ulong> batchCells = stackalloc ulong[64];
         Span<int> batchShifts = stackalloc int[8];
         FiniteAxisValueRoots roots = WideFiniteAxisIntersection.GetFiniteValueRoots(
@@ -179,6 +203,12 @@ internal static class TriangleCylinderEdgeContacts
     {
         CircularRimContactAlgebra.BuildParameter(geometry.CapOffset(edge, cap), geometry.Radius, geometry.RawScale,
             first, second, data, signs);
+        WriteAdmission(geometry, coreAxis, region, edge, first, second, data, signs);
+    }
+
+    private static void WriteAdmission(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region, int edge,
+        WideAxis3 first, WideAxis3 second, Span<ulong> data, Span<sbyte> signs)
+    {
         WideAxis3 outward = TriangleCircularGeometry.Subtract(geometry.Vertex(edge), geometry.Vertex((edge + 2) % 3));
         Write(data, signs, 26, WideAxis3.Dot(outward, first));
         Write(data, signs, 27, WideAxis3.Dot(outward, second));

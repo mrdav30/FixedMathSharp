@@ -18,6 +18,9 @@ cyclomatic complexity review threshold.
   branch coverage. Refresh the per-method coverage column whenever a listed
   implementation changes. Aggregate test and coverage counts belong in generated
   reports rather than this long-lived register.
+- Keep this register evergreen and self-contained: record current rationale,
+  invariants and revisit criteria, without dated validation summaries, artifact
+  references, feature-work links or references to other libraries' documentation.
 
 Complexity exceptions are acceptable when the method is a hot deterministic math
 path, a direct component-wise value comparison, a fixed-shape assertion helper,
@@ -185,29 +188,12 @@ behavior changes, or the implementation becomes harder to reason about.
 | `FixedMathSharp`                  | `FixedTransform.TrySetParentKeepingWorld(FixedTransform?)`                          |         12 | 100% line / 100% branch | Atomic reparenting validates ancestry, inverse, decomposition, and world recomposition before committing any local or parent state.                                                                                          | A shared atomic transform mutation result reduces branches without exposing partial state or weakening verification.                           |
 | `FixedMathSharp`                  | `Fixed64.TryGetSignedRawRatioCore(...)`                                             | 20 | 100% line / 100% branch (Release / ReleaseLean) | Shared zero-denominator rejection, quotient-width validation, the measured single-limb specialization, general fixed-limb division, rounding, and signed materialization stay in one allocation-free deterministic boundary. | A simpler shared divider preserves zero, width, rounding, and signed-range policies with lower complexity and neutral or faster measured cost. |
 
-### Cylinder-pair continuation: Release and ReleaseLean verified
+### Cylinder-pair contacts
 
-These `FixedMathSharp` entries cover changed or newly introduced methods in
-FMS-Issue-024. Complexity and coverage for this table and the refreshed
-shared-owner rows above come from the complete reports dated 2026-09-26:
-
-- Release: `artifacts/fms024-final-release/4f9a26a2-71e8-4daa-9bae-cfa5250534e0/coverage.cobertura.xml`.
-- ReleaseLean: `artifacts/fms024-final-lean/258f535a-e700-49d6-9b2d-05180ad77191/coverage.cobertura.xml`.
-
-Every refreshed entry has the same complexity and 100% line and branch coverage
-in both configurations. Aggregate counts remain in the generated reports and
-acceptance ledger rather than this register.
-
-The geometry, degree, sign, rounding and live-workspace proofs are recorded in
-the [cylinder-pair design](feature-work/done/2026-09-25-cylinder-pair-contact-design.md)
-and beside the owning implementation. Rank-one recovery is retained because it
-can determine the unique minimum; deleted H=0 and rank-two triple recovery are
-not exceptions. `GetRoundedCylinderCylinderDepth` still materializes parallel
-candidates, but now delegates rounding and is below this register's threshold.
-The refreshed shared-owner measurements also remove
-`AddRoundedCylinderSigned`, `GetMagnitudeBitLength`,
-`CompareNormalizedComponentToMidpoint` and `GetUnitIntervalRatio128` from the
-exception table: their reported complexities are at most 10.
+Exact feature selection retains rank-one recovery because it can determine the
+unique minimum. Geometry, degree, sign, rounding and live-workspace invariants
+are documented beside the owning implementation; the registered methods keep
+these decisions within their bounded arithmetic owners.
 
 | Method | Complexity | Coverage | Rationale | Revisit if |
 | --- | ---: | --- | --- | --- |
@@ -254,11 +240,8 @@ exception table: their reported complexities are at most 10.
 
 The complete box/cylinder owner reuses the convex candidate comparator,
 projected-disk quartic and finite-value root kernel. Shared normal/depth
-materialization moved from `CylinderPairRimFeatures` to `ConvexContactValueRoot`;
-the two rows above name its current owner. The box path does not build the
-cylinder-pair radius-offset octic merely to recover its unshifted quartic.
-The Release and ReleaseLean reports in `artifacts/fms025-final-release` and
-`artifacts/fms025-final-lean` provide the refreshed measurements.
+materialization belongs to `ConvexContactValueRoot`. The box path does not build
+the cylinder-pair radius-offset octic merely to recover its unshifted quartic.
 
 | Method | Complexity | Coverage | Rationale | Revisit if |
 | --- | ---: | --- | --- | --- |
@@ -285,12 +268,14 @@ bounded straight-section seam, rather than introducing another contact solver.
 | --- | ---: | --- | --- | --- |
 | `TriangleCylinderAnalyticFeatures.TryGetBest(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | One exact selection spans the seam and admitted endpoint regions, with proven face certificates. | A new exact certificate removes feature work while preserving canonical ties. |
 | `TriangleCylinderAnalyticFeatures.KeepRegion(...)` | 28 | 100% line / 100% branch (Release / ReleaseLean) | Ordered face, pole, side and edge boundaries exhaust one analytic region; smooth vertex/rim residuals still certify separation. | The support partition admits fewer necessary boundaries. |
-| `TriangleCylinderAnalyticFeatures.KeepAxis(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Region admission precedes exact support signs and stable comparison; the retained local winner is transformed once after selection. | Support ownership or retained candidate layout changes. |
+| `TriangleCylinderAnalyticFeatures.KeepAxis(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Region admission precedes exact support signs and stable comparison. Opposite directions reuse squared support terms only after an admitted build; the retained local winner is transformed once after selection. | Support ownership or retained candidate layout changes. |
 | `TriangleCylinderAnalyticFeatures.HasVertexRimSeparation(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | A closest-rim residual proves separation only inside both the triangle vertex cone and the selected core hemisphere. | A shared residual authority preserves both admission conditions. |
 | `TriangleCylinderContact.TryGetContact(...)` | 52 | 100% line / 100% branch (Release / ReleaseLean) | One owner selects analytic/root winners and materializes matched cap, side, rim or seam witnesses with retained exact endpoint metadata. | Another shape can share materialization without weakening authored-frame or feature contracts. |
 | `TriangleCircularGeometry.GetAnalyticDepth(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Principal directions cancel their common scale before exact rational rounding; other directions retain the shared radical depth comparison. | A cheaper full-domain reducer preserves odd raw dimensions and conceptual overflow flags. |
-| `TriangleCylinderEdgeContacts.TryGetContact(...)` | 36 | 100% line / 100% branch (Release / ReleaseLean) | Both endpoint regions, finite caps and nondegenerate triangle edges retain one complete bounded chart traversal and exact winner. | The stationary-feature proof permits fewer charts. |
-| `TriangleCylinderEdgeContacts.TryChart(...)` | 44 | 100% line / 100% branch (Release / ReleaseLean) | Affine cap, triangle-cone and core-region projections reject wholly inadmissible charts before construction. The chart basis fully admits cap alignment; negative/zero gaps retain classification, and positive roots reuse the analytic half-raw upper bound before exact value ranking. | A cheaper shared root proof preserves completeness, clamping and canonical boundary ownership. |
+| `TriangleCylinderEdgeContacts.TryGetContact(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | Both endpoint regions, finite caps and nondegenerate triangle edges retain one complete bounded chart traversal and exact winner. | The stationary-feature proof permits fewer charts. |
+| `TriangleCylinderEdgeContacts.TryCharts(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Reciprocal views independently pass admission, share one exact coefficient construction when both are admitted, and finish the first root traversal before reversing the shared algebra and rewriting caller-owned admission coefficients. | A complete shared root proof reduces the two traversals without changing canonical ties or bounded scratch. |
+| `TriangleCylinderEdgeContacts.IsChartAdmitted(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Exact affine cap, triangle-cone and core-region endpoint signs reject only wholly inadmissible charts. The basis has one nonzero vertical component, so the cap sign admits the whole retained interval. | The chart basis or support-region contract changes; preserve open parameter endpoints and seam ownership. |
+| `TriangleCylinderEdgeContacts.TryChart(...)` | 30 | 100% line / 100% branch (Release / ReleaseLean) | Each stationary root retains triangle-cone and core-region admission. Negative/zero gaps preserve classification, and positive roots reuse the analytic half-raw upper bound before exact value ranking; strict comparisons retain the earlier canonical feature. | A cheaper shared root proof preserves completeness, clamping and canonical boundary ownership. |
 | `TriangleCircularGeometry.HasFaceMinimumCertificate(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Exact triangle projection and an inscribed cylinder ball prove the selected face already attains the global minimum. | A broader exact certificate reduces measured feature traversal without replacing the complete fallback. |
 | `TriangleCylinderRimWitnesses.GetAnalyticPoint(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | Vertex, edge and face support retain rational-plus-radical coordinates until a single nearest-even conversion. | An existing exact reducer can share this representation without rounded intermediate witnesses. |
 | `TriangleCylinderRimWitnesses.RoundAnalyticCoordinate(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Vanished or cancelled radicals use exact rational division; other coordinates retain the established signed nearest-even search. | A shared exact reducer removes further witness search without changing ties or scalar extrema. |
@@ -303,10 +288,10 @@ bounded straight-section seam, rather than introducing another contact solver.
 | `ContactQuadratic.RoundRatio(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Shared slab/cone nearest-even conversion handles signed quadratic coordinates and total-coordinate parity without rounded intermediate admission. | Another ratio owner can consume this representation with the same proven width and rounding contract. |
 
 The cone-specific owners retain the same collector-reported complexity
-convention as the rows above. A source-decision audit of these nine methods
-counts standard complexity from 7 to 16; the collector counts instrumented
-branch outcomes and can omit branchless conditional expressions. With full
-coverage, each reported CRAP score equals its listed complexity: no uncovered
+convention as the rows above. The collector counts instrumented branch outcomes
+and can omit branchless conditional expressions, so its values differ from
+source-decision complexity. With full coverage, each reported CRAP score equals
+its listed complexity: no uncovered
 coverage multiplier remains. Keep the complete feature proofs together rather
 than extracting forwarding methods to lower a metric.
 
@@ -324,13 +309,6 @@ than extracting forwarding methods to lower a metric.
 
 ### Capsule/stadium-slab contacts
 
-The shared `RefineFiniteValueRoot`, `TryRefineFiniteValueCrossingRoot` and
-`GetSignAtFiniteValueRootCore` rows above were refreshed from exact Release
-and ReleaseLean OpenCover captures on 2026-10-05 (complexities 16/46/38).
-Both complete owning suites retain 100% reachable line, branch and method
-coverage. Evidence is in the sibling Gravitas repository under
-`artifacts/grv-benchmark-021/final-gates-20261005T154851161Z-61242ac51b9c43faa6fe3d5bc733936e/`.
-
 The complete capsule/stadium-slab relation retains these focused feature owners:
 
 | Method | Complexity | Coverage | Rationale | Revisit if |
@@ -340,17 +318,6 @@ The complete capsule/stadium-slab relation retains these focused feature owners:
 | `WideConvexPrismRelations.TryImproveCapsuleSlabRim(...)` | 24 | 100% line / 100% branch (Release / ReleaseLean) | Stable signed/reciprocal charts retain parameter/value roots, with one exit to existing materialization after a proved negative global minimum. Positive and zero gaps retain complete traversal. | Another whole-shape certificate preserves correctness and earlier ties at lower cost. |
 | `WideConvexPrismRelations.KeepCapsuleSlabRimChart(...)` | 34 | 100% line / 100% branch (Release / ReleaseLean) | Unsquared stationary admission, nonwinning-root rejection and exact ranking precede a finite-core closest-point certificate; copied winners retain further parameter refinement. | Measured certificates or root reuse lower cost without weakening admission or stable ties. |
 | `CircularRimContactAlgebra.HasSegmentSupport(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | Two exact unsquared radical inequalities test finite-segment projection, including equality; opposite signs use one quadratic query in borrowed scratch. Stationarity and negative-gap selection remain caller policy. | Another geometry owner can reuse this neutral support test or width/positivity contracts change. |
-
-Shared batch/reciprocal, borrowed-sign and finite-segment certificate rows were
-verified against both exact Release/ReleaseLean OpenCover captures on
-2026-10-05. The complete core/FluentAssertions suites pass 4,214/4,193 tests
-with exact 100% reachable line, branch and method coverage. `TryGetFiniteValueRoots`,
-`IsolateFiniteValueRoot` and the prediction-hint wrapper now have complexities
-8/4/8 and no longer need exceptions. Source/resource/performance evidence is in
-the sibling Gravitas report
-`docs/feature-work/2026-10-05-capsule-slab-root-isolation-refinement.md`, with
-fresh captures under
-`artifacts/grv-benchmark-021/final-gates-20261005T175707569Z-4b6b749c70394f928d0c83d31bdc1fd0/`.
 
 ## Fixed-Width Workspace Bounds
 
@@ -389,12 +356,13 @@ and byte-prediction hints, with exact point evaluation when uncertain and
 Sturm fallback for equal signs or zero parent endpoints. Neither adds a
 retained cell, root field, arena or overlapping scratch lifetime.
 
-The measured point guard is 128 bits rather than 64, shared by endpoint,
-byte-step and midpoint certificates. Sign acceptance and root target shifts
-are unchanged. Adding 64 precision bits adds one word to each approximate
-result/product buffer: 16 bytes per active call. The returning call frames
-do not accumulate this increment. Conservatively adding it to the reviewed
-stadium comparison and mapped-sign budgets gives 462,240 and 418,685 bytes,
+The 128-bit point guard is shared by endpoint, byte-step and midpoint
+certificates. The guard preserves exact sign acceptance and root target shifts;
+uncertainty falls back to exact evaluation. Relative to a 64-bit guard, this
+requires one extra word in each approximate result/product buffer: 16 bytes
+per active call. Returning frames do not accumulate this allowance. Including
+it gives conservative stadium comparison and mapped-sign budgets of 462,240
+and 418,685 bytes,
 including caller/control reserves, still below 512 KiB. Exact integer fallback
 remains available at every uncertain point, including repeated and dyadic roots.
 
@@ -513,8 +481,8 @@ binary rounding search is introduced.
 The positive-core contact uses `FiniteAxisValueRoot` isolation and bounded
 Horner signs, not the ellipse owner's Hermite path described below. Using full
 storage widths (2,560 parameter bits and 3,584 value bits), its largest value
-Sturm arena uses 405,376 bytes. Outer contact/chart buffers and two retained
-value-root cells bring the explicit simultaneous scratch below 512 KiB,
+Sturm arena uses 405,376 bytes. Outer contact/chart buffers and bounded
+root-comparison cells bring the explicit simultaneous scratch below 512 KiB,
 including sign/index arrays. The separate value-mapping endpoint-sign path
 stays below 420 KiB: even its conservative 61,248-bit query fits the parameter
 arena's precision bound without expansion. Endpoint joint rounding's extra
@@ -660,7 +628,7 @@ at most five quartic pseudo-eliminations, retained Sturm storage, weighted
 query, trace powers, Hermite matrix/determinants, and outer feature/comparison
 buffers: **413,185 bytes** of explicit scratch, including sign/index arrays,
 below the existing 448 KiB allowance. The zero-`Q` quadratic case is smaller.
-The new reduced depth materialization path, including its retained pair, uses
+The reduced depth materialization path, including its retained pair, uses
 at most **277,719 bytes**; its returning 77,168-byte bounds frame does not
 overlap that pair or the sign workspace. This is a
 source-derived buffer bound, not a measured total thread-stack maximum; value

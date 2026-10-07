@@ -71,6 +71,12 @@ workflow performs the narrow link rewrite required by GitHub Wiki routes. Treat
 overwrite files as authored source. Never hand-edit or commit `docs/api/obj`;
 DocFX regenerates that tree.
 
+Keep wiki pages and the complexity exception register evergreen. Put dated
+validation summaries, capture paths and implementation history in feature-work
+records. The complexity register must explain its rationale and invariants on
+its own, without artifact references or links to feature-work or other libraries'
+documentation.
+
 ## Repository Map
 
 | Path                                                                             | Purpose                                                   | Notes                                                                                                                                                                                                                                             |

@@ -109,6 +109,37 @@ internal static class CircularRimContactAlgebra
 
     }
 
+    /// <summary>
+    /// Reuses a built chart for the swapped basis (second+s*first). Only the
+    /// 26 shared coefficient slots are changed; caller admission slots remain intact.
+    /// </summary>
+    internal static void ReverseParameterChart(Span<ulong> data, Span<sbyte> signs)
+    {
+        // t=1/s gives Pbar=s*P(1/s), Qbar=s²*Q(1/s), Mbar=s²*M(1/s).
+        // Kbar=-s*K(1/s), Lbar=-s²*L(1/s), Jbar=-s²*J(1/s).
+        // W, N and D reverse as quartics. Fixed nominal degrees retain zero
+        // ends, and reversal preserves W's and N/D's power-of-two normalization.
+        ReverseCoefficients(data, signs, 0, 5);
+        ReverseCoefficients(data, signs, 5, 3);
+        ReverseCoefficients(data, signs, 8, 2);
+        ReverseCoefficients(data, signs, 10, 3);
+        ReverseCoefficients(data, signs, 13, 3);
+        ReverseCoefficients(data, signs, 16, 5);
+        ReverseCoefficients(data, signs, 21, 5);
+        for (int index = 8; index < 16; index++) signs[index] = (sbyte)-signs[index];
+    }
+
+    private static void ReverseCoefficients(Span<ulong> data, Span<sbyte> signs, int start, int count)
+    {
+        signs.Slice(start, count).Reverse();
+        for (int index = 0; index < count / 2; index++)
+        {
+            Span<ulong> first = Slot(data, start + index), second = Slot(data, start + count - 1 - index);
+            for (int word = 0; word < Words; word++)
+                (first[word], second[word]) = (second[word], first[word]);
+        }
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void BuildValues(WideAxis3 e, WideAxis3 c, Signed320 radius, int valueShift,
         Span<ulong> values, Span<sbyte> signs)

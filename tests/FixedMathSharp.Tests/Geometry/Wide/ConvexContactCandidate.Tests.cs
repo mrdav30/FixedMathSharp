@@ -8,6 +8,42 @@ namespace FixedMathSharp.Tests.Geometry.Wide;
 public sealed class ConvexContactCandidateTests
 {
     [Theory]
+    [InlineData(5, 25, 1)]
+    [InlineData(-5, 25, 0)]
+    [InlineData(-5, 24, -1)]
+    [InlineData(-5, 26, 1)]
+    [InlineData(0, 0, 0)]
+    [InlineData(0, 26, 1)]
+    public void RadialGapEncoding_CanReuseItsOwnInvariantSlots(int p, int q, int expectedSign)
+    {
+        const int words = ConvexContactCandidate.Words;
+        foreach (int word in new[] { 0, 12 })
+        {
+            var numerator = new ulong[words]; numerator[word] = (ulong)Math.Abs(p);
+            var radicand = new ulong[words]; radicand[2 * word] = (ulong)q;
+            var denominator = new ulong[words]; denominator[word] = 7;
+            var actual = new ulong[ConvexContactCandidate.Slots * words];
+            var actualSigns = new int[ConvexContactCandidate.Slots];
+            var expected = new ulong[actual.Length];
+            var expectedSigns = new int[actualSigns.Length];
+            CylinderContactAlgebra.BuildRadialCandidate(numerator, -Math.Sign(p), radicand, denominator, actual, actualSigns);
+            int sign = CylinderContactAlgebra.BuildRadialCandidate(numerator, Math.Sign(p),
+                actual.AsSpan(9 * words, words), actual.AsSpan(10 * words, words), actual, actualSigns);
+            Assert.Equal(expectedSign, sign);
+            Assert.Equal(sign, CylinderContactAlgebra.BuildRadialCandidate(numerator, Math.Sign(p),
+                radicand, denominator, expected, expectedSigns));
+            Assert.Equal(expected, actual);
+            Assert.Equal(expectedSigns, actualSigns);
+            var candidate = new ConvexContactCandidate(actual, actualSigns, sign);
+            BigInteger scale = BigInteger.One << (64 * word);
+            Assert.Equal((p * p + q) * scale * scale, Magnitude(candidate.GapRational));
+            Assert.Equal(2 * p * scale, candidate.GapRadicalSign * Magnitude(candidate.GapRadical));
+            Assert.Equal(q * scale * scale, Magnitude(candidate.GapRadicand));
+            Assert.Equal(7 * scale, Magnitude(candidate.GapDenominator));
+        }
+    }
+
+    [Theory]
     [InlineData(0, 0, 3, 0)]
     [InlineData(0, 2, 3, 1)]
     [InlineData(0, -2, 3, -1)]

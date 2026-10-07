@@ -133,11 +133,13 @@ internal static class TriangleCylinderAnalyticFeatures
         int alignment = 0;
         if (!coreAxis.IsZero)
             Dot(coreAxis, direction, directionSigns, projection, out alignment);
+        bool invariantsReady = false;
         for (int orientation = 0; orientation < 2; orientation++)
         {
             if (coreAxis.IsZero || (region == 0 ? alignment == 0 : alignment * region > 0))
             {
-                int gapSign = BuildAxis(geometry, direction, directionSigns, values, signs, out int mask);
+                int gapSign = BuildAxis(geometry, direction, directionSigns, values, signs, invariantsReady, out int mask);
+                invariantsReady = true;
                 var candidate = new ConvexContactCandidate(values, signs, gapSign);
                 if (!selection.HasValue || WideConvexPrismRelations.CompareConvexContactCandidates(candidate,
                         new ConvexContactCandidate(selection.Values, selection.Signs, selection.GapSign)) < 0)
@@ -156,9 +158,9 @@ internal static class TriangleCylinderAnalyticFeatures
 
     private static int BuildAxis(in TriangleCircularGeometry geometry,
         ReadOnlySpan<ulong> direction, ReadOnlySpan<int> directionSigns,
-        Span<ulong> values, Span<int> signs, out int mask)
+        Span<ulong> values, Span<int> signs, bool invariantsReady, out int mask)
     {
-        values.Clear(); signs.Clear();
+        values[..(9 * Words)].Clear(); signs.Clear();
         Span<ulong> work = stackalloc ulong[8 * Words];
         Span<ulong> rational = Slot(work, 0), current = Slot(work, 1), difference = Slot(work, 2);
         Span<ulong> temporary = Slot(work, 3), radial = Slot(work, 4), scale = Slot(work, 5);
@@ -181,6 +183,11 @@ internal static class TriangleCylinderAnalyticFeatures
         Import(geometry.HalfHeight, current);
         WideArithmetic.MultiplyMagnitudes(current, Slot(direction, 1), temporary);
         Add(temporary, 1, rational, ref rationalSign);
+        // +/-N have identical R²|N_h|² and RawScale²|N|². Borrow the
+        // working candidate's disjoint slots only after an admitted build;
+        // a core region may admit the second orientation alone.
+        if (invariantsReady)
+            return BuildRadialCandidate(rational, rationalSign, Slot(values, 9), Slot(values, 10), values, signs);
         WideArithmetic.MultiplyMagnitudes(Slot(direction, 0), Slot(direction, 0), radial);
         WideArithmetic.MultiplyMagnitudes(Slot(direction, 2), Slot(direction, 2), temporary);
         WideArithmetic.AddMagnitudeInto(temporary, radial);
