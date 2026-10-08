@@ -11,6 +11,7 @@ namespace FixedMathSharp.Geometry;
 /// Provides high-precision (wide/extended) arithmetic helpers for resolving anchored 3D points
 /// and their relative offsets under rotation, avoiding precision loss from repeated fixed-point operations.
 /// </summary>
+/// <content>Owns rigid-frame point materialization and exact relative geometry.</content>
 internal static partial class WidePointAnchor3d
 {
     internal static bool TryGetPoint(

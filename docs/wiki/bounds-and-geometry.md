@@ -389,6 +389,12 @@ Triangles preserve vertex order. `FixedTriangle2d` exposes planar barycentric
 weights; `FixedTriangle` names its projected barycentric APIs explicitly so a
 projection is not confused with strict on-plane containment.
 
+`FixedTriangle.GetClosestPointAnchor` retains the query point's complete rigid
+frame, independent local translation and exact support-rounding residual
+through the relative-frame predicates. Only the selected triangle-local
+coordinates are rounded. This preserves sub-raw edge distinctions and avoids
+requiring absolute world points to fit a scalar coordinate.
+
 ```csharp
 FixedTriangle triangle = new(a, b, c);
 

@@ -12,6 +12,40 @@ namespace FixedMathSharp.Geometry;
 /// </content>
 internal static partial class WideTriangleRelations
 {
+    // Tests the orthogonal projection inclusively, without materializing the
+    // point or its barycentric coordinates. A degenerate face has no interior.
+    internal static bool ContainsProjection(
+        FixedTriangle triangle,
+        Vector3d triangleOrigin,
+        FixedQuaternion triangleRotation,
+        in FixedPointAnchor point)
+    {
+        Signed192 abAb = GetTriangleDifferenceDot(triangle.B, triangle.A, triangle.B, triangle.A);
+        Signed192 abAc = GetTriangleDifferenceDot(triangle.B, triangle.A, triangle.C, triangle.A);
+        Signed192 acAc = GetTriangleDifferenceDot(triangle.C, triangle.A, triangle.C, triangle.A);
+        Signed320 gram = WideArithmetic.MultiplySubtract(abAb, acAc, abAc, abAc);
+        if (gram.Sign <= 0)
+            return false;
+
+        GetPointLocalNumerators(point, triangleOrigin, triangleRotation,
+            out Signed576 pointX, out Signed576 pointY, out Signed576 pointZ,
+            out Signed320 pointDenominator);
+        Signed576 d1 = GetPointEdgeDotNumerator(pointX, pointY, pointZ,
+            pointDenominator, triangle.A, triangle.B);
+        Signed576 d2 = GetPointEdgeDotNumerator(pointX, pointY, pointZ,
+            pointDenominator, triangle.A, triangle.C);
+        Signed576 vb = WideArithmetic.SubtractSigned576(
+            WideArithmetic.MultiplySigned576(d1, acAc),
+            WideArithmetic.MultiplySigned576(d2, abAc));
+        Signed576 vc = WideArithmetic.SubtractSigned576(
+            WideArithmetic.MultiplySigned576(d2, abAb),
+            WideArithmetic.MultiplySigned576(d1, abAc));
+        Signed576 va = WideArithmetic.SubtractSigned576(
+            WideArithmetic.SubtractSigned576(
+                WideArithmetic.MultiplySigned320(gram, pointDenominator), vb), vc);
+        return vb.Sign >= 0 && vc.Sign >= 0 && va.Sign >= 0;
+    }
+
     internal static FixedPointAnchor GetClosestPointAnchor(
         FixedTriangle triangle,
         Vector3d triangleOrigin,
@@ -384,8 +418,12 @@ internal static partial class WideTriangleRelations
     {
         WideRationalBasis3d pointBasis = new(point.Rotation);
         WideRationalBasis3d frameBasis = new(frameRotation);
+        Signed192 pointDenominator = point.ExactLocalTerm.IsZero
+            ? pointBasis.Denominator
+            : Signed192.NarrowValue(WideArithmetic.MultiplySigned192(
+                pointBasis.Denominator, FixedPointAnchorTerm3d.Denominator));
         denominator = WideArithmetic.MultiplySigned192(
-            pointBasis.Denominator,
+            pointDenominator,
             frameBasis.Denominator);
         Signed192 originX = WideArithmetic.SubtractSigned192(
             Signed192.Raw(point.Origin.X),
@@ -418,7 +456,7 @@ internal static partial class WideTriangleRelations
             rotatedX,
             rotatedY,
             rotatedZ,
-            pointBasis.Denominator,
+            pointDenominator,
             frameBasis.Xx,
             frameBasis.Xy,
             frameBasis.Xz);
@@ -429,7 +467,7 @@ internal static partial class WideTriangleRelations
             rotatedX,
             rotatedY,
             rotatedZ,
-            pointBasis.Denominator,
+            pointDenominator,
             frameBasis.Yx,
             frameBasis.Yy,
             frameBasis.Yz);
@@ -440,7 +478,7 @@ internal static partial class WideTriangleRelations
             rotatedX,
             rotatedY,
             rotatedZ,
-            pointBasis.Denominator,
+            pointDenominator,
             frameBasis.Zx,
             frameBasis.Zy,
             frameBasis.Zz);
@@ -450,8 +488,9 @@ internal static partial class WideTriangleRelations
         in FixedPointAnchor point,
         Signed192 axisX,
         Signed192 axisY,
-        Signed192 axisZ) =>
-        WideArithmetic.AddSigned320(
+        Signed192 axisZ)
+    {
+        Signed320 rounded = WideArithmetic.AddSigned320(
             WideArithmetic.GetDotProduct3D(
                 Signed192.Raw(point.LocalPoint.X),
                 Signed192.Raw(point.LocalPoint.Y),
@@ -466,6 +505,26 @@ internal static partial class WideTriangleRelations
                 axisX,
                 axisY,
                 axisZ));
+        if (point.LocalTranslation != Vector3d.Zero)
+            rounded = WideArithmetic.AddSigned320(rounded,
+                WideArithmetic.GetDotProduct3D(
+                    Signed192.Raw(point.LocalTranslation.X),
+                    Signed192.Raw(point.LocalTranslation.Y),
+                    Signed192.Raw(point.LocalTranslation.Z), axisX, axisY, axisZ));
+        if (point.ExactLocalTerm.IsZero)
+            return rounded;
+
+        // Normalized rational bases, three scalar feature components and the
+        // shared 33-bit residual denominator fit well within Signed320. The
+        // frame transform and barycentric products remain within Signed576.
+        Signed576 scaled = WideArithmetic.MultiplySigned320(rounded,
+            Signed320.ExtendValue(FixedPointAnchorTerm3d.Denominator));
+        Signed320 residual = WideArithmetic.GetDotProduct3D(
+            Signed192.Signed(point.ExactLocalTerm.X),
+            Signed192.Signed(point.ExactLocalTerm.Y),
+            Signed192.Signed(point.ExactLocalTerm.Z), axisX, axisY, axisZ);
+        return WideArithmetic.AddSigned320(Signed320.NarrowValue(scaled), residual);
+    }
 
     private static Signed576 GetTriangleFrameCoordinateNumerator(
         Signed192 originX,

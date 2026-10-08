@@ -12,6 +12,51 @@ namespace FixedMathSharp.Geometry;
 /// </content>
 internal static partial class WidePointAnchor3d
 {
+    // Compare dot(first-second, direction) with dot(third-fourth, direction).
+    // Keep both signed ratios exact: materializing either projection would
+    // lose sub-raw distinctions or saturate unrelated large offsets equally.
+    internal static int CompareProjectedOffsets(
+        in FixedPointAnchor first,
+        in FixedPointAnchor second,
+        in FixedPointAnchor third,
+        in FixedPointAnchor fourth,
+        Vector3d direction) =>
+        CompareProjectedOffsets(first, second, third, fourth, direction, direction);
+
+    internal static int CompareProjectedOffsets(
+        in FixedPointAnchor first,
+        in FixedPointAnchor second,
+        in FixedPointAnchor third,
+        in FixedPointAnchor fourth,
+        Vector3d firstDirection,
+        Vector3d secondDirection)
+    {
+        GetExactProjectedOffsetRatio(
+            first.Origin, first.Rotation, first.LocalPoint,
+            first.LocalDisplacement, first.LocalTranslation, first.ExactLocalTerm,
+            second.Origin, second.Rotation, second.LocalPoint,
+            second.LocalDisplacement, second.LocalTranslation, second.ExactLocalTerm,
+            firstDirection, out Signed704 left, out Signed704 leftDenominator);
+        GetExactProjectedOffsetRatio(
+            third.Origin, third.Rotation, third.LocalPoint,
+            third.LocalDisplacement, third.LocalTranslation, third.ExactLocalTerm,
+            fourth.Origin, fourth.Rotation, fourth.LocalPoint,
+            fourth.LocalDisplacement, fourth.LocalTranslation, fourth.ExactLocalTerm,
+            secondDirection, out Signed704 right, out Signed704 rightDenominator);
+        int sign = left.Sign;
+        int signComparison = sign.CompareTo(right.Sign);
+        if (signComparison != 0)
+            return signComparison;
+        if (sign == 0)
+            return 0;
+
+        // The positive denominators and 704-bit signed numerators extend
+        // losslessly; the existing full products retain all 1408 bits.
+        return sign * WideArithmetic.CompareNonNegativeProducts(
+            Signed832.ExtendValue(left), Signed832.ExtendValue(rightDenominator),
+            Signed832.ExtendValue(right), Signed832.ExtendValue(leftDenominator));
+    }
+
     internal static bool TryGetPoint(
         Vector3d origin,
         FixedQuaternion rotation,

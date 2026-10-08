@@ -10,6 +10,7 @@ namespace FixedMathSharp.Geometry;
 /// <summary>
 /// Owns exact full-domain relations for <see cref="FixedTriangle"/>.
 /// </summary>
+/// <content>Provides exact contact relations between rigid triangles.</content>
 internal static partial class WideTriangleRelations
 {
     internal static bool TryGetContact(
