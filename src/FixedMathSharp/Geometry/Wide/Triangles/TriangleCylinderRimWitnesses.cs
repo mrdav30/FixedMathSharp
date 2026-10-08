@@ -11,7 +11,8 @@ namespace FixedMathSharp.Geometry;
 internal static class TriangleCylinderRimWitnesses
 {
     internal static Vector3d GetAnalyticPoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
-        int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns, int cap, Signed320 radialRadius)
+        int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns, int cap, Signed320 radialRadius,
+        ReadOnlySpan<Vector3d> patchBounds = default)
     {
         int first = (mask & 1) != 0 ? 0 : 1;
         if ((mask & (mask - 1)) == 0)
@@ -61,9 +62,9 @@ internal static class TriangleCylinderRimWitnesses
         Vector3d va = Vertex(triangle, first), vb = Vertex(triangle, second), vc = face ? triangle.C : va;
         // Exact feature admission proves this affine projection is on the
         // selected edge/face. No clamp of an already-rounded foot is needed.
-        return new Vector3d(RoundAnalyticCoordinate(va.X, vb.X, vc.X, weights, signs),
-            RoundAnalyticCoordinate(va.Y, vb.Y, vc.Y, weights, signs),
-            RoundAnalyticCoordinate(va.Z, vb.Z, vc.Z, weights, signs));
+        return new Vector3d(RoundAnalyticCoordinate(va.X, vb.X, vc.X, weights, signs, patchBounds, 0),
+            RoundAnalyticCoordinate(va.Y, vb.Y, vc.Y, weights, signs, patchBounds, 1),
+            RoundAnalyticCoordinate(va.Z, vb.Z, vc.Z, weights, signs, patchBounds, 2));
     }
 
     internal static Vector3d GetRootPoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
@@ -129,7 +130,7 @@ internal static class TriangleCylinderRimWitnesses
     }
 
     private static Fixed64 RoundAnalyticCoordinate(Fixed64 a, Fixed64 b, Fixed64 c,
-        ReadOnlySpan<ulong> weights, ReadOnlySpan<int> signs)
+        ReadOnlySpan<ulong> weights, ReadOnlySpan<int> signs, ReadOnlySpan<Vector3d> patchBounds, int axis)
     {
         Span<ulong> rational = stackalloc ulong[Words];
         Span<ulong> radical = stackalloc ulong[Words];
@@ -159,6 +160,15 @@ internal static class TriangleCylinderRimWitnesses
         // products. Forty words suffice; the shared sign owner sizes squares.
         long low = Math.Min(a.m_rawValue, Math.Min(b.m_rawValue, c.m_rawValue));
         long high = Math.Max(a.m_rawValue, Math.Max(b.m_rawValue, c.m_rawValue));
+        // A certified coplanar patch may place the exact face foot outside its
+        // seed triangle. Its complete vertices bound that affine projection;
+        // single-triangle callers retain their original feature bounds.
+        for (int index = 0; index < patchBounds.Length; index++)
+        {
+            long raw = patchBounds[index][axis].m_rawValue;
+            low = Math.Min(low, raw);
+            high = Math.Max(high, raw);
+        }
         while (low < high)
         {
             ulong span = unchecked((ulong)high - (ulong)low);

@@ -91,21 +91,21 @@ There is no global geometry epsilon. Individual members document whether they
 use exact comparison, `Fixed64.Epsilon`, inclusive boundaries, or strict
 interiors.
 
-For centered capsules, use `FixedSegment2d.DoCenteredCapsulesOverlapStrict`
-or `FixedSegment.DoCenteredCapsulesOverlapStrict` when exact tangency must not
+For centered capsules, use `FixedSegment2d.DoCenteredCapsulesOverlapStrict` or
+`FixedSegment.DoCenteredCapsulesOverlapStrict` when exact tangency must not
 count. `FixedSegment2d.DoesCenteredCapsulePenetrateConvex` provides the
 corresponding capsule/polygon decision. These methods classify the exact
 geometry before rounding a normal or contact depth. A positive penetration
-smaller than half a raw Q32.32 unit can produce a contact depth of zero;
-testing `contact.Depth > Fixed64.Zero` is not a substitute for a strict query.
+smaller than half a raw Q32.32 unit can produce a contact depth of zero; testing
+`contact.Depth > Fixed64.Zero` is not a substitute for a strict query.
 
-Use the overload that matches the geometry's authoritative representation:
-an explicit world axis, a 2D scalar rotation, or a 3D quaternion and local axis.
-Do not replace a rigid frame with a separately rounded or renormalized world
-axis when exact boundary agreement matters. Zero-length capsule axes are
-points. Two capsules with zero combined radius never have strict radial
-overlap; polygon queries document their separate minimum-translation rules
-for zero-radius and lower-dimensional inputs.
+Use the overload that matches the geometry's authoritative representation: an
+explicit world axis, a 2D scalar rotation, or a 3D quaternion and local axis. Do
+not replace a rigid frame with a separately rounded or renormalized world axis
+when exact boundary agreement matters. Zero-length capsule axes are points. Two
+capsules with zero combined radius never have strict radial overlap; polygon
+queries document their separate minimum-translation rules for zero-radius and
+lower-dimensional inputs.
 
 ## Full-domain behavior
 
@@ -219,11 +219,11 @@ above `Fixed64.MaxValue` from an exactly representable maximum through
 `depthIsClamped`. These rules also apply to circle/polygon contacts and the
 initial-contact check in capsule/polygon sweeps.
 
-For a single capsule-side contact, the opposing polygon feature determines
-the axial position on the capsule. Projection and endpoint clamping use wide
-coordinates before rounding the axial parameter, so off-center vertices do
-not inherit an arbitrary side midpoint. Anchors retain separate axial and
-radial terms even when their world positions are unrepresentable.
+For a single capsule-side contact, the opposing polygon feature determines the
+axial position on the capsule. Projection and endpoint clamping use wide
+coordinates before rounding the axial parameter, so off-center vertices do not
+inherit an arbitrary side midpoint. Anchors retain separate axial and radial
+terms even when their world positions are unrepresentable.
 
 The exact overload names and argument preconditions are listed on the
 [`FixedSegment2d`](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.Geometry.FixedSegment2d.html)
@@ -233,31 +233,30 @@ API pages.
 
 ### Cylinder contacts
 
-`FixedOrientedBox.TryGetCenteredCylinderContact` includes the box's faces,
-edges and vertices against the finite cylinder's caps, side and rims. It finds
-the minimum translation without replacing the cylinder with a capsule. A zero
-radius is a finite axis segment. The manifold overload additionally clips up
-to four matched contacts when a parallel box face and cylinder cap are selected;
-other features use the primary contact with a zero manifold count.
+`FixedOrientedBox.TryGetCenteredCylinderContact` includes the box's faces, edges
+and vertices against the finite cylinder's caps, side and rims. It finds the
+minimum translation without replacing the cylinder with a capsule. A zero radius
+is a finite axis segment. The manifold overload additionally clips up to four
+matched contacts when a parallel box face and cylinder cap are selected; other
+features use the primary contact with a zero manifold count.
 
 `FixedTriangle.TryGetCenteredFiniteCylinderContact` includes the triangle's
-face, edges and vertices against the finite cylinder's caps, side and rims.
-It returns a triangle-to-cylinder normal, depth and shape-local contact anchors.
-A triangle's closest point to the cylinder center is not sufficient to decide
+face, edges and vertices against the finite cylinder's caps, side and rims. It
+returns a triangle-to-cylinder normal, depth and shape-local contact anchors. A
+triangle's closest point to the cylinder center is not sufficient to decide
 contact: another part of the triangle can cross a flat cap or a curved rim.
 Degenerate triangles return false, matching the triangle/slab contact APIs.
 `TryGetCircleSlabContact` uses the same geometry for an upright finite cylinder,
-while retaining the circle's authored yaw and half-thickness. Half-thickness
-is not doubled in `Fixed64`, so a representable slab is not shortened when its
-full height exceeds the scalar range.
-`TryGetCenteredCapsuleSlabContact` describes a planar capsule (a rectangle with
-semicircular ends) extruded through a flat Y slab, not a rounded 3D capsule.
-Its contact query covers both rounded ends, the straight sides, and the flat
-caps, including oblique rim contacts.
-Contact points are paired on the selected features; a straight-side or cap
-contact can lie between the rounded ends. The query retains the authored local
-axis and yaw, including half-raw endpoints from odd raw core lengths. A zero
-core uses the cylinder path above, with the same contact anchors.
+while retaining the circle's authored yaw and half-thickness. Half-thickness is
+not doubled in `Fixed64`, so a representable slab is not shortened when its full
+height exceeds the scalar range. `TryGetCenteredCapsuleSlabContact` describes a
+planar capsule (a rectangle with semicircular ends) extruded through a flat Y
+slab, not a rounded 3D capsule. Its contact query covers both rounded ends, the
+straight sides, and the flat caps, including oblique rim contacts. Contact
+points are paired on the selected features; a straight-side or cap contact can
+lie between the rounded ends. The query retains the authored local axis and yaw,
+including half-raw endpoints from odd raw core lengths. A zero core uses the
+cylinder path above, with the same contact anchors.
 
 `FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact` includes the finite
 cylinder's caps, side, and rims when finding the minimum translation. It also
@@ -275,9 +274,9 @@ that occur in your simulation, not only the ordinary parallel case.
 Classification and depth ordering use the exact authored geometry. Exact
 tangency is contact with zero depth, and a sub-raw separation remains a miss.
 Only the selected normal and complete depth are rounded; `DepthIsClamped`
-distinguishes conceptual overflow from an exactly representable maximum.
-Equal minima follow stable feature order. Continuous radial ties use a
-representative in the authored cylinder frame.
+distinguishes conceptual overflow from an exactly representable maximum. Equal
+minima follow stable feature order. Continuous radial ties use a representative
+in the authored cylinder frame.
 
 The returned anchors retain independently selected shape-local support features.
 They are not a promise that two algebraic closest points were rounded together
@@ -285,9 +284,9 @@ or that the materialized anchors coincide at every tangency. Box anchors retain
 the exact selected direction's support signs even if a tiny normal component
 rounds to zero.
 
-Curved oblique contacts require more work than ordinary cap/side contacts.
-The query allocates no managed memory, but its exact fallback can use hundreds
-of KiB of bounded stack scratch. Avoid deliberately small-stack worker threads;
+Curved oblique contacts require more work than ordinary cap/side contacts. The
+query allocates no managed memory, but its exact fallback can use hundreds of
+KiB of bounded stack scratch. Avoid deliberately small-stack worker threads;
 allow at least a 1 MiB thread stack with adequate headroom for the caller.
 
 Cylinder pairs use the same finite-segment contact path when either radius is
@@ -305,9 +304,9 @@ against the base disk, curved rim, apex and lateral generators. The normal
 points from triangle toward cone; depth and both anchors come from that same
 selected feature.
 
-Equal minima retain the earlier feature. When both axial exits share the
-minimum for a horizontal face, the earlier +Up candidate retains the base
-witness. Witness coordinates whose radical terms vanish or cancel use exact rational
+Equal minima retain the earlier feature. When both axial exits share the minimum
+for a horizontal face, the earlier +Up candidate retains the base witness.
+Witness coordinates whose radical terms vanish or cancel use exact rational
 nearest-even rounding, including signed half-raw ties and scalar extrema.
 
 Both frame rotations must be normalized, height must be positive, and radius
@@ -322,6 +321,31 @@ the authored frames even when the relative center or absolute world witness
 cannot be materialized as a `Vector3d`. Curved contacts have the same bounded
 stack-scratch considerations described above.
 
+The internal cone contact owner can also certify a minimum face exit for a
+borrower-owned connected coplanar patch. The borrower supplies trusted seam
+topology and every exposed perimeter edge, including holes. Exact projection
+membership in a seed triangle establishes membership in the actual patch;
+unrounded boundary clearances then certify either a radius-depth tube around an
+actual cone chord or the whole cone projection enlarged by that depth. The
+center's signed side chooses each perimeter half-plane; exact cone support
+clearance preserves concave patches without filling their holes. Rational
+quaternion frames and complete cone support avoid rounded intermediate extrema.
+A failed certificate leaves complete single-triangle feature selection
+available.
+
+For a trusted filled convex polygon, the internal owner also solves its complete
+face, perimeter-edge and corner normal fan. An ordered strict-corner loop
+excludes collinear subdivisions. Corner charts admit only globally supporting
+features before classifying separation; their artificial diagonals never become
+contacts. One unreduced rational frame and squared-value scale retain exact
+ranking across analytic candidates and stationary rim roots. A complete polygon
+fan admits supporting generator slices before materializing paired witnesses.
+The borrower establishes convex topology and supplies an intersecting seed for
+base-pole witnesses. Supplied local witness bounds may contain the whole patch,
+allowing face coordinates outside the seed triangle to round without restricting
+them to that triangle. This internal contract does not validate topology or
+determine a whole noncoplanar surface union's minimum exit.
+
 `TryGetCenteredFiniteConeSupportContact` is a different operation: it projects
 one caller-selected cone support onto the triangle. A failed support projection
 does not prove that the complete shapes are separated. Use the complete contact
@@ -333,11 +357,11 @@ query when deciding whether the shapes intersect.
 intersecting surface point along an apex-authored cone's axis. This is not a
 minimum-penetration contact. Its rigid-frame overload keeps the triangle origin
 and rotation separate from the world-space apex and direction, returning a
-`FixedPointAnchor` in the triangle's authored frame. Neither the apex in triangle
-space nor transformed vertices in world space need to fit a scalar coordinate.
-Classification uses exact rational rotation and a bounded maximum-scale
-parameter lattice; the selected local point is rounded only at the end.
-Equal candidates retain AB, BC, CA, face order. Axis direction and rotation
+`FixedPointAnchor` in the triangle's authored frame. Neither the apex in
+triangle space nor transformed vertices in world space need to fit a scalar
+coordinate. Classification uses exact rational rotation and a bounded
+maximum-scale parameter lattice; the selected local point is rounded only at the
+end. Equal candidates retain AB, BC, CA, face order. Axis direction and rotation
 must be normalized, height positive, and radius nonnegative.
 
 Interval queries return the closed portion of a bounded segment or ray that
@@ -371,17 +395,17 @@ Exact tangency is excluded, including at either endpoint. Zero radius asks
 whether the swept axis enters the polygon's interior.
 
 The query keeps conceptual half-axis endpoints exact, including odd-raw lengths,
-and does not normalize the chord. Polygon vertices are origin-relative and
-must be boundary-ordered and convex in either winding. Repeated vertices and
+and does not normalize the chord. Polygon vertices are origin-relative and must
+be boundary-ordered and convex in either winding. Repeated vertices and
 collinear edges are allowed; a wholly collinear polygon has no interior.
 Negative dimensions and fewer than three vertices throw. Convexity remains an
-authoring precondition; the hot query does not validate arbitrary polygons.
-This is an overlap predicate, not a first-contact distance or a physics response.
+authoring precondition; the hot query does not validate arbitrary polygons. This
+is an overlap predicate, not a first-contact distance or a physics response.
 
 For touch-inclusive admission of a single pose, use
-`FixedConvex2dRelations.IntersectsUprightCapsule`. It shares the exact shape math
-but includes tangency. Do not infer this classification from a rounded contact
-normal or penetration depth.
+`FixedConvex2dRelations.IntersectsUprightCapsule`. It shares the exact shape
+math but includes tangency. Do not infer this classification from a rounded
+contact normal or penetration depth.
 
 ## Triangles and contacts
 
@@ -390,10 +414,10 @@ weights; `FixedTriangle` names its projected barycentric APIs explicitly so a
 projection is not confused with strict on-plane containment.
 
 `FixedTriangle.GetClosestPointAnchor` retains the query point's complete rigid
-frame, independent local translation and exact support-rounding residual
-through the relative-frame predicates. Only the selected triangle-local
-coordinates are rounded. This preserves sub-raw edge distinctions and avoids
-requiring absolute world points to fit a scalar coordinate.
+frame, independent local translation and exact support-rounding residual through
+the relative-frame predicates. Only the selected triangle-local coordinates are
+rounded. This preserves sub-raw edge distinctions and avoids requiring absolute
+world points to fit a scalar coordinate.
 
 ```csharp
 FixedTriangle triangle = new(a, b, c);
@@ -449,7 +473,7 @@ physics-response API.
 | Centered shape support, containment, or materialization    | `FixedSegment2d`, `FixedSegment` static helpers                           |
 | Shape support inside a world-Y layer                       | `FixedSlabProjection`                                                     |
 | Swept upright cylinder versus a vertical convex prism      | `FixedConvexPrismRelations`                                               |
-| Strict planar sweep of an upright capsule or circle        | `FixedConvex2dRelations.IntersectsSweptUprightCapsuleStrict`               |
+| Strict planar sweep of an upright capsule or circle        | `FixedConvex2dRelations.IntersectsSweptUprightCapsuleStrict`              |
 | Triangle contacts or finite-shape relations                | `FixedTriangle`                                                           |
 | Relative witnesses outside ordinary world-coordinate range | `FixedPointAnchor`, `FixedPointAnchor2d`, contact-anchor types            |
 

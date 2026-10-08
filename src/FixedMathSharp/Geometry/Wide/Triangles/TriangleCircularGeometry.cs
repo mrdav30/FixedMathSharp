@@ -76,11 +76,65 @@ internal readonly struct TriangleCircularGeometry
         ValueShift = GetValueShift(bounds, 5);
     }
 
+    internal TriangleCircularGeometry(FixedTriangle triangle, in CylinderPolytopeFrame frame,
+        in WideRationalBasis3d worldBasis, int valueShift)
+    {
+        // Polygon charts share their unreduced frame and squared-value scale.
+        // Independently reducing each corner would give algebraic value roots
+        // different coordinates, preventing direct exact cross-chart ranking.
+        WorldBasis = worldBasis;
+        A = frame.Transform(triangle.A); B = frame.Transform(triangle.B); C = frame.Transform(triangle.C);
+        RawScale = WideArithmetic.AddSigned192(frame.Denominator, frame.Denominator);
+        HalfHeight = frame.Cap;
+        Radius = WideArithmetic.MultiplySigned192(frame.Radius, frame.Denominator);
+        firstEdge = Subtract(B, A); secondEdge = Subtract(C, B);
+        EdgeScale = Signed192.Signed(1);
+        triangle.GetExactNormal(out Signed192 nx, out Signed192 ny, out Signed192 nz, out _);
+        FaceNormal = WideRigidProjection.TransformLocalAxis(frame.Basis, nx, ny, nz);
+        ValueShift = valueShift;
+    }
+
+    internal static int GetPolygonValueShift(in CylinderPolytopeFrame frame,
+        ReadOnlySpan<Vector3d> vertices, ReadOnlySpan<int> corners)
+    {
+        Span<Signed320> bounds = stackalloc Signed320[3]
+        {
+            frame.Cap, WideArithmetic.MultiplySigned192(frame.Radius, frame.Denominator), default
+        };
+        int shift = GetValueShift(bounds, 4);
+        for (int index = 0; index < corners.Length; index++)
+        {
+            WideAxis3 point = frame.Transform(vertices[corners[index]]);
+            bounds[0] = point.X; bounds[1] = point.Y; bounds[2] = point.Z;
+            shift = Math.Max(shift, GetValueShift(bounds, 4));
+        }
+        return shift;
+    }
+
     private TriangleCircularGeometry(in TriangleCircularGeometry source, WideAxis3 offset)
     {
         this = source;
         A = Add(source.A, offset); B = Add(source.B, offset); C = Add(source.C, offset);
     }
+
+    private TriangleCircularGeometry(in TriangleCircularGeometry source,
+        in CylinderPolytopeFrame frame, Vector3d point)
+    {
+        // A point polytope uses the same exact support-gap algebra as a
+        // triangle. No face/edge certificate or witness is requested from it.
+        WorldBasis = source.WorldBasis;
+        A = B = C = frame.Transform(point);
+        FaceNormal = firstEdge = secondEdge = default;
+        HalfHeight = frame.Cap;
+        Radius = WideArithmetic.MultiplySigned192(frame.Radius, frame.Denominator);
+        RawScale = WideArithmetic.AddSigned192(frame.Denominator, frame.Denominator);
+        EdgeScale = Signed192.Signed(1);
+        Span<Signed320> bounds = stackalloc Signed320[5] { A.X, A.Y, A.Z, HalfHeight, Radius };
+        ValueShift = GetValueShift(bounds, 4);
+    }
+
+    internal TriangleCircularGeometry AtPoint(in CylinderPolytopeFrame frame, Vector3d point) =>
+        new(this, frame, point);
 
     internal TriangleCircularGeometry WithCore(Vector2d axis, Fixed64 length, out WideAxis3 coreOffset)
     {
@@ -173,8 +227,7 @@ internal readonly struct TriangleCircularGeometry
         Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * Words];
         Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
         Span<ulong> work = stackalloc ulong[6 * Words];
-        Span<ulong> numerator = Slot(work, 0), zero = Slot(work, 1), metric = Slot(work, 2);
-        Span<ulong> scale = Slot(work, 3), squaredScale = Slot(work, 4), denominator = Slot(work, 5);
+        Span<ulong> zero = Slot(work, 1), scale = Slot(work, 3), squaredScale = Slot(work, 4);
         values.Clear(); signs.Clear(); zero.Clear();
         Import(Signed320.ExtendValue(RawScale), scale);
         WideArithmetic.MultiplyMagnitudes(scale, scale, squaredScale);
@@ -187,16 +240,26 @@ internal readonly struct TriangleCircularGeometry
             WideAxis3 tangent = WideAxis3.Cross(coreAxis, Edge(edge));
             int inward = WideAxis3.Dot(EdgeFromTo(edge, (edge + 2) % 3), tangent).Sign;
             Signed576 projection = WideAxis3.Dot(Vertex(edge), tangent);
-            Import(projection, numerator);
-            Import(tangent.SquaredLength, metric);
-            WideArithmetic.MultiplyMagnitudes(metric, squaredScale, denominator);
-            int gapSign = BuildRadialCandidate(numerator, -inward * projection.Sign,
-                zero, denominator, values, signs);
-            if (WideConvexPrismRelations.CompareConvexContactCandidates(
-                    new ConvexContactCandidate(values, signs, gapSign), best) < 0)
+            if (!HasFaceDiskClearance(projection, -inward * projection.Sign, tangent,
+                    best, work, values, signs))
                 return false;
         }
         return true;
+    }
+
+    // Shared by single-triangle disks and complete patch tubes. Work slot 1
+    // is zero and slot 4 is the squared coordinate scale, prepared once.
+    internal static bool HasFaceDiskClearance(Signed576 projection, int projectionSign,
+        WideAxis3 tangent, ConvexContactCandidate best, Span<ulong> work,
+        Span<ulong> values, Span<int> signs)
+    {
+        Import(projection, Slot(work, 0));
+        Import(tangent.SquaredLength, Slot(work, 2));
+        WideArithmetic.MultiplyMagnitudes(Slot(work, 2), Slot(work, 4), Slot(work, 5));
+        int gapSign = BuildRadialCandidate(Slot(work, 0), projectionSign,
+            Slot(work, 1), Slot(work, 5), values, signs);
+        return WideConvexPrismRelations.CompareConvexContactCandidates(
+            new ConvexContactCandidate(values, signs, gapSign), best) >= 0;
     }
 
     private static Signed832 ProductDifference(Signed576 a, Signed576 b, Signed576 c, Signed576 d) =>

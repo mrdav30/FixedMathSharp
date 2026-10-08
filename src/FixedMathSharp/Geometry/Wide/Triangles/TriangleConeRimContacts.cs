@@ -13,13 +13,13 @@ namespace FixedMathSharp.Geometry;
 internal static class TriangleConeRimContacts
 {
     private const int ParameterSlots = 33;
-    private const int ValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
+    internal const int ValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
 
-    private struct Selection
+    internal struct Selection
     {
         internal bool HasValue, IsZero, IsRational;
         internal WideAxis3 First, Second;
-        internal int Edge, ParameterOrdinal, ValueOrdinal, ValueShift;
+        internal int Edge, ParameterOrdinal, ValueOrdinal, ValueShift, Chart;
     }
 
     internal static bool TryGetContact(in TriangleCircularGeometry geometry, FixedTriangle triangle,
@@ -29,15 +29,37 @@ internal static class TriangleConeRimContacts
     {
         hasBetter = false; normal = radialPoint = trianglePoint = default;
         depth = analyticDepth; clamped = false;
-        // The caller's exact face-width proof excludes a clamped analytic gap.
-        // Its rounded value d bounds the original gap by d+1/2 raw, including Max.
-        ulong upperTwiceRaw = ((ulong)analyticDepth.m_rawValue << 1) | 1UL;
         Span<ulong> bestValues = stackalloc ulong[5 * ValueWords];
         Span<sbyte> bestSigns = stackalloc sbyte[5];
         Span<ulong> bestCell = stackalloc ulong[ValueCellWords];
         Selection best = default;
+        if (!TryKeepContacts(geometry, height, radius, analytic, analyticDepth,
+                bestValues, bestSigns, bestCell, ref best))
+            return false;
+        if (!best.HasValue)
+            return true;
+        hasBetter = true;
+        GetContactMaterials(geometry, triangle, height, radius, bestValues, bestSigns, bestCell, best,
+            out normal, out radialPoint, out trianglePoint, out depth, out clamped);
+        return true;
+    }
+
+    internal static bool TryKeepContacts(in TriangleCircularGeometry geometry,
+        Fixed64 height, Fixed64 radius, scoped ConvexContactCandidate analytic, Fixed64 analyticDepth,
+        scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
+        ref Selection best, int requiredMask = 0, int chartIndex = 0)
+    {
+        // The caller's exact face-width proof excludes a clamped analytic gap.
+        // Its rounded value d bounds the original gap by d+1/2 raw, including Max.
+        ulong upperTwiceRaw = ((ulong)analyticDepth.m_rawValue << 1) | 1UL;
         for (int edge = 0; edge < 3; edge++)
         {
+            // Corner A's two incident edges are polygon boundaries. Admit
+            // them before constructing roots: an artificial BC root must
+            // never report separation of the complete polygon.
+            int edgeMask = (1 << edge) | (1 << ((edge + 1) % 3));
+            if ((edgeMask & requiredMask) != requiredMask)
+                continue;
             WideAxis3 e = geometry.Edge(edge);
             // Horizontal edges are meridional; vertical edges are circular.
             // Their complete boundaries/principal radial directions are analytic.
@@ -52,13 +74,19 @@ internal static class TriangleConeRimContacts
                         WideAxis3 second = secondSign > 0 ? v : -v;
                         if (chart != 0) (first, second) = (second, first);
                         if (!TryChart(geometry, height, radius, edge, first, second,
-                                analytic, upperTwiceRaw, bestValues, bestSigns, bestCell, ref best))
+                                analytic, upperTwiceRaw, bestValues, bestSigns, bestCell, ref best, chartIndex))
                             return false;
                     }
         }
-        if (!best.HasValue)
-            return true;
-        hasBetter = true;
+        return true;
+    }
+
+    internal static void GetContactMaterials(in TriangleCircularGeometry geometry, FixedTriangle triangle,
+        Fixed64 height, Fixed64 radius, ReadOnlySpan<ulong> bestValues, ReadOnlySpan<sbyte> bestSigns,
+        Span<ulong> bestCell, Selection best, out Vector3d normal, out Vector3d radialPoint,
+        out Vector3d trianglePoint, out Fixed64 depth, out bool clamped)
+    {
+        clamped = false;
         GetMaterials(geometry, triangle, height, radius, best, out normal, out radialPoint, out trianglePoint);
         if (best.IsZero)
             depth = Fixed64.Zero;
@@ -68,14 +96,13 @@ internal static class TriangleConeRimContacts
             ConvexContactValueRoot.GetRoundedDepth(geometry.RawScale, geometry.ValueShift,
                 ref root, out depth, out clamped);
         }
-        return true;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool TryChart(in TriangleCircularGeometry geometry, Fixed64 height, Fixed64 radius,
         int edge, WideAxis3 first, WideAxis3 second, scoped ConvexContactCandidate analytic, ulong upperTwiceRaw,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
-        ref Selection best)
+        ref Selection best, int chartIndex)
     {
         WideAxis3 outward = geometry.EdgeFromTo((edge + 2) % 3, edge);
         Signed576 a = WideAxis3.Dot(first, outward), b = WideAxis3.Dot(second, outward);
@@ -117,7 +144,7 @@ internal static class TriangleConeRimContacts
             var candidate = new Selection
             {
                 HasValue = true, First = first, Second = second, Edge = edge,
-                ParameterOrdinal = ordinal
+                ParameterOrdinal = ordinal, Chart = chartIndex
             };
             if (gapSign == 0)
             {

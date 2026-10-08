@@ -16,6 +16,16 @@ internal static class TriangleConeWitnesses
         Fixed64 height, Fixed64 radius, int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns,
         Vector3d center, FixedQuaternion rotation, out Vector3d trianglePoint, out FixedPointAnchor coneAnchor)
     {
+        bool found = TryGetGenerator(geometry, triangle, height, radius, mask, normal, normalSigns,
+            center, rotation, out trianglePoint, out coneAnchor);
+        System.Diagnostics.Debug.Assert(found);
+    }
+
+    internal static bool TryGetGenerator(in TriangleCircularGeometry geometry, FixedTriangle triangle,
+        Fixed64 height, Fixed64 radius, int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns,
+        Vector3d center, FixedQuaternion rotation, out Vector3d trianglePoint, out FixedPointAnchor coneAnchor)
+    {
+        trianglePoint = default; coneAnchor = default;
         ReadOnlySpan<ulong> root = Slot(normal, 6);
         // Only compact face/generator owners enter here: effective normal
         // height <458 bits. Oversized projected axes explicitly defer equality.
@@ -69,7 +79,8 @@ internal static class TriangleConeWitnesses
         weights.Clear(); weightSigns.Clear();
         bool found = TryGetWeights(mask, distances, distanceSigns, projections, projectionSigns, bound, root,
             weights, weightSigns, out bool centered);
-        System.Diagnostics.Debug.Assert(found);
+        if (!found)
+            return false;
         SumWeights(weights, weightSigns, denominator);
         trianglePoint = new Vector3d(
             RoundTriangleCoordinate(triangle.A.X, triangle.B.X, triangle.C.X, weights, weightSigns, denominator, root),
@@ -99,6 +110,7 @@ internal static class TriangleConeWitnesses
         coneAnchor = endpoint == 0 ? new FixedPointAnchor(center, rotation, conePoint)
             : TriangleCircularGeometry.GetSupport(center, rotation, Signed192.Raw(height),
                 new Vector3d(conePoint.X, Fixed64.Zero, conePoint.Z), -endpoint);
+        return true;
     }
 
     private static Fixed64 RoundRadial(int axis, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> signs,

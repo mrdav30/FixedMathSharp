@@ -8,7 +8,10 @@ using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 namespace FixedMathSharp.Geometry;
 
 /// <summary>Complete finite-cone/triangle support-fan contact ownership.</summary>
-internal static class TriangleConeContact
+/// <content>
+/// Provides complete triangle/convex-polygon contacts and certified coplanar-patch face exits.
+/// </content>
+internal static partial class TriangleConeContact
 {
     internal static bool TryGetContact(FixedTriangle triangle, Vector3d origin, FixedQuaternion rotation,
         Vector3d center, FixedQuaternion coneRotation, Fixed64 height, Fixed64 radius,
@@ -51,43 +54,59 @@ internal static class TriangleConeContact
             coneAnchor = TriangleCircularGeometry.GetSupport(center, coneRotation, Signed192.Raw(height), radialPoint, 1);
         else
         {
-            // Ranking and rim admission use only exact gap fields. Transform
-            // the retained analytic normal once; witnesses keep its local form.
-            Span<ulong> localNormal = stackalloc ulong[7 * Words];
-            Span<int> localSigns = stackalloc int[7];
-            bestValues[..(7 * Words)].CopyTo(localNormal); bestSigns[..7].CopyTo(localSigns);
-            WriteWorldDirection(geometry.WorldBasis, localNormal[..(3 * Words)], localSigns[..3],
-                bestValues[..(3 * Words)], bestSigns[..3]);
-            WriteWorldDirection(geometry.WorldBasis, localNormal.Slice(3 * Words, 3 * Words), localSigns.Slice(3, 3),
-                bestValues.Slice(3 * Words, 3 * Words), bestSigns.Slice(3, 3));
-            normal = WideConvexPrismRelations.GetConvexContactCandidateNormal(best);
-            if (selection.Feature == TriangleConeContactSelection.Generator)
-                TriangleConeWitnesses.GetGenerator(geometry, triangle, height, radius, selection.Mask,
-                    localNormal, localSigns, center, coneRotation, out point, out coneAnchor);
-            else if (selection.Feature == TriangleConeContactSelection.BasePole)
-            {
-                point = TriangleCylinderWitnesses.GetCapPoint(geometry, triangle, selection.Mask, out radialPoint);
-                coneAnchor = TriangleCircularGeometry.GetSupport(center, coneRotation, Signed192.Raw(height), radialPoint, 1);
-            }
-            else
-            {
-                bool apex = selection.Feature == TriangleConeContactSelection.Apex;
-                point = TriangleCylinderRimWitnesses.GetAnalyticPoint(geometry, triangle, selection.Mask,
-                    localNormal[..(3 * Words)], localSigns[..3], apex ? -1 : 1, apex ? default : geometry.Radius);
-                if (!apex)
-                {
-                    // Scale the exact radial direction before normalization;
-                    // a sub-raw full-normal component must not erase a rim.
-                    Slot(localNormal, 1).Clear(); localSigns[1] = 0;
-                    var radialCandidate = new ConvexContactCandidate(localNormal, localSigns, 0);
-                    radialPoint = -WideConvexPrismRelations.GetConvexContactCandidateScaledNormal(radialCandidate, radius);
-                }
-                coneAnchor = TriangleCircularGeometry.GetSupport(center, coneRotation, Signed192.Raw(height), radialPoint, apex ? -1 : 1);
-            }
+            GetAnalyticWitnesses(geometry, triangle, height, radius, center, coneRotation,
+                ref selection, out normal, out point, out coneAnchor);
         }
         contact = new FixedContactAnchors(new FixedPointAnchor(origin, rotation, point), coneAnchor,
             normal, depth, clamped);
         return true;
+    }
+
+    private static void GetAnalyticWitnesses(in TriangleCircularGeometry geometry, FixedTriangle triangle,
+        Fixed64 height, Fixed64 radius, Vector3d center, FixedQuaternion coneRotation,
+        ref TriangleConeContactSelection selection, out Vector3d normal, out Vector3d point,
+        out FixedPointAnchor coneAnchor, ReadOnlySpan<Vector3d> patchBounds = default)
+    {
+        Vector3d radialPoint = default;
+        // Ranking and rim admission use only exact gap fields. Transform
+        // the retained analytic normal once; witnesses keep its local form.
+        Span<ulong> localNormal = stackalloc ulong[7 * Words];
+        Span<int> localSigns = stackalloc int[7];
+        selection.Values[..(7 * Words)].CopyTo(localNormal); selection.Signs[..7].CopyTo(localSigns);
+        normal = TransformAnalyticNormal(geometry, localNormal, localSigns, ref selection);
+        if (selection.Feature == TriangleConeContactSelection.Generator)
+            TriangleConeWitnesses.GetGenerator(geometry, triangle, height, radius, selection.Mask,
+                localNormal, localSigns, center, coneRotation, out point, out coneAnchor);
+        else if (selection.Feature == TriangleConeContactSelection.BasePole)
+        {
+            point = TriangleCylinderWitnesses.GetCapPoint(geometry, triangle, selection.Mask, out radialPoint);
+            coneAnchor = TriangleCircularGeometry.GetSupport(center, coneRotation, Signed192.Raw(height), radialPoint, 1);
+        }
+        else
+        {
+            bool apex = selection.Feature == TriangleConeContactSelection.Apex;
+            point = TriangleCylinderRimWitnesses.GetAnalyticPoint(geometry, triangle, selection.Mask,
+                localNormal[..(3 * Words)], localSigns[..3], apex ? -1 : 1, apex ? default : geometry.Radius, patchBounds);
+            if (!apex)
+            {
+                // Scale the exact radial direction before normalization;
+                // a sub-raw full-normal component must not erase a rim.
+                Slot(localNormal, 1).Clear(); localSigns[1] = 0;
+                var radialCandidate = new ConvexContactCandidate(localNormal, localSigns, 0);
+                radialPoint = -WideConvexPrismRelations.GetConvexContactCandidateScaledNormal(radialCandidate, radius);
+            }
+            coneAnchor = TriangleCircularGeometry.GetSupport(center, coneRotation, Signed192.Raw(height), radialPoint, apex ? -1 : 1);
+        }
+    }
+
+    private static Vector3d TransformAnalyticNormal(in TriangleCircularGeometry geometry,
+        scoped ReadOnlySpan<ulong> localNormal, scoped ReadOnlySpan<int> localSigns, ref TriangleConeContactSelection selection)
+    {
+        WriteWorldDirection(geometry.WorldBasis, localNormal[..(3 * Words)], localSigns[..3],
+            selection.Values[..(3 * Words)], selection.Signs[..3]);
+        WriteWorldDirection(geometry.WorldBasis, localNormal.Slice(3 * Words, 3 * Words), localSigns.Slice(3, 3),
+            selection.Values.Slice(3 * Words, 3 * Words), selection.Signs.Slice(3, 3));
+        return WideConvexPrismRelations.GetConvexContactCandidateNormal(selection.Candidate);
     }
 
     private static bool KeepAnalytic(in TriangleCircularGeometry geometry, Fixed64 height, Fixed64 radius,
