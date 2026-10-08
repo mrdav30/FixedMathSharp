@@ -48,6 +48,35 @@ internal static class WideCenteredCapsule2dRelations
         }
     }
 
+    /// <summary>
+    /// Finds a contained or boundary point's minimum-separation normal toward a
+    /// rotated nondegenerate closed convex polygon. Outside points return false
+    /// and zero.
+    /// </summary>
+    /// <remarks>
+    /// The caller supplies a validated convex boundary. Uses the same exact
+    /// signed depth/axis ranking and feature ties as point contacts. Only the
+    /// normalized direction is rounded to Q32.32; no depth
+    /// or contact anchor is materialized.
+    /// </remarks>
+    internal static bool TryGetPointMinimumTranslationNormal(
+        Vector2d point,
+        Vector2d convexOrigin,
+        Fixed64 convexRotation,
+        ReadOnlySpan<Vector2d> convexOriginOffsets,
+        out Vector2d normal)
+    {
+        normal = default;
+        if (!TryGetContactAxis(
+                point, Vector2d.Right, Fixed64.Zero, Fixed64.Zero,
+                convexOrigin, convexRotation, convexOriginOffsets,
+                strict: false, out ContactAxis best, pointFaceAxesOnly: true))
+            return false;
+
+        normal = WideNormalization.GetNormalized(best.X, best.Y);
+        return true;
+    }
+
     internal static bool TryGetMinimumTranslation(
         Vector2d center,
         Vector2d capsuleAxis,
@@ -362,7 +391,8 @@ internal static class WideCenteredCapsule2dRelations
         Fixed64 convexRotation,
         ReadOnlySpan<Vector2d> convexOriginOffsets,
         bool strict,
-        out ContactAxis best)
+        out ContactAxis best,
+        bool pointFaceAxesOnly = false)
     {
         RotationFrame2d frame = new(convexRotation);
         best = default;
@@ -390,6 +420,11 @@ internal static class WideCenteredCapsule2dRelations
 
         if (!best.HasValue)
             return false;
+
+        // The admitted nondegenerate point-normal path separates through a
+        // face. General contacts retain vertex axes for degenerate boundaries.
+        if (pointFaceAxesOnly)
+            return true;
 
         // The segment contributes its own pair of sides to the polygon's
         // Minkowski expansion. A closest endpoint/vertex axis need not cover it.

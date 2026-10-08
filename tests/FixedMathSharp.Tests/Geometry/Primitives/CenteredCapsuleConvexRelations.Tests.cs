@@ -14,6 +14,80 @@ namespace FixedMathSharp.Tests;
 public sealed class CenteredCapsuleConvexRelationsTests
 {
     [Theory]
+    [InlineData(2, 1, -1, 0)]
+    [InlineData(4, 1, -1, 0)]
+    [InlineData(0, 0, 0, 1)]
+    [InlineData(4, 4, 0, -1)]
+    public void PointMinimumTranslationNormal_RetainsBoundaryAndFeatureTieOrientation(
+        int xEighths, int yEighths, int normalX, int normalY)
+    {
+        Vector2d[] vertices =
+        {
+            new(-Fixed64.Half, -Fixed64.Half), new(Fixed64.Half, -Fixed64.Half),
+            new(Fixed64.Half, Fixed64.Half), new(-Fixed64.Half, Fixed64.Half)
+        };
+
+        Assert.True(WideCenteredCapsule2dRelations.TryGetPointMinimumTranslationNormal(
+            new Vector2d(Fixed64.FromFraction(xEighths, 8), Fixed64.FromFraction(yEighths, 8)),
+            Vector2d.Zero, Fixed64.Zero, vertices, out Vector2d normal));
+
+        Assert.Equal(new Vector2d(normalX, normalY), normal);
+    }
+
+    [Fact]
+    public void PointMinimumTranslationNormal_OutsidePolygonReturnsNoNormal()
+    {
+        Vector2d[] vertices = { new(-1, -1), new(1, -1), new(1, 1), new(-1, 1) };
+        Assert.False(WideCenteredCapsule2dRelations.TryGetPointMinimumTranslationNormal(
+            Vector2d.Right * Fixed64.Two, Vector2d.Zero, Fixed64.Zero, vertices, out Vector2d normal));
+        Assert.Equal(Vector2d.Zero, normal);
+    }
+
+    [Fact]
+    public void PointContact_WithCollinearPolygonAndPointBeyondEndpoints_ShouldReject()
+    {
+        Vector2d[] vertices = { Vector2d.Left, Vector2d.Zero, Vector2d.Right };
+        Assert.False(FixedConvex2dRelations.TryGetCircleContact(
+            Vector2d.Right * Fixed64.Two, Fixed64.Zero, Fixed64.Zero,
+            Vector2d.Zero, Fixed64.Zero, vertices,
+            out _, out _, out _, out _, out _));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PointMinimumTranslationNormal_ObliqueFaceRetainsDirectionForEitherWinding(bool clockwise)
+    {
+        Vector2d[] vertices = { Vector2d.Zero, new(5, 0), new(Fixed64.Zero, Fixed64.FromFraction(15, 4)) };
+        if (clockwise)
+            Array.Reverse(vertices);
+        // The oblique edge has outward unit normal (3/5, 4/5). The point
+        // lies 1/5 from that edge, closer than either axis-aligned side.
+        Assert.True(WideCenteredCapsule2dRelations.TryGetPointMinimumTranslationNormal(
+            new Vector2d(2, 2), Vector2d.Zero, Fixed64.Zero, vertices, out Vector2d normal));
+        Assert.Equal(new Vector2d(Fixed64.FromFraction(-3, 5), Fixed64.FromFraction(-4, 5)), normal);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PointMinimumTranslationNormal_NearScalarBoundaryRetainsOneRawSeparation(bool nearMaximum)
+    {
+        Vector2d[] vertices =
+        {
+            new(-Fixed64.Half, -Fixed64.Half), new(Fixed64.Half, -Fixed64.Half),
+            new(Fixed64.Half, Fixed64.Half), new(-Fixed64.Half, Fixed64.Half)
+        };
+        Vector2d origin = new(nearMaximum ? Fixed64.MaxValue - Fixed64.One : Fixed64.MinValue + Fixed64.One, Fixed64.Zero);
+        Vector2d point = origin + new Vector2d(Fixed64.Half - Fixed64.FromRaw(1), Fixed64.FromFraction(1, 8));
+
+        Assert.True(WideCenteredCapsule2dRelations.TryGetPointMinimumTranslationNormal(
+            point, origin, Fixed64.Zero, vertices, out Vector2d normal));
+
+        Assert.Equal(Vector2d.Left, normal);
+    }
+
+    [Theory]
     [InlineData(1)]
     [InlineData(10)]
     [InlineData(100)]
