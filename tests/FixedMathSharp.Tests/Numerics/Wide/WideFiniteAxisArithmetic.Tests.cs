@@ -7,6 +7,57 @@ namespace FixedMathSharp.Tests;
 
 public sealed class WideFiniteAxisArithmeticTests
 {
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(3, false)]
+    [InlineData(8, false)]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(3, true)]
+    [InlineData(8, true)]
+    public void RawRatioCommonWholeWords_PreserveIndependentNearestEvenAndOverflowOracle(int commonWords, bool negative)
+    {
+        BigInteger wide = BigInteger.One << 120;
+        var cases = new (BigInteger N, BigInteger D)[]
+        {
+            (5, 2), (7, 2), (3, 7), (0, 1), (long.MaxValue, 1),
+            (ulong.MaxValue, 2), (BigInteger.One << 63, 1),
+            ((BigInteger.One << 64) + 1, 2), ((BigInteger.One << 64) + 2, 2),
+            ((BigInteger.One << 65) - 1, 2),
+            (BigInteger.One << 64, (BigInteger.One << 64) + 1),
+            (5 * wide - 1, 2 * wide), (5 * wide + 1, 2 * wide)
+        };
+        foreach (var item in cases)
+        {
+            BigInteger numerator = item.N << (64 * commonWords), denominator = item.D << (64 * commonWords);
+            // Different padded lengths exercise the borrowed-span contract;
+            // the low-word mismatch and unequal low-zero counts are controls.
+            ulong[] n = ToTwosComplementWords(numerator, commonWords + 8), d = ToTwosComplementWords(denominator, commonWords + 6);
+            BigInteger rounded = BigInteger.DivRem(item.N, item.D, out BigInteger remainder);
+            int half = (2 * remainder).CompareTo(item.D);
+            if (half > 0 || half == 0 && !rounded.IsEven) rounded++;
+            if (negative) rounded = -rounded;
+            bool expected = rounded >= long.MinValue && rounded <= long.MaxValue;
+            Assert.Equal(expected, Fixed64.TryGetSignedRawRatio(n, d, negative, out Fixed64 actual));
+            Assert.Equal(expected ? (long)rounded : 0, actual.m_rawValue);
+            Assert.Equal(numerator, FromMagnitudeWords(n)); Assert.Equal(denominator, FromMagnitudeWords(d));
+        }
+    }
+
+    [Fact]
+    public void RawRatioCommonWholeWords_PreserveSignedAndFloorAndScaledCoreContracts()
+    {
+        BigInteger common = BigInteger.One << 448;
+        AssertRawRatio(-4, -7 * common, 2 * common);
+        common = BigInteger.One << 576;
+        Assert.Equal(Fixed64.FromRaw(3), Fixed64.GetNonNegativeRawRatioFloor(ToSigned704(7 * common), ToSigned704(2 * common)));
+        common = BigInteger.One << 640;
+        Assert.True(Fixed64.TryGetSignedRawRatio(ToSigned832(7 * common), ToSigned832(-2 * common), 0, out Fixed64 signed));
+        Assert.Equal(Fixed64.FromRaw(-4), signed);
+        Assert.Equal(Fixed64.Half, Fixed64.GetUnitIntervalRatio(ToTwosComplementWords(common, 12), ToTwosComplementWords(2 * common, 13)));
+    }
+
     [Fact]
     public void SignedRatioWithGuardBits_RoundsHalfToEvenAcrossWideShifts()
     {

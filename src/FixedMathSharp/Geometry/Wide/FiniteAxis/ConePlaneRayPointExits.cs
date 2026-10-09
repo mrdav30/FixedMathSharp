@@ -23,8 +23,10 @@ internal static class ConePlaneRayPointExits
     // one depth, one point, A<650 and the shared root; <10320 bits, 176 words.
     // These are transient products, never retained as point/depth fields.
 
+    /// <summary>Tests closed shared-plane and finite-source admission in the cone.</summary>
+    /// <remarks>A side certificate proves F(point)=0 exactly in the supplied root; only that solid predicate may then be skipped.</remarks>
     internal static bool ContainsPoint(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
-        scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root)
+        scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root, bool sideCertificate = false)
     {
         if (frame.NormalSquared.IsZero || point.Denominator.Sign(root) <= 0)
             return false;
@@ -41,11 +43,14 @@ internal static class ConePlaneRayPointExits
         value.Add(point.Y, -1);
         if (value.Sign(root) < 0)
             return false;
-        Span<ulong> coneWork = stackalloc ulong[2 * AdmissionWords];
-        Span<int> coneSigns = stackalloc int[2];
-        ContactQuadratic cone = ContactQuadratic.At(coneWork, coneSigns, 0, AdmissionWords);
-        ConeProduct(point, point, frame, root, cone);
-        if (cone.Sign(root) > 0) return false;
+        if (!sideCertificate)
+        {
+            Span<ulong> coneWork = stackalloc ulong[2 * AdmissionWords];
+            Span<int> coneSigns = stackalloc int[2];
+            ContactQuadratic cone = ContactQuadratic.At(coneWork, coneSigns, 0, AdmissionWords);
+            ConeProduct(point, point, frame, root, cone);
+            if (cone.Sign(root) > 0) return false;
+        }
         if (source.Scope == ConePlaneRayEventScope.Plane) return true;
         frame.GetEdgeLine(new FixedSegment(source.A, source.B), out Signed576 wx, out Signed576 wy, out Signed576 wz, out Signed576 offset);
         Dot(point, wx, wy, wz, value, term);
@@ -114,7 +119,7 @@ internal static class ConePlaneRayPointExits
         scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, bool pointOnly = false)
     {
-        if (!ContainsPoint(source, frame, point, root))
+        if (!ContainsPoint(source, frame, point, root, sideCertificate: true))
             return false;
         if (pointOnly) return true;
         // The chart certifies F(point)=0. The nonzero crossing -2B/A is
@@ -215,6 +220,8 @@ internal static class ConePlaneRayPointExits
     private static void AccumulateRationalOrientation(scoped ConePlaneRayPoint point, in ConePlaneRayFrame frame,
         int orientation, scoped ref ConePlaneRaySelection selection)
     {
+        if (TryAccumulateAxialOrientation(point, frame, ReadOnlySpan<ulong>.Empty,
+            orientation, sidePoint: false, ref selection)) return;
         Span<ulong> work = stackalloc ulong[20 * Words]; Span<int> signs = stackalloc int[20];
         ContactQuadratic a = ContactQuadratic.At(work, signs, 0, Words);
         ContactQuadratic b = ContactQuadratic.At(work, signs, 1, Words);
@@ -260,6 +267,8 @@ internal static class ConePlaneRayPointExits
     private static void AccumulateSideOrientation(scoped ConePlaneRayPoint point, in ConePlaneRayFrame frame,
         scoped ReadOnlySpan<ulong> root, int orientation, scoped ref ConePlaneRaySelection selection)
     {
+        if (TryAccumulateAxialOrientation(point, frame, root,
+            orientation, sidePoint: true, ref selection)) return;
         Span<ulong> work = stackalloc ulong[12 * Words]; Span<int> signs = stackalloc int[12];
         ContactQuadratic a = ContactQuadratic.At(work, signs, 0, Words);
         ContactQuadratic b = ContactQuadratic.At(work, signs, 1, Words);
@@ -290,6 +299,29 @@ internal static class ConePlaneRayPointExits
         // the admitted finite axial interval supplies an endpoint.
         System.Diagnostics.Debug.Assert(hasValue);
         selection.Keep(bestN, bestD, bestRoot, frame, point);
+    }
+
+    private static bool TryAccumulateAxialOrientation(scoped ConePlaneRayPoint point, in ConePlaneRayFrame frame,
+        scoped ReadOnlySpan<ulong> root, int orientation, bool sidePoint, scoped ref ConePlaneRaySelection selection)
+    {
+        if (!frame.Normal.X.IsZero || !frame.Normal.Z.IsZero) return false;
+        bool axisPoint = point.X.Sign(root) == 0 && point.Z.Sign(root) == 0;
+        int direction = frame.Normal.Y.Sign * orientation;
+        if (!sidePoint && direction < 0 && !axisPoint) return false;
+        Span<ulong> work = stackalloc ulong[4 * Words]; Span<int> signs = stackalloc int[4];
+        ContactQuadratic n = ContactQuadratic.At(work, signs, 0, Words);
+        ContactQuadratic d = ContactQuadratic.At(work, signs, 1, Words);
+        // Along the axis the widening direction stays inside until the base.
+        // A point on the axis reaches either axial endpoint (also for R=0).
+        // A nonaxial side point exits immediately in the narrowing direction.
+        if (direction > 0 || axisPoint)
+        {
+            bool found = GetAxialExit(point, frame, orientation, n, d);
+            System.Diagnostics.Debug.Assert(found);
+        }
+        else { n.Clear(); d.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1)))); }
+        selection.Keep(n, d, root, frame, point);
+        return true;
     }
 
     private static bool GetAxialExit(scoped ConePlaneRayPoint point, in ConePlaneRayFrame frame,

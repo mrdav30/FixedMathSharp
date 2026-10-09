@@ -69,12 +69,14 @@ internal static partial class ConePlaneRayEvents
             && (sink.Wants(ConePlaneRayEventKind.EdgeEndpoint) || sink.Wants(ConePlaneRayEventKind.EdgeSide)
                 || sink.Wants(ConePlaneRayEventKind.EdgeStationary)))
             found |= AccumulateEdge(source, frame, ref positive, ref negative, ref sink);
-        if (source.Scope != ConePlaneRayEventScope.Segment
+        if (!sink.IsStreaming && source.Scope != ConePlaneRayEventScope.Segment
             && (sink.Wants(ConePlaneRayEventKind.Axis) || sink.Wants(ConePlaneRayEventKind.Apex)))
             found |= AccumulateAxisAndApex(source, frame, ref positive, ref negative, ref sink);
         if (sink.Wants(ConePlaneRayEventKind.LowerCircle) || sink.Wants(ConePlaneRayEventKind.UpperRim)
             || sink.Wants(ConePlaneRayEventKind.Generator))
             found |= AccumulateCircles(source, frame, ref positive, ref negative, ref sink);
+        if (sink.IsStreaming && source.Scope != ConePlaneRayEventScope.Segment)
+            found |= AccumulateAxisAndApex(source, frame, ref positive, ref negative, ref sink);
         if (source.Scope != ConePlaneRayEventScope.Segment && sink.Wants(ConePlaneRayEventKind.BaseStationary))
             found |= AccumulateBaseStationary(source, frame, ref positive, ref negative, ref sink);
         return found;
@@ -111,43 +113,45 @@ internal static partial class ConePlaneRayEvents
             SetAffinePoint(point, p, e, s, sd);
             SetEvent(source, descriptor, ref positive, ref negative);
             bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly);
-            if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty);
+            if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty, positive, negative);
             found |= admitted;
         }
         if (!sink.Wants(ConePlaneRayEventKind.EdgeSide) && !sink.Wants(ConePlaneRayEventKind.EdgeStationary))
             return found;
         Product(e, e, frame, a); Product(p, e, frame, b); Product(p, p, frame, c);
+        // Construct the stationary polynomial once, then emit side/stationary
+        // events in each branch's inventory order. Targeted side replay avoids
+        // these products entirely; streaming does not retain extra wide fields.
+        bool stationary = a.Signs[0] != 0 && sink.Wants(ConePlaneRayEventKind.EdgeStationary);
+        if (stationary)
+        {
+            Product(e, frame.Normal, frame, m); Product(p, frame.Normal, frame, n);
+            Product(frame.Normal, frame.Normal, frame, A);
+            ContactQuadratic.Multiply(a, A, ReadOnlySpan<ulong>.Empty, qa);
+            ContactQuadratic.Multiply(m, m, ReadOnlySpan<ulong>.Empty, term); qa.Add(term, -1);
+            ContactQuadratic.Multiply(a, n, ReadOnlySpan<ulong>.Empty, qb);
+            ContactQuadratic.Multiply(b, m, ReadOnlySpan<ulong>.Empty, term); qb.Add(term, -1);
+            ContactQuadratic.Multiply(a, c, ReadOnlySpan<ulong>.Empty, qc);
+            ContactQuadratic.Multiply(b, b, ReadOnlySpan<ulong>.Empty, term); qc.Add(term, -1);
+        }
+        // a=0 has no isolated interior stationary point, or has a constant
+        // interval already represented by its clipped endpoints and side/rim.
         for (int branch = -1; branch <= 1; branch += 2)
         {
             var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeSide, branch: branch);
-            if (!sink.Wants(descriptor)) continue;
-            if (!ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, s, sd)
-                || !ConePlaneRayCharts.IsUnitParameter(s, sd, root))
-                continue;
-            SetAffinePoint(point, p, e, s, sd);
-            SetEvent(source, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly);
-            if (admitted) sink.Keep(descriptor, point, root);
-            found |= admitted;
-        }
-        // a=0 gives either no interior stationary point or a constant-depth
-        // interval. Its clipped endpoints are already represented above and
-        // by side/rim intersections; do not divide by this zero coefficient.
-        if (a.Signs[0] == 0 || !sink.Wants(ConePlaneRayEventKind.EdgeStationary))
-            return found;
-        Product(e, frame.Normal, frame, m); Product(p, frame.Normal, frame, n);
-        Product(frame.Normal, frame.Normal, frame, A);
-        ContactQuadratic.Multiply(a, A, ReadOnlySpan<ulong>.Empty, qa);
-        ContactQuadratic.Multiply(m, m, ReadOnlySpan<ulong>.Empty, term); qa.Add(term, -1);
-        ContactQuadratic.Multiply(a, n, ReadOnlySpan<ulong>.Empty, qb);
-        ContactQuadratic.Multiply(b, m, ReadOnlySpan<ulong>.Empty, term); qb.Add(term, -1);
-        ContactQuadratic.Multiply(a, c, ReadOnlySpan<ulong>.Empty, qc);
-        ContactQuadratic.Multiply(b, b, ReadOnlySpan<ulong>.Empty, term); qc.Add(term, -1);
-        for (int branch = -1; branch <= 1; branch += 2)
-        {
-            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeStationary, branch: branch);
-            if (!sink.Wants(descriptor)) continue;
-            if (!ConePlaneRayCharts.TryGetParameter(qa, qb, qc, branch, root, t, d))
+            if (sink.Wants(descriptor)
+                && ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, s, sd)
+                && ConePlaneRayCharts.IsUnitParameter(s, sd, root))
+            {
+                SetAffinePoint(point, p, e, s, sd);
+                SetEvent(source, descriptor, ref positive, ref negative);
+                bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly);
+                if (admitted) sink.Keep(descriptor, point, root, positive, negative);
+                found |= admitted;
+            }
+            descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeStationary, branch: branch);
+            if (!stationary || !sink.Wants(descriptor)
+                || !ConePlaneRayCharts.TryGetParameter(qa, qb, qc, branch, root, t, d))
                 continue;
             ContactQuadratic.Multiply(b, d, root, s);
             ContactQuadratic.Multiply(m, t, root, term); s.Add(term); s.MultiplySign(-a.Signs[0]);
@@ -159,10 +163,10 @@ internal static partial class ConePlaneRayEvents
             descriptor = new ConePlaneRayEvent(descriptor.Kind, branch: branch, orientation: orientation);
             t.CopyTo(work, orientation);
             SetEvent(source, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateStationarySideExit(source, frame, point, root,
+            bool stationaryAdmitted = ConePlaneRayPointExits.AccumulateStationarySideExit(source, frame, point, root,
                 work, d, orientation, ref positive, ref negative, sink.PointOnly);
-            if (admitted) sink.Keep(descriptor, point, root);
-            found |= admitted;
+            if (stationaryAdmitted) sink.Keep(descriptor, point, root, positive, negative);
+            found |= stationaryAdmitted;
         }
         return found;
     }

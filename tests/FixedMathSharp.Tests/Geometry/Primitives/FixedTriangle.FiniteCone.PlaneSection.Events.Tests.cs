@@ -9,6 +9,26 @@ namespace FixedMathSharp.Tests.Bounds;
 public sealed class FixedTriangleFiniteConePlaneSectionEventTests
 {
     [Fact]
+    public void PlaneEvents_ObliqueApexSupport_RejectsConcaveRepeatedSideTouchBeforeAxialExit()
+    {
+        Vector3d apex = Vector3d.Up * ((Fixed64)3 / 2);
+        // x+3y=9/2 touches only the apex of H=3/R=2. Along its
+        // inward ray -(1,3,0), the side polynomial has a concave repeated
+        // root at t=0, but the ray remains inside until the finite base.
+        var triangle = new FixedTriangle(apex, apex + new Vector3d(3, -1, 0), apex + Vector3d.Forward);
+        var frame = new ConePlaneRayFrame(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)3, Fixed64.Two);
+        var axis = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis);
+        Assert.True(Materialize(ConePlaneRayEventSource.Plane, frame, axis, 1,
+            out Vector3d p, out Vector3d q, out Fixed64 depth));
+        Assert.Equal(apex, p); Assert.Equal(apex, q); Assert.Equal(Fixed64.Zero, depth);
+        Assert.True(Materialize(ConePlaneRayEventSource.Plane, frame, axis, -1, out p, out q, out depth));
+        Assert.Equal(apex, p);
+        Assert.Equal(new Vector3d(-Fixed64.One, -((Fixed64)3 / 2), Fixed64.Zero), q);
+        Assert.Equal(Fixed64.FromRaw(13581879131L), depth); // nearest-even sqrt(10) raw units
+    }
+
+    [Fact]
     public void PlaneEvents_GeometricComparison_DeduplicatesCoincidentProvenance()
     {
         var triangle = new FixedTriangle(new Vector3d(-4, 0, -4), new Vector3d(4, 0, -4), new Vector3d(0, 0, 4));
@@ -576,8 +596,14 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         n.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(mode == 0 ? -1 : mode == 3 ? long.MaxValue : 0))));
         d.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(mode == 1 ? 0 : 1))));
         // At the base's -X rim, the +X exit crosses diameter 2*MaxValue.
-        // The frame uses doubled raw coordinates, hence numerator 4*MaxRaw.
-        if (mode == 3) { n.Add(n); n.Add(n); }
+        // A primitive unit normal in doubled coordinates needs the retained
+        // frame denominator: numerator 4*D*MaxRaw gives that physical diameter.
+        if (mode == 3)
+        {
+            n.Set(Signed576.ExtendValue(WideArithmetic.MultiplySigned192(
+                frame.Finite.ShapeFrame.Denominator, Signed192.Signed(long.MaxValue))));
+            n.Add(n); n.Add(n);
+        }
         Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
         Span<int> pointSigns = stackalloc int[ConePlaneRayPoint.SignCount];
         var point = new ConePlaneRayPoint(pointValues, pointSigns); point.Set(frame.Transform(triangle.A));
@@ -630,6 +656,12 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         ContactQuadratic n = ContactQuadratic.At(fields, fieldSigns, 0, ConePlaneRayCharts.Words);
         ContactQuadratic d = ContactQuadratic.At(fields, fieldSigns, 1, ConePlaneRayCharts.Words);
         n.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(mode == 0 ? -1 : mode == 3 ? 0 : 8 * Fixed64.One.m_rawValue))));
+        // Mode 2 deliberately places the exit in the opposite nappe. The
+        // synthetic ray uses the frame's doubled coordinate scale, not units
+        // inherited from a pre-reduction authored normal magnitude.
+        if (mode == 2)
+            n.Set(Signed576.ExtendValue(WideArithmetic.MultiplySigned192(
+                frame.Finite.ShapeFrame.Denominator, Signed192.Signed(8 * Fixed64.One.m_rawValue))));
         d.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(mode == 1 || mode == 3 ? 0 : 1))));
         Assert.False(ConePlaneRayPointExits.AccumulateStationarySideExit(ConePlaneRayEventSource.Plane, frame, point,
             ReadOnlySpan<ulong>.Empty, n, d, 1, ref positive, ref negative));

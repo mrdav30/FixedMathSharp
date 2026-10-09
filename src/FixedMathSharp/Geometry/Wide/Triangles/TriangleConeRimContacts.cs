@@ -1,4 +1,6 @@
 //=======================================================================
+// TriangleConeRimContacts.cs
+//=======================================================================
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
@@ -15,11 +17,11 @@ internal static class TriangleConeRimContacts
     private const int ParameterSlots = 33;
     internal const int ValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
 
-    internal struct Selection
+    private struct Selection
     {
         internal bool HasValue, IsZero, IsRational;
         internal WideAxis3 First, Second;
-        internal int Edge, ParameterOrdinal, ValueOrdinal, ValueShift, Chart;
+        internal int Edge, ParameterOrdinal, ValueOrdinal, ValueShift;
     }
 
     internal static bool TryGetContact(in TriangleCircularGeometry geometry, FixedTriangle triangle,
@@ -44,22 +46,16 @@ internal static class TriangleConeRimContacts
         return true;
     }
 
-    internal static bool TryKeepContacts(in TriangleCircularGeometry geometry,
+    private static bool TryKeepContacts(in TriangleCircularGeometry geometry,
         Fixed64 height, Fixed64 radius, scoped ConvexContactCandidate analytic, Fixed64 analyticDepth,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
-        ref Selection best, int requiredMask = 0, int chartIndex = 0)
+        ref Selection best)
     {
         // The caller's exact face-width proof excludes a clamped analytic gap.
         // Its rounded value d bounds the original gap by d+1/2 raw, including Max.
         ulong upperTwiceRaw = ((ulong)analyticDepth.m_rawValue << 1) | 1UL;
         for (int edge = 0; edge < 3; edge++)
         {
-            // Corner A's two incident edges are polygon boundaries. Admit
-            // them before constructing roots: an artificial BC root must
-            // never report separation of the complete polygon.
-            int edgeMask = (1 << edge) | (1 << ((edge + 1) % 3));
-            if ((edgeMask & requiredMask) != requiredMask)
-                continue;
             WideAxis3 e = geometry.Edge(edge);
             // Horizontal edges are meridional; vertical edges are circular.
             // Their complete boundaries/principal radial directions are analytic.
@@ -74,14 +70,14 @@ internal static class TriangleConeRimContacts
                         WideAxis3 second = secondSign > 0 ? v : -v;
                         if (chart != 0) (first, second) = (second, first);
                         if (!TryChart(geometry, height, radius, edge, first, second,
-                                analytic, upperTwiceRaw, bestValues, bestSigns, bestCell, ref best, chartIndex))
+                                analytic, upperTwiceRaw, bestValues, bestSigns, bestCell, ref best))
                             return false;
                     }
         }
         return true;
     }
 
-    internal static void GetContactMaterials(in TriangleCircularGeometry geometry, FixedTriangle triangle,
+    private static void GetContactMaterials(in TriangleCircularGeometry geometry, FixedTriangle triangle,
         Fixed64 height, Fixed64 radius, ReadOnlySpan<ulong> bestValues, ReadOnlySpan<sbyte> bestSigns,
         Span<ulong> bestCell, Selection best, out Vector3d normal, out Vector3d radialPoint,
         out Vector3d trianglePoint, out Fixed64 depth, out bool clamped)
@@ -102,7 +98,7 @@ internal static class TriangleConeRimContacts
     private static bool TryChart(in TriangleCircularGeometry geometry, Fixed64 height, Fixed64 radius,
         int edge, WideAxis3 first, WideAxis3 second, scoped ConvexContactCandidate analytic, ulong upperTwiceRaw,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
-        ref Selection best, int chartIndex)
+        ref Selection best)
     {
         WideAxis3 outward = geometry.EdgeFromTo((edge + 2) % 3, edge);
         Signed576 a = WideAxis3.Dot(first, outward), b = WideAxis3.Dot(second, outward);
@@ -144,7 +140,7 @@ internal static class TriangleConeRimContacts
             var candidate = new Selection
             {
                 HasValue = true, First = first, Second = second, Edge = edge,
-                ParameterOrdinal = ordinal, Chart = chartIndex
+                ParameterOrdinal = ordinal
             };
             if (gapSign == 0)
             {

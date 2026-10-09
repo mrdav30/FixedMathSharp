@@ -46,23 +46,53 @@ internal readonly struct ConePlaneRayEvent
 
 }
 
-/// <summary>One borrowed exact output point; point-only replay does not solve unused exits.</summary>
+/// <summary>Synchronous consumption of one admitted event; borrowed fields cannot escape the callback.</summary>
+internal delegate void ConePlaneRayEventVisitor(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
+    ConePlaneRayEvent descriptor, scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root,
+    scoped in ConePlaneRaySelection positive, scoped in ConePlaneRaySelection negative);
+
+/// <summary>One borrowed exact output point or synchronous visitor; point-only replay does not solve unused exits.</summary>
 internal ref struct ConePlaneRayEventSink
 {
     internal readonly ConePlaneRayEvent Target;
     internal readonly bool PointOnly;
     private readonly ConePlaneRayPoint outputPoint;
     private readonly Span<ulong> outputRoot;
+    private readonly ConePlaneRayEventVisitor? visitor;
+    private readonly ConePlaneRayEventSource source;
+    private readonly ConePlaneRayFrame frame;
+    internal bool IsStreaming => visitor != null;
     internal bool HasPoint;
 
     internal ConePlaneRayEventSink(ConePlaneRayEvent target, ConePlaneRayPoint point, Span<ulong> root, bool pointOnly = false)
-    { Target = target; outputPoint = point; outputRoot = root; PointOnly = pointOnly; HasPoint = false; }
+    { Target = target; outputPoint = point; outputRoot = root; PointOnly = pointOnly; HasPoint = false; visitor = null; source = default; frame = default; }
 
-    internal bool Wants(ConePlaneRayEventKind kind) => Target.Kind == kind;
-    internal bool Wants(in ConePlaneRayEvent descriptor) => Target.Matches(descriptor);
-    internal void Keep(in ConePlaneRayEvent descriptor, scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root)
+    internal ConePlaneRayEventSink(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame, ConePlaneRayEventVisitor visitor)
+    { this.source = source; this.frame = frame; this.visitor = visitor; Target = default; outputPoint = default; outputRoot = default; PointOnly = false; HasPoint = false; }
+
+    internal bool Wants(ConePlaneRayEventKind kind)
+    {
+        if (!IsStreaming) return Target.Kind == kind;
+        if (source.Scope == ConePlaneRayEventScope.Segment)
+            return kind == ConePlaneRayEventKind.EdgeEndpoint || kind == ConePlaneRayEventKind.EdgeSide
+                || kind == ConePlaneRayEventKind.EdgeStationary || kind == ConePlaneRayEventKind.UpperRim;
+        if (frame.Normal.X.IsZero && frame.Normal.Z.IsZero && !frame.Normal.Y.IsZero)
+            return kind == ConePlaneRayEventKind.Axis || kind == ConePlaneRayEventKind.LowerCircle;
+        // The dispatcher invokes edge construction only for segment sources;
+        // every remaining general-plane stratum belongs to its inventory.
+        return true;
+    }
+    internal bool Wants(in ConePlaneRayEvent descriptor) => IsStreaming ? Wants(descriptor.Kind) : Target.Matches(descriptor);
+    internal void Keep(in ConePlaneRayEvent descriptor, scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root,
+        scoped in ConePlaneRaySelection positive, scoped in ConePlaneRaySelection negative)
     {
         if (!Wants(descriptor)) return;
+        if (visitor != null)
+        {
+            visitor(source, frame, descriptor, point, root, positive, negative);
+            HasPoint = true;
+            return;
+        }
         point.CopyTo(outputPoint);
         root.CopyTo(outputRoot); outputRoot[root.Length..].Clear();
         HasPoint = true;
@@ -75,6 +105,7 @@ internal static partial class ConePlaneRayEvents
     private static void SetEvent(in ConePlaneRayEventSource source, in ConePlaneRayEvent descriptor,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative)
     {
+        positive.HasValue = negative.HasValue = false;
         positive.CurrentEvent = descriptor; negative.CurrentEvent = descriptor;
         positive.CurrentSource = source; negative.CurrentSource = source;
     }

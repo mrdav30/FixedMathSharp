@@ -1,4 +1,6 @@
 //=======================================================================
+// TriangleConeContactSelection.cs
+//=======================================================================
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
@@ -14,12 +16,10 @@ internal ref struct TriangleConeContactSelection
     internal Span<int> Signs;
     internal int GapSign, Mask, Feature;
     internal bool HasValue;
-    private readonly int requiredMask;
-    internal TriangleConeContactSelection(Span<ulong> values, Span<int> signs, int requiredMask = 0)
+    internal TriangleConeContactSelection(Span<ulong> values, Span<int> signs)
     {
         Values = values; Signs = signs;
         GapSign = Mask = Feature = 0; HasValue = false;
-        this.requiredMask = requiredMask;
     }
 
     internal readonly bool Separated => HasValue && GapSign < 0;
@@ -27,10 +27,7 @@ internal ref struct TriangleConeContactSelection
 
     internal void Keep(scoped Span<ulong> values, scoped Span<int> signs, int gapSign, int mask, int feature)
     {
-        // A convex polygon corner chart retains only supports containing its
-        // corner A. Its artificial opposite edge and other vertices must not
-        // establish separation before this feature admission.
-        if ((mask & requiredMask) != requiredMask || Separated || HasValue && WideConvexPrismRelations.CompareConvexContactCandidates(
+        if (Separated || HasValue && WideConvexPrismRelations.CompareConvexContactCandidates(
                 new ConvexContactCandidate(values, signs, gapSign), Candidate) >= 0)
             return;
         values.CopyTo(Values); signs.CopyTo(Signs);

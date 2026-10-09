@@ -41,9 +41,31 @@ internal readonly struct ConePlaneRayFrame
             Signed192.NarrowProven(primitive[0]), Signed192.NarrowProven(primitive[1]), Signed192.NarrowProven(primitive[2]));
         // Reflect the centered +Y coordinates into the apex-to-base +Y
         // cone frame. This is an exact coordinate convention, not rounding.
-        Normal = new WideAxis3(localNormal.X, WideArithmetic.Negate(localNormal.Y), localNormal.Z);
+        primitive[0] = localNormal.X; primitive[1] = WideArithmetic.Negate(localNormal.Y); primitive[2] = localNormal.Z;
+        // A positive common scale carries no plane or ray geometry. Remove
+        // the quaternion basis denominator here so it does not multiply every
+        // critical-event coefficient, while preserving the authored orientation.
+        if (!localNormal.IsZero) WideArithmetic.ReduceCommonScale(primitive);
+        Normal = new WideAxis3(primitive[0], primitive[1], primitive[2]);
         PlaneConstant = WideAxis3.Dot(Normal, Transform(planeTriangle.A));
         NormalSquared = WideAxis3.Dot(Normal, Normal);
+    }
+
+    /// <summary>Gets the exact canonical covector in the original authored frame, before normal rounding.</summary>
+    internal WideAxis3 AuthoredNormal => authoredNormal;
+
+    /// <summary>Materializes the canonical plane normal in its original authored rigid frame.</summary>
+    /// <remarks>The rotation is the same validated authored rotation used to construct this frame.</remarks>
+    internal Vector3d GetWorldNormal(FixedQuaternion authoredRotation)
+    {
+        // Primitive authored normal components are <130 bits and a normalized
+        // quaternion's exact basis numerators are <65 bits. The three-term
+        // transform stays <197 bits, within Signed320, without rounding a
+        // local normal first or losing its canonical leading-component sign.
+        WideAxis3 normal = WideRigidProjection.TransformLocalAxis(new WideRationalBasis3d(authoredRotation),
+            Signed192.NarrowProven(authoredNormal.X), Signed192.NarrowProven(authoredNormal.Y),
+            Signed192.NarrowProven(authoredNormal.Z));
+        return WideNormalization.GetNormalized(normal.X, normal.Y, normal.Z);
     }
 
     internal WideAxis3 Transform(Vector3d point) => Finite.Transform(point);

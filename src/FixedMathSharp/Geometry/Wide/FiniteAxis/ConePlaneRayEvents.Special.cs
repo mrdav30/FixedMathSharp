@@ -22,6 +22,7 @@ internal static partial class ConePlaneRayEvents
         var point = new ConePlaneRayPoint(pointValues, pointSigns);
         ContactQuadratic n = At(values, signs, 0), d = At(values, signs, 1), term = At(values, signs, 2);
         point.X.Clear(); point.Z.Clear();
+        bool found = false;
         if (sink.Wants(ConePlaneRayEventKind.Axis))
         {
             ConePlaneRayEvent descriptor;
@@ -31,19 +32,32 @@ internal static partial class ConePlaneRayEvents
                 if (!sink.Wants(descriptor)) return false;
                 point.Y.Set(frame.PlaneConstant); point.Y.MultiplySign(frame.Normal.Y.Sign);
                 point.Denominator.Set(Extend(frame.Normal.Y)); point.Denominator.MultiplySign(frame.Normal.Y.Sign);
+                SetEvent(source, descriptor, ref positive, ref negative);
+                bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly);
+                if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty, positive, negative);
+                found |= admitted;
             }
             else
             {
-                if (!frame.PlaneConstant.IsZero || (uint)sink.Target.Endpoint > 1) return false;
-                descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: sink.Target.Endpoint);
-                point.Y.Set(sink.Target.Endpoint == 0 ? default : Extend(frame.Finite.FullHeight));
-                point.Denominator.Set(Integer(1));
+                if (frame.PlaneConstant.IsZero && (sink.IsStreaming || (uint)sink.Target.Endpoint <= 1))
+                    for (int endpoint = sink.IsStreaming ? 0 : sink.Target.Endpoint; endpoint <= (sink.IsStreaming ? 1 : sink.Target.Endpoint); endpoint++)
+                    {
+                        descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: endpoint);
+                        point.Y.Set(endpoint == 0 ? default : Extend(frame.Finite.FullHeight));
+                        point.Denominator.Set(Integer(1));
+                        SetEvent(source, descriptor, ref positive, ref negative);
+                        bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly);
+                        // Ny=0 and c=0 contain the whole axis. Its two
+                        // finite endpoints satisfy this plane and solid cone
+                        // exactly, including radius zero; admission cannot fail.
+                        System.Diagnostics.Debug.Assert(admitted);
+                        sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty, positive, negative);
+                        found = true;
+                    }
             }
-            SetEvent(source, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly);
-            if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty);
-            return admitted;
+            if (!sink.IsStreaming) return found;
         }
+        if (!sink.Wants(ConePlaneRayEventKind.Apex)) return found;
         // Project the apex onto the shared plane. Zero depth is represented by
         // the axis event; a nonzero certified exit retains its orientation.
         n.Set(frame.PlaneConstant); d.Set(frame.NormalSquared);
@@ -59,10 +73,10 @@ internal static partial class ConePlaneRayEvents
             SetEvent(source, descriptor, ref positive, ref negative);
             bool admitted = ConePlaneRayPointExits.AccumulateCertifiedExit(source, frame, point,
                 ReadOnlySpan<ulong>.Empty, term, d, orientation, ref positive, ref negative, sink.PointOnly);
-            if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty);
-            return admitted;
+            if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty, positive, negative);
+            return found | admitted;
         }
-        return false;
+        return found;
     }
 
     private static bool AccumulateBaseStationary(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
@@ -111,15 +125,19 @@ internal static partial class ConePlaneRayEvents
         ContactQuadratic.Scale(L, Extend(frame.Finite.FullHeight), term);
         ContactQuadratic.Scale(term, Extend(frame.Finite.FullHeight), work);
         ContactQuadratic.Scale(work, r2, term); c.Add(term, -1);
-        int branch = sink.Target.Branch;
-        if (!ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, t, d)) return false;
-        int orientation = t.Sign(root) < 0 ? -1 : 1;
-        var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch, orientation: orientation);
-        t.CopyTo(depth, orientation);
-        SetEvent(source, descriptor, ref positive, ref negative);
-        bool admitted = ConePlaneRayPointExits.AccumulateStationarySideExit(source, frame, point, root,
-            depth, d, orientation, ref positive, ref negative, sink.PointOnly);
-        if (admitted) sink.Keep(descriptor, point, root);
-        return admitted;
+        bool found = false;
+        for (int branch = sink.IsStreaming ? -1 : sink.Target.Branch; branch <= (sink.IsStreaming ? 1 : sink.Target.Branch); branch += 2)
+        {
+            if (!ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, t, d)) continue;
+            int orientation = t.Sign(root) < 0 ? -1 : 1;
+            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch, orientation: orientation);
+            t.CopyTo(depth, orientation);
+            SetEvent(source, descriptor, ref positive, ref negative);
+            bool admitted = ConePlaneRayPointExits.AccumulateStationarySideExit(source, frame, point, root,
+                depth, d, orientation, ref positive, ref negative, sink.PointOnly);
+            if (admitted) sink.Keep(descriptor, point, root, positive, negative);
+            found |= admitted;
+        }
+        return found;
     }
 }

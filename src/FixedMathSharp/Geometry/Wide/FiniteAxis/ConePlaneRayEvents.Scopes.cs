@@ -17,18 +17,64 @@ internal static partial class ConePlaneRayEvents
     internal const int IntrinsicCapacity = 102;
     internal const int BoundaryCapacity = 14;
 
+    /// <summary>Constructs the scoped inventory once and synchronously visits its admitted exact events.</summary>
+    internal static bool VisitEvents(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame, ConePlaneRayEventVisitor visitor)
+    {
+        Span<ulong> positiveValues = stackalloc ulong[ConePlaneRaySelection.StorageWords], negativeValues = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+        Span<int> positiveSigns = stackalloc int[ConePlaneRaySelection.SignCount], negativeSigns = stackalloc int[ConePlaneRaySelection.SignCount];
+        var positive = new ConePlaneRaySelection(positiveValues, positiveSigns);
+        var negative = new ConePlaneRaySelection(negativeValues, negativeSigns);
+        scoped ConePlaneRayEventSink sink = new(source, frame, visitor);
+        return Accumulate(source, frame, ref positive, ref negative, ref sink);
+    }
+
+    /// <summary>Tests closed finite triangle admission without reconstructing exits or rounding witnesses.</summary>
+    /// <remarks>The triangle belongs to the frame's exact authored plane.</remarks>
+    internal static bool IntersectsTriangle(in ConePlaneRayFrame frame, FixedTriangle triangle)
+    {
+        if (triangle.IsDegenerate || frame.NormalSquared.IsZero) return false;
+        for (int edge = 0; edge < 3; edge++)
+            if (frame.IntersectsSegment(triangle.GetEdge(edge))) return true;
+        Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+        Span<ulong> root = stackalloc ulong[ConePlaneRaySelection.RootWords];
+        var point = new ConePlaneRayPoint(words, signs);
+        var axis = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: frame.Normal.Y.IsZero ? 0 : -1);
+        if (ReconstructPoint(ConePlaneRayEventSource.Plane, frame, axis, point, root))
+            return ConePlaneRayPointExits.ContainsTrianglePoint(triangle, frame, point, root);
+        Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[IntrinsicCapacity];
+        int count = GetIntrinsicEvents(frame, events);
+        foreach (ConePlaneRayEvent descriptor in events[..count])
+            if (ReconstructPoint(ConePlaneRayEventSource.Plane, frame, descriptor, point, root))
+                // A finite cone section is compact and connected, including a
+                // tangent point/generator or radius-zero segment. With all
+                // closed triangle edges disjoint, an intersecting section lies
+                // wholly inside the triangle. Any certified section point then
+                // decides admission; no extremum or materialized point is needed.
+                return ConePlaneRayPointExits.ContainsTrianglePoint(triangle, frame, point, root);
+        return false;
+    }
+
     internal static int GetIntrinsicEvents(in ConePlaneRayFrame frame, Span<ConePlaneRayEvent> events)
     {
         if (events.Length < IntrinsicCapacity) throw new ArgumentException("Intrinsic event storage is too small.", nameof(events));
-        // For a nonzero axial normal every non-seam circle restriction is
-        // C*(1+u*u): no real root, or a zero polynomial already rejected by
-        // the chart owner. N.g=Ny*FullHeight*(d*d+n*n) cannot vanish because
-        // height is positive, so no generator event survives. Base stationarity
-        // also rejects the zero radial normal. Omitting those 90 constructions
-        // preserves every admitted descriptor and both directional certificates,
-        // including radius zero; the eight seams, three axes and apex remain.
+        // An axial section needs its axis and four lower-circle cardinals.
+        // Other circle restrictions have no roots; projected upper-rim points
+        // fail cone admission except at the base, where they duplicate these
+        // cardinals. Apex and extra axes add no point or larger first exit.
+        // Radius zero collapses the entire section to the axis alone.
         bool axial = frame.Normal.X.IsZero && frame.Normal.Z.IsZero && !frame.Normal.Y.IsZero;
         int count = 0;
+        if (axial)
+        {
+            if (frame.Radius != Fixed64.Zero)
+                for (int quadrant = 0; quadrant < 4; quadrant++)
+                    for (int endpoint = 0; endpoint < 2; endpoint++)
+                        if (endpoint == 0 ? (quadrant & 2) == 0 : (quadrant & 1) == 0)
+                            events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.LowerCircle, 8, quadrant, endpoint, endpoint);
+            events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: -1);
+            return count;
+        }
         for (int upper = 0; upper < 2; upper++)
         for (int quadrant = 0; quadrant < 4; quadrant++)
         {
@@ -37,11 +83,10 @@ internal static partial class ConePlaneRayEvents
             {
                 if (endpoint == 0 && (quadrant & 2) != 0 || endpoint == 1 && (quadrant & 1) != 0) continue;
                 events[count++] = new ConePlaneRayEvent(kind, 8, quadrant, endpoint, endpoint);
-                if (upper == 0 && !axial)
+                if (upper == 0)
                     for (int bound = 0; bound < 2; bound++)
                         events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Generator, 8, quadrant, endpoint, bound);
             }
-            if (axial) continue;
             for (int line = 0; line < (upper == 0 ? 6 : 8); line++)
             {
                 if (upper == 0 ? line >= 2 && line <= 4 : line < 3) continue;
@@ -57,9 +102,8 @@ internal static partial class ConePlaneRayEvents
         for (int endpoint = -1; endpoint < 2; endpoint++)
             events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: endpoint);
         events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Apex);
-        if (!axial)
-            for (int branch = -1; branch <= 1; branch += 2)
-                events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch);
+        for (int branch = -1; branch <= 1; branch += 2)
+            events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch);
         return count;
     }
 

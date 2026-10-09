@@ -119,6 +119,20 @@ internal static partial class SegmentConeSurfaceCandidates
 
     // Slots 0..2 are n, 5..6 are finite segment t numerator/denominator,
     // 7 is n² (rational), 8 is (A-V)·n, and 9 is qY's numerator over tD*n².
+    private static void BuildSideMetric(in SegmentConeSurfaceGeometry geometry, int endpoint,
+        Span<ulong> values, Span<int> signs, ReadOnlySpan<ulong> root)
+    {
+        ContactQuadratic metric = At(values, signs, 7), gap = At(values, signs, 8), product = At(values, signs, 3);
+        metric.Clear(); gap.Clear();
+        WideAxis3 point = endpoint == 1 ? geometry.B : geometry.A;
+        WideAxis3 offset = new(point.X, WideArithmetic.SubtractSigned320(point.Y, geometry.Finite.ShapeFrame.Cap), point.Z);
+        for (int axis = 0; axis < 3; axis++)
+        {
+            Multiply(At(values, signs, axis), At(values, signs, axis), root, product); metric.Add(product);
+            Scale(At(values, signs, axis), Signed576.ExtendValue(Component(offset, axis)), product); gap.Add(product);
+        }
+    }
+
     private static bool TryBuildSideFoot(in SegmentConeSurfaceGeometry geometry, int endpoint,
         Span<ulong> values, Span<int> signs, ReadOnlySpan<ulong> root, out bool interval)
     {
@@ -126,27 +140,13 @@ internal static partial class SegmentConeSurfaceCandidates
         ContactQuadratic numerator = At(values, signs, 5), denominator = At(values, signs, 6);
         ContactQuadratic metric = At(values, signs, 7), gap = At(values, signs, 8);
         ContactQuadratic product = At(values, signs, 3), temporary = At(values, signs, 4);
-        metric.Clear(); gap.Clear();
-        WideAxis3 offset = new(geometry.A.X, WideArithmetic.SubtractSigned320(geometry.A.Y, geometry.Finite.ShapeFrame.Cap), geometry.A.Z);
-        for (int axis = 0; axis < 3; axis++)
-        {
-            Multiply(At(values, signs, axis), At(values, signs, axis), root, product); metric.Add(product);
-            Scale(At(values, signs, axis), Signed576.ExtendValue(Component(offset, axis)), product); gap.Add(product);
-        }
+        BuildSideMetric(geometry, endpoint, values, signs, root);
         if (endpoint >= 0)
         {
             numerator.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(endpoint))));
             denominator.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1))));
             if (!AdmitsEndpointNormal(geometry.Edge, endpoint, values, signs, root))
                 return false;
-            if (endpoint == 1)
-            {
-                for (int axis = 0; axis < 3; axis++)
-                {
-                    Scale(At(values, signs, axis), Signed576.ExtendValue(Component(geometry.Edge, axis)), product);
-                    gap.Add(product);
-                }
-            }
         }
         else
         {

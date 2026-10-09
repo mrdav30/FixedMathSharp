@@ -71,7 +71,7 @@ internal readonly ref partial struct ContactQuadratic
         return firstSign * firstSquare.Sign(firstRoot);
     }
 
-    private static int ActiveWords(ContactQuadratic value) => Math.Max(
+    internal static int ActiveWords(ContactQuadratic value) => Math.Max(
         WideArithmetic.GetActiveMagnitudeLength(value.Rational), WideArithmetic.GetActiveMagnitudeLength(value.Radical));
 
     private static ReadOnlySpan<ulong> Part(ContactQuadratic value, int index) =>
@@ -85,6 +85,18 @@ internal readonly ref partial struct ContactQuadratic
     internal static bool TryRoundRootRatio(ContactQuadratic numerator, ContactQuadratic denominator,
         ReadOnlySpan<ulong> root, ReadOnlySpan<ulong> metric, ReadOnlySpan<ulong> scale, out Fixed64 result)
     {
+        if (numerator.Signs[1] == 0 && denominator.Signs[1] == 0
+            && WideArithmetic.GetActiveMagnitudeLength(metric) == 1 && metric[0] == 1UL)
+        {
+            // With a unit metric and rational fields the depth is exactly
+            // N/(D*scale). Reuse raw nearest-even division, including its
+            // overflow boundary, without squaring or searching a root. The
+            // disjoint product reserves both complete active operand lengths.
+            Span<ulong> divisor = stackalloc ulong[WideArithmetic.GetActiveMagnitudeLength(denominator.Rational)
+                + WideArithmetic.GetActiveMagnitudeLength(scale)];
+            WideArithmetic.MultiplyMagnitudes(denominator.Rational, scale, divisor);
+            return Fixed64.TryGetSignedRawRatio(numerator.Rational, divisor, negative: false, out result);
+        }
         // Each square needs 2W+|K| limbs. Metric/scale products and a
         // 65-bit doubled raw threshold add the bounded suffix below.
         int words = 2 * Math.Max(ActiveWords(numerator), ActiveWords(denominator))
@@ -135,15 +147,31 @@ internal readonly ref partial struct ContactQuadratic
         // next even integer. Values below that half still round to MaxValue.
         if (CompareDoubledRootRatio(left, right, root, upperHalf, query) >= 0)
             return false;
-        long low = 0, high = long.MaxValue;
-        while (low < high)
+        long low = 0;
+        if (left.Signs[1] == 0 && right.Signs[1] == 0)
         {
-            long midpoint = low + ((high - low) >> 1) + ((high - low) & 1);
-            Signed192 threshold = WideArithmetic.AddSigned192(Signed192.Signed(midpoint), Signed192.Signed(midpoint));
-            if (CompareDoubledRootRatio(left, right, root, threshold, query) >= 0)
-                low = midpoint;
-            else
-                high = midpoint - 1;
+            // L/R is four times the raw depth squared. Reuse the exact
+            // clipped integer root: floor(sqrt(4*d*d))/2 = floor(d).
+            // The range check above proves the clipped result loses no bits.
+            int width = Math.Max(2, Math.Max(ActiveWords(left), ActiveWords(right)));
+            Span<ulong> rational = stackalloc ulong[2 * width];
+            rational.Clear();
+            left.Rational[..Math.Min(width, left.FieldWords)].CopyTo(rational[..width]);
+            right.Rational[..Math.Min(width, right.FieldWords)].CopyTo(rational[width..]);
+            low = (long)(WideArithmetic.GetRatioFloorSquareRoot(rational[..width], rational[width..], ulong.MaxValue) >> 1);
+        }
+        else
+        {
+            long high = long.MaxValue;
+            while (low < high)
+            {
+                long midpoint = low + ((high - low) >> 1) + ((high - low) & 1);
+                Signed192 threshold = WideArithmetic.AddSigned192(Signed192.Signed(midpoint), Signed192.Signed(midpoint));
+                if (CompareDoubledRootRatio(left, right, root, threshold, query) >= 0)
+                    low = midpoint;
+                else
+                    high = midpoint - 1;
+            }
         }
         Signed192 half = WideArithmetic.AddSigned192(
             WideArithmetic.AddSigned192(Signed192.Signed(low), Signed192.Signed(low)), Signed192.Signed(1));

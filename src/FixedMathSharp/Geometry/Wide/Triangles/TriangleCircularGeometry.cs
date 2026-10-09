@@ -1,4 +1,6 @@
 //=======================================================================
+// TriangleCircularGeometry.cs
+//=======================================================================
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
@@ -76,65 +78,11 @@ internal readonly struct TriangleCircularGeometry
         ValueShift = GetValueShift(bounds, 5);
     }
 
-    internal TriangleCircularGeometry(FixedTriangle triangle, in CylinderPolytopeFrame frame,
-        in WideRationalBasis3d worldBasis, int valueShift)
-    {
-        // Polygon charts share their unreduced frame and squared-value scale.
-        // Independently reducing each corner would give algebraic value roots
-        // different coordinates, preventing direct exact cross-chart ranking.
-        WorldBasis = worldBasis;
-        A = frame.Transform(triangle.A); B = frame.Transform(triangle.B); C = frame.Transform(triangle.C);
-        RawScale = WideArithmetic.AddSigned192(frame.Denominator, frame.Denominator);
-        HalfHeight = frame.Cap;
-        Radius = WideArithmetic.MultiplySigned192(frame.Radius, frame.Denominator);
-        firstEdge = Subtract(B, A); secondEdge = Subtract(C, B);
-        EdgeScale = Signed192.Signed(1);
-        triangle.GetExactNormal(out Signed192 nx, out Signed192 ny, out Signed192 nz, out _);
-        FaceNormal = WideRigidProjection.TransformLocalAxis(frame.Basis, nx, ny, nz);
-        ValueShift = valueShift;
-    }
-
-    internal static int GetPolygonValueShift(in CylinderPolytopeFrame frame,
-        ReadOnlySpan<Vector3d> vertices, ReadOnlySpan<int> corners)
-    {
-        Span<Signed320> bounds = stackalloc Signed320[3]
-        {
-            frame.Cap, WideArithmetic.MultiplySigned192(frame.Radius, frame.Denominator), default
-        };
-        int shift = GetValueShift(bounds, 4);
-        for (int index = 0; index < corners.Length; index++)
-        {
-            WideAxis3 point = frame.Transform(vertices[corners[index]]);
-            bounds[0] = point.X; bounds[1] = point.Y; bounds[2] = point.Z;
-            shift = Math.Max(shift, GetValueShift(bounds, 4));
-        }
-        return shift;
-    }
-
     private TriangleCircularGeometry(in TriangleCircularGeometry source, WideAxis3 offset)
     {
         this = source;
         A = Add(source.A, offset); B = Add(source.B, offset); C = Add(source.C, offset);
     }
-
-    private TriangleCircularGeometry(in TriangleCircularGeometry source,
-        in CylinderPolytopeFrame frame, Vector3d point)
-    {
-        // A point polytope uses the same exact support-gap algebra as a
-        // triangle. No face/edge certificate or witness is requested from it.
-        WorldBasis = source.WorldBasis;
-        A = B = C = frame.Transform(point);
-        FaceNormal = firstEdge = secondEdge = default;
-        HalfHeight = frame.Cap;
-        Radius = WideArithmetic.MultiplySigned192(frame.Radius, frame.Denominator);
-        RawScale = WideArithmetic.AddSigned192(frame.Denominator, frame.Denominator);
-        EdgeScale = Signed192.Signed(1);
-        Span<Signed320> bounds = stackalloc Signed320[5] { A.X, A.Y, A.Z, HalfHeight, Radius };
-        ValueShift = GetValueShift(bounds, 4);
-    }
-
-    internal TriangleCircularGeometry AtPoint(in CylinderPolytopeFrame frame, Vector3d point) =>
-        new(this, frame, point);
 
     internal TriangleCircularGeometry WithCore(Vector2d axis, Fixed64 length, out WideAxis3 coreOffset)
     {

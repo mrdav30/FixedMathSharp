@@ -16,6 +16,39 @@ internal static partial class SegmentConeSurfaceCandidates
 {
     private const int RimSlots = 31;
 
+    private static bool TryGetRimSquaredDepth(in SegmentConeSurfaceGeometry geometry,
+        SegmentConeSurfaceCandidate candidate, Span<ulong> values, Span<sbyte> valueSigns,
+        Span<ulong> valueCell, out FiniteAxisValueRoot value)
+    {
+        GetRimBasis(geometry.Edge, candidate.Chart, out WideAxis3 first, out WideAxis3 second);
+        Span<ulong> data = stackalloc ulong[RimSlots * Words];
+        Span<sbyte> signs = stackalloc sbyte[RimSlots];
+        TriangleConeRimContacts.BuildConeParameter(geometry.BaseOffset, geometry.Radius, geometry.RawScale,
+            geometry.Input.Height, geometry.Input.Radius, first, second, data, signs);
+        Span<ulong> cell = stackalloc ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(data[..(5 * Words)], signs[..5])];
+        bool found = WideFiniteAxisIntersection.TryGetFiniteValueRoot(data[..(5 * Words)], signs[..5], candidate.RootOrdinal, cell, out FiniteAxisValueRoot parameter);
+        System.Diagnostics.Debug.Assert(found);
+        value = default;
+        if (Sign(ref parameter, data, signs, 13, 3) == 0)
+            return false;
+        // The cone parameter already retains the unsquared admitted gap and
+        // its squared rational expression. Reuse its existing value polynomial
+        // and isolator; squaring cannot reverse these nonnegative depths.
+        BuildValues(geometry.Edge, geometry.BaseOffset, geometry.Radius, geometry.ValueShift, values, valueSigns);
+        scoped FiniteAxisValueRoot mapped = ConvexContactValueRoot.MapSquaredValue(geometry.RawScale, geometry.ValueShift,
+            ref parameter, data.Slice(16 * Words, 5 * Words), signs.Slice(16, 5), data.Slice(21 * Words, 5 * Words), signs.Slice(21, 5),
+            values, valueSigns, valueCell);
+        // Only the mapped polynomial and cell are retained. Rebuild the view
+        // from caller storage explicitly; the local parameter chart cannot escape.
+        value = new FiniteAxisValueRoot
+        {
+            Coefficients = values[..mapped.Coefficients.Length], Signs = valueSigns[..mapped.Signs.Length],
+            LowerNumerator = valueCell, DenominatorShift = mapped.DenominatorShift,
+            Ordinal = mapped.Ordinal, IsRational = mapped.IsRational
+        };
+        return true;
+    }
+
     private static void AccumulateRimRoots(in SegmentConeSurfaceGeometry geometry, ref ConeSurfaceSelection selection)
     {
         // Horizontal and axial segments use the principal meridional/circular

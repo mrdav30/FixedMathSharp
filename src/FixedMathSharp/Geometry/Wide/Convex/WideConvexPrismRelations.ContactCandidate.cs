@@ -258,7 +258,7 @@ internal static partial class WideConvexPrismRelations
         GetConvexContactCandidateQuadraticBounds(normRational, 1,
             normRadical, signs[3], roots, rootShift,
             denominatorBounds[..boundWords], denominatorBounds[boundWords..],
-            out int denominatorSign);
+            out int denominatorSign, out _);
         if (denominatorSign > 0)
         {
             // scaledSquares=(2S)^2*n_i^2, so its matching denominator is
@@ -387,7 +387,7 @@ internal static partial class WideConvexPrismRelations
         GetConvexContactCandidateQuadraticBounds(candidate.GapRational,
             candidate.GapRationalSign, candidate.GapRadical,
             candidate.GapRadicalSign, roots, shift, minimum, maximum,
-            out int minimumSign);
+            out int minimumSign, out _);
         denominator.Clear();
         candidate.GapDenominator[..ConvexContactCandidateLength(candidate.GapDenominator)].CopyTo(denominator);
         // The true squared magnitude is nonnegative. A negative interval
@@ -411,23 +411,25 @@ internal static partial class WideConvexPrismRelations
         Span<ulong> maximum = stackalloc ulong[words];
         GetConvexContactCandidateQuadraticBounds(scaledSquares[..coefficientWords], 1,
             scaledSquares[coefficientWords..], radicalSign, roots, shift,
-            minimum, maximum, out int minimumSign);
+            minimum, maximum, out int minimumSign, out _);
         lower = minimumSign > 0
             ? WideArithmetic.GetRatioFloorSquareRoot(minimum, denominatorBounds[words..], cap) : 0;
         upper = WideArithmetic.GetRatioFloorSquareRoot(maximum, denominatorBounds[..words], cap);
     }
 
-    private static void GetConvexContactCandidateQuadraticBounds(
+    /// <summary>Encloses a signed quadratic value using factored, nonnegative root endpoints.</summary>
+    /// <remarks>Both output magnitudes include all complete shifted products; signs are independent.</remarks>
+    internal static void GetConvexContactCandidateQuadraticBounds(
         ReadOnlySpan<ulong> rational, int rationalSign,
         ReadOnlySpan<ulong> radical, int radicalSign,
         ReadOnlySpan<ulong> roots, int shift,
-        Span<ulong> minimum, Span<ulong> maximum, out int minimumSign)
+        Span<ulong> minimum, Span<ulong> maximum, out int minimumSign, out int maximumSign)
     {
         minimum.Clear();
         rational[..ConvexContactCandidateLength(rational)].CopyTo(minimum);
         minimum.CopyTo(maximum);
         minimumSign = IsZero(rational) ? 0 : rationalSign;
-        int maximumSign = minimumSign;
+        maximumSign = minimumSign;
         Span<ulong> product = stackalloc ulong[ConvexContactCandidateLength(radical) + 2];
         // Negative coefficients reverse the root endpoints. Accumulate the
         // factored root directly, including signed cancellation and the upper
@@ -440,6 +442,8 @@ internal static partial class WideConvexPrismRelations
         WideArithmetic.AddShiftedSignedMagnitude(product, radicalSign, shift, maximum, ref maximumSign);
         if (IsZero(minimum))
             minimumSign = 0;
+        if (IsZero(maximum))
+            maximumSign = 0;
     }
 
     private static int CompareConvexContactCandidateNormalComponentToTwiceRaw(

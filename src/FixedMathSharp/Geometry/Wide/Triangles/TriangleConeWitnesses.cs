@@ -1,4 +1,6 @@
 //=======================================================================
+// TriangleConeWitnesses.cs
+//=======================================================================
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
@@ -13,15 +15,6 @@ namespace FixedMathSharp.Geometry;
 internal static class TriangleConeWitnesses
 {
     internal static void GetGenerator(in TriangleCircularGeometry geometry, FixedTriangle triangle,
-        Fixed64 height, Fixed64 radius, int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns,
-        Vector3d center, FixedQuaternion rotation, out Vector3d trianglePoint, out FixedPointAnchor coneAnchor)
-    {
-        bool found = TryGetGenerator(geometry, triangle, height, radius, mask, normal, normalSigns,
-            center, rotation, out trianglePoint, out coneAnchor);
-        System.Diagnostics.Debug.Assert(found);
-    }
-
-    internal static bool TryGetGenerator(in TriangleCircularGeometry geometry, FixedTriangle triangle,
         Fixed64 height, Fixed64 radius, int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns,
         Vector3d center, FixedQuaternion rotation, out Vector3d trianglePoint, out FixedPointAnchor coneAnchor)
     {
@@ -79,8 +72,11 @@ internal static class TriangleConeWitnesses
         weights.Clear(); weightSigns.Clear();
         bool found = TryGetWeights(mask, distances, distanceSigns, projections, projectionSigns, bound, root,
             weights, weightSigns, out bool centered);
-        if (!found)
-            return false;
+        // The complete triangle support fan admitted this exact generator and
+        // selected feature together, so their finite slice contains a witness.
+        // General slice callers still own TryGetWeights' legitimate failure;
+        // this matched-feature owner never declines or changes range handling.
+        System.Diagnostics.Debug.Assert(found);
         SumWeights(weights, weightSigns, denominator);
         trianglePoint = new Vector3d(
             RoundTriangleCoordinate(triangle.A.X, triangle.B.X, triangle.C.X, weights, weightSigns, denominator, root),
@@ -110,7 +106,6 @@ internal static class TriangleConeWitnesses
         coneAnchor = endpoint == 0 ? new FixedPointAnchor(center, rotation, conePoint)
             : TriangleCircularGeometry.GetSupport(center, rotation, Signed192.Raw(height),
                 new Vector3d(conePoint.X, Fixed64.Zero, conePoint.Z), -endpoint);
-        return true;
     }
 
     private static Fixed64 RoundRadial(int axis, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> signs,

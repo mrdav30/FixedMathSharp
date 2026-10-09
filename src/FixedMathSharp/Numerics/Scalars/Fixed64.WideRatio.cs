@@ -948,6 +948,18 @@ public partial struct Fixed64
             return true;
         }
 
+        // Immutable views lose the same exact factor 2^(64*k) before copying
+        // into local mutable spans. Quotient, half ties and signed overflow
+        // are unchanged; typed ratio paths keep their original core cost.
+        if (denominatorLength > 1 && numeratorLength > 1 && (numeratorMagnitude[0] | denominatorMagnitude[0]) == 0UL)
+        {
+            int commonWords = 1, commonLimit = Math.Min(numeratorLength, denominatorLength);
+            while (commonWords + 1 < commonLimit && (numeratorMagnitude[commonWords] | denominatorMagnitude[commonWords]) == 0UL)
+                commonWords++;
+            numeratorMagnitude = numeratorMagnitude[commonWords..]; denominatorMagnitude = denominatorMagnitude[commonWords..];
+            numeratorLength -= commonWords; denominatorLength -= commonWords;
+        }
+
         int length = Math.Max(numeratorLength, denominatorLength);
         Span<ulong> remainder = stackalloc ulong[length];
         Span<ulong> denominator = stackalloc ulong[length];

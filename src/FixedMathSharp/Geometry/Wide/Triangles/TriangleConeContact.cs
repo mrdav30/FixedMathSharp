@@ -1,4 +1,6 @@
 //=======================================================================
+// TriangleConeContact.cs
+//=======================================================================
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
@@ -9,7 +11,7 @@ namespace FixedMathSharp.Geometry;
 
 /// <summary>Complete finite-cone/triangle support-fan contact ownership.</summary>
 /// <content>
-/// Provides complete triangle/convex-polygon contacts and certified coplanar-patch face exits.
+/// Provides complete finite-triangle contacts through exact support-fan admission and matched witnesses.
 /// </content>
 internal static partial class TriangleConeContact
 {
@@ -65,7 +67,7 @@ internal static partial class TriangleConeContact
     private static void GetAnalyticWitnesses(in TriangleCircularGeometry geometry, FixedTriangle triangle,
         Fixed64 height, Fixed64 radius, Vector3d center, FixedQuaternion coneRotation,
         ref TriangleConeContactSelection selection, out Vector3d normal, out Vector3d point,
-        out FixedPointAnchor coneAnchor, ReadOnlySpan<Vector3d> patchBounds = default)
+        out FixedPointAnchor coneAnchor)
     {
         Vector3d radialPoint = default;
         // Ranking and rim admission use only exact gap fields. Transform
@@ -86,7 +88,7 @@ internal static partial class TriangleConeContact
         {
             bool apex = selection.Feature == TriangleConeContactSelection.Apex;
             point = TriangleCylinderRimWitnesses.GetAnalyticPoint(geometry, triangle, selection.Mask,
-                localNormal[..(3 * Words)], localSigns[..3], apex ? -1 : 1, apex ? default : geometry.Radius, patchBounds);
+                localNormal[..(3 * Words)], localSigns[..3], apex ? -1 : 1, apex ? default : geometry.Radius);
             if (!apex)
             {
                 // Scale the exact radial direction before normalization;

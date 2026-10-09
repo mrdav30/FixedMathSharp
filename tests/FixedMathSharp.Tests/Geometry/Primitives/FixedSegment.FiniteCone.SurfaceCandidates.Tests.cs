@@ -7,6 +7,145 @@ namespace FixedMathSharp.Tests;
 public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
 {
     [Theory]
+    [InlineData(-2, false, false)]
+    [InlineData(-1, false, false)]
+    [InlineData(0, false, false)]
+    [InlineData(2, false, false)]
+    [InlineData(0, true, false)]
+    [InlineData(-1, false, true)]
+    public void SurfaceCandidateDepths_AxisFamiliesFollowIndependentSquaredDistanceOracle(int y, bool zeroRadius, bool moved)
+    {
+        Vector3d point = Vector3d.Up * y, translation = moved ? new Vector3d(7, -3, 2) : Vector3d.Zero;
+        FixedQuaternion rotation = moved ? new FixedQuaternion(Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.Zero) : FixedQuaternion.Identity;
+        Span<SegmentConeSurfaceCandidate> storage = stackalloc SegmentConeSurfaceCandidate[SegmentConeSurfaceCandidates.MaximumCandidates];
+        var selection = new ConeSurfaceSelection(storage);
+        Assert.True(SegmentConeSurfaceCandidates.AccumulateSegmentConeSurfaceCandidates(new FixedSegment(point, point),
+            translation, rotation, translation, rotation, (Fixed64)4, zeroRadius ? Fixed64.Zero : Fixed64.Two, ref selection));
+        for (int first = 0; first < selection.Count; first++)
+        for (int second = 0; second < selection.Count; second++)
+        {
+            (int a, int b) = AxisSquaredDepth(selection[first].Feature, y, zeroRadius);
+            (int c, int d) = AxisSquaredDepth(selection[second].Feature, y, zeroRadius);
+            int expected = Math.Sign(a * d - c * b);
+            Assert.Equal(expected, SegmentConeSurfaceCandidates.CompareDepths(selection[first], selection[second]));
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SurfaceCandidateDepths_RimChartAndAnalyticEndpointRetainAnExactTie(bool reverse)
+    {
+        Vector3d p = new(1, -1, 0), q = new(2, -2, 0);
+        Vector3d other = p + new Vector3d(Fixed64.Quarter, Fixed64.Quarter, Fixed64.Quarter);
+        Span<SegmentConeSurfaceCandidate> storage = stackalloc SegmentConeSurfaceCandidate[SegmentConeSurfaceCandidates.MaximumCandidates];
+        var selection = new ConeSurfaceSelection(storage);
+        Assert.True(Accumulate(reverse ? new FixedSegment(other, p) : new FixedSegment(p, other), Vector3d.Zero, ref selection));
+        int analytic = -1, quartic = -1;
+        for (int index = 0; index < selection.Count; index++)
+        {
+            SegmentConeSurfaceCandidate candidate = selection[index];
+            if (candidate.Feature != ConeSurfaceFeature.Rim || candidate.Family != ConeSurfaceFamily.None) continue;
+            FixedContactAnchors contact = candidate.GetContact();
+            Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d a)); Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d b));
+            if (a != p || b != q) continue;
+            if (candidate.Chart >= 0) quartic = index;
+            else analytic = index;
+        }
+        Assert.True(analytic >= 0 && quartic >= 0);
+        Assert.Equal(0, SegmentConeSurfaceCandidates.CompareDepths(selection[analytic], selection[quartic]));
+        Assert.Equal(0, SegmentConeSurfaceCandidates.CompareDepths(selection[quartic], selection[analytic]));
+        Assert.Equal(0, SegmentConeSurfaceCandidates.CompareDepths(selection[quartic], selection[quartic]));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SurfaceCandidateDepths_QuarticAndMeridionalInventoryPreserveExactOrderAndSymmetry(bool meridional)
+    {
+        Vector3d a = new(-1, -1, 0), b = new(1, 1, meridional ? 0 : 1);
+        Span<SegmentConeSurfaceCandidate> storage = stackalloc SegmentConeSurfaceCandidate[SegmentConeSurfaceCandidates.MaximumCandidates];
+        var selection = new ConeSurfaceSelection(storage);
+        Assert.True(Accumulate(new FixedSegment(a, b), Vector3d.Zero, ref selection));
+        int distinct = 0, rim = 0;
+        for (int first = 0; first < selection.Count; first++)
+        {
+            SegmentConeSurfaceCandidate candidate = selection[first];
+            Assert.Equal(0, SegmentConeSurfaceCandidates.CompareDepths(candidate, candidate));
+            if (candidate.Family != ConeSurfaceFamily.None) continue;
+            if (candidate.Feature == ConeSurfaceFeature.Rim) rim++;
+            Fixed64 depth = candidate.GetContact().Depth;
+            for (int second = first + 1; second < selection.Count; second++)
+            {
+                SegmentConeSurfaceCandidate other = selection[second];
+                int comparison = SegmentConeSurfaceCandidates.CompareDepths(candidate, other);
+                Assert.Equal(-comparison, SegmentConeSurfaceCandidates.CompareDepths(other, candidate));
+                if (other.Family != ConeSurfaceFamily.None) continue;
+                Fixed64 otherDepth = other.GetContact().Depth;
+                // Distinct rounded outputs cannot reverse an exact ordering.
+                // Exact-equality obligations are asserted separately above.
+                if (depth != otherDepth) { Assert.Equal(Math.Sign(depth.CompareTo(otherDepth)), comparison); distinct++; }
+            }
+        }
+        Assert.True(rim > 0 && distinct > 0);
+    }
+
+    private static (int Numerator, int Denominator) AxisSquaredDepth(ConeSurfaceFeature feature, int y, bool zeroRadius) => feature switch
+    {
+        ConeSurfaceFeature.Apex => ((2 - y) * (2 - y), 1),
+        ConeSurfaceFeature.Base => ((2 + y) * (2 + y), 1),
+        ConeSurfaceFeature.Side => zeroRadius ? (0, 1) : ((2 - y) * (2 - y), 5),
+        _ => (4 + (2 + y) * (2 + y), 1)
+    };
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SurfaceCandidateDepths_AxialEndpointsUseTheAdmittedSourcePoint(bool reverse)
+    {
+        Vector3d low = -Vector3d.Up, high = Vector3d.Zero;
+        var segment = reverse ? new FixedSegment(high, low) : new FixedSegment(low, high);
+        Span<SegmentConeSurfaceCandidate> storage = stackalloc SegmentConeSurfaceCandidate[SegmentConeSurfaceCandidates.MaximumCandidates];
+        var selection = new ConeSurfaceSelection(storage);
+        Assert.True(Accumulate(segment, Vector3d.Zero, ref selection));
+        for (int first = 0; first < selection.Count; first++)
+        for (int second = 0; second < selection.Count; second++)
+        {
+            SegmentConeSurfaceCandidate a = selection[first], b = selection[second];
+            int aY = (int)(a.RootOrdinal == 1 ? segment.End.Y : segment.Start.Y);
+            int bY = (int)(b.RootOrdinal == 1 ? segment.End.Y : segment.Start.Y);
+            (int an, int ad) = AxisSquaredDepth(a.Feature, aY, false);
+            (int bn, int bd) = AxisSquaredDepth(b.Feature, bY, false);
+            Assert.Equal(Math.Sign(an * bd - bn * ad), SegmentConeSurfaceCandidates.CompareDepths(a, b));
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SurfaceCandidateDepths_ExactQuarticTouchOrdersBeforeEveryPositiveExit(bool reverse)
+    {
+        Vector3d rim = new(2, -2, 0), outside = rim + new Vector3d(Fixed64.Quarter, Fixed64.Quarter, Fixed64.Quarter);
+        var segment = reverse ? new FixedSegment(outside, rim) : new FixedSegment(rim, outside);
+        Span<SegmentConeSurfaceCandidate> storage = stackalloc SegmentConeSurfaceCandidate[SegmentConeSurfaceCandidates.MaximumCandidates];
+        var selection = new ConeSurfaceSelection(storage);
+        Assert.True(Accumulate(segment, Vector3d.Zero, ref selection));
+        int zeroRoot = -1, positive = -1;
+        for (int index = 0; index < selection.Count; index++)
+        {
+            SegmentConeSurfaceCandidate candidate = selection[index];
+            if (candidate.Family != ConeSurfaceFamily.None) continue;
+            Fixed64 depth = candidate.GetContact().Depth;
+            if (candidate.Feature == ConeSurfaceFeature.Rim && candidate.Chart >= 0 && depth == Fixed64.Zero) zeroRoot = index;
+            if (depth > Fixed64.Zero && candidate.Chart < 0) positive = index;
+        }
+        Assert.True(zeroRoot >= 0 && positive >= 0);
+        Assert.Equal(0, SegmentConeSurfaceCandidates.CompareDepths(selection[zeroRoot], selection[zeroRoot]));
+        Assert.Equal(-1, SegmentConeSurfaceCandidates.CompareDepths(selection[zeroRoot], selection[positive]));
+        Assert.Equal(1, SegmentConeSurfaceCandidates.CompareDepths(selection[positive], selection[zeroRoot]));
+    }
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(false, true)]
