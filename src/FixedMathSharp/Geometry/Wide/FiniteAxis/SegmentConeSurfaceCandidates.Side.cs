@@ -25,7 +25,8 @@ internal static partial class SegmentConeSurfaceCandidates
             WideAxis3 point = endpoint == 1 ? geometry.B : geometry.A;
             if (endpoint >= 0 && point.X.IsZero && point.Z.IsZero)
             {
-                if (geometry.ContainsParameter(endpoint == 0 ? Fixed64.Zero : Fixed64.One)
+                Vector3d authoredPoint = endpoint == 0 ? geometry.Input.Segment.Start : geometry.Input.Segment.End;
+                if (geometry.Finite.ContainsTransformedPoint(geometry.Finite.Transform(authoredPoint))
                     && HasSideCircleDomain(geometry, endpoint, values, signs, root))
                     selection.Add(new SegmentConeSurfaceCandidate(geometry.Input, ConeSurfaceFeature.Side,
                         ConeSurfaceFamily.RotationCircle, 1, endpoint, endpoint == 0 ? ConeSurfacePointLocation.Start : ConeSurfacePointLocation.End));

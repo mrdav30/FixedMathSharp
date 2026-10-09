@@ -152,25 +152,4 @@ internal static partial class SegmentConeSurfaceCandidates
             MaterializeQuadraticNormal(normals, normalSigns, root, geometry.Input.ConeRotation), represented ? depth : Fixed64.MaxValue, !represented);
     }
 
-    private static bool TryGetMeridionalRimTouchContact(SegmentConeSurfaceCandidate candidate, Signed576 nx, Signed576 ny, Signed576 nz,
-        out FixedContactAnchors contact)
-    {
-        contact = default;
-        var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
-        WideAxis3 radial = new(geometry.Edge.X, default, geometry.Edge.Z);
-        int branch = candidate.Chart == -2 ? 1 : -1;
-        Span<ulong> values = stackalloc ulong[24 * Words];
-        Span<int> signs = stackalloc int[24];
-        Span<ulong> root = stackalloc ulong[Words];
-        bool admitted = BuildMeridionalRim(geometry, candidate.RootOrdinal, branch, values, signs, root);
-        System.Diagnostics.Debug.Assert(admitted);
-        int endpoint = candidate.PointLocation == ConeSurfacePointLocation.Start ? 0 : candidate.IsSegmentInterior ? -1 : 1;
-        if (!AdmitsRimTouchNormal(geometry, radial, branch, endpoint, nx, ny, nz, out Vector3d normal))
-            return false;
-        contact = new FixedContactAnchors(new FixedPointAnchor(candidate.Input.Origin, candidate.Input.Rotation,
-                RoundSegmentPoint(candidate.Input.Segment, At(values, signs, 5), At(values, signs, 6), root)),
-            TriangleCircularGeometry.GetSupport(candidate.Input.Center, candidate.Input.ConeRotation, Signed192.Raw(candidate.Input.Height),
-                MaterializeRadialDirection(radial, candidate.Input.Radius, branch), 1), normal, Fixed64.Zero, false);
-        return true;
-    }
 }

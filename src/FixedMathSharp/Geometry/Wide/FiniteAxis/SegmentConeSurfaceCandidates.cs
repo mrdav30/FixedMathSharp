@@ -9,7 +9,7 @@ using System;
 namespace FixedMathSharp.Geometry;
 
 /// <summary>Exact finite-segment witnesses paired with finite-cone support features.</summary>
-/// <content>All finite support strata, retained stationary certificates, and caller-owned selection.</content>
+/// <content>Finite support strata, exact halfspace-clipped families, retained certificates, and caller-owned selection.</content>
 internal static partial class SegmentConeSurfaceCandidates
 {
     // Four quartic charts contribute at most 16 roots, with two horizontal
@@ -45,6 +45,13 @@ internal enum ConeSurfacePointLocation { SegmentIntervalUnspecified, Start, Inte
 /// <summary>One exact chart branch or a retained degenerate family.</summary>
 internal readonly struct SegmentConeSurfaceCandidate
 {
+    internal int GetMaximumFamilyEventCount(int halfspaceCount) =>
+        SegmentConeSurfaceCandidates.GetMaximumFamilyEventCount(this, halfspaceCount);
+
+    internal bool AccumulateFamilyEvents(scoped ReadOnlySpan<WideAxis3> authoredHalfspaces,
+        ConeSurfacePointLocation location, scoped ref ConeSurfaceFamilySelection selection) =>
+        SegmentConeSurfaceCandidates.AccumulateFamilyEvents(this, authoredHalfspaces, location, ref selection);
+
     internal ConeSurfaceFeature Feature { get; }
     internal ConeSurfaceFamily Family { get; }
     internal ConeSurfacePointLocation PointLocation { get; }
@@ -80,40 +87,9 @@ internal readonly struct SegmentConeSurfaceCandidate
                 : SegmentConeSurfaceCandidates.GetRimPointContact(this)
         : throw new InvalidOperationException("A family requires an admitted exact parameter before materialization.");
 
-    internal bool TryGetContactAtParameter(Fixed64 parameter, out FixedContactAnchors contact) =>
-        SegmentConeSurfaceCandidates.TryGetIntervalContact(this, parameter, out contact);
-
-    internal bool TryGetContactAtIntervalEndpoint(bool upper, out FixedContactAnchors contact) =>
-        SegmentConeSurfaceCandidates.TryGetIntervalEndpointContact(this, upper, out contact);
-
-    // Supplied normals and covectors use the segment's authored frame. Keep
-    // them wide through the exact relative basis; cone-local radial parameters
-    // below describe a different (rotational) family domain.
-    internal bool TryGetContactForAuthoredNormal(WideAxis3 normal, out FixedContactAnchors contact) =>
-        SegmentConeSurfaceCandidates.TryGetAuthoredNormalContact(this, normal, out contact);
-
-    internal bool TryGetContactAtParameterAndAuthoredNormal(Fixed64 parameter, WideAxis3 normal, out FixedContactAnchors contact) =>
-        SegmentConeSurfaceCandidates.TryGetAuthoredAxisParameterContact(this, parameter, normal, out contact);
-
-    internal bool TryGetContactAtIntervalEndpointForAuthoredNormal(bool upper, WideAxis3 normal, out FixedContactAnchors contact) =>
-        SegmentConeSurfaceCandidates.TryGetAuthoredAxisEndpointContact(this, upper, normal, out contact);
-
-    internal bool TryGetNormalDotSignForAuthoredNormal(WideAxis3 normal, WideAxis3 covector, out int sign) =>
-        SegmentConeSurfaceCandidates.TryGetAuthoredNormalDotSign(this, normal, covector, out sign);
-
-    internal bool TryGetNormalDotSignAtIntervalEndpointForAuthoredNormal(bool upper, WideAxis3 normal, WideAxis3 covector, out int sign) =>
-        SegmentConeSurfaceCandidates.TryGetAuthoredAxisEndpointNormalDotSign(this, upper, normal, covector, out sign);
-
     internal bool TryGetNormalDotSign(WideAxis3 authoredCovector, out int sign) =>
         SegmentConeSurfaceCandidates.TryGetNormalDotSign(this, authoredCovector, out sign);
 
-    internal bool TryGetNormalDotSignForRadialDirection(Vector2d direction, WideAxis3 authoredCovector, out int sign) =>
-        SegmentConeSurfaceCandidates.TryGetRadialNormalDotSign(this, direction, authoredCovector, out sign);
-
-    internal bool TryGetContactForRadialDirection(Vector2d coneLocalDirection, out FixedContactAnchors contact) =>
-        Feature == ConeSurfaceFeature.Side
-            ? SegmentConeSurfaceCandidates.TryGetSideCircleContact(this, coneLocalDirection, out contact)
-            : SegmentConeSurfaceCandidates.TryGetRimCircleContact(this, coneLocalDirection, out contact);
 }
 
 /// <summary>Caller-owned retained finite-support branches and degenerate families.</summary>
@@ -180,24 +156,4 @@ internal readonly struct SegmentConeSurfaceGeometry
         };
         ValueShift = TriangleCircularGeometry.GetValueShift(coordinates, 4);
     }
-
-    internal bool ContainsParameter(Fixed64 parameter)
-    {
-        if (parameter < Fixed64.Zero || parameter > Fixed64.One)
-            return false;
-        WideAxis3 start = Finite.Transform(Input.Segment.Start);
-        WideAxis3 delta = new(Edge.X, WideArithmetic.Negate(Edge.Y), Edge.Z);
-        Signed192 numerator = Signed192.Raw(parameter), denominator = Signed192.Raw(Fixed64.One);
-        Signed576 axial = WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned320(start.Y, denominator),
-            WideArithmetic.MultiplySigned320(delta.Y, numerator));
-        if (axial.Sign < 0 || WideArithmetic.SubtractSigned576(axial,
-                WideArithmetic.MultiplySigned320(Finite.FullHeight, denominator)).Sign > 0)
-            return false;
-        return WideFiniteConeIntersection.GetPolynomialSignAtRationalParameter(
-            Signed832.ExtendValue(Finite.QuadraticProduct(delta, delta)),
-            Signed832.ExtendValue(Finite.QuadraticProduct(start, delta)),
-            Signed832.ExtendValue(Finite.QuadraticProduct(start, start)),
-            Signed320.ExtendValue(numerator), Signed320.ExtendValue(denominator)) <= 0;
-    }
-
 }

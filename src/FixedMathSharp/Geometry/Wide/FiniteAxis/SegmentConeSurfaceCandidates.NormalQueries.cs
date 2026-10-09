@@ -66,50 +66,20 @@ internal static partial class SegmentConeSurfaceCandidates
         return true;
     }
 
-    internal static bool TryGetRadialNormalDotSign(SegmentConeSurfaceCandidate candidate, Vector2d direction,
-        WideAxis3 authoredCovector, out int sign)
-    {
-        sign = 0;
-        if (candidate.Family != ConeSurfaceFamily.RotationCircle || direction == Vector2d.Zero)
-            return false;
-        var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
-        Span<ulong> values = stackalloc ulong[24 * Words];
-        Span<int> signs = stackalloc int[24];
-        Span<ulong> root = stackalloc ulong[Words];
-        WideAxis3 radial = new(Signed320.ExtendValue(Signed192.Raw(direction.X)), default, Signed320.ExtendValue(Signed192.Raw(direction.Y)));
-        if (candidate.Feature == ConeSurfaceFeature.Side)
-        {
-            BuildSidePointNormal(geometry, radial, 1, values, signs, root);
-            if (!TryBuildSideFoot(geometry, candidate.RootOrdinal, values, signs, root, out _))
-                return false;
-        }
-        else
-        {
-            bool admitted = TryGetRimPoint(geometry, candidate.RootOrdinal, out _, out _, out Signed320 axial, out _, out _);
-            System.Diagnostics.Debug.Assert(admitted);
-            BuildRimCircleNormal(geometry, radial, axial, values, signs, root);
-            if (!AdmitsEndpointNormal(geometry.Edge, candidate.RootOrdinal, values, signs, root))
-                return false;
-        }
-        WideRigidProjection.TransformLocalAxis(geometry.Finite.ShapeFrame.Basis, authoredCovector,
-            out Signed576 x, out Signed576 y, out Signed576 z);
-        sign = QuadraticNormalDotSign(values, signs, root, x, y, z);
-        return true;
-    }
-
     private static int QuadraticNormalDotSign(Span<ulong> normals, Span<int> normalSigns, ReadOnlySpan<ulong> root,
-        Signed576 x, Signed576 y, Signed576 z)
+        Signed576 x, Signed576 y, Signed576 z, int words = Words)
     {
-        // A full Signed320 authored covector transforms to <452 bits.
-        // The largest retained normal coefficients are <996 bits, so every
-        // coefficient of this linear form fits the existing forty words.
-        Span<ulong> values = stackalloc ulong[4 * Words];
+        // Full Signed320 covectors transform to <452 bits. Isolated normal
+        // coefficients <996 fit forty words; clipped-family coefficients
+        // <2220 require the caller's sixty-four-word fields. Three complete
+        // products and their signed sum fit those respective result widths.
+        Span<ulong> values = stackalloc ulong[4 * words];
         Span<int> signs = stackalloc int[4];
-        ContactQuadratic sum = At(values, signs, 0), product = At(values, signs, 1);
+        ContactQuadratic sum = At(values, signs, 0, words), product = At(values, signs, 1, words);
         sum.Clear();
         for (int axis = 0; axis < 3; axis++)
         {
-            Scale(At(normals, normalSigns, axis), axis == 0 ? x : axis == 1 ? y : z, product);
+            Scale(At(normals, normalSigns, axis, words), axis == 0 ? x : axis == 1 ? y : z, product);
             sum.Add(product);
         }
         return sum.Sign(root);

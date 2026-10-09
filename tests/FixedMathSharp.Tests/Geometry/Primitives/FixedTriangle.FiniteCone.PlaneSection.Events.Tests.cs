@@ -2,11 +2,117 @@ using System;
 using System.Numerics;
 using FixedMathSharp.Geometry;
 using Xunit;
+using static FixedMathSharp.Tests.ConePlaneRayTestQueries;
 
 namespace FixedMathSharp.Tests.Bounds;
 
 public sealed class FixedTriangleFiniteConePlaneSectionEventTests
 {
+    [Fact]
+    public void PlaneEvents_GeometricComparison_DeduplicatesCoincidentProvenance()
+    {
+        var triangle = new FixedTriangle(new Vector3d(-4, 0, -4), new Vector3d(4, 0, -4), new Vector3d(0, 0, 4));
+        var segment = new ConePlaneRayEventSource(new FixedSegment(Vector3d.Left, Vector3d.Zero));
+        var endpoint = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeEndpoint, endpoint: 1);
+        var frame = new ConePlaneRayFrame(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
+        var axis = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis);
+        Assert.Equal(0, ConePlaneRayEvents.CompareEventAnchors(ConePlaneRayEventSource.Plane, axis, segment, endpoint, frame,
+            includeCoincidentProvenance: false));
+        Assert.NotEqual(0, ConePlaneRayEvents.CompareEventAnchors(ConePlaneRayEventSource.Plane, axis, segment, endpoint, frame));
+        var circle = new ConePlaneRayEvent(ConePlaneRayEventKind.LowerCircle, 8, 0, 0, 0);
+        Assert.True(ConePlaneRayEvents.CompareEventAnchors(ConePlaneRayEventSource.Plane, axis, ConePlaneRayEventSource.Plane, circle, frame,
+            includeCoincidentProvenance: false) < 0);
+        Assert.True(ConePlaneRayEvents.CompareEventAnchors(ConePlaneRayEventSource.Plane, circle, ConePlaneRayEventSource.Plane, axis, frame,
+            includeCoincidentProvenance: false) > 0);
+        Assert.Equal(0, ConePlaneRayEvents.CompareEventAnchors(ConePlaneRayEventSource.Plane, axis, ConePlaneRayEventSource.Plane, axis, frame,
+            includeCoincidentProvenance: false));
+    }
+
+    [Fact]
+    public void PlaneEvents_RegionAssignment_UsesExactClosedTriangleAdmission()
+    {
+        var triangle = new FixedTriangle(new Vector3d(-4, 0, -4), new Vector3d(4, 0, -4), new Vector3d(0, 0, 4));
+        var frame = new ConePlaneRayFrame(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
+        var axis = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis);
+        Span<ulong> values = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+        Span<ulong> root = stackalloc ulong[ConePlaneRayCharts.Words];
+        var point = new ConePlaneRayPoint(values, signs);
+        Span<ulong> pv = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+        Span<ulong> nv = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+        Span<int> ps = stackalloc int[ConePlaneRaySelection.SignCount];
+        Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
+        var positive = new ConePlaneRaySelection(pv, ps);
+        var negative = new ConePlaneRaySelection(nv, ns);
+        Assert.True(ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame,
+            axis, point, root, ref positive, ref negative));
+        Assert.True(ConePlaneRayPointExits.ContainsTrianglePoint(triangle, frame, point, root));
+        var touching = new FixedTriangle(Vector3d.Zero, Vector3d.Right, Vector3d.Forward);
+        Assert.True(ConePlaneRayPointExits.ContainsTrianglePoint(touching, frame, point, root));
+        var outside = new FixedTriangle(new Vector3d(5, 0, 0), new Vector3d(6, 0, 0), new Vector3d(5, 0, 1));
+        Assert.False(ConePlaneRayPointExits.ContainsTrianglePoint(outside, frame, point, root));
+        var degenerate = new FixedTriangle(Vector3d.Zero, Vector3d.Zero, Vector3d.Zero);
+        Assert.False(ConePlaneRayPointExits.ContainsTrianglePoint(degenerate, frame, point, root));
+    }
+
+    [Fact]
+    public void PlaneEvents_GeometricComparison_PreservesDistinctSubrawAnchors()
+    {
+        var triangle = new FixedTriangle(new Vector3d(-4, 0, -4), new Vector3d(4, 0, -4), new Vector3d(0, 0, 4));
+        var frame = new ConePlaneRayFrame(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.FromRaw(1));
+        var right = new ConePlaneRayEvent(ConePlaneRayEventKind.LowerCircle, 8, 0, 0, 0);
+        var left = new ConePlaneRayEvent(ConePlaneRayEventKind.LowerCircle, 8, 1, 0, 0);
+        Assert.True(Materialize(ConePlaneRayEventSource.Plane, frame, left, 1,
+            out Vector3d leftAnchor, out _, out _, out bool admitted));
+        Assert.True(admitted);
+        Assert.True(Materialize(ConePlaneRayEventSource.Plane, frame, right, 1,
+            out Vector3d rightAnchor, out _, out _, out admitted));
+        Assert.True(admitted);
+        Assert.Equal(Vector3d.Zero, leftAnchor);
+        Assert.Equal(leftAnchor, rightAnchor);
+        Assert.True(ConePlaneRayEvents.CompareEventAnchors(ConePlaneRayEventSource.Plane, left, ConePlaneRayEventSource.Plane, right, frame,
+            includeCoincidentProvenance: false) < 0);
+        Assert.True(ConePlaneRayEvents.CompareEventAnchors(ConePlaneRayEventSource.Plane, right, ConePlaneRayEventSource.Plane, left, frame,
+            includeCoincidentProvenance: false) > 0);
+    }
+
+    [Fact]
+    public void PlaneEvents_Reconstruction_SeparatesAdmissionFromOutputRange()
+    {
+        var triangle = new FixedTriangle(new Vector3d(-4, 0, -4), new Vector3d(4, 0, -4), new Vector3d(0, 0, 4));
+        var frame = new ConePlaneRayFrame(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
+        var axis = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis);
+        Assert.True(Materialize(ConePlaneRayEventSource.Plane, frame, axis, 1,
+            out Vector3d lower, out Vector3d cone, out Fixed64 depth, out bool admitted));
+        Assert.True(admitted);
+        Assert.Equal(Vector3d.Zero, lower);
+        Assert.Equal(new Vector3d(0, 2, 0), cone);
+        Assert.Equal(Fixed64.Two, depth);
+        Assert.False(Materialize(ConePlaneRayEventSource.Plane, frame,
+            new ConePlaneRayEvent(ConePlaneRayEventKind.Apex), -1, out _, out _, out _, out admitted));
+        Assert.False(admitted);
+        var center = new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero);
+        frame = new ConePlaneRayFrame(triangle, center, FixedQuaternion.Identity,
+            center, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
+        Assert.False(Materialize(ConePlaneRayEventSource.Plane, frame,
+            new ConePlaneRayEvent(ConePlaneRayEventKind.LowerCircle, 8, 0, 0, 0), 1,
+            out _, out _, out _, out admitted));
+        Assert.True(admitted);
+        Fixed64 left = -Fixed64.MaxValue;
+        triangle = new FixedTriangle(new Vector3d(left, -Fixed64.Two, Fixed64.Zero),
+            new Vector3d(left, -Fixed64.Two, Fixed64.One), new Vector3d(left, -Fixed64.One, Fixed64.Zero));
+        frame = new ConePlaneRayFrame(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.MaxValue);
+        Assert.False(Materialize(new ConePlaneRayEventSource(triangle.GetEdge(0)), frame,
+            new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeEndpoint, endpoint: 0), 1,
+            out _, out _, out _, out admitted));
+        Assert.True(admitted);
+    }
+
     [Fact]
     public void PlaneEvents_LargeCoprimeAuthoredNormal_PreservesFiniteRayCertificates()
     {
@@ -26,12 +132,11 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
-        Assert.True(ConePlaneRayEvents.Accumulate(triangle, frame, ref positive, ref negative));
+        Assert.True(AccumulateTriangle(triangle, frame, ref positive, ref negative));
         for (int orientation = -1; orientation <= 1; orientation += 2)
         {
             ConePlaneRaySelection selected = orientation > 0 ? positive : negative;
-            Assert.True(ConePlaneRayEvents.TryMaterializeEvent(triangle, frame, selected.MaximumEvent,
-                orientation, out Vector3d lower, out Vector3d upper, out Fixed64 depth));
+            Assert.True(selected.TryMaterialize(frame, orientation, out Vector3d lower, out Vector3d upper, out Fixed64 depth));
             // The admitted origin contains a radius-1/2 ball in the cone;
             // its diameter is max(2R,sqrt(H*H+R*R))=sqrt(20), below 5.
             Assert.InRange(depth.m_rawValue, Fixed64.Half.m_rawValue, ((Fixed64)5).m_rawValue);
@@ -56,19 +161,19 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         var triangle = new FixedTriangle(new Vector3d(-4, 0, -4), new Vector3d(4, 0, -4), new Vector3d(0, 0, 4));
         var centered = new ConePlaneRayFrame(triangle, Vector3d.Zero, FixedQuaternion.Identity,
             Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
-        Assert.False(ConePlaneRayEvents.TryMaterializeEvent(triangle, centered,
+        Assert.False(Materialize(ConePlaneRayEventSource.Plane, centered,
             new ConePlaneRayEvent(ConePlaneRayEventKind.Apex), -1, out _, out _, out _));
         var center = new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero);
         var frame = new ConePlaneRayFrame(triangle, center, FixedQuaternion.Identity,
             center, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
-        Assert.False(ConePlaneRayEvents.TryMaterializeEvent(triangle, frame,
+        Assert.False(Materialize(ConePlaneRayEventSource.Plane, frame,
             new ConePlaneRayEvent(ConePlaneRayEventKind.LowerCircle, 8, 0, 0, 0), 1, out _, out _, out _));
         Fixed64 left = -Fixed64.MaxValue;
         triangle = new FixedTriangle(new Vector3d(left, -Fixed64.Two, Fixed64.Zero),
             new Vector3d(left, -Fixed64.Two, Fixed64.One), new Vector3d(left, -Fixed64.One, Fixed64.Zero));
         frame = new ConePlaneRayFrame(triangle, Vector3d.Zero, FixedQuaternion.Identity,
             Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.MaxValue);
-        Assert.False(ConePlaneRayEvents.TryMaterializeEvent(triangle, frame,
+        Assert.False(Materialize(new ConePlaneRayEventSource(triangle.GetEdge(0)), frame,
             new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeEndpoint, endpoint: 0), 1, out _, out _, out _));
     }
 
@@ -78,11 +183,11 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         var triangle = new FixedTriangle(new Vector3d(0, 2, 0), new Vector3d(0, 0, 1), new Vector3d(0, 0, -1));
         var frame = new ConePlaneRayFrame(triangle, Vector3d.Zero, FixedQuaternion.Identity,
             Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
-        Assert.True(ConePlaneRayEvents.CompareEventAnchors(triangle,
-            new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: 0), triangle,
-            new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: 2), frame) < 0);
+        Assert.True(ConePlaneRayEvents.CompareEventAnchors(ConePlaneRayEventSource.Plane,
+            new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: 0), new ConePlaneRayEventSource(triangle.GetEdge(0)),
+            new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeEndpoint, endpoint: 0), frame) < 0);
         // A zero-depth apex projection is represented by its axis family.
-        Assert.False(ConePlaneRayEvents.TryMaterializeEvent(triangle, frame,
+        Assert.False(Materialize(ConePlaneRayEventSource.Plane, frame,
             new ConePlaneRayEvent(ConePlaneRayEventKind.Apex), 1, out _, out _, out _));
     }
 
@@ -96,9 +201,9 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
         var point = new ConePlaneRayPoint(values, signs);
         point.Set(frame.Transform(new Vector3d(0, 3, 0)));
-        Assert.False(ConePlaneRayPointExits.ContainsPoint(triangle, frame, point, ReadOnlySpan<ulong>.Empty));
+        Assert.False(ConePlaneRayPointExits.ContainsPoint(ConePlaneRayEventSource.Plane, frame, point, ReadOnlySpan<ulong>.Empty));
         point.Set(frame.Transform(Vector3d.Zero));
-        Assert.False(ConePlaneRayPointExits.ContainsPoint(triangle, frame, point, ReadOnlySpan<ulong>.Empty));
+        Assert.False(ConePlaneRayPointExits.ContainsPoint(ConePlaneRayEventSource.Plane, frame, point, ReadOnlySpan<ulong>.Empty));
     }
 
     [Theory]
@@ -125,6 +230,18 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         Assert.Equal(represented, ConePlaneRayPointMaterialization.TryGetWorldPoint(frame, point,
             ReadOnlySpan<ulong>.Empty, out Vector3d anchor));
         if (represented) Assert.Equal(center, anchor.X);
+        Span<ulong> fields = stackalloc ulong[4 * ConePlaneRayCharts.Words];
+        Span<int> fieldSigns = stackalloc int[4];
+        ContactQuadratic n = ContactQuadratic.At(fields, fieldSigns, 0, ConePlaneRayCharts.Words);
+        ContactQuadratic d = ContactQuadratic.At(fields, fieldSigns, 1, ConePlaneRayCharts.Words);
+        n.Clear(); d.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1))));
+        // An exact zero exit is the original point, including its rounded
+        // range boundary. Both output modes must preserve the half-tie policy.
+        Assert.Equal(represented, ConePlaneRayPointMaterialization.IsExitWorldPointRepresentable(frame, point,
+            ReadOnlySpan<ulong>.Empty, n, d, 1));
+        Assert.Equal(represented, ConePlaneRayPointMaterialization.TryGetExitWorldPoint(frame, point,
+            ReadOnlySpan<ulong>.Empty, n, d, 1, out Vector3d exit));
+        if (represented) Assert.Equal(anchor, exit);
     }
 
     [Fact]
@@ -156,17 +273,14 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
-        Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[ConePlaneRayEventSink.Capacity];
-        var sink = new ConePlaneRayEventSink(events);
-        bool intersects = ConePlaneRayEvents.Accumulate(triangle, frame, ref positive, ref negative, ref sink);
+        bool intersects = AccumulateTriangle(triangle, frame, ref positive, ref negative);
         Assert.True(expected == intersects, $"Plane ({b}, {c}, {k}) support admission mismatch.");
         Assert.Equal(expected, positive.HasValue); Assert.Equal(expected, negative.HasValue);
         if (!expected) return;
         for (int orientation = -1; orientation <= 1; orientation += 2)
         {
             ConePlaneRaySelection selected = orientation > 0 ? positive : negative;
-            Assert.True(ConePlaneRayEvents.TryMaterializeEvent(selected.MaximumTriangle, frame, selected.MaximumEvent,
-                orientation, out Vector3d lower, out Vector3d upper, out Fixed64 depth));
+            Assert.True(selected.TryMaterialize(frame, orientation, out Vector3d lower, out Vector3d upper, out Fixed64 depth));
             Assert.True(depth >= Fixed64.Zero);
             long unit = Fixed64.One.m_rawValue;
             Assert.InRange(Math.Abs(lower.X.m_rawValue + b * lower.Y.m_rawValue + c * lower.Z.m_rawValue - k * unit),
@@ -284,10 +398,9 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
-        Assert.True(ConePlaneRayEvents.Accumulate(first, frame, ref positive, ref negative));
-        Assert.True(ConePlaneRayEvents.Accumulate(second, frame, ref positive, ref negative));
-        Assert.True(ConePlaneRayEvents.TryMaterializeEvent(negative.MaximumTriangle, frame, negative.MaximumEvent,
-            -1, out Vector3d lower, out Vector3d upper, out Fixed64 depth));
+        Assert.True(AccumulateTriangle(first, frame, ref positive, ref negative));
+        Assert.True(AccumulateTriangle(second, frame, ref positive, ref negative));
+        Assert.True(negative.TryMaterialize(frame, -1, out Vector3d lower, out Vector3d upper, out Fixed64 depth));
         Assert.Equal(new Vector3d(-1, 0, 0), lower);
         Assert.Equal(new Vector3d(-1, -2, 0), upper);
         Assert.Equal(Fixed64.Two, depth);
@@ -296,7 +409,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void PlaneEvents_DescriptorPool_ReconstructsRegularEventsAndGeneratorFamily(bool tangent)
+    public void PlaneEvents_ScopedPool_ReconstructsRegularEventsAndClippedGeneratorEndpoints(bool tangent)
     {
         var triangle = new FixedTriangle(new Vector3d(1, 0, -1), new Vector3d(1, 0, 1),
             new Vector3d((Fixed64)3 / 2, -Fixed64.One, Fixed64.Zero));
@@ -310,31 +423,25 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
-        Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[ConePlaneRayEventSink.Capacity];
-        var sink = new ConePlaneRayEventSink(events);
-        Assert.True(ConePlaneRayEvents.Accumulate(triangle, frame,
-            ref positive, ref negative, ref sink));
-        Assert.InRange(sink.Count, 1, ConePlaneRayEventSink.Capacity);
-        bool family = false;
-        for (int i = 0; i < sink.Count; i++)
+        Span<ConePlaneRayTestEvent> events = stackalloc ConePlaneRayTestEvent[Capacity];
+        int count = CollectTriangle(triangle, frame, events, ref positive, ref negative);
+        Assert.InRange(count, 1, Capacity);
+        bool lowerEndpoint = false, upperEndpoint = false;
+        for (int i = 0; i < count; i++)
         {
-            ConePlaneRayEvent descriptor = events[i];
-            family |= descriptor.ReconstructionCount > 1;
-            bool reconstructed = false;
-            for (int endpoint = 0; endpoint < descriptor.ReconstructionCount; endpoint++)
-            {
-                ConePlaneRayEvent item = descriptor.GetReconstruction(endpoint);
-                int orientation = item.Orientation == 0 ? -1 : item.Orientation;
-                reconstructed |= ConePlaneRayEvents.TryMaterializeEvent(triangle, frame, item, orientation,
-                    out _, out _, out _);
-            }
+            ConePlaneRayTestEvent item = events[i];
+            bool reconstructed = Materialize(item.Source, frame, item.Event, 1, out Vector3d anchor, out _, out _);
+            if (!reconstructed)
+                reconstructed = Materialize(item.Source, frame, item.Event, -1, out anchor, out _, out _);
             Assert.True(reconstructed);
+            lowerEndpoint |= anchor == new Vector3d(1, 0, 0);
+            upperEndpoint |= anchor == new Vector3d((Fixed64)3 / 2, -Fixed64.One, Fixed64.Zero);
         }
-        Assert.Equal(tangent, family);
+        if (tangent) { Assert.True(lowerEndpoint); Assert.True(upperEndpoint); }
     }
 
     [Fact]
-    public void PlaneEvents_ReusedSink_BeginsANewTriangleWhileSelectionsRetainTheRegion()
+    public void PlaneEvents_ReusedStorage_BeginsANewTriangleWhileSelectionsRetainTheRegion()
     {
         var triangle = new FixedTriangle(new Vector3d(-4, 0, -4), new Vector3d(4, 0, -4), new Vector3d(0, 0, 4));
         var outside = new FixedTriangle(new Vector3d(100, 0, -4), new Vector3d(108, 0, -4), new Vector3d(104, 0, 4));
@@ -345,12 +452,9 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         Span<int> ps = stackalloc int[ConePlaneRaySelection.SignCount];
         Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
         var positive = new ConePlaneRaySelection(pv, ps); var negative = new ConePlaneRaySelection(nv, ns);
-        Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[ConePlaneRayEventSink.Capacity];
-        var sink = new ConePlaneRayEventSink(events);
-        Assert.True(ConePlaneRayEvents.Accumulate(triangle, frame, ref positive, ref negative, ref sink));
-        Assert.True(sink.Count > 0);
-        Assert.False(ConePlaneRayEvents.Accumulate(outside, frame, ref positive, ref negative, ref sink));
-        Assert.Equal(0, sink.Count);
+        Span<ConePlaneRayTestEvent> events = stackalloc ConePlaneRayTestEvent[Capacity];
+        Assert.True(CollectTriangle(triangle, frame, events, ref positive, ref negative) > 0);
+        Assert.Equal(0, CollectTriangle(outside, frame, events, ref positive, ref negative));
         Assert.Equal(Fixed64.Two, positive.GetRoundedMaximumDepth());
         Assert.Equal(Fixed64.Two, negative.GetRoundedMaximumDepth());
     }
@@ -366,7 +470,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         Span<int> ps = stackalloc int[ConePlaneRaySelection.SignCount];
         Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
         var positive = new ConePlaneRaySelection(pv, ps); var negative = new ConePlaneRaySelection(nv, ns);
-        Assert.False(ConePlaneRayEvents.Accumulate(triangle, frame, ref positive, ref negative));
+        Assert.False(AccumulateTriangle(triangle, frame, ref positive, ref negative));
         Assert.False(positive.HasValue); Assert.False(negative.HasValue);
     }
 
@@ -390,27 +494,20 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
             Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
         var axis = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis);
         var missing = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeSide, 99);
-        Assert.Throws<ArgumentOutOfRangeException>(() => axis.GetReconstruction(1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => ConePlaneRayEvents.TryMaterializeEvent(triangle, frame, axis,
+        Assert.Throws<ArgumentOutOfRangeException>(() => Materialize(ConePlaneRayEventSource.Plane, frame, axis,
             0, out _, out _, out _));
         Assert.Throws<ArgumentException>(() => { Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[1];
-            _ = new ConePlaneRayEventSink(events); });
-        Assert.False(ConePlaneRayEvents.TryMaterializeEvent(triangle, frame, missing, 1, out _, out _, out _));
-        Assert.False(ConePlaneRayEvents.TryMaterializeEvent(triangle, frame,
+            ConePlaneRayEvents.GetIntrinsicEvents(frame, events); });
+        Assert.Throws<ArgumentException>(() => { Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[1];
+            ConePlaneRayEvents.GetBoundaryEvents(events); });
+        Assert.False(Materialize(ConePlaneRayEventSource.Plane, frame, missing, 1, out _, out _, out _));
+        Assert.False(Materialize(ConePlaneRayEventSource.Plane, frame,
             new ConePlaneRayEvent(ConePlaneRayEventKind.Generator, 8, 0, 0, 0), 1, out _, out _, out _));
-        Assert.False(ConePlaneRayEvents.TryMaterializeEvent(triangle, frame,
+        Assert.False(Materialize(ConePlaneRayEventSource.Plane, frame,
             new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: 0), 1, out _, out _, out _));
-        Assert.Equal(0, ConePlaneRayEvents.CompareEventAnchors(triangle, axis, triangle, axis, frame));
-        var variants = new[]
-        {
-            new FixedTriangle(new Vector3d(-5, 0, -4), triangle.B, triangle.C),
-            new FixedTriangle(triangle.A, new Vector3d(5, 0, -4), triangle.C),
-            new FixedTriangle(triangle.A, triangle.B, new Vector3d(0, 0, 5))
-        };
-        foreach (FixedTriangle variant in variants)
-            Assert.NotEqual(0, ConePlaneRayEvents.CompareEventAnchors(triangle, axis, variant, axis, frame));
-        Assert.Throws<InvalidOperationException>(() => ConePlaneRayEvents.CompareEventAnchors(triangle, missing, triangle, axis, frame));
-        Assert.Throws<InvalidOperationException>(() => ConePlaneRayEvents.CompareEventAnchors(triangle, axis, triangle, missing, frame));
+        Assert.Equal(0, ConePlaneRayEvents.CompareEventAnchors(ConePlaneRayEventSource.Plane, axis, ConePlaneRayEventSource.Plane, axis, frame));
+        Assert.Throws<InvalidOperationException>(() => ConePlaneRayEvents.CompareEventAnchors(ConePlaneRayEventSource.Plane, missing, ConePlaneRayEventSource.Plane, axis, frame));
+        Assert.Throws<InvalidOperationException>(() => ConePlaneRayEvents.CompareEventAnchors(ConePlaneRayEventSource.Plane, axis, ConePlaneRayEventSource.Plane, missing, frame));
     }
 
     [Fact]
@@ -422,8 +519,8 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
             Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
         var first = new ConePlaneRayEvent(ConePlaneRayEventKind.UpperRim, 0, 2, -1);
         var second = new ConePlaneRayEvent(ConePlaneRayEventKind.UpperRim, 0, 2, 1);
-        Assert.True(ConePlaneRayEvents.CompareEventAnchors(triangle, first, triangle, second, frame) < 0);
-        Assert.True(ConePlaneRayEvents.CompareEventAnchors(triangle, second, triangle, first, frame) > 0);
+        Assert.True(ConePlaneRayEvents.CompareEventAnchors(new ConePlaneRayEventSource(triangle.GetEdge(0)), first, new ConePlaneRayEventSource(triangle.GetEdge(0)), second, frame) < 0);
+        Assert.True(ConePlaneRayEvents.CompareEventAnchors(new ConePlaneRayEventSource(triangle.GetEdge(0)), second, new ConePlaneRayEventSource(triangle.GetEdge(0)), first, frame) > 0);
     }
 
     [Theory]
@@ -481,7 +578,10 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         // At the base's -X rim, the +X exit crosses diameter 2*MaxValue.
         // The frame uses doubled raw coordinates, hence numerator 4*MaxRaw.
         if (mode == 3) { n.Add(n); n.Add(n); }
-        selection.Keep(n, d, ReadOnlySpan<ulong>.Empty, frame);
+        Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<int> pointSigns = stackalloc int[ConePlaneRayPoint.SignCount];
+        var point = new ConePlaneRayPoint(pointValues, pointSigns); point.Set(frame.Transform(triangle.A));
+        selection.Keep(n, d, ReadOnlySpan<ulong>.Empty, frame, point);
         Assert.False(selection.TryGetRoundedMaximumDepth(out _));
         selection.GetRoundedMaximumDepth();
     }
@@ -500,8 +600,9 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
         var point = new ConePlaneRayPoint(values, signs); point.Set(frame.Transform(Vector3d.Zero));
         if (mode == 0) point.Denominator.Clear();
-        Assert.False(ConePlaneRayPointExits.ContainsPoint(mode == 2 ? degenerate : triangle, frame,
-            point, ReadOnlySpan<ulong>.Empty));
+        Assert.False(mode == 2
+            ? ConePlaneRayPointExits.ContainsTrianglePoint(degenerate, frame, point, ReadOnlySpan<ulong>.Empty)
+            : ConePlaneRayPointExits.ContainsPoint(ConePlaneRayEventSource.Plane, frame, point, ReadOnlySpan<ulong>.Empty));
         if (mode == 0) Assert.False(ConePlaneRayPointMaterialization.TryGetWorldPoint(frame, point,
             ReadOnlySpan<ulong>.Empty, out _));
     }
@@ -510,6 +611,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
+    [InlineData(3)]
     public void PlaneEvents_ExitCertificates_RejectNegativeDepthZeroDenominatorAndOppositeNappe(int mode)
     {
         var triangle = new FixedTriangle(new Vector3d(-4, 0, -4), new Vector3d(4, 0, -4), new Vector3d(0, 0, 4));
@@ -527,16 +629,18 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         Span<int> fieldSigns = stackalloc int[4];
         ContactQuadratic n = ContactQuadratic.At(fields, fieldSigns, 0, ConePlaneRayCharts.Words);
         ContactQuadratic d = ContactQuadratic.At(fields, fieldSigns, 1, ConePlaneRayCharts.Words);
-        n.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(mode == 0 ? -1 : 8 * Fixed64.One.m_rawValue))));
-        d.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(mode == 1 ? 0 : 1))));
-        Assert.False(ConePlaneRayPointExits.AccumulateStationarySideExit(triangle, frame, point,
+        n.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(mode == 0 ? -1 : mode == 3 ? 0 : 8 * Fixed64.One.m_rawValue))));
+        d.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(mode == 1 || mode == 3 ? 0 : 1))));
+        Assert.False(ConePlaneRayPointExits.AccumulateStationarySideExit(ConePlaneRayEventSource.Plane, frame, point,
             ReadOnlySpan<ulong>.Empty, n, d, 1, ref positive, ref negative));
-        if (mode < 2)
-            Assert.False(ConePlaneRayPointExits.AccumulateCertifiedExit(triangle, frame, point,
+        if (mode < 2 || mode == 3)
+            Assert.False(ConePlaneRayPointExits.AccumulateCertifiedExit(ConePlaneRayEventSource.Plane, frame, point,
                 ReadOnlySpan<ulong>.Empty, n, d, 1, ref positive, ref negative));
         if (mode == 2) point.Denominator.Clear();
         Assert.False(ConePlaneRayPointMaterialization.TryGetExitWorldPoint(frame, point, ReadOnlySpan<ulong>.Empty,
             n, d, 1, out _));
+        Assert.False(ConePlaneRayPointMaterialization.IsExitWorldPointRepresentable(frame, point, ReadOnlySpan<ulong>.Empty,
+            n, d, 1));
     }
 
     private static (bool Intersects, Fixed64 Positive, Fixed64 Negative) Evaluate(FixedTriangle triangle, Fixed64 radius)
@@ -549,7 +653,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionEventTests
         Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
-        bool intersects = ConePlaneRayEvents.Accumulate(triangle, frame,
+        bool intersects = AccumulateTriangle(triangle, frame,
             ref positive, ref negative);
         return (intersects, positive.GetRoundedMaximumDepth(), negative.GetRoundedMaximumDepth());
     }

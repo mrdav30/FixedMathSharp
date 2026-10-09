@@ -13,40 +13,6 @@ namespace FixedMathSharp.Geometry;
 /// <content>Explicit finite parameter domains for degenerate support families.</content>
 internal static partial class SegmentConeSurfaceCandidates
 {
-    internal static bool TryGetIntervalEndpointContact(SegmentConeSurfaceCandidate candidate, bool upper, out FixedContactAnchors contact)
-    {
-        contact = default;
-        if (candidate.Family != ConeSurfaceFamily.SegmentInterval
-            || candidate.Feature == ConeSurfaceFeature.Side && candidate.Input.Radius == Fixed64.Zero)
-            return false;
-        System.Diagnostics.Debug.Assert(candidate.Feature == ConeSurfaceFeature.Base || candidate.Feature == ConeSurfaceFeature.Side);
-        var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
-        Span<ulong> values = stackalloc ulong[24 * Words];
-        Span<int> signs = stackalloc int[24];
-        Span<ulong> root = stackalloc ulong[Words];
-        if (candidate.Feature == ConeSurfaceFeature.Side)
-        {
-            bool normal = BuildSideNormal(geometry, -1, candidate.Chart, values, signs, root);
-            bool foot = TryBuildSideFoot(geometry, -1, values, signs, root, out bool interval);
-#if DEBUG
-            System.Diagnostics.Debug.Assert(normal && foot && interval && IsZero(root));
-#endif
-        }
-        ContactQuadratic numerator = At(values, signs, 5), denominator = At(values, signs, 6);
-        bool exists = ConeSectionPoint.TryGetSegmentParameter(candidate.Input.Segment, geometry.Finite, upper, numerator, denominator, root);
-        System.Diagnostics.Debug.Assert(exists);
-        if (candidate.Feature == ConeSurfaceFeature.Base)
-            contact = MaterializeBaseContact(geometry, numerator, denominator, root);
-        else
-        {
-            ClipSideEndpoint(geometry, upper, values, signs, root);
-            bool admitted = AdmitsSideParameter(geometry, values, signs, root);
-            System.Diagnostics.Debug.Assert(admitted);
-            contact = MaterializeSidePoint(geometry, values, signs, root);
-        }
-        return true;
-    }
-
     private static void AccumulateBase(in SegmentConeSurfaceGeometry geometry, ref ConeSurfaceSelection selection)
     {
         if (geometry.Edge.Y.IsZero)
@@ -55,28 +21,14 @@ internal static partial class SegmentConeSurfaceCandidates
             return;
         }
         int endpoint = geometry.Edge.Y.Sign > 0 ? 1 : 0;
-        if (geometry.ContainsParameter(endpoint == 0 ? Fixed64.Zero : Fixed64.One))
+        Vector3d point = endpoint == 0 ? geometry.Input.Segment.Start : geometry.Input.Segment.End;
+        if (geometry.Finite.ContainsTransformedPoint(geometry.Finite.Transform(point)))
             selection.Add(new SegmentConeSurfaceCandidate(geometry.Input, ConeSurfaceFeature.Base,
                 ConeSurfaceFamily.None, 0, endpoint, endpoint == 0 ? ConeSurfacePointLocation.Start : ConeSurfacePointLocation.End));
     }
 
     internal static FixedContactAnchors GetBaseContact(SegmentConeSurfaceCandidate candidate) =>
         MaterializeBaseContact(candidate.Input, candidate.RootOrdinal == 0 ? Fixed64.Zero : Fixed64.One);
-
-    internal static bool TryGetIntervalContact(SegmentConeSurfaceCandidate candidate, Fixed64 parameter,
-        out FixedContactAnchors contact)
-    {
-        contact = default;
-        if (candidate.Feature == ConeSurfaceFeature.Side)
-            return TryGetSideIntervalContact(candidate, parameter, out contact);
-        if (candidate.Family != ConeSurfaceFamily.SegmentInterval || candidate.Feature != ConeSurfaceFeature.Base)
-            return false;
-        var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
-        if (!geometry.ContainsParameter(parameter))
-            return false;
-        contact = MaterializeBaseContact(candidate.Input, parameter);
-        return true;
-    }
 
     private static FixedContactAnchors MaterializeBaseContact(SegmentConeSurfaceInput input, Fixed64 parameter)
     {

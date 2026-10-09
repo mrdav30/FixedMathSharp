@@ -8,8 +8,8 @@ using System;
 
 namespace FixedMathSharp.Geometry;
 
-/// <summary>Exact boundary-stratum events for a finite cone and an authored triangle.</summary>
-/// <content>Per-triangle event dispatch and authored-edge endpoint, side and stationary candidates.</content>
+/// <summary>Exact critical events for a finite cone with a shared plane, finite segment.</summary>
+/// <content>Scoped event dispatch and authored-edge endpoint, side and stationary candidates.</content>
 internal static partial class ConePlaneRayEvents
 {
     private const int Words = ConePlaneRayCharts.Words;
@@ -57,44 +57,34 @@ internal static partial class ConePlaneRayEvents
         denominator.CopyTo(point.Denominator);
     }
 
-    internal static bool Accumulate(FixedTriangle triangle, in ConePlaneRayFrame frame,
-        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative)
-    {
-        ConePlaneRayEventSink sink = default;
-        return Accumulate(triangle, frame, ref positive, ref negative, ref sink);
-    }
-
-    internal static bool Accumulate(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    private static bool Accumulate(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
-        // Descriptor identities and the capacity proof are per triangle;
-        // the independently borrowed selections may span the whole region.
-        sink.Count = 0;
         sink.HasPoint = false;
         if (frame.NormalSquared.IsZero)
             return false;
         bool found = false;
-        if (sink.Wants(ConePlaneRayEventKind.EdgeEndpoint) || sink.Wants(ConePlaneRayEventKind.EdgeSide)
-            || sink.Wants(ConePlaneRayEventKind.EdgeStationary))
-            for (int edge = 0; edge < 3; edge++)
-                if (!sink.IsReconstruction || sink.Target.Feature == edge)
-                    found |= AccumulateEdge(triangle, frame, edge, ref positive, ref negative, ref sink);
-        if (sink.Wants(ConePlaneRayEventKind.Axis) || sink.Wants(ConePlaneRayEventKind.Apex))
-            found |= AccumulateAxisAndApex(triangle, frame, ref positive, ref negative, ref sink);
+        if (source.Scope == ConePlaneRayEventScope.Segment && sink.Target.Feature == 0
+            && (sink.Wants(ConePlaneRayEventKind.EdgeEndpoint) || sink.Wants(ConePlaneRayEventKind.EdgeSide)
+                || sink.Wants(ConePlaneRayEventKind.EdgeStationary)))
+            found |= AccumulateEdge(source, frame, ref positive, ref negative, ref sink);
+        if (source.Scope != ConePlaneRayEventScope.Segment
+            && (sink.Wants(ConePlaneRayEventKind.Axis) || sink.Wants(ConePlaneRayEventKind.Apex)))
+            found |= AccumulateAxisAndApex(source, frame, ref positive, ref negative, ref sink);
         if (sink.Wants(ConePlaneRayEventKind.LowerCircle) || sink.Wants(ConePlaneRayEventKind.UpperRim)
             || sink.Wants(ConePlaneRayEventKind.Generator))
-            found |= AccumulateCircles(triangle, frame, ref positive, ref negative, ref sink);
-        if (sink.Wants(ConePlaneRayEventKind.BaseStationary))
-            found |= AccumulateBaseStationary(triangle, frame, ref positive, ref negative, ref sink);
+            found |= AccumulateCircles(source, frame, ref positive, ref negative, ref sink);
+        if (source.Scope != ConePlaneRayEventScope.Segment && sink.Wants(ConePlaneRayEventKind.BaseStationary))
+            found |= AccumulateBaseStationary(source, frame, ref positive, ref negative, ref sink);
         return found;
     }
 
-    private static bool AccumulateEdge(FixedTriangle triangle, in ConePlaneRayFrame frame, int edge,
+    private static bool AccumulateEdge(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
-        FixedSegment segment = triangle.GetEdge(edge);
+        FixedSegment segment = new(source.A, source.B);
         WideAxis3 p = frame.Transform(segment.Start), end = frame.Transform(segment.End);
         WideAxis3 e = new(WideArithmetic.SubtractSigned320(end.X, p.X),
             WideArithmetic.SubtractSigned320(end.Y, p.Y), WideArithmetic.SubtractSigned320(end.Z, p.Z));
@@ -115,27 +105,29 @@ internal static partial class ConePlaneRayEvents
         bool found = false;
         for (int endpoint = 0; endpoint < 2; endpoint++)
         {
-            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeEndpoint, edge, endpoint: endpoint);
+            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeEndpoint, endpoint: endpoint);
             if (!sink.Wants(descriptor)) continue;
             s.Set(Extend(endpoint == 0 ? ln : un)); sd.Set(Extend(endpoint == 0 ? ld : ud));
             SetAffinePoint(point, p, e, s, sd);
-            SetEvent(triangle, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(triangle, frame, point, ref positive, ref negative);
-            if (admitted) sink.Keep(descriptor, frame, point, ReadOnlySpan<ulong>.Empty);
+            SetEvent(source, descriptor, ref positive, ref negative);
+            bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly);
+            if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty);
             found |= admitted;
         }
+        if (!sink.Wants(ConePlaneRayEventKind.EdgeSide) && !sink.Wants(ConePlaneRayEventKind.EdgeStationary))
+            return found;
         Product(e, e, frame, a); Product(p, e, frame, b); Product(p, p, frame, c);
         for (int branch = -1; branch <= 1; branch += 2)
         {
-            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeSide, edge, branch: branch);
+            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeSide, branch: branch);
             if (!sink.Wants(descriptor)) continue;
             if (!ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, s, sd)
                 || !ConePlaneRayCharts.IsUnitParameter(s, sd, root))
                 continue;
             SetAffinePoint(point, p, e, s, sd);
-            SetEvent(triangle, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(triangle, frame, point, root, ref positive, ref negative);
-            if (admitted) sink.Keep(descriptor, frame, point, root);
+            SetEvent(source, descriptor, ref positive, ref negative);
+            bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly);
+            if (admitted) sink.Keep(descriptor, point, root);
             found |= admitted;
         }
         // a=0 gives either no interior stationary point or a constant-depth
@@ -153,7 +145,7 @@ internal static partial class ConePlaneRayEvents
         ContactQuadratic.Multiply(b, b, ReadOnlySpan<ulong>.Empty, term); qc.Add(term, -1);
         for (int branch = -1; branch <= 1; branch += 2)
         {
-            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeStationary, edge, branch: branch);
+            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeStationary, branch: branch);
             if (!sink.Wants(descriptor)) continue;
             if (!ConePlaneRayCharts.TryGetParameter(qa, qb, qc, branch, root, t, d))
                 continue;
@@ -164,12 +156,12 @@ internal static partial class ConePlaneRayEvents
                 continue;
             SetAffinePoint(point, p, e, s, sd);
             int orientation = t.Sign(root) < 0 ? -1 : 1;
-            descriptor = new ConePlaneRayEvent(descriptor.Kind, edge, branch: branch, orientation: orientation);
+            descriptor = new ConePlaneRayEvent(descriptor.Kind, branch: branch, orientation: orientation);
             t.CopyTo(work, orientation);
-            SetEvent(triangle, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateStationarySideExit(triangle, frame, point, root,
-                work, d, orientation, ref positive, ref negative);
-            if (admitted) sink.Keep(descriptor, frame, point, root);
+            SetEvent(source, descriptor, ref positive, ref negative);
+            bool admitted = ConePlaneRayPointExits.AccumulateStationarySideExit(source, frame, point, root,
+                work, d, orientation, ref positive, ref negative, sink.PointOnly);
+            if (admitted) sink.Keep(descriptor, point, root);
             found |= admitted;
         }
         return found;

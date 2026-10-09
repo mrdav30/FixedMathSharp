@@ -1,6 +1,7 @@
 using System;
 using FixedMathSharp.Geometry;
 using Xunit;
+using static FixedMathSharp.Tests.ConePlaneRayTestQueries;
 
 namespace FixedMathSharp.Tests.Bounds;
 
@@ -18,7 +19,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionTests
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
 
-        Assert.True(ConePlaneRayEvents.Accumulate(
+        Assert.True(AccumulateTriangle(
             triangle, frame, ref positive, ref negative));
         Assert.True(positive.HasValue);
         Assert.True(negative.HasValue);
@@ -41,8 +42,8 @@ public sealed class FixedTriangleFiniteConePlaneSectionTests
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
 
-        Assert.True(ConePlaneRayEvents.Accumulate(first, frame, ref positive, ref negative));
-        Assert.True(ConePlaneRayEvents.Accumulate(second, frame, ref positive, ref negative));
+        Assert.True(AccumulateTriangle(first, frame, ref positive, ref negative));
+        Assert.True(AccumulateTriangle(second, frame, ref positive, ref negative));
         // Both maxima lie between 1 and 1.1. The projected global apex and
         // base supports are hundreds of units outside the authored quad.
         Assert.InRange(positive.GetRoundedMaximumDepth().m_rawValue, Fixed64.One.m_rawValue, ((Fixed64)11 / 10).m_rawValue);
@@ -62,7 +63,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionTests
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
 
-        Assert.True(ConePlaneRayEvents.Accumulate(triangle, frame, ref positive, ref negative));
+        Assert.True(AccumulateTriangle(triangle, frame, ref positive, ref negative));
         // Along N=(1,1,0), the positive maximum is 8/9*sqrt(2).
         // Along -N, side and base meet at p=(0,0,0), depth 2*sqrt(2).
         Assert.Equal(Fixed64.FromRaw(5399112000L), positive.GetRoundedMaximumDepth());
@@ -83,7 +84,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionTests
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
 
-        Assert.Equal(intersects, ConePlaneRayEvents.Accumulate(triangle, frame, ref positive, ref negative));
+        Assert.Equal(intersects, AccumulateTriangle(triangle, frame, ref positive, ref negative));
         if (intersects)
         {
             Assert.Equal(Fixed64.Zero, positive.GetRoundedMaximumDepth());
@@ -104,7 +105,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionTests
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
 
-        Assert.True(ConePlaneRayEvents.Accumulate(triangle, frame, ref positive, ref negative));
+        Assert.True(AccumulateTriangle(triangle, frame, ref positive, ref negative));
         Assert.Equal(Fixed64.Two, positive.GetRoundedMaximumDepth());
         Assert.Equal(Fixed64.Two, negative.GetRoundedMaximumDepth());
     }
@@ -218,7 +219,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionTests
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
 
-        Assert.Equal(admitted, ConePlaneRayPointExits.AccumulateRationalPoint(triangle, frame, point, ref positive, ref negative));
+        Assert.Equal(admitted, ConePlaneRayPointExits.AccumulateRationalPoint(ConePlaneRayEventSource.Plane, frame, point, ref positive, ref negative));
         Assert.Equal(admitted, positive.HasValue);
         Assert.Equal(admitted, negative.HasValue);
         if (admitted)
@@ -244,7 +245,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionTests
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
 
-        Assert.True(ConePlaneRayPointExits.AccumulateSidePoint(triangle, frame, point,
+        Assert.True(ConePlaneRayPointExits.AccumulateSidePoint(ConePlaneRayEventSource.Plane, frame, point,
             ReadOnlySpan<ulong>.Empty, ref positive, ref negative));
         Assert.Equal(Fixed64.Zero, positive.GetRoundedMaximumDepth());
         Assert.Equal(Fixed64.Two, negative.GetRoundedMaximumDepth());
@@ -266,7 +267,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionTests
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
 
-        Assert.True(ConePlaneRayPointExits.AccumulateSidePoint(triangle, frame, point,
+        Assert.True(ConePlaneRayPointExits.AccumulateSidePoint(ConePlaneRayEventSource.Plane, frame, point,
             ReadOnlySpan<ulong>.Empty, ref positive, ref negative));
         Assert.Equal(Fixed64.FromRaw(9603838835L), positive.GetRoundedMaximumDepth());
         Assert.Equal(Fixed64.FromRaw(9603838835L), negative.GetRoundedMaximumDepth());
@@ -336,7 +337,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionTests
         Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
-        Assert.True(ConePlaneRayPointExits.AccumulateRationalPoint(triangle, frame, point, ref positive, ref negative));
+        Assert.True(ConePlaneRayPointExits.AccumulateRationalPoint(ConePlaneRayEventSource.Plane, frame, point, ref positive, ref negative));
 
         Assert.True(ConePlaneRayPointMaterialization.TryGetExitWorldPoint(frame, point, positive.Root,
             ContactQuadratic.At(pv, ps, 0, ConePlaneRaySelection.FieldWords),

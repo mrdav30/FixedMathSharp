@@ -13,16 +13,17 @@ internal ref struct ConePlaneRaySelection
 {
     internal const int FieldWords = 64;
     internal const int RootWords = 40;
-    internal const int StorageWords = 4 * FieldWords + RootWords;
-    internal const int SignCount = 4;
+    internal const int StorageWords = 4 * FieldWords + RootWords + ConePlaneRayPoint.StorageWords;
+    internal const int SignCount = 4 + ConePlaneRayPoint.SignCount;
     internal readonly Span<ulong> Values;
     internal readonly Span<int> Signs;
     internal bool HasValue;
     internal ConePlaneRayEvent CurrentEvent, MaximumEvent;
-    internal FixedTriangle CurrentTriangle, MaximumTriangle;
+    internal ConePlaneRayEventSource CurrentSource, MaximumSource;
     private Signed576 metric;
     private Signed192 scale;
-    internal ReadOnlySpan<ulong> Root => Values[(4 * FieldWords)..];
+    internal ReadOnlySpan<ulong> Root => Values.Slice(4 * FieldWords, RootWords);
+    internal ConePlaneRayPoint Point => new(Values[(4 * FieldWords + RootWords)..], Signs[4..]);
 
     internal ConePlaneRaySelection(Span<ulong> values, Span<int> signs)
     {
@@ -30,12 +31,12 @@ internal ref struct ConePlaneRaySelection
             throw new ArgumentException("The plane-ray selection storage is too small.");
         Values = values[..StorageWords]; Signs = signs[..SignCount]; HasValue = false;
         CurrentEvent = MaximumEvent = default;
-        CurrentTriangle = MaximumTriangle = default;
+        CurrentSource = MaximumSource = default;
         metric = default; scale = default;
     }
 
-    internal void Keep(scoped ContactQuadratic numerator, scoped ContactQuadratic denominator, scoped ReadOnlySpan<ulong> root,
-        in ConePlaneRayFrame frame)
+    internal bool Keep(scoped ContactQuadratic numerator, scoped ContactQuadratic denominator, scoped ReadOnlySpan<ulong> root,
+        in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point)
     {
         if (numerator.Sign(root) < 0 || denominator.Sign(root) <= 0)
             throw new ArgumentException("The admitted depth must be nonnegative with a positive denominator.");
@@ -44,11 +45,10 @@ internal ref struct ConePlaneRaySelection
         if (HasValue)
         {
             int comparison = ContactQuadratic.CompareRatios(numerator, denominator, root, bestN, bestD, Root);
-            // Every event dispatcher supplies provenance before admission;
-            // equal depths therefore always compare their exact anchors.
-            if (comparison < 0 || comparison == 0 && ConePlaneRayEvents.CompareEventAnchors(
-                    CurrentTriangle, CurrentEvent, MaximumTriangle, MaximumEvent, frame) >= 0)
-                return;
+            int pointOrder = comparison == 0 ? point.CompareTo(Point, root, Root) : 0;
+            if (comparison < 0 || comparison == 0 && (pointOrder > 0 || pointOrder == 0
+                    && ConePlaneRayEvents.CompareCoincidentProvenance(CurrentSource, CurrentEvent, MaximumSource, MaximumEvent) >= 0))
+                return false;
         }
         numerator.CopyTo(bestN); denominator.CopyTo(bestD);
         Span<ulong> retainedRoot = Values.Slice(4 * FieldWords, RootWords);
@@ -57,7 +57,39 @@ internal ref struct ConePlaneRaySelection
         scale = WideArithmetic.AddSigned192(frame.Finite.ShapeFrame.Denominator, frame.Finite.ShapeFrame.Denominator);
         HasValue = true;
         MaximumEvent = CurrentEvent;
-        MaximumTriangle = CurrentTriangle;
+        MaximumSource = CurrentSource;
+        // Rational points have zero radical coefficients, so the exit's root
+        // also represents them. Side and certified exits already share the
+        // point field. Retain only the winning point, never a wide event pool.
+        point.CopyTo(Point);
+        return true;
+    }
+
+    internal bool KeepEvaluated(scoped in ConePlaneRaySelection other, in ConePlaneRayFrame frame)
+    {
+        if (!other.HasValue) return false;
+        CurrentSource = other.MaximumSource; CurrentEvent = other.MaximumEvent;
+        return Keep(ContactQuadratic.At(other.Values, other.Signs, 0, FieldWords),
+            ContactQuadratic.At(other.Values, other.Signs, 1, FieldWords), other.Root, frame, other.Point);
+    }
+
+    /// <summary>Restores metadata after reborrowing previously populated winning coefficient/sign storage.</summary>
+    internal void Restore(in ConePlaneRayFrame frame, in ConePlaneRayEventSource source, ConePlaneRayEvent descriptor)
+    {
+        metric = frame.NormalSquared;
+        scale = WideArithmetic.AddSigned192(frame.Finite.ShapeFrame.Denominator, frame.Finite.ShapeFrame.Denominator);
+        CurrentSource = MaximumSource = source; CurrentEvent = MaximumEvent = descriptor; HasValue = true;
+    }
+
+    internal bool TryMaterialize(in ConePlaneRayFrame frame, int orientation,
+        out Vector3d lower, out Vector3d upper, out Fixed64 depth)
+    {
+        lower = upper = default; depth = default;
+        if (orientation != 1 && orientation != -1) throw new ArgumentOutOfRangeException(nameof(orientation));
+        return HasValue && ConePlaneRayPointMaterialization.TryGetWorldPoint(frame, Point, Root, out lower)
+            && TryGetRoundedMaximumDepth(out depth)
+            && ConePlaneRayPointMaterialization.TryGetExitWorldPoint(frame, Point, Root,
+                ContactQuadratic.At(Values, Signs, 0, FieldWords), ContactQuadratic.At(Values, Signs, 1, FieldWords), orientation, out upper);
     }
 
     internal bool TryGetRoundedMaximumDepth(out Fixed64 depth)

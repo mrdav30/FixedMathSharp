@@ -25,47 +25,6 @@ internal static partial class SegmentConeSurfaceCandidates
         return MaterializeSidePoint(geometry, values, signs, root);
     }
 
-    internal static bool TryGetSideIntervalContact(SegmentConeSurfaceCandidate candidate, Fixed64 parameter,
-        out FixedContactAnchors contact)
-    {
-        contact = default;
-        if (candidate.Family != ConeSurfaceFamily.SegmentInterval || candidate.Input.Radius == Fixed64.Zero
-            || parameter < Fixed64.Zero || parameter > Fixed64.One)
-            return false;
-        var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
-        Span<ulong> values = stackalloc ulong[24 * Words];
-        Span<int> signs = stackalloc int[24];
-        Span<ulong> root = stackalloc ulong[Words];
-        bool normal = BuildSideNormal(geometry, -1, candidate.Chart, values, signs, root);
-        bool foot = TryBuildSideFoot(geometry, -1, values, signs, root, out bool interval);
-        System.Diagnostics.Debug.Assert(normal && foot && interval);
-        At(values, signs, 5).Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(parameter))));
-        At(values, signs, 6).Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(Fixed64.One))));
-        if (!AdmitsSideParameter(geometry, values, signs, root))
-            return false;
-        contact = MaterializeSidePoint(geometry, values, signs, root);
-        return true;
-    }
-
-    internal static bool TryGetSideCircleContact(SegmentConeSurfaceCandidate candidate, Vector2d direction,
-        out FixedContactAnchors contact)
-    {
-        contact = default;
-        System.Diagnostics.Debug.Assert(candidate.Feature == ConeSurfaceFeature.Side);
-        if (candidate.Family != ConeSurfaceFamily.RotationCircle || direction == Vector2d.Zero)
-            return false;
-        var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
-        Span<ulong> values = stackalloc ulong[24 * Words];
-        Span<int> signs = stackalloc int[24];
-        Span<ulong> root = stackalloc ulong[Words];
-        WideAxis3 radial = new(Signed320.ExtendValue(Signed192.Raw(direction.X)), default, Signed320.ExtendValue(Signed192.Raw(direction.Y)));
-        BuildSidePointNormal(geometry, radial, 1, values, signs, root);
-        if (!TryBuildSideFoot(geometry, candidate.RootOrdinal, values, signs, root, out _))
-            return false;
-        contact = MaterializeSidePoint(geometry, values, signs, root);
-        return true;
-    }
-
     private static FixedContactAnchors MaterializeSidePoint(in SegmentConeSurfaceGeometry geometry,
         Span<ulong> values, Span<int> signs, ReadOnlySpan<ulong> root)
     {

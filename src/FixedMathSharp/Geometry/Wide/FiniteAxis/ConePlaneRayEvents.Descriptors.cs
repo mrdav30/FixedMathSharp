@@ -8,13 +8,25 @@ using System;
 
 namespace FixedMathSharp.Geometry;
 
+internal enum ConePlaneRayEventScope : byte { Plane, Segment }
+
+/// <summary>An unbounded shared plane or one authored finite boundary segment.</summary>
+internal readonly struct ConePlaneRayEventSource
+{
+    internal readonly ConePlaneRayEventScope Scope;
+    internal readonly Vector3d A, B;
+    internal static ConePlaneRayEventSource Plane => default;
+    internal ConePlaneRayEventSource(FixedSegment segment)
+    { Scope = ConePlaneRayEventScope.Segment; A = segment.Start; B = segment.End; }
+}
+
 internal enum ConePlaneRayEventKind : byte
 {
     EdgeEndpoint, EdgeSide, EdgeStationary, LowerCircle, UpperRim, Generator,
     Axis, Apex, BaseStationary
 }
 
-/// <summary>A reconstructible finite feature in its retained triangle and shared frame.</summary>
+/// <summary>A reconstructible finite feature in its shared plane or finite segment.</summary>
 internal readonly struct ConePlaneRayEvent
 {
     internal readonly ConePlaneRayEventKind Kind;
@@ -31,130 +43,58 @@ internal readonly struct ConePlaneRayEvent
     internal bool Matches(in ConePlaneRayEvent other) => Kind == other.Kind && Feature == other.Feature
         && Quadrant == other.Quadrant && Branch == other.Branch && Endpoint == other.Endpoint;
 
-    internal int ReconstructionCount => Endpoint == -2 ? 5 : 1;
-    internal ConePlaneRayEvent GetReconstruction(int index)
-    {
-        if ((uint)index >= ReconstructionCount) throw new ArgumentOutOfRangeException(nameof(index));
-        return Endpoint == -2 ? new ConePlaneRayEvent(Kind, Feature, Quadrant, Branch, index, Orientation) : this;
-    }
+
 }
 
-/// <summary>Caller-owned per-triangle event storage with optional single-event reconstruction.</summary>
+/// <summary>One borrowed exact output point; point-only replay does not solve unused exits.</summary>
 internal ref struct ConePlaneRayEventSink
 {
-    internal const int Capacity = 64;
-    private readonly Span<ConePlaneRayEvent> events;
-    internal int Count;
-    internal readonly bool IsReconstruction;
     internal readonly ConePlaneRayEvent Target;
+    internal readonly bool PointOnly;
     private readonly ConePlaneRayPoint outputPoint;
     private readonly Span<ulong> outputRoot;
     internal bool HasPoint;
 
-    internal ConePlaneRayEventSink(Span<ConePlaneRayEvent> events)
-    {
-        if (events.Length < Capacity)
-            throw new ArgumentException("The finite cone event sink needs 64 descriptor slots.", nameof(events));
-        this.events = events; Count = 0; IsReconstruction = false; Target = default;
-        outputPoint = default; outputRoot = default; HasPoint = false;
-    }
+    internal ConePlaneRayEventSink(ConePlaneRayEvent target, ConePlaneRayPoint point, Span<ulong> root, bool pointOnly = false)
+    { Target = target; outputPoint = point; outputRoot = root; PointOnly = pointOnly; HasPoint = false; }
 
-    internal ConePlaneRayEventSink(ConePlaneRayEvent target, ConePlaneRayPoint point, Span<ulong> root)
+    internal bool Wants(ConePlaneRayEventKind kind) => Target.Kind == kind;
+    internal bool Wants(in ConePlaneRayEvent descriptor) => Target.Matches(descriptor);
+    internal void Keep(in ConePlaneRayEvent descriptor, scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root)
     {
-        events = default; Count = 0; IsReconstruction = true; Target = target;
-        outputPoint = point; outputRoot = root; HasPoint = false;
-    }
-
-    internal bool Wants(ConePlaneRayEventKind kind) => !IsReconstruction || Target.Kind == kind;
-    internal bool Wants(in ConePlaneRayEvent descriptor) => !IsReconstruction || Target.Matches(descriptor);
-
-    internal void Keep(in ConePlaneRayEvent descriptor, in ConePlaneRayFrame frame,
-        scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root)
-    {
-        if (IsReconstruction)
-        {
-            if (Wants(descriptor))
-            {
-                point.X.CopyTo(outputPoint.X); point.Y.CopyTo(outputPoint.Y); point.Z.CopyTo(outputPoint.Z);
-                point.Denominator.CopyTo(outputPoint.Denominator);
-                root.CopyTo(outputRoot); outputRoot[root.Length..].Clear();
-                HasPoint = true;
-            }
-            return;
-        }
-        if (events.IsEmpty)
-            return;
-        // A degenerate interval is one family, not one wide value per root.
-        // Endpoint=-2 asks its consumer to expand the finite endpoint events.
-        ConePlaneRayEvent retained = descriptor;
-        if (descriptor.Kind == ConePlaneRayEventKind.Generator
-            || descriptor.Kind == ConePlaneRayEventKind.Axis && descriptor.Endpoint >= 0)
-            retained = new ConePlaneRayEvent(descriptor.Kind, descriptor.Feature, descriptor.Quadrant,
-                descriptor.Branch, -2, descriptor.Orientation);
-        for (int i = 0; i < Count; i++)
-            if (events[i].Matches(retained))
-                return;
-        events[Count++] = retained;
+        if (!Wants(descriptor)) return;
+        point.CopyTo(outputPoint);
+        root.CopyTo(outputRoot); outputRoot[root.Length..].Clear();
+        HasPoint = true;
     }
 }
 
 /// <content>Compact candidate provenance and direct event reconstruction.</content>
 internal static partial class ConePlaneRayEvents
 {
-    private static void SetEvent(FixedTriangle triangle, in ConePlaneRayEvent descriptor,
+    private static void SetEvent(in ConePlaneRayEventSource source, in ConePlaneRayEvent descriptor,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative)
     {
         positive.CurrentEvent = descriptor; negative.CurrentEvent = descriptor;
-        positive.CurrentTriangle = triangle; negative.CurrentTriangle = triangle;
+        positive.CurrentSource = source; negative.CurrentSource = source;
     }
 
-    internal static bool TryMaterializeEvent(FixedTriangle triangle, in ConePlaneRayFrame frame,
-        ConePlaneRayEvent descriptor, int orientation, out Vector3d lowerAnchor,
-        out Vector3d coneAnchor, out Fixed64 depth)
-    {
-        lowerAnchor = coneAnchor = default; depth = default;
-        if (orientation != 1 && orientation != -1) throw new ArgumentOutOfRangeException(nameof(orientation));
-        Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
-        Span<int> pointSigns = stackalloc int[ConePlaneRayPoint.SignCount];
-        Span<ulong> pointRoot = stackalloc ulong[RootWords];
-        var point = new ConePlaneRayPoint(pointValues, pointSigns);
-        Span<ulong> pv = stackalloc ulong[ConePlaneRaySelection.StorageWords];
-        Span<ulong> nv = stackalloc ulong[ConePlaneRaySelection.StorageWords];
-        Span<int> ps = stackalloc int[ConePlaneRaySelection.SignCount];
-        Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
-        var positive = new ConePlaneRaySelection(pv, ps);
-        var negative = new ConePlaneRaySelection(nv, ns);
-        var sink = new ConePlaneRayEventSink(descriptor, point, pointRoot);
-        Accumulate(triangle, frame, ref positive, ref negative, ref sink);
-        ConePlaneRaySelection selected = orientation > 0 ? positive : negative;
-        if (!sink.HasPoint || !selected.HasValue
-            || !ConePlaneRayPointMaterialization.TryGetWorldPoint(frame, point, pointRoot, out lowerAnchor)
-            || !selected.TryGetRoundedMaximumDepth(out depth))
-            return false;
-        return ConePlaneRayPointMaterialization.TryGetExitWorldPoint(frame, point, selected.Root,
-            ContactQuadratic.At(selected.Values, selected.Signs, 0, Words),
-            ContactQuadratic.At(selected.Values, selected.Signs, 1, Words), orientation, out coneAnchor);
-    }
-
-    private static bool ReconstructPoint(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    private static bool ReconstructPoint(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         ConePlaneRayEvent descriptor, scoped ConePlaneRayPoint point, scoped Span<ulong> root)
     {
-        Span<ulong> pv = stackalloc ulong[ConePlaneRaySelection.StorageWords];
-        Span<ulong> nv = stackalloc ulong[ConePlaneRaySelection.StorageWords];
-        Span<int> ps = stackalloc int[ConePlaneRaySelection.SignCount];
-        Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
-        var positive = new ConePlaneRaySelection(pv, ps);
-        var negative = new ConePlaneRaySelection(nv, ns);
-        var sink = new ConePlaneRayEventSink(descriptor, point, root);
-        Accumulate(triangle, frame, ref positive, ref negative, ref sink);
+        // Point-only routes never read selection storage or solve exits.
+        scoped ConePlaneRaySelection positive = default, negative = default;
+        var sink = new ConePlaneRayEventSink(descriptor, point, root, pointOnly: true);
+        Accumulate(source, frame, ref positive, ref negative, ref sink);
         return sink.HasPoint;
     }
 
-    internal static int CompareEventAnchors(FixedTriangle firstTriangle, ConePlaneRayEvent first,
-        FixedTriangle secondTriangle, ConePlaneRayEvent second, in ConePlaneRayFrame frame)
+    internal static int CompareEventAnchors(in ConePlaneRayEventSource firstSource, ConePlaneRayEvent first,
+        in ConePlaneRayEventSource secondSource, ConePlaneRayEvent second, in ConePlaneRayFrame frame,
+        bool includeCoincidentProvenance = true)
     {
-        if (first.Matches(second) && firstTriangle.A == secondTriangle.A
-            && firstTriangle.B == secondTriangle.B && firstTriangle.C == secondTriangle.C)
+        if (first.Matches(second) && firstSource.Scope == secondSource.Scope && firstSource.A == secondSource.A
+            && firstSource.B == secondSource.B)
             return 0;
         Span<ulong> av = stackalloc ulong[ConePlaneRayPoint.StorageWords];
         Span<ulong> bv = stackalloc ulong[ConePlaneRayPoint.StorageWords];
@@ -163,28 +103,24 @@ internal static partial class ConePlaneRayEvents
         Span<ulong> ar = stackalloc ulong[RootWords];
         Span<ulong> br = stackalloc ulong[RootWords];
         var a = new ConePlaneRayPoint(av, sa); var b = new ConePlaneRayPoint(bv, sb);
-        if (!ReconstructPoint(firstTriangle, frame, first, a, ar)
-            || !ReconstructPoint(secondTriangle, frame, second, b, br))
+        if (!ReconstructPoint(firstSource, frame, first, a, ar)
+            || !ReconstructPoint(secondSource, frame, second, b, br))
             throw new InvalidOperationException("An admitted finite event could not be reconstructed.");
-        // All triangles in this selection share one exact cone frame. Its
-        // lexicographic coordinate order is a geometric tie independent of
-        // authored winding, traversal order and alternative triangulation.
-        for (int axis = 0; axis < 3; axis++)
-        {
-            int comparison = ContactQuadratic.CompareRatios(axis == 0 ? a.X : axis == 1 ? a.Y : a.Z,
-                a.Denominator, ar, axis == 0 ? b.X : axis == 1 ? b.Y : b.Z, b.Denominator, br);
-            if (comparison != 0) return comparison;
-        }
-        return CompareCoincidentProvenance(firstTriangle, first, secondTriangle, second);
+        int comparison = a.CompareTo(b, ar, br);
+        if (comparison != 0) return comparison;
+        return includeCoincidentProvenance
+            ? CompareCoincidentProvenance(firstSource, first, secondSource, second) : 0;
     }
 
-    private static int CompareCoincidentProvenance(FixedTriangle firstTriangle, ConePlaneRayEvent first,
-        FixedTriangle secondTriangle, ConePlaneRayEvent second)
+    internal static int CompareCoincidentProvenance(in ConePlaneRayEventSource firstSource, ConePlaneRayEvent first,
+        in ConePlaneRayEventSource secondSource, ConePlaneRayEvent second)
     {
-        Span<Vector3d> a = stackalloc Vector3d[3] { firstTriangle.A, firstTriangle.B, firstTriangle.C };
-        Span<Vector3d> b = stackalloc Vector3d[3] { secondTriangle.A, secondTriangle.B, secondTriangle.C };
+        int scopeOrder = ((byte)firstSource.Scope).CompareTo((byte)secondSource.Scope);
+        if (scopeOrder != 0) return scopeOrder;
+        Span<Vector3d> a = stackalloc Vector3d[2] { firstSource.A, firstSource.B };
+        Span<Vector3d> b = stackalloc Vector3d[2] { secondSource.A, secondSource.B };
         SortVertices(a); SortVertices(b);
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 2; i++)
         {
             int comparison = CompareVertex(a[i], b[i]);
             if (comparison != 0) return comparison;
@@ -198,7 +134,7 @@ internal static partial class ConePlaneRayEvents
 
     private static void SortVertices(Span<Vector3d> vertices)
     {
-        for (int i = 1; i < 3; i++)
+        for (int i = 1; i < 2; i++)
             for (int j = i; j > 0 && CompareVertex(vertices[j], vertices[j - 1]) < 0; j--)
                 (vertices[j], vertices[j - 1]) = (vertices[j - 1], vertices[j]);
     }

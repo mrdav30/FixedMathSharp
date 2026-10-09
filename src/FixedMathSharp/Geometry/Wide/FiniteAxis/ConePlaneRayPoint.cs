@@ -28,6 +28,22 @@ internal readonly ref struct ConePlaneRayPoint
         this.values = values[..StorageWords]; this.signs = signs[..SignCount];
     }
 
+    internal void CopyTo(scoped ConePlaneRayPoint target)
+    {
+        X.CopyTo(target.X); Y.CopyTo(target.Y); Z.CopyTo(target.Z); Denominator.CopyTo(target.Denominator);
+    }
+
+    internal int CompareTo(scoped ConePlaneRayPoint other, scoped ReadOnlySpan<ulong> root, scoped ReadOnlySpan<ulong> otherRoot)
+    {
+        for (int axis = 0; axis < 3; axis++)
+        {
+            int order = ContactQuadratic.CompareRatios(axis == 0 ? X : axis == 1 ? Y : Z, Denominator, root,
+                axis == 0 ? other.X : axis == 1 ? other.Y : other.Z, other.Denominator, otherRoot);
+            if (order != 0) return order;
+        }
+        return 0;
+    }
+
     internal void Set(WideAxis3 point)
     {
         X.Set(Signed576.ExtendValue(point.X)); Y.Set(Signed576.ExtendValue(point.Y));

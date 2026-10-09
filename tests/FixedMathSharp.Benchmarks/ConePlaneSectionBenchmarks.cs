@@ -65,15 +65,33 @@ public class ConePlaneSectionBenchmarks
         Span<int> ns = stackalloc int[ConePlaneRaySelection.SignCount];
         var positive = new ConePlaneRaySelection(pv, ps);
         var negative = new ConePlaneRaySelection(nv, ns);
-        Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[ConePlaneRayEventSink.Capacity];
-        var sink = new ConePlaneRayEventSink(events);
-        bool found = ConePlaneRayEvents.Accumulate(
-            _first, _frame, ref positive, ref negative, ref sink);
-        if (_hasSecond)
-            found &= ConePlaneRayEvents.Accumulate(
-                _second, _frame, ref positive, ref negative, ref sink);
-        bool materialized = ConePlaneRayEvents.TryMaterializeEvent(positive.MaximumTriangle, _frame,
-            positive.MaximumEvent, 1, out Vector3d lower, out Vector3d upper, out Fixed64 positiveDepth);
+        Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[ConePlaneRayEvents.IntrinsicCapacity];
+        Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords], root = stackalloc ulong[ConePlaneRaySelection.RootWords];
+        Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+        var point = new ConePlaneRayPoint(words, signs);
+        Span<ulong> candidatePositive = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+        Span<ulong> candidateNegative = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+        Span<int> candidatePositiveSigns = stackalloc int[ConePlaneRaySelection.SignCount];
+        Span<int> candidateNegativeSigns = stackalloc int[ConePlaneRaySelection.SignCount];
+        var p = new ConePlaneRaySelection(candidatePositive, candidatePositiveSigns);
+        var n = new ConePlaneRaySelection(candidateNegative, candidateNegativeSigns);
+        bool found = false;
+        for (int domain = -1; domain < (_hasSecond ? 6 : 3); domain++)
+        {
+            ConePlaneRayEventSource source = domain < 0 ? ConePlaneRayEventSource.Plane
+                : new ConePlaneRayEventSource(domain < 3 ? _first.GetEdge(domain) : _second.GetEdge(domain - 3));
+            int count = domain < 0 ? ConePlaneRayEvents.GetIntrinsicEvents(_frame, events) : ConePlaneRayEvents.GetBoundaryEvents(events);
+            foreach (ConePlaneRayEvent item in events[..count])
+            {
+                if (!ConePlaneRayEvents.TryEvaluateEvent(source, _frame, item, point, root, ref p, ref n)
+                    || !(ConePlaneRayPointExits.ContainsTrianglePoint(_first, _frame, point, root)
+                        || _hasSecond && ConePlaneRayPointExits.ContainsTrianglePoint(_second, _frame, point, root))) continue;
+                found = true;
+                positive.KeepEvaluated(p, _frame); negative.KeepEvaluated(n, _frame);
+            }
+        }
+        bool materialized = positive.TryMaterialize(_frame, 1,
+            out Vector3d lower, out Vector3d upper, out Fixed64 positiveDepth);
         bool negativeRounded = negative.TryGetRoundedMaximumDepth(out Fixed64 negativeDepth);
         return (found && materialized && negativeRounded, positiveDepth, negativeDepth, lower, upper);
     }

@@ -11,7 +11,7 @@ namespace FixedMathSharp.Geometry;
 /// <content>Apex, axial support continua, and the lower base-line stationary stratum.</content>
 internal static partial class ConePlaneRayEvents
 {
-    private static bool AccumulateAxisAndApex(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    private static bool AccumulateAxisAndApex(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
@@ -21,52 +21,31 @@ internal static partial class ConePlaneRayEvents
         Span<int> pointSigns = stackalloc int[8];
         var point = new ConePlaneRayPoint(pointValues, pointSigns);
         ContactQuadratic n = At(values, signs, 0), d = At(values, signs, 1), term = At(values, signs, 2);
-        bool found = false;
         point.X.Clear(); point.Z.Clear();
-        if (!frame.Normal.Y.IsZero && sink.Wants(ConePlaneRayEventKind.Axis))
+        if (sink.Wants(ConePlaneRayEventKind.Axis))
         {
-            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis);
-            point.Y.Set(frame.PlaneConstant); point.Y.MultiplySign(frame.Normal.Y.Sign);
-            point.Denominator.Set(Extend(frame.Normal.Y)); point.Denominator.MultiplySign(frame.Normal.Y.Sign);
-            SetEvent(triangle, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(triangle, frame, point, ref positive, ref negative);
-            if (admitted) sink.Keep(descriptor, frame, point, ReadOnlySpan<ulong>.Empty);
-            found |= admitted;
-        }
-        else if (frame.Normal.Y.IsZero && frame.PlaneConstant.IsZero && sink.Wants(ConePlaneRayEventKind.Axis))
-        {
-            // An axial section contains an entire axis interval. Triangle
-            // walls supply its exact closed clipping endpoints, including
-            // zero-radius cones and intervals excluding both cone vertices.
-            for (int endpoint = 0; endpoint < 5; endpoint++)
+            ConePlaneRayEvent descriptor;
+            if (!frame.Normal.Y.IsZero)
             {
-                var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: endpoint);
-                if (!sink.Wants(descriptor)) continue;
-                if (endpoint < 2)
-                {
-                    point.Y.Set(endpoint == 0 ? default : Extend(frame.Finite.FullHeight));
-                    point.Denominator.Set(Integer(1));
-                }
-                else
-                {
-                    frame.GetTriangleEdgeWall(triangle, endpoint - 2, out _, out Signed576 wy,
-                        out _, out Signed576 offset);
-                    if (wy.IsZero)
-                        continue;
-                    point.Y.Set(offset); point.Y.MultiplySign(wy.Sign);
-                    point.Denominator.Set(wy); point.Denominator.MultiplySign(wy.Sign);
-                }
-                SetEvent(triangle, descriptor, ref positive, ref negative);
-                bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(triangle, frame, point, ref positive, ref negative);
-                if (admitted) sink.Keep(descriptor, frame, point, ReadOnlySpan<ulong>.Empty);
-                found |= admitted;
+                descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis);
+                if (!sink.Wants(descriptor)) return false;
+                point.Y.Set(frame.PlaneConstant); point.Y.MultiplySign(frame.Normal.Y.Sign);
+                point.Denominator.Set(Extend(frame.Normal.Y)); point.Denominator.MultiplySign(frame.Normal.Y.Sign);
             }
+            else
+            {
+                if (!frame.PlaneConstant.IsZero || (uint)sink.Target.Endpoint > 1) return false;
+                descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: sink.Target.Endpoint);
+                point.Y.Set(sink.Target.Endpoint == 0 ? default : Extend(frame.Finite.FullHeight));
+                point.Denominator.Set(Integer(1));
+            }
+            SetEvent(source, descriptor, ref positive, ref negative);
+            bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly);
+            if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty);
+            return admitted;
         }
-        // Project the apex onto the authored plane. Admission alone proves
-        // that a positive segment ending at the apex is a finite boundary ray.
-        // Zero depth needs both rays evaluated at the apex, not a fabricated
-        // zero inward exit; the axis branch above already contributes it.
-        if (!sink.Wants(ConePlaneRayEventKind.Apex)) return found;
+        // Project the apex onto the shared plane. Zero depth is represented by
+        // the axis event; a nonzero certified exit retains its orientation.
         n.Set(frame.PlaneConstant); d.Set(frame.NormalSquared);
         ContactQuadratic.Scale(n, Extend(frame.Normal.X), point.X);
         ContactQuadratic.Scale(n, Extend(frame.Normal.Y), point.Y);
@@ -77,16 +56,16 @@ internal static partial class ConePlaneRayEvents
         {
             var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.Apex, orientation: orientation);
             n.CopyTo(term, -orientation);
-            SetEvent(triangle, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateCertifiedExit(triangle, frame, point,
-                ReadOnlySpan<ulong>.Empty, term, d, orientation, ref positive, ref negative);
-            if (admitted) sink.Keep(descriptor, frame, point, ReadOnlySpan<ulong>.Empty);
-            found |= admitted;
+            SetEvent(source, descriptor, ref positive, ref negative);
+            bool admitted = ConePlaneRayPointExits.AccumulateCertifiedExit(source, frame, point,
+                ReadOnlySpan<ulong>.Empty, term, d, orientation, ref positive, ref negative, sink.PointOnly);
+            if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty);
+            return admitted;
         }
-        return found;
+        return false;
     }
 
-    private static bool AccumulateBaseStationary(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    private static bool AccumulateBaseStationary(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
@@ -132,22 +111,15 @@ internal static partial class ConePlaneRayEvents
         ContactQuadratic.Scale(L, Extend(frame.Finite.FullHeight), term);
         ContactQuadratic.Scale(term, Extend(frame.Finite.FullHeight), work);
         ContactQuadratic.Scale(work, r2, term); c.Add(term, -1);
-        bool found = false;
-        for (int branch = -1; branch <= 1; branch += 2)
-        {
-            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch);
-            if (!sink.Wants(descriptor)) continue;
-            if (!ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, t, d))
-                continue;
-            int orientation = t.Sign(root) < 0 ? -1 : 1;
-            descriptor = new ConePlaneRayEvent(descriptor.Kind, branch: branch, orientation: orientation);
-            t.CopyTo(depth, orientation);
-            SetEvent(triangle, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateStationarySideExit(triangle, frame, point, root,
-                depth, d, orientation, ref positive, ref negative);
-            if (admitted) sink.Keep(descriptor, frame, point, root);
-            found |= admitted;
-        }
-        return found;
+        int branch = sink.Target.Branch;
+        if (!ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, t, d)) return false;
+        int orientation = t.Sign(root) < 0 ? -1 : 1;
+        var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch, orientation: orientation);
+        t.CopyTo(depth, orientation);
+        SetEvent(source, descriptor, ref positive, ref negative);
+        bool admitted = ConePlaneRayPointExits.AccumulateStationarySideExit(source, frame, point, root,
+            depth, d, orientation, ref positive, ref negative, sink.PointOnly);
+        if (admitted) sink.Keep(descriptor, point, root);
+        return admitted;
     }
 }

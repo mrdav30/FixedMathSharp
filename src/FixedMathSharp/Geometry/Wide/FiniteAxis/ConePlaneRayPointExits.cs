@@ -23,13 +23,10 @@ internal static class ConePlaneRayPointExits
     // one depth, one point, A<650 and the shared root; <10320 bits, 176 words.
     // These are transient products, never retained as point/depth fields.
 
-    internal static bool ContainsPoint(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    internal static bool ContainsPoint(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root)
     {
         if (frame.NormalSquared.IsZero || point.Denominator.Sign(root) <= 0)
-            return false;
-        triangle.GetExactNormal(out Signed192 nx, out Signed192 ny, out Signed192 nz, out _);
-        if (nx.IsZero && ny.IsZero && nz.IsZero)
             return false;
         Span<ulong> work = stackalloc ulong[4 * Words];
         Span<int> signs = stackalloc int[4];
@@ -44,27 +41,66 @@ internal static class ConePlaneRayPointExits
         value.Add(point.Y, -1);
         if (value.Sign(root) < 0)
             return false;
+        Span<ulong> coneWork = stackalloc ulong[2 * AdmissionWords];
+        Span<int> coneSigns = stackalloc int[2];
+        ContactQuadratic cone = ContactQuadratic.At(coneWork, coneSigns, 0, AdmissionWords);
+        ConeProduct(point, point, frame, root, cone);
+        if (cone.Sign(root) > 0) return false;
+        if (source.Scope == ConePlaneRayEventScope.Plane) return true;
+        frame.GetEdgeLine(new FixedSegment(source.A, source.B), out Signed576 wx, out Signed576 wy, out Signed576 wz, out Signed576 offset);
+        Dot(point, wx, wy, wz, value, term);
+        ContactQuadratic.Scale(point.Denominator, offset, term); value.Add(term, -1);
+        if (value.Sign(root) != 0) return false;
+        WideAxis3 start = frame.Transform(source.A), end = frame.Transform(source.B);
+        WideAxis3 delta = new(WideArithmetic.SubtractSigned320(end.X, start.X),
+            WideArithmetic.SubtractSigned320(end.Y, start.Y), WideArithmetic.SubtractSigned320(end.Z, start.Z));
+        if (delta.IsZero)
+        {
+            // A point segment has no line or projection direction; its
+            // finite domain is exact homogeneous coordinate equality.
+            for (int axis = 0; axis < 3; axis++)
+            {
+                (axis == 0 ? point.X : axis == 1 ? point.Y : point.Z).CopyTo(value);
+                ContactQuadratic.Scale(point.Denominator, Signed576.ExtendValue(axis == 0 ? start.X : axis == 1 ? start.Y : start.Z), term);
+                value.Add(term, -1);
+                if (value.Sign(root) != 0) return false;
+            }
+            return true;
+        }
+        // Point coefficients <3072 and transformed edge <198 keep the
+        // complete projection and squared-edge bounds <3472 bits (64 words).
+        Dot(point, Signed576.ExtendValue(delta.X), Signed576.ExtendValue(delta.Y), Signed576.ExtendValue(delta.Z), value, term);
+        ContactQuadratic.Scale(point.Denominator, WideAxis3.Dot(start, delta), term); value.Add(term, -1);
+        if (value.Sign(root) < 0) return false;
+        ContactQuadratic.Scale(point.Denominator, delta.SquaredLength, term); term.Add(value, -1);
+        return term.Sign(root) >= 0;
+    }
+
+    /// <summary>Tests only the closed triangle walls of an already certified finite-cone point in the same plane.</summary>
+    internal static bool ContainsTrianglePoint(FixedTriangle triangle, in ConePlaneRayFrame frame,
+        scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root)
+    {
+        triangle.GetExactNormal(out Signed192 nx, out Signed192 ny, out Signed192 nz, out _);
+        if (nx.IsZero && ny.IsZero && nz.IsZero) return false;
+        Span<ulong> work = stackalloc ulong[4 * Words]; Span<int> signs = stackalloc int[4];
+        ContactQuadratic value = ContactQuadratic.At(work, signs, 0, Words), term = ContactQuadratic.At(work, signs, 1, Words);
         for (int edge = 0; edge < 3; edge++)
         {
             frame.GetTriangleEdgeWall(triangle, edge, out Signed576 x, out Signed576 y, out Signed576 z, out Signed576 offset);
             Dot(point, x, y, z, value, term);
             ContactQuadratic.Scale(point.Denominator, offset, term); value.Add(term, -1);
-            if (value.Sign(root) < 0)
-                return false;
+            if (value.Sign(root) < 0) return false;
         }
-        Span<ulong> coneWork = stackalloc ulong[2 * AdmissionWords];
-        Span<int> coneSigns = stackalloc int[2];
-        ContactQuadratic cone = ContactQuadratic.At(coneWork, coneSigns, 0, AdmissionWords);
-        ConeProduct(point, point, frame, root, cone);
-        return cone.Sign(root) <= 0;
+        return true;
     }
 
-    internal static bool AccumulateRationalPoint(FixedTriangle triangle, in ConePlaneRayFrame frame,
-        scoped ConePlaneRayPoint point, scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative)
+    internal static bool AccumulateRationalPoint(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
+        scoped ConePlaneRayPoint point, scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, bool pointOnly = false)
     {
         Span<ulong> root = stackalloc ulong[ConePlaneRaySelection.RootWords]; root.Clear();
-        if (!ContainsPoint(triangle, frame, point, root))
+        if (!ContainsPoint(source, frame, point, root))
             return false;
+        if (pointOnly) return true;
         // Only vertices, rational edge endpoints and the axis-plane point use
         // this path: coordinate numerators <526, denominator <326. Then the
         // ray equation A<1302, B<1241, C<1181 has discriminant <2485,
@@ -74,12 +110,13 @@ internal static class ConePlaneRayPointExits
         return true;
     }
 
-    internal static bool AccumulateSidePoint(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    internal static bool AccumulateSidePoint(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root,
-        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative)
+        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, bool pointOnly = false)
     {
-        if (!ContainsPoint(triangle, frame, point, root))
+        if (!ContainsPoint(source, frame, point, root))
             return false;
+        if (pointOnly) return true;
         // The chart certifies F(point)=0. The nonzero crossing -2B/A is
         // quadratic-field linear; solving a second quadratic would introduce
         // a needless nested radical. Inward zero crossings are rejected.
@@ -88,26 +125,27 @@ internal static class ConePlaneRayPointExits
         return true;
     }
 
-    internal static bool AccumulateCertifiedExit(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    internal static bool AccumulateCertifiedExit(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator,
         scoped ContactQuadratic denominator, int orientation,
-        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative)
+        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, bool pointOnly = false)
     {
-        if (!ContainsPoint(triangle, frame, point, root) || numerator.Sign(root) < 0 || denominator.Sign(root) <= 0)
+        if (!ContainsPoint(source, frame, point, root) || numerator.Sign(root) < 0 || denominator.Sign(root) <= 0)
             return false;
         // The constructing chart certifies an upper support/base/rim point
         // and its first-exit branch. Admission is independently checked here.
-        if (orientation > 0) positive.Keep(numerator, denominator, root, frame);
-        else negative.Keep(numerator, denominator, root, frame);
+        if (pointOnly) return true;
+        if (orientation > 0) positive.Keep(numerator, denominator, root, frame, point);
+        else negative.Keep(numerator, denominator, root, frame, point);
         return true;
     }
 
-    internal static bool AccumulateStationarySideExit(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    internal static bool AccumulateStationarySideExit(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator,
         scoped ContactQuadratic denominator, int orientation,
-        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative)
+        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, bool pointOnly = false)
     {
-        if (!ContainsPoint(triangle, frame, point, root) || numerator.Sign(root) < 0 || denominator.Sign(root) <= 0)
+        if (!ContainsPoint(source, frame, point, root) || numerator.Sign(root) < 0 || denominator.Sign(root) <= 0)
             return false;
         Span<ulong> work = stackalloc ulong[10 * VerificationWords];
         Span<int> signs = stackalloc int[10];
@@ -134,8 +172,9 @@ internal static class ConePlaneRayPointExits
         // nonnegative derivative selects the exit rather than opposite nappe.
         if (y.Sign(root) < 0 || y.Sign(root) == 0 && a.Sign(root) < 0)
             return false;
-        if (orientation > 0) positive.Keep(numerator, denominator, root, frame);
-        else negative.Keep(numerator, denominator, root, frame);
+        if (pointOnly) return true;
+        if (orientation > 0) positive.Keep(numerator, denominator, root, frame, point);
+        else negative.Keep(numerator, denominator, root, frame, point);
         return true;
     }
 
@@ -215,7 +254,7 @@ internal static class ConePlaneRayPointExits
         // A nonzero ray from an admitted point in the compact finite cone
         // must meet a side or axial boundary, including zero-length exits.
         System.Diagnostics.Debug.Assert(hasValue);
-        selection.Keep(bestN, bestD, bestRoot, frame);
+        selection.Keep(bestN, bestD, bestRoot, frame, point);
     }
 
     private static void AccumulateSideOrientation(scoped ConePlaneRayPoint point, in ConePlaneRayFrame frame,
@@ -250,7 +289,7 @@ internal static class ConePlaneRayPointExits
         // With Ny=0, A=H²(Nx²+Nz²)>0 and a side exit exists. Otherwise
         // the admitted finite axial interval supplies an endpoint.
         System.Diagnostics.Debug.Assert(hasValue);
-        selection.Keep(bestN, bestD, bestRoot, frame);
+        selection.Keep(bestN, bestD, bestRoot, frame, point);
     }
 
     private static bool GetAxialExit(scoped ConePlaneRayPoint point, in ConePlaneRayFrame frame,

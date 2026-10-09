@@ -132,7 +132,7 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             if (candidate.Feature != ConeSurfaceFeature.Rim || candidate.Family != ConeSurfaceFamily.NormalCone || !candidate.IsSegmentInterior)
                 continue;
             found = true;
-            Assert.True(candidate.TryGetContactForAuthoredNormal(Covector(horizontal ? Vector3d.Up : new Vector3d(-2, -1, 0)), out FixedContactAnchors contact));
+            FixedContactAnchors contact = FamilyContacts(candidate, NormalRayHalfspaces(Covector(horizontal ? Vector3d.Up : new Vector3d(-2, -1, 0))))[0];
             Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d p));
             Assert.Equal(q, p);
             Assert.Equal(Fixed64.Zero, contact.Depth);
@@ -185,8 +185,8 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             SegmentConeSurfaceCandidate candidate = selection[index];
             if (candidate.Feature != ConeSurfaceFeature.Rim || candidate.Family != ConeSurfaceFamily.None)
                 continue;
-            Assert.False(candidate.TryGetContactForAuthoredNormal(Covector(Vector3d.Up), out _));
-            Assert.False(candidate.TryGetContactForRadialDirection(new Vector2d(1, 0), out _));
+            Assert.Empty(FamilyContacts(candidate, NormalRayHalfspaces(Covector(Vector3d.Up))));
+
             if (candidate.Chart < 0)
                 continue;
             FixedContactAnchors contact = candidate.GetContact();
@@ -264,20 +264,17 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
         for (int index = 0; index < selection.Count; index++)
         {
             SegmentConeSurfaceCandidate candidate = selection[index];
-            Assert.False(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Half, Covector(Vector3d.Forward), out _));
-            Assert.False(candidate.TryGetContactAtIntervalEndpointForAuthoredNormal(false, Covector(Vector3d.Forward), out _));
-            if (candidate.Feature == ConeSurfaceFeature.Base)
-                Assert.False(candidate.TryGetContactForAuthoredNormal(Covector(0, 1, 0), out _));
+
             if (candidate.Feature != ConeSurfaceFeature.Rim || candidate.Family != ConeSurfaceFamily.RotationCircle || !candidate.IsSegmentInterior)
                 continue;
             found = true;
-            Assert.True(candidate.TryGetContactForRadialDirection(new Vector2d(0, 1), out FixedContactAnchors contact));
+            FixedContactAnchors contact = FamilyContacts(candidate, NormalRayHalfspaces(Covector(0, 0, -1)))[0];
             Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d p));
             Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d q));
             Assert.Equal(new Vector3d(0, -2, 0), p);
             Assert.Equal(new Vector3d(0, -2, 2), q);
             Assert.Equal(Fixed64.Two, contact.Depth);
-            Assert.False(candidate.TryGetContactForRadialDirection(Vector2d.Zero, out _));
+
         }
         Assert.True(found);
     }
@@ -295,13 +292,12 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             if (candidate.Feature != ConeSurfaceFeature.Side || candidate.Family != ConeSurfaceFamily.SegmentInterval)
                 continue;
             found = true;
-            Assert.True(candidate.TryGetContactAtIntervalEndpoint(false, out FixedContactAnchors lower));
+            FixedContactAnchors lower = FamilyContacts(candidate)[0];
             Assert.True(lower.FirstAnchor.TryGetPoint(out Vector3d p));
             Assert.Equal(new Vector3d(Fixed64.FromFraction(-5, 4), -Fixed64.Half, Fixed64.Zero), p);
-            Assert.False(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Half, Covector(Vector3d.Forward), out _));
-            Assert.False(candidate.TryGetContactAtIntervalEndpointForAuthoredNormal(false, Covector(Vector3d.Forward), out _));
-            Assert.False(candidate.TryGetContactForAuthoredNormal(Covector(Vector3d.Forward), out _));
-            Assert.False(candidate.TryGetContactForRadialDirection(Vector2d.Zero, out _));
+
+            Assert.Empty(FamilyContacts(candidate, NormalRayHalfspaces(Covector(Vector3d.Forward))));
+
         }
         Assert.True(found);
     }
@@ -412,9 +408,9 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
                 continue;
             found = true;
             Assert.False(candidate.IsSegmentInterior);
-            Assert.True(candidate.TryGetContactForAuthoredNormal(Covector(new Vector3d(-1, 1, 0)), out FixedContactAnchors contact));
+            FixedContactAnchors contact = FamilyContacts(candidate, NormalRayHalfspaces(Covector(new Vector3d(-1, 1, 0))))[0];
             Assert.Equal(Fixed64.Zero, contact.Depth);
-            Assert.False(candidate.TryGetContactForAuthoredNormal(Covector(Vector3d.Up), out _));
+            Assert.Empty(FamilyContacts(candidate, NormalRayHalfspaces(Covector(Vector3d.Up))));
         }
         Assert.True(found);
     }
@@ -462,8 +458,9 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             FixedContactAnchors contact;
             if (candidate.Family == ConeSurfaceFamily.NormalCone)
             {
-                if (!candidate.TryGetContactForAuthoredNormal(Covector(-Vector3d.Right), out contact))
-                    continue;
+                FixedContactAnchors[] familyContacts = FamilyContacts(candidate, NormalRayHalfspaces(Covector(-Vector3d.Right)));
+                if (familyContacts.Length == 0) continue;
+                contact = familyContacts[0];
             }
             else if (candidate.Family == ConeSurfaceFamily.None)
                 contact = candidate.GetContact();
@@ -507,17 +504,13 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             if (candidate.Feature != ConeSurfaceFeature.Side || candidate.Family != ConeSurfaceFamily.NormalCone)
                 continue;
             found = true;
-            Assert.True(candidate.TryGetContactForAuthoredNormal(normal, out FixedContactAnchors contact));
+            FixedContactAnchors contact = FamilyContacts(candidate, NormalRayHalfspaces(normal))[0];
             Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d p));
             Assert.Equal(Vector3d.Zero, p);
             Assert.Equal(Vector3d.Forward, contact.Normal);
-            Assert.True(candidate.TryGetNormalDotSignForAuthoredNormal(normal, normal, out int sign));
-            Assert.Equal(1, sign);
-            Assert.False(candidate.TryGetContactForAuthoredNormal(Covector(1, 0, 0), out _));
-            Assert.False(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Half, normal, out _));
-            Assert.False(candidate.TryGetContactAtIntervalEndpointForAuthoredNormal(false, normal, out _));
-            Assert.False(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Half, Covector(Vector3d.Forward), out _));
-            Assert.False(candidate.TryGetContactAtIntervalEndpointForAuthoredNormal(false, Covector(Vector3d.Forward), out _));
+
+            Assert.Empty(FamilyContacts(candidate, NormalRayHalfspaces(Covector(1, 0, 0))));
+
         }
         Assert.True(found);
     }
@@ -541,8 +534,7 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             SegmentConeSurfaceCandidate candidate = selection[index];
             Assert.False(candidate.Feature == ConeSurfaceFeature.Side
                 && (candidate.IsSegmentInterior || candidate.Family == ConeSurfaceFamily.SegmentInterval));
-            Assert.False(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Half, Covector(0, 0, 1), out _));
-            Assert.False(candidate.TryGetContactAtIntervalEndpointForAuthoredNormal(false, Covector(0, 0, 1), out _));
+
         }
     }
 
@@ -560,7 +552,6 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
         Signed320 twice = WideArithmetic.AddSigned320(unit, unit);
         var normal = new WideAxis3(WideArithmetic.Negate(example == 2 ? unit : twice),
             example == 2 ? unit : WideArithmetic.Negate(unit), default);
-        var covector = new WideAxis3(unit, example == 2 ? unit : WideArithmetic.Negate(twice), default);
         Span<SegmentConeSurfaceCandidate> storage = stackalloc SegmentConeSurfaceCandidate[SegmentConeSurfaceCandidates.MaximumCandidates];
         var selection = new ConeSurfaceSelection(storage);
         Assert.True(SegmentConeSurfaceCandidates.AccumulateSegmentConeSurfaceCandidates(segment,
@@ -572,47 +563,11 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             if (candidate.Feature != (example == 0 ? ConeSurfaceFeature.Apex : ConeSurfaceFeature.Rim) || candidate.Family != ConeSurfaceFamily.NormalCone)
                 continue;
             found = true;
-            Assert.True(candidate.TryGetContactForAuthoredNormal(normal, out FixedContactAnchors contact));
+            FixedContactAnchors contact = FamilyContacts(candidate, NormalRayHalfspaces(normal))[0];
             Assert.Equal(Fixed64.Zero, contact.Depth);
             Assert.True(contact.Normal.X < Fixed64.Zero);
             Assert.Equal(Fixed64.Zero, contact.Normal.Z);
-            Assert.True(candidate.TryGetNormalDotSignForAuthoredNormal(normal, covector, out int sign));
-            Assert.Equal(0, sign); // Products exceed Signed576; neither input may be narrowed.
-            Assert.False(candidate.TryGetContactForAuthoredNormal(default, out _));
-            Assert.False(candidate.TryGetNormalDotSignForAuthoredNormal(default, covector, out _));
-        }
-        Assert.True(found);
-    }
 
-    [Fact]
-    public void SurfaceCandidates_WideAxisNormal_AdmitsExactEndpointsAndRejectsAxialNormals()
-    {
-        var segment = new FixedSegment(new Vector3d(0, -3, 0), new Vector3d(0, 3, 0));
-        Signed320 unit = new(1UL << 54, 0, 0, 0, 0);
-        var normal = new WideAxis3(unit, default, default);
-        Span<SegmentConeSurfaceCandidate> storage = stackalloc SegmentConeSurfaceCandidate[SegmentConeSurfaceCandidates.MaximumCandidates];
-        var selection = new ConeSurfaceSelection(storage);
-        Assert.True(SegmentConeSurfaceCandidates.AccumulateSegmentConeSurfaceCandidates(segment,
-            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero, FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver6),
-            (Fixed64)4, Fixed64.Zero, ref selection));
-        bool found = false;
-        for (int index = 0; index < selection.Count; index++)
-        {
-            SegmentConeSurfaceCandidate candidate = selection[index];
-            if (candidate.Feature != ConeSurfaceFeature.Side || candidate.Family != ConeSurfaceFamily.SegmentInterval)
-                continue;
-            found = true;
-            Assert.True(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Half, normal, out FixedContactAnchors middle));
-            Assert.Equal(Vector3d.Right, middle.Normal);
-            Assert.True(candidate.TryGetContactAtIntervalEndpointForAuthoredNormal(false, normal, out FixedContactAnchors lower));
-            Assert.True(candidate.TryGetContactAtIntervalEndpointForAuthoredNormal(true, normal, out FixedContactAnchors upper));
-            Assert.Equal(new Vector3d(0, -2, 0), lower.FirstAnchor.LocalPoint);
-            Assert.Equal(new Vector3d(0, 2, 0), upper.FirstAnchor.LocalPoint);
-            Assert.True(candidate.TryGetNormalDotSignAtIntervalEndpointForAuthoredNormal(true, normal, Covector(-1, 0, 0), out int sign));
-            Assert.Equal(-1, sign);
-            Assert.False(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Zero, normal, out _));
-            Assert.False(candidate.TryGetContactAtIntervalEndpointForAuthoredNormal(true, new WideAxis3(default, unit, default), out _));
-            Assert.False(candidate.TryGetNormalDotSignAtIntervalEndpointForAuthoredNormal(true, default, normal, out _));
         }
         Assert.True(found);
     }
@@ -659,10 +614,8 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             if (candidate.Feature != ConeSurfaceFeature.Side || candidate.Family != ConeSurfaceFamily.SegmentInterval)
                 continue;
             found = true;
-            Assert.False(candidate.TryGetContactAtParameter(Fixed64.Zero, out _));
-            Assert.False(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Half, Covector(0, 0, 1), out _));
-            Assert.False(candidate.TryGetContactAtIntervalEndpointForAuthoredNormal(false, Covector(0, 0, 1), out _));
-            Assert.True(candidate.TryGetContactAtIntervalEndpoint(false, out FixedContactAnchors lower));
+
+            FixedContactAnchors lower = FamilyContacts(candidate)[0];
             Assert.Equal(new Vector3d(Fixed64.Zero, Fixed64.Half, Fixed64.Zero), lower.SecondAnchor.LocalPoint);
         }
         Assert.Equal(reachesGenerator, found);
@@ -709,8 +662,9 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             FixedContactAnchors contact;
             if (touch)
             {
-                if (!candidate.TryGetContactForAuthoredNormal(Covector(new Vector3d(-1, 1, 0)), out contact))
-                    continue;
+                FixedContactAnchors[] familyContacts = FamilyContacts(candidate, NormalRayHalfspaces(Covector(new Vector3d(-1, 1, 0))));
+                if (familyContacts.Length == 0) continue;
+                contact = familyContacts[0];
             }
             else
             {
@@ -769,8 +723,8 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             if (candidate.Feature != ConeSurfaceFeature.Base || candidate.Family != ConeSurfaceFamily.SegmentInterval)
                 continue;
             found = true;
-            Assert.True(candidate.TryGetContactAtIntervalEndpoint(false, out FixedContactAnchors lower));
-            Assert.True(candidate.TryGetContactAtIntervalEndpoint(true, out FixedContactAnchors upper));
+            FixedContactAnchors lower = FamilyContacts(candidate)[0];
+            FixedContactAnchors upper = FamilyContacts(candidate)[^1];
             Assert.Equal(Fixed64.FromRaw(-3719550787L), lower.FirstAnchor.LocalPoint.X);
             Assert.Equal(Fixed64.FromRaw(3719550787L), upper.FirstAnchor.LocalPoint.X);
             Assert.Equal(Fixed64.Two, lower.Depth);
@@ -792,54 +746,15 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             if (candidate.Feature != ConeSurfaceFeature.Base || candidate.Family != ConeSurfaceFamily.SegmentInterval)
                 continue;
             found = true;
-            Assert.False(candidate.TryGetContactAtParameter(Fixed64.FromFraction(1, 3), out _));
-            Assert.True(candidate.TryGetContactAtIntervalEndpoint(false, out FixedContactAnchors lower));
-            Assert.True(candidate.TryGetContactAtIntervalEndpoint(true, out FixedContactAnchors upper));
+
+            FixedContactAnchors lower = FamilyContacts(candidate)[0];
+            FixedContactAnchors upper = FamilyContacts(candidate)[^1];
             Assert.Equal(Fixed64.Two, lower.Depth);
             Assert.True(lower.FirstAnchor.TryGetPoint(out Vector3d p));
             Assert.True(lower.SecondAnchor.TryGetPoint(out Vector3d q));
             Assert.Equal(new Vector3d(0, 0, 1), p);
             Assert.Equal(new Vector3d(0, -2, 1), q);
             Assert.Equal(lower.FirstAnchor, upper.FirstAnchor);
-        }
-        Assert.True(found);
-    }
-
-    [Fact]
-    public void SurfaceCandidates_ZeroRadiusAxis_RetainsJointPointAndNormalDomain()
-    {
-        var segment = new FixedSegment(new Vector3d(0, -3, 0), new Vector3d(0, 3, 0));
-        Span<SegmentConeSurfaceCandidate> storage = stackalloc SegmentConeSurfaceCandidate[64];
-        var selection = new ConeSurfaceSelection(storage);
-        Assert.True(SegmentConeSurfaceCandidates.AccumulateSegmentConeSurfaceCandidates(segment,
-            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero, FixedQuaternion.Identity,
-            (Fixed64)4, Fixed64.Zero, ref selection));
-        bool found = false;
-        for (int index = 0; index < selection.Count; index++)
-        {
-            SegmentConeSurfaceCandidate candidate = selection[index];
-            if (candidate.Feature != ConeSurfaceFeature.Side || candidate.Family != ConeSurfaceFamily.SegmentInterval)
-                continue;
-            found = true;
-            Assert.True(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Half, Covector(Vector3d.Right), out FixedContactAnchors contact));
-            Assert.Equal(Fixed64.Zero, contact.Depth);
-            Assert.Equal(Vector3d.Right, contact.Normal);
-            Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first));
-            Assert.Equal(Vector3d.Zero, first);
-            Assert.False(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Zero, Covector(Vector3d.Right), out _));
-            Assert.False(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Half, Covector(Vector3d.Up), out _));
-            Assert.False(candidate.TryGetContactAtParameterAndAuthoredNormal(Fixed64.Half, Covector(Vector3d.Zero), out _));
-            Assert.False(candidate.TryGetNormalDotSign(Covector(1, 0, 0), out _));
-            // The authored normal is constant over this admitted interval;
-            // query its exact projection at the retained endpoint. Interior
-            // parameter admission and the same normal were checked above.
-            Assert.True(candidate.TryGetNormalDotSignAtIntervalEndpointForAuthoredNormal(false, Covector(Vector3d.Right), Covector(1, 0, 0), out int projection));
-            Assert.Equal(1, projection);
-            Assert.False(candidate.TryGetNormalDotSignAtIntervalEndpointForAuthoredNormal(false, Covector(Vector3d.Up), Covector(1, 0, 0), out _));
-            Assert.True(candidate.TryGetContactAtIntervalEndpointForAuthoredNormal(false, Covector(Vector3d.Right), out FixedContactAnchors lower));
-            Assert.True(candidate.TryGetContactAtIntervalEndpointForAuthoredNormal(true, Covector(Vector3d.Right), out FixedContactAnchors upper));
-            Assert.Equal(new Vector3d(0, -2, 0), lower.FirstAnchor.LocalPoint);
-            Assert.Equal(new Vector3d(0, 2, 0), upper.FirstAnchor.LocalPoint);
         }
         Assert.True(found);
     }
@@ -861,12 +776,11 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
                 continue;
             found = true;
             Assert.True(candidate.IsSegmentInterior);
-            Assert.True(candidate.TryGetContactForAuthoredNormal(Covector(new Vector3d(0, 0, 1)), out FixedContactAnchors contact));
+            FixedContactAnchors contact = FamilyContacts(candidate, NormalRayHalfspaces(Covector(new Vector3d(0, 0, 1))))[0];
             Assert.Equal(Fixed64.Zero, contact.Depth);
-            Assert.False(candidate.TryGetContactForAuthoredNormal(Covector(Vector3d.Right), out _));
-            Assert.False(candidate.TryGetContactForAuthoredNormal(Covector(Vector3d.Up), out _));
-            Assert.True(candidate.TryGetNormalDotSignForAuthoredNormal(Covector(new Vector3d(0, 0, 1)), Covector(0, 0, -1), out int projection));
-            Assert.Equal(-1, projection);
+            Assert.Empty(FamilyContacts(candidate, NormalRayHalfspaces(Covector(Vector3d.Right))));
+            Assert.Empty(FamilyContacts(candidate, NormalRayHalfspaces(Covector(Vector3d.Up))));
+
         }
         Assert.True(found);
     }
@@ -960,14 +874,12 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             if (candidate.Feature != ConeSurfaceFeature.Base || candidate.Family != ConeSurfaceFamily.SegmentInterval)
                 continue;
             found = true;
-            Assert.True(candidate.TryGetContactAtParameter(Fixed64.Half, out FixedContactAnchors middle));
+            FixedContactAnchors middle = FamilyContacts(candidate)[1];
             Assert.Equal(Vector3d.Up, middle.Normal);
             Assert.Equal(Fixed64.Two, middle.Depth);
-            Assert.True(candidate.TryGetContactAtParameter(Fixed64.FromFraction(1, 4), out _));
-            Assert.False(candidate.TryGetContactAtParameter(Fixed64.FromFraction(1, 4) - Fixed64.FromRaw(1), out _));
-            Assert.False(candidate.TryGetContactAtParameter(-Fixed64.FromRaw(1), out _));
-            Assert.True(candidate.TryGetContactAtIntervalEndpoint(false, out FixedContactAnchors lower));
-            Assert.True(candidate.TryGetContactAtIntervalEndpoint(true, out FixedContactAnchors upper));
+
+            FixedContactAnchors lower = FamilyContacts(candidate)[0];
+            FixedContactAnchors upper = FamilyContacts(candidate)[^1];
             Assert.Equal(-Vector3d.Right, lower.FirstAnchor.LocalPoint);
             Assert.Equal(Vector3d.Right, upper.FirstAnchor.LocalPoint);
         }
@@ -1053,13 +965,13 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             if (candidate.Feature != ConeSurfaceFeature.Side || candidate.Family != ConeSurfaceFamily.SegmentInterval)
                 continue;
             found = true;
-            Assert.True(candidate.TryGetContactAtParameter(Fixed64.Half, out FixedContactAnchors contact));
+            FixedContactAnchors contact = FamilyContacts(candidate)[1];
             Assert.Equal(Fixed64.FromRaw(2400959709L), contact.Depth);
             Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));
             Assert.Equal(new Vector3d(Fixed64.FromFraction(3, 4), Fixed64.Half, Fixed64.Zero), second);
-            Assert.False(candidate.TryGetContactAtParameter(-Fixed64.FromRaw(1), out _));
-            Assert.True(candidate.TryGetContactAtIntervalEndpoint(false, out FixedContactAnchors lower));
-            Assert.True(candidate.TryGetContactAtIntervalEndpoint(true, out FixedContactAnchors upper));
+
+            FixedContactAnchors lower = FamilyContacts(candidate)[0];
+            FixedContactAnchors upper = FamilyContacts(candidate)[^1];
             Assert.Equal(new Vector3d(Fixed64.Half, Fixed64.One, Fixed64.Zero), lower.SecondAnchor.LocalPoint);
             Assert.Equal(Vector3d.Right, upper.SecondAnchor.LocalPoint);
         }
@@ -1081,13 +993,11 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
             SegmentConeSurfaceCandidate candidate = selection[index];
             if (candidate.Feature != ConeSurfaceFeature.Side || candidate.Family != ConeSurfaceFamily.RotationCircle)
                 continue;
-            Assert.True(candidate.TryGetContactForRadialDirection(new Vector2d(1, 0), out FixedContactAnchors contact));
+            FixedContactAnchors contact = FamilyContacts(candidate, NormalRayHalfspaces(Covector(candidate.Feature == ConeSurfaceFeature.Side ? -2 : -1, candidate.Feature == ConeSurfaceFeature.Side ? -1 : 1, 0)))[0];
             Assert.Equal(Fixed64.FromRaw(3841535534L), contact.Depth);
             Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));
             Assert.Equal(new Vector3d(Fixed64.FromFraction(4, 5), Fixed64.FromFraction(2, 5), Fixed64.Zero), second);
-            Assert.True(candidate.TryGetNormalDotSignForRadialDirection(new Vector2d(1, 0), Covector(1, -2, 0), out int projection));
-            Assert.Equal(0, projection);
-            Assert.False(candidate.TryGetNormalDotSignForRadialDirection(Vector2d.Zero, Covector(1, 0, 0), out _));
+
         }
     }
 
@@ -1132,15 +1042,12 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
                 continue;
             found = true;
             Assert.Throws<InvalidOperationException>(() => candidate.GetContact());
-            Assert.True(candidate.TryGetContactForRadialDirection(new Vector2d(1, 0), out FixedContactAnchors contact));
+            FixedContactAnchors contact = FamilyContacts(candidate, NormalRayHalfspaces(Covector(candidate.Feature == ConeSurfaceFeature.Side ? -2 : -1, candidate.Feature == ConeSurfaceFeature.Side ? -1 : 1, 0)))[0];
             Assert.Equal(Fixed64.FromRaw(12148002000L), contact.Depth);
             Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));
             Assert.Equal(new Vector3d(2, -2, 0), second);
-            Assert.False(candidate.TryGetContactForRadialDirection(new Vector2d(-1, 0), out _));
-            Assert.False(candidate.TryGetContactForRadialDirection(Vector2d.Zero, out _));
-            Assert.True(candidate.TryGetNormalDotSignForRadialDirection(new Vector2d(1, 0), Covector(1, 1, 0), out int projection));
-            Assert.Equal(0, projection);
-            Assert.False(candidate.TryGetNormalDotSignForRadialDirection(new Vector2d(-1, 0), Covector(1, 0, 0), out _));
+            Assert.Empty(FamilyContacts(candidate, NormalRayHalfspaces(Covector(1, 1, 0))));
+
         }
         Assert.True(found);
     }
@@ -1189,13 +1096,11 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
                 SegmentConeSurfaceCandidate candidate = selection[index];
                 if (candidate.Feature != ConeSurfaceFeature.Apex || candidate.Family != ConeSurfaceFamily.NormalCone)
                     continue;
-                Assert.True(candidate.TryGetContactForAuthoredNormal(Covector(-Vector3d.Up), out FixedContactAnchors touch));
+                FixedContactAnchors touch = FamilyContacts(candidate, NormalRayHalfspaces(Covector(-Vector3d.Up)))[0];
                 Assert.Equal(Fixed64.Zero, touch.Depth);
                 Assert.Equal(-Vector3d.Up, touch.Normal);
-                Assert.False(candidate.TryGetContactForAuthoredNormal(Covector(Vector3d.Up), out _));
-                Assert.False(candidate.TryGetContactForAuthoredNormal(Covector(Vector3d.Zero), out _));
-                Assert.True(candidate.TryGetNormalDotSignForAuthoredNormal(Covector(-Vector3d.Up), Covector(1, 0, 0), out int projection));
-                Assert.Equal(0, projection);
+                Assert.Empty(FamilyContacts(candidate, NormalRayHalfspaces(Covector(Vector3d.Up))));
+
             }
         }
         else
@@ -1347,6 +1252,7 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
     private static long ExerciseSurfaceCandidates()
     {
         Span<SegmentConeSurfaceCandidate> storage = stackalloc SegmentConeSurfaceCandidate[SegmentConeSurfaceCandidates.MaximumCandidates];
+        Span<ConeSurfaceFamilyEvent> familyStorage = stackalloc ConeSurfaceFamilyEvent[128];
         long checksum = 0;
         for (int example = 0; example < 4; example++)
         {
@@ -1358,9 +1264,14 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
                 SegmentConeSurfaceCandidate candidate = selection[index];
                 if (candidate.Family == ConeSurfaceFamily.None)
                     checksum = unchecked(checksum + candidate.GetContact().Depth.m_rawValue);
-                else if (candidate.TryGetContactAtParameter(Fixed64.Half, out FixedContactAnchors contact)
-                    || candidate.TryGetContactForRadialDirection(new Vector2d(1, 0), out contact))
-                    checksum = unchecked(checksum + contact.Depth.m_rawValue);
+                else
+                {
+                    var families = new ConeSurfaceFamilySelection(familyStorage);
+                    candidate.AccumulateFamilyEvents(ReadOnlySpan<WideAxis3>.Empty,
+                        candidate.Family == ConeSurfaceFamily.SegmentInterval ? ConeSurfacePointLocation.Interior : candidate.PointLocation, ref families);
+                    for (int family = 0; family < families.Count; family++)
+                        checksum = unchecked(checksum + families[family].GetContact(candidate, ReadOnlySpan<WideAxis3>.Empty).Depth.m_rawValue);
+                }
                 if (candidate.TryGetNormalDotSign(Covector(1, -2, 3), out int sign))
                     checksum += sign;
             }
@@ -1375,6 +1286,34 @@ public sealed class FixedSegmentFiniteConeSurfaceCandidatesTests
         2 => new FixedSegment(new Vector3d(Fixed64.Zero, Fixed64.FromFraction(3, 4), Fixed64.Zero), new Vector3d(Fixed64.Half, -Fixed64.FromFraction(1, 4), Fixed64.Zero)),
         _ => new FixedSegment(Vector3d.Zero, Vector3d.Zero)
     };
+
+    private static FixedContactAnchors[] FamilyContacts(SegmentConeSurfaceCandidate candidate,
+        ReadOnlySpan<WideAxis3> halfspaces = default)
+    {
+        var storage = new ConeSurfaceFamilyEvent[candidate.GetMaximumFamilyEventCount(halfspaces.Length)];
+        var contacts = new System.Collections.Generic.List<FixedContactAnchors>();
+        for (int stratum = 0; stratum < 3; stratum++)
+        {
+            var events = new ConeSurfaceFamilySelection(storage);
+            candidate.AccumulateFamilyEvents(halfspaces, stratum == 0 ? ConeSurfacePointLocation.Start
+                : stratum == 1 ? ConeSurfacePointLocation.Interior : ConeSurfacePointLocation.End, ref events);
+            for (int index = 0; index < events.Count; index++) contacts.Add(events[index].GetContact(candidate, halfspaces));
+        }
+        return contacts.ToArray();
+    }
+
+    private static WideAxis3[] NormalRayHalfspaces(WideAxis3 normal)
+    {
+        // n is parallel to normal iff it is perpendicular to its three
+        // cross-axis directions; -normal selects the positive ray.
+        WideAxis3 a = new(default, normal.Z, WideArithmetic.Negate(normal.Y));
+        WideAxis3 b = new(WideArithmetic.Negate(normal.Z), default, normal.X);
+        WideAxis3 c = new(normal.Y, WideArithmetic.Negate(normal.X), default);
+        return new[] { a, Negate(a), b, Negate(b), c, Negate(c), Negate(normal) };
+    }
+
+    private static WideAxis3 Negate(WideAxis3 value) => new(WideArithmetic.Negate(value.X),
+        WideArithmetic.Negate(value.Y), WideArithmetic.Negate(value.Z));
 
     // These fixtures share identity authored/cone frames. Import the exact
     // raw direction without normalization or a rounded quaternion transform.

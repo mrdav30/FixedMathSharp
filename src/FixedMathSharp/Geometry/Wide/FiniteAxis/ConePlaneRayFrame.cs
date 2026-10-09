@@ -67,6 +67,22 @@ internal readonly struct ConePlaneRayFrame
         out Signed576 x, out Signed576 y, out Signed576 z, out Signed576 offset)
     {
         FixedSegment edge = triangle.GetEdge(edgeIndex);
+        GetEdgeLine(edge, out x, out y, out z, out offset);
+        WideAxis3 opposite = Transform(edgeIndex == 0 ? triangle.C : edgeIndex == 1 ? triangle.A : triangle.B);
+        if (WideArithmetic.SubtractSigned576(DotWall(x, y, z, opposite), offset).Sign < 0)
+        {
+            x = WideArithmetic.SubtractSigned576(default, x);
+            y = WideArithmetic.SubtractSigned576(default, y);
+            z = WideArithmetic.SubtractSigned576(default, z);
+            offset = WideArithmetic.SubtractSigned576(default, offset);
+        }
+    }
+
+    // The sign of an exact line equation is immaterial for its roots. Segment
+    // sources therefore need no invented opposite vertex or enclosing triangle.
+    internal void GetEdgeLine(FixedSegment edge,
+        out Signed576 x, out Signed576 y, out Signed576 z, out Signed576 offset)
+    {
         WideAxis3 delta = new(
             Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(edge.End.X), Signed192.Raw(edge.Start.X))),
             Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(edge.End.Y), Signed192.Raw(edge.Start.Y))),
@@ -77,16 +93,7 @@ internal readonly struct ConePlaneRayFrame
         WideAxis3 wall = WideAxis3.Cross(authoredNormal, delta);
         WideRigidProjection.TransformLocalAxis(Finite.ShapeFrame.Basis, wall, out x, out y, out z);
         y = WideArithmetic.SubtractSigned576(default, y);
-        WideAxis3 opposite = Transform(edgeIndex == 0 ? triangle.C : edgeIndex == 1 ? triangle.A : triangle.B);
-        WideAxis3 start = Transform(edge.Start);
-        offset = DotWall(x, y, z, start);
-        if (WideArithmetic.SubtractSigned576(DotWall(x, y, z, opposite), offset).Sign < 0)
-        {
-            x = WideArithmetic.SubtractSigned576(default, x);
-            y = WideArithmetic.SubtractSigned576(default, y);
-            z = WideArithmetic.SubtractSigned576(default, z);
-            offset = WideArithmetic.SubtractSigned576(default, offset);
-        }
+        offset = DotWall(x, y, z, Transform(edge.Start));
     }
 
     private static Signed576 DotWall(Signed576 x, Signed576 y, Signed576 z, WideAxis3 point)

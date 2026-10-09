@@ -11,68 +11,43 @@ namespace FixedMathSharp.Geometry;
 /// <content>Generator-circle and projected upper-rim boundary events.</content>
 internal static partial class ConePlaneRayEvents
 {
-    private static bool AccumulateCircles(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    private static bool AccumulateCircles(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
-        Span<ulong> values = stackalloc ulong[16 * Words];
+        bool upper = sink.Target.Kind == ConePlaneRayEventKind.UpperRim;
+        int line = sink.Target.Feature, quadrant = sink.Target.Quadrant, branch = sink.Target.Branch;
+        if (source.Scope == ConePlaneRayEventScope.Segment && (!upper || line != 0)) return false;
+        Span<ulong> values = stackalloc ulong[16 * Words], root = stackalloc ulong[RootWords];
         Span<int> signs = stackalloc int[16];
-        Span<ulong> root = stackalloc ulong[RootWords];
         ContactQuadratic x = At(values, signs, 0), z = At(values, signs, 1), constant = At(values, signs, 2);
         ContactQuadratic a = At(values, signs, 3), b = At(values, signs, 4), c = At(values, signs, 5);
         ContactQuadratic n = At(values, signs, 6), d = At(values, signs, 7);
-        bool found = false;
-        for (int upper = 0; upper < 2; upper++)
-        for (int quadrant = 0; quadrant < 4; quadrant++)
+        int sx = (quadrant & 1) == 0 ? 1 : -1, sz = (quadrant & 2) == 0 ? 1 : -1;
+        ConePlaneRayEventKind kind = upper ? ConePlaneRayEventKind.UpperRim : ConePlaneRayEventKind.LowerCircle;
+        if (line == 8)
         {
-            ConePlaneRayEventKind kind = upper == 0 ? ConePlaneRayEventKind.LowerCircle : ConePlaneRayEventKind.UpperRim;
-            if (sink.IsReconstruction && (sink.Target.Quadrant != quadrant
-                || sink.Target.Kind != kind && !(upper == 0 && sink.Target.Kind == ConePlaneRayEventKind.Generator)))
-                continue;
-            int sx = (quadrant & 1) == 0 ? 1 : -1, sz = (quadrant & 2) == 0 ? 1 : -1;
-            // Closed chart endpoints also represent a retained zero-polynomial
-            // family. Every nonempty clipped arc has an endpoint among these
-            // seams or a nonzero clipping polynomial's roots.
-            for (int endpoint = 0; endpoint < 2; endpoint++)
-            {
-                // Each cardinal seam is owned once. Polynomial roots on a
-                // seam are skipped below because this event already owns it.
-                if (endpoint == 0 && (quadrant & 2) != 0 || endpoint == 1 && (quadrant & 1) != 0)
-                    continue;
-                var descriptor = new ConePlaneRayEvent(kind, 8, quadrant, endpoint, endpoint);
-                if (sink.IsReconstruction && (sink.Target.Feature != 8 || sink.Target.Branch != endpoint))
-                    continue;
-                root.Clear(); n.Set(Integer(endpoint)); d.Set(Integer(1));
-                found |= AccumulateCircleParameter(triangle, frame, upper != 0, sx, sz, n, d, root, true,
-                    descriptor, ref positive, ref negative, ref sink);
-            }
-            for (int line = 0; line < (upper == 0 ? 6 : 8); line++)
-            {
-                if (sink.IsReconstruction && sink.Target.Feature != line) continue;
-                GetCircleLine(triangle, frame, upper != 0, line, x, z, constant);
-                constant.CopyTo(a); a.Add(x, -sx);
-                z.CopyTo(b, sz);
-                constant.CopyTo(c); c.Add(x, sx);
-                for (int branch = -1; branch <= 1; branch += 2)
-                {
-                    if (sink.IsReconstruction && sink.Target.Branch != branch) continue;
-                    if (!ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, n, d)
-                        || !ConePlaneRayCharts.IsUnitParameter(n, d, root))
-                        continue;
-                    n.CopyTo(x); x.Add(d, -1);
-                    if (n.Sign(root) == 0 || x.Sign(root) == 0) continue;
-                    var descriptor = new ConePlaneRayEvent(kind, line, quadrant, branch);
-                    found |= AccumulateCircleParameter(triangle, frame, upper != 0, sx, sz, n, d, root, line == 0,
-                        descriptor, ref positive, ref negative, ref sink);
-                }
-            }
+            // The cohort enumerator owns each cardinal seam exactly once.
+            root.Clear(); n.Set(Integer(branch)); d.Set(Integer(1));
+            var seam = new ConePlaneRayEvent(kind, line, quadrant, branch, branch);
+            return AccumulateCircleParameter(source, frame, upper, sx, sz, n, d, root, true,
+                seam, ref positive, ref negative, ref sink);
         }
-        return found;
+        GetCircleLine(source, frame, upper, line, x, z, constant);
+        constant.CopyTo(a); a.Add(x, -sx); z.CopyTo(b, sz); constant.CopyTo(c); c.Add(x, sx);
+        if (!ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, n, d)
+            || !ConePlaneRayCharts.IsUnitParameter(n, d, root)) return false;
+        n.CopyTo(x); x.Add(d, -1);
+        // A seam root already belongs to the intrinsic seam cohort.
+        if (n.Sign(root) == 0 || x.Sign(root) == 0) return false;
+        var descriptor = new ConePlaneRayEvent(kind, line, quadrant, branch);
+        return AccumulateCircleParameter(source, frame, upper, sx, sz, n, d, root, line == 0,
+            descriptor, ref positive, ref negative, ref sink);
     }
 
     // Returns x*cos(theta)+z*sin(theta)+constant. Scaling the symbolic line
     // before chart substitution keeps its defining coefficients below1248bits.
-    private static void GetCircleLine(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    private static void GetCircleLine(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         bool upper, int line, ContactQuadratic x, ContactQuadratic z, ContactQuadratic constant)
     {
         Span<ulong> values = stackalloc ulong[14 * Words];
@@ -81,24 +56,12 @@ internal static partial class ConePlaneRayEvents
         ContactQuadratic offset = At(values, signs, 3), A = At(values, signs, 4);
         ContactQuadratic term = At(values, signs, 5), scalar = At(values, signs, 6);
         lx.Clear(); ly.Clear(); lz.Clear(); offset.Clear();
-        int wall = upper ? line < 3 ? line : -1 : line >= 2 && line <= 4 ? line - 2 : -1;
-        if (wall >= 0)
+        if (source.Scope == ConePlaneRayEventScope.Segment)
         {
-            frame.GetTriangleEdgeWall(triangle, wall, out Signed576 wx, out Signed576 wy,
+            frame.GetEdgeLine(new FixedSegment(source.A, source.B), out Signed576 wx, out Signed576 wy,
                 out Signed576 wz, out Signed576 w);
             lx.Set(wx); ly.Set(wy); lz.Set(wz);
-            if (upper)
-                offset.Set(WideArithmetic.SubtractSigned576(default, w));
-            else
-            {
-                ContactQuadratic.Scale(lx, frame.PlaneConstant, term); term.CopyTo(lx);
-                ContactQuadratic.Scale(ly, frame.PlaneConstant, term); term.CopyTo(ly);
-                ContactQuadratic.Scale(lz, frame.PlaneConstant, term); term.CopyTo(lz);
-                scalar.Set(w);
-                ContactQuadratic.Scale(scalar, Extend(frame.Normal.X), term); lx.Add(term, -1);
-                ContactQuadratic.Scale(scalar, Extend(frame.Normal.Y), term); ly.Add(term, -1);
-                ContactQuadratic.Scale(scalar, Extend(frame.Normal.Z), term); lz.Add(term, -1);
-            }
+            offset.Set(WideArithmetic.SubtractSigned576(default, w));
         }
         else if (line == (upper ? 7 : 5))
         {
@@ -145,7 +108,7 @@ internal static partial class ConePlaneRayEvents
         ContactQuadratic.Scale(ly, Extend(frame.Finite.FullHeight), constant); constant.Add(offset);
     }
 
-    private static bool AccumulateCircleParameter(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    private static bool AccumulateCircleParameter(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         bool upper, int sx, int sz, scoped ContactQuadratic n, scoped ContactQuadratic d, scoped ReadOnlySpan<ulong> root, bool retainGenerator,
         ConePlaneRayEvent descriptor, scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
@@ -175,16 +138,16 @@ internal static partial class ConePlaneRayEvents
         {
             int divisorSign = dot.Sign(root);
             if (divisorSign == 0)
-                return retainGenerator && frame.PlaneConstant.IsZero && AccumulateGenerator(triangle, frame, gx, gy, gz, gd, root,
+                return retainGenerator && frame.PlaneConstant.IsZero && AccumulateGenerator(source, frame, gx, gy, gz, gd, root,
                     descriptor, ref positive, ref negative, ref sink);
             if (!sink.Wants(descriptor)) return false;
             ContactQuadratic.Scale(gx, frame.PlaneConstant, point.X); point.X.MultiplySign(divisorSign);
             ContactQuadratic.Scale(gy, frame.PlaneConstant, point.Y); point.Y.MultiplySign(divisorSign);
             ContactQuadratic.Scale(gz, frame.PlaneConstant, point.Z); point.Z.MultiplySign(divisorSign);
             dot.CopyTo(point.Denominator, divisorSign);
-            SetEvent(triangle, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(triangle, frame, point, root, ref positive, ref negative);
-            if (admitted) sink.Keep(descriptor, frame, point, root);
+            SetEvent(source, descriptor, ref positive, ref negative);
+            bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly);
+            if (admitted) sink.Keep(descriptor, point, root);
             return admitted;
         }
         dot.CopyTo(t); ContactQuadratic.Scale(gd, frame.PlaneConstant, term); t.Add(term, -1);
@@ -199,69 +162,43 @@ internal static partial class ConePlaneRayEvents
         int orientation = t.Sign(root);
         descriptor = new ConePlaneRayEvent(descriptor.Kind, descriptor.Feature, descriptor.Quadrant,
             descriptor.Branch, descriptor.Endpoint, orientation);
-        SetEvent(triangle, descriptor, ref positive, ref negative);
+        SetEvent(source, descriptor, ref positive, ref negative);
         if (orientation == 0)
         {
-            bool sideAdmitted = ConePlaneRayPointExits.AccumulateSidePoint(triangle, frame, point, root, ref positive, ref negative);
-            if (sideAdmitted) sink.Keep(descriptor, frame, point, root);
+            bool sideAdmitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly);
+            if (sideAdmitted) sink.Keep(descriptor, point, root);
             return sideAdmitted;
         }
         t.MultiplySign(orientation);
-        bool certified = ConePlaneRayPointExits.AccumulateCertifiedExit(triangle, frame, point, root, t, td,
-            orientation, ref positive, ref negative);
-        if (certified) sink.Keep(descriptor, frame, point, root);
+        bool certified = ConePlaneRayPointExits.AccumulateCertifiedExit(source, frame, point, root, t, td,
+            orientation, ref positive, ref negative, sink.PointOnly);
+        if (certified) sink.Keep(descriptor, point, root);
         return certified;
     }
 
-    private static bool AccumulateGenerator(FixedTriangle triangle, in ConePlaneRayFrame frame,
+    private static bool AccumulateGenerator(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ContactQuadratic gx, scoped ContactQuadratic gy, scoped ContactQuadratic gz, scoped ContactQuadratic gd,
-        scoped ReadOnlySpan<ulong> root, ConePlaneRayEvent source,
+        scoped ReadOnlySpan<ulong> root, ConePlaneRayEvent generator,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
-        Span<ulong> values = stackalloc ulong[6 * Words];
-        Span<int> signs = stackalloc int[6];
+        if (!sink.Wants(ConePlaneRayEventKind.Generator) || (uint)sink.Target.Endpoint > 1) return false;
         Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
-        Span<int> pointSigns = stackalloc int[8];
+        Span<int> pointSigns = stackalloc int[ConePlaneRayPoint.SignCount];
         var point = new ConePlaneRayPoint(pointValues, pointSigns);
-        ContactQuadratic n = At(values, signs, 0), d = At(values, signs, 1), term = At(values, signs, 2);
-        bool found = false;
-        // The section contains a whole finite generator. Depth on it is the
-        // minimum of affine side/cap exits. Its switch is an upper-rim event;
-        // all other extrema are endpoints of the clipped generator interval.
-        for (int endpoint = 0; endpoint < 5; endpoint++)
-        {
-            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.Generator, source.Feature,
-                source.Quadrant, source.Branch, endpoint);
-            if (!sink.Wants(descriptor)) continue;
-            if (endpoint < 2)
-            {
-                n.Set(Integer(endpoint)); d.Set(Integer(1));
-            }
-            else
-            {
-                frame.GetTriangleEdgeWall(triangle, endpoint - 2, out Signed576 wx,
-                    out Signed576 wy, out Signed576 wz, out Signed576 offset);
-                ContactQuadratic.Scale(gd, offset, n);
-                ContactQuadratic.Scale(gx, wx, d);
-                ContactQuadratic.Scale(gy, wy, term); d.Add(term);
-                ContactQuadratic.Scale(gz, wz, term); d.Add(term);
-                int sign = d.Sign(root);
-                if (sign == 0)
-                    continue;
-                n.MultiplySign(sign); d.MultiplySign(sign);
-            }
-            if (!ConePlaneRayCharts.IsUnitParameter(n, d, root))
-                continue;
-            ContactQuadratic.Multiply(gx, n, root, point.X);
-            ContactQuadratic.Multiply(gy, n, root, point.Y);
-            ContactQuadratic.Multiply(gz, n, root, point.Z);
-            ContactQuadratic.Multiply(gd, d, root, point.Denominator);
-            SetEvent(triangle, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(triangle, frame, point, root, ref positive, ref negative);
-            if (admitted) sink.Keep(descriptor, frame, point, root);
-            found |= admitted;
-        }
-        return found;
+        // Only the cone's generator endpoints are intrinsic. Its intersection
+        // with a finite boundary is already that segment's side root/endpoint.
+        if (sink.Target.Endpoint == 0) point.Set(default);
+        else { gx.CopyTo(point.X); gy.CopyTo(point.Y); gz.CopyTo(point.Z); gd.CopyTo(point.Denominator); }
+        var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.Generator, generator.Feature,
+            generator.Quadrant, generator.Branch, sink.Target.Endpoint);
+        SetEvent(source, descriptor, ref positive, ref negative);
+        bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly);
+        // D=N.g=0 and c=0 already certify this intrinsic generator's plane.
+        // Its apex has denominator 1; its base-rim endpoint has denominator
+        // d*d+n*n>0 and satisfies the finite cone exactly, including R=0.
+        System.Diagnostics.Debug.Assert(admitted);
+        sink.Keep(descriptor, point, root);
+        return true;
     }
 }

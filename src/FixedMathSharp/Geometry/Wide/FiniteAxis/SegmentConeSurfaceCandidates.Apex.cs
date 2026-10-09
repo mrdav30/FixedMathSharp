@@ -151,27 +151,6 @@ internal static partial class SegmentConeSurfaceCandidates
         return ApexAnchors(candidate.Input, numerator, denominator, normal, represented ? depth : Fixed64.MaxValue, !represented);
     }
 
-    private static bool TryGetApexTouchContact(SegmentConeSurfaceCandidate candidate, Signed576 nx, Signed576 ny, Signed576 nz,
-        out FixedContactAnchors contact)
-    {
-        contact = default;
-        System.Diagnostics.Debug.Assert(candidate.Feature == ConeSurfaceFeature.Apex);
-        if (candidate.Family != ConeSurfaceFamily.NormalCone || nx.IsZero && ny.IsZero && nz.IsZero)
-            return false;
-        Signed832 x = Signed832.ExtendValue(nx), y = Signed832.ExtendValue(ny), z = Signed832.ExtendValue(nz);
-        if (!IsApexInwardNormal(x, y, z, candidate.Input.Height, candidate.Input.Radius))
-            return false;
-        var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
-        int dot = NormalEdgeDot(nx, ny, nz, geometry.Edge);
-        if (candidate.IsSegmentInterior ? dot != 0 : candidate.RootOrdinal == 0 ? dot > 0 : dot < 0)
-            return false;
-        bool admitted = TryBuildApex(geometry, candidate.RootOrdinal, out Signed576 numerator, out Signed576 denominator, out _, out _, out _);
-        System.Diagnostics.Debug.Assert(admitted);
-        contact = ApexAnchors(candidate.Input, numerator, denominator,
-            MaterializeRationalNormal(x, y, z, candidate.Input.ConeRotation), Fixed64.Zero, false);
-        return true;
-    }
-
     private static FixedContactAnchors ApexAnchors(SegmentConeSurfaceInput input, Signed576 numerator, Signed576 denominator,
         Vector3d normal, Fixed64 depth, bool clamped)
     {

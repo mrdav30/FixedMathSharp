@@ -195,88 +195,12 @@ internal static partial class SegmentConeSurfaceCandidates
         int branch = candidate.Chart == -2 ? 1 : -1;
         BuildRimPointNormal(geometry, radialAxis, radialCoefficient, axialOffset, radialSquare, branch, values, signs);
         Vector3d radial = MaterializeRadialDirection(radialAxis, candidate.Input.Radius, branch);
-        return MaterializeRimPoint(geometry, numerator, denominator, values, signs, root, radial, false);
-    }
-
-    internal static bool TryGetRimCircleContact(SegmentConeSurfaceCandidate candidate, Vector2d direction, out FixedContactAnchors contact)
-    {
-        contact = default;
-        if (candidate.Feature != ConeSurfaceFeature.Rim || candidate.Family != ConeSurfaceFamily.RotationCircle || direction == Vector2d.Zero)
-            return false;
-        var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
-        bool admitted = TryGetRimPoint(geometry, candidate.RootOrdinal, out _, out _, out Signed320 axialOffset,
-            out Signed576 numerator, out Signed576 denominator);
-        System.Diagnostics.Debug.Assert(admitted);
-        WideAxis3 radialDirection = new(Signed320.ExtendValue(Signed192.Raw(direction.X)), default, Signed320.ExtendValue(Signed192.Raw(direction.Y)));
-        Span<ulong> values = stackalloc ulong[10 * Words];
-        Span<int> signs = stackalloc int[10];
-        Span<ulong> root = stackalloc ulong[Words];
-        BuildRimCircleNormal(geometry, radialDirection, axialOffset, values, signs, root);
-        if (!AdmitsEndpointNormal(geometry.Edge, candidate.RootOrdinal, values, signs, root))
-            return false;
-        Vector3d radial = MaterializeRadialDirection(radialDirection, candidate.Input.Radius, 1);
-        contact = MaterializeRimPoint(geometry, numerator, denominator, values, signs, root, radial, true);
-        return true;
-    }
-
-    private static void BuildRimCircleNormal(in SegmentConeSurfaceGeometry geometry, WideAxis3 radialDirection,
-        Signed320 axialOffset, Span<ulong> values, Span<int> signs, Span<ulong> root)
-    {
-        Import(radialDirection.SquaredLength, root);
-        At(values, signs, 0).Set(WideArithmetic.SubtractSigned576(default, WideArithmetic.MultiplySigned320(geometry.Radius, radialDirection.X)));
-        At(values, signs, 2).Set(WideArithmetic.SubtractSigned576(default, WideArithmetic.MultiplySigned320(geometry.Radius, radialDirection.Z)));
-        ContactQuadratic axial = At(values, signs, 1);
-        axial.Clear();
-        Import(axialOffset, axial.Radical); axial.Signs[1] = axialOffset.Sign;
-    }
-
-    private static bool TryGetRimTouchContact(SegmentConeSurfaceCandidate candidate, Signed576 nx, Signed576 ny, Signed576 nz,
-        out FixedContactAnchors contact)
-    {
-        contact = default;
-        System.Diagnostics.Debug.Assert(candidate.Feature == ConeSurfaceFeature.Rim);
-        if (candidate.Family != ConeSurfaceFamily.NormalCone || nx.IsZero && ny.IsZero && nz.IsZero)
-            return false;
-        if (candidate.RootOrdinal <= -3)
-            return TryGetMeridionalRimTouchContact(candidate, nx, ny, nz, out contact);
-        var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
-        bool admitted = TryGetRimPoint(geometry, candidate.RootOrdinal, out WideAxis3 radialAxis, out _, out _,
-            out Signed576 numerator, out Signed576 denominator);
-        System.Diagnostics.Debug.Assert(admitted);
-        int branch = candidate.Chart == -2 ? 1 : -1;
-        if (!AdmitsRimTouchNormal(geometry, radialAxis, branch, candidate.RootOrdinal, nx, ny, nz, out Vector3d normal))
-            return false;
-        Vector3d point = new(RoundSegmentCoordinate(candidate.Input.Segment.Start.X, candidate.Input.Segment.End.X, numerator, denominator),
-            RoundSegmentCoordinate(candidate.Input.Segment.Start.Y, candidate.Input.Segment.End.Y, numerator, denominator),
-            RoundSegmentCoordinate(candidate.Input.Segment.Start.Z, candidate.Input.Segment.End.Z, numerator, denominator));
-        contact = new FixedContactAnchors(new FixedPointAnchor(candidate.Input.Origin, candidate.Input.Rotation, point),
-            TriangleCircularGeometry.GetSupport(candidate.Input.Center, candidate.Input.ConeRotation, Signed192.Raw(candidate.Input.Height),
-                MaterializeRadialDirection(radialAxis, candidate.Input.Radius, branch), 1), normal, Fixed64.Zero, false);
-        return true;
-    }
-
-    private static bool AdmitsRimTouchNormal(in SegmentConeSurfaceGeometry geometry, WideAxis3 radialAxis,
-        int branch, int endpoint, Signed576 nx, Signed576 ny, Signed576 nz, out Vector3d normal)
-    {
-        normal = default;
-        if (!WideArithmetic.SubtractSigned832(WideArithmetic.MultiplySigned576ToSigned832(nx, radialAxis.Z),
-                WideArithmetic.MultiplySigned576ToSigned832(nz, radialAxis.X)).IsZero)
-            return false;
-        if (branch * NormalEdgeDot(nx, default, nz, radialAxis) > 0)
-            return false;
-        Signed832 x = Signed832.ExtendValue(nx), y = Signed832.ExtendValue(ny), z = Signed832.ExtendValue(nz);
-        if (ny.Sign < 0 && CompareWeightedSquares(x, z, geometry.Input.Radius, y, geometry.Input.Height) < 0)
-            return false;
-        int tangent = NormalEdgeDot(nx, ny, nz, geometry.Edge);
-        if (endpoint < 0 ? tangent != 0 : endpoint == 0 ? tangent > 0 : tangent < 0)
-            return false;
-        normal = MaterializeRationalNormal(x, y, z, geometry.Input.ConeRotation);
-        return true;
+        return MaterializeRimPoint(geometry, numerator, denominator, values, signs, root, radial);
     }
 
     private static FixedContactAnchors MaterializeRimPoint(in SegmentConeSurfaceGeometry geometry,
         Signed576 numerator, Signed576 denominator, Span<ulong> normals, Span<int> normalSigns,
-        ReadOnlySpan<ulong> root, Vector3d radial, bool circle)
+        ReadOnlySpan<ulong> root, Vector3d radial)
     {
         Vector3d normal = MaterializeQuadraticNormal(normals, normalSigns, root, geometry.Input.ConeRotation);
         Span<ulong> values = stackalloc ulong[6 * Words];
@@ -289,8 +213,7 @@ internal static partial class SegmentConeSurfaceCandidates
             sum.Add(square);
         }
         divisor.Clear();
-        if (circle) root.CopyTo(divisor.Rational);
-        else WideArithmetic.MultiplyMagnitudes(root, root, divisor.Rational);
+        WideArithmetic.MultiplyMagnitudes(root, root, divisor.Rational);
         divisor.Signs[0] = 1;
         Span<ulong> scale = stackalloc ulong[Words], squaredScale = stackalloc ulong[Words];
         Import(Signed320.ExtendValue(geometry.RawScale), scale);
