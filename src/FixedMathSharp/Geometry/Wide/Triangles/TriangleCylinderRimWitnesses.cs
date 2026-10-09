@@ -91,7 +91,7 @@ internal static class TriangleCylinderRimWitnesses
             RoundRootCoordinate(aVertex.Z, bVertex.Z, a0, a1, b0, b1, d0, d1, denominatorSign, ref root));
     }
 
-    private static Fixed64 RoundRootCoordinate(Fixed64 a, Fixed64 b, Signed576 a0, Signed576 a1,
+    internal static Fixed64 RoundRootCoordinate(Fixed64 a, Fixed64 b, Signed576 a0, Signed576 a1,
         Signed576 b0, Signed576 b1, Signed576 d0, Signed576 d1, int denominatorSign, ref FiniteAxisValueRoot root)
     {
         // Shifted tangent-distance coefficients <432 bits; authored-coordinate

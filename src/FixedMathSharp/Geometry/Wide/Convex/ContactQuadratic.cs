@@ -8,12 +8,14 @@ using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 namespace FixedMathSharp.Geometry;
 
 /// <summary>Borrowed exact quadratic-field values and final nearest-even ratios.</summary>
-internal readonly ref struct ContactQuadratic
+/// <content>Owns quadratic-field arithmetic; ratio comparison and materialization share this borrowed layout.</content>
+internal readonly ref partial struct ContactQuadratic
 {
     internal readonly Span<ulong> Values;
     internal readonly Span<int> Signs;
-    internal Span<ulong> Rational => Values[..Words];
-    internal Span<ulong> Radical => Values[Words..];
+    internal int FieldWords => Values.Length / 2;
+    internal Span<ulong> Rational => Values[..FieldWords];
+    internal Span<ulong> Radical => Values[FieldWords..];
     internal ContactQuadratic(Span<ulong> values, Span<int> signs) { Values = values; Signs = signs; }
     internal void Clear() { Values.Clear(); Signs.Clear(); }
     internal void Set(Signed576 value)
@@ -22,7 +24,8 @@ internal readonly ref struct ContactQuadratic
     }
     internal void CopyTo(ContactQuadratic destination, int multiplier = 1)
     {
-        Values.CopyTo(destination.Values);
+        Rational.CopyTo(destination.Rational); Radical.CopyTo(destination.Radical);
+        destination.Rational[FieldWords..].Clear(); destination.Radical[FieldWords..].Clear();
         destination.Signs[0] = Signs[0] * multiplier; destination.Signs[1] = Signs[1] * multiplier;
     }
     internal void MultiplySign(int sign) { Signs[0] *= sign; Signs[1] *= sign; }
@@ -36,8 +39,8 @@ internal readonly ref struct ContactQuadratic
     internal int Sign(ReadOnlySpan<ulong> root) =>
         WideConvexPrismRelations.GetConvexContactCandidateQuadraticSign(Rational, Signs[0], Radical, Signs[1], root);
 
-    internal static ContactQuadratic At(Span<ulong> values, Span<int> signs, int index) =>
-        new(values.Slice(index * 2 * Words, 2 * Words), signs.Slice(index * 2, 2));
+    internal static ContactQuadratic At(Span<ulong> values, Span<int> signs, int index, int words = Words) =>
+        new(values.Slice(index * 2 * words, 2 * words), signs.Slice(index * 2, 2));
 
     internal static Fixed64 RoundRatio(ContactQuadratic numerator, ContactQuadratic denominator, ReadOnlySpan<ulong> root,
         long low = long.MinValue, long high = long.MaxValue, long parityOffset = 0)
@@ -49,9 +52,10 @@ internal readonly ref struct ContactQuadratic
             System.Diagnostics.Debug.Assert(represented);
             return result;
         }
-        Span<ulong> values = stackalloc ulong[4 * Words];
+        int words = Math.Max(numerator.FieldWords, denominator.FieldWords) + 2;
+        Span<ulong> values = stackalloc ulong[4 * words];
         Span<int> signs = stackalloc int[4];
-        ContactQuadratic doubled = At(values, signs, 0), query = At(values, signs, 1);
+        ContactQuadratic doubled = At(values, signs, 0, words), query = At(values, signs, 1, words);
         numerator.CopyTo(doubled); doubled.Add(numerator);
         while (low < high)
         {
@@ -72,18 +76,26 @@ internal readonly ref struct ContactQuadratic
 
     internal static void Scale(ContactQuadratic value, Signed576 scalar, ContactQuadratic result)
     {
-        Span<ulong> magnitude = stackalloc ulong[Words];
+        Span<ulong> magnitude = stackalloc ulong[9];
         Import(scalar, magnitude);
+        Scale(value, magnitude, scalar.Sign, result);
+    }
+
+    // The caller proves that result has room for both complete products.
+    internal static void Scale(ContactQuadratic value, ReadOnlySpan<ulong> magnitude,
+        int scalarSign, ContactQuadratic result)
+    {
         WideArithmetic.MultiplyMagnitudes(value.Rational, magnitude, result.Rational);
         WideArithmetic.MultiplyMagnitudes(value.Radical, magnitude, result.Radical);
-        result.Signs[0] = IsZero(result.Rational) ? 0 : value.Signs[0] * scalar.Sign;
-        result.Signs[1] = IsZero(result.Radical) ? 0 : value.Signs[1] * scalar.Sign;
+        result.Signs[0] = IsZero(result.Rational) ? 0 : value.Signs[0] * scalarSign;
+        result.Signs[1] = IsZero(result.Radical) ? 0 : value.Signs[1] * scalarSign;
     }
 
     internal static void Multiply(ContactQuadratic first, ContactQuadratic second, ReadOnlySpan<ulong> root, ContactQuadratic result)
     {
-        Span<ulong> scratch = stackalloc ulong[3 * Words];
-        Span<ulong> rational = Slot(scratch, 0), radical = Slot(scratch, 1), product = Slot(scratch, 2);
+        int words = result.FieldWords;
+        Span<ulong> scratch = stackalloc ulong[3 * words];
+        Span<ulong> rational = scratch[..words], radical = scratch.Slice(words, words), product = scratch[(2 * words)..];
         WideArithmetic.MultiplyMagnitudes(first.Rational, second.Rational, rational);
         int rationalSign = IsZero(rational) ? 0 : first.Signs[0] * second.Signs[0];
         WideArithmetic.MultiplyMagnitudes(first.Radical, second.Radical, product);

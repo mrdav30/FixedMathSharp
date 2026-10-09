@@ -180,7 +180,20 @@ internal static class TriangleConeRimContacts
     private static void BuildConeParameter(in TriangleCircularGeometry geometry, Fixed64 height, Fixed64 radius,
         int edge, WideAxis3 first, WideAxis3 second, Span<ulong> data, Span<sbyte> signs)
     {
-        BuildParameter(geometry.CapOffset(edge, 1), geometry.Radius, geometry.RawScale, first, second, data, signs);
+        BuildConeParameter(geometry.CapOffset(edge, 1), geometry.Radius, geometry.RawScale,
+            height, radius, first, second, data, signs);
+        WideAxis3 outward = geometry.EdgeFromTo((edge + 2) % 3, edge);
+        Write(data, signs, 31, WideAxis3.Dot(outward, first));
+        Write(data, signs, 32, WideAxis3.Dot(outward, second));
+    }
+
+    // Writes the shared rim stationary chart and cone support switch into
+    // slots 0..30. Triangle-only support walls occupy the following two slots.
+    internal static void BuildConeParameter(WideAxis3 offset, Signed320 scaledRadius, Signed192 rawScale,
+        Fixed64 height, Fixed64 radius, WideAxis3 first, WideAxis3 second,
+        Span<ulong> data, Span<sbyte> signs)
+    {
+        BuildParameter(offset, scaledRadius, rawScale, first, second, data, signs);
         Write(data, signs, 26, Signed576.ExtendValue(first.Y));
         Write(data, signs, 27, Signed576.ExtendValue(second.Y));
         Signed192 h = Signed192.Raw(height), r = Signed192.Raw(radius);
@@ -189,8 +202,9 @@ internal static class TriangleConeRimContacts
         for (int index = 0; index < 3; index++)
         {
             WideAxis3 left = index < 2 ? first : second, right = index == 0 ? first : second;
-            // Chart components <198 bits; raw dimensions <63. Region
-            // coefficients <528 bits fit Signed576 without narrowing loss.
+            // Triangle axes <198 bits; segment affine-chart axes <200 bits.
+            // Raw dimensions <63 give region coefficients <532 bits. The
+            // forty-word magnitude owner retains both without narrowing.
             Signed576 radial = RadialDot(left, right), axial = WideArithmetic.MultiplySigned320(left.Y, right.Y);
             Import(radial, Slot(work, 0)); Import(rr, Slot(work, 1));
             WideArithmetic.MultiplyMagnitudes(Slot(work, 0), Slot(work, 1), Slot(data, 28 + index));
@@ -201,9 +215,6 @@ internal static class TriangleConeRimContacts
             if (index == 1) WideArithmetic.AddMagnitudeInto(Slot(data, 29), Slot(data, 29));
             signs[28 + index] = (sbyte)sign;
         }
-        WideAxis3 outward = geometry.EdgeFromTo((edge + 2) % 3, edge);
-        Write(data, signs, 31, WideAxis3.Dot(outward, first));
-        Write(data, signs, 32, WideAxis3.Dot(outward, second));
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

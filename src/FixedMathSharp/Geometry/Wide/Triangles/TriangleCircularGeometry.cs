@@ -164,7 +164,7 @@ internal readonly struct TriangleCircularGeometry
         WideArithmetic.AddSigned320(first.X, second.X), WideArithmetic.AddSigned320(first.Y, second.Y),
         WideArithmetic.AddSigned320(first.Z, second.Z));
 
-    private static int GetValueShift(ReadOnlySpan<Signed320> coordinates, int carryBits)
+    internal static int GetValueShift(ReadOnlySpan<Signed320> coordinates, int carryBits)
     {
         int bits = 0;
         Span<ulong> magnitude = stackalloc ulong[5];

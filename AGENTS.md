@@ -74,8 +74,8 @@ DocFX regenerates that tree.
 Keep wiki pages and the complexity exception register evergreen. Put dated
 validation summaries, capture paths and implementation history in feature-work
 records. The complexity register must explain its rationale and invariants on
-its own, without artifact references or links to feature-work or other libraries'
-documentation.
+its own, without artifact references or links to feature-work or other
+libraries' documentation.
 
 ## Repository Map
 
@@ -325,9 +325,9 @@ out-of-range rejection, and raw integer floor division for complete-step counts.
 Subtract timestamps before narrowing durations. Coordinated development uses
 `UseLocalLsfStack=true` with the Chronicler sibling checkout; see
 [`CONTRIBUTING.md`](CONTRIBUTING.md#coordinated-source-development). The local
-0.4.0 Chronicler/shim identities are build fixtures, not release decisions.
-Hash extensions target `Chronicler.Hashing`; their own namespace and field order
-stay unchanged. The core Lean build also selects the sibling shim in local mode.
+0.4.0 Chronicler/shim identities are build fixtures, not release decisions. Hash
+extensions target `Chronicler.Hashing`; their own namespace and field order stay
+unchanged. The core Lean build also selects the sibling shim in local mode.
 
 - Tests are xUnit v3 under
   [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests) and
@@ -365,3 +365,7 @@ stay unchanged. The core Lean build also selects the sibling shim in local mode.
   FixedMathSharp instead of preserving irrelevant examples.
 - Do not revert unrelated dirty files. Work with user changes and keep your diff
   scoped to the request.
+- Use an independent subagent before every code-change handoff to the owner,
+  including new files and coordinated sibling changes. Verify duplication,
+  speculative code and retirement findings against actual callers before
+  simplifying.
