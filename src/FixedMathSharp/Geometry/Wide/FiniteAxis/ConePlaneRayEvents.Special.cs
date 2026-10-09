@@ -33,7 +33,7 @@ internal static partial class ConePlaneRayEvents
                 point.Y.Set(frame.PlaneConstant); point.Y.MultiplySign(frame.Normal.Y.Sign);
                 point.Denominator.Set(Extend(frame.Normal.Y)); point.Denominator.MultiplySign(frame.Normal.Y.Sign);
                 SetEvent(source, descriptor, ref positive, ref negative);
-                bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly);
+                bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly, sink.RequestedOrientation);
                 if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty, positive, negative);
                 found |= admitted;
             }
@@ -46,7 +46,7 @@ internal static partial class ConePlaneRayEvents
                         point.Y.Set(endpoint == 0 ? default : Extend(frame.Finite.FullHeight));
                         point.Denominator.Set(Integer(1));
                         SetEvent(source, descriptor, ref positive, ref negative);
-                        bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly);
+                        bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly, sink.RequestedOrientation);
                         // Ny=0 and c=0 contain the whole axis. Its two
                         // finite endpoints satisfy this plane and solid cone
                         // exactly, including radius zero; admission cannot fail.

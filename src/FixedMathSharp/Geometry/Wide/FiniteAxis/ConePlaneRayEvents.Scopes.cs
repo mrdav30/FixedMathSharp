@@ -62,12 +62,13 @@ internal static partial class ConePlaneRayEvents
         // Other circle restrictions have no roots; projected upper-rim points
         // fail cone admission except at the base, where they duplicate these
         // cardinals. Apex and extra axes add no point or larger first exit.
-        // Radius zero collapses the entire section to the axis alone.
+        // Radius zero or an axial plane through the apex collapses the entire
+        // section to the axis alone; its four cardinals add identical points.
         bool axial = frame.Normal.X.IsZero && frame.Normal.Z.IsZero && !frame.Normal.Y.IsZero;
         int count = 0;
         if (axial)
         {
-            if (frame.Radius != Fixed64.Zero)
+            if (frame.Radius != Fixed64.Zero && !frame.PlaneConstant.IsZero)
                 for (int quadrant = 0; quadrant < 4; quadrant++)
                     for (int endpoint = 0; endpoint < 2; endpoint++)
                         if (endpoint == 0 ? (quadrant & 2) == 0 : (quadrant & 1) == 0)
@@ -128,17 +129,21 @@ internal static partial class ConePlaneRayEvents
         return count;
     }
 
+    /// <summary>Reconstructs an admitted point, optionally omitting the unused opposite rational or side exit.</summary>
+    /// <remarks>Zero requests both directions. Admission and directional availability are independent.</remarks>
     internal static bool TryEvaluateEvent(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         ConePlaneRayEvent descriptor, scoped ConePlaneRayPoint point, scoped Span<ulong> root,
-        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative)
+        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, int requestedOrientation = 0)
     {
+        if (requestedOrientation < -1 || requestedOrientation > 1)
+            throw new ArgumentOutOfRangeException(nameof(requestedOrientation));
         positive.HasValue = negative.HasValue = false;
         root.Clear();
         // Reborrow coefficient storage locally: the sink borrows this call's
         // output point/root, and no such reference may enter caller metadata.
         scoped ConePlaneRaySelection evaluatedPositive = new(positive.Values, positive.Signs);
         scoped ConePlaneRaySelection evaluatedNegative = new(negative.Values, negative.Signs);
-        var sink = new ConePlaneRayEventSink(descriptor, point, root);
+        var sink = new ConePlaneRayEventSink(descriptor, point, root, requestedOrientation: requestedOrientation);
         Accumulate(source, frame, ref evaluatedPositive, ref evaluatedNegative, ref sink);
         if (!sink.HasPoint) return false;
         if (evaluatedPositive.HasValue)

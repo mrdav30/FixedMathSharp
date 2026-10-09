@@ -928,7 +928,8 @@ public partial struct Fixed64
         ReadOnlySpan<ulong> numeratorMagnitude,
         ReadOnlySpan<ulong> denominatorMagnitude,
         bool negative,
-        out Fixed64 result)
+        out Fixed64 result,
+        long parityOffset = 0)
     {
         int denominatorLength =
             GetActiveMagnitudeLength(denominatorMagnitude);
@@ -972,7 +973,8 @@ public partial struct Fixed64
             denominator,
             negative,
             roundToEven: true,
-            out result);
+            out result,
+            parityOffset);
     }
 
     private static bool TryGetSignedRawRatioCore(
@@ -980,7 +982,8 @@ public partial struct Fixed64
         Span<ulong> denominatorMagnitude,
         bool negative,
         bool roundToEven,
-        out Fixed64 result)
+        out Fixed64 result,
+        long parityOffset = 0)
     {
         int remainderLength = GetActiveMagnitudeLength(remainder);
         int denominatorLength = GetActiveMagnitudeLength(denominatorMagnitude);
@@ -1018,7 +1021,8 @@ public partial struct Fixed64
                 singleWordQuotient,
                 singleWordMidpointComparison,
                 negative,
-                out result);
+                out result,
+                parityOffset);
         }
 
         ulong quotient = 0UL;
@@ -1065,16 +1069,21 @@ public partial struct Fixed64
             quotient,
             midpointComparison,
             negative,
-            out result);
+            out result,
+            parityOffset);
     }
 
     private static bool TryCreateRawRatioResult(
         ulong quotient,
         int midpointComparison,
         bool negative,
-        out Fixed64 result)
+        out Fixed64 result,
+        long parityOffset = 0)
     {
-        if (midpointComparison > 0 || (midpointComparison == 0 && (quotient & 1UL) != 0UL))
+        // The caller may retain a rounded world coordinate relative to an
+        // integer origin. Only half ties depend on that origin's parity;
+        // signed magnitude division and final range checks stay unchanged.
+        if (midpointComparison > 0 || (midpointComparison == 0 && ((quotient ^ unchecked((ulong)parityOffset)) & 1UL) != 0UL))
         {
             quotient++;
             if (quotient == 0UL)

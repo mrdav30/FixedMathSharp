@@ -30,7 +30,7 @@ internal static partial class ConePlaneRayEvents
                 for (int endpoint = 0; endpoint < 2; endpoint++)
                 {
                     if (endpoint == 0 ? (quadrant & 2) != 0 : (quadrant & 1) != 0) continue;
-                    if (!axial || upper == 0 && frame.Radius != Fixed64.Zero)
+                    if (!axial || upper == 0 && frame.Radius != Fixed64.Zero && !frame.PlaneConstant.IsZero)
                         found |= AccumulateCircleChart(source, frame, upper != 0, 8, quadrant, endpoint, endpoint, ref positive, ref negative, ref sink);
                 }
             if (axial && source.Scope == ConePlaneRayEventScope.Plane) continue;
@@ -88,6 +88,10 @@ internal static partial class ConePlaneRayEvents
         int quadrant, int branch, scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
+        Signed576 sectionHeight = frame.Normal.Y.Sign < 0
+            ? WideArithmetic.SubtractSigned576(default, frame.PlaneConstant) : frame.PlaneConstant;
+        if (sectionHeight.Sign < 0 || WideArithmetic.SubtractSigned576(sectionHeight, Extend(frame.Finite.FullHeight)).Sign > 0)
+            return false;
         Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
         Span<int> pointSigns = stackalloc int[ConePlaneRayPoint.SignCount];
         var point = new ConePlaneRayPoint(pointValues, pointSigns); point.Set(default);
@@ -97,9 +101,11 @@ internal static partial class ConePlaneRayEvents
         // With positive homogeneous denominator Hraw, a cardinal generator
         // section is (X,Y,Z)=(+/-s*Rraw,s*Hraw,0), or its Z counterpart.
         // s<198 bits and raw dimensions<63 keep products below261 bits.
-        // This cancels the base/frame scale exactly; the shared side owner
-        // still checks finite admission and certifies both first exits.
-        height.Set(frame.PlaneConstant); height.MultiplySign(frame.Normal.Y.Sign);
+        // Plane scope and the primitive axial normal are established by the
+        // chart dispatcher. These coordinates satisfy the plane and zero cone
+        // polynomial exactly; the closed s range proves remaining admission.
+        // Radius zero or s=0 remains an axis point for the shared exit owner.
+        height.Set(sectionHeight);
         Signed576 rawHeight = Extend(Signed320.ExtendValue(Signed192.Raw(frame.Height)));
         ContactQuadratic.Scale(height, rawHeight, point.Y);
         ContactQuadratic radial = branch == 0 ? point.X : point.Z;
@@ -108,10 +114,23 @@ internal static partial class ConePlaneRayEvents
         point.Denominator.Set(rawHeight);
         var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.LowerCircle, 8, quadrant, branch, branch);
         SetEvent(source, descriptor, ref positive, ref negative);
-        bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point,
-            ReadOnlySpan<ulong>.Empty, ref positive, ref negative, sink.PointOnly);
-        if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty, positive, negative);
-        return admitted;
+        if (!sink.PointOnly)
+        {
+            if (sink.RequestedOrientation >= 0)
+            {
+                bool found = ConePlaneRayPointExits.TryAccumulateAxialOrientation(point, frame,
+                    ReadOnlySpan<ulong>.Empty, 1, sidePoint: true, ref positive);
+                System.Diagnostics.Debug.Assert(found);
+            }
+            if (sink.RequestedOrientation <= 0)
+            {
+                bool found = ConePlaneRayPointExits.TryAccumulateAxialOrientation(point, frame,
+                    ReadOnlySpan<ulong>.Empty, -1, sidePoint: true, ref negative);
+                System.Diagnostics.Debug.Assert(found);
+            }
+        }
+        sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty, positive, negative);
+        return true;
     }
 
     // Returns x*cos(theta)+z*sin(theta)+constant. Scaling the symbolic line
@@ -215,7 +234,7 @@ internal static partial class ConePlaneRayEvents
             ContactQuadratic.Scale(gz, frame.PlaneConstant, point.Z); point.Z.MultiplySign(divisorSign);
             dot.CopyTo(point.Denominator, divisorSign);
             SetEvent(source, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly);
+            bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly, sink.RequestedOrientation);
             if (admitted) sink.Keep(descriptor, point, root, positive, negative);
             return admitted;
         }
@@ -234,7 +253,7 @@ internal static partial class ConePlaneRayEvents
         SetEvent(source, descriptor, ref positive, ref negative);
         if (orientation == 0)
         {
-            bool sideAdmitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly);
+            bool sideAdmitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly, sink.RequestedOrientation);
             if (sideAdmitted) sink.Keep(descriptor, point, root, positive, negative);
             return sideAdmitted;
         }
@@ -264,7 +283,7 @@ internal static partial class ConePlaneRayEvents
             var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.Generator, generator.Feature,
                 generator.Quadrant, generator.Branch, endpoint);
             SetEvent(source, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly);
+            bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly, sink.RequestedOrientation);
             // D=N.g=0 and c=0 already certify this intrinsic generator's plane.
             // Its apex has denominator 1; its base-rim endpoint has denominator
             // d*d+n*n>0 and satisfies the finite cone exactly, including R=0.

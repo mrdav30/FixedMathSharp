@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using FixedMathSharp.Geometry;
 using Xunit;
 
@@ -6,6 +7,70 @@ namespace FixedMathSharp.Tests.Geometry.Primitives;
 
 public sealed class FixedPointAnchorTests
 {
+    [Fact]
+    public void TranslatedPointFactory_PreservesCompleteSignedSumAcrossThreeComponentLimits()
+    {
+        long[] rawValues = { long.MinValue, long.MinValue + 1, -1, 0, 1, long.MaxValue - 1, long.MaxValue };
+        foreach (long anchorRaw in rawValues)
+        foreach (long samplingRaw in rawValues)
+        foreach (long offsetRaw in rawValues)
+        {
+            var anchorOrigin = new Vector3d(Fixed64.FromRaw(anchorRaw), Fixed64.FromRaw(-1), Fixed64.FromRaw(1));
+            var samplingOrigin = new Vector3d(Fixed64.FromRaw(samplingRaw), Fixed64.FromRaw(1), Fixed64.FromRaw(-1));
+            var offset = new Vector3d(Fixed64.FromRaw(offsetRaw), Fixed64.FromRaw(3), Fixed64.FromRaw(-3));
+            FixedPointAnchor anchor = FixedPointAnchor.FromTranslatedPoint(anchorOrigin, samplingOrigin, offset);
+            Assert.Equal(anchorOrigin, anchor.Origin); Assert.Equal(FixedQuaternion.Identity, anchor.Rotation);
+            BigInteger expected = (BigInteger)samplingRaw + offsetRaw - anchorRaw;
+            BigInteger actual = (BigInteger)anchor.LocalPoint.X.m_rawValue + anchor.LocalDisplacement.X.m_rawValue
+                + anchor.LocalTranslation.X.m_rawValue;
+            Assert.Equal(expected * Fixed64.Two.m_rawValue, actual * Fixed64.Two.m_rawValue + anchor.ExactLocalTerm.X);
+            Assert.True(anchor.TryGetPointInFrame(samplingOrigin, out Vector3d restored));
+            Assert.Equal(offset, restored);
+            BigInteger expectedWorld = (BigInteger)samplingRaw + offsetRaw;
+            bool representable = expectedWorld >= long.MinValue && expectedWorld <= long.MaxValue;
+            Assert.Equal(representable, anchor.TryGetPoint(out Vector3d world));
+            if (representable)
+                Assert.Equal(new Vector3d(Fixed64.FromRaw((long)expectedWorld), Fixed64.FromRaw(4), Fixed64.FromRaw(-4)), world);
+        }
+        // A failure on Y or Z must retain all the other coordinates, too.
+        var extremes = new Vector3d(Fixed64.Zero, Fixed64.MaxValue, Fixed64.MinValue);
+        FixedPointAnchor allAxes = FixedPointAnchor.FromTranslatedPoint(-extremes, extremes, extremes);
+        Assert.True(allAxes.TryGetPointInFrame(extremes, out Vector3d restoredAxes));
+        Assert.Equal(extremes, restoredAxes);
+    }
+
+    [Theory]
+    [InlineData(-3, 0)]
+    [InlineData(-1, 0)]
+    [InlineData(1, 2)]
+    [InlineData(3, 2)]
+    public void TranslatedPoint_RoundsExactFeatureOnWorldLatticeBeforeOriginSubtraction(long halfRaws, long worldRaw)
+    {
+        Vector3d origin = new(Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.Zero);
+        FixedPointAnchorTerm3d term = FixedPointAnchorTerm3d.CreateCenteredAxisSupport(Vector3d.Right,
+            Fixed64.FromRaw(halfRaws), Vector3d.Zero, Fixed64.Zero, Vector3d.Zero, Vector3d.Zero);
+        var anchor = new FixedPointAnchor(origin, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.Zero, term);
+        Assert.True(anchor.TryGetPoint(out Vector3d world));
+        Assert.Equal(Fixed64.FromRaw(worldRaw), world.X);
+        Assert.True(anchor.TryGetPointInFrame(origin, out Vector3d sampled));
+        Assert.Equal(world - origin, sampled);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TranslatedPoint_RetainsRepresentableOffsetWhenAbsoluteCoordinateCannotMaterialize(bool positive)
+    {
+        Vector3d origin = new(positive ? Fixed64.MaxValue : Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero);
+        var anchor = new FixedPointAnchor(origin, FixedQuaternion.Identity, positive ? Vector3d.Right : -Vector3d.Right);
+        Assert.False(anchor.TryGetPoint(out _));
+        Assert.True(anchor.TryGetPointInFrame(origin, out Vector3d sampled));
+        Assert.Equal(anchor.LocalPoint, sampled);
+        Vector3d opposite = new(positive ? Fixed64.MinValue : Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero);
+        Assert.False(anchor.TryGetPointInFrame(opposite, out sampled));
+        Assert.Equal(Vector3d.Zero, sampled);
+    }
+
     [Fact]
     public void LocalFeatureIdentity_OrdersEveryStoredComponent()
     {
@@ -415,6 +480,8 @@ public sealed class FixedPointAnchorTests
             Vector3d.Right);
 
         Assert.False(anchor.TryGetPoint(out Vector3d point));
+        Assert.Equal(default, point);
+        Assert.False(anchor.TryGetPointInFrame(Vector3d.Zero, out point));
         Assert.Equal(default, point);
     }
 
@@ -848,6 +915,8 @@ public sealed class FixedPointAnchorTests
         FixedPointAnchor anchor = default;
 
         Assert.False(anchor.TryGetPoint(out Vector3d point));
+        Assert.Equal(default, point);
+        Assert.False(anchor.TryGetPointInFrame(Vector3d.Zero, out point));
         Assert.Equal(default, point);
         Assert.False(new FixedPointAnchor(
             Vector3d.Zero,

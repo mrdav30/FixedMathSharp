@@ -14,6 +14,10 @@ internal static class ConePlaneRayPointMaterialization
     /// <summary>Conservatively certifies the world coordinate range of every point in a validated finite cone.</summary>
     /// <remarks>False is inconclusive: individual points may still be representable.</remarks>
     internal static bool IsWorldRangeRepresentable(in ConePlaneRayFrame frame)
+        => IsRangeRepresentable(frame, Vector3d.Zero);
+
+    /// <summary>Conservatively certifies rounded world coordinates relative to a common sampling origin.</summary>
+    internal static bool IsRangeRepresentable(in ConePlaneRayFrame frame, Vector3d samplingOrigin)
     {
         // The frame's exact rational rotation is orthogonal. Each centered
         // world component is bounded by Radius+Height/2, so doubled raw bounds
@@ -25,7 +29,7 @@ internal static class ConePlaneRayPointMaterialization
         Signed192 maximum = WideArithmetic.AddSigned192(Signed192.Signed(long.MaxValue), Signed192.Signed(long.MaxValue));
         for (int axis = 0; axis < 3; axis++)
         {
-            Signed192 center = Signed192.Raw(frame.ConeCenter[axis]);
+            Signed192 center = WideArithmetic.SubtractSigned192(Signed192.Raw(frame.ConeCenter[axis]), Signed192.Raw(samplingOrigin[axis]));
             center = WideArithmetic.AddSigned192(center, center);
             if (WideArithmetic.SubtractSigned192(WideArithmetic.SubtractSigned192(center, bound), minimum).Sign < 0
                 || WideArithmetic.SubtractSigned192(WideArithmetic.AddSigned192(center, bound), maximum).Sign > 0)
@@ -36,18 +40,29 @@ internal static class ConePlaneRayPointMaterialization
 
     internal static bool TryGetWorldPoint(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
         scoped ReadOnlySpan<ulong> root, out Vector3d worldPoint)
-        => TryGetPoint(frame, point.X, point.Y, point.Z, point.Denominator, root, false, true, out worldPoint);
+        => TryGetPointInFrame(frame, point, root, Vector3d.Zero, out worldPoint);
+
+    /// <summary>Rounds once on the world lattice, then expresses that point relative to the sampling origin.</summary>
+    internal static bool TryGetPointInFrame(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
+        scoped ReadOnlySpan<ulong> root, Vector3d samplingOrigin, out Vector3d pointInFrame)
+        => TryGetPoint(frame, point.X, point.Y, point.Z, point.Denominator, root, false, true, samplingOrigin, out pointInFrame);
 
     internal static bool TryGetExitWorldPoint(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
         scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
         int orientation, out Vector3d worldPoint)
-        => TryGetExitPoint(frame, point, root, numerator, denominator, orientation, false, true, out worldPoint);
+        => TryGetExitPointInFrame(frame, point, root, numerator, denominator, orientation, Vector3d.Zero, out worldPoint);
+
+    /// <summary>Rounds an exit once on the world lattice, retaining a representable common-frame coordinate.</summary>
+    internal static bool TryGetExitPointInFrame(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
+        scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
+        int orientation, Vector3d samplingOrigin, out Vector3d pointInFrame)
+        => TryGetExitPoint(frame, point, root, numerator, denominator, orientation, false, true, samplingOrigin, out pointInFrame);
 
     /// <summary>Rounds a selected exit directly in the cone's centered local frame, independently of world rounding.</summary>
     internal static bool TryGetExitConeLocalPoint(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
         scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
         int orientation, out Vector3d localPoint)
-        => TryGetExitPoint(frame, point, root, numerator, denominator, orientation, true, true, out localPoint);
+        => TryGetExitPoint(frame, point, root, numerator, denominator, orientation, true, true, Vector3d.Zero, out localPoint);
 
     /// <summary>Rounds an admitted point directly in its authored local frame, independently of world rounding.</summary>
     internal static bool TryGetAuthoredPoint(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
@@ -76,6 +91,18 @@ internal static class ConePlaneRayPointMaterialization
             (axis == 0 ? x : axis == 1 ? y : z).Add(term, -1);
         }
         WideRationalBasis3d basis = frame.Finite.ShapeFrame.Basis;
+        Signed192 tripleDenominator = WideArithmetic.AddSigned192(
+            WideArithmetic.AddSigned192(basis.Denominator, basis.Denominator), basis.Denominator);
+        if (WideArithmetic.AddSigned192(WideArithmetic.AddSigned192(basis.Xx, basis.Yy), basis.Zz).Equals(tripleDenominator))
+        {
+            // An exact proper orthogonal rotation has trace 3 only at identity.
+            // Then B=D*I and B^T*(P-2T)/(2D²) cancels to (P-2T)/(2D),
+            // including equal noncardinal authored/cone rotations. Keep this
+            // cancellation local; other geometry owners retain their basis ABI.
+            ContactQuadratic.Scale(point.Denominator,
+                Extend(WideArithmetic.AddSigned192(basis.Denominator, basis.Denominator)), d);
+            return TryGetWorldPoint(Vector3d.Zero, FixedQuaternion.Identity, x, y, z, d, root, out localPoint);
+        }
         Signed320 square = WideArithmetic.MultiplySigned192(basis.Denominator, basis.Denominator);
         ContactQuadratic.Scale(point.Denominator, Signed576.ExtendValue(WideArithmetic.AddSigned320(square, square)), d);
         for (int axis = 0; axis < 3; axis++)
@@ -94,18 +121,24 @@ internal static class ConePlaneRayPointMaterialization
     internal static bool IsExitWorldPointRepresentable(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
         scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
         int orientation)
-        => TryGetExitPoint(frame, point, root, numerator, denominator, orientation, false, false, out _);
+        => IsExitPointRepresentable(frame, point, root, numerator, denominator, orientation, Vector3d.Zero);
+
+    /// <summary>Tests final common-frame coordinate range using the world's nearest-even parity.</summary>
+    internal static bool IsExitPointRepresentable(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
+        scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
+        int orientation, Vector3d samplingOrigin)
+        => TryGetExitPoint(frame, point, root, numerator, denominator, orientation, false, false, samplingOrigin, out _);
 
     private static bool TryGetExitPoint(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
         scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
-        int orientation, bool coneLocal, bool materialize, out Vector3d worldPoint)
+        int orientation, bool coneLocal, bool materialize, Vector3d samplingOrigin, out Vector3d worldPoint)
     {
         worldPoint = default;
         int numeratorSign = numerator.Sign(root);
         if (numeratorSign < 0 || denominator.Sign(root) <= 0 || point.Denominator.Sign(root) <= 0)
             return false;
         if (numeratorSign == 0)
-            return TryGetPoint(frame, point.X, point.Y, point.Z, point.Denominator, root, coneLocal, materialize, out worldPoint);
+            return TryGetPoint(frame, point.X, point.Y, point.Z, point.Denominator, root, coneLocal, materialize, samplingOrigin, out worldPoint);
         // q=(P*d+orientation*N*n*D)/(D*d). Complete quadratic products
         // need p+e+r limbs and one addition carry. The Signed320 normal
         // adds at most five limbs, and the final sum adds another carry.
@@ -131,12 +164,12 @@ internal static class ConePlaneRayPointMaterialization
             ContactQuadratic.Scale(d, Signed576.ExtendValue(normal), term); target.Add(term, orientation);
         }
         ContactQuadratic.Multiply(point.Denominator, denominator, root, d);
-        return TryGetPoint(frame, x, y, z, d, root, coneLocal, materialize, out worldPoint);
+        return TryGetPoint(frame, x, y, z, d, root, coneLocal, materialize, samplingOrigin, out worldPoint);
     }
 
     private static bool TryGetPoint(in ConePlaneRayFrame frame, scoped ContactQuadratic px,
         scoped ContactQuadratic py, scoped ContactQuadratic pz, scoped ContactQuadratic pd,
-        scoped ReadOnlySpan<ulong> root, bool coneLocal, bool materialize, out Vector3d worldPoint)
+        scoped ReadOnlySpan<ulong> root, bool coneLocal, bool materialize, Vector3d samplingOrigin, out Vector3d worldPoint)
     {
         // Convert apex coordinates to centered raw cone coordinates before
         // the shared exact rigid transform. This changes no retained field.
@@ -150,18 +183,23 @@ internal static class ConePlaneRayPointMaterialization
         ContactQuadratic.Scale(pd, Extend(scale), denominator);
         return TryGetWorldPoint(coneLocal ? Vector3d.Zero : frame.ConeCenter,
             coneLocal ? FixedQuaternion.Identity : frame.ConeRotation,
-            px, centeredY, pz, denominator, root, materialize, out worldPoint);
+            px, centeredY, pz, denominator, root, materialize, samplingOrigin, out worldPoint);
     }
 
     /// <summary>Rounds exact raw local coordinates after one rational rigid transform.</summary>
     internal static bool TryGetWorldPoint(Vector3d origin, FixedQuaternion rotation,
         scoped ContactQuadratic px, scoped ContactQuadratic py, scoped ContactQuadratic pz,
         scoped ContactQuadratic pd, scoped ReadOnlySpan<ulong> root, out Vector3d worldPoint)
-        => TryGetWorldPoint(origin, rotation, px, py, pz, pd, root, true, out worldPoint);
+        => TryGetPointInFrame(origin, rotation, px, py, pz, pd, root, Vector3d.Zero, out worldPoint);
+
+    internal static bool TryGetPointInFrame(Vector3d origin, FixedQuaternion rotation,
+        scoped ContactQuadratic px, scoped ContactQuadratic py, scoped ContactQuadratic pz,
+        scoped ContactQuadratic pd, scoped ReadOnlySpan<ulong> root, Vector3d samplingOrigin, out Vector3d pointInFrame)
+        => TryGetWorldPoint(origin, rotation, px, py, pz, pd, root, true, samplingOrigin, out pointInFrame);
 
     private static bool TryGetWorldPoint(Vector3d origin, FixedQuaternion rotation,
         scoped ContactQuadratic px, scoped ContactQuadratic py, scoped ContactQuadratic pz,
-        scoped ContactQuadratic pd, scoped ReadOnlySpan<ulong> root, bool materialize, out Vector3d worldPoint)
+        scoped ContactQuadratic pd, scoped ReadOnlySpan<ulong> root, bool materialize, Vector3d samplingOrigin, out Vector3d worldPoint)
     {
         worldPoint = default;
         if (pd.Sign(root) <= 0)
@@ -200,29 +238,34 @@ internal static class ConePlaneRayPointMaterialization
                 ContactQuadratic.Scale(py, Extend(y), term); numerator.Add(term);
                 ContactQuadratic.Scale(pz, Extend(z), term); numerator.Add(term);
             }
-            Fixed64 center = origin[axis];
-            ContactQuadratic.Scale(denominator, Extend(Signed192.Raw(center)), term); numerator.Add(term);
+            // Subtract origins before narrowing. A valid point offset can exist
+            // even when its conceptual absolute world coordinate is outside Q32.32.
+            Signed192 center = WideArithmetic.SubtractSigned192(Signed192.Raw(origin[axis]), Signed192.Raw(samplingOrigin[axis]));
+            ContactQuadratic.Scale(denominator, Extend(center), term); numerator.Add(term);
+            long parityOffset = samplingOrigin[axis].m_rawValue;
             // Rational coordinates share the raw ratio owner's exact signed
             // range and nearest-even policy, combining admission and rounding.
             if (numerator.Signs[1] == 0 && denominator.Signs[1] == 0)
             {
-                if (!Fixed64.TryGetSignedRawRatio(numerator.Rational, denominator.Rational, numerator.Signs[0] < 0, out coordinates[axis]))
+                if (!Fixed64.TryGetSignedRawRatio(numerator.Rational, denominator.Rational, numerator.Signs[0] < 0, out coordinates[axis], parityOffset))
                     return false;
                 continue;
             }
-            // Representability belongs to the rounded coordinate. MaxRaw is
-            // odd, so its upper half tie rounds out; MinRaw is even, so its
-            // lower half tie rounds in. Compare doubled exact coordinates.
+            // Ties belong to the global lattice: an odd sampling origin flips
+            // the common-frame parity. Preserve this at both range thresholds
+            // and final rounding, so translating cannot change a selected row.
             numerator.CopyTo(term); term.Add(numerator);
             ContactQuadratic.Scale(denominator, Extend(upperHalf), query);
             query.Add(term, -1);
-            if (query.Sign(root) <= 0)
+            int upperComparison = query.Sign(root);
+            if (upperComparison < 0 || upperComparison == 0 && (parityOffset & 1) == 0)
                 return false;
             ContactQuadratic.Scale(denominator, Extend(lowerHalf), query);
             query.Add(term, -1);
-            if (query.Sign(root) > 0)
+            int lowerComparison = query.Sign(root);
+            if (lowerComparison > 0 || lowerComparison == 0 && (parityOffset & 1) != 0)
                 return false;
-            if (materialize) coordinates[axis] = ContactQuadratic.RoundRatio(numerator, denominator, root);
+            if (materialize) coordinates[axis] = ContactQuadratic.RoundRatio(numerator, denominator, root, parityOffset: parityOffset);
         }
         if (materialize) worldPoint = new Vector3d(coordinates[0], coordinates[1], coordinates[2]);
         return true;

@@ -9,6 +9,39 @@ public sealed class WideFiniteAxisArithmeticTests
 {
     [Theory]
     [InlineData(0, false)]
+    [InlineData(0, true)]
+    [InlineData(3, false)]
+    [InlineData(3, true)]
+    public void RawRatioTranslatedParity_MatchesIndependentGlobalLatticeOracle(int commonWords, bool negative)
+    {
+        BigInteger wide = BigInteger.One << 120;
+        var cases = new (BigInteger N, BigInteger D)[]
+        {
+            (0, 1), (1, 2), (3, 2), (5, 2), (7, 2), (5 * wide - 1, 2 * wide), (5 * wide + 1, 2 * wide),
+            (2 * (BigInteger)long.MaxValue + 1, 2), ((BigInteger.One << 64) + 1, 2), (1, 0)
+        };
+        foreach (long origin in new[] { -3L, 0L, 1L, 2L, long.MinValue, long.MaxValue })
+        foreach (var item in cases)
+        {
+            BigInteger rounded = 0;
+            bool expected = item.D != 0;
+            if (expected)
+            {
+                rounded = BigInteger.DivRem(item.N, item.D, out BigInteger remainder);
+                int half = (2 * remainder).CompareTo(item.D);
+                if (half > 0 || half == 0 && !(rounded + origin).IsEven) rounded++;
+                if (negative) rounded = -rounded;
+                expected = rounded >= long.MinValue && rounded <= long.MaxValue;
+            }
+            ulong[] n = ToTwosComplementWords(item.N << (64 * commonWords), commonWords + 8);
+            ulong[] d = ToTwosComplementWords(item.D << (64 * commonWords), commonWords + 6);
+            Assert.Equal(expected, Fixed64.TryGetSignedRawRatio(n, d, negative, out Fixed64 actual, origin));
+            Assert.Equal(expected ? (long)rounded : 0, actual.m_rawValue);
+        }
+    }
+
+    [Theory]
+    [InlineData(0, false)]
     [InlineData(1, false)]
     [InlineData(3, false)]
     [InlineData(8, false)]

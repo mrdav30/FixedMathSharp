@@ -166,6 +166,74 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
     }
 
     [Theory]
+    [InlineData(-3, 2, false, false)]
+    [InlineData(3, 2, false, false)]
+    [InlineData(0, 0, false, false)]
+    [InlineData(2, 2, false, false)]
+    [InlineData(0, 2, true, false)]
+    [InlineData(0, 0, true, false)]
+    [InlineData(-2, 2, true, false)]
+    [InlineData(0, 2, false, true)]
+    public void TargetedAxialCardinals_PreserveClosedAdmissionAndRequestedReplay(
+        int planeY, int radius, bool invertAxis, bool extremeOddHeight)
+    {
+        var plane = new FixedTriangle(new Vector3d(-4, planeY, -4),
+            new Vector3d(4, planeY, -4), new Vector3d(0, planeY, 4));
+        Vector3d center = extremeOddHeight ? new(Fixed64.Zero, Fixed64.MaxValue, Fixed64.Zero) : Vector3d.Zero;
+        Fixed64 height = (Fixed64)4 + (extremeOddHeight ? Fixed64.FromRaw(1) : Fixed64.Zero);
+        FixedQuaternion rotation = invertAxis
+            ? new(Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero) : FixedQuaternion.Identity;
+        var frame = new ConePlaneRayFrame(plane, center, FixedQuaternion.Identity,
+            center, rotation, height, (Fixed64)radius);
+        Assert.Equal(Signed320.ExtendValue(Signed192.Signed(invertAxis ? 1 : -1)), frame.Normal.Y);
+        var right = new ConePlaneRayEvent(ConePlaneRayEventKind.LowerCircle, 8, 0, 0, 0);
+        var left = new ConePlaneRayEvent(ConePlaneRayEventKind.LowerCircle, 8, 1, 0, 0);
+        var axis = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis);
+        long planeRaw = ((Fixed64)planeY).m_rawValue;
+        bool admitted = 2 * Math.Abs(planeRaw) <= height.m_rawValue;
+        bool collapsed = radius == 0 || planeY == (invertAxis ? -2 : 2);
+        Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords], root = stackalloc ulong[ConePlaneRaySelection.RootWords];
+        Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+        var point = new ConePlaneRayPoint(words, signs);
+        Span<ulong> pv = stackalloc ulong[ConePlaneRaySelection.StorageWords], nv = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+        Span<int> ps = stackalloc int[ConePlaneRaySelection.SignCount], ns = stackalloc int[ConePlaneRaySelection.SignCount];
+        var positive = new ConePlaneRaySelection(pv, ps); var negative = new ConePlaneRaySelection(nv, ns);
+        // Targeted replay must remain valid even when streaming prunes the
+        // radius-zero/apex cardinal as a duplicate of the axis construction.
+        for (int orientation = -1; orientation <= 1; orientation += 2)
+        {
+            Assert.Equal(admitted, ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame,
+                right, point, root, ref positive, ref negative, requestedOrientation: orientation));
+            if (!admitted)
+            {
+                Assert.False(positive.HasValue); Assert.False(negative.HasValue);
+                continue;
+            }
+            Assert.True(ConePlaneRayPointExits.ContainsPoint(ConePlaneRayEventSource.Plane, frame, point, root));
+            ConePlaneRaySelection selected = orientation > 0 ? positive : negative;
+            Assert.True(selected.TryMaterialize(frame, orientation, center, out Vector3d p, out Vector3d q, out Fixed64 depth));
+            Fixed64 radial = collapsed ? Fixed64.Zero : Fixed64.One;
+            Assert.Equal(new Vector3d(radial, (Fixed64)planeY, Fixed64.Zero), p);
+            Assert.Equal(p.X, q.X); Assert.Equal(p.Z, q.Z);
+            bool endpointExit = collapsed || orientation * (invertAxis ? -1 : 1) < 0;
+            long endpointRaw = orientation * (height.m_rawValue / 2 + (extremeOddHeight ? 1 : 0));
+            Assert.Equal(endpointExit ? endpointRaw : planeRaw, q.Y.m_rawValue);
+            // The odd translated origin changes endpoint parity, while depth
+            // independently rounds the half-height to the even raw integer.
+            long depthRaw = endpointExit ? Math.Abs(orientation * (height.m_rawValue / 2) - planeRaw) : 0;
+            Assert.Equal(depthRaw, depth.m_rawValue);
+        }
+        if (!admitted)
+            Assert.Throws<InvalidOperationException>(() => ConePlaneRayEvents.CompareEventAnchors(
+                ConePlaneRayEventSource.Plane, right, ConePlaneRayEventSource.Plane, axis, frame,
+                includeCoincidentProvenance: false));
+        else
+            Assert.Equal(collapsed ? 0 : 1, Math.Sign(ConePlaneRayEvents.CompareEventAnchors(
+                ConePlaneRayEventSource.Plane, right, ConePlaneRayEventSource.Plane, collapsed ? axis : left, frame,
+                includeCoincidentProvenance: false)));
+    }
+
+    [Theory]
     [InlineData(-3, 0)]
     [InlineData(-2, 0)]
     [InlineData(0, 0)]
@@ -189,7 +257,8 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         Span<ConePlaneRayEvent> compact = stackalloc ConePlaneRayEvent[ConePlaneRayEvents.IntrinsicCapacity];
         int fullCount = ConePlaneRayEvents.GetIntrinsicEvents(general, complete);
         int compactCount = ConePlaneRayEvents.GetIntrinsicEvents(frame, compact);
-        Assert.Equal(102, fullCount); Assert.Equal(radius == 0 ? 1 : 5, compactCount);
+        bool singlePoint = radius == 0 || height == 2;
+        Assert.Equal(102, fullCount); Assert.Equal(singlePoint ? 1 : 5, compactCount);
         Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords], root = stackalloc ulong[ConePlaneRaySelection.RootWords];
         Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
         var point = new ConePlaneRayPoint(words, signs);
@@ -259,7 +328,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
             Assert.Equal(new Vector3d(0, height, 0), p); Assert.Equal(Vector3d.Down * 2, q);
             Assert.Equal((Fixed64)(height + 2), depth);
         }
-        Assert.Equal(radius == 0 ? 101 : 97, omitted);
+        Assert.Equal(singlePoint ? 101 : 97, omitted);
         Assert.Equal(height >= -2 && height <= 2 ? 1 : 0, admittedAxis);
     }
 
@@ -506,7 +575,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[ConePlaneRayEvents.IntrinsicCapacity];
         int count = source.Scope == ConePlaneRayEventScope.Plane
             ? ConePlaneRayEvents.GetIntrinsicEvents(frame, events) : ConePlaneRayEvents.GetBoundaryEvents(events);
-        Assert.Equal(source.Scope == ConePlaneRayEventScope.Segment ? 14 : fixture == 4 ? 1 : fixture <= 3 ? 5 : 102, count);
+        Assert.Equal(source.Scope == ConePlaneRayEventScope.Segment ? 14 : fixture is 1 or 4 ? 1 : fixture <= 3 ? 5 : 102, count);
         if (fixture == 13) Assert.True(!frame.Normal.X.IsZero && !frame.Normal.Z.IsZero);
         Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords], root = stackalloc ulong[ConePlaneRaySelection.RootWords];
         Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
@@ -517,7 +586,11 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         int admitted = 0;
         foreach (ConePlaneRayEvent descriptor in events[..count])
         {
-            if (!ConePlaneRayEvents.TryEvaluateEvent(source, frame, descriptor, point, root, ref positive, ref negative)) continue;
+            bool exists = ConePlaneRayEvents.TryEvaluateEvent(source, frame, descriptor, point, root, ref positive, ref negative);
+            for (int orientation = -1; orientation <= 1; orientation += 2)
+                Assert.Equal(exists, ConePlaneRayEvents.TryEvaluateEvent(source, frame, descriptor,
+                    point, root, ref positive, ref negative, requestedOrientation: orientation));
+            if (!exists) continue;
             Assert.True(admitted < streamed.Count);
             Assert.True(descriptor.Matches(streamed[admitted]));
             admitted++;
@@ -547,6 +620,35 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         Assert.Equal(0, point.CompareTo(streamedPoint, root, streamedRoot));
         AssertStreamedExit(frame, 1, positive, streamedPositive);
         AssertStreamedExit(frame, -1, negative, streamedNegative);
+        // Once the direction is fixed, replay can omit the opposite general
+        // exit solve without changing admission, provenance or materialization.
+        for (int orientation = -1; orientation <= 1; orientation += 2)
+        {
+            Assert.True(ConePlaneRayEvents.TryEvaluateEvent(source, frame, descriptor, point, root,
+                ref positive, ref negative, requestedOrientation: orientation));
+            Assert.Equal(0, point.CompareTo(streamedPoint, root, streamedRoot));
+            if (orientation > 0) AssertStreamedExit(frame, orientation, positive, streamedPositive);
+            else AssertStreamedExit(frame, orientation, negative, streamedNegative);
+        }
+    }
+
+    [Theory]
+    [InlineData(-2)]
+    [InlineData(2)]
+    public void RequestedReplay_RejectsInvalidOrientations(int requestedOrientation)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            var frame = Frame(new FixedTriangle(new Vector3d(-4, 0, -4), new Vector3d(4, 0, -4), new Vector3d(0, 0, 4)));
+            Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords], root = stackalloc ulong[ConePlaneRaySelection.RootWords];
+            Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+            var point = new ConePlaneRayPoint(words, signs);
+            Span<ulong> pv = stackalloc ulong[ConePlaneRaySelection.StorageWords], nv = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+            Span<int> ps = stackalloc int[ConePlaneRaySelection.SignCount], ns = stackalloc int[ConePlaneRaySelection.SignCount];
+            var positive = new ConePlaneRaySelection(pv, ps); var negative = new ConePlaneRaySelection(nv, ns);
+            ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, default, point, root,
+                ref positive, ref negative, requestedOrientation: requestedOrientation);
+        });
     }
 
     private static void AssertStreamedExit(in ConePlaneRayFrame frame, int orientation,

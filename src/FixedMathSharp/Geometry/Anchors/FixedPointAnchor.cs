@@ -88,6 +88,36 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             default,
             validateRotation: false);
 
+    /// <summary>Retains an already rounded common-frame point under another world origin without narrowing its offset.</summary>
+    internal static FixedPointAnchor FromTranslatedPoint(Vector3d anchorOrigin, Vector3d samplingOrigin, Vector3d roundedOffset)
+    {
+        if (Vector3d.TryAddSubtract(samplingOrigin, roundedOffset, anchorOrigin, out Vector3d localPoint))
+            return FromValidatedFrame(anchorOrigin, FixedQuaternion.Identity, localPoint);
+
+        Span<Vector3d> components = stackalloc Vector3d[3];
+        Vector3d residual = Vector3d.Zero;
+        for (int axis = 0; axis < 3; axis++)
+        {
+            Signed192 remaining = WideArithmetic.SubtractSigned192(WideArithmetic.AddSigned192(
+                Signed192.Raw(samplingOrigin[axis]), Signed192.Raw(roundedOffset[axis])), Signed192.Raw(anchorOrigin[axis]));
+            for (int term = 0; term < 3; term++)
+            {
+                long raw = WideArithmetic.SubtractSigned192(remaining, Signed192.Signed(long.MaxValue)).Sign > 0 ? long.MaxValue
+                    : WideArithmetic.SubtractSigned192(remaining, Signed192.Signed(long.MinValue)).Sign < 0 ? long.MinValue
+                    : unchecked((long)remaining.Low);
+                components[term][axis] = Fixed64.FromRaw(raw);
+                remaining = WideArithmetic.SubtractSigned192(remaining, Signed192.Signed(raw));
+            }
+            // This is a decomposition, not a clamp: all remainders are retained.
+            // The exact three-term sum is in [3*Min+1,3*Max+1]. Signed scalar
+            // asymmetry can leave one positive raw unit after three Max terms;
+            // the existing feature residual stores that unit without a new field.
+            residual[axis] = Fixed64.FromRaw(unchecked((long)remaining.Low));
+        }
+        return new FixedPointAnchor(anchorOrigin, FixedQuaternion.Identity, components[0], components[1], components[2],
+            FixedPointAnchorTerm3d.CreateRadialSupport(residual, Fixed64.One, Vector3d.Zero), validateRotation: false);
+    }
+
     private FixedPointAnchor(
         Vector3d origin,
         FixedQuaternion rotation,
@@ -171,6 +201,17 @@ public readonly struct FixedPointAnchor : IEquatable<FixedPointAnchor>
             LocalTranslation,
             ExactLocalTerm,
             out point);
+    }
+
+    /// <summary>Rounds on the world lattice before expressing the point relative to a sampling origin.</summary>
+    internal bool TryGetPointInFrame(Vector3d samplingOrigin, out Vector3d point)
+    {
+        if (!Rotation.IsNormalized())
+        {
+            point = default;
+            return false;
+        }
+        return WidePointAnchor3d.TryGetPointInFrame(this, samplingOrigin, out point);
     }
 
     /// <summary>

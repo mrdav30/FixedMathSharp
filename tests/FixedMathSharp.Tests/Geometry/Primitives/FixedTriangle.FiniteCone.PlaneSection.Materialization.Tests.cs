@@ -14,6 +14,24 @@ namespace FixedMathSharp.Tests;
 public sealed class ConePlaneRayMaterializationTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AuthoredPoint_InvertsEqualNoncardinalRotationsWithOppositeQuaternionRepresentations(bool oppositeQuaternion)
+    {
+        var rotation = new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, (Fixed64)3 / 5, (Fixed64)4 / 5);
+        FixedQuaternion coneRotation = oppositeQuaternion
+            ? new FixedQuaternion(-rotation.X, -rotation.Y, -rotation.Z, -rotation.W) : rotation;
+        Vector3d origin = new(Fixed64.MaxValue, Fixed64.FromRaw(1), Fixed64.MinValue);
+        var plane = new FixedTriangle(new Vector3d(0, -2, -2), new Vector3d(0, 2, -2), new Vector3d(0, 0, 2));
+        var frame = new ConePlaneRayFrame(plane, origin, rotation, origin, coneRotation, (Fixed64)4, Fixed64.Two);
+        Vector3d authored = new(Fixed64.FromRaw(1), Fixed64.FromRaw(-3), Fixed64.Half);
+        Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords]; Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+        var point = new ConePlaneRayPoint(words, signs); point.Set(frame.Transform(authored));
+        Assert.True(ConePlaneRayPointMaterialization.TryGetAuthoredPoint(frame, point, ReadOnlySpan<ulong>.Empty, out Vector3d result));
+        Assert.Equal(authored, result);
+    }
+
+    [Theory]
     [InlineData(5L, 3L)]
     [InlineData(6L, 3L)]
     [InlineData(5L, 0L)]
@@ -188,6 +206,11 @@ public sealed class ConePlaneRayMaterializationTests
         Assert.Equal(expectedLocal, coneLocal);
         Assert.True(ConePlaneRayPointMaterialization.TryGetWorldPoint(frame, point, ReadOnlySpan<ulong>.Empty, out Vector3d world));
         Assert.Equal(new Vector3d(Fixed64.FromRaw(worldRaw), Fixed64.Zero, Fixed64.Zero), world);
+        Assert.True(ConePlaneRayPointMaterialization.TryGetPointInFrame(frame, point, ReadOnlySpan<ulong>.Empty, center, out Vector3d sampled));
+        Assert.Equal(world - center, sampled);
+        Assert.True(ConePlaneRayPointMaterialization.TryGetExitPointInFrame(frame, point, ReadOnlySpan<ulong>.Empty,
+            n, d, 1, center, out Vector3d sampledExit));
+        Assert.Equal(sampled, sampledExit);
         Assert.NotEqual(authored, world - center);
     }
 
@@ -397,6 +420,10 @@ public sealed class ConePlaneRayMaterializationTests
         bool expected = limit == 0 || limit != orientation;
         Assert.Equal(expected, ConePlaneRayPointMaterialization.IsExitWorldPointRepresentable(frame, selected.Point, selected.Root, n, d, orientation));
         Assert.Equal(expected, ConePlaneRayPointMaterialization.TryGetExitWorldPoint(frame, selected.Point, selected.Root, n, d, orientation, out Vector3d q));
+        Assert.True(ConePlaneRayPointMaterialization.IsRangeRepresentable(frame, center));
+        Assert.True(ConePlaneRayPointMaterialization.IsExitPointRepresentable(frame, selected.Point, selected.Root, n, d, orientation, center));
+        Assert.True(selected.TryMaterialize(frame, orientation, center, out _, out Vector3d translated, out _));
+        if (expected) Assert.Equal(q - center, translated);
         if (expected)
         {
             Assert.True(selected.TryMaterialize(frame, orientation, out _, out Vector3d paired, out _));
@@ -404,6 +431,31 @@ public sealed class ConePlaneRayMaterializationTests
             Assert.Equal(Fixed64.Half, q.Z);
             if (limit == 0 && !rotated) Assert.Equal(Fixed64.FromRaw(orientation * 3719550787L), q.X);
         }
+    }
+
+    [Theory]
+    [InlineData(true, 1, true)]
+    [InlineData(true, 2, true)]
+    [InlineData(true, 3, false)]
+    [InlineData(false, 1, true)]
+    [InlineData(false, 2, false)]
+    [InlineData(false, 3, false)]
+    public void TranslatedQuadraticRange_PreservesGlobalHalfTieParityAtBothLimits(bool maximum, int quarterRaws, bool expected)
+    {
+        const int words = 9;
+        Span<ulong> values = stackalloc ulong[8 * words]; Span<int> signs = stackalloc int[8];
+        ContactQuadratic x = ContactQuadratic.At(values, signs, 0, words), zero = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic d = ContactQuadratic.At(values, signs, 2, words);
+        long limit = maximum ? long.MaxValue : long.MinValue;
+        // sqrt(1) keeps the retained quadratic path exact while exercising its
+        // threshold signs at a half tie. Global origin +1 flips local parity.
+        SetField(x, 4 * (BigInteger)limit + (maximum ? quarterRaws : -quarterRaws) - 1, 1);
+        zero.Set(default); SetField(d, 4, 0);
+        var origin = new Vector3d(Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.Zero);
+        Assert.Equal(expected, ConePlaneRayPointMaterialization.TryGetPointInFrame(origin, FixedQuaternion.Identity,
+            x, zero, zero, d, new ulong[] { 1 }, origin, out Vector3d sampled));
+        Assert.Equal(expected ? Fixed64.FromRaw(limit) : Fixed64.Zero, sampled.X);
+        Assert.Equal(Fixed64.Zero, sampled.Y); Assert.Equal(Fixed64.Zero, sampled.Z);
     }
 
     private static ConePlaneRayFrame Frame(Vector3d center, FixedQuaternion rotation)

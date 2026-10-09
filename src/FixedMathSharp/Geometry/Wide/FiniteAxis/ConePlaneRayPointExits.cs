@@ -100,7 +100,8 @@ internal static class ConePlaneRayPointExits
     }
 
     internal static bool AccumulateRationalPoint(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
-        scoped ConePlaneRayPoint point, scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, bool pointOnly = false)
+        scoped ConePlaneRayPoint point, scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
+        bool pointOnly = false, int requestedOrientation = 0)
     {
         Span<ulong> root = stackalloc ulong[ConePlaneRaySelection.RootWords]; root.Clear();
         if (!ContainsPoint(source, frame, point, root))
@@ -110,14 +111,15 @@ internal static class ConePlaneRayPointExits
         // this path: coordinate numerators <526, denominator <326. Then the
         // ray equation A<1302, B<1241, C<1181 has discriminant <2485,
         // and its root fits the 40-word chart.
-        AccumulateRationalOrientation(point, frame, 1, ref positive);
-        AccumulateRationalOrientation(point, frame, -1, ref negative);
+        if (requestedOrientation >= 0) AccumulateRationalOrientation(point, frame, 1, ref positive);
+        if (requestedOrientation <= 0) AccumulateRationalOrientation(point, frame, -1, ref negative);
         return true;
     }
 
     internal static bool AccumulateSidePoint(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root,
-        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, bool pointOnly = false)
+        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
+        bool pointOnly = false, int requestedOrientation = 0)
     {
         if (!ContainsPoint(source, frame, point, root, sideCertificate: true))
             return false;
@@ -125,8 +127,8 @@ internal static class ConePlaneRayPointExits
         // The chart certifies F(point)=0. The nonzero crossing -2B/A is
         // quadratic-field linear; solving a second quadratic would introduce
         // a needless nested radical. Inward zero crossings are rejected.
-        AccumulateSideOrientation(point, frame, root, 1, ref positive);
-        AccumulateSideOrientation(point, frame, root, -1, ref negative);
+        if (requestedOrientation >= 0) AccumulateSideOrientation(point, frame, root, 1, ref positive);
+        if (requestedOrientation <= 0) AccumulateSideOrientation(point, frame, root, -1, ref negative);
         return true;
     }
 
@@ -301,7 +303,9 @@ internal static class ConePlaneRayPointExits
         selection.Keep(bestN, bestD, bestRoot, frame, point);
     }
 
-    private static bool TryAccumulateAxialOrientation(scoped ConePlaneRayPoint point, in ConePlaneRayFrame frame,
+    /// <summary>Applies the axial first-exit construction to an already admitted point.</summary>
+    /// <remarks>The orientation is +1 or -1. The caller proves exact finite admission; sidePoint also certifies the zero cone polynomial in the supplied root.</remarks>
+    internal static bool TryAccumulateAxialOrientation(scoped ConePlaneRayPoint point, in ConePlaneRayFrame frame,
         scoped ReadOnlySpan<ulong> root, int orientation, bool sidePoint, scoped ref ConePlaneRaySelection selection)
     {
         if (!frame.Normal.X.IsZero || !frame.Normal.Z.IsZero) return false;

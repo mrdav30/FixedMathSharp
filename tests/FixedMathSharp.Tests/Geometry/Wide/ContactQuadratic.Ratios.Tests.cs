@@ -13,6 +13,74 @@ namespace FixedMathSharp.Tests.Geometry.Wide;
 
 public sealed class ContactQuadraticRatioTests
 {
+    [Fact]
+    public void RationalComparison_PreservesSignedDenominatorsAndBorrowedInputsAgainstBigIntegerOracle()
+    {
+        const int words = 16;
+        Span<ulong> fields = stackalloc ulong[8 * words]; Span<int> signs = stackalloc int[8];
+        ContactQuadratic a = ContactQuadratic.At(fields, signs, 0, words), b = ContactQuadratic.At(fields, signs, 1, words);
+        ContactQuadratic c = ContactQuadratic.At(fields, signs, 2, words), d = ContactQuadratic.At(fields, signs, 3, words);
+        BigInteger wide = (BigInteger.One << 320) + 3;
+        BigInteger[] numerators = { -wide, -7, 0, 5, wide }, denominators = { -wide, -3, 2, wide };
+        foreach (BigInteger firstN in numerators)
+        foreach (BigInteger firstD in denominators)
+        foreach (BigInteger secondN in numerators)
+        foreach (BigInteger secondD in denominators)
+        {
+            SetIntegerField(a, firstN, 0); SetIntegerField(b, firstD, 0);
+            SetIntegerField(c, secondN, 0); SetIntegerField(d, secondD, 0);
+            // A retained zero sign can legitimately outlive old borrowed bytes.
+            // Rational comparison must ignore every radical bank in that case.
+            a.Radical.Fill(ulong.MaxValue); b.Radical.Fill(ulong.MaxValue);
+            c.Radical.Fill(ulong.MaxValue); d.Radical.Fill(ulong.MaxValue);
+            ulong[] original = fields.ToArray(); int[] originalSigns = signs.ToArray();
+            int expected = (firstN * secondD - secondN * firstD).Sign * firstD.Sign * secondD.Sign;
+            Assert.Equal(expected, ContactQuadratic.CompareRatios(a, b, new ulong[] { 2 }, c, d, new ulong[] { 3 }));
+            Assert.Equal(0, ContactQuadratic.CompareRatios(a, b, new ulong[] { 2 }, a, b, new ulong[] { 7 }));
+            Assert.True(fields.SequenceEqual(original)); Assert.True(signs.SequenceEqual(originalSigns));
+        }
+    }
+
+    [Theory]
+    [InlineData(-7)]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Scale_PreservesExactSignedCoefficientProductsAndClearsZeroSignBanks(int scalar)
+    {
+        const int words = 16;
+        Span<ulong> fields = stackalloc ulong[4 * words], expected = stackalloc ulong[words];
+        Span<int> signs = stackalloc int[4];
+        ContactQuadratic value = ContactQuadratic.At(fields, signs, 0, words), result = ContactQuadratic.At(fields, signs, 1, words);
+        var cases = new (BigInteger A, BigInteger B)[]
+        {
+            (0, 0), (3, 0), (0, -5), (-7, 11), ((BigInteger.One << 320) + 3, -((BigInteger.One << 128) + 5))
+        };
+        foreach (var item in cases)
+        {
+            SetIntegerField(value, item.A, item.B);
+            if (item.A == 0) value.Rational.Fill(ulong.MaxValue);
+            if (item.B == 0) value.Radical.Fill(ulong.MaxValue);
+            ulong[] original = value.Values.ToArray(); int[] originalSigns = value.Signs.ToArray();
+            result.Values.Fill(ulong.MaxValue); result.Signs.Fill(-1);
+            ContactQuadratic.Scale(value, Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(scalar))), result);
+            WriteMagnitude(item.A * scalar, expected); Assert.True(expected.SequenceEqual(result.Rational));
+            WriteMagnitude(item.B * scalar, expected); Assert.True(expected.SequenceEqual(result.Radical));
+            Assert.Equal((item.A * scalar).Sign, result.Signs[0]); Assert.Equal((item.B * scalar).Sign, result.Signs[1]);
+            Assert.True(value.Values.SequenceEqual(original)); Assert.True(value.Signs.SequenceEqual(originalSigns));
+        }
+        // The span overload also treats an explicit scalar sign zero as zero,
+        // regardless of bytes left in its borrowed magnitude storage.
+        expected.Fill(ulong.MaxValue); result.Values.Fill(ulong.MaxValue); result.Signs.Fill(1);
+        ContactQuadratic.Scale(value, expected, 0, result);
+        foreach (ulong word in result.Values) Assert.Equal(0UL, word);
+        Assert.Equal(0, result.Signs[0]); Assert.Equal(0, result.Signs[1]);
+        // Unsigned magnitude callers use +1 even when the magnitude is zero.
+        expected.Clear(); result.Values.Fill(ulong.MaxValue); result.Signs.Fill(1);
+        ContactQuadratic.Scale(value, expected, 1, result);
+        foreach (ulong word in result.Values) Assert.Equal(0UL, word);
+        Assert.Equal(0, result.Signs[0]); Assert.Equal(0, result.Signs[1]);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]

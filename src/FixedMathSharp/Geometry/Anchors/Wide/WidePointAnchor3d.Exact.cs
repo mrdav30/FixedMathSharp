@@ -5,6 +5,8 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
+
 namespace FixedMathSharp.Geometry;
 
 /// <content>
@@ -12,6 +14,34 @@ namespace FixedMathSharp.Geometry;
 /// </content>
 internal static partial class WidePointAnchor3d
 {
+    internal static bool TryGetPointInFrame(in FixedPointAnchor anchor, Vector3d samplingOrigin, out Vector3d point)
+    {
+        WideRationalBasis3d basis = new(anchor.Rotation);
+        Signed320 denominator = GetAnchorDenominator(basis);
+        Span<ulong> denominatorWords = stackalloc ulong[9], numeratorWords = stackalloc ulong[9];
+        WideArithmetic.GetMagnitude(Signed576.ExtendValue(denominator), denominatorWords);
+        Span<Fixed64> coordinates = stackalloc Fixed64[3];
+        for (int axis = 0; axis < 3; axis++)
+        {
+            Signed320 numerator = GetAnchorDeltaNumerator(anchor.Origin[axis], samplingOrigin[axis],
+                axis == 0 ? basis.Xx : axis == 1 ? basis.Xy : basis.Xz,
+                axis == 0 ? basis.Yx : axis == 1 ? basis.Yy : basis.Yz,
+                axis == 0 ? basis.Zx : axis == 1 ? basis.Zy : basis.Zz,
+                basis, anchor.LocalPoint, anchor.LocalDisplacement, anchor.LocalTranslation, anchor.ExactLocalTerm, denominator);
+            WideArithmetic.GetMagnitude(Signed576.ExtendValue(numerator), numeratorWords);
+            // Preserve global half-tie parity without requiring a representable
+            // absolute coordinate. No intermediate origin difference is narrowed.
+            if (!Fixed64.TryGetSignedRawRatio(numeratorWords, denominatorWords, numerator.Sign < 0,
+                out coordinates[axis], samplingOrigin[axis].m_rawValue))
+            {
+                point = default;
+                return false;
+            }
+        }
+        point = new Vector3d(coordinates[0], coordinates[1], coordinates[2]);
+        return true;
+    }
+
     // Compare dot(first-second, direction) with dot(third-fourth, direction).
     // Keep both signed ratios exact: materializing either projection would
     // lose sub-raw distinctions or saturate unrelated large offsets equally.

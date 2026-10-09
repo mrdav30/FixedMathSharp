@@ -56,6 +56,7 @@ internal ref struct ConePlaneRayEventSink
 {
     internal readonly ConePlaneRayEvent Target;
     internal readonly bool PointOnly;
+    internal readonly int RequestedOrientation;
     private readonly ConePlaneRayPoint outputPoint;
     private readonly Span<ulong> outputRoot;
     private readonly ConePlaneRayEventVisitor? visitor;
@@ -64,11 +65,14 @@ internal ref struct ConePlaneRayEventSink
     internal bool IsStreaming => visitor != null;
     internal bool HasPoint;
 
-    internal ConePlaneRayEventSink(ConePlaneRayEvent target, ConePlaneRayPoint point, Span<ulong> root, bool pointOnly = false)
-    { Target = target; outputPoint = point; outputRoot = root; PointOnly = pointOnly; HasPoint = false; visitor = null; source = default; frame = default; }
+    internal ConePlaneRayEventSink(ConePlaneRayEvent target, ConePlaneRayPoint point, Span<ulong> root,
+        bool pointOnly = false, int requestedOrientation = 0)
+    { Target = target; outputPoint = point; outputRoot = root; PointOnly = pointOnly; RequestedOrientation = requestedOrientation;
+        HasPoint = false; visitor = null; source = default; frame = default; }
 
     internal ConePlaneRayEventSink(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame, ConePlaneRayEventVisitor visitor)
-    { this.source = source; this.frame = frame; this.visitor = visitor; Target = default; outputPoint = default; outputRoot = default; PointOnly = false; HasPoint = false; }
+    { this.source = source; this.frame = frame; this.visitor = visitor; Target = default; outputPoint = default; outputRoot = default;
+        PointOnly = false; RequestedOrientation = 0; HasPoint = false; }
 
     internal bool Wants(ConePlaneRayEventKind kind)
     {

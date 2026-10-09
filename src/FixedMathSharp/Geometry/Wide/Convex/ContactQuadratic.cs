@@ -118,14 +118,33 @@ internal readonly ref partial struct ContactQuadratic
         Scale(value, magnitude, scalar.Sign, result);
     }
 
-    // The caller proves that result has room for both complete products.
+    // The caller proves that result has room for both complete products and
+    // does not alias the source coefficient or scalar storage.
     internal static void Scale(ContactQuadratic value, ReadOnlySpan<ulong> magnitude,
         int scalarSign, ContactQuadratic result)
     {
-        WideArithmetic.MultiplyMagnitudes(value.Rational, magnitude, result.Rational);
-        WideArithmetic.MultiplyMagnitudes(value.Radical, magnitude, result.Radical);
-        result.Signs[0] = IsZero(result.Rational) ? 0 : value.Signs[0] * scalarSign;
-        result.Signs[1] = IsZero(result.Radical) ? 0 : value.Signs[1] * scalarSign;
+        int rationalSign = value.Signs[0] * scalarSign, radicalSign = value.Signs[1] * scalarSign;
+        // Retained sign zero is authoritative even when borrowed bank bytes
+        // are stale. Clear output rather than scan/multiply a coefficient
+        // that has no mathematical contribution.
+        if (rationalSign == 0)
+        {
+            result.Rational.Clear(); result.Signs[0] = 0;
+        }
+        else
+        {
+            WideArithmetic.MultiplyMagnitudes(value.Rational, magnitude, result.Rational);
+            result.Signs[0] = IsZero(result.Rational) ? 0 : rationalSign;
+        }
+        if (radicalSign == 0)
+        {
+            result.Radical.Clear(); result.Signs[1] = 0;
+        }
+        else
+        {
+            WideArithmetic.MultiplyMagnitudes(value.Radical, magnitude, result.Radical);
+            result.Signs[1] = IsZero(result.Radical) ? 0 : radicalSign;
+        }
     }
 
     internal static void Multiply(ContactQuadratic first, ContactQuadratic second, ReadOnlySpan<ulong> root, ContactQuadratic result)

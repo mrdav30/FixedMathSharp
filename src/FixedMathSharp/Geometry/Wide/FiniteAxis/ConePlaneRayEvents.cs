@@ -112,7 +112,7 @@ internal static partial class ConePlaneRayEvents
             s.Set(Extend(endpoint == 0 ? ln : un)); sd.Set(Extend(endpoint == 0 ? ld : ud));
             SetAffinePoint(point, p, e, s, sd);
             SetEvent(source, descriptor, ref positive, ref negative);
-            bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly);
+            bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly, sink.RequestedOrientation);
             if (admitted) sink.Keep(descriptor, point, ReadOnlySpan<ulong>.Empty, positive, negative);
             found |= admitted;
         }
@@ -145,7 +145,7 @@ internal static partial class ConePlaneRayEvents
             {
                 SetAffinePoint(point, p, e, s, sd);
                 SetEvent(source, descriptor, ref positive, ref negative);
-                bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly);
+                bool admitted = ConePlaneRayPointExits.AccumulateSidePoint(source, frame, point, root, ref positive, ref negative, sink.PointOnly, sink.RequestedOrientation);
                 if (admitted) sink.Keep(descriptor, point, root, positive, negative);
                 found |= admitted;
             }

@@ -83,13 +83,17 @@ internal ref struct ConePlaneRaySelection
 
     internal bool TryMaterialize(in ConePlaneRayFrame frame, int orientation,
         out Vector3d lower, out Vector3d upper, out Fixed64 depth)
+        => TryMaterialize(frame, orientation, Vector3d.Zero, out lower, out upper, out depth);
+
+    internal bool TryMaterialize(in ConePlaneRayFrame frame, int orientation, Vector3d samplingOrigin,
+        out Vector3d lower, out Vector3d upper, out Fixed64 depth)
     {
         lower = upper = default; depth = default;
         if (orientation != 1 && orientation != -1) throw new ArgumentOutOfRangeException(nameof(orientation));
-        return HasValue && ConePlaneRayPointMaterialization.TryGetWorldPoint(frame, Point, Root, out lower)
+        return HasValue && ConePlaneRayPointMaterialization.TryGetPointInFrame(frame, Point, Root, samplingOrigin, out lower)
             && TryGetRoundedMaximumDepth(out depth)
-            && ConePlaneRayPointMaterialization.TryGetExitWorldPoint(frame, Point, Root,
-                ContactQuadratic.At(Values, Signs, 0, FieldWords), ContactQuadratic.At(Values, Signs, 1, FieldWords), orientation, out upper);
+            && ConePlaneRayPointMaterialization.TryGetExitPointInFrame(frame, Point, Root,
+                ContactQuadratic.At(Values, Signs, 0, FieldWords), ContactQuadratic.At(Values, Signs, 1, FieldWords), orientation, samplingOrigin, out upper);
     }
 
     internal bool TryGetRoundedMaximumDepth(out Fixed64 depth)

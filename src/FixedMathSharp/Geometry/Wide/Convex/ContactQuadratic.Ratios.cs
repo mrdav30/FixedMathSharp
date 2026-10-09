@@ -17,6 +17,26 @@ internal readonly ref partial struct ContactQuadratic
         ReadOnlySpan<ulong> firstRoot, ContactQuadratic secondNumerator, ContactQuadratic secondDenominator,
         ReadOnlySpan<ulong> secondRoot)
     {
+        if ((firstNumerator.Signs[1] | firstDenominator.Signs[1] | secondNumerator.Signs[1] | secondDenominator.Signs[1]) == 0)
+        {
+            // Rational events need only their two signed cross products. The
+            // root banks and four-term quadratic field carry no contribution.
+            int firstFractionSign = firstNumerator.Signs[0] * firstDenominator.Signs[0];
+            int secondFractionSign = secondNumerator.Signs[0] * secondDenominator.Signs[0];
+            System.Diagnostics.Debug.Assert(firstDenominator.Signs[0] != 0 && secondDenominator.Signs[0] != 0);
+            if (firstFractionSign != secondFractionSign)
+                return firstFractionSign.CompareTo(secondFractionSign);
+            if (firstFractionSign == 0)
+                return 0;
+            int productWords = Math.Max(
+                WideArithmetic.GetActiveMagnitudeLength(firstNumerator.Rational) + WideArithmetic.GetActiveMagnitudeLength(secondDenominator.Rational),
+                WideArithmetic.GetActiveMagnitudeLength(secondNumerator.Rational) + WideArithmetic.GetActiveMagnitudeLength(firstDenominator.Rational));
+            Span<ulong> products = stackalloc ulong[2 * productWords];
+            Span<ulong> firstProduct = products[..productWords], secondProduct = products[productWords..];
+            WideArithmetic.MultiplyMagnitudes(firstNumerator.Rational, secondDenominator.Rational, firstProduct);
+            WideArithmetic.MultiplyMagnitudes(secondNumerator.Rational, firstDenominator.Rational, secondProduct);
+            return firstFractionSign * WideArithmetic.CompareMagnitudeEqualLength(firstProduct, secondProduct);
+        }
         int firstSign = firstDenominator.Sign(firstRoot), secondSign = secondDenominator.Sign(secondRoot);
         System.Diagnostics.Debug.Assert(firstSign != 0 && secondSign != 0);
         int words = 2 * Math.Max(Math.Max(ActiveWords(firstNumerator), ActiveWords(firstDenominator)),
