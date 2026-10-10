@@ -250,7 +250,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         var frame = new ConePlaneRayFrame(plane, Vector3d.Zero, FixedQuaternion.Identity,
             Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, (Fixed64)radius);
         // This independent plane has X=0 but Z!=0 in its exact normal, so
-        // it must retain the full inventory despite the first axial test.
+        // it must retain the nonaxial inventory despite the first axial test.
         var general = Frame(new FixedTriangle(new Vector3d(-2, -2, 0), new Vector3d(2, -2, 0), new Vector3d(0, 2, 0)));
         Assert.True(general.Normal.X.IsZero); Assert.False(general.Normal.Z.IsZero);
         Span<ConePlaneRayEvent> complete = stackalloc ConePlaneRayEvent[ConePlaneRayEvents.IntrinsicCapacity];
@@ -258,7 +258,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         int fullCount = ConePlaneRayEvents.GetIntrinsicEvents(general, complete);
         int compactCount = ConePlaneRayEvents.GetIntrinsicEvents(frame, compact);
         bool singlePoint = radius == 0 || height == 2;
-        Assert.Equal(102, fullCount); Assert.Equal(singlePoint ? 1 : 5, compactCount);
+        Assert.Equal(92, fullCount); Assert.Equal(singlePoint ? 1 : 5, compactCount);
         Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords], root = stackalloc ulong[ConePlaneRaySelection.RootWords];
         Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
         var point = new ConePlaneRayPoint(words, signs);
@@ -328,7 +328,16 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
             Assert.Equal(new Vector3d(0, height, 0), p); Assert.Equal(Vector3d.Down * 2, q);
             Assert.Equal((Fixed64)(height + 2), depth);
         }
-        Assert.Equal(singlePoint ? 101 : 97, omitted);
+        // An axial base has a support continuum, not an isolated stationary
+        // root. Targeted descriptors omitted from the compact inventory must
+        // still reject that construction without publishing a certificate.
+        for (int branch = -1; branch <= 1; branch += 2)
+        {
+            var stationary = new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch);
+            Assert.False(ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, stationary, point, root, ref positive, ref negative));
+            Assert.False(positive.HasValue); Assert.False(negative.HasValue);
+        }
+        Assert.Equal(singlePoint ? 91 : 87, omitted);
         Assert.Equal(height >= -2 && height <= 2 ? 1 : 0, admittedAxis);
     }
 
@@ -535,6 +544,10 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
     [InlineData(11)]
     [InlineData(12)]
     [InlineData(13)]
+    [InlineData(14)]
+    [InlineData(15)]
+    [InlineData(16)]
+    [InlineData(17)]
     public void StreamedEvents_PreserveTheScopedInventoryAndEachExactDirectionalCertificate(int fixture)
     {
         FixedTriangle plane = fixture switch
@@ -547,10 +560,20 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
             7 => new(new Vector3d(-4, -1, -4), new Vector3d(4, 3, -4), new Vector3d(0, 1, 4)),
             12 => new(Vector3d.Zero, Vector3d.Right, Vector3d.Right * 2),
             13 => new(new Vector3d(-4, -3, -4), new Vector3d(4, 1, -4), new Vector3d(0, 3, 4)),
+            14 or 15 => new(new Vector3d(fixture == 14 ? 2 : -2, -4, 0), new Vector3d(fixture == 14 ? 2 : -2, 4, 0),
+                new Vector3d(fixture == 14 ? 0 : -4, -4, 1)),
+            17 => new(new Vector3d(-4, -4, 1), new Vector3d(4, -4, 1), new Vector3d(0, 4, 1)),
+            16 => new(Vector3d.Zero, new Vector3d(Fixed64.FromRaw(long.MaxValue - 17), Fixed64.FromRaw(long.MaxValue - 31), Fixed64.FromRaw(long.MinValue + 23)),
+                new Vector3d(Fixed64.FromRaw(long.MinValue + 19), Fixed64.FromRaw(long.MaxValue - 11), Fixed64.FromRaw(long.MaxValue - 47))),
             _ => new(new Vector3d(-4, 0, -4), new Vector3d(4, 0, -4), new Vector3d(0, 0, 4))
         };
-        var frame = new ConePlaneRayFrame(plane, Vector3d.Zero, FixedQuaternion.Identity,
-            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, fixture == 4 ? Fixed64.Zero : Fixed64.Two);
+        // Case 16 drives the circle coefficient banks with full-range
+        // authored edges, unequal rotations and maximum finite dimensions.
+        var frame = new ConePlaneRayFrame(plane, Vector3d.Zero, fixture == 16
+                ? new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.FromFraction(3, 5), Fixed64.FromFraction(4, 5)) : FixedQuaternion.Identity,
+            Vector3d.Zero, fixture == 16
+                ? new FixedQuaternion(Fixed64.FromFraction(1, 3), Fixed64.FromFraction(2, 3), Fixed64.FromFraction(2, 3), Fixed64.Zero) : FixedQuaternion.Identity,
+            fixture == 16 ? Fixed64.MaxValue : (Fixed64)4, fixture == 16 ? Fixed64.MaxValue : fixture == 4 ? Fixed64.Zero : Fixed64.Two);
         ConePlaneRayEventSource source = fixture switch
         {
             8 => new(new FixedSegment(-Vector3d.Right * 2, Vector3d.Right * 2)),
@@ -575,7 +598,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         Span<ConePlaneRayEvent> events = stackalloc ConePlaneRayEvent[ConePlaneRayEvents.IntrinsicCapacity];
         int count = source.Scope == ConePlaneRayEventScope.Plane
             ? ConePlaneRayEvents.GetIntrinsicEvents(frame, events) : ConePlaneRayEvents.GetBoundaryEvents(events);
-        Assert.Equal(source.Scope == ConePlaneRayEventScope.Segment ? 14 : fixture is 1 or 4 ? 1 : fixture <= 3 ? 5 : 102, count);
+        Assert.Equal(source.Scope == ConePlaneRayEventScope.Segment ? 14 : fixture is 1 or 4 ? 1 : fixture <= 3 ? 5 : fixture == 5 ? 92 : fixture == 7 || fixture == 16 ? 94 : fixture is 14 or 15 or 17 ? 84 : 102, count);
         if (fixture == 13) Assert.True(!frame.Normal.X.IsZero && !frame.Normal.Z.IsZero);
         Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords], root = stackalloc ulong[ConePlaneRaySelection.RootWords];
         Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
@@ -598,6 +621,178 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         Assert.Equal(admitted, streamed.Count);
         if (fixture == 3 || fixture == 12) Assert.False(found);
         else Assert.True(found);
+    }
+
+    [Theory]
+    [InlineData(false, false, 3)]
+    [InlineData(false, true, 3)]
+    [InlineData(true, false, 3)]
+    [InlineData(true, true, 3)]
+    [InlineData(false, false, 7)]
+    [InlineData(false, true, 7)]
+    public void CircleLineIntersections_PreserveBothQuadrantRootsAndExactHomogeneousAnchors(bool negative, bool rotated, int line)
+    {
+        Fixed64 offset = line == 7 ? Fixed64.Zero : Fixed64.FromFraction(5, 2) * (negative ? -1 : 1);
+        FixedQuaternion rotation = rotated
+            ? new(Fixed64.Zero, Fixed64.Zero, Fixed64.FromFraction(3, 5), Fixed64.FromFraction(4, 5))
+            : FixedQuaternion.Identity;
+        var plane = new FixedTriangle(new Vector3d(offset, (Fixed64)(-3), Fixed64.Zero), new Vector3d(offset, (Fixed64)3, Fixed64.Zero), new Vector3d(offset - Fixed64.One, (Fixed64)(-3), Fixed64.One));
+        var frame = new ConePlaneRayFrame(plane, Vector3d.Zero, rotation, Vector3d.Zero, rotation, (Fixed64)4, Fixed64.Two);
+        int roots = 0;
+        void Check(in ConePlaneRayEventSource source, in ConePlaneRayFrame currentFrame,
+            ConePlaneRayEvent descriptor, scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root,
+            scoped in ConePlaneRaySelection positive, scoped in ConePlaneRaySelection negativeExit)
+        {
+            if (descriptor.Kind != ConePlaneRayEventKind.UpperRim || descriptor.Feature != line) return;
+            if (line == 3) Assert.Equal(negative ? 3 : 0, descriptor.Quadrant);
+            // Freeze the original quadrant parameterization independently of
+            // the production generator construction. Both roots lie strictly
+            // inside this quadrant and must retain their separate provenance.
+            const int words = ConePlaneRayCharts.Words;
+            Span<ulong> values = stackalloc ulong[16 * words], originalRoot = stackalloc ulong[ConePlaneRayCharts.RootWords];
+            Span<int> signs = stackalloc int[16];
+            ContactQuadratic x = ContactQuadratic.At(values, signs, 0, words), z = ContactQuadratic.At(values, signs, 1, words);
+            ContactQuadratic a = ContactQuadratic.At(values, signs, 2, words), b = ContactQuadratic.At(values, signs, 3, words);
+            ContactQuadratic c = ContactQuadratic.At(values, signs, 4, words), n = ContactQuadratic.At(values, signs, 5, words);
+            ContactQuadratic d = ContactQuadratic.At(values, signs, 6, words), term = ContactQuadratic.At(values, signs, 7, words);
+            Signed576 radius = Signed576.ExtendValue(WideArithmetic.MultiplySigned192(
+                currentFrame.Finite.ShapeFrame.Radius, currentFrame.Finite.ShapeFrame.Denominator));
+            x.Set(Signed576.ExtendValue(line == 3 ? currentFrame.Normal.X : currentFrame.Normal.Z));
+            ContactQuadratic.Scale(x, radius, term); term.CopyTo(x);
+            z.Set(Signed576.ExtendValue(line == 3 ? currentFrame.Normal.Z : WideArithmetic.Negate(currentFrame.Normal.X)));
+            ContactQuadratic.Scale(z, radius, term); term.CopyTo(z);
+            c.Set(Signed576.ExtendValue(currentFrame.Normal.Y));
+            ContactQuadratic.Scale(c, Signed576.ExtendValue(currentFrame.Finite.FullHeight), term);
+            c.Set(currentFrame.PlaneConstant); c.MultiplySign(-1); c.Add(term);
+            if (line == 7) c.Clear();
+            int sx = (descriptor.Quadrant & 1) == 0 ? 1 : -1, sz = (descriptor.Quadrant & 2) == 0 ? 1 : -1;
+            c.CopyTo(a); a.Add(x, -sx); z.CopyTo(b, sz); c.Add(x, sx);
+            Assert.True(ConePlaneRayCharts.TryGetParameter(a, b, c, descriptor.Branch, originalRoot, n, d));
+            Assert.True(ConePlaneRayCharts.IsUnitParameter(n, d, originalRoot));
+            Span<ulong> pv = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+            Span<int> ps = stackalloc int[ConePlaneRayPoint.SignCount];
+            var expected = new ConePlaneRayPoint(pv, ps);
+            ContactQuadratic.Multiply(d, d, originalRoot, x); ContactQuadratic.Multiply(n, n, originalRoot, z);
+            x.CopyTo(expected.Denominator); expected.Denominator.Add(z); x.Add(z, -1);
+            ContactQuadratic.Scale(x, radius, expected.X); expected.X.MultiplySign(sx);
+            ContactQuadratic.Scale(expected.Denominator, Signed576.ExtendValue(currentFrame.Finite.FullHeight), expected.Y);
+            ContactQuadratic.Multiply(n, d, originalRoot, x); x.Add(x);
+            ContactQuadratic.Scale(x, radius, expected.Z); expected.Z.MultiplySign(sz);
+            // Independently project the original generator through the shared
+            // plane. Line 3 has zero displacement; line 7 retains both opposite
+            // nonzero projections with their original quadrant provenance.
+            Span<ulong> projectedValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+            Span<int> projectedSigns = stackalloc int[ConePlaneRayPoint.SignCount];
+            var projected = new ConePlaneRayPoint(projectedValues, projectedSigns);
+            ContactQuadratic.Scale(expected.X, Signed576.ExtendValue(currentFrame.Normal.X), n);
+            ContactQuadratic.Scale(expected.Y, Signed576.ExtendValue(currentFrame.Normal.Y), term); n.Add(term);
+            ContactQuadratic.Scale(expected.Z, Signed576.ExtendValue(currentFrame.Normal.Z), term); n.Add(term);
+            ContactQuadratic.Scale(expected.Denominator, currentFrame.PlaneConstant, term); n.Add(term, -1);
+            for (int axis = 0; axis < 3; axis++)
+            {
+                ContactQuadratic coordinate = axis == 0 ? expected.X : axis == 1 ? expected.Y : expected.Z;
+                ContactQuadratic output = axis == 0 ? projected.X : axis == 1 ? projected.Y : projected.Z;
+                ContactQuadratic.Scale(coordinate, currentFrame.NormalSquared, output);
+                ContactQuadratic.Scale(n, Signed576.ExtendValue(axis == 0 ? currentFrame.Normal.X : axis == 1 ? currentFrame.Normal.Y : currentFrame.Normal.Z), term);
+                output.Add(term, -1);
+            }
+            ContactQuadratic.Scale(expected.Denominator, currentFrame.NormalSquared, projected.Denominator);
+            Assert.Equal(0, point.CompareTo(projected, root, originalRoot));
+            roots |= line == 3 ? descriptor.Branch < 0 ? 1 : 2 : 1 << descriptor.Quadrant;
+        }
+        // Line 3 is deliberately omitted from streaming when lower line 1
+        // already supplies its point. Targeted replay still owns this chart.
+        Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords], rootValues = stackalloc ulong[ConePlaneRaySelection.RootWords];
+        Span<int> pointSigns = stackalloc int[ConePlaneRayPoint.SignCount];
+        var point = new ConePlaneRayPoint(pointValues, pointSigns);
+        Span<ulong> positiveValues = stackalloc ulong[ConePlaneRaySelection.StorageWords], negativeValues = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+        Span<int> positiveSigns = stackalloc int[ConePlaneRaySelection.SignCount], negativeSigns = stackalloc int[ConePlaneRaySelection.SignCount];
+        var positive = new ConePlaneRaySelection(positiveValues, positiveSigns); var negativeExit = new ConePlaneRaySelection(negativeValues, negativeSigns);
+        for (int quadrant = 0; quadrant < 4; quadrant++)
+        for (int branch = -1; branch <= 1; branch += 2)
+        {
+            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.UpperRim, line, quadrant, branch);
+            if (ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, descriptor, point, rootValues, ref positive, ref negativeExit))
+                Check(ConePlaneRayEventSource.Plane, frame, descriptor, point, rootValues, positive, negativeExit);
+        }
+        Assert.Equal(line == 3 ? 3 : 9, roots);
+    }
+
+    [Theory]
+    [InlineData(1, 2, 2, false, 2, false)]
+    [InlineData(1, 2, -2, false, 2, false)]
+    [InlineData(1, 2, 0, false, 2, false)]
+    [InlineData(3, 4, 10, false, 2, false)]
+    [InlineData(1, 1, 1, false, 2, false)]
+    [InlineData(1, 2, 2, true, 2, false)]
+    [InlineData(1, 0, 1, false, 2, false)]
+    [InlineData(1, 0, 0, false, 2, false)]
+    [InlineData(1, 0, 2, false, 2, false)]
+    [InlineData(1, 2, 0, false, 0, false)]
+    [InlineData(1, 2, 2, false, 2, true)]
+    public void DuplicateRimCharts_RetainCanonicalPointsBothExitsAndProvenance(int nx, int nz, int offset, bool rotated, int radius, bool tilted)
+    {
+        // nx*x+nz*z=offset includes reflected nonseam roots whose canonical
+        // point is a cardinal seam, opposite offsets, a zero plane and tangency.
+        Fixed64 x = nx == 3 ? Fixed64.Two : (Fixed64)offset, z = nx == 3 ? Fixed64.One : Fixed64.Zero;
+        var plane = new FixedTriangle(new Vector3d(x, (Fixed64)(-3), z), new Vector3d(x + (tilted ? Fixed64.One : Fixed64.Zero), (Fixed64)3, z),
+            new Vector3d(x - (Fixed64)nz, (Fixed64)(-3), z + (Fixed64)nx));
+        FixedQuaternion rotation = rotated
+            ? new(Fixed64.Zero, Fixed64.Zero, Fixed64.FromFraction(3, 5), Fixed64.FromFraction(4, 5)) : FixedQuaternion.Identity;
+        var frame = new ConePlaneRayFrame(plane, Vector3d.Zero, rotation, Vector3d.Zero, rotation, (Fixed64)4, (Fixed64)radius);
+        Span<ConePlaneRayEvent> retained = stackalloc ConePlaneRayEvent[ConePlaneRayEvents.IntrinsicCapacity];
+        int count = ConePlaneRayEvents.GetIntrinsicEvents(frame, retained);
+        foreach (ConePlaneRayEvent descriptor in retained[..count])
+            Assert.False(descriptor.Kind == ConePlaneRayEventKind.BaseStationary && frame.Normal.Y.IsZero
+                || descriptor.Kind == ConePlaneRayEventKind.UpperRim
+                    && (descriptor.Feature == 6 && frame.Normal.Y.IsZero || descriptor.Feature == 3 && !frame.PlaneConstant.IsZero));
+        Span<ulong> words = stackalloc ulong[2 * ConePlaneRayPoint.StorageWords], roots = stackalloc ulong[2 * ConePlaneRaySelection.RootWords];
+        Span<int> signs = stackalloc int[2 * ConePlaneRayPoint.SignCount];
+        var original = new ConePlaneRayPoint(words[..ConePlaneRayPoint.StorageWords], signs[..ConePlaneRayPoint.SignCount]);
+        var candidate = new ConePlaneRayPoint(words[ConePlaneRayPoint.StorageWords..], signs[ConePlaneRayPoint.SignCount..]);
+        Span<ulong> originalRoot = roots[..ConePlaneRaySelection.RootWords], candidateRoot = roots[ConePlaneRaySelection.RootWords..];
+        Span<ulong> values = stackalloc ulong[4 * ConePlaneRaySelection.StorageWords];
+        Span<int> selectionSigns = stackalloc int[4 * ConePlaneRaySelection.SignCount];
+        var op = new ConePlaneRaySelection(values[..ConePlaneRaySelection.StorageWords], selectionSigns[..ConePlaneRaySelection.SignCount]);
+        var on = new ConePlaneRaySelection(values.Slice(ConePlaneRaySelection.StorageWords, ConePlaneRaySelection.StorageWords), selectionSigns.Slice(ConePlaneRaySelection.SignCount, ConePlaneRaySelection.SignCount));
+        var cp = new ConePlaneRaySelection(values.Slice(2 * ConePlaneRaySelection.StorageWords, ConePlaneRaySelection.StorageWords), selectionSigns.Slice(2 * ConePlaneRaySelection.SignCount, ConePlaneRaySelection.SignCount));
+        var cn = new ConePlaneRaySelection(values.Slice(3 * ConePlaneRaySelection.StorageWords, ConePlaneRaySelection.StorageWords), selectionSigns.Slice(3 * ConePlaneRaySelection.SignCount, ConePlaneRaySelection.SignCount));
+        int admitted = 0;
+        for (int line = 3; line <= 9; line += 3)
+        for (int quadrant = 0; quadrant < 4; quadrant++)
+        for (int branch = -1; branch <= 1; branch += 2)
+        {
+            if (line == 3 && frame.PlaneConstant.IsZero || line >= 6 && !frame.Normal.Y.IsZero || line == 9 && quadrant != 0) continue;
+            var omitted = line == 9 ? new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch)
+                : new ConePlaneRayEvent(ConePlaneRayEventKind.UpperRim, line, quadrant, branch);
+            if (!ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, omitted, original, originalRoot, ref op, ref on)) continue;
+            admitted++;
+            int needed = (op.HasValue ? 1 : 0) | (on.HasValue ? 2 : 0), covered = 0;
+            Assert.NotEqual(0, needed);
+            foreach (ConePlaneRayEvent descriptor in retained[..count])
+            {
+                if (!ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, descriptor, candidate, candidateRoot, ref cp, ref cn)
+                    || original.CompareTo(candidate, originalRoot, candidateRoot) != 0) continue;
+                if (ConePlaneRayEvents.CompareCoincidentProvenance(ConePlaneRayEventSource.Plane, descriptor,
+                    ConePlaneRayEventSource.Plane, omitted) >= 0) continue;
+                for (int orientation = -1; orientation <= 1; orientation += 2)
+                {
+                    var before = orientation > 0 ? op : on; var after = orientation > 0 ? cp : cn;
+                    if (!before.HasValue || !after.HasValue) continue;
+                    Assert.Equal(0, ContactQuadratic.CompareRatios(ContactQuadratic.At(before.Values, before.Signs, 0, ConePlaneRaySelection.FieldWords),
+                        ContactQuadratic.At(before.Values, before.Signs, 1, ConePlaneRaySelection.FieldWords), before.Root,
+                        ContactQuadratic.At(after.Values, after.Signs, 0, ConePlaneRaySelection.FieldWords),
+                        ContactQuadratic.At(after.Values, after.Signs, 1, ConePlaneRaySelection.FieldWords), after.Root));
+                    Assert.True(before.TryMaterialize(frame, orientation, out Vector3d p, out Vector3d q, out Fixed64 depth));
+                    Assert.True(after.TryMaterialize(frame, orientation, out Vector3d actualP, out Vector3d actualQ, out Fixed64 actualDepth));
+                    Assert.Equal(p, actualP); Assert.Equal(q, actualQ); Assert.Equal(depth, actualDepth);
+                    covered |= orientation > 0 ? 1 : 2;
+                }
+                if (covered == needed) break;
+            }
+            Assert.Equal(needed, covered);
+        }
+        Assert.True(admitted > 0);
     }
 
     private static void AssertStreamedCertificate(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,

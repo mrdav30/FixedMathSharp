@@ -90,7 +90,13 @@ internal static partial class ConePlaneRayEvents
             }
             for (int line = 0; line < (upper == 0 ? 6 : 8); line++)
             {
-                if (upper == 0 ? line >= 2 && line <= 4 : line < 3) continue;
+                // Keep canonical base intersections once. A nonzero plane
+                // constant admits lower line 1's identical upper-line-3 point;
+                // radial line 6 reflects onto those same base intersections.
+                // Degenerate frames retain the general diagnostic inventory.
+                if (upper == 0 ? line >= 2 && line <= 4 : line < 3
+                    || line == 3 && !frame.PlaneConstant.IsZero
+                    || line == 6 && frame.Normal.Y.IsZero && !frame.NormalSquared.IsZero) continue;
                 for (int branch = -1; branch <= 1; branch += 2)
                 {
                     events[count++] = new ConePlaneRayEvent(kind, line, quadrant, branch);
@@ -103,8 +109,11 @@ internal static partial class ConePlaneRayEvents
         for (int endpoint = -1; endpoint < 2; endpoint++)
             events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: endpoint);
         events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.Apex);
-        for (int branch = -1; branch <= 1; branch += 2)
-            events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch);
+        // On radial planes the upper parallel-rim cohort already owns the
+        // base stationary point and both exits, including cardinal seams.
+        if (!frame.Normal.Y.IsZero || frame.NormalSquared.IsZero)
+            for (int branch = -1; branch <= 1; branch += 2)
+                events[count++] = new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch);
         return count;
     }
 

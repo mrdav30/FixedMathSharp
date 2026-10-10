@@ -77,7 +77,10 @@ internal static partial class ConePlaneRayEvents
             found |= AccumulateCircles(source, frame, ref positive, ref negative, ref sink);
         if (sink.IsStreaming && source.Scope != ConePlaneRayEventScope.Segment)
             found |= AccumulateAxisAndApex(source, frame, ref positive, ref negative, ref sink);
-        if (source.Scope != ConePlaneRayEventScope.Segment && sink.Wants(ConePlaneRayEventKind.BaseStationary))
+        // Radial base-stationary points/exits already belong to upper line 7
+        // or its cardinal seams, with earlier canonical provenance.
+        if (source.Scope != ConePlaneRayEventScope.Segment && sink.Wants(ConePlaneRayEventKind.BaseStationary)
+            && (!sink.IsStreaming || !frame.Normal.Y.IsZero))
             found |= AccumulateBaseStationary(source, frame, ref positive, ref negative, ref sink);
         return found;
     }

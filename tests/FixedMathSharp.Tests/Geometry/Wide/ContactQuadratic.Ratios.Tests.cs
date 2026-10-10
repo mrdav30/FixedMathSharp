@@ -14,6 +14,25 @@ namespace FixedMathSharp.Tests.Geometry.Wide;
 public sealed class ContactQuadraticRatioTests
 {
     [Fact]
+    public void RootMultiplication_PreservesMixedWidthCoefficientsAndClearsReusedDestinationTails()
+    {
+        Span<ulong> input = stackalloc ulong[4], output = stackalloc ulong[16], expected = stackalloc ulong[8];
+        Span<int> signs = stackalloc int[4];
+        var value = new ContactQuadratic(input, signs[..2]); var result = new ContactQuadratic(output, signs[2..]);
+        foreach (var item in new (BigInteger A, BigInteger B)[] { (3, -7), (-9, 4), (0, 0), ((BigInteger.One << 80) + 3, -((BigInteger.One << 65) + 5)) })
+        {
+            SetIntegerField(value, item.A, item.B);
+            ulong[] original = input.ToArray(); int[] originalSigns = value.Signs.ToArray();
+            output.Fill(ulong.MaxValue); result.Signs.Fill(-1);
+            ContactQuadratic.MultiplyRoot(value, new ulong[] { 5 }, result);
+            WriteMagnitude(5 * item.B, expected); Assert.True(expected.SequenceEqual(result.Rational));
+            WriteMagnitude(item.A, expected); Assert.True(expected.SequenceEqual(result.Radical));
+            Assert.Equal(item.B.Sign, result.Signs[0]); Assert.Equal(item.A.Sign, result.Signs[1]);
+            Assert.True(input.SequenceEqual(original)); Assert.True(value.Signs.SequenceEqual(originalSigns));
+        }
+    }
+
+    [Fact]
     public void RationalComparison_PreservesSignedDenominatorsAndBorrowedInputsAgainstBigIntegerOracle()
     {
         const int words = 16;

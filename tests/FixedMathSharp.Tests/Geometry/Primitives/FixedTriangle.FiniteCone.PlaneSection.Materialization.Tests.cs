@@ -135,6 +135,9 @@ public sealed class ConePlaneRayMaterializationTests
         Assert.True(ConePlaneRayPointMaterialization.TryGetExitWorldPoint(frame, point, root, n, d, 1, out Vector3d worldExit));
         Assert.Equal(new Vector3d(Fixed64.FromRaw(rotated ? 0 : 2), center.Y, center.Z), worldExit);
         Assert.True(ConePlaneRayPointMaterialization.IsExitWorldPointRepresentable(frame, point, root, n, d, 1));
+        Assert.True(ConePlaneRayPointMaterialization.TryGetExitPointsInFrame(frame, point, root, n, d, 1,
+            Vector3d.Zero, out Vector3d pairedWorld, out Vector3d pairedLocal));
+        Assert.Equal(worldExit, pairedWorld); Assert.Equal(localExit, pairedLocal);
         Assert.True(words.SequenceEqual(originalPoint)); Assert.True(fields.SequenceEqual(originalFields)); Assert.True(root.SequenceEqual(originalRoot));
     }
 
@@ -259,6 +262,9 @@ public sealed class ConePlaneRayMaterializationTests
         Assert.True(ConePlaneRayPointMaterialization.TryGetExitPointInFrame(frame, point, ReadOnlySpan<ulong>.Empty,
             n, d, 1, center, out Vector3d sampledExit));
         Assert.Equal(sampled, sampledExit);
+        Assert.True(ConePlaneRayPointMaterialization.TryGetExitPointsInFrame(frame, point, ReadOnlySpan<ulong>.Empty,
+            n, d, 1, center, out Vector3d pairedWorld, out Vector3d pairedLocal));
+        Assert.Equal(sampledExit, pairedWorld); Assert.Equal(coneLocal, pairedLocal);
         Assert.NotEqual(authored, world - center);
     }
 
@@ -284,12 +290,42 @@ public sealed class ConePlaneRayMaterializationTests
         Assert.False(ConePlaneRayPointMaterialization.TryGetExitConeLocalPoint(frame, point,
             ReadOnlySpan<ulong>.Empty, n, d, 1, out Vector3d local));
         Assert.Equal(Vector3d.Zero, local);
+        Assert.False(ConePlaneRayPointMaterialization.TryGetExitPointsInFrame(frame, point, ReadOnlySpan<ulong>.Empty,
+            n, d, 1, Vector3d.Zero, out _, out local));
+        Assert.Equal(Vector3d.Zero, local);
         if (pointDenominator <= 0)
         {
             Assert.False(ConePlaneRayPointMaterialization.TryGetAuthoredPoint(frame, point,
                 ReadOnlySpan<ulong>.Empty, out local));
             Assert.Equal(Vector3d.Zero, local);
         }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void PairedExit_RejectsLocalOverflowEvenWhenWorldTranslationCancelsIt(int exitRaw)
+    {
+        var frame = Frame(new Vector3d(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero), FixedQuaternion.Identity);
+        Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+        var point = new ConePlaneRayPoint(words, signs); point.Set(frame.Transform(Vector3d.Zero));
+        Span<ulong> denominator = stackalloc ulong[3];
+        WideArithmetic.GetMagnitude(frame.Finite.ShapeFrame.Denominator, out denominator[2], out denominator[1], out denominator[0]);
+        BigInteger scale = 2 * ReadMagnitude(denominator);
+        SetField(point.X, scale * ((BigInteger)long.MaxValue + 1), 0);
+        Span<ulong> fields = stackalloc ulong[4 * ConePlaneRayCharts.Words]; Span<int> fieldSigns = stackalloc int[4];
+        ContactQuadratic n = ContactQuadratic.At(fields, fieldSigns, 0, ConePlaneRayCharts.Words);
+        ContactQuadratic d = ContactQuadratic.At(fields, fieldSigns, 1, ConePlaneRayCharts.Words);
+        SetField(n, scale * exitRaw, 0); SetField(d, 1, 0);
+        Assert.True(ConePlaneRayPointMaterialization.TryGetExitWorldPoint(frame, point, ReadOnlySpan<ulong>.Empty,
+            n, d, 1, out Vector3d world));
+        Assert.Equal(new Vector3d(Fixed64.FromRaw(exitRaw), Fixed64.Zero, Fixed64.Zero), world);
+        Assert.False(ConePlaneRayPointMaterialization.TryGetExitConeLocalPoint(frame, point, ReadOnlySpan<ulong>.Empty,
+            n, d, 1, out _));
+        Assert.False(ConePlaneRayPointMaterialization.TryGetExitPointsInFrame(frame, point, ReadOnlySpan<ulong>.Empty,
+            n, d, 1, Vector3d.Zero, out _, out Vector3d local));
+        Assert.Equal(Vector3d.Zero, local);
     }
 
     [Theory]
@@ -471,6 +507,13 @@ public sealed class ConePlaneRayMaterializationTests
         Assert.True(ConePlaneRayPointMaterialization.IsRangeRepresentable(frame, center));
         Assert.True(ConePlaneRayPointMaterialization.IsExitPointRepresentable(frame, selected.Point, selected.Root, n, d, orientation, center));
         Assert.True(selected.TryMaterialize(frame, orientation, center, out _, out Vector3d translated, out _));
+        Assert.True(ConePlaneRayPointMaterialization.TryGetExitConeLocalPoint(frame, selected.Point, selected.Root,
+            n, d, orientation, out Vector3d coneLocal));
+        Assert.Equal(expected, ConePlaneRayPointMaterialization.TryGetExitPointsInFrame(frame, selected.Point, selected.Root,
+            n, d, orientation, Vector3d.Zero, out _, out _));
+        Assert.True(ConePlaneRayPointMaterialization.TryGetExitPointsInFrame(frame, selected.Point, selected.Root,
+            n, d, orientation, center, out Vector3d sampledExit, out Vector3d sampledLocal));
+        Assert.Equal(translated, sampledExit); Assert.Equal(coneLocal, sampledLocal);
         if (expected) Assert.Equal(q - center, translated);
         if (expected)
         {

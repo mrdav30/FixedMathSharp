@@ -58,6 +58,14 @@ internal static class ConePlaneRayPointMaterialization
         int orientation, Vector3d samplingOrigin, out Vector3d pointInFrame)
         => TryGetExitPoint(frame, point, root, numerator, denominator, orientation, false, true, samplingOrigin, out pointInFrame);
 
+    /// <summary>Independently rounds a common-frame exit and its cone-local anchor from one exact construction.</summary>
+    internal static bool TryGetExitPointsInFrame(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
+        scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
+        int orientation, Vector3d samplingOrigin, out Vector3d pointInFrame, out Vector3d coneLocalPoint)
+        => TryGetExitPoint(frame, point, root, numerator, denominator, orientation,
+            coneLocal: false, materialize: true, samplingOrigin, out pointInFrame,
+            includeConeLocal: true, out coneLocalPoint);
+
     /// <summary>Rounds a selected exit directly in the cone's centered local frame, independently of world rounding.</summary>
     internal static bool TryGetExitConeLocalPoint(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
         scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
@@ -132,13 +140,22 @@ internal static class ConePlaneRayPointMaterialization
     private static bool TryGetExitPoint(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
         scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
         int orientation, bool coneLocal, bool materialize, Vector3d samplingOrigin, out Vector3d worldPoint)
+        => TryGetExitPoint(frame, point, root, numerator, denominator, orientation, coneLocal, materialize,
+            samplingOrigin, out worldPoint, includeConeLocal: false, out _);
+
+    private static bool TryGetExitPoint(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
+        scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
+        int orientation, bool coneLocal, bool materialize, Vector3d samplingOrigin, out Vector3d worldPoint,
+        bool includeConeLocal, out Vector3d coneLocalPoint)
     {
-        worldPoint = default;
+        worldPoint = coneLocalPoint = default;
         int numeratorSign = numerator.Sign(root);
         if (numeratorSign < 0 || denominator.Sign(root) <= 0 || point.Denominator.Sign(root) <= 0)
             return false;
         if (numeratorSign == 0)
-            return TryGetPoint(frame, point.X, point.Y, point.Z, point.Denominator, root, coneLocal, materialize, samplingOrigin, out worldPoint);
+            return TryGetPoint(frame, point.X, point.Y, point.Z, point.Denominator, root, coneLocal, materialize, samplingOrigin, out worldPoint)
+                && (!includeConeLocal || TryGetPoint(frame, point.X, point.Y, point.Z, point.Denominator,
+                    root, true, true, Vector3d.Zero, out coneLocalPoint));
         // q=(P*d+orientation*N*n*D)/(D*d). Complete quadratic products
         // need p+e+r limbs and one addition carry. The Signed320 normal
         // adds at most five limbs, and the final sum adds another carry.
@@ -164,7 +181,10 @@ internal static class ConePlaneRayPointMaterialization
             ContactQuadratic.Scale(d, Signed576.ExtendValue(normal), term); target.Add(term, orientation);
         }
         ContactQuadratic.Multiply(point.Denominator, denominator, root, d);
-        return TryGetPoint(frame, x, y, z, d, root, coneLocal, materialize, samplingOrigin, out worldPoint);
+        // Reuse the exact exit, then round each output on its own lattice.
+        // Inverse-transforming the rounded world output would change local ties.
+        return TryGetPoint(frame, x, y, z, d, root, coneLocal, materialize, samplingOrigin, out worldPoint)
+            && (!includeConeLocal || TryGetPoint(frame, x, y, z, d, root, true, true, Vector3d.Zero, out coneLocalPoint));
     }
 
     private static bool TryGetPoint(in ConePlaneRayFrame frame, scoped ContactQuadratic px,
@@ -207,7 +227,8 @@ internal static class ConePlaneRayPointMaterialization
         // Representable quaternion products add <130 bits, translation <64,
         // and the final doubled representability threshold <65. Four extra
         // limbs cover all complete products and sums for any supplied fields.
-        WideRationalBasis3d basis = new(rotation);
+        bool identity = rotation == FixedQuaternion.Identity;
+        WideRationalBasis3d basis = identity ? default : new(rotation);
         int words = Math.Max(Math.Max(ContactQuadratic.ActiveWords(px), ContactQuadratic.ActiveWords(py)),
             Math.Max(ContactQuadratic.ActiveWords(pz), ContactQuadratic.ActiveWords(pd))) + 4;
         Span<ulong> work = stackalloc ulong[8 * words]; Span<int> signs = stackalloc int[8];
@@ -215,7 +236,6 @@ internal static class ConePlaneRayPointMaterialization
         ContactQuadratic numerator = ContactQuadratic.At(work, signs, 1, words);
         ContactQuadratic term = ContactQuadratic.At(work, signs, 2, words);
         ContactQuadratic query = ContactQuadratic.At(work, signs, 3, words);
-        bool identity = rotation == FixedQuaternion.Identity;
         if (identity) ContactQuadratic.Scale(pd, Extend(Signed192.Signed(1)), denominator);
         else ContactQuadratic.Scale(pd, Extend(basis.Denominator), denominator);
         Signed192 upperHalf = WideArithmetic.AddSigned192(WideArithmetic.AddSigned192(

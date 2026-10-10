@@ -11,14 +11,26 @@ namespace FixedMathSharp.Geometry;
 /// <content>Generator-circle and projected upper-rim boundary events.</content>
 internal static partial class ConePlaneRayEvents
 {
+    // Circle coefficients <1248 bits; chart sums and doubled linear
+    // denominators <1250 bits fit this 1280-bit bank. Full generator,
+    // discriminant and exit fields retain their independently larger banks.
+    private const int CircleWords = 20;
+
     private static bool AccumulateCircles(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
         if (!sink.IsStreaming)
             return AccumulateCircleChart(source, frame, sink.Target.Kind == ConePlaneRayEventKind.UpperRim,
-                sink.Target.Feature, sink.Target.Quadrant, sink.Target.Branch, sink.Target.Branch, ref positive, ref negative, ref sink);
+                sink.Target.Feature, sink.Target.Quadrant, sink.Target.Branch, sink.Target.Branch, Span<ulong>.Empty, Span<int>.Empty, ref positive, ref negative, ref sink);
         bool axial = frame.Normal.X.IsZero && frame.Normal.Z.IsZero && !frame.Normal.Y.IsZero;
+        // A defining line is independent of quadrant. Keep one borrowed bank
+        // for the current lower/upper cohort; quadrant zero fills every used
+        // entry before the remaining quadrants read it. Axial plane cohorts have no
+        // nonseam lines. One allocation outside the loop bounds stack usage.
+        int lineFields = source.Scope == ConePlaneRayEventScope.Segment ? 6 : axial ? 0 : 48;
+        Span<ulong> lines = stackalloc ulong[lineFields * CircleWords];
+        Span<int> lineSigns = stackalloc int[lineFields];
         bool found = false;
         // Match the compact inventories exactly, including seam ownership and
         // axial pruning. Each chart reuses its defining line for both roots;
@@ -31,14 +43,31 @@ internal static partial class ConePlaneRayEvents
                 {
                     if (endpoint == 0 ? (quadrant & 2) != 0 : (quadrant & 1) != 0) continue;
                     if (!axial || upper == 0 && frame.Radius != Fixed64.Zero && !frame.PlaneConstant.IsZero)
-                        found |= AccumulateCircleChart(source, frame, upper != 0, 8, quadrant, endpoint, endpoint, ref positive, ref negative, ref sink);
+                        found |= AccumulateCircleChart(source, frame, upper != 0, 8, quadrant, endpoint, endpoint, lines, lineSigns, ref positive, ref negative, ref sink);
                 }
             if (axial && source.Scope == ConePlaneRayEventScope.Plane) continue;
             int lineCount = source.Scope == ConePlaneRayEventScope.Segment ? 1 : upper == 0 ? 6 : 8;
             for (int line = 0; line < lineCount; line++)
             {
-                if (source.Scope == ConePlaneRayEventScope.Plane && (upper == 0 ? line >= 2 && line <= 4 : line < 3)) continue;
-                found |= AccumulateCircleChart(source, frame, upper != 0, line, quadrant, -1, 1, ref positive, ref negative, ref sink);
+                if (source.Scope == ConePlaneRayEventScope.Plane)
+                {
+                    // The azimuth line has only cardinal seam roots when one
+                    // radial normal component is zero; seam cohorts own them.
+                    if (line == (upper == 0 ? 5 : 7)
+                        && (frame.Normal.X.IsZero || frame.Normal.Z.IsZero)) continue;
+                    // Lower line 0 imposes N.g=0 and can retain a generator
+                    // only when c=0. Radial upper lines 4/5 are respectively
+                    // a positive constant and the zero polynomial. Neither
+                    // yields an isolated root. For c!=0, lower line 1 already
+                    // supplies upper line 3's base points and both exits. For
+                    // Ny=0, line 6 projects by reflection onto that same base
+                    // intersection (line 3 when c=0). Lower/cardinal provenance
+                    // wins those ties. Target replay retains every descriptor.
+                    if (upper == 0 ? line >= 2 && line <= 4 || line == 0 && !frame.PlaneConstant.IsZero
+                        : line < 3 || line == 3 && !frame.PlaneConstant.IsZero
+                            || frame.Normal.Y.IsZero && line >= 4 && line <= 6) continue;
+                }
+                found |= AccumulateCircleChart(source, frame, upper != 0, line, quadrant, -1, 1, lines, lineSigns, ref positive, ref negative, ref sink);
             }
         }
         return found;
@@ -46,17 +75,17 @@ internal static partial class ConePlaneRayEvents
 
     private static bool AccumulateCircleChart(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         bool upper, int line, int quadrant, int firstBranch, int lastBranch,
-        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
+        scoped Span<ulong> lines, scoped Span<int> lineSigns, scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
         if (source.Scope == ConePlaneRayEventScope.Segment && (!upper || line != 0)) return false;
         if (!upper && line == 8 && frame.Normal.X.IsZero && frame.Normal.Z.IsZero && !frame.Normal.Y.IsZero)
             return AccumulateAxialCardinal(source, frame, quadrant, firstBranch, ref positive, ref negative, ref sink);
-        Span<ulong> values = stackalloc ulong[16 * Words], root = stackalloc ulong[RootWords];
+        Span<ulong> values = stackalloc ulong[16 * CircleWords], root = stackalloc ulong[RootWords];
         Span<int> signs = stackalloc int[16];
-        ContactQuadratic x = At(values, signs, 0), z = At(values, signs, 1), constant = At(values, signs, 2);
-        ContactQuadratic a = At(values, signs, 3), b = At(values, signs, 4), c = At(values, signs, 5);
-        ContactQuadratic n = At(values, signs, 6), d = At(values, signs, 7);
+        ContactQuadratic x = ContactQuadratic.At(values, signs, 0, CircleWords), z = ContactQuadratic.At(values, signs, 1, CircleWords), constant = ContactQuadratic.At(values, signs, 2, CircleWords);
+        ContactQuadratic a = ContactQuadratic.At(values, signs, 3, CircleWords), b = ContactQuadratic.At(values, signs, 4, CircleWords), c = ContactQuadratic.At(values, signs, 5, CircleWords);
+        ContactQuadratic n = ContactQuadratic.At(values, signs, 6, CircleWords), d = ContactQuadratic.At(values, signs, 7, CircleWords);
         int sx = (quadrant & 1) == 0 ? 1 : -1, sz = (quadrant & 2) == 0 ? 1 : -1;
         ConePlaneRayEventKind kind = upper ? ConePlaneRayEventKind.UpperRim : ConePlaneRayEventKind.LowerCircle;
         if (line == 8)
@@ -65,21 +94,38 @@ internal static partial class ConePlaneRayEvents
             root.Clear(); n.Set(Integer(firstBranch)); d.Set(Integer(1));
             var seam = new ConePlaneRayEvent(kind, line, quadrant, firstBranch, firstBranch);
             return AccumulateCircleParameter(source, frame, upper, sx, sz, n, d, root, true,
-                seam, ref positive, ref negative, ref sink);
+                seam, default, default, default, 0, ref positive, ref negative, ref sink);
         }
-        GetCircleLine(source, frame, upper, line, x, z, constant);
+        if (sink.IsStreaming)
+        {
+            ContactQuadratic lx = ContactQuadratic.At(lines, lineSigns, 3 * line, CircleWords);
+            ContactQuadratic lz = ContactQuadratic.At(lines, lineSigns, 3 * line + 1, CircleWords);
+            ContactQuadratic lc = ContactQuadratic.At(lines, lineSigns, 3 * line + 2, CircleWords);
+            if (quadrant == 0) GetCircleLine(source, frame, upper, line, lx, lz, lc);
+            lx.CopyTo(x); lz.CopyTo(z); lc.CopyTo(constant);
+        }
+        else GetCircleLine(source, frame, upper, line, x, z, constant);
         constant.CopyTo(a); a.Add(x, -sx); z.CopyTo(b, sz); constant.CopyTo(c); c.Add(x, sx);
-        bool found = false;
+        bool found = false, conjugate = false;
         for (int branch = firstBranch; branch <= lastBranch; branch += 2)
         {
-            if (!ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, n, d)
-                || !ConePlaneRayCharts.IsUnitParameter(n, d, root)) continue;
-            n.CopyTo(x); x.Add(d, -1);
-            // A seam root already belongs to the intrinsic seam cohort.
-            if (n.Sign(root) == 0 || x.Sign(root) == 0) continue;
+            // A successful negative quadratic branch shares its rational
+            // numerator, positive denominator and discriminant with the next
+            // branch. Only the radical sign changes; linear/repeated cases
+            // still use the shared chart owner's positive-branch handling.
+            bool parameter;
+            if (conjugate) { n.Signs[1] = 1; parameter = true; }
+            else
+            {
+                parameter = ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, n, d);
+                conjugate = parameter && branch == -1;
+            }
+            // Cardinal cohorts own the endpoints; test the open chart once.
+            if (!parameter || !ConePlaneRayCharts.IsUnitParameter(n, d, root, includeEndpoints: false)) continue;
             var descriptor = new ConePlaneRayEvent(kind, line, quadrant, branch);
             found |= AccumulateCircleParameter(source, frame, upper, sx, sz, n, d, root, line == 0,
-                descriptor, ref positive, ref negative, ref sink);
+                descriptor, x, z, constant, branch == -1 || branch == 1 ? a.Signs[0] * branch * sx * sz : 0,
+                ref positive, ref negative, ref sink);
         }
         return found;
     }
@@ -138,11 +184,11 @@ internal static partial class ConePlaneRayEvents
     private static void GetCircleLine(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         bool upper, int line, ContactQuadratic x, ContactQuadratic z, ContactQuadratic constant)
     {
-        Span<ulong> values = stackalloc ulong[14 * Words];
+        Span<ulong> values = stackalloc ulong[14 * CircleWords];
         Span<int> signs = stackalloc int[14];
-        ContactQuadratic lx = At(values, signs, 0), ly = At(values, signs, 1), lz = At(values, signs, 2);
-        ContactQuadratic offset = At(values, signs, 3), A = At(values, signs, 4);
-        ContactQuadratic term = At(values, signs, 5), scalar = At(values, signs, 6);
+        ContactQuadratic lx = ContactQuadratic.At(values, signs, 0, CircleWords), ly = ContactQuadratic.At(values, signs, 1, CircleWords), lz = ContactQuadratic.At(values, signs, 2, CircleWords);
+        ContactQuadratic offset = ContactQuadratic.At(values, signs, 3, CircleWords), A = ContactQuadratic.At(values, signs, 4, CircleWords);
+        ContactQuadratic term = ContactQuadratic.At(values, signs, 5, CircleWords), scalar = ContactQuadratic.At(values, signs, 6, CircleWords);
         lx.Clear(); ly.Clear(); lz.Clear(); offset.Clear();
         if (source.Scope == ConePlaneRayEventScope.Segment)
         {
@@ -167,6 +213,15 @@ internal static partial class ConePlaneRayEvents
                 scalar.Set(frame.NormalSquared);
                 ContactQuadratic.Scale(scalar, Extend(frame.Finite.FullHeight), term); offset.Add(term);
             }
+        }
+        else if (upper && line == 6 && frame.Normal.Y.IsZero)
+        {
+            // For a radial plane A=H²*|N|². Cancel that strictly positive
+            // common factor from the line before chart substitution; its
+            // roots, branch labels and projected witnesses are unchanged.
+            lx.Set(Extend(WideArithmetic.Negate(frame.Normal.X)));
+            lz.Set(Extend(WideArithmetic.Negate(frame.Normal.Z)));
+            offset.Set(WideArithmetic.SubtractSigned576(default, frame.PlaneConstant));
         }
         else if (upper && line == 6)
         {
@@ -198,8 +253,9 @@ internal static partial class ConePlaneRayEvents
 
     private static bool AccumulateCircleParameter(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         bool upper, int sx, int sz, scoped ContactQuadratic n, scoped ContactQuadratic d, scoped ReadOnlySpan<ulong> root, bool retainGenerator,
-        ConePlaneRayEvent descriptor, scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
-        scoped ref ConePlaneRayEventSink sink)
+        ConePlaneRayEvent descriptor, scoped ContactQuadratic lineX, scoped ContactQuadratic lineZ,
+        scoped ContactQuadratic lineConstant, int circleRootSign,
+        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, scoped ref ConePlaneRayEventSink sink)
     {
         Span<ulong> values = stackalloc ulong[20 * Words];
         Span<int> signs = stackalloc int[20];
@@ -210,15 +266,33 @@ internal static partial class ConePlaneRayEvents
         ContactQuadratic gy = At(values, signs, 3), gz = At(values, signs, 4), gd = At(values, signs, 5);
         ContactQuadratic dot = At(values, signs, 6), term = At(values, signs, 7);
         ContactQuadratic t = At(values, signs, 8), td = At(values, signs, 9);
-        ContactQuadratic.Multiply(n, n, root, nn); ContactQuadratic.Multiply(d, d, root, dd);
-        dd.CopyTo(gd); gd.Add(nn);
-        dd.CopyTo(gx); gx.Add(nn, -1);
         Signed320 radius = WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Radius,
             frame.Finite.ShapeFrame.Denominator);
-        ContactQuadratic.Scale(gx, Extend(radius), term); term.CopyTo(gx, sx);
+        if (circleRootSign != 0)
+        {
+            // x*cos+z*sin+c=0 gives (cos,sin)=(-c*x+e*z*sqrt(D),
+            // -c*z-e*x*sqrt(D))/(x*x+z*z), D=x*x+z*z-c*c.
+            // The existing quadrant root has this same D and e=sign(a)*
+            // branch*sx*sz. Linear charts retain their rational parameter
+            // because their root bank is zero. Defining-line coefficients <1118
+            // bits keep projected homogeneous fields <2960 bits in the existing bank.
+            ContactQuadratic.Multiply(lineX, lineX, root, gd);
+            ContactQuadratic.Multiply(lineZ, lineZ, root, term); gd.Add(term);
+            ContactQuadratic.Multiply(lineConstant, lineX, root, gx); gx.MultiplySign(-1);
+            ContactQuadratic.MultiplyRoot(lineZ, root, term); gx.Add(term, circleRootSign);
+            ContactQuadratic.Multiply(lineConstant, lineZ, root, gz); gz.MultiplySign(-1);
+            ContactQuadratic.MultiplyRoot(lineX, root, term); gz.Add(term, -circleRootSign);
+        }
+        else
+        {
+            ContactQuadratic.Multiply(n, n, root, nn); ContactQuadratic.Multiply(d, d, root, dd);
+            dd.CopyTo(gd); gd.Add(nn);
+            dd.CopyTo(gx); gx.Add(nn, -1); gx.MultiplySign(sx);
+            ContactQuadratic.Multiply(n, d, root, gz); gz.Add(gz); gz.MultiplySign(sz);
+        }
+        ContactQuadratic.Scale(gx, Extend(radius), term); term.CopyTo(gx);
         ContactQuadratic.Scale(gd, Extend(frame.Finite.FullHeight), gy);
-        ContactQuadratic.Multiply(n, d, root, gz); gz.Add(gz);
-        ContactQuadratic.Scale(gz, Extend(radius), term); term.CopyTo(gz, sz);
+        ContactQuadratic.Scale(gz, Extend(radius), term); term.CopyTo(gz);
         ContactQuadratic.Scale(gx, Extend(frame.Normal.X), dot);
         ContactQuadratic.Scale(gy, Extend(frame.Normal.Y), term); dot.Add(term);
         ContactQuadratic.Scale(gz, Extend(frame.Normal.Z), term); dot.Add(term);

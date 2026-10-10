@@ -101,15 +101,18 @@ internal static class ConePlaneRayCharts
         return true;
     }
 
+    /// <summary>Tests a positive-denominator parameter against the closed or open unit interval.</summary>
     internal static bool IsUnitParameter(ContactQuadratic numerator, ContactQuadratic denominator,
-        ReadOnlySpan<ulong> root)
+        ReadOnlySpan<ulong> root, bool includeEndpoints = true)
     {
-        if (numerator.Sign(root) < 0)
+        int sign = numerator.Sign(root);
+        if (includeEndpoints ? sign < 0 : sign <= 0)
             return false;
         Span<ulong> work = stackalloc ulong[2 * Words];
         Span<int> signs = stackalloc int[2];
         ContactQuadratic difference = ContactQuadratic.At(work, signs, 0, Words);
         numerator.CopyTo(difference); difference.Add(denominator, -1);
-        return difference.Sign(root) <= 0;
+        sign = difference.Sign(root);
+        return includeEndpoints ? sign <= 0 : sign < 0;
     }
 }

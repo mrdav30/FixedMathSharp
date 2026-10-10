@@ -193,11 +193,31 @@ public sealed class FixedTriangleFiniteConePlaneSectionTests
 
         Assert.True(ConePlaneRayCharts.TryGetParameter(a, b, c, 1, root, n, d));
         Assert.True(ConePlaneRayCharts.IsUnitParameter(n, d, root));
+        Assert.True(ConePlaneRayCharts.IsUnitParameter(n, d, root, includeEndpoints: false));
         ContactQuadratic.Scale(n, Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(Fixed64.One))), a);
         Assert.Equal(Fixed64.FromRaw(3037000500L), ContactQuadratic.RoundRatio(a, d, root));
         a.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(2))));
         Assert.True(ConePlaneRayCharts.TryGetParameter(a, b, c, -1, root, n, d));
         Assert.False(ConePlaneRayCharts.IsUnitParameter(n, d, root));
+        Assert.False(ConePlaneRayCharts.IsUnitParameter(n, d, root, includeEndpoints: false));
+    }
+
+    [Theory]
+    [InlineData(-1, false, false)]
+    [InlineData(0, true, false)]
+    [InlineData(1, true, true)]
+    [InlineData(2, true, false)]
+    [InlineData(3, false, false)]
+    public void PlaneChart_UnitInterval_PreservesClosedEdgesAndStrictCircleInterior(int numerator, bool closed, bool strict)
+    {
+        Span<ulong> values = stackalloc ulong[4 * ConePlaneRayCharts.Words];
+        Span<int> signs = stackalloc int[4];
+        ContactQuadratic n = ContactQuadratic.At(values, signs, 0, ConePlaneRayCharts.Words);
+        ContactQuadratic d = ContactQuadratic.At(values, signs, 1, ConePlaneRayCharts.Words);
+        n.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(numerator))));
+        d.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(2))));
+        Assert.Equal(closed, ConePlaneRayCharts.IsUnitParameter(n, d, ReadOnlySpan<ulong>.Empty));
+        Assert.Equal(strict, ConePlaneRayCharts.IsUnitParameter(n, d, ReadOnlySpan<ulong>.Empty, includeEndpoints: false));
     }
 
     [Theory]

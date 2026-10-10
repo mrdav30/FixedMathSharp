@@ -181,6 +181,7 @@ internal readonly ref partial struct ContactQuadratic
     {
         WideArithmetic.MultiplyMagnitudes(value.Radical, root, result.Rational);
         value.Rational.CopyTo(result.Radical);
+        result.Radical[value.FieldWords..].Clear();
         result.Signs[0] = IsZero(result.Rational) ? 0 : value.Signs[1];
         result.Signs[1] = value.Signs[0];
     }
