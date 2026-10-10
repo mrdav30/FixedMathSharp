@@ -135,12 +135,14 @@ internal static class ConePlaneRayPointExits
     internal static bool AccumulateCertifiedExit(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator,
         scoped ContactQuadratic denominator, int orientation,
-        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, bool pointOnly = false)
+        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
+        bool pointOnly = false, bool sideCertificate = false)
     {
-        if (!ContainsPoint(source, frame, point, root) || numerator.Sign(root) < 0 || denominator.Sign(root) <= 0)
+        if (!ContainsPoint(source, frame, point, root, sideCertificate) || numerator.Sign(root) < 0 || denominator.Sign(root) <= 0)
             return false;
         // The constructing chart certifies an upper support/base/rim point
-        // and its first-exit branch. Admission is independently checked here.
+        // and its first-exit branch. A side certificate skips only F(point);
+        // closed plane/height/source admission and exit signs remain checked.
         if (pointOnly) return true;
         if (orientation > 0) positive.Keep(numerator, denominator, root, frame, point);
         else negative.Keep(numerator, denominator, root, frame, point);

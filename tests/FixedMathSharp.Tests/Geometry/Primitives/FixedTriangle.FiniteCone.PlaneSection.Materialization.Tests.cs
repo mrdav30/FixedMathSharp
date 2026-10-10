@@ -167,6 +167,54 @@ public sealed class ConePlaneRayMaterializationTests
         Assert.Equal(BigInteger.Zero, value);
     }
 
+    [Theory]
+    [InlineData(-2, false)]
+    [InlineData(-1, false)]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(0, true)]
+    public void ProjectedRimSideBoundary_PreservesExactAdmissionAndForgedBranchFallback(int branch, bool interior)
+    {
+        Fixed64 offset = (Fixed64)5 / 4;
+        var triangle = interior
+            ? new FixedTriangle(new Vector3d(offset, (Fixed64)(-8), Fixed64.Zero), new Vector3d(offset, (Fixed64)8, Fixed64.Zero),
+                new Vector3d(Fixed64.Zero, Fixed64.Zero, offset))
+            : new FixedTriangle(new Vector3d(1, -8, -8), new Vector3d(1, 8, -8), new Vector3d(1, 0, 8));
+        var frame = new ConePlaneRayFrame(triangle, Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
+        Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords], root = stackalloc ulong[ConePlaneRaySelection.RootWords];
+        Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+        var point = new ConePlaneRayPoint(words, signs);
+        Span<ulong> pv = stackalloc ulong[ConePlaneRaySelection.StorageWords], nv = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+        Span<int> ps = stackalloc int[ConePlaneRaySelection.SignCount], ns = stackalloc int[ConePlaneRaySelection.SignCount];
+        var positive = new ConePlaneRaySelection(pv, ps); var negative = new ConePlaneRaySelection(nv, ns);
+        int admitted = 0;
+        for (int quadrant = interior ? 3 : 0; quadrant < 4; quadrant++)
+        {
+            var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.UpperRim, 6, quadrant, branch);
+            if (!ConePlaneRayEvents.TryEvaluateEvent(ConePlaneRayEventSource.Plane, frame, descriptor,
+                point, root, ref positive, ref negative)) continue;
+            admitted++;
+            Assert.True(ConePlaneRayPointExits.ContainsPoint(ConePlaneRayEventSource.Plane, frame, point, root));
+            // Independently expand H²(X²+Z²)-R²Y² before rounding. Valid chart
+            // roots prove zero. A forged nonseam branch can instead be inside
+            // the base disk; it must retain generic admission rather than
+            // acquire a false side-equality certificate.
+            BigInteger rational = 0, radical = 0, k = ReadMagnitude(root);
+            for (int coordinate = 0; coordinate < 3; coordinate++)
+            {
+                ContactQuadratic value = coordinate == 0 ? point.X : coordinate == 1 ? point.Y : point.Z;
+                BigInteger a = ReadMagnitude(value.Rational) * value.Signs[0], b = ReadMagnitude(value.Radical) * value.Signs[1];
+                BigInteger dimension = coordinate == 1 ? frame.Radius.m_rawValue : frame.Height.m_rawValue;
+                BigInteger weight = dimension * dimension * (coordinate == 1 ? -1 : 1);
+                rational += weight * (a * a + b * b * k); radical += 2 * weight * a * b;
+            }
+            Assert.Equal(interior ? -1 : 0, rational.Sign); Assert.Equal(BigInteger.Zero, radical);
+        }
+        Assert.Equal(interior ? 1 : branch == 1 ? 2 : 0, admitted);
+    }
+
     private static BigInteger ReadMagnitude(ReadOnlySpan<ulong> words)
     {
         BigInteger result = 0;

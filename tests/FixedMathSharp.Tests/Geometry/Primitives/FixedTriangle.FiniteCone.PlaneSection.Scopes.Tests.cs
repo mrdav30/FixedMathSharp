@@ -607,6 +607,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         // Full solid admission remains an independent check of certificates
         // whose constructing side polynomial already proves F(point)=0.
         Assert.True(ConePlaneRayPointExits.ContainsPoint(source, frame, streamedPoint, streamedRoot));
+        Assert.Equal(0, ConePlaneRayEvents.CompareEventAnchors(streamedPoint, streamedRoot, source, descriptor, frame));
         // Replay each compact descriptor independently: the bulk construction
         // must preserve exact anchors and both exits, including rational points
         // whose selected ray exits use a different quadratic root.

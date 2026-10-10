@@ -132,19 +132,28 @@ internal static partial class ConePlaneRayEvents
             && firstSource.B == secondSource.B)
             return 0;
         Span<ulong> av = stackalloc ulong[ConePlaneRayPoint.StorageWords];
-        Span<ulong> bv = stackalloc ulong[ConePlaneRayPoint.StorageWords];
         Span<int> sa = stackalloc int[ConePlaneRayPoint.SignCount];
-        Span<int> sb = stackalloc int[ConePlaneRayPoint.SignCount];
         Span<ulong> ar = stackalloc ulong[RootWords];
-        Span<ulong> br = stackalloc ulong[RootWords];
-        var a = new ConePlaneRayPoint(av, sa); var b = new ConePlaneRayPoint(bv, sb);
-        if (!ReconstructPoint(firstSource, frame, first, a, ar)
-            || !ReconstructPoint(secondSource, frame, second, b, br))
+        var a = new ConePlaneRayPoint(av, sa);
+        if (!ReconstructPoint(firstSource, frame, first, a, ar))
             throw new InvalidOperationException("An admitted finite event could not be reconstructed.");
-        int comparison = a.CompareTo(b, ar, br);
+        int comparison = CompareEventAnchors(a, ar, secondSource, second, frame);
         if (comparison != 0) return comparison;
         return includeCoincidentProvenance
             ? CompareCoincidentProvenance(firstSource, first, secondSource, second) : 0;
+    }
+
+    /// <summary>Compares an admitted point with a reconstructed event by exact coordinates.</summary>
+    /// <remarks>The borrowed first point and root already belong to the supplied frame; provenance does not participate.</remarks>
+    internal static int CompareEventAnchors(scoped ConePlaneRayPoint first, scoped ReadOnlySpan<ulong> firstRoot,
+        in ConePlaneRayEventSource secondSource, ConePlaneRayEvent second, in ConePlaneRayFrame frame)
+    {
+        Span<ulong> values = stackalloc ulong[ConePlaneRayPoint.StorageWords], root = stackalloc ulong[RootWords];
+        Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+        var point = new ConePlaneRayPoint(values, signs);
+        if (!ReconstructPoint(secondSource, frame, second, point, root))
+            throw new InvalidOperationException("An admitted finite event could not be reconstructed.");
+        return first.CompareTo(point, firstRoot, root);
     }
 
     internal static int CompareCoincidentProvenance(in ConePlaneRayEventSource firstSource, ConePlaneRayEvent first,

@@ -258,8 +258,13 @@ internal static partial class ConePlaneRayEvents
             return sideAdmitted;
         }
         t.MultiplySign(orientation);
+        // For projected rim line 6, F(P)=T*(A*T-2*|N|²*B(G)). A valid
+        // chart root makes the second factor zero. Other projections and
+        // malformed targeted branches retain full solid admission.
+        bool sideCertificate = source.Scope == ConePlaneRayEventScope.Plane && descriptor.Feature == 6
+            && (descriptor.Branch == -1 || descriptor.Branch == 1);
         bool certified = ConePlaneRayPointExits.AccumulateCertifiedExit(source, frame, point, root, t, td,
-            orientation, ref positive, ref negative, sink.PointOnly);
+            orientation, ref positive, ref negative, sink.PointOnly, sideCertificate);
         if (certified) sink.Keep(descriptor, point, root, positive, negative);
         return certified;
     }
