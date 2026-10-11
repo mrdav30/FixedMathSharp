@@ -143,29 +143,49 @@ internal static partial class WideOrientedBox
             worldX,
             worldY,
             worldZ);
+        int axialSign = -GetCapsuleAxisProjection(orientedAxis, capsuleAxis).Sign;
         FixedPointAnchor capsuleAnchor = GetMatchedCapsuleSupportAnchor(
-            center,
-            capsuleCenter,
-            capsuleRotation,
-            localCapsuleAxisDirection,
-            capsuleAxisLength,
-            capsuleRadius,
-            normal,
-            !GetCapsuleAxisProjection(orientedAxis, capsuleAxis).IsZero);
+            center, capsuleCenter, capsuleRotation, localCapsuleAxisDirection,
+            capsuleAxisLength, capsuleRadius, normal, axialSign);
         Vector3d boxLocalPoint = GetMatchedBoxSupportLocalPoint(
-            boxBasis,
-            halfExtents,
-            center,
-            orientation,
-            capsuleAnchor,
-            orientedAxis.X,
-            orientedAxis.Y,
-            orientedAxis.Z);
+            halfExtents, center, orientation, capsuleAnchor,
+            orientedAxis.X, orientedAxis.Y, orientedAxis.Z, out bool needsCoreMatch);
+        FixedPointAnchor boxAnchor = new(center, orientation, boxLocalPoint);
+        int freeCount = (orientedAxis.X.IsZero ? 1 : 0)
+            + (orientedAxis.Y.IsZero ? 1 : 0) + (orientedAxis.Z.IsZero ? 1 : 0);
+        // Only a face's two free coordinates certify its entire footprint.
+        // Edge/vertex constraints require the paired finite-core relation.
+        if (axialSign == 0 && capsuleAxisLength > Fixed64.Zero && (needsCoreMatch || freeCount < 2))
+        {
+            // Compose only the winning support rectangle/edge/vertex; the shared
+            // finite-core clip does not repeat SAT or materialize world points.
+            Span<Vector3d> support = stackalloc Vector3d[4];
+            Span<Signed576> projections = stackalloc Signed576[3]
+                { orientedAxis.X, orientedAxis.Y, orientedAxis.Z };
+            int count = 1 << freeCount;
+            for (int corner = 0; corner < count; corner++)
+            {
+                Vector3d point = default;
+                int freeAxis = 0;
+                for (int axis = 0; axis < 3; axis++)
+                {
+                    bool positive = projections[axis].IsZero
+                        ? (corner & (1 << freeAxis++)) != 0 : projections[axis].Sign > 0;
+                    point[axis] = positive ? halfExtents[axis] : -halfExtents[axis];
+                }
+                support[corner] = point;
+            }
+            ReadOnlySpan<int> triangles = stackalloc int[6] { 0, 1, 3, 0, 3, 2 };
+            ReadOnlySpan<int> edges = stackalloc int[8] { 0, 1, 1, 3, 3, 2, 2, 0 };
+            boxAnchor = GetMatchedHullCapsuleSupportAnchor(center, orientation, boxBasis,
+                support[..count], count == 4 ? triangles : ReadOnlySpan<int>.Empty,
+                count == 4 ? edges : count == 2 ? edges[..2] : ReadOnlySpan<int>.Empty,
+                new CapsuleAxis3(worldX, worldY, worldZ), capsuleAnchor,
+                capsuleCenter, capsuleRotation, localCapsuleAxisDirection,
+                capsuleAxisLength, capsuleRadius, normal, true, out capsuleAnchor);
+        }
         contact = new FixedContactAnchors(
-            new FixedPointAnchor(
-                center,
-                orientation,
-                boxLocalPoint),
+            boxAnchor,
             capsuleAnchor,
             normal,
             depth,
@@ -490,7 +510,6 @@ internal static partial class WideOrientedBox
         in FixedPointAnchor otherAnchor,
         WideAxis3 featureAxis)
         => GetMatchedBoxSupportLocalPoint(
-            basis,
             halfExtents,
             boxCenter,
             boxRotation,
@@ -509,82 +528,35 @@ internal static partial class WideOrientedBox
                 featureAxis,
                 basis.Zx,
                 basis.Zy,
-                basis.Zz));
+                basis.Zz),
+            out _);
 
     private static Vector3d GetMatchedBoxSupportLocalPoint(
-        WideRationalBasis3d basis,
         Vector3d halfExtents,
         Vector3d boxCenter,
         FixedQuaternion boxRotation,
         in FixedPointAnchor otherAnchor,
         Signed576 xProjection,
         Signed576 yProjection,
-        Signed576 zProjection)
+        Signed576 zProjection,
+        out bool needsCoreMatch)
     {
-        var boxOrigin = new FixedPointAnchor(
-            boxCenter,
-            FixedQuaternion.Identity,
-            Vector3d.Zero);
-        bool hasTargetLocalPoint = otherAnchor.TryGetLocalPointIn(
-            boxCenter,
-            boxRotation,
-            out Vector3d targetLocalPoint);
-        Fixed64 localX = GetMatchedSupportCoordinate(
-            otherAnchor,
-            boxOrigin,
-            GetAxis(
-                basis.Xx,
-                basis.Xy,
-                basis.Xz,
-                basis.Denominator,
-                false),
-            halfExtents.X,
-            xProjection);
-        Fixed64 localY = GetMatchedSupportCoordinate(
-            otherAnchor,
-            boxOrigin,
-            GetAxis(
-                basis.Yx,
-                basis.Yy,
-                basis.Yz,
-                basis.Denominator,
-                false),
-            halfExtents.Y,
-            yProjection);
-        Fixed64 localZ = GetMatchedSupportCoordinate(
-            otherAnchor,
-            boxOrigin,
-            GetAxis(
-                basis.Zx,
-                basis.Zy,
-                basis.Zz,
-                basis.Denominator,
-                false),
-            halfExtents.Z,
-            zProjection);
-        if (!hasTargetLocalPoint)
-            return new Vector3d(localX, localY, localZ);
-        if (xProjection.IsZero)
+        if (!xProjection.IsZero && !yProjection.IsZero && !zProjection.IsZero)
         {
-            localX = FixedMath.Clamp(
-                targetLocalPoint.X,
-                -halfExtents.X,
-                halfExtents.X);
+            needsCoreMatch = false;
+            return new Vector3d(xProjection.Sign > 0 ? halfExtents.X : -halfExtents.X,
+                yProjection.Sign > 0 ? halfExtents.Y : -halfExtents.Y,
+                zProjection.Sign > 0 ? halfExtents.Z : -halfExtents.Z);
         }
-        if (yProjection.IsZero)
-        {
-            localY = FixedMath.Clamp(
-                targetLocalPoint.Y,
-                -halfExtents.Y,
-                halfExtents.Y);
-        }
-        if (zProjection.IsZero)
-        {
-            localZ = FixedMath.Clamp(
-                targetLocalPoint.Z,
-                -halfExtents.Z,
-                halfExtents.Z);
-        }
+        WideTriangleRelations.GetPointLocalNumerators(otherAnchor, boxCenter, boxRotation,
+            out Signed576 x, out Signed576 y, out Signed576 z, out Signed320 denominator);
+        Fixed64 localX = GetMatchedSupportCoordinate(x, denominator, halfExtents.X,
+            xProjection, out bool clipX);
+        Fixed64 localY = GetMatchedSupportCoordinate(y, denominator, halfExtents.Y,
+            yProjection, out bool clipY);
+        Fixed64 localZ = GetMatchedSupportCoordinate(z, denominator, halfExtents.Z,
+            zProjection, out bool clipZ);
+        needsCoreMatch = clipX || clipY || clipZ;
         return new Vector3d(localX, localY, localZ);
     }
 
@@ -596,9 +568,9 @@ internal static partial class WideOrientedBox
         Fixed64 capsuleAxisLength,
         Fixed64 capsuleRadius,
         Vector3d boxToCapsuleNormal,
-        bool hasAxialProjection)
+        int axialSign)
     {
-        if (hasAxialProjection)
+        if (axialSign != 0)
         {
             return WideGeometry.GetCenteredCapsuleSupportAnchor(
                 capsuleCenter,
@@ -606,7 +578,8 @@ internal static partial class WideOrientedBox
                 localCapsuleAxisDirection,
                 capsuleAxisLength,
                 capsuleRadius,
-                -boxToCapsuleNormal);
+                -boxToCapsuleNormal,
+                axialSign);
         }
 
         Vector3d localNormal = WideNormalization.GetNormalized(
@@ -622,32 +595,29 @@ internal static partial class WideOrientedBox
     }
 
     private static Fixed64 GetMatchedSupportCoordinate(
-        in FixedPointAnchor targetAnchor,
-        in FixedPointAnchor boxOrigin,
-        Vector3d boxAxis,
+        Signed576 numerator,
+        Signed320 denominator,
         Fixed64 extent,
-        Signed576 directionProjection)
+        Signed576 directionProjection,
+        out bool needsCoreMatch)
     {
-        bool isFree = directionProjection.IsZero;
-        if (!isFree && directionProjection.Sign > 0)
-            return extent;
-        if (!isFree && directionProjection.Sign < 0)
-            return -extent;
+        needsCoreMatch = false;
+        if (directionProjection.Sign != 0)
+            return directionProjection.Sign > 0 ? extent : -extent;
 
-        WidePointAnchor3d.GetProjectedOffsetRatio(
-            targetAnchor,
-            boxOrigin,
-            boxAxis,
-            out Signed704 numerator,
-            out Signed704 denominator);
-        // A free coordinate belongs to the retained SAT feature. If its
-        // matched capsule point lay outside this box slab, the corresponding
-        // cross or endpoint-edge candidate would replace that feature.
-        _ = Fixed64.TryGetSignedRawRatio(
-            numerator,
-            denominator,
-            out Fixed64 target);
-        return FixedMath.Clamp(target, -extent, extent);
+        // Certify the exact free-coordinate interval before rounding; projecting
+        // onto a rounded box basis could hide a clip near a rotated boundary.
+        Signed576 magnitude = numerator.Sign < 0
+            ? WideArithmetic.SubtractSigned576(default, numerator) : numerator;
+        Signed576 limit = WideArithmetic.MultiplySigned320(denominator,
+            Signed320.ExtendValue(Signed192.Raw(extent)));
+        needsCoreMatch = WideArithmetic.SubtractSigned576(limit, magnitude).Sign < 0;
+        if (needsCoreMatch)
+            return numerator.Sign > 0 ? extent : -extent;
+
+        // The bounded free coordinate is representable; round it once.
+        _ = Fixed64.TryGetSignedRawRatio(numerator, Signed576.ExtendValue(denominator), out Fixed64 target);
+        return target;
     }
 
 }

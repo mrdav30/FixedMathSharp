@@ -96,6 +96,7 @@ public class RigidFiniteShapeRelationBenchmarks
             || !OrdinaryHullCapsule()
             || !OrdinaryHullCapsuleStrict()
             || !EdgeFeatureHullCapsule()
+            || !CrossingHullCapsule()
             || !ContainedHullSphere()
             || !EdgeFeatureHullSphere()
             || !OrdinaryCapsuleSlabProjection()
@@ -404,6 +405,13 @@ public class RigidFiniteShapeRelationBenchmarks
             Fixed64.Two,
             Fixed64.Half,
             out _);
+
+    [Benchmark]
+    public bool CrossingHullCapsule() =>
+        FixedConvexHullRelations.TryGetCenteredCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            Vector3d.Right * (Fixed64)3, FixedQuaternion.Identity, Vector3d.Right,
+            (Fixed64)8, Fixed64.Quarter, out _);
 
     [Benchmark]
     public bool ContainedHullSphere() =>

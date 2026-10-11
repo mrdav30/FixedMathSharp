@@ -5,6 +5,8 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
+
 namespace FixedMathSharp.Geometry;
 
 /// <content>
@@ -20,12 +22,24 @@ internal static partial class WideTriangleRelations
         FixedQuaternion triangleRotation,
         in FixedPointAnchor point)
     {
+        return TryGetProjectionBarycentrics(triangle, triangleOrigin, triangleRotation, point,
+                out Signed576 va, out Signed576 vb, out Signed576 vc)
+            && va.Sign >= 0 && vb.Sign >= 0 && vc.Sign >= 0;
+    }
+
+    private static bool TryGetProjectionBarycentrics(
+        FixedTriangle triangle, Vector3d triangleOrigin, FixedQuaternion triangleRotation,
+        in FixedPointAnchor point, out Signed576 va, out Signed576 vb, out Signed576 vc)
+    {
         Signed192 abAb = GetTriangleDifferenceDot(triangle.B, triangle.A, triangle.B, triangle.A);
         Signed192 abAc = GetTriangleDifferenceDot(triangle.B, triangle.A, triangle.C, triangle.A);
         Signed192 acAc = GetTriangleDifferenceDot(triangle.C, triangle.A, triangle.C, triangle.A);
         Signed320 gram = WideArithmetic.MultiplySubtract(abAb, acAc, abAc, abAc);
         if (gram.Sign <= 0)
+        {
+            va = vb = vc = default;
             return false;
+        }
 
         GetPointLocalNumerators(point, triangleOrigin, triangleRotation,
             out Signed576 pointX, out Signed576 pointY, out Signed576 pointZ,
@@ -34,23 +48,177 @@ internal static partial class WideTriangleRelations
             pointDenominator, triangle.A, triangle.B);
         Signed576 d2 = GetPointEdgeDotNumerator(pointX, pointY, pointZ,
             pointDenominator, triangle.A, triangle.C);
-        Signed576 vb = WideArithmetic.SubtractSigned576(
+        vb = WideArithmetic.SubtractSigned576(
             WideArithmetic.MultiplySigned576(d1, acAc),
             WideArithmetic.MultiplySigned576(d2, abAc));
-        Signed576 vc = WideArithmetic.SubtractSigned576(
+        vc = WideArithmetic.SubtractSigned576(
             WideArithmetic.MultiplySigned576(d2, abAb),
             WideArithmetic.MultiplySigned576(d1, abAc));
-        Signed576 va = WideArithmetic.SubtractSigned576(
+        va = WideArithmetic.SubtractSigned576(
             WideArithmetic.SubtractSigned576(
                 WideArithmetic.MultiplySigned320(gram, pointDenominator), vb), vc);
-        return vb.Sign >= 0 && vc.Sign >= 0 && va.Sign >= 0;
+        return true;
+    }
+
+    // Clips the exact finite core projection before either witness is rounded.
+    // Endpoint terms share a denominator, including odd raw half-length residues.
+    internal static bool TryGetProjectedCoreParameter(
+        FixedTriangle triangle, Vector3d origin, FixedQuaternion rotation,
+        in FixedPointAnchor firstCoreEnd, in FixedPointAnchor secondCoreEnd,
+        Vector3d coreCenter, FixedQuaternion coreRotation, Vector3d coreAxis,
+        Fixed64 coreLength, out Signed832 numerator, out Signed832 denominator)
+    {
+        if (TryGetProjectionBarycentrics(triangle, origin, rotation, firstCoreEnd,
+                out Signed576 firstA, out Signed576 firstB, out Signed576 firstC))
+        {
+            _ = TryGetProjectionBarycentrics(triangle, origin, rotation, secondCoreEnd,
+                out Signed576 secondA, out Signed576 secondB, out Signed576 secondC);
+            Span<Signed576> first = stackalloc Signed576[3] { firstA, firstB, firstC };
+            Span<Signed576> second = stackalloc Signed576[3] { secondA, secondB, secondC };
+            Signed832 lowerN = default, lowerD = Signed832.ExtendValue(Signed192.Signed(1));
+            Signed832 upperN = lowerD, upperD = lowerD;
+            for (int index = 0; index < 3; index++)
+            {
+                if (first[index].Sign < 0 && second[index].Sign < 0)
+                {
+                    numerator = denominator = default;
+                    return false;
+                }
+                if (first[index].Sign >= 0 && second[index].Sign >= 0)
+                    continue;
+                Signed576 difference = WideArithmetic.SubtractSigned576(second[index], first[index]);
+                Signed832 n = Signed832.ExtendValue(WideArithmetic.SubtractSigned576(default, first[index]));
+                Signed832 d = Signed832.ExtendValue(difference);
+                if (d.Sign < 0)
+                {
+                    n = WideArithmetic.SubtractSigned832(default, n);
+                    d = WideArithmetic.SubtractSigned832(default, d);
+                    if (WideArithmetic.CompareNonNegativeProducts(n, upperD, upperN, d) < 0)
+                    { upperN = n; upperD = d; }
+                }
+                else if (WideArithmetic.CompareNonNegativeProducts(n, lowerD, lowerN, d) > 0)
+                { lowerN = n; lowerD = d; }
+            }
+            if (WideArithmetic.CompareNonNegativeProducts(lowerN, upperD, upperN, lowerD) > 0)
+            {
+                numerator = denominator = default;
+                return false;
+            }
+            Signed832 twiceLower = WideArithmetic.AddSigned832(lowerN, lowerN);
+            Signed832 twiceUpper = WideArithmetic.AddSigned832(upperN, upperN);
+            Signed832 one = Signed832.ExtendValue(Signed192.Signed(1));
+            Signed832 chosenN = default, chosenD = one;
+            if (WideArithmetic.CompareNonNegativeProducts(twiceLower, one, lowerD, one) > 0)
+            { chosenN = WideArithmetic.SubtractSigned832(twiceLower, lowerD); chosenD = lowerD; }
+            else if (WideArithmetic.CompareNonNegativeProducts(twiceUpper, one, upperD, one) < 0)
+            { chosenN = WideArithmetic.SubtractSigned832(twiceUpper, upperD); chosenD = upperD; }
+            // Raw axial s = length * (2t - 1) / 2; fits 512 significant bits.
+            numerator = WideArithmetic.MultiplySigned832(chosenN, Signed192.Raw(coreLength));
+            denominator = WideArithmetic.AddSigned832(chosenD, chosenD);
+            return true;
+        }
+
+        // A degenerate triangle owns its complete finite edge. Ranking its
+        // duplicated vertices separately could replace a valid interior foot
+        // with a closer-to-midpoint parameter that has tangential separation.
+        Vector3d start = triangle.A, end = triangle.B;
+        Signed192 longest = GetTriangleDifferenceDot(triangle.B, triangle.A, triangle.B, triangle.A);
+        Signed192 bc = GetTriangleDifferenceDot(triangle.C, triangle.B, triangle.C, triangle.B);
+        if (WideArithmetic.SubtractSigned192(bc, longest).Sign > 0)
+        { start = triangle.B; end = triangle.C; longest = bc; }
+        Signed192 ca = GetTriangleDifferenceDot(triangle.A, triangle.C, triangle.A, triangle.C);
+        if (WideArithmetic.SubtractSigned192(ca, longest).Sign > 0)
+        { start = triangle.C; end = triangle.A; }
+        return TryGetProjectedSegmentCoreParameter(
+            new FixedPointAnchor(origin, rotation, start),
+            new FixedPointAnchor(origin, rotation, end), coreCenter, coreRotation,
+            coreAxis, coreLength, out numerator, out denominator);
+    }
+
+    private static bool TryGetProjectedSegmentCoreParameter(
+        in FixedPointAnchor start, in FixedPointAnchor end, Vector3d center,
+        FixedQuaternion rotation, Vector3d axis, Fixed64 length,
+        out Signed832 numerator, out Signed832 denominator)
+    {
+        GetPointLocalNumerators(start, center, rotation, out Signed576 px, out Signed576 py,
+            out Signed576 pz, out Signed320 pointD);
+        GetPointLocalNumerators(end, center, rotation, out Signed576 ex, out Signed576 ey,
+            out Signed576 ez, out _);
+        ex = WideArithmetic.SubtractSigned576(ex, px);
+        ey = WideArithmetic.SubtractSigned576(ey, py);
+        ez = WideArithmetic.SubtractSigned576(ez, pz);
+        Signed576 ux = Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(axis.X)));
+        Signed576 uy = Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(axis.Y)));
+        Signed576 uz = Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(axis.Z)));
+        Signed192 aa = Signed192.NarrowValue(WideArithmetic.GetDotProduct3D(
+            Signed192.Raw(axis.X), Signed192.Raw(axis.Y), Signed192.Raw(axis.Z),
+            Signed192.Raw(axis.X), Signed192.Raw(axis.Y), Signed192.Raw(axis.Z)));
+        Signed576 bb = GetProjectedCoreDot(ex, ey, ez, ex, ey, ez);
+        Signed320 ab = Signed320.NarrowValue(GetProjectedCoreDot(ex, ey, ez, ux, uy, uz));
+        Signed320 ao = Signed320.NarrowValue(GetProjectedCoreDot(px, py, pz, ux, uy, uz));
+        Signed576 bo = GetProjectedCoreDot(ex, ey, ez, px, py, pz);
+        Signed576 determinant = WideArithmetic.SubtractSigned576(
+            WideArithmetic.MultiplySigned576(bb, aa), WideArithmetic.MultiplySigned320(ab, ab));
+        if (determinant.IsZero)
+        {
+            Signed320 second = WideArithmetic.AddSigned320(ao, ab);
+            Signed320 chosen = default;
+            if (ao.Sign > 0 && second.Sign > 0)
+                chosen = WideArithmetic.SubtractSigned320(ao, second).Sign <= 0 ? ao : second;
+            else if (ao.Sign < 0 && second.Sign < 0)
+                chosen = WideArithmetic.SubtractSigned320(ao, second).Sign >= 0 ? ao : second;
+            numerator = WideArithmetic.MultiplySigned832(Signed832.ExtendValue(Signed576.ExtendValue(chosen)), Signed192.One);
+            denominator = Signed832.ExtendValue(WideArithmetic.MultiplySigned320(pointD, Signed320.ExtendValue(aa)));
+        }
+        else
+        {
+            Signed576 edgeN = WideArithmetic.SubtractSigned576(
+                WideArithmetic.MultiplySigned320(ab, ao), WideArithmetic.MultiplySigned576(bo, aa));
+            if (edgeN.Sign < 0 || WideArithmetic.SubtractSigned576(determinant, edgeN).Sign < 0)
+            { numerator = denominator = default; return false; }
+            // Normalized bases have <=65-bit coefficients and denominators.
+            // Raw-origin differences and transformed points fit 201 bits;
+            // Gram products fit 476, axial ratios 680, and final coordinates
+            // 744 signed bits. All products therefore fit their wide owners.
+            Signed704 coreN = WideArithmetic.SubtractSigned704(
+                WideArithmetic.MultiplySigned576ToSigned704(bb, ao),
+                WideArithmetic.MultiplySigned576ToSigned704(bo, ab));
+            numerator = WideArithmetic.MultiplySigned704ToSigned832(coreN, Signed192.One);
+            denominator = Signed832.ExtendValue(WideArithmetic.MultiplySigned576ToSigned704(determinant, pointD));
+        }
+        Signed832 magnitude = numerator.Sign < 0 ? WideArithmetic.SubtractSigned832(default, numerator) : numerator;
+        return WideArithmetic.SubtractSigned832(
+            WideArithmetic.MultiplySigned832(denominator, Signed192.Raw(length)),
+            WideArithmetic.AddSigned832(magnitude, magnitude)).Sign >= 0;
+    }
+
+    private static Signed576 GetProjectedCoreDot(
+        Signed576 ax, Signed576 ay, Signed576 az, Signed576 bx, Signed576 by, Signed576 bz) =>
+        WideArithmetic.AddSigned576(WideArithmetic.AddSigned576(
+            WideArithmetic.MultiplySigned320(Signed320.NarrowValue(ax), Signed320.NarrowValue(bx)),
+            WideArithmetic.MultiplySigned320(Signed320.NarrowValue(ay), Signed320.NarrowValue(by))),
+            WideArithmetic.MultiplySigned320(Signed320.NarrowValue(az), Signed320.NarrowValue(bz)));
+
+    internal static int CompareCoreParameters(Signed832 firstN, Signed832 firstD, Signed832 secondN, Signed832 secondD) =>
+        WideArithmetic.CompareNonNegativeProducts(
+            firstN.Sign < 0 ? WideArithmetic.SubtractSigned832(default, firstN) : firstN, secondD,
+            secondN.Sign < 0 ? WideArithmetic.SubtractSigned832(default, secondN) : secondN, firstD);
+
+    internal static Vector3d MaterializeCorePoint(Vector3d axis, Signed832 numerator, Signed832 denominator)
+    {
+        Signed832 scaledD = WideArithmetic.MultiplySigned832(denominator, Signed192.One);
+        _ = Fixed64.TryGetSignedRawRatio(WideArithmetic.MultiplySigned832(numerator, Signed192.Raw(axis.X)), scaledD, 0, out Fixed64 x);
+        _ = Fixed64.TryGetSignedRawRatio(WideArithmetic.MultiplySigned832(numerator, Signed192.Raw(axis.Y)), scaledD, 0, out Fixed64 y);
+        _ = Fixed64.TryGetSignedRawRatio(WideArithmetic.MultiplySigned832(numerator, Signed192.Raw(axis.Z)), scaledD, 0, out Fixed64 z);
+        return new Vector3d(x, y, z);
     }
 
     internal static FixedPointAnchor GetClosestPointAnchor(
         FixedTriangle triangle,
         Vector3d triangleOrigin,
         FixedQuaternion triangleRotation,
-        in FixedPointAnchor point)
+        in FixedPointAnchor point,
+        bool preserveExactFace = false)
     {
         GetPointLocalNumerators(
             point,
@@ -65,7 +233,8 @@ internal static partial class WideTriangleRelations
             pointX,
             pointY,
             pointZ,
-            pointDenominator);
+            pointDenominator,
+            preserveExactFace);
         return FixedPointAnchor.FromValidatedFrame(
             triangleOrigin,
             triangleRotation,
@@ -77,7 +246,8 @@ internal static partial class WideTriangleRelations
         Signed576 pointX,
         Signed576 pointY,
         Signed576 pointZ,
-        Signed320 pointDenominator)
+        Signed320 pointDenominator,
+        bool preserveExactFace)
     {
         Signed192 abAb = GetTriangleDifferenceDot(
             triangle.B,
@@ -99,7 +269,8 @@ internal static partial class WideTriangleRelations
             acAc,
             abAc,
             abAc);
-        if (WideGeometry.IsQ128MagnitudeAtMostEpsilon(gram))
+        // A certified support footprint must retain even a tiny exact face.
+        if (preserveExactFace ? gram.Sign <= 0 : WideGeometry.IsQ128MagnitudeAtMostEpsilon(gram))
         {
             return GetClosestTriangleEdgePoint(
                 triangle,
@@ -407,7 +578,7 @@ internal static partial class WideTriangleRelations
             rightEnd.Z,
             rightStart.Z);
 
-    private static void GetPointLocalNumerators(
+    internal static void GetPointLocalNumerators(
         in FixedPointAnchor point,
         Vector3d frameOrigin,
         FixedQuaternion frameRotation,
@@ -417,14 +588,10 @@ internal static partial class WideTriangleRelations
         out Signed320 denominator)
     {
         WideRationalBasis3d pointBasis = new(point.Rotation);
-        WideRationalBasis3d frameBasis = new(frameRotation);
         Signed192 pointDenominator = point.ExactLocalTerm.IsZero
             ? pointBasis.Denominator
             : Signed192.NarrowValue(WideArithmetic.MultiplySigned192(
                 pointBasis.Denominator, FixedPointAnchorTerm3d.Denominator));
-        denominator = WideArithmetic.MultiplySigned192(
-            pointDenominator,
-            frameBasis.Denominator);
         Signed192 originX = WideArithmetic.SubtractSigned192(
             Signed192.Raw(point.Origin.X),
             Signed192.Raw(frameOrigin.X));
@@ -449,6 +616,20 @@ internal static partial class WideTriangleRelations
             pointBasis.Xz,
             pointBasis.Yz,
             pointBasis.Zz);
+        if (frameRotation == FixedQuaternion.Identity)
+        {
+            // The identity frame needs no projection or additional basis scale.
+            denominator = Signed320.ExtendValue(pointDenominator);
+            x = Signed576.ExtendValue(WideArithmetic.AddSigned320(
+                WideArithmetic.MultiplySigned192(originX, pointDenominator), rotatedX));
+            y = Signed576.ExtendValue(WideArithmetic.AddSigned320(
+                WideArithmetic.MultiplySigned192(originY, pointDenominator), rotatedY));
+            z = Signed576.ExtendValue(WideArithmetic.AddSigned320(
+                WideArithmetic.MultiplySigned192(originZ, pointDenominator), rotatedZ));
+            return;
+        }
+        WideRationalBasis3d frameBasis = new(frameRotation);
+        denominator = WideArithmetic.MultiplySigned192(pointDenominator, frameBasis.Denominator);
         x = GetTriangleFrameCoordinateNumerator(
             originX,
             originY,

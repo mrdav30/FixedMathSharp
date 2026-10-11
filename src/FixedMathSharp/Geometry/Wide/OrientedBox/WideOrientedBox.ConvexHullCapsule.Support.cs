@@ -218,8 +218,16 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<int> triangleVertexIndices,
         ReadOnlySpan<int> edgeVertexPairs,
         CapsuleAxis3 orientedAxis,
-        in FixedPointAnchor target)
+        in FixedPointAnchor target,
+        Vector3d capsuleCenter, FixedQuaternion capsuleRotation, Vector3d capsuleAxis,
+        Fixed64 capsuleLength, Fixed64 capsuleRadius, Vector3d normal, bool matchCore,
+        out FixedPointAnchor matchedCapsule)
     {
+        matchedCapsule = target;
+        bool hasCoreMatch = false;
+        Signed832 coreN = default, coreD = default;
+        FixedTriangle coreFeature = default;
+        FixedPointAnchor firstEnd = default, secondEnd = default;
         Signed704 xProjection = GetCapsuleBasisProjection(
             orientedAxis, basis.Xx, basis.Xy, basis.Xz);
         Signed704 yProjection = GetCapsuleBasisProjection(
@@ -305,7 +313,11 @@ internal static partial class WideOrientedBox
             // Keep the first authored certified face rather than ranking
             // triangulation differences introduced by final anchor rounding.
             if (WideTriangleRelations.ContainsProjection(triangle, hullOrigin, hullRotation, target))
-                return triangle.GetClosestPointAnchor(hullOrigin, hullRotation, target);
+                return WideTriangleRelations.GetClosestPointAnchor(triangle, hullOrigin, hullRotation, target,
+                    preserveExactFace: true);
+
+            if (matchCore)
+                continue;
 
             FixedPointAnchor candidateAnchor =
                 triangle
@@ -321,8 +333,31 @@ internal static partial class WideOrientedBox
             }
         }
 
+        if (matchCore)
+        {
+            // Ordinary midpoint contacts return above, before endpoint work.
+            firstEnd = WideGeometry.GetCenteredCapsuleSupportAnchor(capsuleCenter, capsuleRotation,
+                capsuleAxis, capsuleLength, Fixed64.Zero, -normal, -1);
+            secondEnd = WideGeometry.GetCenteredCapsuleSupportAnchor(capsuleCenter, capsuleRotation,
+                capsuleAxis, capsuleLength, Fixed64.Zero, -normal, 1);
+            for (int index = 0; index < triangleVertexIndices.Length; index += 3)
+            {
+                var triangle = new FixedTriangle(points[triangleVertexIndices[index]],
+                    points[triangleVertexIndices[index + 1]], points[triangleVertexIndices[index + 2]]);
+                if (!GetHullTriangleNormal(points, triangleVertexIndices, index).IsZero
+                    && IsHullCapsuleSupportPoint(triangle.A, xProjection, yProjection, zProjection, best, bestSign)
+                    && IsHullCapsuleSupportPoint(triangle.B, xProjection, yProjection, zProjection, best, bestSign)
+                    && IsHullCapsuleSupportPoint(triangle.C, xProjection, yProjection, zProjection, best, bestSign))
+                    KeepHullCapsuleCoreMatch(triangle, hullOrigin, hullRotation, firstEnd, secondEnd,
+                        capsuleCenter, capsuleRotation, capsuleAxis, capsuleLength,
+                        ref hasCoreMatch, ref coreFeature, ref coreN, ref coreD);
+            }
+        }
+        // A finite face match owns the footprint; edges/vertices cannot replace
+        // it merely because their unrelated closest core parameter is smaller.
+        bool hasFaceMatch = hasCoreMatch;
         for (int index = 0;
-            index < edgeVertexPairs.Length;
+            !hasFaceMatch && index < edgeVertexPairs.Length;
             index += 2)
         {
             Vector3d start =
@@ -347,6 +382,13 @@ internal static partial class WideOrientedBox
                 continue;
             }
 
+            if (matchCore)
+                KeepHullCapsuleCoreMatch(new FixedTriangle(start, end, end), hullOrigin, hullRotation,
+                    firstEnd, secondEnd, capsuleCenter, capsuleRotation, capsuleAxis, capsuleLength,
+                    ref hasCoreMatch, ref coreFeature, ref coreN, ref coreD);
+            if (hasCoreMatch)
+                continue;
+
             FixedPointAnchor candidateAnchor =
                 new FixedTriangle(start, end, end)
                     .GetClosestPointAnchor(
@@ -360,7 +402,49 @@ internal static partial class WideOrientedBox
                 closest = candidateAnchor;
             }
         }
+        if (matchCore)
+        {
+            for (int index = 0; !hasCoreMatch && index < points.Length; index++)
+            {
+                Vector3d point = points[index];
+                if (IsHullCapsuleSupportPoint(point, xProjection, yProjection, zProjection, best, bestSign))
+                    KeepHullCapsuleCoreMatch(new FixedTriangle(point, point, point), hullOrigin, hullRotation,
+                        firstEnd, secondEnd, capsuleCenter, capsuleRotation, capsuleAxis, capsuleLength,
+                        ref hasCoreMatch, ref coreFeature, ref coreN, ref coreD);
+            }
+            if (hasCoreMatch)
+            {
+                Signed832 magnitude = coreN.Sign < 0 ? WideArithmetic.SubtractSigned832(default, coreN) : coreN;
+                bool isEndpoint = WideArithmetic.SubtractSigned832(
+                    WideArithmetic.MultiplySigned832(coreD, Signed192.Raw(capsuleLength)),
+                    WideArithmetic.AddSigned832(magnitude, magnitude)).IsZero;
+                matchedCapsule = isEndpoint
+                    ? WideGeometry.GetCenteredCapsuleSupportAnchor(capsuleCenter, capsuleRotation,
+                        capsuleAxis, capsuleLength, capsuleRadius, -normal, coreN.Sign)
+                    : new FixedPointAnchor(capsuleCenter, capsuleRotation,
+                        WideTriangleRelations.MaterializeCorePoint(capsuleAxis, coreN, coreD),
+                        target.LocalDisplacement, target.ExactLocalTerm);
+                // Admitted faces are nondegenerate; edge/vertex features repeat B as C.
+                if (coreFeature.A == coreFeature.B)
+                    return FixedPointAnchor.FromValidatedFrame(hullOrigin, hullRotation, coreFeature.A);
+                return WideTriangleRelations.GetClosestPointAnchor(coreFeature, hullOrigin, hullRotation, matchedCapsule,
+                    preserveExactFace: true);
+            }
+        }
         return closest;
+    }
+
+    private static void KeepHullCapsuleCoreMatch(
+        FixedTriangle feature, Vector3d origin, FixedQuaternion rotation,
+        in FixedPointAnchor firstEnd, in FixedPointAnchor secondEnd,
+        Vector3d center, FixedQuaternion coreRotation, Vector3d axis, Fixed64 length,
+        ref bool found, ref FixedTriangle bestFeature, ref Signed832 bestN, ref Signed832 bestD)
+    {
+        if (WideTriangleRelations.TryGetProjectedCoreParameter(feature, origin, rotation,
+                firstEnd, secondEnd, center, coreRotation, axis, length,
+                out Signed832 n, out Signed832 d)
+            && (!found || WideTriangleRelations.CompareCoreParameters(n, d, bestN, bestD) < 0))
+        { found = true; bestFeature = feature; bestN = n; bestD = d; }
     }
 
     private static bool IsHullCapsuleSupportPoint(

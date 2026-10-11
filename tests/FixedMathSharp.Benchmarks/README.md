@@ -5,6 +5,10 @@ fixtures, and focused measurements for FixedMathSharp hot paths. The suite
 covers scalar arithmetic, fixed trigonometry, vector operations, quaternion
 rotations, matrix transforms, geometry, bounds, formatting, and serialization.
 
+Finite capsule contact controls include ordinary and crossing convex-hull cores,
+aligned cuboid sides, oblique thin-face crossings, finite edges and corners.
+These measure complete public contact queries, including finite witness selection.
+
 ## Requirements
 
 - .NET 10 SDK selected by `global.json`

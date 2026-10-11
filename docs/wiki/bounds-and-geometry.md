@@ -225,6 +225,18 @@ coordinates before rounding the axial parameter, so off-center vertices do not
 inherit an arbitrary side midpoint. Anchors retain separate axial and radial
 terms even when their world positions are unrepresentable.
 
+The 3D cuboid and convex-hull contact queries also match a capsule's finite core
+to the selected support face, edge or vertex. An already selected capsule witness
+whose projection lies inside the support face takes the short path. Otherwise,
+exact face clipping or finite edge projection chooses
+the supported axial point nearest the midpoint, retaining authored feature order
+for ties. Exact admission and endpoint residues precede final witness rounding;
+the two anchors remain in their original rigid frames. Their tangential difference
+is limited by final anchor and normal rounding, rather than by independent
+clamping to different points on the two shapes. Certified support faces retain
+their interiors even when their area is below the public closest-point helper's
+degeneracy threshold.
+
 The exact overload names and argument preconditions are listed on the
 [`FixedSegment2d`](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.Geometry.FixedSegment2d.html)
 and

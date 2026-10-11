@@ -111,7 +111,11 @@ internal static partial class WideOrientedBox
                 triangleVertexIndices,
                 edgeVertexPairs,
                 orientedAxis,
-                capsuleAnchor);
+                capsuleAnchor,
+                capsuleCenter, capsuleRotation, capsuleLocalAxisDirection,
+                capsuleAxisLength, capsuleRadius, normal,
+                capsuleAxialSign == 0 && capsuleAxisLength > Fixed64.Zero,
+                out capsuleAnchor);
         GetHullCapsuleDepth(
             rational,
             rationalSign,

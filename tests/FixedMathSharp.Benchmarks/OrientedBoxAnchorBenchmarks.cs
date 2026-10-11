@@ -77,6 +77,15 @@ public class OrientedBoxAnchorBenchmarks
         new Vector3d(3, 1, 1));
     private readonly FixedQuaternion _triangleRotation =
         FixedQuaternion.FromAxisAngle(Vector3d.Forward, Fixed64.PiOver4);
+    private readonly FixedOrientedBox _thinCapsuleBox = new(Vector3d.Zero, FixedQuaternion.Identity,
+        new Vector3d(Fixed64.One, Fixed64.One, Fixed64.FromFraction(1, 100)));
+    private readonly Vector3d _thinCapsuleAxis = new Vector3d(1, -6, 0).Normalized;
+    private readonly Vector3d _thinCapsuleCenter = new(Fixed64.FromFraction(3, 2), -Fixed64.FromFraction(21, 10), Fixed64.Zero);
+    private readonly FixedOrientedBox _unitCapsuleBox = new(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.One);
+    private readonly Vector3d _cornerCapsuleAxis = new Vector3d(1, -2, 0).Normalized;
+    private readonly Vector3d _cornerCapsuleCenter = new(Fixed64.FromFraction(3, 2), Fixed64.Two, Fixed64.FromFraction(5, 4));
+    private readonly Vector3d _edgeCapsuleAxis = new Vector3d(1, -6, 1).Normalized;
+    private readonly Vector3d _edgeCapsuleCenter = new(Fixed64.FromFraction(3, 2), -Fixed64.FromFraction(21, 10), Fixed64.FromFraction(3, 2));
     private readonly Signed576 _leftRadialRational = ToSigned576(-2L);
     private readonly Signed832 _leftRadialNumerator = ToSigned832(19L);
     private readonly Signed576 _leftRadialDenominator = ToSigned576(2L);
@@ -93,7 +102,8 @@ public class OrientedBoxAnchorBenchmarks
     [GlobalSetup]
     public void ValidateStrictControls()
     {
-        if (!CapsulePrimary() || !CapsuleStrict() || !SpherePrimary() || !SphereStrict()
+        if (!CapsulePrimary() || !CapsuleStrict() || !CapsuleAlignedSide() || !CapsuleThinFace()
+            || !CapsuleAsymmetricCorner() || !CapsuleClippedEdge() || !SpherePrimary() || !SphereStrict()
             || !CylinderManifold() || !CylinderStrict()
             || !CylinderParallelManifold() || !CylinderObliquePrimary()
             || !CylinderZeroRadiusPrimary())
@@ -140,6 +150,26 @@ public class OrientedBoxAnchorBenchmarks
             _box.Center, _box.Orientation, _box.HalfExtents,
             new Vector3d(Fixed64.FromFraction(5, 4), Fixed64.Zero, Fixed64.Zero),
             _triangleRotation, Vector3d.Up, Fixed64.Two, Fixed64.Half);
+
+    [Benchmark]
+    public bool CapsuleAlignedSide() =>
+        _parallelCylinderBox.TryGetCenteredCapsuleContact(Vector3d.Right * Fixed64.FromFraction(3, 4),
+            FixedQuaternion.Identity, Vector3d.Up, Fixed64.Two, Fixed64.Half, out _);
+
+    [Benchmark]
+    public bool CapsuleThinFace() =>
+        _thinCapsuleBox.TryGetCenteredCapsuleContact(_thinCapsuleCenter,
+            FixedQuaternion.Identity, _thinCapsuleAxis, (Fixed64)8, Fixed64.Quarter, out _);
+
+    [Benchmark]
+    public bool CapsuleAsymmetricCorner() =>
+        _unitCapsuleBox.TryGetCenteredCapsuleContact(_cornerCapsuleCenter,
+            FixedQuaternion.Identity, _cornerCapsuleAxis, (Fixed64)4, Fixed64.One, out _);
+
+    [Benchmark]
+    public bool CapsuleClippedEdge() =>
+        _unitCapsuleBox.TryGetCenteredCapsuleContact(_edgeCapsuleCenter,
+            FixedQuaternion.Identity, _edgeCapsuleAxis, (Fixed64)8, Fixed64.Quarter, out _);
 
     [Benchmark]
     public bool TriangleManifold()

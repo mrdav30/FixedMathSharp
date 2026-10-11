@@ -422,49 +422,6 @@ internal static partial class WidePointAnchor3d
             denominator);
     }
 
-    internal static void GetProjectedOffsetRatio(
-        in FixedPointAnchor first,
-        in FixedPointAnchor second,
-        Vector3d direction,
-        out Signed704 numerator,
-        out Signed704 denominator)
-    {
-        if (!first.ExactLocalTerm.IsZero
-            || first.LocalTranslation != Vector3d.Zero)
-        {
-            GetExactProjectedOffsetRatio(
-                first.Origin,
-                first.Rotation,
-                first.LocalPoint,
-                first.LocalDisplacement,
-                first.LocalTranslation,
-                first.ExactLocalTerm,
-                second.Origin,
-                second.Rotation,
-                second.LocalPoint,
-                second.LocalDisplacement,
-                second.LocalTranslation,
-                second.ExactLocalTerm,
-                direction,
-                out numerator,
-                out denominator);
-            return;
-        }
-
-        GetProjectedOffsetRatio(
-            first.Origin,
-            first.Rotation,
-            first.LocalPoint,
-            first.LocalDisplacement,
-            second.Origin,
-            second.Rotation,
-            second.LocalPoint,
-            second.LocalDisplacement,
-            direction,
-            out numerator,
-            out denominator);
-    }
-
     private static void GetProjectedOffsetRatio(
         Vector3d firstOrigin,
         FixedQuaternion firstRotation,
