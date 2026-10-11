@@ -258,6 +258,11 @@ internal static class WideNormalization
         if (scale.IsZero)
             return Vector3d.Zero;
 
+        // A positive scale fitting Signed320 bounds every component away from
+        // its signed minimum; the smaller owner uses the same nearest-even ratios.
+        if (Signed320.TryNarrowSigned(scale, out _))
+            return GetNormalized(Signed320.NarrowValue(x), Signed320.NarrowValue(y), Signed320.NarrowValue(z));
+
         Signed320 fixedScale = Signed320.ExtendValue(
             Signed192.Signed(Fixed64.One.m_rawValue));
         Signed704 denominator = Signed704.ExtendValue(scale);

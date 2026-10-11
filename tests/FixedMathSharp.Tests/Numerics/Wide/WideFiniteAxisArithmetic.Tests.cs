@@ -177,6 +177,39 @@ public sealed class WideFiniteAxisArithmeticTests
     }
 
     [Fact]
+    public void WideNormalization_PreservesNearestEvenScaleRatiosAcrossNarrowingBoundary()
+    {
+        foreach (int shift in new[] { 0, 64, 158, 285, 286, 400 })
+        foreach (int sign in new[] { -1, 1 })
+        {
+            // Odd small components land on opposite nearest-even half ties;
+            // the 286-bit shift also exercises the excluded Signed320 minimum.
+            BigInteger scale = BigInteger.One << (33 + shift);
+            foreach (BigInteger[] components in new[]
+            {
+                new[] { sign * scale, BigInteger.One << shift, -3 * (BigInteger.One << shift) },
+                new[] { sign * scale, scale / 3, -(2 * scale / 5) }
+            })
+            for (int axis = 0; axis < 3; axis++)
+            {
+                var expected = new Vector3d(Round(components[axis]), Round(components[(axis + 1) % 3]),
+                    Round(components[(axis + 2) % 3]));
+                Vector3d actual = WideNormalization.GetNormalized(ToSigned576(components[axis]),
+                    ToSigned576(components[(axis + 1) % 3]), ToSigned576(components[(axis + 2) % 3]));
+                Assert.Equal(Vector3d.GetScaleNormalized(expected), actual);
+            }
+
+            Fixed64 Round(BigInteger value)
+            {
+                BigInteger quotient = BigInteger.DivRem(BigInteger.Abs(value) << 32, scale, out BigInteger remainder);
+                int half = (2 * remainder).CompareTo(scale);
+                if (half > 0 || half == 0 && !quotient.IsEven) quotient++;
+                return Fixed64.FromRaw((long)(value.Sign < 0 ? -quotient : quotient));
+            }
+        }
+    }
+
+    [Fact]
     public void Signed576_AddSubtractAndMultiply_MatchBigIntegerAcrossWordBoundaries()
     {
         BigInteger left = (BigInteger.One << 511) - 1;

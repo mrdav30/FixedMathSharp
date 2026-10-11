@@ -247,6 +247,10 @@ internal static partial class WidePointAnchor3d
         FixedQuaternion frameRotation,
         out Vector3d localPoint)
     {
+        if (frameRotation == FixedQuaternion.Identity)
+            return TryGetRelativeOffset(pointOrigin, pointRotation, pointLocalPoint, pointLocalDisplacement,
+                frameOrigin, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.Zero, Fixed64.One, out localPoint);
+
         WideRationalBasis3d pointBasis = new(pointRotation);
         WideRationalBasis3d frameBasis = new(frameRotation);
         Signed320 denominator = WideArithmetic.MultiplySigned192(

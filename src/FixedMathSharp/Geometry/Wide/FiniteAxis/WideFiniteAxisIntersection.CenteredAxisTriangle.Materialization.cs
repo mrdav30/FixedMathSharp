@@ -22,39 +22,26 @@ internal static partial class WideFiniteAxisIntersection
         Signed576 pointX,
         Signed576 pointY,
         Signed576 pointZ,
-        Signed576 denominator) =>
-        IsInsideTriangleEdge(
-            triangle.A,
-            triangle.B,
-            normalX,
-            normalY,
-            normalZ,
-            pointX,
-            pointY,
-            pointZ,
-            denominator)
-        && IsInsideTriangleEdge(
-            triangle.B,
-            triangle.C,
-            normalX,
-            normalY,
-            normalZ,
-            pointX,
-            pointY,
-            pointZ,
-            denominator)
-        && IsInsideTriangleEdge(
-            triangle.C,
-            triangle.A,
-            normalX,
-            normalY,
-            normalZ,
-            pointX,
-            pointY,
-            pointZ,
-            denominator);
+        Signed576 denominator,
+        out int edgeMask)
+    {
+        edgeMask = 0;
+        int ab = GetTriangleEdgeSideSign(triangle.A, triangle.B, normalX, normalY, normalZ,
+            pointX, pointY, pointZ, denominator);
+        if (ab < 0) return false;
+        int bc = GetTriangleEdgeSideSign(triangle.B, triangle.C, normalX, normalY, normalZ,
+            pointX, pointY, pointZ, denominator);
+        if (bc < 0) return false;
+        int ca = GetTriangleEdgeSideSign(triangle.C, triangle.A, normalX, normalY, normalZ,
+            pointX, pointY, pointZ, denominator);
+        if (ca < 0) return false;
+        // Orthogonal projection preserves these edge halfspaces, so admission
+        // also supplies exact feature identity without testing the final witness again.
+        edgeMask = (ab == 0 ? 1 : 0) | (bc == 0 ? 2 : 0) | (ca == 0 ? 4 : 0);
+        return true;
+    }
 
-    private static bool IsInsideTriangleEdge(
+    private static int GetTriangleEdgeSideSign(
         Vector3d start,
         Vector3d end,
         Signed192 normalX,
@@ -94,7 +81,7 @@ internal static partial class WideFiniteAxisIntersection
             WideArithmetic.MultiplySigned576ToSigned704(
                 SubtractVertex(pointZ, start.Z, denominator),
                 inwardZ));
-        return side.Sign >= 0;
+        return side.Sign;
     }
 
     private static Signed576 SubtractVertex(

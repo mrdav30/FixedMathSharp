@@ -134,7 +134,8 @@ internal static partial class WideFiniteAxisIntersection
                     projectedZ,
                     triangle.A.Z,
                     wideProjectionDenominator),
-                wideProjectionDenominator))
+                wideProjectionDenominator,
+                out _))
         {
             triangleOriginOffset = default;
             depth = default;

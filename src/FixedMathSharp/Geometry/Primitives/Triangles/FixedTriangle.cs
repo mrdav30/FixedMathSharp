@@ -372,63 +372,91 @@ public partial struct FixedTriangle : IEquatable<FixedTriangle>
     /// </remarks>
     public Vector3d ClosestPoint(Vector3d point)
     {
+        if (!TryGetClosestPointBarycentrics(point, out Signed320 numeratorB,
+            out Signed320 numeratorC, out Signed320 denominator, out int edgeMask))
+            return ClosestPointOnEdges(point);
+
+        if (edgeMask == 5) return A;
+        if (edgeMask == 3) return B;
+        if (edgeMask == 6) return C;
+        // Preserve the public edge's single Lerp rounding; a face retains its
+        // independent barycentric rounding before the public GetPoint operation.
+        if (edgeMask != 0)
+        {
+            Signed320 edgeNumerator = edgeMask == 1 ? numeratorB : numeratorC;
+            _ = Fixed64.TryGetUnitIntervalRatio(Signed192.NarrowProven(edgeNumerator),
+                Signed192.NarrowProven(denominator), out Fixed64 parameter);
+            return edgeMask == 1 ? Vector3d.Lerp(A, B, parameter)
+                : edgeMask == 4 ? Vector3d.Lerp(A, C, parameter) : Vector3d.Lerp(B, C, parameter);
+        }
+        _ = Fixed64.TryGetUnitIntervalRatio(numeratorB, denominator, out Fixed64 weightB);
+        _ = Fixed64.TryGetUnitIntervalRatio(numeratorC, denominator, out Fixed64 weightC);
+        return GetPoint(weightB, weightC);
+    }
+
+    /// <summary>
+    /// Selects the closest Voronoi feature without rounding its barycentric
+    /// numerators. Epsilon-small triangles defer to the caller's edge reducer.
+    /// </summary>
+    internal bool TryGetClosestPointBarycentrics(Vector3d point,
+        out Signed320 numeratorB, out Signed320 numeratorC,
+        out Signed320 denominator, out int edgeMask)
+    {
+        numeratorB = default; numeratorC = default; edgeMask = 0;
         Signed192 abAb = GetDifferenceDot(B, A, B, A);
         Signed192 abAc = GetDifferenceDot(B, A, C, A);
         Signed192 acAc = GetDifferenceDot(C, A, C, A);
-        Signed320 denominator = WideArithmetic.MultiplySubtract(abAb, acAc, abAc, abAc);
+        denominator = WideArithmetic.MultiplySubtract(abAb, acAc, abAc, abAc);
         if (WideGeometry.IsQ128MagnitudeAtMostEpsilon(denominator))
-            return ClosestPointOnEdges(point);
+            return false;
 
         Signed192 d1 = GetDifferenceDot(B, A, point, A);
         Signed192 d2 = GetDifferenceDot(C, A, point, A);
         if (d1.Sign <= 0 && d2.Sign <= 0)
-            return A;
-
+        {
+            denominator = Signed320.ExtendValue(Signed192.Signed(1)); edgeMask = 5;
+            return true;
+        }
         Signed192 d3 = WideArithmetic.SubtractSigned192(d1, abAb);
         Signed192 d4 = WideArithmetic.SubtractSigned192(d2, abAc);
         if (d3.Sign >= 0 && WideArithmetic.SubtractSigned192(d4, d3).Sign <= 0)
-            return B;
-
+        {
+            denominator = Signed320.ExtendValue(Signed192.Signed(1)); numeratorB = denominator; edgeMask = 3;
+            return true;
+        }
         Signed320 vc = WideArithmetic.MultiplySubtract(d1, d4, d3, d2);
         if (vc.Sign <= 0 && d1.Sign >= 0 && d3.Sign <= 0)
         {
-            _ = Fixed64.TryGetUnitIntervalRatio(
-                d1,
-                WideArithmetic.SubtractSigned192(d1, d3),
-                out Fixed64 parameter);
-            return Vector3d.Lerp(A, B, parameter);
+            numeratorB = Signed320.ExtendValue(d1);
+            denominator = Signed320.ExtendValue(WideArithmetic.SubtractSigned192(d1, d3)); edgeMask = 1;
+            return true;
         }
-
         Signed192 d5 = WideArithmetic.SubtractSigned192(d1, abAc);
         Signed192 d6 = WideArithmetic.SubtractSigned192(d2, acAc);
         if (d6.Sign >= 0 && WideArithmetic.SubtractSigned192(d5, d6).Sign <= 0)
-            return C;
-
+        {
+            denominator = Signed320.ExtendValue(Signed192.Signed(1)); numeratorC = denominator; edgeMask = 6;
+            return true;
+        }
         Signed320 vb = WideArithmetic.MultiplySubtract(d5, d2, d1, d6);
         if (vb.Sign <= 0 && d2.Sign >= 0 && d6.Sign <= 0)
         {
-            _ = Fixed64.TryGetUnitIntervalRatio(
-                d2,
-                WideArithmetic.SubtractSigned192(d2, d6),
-                out Fixed64 parameter);
-            return Vector3d.Lerp(A, C, parameter);
+            numeratorC = Signed320.ExtendValue(d2);
+            denominator = Signed320.ExtendValue(WideArithmetic.SubtractSigned192(d2, d6)); edgeMask = 4;
+            return true;
         }
-
         Signed320 va = WideArithmetic.MultiplySubtract(d3, d6, d5, d4);
         Signed192 d4MinusD3 = WideArithmetic.SubtractSigned192(d4, d3);
         Signed192 d5MinusD6 = WideArithmetic.SubtractSigned192(d5, d6);
         if (va.Sign <= 0 && d4MinusD3.Sign >= 0 && d5MinusD6.Sign >= 0)
         {
-            _ = Fixed64.TryGetUnitIntervalRatio(
-                d4MinusD3,
-                WideArithmetic.AddSigned192(d4MinusD3, d5MinusD6),
-                out Fixed64 parameter);
-            return Vector3d.Lerp(B, C, parameter);
+            numeratorC = Signed320.ExtendValue(d4MinusD3);
+            denominator = Signed320.ExtendValue(WideArithmetic.AddSigned192(d4MinusD3, d5MinusD6));
+            numeratorB = WideArithmetic.SubtractSigned320(denominator, numeratorC); edgeMask = 2;
+            return true;
         }
-
-        _ = Fixed64.TryGetUnitIntervalRatio(vb, denominator, out Fixed64 weightB);
-        _ = Fixed64.TryGetUnitIntervalRatio(vc, denominator, out Fixed64 weightC);
-        return GetPoint(weightB, weightC);
+        numeratorB = vb; numeratorC = vc;
+        return true;
     }
 
     /// <summary>

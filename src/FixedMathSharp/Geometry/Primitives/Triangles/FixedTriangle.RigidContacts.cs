@@ -172,12 +172,42 @@ public partial struct FixedTriangle
         Fixed64 capsuleAxisLength,
         Fixed64 capsuleRadius,
         Vector3d fallbackNormal,
-        out FixedContactAnchors contact)
+        out FixedContactAnchors contact) =>
+        TryGetCenteredCapsuleContact(triangleOrigin, triangleRotation, capsuleCenter,
+            capsuleRotation, capsuleAxisLength, capsuleRadius, fallbackNormal,
+            retainFeature: false, out contact, out _, out _);
+
+    /// <summary>Retains exact feature incidence in the selected local or world contact chart.</summary>
+    internal readonly bool TryGetCenteredCapsuleContact(
+        Vector3d triangleOrigin, FixedQuaternion triangleRotation,
+        Vector3d capsuleCenter, FixedQuaternion capsuleRotation,
+        Fixed64 capsuleAxisLength, Fixed64 capsuleRadius, Vector3d fallbackNormal,
+        out FixedContactAnchors contact, out AxisTriangleContactFeature feature,
+        out bool chartIsTriangleLocal) =>
+        TryGetCenteredCapsuleContact(triangleOrigin, triangleRotation, capsuleCenter,
+            capsuleRotation, capsuleAxisLength, capsuleRadius, fallbackNormal,
+            retainFeature: true, out contact, out feature, out chartIsTriangleLocal);
+
+    private readonly bool TryGetCenteredCapsuleContact(
+        Vector3d triangleOrigin,
+        FixedQuaternion triangleRotation,
+        Vector3d capsuleCenter,
+        FixedQuaternion capsuleRotation,
+        Fixed64 capsuleAxisLength,
+        Fixed64 capsuleRadius,
+        Vector3d fallbackNormal,
+        bool retainFeature,
+        out FixedContactAnchors contact,
+        out AxisTriangleContactFeature feature,
+        out bool chartIsTriangleLocal)
     {
+        feature = default;
+        chartIsTriangleLocal = false;
         ValidateRigidTriangleFrame(triangleRotation);
         ValidateRigidShapeFrame(capsuleRotation, nameof(capsuleRotation));
-        Vector3d capsuleAxisDirection =
-            capsuleRotation.Rotate(Vector3d.Up).Normalized;
+        // A zero core is one point; orientation affects its anchor frame only.
+        Vector3d capsuleAxisDirection = capsuleAxisLength == Fixed64.Zero
+            ? Vector3d.Up : capsuleRotation.Rotate(Vector3d.Up).Normalized;
         ValidateCenteredCapsuleContact(
             capsuleAxisDirection,
             capsuleAxisLength,
@@ -195,10 +225,11 @@ public partial struct FixedTriangle
                 triangleRotation,
                 out Vector3d localCapsuleCenter))
         {
+            chartIsTriangleLocal = true;
             return TryGetCenteredCapsuleContactInChart(
                 this,
                 localCapsuleCenter,
-                inverseTriangleRotation.Rotate(capsuleAxisDirection),
+                capsuleAxisLength == Fixed64.Zero ? Vector3d.Up : inverseTriangleRotation.Rotate(capsuleAxisDirection),
                 capsuleAxisLength,
                 capsuleRadius,
                 inverseTriangleRotation.Rotate(fallbackNormal),
@@ -206,9 +237,8 @@ public partial struct FixedTriangle
                 triangleRotation,
                 capsuleCenter,
                 capsuleRotation,
-                capsuleAxisDirection,
                 chartIsTriangleLocal: true,
-                out contact);
+                retainFeature, out contact, out feature);
         }
 
         FixedPointAnchor first = new(
@@ -244,9 +274,8 @@ public partial struct FixedTriangle
             triangleRotation,
             capsuleCenter,
             capsuleRotation,
-            capsuleAxisDirection,
             chartIsTriangleLocal: false,
-            out contact);
+            retainFeature, out contact, out feature);
     }
 
     /// <summary>
@@ -427,9 +456,10 @@ public partial struct FixedTriangle
         FixedQuaternion triangleRotation,
         Vector3d worldCapsuleCenter,
         FixedQuaternion capsuleRotation,
-        Vector3d worldCapsuleAxis,
         bool chartIsTriangleLocal,
-        out FixedContactAnchors contact)
+        bool retainFeature,
+        out FixedContactAnchors contact,
+        out AxisTriangleContactFeature feature)
     {
         if (!WideFiniteAxisIntersection
             .TryGetCenteredCapsuleTriangleLocalContact(
@@ -443,7 +473,8 @@ public partial struct FixedTriangle
                 out Fixed64 axisParameter,
                 out Vector3d chartNormal,
                 out Fixed64 depth,
-                out bool depthIsClamped))
+                out bool depthIsClamped,
+                retainFeature, out feature))
         {
             contact = default;
             return false;

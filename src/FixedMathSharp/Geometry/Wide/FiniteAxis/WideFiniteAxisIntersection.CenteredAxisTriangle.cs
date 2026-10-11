@@ -5,7 +5,42 @@
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
+using System;
+
 namespace FixedMathSharp.Geometry;
+
+/// <summary>Retains exact closest-point feature identity and separation before contact rounding.</summary>
+internal readonly struct AxisTriangleContactFeature
+{
+    private readonly Signed576 _separationX, _separationY, _separationZ;
+
+    internal AxisTriangleContactFeature(int edgeMask, Signed576 separationX,
+        Signed576 separationY, Signed576 separationZ)
+    {
+        EdgeMask = edgeMask;
+        _separationX = separationX; _separationY = separationY; _separationZ = separationZ;
+    }
+
+    /// <summary>Zero edge halfspaces: AB=1, BC=2, CA=4; 7 declines degenerate classification.</summary>
+    internal int EdgeMask { get; }
+
+    /// <summary>Whether the retained core and triangle witnesses coincide exactly.</summary>
+    internal bool IsZeroSeparation => _separationX.IsZero && _separationY.IsZero && _separationZ.IsZero;
+
+    /// <summary>Gets the exact sign of separation dotted with a ray in the selected contact chart.</summary>
+    internal int CompareSeparationProjection(Vector3d first, Vector3d second)
+    {
+        // A signed 576-bit value times a full-domain 65-bit coordinate
+        // difference, summed three times, fits within signed 704 bits.
+        Signed320 x = Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(second.X), Signed192.Raw(first.X)));
+        Signed320 y = Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(second.Y), Signed192.Raw(first.Y)));
+        Signed320 z = Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(second.Z), Signed192.Raw(first.Z)));
+        return WideArithmetic.AddSigned704(WideArithmetic.AddSigned704(
+            WideArithmetic.MultiplySigned576ToSigned704(_separationX, x),
+            WideArithmetic.MultiplySigned576ToSigned704(_separationY, y)),
+            WideArithmetic.MultiplySigned576ToSigned704(_separationZ, z)).Sign;
+    }
+}
 
 /// <content>
 /// Provides high-precision closest-point and overlap tests between a
@@ -26,6 +61,7 @@ internal static partial class WideFiniteAxisIntersection
         internal readonly Signed576 AxisZ;
         internal readonly Signed576 Denominator;
         internal readonly Signed832 SquaredDistanceNumerator;
+        internal readonly int EdgeMask;
 
         internal AxisTriangleCandidate(
             Signed576 triangleX,
@@ -35,7 +71,8 @@ internal static partial class WideFiniteAxisIntersection
             Signed576 axisY,
             Signed576 axisZ,
             Signed576 denominator,
-            Signed832 squaredDistanceNumerator)
+            Signed832 squaredDistanceNumerator,
+            int edgeMask)
         {
             TriangleX = triangleX;
             TriangleY = triangleY;
@@ -45,6 +82,7 @@ internal static partial class WideFiniteAxisIntersection
             AxisZ = axisZ;
             Denominator = denominator;
             SquaredDistanceNumerator = squaredDistanceNumerator;
+            EdgeMask = edgeMask;
         }
     }
 
@@ -155,8 +193,11 @@ internal static partial class WideFiniteAxisIntersection
         out Fixed64 axisParameter,
         out Vector3d normal,
         out Fixed64 depth,
-        out bool depthIsClamped)
+        out bool depthIsClamped,
+        bool retainFeature,
+        out AxisTriangleContactFeature feature)
     {
+        feature = default;
         GetClosestCenteredAxisTriangleCandidate(
             triangle,
             center,
@@ -189,6 +230,9 @@ internal static partial class WideFiniteAxisIntersection
         Signed576 differenceZ = WideArithmetic.SubtractSigned576(
             candidate.AxisZ,
             candidate.TriangleZ);
+        if (retainFeature)
+            feature = new AxisTriangleContactFeature(candidate.EdgeMask, differenceX, differenceY, differenceZ);
+
         normal = WideNormalization.GetNormalized(
             differenceX,
             differenceY,
@@ -214,21 +258,26 @@ internal static partial class WideFiniteAxisIntersection
             Fixed64.Zero,
             candidate.Denominator,
             out Fixed64 triangleZ);
-        _ = TryGetRelativeCoordinate(
-            candidate.AxisX,
-            center.X,
-            candidate.Denominator,
-            out Fixed64 axisX);
-        _ = TryGetRelativeCoordinate(
-            candidate.AxisY,
-            center.Y,
-            candidate.Denominator,
-            out Fixed64 axisY);
-        _ = TryGetRelativeCoordinate(
-            candidate.AxisZ,
-            center.Z,
-            candidate.Denominator,
-            out Fixed64 axisZ);
+        axisParameter = Fixed64.Zero;
+        if (axisLength != Fixed64.Zero)
+        {
+            _ = TryGetRelativeCoordinate(
+                candidate.AxisX,
+                center.X,
+                candidate.Denominator,
+                out Fixed64 axisX);
+            _ = TryGetRelativeCoordinate(
+                candidate.AxisY,
+                center.Y,
+                candidate.Denominator,
+                out Fixed64 axisY);
+            _ = TryGetRelativeCoordinate(
+                candidate.AxisZ,
+                center.Z,
+                candidate.Denominator,
+                out Fixed64 axisZ);
+            axisParameter = Vector3d.Dot(new Vector3d(axisX, axisY, axisZ), axisDirection);
+        }
         GetCenteredCapsuleTriangleDepth(
             candidate,
             radius,
@@ -239,9 +288,6 @@ internal static partial class WideFiniteAxisIntersection
             triangleX,
             triangleY,
             triangleZ);
-        axisParameter = Vector3d.Dot(
-            new Vector3d(axisX, axisY, axisZ),
-            axisDirection);
         return true;
     }
 
@@ -252,18 +298,41 @@ internal static partial class WideFiniteAxisIntersection
         Fixed64 axisLength,
         out AxisTriangleCandidate best)
     {
+        if (axisLength == Fixed64.Zero && triangle.TryGetClosestPointBarycentrics(center,
+            out Signed320 numeratorB, out Signed320 numeratorC, out Signed320 pointDenominator, out int edgeMask))
+        {
+            // Select the sphere's single feature before constructing any witness.
+            // Common barycentric scale is exact and has no geometric meaning.
+            Span<Signed320> weights = stackalloc Signed320[3] { numeratorB, numeratorC, pointDenominator };
+            WideArithmetic.ReduceCommonScale(weights);
+            numeratorB = weights[0]; numeratorC = weights[1]; pointDenominator = weights[2];
+            best = CreateAxisTriangleCandidate(
+                GetBarycentricCoordinateNumerator(triangle.A.X, triangle.B.X, triangle.C.X, numeratorB, numeratorC, pointDenominator),
+                GetBarycentricCoordinateNumerator(triangle.A.Y, triangle.B.Y, triangle.C.Y, numeratorB, numeratorC, pointDenominator),
+                GetBarycentricCoordinateNumerator(triangle.A.Z, triangle.B.Z, triangle.C.Z, numeratorB, numeratorC, pointDenominator),
+                WideArithmetic.MultiplySigned320(Signed320.ExtendValue(Signed192.Raw(center.X)), pointDenominator),
+                WideArithmetic.MultiplySigned320(Signed320.ExtendValue(Signed192.Raw(center.Y)), pointDenominator),
+                WideArithmetic.MultiplySigned320(Signed320.ExtendValue(Signed192.Raw(center.Z)), pointDenominator),
+                Signed576.ExtendValue(pointDenominator), edgeMask);
+            return;
+        }
         bool found = TryGetCenteredAxisTriangleFaceCandidate(
             triangle,
             center,
             axisDirection,
             axisLength,
-            out best);
+            out best,
+            out bool degenerate);
+        // The closest segment point to the infinite plane is a lower bound
+        // for every triangle point; an admitted projection cannot lose to an edge.
+        if (found) return;
         KeepCenteredAxisTriangleEdgeCandidate(
             triangle.A,
             triangle.B,
             center,
             axisDirection,
             axisLength,
+            degenerate ? 7 : 1, 5, 3,
             ref found,
             ref best);
         KeepCenteredAxisTriangleEdgeCandidate(
@@ -272,6 +341,7 @@ internal static partial class WideFiniteAxisIntersection
             center,
             axisDirection,
             axisLength,
+            degenerate ? 7 : 2, 3, 6,
             ref found,
             ref best);
         KeepCenteredAxisTriangleEdgeCandidate(
@@ -280,16 +350,27 @@ internal static partial class WideFiniteAxisIntersection
             center,
             axisDirection,
             axisLength,
+            degenerate ? 7 : 4, 6, 5,
             ref found,
             ref best);
     }
+
+    private static Signed576 GetBarycentricCoordinateNumerator(Fixed64 a, Fixed64 b, Fixed64 c,
+        Signed320 numeratorB, Signed320 numeratorC, Signed320 denominator) =>
+        // Full-domain differences are 65 bits, barycentrics at most 262 bits;
+        // each coordinate and its squared separation fit the existing 576/832 domains.
+        WideArithmetic.AddSigned576(WideArithmetic.AddSigned576(
+            WideArithmetic.MultiplySigned320(Signed320.ExtendValue(Signed192.Raw(a)), denominator),
+            WideArithmetic.MultiplySigned320(Signed320.ExtendValue(GetComponentDifference(b, a)), numeratorB)),
+            WideArithmetic.MultiplySigned320(Signed320.ExtendValue(GetComponentDifference(c, a)), numeratorC));
 
     private static bool TryGetCenteredAxisTriangleFaceCandidate(
         FixedTriangle triangle,
         Vector3d center,
         Vector3d axisDirection,
         Fixed64 axisLength,
-        out AxisTriangleCandidate candidate)
+        out AxisTriangleCandidate candidate,
+        out bool degenerate)
     {
         GetTriangleNormal(
             triangle,
@@ -303,11 +384,24 @@ internal static partial class WideFiniteAxisIntersection
             out _,
             out _,
             out _);
-        if (normalSquared.IsZero)
+        degenerate = normalSquared.IsZero;
+        if (degenerate)
         {
             candidate = default;
             return false;
         }
+
+        // A positive common normal scale carries no plane geometry; cancel
+        // it before it multiplies every rational distance and depth coefficient.
+        Span<Signed320> primitive = stackalloc Signed320[3]
+        {
+            Signed320.ExtendValue(normalX), Signed320.ExtendValue(normalY), Signed320.ExtendValue(normalZ)
+        };
+        WideArithmetic.ReduceCommonScale(primitive);
+        normalX = Signed192.NarrowProven(primitive[0]);
+        normalY = Signed192.NarrowProven(primitive[1]);
+        normalZ = Signed192.NarrowProven(primitive[2]);
+        normalSquared = WideGeometry.GetSquaredMagnitude(normalX, normalY, normalZ, out _, out _, out _);
 
         Signed320 planeProjection = GetWideDot(
             normalX,
@@ -323,8 +417,20 @@ internal static partial class WideFiniteAxisIntersection
             Vector3d.Zero);
         if (axisProjection.IsZero)
         {
-            candidate = default;
-            return false;
+            // A parallel core has constant plane distance. Test center and
+            // exact finite endpoints before edges cover any projected crossings.
+            if (TryCreateCenteredAxisTriangleFaceCandidate(triangle, center, axisDirection,
+                normalX, normalY, normalZ, normalSquared, default,
+                Signed320.ExtendValue(Signed192.Signed(1)), out candidate)) return true;
+            if (axisLength == Fixed64.Zero) return false;
+            Signed320 capDenominator = Signed320.ExtendValue(DoubleParameterScale);
+            if (TryCreateCenteredAxisTriangleFaceCandidate(triangle, center, axisDirection,
+                normalX, normalY, normalZ, normalSquared,
+                Signed320.ExtendValue(Signed192.Signed(-axisLength.m_rawValue)),
+                capDenominator, out candidate)) return true;
+            return TryCreateCenteredAxisTriangleFaceCandidate(triangle, center, axisDirection,
+                normalX, normalY, normalZ, normalSquared,
+                Signed320.ExtendValue(Signed192.Raw(axisLength)), capDenominator, out candidate);
         }
 
         Signed320 parameterNumerator =
@@ -342,6 +448,20 @@ internal static partial class WideFiniteAxisIntersection
             ref parameterDenominator,
             axisLength);
 
+        return TryCreateCenteredAxisTriangleFaceCandidate(triangle, center, axisDirection,
+            normalX, normalY, normalZ, normalSquared, parameterNumerator, parameterDenominator, out candidate);
+    }
+
+    private static bool TryCreateCenteredAxisTriangleFaceCandidate(
+        FixedTriangle triangle, Vector3d center, Vector3d axisDirection,
+        Signed192 normalX, Signed192 normalY, Signed192 normalZ, Signed320 normalSquared,
+        Signed320 parameterNumerator, Signed320 parameterDenominator,
+        out AxisTriangleCandidate candidate)
+    {
+        // Zero axial displacement has denominator one; retain no artificial
+        // parameter scale in every downstream plane-distance coefficient.
+        if (parameterNumerator.IsZero)
+            parameterDenominator = Signed320.ExtendValue(Signed192.Signed(1));
         GetRationalPoint(
             center,
             axisDirection,
@@ -360,7 +480,8 @@ internal static partial class WideFiniteAxisIntersection
                 axisX,
                 axisY,
                 axisZ,
-                wideParameterDenominator))
+                wideParameterDenominator,
+                out int edgeMask))
         {
             candidate = default;
             return false;
@@ -425,7 +546,8 @@ internal static partial class WideFiniteAxisIntersection
             scaledAxisX,
             scaledAxisY,
             scaledAxisZ,
-            denominator);
+            denominator,
+            edgeMask);
         return true;
     }
 
@@ -435,6 +557,7 @@ internal static partial class WideFiniteAxisIntersection
         Vector3d center,
         Vector3d axisDirection,
         Fixed64 axisLength,
+        int edgeMask, int startMask, int endMask,
         ref bool found,
         ref AxisTriangleCandidate best)
     {
@@ -463,6 +586,13 @@ internal static partial class WideFiniteAxisIntersection
             out Signed576 edgeX,
             out Signed576 edgeY,
             out Signed576 edgeZ);
+        // Retain the exact clamped edge feature before anchor rounding. A
+        // degenerate triangle has no trusted face and keeps the conservative mask.
+        if (edgeMask != 7)
+        {
+            if (edgeNumerator.IsZero) edgeMask = startMask;
+            else if (WideArithmetic.SubtractSigned320(edgeNumerator, denominator).IsZero) edgeMask = endMask;
+        }
         AxisTriangleCandidate candidate = CreateAxisTriangleCandidate(
             edgeX,
             edgeY,
@@ -470,7 +600,8 @@ internal static partial class WideFiniteAxisIntersection
             axisX,
             axisY,
             axisZ,
-            Signed576.ExtendValue(denominator));
+            Signed576.ExtendValue(denominator),
+            edgeMask);
         if (found
             && WideArithmetic.CompareNonNegativeSquaredRatios(
                 candidate.SquaredDistanceNumerator,
@@ -510,6 +641,20 @@ internal static partial class WideFiniteAxisIntersection
                 ref denominator,
                 axisLength);
             edgeNumerator = default;
+            return;
+        }
+
+        if (axisLength == Fixed64.Zero)
+        {
+            // A sphere core is one point: its exact edge fraction needs no
+            // line-line determinant, axial clamp or endpoint reprojection.
+            axisNumerator = default;
+            edgeNumerator = Signed320.ExtendValue(edgeDotDifference);
+            denominator = Signed320.ExtendValue(edgeSquared);
+            ClampUnitParameter(ref edgeNumerator, ref denominator);
+            Span<Signed320> ratio = stackalloc Signed320[2] { edgeNumerator, denominator };
+            WideArithmetic.ReduceCommonScale(ratio);
+            edgeNumerator = ratio[0]; denominator = ratio[1];
             return;
         }
 
@@ -769,7 +914,8 @@ internal static partial class WideFiniteAxisIntersection
         Signed576 axisX,
         Signed576 axisY,
         Signed576 axisZ,
-        Signed576 denominator)
+        Signed576 denominator,
+        int edgeMask)
     {
         Signed576 differenceX =
             WideArithmetic.SubtractSigned576(axisX, triangleX);
@@ -796,7 +942,8 @@ internal static partial class WideFiniteAxisIntersection
             axisY,
             axisZ,
             denominator,
-            squaredDistance);
+            squaredDistance,
+            edgeMask);
     }
 
 
