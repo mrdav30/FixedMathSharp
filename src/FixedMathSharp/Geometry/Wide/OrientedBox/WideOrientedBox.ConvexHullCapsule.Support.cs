@@ -54,10 +54,19 @@ internal static partial class WideOrientedBox
         Span<ulong> maximum,
         out int maximumSign)
     {
+        // The axis and rational basis are invariant across every hull point.
+        // Retain their exact projections; only the local coordinate products vary.
+        Signed704 xProjection = GetCapsuleBasisProjection(
+            axis, basis.Xx, basis.Xy, basis.Xz);
+        Signed704 yProjection = GetCapsuleBasisProjection(
+            axis, basis.Yx, basis.Yy, basis.Yz);
+        Signed704 zProjection = GetCapsuleBasisProjection(
+            axis, basis.Zx, basis.Zy, basis.Zz);
         BuildHullCapsuleLocalProjection(
             points[0],
-            basis,
-            axis,
+            xProjection,
+            yProjection,
+            zProjection,
             minimum,
             out minimumSign);
         minimum.CopyTo(maximum);
@@ -68,8 +77,9 @@ internal static partial class WideOrientedBox
         {
             BuildHullCapsuleLocalProjection(
                 points[index],
-                basis,
-                axis,
+                xProjection,
+                yProjection,
+                zProjection,
                 candidate,
                 out int candidateSign);
             if (CompareHullCapsuleSignedMagnitudes(
@@ -95,84 +105,25 @@ internal static partial class WideOrientedBox
 
     private static void BuildHullCapsuleLocalProjection(
         Vector3d point,
-        WideRationalBasis3d basis,
-        CapsuleAxis3 axis,
+        Signed704 xProjection,
+        Signed704 yProjection,
+        Signed704 zProjection,
         Span<ulong> result,
         out int resultSign)
     {
-        Span<ulong> x =
-            stackalloc ulong[HullCapsuleMagnitudeWords];
-        Span<ulong> y =
-            stackalloc ulong[HullCapsuleMagnitudeWords];
-        Span<ulong> z =
-            stackalloc ulong[HullCapsuleMagnitudeWords];
-        BuildHullCapsuleProjectionTerm(
-            GetCapsuleBasisProjection(
-                axis,
-                basis.Xx,
-                basis.Xy,
-                basis.Xz),
-            Signed192.Raw(point.X),
-            x,
-            out int xSign);
-        BuildHullCapsuleProjectionTerm(
-            GetCapsuleBasisProjection(
-                axis,
-                basis.Yx,
-                basis.Yy,
-                basis.Yz),
-            Signed192.Raw(point.Y),
-            y,
-            out int ySign);
-        BuildHullCapsuleProjectionTerm(
-            GetCapsuleBasisProjection(
-                axis,
-                basis.Zx,
-                basis.Zy,
-                basis.Zz),
-            Signed192.Raw(point.Z),
-            z,
-            out int zSign);
-        Span<ulong> xy =
-            stackalloc ulong[HullCapsuleMagnitudeWords];
-        CombineHullCapsuleSignedMagnitudes(
-            x,
-            xSign,
-            y,
-            ySign,
-            xy,
-            out int xySign);
-        CombineHullCapsuleSignedMagnitudes(
-            xy,
-            xySign,
-            z,
-            zSign,
-            result,
-            out resultSign);
-    }
-
-    private static void BuildHullCapsuleProjectionTerm(
-        Signed704 projection,
-        Signed192 coordinate,
-        Span<ulong> result,
-        out int resultSign)
-    {
-        Span<ulong> projectionMagnitude =
-            stackalloc ulong[HullCapsuleMagnitudeWords];
-        projectionMagnitude.Clear();
-        GetHullCapsuleMagnitude(
-            projection,
-            projectionMagnitude);
-        Span<ulong> coordinateMagnitude =
-            stackalloc ulong[HullCapsuleMagnitudeWords];
-        GetHullCapsuleMagnitude(
-            coordinate,
-            coordinateMagnitude);
-        WideArithmetic.MultiplyMagnitudes(
-            projectionMagnitude,
-            coordinateMagnitude,
-            result);
-        resultSign = projection.Sign * coordinate.Sign;
+        // Each signed 704-bit projection times a raw signed 64-bit coordinate
+        // has magnitude at most 2^766. Three terms need at most 769 signed
+        // bits, so both products and their exact sum fit Signed832.
+        Signed832 projection = WideArithmetic.AddSigned832(
+            WideArithmetic.AddSigned832(
+                WideArithmetic.MultiplySigned704ToSigned832(
+                    xProjection, Signed192.Raw(point.X)),
+                WideArithmetic.MultiplySigned704ToSigned832(
+                    yProjection, Signed192.Raw(point.Y))),
+            WideArithmetic.MultiplySigned704ToSigned832(
+                zProjection, Signed192.Raw(point.Z)));
+        WideArithmetic.GetMagnitude(projection, result);
+        resultSign = projection.Sign;
     }
 
     private static Signed704 GetHullCapsuleCenterProjection(
@@ -229,6 +180,36 @@ internal static partial class WideOrientedBox
         WideArithmetic.AddMagnitudeInto(square, result);
     }
 
+    private static bool ContainsHullSphereSupportProjection(
+        Vector3d hullOrigin, FixedQuaternion hullRotation, WideRationalBasis3d basis,
+        ReadOnlySpan<Vector3d> points, ReadOnlySpan<int> triangles,
+        CapsuleAxis3 orientedAxis, Vector3d sphereCenter)
+    {
+        Span<ulong> minimum = stackalloc ulong[HullCapsuleMagnitudeWords];
+        Span<ulong> maximum = stackalloc ulong[HullCapsuleMagnitudeWords];
+        GetHullCapsuleProjectionInterval(points, basis, orientedAxis,
+            minimum, out _, maximum, out int maximumSign);
+        Signed704 x = GetCapsuleBasisProjection(orientedAxis, basis.Xx, basis.Xy, basis.Xz);
+        Signed704 y = GetCapsuleBasisProjection(orientedAxis, basis.Yx, basis.Yy, basis.Yz);
+        Signed704 z = GetCapsuleBasisProjection(orientedAxis, basis.Zx, basis.Zy, basis.Zz);
+        FixedPointAnchor center = new(sphereCenter, FixedQuaternion.Identity, Vector3d.Zero);
+        // Only a finite triangle on the selected support plane can certify
+        // the closest point. The winning axis may come from the opposite face.
+        for (int index = 0; index < triangles.Length; index += 3)
+        {
+            Vector3d first = points[triangles[index]];
+            Vector3d second = points[triangles[index + 1]];
+            Vector3d third = points[triangles[index + 2]];
+            if (IsHullCapsuleSupportPoint(first, x, y, z, maximum, maximumSign)
+                && IsHullCapsuleSupportPoint(second, x, y, z, maximum, maximumSign)
+                && IsHullCapsuleSupportPoint(third, x, y, z, maximum, maximumSign)
+                && WideTriangleRelations.ContainsProjection(new FixedTriangle(first, second, third),
+                    hullOrigin, hullRotation, center))
+                return true;
+        }
+        return false;
+    }
+
     private static FixedPointAnchor GetMatchedHullCapsuleSupportAnchor(
         Vector3d hullOrigin,
         FixedQuaternion hullRotation,
@@ -239,13 +220,20 @@ internal static partial class WideOrientedBox
         CapsuleAxis3 orientedAxis,
         in FixedPointAnchor target)
     {
+        Signed704 xProjection = GetCapsuleBasisProjection(
+            orientedAxis, basis.Xx, basis.Xy, basis.Xz);
+        Signed704 yProjection = GetCapsuleBasisProjection(
+            orientedAxis, basis.Yx, basis.Yy, basis.Yz);
+        Signed704 zProjection = GetCapsuleBasisProjection(
+            orientedAxis, basis.Zx, basis.Zy, basis.Zz);
         int supportIndex = 0;
         Span<ulong> best =
             stackalloc ulong[HullCapsuleMagnitudeWords];
         BuildHullCapsuleLocalProjection(
             points[0],
-            basis,
-            orientedAxis,
+            xProjection,
+            yProjection,
+            zProjection,
             best,
             out int bestSign);
         Span<ulong> candidate =
@@ -254,8 +242,9 @@ internal static partial class WideOrientedBox
         {
             BuildHullCapsuleLocalProjection(
                 points[index],
-                basis,
-                orientedAxis,
+                xProjection,
+                yProjection,
+                zProjection,
                 candidate,
                 out int candidateSign);
             if (CompareHullCapsuleSignedMagnitudes(
@@ -287,28 +276,39 @@ internal static partial class WideOrientedBox
                 triangleVertexIndices[index + 2]];
             if (!IsHullCapsuleSupportPoint(
                     first,
-                    basis,
-                    orientedAxis,
+                    xProjection,
+                    yProjection,
+                    zProjection,
                     best,
                     bestSign)
                 || !IsHullCapsuleSupportPoint(
                     second,
-                    basis,
-                    orientedAxis,
+                    xProjection,
+                    yProjection,
+                    zProjection,
                     best,
                     bestSign)
                 || !IsHullCapsuleSupportPoint(
                     third,
-                    basis,
-                    orientedAxis,
+                    xProjection,
+                    yProjection,
+                    zProjection,
                     best,
                     bestSign))
             {
                 continue;
             }
 
+            var triangle = new FixedTriangle(first, second, third);
+            // A projection inside a support face is the unique nearest point
+            // on the entire support set; boundary edges cannot improve it.
+            // Keep the first authored certified face rather than ranking
+            // triangulation differences introduced by final anchor rounding.
+            if (WideTriangleRelations.ContainsProjection(triangle, hullOrigin, hullRotation, target))
+                return triangle.GetClosestPointAnchor(hullOrigin, hullRotation, target);
+
             FixedPointAnchor candidateAnchor =
-                new FixedTriangle(first, second, third)
+                triangle
                     .GetClosestPointAnchor(
                         hullOrigin,
                         hullRotation,
@@ -331,14 +331,16 @@ internal static partial class WideOrientedBox
                 points[edgeVertexPairs[index + 1]];
             if (!IsHullCapsuleSupportPoint(
                     start,
-                    basis,
-                    orientedAxis,
+                    xProjection,
+                    yProjection,
+                    zProjection,
                     best,
                     bestSign)
                 || !IsHullCapsuleSupportPoint(
                     end,
-                    basis,
-                    orientedAxis,
+                    xProjection,
+                    yProjection,
+                    zProjection,
                     best,
                     bestSign))
             {
@@ -363,8 +365,9 @@ internal static partial class WideOrientedBox
 
     private static bool IsHullCapsuleSupportPoint(
         Vector3d point,
-        WideRationalBasis3d basis,
-        CapsuleAxis3 orientedAxis,
+        Signed704 xProjection,
+        Signed704 yProjection,
+        Signed704 zProjection,
         ReadOnlySpan<ulong> supportProjection,
         int supportProjectionSign)
     {
@@ -372,8 +375,9 @@ internal static partial class WideOrientedBox
             stackalloc ulong[HullCapsuleMagnitudeWords];
         BuildHullCapsuleLocalProjection(
             point,
-            basis,
-            orientedAxis,
+            xProjection,
+            yProjection,
+            zProjection,
             projection,
             out int projectionSign);
         return CompareHullCapsuleSignedMagnitudes(
@@ -392,29 +396,32 @@ internal static partial class WideOrientedBox
         out Fixed64 depth,
         out bool depthIsClamped)
     {
-        ulong floor = 0UL;
-        ulong high = unchecked((ulong)long.MaxValue);
-        while (floor < high)
+        // floor(sqrt(floor(N/D))) equals floor(sqrt(N/D)). Reuse the exact
+        // ratio-root owner instead of searching the entire scalar range.
+        Span<ulong> numerator = stackalloc ulong[2 * HullCapsuleMagnitudeWords];
+        Span<ulong> denominator = stackalloc ulong[2 * HullCapsuleMagnitudeWords];
+        Span<ulong> common = stackalloc ulong[3];
+        Span<ulong> commonSquared = stackalloc ulong[6];
+        WideArithmetic.GetMagnitude(commonDenominator,
+            out common[2], out common[1], out common[0]);
+        WideArithmetic.MultiplyMagnitudes(rational, rational, numerator);
+        WideArithmetic.MultiplyMagnitudes(common, common, commonSquared);
+        WideArithmetic.MultiplyMagnitudes(squaredAxisLength, commonSquared, denominator);
+        ulong distanceFloor = WideArithmetic.GetRatioFloorSquareRoot(
+            numerator, denominator, unchecked((ulong)long.MaxValue));
+        ulong floor = rationalSign < 0
+            ? (ulong)radius.m_rawValue - distanceFloor
+            : (ulong)radius.m_rawValue + distanceFloor;
+        // Subtracting a noninteger distance puts this integer one unit above
+        // the true floor. Decide that one correction before nearest-even rounding.
+        if (rationalSign < 0 && CompareHullCapsuleDepthToTwiceRaw(
+                rational, rationalSign, squaredAxisLength, commonDenominator,
+                radius, new Signed192(0UL, 0UL, floor << 1)) < 0)
         {
-            ulong midpoint = floor + ((high - floor + 1UL) >> 1);
-            int comparison = CompareHullCapsuleDepthToTwiceRaw(
-                rational,
-                rationalSign,
-                squaredAxisLength,
-                commonDenominator,
-                radius,
-                new Signed192(0UL, 0UL, midpoint << 1));
-            if (comparison >= 0)
-            {
-                floor = midpoint;
-            }
-            else
-            {
-                high = midpoint - 1UL;
-            }
+            floor--;
         }
 
-        if (floor == unchecked((ulong)long.MaxValue))
+        if (floor >= unchecked((ulong)long.MaxValue))
         {
             depth = Fixed64.MaxValue;
             depthIsClamped =

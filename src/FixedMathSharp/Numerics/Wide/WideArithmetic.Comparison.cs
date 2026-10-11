@@ -276,6 +276,11 @@ internal static partial class WideArithmetic
         int rightSign,
         ReadOnlySpan<ulong> rightSquaredAxisLength)
     {
+        // Padding carries no value; size exact products from the active limbs.
+        leftNumerator = leftNumerator[..GetActiveMagnitudeLength(leftNumerator)];
+        rightNumerator = rightNumerator[..GetActiveMagnitudeLength(rightNumerator)];
+        leftSquaredAxisLength = leftSquaredAxisLength[..GetActiveMagnitudeLength(leftSquaredAxisLength)];
+        rightSquaredAxisLength = rightSquaredAxisLength[..GetActiveMagnitudeLength(rightSquaredAxisLength)];
         leftSign = leftSign == 0 || IsZeroMagnitude(leftNumerator)
             ? 0
             : leftSign;
@@ -344,6 +349,10 @@ internal static partial class WideArithmetic
         int coefficientSign,
         ReadOnlySpan<ulong> squaredRadicand)
     {
+        // Retain every significant limb while avoiding padded-width products.
+        rational = rational[..GetActiveMagnitudeLength(rational)];
+        coefficient = coefficient[..GetActiveMagnitudeLength(coefficient)];
+        squaredRadicand = squaredRadicand[..GetActiveMagnitudeLength(squaredRadicand)];
         rationalSign = rationalSign == 0 || IsZeroMagnitude(rational)
             ? 0
             : rationalSign;

@@ -895,6 +895,167 @@ public sealed class FixedConvexHullRelationsTests
                 out _));
     }
 
+    [Theory]
+    [InlineData(1, 0, 0)]
+    [InlineData(3, 0, 2)]
+    [InlineData(5, 0, 2)]
+    [InlineData(1, 2, 2)]
+    [InlineData(3, 2, 4)]
+    public void TryGetCenteredCapsuleContact_RoundsExactHalfRawExitToEven(
+        long axisRaw, long radiusRaw, long depthRaw)
+    {
+        Vector3d[] points = { new(-1, 0, -1), new(1, 0, -1), new(1, 0, 1), new(-1, 0, 1) };
+        int[] triangles = { 0, 1, 2, 0, 2, 3 };
+        int[] edges = { 0, 1, 1, 2, 2, 3, 3, 0 };
+        Assert.True(FixedConvexHullRelations.TryGetCenteredCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, points, triangles, edges,
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up,
+            Fixed64.FromRaw(axisRaw), Fixed64.FromRaw(radiusRaw), out FixedContactAnchors contact));
+        Assert.Equal(Fixed64.FromRaw(depthRaw), contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+    }
+
+    [Theory]
+    [InlineData(0, 0, true)]
+    [InlineData(16, 0, true)]
+    [InlineData(16, 16, true)]
+    [InlineData(19, 20, true)]
+    [InlineData(19, 21, false)]
+    [InlineData(21, 21, false)]
+    public void TryGetCenteredCapsuleContact_PreservesFinitePlanarSphereFeatures(
+        int xSixteenths, int zSixteenths, bool expected)
+    {
+        Vector3d[] points = { new(-1, 0, -1), new(1, 0, -1), new(1, 0, 1), new(-1, 0, 1) };
+        int[] triangles = { 0, 1, 2, 0, 2, 3 };
+        // Repeated and zero-length edges cannot displace the nearest finite feature.
+        int[] edges = { 0, 0, 0, 1, 1, 2, 2, 3, 3, 0, 0, 1 };
+        Vector3d center = new(Fixed64.FromFraction(xSixteenths, 16), Fixed64.Zero,
+            Fixed64.FromFraction(zSixteenths, 16));
+        Assert.Equal(expected, FixedConvexHullRelations.TryGetCenteredCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, points, triangles, edges,
+            center, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.FromFraction(5, 16),
+            out FixedContactAnchors contact));
+        if (expected)
+        {
+            Assert.False(contact.DepthIsClamped);
+            Assert.Equal(xSixteenths <= 16 ? Fixed64.FromFraction(5, 16) : Fixed64.Zero, contact.Depth);
+        }
+    }
+
+    [Theory]
+    [InlineData(2, 0, 0, false)]
+    [InlineData(5, 0, 0, false)]
+    [InlineData(5, 5, 0, false)]
+    [InlineData(5, 5, 5, false)]
+    [InlineData(2, 0, 0, true)]
+    [InlineData(5, 0, 0, true)]
+    [InlineData(5, 5, 0, true)]
+    [InlineData(5, 5, 5, true)]
+    public void TryGetCenteredCapsuleContact_WholeSphereExitAgreesWithEquivalentOrientedBox(
+        int xQuarters, int yQuarters, int zQuarters, bool rotated)
+    {
+        FixedQuaternion rotation = rotated
+            ? FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver6)
+            : FixedQuaternion.Identity;
+        Vector3d origin = new(3, -2, 4);
+        Vector3d center = origin + rotation.Rotate(new Vector3d(
+            Fixed64.FromFraction(xQuarters, 4), Fixed64.FromFraction(yQuarters, 4), Fixed64.FromFraction(zQuarters, 4)));
+        var box = new FixedOrientedBox(origin, rotation, Vector3d.One);
+        Assert.True(FixedConvexHullRelations.TryGetCenteredCapsuleContact(
+            origin, rotation, CubePoints, CubeTriangles, CubeEdges,
+            center, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.Half,
+            out FixedContactAnchors contact));
+        Assert.True(box.TryGetCenteredCapsuleContact(center, FixedQuaternion.Identity, Vector3d.Up,
+            Fixed64.Zero, Fixed64.Half, out FixedContactAnchors equivalent));
+        // At this unit scale, rounding depth, a normalized direction and final
+        // coordinate products leaves at most eight raw units of exit uncertainty.
+        Fixed64 bound = Fixed64.FromRaw(8);
+        Assert.True(FixedMath.Abs(contact.Depth - equivalent.Depth) <= bound);
+        foreach (bool beyond in new[] { false, true })
+        {
+            Vector3d moved = center + contact.Normal * (contact.Depth + (beyond ? bound : -bound));
+            Assert.Equal(!beyond, box.TryGetCenteredCapsuleContact(moved, FixedQuaternion.Identity,
+                Vector3d.Up, Fixed64.Zero, Fixed64.Half, out _));
+        }
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void TryGetCenteredCapsuleContact_DistinguishesRawFaceProjectionBoundary(long beyondRaw)
+    {
+        Vector3d origin = new(Fixed64.MaxValue - (Fixed64)2, Fixed64.MinValue + (Fixed64)2, Fixed64.Zero);
+        FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, Fixed64.PiOver6);
+        Vector3d center = origin + rotation.Rotate(new Vector3d(
+            Fixed64.FromFraction(5, 4), Fixed64.One + Fixed64.FromRaw(beyondRaw), Fixed64.Zero));
+        Assert.True(FixedConvexHullRelations.TryGetCenteredCapsuleContact(
+            origin, rotation, CubePoints, CubeTriangles, CubeEdges,
+            center, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.Half,
+            out FixedContactAnchors contact));
+        Assert.True(new FixedOrientedBox(origin, rotation, Vector3d.One)
+            .TryGetCenteredCapsuleContact(center, FixedQuaternion.Identity, Vector3d.Up,
+                Fixed64.Zero, Fixed64.Half, out FixedContactAnchors equivalent));
+        Assert.Equal(equivalent.Depth, contact.Depth);
+        Assert.Equal(equivalent.Normal, contact.Normal);
+        Assert.Equal(beyondRaw > 0, contact.Normal.Y > Fixed64.Zero);
+        Assert.False(contact.DepthIsClamped);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void StrictSphereOverlap_PreservesZeroDistanceBoundaryFeatures(bool vertex)
+    {
+        Vector3d center = vertex ? CubePoints[0] : new Vector3d(Fixed64.Zero, -Fixed64.One, -Fixed64.One);
+        Assert.True(WideOrientedBox.DoesConvexHullCenteredCapsuleStrictlyOverlap(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            center, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.Quarter));
+        Assert.False(WideOrientedBox.DoesConvexHullCenteredCapsuleStrictlyOverlap(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            center, FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.Zero));
+    }
+
+    [Fact]
+    public void TryGetCenteredCapsuleContact_PreservesWidePlanarEdgeAxes()
+    {
+        Fixed64 extent = Fixed64.MaxValue - Fixed64.One;
+        Vector3d[] points = { new(-extent, Fixed64.Zero, -extent), new(extent, Fixed64.Zero, -extent),
+            new(extent, Fixed64.Zero, extent), new(-extent, Fixed64.Zero, extent) };
+        int[] triangles = { 0, 1, 2, 0, 2, 3 };
+        int[] edges = { 0, 1, 1, 2, 2, 3, 3, 0 };
+        Assert.True(FixedConvexHullRelations.TryGetCenteredCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, points, triangles, edges,
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Right, Fixed64.Two, Fixed64.One,
+            out FixedContactAnchors contact));
+        Assert.Equal(Fixed64.One, contact.Depth);
+        Assert.Equal(Fixed64.One, FixedMath.Abs(contact.Normal.Y));
+        Assert.Equal(Fixed64.Zero, contact.Normal.X);
+        Assert.Equal(Fixed64.Zero, contact.Normal.Z);
+        Assert.False(contact.DepthIsClamped);
+    }
+
+    [Theory]
+    [InlineData(-3)]
+    [InlineData(3)]
+    public void TryGetCenteredCapsuleContact_PreservesFiniteSupportWhenCoreCenterProjectsOutsideFace(int x)
+    {
+        Vector3d center = Vector3d.Right * x;
+        Assert.True(FixedConvexHullRelations.TryGetCenteredCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            center, FixedQuaternion.Identity, Vector3d.Right, (Fixed64)8, Fixed64.Quarter,
+            out FixedContactAnchors contact));
+        Assert.Equal(Fixed64.One + Fixed64.Quarter, contact.Depth);
+        Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d hullPoint));
+        Assert.Equal((Fixed64)Math.Sign(x), hullPoint.X);
+        Assert.True(FixedMath.Abs(hullPoint.Y) <= Fixed64.One);
+        Assert.Equal(Fixed64.One, FixedMath.Abs(hullPoint.Z));
+        Vector3d moved = center + contact.Normal * (contact.Depth + Fixed64.MinIncrement);
+        Assert.False(FixedConvexHullRelations.TryGetCenteredCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            moved, FixedQuaternion.Identity, Vector3d.Right, (Fixed64)8, Fixed64.Quarter, out _));
+    }
+
     private static bool TryGetExtremeCapsuleContact(
         out FixedContactAnchors contact)
     {

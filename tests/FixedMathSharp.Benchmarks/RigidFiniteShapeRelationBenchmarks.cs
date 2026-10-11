@@ -96,6 +96,8 @@ public class RigidFiniteShapeRelationBenchmarks
             || !OrdinaryHullCapsule()
             || !OrdinaryHullCapsuleStrict()
             || !EdgeFeatureHullCapsule()
+            || !ContainedHullSphere()
+            || !EdgeFeatureHullSphere()
             || !OrdinaryCapsuleSlabProjection()
             || !OrdinaryCylinderSlabProjection()
             || !OrdinaryConeSlabProjection()
@@ -402,6 +404,20 @@ public class RigidFiniteShapeRelationBenchmarks
             Fixed64.Two,
             Fixed64.Half,
             out _);
+
+    [Benchmark]
+    public bool ContainedHullSphere() =>
+        FixedConvexHullRelations.TryGetCenteredCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            Vector3d.Right * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Up,
+            Fixed64.Zero, Fixed64.Half, out _);
+
+    [Benchmark]
+    public bool EdgeFeatureHullSphere() =>
+        FixedConvexHullRelations.TryGetCenteredCapsuleContact(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            new Vector3d(Fixed64.FromFraction(5, 4), Fixed64.FromFraction(5, 4), Fixed64.Zero),
+            FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, Fixed64.Half, out _);
 
     [Benchmark]
     public bool OrdinaryCapsuleSlabProjection() =>

@@ -189,6 +189,9 @@ pairs ordinary hull/capsule, cylinder/capsule, and cylinder/cylinder queries
 with their `Strict` counterparts. These isolate the cost avoided when a caller
 needs only penetration truth, not normals, ranked depths, or contact witnesses.
 They are not end-to-end posture-transaction or simulation-frame measurements.
+`ContainedHullSphere` and `EdgeFeatureHullSphere` exercise the same hull owner
+with a zero-length capsule core, retaining volume exit and finite-edge contacts
+alongside the nonzero-core controls.
 Ordinary overlap fixtures can exit as soon as a center/core witness proves
 intrusion; their results do not estimate the cost of difficult negative queries.
 

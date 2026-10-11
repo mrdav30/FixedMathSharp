@@ -350,6 +350,15 @@ unchanged. The core Lean build also selects the sibling shim in local mode.
 - For serialization changes, update MemoryPack and JSON roundtrip tests.
 - For performance-sensitive changes, pair correctness tests with benchmark
   coverage rather than relying on benchmark output alone.
+  - For geometry changes, compare equivalent representations where supported
+    (for example, a sphere and a zero-core capsule or a hull and an oriented box).
+    Check classification, normals, depths and all retained anchors, including
+    reversed inputs and transformed frames.
+  - Verify that a reported minimum exit clears the complete shape, with touching
+    at the boundary and separation beyond the documented rounding bound.
+    Anchor-distance agreement alone does not prove clearance. Include containment,
+    finite edges and corners, degenerate geometry and full-domain coordinates;
+    execution coverage complements these geometric invariants.
 - Cyclomatic complexity exceptions are documented in
   [`docs/complexity-exceptions.md`](docs/complexity-exceptions.md); update that
   register when touching methods above the review threshold instead of

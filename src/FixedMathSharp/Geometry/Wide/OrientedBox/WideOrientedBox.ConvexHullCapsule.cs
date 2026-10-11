@@ -46,6 +46,7 @@ internal static partial class WideOrientedBox
 
         if (!TryFindHullCapsuleCandidate(
                 hullOrigin,
+                hullRotation,
                 hullBasis,
                 hullLocalPoints,
                 triangleVertexIndices,
@@ -160,6 +161,7 @@ internal static partial class WideOrientedBox
             Signed320.ExtendValue(capsuleAxisZ));
         return TryFindHullCapsuleCandidate(
             hullOrigin,
+            hullRotation,
             hullBasis,
             hullLocalPoints,
             triangleVertexIndices,
@@ -175,6 +177,7 @@ internal static partial class WideOrientedBox
 
     private static bool TryFindHullCapsuleCandidate(
         Vector3d hullOrigin,
+        FixedQuaternion hullRotation,
         WideRationalBasis3d hullBasis,
         ReadOnlySpan<Vector3d> hullLocalPoints,
         ReadOnlySpan<int> triangleVertexIndices,
@@ -189,10 +192,26 @@ internal static partial class WideOrientedBox
     {
         best = default;
         bool hasBest = false;
+        Span<ulong> bestRational = stackalloc ulong[HullCapsuleMagnitudeWords];
+        Span<ulong> bestSquaredAxisLength = stackalloc ulong[HullCapsuleMagnitudeWords];
+        int bestRationalSign = 0;
+        WideAxis3 previousFaceNormal = default;
         for (int index = 0;
             index < triangleVertexIndices.Length;
             index += 3)
         {
+            WideAxis3 faceNormal = GetHullTriangleNormal(
+                hullLocalPoints, triangleVertexIndices, index);
+            // Parallel local normals define the same whole-hull slab, even
+            // with opposite winding. Preserve the first authored face on ties.
+            // Raw-coordinate triangle normals need at most 130 signed bits;
+            // their cross products therefore fit Signed320 exactly.
+            if (!faceNormal.IsZero && !previousFaceNormal.IsZero
+                && WideAxis3.Cross(previousFaceNormal, faceNormal).IsZero)
+            {
+                continue;
+            }
+            previousFaceNormal = faceNormal;
             if (!TryKeepHullCapsuleCandidate(
                     new HullCapsuleCandidate(
                         HullCapsuleCandidateKind.Face,
@@ -210,10 +229,66 @@ internal static partial class WideOrientedBox
                     capsuleRadius,
                     ref best,
                     ref hasBest,
+                    bestRational,
+                    ref bestRationalSign,
+                    bestSquaredAxisLength,
                     strict))
             {
                 return false;
             }
+        }
+
+        if (capsuleAxisLength == Fixed64.Zero && hasBest)
+        {
+            // A positive minimum face margin puts the center inside the hull.
+            // Its nearest facet is the sphere's minimum exit; strict queries
+            // retain only the last face and therefore cannot use this proof.
+            if (!strict && bestRationalSign > 0)
+                return true;
+
+            if (!strict)
+            {
+                _ = EvaluateHullCapsuleCandidate(best, hullOrigin, hullBasis,
+                    hullLocalPoints, triangleVertexIndices, edgeVertexPairs,
+                    capsuleCenter, capsuleAxis, capsuleAxisDenominator,
+                    capsuleAxisLength, capsuleRadius, bestRational,
+                    out bestRationalSign, bestSquaredAxisLength,
+                    out CapsuleAxis3 faceAxis, out bool negate, out _);
+                if (ContainsHullSphereSupportProjection(hullOrigin, hullRotation,
+                        hullBasis, hullLocalPoints, triangleVertexIndices,
+                        negate ? -faceAxis : faceAxis, capsuleCenter))
+                    return true;
+            }
+
+            // For a sphere, a closest face-interior point is represented by
+            // the face axes. Otherwise the closest finite edge or vertex
+            // supplies the remaining radial axis. Keep the old degenerate-
+            // hull path when no nondegenerate face supplies a plane normal.
+            if (!TryGetClosestHullSphereFeature(
+                    hullOrigin, hullBasis, hullLocalPoints, edgeVertexPairs,
+                    capsuleCenter, capsuleAxis, capsuleAxisDenominator,
+                    out HullCapsuleCandidate closest))
+            {
+                return hasBest;
+            }
+            return TryKeepHullCapsuleCandidate(
+                closest,
+                hullOrigin,
+                hullBasis,
+                hullLocalPoints,
+                triangleVertexIndices,
+                edgeVertexPairs,
+                capsuleCenter,
+                capsuleAxis,
+                capsuleAxisDenominator,
+                capsuleAxisLength,
+                capsuleRadius,
+                ref best,
+                ref hasBest,
+                bestRational,
+                ref bestRationalSign,
+                bestSquaredAxisLength,
+                strict);
         }
 
         for (int index = 0; index < edgeVertexPairs.Length; index += 2)
@@ -235,6 +310,9 @@ internal static partial class WideOrientedBox
                     capsuleRadius,
                     ref best,
                     ref hasBest,
+                    bestRational,
+                    ref bestRationalSign,
+                    bestSquaredAxisLength,
                     strict))
             {
                 return false;
@@ -260,6 +338,9 @@ internal static partial class WideOrientedBox
                     capsuleRadius,
                     ref best,
                     ref hasBest,
+                    bestRational,
+                    ref bestRationalSign,
+                    bestSquaredAxisLength,
                     strict))
             {
                 return false;
@@ -289,6 +370,9 @@ internal static partial class WideOrientedBox
                         capsuleRadius,
                         ref best,
                         ref hasBest,
+                        bestRational,
+                        ref bestRationalSign,
+                        bestSquaredAxisLength,
                         strict))
                 {
                     return false;
@@ -297,6 +381,71 @@ internal static partial class WideOrientedBox
         }
 
         return hasBest;
+    }
+
+    private static bool TryGetClosestHullSphereFeature(
+        Vector3d hullOrigin,
+        WideRationalBasis3d hullBasis,
+        ReadOnlySpan<Vector3d> points,
+        ReadOnlySpan<int> edgeVertexPairs,
+        Vector3d sphereCenter,
+        WideAxis3 capsuleAxis,
+        Signed192 capsuleAxisDenominator,
+        out HullCapsuleCandidate closest)
+    {
+        closest = default;
+        bool hasClosest = false;
+        Span<ulong> denominator = stackalloc ulong[HullCapsuleMagnitudeWords];
+        Span<ulong> squaredRay = stackalloc ulong[HullCapsuleMagnitudeWords];
+        Span<ulong> bestDenominator = stackalloc ulong[HullCapsuleMagnitudeWords];
+        Span<ulong> bestSquaredRay = stackalloc ulong[HullCapsuleMagnitudeWords];
+        // All zero-core rays share the same positive rigid-frame scale.
+        // An interior-edge ray also retains |edge|^2: maximizing this
+        // denominator / |ray| selects the nearest exact feature without
+        // rounding witnesses. Existing span comparisons retain the full
+        // endpoint/edge product widths even at unrepresentable world points.
+        for (int featureKind = 0; featureKind < 2; featureKind++)
+        {
+            bool isVertex = featureKind == 0;
+            int featureCount = isVertex ? points.Length : edgeVertexPairs.Length / 2;
+            for (int index = 0; index < featureCount; index++)
+            {
+                int featureIndex = isVertex ? index : index * 2;
+                var candidate = new HullCapsuleCandidate(
+                    isVertex ? HullCapsuleCandidateKind.VertexCore
+                        : HullCapsuleCandidateKind.EndpointEdge,
+                    featureIndex,
+                    isVertex ? 0 : -1);
+                Signed576 distanceDenominator =
+                    Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1L)));
+                CapsuleAxis3 ray = isVertex
+                    ? ToCapsuleAxis(GetCornerToAxisEndpointAxis3D(
+                        hullOrigin, sphereCenter, hullBasis, points[index],
+                        capsuleAxis, capsuleAxisDenominator, Fixed64.Zero, 0))
+                    : GetCapsuleEndpointToHullEdgeAxis(
+                        hullOrigin, sphereCenter, hullBasis,
+                        points[edgeVertexPairs[featureIndex]],
+                        points[edgeVertexPairs[featureIndex + 1]],
+                        capsuleAxis, capsuleAxisDenominator, Fixed64.Zero, -1,
+                        out distanceDenominator);
+                // At distance zero no radial direction is defined; retain
+                // the admitted face constraints instead of dividing by zero.
+                if (ray.IsZero)
+                    return false;
+                GetHullCapsuleMagnitude(distanceDenominator, denominator);
+                BuildHullCapsuleAxisSquared(ray, squaredRay);
+                if (!hasClosest || WideArithmetic.CompareSignedNormalizedMagnitudes(
+                        denominator, 1, squaredRay,
+                        bestDenominator, 1, bestSquaredRay) > 0)
+                {
+                    closest = candidate;
+                    hasClosest = true;
+                    denominator.CopyTo(bestDenominator);
+                    squaredRay.CopyTo(bestSquaredRay);
+                }
+            }
+        }
+        return hasClosest;
     }
 
     private static bool TryKeepHullCapsuleCandidate(
@@ -313,6 +462,9 @@ internal static partial class WideOrientedBox
         Fixed64 capsuleRadius,
         ref HullCapsuleCandidate best,
         ref bool hasBest,
+        Span<ulong> bestRational,
+        ref int bestRationalSign,
+        Span<ulong> bestSquaredAxisLength,
         bool strict)
     {
         Span<ulong> rational =
@@ -342,36 +494,9 @@ internal static partial class WideOrientedBox
             return false;
         if (status == 0)
             return true;
-        if (strict || !hasBest)
-        {
-            best = candidate;
-            hasBest = true;
-            return true;
-        }
-
-        Span<ulong> bestRational =
-            stackalloc ulong[HullCapsuleMagnitudeWords];
-        Span<ulong> bestSquaredAxisLength =
-            stackalloc ulong[HullCapsuleMagnitudeWords];
-        _ = EvaluateHullCapsuleCandidate(
-            best,
-            hullOrigin,
-            hullBasis,
-            hullLocalPoints,
-            triangleVertexIndices,
-            edgeVertexPairs,
-            capsuleCenter,
-            capsuleAxis,
-            capsuleAxisDenominator,
-            capsuleAxisLength,
-            capsuleRadius,
-            bestRational,
-            out int bestRationalSign,
-            bestSquaredAxisLength,
-            out _,
-            out _,
-            out _);
-        if (WideArithmetic.CompareSignedNormalizedMagnitudes(
+        // The winning exact metric does not change until another axis wins.
+        // Retain it rather than projecting the whole hull again on each comparison.
+        if (strict || !hasBest || WideArithmetic.CompareSignedNormalizedMagnitudes(
                 rational,
                 rationalSign,
                 squaredAxisLength,
@@ -380,6 +505,10 @@ internal static partial class WideOrientedBox
                 bestSquaredAxisLength) < 0)
         {
             best = candidate;
+            hasBest = true;
+            rational.CopyTo(bestRational);
+            bestRationalSign = rationalSign;
+            squaredAxisLength.CopyTo(bestSquaredAxisLength);
         }
         return true;
     }
@@ -423,6 +552,18 @@ internal static partial class WideOrientedBox
         commonDenominator = default;
         if (axis.IsZero)
             return 0;
+
+        // Axis magnitude has no geometric meaning. Remove common rational
+        // frame scale before projection; retain the original full-width axis
+        // when its components exceed the existing common-scale reducer.
+        if (Signed320.TryNarrowSigned(axis.X, out Signed320 axisX)
+            && Signed320.TryNarrowSigned(axis.Y, out Signed320 axisY)
+            && Signed320.TryNarrowSigned(axis.Z, out Signed320 axisZ))
+        {
+            Span<Signed320> components = stackalloc Signed320[3] { axisX, axisY, axisZ };
+            WideArithmetic.ReduceCommonScale(components);
+            axis = ToCapsuleAxis(new WideAxis3(components[0], components[1], components[2]));
+        }
 
         BuildHullCapsuleAxisSquared(axis, squaredAxisLength);
         Span<ulong> minimum =
@@ -561,6 +702,39 @@ internal static partial class WideOrientedBox
             : 1;
     }
 
+    private static WideAxis3 GetHullTriangleNormal(
+        ReadOnlySpan<Vector3d> points,
+        ReadOnlySpan<int> triangleVertexIndices,
+        int index)
+    {
+        Vector3d first = points[
+            triangleVertexIndices[index]];
+        Vector3d second = points[
+            triangleVertexIndices[index + 1]];
+        Vector3d third = points[
+            triangleVertexIndices[index + 2]];
+        WideGeometry.GetDifferenceCrossProduct3D(
+            second.X,
+            first.X,
+            second.Y,
+            first.Y,
+            second.Z,
+            first.Z,
+            third.X,
+            first.X,
+            third.Y,
+            first.Y,
+            third.Z,
+            first.Z,
+            out Signed192 normalX,
+            out Signed192 normalY,
+            out Signed192 normalZ);
+        return new WideAxis3(
+            Signed320.ExtendValue(normalX),
+            Signed320.ExtendValue(normalY),
+            Signed320.ExtendValue(normalZ));
+    }
+
     private static CapsuleAxis3 BuildHullCapsuleCandidateAxis(
         HullCapsuleCandidate candidate,
         Vector3d hullOrigin,
@@ -575,33 +749,13 @@ internal static partial class WideOrientedBox
     {
         if (candidate.Kind == HullCapsuleCandidateKind.Face)
         {
-            Vector3d first = hullLocalPoints[
-                triangleVertexIndices[candidate.Index]];
-            Vector3d second = hullLocalPoints[
-                triangleVertexIndices[candidate.Index + 1]];
-            Vector3d third = hullLocalPoints[
-                triangleVertexIndices[candidate.Index + 2]];
-            WideGeometry.GetDifferenceCrossProduct3D(
-                second.X,
-                first.X,
-                second.Y,
-                first.Y,
-                second.Z,
-                first.Z,
-                third.X,
-                first.X,
-                third.Y,
-                first.Y,
-                third.Z,
-                first.Z,
-                out Signed192 normalX,
-                out Signed192 normalY,
-                out Signed192 normalZ);
+            WideAxis3 normal = GetHullTriangleNormal(
+                hullLocalPoints, triangleVertexIndices, candidate.Index);
             return ToCapsuleAxis(WideRigidProjection.TransformLocalAxis(
                 hullBasis,
-                normalX,
-                normalY,
-                normalZ));
+                Signed192.NarrowValue(normal.X),
+                Signed192.NarrowValue(normal.Y),
+                Signed192.NarrowValue(normal.Z)));
         }
         if (candidate.Kind == HullCapsuleCandidateKind.EdgeCross)
         {
@@ -632,7 +786,8 @@ internal static partial class WideOrientedBox
             capsuleAxis,
             capsuleAxisDenominator,
             capsuleAxisLength,
-            candidate.EndpointSign);
+            candidate.EndpointSign,
+            out _);
     }
 
     private static CapsuleAxis3 GetCapsuleEndpointToHullEdgeAxis(
@@ -644,8 +799,10 @@ internal static partial class WideOrientedBox
         WideAxis3 capsuleAxis,
         Signed192 capsuleAxisDenominator,
         Fixed64 capsuleAxisLength,
-        int endpointSign)
+        int endpointSign,
+        out Signed576 distanceDenominator)
     {
+        distanceDenominator = Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1L)));
         WideAxis3 startToEndpoint = GetCornerToAxisEndpointAxis3D(
             hullOrigin,
             capsuleCenter,
@@ -687,6 +844,7 @@ internal static partial class WideOrientedBox
                 endpointSign));
         }
 
+        distanceDenominator = edgeSquared;
         return GetPerpendicularAxis(
             startToEndpoint,
             edge,

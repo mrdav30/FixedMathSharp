@@ -100,6 +100,9 @@ public static class FixedConvexHullRelations
     /// <remarks>
     /// The returned normal points from the hull toward the capsule. Hull
     /// points remain in their canonical local frame throughout the exact SAT.
+    /// Face and edge indices must describe the convex hull's complete boundary;
+    /// structural validation checks indices, not convexity or topology completeness.
+    /// A zero-length capsule core is a sphere, including volume containment.
     /// </remarks>
     public static bool TryGetCenteredCapsuleContact(
         Vector3d hullOrigin,

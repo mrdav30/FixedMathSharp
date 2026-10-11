@@ -164,6 +164,27 @@ public sealed class WideMultiquadraticComparisonTests
     }
 
     [Fact]
+    public void NormalizedComparisons_IgnoreUnequalPaddingWithoutLosingHighLimbs()
+    {
+        ulong[] left = new ulong[69], right = new ulong[65];
+        ulong[] leftSquare = new ulong[71], rightSquare = new ulong[66];
+        left[4] = 3; right[4] = 2; leftSquare[8] = 16; rightSquare[8] = 4;
+        // The shared power of two cancels: 3/sqrt(16) < 2/sqrt(4).
+        Assert.Equal(-1, WideArithmetic.CompareSignedNormalizedMagnitudes(
+            left, 1, leftSquare, right, 1, rightSquare));
+        Assert.Equal(1, WideArithmetic.CompareSignedNormalizedMagnitudes(
+            left, -1, leftSquare, right, -1, rightSquare));
+        ulong[] rational = new ulong[69], coefficient = new ulong[67], radicand = new ulong[64];
+        rational[5] = 3; coefficient[3] = 2; radicand[4] = 4;
+        // 3*2^320 - 2*2^192*sqrt(4*2^256) = -2^320.
+        Assert.Equal(-1, WideArithmetic.GetSignedMagnitudeAndSquareRootSign(
+            rational, 1, coefficient, -1, radicand));
+        Assert.Equal(3UL, left[4]); Assert.Equal(2UL, right[4]);
+        Assert.Equal(16UL, leftSquare[8]); Assert.Equal(4UL, rightSquare[8]);
+        Assert.Equal(3UL, rational[5]); Assert.Equal(2UL, coefficient[3]); Assert.Equal(4UL, radicand[4]);
+    }
+
+    [Fact]
     public void Sign_AgreesWithHighPrecisionOracleMatrix()
     {
         var random = new System.Random(0x5EED);
