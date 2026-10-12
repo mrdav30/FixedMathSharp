@@ -8,6 +8,58 @@ namespace FixedMathSharp.Tests;
 public sealed class SegmentSlabSurfaceContactTests
 {
     [Theory]
+    [InlineData(1, false)]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    [InlineData(3, false)]
+    [InlineData(3, true)]
+    public void PrismPointAndEdge_ShouldRetainTheExactFanSelectedFaceRimOrCorner(int dimensions, bool edge)
+    {
+        Vector3d point = new(Fixed64.Half, Fixed64.Half, dimensions == 3 ? Fixed64.Half : Fixed64.Zero);
+        Vector3d end = edge ? point - new Vector3d(Fixed64.One / 4, Fixed64.One / 4,
+            dimensions == 3 ? Fixed64.One / 4 : Fixed64.Zero) : point;
+        WideAxis3[] fan = dimensions switch
+        {
+            1 => new[] { Axis(1, 0, 0), Axis(-1, 0, 0), Axis(0, -1, 0), Axis(0, 0, 1), Axis(0, 0, -1) },
+            2 => new[] { Axis(1, -1, 0), Axis(-1, 1, 0), Axis(0, 0, 1), Axis(0, 0, -1) },
+            _ => new[] { Axis(1, -1, 0), Axis(-1, 1, 0), Axis(0, 1, -1), Axis(0, -1, 1) }
+        };
+        Vector2d[] offsets = { new(-1, -1), new(1, -1), new(1, 1), new(-1, 1) };
+        Assert.True(Contact(point, end, Fixed64.Zero, fan, offsets, out FixedContactAnchors contact));
+        Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first));
+        Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));
+        Assert.Equal(point, first);
+        Assert.Equal(new Vector3d(dimensions >= 2 ? Fixed64.One : Fixed64.Half,
+            Fixed64.One, dimensions == 3 ? Fixed64.One : Fixed64.Zero), second);
+        Fixed64 expectedDepth = FixedMath.Sqrt((Fixed64)dimensions) / 2;
+        Assert.InRange(contact.Depth.m_rawValue, expectedDepth.m_rawValue - 1, expectedDepth.m_rawValue + 1);
+        Fixed64 expectedComponent = -Fixed64.One / FixedMath.Sqrt((Fixed64)dimensions);
+        Assert.InRange(contact.Normal.Y.m_rawValue, expectedComponent.m_rawValue - 1, expectedComponent.m_rawValue + 1);
+        Assert.Equal(dimensions >= 2 ? contact.Normal.Y : Fixed64.Zero, contact.Normal.X);
+        Assert.Equal(dimensions == 3 ? contact.Normal.Y : Fixed64.Zero, contact.Normal.Z);
+        Assert.False(contact.DepthIsClamped);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AdmittedOwnerPrismPointAndEdge_ShouldRetainTheFarFiniteSide(bool edge)
+    {
+        Vector3d point = new(3, 0, 0), end = edge ? new Vector3d(4, 0, 0) : point;
+        Vector2d[] offsets = { new(-1, -1), new(2, -1), new(2, 1), new(-1, 1) };
+        WideAxis3[] fan = { Axis(1, 0, 0), Axis(0, 1, 0), Axis(0, -1, 0), Axis(0, 0, 1), Axis(0, 0, -1) };
+        Assert.True(SegmentSlabSurfaceContact.TryGetFeaturePenetration(new(point, end), Vector3d.Zero,
+            FixedQuaternion.Identity, Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Zero,
+            Fixed64.Zero, Fixed64.One, offsets, fan, interiorOnly: false, out FixedContactAnchors contact));
+        Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first));
+        Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));
+        Assert.Equal(point, first); Assert.Equal(Vector3d.Left, second);
+        Assert.Equal((Fixed64)4, contact.Depth); Assert.Equal(Vector3d.Right, contact.Normal);
+        Assert.False(contact.DepthIsClamped);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void CornerFan_ShouldRetainMatchedFiniteRim_WhenBothFaceNormalsAreExcluded(bool prism)

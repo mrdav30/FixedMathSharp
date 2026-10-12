@@ -118,7 +118,9 @@ internal static partial class SegmentSlabSurfaceContact
         ContactQuadratic offset = ContactQuadratic.At(work, workSigns, 0), term = ContactQuadratic.At(work, workSigns, 1),
             product = ContactQuadratic.At(work, workSigns, 2), bound = ContactQuadratic.At(work, workSigns, 3);
         Signed576 square = outward.SquaredLength;
-        for (int seed = 0; seed < 6; seed++)
+        // Point seeds coincide; keep the first tie and omit segment-only stationary candidates.
+        int seedCount = input.Edge.IsZero ? 1 : 6;
+        for (int seed = 0; seed < seedCount; seed++)
         {
             if (seed == 5)
             {
@@ -177,7 +179,8 @@ internal static partial class SegmentSlabSurfaceContact
         a.Set(ef); ContactQuadratic.Multiply(a, a, ReadOnlySpan<ulong>.Empty, term); determinant.Add(term, -1);
         Span<ulong> values = stackalloc ulong[StorageWords], root = stackalloc ulong[Words];
         Span<int> signs = stackalloc int[2 * Fields]; var candidate = new Candidate(values, signs, root);
-        for (int seed = 0; seed < 8; seed++)
+        int seedCount = input.Edge.IsZero ? 1 : 8;
+        for (int seed = 0; seed < seedCount; seed++)
         {
             if (seed == 5)
             {
@@ -229,11 +232,11 @@ internal static partial class SegmentSlabSurfaceContact
     {
         Span<ulong> values = stackalloc ulong[StorageWords], root = stackalloc ulong[Words];
         Span<int> signs = stackalloc int[2 * Fields]; var candidate = new Candidate(values, signs, root);
-        for (int seed = 0; seed < 4; seed++)
+        int seedCount = input.Edge.IsZero ? 1 : 4;
+        for (int seed = 0; seed < seedCount; seed++)
         {
             if (seed == 3)
             {
-                if (input.Edge.IsZero) continue;
                 candidate.Clear(); candidate.Parameter.Set(WideAxis3.Dot(
                     TriangleCircularGeometry.Subtract(point, input.First), input.Edge));
                 candidate.ParameterDenominator.Set(input.Edge.SquaredLength); SetPoint(input, candidate);
