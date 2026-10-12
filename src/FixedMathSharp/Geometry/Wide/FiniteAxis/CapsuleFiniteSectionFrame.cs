@@ -71,19 +71,7 @@ internal readonly struct CapsuleFiniteSectionFrame
                     out Signed320 lowerN, out Signed320 lowerD, out Signed320 upperN, out Signed320 upperD)
                 || !IntersectsQuadratic(a, b, c, lowerN, lowerD, upperN, upperD)) continue;
             n.Clear(); d.Clear(); candidateRoot.Clear();
-            if (PolynomialSign(a, b, c, lowerN, lowerD) <= 0)
-            {
-                n.Set(Signed576.ExtendValue(lowerN)); d.Set(Signed576.ExtendValue(lowerD));
-            }
-            else
-            {
-                qa.Set(a); qb.Set(b); qc.Set(c);
-                // Every primitive is convex. Its lower root starts the
-                // admitted interval; a repeated root is a closed point.
-                bool retained = ContactQuadratic.TryGetParameter(qa, qb, qc, -1, candidateRoot, n, d);
-                if (!retained) retained = ContactQuadratic.TryGetParameter(qa, qb, qc, 1, candidateRoot, n, d);
-                System.Diagnostics.Debug.Assert(retained);
-            }
+            GetFirstQuadraticParameter(a, b, c, lowerN, lowerD, qa, qb, qc, n, d, candidateRoot);
             if (!found || ContactQuadratic.CompareRatios(n, d, candidateRoot, numerator, denominator, root) < 0)
             {
                 n.CopyTo(numerator); d.CopyTo(denominator); candidateRoot.CopyTo(root); found = true;
@@ -92,7 +80,7 @@ internal readonly struct CapsuleFiniteSectionFrame
         return found;
     }
 
-    private bool TryGetPrimitive(WideAxis3 start, WideAxis3 delta, int primitive,
+    internal bool TryGetPrimitive(WideAxis3 start, WideAxis3 delta, int primitive,
         out Signed576 a, out Signed576 b, out Signed576 c,
         out Signed320 lowerN, out Signed320 lowerD, out Signed320 upperN, out Signed320 upperD)
     {
@@ -105,7 +93,7 @@ internal readonly struct CapsuleFiniteSectionFrame
         if (body)
         {
             a = b = c = default;
-            if (!TryGetBodyInterval(start.Y, delta.Y, out lowerN, out lowerD, out upperN, out upperD)) return false;
+            if (!TryGetCenteredAxisInterval(start.Y, delta.Y, ShapeFrame.Cap, out lowerN, out lowerD, out upperN, out upperD)) return false;
             start = new WideAxis3(start.X, default, start.Z);
             delta = new WideAxis3(delta.X, default, delta.Z);
         }
@@ -121,16 +109,16 @@ internal readonly struct CapsuleFiniteSectionFrame
         return true;
     }
 
-    private bool TryGetBodyInterval(Signed320 start, Signed320 velocity,
+    internal static bool TryGetCenteredAxisInterval(Signed320 start, Signed320 velocity, Signed320 cap,
         out Signed320 lowerN, out Signed320 lowerD, out Signed320 upperN, out Signed320 upperD)
     {
         lowerN = default;
         lowerD = upperN = upperD = Signed320.ExtendValue(Signed192.Signed(1));
         if (velocity.IsZero)
-            return WideArithmetic.AddSigned320(start, ShapeFrame.Cap).Sign >= 0
-                && WideArithmetic.SubtractSigned320(start, ShapeFrame.Cap).Sign <= 0;
-        Signed320 first = WideArithmetic.SubtractSigned320(WideArithmetic.Negate(ShapeFrame.Cap), start);
-        Signed320 second = WideArithmetic.SubtractSigned320(ShapeFrame.Cap, start);
+            return WideArithmetic.AddSigned320(start, cap).Sign >= 0
+                && WideArithmetic.SubtractSigned320(start, cap).Sign <= 0;
+        Signed320 first = WideArithmetic.SubtractSigned320(WideArithmetic.Negate(cap), start);
+        Signed320 second = WideArithmetic.SubtractSigned320(cap, start);
         Signed320 divisor = velocity;
         if (velocity.Sign < 0)
         {
@@ -143,7 +131,7 @@ internal readonly struct CapsuleFiniteSectionFrame
         return true;
     }
 
-    private static bool IntersectsQuadratic(Signed576 a, Signed576 b, Signed576 c,
+    internal static bool IntersectsQuadratic(Signed576 a, Signed576 b, Signed576 c,
         Signed320 lowerN, Signed320 lowerD, Signed320 upperN, Signed320 upperD)
     {
         if (PolynomialSign(a, b, c, lowerN, lowerD) <= 0 || PolynomialSign(a, b, c, upperN, upperD) <= 0) return true;
@@ -158,6 +146,24 @@ internal readonly struct CapsuleFiniteSectionFrame
     private static int PolynomialSign(Signed576 a, Signed576 b, Signed576 c, Signed320 n, Signed320 d) =>
         WideFiniteConeIntersection.GetPolynomialSignAtRationalParameter(Signed832.ExtendValue(a),
             Signed832.ExtendValue(b), Signed832.ExtendValue(c), n, d);
+
+    /// <summary>Retains the first point of an already admitted convex quadratic interval.</summary>
+    internal static void GetFirstQuadraticParameter(Signed576 a, Signed576 b, Signed576 c,
+        Signed320 lowerN, Signed320 lowerD, ContactQuadratic qa, ContactQuadratic qb, ContactQuadratic qc,
+        ContactQuadratic numerator, ContactQuadratic denominator, Span<ulong> root)
+    {
+        if (PolynomialSign(a, b, c, lowerN, lowerD) <= 0)
+        {
+            numerator.Set(Signed576.ExtendValue(lowerN)); denominator.Set(Signed576.ExtendValue(lowerD));
+            return;
+        }
+        qa.Set(a); qb.Set(b); qc.Set(c);
+        // The lower root starts the admitted interval. Repeated roots use
+        // the sole +1 branch and remain closed point intersections.
+        bool retained = ContactQuadratic.TryGetParameter(qa, qb, qc, -1, root, numerator, denominator);
+        if (!retained) retained = ContactQuadratic.TryGetParameter(qa, qb, qc, 1, root, numerator, denominator);
+        System.Diagnostics.Debug.Assert(retained);
+    }
 
     private static int CompareProducts(Signed576 left, Signed320 leftScale, Signed576 right, Signed320 rightScale) =>
         WideArithmetic.SubtractSigned832(WideArithmetic.MultiplySigned576ToSigned832(left, leftScale),

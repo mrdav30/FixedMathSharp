@@ -151,4 +151,22 @@ internal readonly ref struct FiniteSectionPoint
         SetSegmentPoint(segment, parameter, result.Denominator, term, result);
         return true;
     }
+
+    internal static bool TryGetFirstSegmentPoint(FixedSegment segment,
+        in FiniteSlabSectionFrame frame, FiniteSectionPoint result)
+        => TryGetFirstSegmentPoint(segment, frame, ReadOnlySpan<Vector2d>.Empty, result);
+
+    internal static bool TryGetFirstSegmentPoint(FixedSegment segment,
+        in FiniteSlabSectionFrame frame, ReadOnlySpan<Vector2d> prismOffsets, FiniteSectionPoint result)
+    {
+        result.Values.Clear(); result.Signs.Clear();
+        if (ComparePositions(segment.Start, segment.End) > 0)
+            segment = new FixedSegment(segment.End, segment.Start);
+        Span<ulong> work = stackalloc ulong[4 * Words]; Span<int> signs = stackalloc int[4];
+        ContactQuadratic parameter = ContactQuadratic.At(work, signs, 0, Words);
+        ContactQuadratic term = ContactQuadratic.At(work, signs, 1, Words);
+        if (!frame.TryGetFirstSegmentParameter(segment, prismOffsets, parameter, result.Denominator, result.Root)) return false;
+        SetSegmentPoint(segment, parameter, result.Denominator, term, result);
+        return true;
+    }
 }
