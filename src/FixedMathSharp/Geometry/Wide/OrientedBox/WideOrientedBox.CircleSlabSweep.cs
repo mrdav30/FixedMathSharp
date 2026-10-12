@@ -16,10 +16,35 @@ namespace FixedMathSharp.Geometry;
 internal static partial class WideOrientedBox
 {
     private static readonly Signed192 SweepRawScale = Signed192.Signed(FixedMath.ONE_L);
-    private static readonly Signed192 SweepDoubleRawScale = Signed192.Signed(FixedMath.ONE_L * 2L);
     private static readonly Signed192 SweepOneCoefficient = Signed192.Signed(1L);
 
     #region Nested Types
+
+    private readonly struct SweepTrajectory
+    {
+        internal readonly Signed192 DirectionX;
+        internal readonly Signed192 DirectionZ;
+        internal readonly Signed192 TimeScale;
+        internal readonly bool IsSegment;
+
+        internal SweepTrajectory(Vector2d direction)
+        {
+            DirectionX = Signed192.Raw(direction.X);
+            DirectionZ = Signed192.Raw(direction.Y);
+            TimeScale = SweepRawScale;
+            IsSegment = false;
+        }
+
+        internal SweepTrajectory(FixedSegment2d segment, Fixed64 totalDistance)
+        {
+            DirectionX = WideArithmetic.SubtractSigned192(Signed192.Raw(segment.End.X), Signed192.Raw(segment.Start.X));
+            DirectionZ = WideArithmetic.SubtractSigned192(Signed192.Raw(segment.End.Y), Signed192.Raw(segment.Start.Y));
+            TimeScale = totalDistance == Fixed64.Zero ? SweepRawScale : Signed192.Raw(totalDistance);
+            IsSegment = true;
+        }
+
+        internal Signed192 DoubleTimeScale => WideArithmetic.AddSigned192(TimeScale, TimeScale);
+    }
 
     private readonly struct RationalPointDistance
     {
@@ -43,6 +68,35 @@ internal static partial class WideOrientedBox
         Vector3d halfExtents,
         Vector3d slabStartCenter,
         Vector2d normalizedDirection,
+        Fixed64 maxDistance,
+        Fixed64 slabHalfThickness,
+        Fixed64 radius,
+        out Fixed64 distance)
+        => TryGetCircleSlabSweepDistanceCore(
+            center, orientation, halfExtents, slabStartCenter,
+            new SweepTrajectory(normalizedDirection), maxDistance, slabHalfThickness, radius, out distance);
+
+    internal static bool TryGetCircleSlabSweepDistance(
+        Vector3d center,
+        FixedQuaternion orientation,
+        Vector3d halfExtents,
+        FixedSegment2d segment,
+        Fixed64 totalDistance,
+        Fixed64 slabCenterY,
+        Fixed64 slabHalfThickness,
+        Fixed64 radius,
+        out Fixed64 distance)
+        => TryGetCircleSlabSweepDistanceCore(
+            center, orientation, halfExtents,
+            new Vector3d(segment.Start.X, slabCenterY, segment.Start.Y),
+            new SweepTrajectory(segment, totalDistance), totalDistance, slabHalfThickness, radius, out distance);
+
+    private static bool TryGetCircleSlabSweepDistanceCore(
+        Vector3d center,
+        FixedQuaternion orientation,
+        Vector3d halfExtents,
+        Vector3d slabStartCenter,
+        in SweepTrajectory trajectory,
         Fixed64 maxDistance,
         Fixed64 slabHalfThickness,
         Fixed64 radius,
@@ -110,7 +164,7 @@ internal static partial class WideOrientedBox
                     constraintCount,
                     index,
                     planarStart,
-                    normalizedDirection,
+                    trajectory,
                     maxDistance,
                     radius,
                     out Fixed64 candidate))
@@ -126,7 +180,7 @@ internal static partial class WideOrientedBox
             if (!TryGetRationalPointSweepDistance(
                     vertices[index],
                     planarStart,
-                    normalizedDirection,
+                    trajectory,
                     maxDistance,
                     radius,
                     out Fixed64 candidate))
@@ -469,7 +523,7 @@ internal static partial class WideOrientedBox
         int constraintCount,
         int constraintIndex,
         Vector2d start,
-        Vector2d direction,
+        in SweepTrajectory trajectory,
         Fixed64 maxDistance,
         Fixed64 radius,
         out Fixed64 distance)
@@ -506,7 +560,7 @@ internal static partial class WideOrientedBox
             return false;
         }
 
-        Signed576 velocity = GetSweepProjection(edge, direction);
+        Signed576 velocity = GetSweepProjection(edge, trajectory);
         if (velocity.Sign >= 0
             || CompareExpandedEdgeAt(
                 startViolation,
@@ -514,7 +568,7 @@ internal static partial class WideOrientedBox
                 normalSquared,
                 radius,
                 Signed192.Signed(maxDistance.m_rawValue),
-                SweepRawScale) > 0)
+                trajectory.TimeScale) > 0)
         {
             distance = default;
             return false;
@@ -528,7 +582,7 @@ internal static partial class WideOrientedBox
                 velocity,
                 normalSquared,
                 radius,
-                high) > 0)
+                high, trajectory) > 0)
         {
             distance = maxDistance;
         }
@@ -543,7 +597,7 @@ internal static partial class WideOrientedBox
                         velocity,
                         normalSquared,
                         radius,
-                        middle) <= 0)
+                        middle, trajectory) <= 0)
                 {
                     high = middle;
                 }
@@ -558,19 +612,14 @@ internal static partial class WideOrientedBox
                 velocity,
                 normalSquared,
                 radius,
-                low);
+                low, trajectory);
             distance = Fixed64.FromRaw(
                 low + GetHalfToEvenIncrement(midpointComparison, low));
         }
 
-        return IsRoundedEdgeFeatureValid(
-            constraints,
-            constraintCount,
-            constraintIndex,
-            start,
-            direction,
-            distance,
-            radius);
+        return IsExactEdgeFeatureValid(
+            constraints, constraintCount, constraintIndex, start,
+            trajectory, startViolation, velocity, normalSquared, radius);
     }
 
     private static int CompareExpandedEdgeAtHalf(
@@ -578,7 +627,8 @@ internal static partial class WideOrientedBox
         Signed576 velocity,
         Signed576 normalSquared,
         Fixed64 radius,
-        long lowerRaw)
+        long lowerRaw,
+        in SweepTrajectory trajectory)
     {
         Signed192 lower = Signed192.Signed(lowerRaw);
         Signed192 midpoint = WideArithmetic.AddSigned192(
@@ -590,7 +640,7 @@ internal static partial class WideOrientedBox
             normalSquared,
             radius,
             midpoint,
-            SweepDoubleRawScale);
+            trajectory.DoubleTimeScale);
     }
 
     private static int CompareExpandedEdgeAt(
@@ -609,7 +659,7 @@ internal static partial class WideOrientedBox
                 velocity,
                 timeNumerator));
         if (left.Sign <= 0)
-            return -1;
+            return left.IsZero && radius == Fixed64.Zero ? 0 : -1;
 
         Signed832 leftSquared =
             WideArithmetic.MultiplySigned576ToSigned832(left, left);
@@ -628,45 +678,41 @@ internal static partial class WideOrientedBox
             rightSquared).Sign;
     }
 
-    private static bool IsRoundedEdgeFeatureValid(
+    private static bool IsExactEdgeFeatureValid(
         ReadOnlySpan<SweepPlanarConstraint> constraints,
         int constraintCount,
         int constraintIndex,
         Vector2d start,
-        Vector2d direction,
-        Fixed64 distance,
+        in SweepTrajectory trajectory,
+        Signed576 edgeStartViolation,
+        Signed576 edgeVelocity,
+        Signed576 edgeNormalSquared,
         Fixed64 radius)
     {
         SweepPlanarConstraint edge = constraints[constraintIndex];
-        Vector2d normal = WideNormalization.GetNormalized(
-            Signed576.ExtendValue(edge.A),
-            Signed576.ExtendValue(edge.C));
-        Vector2d radial = normal * radius;
         for (int index = 0; index < constraintCount; index++)
         {
             SweepPlanarConstraint candidate = constraints[index];
-            Signed576 startViolation = WideArithmetic.SubtractSigned576(
-                WideArithmetic.SubtractSigned576(
-                    GetSweepProjection(candidate, start),
-                    GetSweepProjection(candidate, radial)),
-                candidate.K);
-            Signed576 violation = WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned576(
-                    startViolation,
-                    SweepRawScale),
-                WideArithmetic.MultiplySigned576(
-                    GetSweepProjection(candidate, direction),
-                    Signed192.Raw(distance)));
-            Signed320 coefficientMagnitude = WideArithmetic.AddSigned320(
-                GetMagnitude(candidate.A),
-                GetMagnitude(candidate.C));
-            Signed576 oneRawTolerance = WideArithmetic.MultiplySigned576(
-                WideArithmetic.MultiplySigned320(
-                    coefficientMagnitude,
-                    Signed320.ExtendValue(
-                        Signed192.Raw(Fixed64.MinIncrement))),
-                SweepRawScale);
-            if (CompareSigned(violation, oneRawTolerance) > 0)
+            Signed576 startViolation = WideArithmetic.SubtractSigned576(GetSweepProjection(candidate, start), candidate.K);
+            Signed576 velocity = GetSweepProjection(candidate, trajectory);
+            Signed576 normalDot = WideArithmetic.AddSigned576(
+                WideArithmetic.MultiplySigned320(candidate.A, edge.A),
+                WideArithmetic.MultiplySigned320(candidate.C, edge.C));
+            Signed704 radicalCoefficient = WideArithmetic.SubtractSigned704(
+                WideArithmetic.MultiplySigned576ToSigned704(edgeStartViolation, Signed320.NarrowValue(velocity)),
+                WideArithmetic.MultiplySigned576ToSigned704(startViolation, Signed320.NarrowValue(edgeVelocity)));
+            Signed832 rational = WideArithmetic.MultiplySigned832(
+                WideArithmetic.SubtractSigned832(
+                    WideArithmetic.MultiplySigned576ToSigned832(edgeVelocity, normalDot),
+                    WideArithmetic.MultiplySigned576ToSigned832(velocity, edgeNormalSquared)),
+                Signed192.Raw(radius));
+            // At the exact edge root, the boundary-foot violation has sign
+            // (F*V-E*W)*sqrt(L) + R*(E*H-F*L); the time denominator cancels.
+            // Normalized frames bound planar normals to 134 bits, velocities
+            // to 200, the radical coefficient to 402 and the R-term to 535.
+            if (WideArithmetic.CompareSignedLinearRadicalToZero(
+                    rational, radicalCoefficient, edgeNormalSquared,
+                    Signed320.ExtendValue(SweepOneCoefficient)) > 0)
                 return false;
         }
 
@@ -676,7 +722,7 @@ internal static partial class WideOrientedBox
     private static bool TryGetRationalPointSweepDistance(
         SweepRationalPoint point,
         Vector2d start,
-        Vector2d direction,
+        in SweepTrajectory trajectory,
         Fixed64 maxDistance,
         Fixed64 radius,
         out Fixed64 distance)
@@ -693,10 +739,10 @@ internal static partial class WideOrientedBox
             point.Z);
         Signed576 directionX = WideArithmetic.MultiplySigned576(
             point.Denominator,
-            Signed192.Raw(direction.X));
+            trajectory.DirectionX);
         Signed576 directionZ = WideArithmetic.MultiplySigned576(
             point.Denominator,
-            Signed192.Raw(direction.Y));
+            trajectory.DirectionZ);
         Signed576 radiusNumerator = WideArithmetic.MultiplySigned576(
             point.Denominator,
             Signed192.Raw(radius));
@@ -739,7 +785,7 @@ internal static partial class WideOrientedBox
         bool closestBeyondMaximum =
             WideArithmetic.CompareNonNegativeProducts(
                 negativeProjection,
-                Signed832.ExtendValue(SweepRawScale),
+                Signed832.ExtendValue(trajectory.TimeScale),
                 directionSquared,
                 Signed832.ExtendValue(Signed192.Signed(maxDistance.m_rawValue))) > 0;
         if (closestBeyondMaximum)
@@ -751,7 +797,7 @@ internal static partial class WideOrientedBox
                     directionZ,
                     radiusNumerator,
                     Signed192.Signed(maxDistance.m_rawValue),
-                    SweepRawScale) > 0)
+                    trajectory.TimeScale, trajectory.IsSegment) > 0)
             {
                 distance = default;
                 return false;
@@ -773,11 +819,22 @@ internal static partial class WideOrientedBox
             // The exact comparison above proves this nonnegative quotient is
             // no greater than maxDistance, so its final Q32.32 value is
             // representable.
-            _ = Fixed64.TryGetSignedRawRatio(
-                negativeProjection,
-                directionSquared,
-                FixedMath.SHIFT_AMOUNT_I,
-                out closest);
+            if (!trajectory.IsSegment)
+            {
+                _ = Fixed64.TryGetSignedRawRatio(negativeProjection, directionSquared, FixedMath.SHIFT_AMOUNT_I, out closest);
+            }
+            else
+            {
+                Span<ulong> projectionMagnitude = stackalloc ulong[13];
+                Span<ulong> scaleMagnitude = stackalloc ulong[3];
+                Span<ulong> numerator = stackalloc ulong[16];
+                Span<ulong> denominator = stackalloc ulong[13];
+                WideArithmetic.GetMagnitude(negativeProjection, projectionMagnitude);
+                WideArithmetic.GetMagnitude(trajectory.TimeScale, out scaleMagnitude[2], out scaleMagnitude[1], out scaleMagnitude[0]);
+                WideArithmetic.MultiplyMagnitudes(projectionMagnitude, scaleMagnitude, numerator);
+                WideArithmetic.GetMagnitude(directionSquared, denominator);
+                _ = Fixed64.TryGetSignedRawRatio(numerator, denominator, false, out closest);
+            }
         }
 
         long maximumSearchRaw = closest.m_rawValue;
@@ -788,7 +845,7 @@ internal static partial class WideOrientedBox
                 directionX,
                 directionZ,
                 radiusNumerator,
-                high) > 0)
+                high, trajectory) > 0)
         {
             distance = closestBeyondMaximum ? maxDistance : closest;
             return true;
@@ -804,7 +861,7 @@ internal static partial class WideOrientedBox
                     directionX,
                     directionZ,
                     radiusNumerator,
-                    middle) <= 0)
+                    middle, trajectory) <= 0)
             {
                 high = middle;
             }
@@ -820,7 +877,7 @@ internal static partial class WideOrientedBox
             directionX,
             directionZ,
             radiusNumerator,
-            low);
+            low, trajectory);
         distance = Fixed64.FromRaw(
             low + GetHalfToEvenIncrement(midpointComparison, low));
         return true;
@@ -842,7 +899,8 @@ internal static partial class WideOrientedBox
         Signed576 directionX,
         Signed576 directionZ,
         Signed576 radiusNumerator,
-        long lowerRaw)
+        long lowerRaw,
+        in SweepTrajectory trajectory)
     {
         Signed192 lower = Signed192.Signed(lowerRaw);
         Signed192 midpoint = WideArithmetic.AddSigned192(
@@ -855,7 +913,7 @@ internal static partial class WideOrientedBox
             directionZ,
             radiusNumerator,
             midpoint,
-            SweepDoubleRawScale);
+            trajectory.DoubleTimeScale, trajectory.IsSegment);
     }
 
     private static int CompareRationalPointAt(
@@ -865,7 +923,8 @@ internal static partial class WideOrientedBox
         Signed576 directionZ,
         Signed576 radiusNumerator,
         Signed192 timeNumerator,
-        Signed192 timeDenominator)
+        Signed192 timeDenominator,
+        bool isSegment)
     {
         Signed576 x = WideArithmetic.AddSigned576(
             WideArithmetic.MultiplySigned576(deltaX, timeDenominator),
@@ -877,14 +936,37 @@ internal static partial class WideOrientedBox
             WideArithmetic.MultiplySigned576(
                 radiusNumerator,
                 timeDenominator);
-        return WideArithmetic.SubtractSigned832(
-            WideArithmetic.AddSigned832(
-                WideArithmetic.MultiplySigned576ToSigned832(x, x),
-                WideArithmetic.MultiplySigned576ToSigned832(z, z)),
-            WideArithmetic.MultiplySigned576ToSigned832(
-                scaledRadius,
-                scaledRadius)).Sign;
+        if (!isSegment)
+        {
+            return WideArithmetic.SubtractSigned832(
+                WideArithmetic.AddSigned832(
+                    WideArithmetic.MultiplySigned576ToSigned832(x, x),
+                    WideArithmetic.MultiplySigned576ToSigned832(z, z)),
+                WideArithmetic.MultiplySigned576ToSigned832(scaledRadius, scaledRadius)).Sign;
+        }
+
+        // A segment-distance denominator can add 30 bits beyond the direction
+        // scale; retain the full 1152-bit squares before comparing them.
+        Span<ulong> xMagnitude = stackalloc ulong[9];
+        Span<ulong> zMagnitude = stackalloc ulong[9];
+        Span<ulong> radiusMagnitude = stackalloc ulong[9];
+        Span<ulong> xSquared = stackalloc ulong[18];
+        Span<ulong> zSquared = stackalloc ulong[18];
+        Span<ulong> radiusSquared = stackalloc ulong[18];
+        WideArithmetic.GetMagnitude(x, xMagnitude);
+        WideArithmetic.GetMagnitude(z, zMagnitude);
+        WideArithmetic.GetMagnitude(scaledRadius, radiusMagnitude);
+        WideArithmetic.MultiplyMagnitudes(xMagnitude, xMagnitude, xSquared);
+        WideArithmetic.MultiplyMagnitudes(zMagnitude, zMagnitude, zSquared);
+        WideArithmetic.MultiplyMagnitudes(radiusMagnitude, radiusMagnitude, radiusSquared);
+        WideArithmetic.AddEqualMagnitudes(xSquared, zSquared, xSquared);
+        return WideArithmetic.CompareMagnitudeEqualLength(xSquared, radiusSquared);
     }
+
+    private static Signed576 GetSweepProjection(SweepPlanarConstraint constraint, in SweepTrajectory trajectory) =>
+        WideArithmetic.AddSigned576(
+            WideArithmetic.MultiplySigned320(constraint.A, Signed320.ExtendValue(trajectory.DirectionX)),
+            WideArithmetic.MultiplySigned320(constraint.C, Signed320.ExtendValue(trajectory.DirectionZ)));
 
     private static Signed576 GetSweepProjection(
         SweepPlanarConstraint constraint,

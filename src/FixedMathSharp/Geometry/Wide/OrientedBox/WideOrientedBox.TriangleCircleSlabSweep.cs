@@ -84,6 +84,37 @@ internal static partial class WideOrientedBox
         Fixed64 slabHalfThickness,
         out Fixed64 distance,
         out FixedPointAnchor triangleContact)
+        => TryGetFiniteSlabProjectedCircleSweepCore(
+            triangle, triangleOrigin, triangleRotation, circleStart, new SweepTrajectory(direction),
+            maximumDistance, circleRadius, slabCenterY, slabHalfThickness, out distance, out triangleContact);
+
+    internal static bool TryGetFiniteSlabProjectedCircleSweep(
+        FixedTriangle triangle,
+        Vector3d triangleOrigin,
+        FixedQuaternion triangleRotation,
+        FixedSegment2d segment,
+        Fixed64 totalDistance,
+        Fixed64 circleRadius,
+        Fixed64 slabCenterY,
+        Fixed64 slabHalfThickness,
+        out Fixed64 distance,
+        out FixedPointAnchor triangleContact)
+        => TryGetFiniteSlabProjectedCircleSweepCore(
+            triangle, triangleOrigin, triangleRotation, segment.Start, new SweepTrajectory(segment, totalDistance),
+            totalDistance, circleRadius, slabCenterY, slabHalfThickness, out distance, out triangleContact);
+
+    private static bool TryGetFiniteSlabProjectedCircleSweepCore(
+        FixedTriangle triangle,
+        Vector3d triangleOrigin,
+        FixedQuaternion triangleRotation,
+        Vector2d circleStart,
+        in SweepTrajectory trajectory,
+        Fixed64 maximumDistance,
+        Fixed64 circleRadius,
+        Fixed64 slabCenterY,
+        Fixed64 slabHalfThickness,
+        out Fixed64 distance,
+        out FixedPointAnchor triangleContact)
     {
         WideRationalBasis3d basis = new(triangleRotation);
         Signed320 referenceYNumerator =
@@ -157,7 +188,7 @@ internal static partial class WideOrientedBox
                 basis.Denominator,
                 referenceYNumerator,
                 circleStart,
-                direction,
+                trajectory,
                 maximumDistance,
                 circleRadius,
                 ref found,
@@ -175,7 +206,7 @@ internal static partial class WideOrientedBox
                 basis.Denominator,
                 referenceYNumerator,
                 circleStart,
-                direction,
+                trajectory,
                 maximumDistance,
                 circleRadius,
                 ref found,
@@ -193,7 +224,7 @@ internal static partial class WideOrientedBox
                 basis.Denominator,
                 referenceYNumerator,
                 circleStart,
-                direction,
+                trajectory,
                 maximumDistance,
                 circleRadius,
                 ref found,
@@ -209,7 +240,7 @@ internal static partial class WideOrientedBox
             basis.Denominator,
             referenceYNumerator,
             circleStart,
-            direction,
+            trajectory,
             maximumDistance,
             circleRadius,
             ref found,
@@ -226,7 +257,7 @@ internal static partial class WideOrientedBox
                 basis.Denominator,
                 referenceYNumerator,
                 circleStart,
-                direction,
+                trajectory,
                 maximumDistance,
                 circleRadius,
                 ref found,
@@ -513,7 +544,7 @@ internal static partial class WideOrientedBox
         Signed192 basisDenominator,
         Signed320 referenceYNumerator,
         Vector2d circleStart,
-        Vector2d direction,
+        in SweepTrajectory trajectory,
         Fixed64 maximumDistance,
         Fixed64 radius,
         ref bool found,
@@ -553,7 +584,7 @@ internal static partial class WideOrientedBox
             clippedFirst,
             clippedSecond,
             circleStart,
-            direction,
+            trajectory,
             maximumDistance,
             radius,
             ref found,
@@ -595,7 +626,7 @@ internal static partial class WideOrientedBox
         Signed192 basisDenominator,
         Signed320 referenceYNumerator,
         Vector2d circleStart,
-        Vector2d direction,
+        in SweepTrajectory trajectory,
         Fixed64 maximumDistance,
         Fixed64 radius,
         ref bool found,
@@ -637,7 +668,7 @@ internal static partial class WideOrientedBox
             intersections[0],
             intersections[1],
             circleStart,
-            direction,
+            trajectory,
             maximumDistance,
             radius,
             ref found,
@@ -791,7 +822,7 @@ internal static partial class WideOrientedBox
         TriangleSweepPoint first,
         TriangleSweepPoint second,
         Vector2d circleStart,
-        Vector2d direction,
+        in SweepTrajectory trajectory,
         Fixed64 maximumDistance,
         Fixed64 radius,
         ref bool found,
@@ -802,7 +833,7 @@ internal static partial class WideOrientedBox
         if (TryGetRationalPointSweepDistance(
                 first.RationalPoint,
                 circleStart,
-                direction,
+                trajectory,
                 maximumDistance,
                 radius,
                 out Fixed64 firstDistance))
@@ -822,7 +853,7 @@ internal static partial class WideOrientedBox
             && TryGetRationalPointSweepDistance(
                 second.RationalPoint,
                 circleStart,
-                direction,
+                trajectory,
                 maximumDistance,
                 radius,
                 out Fixed64 secondDistance))
@@ -837,42 +868,19 @@ internal static partial class WideOrientedBox
                 ref bestReferenceYOffset);
         }
         if (!TryGetRationalSegmentSweepDistance(
-                first.RationalPoint,
-                second.RationalPoint,
+                first,
+                second,
                 circleStart,
-                direction,
+                trajectory,
                 maximumDistance,
                 radius,
                 out Fixed64 segmentDistance,
-                out Fixed64 segmentParameter))
+                out Vector3d segmentLocalPoint,
+                out Signed576 segmentReferenceYOffset))
         {
             return;
         }
 
-        Span<Vector3d> points = stackalloc Vector3d[2]
-        {
-            first.LocalPoint,
-            second.LocalPoint,
-        };
-        Span<Fixed64> weights = stackalloc Fixed64[2]
-        {
-            Fixed64.One - segmentParameter,
-            segmentParameter,
-        };
-        _ = Vector3d.TryGetWeightedAverage(
-            points,
-            weights,
-            out Vector3d segmentLocalPoint);
-        Signed576 segmentReferenceYOffset =
-            WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned320(
-                    first.ReferenceYOffset,
-                    Signed320.ExtendValue(
-                        Signed192.Raw(weights[0]))),
-                WideArithmetic.MultiplySigned320(
-                    second.ReferenceYOffset,
-                    Signed320.ExtendValue(
-                        Signed192.Raw(weights[1]))));
         KeepTriangleSweepCandidate(
             segmentDistance,
             segmentLocalPoint,

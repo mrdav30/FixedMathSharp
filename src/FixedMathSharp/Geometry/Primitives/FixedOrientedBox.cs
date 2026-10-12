@@ -968,6 +968,34 @@ public readonly struct FixedOrientedBox : IEquatable<FixedOrientedBox>
     }
 
     /// <summary>
+    /// Finds the first distance along an authored X/Z segment where a circle
+    /// extruded through a fixed world-Y slab intersects this box.
+    /// </summary>
+    /// <remarks>
+    /// The segment is retained exactly without normalizing its displacement.
+    /// Its interval maps to [0, <paramref name="totalDistance"/>] with one
+    /// final round-half-to-even distance conversion.
+    /// </remarks>
+    public bool TryGetCircleSlabSweepDistance(
+        FixedSegment2d segment,
+        Fixed64 totalDistance,
+        Fixed64 slabCenterY,
+        Fixed64 slabHalfThickness,
+        Fixed64 radius,
+        out Fixed64 distance)
+    {
+        EnsureValid();
+        _ = segment.GetPointAtDistance(Fixed64.Zero, totalDistance);
+        if (slabHalfThickness <= Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(slabHalfThickness));
+        if (radius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        return WideOrientedBox.TryGetCircleSlabSweepDistance(
+            Center, Orientation, HalfExtents, segment, totalDistance,
+            slabCenterY, slabHalfThickness, radius, out distance);
+    }
+
+    /// <summary>
     /// Returns a conservative X/Z separation lower bound between this box and
     /// a circle extruded through a fixed world-Y slab.
     /// </summary>

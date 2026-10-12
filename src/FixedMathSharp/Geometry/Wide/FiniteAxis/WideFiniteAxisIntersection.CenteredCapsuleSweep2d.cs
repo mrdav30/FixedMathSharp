@@ -43,7 +43,8 @@ internal static partial class WideFiniteAxisIntersection
         FixedSegment2d targetAxis,
         Fixed64 targetRadius,
         out Fixed64 distance,
-        out Vector2d normal)
+        out Vector2d normal,
+        bool authoredDisplacement = false)
     {
         GetCenteredAxisEndpoints(center, axis, axisLength, out WideAxis2d mover);
         GetAuthoredAxisEndpoints(targetAxis, out WideAxis2d target);
@@ -56,7 +57,8 @@ internal static partial class WideFiniteAxisIntersection
             targetRadius,
             axis,
             out distance,
-            out normal);
+            out normal,
+            authoredDisplacement);
     }
 
     internal static bool TryGetSweptCenteredCapsuleOriginOffsetSegmentFirstDistance(
@@ -72,7 +74,8 @@ internal static partial class WideFiniteAxisIntersection
         Vector2d targetEndOffset,
         Fixed64 targetRadius,
         out Fixed64 distance,
-        out Vector2d normal)
+        out Vector2d normal,
+        bool authoredDisplacement = false)
     {
         GetCenteredAxisEndpoints(center, axis, axisLength, out WideAxis2d mover);
         GetRotatedOriginOffsetAxisEndpoints(
@@ -90,7 +93,8 @@ internal static partial class WideFiniteAxisIntersection
             targetRadius,
             axis,
             out distance,
-            out normal);
+            out normal,
+            authoredDisplacement);
     }
 
     internal static bool TryGetSweptOriginOffsetSegmentsFirstDistance(
@@ -107,7 +111,8 @@ internal static partial class WideFiniteAxisIntersection
         Vector2d targetEndOffset,
         Fixed64 targetRadius,
         out Fixed64 distance,
-        out Vector2d normal)
+        out Vector2d normal,
+        bool authoredDisplacement = false)
     {
         GetRotatedOriginOffsetAxisEndpoints(
             moverOrigin,
@@ -133,7 +138,8 @@ internal static partial class WideFiniteAxisIntersection
                 moverStartOffset,
                 moverEndOffset),
             out distance,
-            out normal);
+            out normal,
+            authoredDisplacement);
     }
 
     internal static bool TryGetSweptCenteredCapsulesFirstDistance(
@@ -148,7 +154,8 @@ internal static partial class WideFiniteAxisIntersection
         Fixed64 targetAxisLength,
         Fixed64 targetRadius,
         out Fixed64 distance,
-        out Vector2d normal)
+        out Vector2d normal,
+        bool authoredDisplacement = false)
     {
         GetCenteredAxisEndpoints(center, axis, axisLength, out WideAxis2d mover);
         GetCenteredAxisEndpoints(targetCenter, targetAxis, targetAxisLength, out WideAxis2d target);
@@ -161,7 +168,8 @@ internal static partial class WideFiniteAxisIntersection
             targetRadius,
             axis,
             out distance,
-            out normal);
+            out normal,
+            authoredDisplacement);
     }
 
     private static bool TryGetSweptAxesFirstDistance(
@@ -173,7 +181,8 @@ internal static partial class WideFiniteAxisIntersection
         Fixed64 targetRadius,
         Vector2d moverAxis,
         out Fixed64 distance,
-        out Vector2d normal)
+        out Vector2d normal,
+        bool authoredDisplacement)
     {
         Signed192 radius = WideArithmetic.AddSigned192(
             Signed192.Signed(moverRadius.m_rawValue),
@@ -183,10 +192,13 @@ internal static partial class WideFiniteAxisIntersection
         GetSweepVelocity(
             direction,
             maximumDistance,
+            authoredDisplacement,
             out Signed192 displacementPerRawX,
             out Signed192 displacementPerRawY,
             out Signed192 velocityX,
             out Signed192 velocityY);
+        Signed192 pointDenominator = Signed192.Signed(
+            authoredDisplacement ? maximumDistance.m_rawValue : 1L);
 
         bool found = false;
         distance = default;
@@ -195,13 +207,13 @@ internal static partial class WideFiniteAxisIntersection
             mover.StartX, mover.StartY,
             displacementPerRawX, displacementPerRawY,
             velocityX, velocityY,
-            target, scaledRadius, maximumDistance, reverseNormal: false,
+            target, scaledRadius, maximumDistance, pointDenominator, reverseNormal: false,
             ref found, ref distance, ref normal);
         TryKeepEndpointAxisSweep(
             mover.EndX, mover.EndY,
             displacementPerRawX, displacementPerRawY,
             velocityX, velocityY,
-            target, scaledRadius, maximumDistance, reverseNormal: false,
+            target, scaledRadius, maximumDistance, pointDenominator, reverseNormal: false,
             ref found, ref distance, ref normal);
         TryKeepEndpointAxisSweep(
             target.StartX, target.StartY,
@@ -209,7 +221,7 @@ internal static partial class WideFiniteAxisIntersection
             WideArithmetic.SubtractSigned192(default, displacementPerRawY),
             WideArithmetic.SubtractSigned192(default, velocityX),
             WideArithmetic.SubtractSigned192(default, velocityY),
-            mover, scaledRadius, maximumDistance, reverseNormal: true,
+            mover, scaledRadius, maximumDistance, pointDenominator, reverseNormal: true,
             ref found, ref distance, ref normal);
         TryKeepEndpointAxisSweep(
             target.EndX, target.EndY,
@@ -217,7 +229,7 @@ internal static partial class WideFiniteAxisIntersection
             WideArithmetic.SubtractSigned192(default, displacementPerRawY),
             WideArithmetic.SubtractSigned192(default, velocityX),
             WideArithmetic.SubtractSigned192(default, velocityY),
-            mover, scaledRadius, maximumDistance, reverseNormal: true,
+            mover, scaledRadius, maximumDistance, pointDenominator, reverseNormal: true,
             ref found, ref distance, ref normal);
 
         if (AxesIntersect(mover, target) && (!found || distance > Fixed64.Zero))
@@ -240,6 +252,7 @@ internal static partial class WideFiniteAxisIntersection
         WideAxis2d target,
         Signed192 scaledRadius,
         Fixed64 maximumDistance,
+        Signed192 pointDenominator,
         bool reverseNormal,
         ref bool found,
         ref Fixed64 bestDistance,
@@ -259,7 +272,7 @@ internal static partial class WideFiniteAxisIntersection
             startX, startY,
             displacementPerRawX, displacementPerRawY,
             velocityX, velocityY,
-            target, scaledRadius, maximumDistance,
+            target, scaledRadius, maximumDistance, pointDenominator,
             ref candidateFound, ref candidateDistance);
         if (!candidateFound || (found && candidateDistance >= bestDistance))
             return;
@@ -272,7 +285,8 @@ internal static partial class WideFiniteAxisIntersection
             displacementPerRawX,
             displacementPerRawY,
             candidateDistance,
-            target);
+            target,
+            pointDenominator);
         if (bestNormal == Vector2d.Zero)
         {
             bestNormal = GetAxisSweepFallbackNormal(
@@ -342,6 +356,7 @@ internal static partial class WideFiniteAxisIntersection
         WideAxis2d target,
         Signed192 scaledRadius,
         Fixed64 maximumDistance,
+        Signed192 pointDenominator,
         ref bool found,
         ref Fixed64 distance)
     {
@@ -381,7 +396,8 @@ internal static partial class WideFiniteAxisIntersection
                 target,
                 deltaX,
                 deltaY,
-                deltaSquared)
+                deltaSquared,
+                pointDenominator)
             || (found && entry >= distance))
         {
             return;
@@ -400,7 +416,8 @@ internal static partial class WideFiniteAxisIntersection
         WideAxis2d target,
         Signed192 deltaX,
         Signed192 deltaY,
-        Signed320 deltaSquared)
+        Signed320 deltaSquared,
+        Signed192 pointDenominator)
     {
         GetPointAtDistance(
             startX,
@@ -408,15 +425,17 @@ internal static partial class WideFiniteAxisIntersection
             displacementPerRawX,
             displacementPerRawY,
             distance,
+            pointDenominator,
             out Signed192 pointX,
             out Signed192 pointY);
         Signed320 projection = WideArithmetic.AddProducts(
-            WideArithmetic.SubtractSigned192(pointX, target.StartX),
+            WideArithmetic.SubtractSigned192(pointX, ScaleSweepCoordinate(target.StartX, pointDenominator)),
             deltaX,
-            WideArithmetic.SubtractSigned192(pointY, target.StartY),
+            WideArithmetic.SubtractSigned192(pointY, ScaleSweepCoordinate(target.StartY, pointDenominator)),
             deltaY);
         return projection.Sign >= 0
-            && WideArithmetic.SubtractSigned320(projection, deltaSquared).Sign <= 0;
+            && WideArithmetic.SubtractSigned576(Signed576.ExtendValue(projection),
+                WideArithmetic.MultiplySigned320(deltaSquared, Signed320.ExtendValue(pointDenominator))).Sign <= 0;
     }
 
     private static void KeepFirstSweepRoot(
@@ -449,7 +468,8 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 displacementPerRawX,
         Signed192 displacementPerRawY,
         Fixed64 distance,
-        WideAxis2d target)
+        WideAxis2d target,
+        Signed192 pointDenominator)
     {
         GetPointAtDistance(
             startX,
@@ -457,51 +477,57 @@ internal static partial class WideFiniteAxisIntersection
             displacementPerRawX,
             displacementPerRawY,
             distance,
+            pointDenominator,
             out Signed192 pointX,
             out Signed192 pointY);
         Signed192 deltaX = WideArithmetic.SubtractSigned192(target.EndX, target.StartX);
         Signed192 deltaY = WideArithmetic.SubtractSigned192(target.EndY, target.StartY);
         Signed320 deltaSquared = WideArithmetic.AddProducts(deltaX, deltaX, deltaY, deltaY);
+        // Chord points carry one extra raw-length denominator: coordinates fit
+        // Signed192, projections fit Signed320, and closest-point products fit Signed576.
+        Signed192 targetStartX = ScaleSweepCoordinate(target.StartX, pointDenominator);
+        Signed192 targetStartY = ScaleSweepCoordinate(target.StartY, pointDenominator);
         Signed320 projection = WideArithmetic.AddProducts(
-            WideArithmetic.SubtractSigned192(pointX, target.StartX),
+            WideArithmetic.SubtractSigned192(pointX, targetStartX),
             deltaX,
-            WideArithmetic.SubtractSigned192(pointY, target.StartY),
+            WideArithmetic.SubtractSigned192(pointY, targetStartY),
             deltaY);
         if (projection.Sign <= 0)
         {
             return WideNormalization.GetNormalized(
-                WideArithmetic.SubtractSigned192(target.StartX, pointX),
-                WideArithmetic.SubtractSigned192(target.StartY, pointY));
+                WideArithmetic.SubtractSigned192(targetStartX, pointX),
+                WideArithmetic.SubtractSigned192(targetStartY, pointY));
         }
-        if (WideArithmetic.SubtractSigned320(projection, deltaSquared).Sign >= 0)
+        if (WideArithmetic.SubtractSigned576(Signed576.ExtendValue(projection),
+                WideArithmetic.MultiplySigned320(deltaSquared, Signed320.ExtendValue(pointDenominator))).Sign >= 0)
         {
             return WideNormalization.GetNormalized(
-                WideArithmetic.SubtractSigned192(target.EndX, pointX),
-                WideArithmetic.SubtractSigned192(target.EndY, pointY));
+                WideArithmetic.SubtractSigned192(ScaleSweepCoordinate(target.EndX, pointDenominator), pointX),
+                WideArithmetic.SubtractSigned192(ScaleSweepCoordinate(target.EndY, pointDenominator), pointY));
         }
 
-        Signed320 closestX = Signed320.NarrowValue(WideArithmetic.SubtractSigned576(
+        Signed576 closestX = WideArithmetic.SubtractSigned576(
             WideArithmetic.AddSigned576(
                 WideArithmetic.MultiplySigned320(
-                    Signed320.ExtendValue(target.StartX),
+                    Signed320.ExtendValue(targetStartX),
                     deltaSquared),
                 WideArithmetic.MultiplySigned320(
                     Signed320.ExtendValue(deltaX),
                     projection)),
             WideArithmetic.MultiplySigned320(
                 Signed320.ExtendValue(pointX),
-                deltaSquared)));
-        Signed320 closestY = Signed320.NarrowValue(WideArithmetic.SubtractSigned576(
+                deltaSquared));
+        Signed576 closestY = WideArithmetic.SubtractSigned576(
             WideArithmetic.AddSigned576(
                 WideArithmetic.MultiplySigned320(
-                    Signed320.ExtendValue(target.StartY),
+                    Signed320.ExtendValue(targetStartY),
                     deltaSquared),
                 WideArithmetic.MultiplySigned320(
                     Signed320.ExtendValue(deltaY),
                     projection)),
             WideArithmetic.MultiplySigned320(
                 Signed320.ExtendValue(pointY),
-                deltaSquared)));
+                deltaSquared));
         return WideNormalization.GetNormalized(closestX, closestY);
     }
 
@@ -511,15 +537,16 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 displacementPerRawX,
         Signed192 displacementPerRawY,
         Fixed64 distance,
+        Signed192 pointDenominator,
         out Signed192 pointX,
         out Signed192 pointY)
     {
         Signed192 rawDistance = Signed192.Signed(distance.m_rawValue);
         pointX = Signed192.NarrowValue(WideArithmetic.AddSigned320(
-            Signed320.ExtendValue(startX),
+            WideArithmetic.MultiplySigned192(startX, pointDenominator),
             WideArithmetic.MultiplySigned192(displacementPerRawX, rawDistance)));
         pointY = Signed192.NarrowValue(WideArithmetic.AddSigned320(
-            Signed320.ExtendValue(startY),
+            WideArithmetic.MultiplySigned192(startY, pointDenominator),
             WideArithmetic.MultiplySigned192(displacementPerRawY, rawDistance)));
     }
 
@@ -564,6 +591,7 @@ internal static partial class WideFiniteAxisIntersection
     private static void GetSweepVelocity(
         Vector2d direction,
         Fixed64 maximumDistance,
+        bool authoredDisplacement,
         out Signed192 displacementPerRawX,
         out Signed192 displacementPerRawY,
         out Signed192 x,
@@ -573,10 +601,23 @@ internal static partial class WideFiniteAxisIntersection
         Signed192 rawY = Signed192.Signed(direction.Y.m_rawValue);
         displacementPerRawX = WideArithmetic.AddSigned192(rawX, rawX);
         displacementPerRawY = WideArithmetic.AddSigned192(rawY, rawY);
+        // Distance is only an output scale for an authored chord. Retain its
+        // exact endpoint difference in the polynomial and homogeneous point.
+        if (authoredDisplacement)
+        {
+            displacementPerRawX = Signed192.NarrowValue(WideArithmetic.MultiplySigned192(displacementPerRawX, ParameterScale));
+            displacementPerRawY = Signed192.NarrowValue(WideArithmetic.MultiplySigned192(displacementPerRawY, ParameterScale));
+            x = displacementPerRawX;
+            y = displacementPerRawY;
+            return;
+        }
         Signed192 distance = Signed192.Signed(maximumDistance.m_rawValue);
         x = Signed192.NarrowValue(WideArithmetic.MultiplySigned192(displacementPerRawX, distance));
         y = Signed192.NarrowValue(WideArithmetic.MultiplySigned192(displacementPerRawY, distance));
     }
+
+    private static Signed192 ScaleSweepCoordinate(Signed192 coordinate, Signed192 denominator) =>
+        Signed192.NarrowValue(WideArithmetic.MultiplySigned192(coordinate, denominator));
 
     private static void GetCenteredAxisEndpoints(
         Vector2d center,

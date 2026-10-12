@@ -350,4 +350,34 @@ public partial struct FixedTriangle
             out distance,
             out triangleContact);
     }
+    /// <summary>
+    /// Finds the first distance along an authored X/Z circle-center segment
+    /// that reaches this triangle portion inside one finite world-Y slab.
+    /// </summary>
+    /// <remarks>
+    /// Transformation, slab clipping and the authored segment remain exact;
+    /// only the final physical distance and local triangle witness are rounded.
+    /// </remarks>
+    public readonly bool TryGetFiniteSlabProjectedCircleSweep(
+        Vector3d triangleOrigin,
+        FixedQuaternion triangleRotation,
+        FixedSegment2d segment,
+        Fixed64 totalDistance,
+        Fixed64 circleRadius,
+        Fixed64 slabCenterY,
+        Fixed64 slabHalfThickness,
+        out Fixed64 distance,
+        out FixedPointAnchor triangleContact)
+    {
+        ValidateRigidTriangleFrame(triangleRotation);
+        _ = segment.GetPointAtDistance(Fixed64.Zero, totalDistance);
+        if (circleRadius < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(circleRadius));
+        if (slabHalfThickness < Fixed64.Zero)
+            throw new ArgumentOutOfRangeException(nameof(slabHalfThickness));
+        return WideOrientedBox.TryGetFiniteSlabProjectedCircleSweep(
+            this, triangleOrigin, triangleRotation, segment, totalDistance,
+            circleRadius, slabCenterY, slabHalfThickness, out distance, out triangleContact);
+    }
+
 }

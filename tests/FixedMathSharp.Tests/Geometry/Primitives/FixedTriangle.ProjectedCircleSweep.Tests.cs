@@ -13,6 +13,158 @@ namespace FixedMathSharp.Tests;
 
 public sealed class FixedTriangleProjectedCircleSweepTests
 {
+    [Theory]
+    [InlineData(3, 4, 5, false)]
+    [InlineData(3, 4, 5, true)]
+    [InlineData(5, 12, 13, false)]
+    [InlineData(5, 12, 13, true)]
+    [InlineData(7, 24, 25, false)]
+    [InlineData(7, 24, 25, true)]
+    public void AuthoredPythagoreanTangent_ReturnsExactMidpointInBothDirections(int a, int b, int r, bool reverse)
+    {
+        var triangle = new FixedTriangle(new Vector3d(0, -2, 0), new Vector3d(0, 2, 0), new Vector3d(0, -2, -100));
+        var tangent = new Vector2d(-b, a);
+        var travel = new Vector2d(a, b);
+        var segment = reverse
+            ? new FixedSegment2d(tangent + travel, tangent - travel)
+            : new FixedSegment2d(tangent - travel, tangent + travel);
+        Fixed64 totalDistance = (Fixed64)(2 * r);
+
+        Assert.True(triangle.TryGetFiniteSlabProjectedCircleSweep(Vector3d.Zero, FixedQuaternion.Identity, segment, totalDistance, (Fixed64)r, Fixed64.Zero, Fixed64.Half, out Fixed64 distance, out _));
+        Assert.Equal((Fixed64)r, distance);
+    }
+
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(2, 1)]
+    [InlineData(3, 2)]
+    [InlineData(5, 2)]
+    [InlineData(7, 4)]
+    public void AuthoredSegment_RoundsPhysicalHalfTicksToEven(long totalRaw, long expectedRaw)
+    {
+        var target = new FixedTriangle(new Vector3d(0, -2, 0), new Vector3d(0, 2, 0), new Vector3d(0, -2, -100));
+        var segment = new FixedSegment2d(new Vector2d(-1, -1), new Vector2d(1, -1));
+
+        Assert.True(target.TryGetFiniteSlabProjectedCircleSweep(Vector3d.Zero, FixedQuaternion.Identity, segment, Fixed64.FromRaw(totalRaw), Fixed64.Zero, Fixed64.Zero, Fixed64.Half, out Fixed64 distance, out _));
+        Assert.Equal(Fixed64.FromRaw(expectedRaw), distance);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AuthoredFullDomainSegment_PreservesWideEndpointDifference(bool reverse)
+    {
+        var triangle = new FixedTriangle(new Vector3d(0, -2, 0), new Vector3d(0, 2, 0), new Vector3d(0, -2, -100));
+        Vector2d first = new(Fixed64.MinValue, -Fixed64.One);
+        Vector2d second = new(Fixed64.MaxValue, -Fixed64.One);
+        var segment = reverse ? new FixedSegment2d(second, first) : new FixedSegment2d(first, second);
+
+        Assert.True(triangle.TryGetFiniteSlabProjectedCircleSweep(
+            Vector3d.Zero, FixedQuaternion.Identity, segment,
+            Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero, Fixed64.Half,
+            out Fixed64 distance, out _));
+        Assert.Equal(Fixed64.FromRaw((1L << 62) - (reverse ? 1L : 0L)), distance);
+    }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(3, 2)]
+    public void AuthoredFullDomainSegment_CanMapToTinyPhysicalDistance(long totalRaw, long expectedRaw)
+    {
+        var triangle = new FixedTriangle(new Vector3d(0, -2, 0), new Vector3d(0, 2, 0), new Vector3d(0, -2, -100));
+        var segment = new FixedSegment2d(new Vector2d(Fixed64.MinValue, -Fixed64.One), new Vector2d(Fixed64.MaxValue, -Fixed64.One));
+
+        Assert.True(triangle.TryGetFiniteSlabProjectedCircleSweep(
+            Vector3d.Zero, FixedQuaternion.Identity, segment,
+            Fixed64.FromRaw(totalRaw), Fixed64.Zero, Fixed64.Zero, Fixed64.Half,
+            out Fixed64 distance, out _));
+        Assert.Equal(Fixed64.FromRaw(expectedRaw), distance);
+    }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(3, 2)]
+    public void AuthoredFullDomainTangentPoint_CanMapToTinyPhysicalDistance(long totalRaw, long expectedRaw)
+    {
+        var triangle = new FixedTriangle(Vector3d.Zero, Vector3d.Zero, Vector3d.Zero);
+        var segment = new FixedSegment2d(new Vector2d(Fixed64.MinValue, Fixed64.One), new Vector2d(Fixed64.MaxValue, Fixed64.One));
+
+        Assert.True(triangle.TryGetFiniteSlabProjectedCircleSweep(
+            Vector3d.Zero, FixedQuaternion.Identity, segment,
+            Fixed64.FromRaw(totalRaw), Fixed64.One, Fixed64.Zero, Fixed64.Half,
+            out Fixed64 distance, out _));
+        Assert.Equal(Fixed64.FromRaw(expectedRaw), distance);
+    }
+
+    [Fact]
+    public void AuthoredTinyDistanceMapping_RetainsExactFiniteEdgeRootAndWitness()
+    {
+        var triangle = new FixedTriangle(Vector3d.Zero, Vector3d.Right, Vector3d.Forward);
+        var segment = new FixedSegment2d(new Vector2d(-1, -1), new Vector2d(2, 1));
+
+        Assert.True(triangle.TryGetFiniteSlabProjectedCircleSweep(
+            Vector3d.Zero, FixedQuaternion.Identity, segment,
+            Fixed64.MinIncrement, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            out Fixed64 distance, out FixedPointAnchor contact));
+        Assert.Equal(Fixed64.Zero, distance);
+        Assert.Equal(new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Zero), contact.LocalPoint);
+    }
+
+    [Fact]
+    public void AuthoredSegment_MapsLongPhysicalDistanceWithOneFinalRounding()
+    {
+        var target = new FixedTriangle(new Vector3d(0, -2, 0), new Vector3d(0, 2, 0), new Vector3d(0, -2, -100));
+        var segment = new FixedSegment2d(new Vector2d(-1, -1), new Vector2d(2, -1));
+        Fixed64 totalDistance = Fixed64.MaxValue;
+        Fixed64 radius = Fixed64.Zero;
+
+        Assert.True(target.TryGetFiniteSlabProjectedCircleSweep(Vector3d.Zero, FixedQuaternion.Identity, segment, totalDistance, radius, Fixed64.Zero, Fixed64.Half, out Fixed64 distance, out _));
+        Assert.Equal(Fixed64.FromRaw(Fixed64.MaxValue.m_rawValue / 3L), distance);
+    }
+
+    [Fact]
+    public void AuthoredSegment_TangentWithLongMappedDistanceRoundsHalfToEven()
+    {
+        var target = new FixedTriangle(new Vector3d(0, -2, 0), new Vector3d(0, 2, 0), new Vector3d(0, -2, -100));
+        var segment = new FixedSegment2d(new Vector2d(-7, -1), new Vector2d(-1, 7));
+        Fixed64 totalDistance = Fixed64.MaxValue;
+        Fixed64 radius = (Fixed64)5;
+
+        Assert.True(target.TryGetFiniteSlabProjectedCircleSweep(Vector3d.Zero, FixedQuaternion.Identity, segment, totalDistance, radius, Fixed64.Zero, Fixed64.Half, out Fixed64 distance, out _));
+        Assert.Equal(Fixed64.FromRaw(1L << 62), distance);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AuthoredPointSegment_UsesInclusiveOverlap(bool overlaps)
+    {
+        var target = new FixedTriangle(new Vector3d(0, -2, 0), new Vector3d(0, 2, 0), new Vector3d(0, -2, -100));
+        Vector2d point = overlaps ? Vector2d.Zero : new Vector2d(-5, 5);
+        var segment = new FixedSegment2d(point, point);
+        Fixed64 totalDistance = Fixed64.Zero;
+        Fixed64 radius = Fixed64.Zero;
+
+        Assert.Equal(overlaps, target.TryGetFiniteSlabProjectedCircleSweep(Vector3d.Zero, FixedQuaternion.Identity, segment, totalDistance, radius, Fixed64.Zero, Fixed64.Half, out Fixed64 distance, out _));
+        Assert.Equal(Fixed64.Zero, distance);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void AuthoredSegment_ValidatesPhysicalMappingAndDimensions(int invalid)
+    {
+        var target = new FixedTriangle(new Vector3d(0, -2, 0), new Vector3d(0, 2, 0), new Vector3d(0, -2, -100));
+        var segment = new FixedSegment2d(new Vector2d(-1, -1), new Vector2d(2, -1));
+        Fixed64 totalDistance = invalid == 0 ? -Fixed64.One : invalid == 1 ? Fixed64.Zero : Fixed64.One;
+        Fixed64 radius = invalid == 2 ? -Fixed64.One : Fixed64.Zero;
+        Fixed64 halfThickness = invalid == 3 ? -Fixed64.One : Fixed64.Half;
+
+        Assert.ThrowsAny<ArgumentException>(() => target.TryGetFiniteSlabProjectedCircleSweep(Vector3d.Zero, FixedQuaternion.Identity, segment, totalDistance, radius, Fixed64.Zero, halfThickness, out _, out _));
+    }
+
     [Fact]
     public void OddRawSlabClip_RoundsOnlyTheFinalSweepDistance()
     {
@@ -491,26 +643,24 @@ public sealed class FixedTriangleProjectedCircleSweepTests
             out _,
             out _);
 
-        long before = GC.GetAllocatedBytesForCurrentThread();
         bool allSucceeded = true;
-        for (int iteration = 0; iteration < 32; iteration++)
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
         {
-            allSucceeded &= triangle.TryGetFiniteSlabProjectedCircleSweep(
-                Vector3d.Zero,
-                FixedQuaternion.Identity,
-                new Vector2d((Fixed64)(-2), Fixed64.Zero),
-                Vector2d.Right,
-                (Fixed64)5,
-                Fixed64.Half,
-                Fixed64.Zero,
-                Fixed64.Zero,
-                out _,
-                out _);
-        }
-        long after = GC.GetAllocatedBytesForCurrentThread();
+            for (int iteration = 0; iteration < 32; iteration++)
+            {
+                allSucceeded &= triangle.TryGetFiniteSlabProjectedCircleSweep(
+                    Vector3d.Zero, FixedQuaternion.Identity,
+                    new Vector2d((Fixed64)(-2), Fixed64.Zero), Vector2d.Right,
+                    (Fixed64)5, Fixed64.Half, Fixed64.Zero, Fixed64.Zero, out _, out _);
+                allSucceeded &= triangle.TryGetFiniteSlabProjectedCircleSweep(
+                    Vector3d.Zero, FixedQuaternion.Identity,
+                    new FixedSegment2d(new Vector2d(-2, 0), new Vector2d(3, 0)),
+                    (Fixed64)5, Fixed64.Half, Fixed64.Zero, Fixed64.Zero, out _, out _);
+            }
+        });
 
         Assert.True(allSucceeded);
-        Assert.Equal(before, after);
+        Assert.Equal(0L, allocated);
     }
 
     [Fact]

@@ -18,19 +18,23 @@ internal static partial class WideOrientedBox
     // 126-bit quaternion basis denominator. Finite-Y clipping raises a point
     // to fewer than 386/319 bits. Cross-multiplying two clipped endpoints
     // therefore needs at most 706 bits; a line violation needs 1094 bits and
-    // its squared half-step comparison needs fewer than 2252 bits.
-    private const int TriangleSweepMagnitudeWords = 36;
+    // its squared half-step comparison needs fewer than 2252 bits for a
+    // direction or 2312 bits for a full-domain segment-distance denominator.
+    private const int TriangleSweepMagnitudeWords = 37;
 
     private static bool TryGetRationalSegmentSweepDistance(
-        SweepRationalPoint first,
-        SweepRationalPoint second,
+        TriangleSweepPoint firstPoint,
+        TriangleSweepPoint secondPoint,
         Vector2d start,
-        Vector2d direction,
+        in SweepTrajectory trajectory,
         Fixed64 maximumDistance,
         Fixed64 radius,
         out Fixed64 distance,
-        out Fixed64 segmentParameter)
+        out Vector3d localPoint,
+        out Signed576 referenceYOffset)
     {
+        SweepRationalPoint first = firstPoint.RationalPoint;
+        SweepRationalPoint second = secondPoint.RationalPoint;
         Signed832 edgeX = WideArithmetic.SubtractSigned832(
             WideArithmetic.MultiplySigned576ToSigned832(
                 second.X,
@@ -48,7 +52,8 @@ internal static partial class WideOrientedBox
         if (edgeX.IsZero && edgeZ.IsZero)
         {
             distance = default;
-            segmentParameter = default;
+            localPoint = default;
+            referenceYOffset = default;
             return false;
         }
 
@@ -72,8 +77,8 @@ internal static partial class WideOrientedBox
             startCross,
             out int startCrossSign);
 
-        Signed192 directionX = Signed192.Raw(direction.X);
-        Signed192 directionZ = Signed192.Raw(direction.Y);
+        Signed192 directionX = trajectory.DirectionX;
+        Signed192 directionZ = trajectory.DirectionZ;
         Span<ulong> velocityCore =
             stackalloc ulong[TriangleSweepMagnitudeWords];
         GetCrossMagnitude(
@@ -98,37 +103,25 @@ internal static partial class WideOrientedBox
             stackalloc ulong[TriangleSweepMagnitudeWords];
         GetEdgeSquaredMagnitude(edgeX, edgeZ, edgeSquared);
         if (CompareRationalSegmentLineAt(
-                startCross,
-                startCrossSign,
-                velocity,
-                velocitySign,
-                edgeSquared,
-                denominatorMagnitude,
-                radius,
-                default,
-                SweepRawScale) <= 0
-            && TryGetRationalSegmentParameter(
-                first,
-                second,
-                edgeX,
-                edgeZ,
-                edgeSquared,
-                start,
-                direction,
-                Fixed64.Zero,
-                out segmentParameter))
+                startCross, startCrossSign, velocity, velocitySign,
+                edgeSquared, denominatorMagnitude, radius,
+                default, trajectory.TimeScale) <= 0)
         {
             distance = Fixed64.Zero;
-            return true;
+            return TryGetExactRationalSegmentWitness(
+                firstPoint, secondPoint, edgeX, edgeZ, edgeSquared,
+                startX, startZ, startCross, velocity, trajectory, radius,
+                atStart: true, out localPoint, out referenceYOffset);
         }
 
+        // The expanded-line start test already returned for a zero cross.
         if (maximumDistance == Fixed64.Zero
-            || startCrossSign == 0
             || velocitySign == 0
             || startCrossSign == velocitySign)
         {
             distance = default;
-            segmentParameter = default;
+            localPoint = default;
+            referenceYOffset = default;
             return false;
         }
 
@@ -137,7 +130,7 @@ internal static partial class WideOrientedBox
         Span<ulong> velocityAtMaximum =
             stackalloc ulong[TriangleSweepMagnitudeWords];
         Span<ulong> oneMagnitude = stackalloc ulong[3];
-        WideArithmetic.GetMagnitude(SweepRawScale, out oneMagnitude[2], out oneMagnitude[1], out oneMagnitude[0]);
+        WideArithmetic.GetMagnitude(trajectory.TimeScale, out oneMagnitude[2], out oneMagnitude[1], out oneMagnitude[0]);
         Span<ulong> maximumMagnitude = stackalloc ulong[3];
         WideArithmetic.GetMagnitude(
             Signed192.Signed(maximumDistance.m_rawValue),
@@ -158,10 +151,11 @@ internal static partial class WideOrientedBox
                 denominatorMagnitude,
                 radius,
                 Signed192.Signed(maximumDistance.m_rawValue),
-                SweepRawScale) > 0)
+                trajectory.TimeScale) > 0)
         {
             distance = default;
-            segmentParameter = default;
+            localPoint = default;
+            referenceYOffset = default;
             return false;
         }
 
@@ -177,7 +171,7 @@ internal static partial class WideOrientedBox
                 if (CompareApproachingLineAt(
                         startCross,
                         velocity,
-                        middle,
+                        (ulong)middle,
                         oneMagnitude) <= 0)
                 {
                     crossingHigh = middle;
@@ -189,10 +183,19 @@ internal static partial class WideOrientedBox
             }
 
             candidateRaw = crossingLow;
+            Span<ulong> doubleTimeMagnitude = stackalloc ulong[3];
+            WideArithmetic.GetMagnitude(
+                trajectory.DoubleTimeScale,
+                out doubleTimeMagnitude[2], out doubleTimeMagnitude[1], out doubleTimeMagnitude[0]);
+            int closestMidpoint = CompareApproachingLineAt(
+                startCross, velocity, ((ulong)candidateRaw * 2UL) - 1UL, doubleTimeMagnitude);
+            if (closestMidpoint < 0 || (closestMidpoint == 0 && (candidateRaw & 1L) != 0L))
+                candidateRaw--;
         }
 
-        // A nonzero approaching line crosses no earlier than raw tick one.
-        long high = candidateRaw - 1L;
+        // The closest parameter is rounded in physical-distance units; a
+        // sub-half-raw crossing can legitimately round to the starting tick.
+        long high = Math.Max(0L, candidateRaw - 1L);
         if (CompareRationalSegmentLineAtHalf(
                 startCross,
                 startCrossSign,
@@ -201,7 +204,7 @@ internal static partial class WideOrientedBox
                 edgeSquared,
                 denominatorMagnitude,
                 radius,
-                high) > 0)
+                high, trajectory) > 0)
         {
             distance = Fixed64.FromRaw(candidateRaw);
         }
@@ -219,7 +222,7 @@ internal static partial class WideOrientedBox
                         edgeSquared,
                         denominatorMagnitude,
                         radius,
-                        middle) <= 0)
+                        middle, trajectory) <= 0)
                 {
                     high = middle;
                 }
@@ -238,36 +241,27 @@ internal static partial class WideOrientedBox
                     edgeSquared,
                     denominatorMagnitude,
                     radius,
-                    low);
+                    low, trajectory);
             distance = Fixed64.FromRaw(
                 midpointComparison == 0 && (low & 1L) != 0L
                     ? low + 1L
                     : low);
         }
 
-        if (TryGetRationalSegmentParameter(
-                first,
-                second,
-                edgeX,
-                edgeZ,
-                edgeSquared,
-                start,
-                direction,
-                distance,
-                out segmentParameter))
-        {
+        if (TryGetExactRationalSegmentWitness(
+                firstPoint, secondPoint, edgeX, edgeZ, edgeSquared,
+                startX, startZ, startCross, velocity, trajectory, radius,
+                atStart: false, out localPoint, out referenceYOffset))
             return true;
-        }
 
         distance = default;
-        segmentParameter = default;
         return false;
     }
 
     private static int CompareApproachingLineAt(
         ReadOnlySpan<ulong> startCross,
         ReadOnlySpan<ulong> velocity,
-        long distanceRaw,
+        ulong distanceRaw,
         ReadOnlySpan<ulong> oneMagnitude)
     {
         Span<ulong> distanceMagnitude = stackalloc ulong[1]
@@ -294,7 +288,8 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<ulong> edgeSquared,
         ReadOnlySpan<ulong> denominator,
         Fixed64 radius,
-        long lowerRaw)
+        long lowerRaw,
+        in SweepTrajectory trajectory)
     {
         Signed192 lower = Signed192.Signed(lowerRaw);
         Signed192 midpoint = WideArithmetic.AddSigned192(
@@ -309,7 +304,7 @@ internal static partial class WideOrientedBox
             denominator,
             radius,
             midpoint,
-            SweepDoubleRawScale);
+            trajectory.DoubleTimeScale);
     }
 
     private static int CompareRationalSegmentLineAt(
@@ -383,84 +378,104 @@ internal static partial class WideOrientedBox
         return WideArithmetic.CompareMagnitudeEqualLength(leftSquared, scratch);
     }
 
-    private static bool TryGetRationalSegmentParameter(
-        SweepRationalPoint first,
-        SweepRationalPoint second,
+    private static bool TryGetExactRationalSegmentWitness(
+        TriangleSweepPoint first,
+        TriangleSweepPoint second,
         Signed832 edgeX,
         Signed832 edgeZ,
         ReadOnlySpan<ulong> edgeSquared,
-        Vector2d start,
-        Vector2d direction,
-        Fixed64 distance,
-        out Fixed64 parameter)
+        Signed576 startX,
+        Signed576 startZ,
+        ReadOnlySpan<ulong> startCross,
+        ReadOnlySpan<ulong> velocityCross,
+        in SweepTrajectory trajectory,
+        Fixed64 radius,
+        bool atStart,
+        out Vector3d localPoint,
+        out Signed576 referenceYOffset)
     {
-        Signed576 startX = WideArithmetic.SubtractSigned576(
-            WideArithmetic.MultiplySigned576(
-                first.Denominator,
-                Signed192.Raw(start.X)),
-            first.X);
-        Signed576 startZ = WideArithmetic.SubtractSigned576(
-            WideArithmetic.MultiplySigned576(
-                first.Denominator,
-                Signed192.Raw(start.Y)),
-            first.Z);
-        Signed576 directionX = WideArithmetic.MultiplySigned576(
-            first.Denominator,
-            Signed192.Raw(direction.X));
-        Signed576 directionZ = WideArithmetic.MultiplySigned576(
-            first.Denominator,
-            Signed192.Raw(direction.Y));
-        Signed576 scaledX = WideArithmetic.AddSigned576(
-            WideArithmetic.MultiplySigned576(startX, SweepRawScale),
-            WideArithmetic.MultiplySigned576(
-                directionX,
-                Signed192.Signed(distance.m_rawValue)));
-        Signed576 scaledZ = WideArithmetic.AddSigned576(
-            WideArithmetic.MultiplySigned576(startZ, SweepRawScale),
-            WideArithmetic.MultiplySigned576(
-                directionZ,
-                Signed192.Signed(distance.m_rawValue)));
-
-        Span<ulong> dot = stackalloc ulong[TriangleSweepMagnitudeWords];
-        GetDotMagnitude(
-            edgeX,
-            edgeZ,
-            scaledX,
-            scaledZ,
-            dot,
-            out int dotSign);
-        if (dotSign < 0)
-        {
-            parameter = default;
-            return false;
-        }
-
+        // Full clipped endpoints bound exact foot fields below 2508 bits;
+        // multiplying by a 65-bit local difference stays below 2574 bits.
+        const int words = 42;
+        Span<ulong> values = stackalloc ulong[8 * words];
+        Span<int> signs = stackalloc int[8];
+        ContactQuadratic time = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic numerator = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic denominator = ContactQuadratic.At(values, signs, 2, words);
+        ContactQuadratic work = ContactQuadratic.At(values, signs, 3, words);
+        time.Clear(); numerator.Clear(); denominator.Clear(); work.Clear();
+        Span<ulong> startDot = stackalloc ulong[TriangleSweepMagnitudeWords];
+        GetDotMagnitude(edgeX, edgeZ, startX, startZ, startDot, out int startDotSign);
         Span<ulong> secondDenominator = stackalloc ulong[9];
-        WideArithmetic.GetMagnitude(
-            second.Denominator,
-            secondDenominator);
-        Span<ulong> numerator =
-            stackalloc ulong[TriangleSweepMagnitudeWords];
-        WideArithmetic.MultiplyMagnitudes(dot, secondDenominator, numerator);
-        Span<ulong> oneMagnitude = stackalloc ulong[3];
-        WideArithmetic.GetMagnitude(
-            SweepRawScale,
-            out oneMagnitude[2],
-            out oneMagnitude[1],
-            out oneMagnitude[0]);
-        Span<ulong> denominator =
-            stackalloc ulong[TriangleSweepMagnitudeWords];
-        WideArithmetic.MultiplyMagnitudes(edgeSquared, oneMagnitude, denominator);
-        if (WideArithmetic.CompareMagnitudeEqualLength(numerator, denominator) > 0)
+        WideArithmetic.GetMagnitude(second.RationalPoint.Denominator, secondDenominator);
+        if (atStart)
         {
-            parameter = default;
+            startDot.CopyTo(numerator.Rational);
+            numerator.Signs[0] = startDotSign;
+            edgeSquared.CopyTo(denominator.Rational);
+            denominator.Signs[0] = 1;
+        }
+        else
+        {
+            // The exact approaching root is (|cross|-R*D*sqrt(L))/|velocity|.
+            // Retain this field when certifying and materializing its finite foot.
+            startCross.CopyTo(time.Rational);
+            time.Signs[0] = 1;
+            Span<ulong> firstDenominator = stackalloc ulong[9];
+            WideArithmetic.GetMagnitude(first.RationalPoint.Denominator, firstDenominator);
+            Span<ulong> radiusMagnitude = stackalloc ulong[1] { (ulong)radius.m_rawValue };
+            WideArithmetic.MultiplyMagnitudes(firstDenominator, radiusMagnitude, time.Radical);
+            time.Signs[1] = radius == Fixed64.Zero ? 0 : -1;
+            Span<ulong> velocityDot = stackalloc ulong[TriangleSweepMagnitudeWords];
+            GetDotMagnitude(edgeX, edgeZ,
+                WideArithmetic.MultiplySigned576(first.RationalPoint.Denominator, trajectory.DirectionX),
+                WideArithmetic.MultiplySigned576(first.RationalPoint.Denominator, trajectory.DirectionZ),
+                velocityDot, out int velocityDotSign);
+            ContactQuadratic.Scale(time, velocityDot, velocityDotSign, numerator);
+            WideArithmetic.MultiplyMagnitudes(startDot, velocityCross, work.Rational);
+            work.Signs[0] = startDotSign;
+            numerator.Add(work);
+            WideArithmetic.MultiplyMagnitudes(edgeSquared, velocityCross, denominator.Rational);
+            denominator.Signs[0] = 1;
+        }
+        ContactQuadratic.Scale(numerator, secondDenominator, 1, work);
+        work.CopyTo(numerator);
+        numerator.CopyTo(time);
+        time.Add(denominator, -1);
+        if (numerator.Sign(edgeSquared) < 0 || time.Sign(edgeSquared) > 0)
+        {
+            localPoint = default;
+            referenceYOffset = default;
             return false;
         }
 
-        parameter = Fixed64.GetUnitIntervalRatio(
-            numerator,
-            denominator);
+        localPoint = new Vector3d(
+            RoundRationalSegmentCoordinate(first.LocalPoint.X, second.LocalPoint.X, numerator, denominator, edgeSquared, work, time),
+            RoundRationalSegmentCoordinate(first.LocalPoint.Y, second.LocalPoint.Y, numerator, denominator, edgeSquared, work, time),
+            RoundRationalSegmentCoordinate(first.LocalPoint.Z, second.LocalPoint.Z, numerator, denominator, edgeSquared, work, time));
+        ContactQuadratic.Scale(numerator, Signed576.ExtendValue(Signed320.ExtendValue(SweepRawScale)), work);
+        Fixed64 parameter = ContactQuadratic.RoundRatio(work, denominator, edgeSquared, 0L, FixedMath.ONE_L);
+        referenceYOffset = WideArithmetic.AddSigned576(
+            WideArithmetic.MultiplySigned320(first.ReferenceYOffset, Signed320.ExtendValue(Signed192.Raw(Fixed64.One - parameter))),
+            WideArithmetic.MultiplySigned320(second.ReferenceYOffset, Signed320.ExtendValue(Signed192.Raw(parameter))));
         return true;
+    }
+
+    private static Fixed64 RoundRationalSegmentCoordinate(
+        Fixed64 first,
+        Fixed64 second,
+        ContactQuadratic numerator,
+        ContactQuadratic denominator,
+        ReadOnlySpan<ulong> root,
+        ContactQuadratic work,
+        ContactQuadratic scratch)
+    {
+        Signed192 delta = WideArithmetic.SubtractSigned192(Signed192.Raw(second), Signed192.Raw(first));
+        ContactQuadratic.Scale(numerator, Signed576.ExtendValue(Signed320.ExtendValue(delta)), work);
+        ContactQuadratic.Scale(denominator, Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(first))), scratch);
+        work.Add(scratch);
+        return ContactQuadratic.RoundRatio(work, denominator, root,
+            Math.Min(first.m_rawValue, second.m_rawValue), Math.Max(first.m_rawValue, second.m_rawValue));
     }
 
     private static void GetEdgeSquaredMagnitude(

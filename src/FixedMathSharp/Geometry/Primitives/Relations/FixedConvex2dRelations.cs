@@ -13,6 +13,7 @@ namespace FixedMathSharp.Geometry;
 /// Provides exact relations for convex 2D shapes represented by canonical
 /// origins, scalar rotations, and local vertex offsets.
 /// </summary>
+/// <content>Owns exact planar convex contacts, queries and translated shape intersections.</content>
 public static partial class FixedConvex2dRelations
 {
     /// <summary>
@@ -798,7 +799,9 @@ public static partial class FixedConvex2dRelations
         return true;
     }
 
-    private static bool TryGetSweptConvexFirstDistanceCore(
+    // Authored mode consumes an already admitted displacement and its positive
+    // representable length; public direction/distance entry points keep validation.
+    internal static bool TryGetSweptConvexFirstDistanceCore(
         Vector2d moverOrigin,
         Fixed64 moverRotation,
         ReadOnlySpan<Vector2d> moverVertexOffsets,
@@ -809,11 +812,13 @@ public static partial class FixedConvex2dRelations
         ReadOnlySpan<Vector2d> targetVertexOffsets,
         out Fixed64 distance,
         out Vector2d normal,
-        out Vector2d targetContactOffset)
+        out Vector2d targetContactOffset,
+        bool authoredDisplacement = false)
     {
         ValidateVertexOffsets(moverVertexOffsets);
         ValidateVertexOffsets(targetVertexOffsets);
-        ValidateSweep(direction, maximumDistance);
+        if (!authoredDisplacement)
+            ValidateSweep(direction, maximumDistance);
         Span<Vector2d> moverContacts = stackalloc Vector2d[2];
         Span<Vector2d> targetContacts = stackalloc Vector2d[2];
         if (WideConvex2dRelations.TryGetContactOffsets(
@@ -872,13 +877,16 @@ public static partial class FixedConvex2dRelations
                         targetEnd,
                         Fixed64.Zero,
                         out Fixed64 candidateDistance,
-                        out Vector2d candidateNormal))
+                        out Vector2d candidateNormal,
+                        authoredDisplacement))
                 {
                     candidateNormal = OrientSweepNormal(
                         candidateNormal,
                         direction);
                     Vector2d candidateTranslation =
-                        direction * candidateDistance;
+                        authoredDisplacement
+                            ? new FixedSegment2d(Vector2d.Zero, direction).GetPointAtDistance(candidateDistance, maximumDistance)
+                            : direction * candidateDistance;
                     candidateNormal =
                         WideConvex2dRelations.OrientTargetToSourceNormal(
                             candidateNormal,
@@ -910,7 +918,9 @@ public static partial class FixedConvex2dRelations
             moverOrigin,
             moverRotation,
             moverVertexOffsets,
-            direction * distance,
+            authoredDisplacement
+                ? new FixedSegment2d(Vector2d.Zero, direction).GetPointAtDistance(distance, maximumDistance)
+                : direction * distance,
             targetOrigin,
             targetRotation,
             targetVertexOffsets,
@@ -944,7 +954,9 @@ public static partial class FixedConvex2dRelations
             out normal,
             out convexContactOffset);
 
-    private static bool TryGetSweptCenteredCapsuleFirstDistanceCore(
+    // Chord mode retains a physical-distance numerator over the admitted length,
+    // so anchor reconstruction does not quantize time to a second Fixed64 fraction.
+    internal static bool TryGetSweptCenteredCapsuleFirstDistanceCore(
         Vector2d center,
         Vector2d axisDirection,
         Fixed64 axisLength,
@@ -956,7 +968,8 @@ public static partial class FixedConvex2dRelations
         ReadOnlySpan<Vector2d> convexVertexOffsets,
         out Fixed64 distance,
         out Vector2d normal,
-        out Vector2d convexContactOffset)
+        out Vector2d convexContactOffset,
+        bool authoredDisplacement = false)
     {
         bool found = false;
         distance = default;
@@ -981,13 +994,16 @@ public static partial class FixedConvex2dRelations
                     end,
                     Fixed64.Zero,
                     out Fixed64 candidateDistance,
-                    out Vector2d candidateNormal))
+                    out Vector2d candidateNormal,
+                    authoredDisplacement))
             {
                 candidateNormal = OrientSweepNormal(
                     candidateNormal,
                     direction);
                 Vector2d candidateTranslation =
-                    direction * candidateDistance;
+                    authoredDisplacement
+                        ? new FixedSegment2d(Vector2d.Zero, direction).GetPointAtDistance(candidateDistance, maximumDistance)
+                        : direction * candidateDistance;
                 candidateNormal =
                     WideConvex2dRelations.OrientTargetToSourceNormal(
                         candidateNormal,
@@ -1024,7 +1040,9 @@ public static partial class FixedConvex2dRelations
         convexContactOffset =
             WideConvex2dRelations.GetSweptAnchorTargetContactOffset(
             sourceSupport,
-            direction * distance,
+            authoredDisplacement
+                ? new FixedSegment2d(Vector2d.Zero, direction).GetPointAtDistance(distance, maximumDistance)
+                : direction * distance,
             convexOrigin,
             convexRotation,
             convexVertexOffsets,

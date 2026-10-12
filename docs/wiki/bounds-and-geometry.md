@@ -376,6 +376,16 @@ maximum-scale parameter lattice; the selected local point is rounded only at the
 end. Equal candidates retain AB, BC, CA, face order. Axis direction and rotation
 must be normalized, height positive, and radius nonnegative.
 
+For endpoint-authored circle sweeps through a fixed world-Y slab, use the
+`FixedSegment2d` overloads of `FixedOrientedBox.TryGetCircleSlabSweepDistance`
+and `FixedTriangle.TryGetFiniteSlabProjectedCircleSweep`. They retain the exact
+X/Z chord and map its interval to the supplied `totalDistance`, rounding the
+final distance to nearest-even. Exact finite-edge admission and triangle
+witness selection precede that rounding. Normalizing the displacement first
+can change a grazing trajectory. A zero total distance requires a point
+segment; negative dimensions are rejected. Direction-based overloads continue
+to describe the supplied normalized direction and distance directly.
+
 Interval queries return the closed portion of a bounded segment or ray that
 intersects the requested shape. Advanced overloads can also report endpoint
 containment independently of rounded interval parameters.
