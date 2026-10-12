@@ -109,7 +109,7 @@ internal static class ConePlaneRayPointMaterialization
             // cancellation local; other geometry owners retain their basis ABI.
             ContactQuadratic.Scale(point.Denominator,
                 Extend(WideArithmetic.AddSigned192(basis.Denominator, basis.Denominator)), d);
-            return TryGetWorldPoint(Vector3d.Zero, FixedQuaternion.Identity, x, y, z, d, root, out localPoint);
+            return QuadraticPointMaterialization.TryGetWorldPoint(Vector3d.Zero, FixedQuaternion.Identity, x, y, z, d, root, out localPoint);
         }
         Signed320 square = WideArithmetic.MultiplySigned192(basis.Denominator, basis.Denominator);
         ContactQuadratic.Scale(point.Denominator, Signed576.ExtendValue(WideArithmetic.AddSigned320(square, square)), d);
@@ -120,7 +120,7 @@ internal static class ConePlaneRayPointMaterialization
             ContactQuadratic.Scale(y, Extend(axis == 0 ? basis.Xy : axis == 1 ? basis.Yy : basis.Zy), term); target.Add(term);
             ContactQuadratic.Scale(z, Extend(axis == 0 ? basis.Xz : axis == 1 ? basis.Yz : basis.Zz), term); target.Add(term);
         }
-        return TryGetWorldPoint(Vector3d.Zero, FixedQuaternion.Identity,
+        return QuadraticPointMaterialization.TryGetWorldPoint(Vector3d.Zero, FixedQuaternion.Identity,
             ContactQuadratic.At(work, signs, 5, words), ContactQuadratic.At(work, signs, 6, words),
             ContactQuadratic.At(work, signs, 7, words), d, root, out localPoint);
     }
@@ -201,94 +201,9 @@ internal static class ConePlaneRayPointMaterialization
         centeredY.Add(py, -1);
         Signed192 scale = WideArithmetic.AddSigned192(frame.Finite.ShapeFrame.Denominator, frame.Finite.ShapeFrame.Denominator);
         ContactQuadratic.Scale(pd, Extend(scale), denominator);
-        return TryGetWorldPoint(coneLocal ? Vector3d.Zero : frame.ConeCenter,
+        return QuadraticPointMaterialization.TryGetWorldPoint(coneLocal ? Vector3d.Zero : frame.ConeCenter,
             coneLocal ? FixedQuaternion.Identity : frame.ConeRotation,
             px, centeredY, pz, denominator, root, materialize, samplingOrigin, out worldPoint);
-    }
-
-    /// <summary>Rounds exact raw local coordinates after one rational rigid transform.</summary>
-    internal static bool TryGetWorldPoint(Vector3d origin, FixedQuaternion rotation,
-        scoped ContactQuadratic px, scoped ContactQuadratic py, scoped ContactQuadratic pz,
-        scoped ContactQuadratic pd, scoped ReadOnlySpan<ulong> root, out Vector3d worldPoint)
-        => TryGetPointInFrame(origin, rotation, px, py, pz, pd, root, Vector3d.Zero, out worldPoint);
-
-    internal static bool TryGetPointInFrame(Vector3d origin, FixedQuaternion rotation,
-        scoped ContactQuadratic px, scoped ContactQuadratic py, scoped ContactQuadratic pz,
-        scoped ContactQuadratic pd, scoped ReadOnlySpan<ulong> root, Vector3d samplingOrigin, out Vector3d pointInFrame)
-        => TryGetWorldPoint(origin, rotation, px, py, pz, pd, root, true, samplingOrigin, out pointInFrame);
-
-    private static bool TryGetWorldPoint(Vector3d origin, FixedQuaternion rotation,
-        scoped ContactQuadratic px, scoped ContactQuadratic py, scoped ContactQuadratic pz,
-        scoped ContactQuadratic pd, scoped ReadOnlySpan<ulong> root, bool materialize, Vector3d samplingOrigin, out Vector3d worldPoint)
-    {
-        worldPoint = default;
-        if (pd.Sign(root) <= 0)
-            return false;
-        // Representable quaternion products add <130 bits, translation <64,
-        // and the final doubled representability threshold <65. Four extra
-        // limbs cover all complete products and sums for any supplied fields.
-        bool identity = rotation == FixedQuaternion.Identity;
-        WideRationalBasis3d basis = identity ? default : new(rotation);
-        int words = Math.Max(Math.Max(ContactQuadratic.ActiveWords(px), ContactQuadratic.ActiveWords(py)),
-            Math.Max(ContactQuadratic.ActiveWords(pz), ContactQuadratic.ActiveWords(pd))) + 4;
-        Span<ulong> work = stackalloc ulong[8 * words]; Span<int> signs = stackalloc int[8];
-        ContactQuadratic denominator = ContactQuadratic.At(work, signs, 0, words);
-        ContactQuadratic numerator = ContactQuadratic.At(work, signs, 1, words);
-        ContactQuadratic term = ContactQuadratic.At(work, signs, 2, words);
-        ContactQuadratic query = ContactQuadratic.At(work, signs, 3, words);
-        if (identity) ContactQuadratic.Scale(pd, Extend(Signed192.Signed(1)), denominator);
-        else ContactQuadratic.Scale(pd, Extend(basis.Denominator), denominator);
-        Signed192 upperHalf = WideArithmetic.AddSigned192(WideArithmetic.AddSigned192(
-            Signed192.Signed(long.MaxValue), Signed192.Signed(long.MaxValue)), Signed192.Signed(1));
-        Signed192 lowerHalf = WideArithmetic.SubtractSigned192(WideArithmetic.AddSigned192(
-            Signed192.Signed(long.MinValue), Signed192.Signed(long.MinValue)), Signed192.Signed(1));
-        Span<Fixed64> coordinates = stackalloc Fixed64[3];
-        for (int axis = 0; axis < 3; axis++)
-        {
-            Signed192 x = axis == 0 ? basis.Xx : axis == 1 ? basis.Xy : basis.Xz;
-            Signed192 y = axis == 0 ? basis.Yx : axis == 1 ? basis.Yy : basis.Yz;
-            Signed192 z = axis == 0 ? basis.Zx : axis == 1 ? basis.Zy : basis.Zz;
-            // Identity is also the direct local-output route. Preserve the
-            // original ratio instead of multiplying it by a redundant S^2
-            // quaternion denominator and performing six zero products.
-            if (identity) ContactQuadratic.Scale(axis == 0 ? px : axis == 1 ? py : pz, Extend(Signed192.Signed(1)), numerator);
-            else
-            {
-                ContactQuadratic.Scale(px, Extend(x), numerator);
-                ContactQuadratic.Scale(py, Extend(y), term); numerator.Add(term);
-                ContactQuadratic.Scale(pz, Extend(z), term); numerator.Add(term);
-            }
-            // Subtract origins before narrowing. A valid point offset can exist
-            // even when its conceptual absolute world coordinate is outside Q32.32.
-            Signed192 center = WideArithmetic.SubtractSigned192(Signed192.Raw(origin[axis]), Signed192.Raw(samplingOrigin[axis]));
-            ContactQuadratic.Scale(denominator, Extend(center), term); numerator.Add(term);
-            long parityOffset = samplingOrigin[axis].m_rawValue;
-            // Rational coordinates share the raw ratio owner's exact signed
-            // range and nearest-even policy, combining admission and rounding.
-            if (numerator.Signs[1] == 0 && denominator.Signs[1] == 0)
-            {
-                if (!Fixed64.TryGetSignedRawRatio(numerator.Rational, denominator.Rational, numerator.Signs[0] < 0, out coordinates[axis], parityOffset))
-                    return false;
-                continue;
-            }
-            // Ties belong to the global lattice: an odd sampling origin flips
-            // the common-frame parity. Preserve this at both range thresholds
-            // and final rounding, so translating cannot change a selected row.
-            numerator.CopyTo(term); term.Add(numerator);
-            ContactQuadratic.Scale(denominator, Extend(upperHalf), query);
-            query.Add(term, -1);
-            int upperComparison = query.Sign(root);
-            if (upperComparison < 0 || upperComparison == 0 && (parityOffset & 1) == 0)
-                return false;
-            ContactQuadratic.Scale(denominator, Extend(lowerHalf), query);
-            query.Add(term, -1);
-            int lowerComparison = query.Sign(root);
-            if (lowerComparison > 0 || lowerComparison == 0 && (parityOffset & 1) != 0)
-                return false;
-            if (materialize) coordinates[axis] = ContactQuadratic.RoundRatio(numerator, denominator, root, parityOffset: parityOffset);
-        }
-        if (materialize) worldPoint = new Vector3d(coordinates[0], coordinates[1], coordinates[2]);
-        return true;
     }
 
     private static Signed576 Extend(Signed192 value) => Signed576.ExtendValue(Signed320.ExtendValue(value));

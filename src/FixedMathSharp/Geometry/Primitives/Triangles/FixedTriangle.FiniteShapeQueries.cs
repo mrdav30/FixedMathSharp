@@ -144,7 +144,10 @@ public partial struct FixedTriangle
     /// <remarks>
     /// The returned normal points from the triangle toward the capsule.
     /// <paramref name="fallbackNormal"/> is used only when the closest axis
-    /// and triangle points coincide. A false result means that the contact is
+    /// and triangle points coincide exactly. With a positive core length, the
+    /// capsule witness is the first finite boundary exit from that witness
+    /// opposite the selected normal. Its depth is this local ray distance,
+    /// rather than a whole-triangle minimum translation. A false result means that the contact is
     /// separated or that at least one final output is not representable; use
     /// <see cref="DoesCenteredCapsuleOverlap"/> when classification must remain
     /// independent of witness materialization.

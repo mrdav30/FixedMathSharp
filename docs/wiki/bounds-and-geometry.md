@@ -459,6 +459,15 @@ in its input rigid frame, so the relation can remain valid even when an absolute
 world witness cannot be materialized. Exact touching is included and reports
 zero depth.
 
+`FixedTriangle.TryGetCenteredCapsuleContact` retains a finite triangle witness
+and a capsule-local boundary anchor. When a positive-length core coincides with
+the triangle, the supplied fallback normal selects the direction: depth measures
+the first capsule-boundary exit from that witness opposite the normal. Core
+extent can therefore contribute to depth even when core-to-triangle distance is
+zero. This is a single witness relation, not a minimum translation for an entire
+triangle or mesh. Finite core and radial anchor terms remain separate, including
+half-raw endpoints from odd raw lengths.
+
 ## Anchors and slab projection
 
 `FixedPointAnchor` and `FixedPointAnchor2d` keep a point in a rigid local frame.

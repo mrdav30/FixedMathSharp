@@ -15,17 +15,56 @@ internal readonly struct AxisTriangleContactFeature
     private readonly Signed576 _separationX, _separationY, _separationZ;
 
     internal AxisTriangleContactFeature(int edgeMask, Signed576 separationX,
-        Signed576 separationY, Signed576 separationZ)
+        Signed576 separationY, Signed576 separationZ, int triangleVertex = -1)
     {
         EdgeMask = edgeMask;
+        TriangleVertex = triangleVertex;
         _separationX = separationX; _separationY = separationY; _separationZ = separationZ;
     }
 
     /// <summary>Zero edge halfspaces: AB=1, BC=2, CA=4; 7 declines degenerate classification.</summary>
     internal int EdgeMask { get; }
 
+    /// <summary>Exact authored vertex ownership; -1 denotes a nonvertex witness.</summary>
+    internal int TriangleVertex { get; }
+
     /// <summary>Whether the retained core and triangle witnesses coincide exactly.</summary>
     internal bool IsZeroSeparation => _separationX.IsZero && _separationY.IsZero && _separationZ.IsZero;
+
+    /// <summary>Gets the exact separation sign along a wide direction in the selected contact chart.</summary>
+    internal int CompareSeparationProjection(Signed192 x, Signed192 y, Signed192 z)
+    {
+        // The complete 576-by-192 products and their three-term sum fit in
+        // signed 832 bits. Triangle plane normals need no Q32.32 narrowing.
+        return WideArithmetic.AddSigned832(WideArithmetic.AddSigned832(
+            WideArithmetic.MultiplySigned576ToSigned832(_separationX, Signed320.ExtendValue(x)),
+            WideArithmetic.MultiplySigned576ToSigned832(_separationY, Signed320.ExtendValue(y))),
+            WideArithmetic.MultiplySigned576ToSigned832(_separationZ, Signed320.ExtendValue(z))).Sign;
+    }
+
+    /// <summary>Gets the same exact sign for a rigidly transformed wide axis.</summary>
+    internal int CompareSeparationProjection(in WideAxis3 direction)
+    {
+        // Full 576-by-320 products plus carries need 898 signed bits. The
+        // existing quadratic owner retains this rational-only dot without
+        // narrowing exceptional world-chart plane normals to Signed192.
+        const int words = 15;
+        Span<ulong> values = stackalloc ulong[6 * words];
+        Span<int> signs = stackalloc int[6];
+        ContactQuadratic sum = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic term = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic product = ContactQuadratic.At(values, signs, 2, words);
+        sum.Clear();
+        Span<Signed576> components = stackalloc Signed576[3] { _separationX, _separationY, _separationZ };
+        Span<Signed320> axes = stackalloc Signed320[3] { direction.X, direction.Y, direction.Z };
+        for (int index = 0; index < 3; index++)
+        {
+            term.Set(components[index]);
+            ContactQuadratic.Scale(term, Signed576.ExtendValue(axes[index]), product);
+            sum.Add(product);
+        }
+        return sum.Sign(ReadOnlySpan<ulong>.Empty);
+    }
 
     /// <summary>Gets the exact sign of separation dotted with a ray in the selected contact chart.</summary>
     internal int CompareSeparationProjection(Vector3d first, Vector3d second)
@@ -166,9 +205,27 @@ internal static partial class WideFiniteAxisIntersection
             return false;
         }
 
-        normal = WideNormalization.GetDirection(pointOnTriangle, pointOnAxis);
+        normal = WideNormalization.GetNormalized(
+            WideArithmetic.SubtractSigned576(candidate.AxisX, candidate.TriangleX),
+            WideArithmetic.SubtractSigned576(candidate.AxisY, candidate.TriangleY),
+            WideArithmetic.SubtractSigned576(candidate.AxisZ, candidate.TriangleZ));
         if (normal.IsZero)
             normal = fallbackNormal;
+        if (candidate.SquaredDistanceNumerator.IsZero && axisLength != Fixed64.Zero)
+        {
+            Span<ulong> values = stackalloc ulong[4 * CapsuleTriangleRayWords];
+            Span<int> signs = stackalloc int[4];
+            Span<ulong> root = stackalloc ulong[CapsuleTriangleRayRootWords];
+            ContactQuadratic n = RayField(values, signs, 0), d = RayField(values, signs, 1);
+            GetCoincidentCapsuleRayExit(candidate, center, axisDirection, axisLength, radius,
+                -normal, n, d, root, out _);
+            GetCapsuleRayDepth(n, d, root, normal, out depth, out bool clamped);
+            if (!clamped && TryMaterializeCapsuleRayPoint(candidate, -normal, n, d, root, out pointOnCapsule))
+                return true;
+            pointOnTriangle = pointOnCapsule = normal = default;
+            depth = default;
+            return false;
+        }
         if (!TryOffsetPoint(pointOnAxis, -normal, radius, out pointOnCapsule))
         {
             pointOnTriangle = default;
@@ -189,15 +246,23 @@ internal static partial class WideFiniteAxisIntersection
         Fixed64 axisLength,
         Fixed64 radius,
         Vector3d fallbackNormal,
+        FixedQuaternion radialSourceRotation,
+        FixedQuaternion radialTargetRotation,
         out Vector3d pointOnTriangle,
         out Fixed64 axisParameter,
         out Vector3d normal,
         out Fixed64 depth,
         out bool depthIsClamped,
         bool retainFeature,
-        out AxisTriangleContactFeature feature)
+        out AxisTriangleContactFeature feature,
+        out Vector3d rayRadialOffset,
+        out int rayEndpointSign,
+        out bool hasBoundaryRay)
     {
         feature = default;
+        rayRadialOffset = default;
+        rayEndpointSign = 0;
+        hasBoundaryRay = false;
         GetClosestCenteredAxisTriangleCandidate(
             triangle,
             center,
@@ -231,7 +296,17 @@ internal static partial class WideFiniteAxisIntersection
             candidate.AxisZ,
             candidate.TriangleZ);
         if (retainFeature)
-            feature = new AxisTriangleContactFeature(candidate.EdgeMask, differenceX, differenceY, differenceZ);
+        {
+            int vertex = candidate.EdgeMask == 5 ? 0 : candidate.EdgeMask == 3 ? 1 : candidate.EdgeMask == 6 ? 2 : -1;
+            if (candidate.EdgeMask == 7)
+                vertex = IsVertex(triangle.A) ? 0 : IsVertex(triangle.B) ? 1 : IsVertex(triangle.C) ? 2 : -1;
+            feature = new AxisTriangleContactFeature(candidate.EdgeMask, differenceX, differenceY, differenceZ, vertex);
+
+            bool IsVertex(Vector3d point) =>
+                SubtractVertex(candidate.TriangleX, point.X, candidate.Denominator).IsZero
+                && SubtractVertex(candidate.TriangleY, point.Y, candidate.Denominator).IsZero
+                && SubtractVertex(candidate.TriangleZ, point.Z, candidate.Denominator).IsZero;
+        }
 
         normal = WideNormalization.GetNormalized(
             differenceX,
@@ -239,6 +314,23 @@ internal static partial class WideFiniteAxisIntersection
             differenceZ);
         if (normal.IsZero)
             normal = fallbackNormal;
+
+        hasBoundaryRay = candidate.SquaredDistanceNumerator.IsZero && axisLength != Fixed64.Zero;
+        if (hasBoundaryRay)
+        {
+            Span<ulong> values = stackalloc ulong[4 * CapsuleTriangleRayWords];
+            Span<int> signs = stackalloc int[4];
+            Span<ulong> root = stackalloc ulong[CapsuleTriangleRayRootWords];
+            ContactQuadratic n = RayField(values, signs, 0), d = RayField(values, signs, 1);
+            GetCoincidentCapsuleRayExit(candidate, center, axisDirection, axisLength, radius,
+                -normal, n, d, root, out rayEndpointSign);
+            GetCapsuleRayDepth(n, d, root, normal, out depth, out depthIsClamped);
+            MaterializeCapsuleRayComponents(candidate, center, axisDirection, axisLength,
+                -normal, rayEndpointSign, n, d, root, radialSourceRotation, radialTargetRotation,
+                out axisParameter, out rayRadialOffset);
+            _ = TryMaterialize(candidate, out pointOnTriangle, out _);
+            return true;
+        }
 
         // Both witnesses are convex points on representable local features:
         // the triangle point stays within its vertex component intervals and
@@ -713,6 +805,33 @@ internal static partial class WideFiniteAxisIntersection
         }
         else
         {
+            // Parallel finite segments have a whole closest-point interval.
+            // Keep its exact midpoint when the interval has positive length;
+            // selecting an arbitrary cap would turn an interior edge family
+            // into a corner contact. All pre-product terms fit Signed192
+            // (normalized axis <=34 bits, full-domain differences <=65 bits).
+            Signed320 first = WideArithmetic.MultiplySigned192(DoubleParameterScale,
+                WideArithmetic.SubtractSigned192(default, axisDotDifference));
+            Signed320 second = WideArithmetic.MultiplySigned192(DoubleParameterScale,
+                WideArithmetic.SubtractSigned192(directionsDot, axisDotDifference));
+            if (WideArithmetic.SubtractSigned320(first, second).Sign > 0)
+                (first, second) = (second, first);
+            Signed320 cap = WideArithmetic.MultiplySigned192(Signed192.Raw(axisLength), axisSquared);
+            Signed320 negativeCap = WideArithmetic.SubtractSigned320(default, cap);
+            if (WideArithmetic.SubtractSigned320(first, negativeCap).Sign < 0) first = negativeCap;
+            if (WideArithmetic.SubtractSigned320(second, cap).Sign > 0) second = cap;
+            if (WideArithmetic.SubtractSigned320(second, first).Sign > 0)
+            {
+                Signed192 midpoint = Signed192.NarrowProven(WideArithmetic.AddSigned320(first, second));
+                Signed320 common = WideArithmetic.MultiplySigned192(DoubleParameterScale, axisSquared);
+                Signed192 twiceCommon = Signed192.NarrowProven(WideArithmetic.AddSigned320(common, common));
+                edgeNumerator = WideArithmetic.AddSigned320(
+                    WideArithmetic.MultiplySigned192(edgeDotDifference, twiceCommon),
+                    WideArithmetic.MultiplySigned192(directionsDot, midpoint));
+                axisNumerator = WideArithmetic.MultiplySigned192(midpoint, edgeSquared);
+                denominator = WideArithmetic.MultiplySigned192(twiceCommon, edgeSquared);
+                return;
+            }
             axisNumerator = Signed320.ExtendValue(
                 Signed192.Signed(-axisLength.m_rawValue));
             denominator = Signed320.ExtendValue(DoubleParameterScale);

@@ -1,5 +1,5 @@
 //=======================================================================
-// ConeSectionPoint.cs
+// FiniteSectionPoint.cs
 //=======================================================================
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
@@ -8,25 +8,28 @@ using System;
 
 namespace FixedMathSharp.Geometry;
 
-/// <summary>Borrowed exact authored coordinates of a finite-cone section point.</summary>
-internal readonly ref struct ConeSectionPoint
+/// <summary>Borrowed exact homogeneous coordinates and shared radicand of a finite section point.</summary>
+internal readonly ref struct FiniteSectionPoint
 {
     internal const int Words = 10, RootWords = 17, StorageWords = 8 * Words + RootWords;
     internal const int SignCount = 8;
     internal readonly Span<ulong> Values;
     internal readonly Span<int> Signs;
-    internal Span<ulong> Root => Values[(8 * Words)..];
-    internal ContactQuadratic Coordinate(int axis) => ContactQuadratic.At(Values, Signs, axis, Words);
-    internal ContactQuadratic Denominator => ContactQuadratic.At(Values, Signs, 3, Words);
+    private readonly int _fieldWords;
+    internal Span<ulong> Root => Values[(8 * _fieldWords)..];
+    internal ContactQuadratic Coordinate(int axis) => ContactQuadratic.At(Values, Signs, axis, _fieldWords);
+    internal ContactQuadratic Denominator => ContactQuadratic.At(Values, Signs, 3, _fieldWords);
 
-    internal ConeSectionPoint(Span<ulong> values, Span<int> signs)
+    internal FiniteSectionPoint(Span<ulong> values, Span<int> signs,
+        int fieldWords = Words, int rootWords = RootWords)
     {
-        Values = values[..StorageWords]; Signs = signs[..SignCount];
+        Values = values[..(8 * fieldWords + rootWords)]; Signs = signs[..SignCount];
+        _fieldWords = fieldWords;
     }
 
     /// <summary>Retains the lexicographically first point of a closed segment/cone section.</summary>
     internal static bool TryGetFirstSegmentPoint(FixedSegment segment,
-        in ConeFiniteSectionFrame frame, ConeSectionPoint result)
+        in ConeFiniteSectionFrame frame, FiniteSectionPoint result)
     {
         result.Values.Clear(); result.Signs.Clear();
         if (ComparePositions(segment.Start, segment.End) > 0)
@@ -38,7 +41,14 @@ internal readonly ref struct ConeSectionPoint
         ContactQuadratic denominator = result.Denominator;
         if (!TryGetSegmentParameter(segment, frame, false, parameter, denominator, result.Root))
             return false;
-        // The shared frame bounds A/B/C below 528 bits, so a parameter
+        SetSegmentPoint(segment, parameter, denominator, term, result);
+        return true;
+    }
+
+    private static void SetSegmentPoint(FixedSegment segment, ContactQuadratic parameter,
+        ContactQuadratic denominator, ContactQuadratic term, FiniteSectionPoint result)
+    {
+        // The cone frame bounds A/B/C below 528 bits, so a parameter
         // numerator/denominator fits 529 bits and its discriminant 1057 bits.
         // Authored raw endpoint differences are below 65 bits; the complete
         // point coefficients fit 595 bits (ten limbs), root fits seventeen.
@@ -51,7 +61,6 @@ internal readonly ref struct ConeSectionPoint
             ContactQuadratic.Scale(parameter, Signed576.ExtendValue(Signed320.ExtendValue(difference)), term);
             coordinate.Add(term);
         }
-        return true;
     }
 
     /// <summary>Retains a closed cone-section endpoint in the input segment's exact parameter order.</summary>
@@ -88,14 +97,14 @@ internal readonly ref struct ConeSectionPoint
         // lies outside them. Finite axial clipping excludes the opposite
         // nappe. The linear and repeated-root chart has only branch +1.
         int branch = a.Sign == 0 ? 1 : (upper ? 1 : -1) * a.Sign;
-        bool found = ConePlaneRayCharts.TryGetParameter(qa, qb, qc, branch, root, numerator, denominator);
+        bool found = ContactQuadratic.TryGetParameter(qa, qb, qc, branch, root, numerator, denominator);
         if (!found)
-            found = ConePlaneRayCharts.TryGetParameter(qa, qb, qc, 1, root, numerator, denominator);
+            found = ContactQuadratic.TryGetParameter(qa, qb, qc, 1, root, numerator, denominator);
         System.Diagnostics.Debug.Assert(found);
         return true;
     }
 
-    internal static int CompareLexicographic(ConeSectionPoint first, ConeSectionPoint second)
+    internal static int CompareLexicographic(FiniteSectionPoint first, FiniteSectionPoint second)
     {
         for (int axis = 0; axis < 3; axis++)
         {
@@ -115,8 +124,31 @@ internal readonly ref struct ConeSectionPoint
         return comparison != 0 ? comparison : first.Z.CompareTo(second.Z);
     }
 
-    internal void CopyTo(ConeSectionPoint destination)
+    internal void CopyTo(FiniteSectionPoint destination)
     {
-        Values.CopyTo(destination.Values); Signs.CopyTo(destination.Signs);
+        // The caller proves the complete active fields fit. Different packed
+        // layouts must not overlap; equal-layout self-copy remains valid.
+        for (int coordinate = 0; coordinate < 4; coordinate++)
+            Coordinate(coordinate).CopyTo(destination.Coordinate(coordinate));
+        int activeRoot = WideArithmetic.GetActiveMagnitudeLength(Root);
+        Root[..activeRoot].CopyTo(destination.Root);
+        destination.Root[activeRoot..].Clear();
+    }
+
+    internal static bool TryGetFirstSegmentPoint(FixedSegment segment,
+        in CapsuleFiniteSectionFrame frame, FiniteSectionPoint result)
+    {
+        result.Values.Clear(); result.Signs.Clear();
+        if (ComparePositions(segment.Start, segment.End) > 0)
+            segment = new FixedSegment(segment.End, segment.Start);
+        Span<ulong> work = stackalloc ulong[4 * Words];
+        Span<int> signs = stackalloc int[4];
+        ContactQuadratic parameter = ContactQuadratic.At(work, signs, 0, Words);
+        ContactQuadratic term = ContactQuadratic.At(work, signs, 1, Words);
+        if (!frame.TryGetFirstSegmentParameter(segment, parameter, result.Denominator, result.Root)) return false;
+        // Capsule coefficients <400 bits need <466 bits after authored
+        // endpoint multiplication, within the existing cone-sized bank.
+        SetSegmentPoint(segment, parameter, result.Denominator, term, result);
+        return true;
     }
 }

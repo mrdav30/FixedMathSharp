@@ -235,10 +235,10 @@ internal static partial class WideConvexPrismRelations
         }
 
         Fixed64 approximation = GetDepthApproximation(depth);
-        // Sign-aware rational roots and one-sided disk roots keep this estimate
-        // at or below the exact depth. The admitted Q32-scaled axes keep exact
-        // upward correction within five raw units.
-        while (true)
+        // The estimate is a lower bound at every axis scale. Ordinary scaled
+        // axes need at most five corrections; a reduced rational basis can
+        // make the integer-root enclosure wider, requiring a bounded search.
+        for (int correction = 0; correction < 5; correction++)
         {
             Signed192 upperMidpoint = new(
                 0UL,
@@ -260,6 +260,19 @@ internal static partial class WideConvexPrismRelations
             isClamped = false;
             return approximation;
         }
+
+        long low = approximation.m_rawValue, high = long.MaxValue;
+        while (low < high)
+        {
+            long middle = low + ((high - low) >> 1);
+            Signed192 upperMidpoint = new(0UL, 0UL, unchecked((ulong)middle << 1) | 1UL);
+            int comparison = CompareProjectionDepthToTwiceRaw(depth, upperMidpoint);
+            // Crossing an odd cell's upper half rounds to the next even value.
+            if (comparison + (middle & 1L) > 0) low = middle + 1;
+            else high = middle;
+        }
+        isClamped = false;
+        return Fixed64.FromRaw(low);
     }
 
     private static Fixed64 GetDepthApproximation(

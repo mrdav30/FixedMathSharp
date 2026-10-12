@@ -191,13 +191,13 @@ public sealed class FixedTriangleFiniteConePlaneSectionTests
         a.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(2))));
         b.Clear(); c.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(-1))));
 
-        Assert.True(ConePlaneRayCharts.TryGetParameter(a, b, c, 1, root, n, d));
+        Assert.True(ContactQuadratic.TryGetParameter(a, b, c, 1, root, n, d));
         Assert.True(ConePlaneRayCharts.IsUnitParameter(n, d, root));
         Assert.True(ConePlaneRayCharts.IsUnitParameter(n, d, root, includeEndpoints: false));
         ContactQuadratic.Scale(n, Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(Fixed64.One))), a);
         Assert.Equal(Fixed64.FromRaw(3037000500L), ContactQuadratic.RoundRatio(a, d, root));
         a.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(2))));
-        Assert.True(ConePlaneRayCharts.TryGetParameter(a, b, c, -1, root, n, d));
+        Assert.True(ContactQuadratic.TryGetParameter(a, b, c, -1, root, n, d));
         Assert.False(ConePlaneRayCharts.IsUnitParameter(n, d, root));
         Assert.False(ConePlaneRayCharts.IsUnitParameter(n, d, root, includeEndpoints: false));
     }

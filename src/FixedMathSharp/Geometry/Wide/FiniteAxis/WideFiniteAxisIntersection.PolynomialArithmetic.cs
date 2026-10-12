@@ -135,6 +135,43 @@ internal static partial class WideFiniteAxisIntersection
     }
 
     /// <summary>
+    /// Removes exact common powers of two from a borrowed quadratic point without
+    /// growing coefficients or reducing the existing square-root enclosure precision.
+    /// Requires a nonzero homogeneous denominator; the point and all field signs remain unchanged.
+    /// </summary>
+    internal static void NormalizeQuadraticPointPowerOfTwo(
+        scoped ContactQuadratic x, scoped ContactQuadratic y,
+        scoped ContactQuadratic z, scoped ContactQuadratic denominator, Span<ulong> root)
+    {
+        int rationalPower = int.MaxValue, radicalPower = int.MaxValue;
+        for (int index = 0; index < 4; index++)
+        {
+            ContactQuadratic field = index == 0 ? x : index == 1 ? y : index == 2 ? z : denominator;
+            if (field.Signs[0] != 0)
+                rationalPower = Math.Min(rationalPower, CountRoundedCylinderTrailingZeroes(field.Rational));
+            if (field.Signs[1] != 0)
+                radicalPower = Math.Min(radicalPower, CountRoundedCylinderTrailingZeroes(field.Radical));
+        }
+        // Preserve the prefix used by GetMagnitudeSquareRootBounds. Removing more
+        // root bits would widen its relative enclosure and increase exact searches.
+        int rootPower = GetRoundedCylinderWideLength(root) == 0 ? 0
+            : Math.Min(CountRoundedCylinderTrailingZeroes(root) / 2,
+                Math.Max(0, (WideArithmetic.GetMagnitudeBitLength(root) - 191) / 2));
+        rootPower = Math.Min(rootPower, rationalPower);
+        int commonPower = Math.Min(rationalPower,
+            radicalPower == int.MaxValue ? int.MaxValue : radicalPower + rootPower);
+        if (commonPower == 0) return;
+        for (int index = 0; index < 4; index++)
+        {
+            ContactQuadratic field = index == 0 ? x : index == 1 ? y : index == 2 ? z : denominator;
+            if (field.Signs[0] != 0) ShiftRoundedCylinderWideRight(field.Rational, commonPower);
+            if (field.Signs[1] != 0 && commonPower != rootPower)
+                ShiftRoundedCylinderWideRight(field.Radical, commonPower - rootPower);
+        }
+        if (rootPower != 0) ShiftRoundedCylinderWideRight(root, 2 * rootPower);
+    }
+
+    /// <summary>
     /// Writes the ordinary derivative in the current variable, clearing padded
     /// output slots. Nonempty input/output sign spans determine their separate
     /// strides; storage is disjoint and every derivative coefficient must fit.

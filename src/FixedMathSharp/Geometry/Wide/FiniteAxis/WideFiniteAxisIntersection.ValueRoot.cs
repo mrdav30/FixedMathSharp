@@ -12,6 +12,18 @@ namespace FixedMathSharp.Geometry;
 /// </content>
 internal static partial class WideFiniteAxisIntersection
 {
+    private static int GetFiniteValueSturmArenaBits(int coefficientBits, int degree)
+    {
+        // C=B+64. For degree <=4, Brown's retained minors use <=39C;
+        // graded pseudo-remainders plus two products use <=50C and exact
+        // division <=52C. The existing eight scalar slots each use <=28C,
+        // hence construction fits (39+52+8*28)C=315C. Under the unchanged
+        // isolation shift bound, retained rows plus dyadic evaluation need
+        // <=170C+318 bits. Callers add the existing 512-word carry padding.
+        // Deeper refinement separately takes its target evaluation maximum.
+        return (degree <= 4 ? 315 : 880) * (coefficientBits + 64);
+    }
+
     internal static int GetFiniteValueRootCellWords(ReadOnlySpan<ulong> coefficients,
         ReadOnlySpan<sbyte> signs) =>
         (16 * (GetFiniteRootCoefficientBits(coefficients, signs.Length) + 11) + 255) / 64;
@@ -32,7 +44,7 @@ internal static partial class WideFiniteAxisIntersection
         // Graded surviving-coefficient slots avoid the uniform-width
         // pseudo-remainder blow-up. Construction scratch is released before
         // endpoint evaluation; neither phase holds another chain.
-        Span<ulong> arena = stackalloc ulong[(880 * (bits + 64) + 63) / 64 + 512];
+        Span<ulong> arena = stackalloc ulong[(GetFiniteValueSturmArenaBits(bits, degree) + 63) / 64 + 512];
         Span<int> offsets = stackalloc int[9];
         Span<int> widths = stackalloc int[9];
         Span<int> degrees = stackalloc int[9];
@@ -92,7 +104,7 @@ internal static partial class WideFiniteAxisIntersection
             return true;
         // The same arena as single-root isolation; the only additional live
         // caller state is the compact output (544 bytes for eight-word cells).
-        Span<ulong> arena = stackalloc ulong[(880 * (bits + 64) + 63) / 64 + 512];
+        Span<ulong> arena = stackalloc ulong[(GetFiniteValueSturmArenaBits(bits, degree) + 63) / 64 + 512];
         Span<int> offsets = stackalloc int[9];
         Span<int> widths = stackalloc int[9];
         Span<int> degrees = stackalloc int[9];
@@ -202,7 +214,7 @@ internal static partial class WideFiniteAxisIntersection
         ReadOnlySpan<sbyte> signs, int ordinal, int rootCount, Span<ulong> cell)
     {
         int bits = GetFiniteRootCoefficientBits(coefficients, signs.Length);
-        Span<ulong> arena = stackalloc ulong[(880 * (bits + 64) + 63) / 64 + 512];
+        Span<ulong> arena = stackalloc ulong[(GetFiniteValueSturmArenaBits(bits, signs.Length - 1) + 63) / 64 + 512];
         Span<int> offsets = stackalloc int[9];
         Span<int> widths = stackalloc int[9];
         Span<int> degrees = stackalloc int[9];
@@ -323,7 +335,7 @@ internal static partial class WideFiniteAxisIntersection
         // Raw subresultant minor bounds control the retained rows. A
         // refinement may need more precision than isolation, so separately
         // budget exact dyadic evaluation and reuse the construction arena.
-        int arenaBits = Math.Max(880 * unitBits, retainedBits + evaluationBits);
+        int arenaBits = Math.Max(GetFiniteValueSturmArenaBits(bits, degree), retainedBits + evaluationBits);
         Span<ulong> arena = stackalloc ulong[(arenaBits + 63) / 64 + 512];
         Span<int> offsets = stackalloc int[9];
         Span<int> widths = stackalloc int[9];

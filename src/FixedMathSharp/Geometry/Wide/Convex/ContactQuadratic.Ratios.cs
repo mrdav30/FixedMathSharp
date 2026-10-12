@@ -183,6 +183,7 @@ internal readonly ref partial struct ContactQuadratic
         else
         {
             long high = long.MaxValue;
+            RefineRoundRatioBounds(left, right, root, ref low, ref high, squaredDepth: true);
             while (low < high)
             {
                 long midpoint = low + ((high - low) >> 1) + ((high - low) & 1);

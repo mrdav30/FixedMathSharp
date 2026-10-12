@@ -22,13 +22,18 @@ internal readonly ref partial struct ContactQuadratic
     internal void Clear() { Values.Clear(); Signs.Clear(); }
     internal void Set(Signed576 value)
     {
-        Clear(); Import(value, Rational); Signs[0] = value.Sign;
+        Import(value, Rational); Radical.Clear(); Signs[0] = value.Sign; Signs[1] = 0;
     }
     internal void CopyTo(ContactQuadratic destination, int multiplier = 1)
     {
-        Rational.CopyTo(destination.Rational); Radical.CopyTo(destination.Radical);
-        destination.Rational[FieldWords..].Clear(); destination.Radical[FieldWords..].Clear();
-        destination.Signs[0] = Signs[0] * multiplier; destination.Signs[1] = Signs[1] * multiplier;
+        // Signs are authoritative: a zero field can retain stale scratch bytes.
+        // Both complete active fields must fit the destination's borrowed banks.
+        int rationalWords = Signs[0] == 0 ? 0 : WideArithmetic.GetActiveMagnitudeLength(Rational);
+        int radicalWords = Signs[1] == 0 ? 0 : WideArithmetic.GetActiveMagnitudeLength(Radical);
+        int rationalSign = Signs[0] * multiplier, radicalSign = Signs[1] * multiplier;
+        Rational[..rationalWords].CopyTo(destination.Rational); Radical[..radicalWords].CopyTo(destination.Radical);
+        destination.Rational[rationalWords..].Clear(); destination.Radical[radicalWords..].Clear();
+        destination.Signs[0] = rationalSign; destination.Signs[1] = radicalSign;
     }
     internal void MultiplySign(int sign) { Signs[0] *= sign; Signs[1] *= sign; }
     internal void Add(ContactQuadratic value, int multiplier = 1)
@@ -43,6 +48,48 @@ internal readonly ref partial struct ContactQuadratic
 
     internal static ContactQuadratic At(Span<ulong> values, Span<int> signs, int index, int words = Words) =>
         new(values.Slice(index * 2 * words, 2 * words), signs.Slice(index * 2, 2));
+
+    /// <summary>Retains one branch of a*u²+2*b*u+c=0 without rounding.</summary>
+    /// <remarks>
+    /// Inputs are rational integer coefficients; the caller proves the complete discriminant fits the supplied root storage.
+    /// Outputs borrow caller storage. A zero polynomial denotes a family and
+    /// returns false; callers must retain its interval/endpoints separately.
+    /// Branches are -1 and +1; the linear and repeated cases use +1 only.
+    /// </remarks>
+    internal static bool TryGetParameter(ContactQuadratic a, ContactQuadratic b, ContactQuadratic c,
+        int branch, Span<ulong> root, ContactQuadratic numerator, ContactQuadratic denominator)
+    {
+        root.Clear(); numerator.Clear(); denominator.Clear();
+        if (a.Signs[0] == 0)
+        {
+            if (b.Signs[0] == 0 || branch < 0)
+                return false;
+            c.CopyTo(numerator, -b.Signs[0]);
+            b.CopyTo(denominator, b.Signs[0]); denominator.Add(denominator);
+            return true;
+        }
+        // A coefficient bank need not fit its square. Preserve both complete
+        // active products and subtraction carry before copying the discriminant.
+        int words = Math.Max(2 * ActiveWords(b), ActiveWords(a) + ActiveWords(c)) + 1;
+        Span<ulong> work = stackalloc ulong[4 * words];
+        Span<int> signs = stackalloc int[4];
+        ContactQuadratic discriminant = ContactQuadratic.At(work, signs, 0, words);
+        ContactQuadratic product = ContactQuadratic.At(work, signs, 1, words);
+        ContactQuadratic.Multiply(b, b, root, discriminant);
+        ContactQuadratic.Multiply(a, c, root, product);
+        discriminant.Add(product, -1);
+        if (discriminant.Signs[0] < 0 || discriminant.Signs[0] == 0 && branch < 0)
+            return false;
+        int active = WideArithmetic.GetActiveMagnitudeLength(discriminant.Rational);
+        System.Diagnostics.Debug.Assert(active <= root.Length);
+        discriminant.Rational[..active].CopyTo(root);
+        int orientation = a.Signs[0];
+        b.CopyTo(numerator, -orientation);
+        numerator.Radical[0] = 1;
+        numerator.Signs[1] = branch;
+        a.CopyTo(denominator, orientation);
+        return true;
+    }
 
     internal static Fixed64 RoundRatio(ContactQuadratic numerator, ContactQuadratic denominator, ReadOnlySpan<ulong> root,
         long low = long.MinValue, long high = long.MaxValue, long parityOffset = 0)
@@ -80,8 +127,8 @@ internal readonly ref partial struct ContactQuadratic
         return Fixed64.FromRaw(low + (comparison > 0 || comparison == 0 && ((low ^ parityOffset) & 1) != 0 ? 1 : 0));
     }
 
-    private static void RefineRoundRatioBounds(ContactQuadratic numerator, ContactQuadratic denominator,
-        ReadOnlySpan<ulong> root, ref long low, ref long high)
+    internal static void RefineRoundRatioBounds(ContactQuadratic numerator, ContactQuadratic denominator,
+        ReadOnlySpan<ulong> root, ref long low, ref long high, bool squaredDepth = false)
     {
         WideArithmetic.GetMagnitudeSquareRootBounds(root,
             out Signed192 lowerRoot, out Signed192 upperRoot, out int shift);
@@ -97,6 +144,17 @@ internal readonly ref partial struct ContactQuadratic
             numerator.Radical, numerator.Signs[1], roots, shift, nMin, nMax, out int nMinSign, out int nMaxSign);
         WideConvexPrismRelations.GetConvexContactCandidateQuadraticBounds(denominator.Rational, denominator.Signs[0],
             denominator.Radical, denominator.Signs[1], roots, shift, dMin, dMax, out int dMinSign, out _);
+        if (squaredDepth)
+        {
+            if (dMinSign <= 0) return;
+            // N/D is four times depth squared. Positive interval endpoints
+            // bound its floor; exact range and half-raw signs still own rounding.
+            long floorLower = nMinSign <= 0 ? 0 : (long)(WideArithmetic.GetRatioFloorSquareRoot(nMin, dMax, ulong.MaxValue) >> 1);
+            long upper = (long)(WideArithmetic.GetRatioFloorSquareRoot(nMax, dMin, ulong.MaxValue) >> 1);
+            low = Math.Min(high, Math.Max(low, floorLower));
+            high = Math.Max(low, Math.Min(high, upper));
+            return;
+        }
         // Division by a strictly positive interval is monotone in N; the
         // denominator endpoint reverses when N is negative. Cancellation can
         // make the enclosure unusable, so exact full-range search remains valid.
@@ -150,9 +208,10 @@ internal readonly ref partial struct ContactQuadratic
     internal static void Multiply(ContactQuadratic first, ContactQuadratic second, ReadOnlySpan<ulong> root, ContactQuadratic result)
     {
         int words = result.FieldWords;
-        if (first.Signs[1] == 0 && second.Signs[1] == 0)
+        if (first.Signs[1] == 0 && second.Signs[1] == 0 || IsZero(root))
         {
-            // Rational events need one complete product. Keep separate scratch
+            // A zero radicand also removes both radical contributions. Rational
+            // events need one complete product. Keep separate scratch
             // because result may alias either borrowed input; clear the unused
             // radical bank so later reuse cannot retain an old field.
             Span<ulong> rationalProduct = stackalloc ulong[words];

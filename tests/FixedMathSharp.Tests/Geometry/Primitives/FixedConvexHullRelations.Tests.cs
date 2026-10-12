@@ -7,6 +7,57 @@ namespace FixedMathSharp.Tests.Geometry.Primitives;
 
 public sealed class FixedConvexHullRelationsTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LowerDimensionalHullWithIndependentRigidFrames_ShouldPreserveItsFiniteCapsuleExit(bool line)
+    {
+        Vector3d[] points = line
+            ? new[] { Vector3d.Backward, Vector3d.Zero, Vector3d.Forward }
+            : new[] { new Vector3d(0, -1, -1), new Vector3d(0, 1, -1),
+                new Vector3d(0, 1, 1), new Vector3d(0, -1, 1) };
+        int[] triangles = line ? new[] { 0, 1, 2 } : new[] { 0, 1, 2, 0, 2, 3 };
+        int[] edges = line ? new[] { 0, 1, 1, 2, 2, 0 } : new[] { 0, 1, 1, 2, 2, 3, 3, 0 };
+        // The planar case retains a zero X radial component. The line retains
+        // zero X/Y components. Both require exact later components across
+        // independent rational frames, rather than assuming the first fits.
+        FixedQuaternion hullRotation = FixedQuaternion.FromEulerAnglesInDegrees(
+            line ? Fixed64.Zero : (Fixed64)17, Fixed64.Zero, line ? (Fixed64)17 : Fixed64.Zero);
+        FixedQuaternion capsuleRotation = FixedQuaternion.FromEulerAnglesInDegrees(
+            line ? Fixed64.Zero : (Fixed64)41, Fixed64.Zero, line ? (Fixed64)41 : Fixed64.Zero);
+        Assert.True(FixedConvexHullRelations.TryGetCenteredCapsuleContact(Vector3d.Zero, hullRotation,
+            points, triangles, edges, Vector3d.Zero, capsuleRotation, Vector3d.Up,
+            Fixed64.One, Fixed64.Quarter, out FixedContactAnchors contact));
+        Assert.Equal(Fixed64.Quarter, contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first));
+        Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));
+        Assert.InRange(Vector3d.Cross(first - second, contact.Normal).Magnitude.m_rawValue, 0L, 32L);
+        if (!line) Assert.Equal(Fixed64.One, FixedMath.Abs(contact.Normal.X));
+    }
+
+    [Fact]
+    public void ContainedCapsuleWithIndependentRigidFrames_ShouldKeepItsFullWidthExit()
+    {
+        FixedQuaternion hullRotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)17, (Fixed64)23, (Fixed64)31);
+        FixedQuaternion capsuleRotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)13, (Fixed64)41, (Fixed64)7);
+        Assert.True(FixedConvexHullRelations.TryGetCenteredCapsuleContact(Vector3d.Zero, hullRotation,
+            CubePoints, CubeTriangles, CubeEdges, Vector3d.Zero, capsuleRotation, Vector3d.Up,
+            Fixed64.One, Fixed64.Quarter, out FixedContactAnchors contact));
+        // The unit cube contains the entire capsule. Its exit must include the
+        // radius and a finite core support, regardless of relative frame scale.
+        Assert.InRange(contact.Depth.m_rawValue, (Fixed64.One + Fixed64.Quarter).m_rawValue,
+            (Fixed64.One + Fixed64.FromFraction(3, 4)).m_rawValue);
+        Assert.False(contact.DepthIsClamped);
+        Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first));
+        Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));
+        Assert.InRange(Vector3d.Cross(first - second, contact.Normal).Magnitude.m_rawValue, 0L, 32L);
+        Vector3d localExit = capsuleRotation.Inverse().Rotate(second);
+        Fixed64 beyondCore = FixedMath.Max(Fixed64.Zero, FixedMath.Abs(localExit.Y) - Fixed64.Half);
+        Fixed64 radialSquared = localExit.X * localExit.X + localExit.Z * localExit.Z + beyondCore * beyondCore;
+        Assert.InRange(FixedMath.Abs(radialSquared - Fixed64.Quarter * Fixed64.Quarter).m_rawValue, 0L, 16L);
+    }
+
     private static readonly Vector3d[] CubePoints =
     {
         new(-1, -1, -1),

@@ -142,6 +142,9 @@ public sealed class WidePlaneMetricsTests
     private static BigInteger[] Normal(FixedTriangle plane, FixedQuaternion rotation)
     {
         BigInteger[] n = Cross(Sub(V(plane.B), V(plane.A)), Sub(V(plane.C), V(plane.A)));
+        // Identity's exact rational basis has unit scale, so its metric normal
+        // is the authored integer cross product without a quaternion scale.
+        if (rotation == FixedQuaternion.Identity) return n;
         BigInteger x = rotation.X.m_rawValue, y = rotation.Y.m_rawValue, z = rotation.Z.m_rawValue, w = rotation.W.m_rawValue;
         return new[]
         {

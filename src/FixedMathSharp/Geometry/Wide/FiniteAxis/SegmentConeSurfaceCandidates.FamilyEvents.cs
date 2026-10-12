@@ -127,9 +127,9 @@ internal static partial class SegmentConeSurfaceCandidates
         var witness = new ConeSurfaceFamilyWitness(data, signs, root);
         first = second = default;
         if (!BuildFamilyEvent(candidate, new SegmentConeSurfaceGeometry(candidate.Input), fan, item, ref witness)) return false;
-        return ConePlaneRayPointMaterialization.TryGetWorldPoint(candidate.Input.Center, candidate.Input.ConeRotation,
+        return QuadraticPointMaterialization.TryGetWorldPoint(candidate.Input.Center, candidate.Input.ConeRotation,
                 witness[3], witness[4], witness[5], witness[9], root, out first)
-            && ConePlaneRayPointMaterialization.TryGetWorldPoint(candidate.Input.Center, candidate.Input.ConeRotation,
+            && QuadraticPointMaterialization.TryGetWorldPoint(candidate.Input.Center, candidate.Input.ConeRotation,
                 witness[6], witness[7], witness[8], witness[9], root, out second);
     }
 

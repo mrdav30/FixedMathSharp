@@ -151,7 +151,7 @@ public sealed class ConePlaneRayMaterializationTests
         var field = new ContactQuadratic(values, signs);
         SetField(field, BigInteger.One << (64 * activeWord), BigInteger.One << (64 * activeWord));
         ulong[] original = values.ToArray();
-        Assert.True(ConePlaneRayPointMaterialization.TryGetWorldPoint(Vector3d.Zero, FixedQuaternion.Identity,
+        Assert.True(QuadraticPointMaterialization.TryGetWorldPoint(Vector3d.Zero, FixedQuaternion.Identity,
             field, field, field, field, new ulong[] { 2 }, out Vector3d result));
         Assert.Equal(new Vector3d(Fixed64.FromRaw(1), Fixed64.FromRaw(1), Fixed64.FromRaw(1)), result);
         Assert.True(values.SequenceEqual(original));
@@ -543,7 +543,7 @@ public sealed class ConePlaneRayMaterializationTests
         SetField(x, 4 * (BigInteger)limit + (maximum ? quarterRaws : -quarterRaws) - 1, 1);
         zero.Set(default); SetField(d, 4, 0);
         var origin = new Vector3d(Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.Zero);
-        Assert.Equal(expected, ConePlaneRayPointMaterialization.TryGetPointInFrame(origin, FixedQuaternion.Identity,
+        Assert.Equal(expected, QuadraticPointMaterialization.TryGetPointInFrame(origin, FixedQuaternion.Identity,
             x, zero, zero, d, new ulong[] { 1 }, origin, out Vector3d sampled));
         Assert.Equal(expected ? Fixed64.FromRaw(limit) : Fixed64.Zero, sampled.X);
         Assert.Equal(Fixed64.Zero, sampled.Y); Assert.Equal(Fixed64.Zero, sampled.Z);

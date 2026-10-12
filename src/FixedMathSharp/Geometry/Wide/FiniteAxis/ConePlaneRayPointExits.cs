@@ -247,7 +247,7 @@ internal static class ConePlaneRayPointExits
         ContactQuadratic.Multiply(b, point.Denominator, root, polynomialB);
         for (int branch = -1; branch <= 1; branch += 2)
         {
-            if (!ConePlaneRayCharts.TryGetParameter(polynomialA, polynomialB, c, branch, root, numerator, denominator)
+            if (!ContactQuadratic.TryGetParameter(polynomialA, polynomialB, c, branch, root, numerator, denominator)
                 || numerator.Sign(root) < 0)
                 continue;
             // Derivative b*d+A*n at a root picks the first outward crossing.

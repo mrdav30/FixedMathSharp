@@ -28,6 +28,15 @@ internal readonly struct WideRationalBasis3d
 
     internal WideRationalBasis3d(FixedQuaternion orientation)
     {
+        if (orientation == FixedQuaternion.Identity)
+        {
+            // Identity needs no quaternion-norm scale. Keeping the exact
+            // unit basis avoids artificial powers in later geometry products.
+            this = default;
+            Denominator = Xx = Yy = Zz = Signed192.Signed(1);
+            return;
+        }
+
         Signed192 xx = Fixed64.GetExactRawProduct(
             orientation.X,
             orientation.X);

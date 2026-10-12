@@ -124,10 +124,7 @@ internal static class CylinderContactAlgebra
     internal static Span<ulong> Slot(Span<ulong> values, int index) => values.Slice(index * Words, Words);
     internal static ReadOnlySpan<ulong> Slot(ReadOnlySpan<ulong> values, int index) => values.Slice(index * Words, Words);
     internal static void Import(Signed320 value, Span<ulong> result) => Import(Signed576.ExtendValue(value), result);
-    internal static void Import(Signed576 value, Span<ulong> result)
-    {
-        result.Clear(); WideArithmetic.GetMagnitude(value, result[..9]);
-    }
+    internal static void Import(Signed576 value, Span<ulong> result) => WideArithmetic.GetMagnitude(value, result);
     internal static Signed320 Component(in WideAxis3 value, int index) =>
         index == 0 ? value.X : index == 1 ? value.Y : value.Z;
     private static WideAxis3 Axis(Signed192 x, Signed192 y, Signed192 z) => new(

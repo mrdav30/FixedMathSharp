@@ -50,7 +50,7 @@ internal static partial class WideFiniteAxisIntersection
         if (!compact || !reciprocalCompact)
         {
             int bits = GetFiniteRootCoefficientBits(coefficients, signs.Length);
-            Span<ulong> arena = stackalloc ulong[(880 * (bits + 64) + 63) / 64 + 512];
+            Span<ulong> arena = stackalloc ulong[(GetFiniteValueSturmArenaBits(bits, degree) + 63) / 64 + 512];
             Span<int> offsets = stackalloc int[9];
             Span<int> widths = stackalloc int[9];
             Span<int> degrees = stackalloc int[9];

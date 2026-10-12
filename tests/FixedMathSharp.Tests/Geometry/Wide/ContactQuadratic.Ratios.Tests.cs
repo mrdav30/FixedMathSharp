@@ -13,6 +13,210 @@ namespace FixedMathSharp.Tests.Geometry.Wide;
 
 public sealed class ContactQuadraticRatioTests
 {
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(5, 7)]
+    [InlineData(-5, 7)]
+    public void ZeroRadicandProduct_ShouldIgnoreRadicalCoefficientsAndKeepCanonicalSigns(int first, int second)
+    {
+        const int words = 9;
+        Span<ulong> values = stackalloc ulong[6 * words], root = stackalloc ulong[3];
+        Span<int> signs = stackalloc int[6];
+        root.Clear();
+        ContactQuadratic a = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic b = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic product = ContactQuadratic.At(values, signs, 2, words);
+        SetIntegerField(a, first, 3); SetIntegerField(b, second, -2);
+        product.Values.Fill(ulong.MaxValue); product.Signs.Fill(7);
+        ContactQuadratic.Multiply(a, b, root, product);
+        Assert.Equal(first * second, product.Sign(root) * (int)product.Rational[0]);
+        Assert.Equal(Math.Sign(first * second), product.Signs[0]);
+        Assert.Equal(0, product.Signs[1]);
+        Assert.Equal(0, WideArithmetic.GetActiveMagnitudeLength(product.Radical));
+        Assert.Equal(0, WideArithmetic.GetActiveMagnitudeLength(product.Rational[1..]));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(-1)]
+    public void Set_ShouldReplaceBothFieldsOfReusedScratch(int sign)
+    {
+        const int words = 64;
+        Span<ulong> values = stackalloc ulong[2 * words];
+        Span<int> signs = stackalloc int[2];
+        values.Fill(ulong.MaxValue); signs.Fill(-1);
+        var value = new ContactQuadratic(values, signs);
+        value.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(sign))));
+        Assert.Equal(sign, signs[0]); Assert.Equal(0, signs[1]);
+        Assert.Equal((ulong)Math.Abs(sign), value.Rational[0]);
+        Assert.Equal(0, WideArithmetic.GetActiveMagnitudeLength(value.Rational[1..]));
+        Assert.Equal(0, WideArithmetic.GetActiveMagnitudeLength(value.Radical));
+    }
+
+    [Theory]
+    [InlineData(446, 300, 3, false)]
+    [InlineData(445, 300, 3, false)]
+    [InlineData(446, 5, 0, false)]
+    [InlineData(0, 12, 3, false)]
+    [InlineData(14, 0, 0, false)]
+    [InlineData(0, 12, 3, true)]
+    [InlineData(446, 300, 3, true)]
+    [InlineData(-1, 12, 3, true)]
+    [InlineData(446, -1, 3, false)]
+    public void PointNormalization_ShouldPreserveExactHomogeneousRatiosAndEnclosurePrecision(
+        int rootPower, int rationalPower, int radicalPower, bool rationalOnly)
+    {
+        const int words = 8;
+        Span<ulong> values = stackalloc ulong[8 * words], root = stackalloc ulong[words];
+        Span<int> signs = stackalloc int[8];
+        ContactQuadratic x = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic y = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic z = ContactQuadratic.At(values, signs, 2, words);
+        ContactQuadratic d = ContactQuadratic.At(values, signs, 3, words);
+        BigInteger aScale = rationalPower < 0 ? BigInteger.Zero : BigInteger.One << rationalPower;
+        BigInteger bScale = rationalOnly ? BigInteger.Zero : BigInteger.One << radicalPower;
+        BigInteger[] original = { 5*aScale, -3*bScale, 0, 2*bScale, -14*aScale, 0, 9*aScale, bScale };
+        SetIntegerField(x, original[0], original[1]); SetIntegerField(y, original[2], original[3]);
+        SetIntegerField(z, original[4], original[5]); SetIntegerField(d, original[6], original[7]);
+        // These banks have no mathematical contribution, despite stale storage.
+        for (int index = 0; index < signs.Length; index++)
+            if (signs[index] == 0) values.Slice(index * words, words).Fill(ulong.MaxValue);
+        BigInteger oldRoot = rootPower < 0 ? BigInteger.Zero : (BigInteger)3 << rootPower;
+        WriteMagnitude(oldRoot, root);
+        WideArithmetic.GetMagnitudeSquareRootBounds(root, out Signed192 oldLower, out Signed192 oldUpper, out int oldShift);
+        int[] originalSigns = signs.ToArray();
+        WideFiniteAxisIntersection.NormalizeQuadraticPointPowerOfTwo(x, y, z, d, root);
+        BigInteger newRoot = ReadMagnitude(root);
+        BigInteger factorSquared = oldRoot.IsZero ? BigInteger.One : oldRoot / newRoot, factor = BigInteger.One;
+        while (factorSquared > 1) { Assert.Equal(BigInteger.Zero, factorSquared % 4); factorSquared /= 4; factor *= 2; }
+        Assert.Equal(oldRoot, newRoot * factor * factor);
+        WideArithmetic.GetMagnitudeSquareRootBounds(root, out Signed192 newLower, out Signed192 newUpper, out int newShift);
+        Assert.Equal(oldLower, newLower); Assert.Equal(oldUpper, newUpper);
+        Assert.Equal(BigInteger.One << (oldShift - newShift), factor);
+        Assert.True(signs.SequenceEqual(originalSigns));
+        BigInteger[] normalized = new BigInteger[8];
+        for (int index = 0; index < 8; index++)
+        {
+            normalized[index] = signs[index] == 0 ? BigInteger.Zero
+                : signs[index] * ReadMagnitude(values.Slice(index * words, words));
+            Assert.True(BigInteger.Abs(normalized[index]) <= BigInteger.Abs(original[index]));
+        }
+        for (int coordinate = 0; coordinate < 3; coordinate++)
+        {
+            BigInteger a = original[2 * coordinate], b = original[2 * coordinate + 1] * factor;
+            BigInteger na = normalized[2 * coordinate], nb = normalized[2 * coordinate + 1];
+            BigInteger da = original[6], db = original[7] * factor, nda = normalized[6], ndb = normalized[7];
+            Assert.Equal(BigInteger.Zero, a*nda + b*ndb*newRoot - na*da - nb*db*newRoot);
+            Assert.Equal(BigInteger.Zero, a*ndb + b*nda - na*db - nb*da);
+        }
+
+        static BigInteger ReadMagnitude(ReadOnlySpan<ulong> field)
+        {
+            BigInteger result = BigInteger.Zero;
+            for (int index = field.Length - 1; index >= 0; index--) result = (result << 64) + field[index];
+            return result;
+        }
+    }
+
+    [Theory]
+    [InlineData(1, -1, -1, 2)]
+    [InlineData(-1, 1, 1, 2)]
+    [InlineData(0, 1, -1, 2)]
+    [InlineData(-1, 0, 1, 5)]
+    [InlineData(0, 0, -1, 2)]
+    [InlineData(1, 1, 1, 5)]
+    public void Copy_ShouldUseCompleteActiveFieldsAndClearReusedDestinationTails(
+        int rationalSign, int radicalSign, int multiplier, int destinationWords)
+    {
+        Span<ulong> sourceValues = stackalloc ulong[8]; Span<int> sourceSigns = stackalloc int[2];
+        Span<ulong> destinationValues = stackalloc ulong[2 * destinationWords];
+        Span<int> destinationSigns = stackalloc int[2]; Span<ulong> expected = stackalloc ulong[destinationWords];
+        var source = new ContactQuadratic(sourceValues, sourceSigns);
+        var destination = new ContactQuadratic(destinationValues, destinationSigns);
+        BigInteger rational = rationalSign * ((BigInteger.One << 80) + 3);
+        BigInteger radical = radicalSign * ((BigInteger.One << 65) + 5);
+        SetIntegerField(source, rational, radical);
+        // Zero signs are authoritative even when a borrowed bank still contains
+        // old bytes that do not fit the smaller destination.
+        if (rationalSign == 0) source.Rational.Fill(ulong.MaxValue);
+        if (radicalSign == 0) source.Radical.Fill(ulong.MaxValue);
+        ulong[] original = sourceValues.ToArray(); int[] originalSigns = sourceSigns.ToArray();
+        destinationValues.Fill(ulong.MaxValue); destinationSigns.Fill(-1);
+        source.CopyTo(destination, multiplier);
+        WriteMagnitude(rational, expected); Assert.True(expected.SequenceEqual(destination.Rational));
+        WriteMagnitude(radical, expected); Assert.True(expected.SequenceEqual(destination.Radical));
+        Assert.Equal(rationalSign * multiplier, destination.Signs[0]);
+        Assert.Equal(radicalSign * multiplier, destination.Signs[1]);
+        Assert.True(sourceValues.SequenceEqual(original)); Assert.True(sourceSigns.SequenceEqual(originalSigns));
+    }
+
+    [Fact]
+    public void Copy_IntoItsOwnBorrowedBanks_ShouldPreserveMagnitudeAndApplyTheRequestedSign()
+    {
+        Span<ulong> values = stackalloc ulong[8]; Span<int> signs = stackalloc int[2];
+        var value = new ContactQuadratic(values, signs);
+        SetIntegerField(value, (BigInteger.One << 80) + 3, -((BigInteger.One << 65) + 5));
+        ulong[] original = values.ToArray();
+        value.CopyTo(value, -1);
+        Assert.True(values.SequenceEqual(original));
+        Assert.Equal(-1, value.Signs[0]); Assert.Equal(1, value.Signs[1]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RetainedPoint_WithDistinctOriginsAndRotatedTarget_ShouldRoundOnlyInTheFinalLattice(bool quadratic)
+    {
+        const int words = 4;
+        Span<ulong> values = stackalloc ulong[8 * words]; Span<int> signs = stackalloc int[8];
+        ContactQuadratic x = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic y = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic z = ContactQuadratic.At(values, signs, 2, words);
+        ContactQuadratic denominator = ContactQuadratic.At(values, signs, 3, words);
+        SetIntegerField(x, 1, quadratic ? 1 : 0);
+        SetIntegerField(y, 3, quadratic ? -1 : 0);
+        SetIntegerField(z, -1, quadratic ? 1 : 0);
+        SetIntegerField(denominator, 2, 0);
+        Span<ulong> root = stackalloc ulong[1] { quadratic ? 2UL : 0UL };
+        var sourceOrigin = new Vector3d(Fixed64.FromRaw(1), Fixed64.FromRaw(-1), Fixed64.FromRaw(1));
+        Vector3d targetOrigin = Vector3d.Up * Fixed64.FromRaw(1);
+        FixedQuaternion targetRotation = new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.One).Normalized;
+        Assert.True(QuadraticPointMaterialization.TryGetPointInRigidFrame(sourceOrigin, FixedQuaternion.Identity,
+            targetOrigin, targetRotation, x, y, z, denominator, root, out Vector3d point));
+        // Inverse quarter-turn maps world Y to local X and -world X to local Y.
+        // The half-raw rational start must remain exact until origin addition
+        // and that transform; rounding it first gives the wrong local Y.
+        Assert.Equal(new Vector3d(Fixed64.FromRaw(quadratic ? -1 : 0), Fixed64.FromRaw(-2),
+            Fixed64.FromRaw(quadratic ? 1 : 0)), point);
+    }
+
+    [Fact]
+    public void QuadraticParameter_ShouldRetainDiscriminantsWiderThanItsCoefficientBanks()
+    {
+        const int words = 10;
+        Span<ulong> values = stackalloc ulong[10 * words], root = stackalloc ulong[17];
+        Span<ulong> expected = stackalloc ulong[17];
+        Span<int> signs = stackalloc int[10];
+        ContactQuadratic a = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic b = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic c = ContactQuadratic.At(values, signs, 2, words);
+        ContactQuadratic numerator = ContactQuadratic.At(values, signs, 3, words);
+        ContactQuadratic denominator = ContactQuadratic.At(values, signs, 4, words);
+        BigInteger aa = (BigInteger.One << 528) + 3;
+        BigInteger bb = -((BigInteger.One << 527) + 5);
+        BigInteger cc = -((BigInteger.One << 528) + 7);
+        SetIntegerField(a, aa, 0); SetIntegerField(b, bb, 0); SetIntegerField(c, cc, 0);
+        WriteMagnitude(bb * bb - aa * cc, expected);
+        Assert.True(ContactQuadratic.TryGetParameter(a, b, c, 1, root, numerator, denominator));
+        Assert.True(root.SequenceEqual(expected));
+        Assert.True(numerator.Sign(root) > 0);
+        Assert.True(denominator.Sign(root) > 0);
+        Assert.True(ContactQuadratic.TryGetParameter(a, b, c, -1, root, numerator, denominator));
+        Assert.True(root.SequenceEqual(expected));
+        Assert.True(numerator.Sign(root) < 0);
+    }
+
     [Fact]
     public void RootMultiplication_PreservesMixedWidthCoefficientsAndClearsReusedDestinationTails()
     {
@@ -366,6 +570,9 @@ public sealed class ContactQuadraticRatioTests
     [InlineData(2, 0, 1, 0, 2, 1)]
     [InlineData(3, 2, 1, 0, 2, 2)]
     [InlineData(1, 1, 3, 2, 2, 1)]
+    [InlineData(-1, 1, 1, 0, 2, 1)]
+    [InlineData(3, -2, 1, 0, 2, 0)]
+    [InlineData(1, 0, -1, 1, 2, 2)]
     public void SquareRootRatioMaterialization_PreservesFieldAndNearestEven(int a, int b, int c, int d, int k, long expectedRaw)
     {
         Span<ulong> values = stackalloc ulong[4 * ConvexContactCandidate.Words];

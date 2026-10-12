@@ -163,6 +163,10 @@ public partial struct FixedTriangle
     /// The returned triangle witness remains in the supplied triangle frame.
     /// The capsule witness remains in the supplied capsule frame so callers can
     /// retain stable rigid-frame feature identity independently of world pose.
+    /// A positive-length core coinciding with the triangle retains the supplied
+    /// fallback normal and measures its first capsule-boundary exit opposite
+    /// that normal. This is a local witness depth, not a whole-triangle minimum
+    /// translation. Finite endpoint and radial anchor terms remain separate.
     /// </remarks>
     public readonly bool TryGetCenteredCapsuleContact(
         Vector3d triangleOrigin,
@@ -469,12 +473,15 @@ public partial struct FixedTriangle
                 capsuleAxisLength,
                 capsuleRadius,
                 chartFallbackNormal,
+                chartIsTriangleLocal ? triangleRotation : FixedQuaternion.Identity,
+                capsuleRotation,
                 out Vector3d pointOnTriangle,
                 out Fixed64 axisParameter,
                 out Vector3d chartNormal,
                 out Fixed64 depth,
                 out bool depthIsClamped,
-                retainFeature, out feature))
+                retainFeature, out feature, out Vector3d rayRadialOffset,
+                out int rayEndpointSign, out bool hasBoundaryRay))
         {
             contact = default;
             return false;
@@ -498,6 +505,14 @@ public partial struct FixedTriangle
 
         Vector3d capsuleLocalNormal =
             capsuleRotation.Inverse().Rotate(worldNormal);
+        Vector3d capsuleRadialOffset = hasBoundaryRay
+            ? rayRadialOffset : -capsuleLocalNormal * capsuleRadius;
+        Vector3d capsuleCorePoint = new(Fixed64.Zero, axisParameter, Fixed64.Zero);
+        FixedPointAnchorTerm3d exactEndpoint = hasBoundaryRay && rayEndpointSign != 0
+            ? FixedPointAnchorTerm3d.CreateCenteredAxisSupport(Vector3d.Up,
+                rayEndpointSign > 0 ? capsuleAxisLength : -capsuleAxisLength,
+                Vector3d.Zero, Fixed64.Zero, capsuleCorePoint, Vector3d.Zero)
+            : default;
         contact = new FixedContactAnchors(
             new FixedPointAnchor(
                 triangleOrigin,
@@ -506,11 +521,9 @@ public partial struct FixedTriangle
             new FixedPointAnchor(
                 worldCapsuleCenter,
                 capsuleRotation,
-                new Vector3d(
-                    Fixed64.Zero,
-                    axisParameter,
-                    Fixed64.Zero),
-                -capsuleLocalNormal * capsuleRadius),
+                capsuleCorePoint,
+                capsuleRadialOffset,
+                exactEndpoint),
             worldNormal,
             depth,
             depthIsClamped);

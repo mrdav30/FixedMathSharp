@@ -42,7 +42,7 @@ internal static partial class WideFiniteAxisIntersection
                 default, 0, 1, numerator, shift, false) <= 0)
             return -1;
         int bits = GetFiniteRootCoefficientBits(root.Coefficients, root.Signs.Length);
-        Span<ulong> arena = stackalloc ulong[(880 * (bits + 64) + 63) / 64 + 512];
+        Span<ulong> arena = stackalloc ulong[(GetFiniteValueSturmArenaBits(bits, root.Signs.Length - 1) + 63) / 64 + 512];
         Span<int> offsets = stackalloc int[9];
         Span<int> widths = stackalloc int[9];
         Span<int> degrees = stackalloc int[9];

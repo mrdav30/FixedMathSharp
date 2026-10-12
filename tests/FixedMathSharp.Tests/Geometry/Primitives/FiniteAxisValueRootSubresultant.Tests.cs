@@ -8,6 +8,34 @@ namespace FixedMathSharp.Tests;
 public sealed class FiniteAxisValueRootSubresultantTests
 {
     [Theory]
+    [InlineData(128)]
+    [InlineData(7536)]
+    public void DenseQuarticWithTinyNonDyadicPerturbation_PreservesRootAndExactSigns(int scaleBits)
+    {
+        BigInteger scale = (BigInteger.One << scaleBits) + 3;
+        // K*(4x-1)(4x-2)(4x-3)(x-1)+1. The primitive constant
+        // perturbation preserves the large coefficient height (7544 bits
+        // in the largest case); it cannot disappear through content removal.
+        // Its first root lies strictly between 1/4 and 3/8, just above 1/4.
+        BigInteger[] polynomial = { 6 * scale + 1, -50 * scale, 140 * scale, -160 * scale, 64 * scale };
+        Encode(polynomial, out ulong[] coefficients, out sbyte[] signs);
+        ulong[] cell = new ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(coefficients, signs)];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(coefficients, signs, 0, cell,
+            out FiniteAxisValueRoot root));
+        WideFiniteAxisIntersection.RefineFiniteValueRoot(ref root, 80);
+        Assert.False(root.IsRational);
+        BigInteger lower = Decode(root.LowerNumerator);
+        Assert.True((lower << 2) >= (BigInteger.One << root.DenominatorShift));
+        Assert.True(((lower + 1) << 3) <= (3 * (BigInteger.One << root.DenominatorShift)));
+        Assert.True(Evaluate(polynomial, lower, root.DenominatorShift) > 0);
+        Assert.True(Evaluate(polynomial, lower + 1, root.DenominatorShift) < 0);
+        // This sign needs precision beyond the ordinary cell when K is huge;
+        // uncertainty must refine exactly rather than round the root to 1/4.
+        Assert.Equal(1, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root,
+            new ulong[] { 1, 4 }, new sbyte[] { -1, 1 }));
+    }
+
+    [Theory]
     [InlineData(1)]
     [InlineData(-1)]
     public void NegativeIntermediateTwoExponent_IsCanceledBeforeRetainingTheNextRow(int sign)

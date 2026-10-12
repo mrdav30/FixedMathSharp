@@ -128,7 +128,7 @@ internal static partial class ConePlaneRayEvents
         bool found = false;
         for (int branch = sink.IsStreaming ? -1 : sink.Target.Branch; branch <= (sink.IsStreaming ? 1 : sink.Target.Branch); branch += 2)
         {
-            if (!ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, t, d)) continue;
+            if (!ContactQuadratic.TryGetParameter(a, b, c, branch, root, t, d)) continue;
             int orientation = t.Sign(root) < 0 ? -1 : 1;
             var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.BaseStationary, branch: branch, orientation: orientation);
             t.CopyTo(depth, orientation);

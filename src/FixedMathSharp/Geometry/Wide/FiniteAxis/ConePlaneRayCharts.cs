@@ -62,45 +62,6 @@ internal static class ConePlaneRayCharts
     // Admission products and depth comparisons use larger transient storage;
     // these bounds do not authorize materializing those products in a field.
 
-    /// <summary>Retains one branch of a*u²+2*b*u+c=0 without rounding.</summary>
-    /// <remarks>
-    /// Inputs are rational integer coefficients satisfying the discriminant ledger above.
-    /// Outputs borrow caller storage. A zero polynomial denotes a family and
-    /// returns false; callers must retain its interval/endpoints separately.
-    /// Branches are -1 and +1; the linear and repeated cases use +1 only.
-    /// </remarks>
-    internal static bool TryGetParameter(ContactQuadratic a, ContactQuadratic b, ContactQuadratic c,
-        int branch, Span<ulong> root, ContactQuadratic numerator, ContactQuadratic denominator)
-    {
-        root.Clear(); numerator.Clear(); denominator.Clear();
-        if (a.Signs[0] == 0)
-        {
-            if (b.Signs[0] == 0 || branch < 0)
-                return false;
-            c.CopyTo(numerator, -b.Signs[0]);
-            b.CopyTo(denominator, b.Signs[0]); denominator.Add(denominator);
-            return true;
-        }
-        Span<ulong> work = stackalloc ulong[4 * Words];
-        Span<int> signs = stackalloc int[4];
-        ContactQuadratic discriminant = ContactQuadratic.At(work, signs, 0, Words);
-        ContactQuadratic product = ContactQuadratic.At(work, signs, 1, Words);
-        ContactQuadratic.Multiply(b, b, root, discriminant);
-        ContactQuadratic.Multiply(a, c, root, product);
-        discriminant.Add(product, -1);
-        if (discriminant.Signs[0] < 0 || discriminant.Signs[0] == 0 && branch < 0)
-            return false;
-        int active = WideArithmetic.GetActiveMagnitudeLength(discriminant.Rational);
-        System.Diagnostics.Debug.Assert(active <= RootWords);
-        discriminant.Rational[..active].CopyTo(root);
-        int orientation = a.Signs[0];
-        b.CopyTo(numerator, -orientation);
-        numerator.Radical[0] = 1;
-        numerator.Signs[1] = branch;
-        a.CopyTo(denominator, orientation);
-        return true;
-    }
-
     /// <summary>Tests a positive-denominator parameter against the closed or open unit interval.</summary>
     internal static bool IsUnitParameter(ContactQuadratic numerator, ContactQuadratic denominator,
         ReadOnlySpan<ulong> root, bool includeEndpoints = true)

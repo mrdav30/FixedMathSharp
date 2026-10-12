@@ -117,7 +117,7 @@ internal static partial class ConePlaneRayEvents
             if (conjugate) { n.Signs[1] = 1; parameter = true; }
             else
             {
-                parameter = ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, n, d);
+                parameter = ContactQuadratic.TryGetParameter(a, b, c, branch, root, n, d);
                 conjugate = parameter && branch == -1;
             }
             // Cardinal cohorts own the endpoints; test the open chart once.

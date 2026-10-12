@@ -667,7 +667,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
             if (line == 7) c.Clear();
             int sx = (descriptor.Quadrant & 1) == 0 ? 1 : -1, sz = (descriptor.Quadrant & 2) == 0 ? 1 : -1;
             c.CopyTo(a); a.Add(x, -sx); z.CopyTo(b, sz); c.Add(x, sx);
-            Assert.True(ConePlaneRayCharts.TryGetParameter(a, b, c, descriptor.Branch, originalRoot, n, d));
+            Assert.True(ContactQuadratic.TryGetParameter(a, b, c, descriptor.Branch, originalRoot, n, d));
             Assert.True(ConePlaneRayCharts.IsUnitParameter(n, d, originalRoot));
             Span<ulong> pv = stackalloc ulong[ConePlaneRayPoint.StorageWords];
             Span<int> ps = stackalloc int[ConePlaneRayPoint.SignCount];

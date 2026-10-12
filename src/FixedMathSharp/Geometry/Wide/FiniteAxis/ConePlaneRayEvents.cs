@@ -143,7 +143,7 @@ internal static partial class ConePlaneRayEvents
         {
             var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeSide, branch: branch);
             if (sink.Wants(descriptor)
-                && ConePlaneRayCharts.TryGetParameter(a, b, c, branch, root, s, sd)
+                && ContactQuadratic.TryGetParameter(a, b, c, branch, root, s, sd)
                 && ConePlaneRayCharts.IsUnitParameter(s, sd, root))
             {
                 SetAffinePoint(point, p, e, s, sd);
@@ -154,7 +154,7 @@ internal static partial class ConePlaneRayEvents
             }
             descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeStationary, branch: branch);
             if (!stationary || !sink.Wants(descriptor)
-                || !ConePlaneRayCharts.TryGetParameter(qa, qb, qc, branch, root, t, d))
+                || !ContactQuadratic.TryGetParameter(qa, qb, qc, branch, root, t, d))
                 continue;
             ContactQuadratic.Multiply(b, d, root, s);
             ContactQuadratic.Multiply(m, t, root, term); s.Add(term); s.MultiplySign(-a.Signs[0]);

@@ -105,14 +105,14 @@ internal static partial class SegmentConeSurfaceCandidates
     {
         if (candidate.Feature != ConeSurfaceFeature.Side || candidate.Input.Radius == Fixed64.Zero)
         {
-            bool exists = ConeSectionPoint.TryGetSegmentParameter(candidate.Input.Segment, geometry.Finite, upper, numerator, denominator, root);
+            bool exists = FiniteSectionPoint.TryGetSegmentParameter(candidate.Input.Segment, geometry.Finite, upper, numerator, denominator, root);
             System.Diagnostics.Debug.Assert(exists);
             return;
         }
         Span<ulong> work = stackalloc ulong[24 * Words], oldRoot = stackalloc ulong[Words]; Span<int> signs = stackalloc int[24];
         BuildSideNormal(geometry, -1, candidate.Chart, work, signs, oldRoot);
         TryBuildSideFoot(geometry, -1, work, signs, oldRoot, out _);
-        ConeSectionPoint.TryGetSegmentParameter(candidate.Input.Segment, geometry.Finite, upper, At(work, signs, 5), At(work, signs, 6), oldRoot);
+        FiniteSectionPoint.TryGetSegmentParameter(candidate.Input.Segment, geometry.Finite, upper, At(work, signs, 5), At(work, signs, 6), oldRoot);
         ClipSideEndpoint(geometry, upper, work, signs, oldRoot);
         At(work, signs, 5).CopyTo(numerator); At(work, signs, 6).CopyTo(denominator);
         root.Clear(); oldRoot.CopyTo(root);
