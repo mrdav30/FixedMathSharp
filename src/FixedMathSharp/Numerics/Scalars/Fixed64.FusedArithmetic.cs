@@ -527,10 +527,14 @@ public partial struct Fixed64
             Signed576.ExtendValue(Signed320.ExtendValue(divisor)),
             Signed192.One,
             Signed192.One);
-        return TryGetSignedRawRatio(
-            numerator,
-            scaledDivisor,
-            out result);
+        // Scaling the divisor by One twice zeros its low limb. Keep typed
+        // division unless a nonzero numerator shares that cancellable factor.
+        if (numerator.Word0 != 0UL || numerator.IsZero || divisor.IsZero)
+        {
+            return TryGetSignedRawRatio(numerator, scaledDivisor, out result);
+        }
+
+        return TryGetBinaryReducedSignedRawRatio(numerator, scaledDivisor, out result);
     }
 
     /// <summary>

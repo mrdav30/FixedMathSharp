@@ -564,6 +564,12 @@ public class Fixed64Tests
             Fixed64.One,
             out Fixed64 ordinary));
         Assert.Equal((Fixed64)3, ordinary);
+        Assert.True(Fixed64.TryMultiplyDivideBySum(
+            Fixed64.Pi, Fixed64.One + Fixed64.MinIncrement,
+            Fixed64.One + Fixed64.MinIncrement, Fixed64.One + Fixed64.FromRaw(3),
+            (Fixed64)3, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            out Fixed64 irregular));
+        Assert.Equal(Fixed64.FromRaw(4497679240L), irregular);
 
         Assert.False(Fixed64.TryMultiplyDivideBySum(
             Fixed64.One,
@@ -587,6 +593,28 @@ public class Fixed64Tests
             Fixed64.Zero,
             out Fixed64 overflow));
         Assert.Equal(default, overflow);
+    }
+
+    [Theory]
+    [InlineData(3, 1, 843314856L)]
+    [InlineData(9, 1, 2529944570L)]
+    [InlineData(3, -1, -843314856L)]
+    [InlineData(9, -1, -2529944570L)]
+    [InlineData(0, 1, 0L)]
+    [InlineData(0, -1, 0L)]
+    public void TryMultiplyDivideBySum_PreservesSignedTiesWithCommonBinaryFactors(
+        int fourth, int divisorSign, long expectedRaw)
+    {
+        Assert.True(Fixed64.TryMultiplyDivideBySum(
+            Fixed64.Pi, Fixed64.Quarter, Fixed64.Quarter, (Fixed64)fourth,
+            (Fixed64)(3 * divisorSign), Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            out Fixed64 result));
+        Assert.Equal(Fixed64.FromRaw(expectedRaw), result);
+        Assert.True(Fixed64.TryMultiplyDivideBySum(
+            Fixed64.MinValue, Fixed64.One, Fixed64.One, Fixed64.One,
+            Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero,
+            out Fixed64 minimum));
+        Assert.Equal(Fixed64.MinValue, minimum);
     }
 
     [Fact]

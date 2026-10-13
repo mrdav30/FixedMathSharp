@@ -977,6 +977,20 @@ public partial struct Fixed64
             parityOffset);
     }
 
+    // Isolate normalization scratch so typed callers keep their smaller stack frame.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static bool TryGetBinaryReducedSignedRawRatio(
+        Signed576 numerator, Signed576 denominator, out Fixed64 result)
+    {
+        Span<ulong> numeratorMagnitude = stackalloc ulong[9];
+        Span<ulong> denominatorMagnitude = stackalloc ulong[9];
+        WideArithmetic.GetMagnitude(numerator, numeratorMagnitude);
+        WideArithmetic.GetMagnitude(denominator, denominatorMagnitude);
+        return TryGetSignedRawRatio(
+            numeratorMagnitude, denominatorMagnitude,
+            numerator.Sign != denominator.Sign, out result);
+    }
+
     private static bool TryGetSignedRawRatioCore(
         Span<ulong> remainder,
         Span<ulong> denominatorMagnitude,
