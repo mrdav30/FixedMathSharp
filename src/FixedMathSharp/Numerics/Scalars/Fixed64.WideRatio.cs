@@ -831,6 +831,54 @@ public partial struct Fixed64
     }
 
     /// <summary>
+    /// Converts an exact signed nine-word numerator over a five-word denominator
+    /// directly to a raw integer with round-half-to-even. Returns false/default
+    /// for zero denominator or an unrepresentable final signed result.
+    /// </summary>
+    internal static bool TryGetSignedRawRatio(
+        Signed576 numerator,
+        Signed320 denominator,
+        out Fixed64 result)
+    {
+        int numeratorSign = numerator.Sign;
+        int denominatorSign = denominator.Sign;
+        if (denominatorSign == 0)
+        {
+            result = default;
+            return false;
+        }
+        if (numeratorSign == 0)
+        {
+            result = Zero;
+            return true;
+        }
+
+        Span<ulong> numeratorMagnitude = stackalloc ulong[9];
+        Span<ulong> denominatorMagnitude = stackalloc ulong[5];
+        WideArithmetic.GetMagnitude(numerator, numeratorMagnitude);
+        WideArithmetic.GetMagnitude(denominator,
+            out denominatorMagnitude[4], out denominatorMagnitude[3],
+            out denominatorMagnitude[2], out denominatorMagnitude[1], out denominatorMagnitude[0]);
+        Span<ulong> quotient = stackalloc ulong[9];
+        Span<ulong> remainder = stackalloc ulong[5];
+        Span<ulong> scratch = stackalloc ulong[15];
+        WideArithmetic.DivideMagnitudes(
+            numeratorMagnitude, denominatorMagnitude, quotient, remainder, scratch);
+        if (GetActiveMagnitudeLength(quotient) > 1)
+        {
+            result = default;
+            return false;
+        }
+
+        WideArithmetic.SubtractEqualMagnitudes(
+            denominatorMagnitude, remainder, denominatorMagnitude);
+        int midpointComparison = WideArithmetic.CompareMagnitudeEqualLength(
+            remainder, denominatorMagnitude);
+        return TryCreateRawRatioResult(quotient[0], midpointComparison,
+            numeratorSign != denominatorSign, out result);
+    }
+
+    /// <summary>
     /// Converts an exact signed eleven-word ratio directly to a raw integer
     /// with round-half-to-even.
     /// </summary>

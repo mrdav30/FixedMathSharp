@@ -7,6 +7,34 @@ namespace FixedMathSharp.Tests;
 public sealed class Fixed64MultiplySubtractTests
 {
     [Fact]
+    public void TryRoundNonnegativeQ128_FinalRoundingAndRange_MatchIntegerOracle()
+    {
+        BigInteger denominator = BigInteger.One << 96;
+        BigInteger half = denominator >> 1;
+        BigInteger maximum = (BigInteger)long.MaxValue * denominator;
+        BigInteger radius = ((BigInteger)1024 << 32) + 1;
+        BigInteger[] numerators =
+        {
+            BigInteger.Zero,
+            BigInteger.One,
+            -BigInteger.One,
+            2 * denominator + half - 1,
+            2 * denominator + half,
+            2 * denominator + half + 1,
+            3 * denominator + half,
+            maximum,
+            maximum + half - 1,
+            maximum + half,
+            BigInteger.One << 160,
+            (BigInteger.One << 256) - 1,
+            (BigInteger)1717986918 * 3 * radius * radius,
+        };
+
+        foreach (BigInteger numerator in numerators)
+            AssertQ128MatchesOracle(numerator);
+    }
+
+    [Fact]
     public void TryMultiplySubtractClamped_DirectCapsuleFactors_RetainsRepresentableDifference()
     {
         Assert.True(Fixed64.TryMultiplySubtractClamped(
@@ -164,6 +192,33 @@ public sealed class Fixed64MultiplySubtractTests
             InvokeAllOverloads();
 
         Assert.Equal(0L, GC.GetAllocatedBytesForCurrentThread() - before);
+    }
+
+    private static void AssertQ128MatchesOracle(BigInteger numerator)
+    {
+        BigInteger bits = numerator.Sign < 0
+            ? (BigInteger.One << 320) + numerator : numerator;
+        BigInteger wordMask = (BigInteger.One << 64) - 1;
+        var exact = new Signed320(
+            (ulong)((bits >> 256) & wordMask),
+            (ulong)((bits >> 192) & wordMask),
+            (ulong)((bits >> 128) & wordMask),
+            (ulong)((bits >> 64) & wordMask),
+            (ulong)(bits & wordMask));
+
+        BigInteger denominator = BigInteger.One << 96;
+        BigInteger expectedRaw = BigInteger.DivRem(
+            BigInteger.Max(numerator, BigInteger.Zero), denominator,
+            out BigInteger remainder);
+        int halfComparison = (remainder * 2).CompareTo(denominator);
+        if (halfComparison > 0 || (halfComparison == 0 && !expectedRaw.IsEven))
+            expectedRaw++;
+        bool expectedSuccess = expectedRaw <= long.MaxValue;
+
+        bool success = Fixed64.TryRoundNonnegativeQ128(exact, out Fixed64 result);
+
+        Assert.Equal(expectedSuccess, success);
+        Assert.Equal(expectedSuccess ? Fixed64.FromRaw((long)expectedRaw) : default, result);
     }
 
     private static void AssertTwoMatchesOracle(long first, long second, long third, long fourth)

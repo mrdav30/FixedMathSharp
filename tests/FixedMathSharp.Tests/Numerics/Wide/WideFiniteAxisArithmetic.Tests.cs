@@ -8,6 +8,59 @@ namespace FixedMathSharp.Tests;
 public sealed class WideFiniteAxisArithmeticTests
 {
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void Signed576OverSigned320_RawRatio_MatchesSignedIntegerOracle(bool negateNumerator, bool negateDenominator)
+    {
+        BigInteger wide = (BigInteger.One << 198) + 3;
+        BigInteger maximumDenominator = (BigInteger.One << 319) - 1;
+        (BigInteger N, BigInteger D)[] cases =
+        {
+            (0, 0), (0, 1), (1, 0), (1, 2), (5, 2), (7, 2), (5, 3),
+            (5 * wide - 1, 2 * wide), (5 * wide, 2 * wide), (5 * wide + 1, 2 * wide),
+            (long.MaxValue, 1), (long.MinValue, 1),
+            (2 * (BigInteger)long.MaxValue + 1, 2),
+            (2 * (BigInteger)long.MinValue - 1, 2),
+            (2 * (BigInteger)long.MinValue - 2, 2),
+            (BigInteger.One << 64, 1),
+            ((BigInteger.One << 575) - 1, maximumDenominator),
+            (-(BigInteger.One << 575), -(BigInteger.One << 319)),
+            (1, -(BigInteger.One << 319)),
+            ((BigInteger)long.MaxValue * maximumDenominator, maximumDenominator),
+        };
+
+        foreach ((BigInteger initialNumerator, BigInteger initialDenominator) in cases)
+        {
+            BigInteger numerator = negateNumerator ? -initialNumerator : initialNumerator;
+            BigInteger denominator = negateDenominator ? -initialDenominator : initialDenominator;
+            // Signed minima cannot be negated within their original widths.
+            if (numerator >= (BigInteger.One << 575) || denominator >= (BigInteger.One << 319))
+                continue;
+            BigInteger rounded = BigInteger.Zero;
+            bool expected = denominator != BigInteger.Zero;
+            if (expected)
+            {
+                rounded = BigInteger.DivRem(BigInteger.Abs(numerator),
+                    BigInteger.Abs(denominator), out BigInteger remainder);
+                int half = (2 * remainder).CompareTo(BigInteger.Abs(denominator));
+                if (half > 0 || half == 0 && !rounded.IsEven)
+                    rounded++;
+                if (numerator.Sign != denominator.Sign)
+                    rounded = -rounded;
+                expected = rounded >= long.MinValue && rounded <= long.MaxValue;
+            }
+
+            bool success = Fixed64.TryGetSignedRawRatio(
+                ToSigned576(numerator), ToSigned320(denominator), out Fixed64 result);
+
+            Assert.Equal(expected, success);
+            Assert.Equal(expected ? (long)rounded : 0L, result.m_rawValue);
+        }
+    }
+
+    [Theory]
     [InlineData(0, false)]
     [InlineData(0, true)]
     [InlineData(3, false)]
@@ -537,7 +590,7 @@ public sealed class WideFiniteAxisArithmeticTests
     {
         Assert.True(Fixed64.TryGetSignedRawRatio(ToSigned576(0), ToSigned576(1), out Fixed64 zero));
         Assert.Equal(0L, zero.m_rawValue);
-        Assert.False(Fixed64.TryGetSignedRawRatio(ToSigned576(1), default, out _));
+        Assert.False(Fixed64.TryGetSignedRawRatio(ToSigned576(1), default(Signed576), out _));
 
         AssertRawRatio(2L, 5, 2);
         AssertRawRatio(4L, 7, 2);

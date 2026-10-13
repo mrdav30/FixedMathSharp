@@ -199,7 +199,7 @@ public partial struct Fixed64
             WideArithmetic.MultiplySigned192(
                 GetExactRawProduct(subtrahendFirst, subtrahendSecond),
                 GetExactRawProduct(subtrahendThird, subtrahendFourth)));
-        return TryRoundNonnegativeFourFactorDifference(difference, out result);
+        return TryRoundNonnegativeQ128(difference, out result);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -272,7 +272,12 @@ public partial struct Fixed64
             out result);
     }
 
-    private static bool TryRoundNonnegativeFourFactorDifference(
+    /// <summary>
+    /// Rounds an exact Q128 value to Q32.32 once, with round-half-to-even.
+    /// Positive inputs must have magnitude below 2^256; nonpositive inputs
+    /// produce zero. Returns false with a default result on final overflow.
+    /// </summary>
+    internal static bool TryRoundNonnegativeQ128(
         Signed320 difference,
         out Fixed64 result)
     {
