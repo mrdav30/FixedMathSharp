@@ -45,50 +45,32 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ## Active Signals
 
-### Finite-slab projected circle/triangle sweep throughput
-
-- **Discovered:** 2026-10-12 during Gravitas #098's separated-sweep controls.
-- **Owner:** Existing `WideOrientedBox.TriangleCircleSlabSweep` and
-  `WideOrientedBox.CircleSlabSweep`; neither owner changes in #098. Keep this
-  separate from the new finite-support/contact-manifold geometry.
-- **Evidence:** On Windows 11, i7-9700K, SDK 10.0.302 and runtime 8.0.29,
-  direct math-only sweeps over 128/512/2,048 vertical triangles measure
-  **13.80/52.63/205.58 ms**, all 0 B/op. Each triangle is swept directly through
-  `FixedTriangle.TryGetFiniteSlabProjectedCircleSweep`, without a Gravitas
-  collider, manifold, BVH or response. All expected triangle hits are checked.
-  This is linear work at roughly 100 us per triangle, not an allocation signal.
-- **Literal fixture:** Subdivide the Y/Z square `[-1/2,1/2]^2` at X zero into
-  `n*n` cells, `n=8,16,32`, with two coherent triangles per cell. Sweep from
-  X/Z `(-3,0)` in direction Right, maximum distance `6`, radius `1/2`, slab Y
-  zero and half-thickness `1/2`; use origin zero and identity rotation. Every
-  triangle meets the sweep. Warm four grid sweeps, then measure eight sweeps
-  with tiered compilation and concurrent GC disabled.
-- **Consumer controls:** Gravitas's maintained dense-hit and clipped-proxy miss
-  benchmarks measure approximately 13/52/206 ms at the same triangle counts,
-  with 0 B/op. Immutable before/after builds of its final initial-admission
-  bounds refinement measure dense 2,048-triangle sweeps at 228.46/214.37 ms
-  and proxy misses at 214.72/203.57 ms. The refinement removes work; direct
-  mathematics independently reproduces the remaining dominant cost.
-- **Reproduce the maintained consumer:** From this repository, set
-  `UseLocalLsfStack=true`, `DOTNET_TieredCompilation=0` and
-  `COMPlus_gcConcurrent=0`; build
-  `../Gravitas/tests/Gravitas.Benchmarks/Gravitas.Benchmarks.csproj` in Release
-  with `-p:UseLocalLsfStack=true`. Run its compiled DLL with
-  `--filter '*MixedMeshTriangleScalingBenchmarks*' --job short
-  --invocationCount 32 --unrollFactor 1 --launchCount 1 --warmupCount 3
-  --iterationCount 3 --artifacts artifacts/projected-triangle-sweep-baseline`.
-- **Evidence paths:** Sibling Gravitas retains the maintained capture under
-  `artifacts/grv-issue-098/query-refined-benchmarks/`, immutable comparison
-  logs `query-moving-{before,after}.txt`, and the direct-math probe/log under
-  `query-moving-timing/` and `query-math-only.txt`.
-- **Next isolation:** Extend existing `ProjectedTriangleSweepBenchmarks` with
-  positive slab thickness and vertical subdivision controls, then profile
-  clipping versus finite point/edge interval work. Preserve exact tangency,
-  scalar-limit anchors, reversal and rounded TOI behavior. Investigate proven
-  upper-distance pruning in the consumer separately; do not weaken geometry
-  or treat a lower triangle count as a kernel speedup.
+No active signals remain.
 
 ## Archived Signals
+
+### Finite-slab projected circle/triangle sweep throughput
+
+- **Status:** Completed 2026-10-14; changes prepared for owner review.
+- **Change:** Existing rational point/edge admission bounds the exact entering
+  root, then the existing quadratic ratio owner rounds it once. Removing both
+  local entry searches and three unused helpers saves 190 runtime lines while
+  preserving nearest-even ties, finite witnesses and authored-distance mapping.
+- **Measured:** Matched full Release captures reduce 128/512/2,048 direct
+  triangle batches from **13.88/55.12/220.13 ms** to **3.04/11.75/46.14 ms**,
+  approximately **78-79% lower cost**. Positive-thickness clipping improves
+  **75%**. Unchanged Gravitas dense-hit controls improve **76-77%** and proxy
+  misses **69%**; all 28 final matched child allocation/GC rows are zero.
+- **Validation:** Both repositories pass all tests with 100% reachable line,
+  branch and method coverage in Release and ReleaseLean using
+  `UseLocalLsfStack=true`. Bounded-stack/warmed-allocation probes, 479-case
+  out-of-process benchmark smoke and documentation checks pass.
+- **Remaining cost:** Full grids remain linear at about 23 us per triangle;
+  shared exact arithmetic and finite witnesses dominate. Reopen on a
+  representative residual profile or measured shared-arithmetic improvement.
+  Consumer pruning remains separate. The characterization also exposed the
+  separate open correctness issue [FMS-Issue-030](issue-tracker.md#fms-issue-030-convex-sweep-normal-and-witness-depend-on-polygon-origin).
+- **Record:** [Completed measurements, proofs, controls and reproduction](done/2026-10-14-projected-triangle-sweep-throughput.md).
 
 ### Centered forward-scaled planar transforms repeat zero-offset wide arithmetic
 

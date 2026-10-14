@@ -159,6 +159,12 @@ distance domain is intentional; setup checks misses separately from successful
 intervals. Use both when changing shared unit-interval endpoint evaluation,
 alongside the selection's capsule and cylinder controls.
 
+`projected-triangle-sweep` includes finite-Y slab clipping and vertical grids of
+128, 512 and 2,048 triangles. Grid rows measure a complete batch, with setup
+checking every expected hit; the clipped 128-triangle control retains 64 hits,
+including slab-boundary touches. Keep the ordinary and scalar-face sweeps as
+controls when changing the shared exact point/segment searches.
+
 `convex-point-containment` measures exact inside/outside queries against
 translated four- and six-vertex footprints, with zero and 30-degree rotations.
 Setup verifies the intended classifications. This isolates the public convex

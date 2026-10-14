@@ -14,6 +14,91 @@ namespace FixedMathSharp.Tests;
 public sealed class FixedTriangleProjectedCircleSweepTests
 {
     [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, false)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(true, true, true)]
+    public void PositiveThicknessClip_RetainsExactBoundaryDistanceAndAnchor(bool reverse, bool reversedWinding, bool authored)
+    {
+        Vector3d a = new(0, -2, 0), b = new(4, 2, 0), c = new(0, -2, 4);
+        var triangle = reversedWinding ? new FixedTriangle(c, b, a) : new FixedTriangle(a, b, c);
+        var origin = new Vector3d(7, 11, -13);
+        Vector2d start = new(reverse ? 13 : 5, -13), end = new(reverse ? 5 : 13, -13);
+        Fixed64 distance;
+        FixedPointAnchor contact;
+        // No vertex survives the slab: its projected boundary is x=3/2 or 5/2,
+        // whereas projecting the unclipped triangle would report an earlier hit.
+        bool hit = authored
+            ? triangle.TryGetFiniteSlabProjectedCircleSweep(origin, FixedQuaternion.Identity,
+                new FixedSegment2d(start, end), (Fixed64)8, Fixed64.Half, (Fixed64)11, Fixed64.Half, out distance, out contact)
+            : triangle.TryGetFiniteSlabProjectedCircleSweep(origin, FixedQuaternion.Identity,
+                start, reverse ? Vector2d.Left : Vector2d.Right, (Fixed64)8, Fixed64.Half, (Fixed64)11, Fixed64.Half, out distance, out contact);
+        Assert.True(hit);
+        Assert.Equal((Fixed64)3, distance);
+        Assert.Equal(origin, contact.Origin);
+        Assert.Equal(FixedQuaternion.Identity, contact.Rotation);
+        Assert.Equal(new Vector3d(Fixed64.FromFraction(reverse ? 5 : 3, 2), reverse ? Fixed64.Half : -Fixed64.Half, Fixed64.Zero), contact.LocalPoint);
+        Vector2d direction = reverse ? Vector2d.Left : Vector2d.Right;
+        Fixed64 before = distance - Fixed64.MinIncrement;
+        Assert.False(authored
+            ? triangle.TryGetFiniteSlabProjectedCircleSweep(origin, FixedQuaternion.Identity,
+                new FixedSegment2d(start, start + direction * before), before, Fixed64.Half,
+                (Fixed64)11, Fixed64.Half, out _, out _)
+            : triangle.TryGetFiniteSlabProjectedCircleSweep(origin, FixedQuaternion.Identity,
+                start, direction, before, Fixed64.Half, (Fixed64)11, Fixed64.Half, out _, out _));
+        Assert.True(authored
+            ? triangle.TryGetFiniteSlabProjectedCircleSweep(origin, FixedQuaternion.Identity,
+                new FixedSegment2d(start, start + direction * distance), distance, Fixed64.Half,
+                (Fixed64)11, Fixed64.Half, out _, out _)
+            : triangle.TryGetFiniteSlabProjectedCircleSweep(origin, FixedQuaternion.Identity,
+                start, direction, distance, Fixed64.Half, (Fixed64)11, Fixed64.Half, out _, out _));
+        Span<Vector2d> projection = stackalloc Vector2d[4]
+        {
+            new(Fixed64.FromFraction(3, 2), Fixed64.Zero), new(Fixed64.FromFraction(5, 2), Fixed64.Zero),
+            new(Fixed64.FromFraction(5, 2), Fixed64.FromFraction(3, 2)), new(Fixed64.FromFraction(3, 2), Fixed64.FromFraction(5, 2)),
+        };
+        Assert.True(FixedConvex2dRelations.TryGetSweptCircleFirstDistance(start, Fixed64.Half,
+            reverse ? Vector2d.Left : Vector2d.Right, (Fixed64)8, new Vector2d(7, -13), projection,
+            out Fixed64 projectedDistance, out _, out _));
+        Assert.Equal(distance, projectedDistance);
+    }
+
+    [Fact]
+    public void PositiveThicknessClip_QuarterTurnRetainsAuthoredAnchor()
+    {
+        var triangle = new FixedTriangle(new Vector3d(0, -2, 0), new Vector3d(4, 2, 0), new Vector3d(0, -2, 4));
+        var origin = new Vector3d(7, 11, -13);
+        var rotation = new FixedQuaternion(Fixed64.Zero, Fixed64.One, Fixed64.Zero, Fixed64.One).Normalized;
+        Assert.True(triangle.TryGetFiniteSlabProjectedCircleSweep(origin, rotation,
+            new Vector2d(7, -11), new Vector2d(0, -1), (Fixed64)8, Fixed64.Half,
+            (Fixed64)11, Fixed64.Half, out Fixed64 distance, out FixedPointAnchor contact));
+        Assert.Equal((Fixed64)3, distance);
+        Assert.Equal(origin, contact.Origin);
+        Assert.Equal(rotation, contact.Rotation);
+        Assert.Equal(new Vector3d(Fixed64.FromFraction(3, 2), -Fixed64.Half, Fixed64.Zero), contact.LocalPoint);
+        Assert.True(contact.TryGetPoint(out Vector3d world));
+        Assert.Equal(new Vector3d((Fixed64)7, Fixed64.FromFraction(21, 2), Fixed64.FromFraction(-29, 2)), world);
+    }
+
+    [Fact]
+    public void PositiveThicknessClip_PreservesUnmaterializedScalarFaceAnchor()
+    {
+        var triangle = new FixedTriangle(new Vector3d(0, -2, 0), new Vector3d(4, 2, 0), new Vector3d(0, -2, 4));
+        var origin = new Vector3d(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero);
+        Assert.True(triangle.TryGetFiniteSlabProjectedCircleSweep(origin, FixedQuaternion.Identity,
+            new Vector2d(Fixed64.MaxValue - Fixed64.Two, Fixed64.Zero), Vector2d.Right, (Fixed64)6,
+            Fixed64.Half, Fixed64.Zero, Fixed64.Half, out Fixed64 distance, out FixedPointAnchor contact));
+        Assert.Equal((Fixed64)3, distance);
+        Assert.Equal(origin, contact.Origin);
+        Assert.Equal(new Vector3d(Fixed64.FromFraction(3, 2), -Fixed64.Half, Fixed64.Zero), contact.LocalPoint);
+        Assert.False(contact.TryGetPoint(out _));
+    }
+
+    [Theory]
     [InlineData(3, 4, 5, false)]
     [InlineData(3, 4, 5, true)]
     [InlineData(5, 12, 13, false)]

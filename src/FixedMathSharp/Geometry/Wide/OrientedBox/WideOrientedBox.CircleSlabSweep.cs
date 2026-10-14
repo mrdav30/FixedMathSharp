@@ -813,73 +813,27 @@ internal static partial class WideOrientedBox
             return false;
         }
 
-        Fixed64 closest = maxDistance;
-        if (!closestBeyondMaximum)
-        {
-            // The exact comparison above proves this nonnegative quotient is
-            // no greater than maxDistance, so its final Q32.32 value is
-            // representable.
-            if (!trajectory.IsSegment)
-            {
-                _ = Fixed64.TryGetSignedRawRatio(negativeProjection, directionSquared, FixedMath.SHIFT_AMOUNT_I, out closest);
-            }
-            else
-            {
-                Span<ulong> projectionMagnitude = stackalloc ulong[13];
-                Span<ulong> scaleMagnitude = stackalloc ulong[3];
-                Span<ulong> numerator = stackalloc ulong[16];
-                Span<ulong> denominator = stackalloc ulong[13];
-                WideArithmetic.GetMagnitude(negativeProjection, projectionMagnitude);
-                WideArithmetic.GetMagnitude(trajectory.TimeScale, out scaleMagnitude[2], out scaleMagnitude[1], out scaleMagnitude[0]);
-                WideArithmetic.MultiplyMagnitudes(projectionMagnitude, scaleMagnitude, numerator);
-                WideArithmetic.GetMagnitude(directionSquared, denominator);
-                _ = Fixed64.TryGetSignedRawRatio(numerator, denominator, false, out closest);
-            }
-        }
-
-        long maximumSearchRaw = closest.m_rawValue;
-        long high = Math.Max(0L, maximumSearchRaw - 1L);
-        if (CompareRationalPointAtHalf(
-                deltaX,
-                deltaZ,
-                directionX,
-                directionZ,
-                radiusNumerator,
-                high, trajectory) > 0)
-        {
-            distance = closestBeyondMaximum ? maxDistance : closest;
-            return true;
-        }
-
-        long low = 0L;
-        while (low < high)
-        {
-            long middle = low + ((high - low) >> 1);
-            if (CompareRationalPointAtHalf(
-                    deltaX,
-                    deltaZ,
-                    directionX,
-                    directionZ,
-                    radiusNumerator,
-                    middle, trajectory) <= 0)
-            {
-                high = middle;
-            }
-            else
-            {
-                low = middle + 1L;
-            }
-        }
-
-        int midpointComparison = CompareRationalPointAtHalf(
-            deltaX,
-            deltaZ,
-            directionX,
-            directionZ,
-            radiusNumerator,
-            low, trajectory);
-        distance = Fixed64.FromRaw(
-            low + GetHalfToEvenIncrement(midpointComparison, low));
+        // Entry is (-B-sqrt(B*B-A*C))*TimeScale/A. Two 832-bit products
+        // fit 27 limbs; shared quadratic rounding retains exact nearest-even ties.
+        const int words = 27;
+        Span<ulong> values = stackalloc ulong[6 * words];
+        Span<int> signs = stackalloc int[6];
+        ContactQuadratic entry = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic divisor = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic work = ContactQuadratic.At(values, signs, 2, words);
+        entry.Clear(); divisor.Clear(); work.Clear();
+        WideArithmetic.GetMagnitude(negativeProjection, entry.Rational[..13]); entry.Signs[0] = 1;
+        WideArithmetic.GetMagnitude(directionSquared, divisor.Rational[..13]); divisor.Signs[0] = 1;
+        WideArithmetic.GetMagnitude(constant, work.Rational[..13]);
+        Span<ulong> discriminant = stackalloc ulong[words];
+        WideArithmetic.MultiplyMagnitudes(entry.Rational, entry.Rational, discriminant);
+        WideArithmetic.MultiplyMagnitudes(divisor.Rational, work.Rational, work.Radical);
+        WideArithmetic.SubtractEqualMagnitudes(discriminant, work.Radical, discriminant);
+        entry.Radical[0] = 1; entry.Signs[1] = -1;
+        ContactQuadratic.Scale(entry, Signed576.ExtendValue(Signed320.ExtendValue(trajectory.TimeScale)), work);
+        work.CopyTo(entry);
+        // Earlier admission bounds this positive entering root by the maximum distance.
+        distance = ContactQuadratic.RoundRatio(entry, divisor, discriminant, 0L, maxDistance.m_rawValue);
         return true;
     }
 
@@ -891,29 +845,6 @@ internal static partial class WideOrientedBox
             (int)((uint)(midpointComparison | -midpointComparison) >> 31);
         int zero = nonzero ^ 1;
         return zero & (lowerRaw & 1L);
-    }
-
-    private static int CompareRationalPointAtHalf(
-        Signed576 deltaX,
-        Signed576 deltaZ,
-        Signed576 directionX,
-        Signed576 directionZ,
-        Signed576 radiusNumerator,
-        long lowerRaw,
-        in SweepTrajectory trajectory)
-    {
-        Signed192 lower = Signed192.Signed(lowerRaw);
-        Signed192 midpoint = WideArithmetic.AddSigned192(
-            WideArithmetic.AddSigned192(lower, lower),
-            SweepOneCoefficient);
-        return CompareRationalPointAt(
-            deltaX,
-            deltaZ,
-            directionX,
-            directionZ,
-            radiusNumerator,
-            midpoint,
-            trajectory.DoubleTimeScale, trajectory.IsSegment);
     }
 
     private static int CompareRationalPointAt(
