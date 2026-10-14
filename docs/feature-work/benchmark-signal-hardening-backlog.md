@@ -49,6 +49,22 @@ No active signals remain.
 
 ## Archived Signals
 
+### Capsule interval process-wide allocation observations
+
+- **Status:** Closed 2026-10-14 with an explicit no-runtime-change decision.
+- **Finding:** The actual scale-100,000 capsule fixture reproduces the 336-byte
+  process-wide signal while its calling-thread counter remains zero. Fresh
+  native windows at both 784 and 864 calls match .NET finalizer-thread array-pool
+  trimming: a 288-byte GC-information object plus a 48-byte enumerator.
+- **Controls:** All 32 uninstrumented capsule samples have zero calling-thread
+  bytes; 31 show 336 process bytes. Idle samples also show 336 bytes, and the
+  real-allocation control detects all expected workload bytes. No math,
+  benchmark, GC setting or allocation tolerance changes are needed.
+- **Limit:** The two original Issue 031 events cannot be attributed
+  retrospectively. Preserve raw-counter warnings and reopen for calling-thread
+  allocation, a different allocation stack, or growth with workload.
+- **Record:** [Fresh native intervals, controls, evidence and reproduction](done/2026-10-14-capsule-interval-allocation-diagnostic.md).
+
 ### Finite-slab projected circle/triangle sweep throughput
 
 - **Status:** Completed 2026-10-14; changes prepared for owner review.
