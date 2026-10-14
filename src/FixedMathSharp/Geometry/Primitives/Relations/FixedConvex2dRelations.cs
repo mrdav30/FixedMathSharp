@@ -13,6 +13,11 @@ namespace FixedMathSharp.Geometry;
 /// Provides exact relations for convex 2D shapes represented by canonical
 /// origins, scalar rotations, and local vertex offsets.
 /// </summary>
+/// <remarks>
+/// Boundary-ordered offsets may repeat or be collinear. Closed containment and
+/// contact queries retain their finite convex hull: a segment for collinear
+/// offsets, or a point when all offsets coincide. At least three offsets are required.
+/// </remarks>
 /// <content>Owns exact planar convex contacts, queries and translated shape intersections.</content>
 public static partial class FixedConvex2dRelations
 {

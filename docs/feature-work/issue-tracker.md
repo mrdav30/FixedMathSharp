@@ -54,31 +54,6 @@ Work that requires staged implementation belongs in a focused feature-work plan.
   consumers. Cover uniform/nonuniform scale, reflection, hierarchy composition
   and planar parity before revising the public contract.
 
-### FMS-Issue-031: Zero-area convex polygons report false containment and initial overlap
-
-- **Status:** Confirmed; separate from the resolved post-admission normal/witness defect.
-- **Priority:** Medium.
-- **Affected area:** `WideConvex2dRelations.ContainsPointUnrotated` and static
-  convex contact axis completeness for collapsed polygons.
-- **Evidence:** On baseline `eae5775` and the 030 working change, use origin zero
-  and target offsets `[(0,0),(0,0),(2,0)]`. A segment starting at `(-2,0)`,
-  direction Right, maximum distance `4` must enter at distance `2`, but
-  `TryGetSegmentFirstIntersectionDistance` reports initial distance `0`.
-  All-zero target offsets classify every point in the plane as contained.
-  A convex mover at `(-2,0)` with offsets `[(-0.5,0),(0,0),(0.5,0)]` similarly
-  reports initial overlap with the line target despite a true entry of `1.5`.
-- **Cause / impact:** Zero edge determinants do not check finite collinear
-  extent, while edge-normal SAT omits longitudinal separation for collinear
-  cores. Public validation accepts three offsets without requiring nonzero
-  area. These early classifications bypass the sweep's finite-feature admission
-  and can produce false containment/contact and distance-zero query results.
-- **Next action:** Define closed point/segment degeneration consistently for
-  containment and static contacts, then reuse finite extent and longitudinal
-  projection checks. Cover repeated vertices, coincident points, collinear
-  finite gaps, winding, transformed frames and scalar-limit anchors. Preserve
-  zero-area recovery tests below the public precheck; do not weaken them to
-  accept false initial overlaps.
-
 **Next issue ID:** `FMS-Issue-032`
 
 ## Issue Template

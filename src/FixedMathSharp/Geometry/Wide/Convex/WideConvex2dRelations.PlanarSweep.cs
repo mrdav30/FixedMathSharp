@@ -17,7 +17,7 @@ internal static partial class WideConvex2dRelations
         Vector2d origin, ReadOnlySpan<Vector2d> offsets, bool strict)
     {
         int winding = GetPlanarSweepWinding(offsets);
-        if (winding == 0)
+        if (winding == 0 && strict)
             return false;
 
         // The swept axis is [start,end] + [-axis/2,+axis/2]Forward.
@@ -77,7 +77,10 @@ internal static partial class WideConvex2dRelations
             bool enters = false;
             for (int j = 0; j < core.Length; j++)
             {
-                int side = SweepCross(edge, SubtractSweepPoint(core[j], a)).Sign * winding;
+                // A closed collinear boundary traverses its line in both
+                // directions, so winding zero uses the same signs as positive winding.
+                int side = SweepCross(edge, SubtractSweepPoint(core[j], a)).Sign;
+                if (winding < 0) side = -side;
                 if (strict ? side > 0 : side >= 0)
                 {
                     enters = true;
@@ -88,10 +91,14 @@ internal static partial class WideConvex2dRelations
                 return false;
         }
 
-        // The other separating axes are the two distinct core edge normals.
-        for (int edgeIndex = 0; edgeIndex < 2; edgeIndex++)
+        // Core edge normals complete ordinary polygon SAT. For a collapsed
+        // target, coordinate axes also close finite point/parallel-segment extent.
+        int axisCount = winding == 0 ? 4 : 2;
+        for (int edgeIndex = 0; edgeIndex < axisCount; edgeIndex++)
         {
-            WideAxis2d edge = SubtractSweepPoint(core[edgeIndex + 1], core[edgeIndex]);
+            WideAxis2d edge = edgeIndex < 2
+                ? SubtractSweepPoint(core[edgeIndex + 1], core[edgeIndex])
+                : edgeIndex == 2 ? new(Signed192.One, default) : new(default, Signed192.One);
             if (edge.IsZero)
                 continue;
             Signed320 coreMin = SweepCross(edge, core[0]);

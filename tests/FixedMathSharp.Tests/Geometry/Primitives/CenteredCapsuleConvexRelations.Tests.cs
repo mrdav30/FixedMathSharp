@@ -684,7 +684,7 @@ public sealed class CenteredCapsuleConvexRelationsTests
     }
 
     [Fact]
-    public void Contacts_RejectDegenerateConvexBoundary()
+    public void Contacts_CollapsedBoundaryRetainsPointContact()
     {
         Vector2d[] vertices =
         {
@@ -695,7 +695,7 @@ public sealed class CenteredCapsuleConvexRelationsTests
         FixedPointAnchor2d[] capsuleContacts = new FixedPointAnchor2d[2];
         FixedPointAnchor2d[] convexContacts = new FixedPointAnchor2d[2];
 
-        Assert.False(FixedSegment2d.TryGetCenteredCapsuleConvexContacts(
+        Assert.True(FixedSegment2d.TryGetCenteredCapsuleConvexContacts(
             Vector2d.Zero,
             Fixed64.Zero,
             Vector2d.Right,
@@ -710,10 +710,14 @@ public sealed class CenteredCapsuleConvexRelationsTests
             out Vector2d normal,
             out Fixed64 depth,
             out bool depthIsClamped));
-        Assert.Equal(0, contactCount);
-        Assert.Equal(Vector2d.Zero, normal);
-        Assert.Equal(Fixed64.Zero, depth);
+        Assert.Equal(1, contactCount);
+        Assert.Equal(Vector2d.Forward, normal);
+        Assert.Equal(Fixed64.One, depth);
         Assert.False(depthIsClamped);
+        Assert.True(capsuleContacts[0].TryGetPoint(out Vector2d capsulePoint));
+        Assert.True(convexContacts[0].TryGetPoint(out Vector2d convexPoint));
+        Assert.Equal(Vector2d.Forward, capsulePoint);
+        Assert.Equal(Vector2d.Zero, convexPoint);
     }
 
     [Theory]

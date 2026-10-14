@@ -43,8 +43,9 @@ public partial struct FixedSegment2d
     /// Offsets must describe a convex polygon in boundary order. The world-space
     /// capsule axis and rotated polygon vertices retain their exact authored
     /// components through classification; no normal or contact depth is rounded.
-    /// Repeated adjacent vertices are ignored, and a fully collapsed boundary
-    /// returns false, as in the closed minimum-translation query.
+    /// Repeated vertices retain the finite closed hull: collinear offsets form
+    /// a segment, and coincident offsets form a point. A point target strictly
+    /// penetrates only when its minimum separating translation is positive.
     /// For a nondegenerate polygon, a zero-radius point or finite axis must enter
     /// its interior. A noncollapsed collinear boundary instead uses positive
     /// minimum separating translation: a transverse axis crossing can penetrate,

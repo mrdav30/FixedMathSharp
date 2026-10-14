@@ -15,6 +15,15 @@ namespace FixedMathSharp.Geometry;
 /// </content>
 internal static partial class WideConvex2dRelations
 {
+    internal static void GetMinimumSupportFeature(
+        Vector2d origin, RotationFrame2d rotation, ReadOnlySpan<Vector2d> offsets,
+        Signed192 axisX, Signed192 axisY, out Vector2d start, out Vector2d end)
+    {
+        GetSupportFeature(origin, rotation, offsets, new WideAxis2d(axisX, axisY), false, out Feature feature);
+        start = feature.Start;
+        end = feature.End;
+    }
+
     private static void GetSupportFeature(
         Vector2d origin,
         RotationFrame2d rotation,
@@ -47,32 +56,55 @@ internal static partial class WideConvex2dRelations
             }
         }
 
-        int previousIndex =
-            (bestIndex + offsets.Length - 1) % offsets.Length;
-        if (WideArithmetic.SubtractSigned320(
-                GetProjection(
-                    origin,
-                    rotation,
-                    offsets[previousIndex],
-                    axis),
-                bestProjection).IsZero)
+        int startIndex = bestIndex;
+        int count = 1;
+        while (count < offsets.Length)
         {
-            feature = new Feature(
-                offsets[previousIndex],
-                offsets[bestIndex]);
+            int previous = (startIndex + offsets.Length - 1) % offsets.Length;
+            if (!WideArithmetic.SubtractSigned320(
+                    GetProjection(origin, rotation, offsets[previous], axis), bestProjection).IsZero)
+                break;
+            startIndex = previous;
+            count++;
+        }
+        if (count == offsets.Length)
+        {
+            // A point or collinear boundary can tie everywhere. Its complete
+            // support feature is the tangential span, including repeated points.
+            WideAxis2d tangent = new(WideArithmetic.Negate(axis.Y), axis.X);
+            int minimumIndex = 0, maximumIndex = 0;
+            Signed320 minimum = GetProjection(origin, rotation, offsets[0], tangent);
+            Signed320 maximumProjection = minimum;
+            for (int i = 1; i < offsets.Length; i++)
+            {
+                Signed320 projection = GetProjection(origin, rotation, offsets[i], tangent);
+                if (WideArithmetic.SubtractSigned320(projection, minimum).Sign < 0)
+                {
+                    minimum = projection;
+                    minimumIndex = i;
+                }
+                if (WideArithmetic.SubtractSigned320(projection, maximumProjection).Sign > 0)
+                {
+                    maximumProjection = projection;
+                    maximumIndex = i;
+                }
+            }
+            feature = new Feature(offsets[minimumIndex], offsets[maximumIndex]);
             return;
         }
-
-        int nextIndex = bestIndex + 1 == offsets.Length ? 0 : bestIndex + 1;
-        feature = WideArithmetic.SubtractSigned320(
-                GetProjection(
-                    origin,
-                    rotation,
-                    offsets[nextIndex],
-                    axis),
-                bestProjection).IsZero
-            ? new Feature(offsets[bestIndex], offsets[nextIndex])
-            : new Feature(offsets[bestIndex], offsets[bestIndex]);
+        // Extend both ends of a supporting edge. For ordinary strict polygons
+        // this retains the existing previous->best or best->next endpoint order.
+        // The backward scan found a non-tied vertex, which also bounds this scan.
+        int endIndex = bestIndex;
+        while (true)
+        {
+            int next = (endIndex + 1) % offsets.Length;
+            if (!WideArithmetic.SubtractSigned320(
+                    GetProjection(origin, rotation, offsets[next], axis), bestProjection).IsZero)
+                break;
+            endIndex = next;
+        }
+        feature = new Feature(offsets[startIndex], offsets[endIndex]);
     }
 
     private static void GetProjectionRange(

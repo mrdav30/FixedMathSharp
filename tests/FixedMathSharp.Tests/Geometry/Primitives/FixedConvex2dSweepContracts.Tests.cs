@@ -277,7 +277,7 @@ public sealed class FixedConvex2dSweepContractsTests
     [InlineData(true, 2)]
     [InlineData(true, 3)]
     [InlineData(true, 4)]
-    public void AdmittedZeroRadiusSweep_CollapsedTargetsRetainFiniteEndAndOddHalfAxis(bool pointTarget, int shape)
+    public void PublicZeroRadiusSweep_CollapsedTargetsRetainFiniteEndAndOddHalfAxis(bool pointTarget, int shape)
     {
         Vector2d[] polygon = { Vector2d.Zero, Vector2d.Zero, pointTarget ? Vector2d.Zero : new Vector2d(2, 0) };
         Vector2d center = new(-2, 0);
@@ -289,20 +289,16 @@ public sealed class FixedConvex2dSweepContractsTests
             Vector2d[] source = { shape == 3 ? Vector2d.Zero : new(-Fixed64.Half, Fixed64.Zero),
                 shape == 3 ? Vector2d.Zero : new(Fixed64.Half, Fixed64.Zero),
                 shape == 3 ? Vector2d.Zero : new(Fixed64.Half, Fixed64.Zero) };
-            // Test recovery after finite-feature admission; public zero-area containment is a separate concern.
-            hit = FixedConvex2dRelations.TryGetSweptCenteredCapsuleFirstDistanceCore(center, Vector2d.Right,
-                shape == 3 ? Fixed64.Zero : Fixed64.One, Fixed64.Zero, Vector2d.Right, (Fixed64)4,
-                Vector2d.Zero, Fixed64.Zero, polygon, out distance, out _, out _);
-            Assert.True(hit);
-            WideConvex2dRelations.GetSweptConvexContact(center, Fixed64.Zero, source,
-                Vector2d.Zero, Fixed64.Zero, polygon, Vector2d.Right, out normal, out contact);
+            hit = FixedConvex2dRelations.TryGetSweptConvexFirstDistance(center, Fixed64.Zero, source,
+                Vector2d.Right, (Fixed64)4, Vector2d.Zero, Fixed64.Zero, polygon,
+                out distance, out normal, out FixedPointAnchor2d anchor);
+            contact = anchor.LocalPoint;
         }
         else
         {
             hit = shape == 0
-                ? FixedConvex2dRelations.TryGetSweptCenteredCapsuleFirstDistanceCore(center, Vector2d.Right,
-                    Fixed64.Zero, Fixed64.Zero, Vector2d.Right, (Fixed64)4, Vector2d.Zero, Fixed64.Zero,
-                    polygon, out distance, out normal, out contact)
+                ? FixedConvex2dRelations.TryGetSegmentFirstIntersectionDistance(center, Vector2d.Right,
+                    (Fixed64)4, Vector2d.Zero, polygon, out distance, out normal, out contact)
                 : FixedConvex2dRelations.TryGetSweptCenteredCapsuleFirstDistance(center, Vector2d.Right,
                     shape == 1 ? Fixed64.One : Fixed64.FromRaw(3), Fixed64.Zero, Vector2d.Right,
                     (Fixed64)4, Vector2d.Zero, polygon, out distance, out normal, out contact);

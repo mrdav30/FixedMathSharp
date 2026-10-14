@@ -478,7 +478,8 @@ internal static partial class WideConvex2dRelations
             startY = endY;
         }
 
-        return true;
+        return hasPositive || hasNegative
+            || ContainsDegeneratePoint(point, convexOrigin, convexFrame, convexVertexOffsets);
     }
 
     private static bool ContainsPointUnrotated(
@@ -517,6 +518,25 @@ internal static partial class WideConvex2dRelations
             start = end;
         }
 
+        return hasPositive || hasNegative
+            || ContainsDegeneratePoint(point, convexOrigin, RotationFrame2d.Identity, convexVertexOffsets);
+    }
+
+    private static bool ContainsDegeneratePoint(Vector2d point, Vector2d origin,
+        RotationFrame2d frame, ReadOnlySpan<Vector2d> offsets)
+    {
+        // With every edge determinant zero, coordinate bounds close the finite
+        // collinear segment; coincident vertices additionally require both coordinates.
+        for (int component = 0; component < 2; component++)
+        {
+            WideAxis2d axis = component == 0
+                ? new(Signed192.One, default) : new(default, Signed192.One);
+            GetProjectionRange(origin, frame, offsets, axis, out Signed320 minimum, out Signed320 maximum);
+            Signed320 projection = GetProjection(point, RotationFrame2d.Identity, Vector2d.Zero, axis);
+            if (WideArithmetic.SubtractSigned320(projection, minimum).Sign < 0
+                || WideArithmetic.SubtractSigned320(maximum, projection).Sign < 0)
+                return false;
+        }
         return true;
     }
 
@@ -575,7 +595,17 @@ internal static partial class WideConvex2dRelations
                 firstFrame,
                 firstVertexOffsets,
                 sourceIsFirst: false,
-                ref best))
+                ref best)
+            // Edge normals alone leave collinear extent and point/point gaps
+            // unconstrained. Coordinate axes complete only collapsed pairs.
+            || (GetPlanarSweepWinding(firstVertexOffsets) == 0
+                && GetPlanarSweepWinding(secondVertexOffsets) == 0
+                && (!TryKeepAxis(new WideAxis2d(Signed192.One, default),
+                        firstOrigin, firstFrame, firstVertexOffsets, secondOrigin, secondFrame, secondVertexOffsets,
+                        sourceIsFirst: true, ref best)
+                    || !TryKeepAxis(new WideAxis2d(default, Signed192.One),
+                        firstOrigin, firstFrame, firstVertexOffsets, secondOrigin, secondFrame, secondVertexOffsets,
+                        sourceIsFirst: true, ref best))))
         {
             contactCount = default;
             normal = default;
@@ -621,7 +651,10 @@ internal static partial class WideConvex2dRelations
         {
             _ = TryProjectPointOntoFeature(
                 firstOrigin,
+                firstFrame,
                 firstFeature.Start,
+                Vector2d.Zero,
+                Vector2d.Zero,
                 secondOrigin,
                 secondFrame,
                 secondFeature.Start,
@@ -639,7 +672,10 @@ internal static partial class WideConvex2dRelations
         {
             _ = TryProjectPointOntoFeature(
                 secondOrigin,
+                secondFrame,
                 secondFeature.Start,
+                Vector2d.Zero,
+                Vector2d.Zero,
                 firstOrigin,
                 firstFrame,
                 firstFeature.Start,

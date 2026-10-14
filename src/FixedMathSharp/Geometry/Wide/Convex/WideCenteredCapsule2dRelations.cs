@@ -418,13 +418,10 @@ internal static class WideCenteredCapsule2dRelations
             }
         }
 
-        if (!best.HasValue)
-            return false;
-
         // The admitted nondegenerate point-normal path separates through a
         // face. General contacts retain vertex axes for degenerate boundaries.
         if (pointFaceAxesOnly)
-            return true;
+            return best.HasValue;
 
         // The segment contributes its own pair of sides to the polygon's
         // Minkowski expansion. A closest endpoint/vertex axis need not cover it.
@@ -451,7 +448,11 @@ internal static class WideCenteredCapsule2dRelations
             return false;
         }
 
-        return true;
+        // A coincident point and zero-length core have no geometric axis;
+        // any cardinal axis gives their exact radial depth, including zero.
+        return best.HasValue || TryKeepAxis(
+            center, capsuleAxis, axisLength, radius, convexOrigin, frame, convexOriginOffsets,
+            Signed192.One, default, false, strict, ref best);
     }
 
     private static void GetClosestVertexAxis(
@@ -567,6 +568,13 @@ internal static class WideCenteredCapsule2dRelations
         out Vector2d featureStart,
         out Vector2d featureEnd)
     {
+        if (axis.FromEdge)
+        {
+            WideConvex2dRelations.GetMinimumSupportFeature(convexOrigin, convexRotation, convexOriginOffsets,
+                axis.X, axis.Y, out featureStart, out featureEnd);
+            return;
+        }
+
         int minimumIndex = 0;
         Signed320 minimum = GetRelativeProjection(
             center,
@@ -591,34 +599,6 @@ internal static class WideCenteredCapsule2dRelations
 
         featureStart = convexOriginOffsets[minimumIndex];
         featureEnd = featureStart;
-        if (!axis.FromEdge)
-            return;
-
-        int previousIndex = minimumIndex;
-        do
-        {
-            previousIndex =
-                (previousIndex + convexOriginOffsets.Length - 1)
-                % convexOriginOffsets.Length;
-        }
-        while (convexOriginOffsets[previousIndex] == featureStart);
-
-        int nextIndex = minimumIndex;
-        do
-        {
-            nextIndex = (nextIndex + 1) % convexOriginOffsets.Length;
-        }
-        while (convexOriginOffsets[nextIndex] == featureStart);
-
-        Vector2d previous = convexOriginOffsets[previousIndex];
-        Signed320 previousProjection = GetRelativeProjection(
-            center, convexOrigin, convexRotation, previous, axis.X, axis.Y);
-        if (WideArithmetic.SubtractSigned320(previousProjection, minimum).IsZero)
-            featureStart = previous;
-        else if (WideArithmetic.SubtractSigned320(
-                     GetRelativeProjection(center, convexOrigin, convexRotation,
-                         convexOriginOffsets[nextIndex], axis.X, axis.Y), minimum).IsZero)
-            featureEnd = convexOriginOffsets[nextIndex];
     }
 
     private static bool TryKeepAxis(

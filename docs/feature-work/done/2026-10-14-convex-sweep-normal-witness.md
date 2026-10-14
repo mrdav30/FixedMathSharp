@@ -55,8 +55,8 @@ by half an increment; the smallest positive radius is one increment. Admitted
 authored chords use a positive rounded physical length, so their output error
 likewise cannot move the core across a positive-radius contact. Whole-shape
 initial overlap remains owned by the existing static contact/containment paths.
-The separate zero-area precheck defect is tracked as
-[FMS-Issue-031](../issue-tracker.md#fms-issue-031-zero-area-convex-polygons-report-false-containment-and-initial-overlap).
+The separate zero-area precheck defect was subsequently resolved in
+[FMS-Issue-031](2026-10-14-degenerate-convex-relations.md).
 
 ## Regression Evidence
 
@@ -95,8 +95,10 @@ The focused regression set covers:
 
 Apex and tiny-witness counterexamples failed before exact recovery. Earlier
 failed adapter experiments remain diagnostic evidence, not final validation.
-Collapsed-target recovery tests use finite-feature admission explicitly: the
-separate public containment defect in issue 031 is not asserted to be fixed.
+This pass's collapsed-target recovery tests used finite-feature admission
+explicitly; they did not assert that the separate public containment defect was
+fixed. The subsequent issue 031 pass strengthened these tests to use public
+entry points after correcting initial-contact admission.
 
 ## Validation
 

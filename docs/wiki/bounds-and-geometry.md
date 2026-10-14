@@ -429,6 +429,15 @@ For touch-inclusive admission of a single pose, use
 math but includes tangency. Do not infer this classification from a rounded
 contact normal or penetration depth.
 
+Closed planar polygon queries retain the finite convex hull of their offsets.
+Collinear offsets form a closed segment; coincident offsets form a point.
+`ContainsPoint`, convex/circle/capsule contacts and closed upright-capsule
+intersection all use this rule, including repeated vertices and authored frames.
+Contact features retain complete subdivided support edges. Minimum-translation
+penetration can be positive for crossing segments or a point inside a rounded
+capsule; a point on a zero-radius segment has zero depth. The strict swept
+polygon-interior query still returns false for every zero-area target.
+
 ## Triangles and contacts
 
 Triangles preserve vertex order. `FixedTriangle2d` exposes planar barycentric

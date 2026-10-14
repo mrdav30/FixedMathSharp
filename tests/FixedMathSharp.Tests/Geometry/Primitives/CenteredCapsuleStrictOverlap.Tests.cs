@@ -192,7 +192,7 @@ public sealed class CenteredCapsuleStrictOverlapTests
         Assert.True(FixedSegment2d.DoesCenteredCapsulePenetrateConvex(
             center, Vector2d.Forward, Fixed64.Zero, (Fixed64)5 + Fixed64.MinIncrement,
             origin, Fixed64.Zero, polygon));
-        Assert.False(FixedSegment2d.DoesCenteredCapsulePenetrateConvex(
+        Assert.True(FixedSegment2d.DoesCenteredCapsulePenetrateConvex(
             Vector2d.Zero, Vector2d.Forward, Fixed64.Zero, Fixed64.One,
             Vector2d.Zero, Fixed64.Zero, new Vector2d[3]));
     }
