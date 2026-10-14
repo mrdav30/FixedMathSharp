@@ -15,6 +15,12 @@ namespace FixedMathSharp;
 /// </content>
 internal static partial class WideArithmetic
 {
+    /// <summary>Returns the low 192 bits of the signed integer multiplied by 2^32.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed192 ShiftLeftSigned192By32(Signed192 value) =>
+        new((value.High << 32) | (value.Middle >> 32),
+            (value.Middle << 32) | (value.Low >> 32), value.Low << 32);
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void GetMagnitude(
         Signed192 value,

@@ -17,6 +17,21 @@ namespace FixedMathSharp;
 internal static partial class WideArithmetic
 {
     /// <summary>
+    /// Divides by 2^64 toward zero. The caller proves that the input magnitude
+    /// is below 2^255, so the quotient fits the signed 192-bit domain.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed192 TruncateSigned320By64(Signed320 value)
+    {
+        GetMagnitude(value, out ulong word4, out ulong word3, out ulong word2, out ulong word1, out _);
+#if DEBUG
+        System.Diagnostics.Debug.Assert(word4 == 0 && (word3 & (1UL << 63)) == 0);
+#endif
+        Signed192 result = new(word3, word2, word1);
+        return value.Sign < 0 ? Negate(result) : result;
+    }
+
+    /// <summary>
     /// Divides a nonempty collection containing at least one nonzero value by
     /// its common positive magnitude gcd, preserving every sign and ratio.
     /// </summary>

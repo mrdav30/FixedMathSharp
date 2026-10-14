@@ -732,7 +732,11 @@ public partial struct Fixed64
         return quotient;
     }
 
-    private static Fixed64 RoundAndApplySign(
+    /// <summary>
+    /// Rounds an unsigned quotient and guard/sticky bits to even, applies its
+    /// sign, and reports representability. An unrepresentable result saturates.
+    /// </summary>
+    internal static Fixed64 RoundAndApplySign(
         ulong quotient,
         bool guard,
         bool sticky,

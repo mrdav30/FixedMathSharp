@@ -16,6 +16,36 @@ namespace FixedMathSharp;
 /// </content>
 internal static partial class WideArithmetic
 {
+    /// <summary>
+    /// Divides signed integers, truncating toward zero. Throws for a zero
+    /// denominator or a quotient outside the signed 192-bit domain.
+    /// </summary>
+    internal static Signed192 DivideSigned576ToSigned192(Signed576 numerator, Signed320 denominator)
+    {
+        if (denominator.IsZero)
+            throw new DivideByZeroException();
+        if (numerator.IsZero)
+            return default;
+
+        Span<ulong> dividend = stackalloc ulong[9];
+        Span<ulong> divisor = stackalloc ulong[5];
+        Span<ulong> quotient = stackalloc ulong[9];
+        Span<ulong> remainder = stackalloc ulong[5];
+        Span<ulong> scratch = stackalloc ulong[15];
+        GetMagnitude(numerator, dividend);
+        GetMagnitude(denominator, out divisor[4], out divisor[3], out divisor[2], out divisor[1], out divisor[0]);
+        DivideMagnitudes(dividend, divisor, quotient, remainder, scratch);
+        bool negative = numerator.Sign != denominator.Sign;
+        const ulong signBit = 1UL << 63;
+        if ((quotient[8] | quotient[7] | quotient[6] | quotient[5] | quotient[4] | quotient[3]) != 0
+            || quotient[2] > signBit
+            || (quotient[2] == signBit && (!negative || (quotient[1] | quotient[0]) != 0)))
+            throw new OverflowException("The quotient is outside the signed 192-bit domain.");
+
+        Signed192 result = new(quotient[2], quotient[1], quotient[0]);
+        return negative ? Negate(result) : result;
+    }
+
     internal static void GetMagnitude(Signed576 value, Span<ulong> magnitude)
     {
         magnitude.Clear();
