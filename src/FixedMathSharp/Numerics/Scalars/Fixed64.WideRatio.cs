@@ -879,6 +879,49 @@ public partial struct Fixed64
     }
 
     /// <summary>
+    /// Converts an exact signed three-word ratio directly to a raw scalar with
+    /// round-half-to-even. Returns false/default for a zero denominator or final
+    /// signed scalar overflow; it does not apply an additional Q32.32 scale.
+    /// </summary>
+    internal static bool TryGetSignedRawRatio(Signed192 numerator, Signed192 denominator, out Fixed64 result)
+    {
+        if (denominator.IsZero)
+        {
+            result = default;
+            return false;
+        }
+        if (numerator.IsZero)
+        {
+            result = Zero;
+            return true;
+        }
+        WideArithmetic.GetMagnitude(numerator, out ulong high, out ulong middle, out ulong low);
+        WideArithmetic.GetMagnitude(denominator, out ulong divisorHigh, out ulong divisorMiddle, out ulong divisorLow);
+        bool negative = numerator.Sign != denominator.Sign;
+        if (divisorHigh == 0 && divisorLow == 0)
+        {
+            // With B=2^64 and D=d*B, divide the upper two numerator words by d.
+            // The exact remainder is r*B+low. Compare it with D-remainder to
+            // round once without dropping low-word fractions or doubling overflow.
+            if (high >= divisorMiddle)
+            {
+                result = default;
+                return false;
+            }
+            ulong quotient = Divide128By64(high, middle, divisorMiddle, out ulong remainderHigh);
+            ulong complementHigh = divisorMiddle - remainderHigh - (low != 0 ? 1UL : 0UL);
+            ulong complementLow = unchecked(0UL - low);
+            int midpoint = remainderHigh.CompareTo(complementHigh);
+            if (midpoint == 0)
+                midpoint = low.CompareTo(complementLow);
+            return TryCreateRawRatioResult(quotient, midpoint, negative, out result);
+        }
+        return TryGetSignedRawRatio(
+            Signed576.ExtendValue(Signed320.ExtendValue(numerator)),
+            Signed320.ExtendValue(denominator), out result);
+    }
+
+    /// <summary>
     /// Converts an exact signed eleven-word ratio directly to a raw integer
     /// with round-half-to-even.
     /// </summary>
