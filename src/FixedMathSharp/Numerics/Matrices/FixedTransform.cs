@@ -531,7 +531,10 @@ public class FixedTransform
     /// <summary>
     /// Attempts to create a transform from a strict, nonsingular local TRS matrix.
     /// </summary>
-    /// <remarks>Perspective, shear, singular, and non-round-trippable inputs return null and false.</remarks>
+    /// <remarks>
+    /// Uses <see cref="Fixed4x4.Decompose"/>'s normalized-basis tolerance and scale-dependent
+    /// reconstruction bound. Perspective, shear, singular and unrepresentable inputs return null and false.
+    /// </remarks>
     public static bool TryCreateFromLocalMatrix(
         Fixed4x4 localMatrix,
         out FixedTransform? transform,
@@ -591,31 +594,8 @@ public class FixedTransform
         return true;
     }
 
-    private bool TryGetStrictLocalMatrix(out Fixed4x4 matrix)
-    {
-        Fixed3x3 rotation = _localRotation.ToMatrix3x3();
-        bool representable = Fixed64.TryMultiplyAdd(rotation.M11, _localScale.X, Fixed64.Zero, out Fixed64 m11)
-            & Fixed64.TryMultiplyAdd(rotation.M12, _localScale.X, Fixed64.Zero, out Fixed64 m12)
-            & Fixed64.TryMultiplyAdd(rotation.M13, _localScale.X, Fixed64.Zero, out Fixed64 m13)
-            & Fixed64.TryMultiplyAdd(rotation.M21, _localScale.Y, Fixed64.Zero, out Fixed64 m21)
-            & Fixed64.TryMultiplyAdd(rotation.M22, _localScale.Y, Fixed64.Zero, out Fixed64 m22)
-            & Fixed64.TryMultiplyAdd(rotation.M23, _localScale.Y, Fixed64.Zero, out Fixed64 m23)
-            & Fixed64.TryMultiplyAdd(rotation.M31, _localScale.Z, Fixed64.Zero, out Fixed64 m31)
-            & Fixed64.TryMultiplyAdd(rotation.M32, _localScale.Z, Fixed64.Zero, out Fixed64 m32)
-            & Fixed64.TryMultiplyAdd(rotation.M33, _localScale.Z, Fixed64.Zero, out Fixed64 m33);
-        if (!representable)
-        {
-            matrix = Fixed4x4.Zero;
-            return false;
-        }
-
-        matrix = new Fixed4x4(
-            m11, m12, m13, Fixed64.Zero,
-            m21, m22, m23, Fixed64.Zero,
-            m31, m32, m33, Fixed64.Zero,
-            _localPosition.X, _localPosition.Y, _localPosition.Z, Fixed64.One);
-        return true;
-    }
+    private bool TryGetStrictLocalMatrix(out Fixed4x4 matrix) =>
+        Fixed4x4.TryCreateTransform(_localPosition, _localRotation.ToMatrix3x3(), _localScale, out matrix);
 
     private void ValidateParent(FixedTransform? parent)
     {

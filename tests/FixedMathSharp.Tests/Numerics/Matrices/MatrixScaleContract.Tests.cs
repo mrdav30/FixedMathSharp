@@ -606,7 +606,7 @@ public class MatrixScaleContractTests
     }
 
     [Fact]
-    public void Decompose_RejectsScaleAmplifiedReconstructionError()
+    public void Decompose_AcceptsScaleAmplifiedQuaternionRounding()
     {
         FixedQuaternion rotation = FixedQuaternion.FromAxisAngle(
             new Vector3d(Fixed64.One, Fixed64.Two, (Fixed64)3),
@@ -616,16 +616,146 @@ public class MatrixScaleContractTests
             rotation,
             new Vector3d((Fixed64)1000, (Fixed64)1000, (Fixed64)1000));
 
-        Assert.False(Fixed4x4.Decompose(
+        Assert.True(Fixed4x4.Decompose(
             matrix,
             out Vector3d translation,
             out FixedQuaternion decomposedRotation,
             out Vector3d scale));
         Assert.Equal(Vector3d.Zero, translation);
-        Assert.Equal(FixedQuaternion.Identity, decomposedRotation);
+        AssertNormalizedBasisReconstructed(matrix, decomposedRotation, scale);
+        Assert.True(FixedTransform.TryCreateFromLocalMatrix(matrix, out FixedTransform? transform));
+        Assert.NotNull(transform);
+        AssertScaleAwareReconstruction(matrix, transform.LocalMatrix, scale);
+    }
+
+    [Theory]
+    [InlineData(false, 1, 1, 1)]
+    [InlineData(false, 2048, 2048, 2048)]
+    [InlineData(true, 2048, 2048, 2048)]
+    [InlineData(false, 2048, 1, 8192)]
+    [InlineData(true, 2048, 1, 8192)]
+    [InlineData(false, -2048, 1, 8192)]
+    [InlineData(false, 2048, -1, 8192)]
+    [InlineData(false, 2048, 1, -8192)]
+    [InlineData(false, -2048, -1, 8192)]
+    [InlineData(false, 1000000000, 2048, 1)]
+    public void Decompose_ScaledRotationsPreserveNormalizedContract(
+        bool planar, int x, int y, int z)
+    {
+        FixedQuaternion authoredRotation = planar
+            ? FixedQuaternion.FromAxisAngle(Vector3d.Up, -Fixed64.PiOver4)
+            : FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)19, (Fixed64)31, (Fixed64)11);
+        var authored = new FixedTransform(new Vector3d(7, -8, 9), authoredRotation, new Vector3d(x, y, z));
+        Assert.True(authored.TryGetLocalToWorldMatrix(out Fixed4x4 matrix));
+
+        Assert.True(matrix.Decompose(out Vector3d translation, out FixedQuaternion rotation, out Vector3d scale));
+        Assert.Equal(authored.LocalPosition, translation);
+        AssertNormalizedBasisReconstructed(matrix, rotation, scale);
+        Assert.True(FixedTransform.TryCreateFromLocalMatrix(matrix, out FixedTransform? imported));
+        Assert.NotNull(imported);
+        Assert.True(imported.TryGetLocalToWorldMatrix(out Fixed4x4 reconstructed));
+        AssertScaleAwareReconstruction(matrix, reconstructed, scale);
+        Assert.Equal(scale.X < Fixed64.Zero, x < 0 ^ y < 0 ^ z < 0);
+        Assert.True(scale.Y > Fixed64.Zero && scale.Z > Fixed64.Zero);
+    }
+
+    [Fact]
+    public void Decompose_NonshearedScaledHierarchyPreservesRowBounds()
+    {
+        var parent = new FixedTransform(
+            Vector3d.Zero,
+            FixedQuaternion.FromAxisAngle(Vector3d.Up, -Fixed64.PiOver4),
+            Vector3d.One * (Fixed64)2048);
+        var child = new FixedTransform(
+            Vector3d.One,
+            FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)19, (Fixed64)31, (Fixed64)11),
+            new Vector3d(Fixed64.Half, Fixed64.Two, (Fixed64)3),
+            parent);
+        Assert.True(child.TryGetLocalToWorldMatrix(out Fixed4x4 world));
+        Assert.True(FixedTransform.TryCreateFromLocalMatrix(world, out FixedTransform? imported));
+        Assert.NotNull(imported);
+        Assert.True(imported.TryGetLocalToWorldMatrix(out Fixed4x4 reconstructed));
+        AssertScaleAwareReconstruction(world, reconstructed, imported.LocalScale);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Decompose_LargeOtherRowsDoNotHideNormalizedShear(int row)
+    {
+        Vector3d scales = new(2048, 1, 8192);
+        Fixed4x4 matrix = Fixed4x4.CreateScale(scales);
+        matrix[row + 4 * ((row + 1) % 3)] = Fixed64.FromRaw(Fixed64.Epsilon.m_rawValue + 1) * scales[row];
+
+        Assert.False(matrix.Decompose(out Vector3d translation, out FixedQuaternion rotation, out Vector3d scale));
+        Assert.Equal(Vector3d.Zero, translation);
+        Assert.Equal(FixedQuaternion.Identity, rotation);
         Assert.Equal(Vector3d.One, scale);
-        Assert.False(FixedTransform.TryCreateFromLocalMatrix(matrix, out FixedTransform? transform));
-        Assert.Null(transform);
+        Assert.False(FixedTransform.TryCreateFromLocalMatrix(matrix, out FixedTransform? imported));
+        Assert.Null(imported);
+    }
+
+    [Fact]
+    public void Decompose_MixedFractionalAndLargeScalesRemainAllocationFree()
+    {
+        Fixed4x4 matrix = Fixed4x4.CreateTransform(
+            Vector3d.One,
+            FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)19, (Fixed64)31, (Fixed64)11),
+            new Vector3d(Fixed64.FromFraction(1, 16), (Fixed64)2048, -Fixed64.Half));
+        Assert.True(matrix.Decompose(out Vector3d translation, out FixedQuaternion rotation, out Vector3d scale));
+        AssertScaleAwareReconstruction(matrix, Fixed4x4.CreateTransform(translation, rotation, scale), scale);
+
+        long allocated = FixedMathTestHelper.MeasureWarmedAllocations(() =>
+        {
+            for (int index = 0; index < 128; index++)
+                Assert.True(Fixed4x4.Decompose(matrix, out _, out _, out _));
+        });
+        Assert.Equal(0, allocated);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Decompose_ReconstructedCoefficientOverflowFailsWithNeutralOutputs(bool reflected)
+    {
+        Fixed64 extreme = reflected ? -Fixed64.MaxValue : Fixed64.MaxValue;
+        Fixed4x4 matrix = new(
+            Fixed64.Zero, extreme, Fixed64.Zero, Fixed64.Zero,
+            Fixed64.FromRaw(-4265141137), Fixed64.FromRaw(3), Fixed64.FromRaw(505287218), Fixed64.Zero,
+            Fixed64.FromRaw(505287218), Fixed64.FromRaw(-6), Fixed64.FromRaw(4265141136), Fixed64.Zero,
+            Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, Fixed64.One);
+
+        // Quaternion reconstruction overshoots this near-cardinal coefficient by one raw unit.
+        Fixed4x4 canonicalBasis = matrix;
+        canonicalBasis.M12 = Fixed64.MaxValue;
+        FixedQuaternion candidate = Fixed4x4.ExtractRotation(canonicalBasis).Normalized;
+        Assert.Equal(Fixed64.One.m_rawValue + 1, candidate.ToMatrix3x3().M12.m_rawValue);
+        Assert.False(Fixed64.TryMultiplyAdd(candidate.ToMatrix3x3().M12, extreme, Fixed64.Zero, out _));
+        Assert.False(matrix.Decompose(out Vector3d translation, out FixedQuaternion rotation, out Vector3d scale));
+        Assert.Equal(Vector3d.Zero, translation);
+        Assert.Equal(FixedQuaternion.Identity, rotation);
+        Assert.Equal(Vector3d.One, scale);
+        Assert.False(FixedTransform.TryCreateFromLocalMatrix(matrix, out FixedTransform? imported));
+        Assert.Null(imported);
+    }
+
+    private static void AssertScaleAwareReconstruction(Fixed4x4 expected, Fixed4x4 actual, Vector3d scale)
+    {
+        BigInteger rawOne = Fixed64.One.m_rawValue;
+        for (int row = 0; row < 3; row++)
+        {
+            // Division and rescaling each round by at most half a raw unit.
+            BigInteger bound = (2 * Fixed64.Epsilon.m_rawValue + 1)
+                * BigInteger.Abs(scale[row].m_rawValue) + rawOne;
+            for (int column = 0; column < 3; column++)
+            {
+                BigInteger difference = BigInteger.Abs(
+                    (BigInteger)expected[row + 4 * column].m_rawValue - actual[row + 4 * column].m_rawValue);
+                Assert.True(2 * rawOne * difference <= bound, $"Row {row}, column {column} exceeds its propagated rounding bound.");
+            }
+        }
+        Assert.Equal(expected.Translation, actual.Translation);
     }
 
     private static void AssertNormalizedBasisReconstructed(

@@ -351,6 +351,33 @@ public partial struct Fixed4x4
             translation.X, translation.Y, translation.Z, Fixed64.One);
     }
 
+    // Shared checked TRS construction keeps decomposition and hierarchy materialization nonsaturating.
+    internal static bool TryCreateTransform(
+        Vector3d translation, Fixed3x3 rotation, Vector3d scale, out Fixed4x4 matrix)
+    {
+        bool representable = Fixed64.TryMultiplyAdd(rotation.M11, scale.X, Fixed64.Zero, out Fixed64 m11)
+            & Fixed64.TryMultiplyAdd(rotation.M12, scale.X, Fixed64.Zero, out Fixed64 m12)
+            & Fixed64.TryMultiplyAdd(rotation.M13, scale.X, Fixed64.Zero, out Fixed64 m13)
+            & Fixed64.TryMultiplyAdd(rotation.M21, scale.Y, Fixed64.Zero, out Fixed64 m21)
+            & Fixed64.TryMultiplyAdd(rotation.M22, scale.Y, Fixed64.Zero, out Fixed64 m22)
+            & Fixed64.TryMultiplyAdd(rotation.M23, scale.Y, Fixed64.Zero, out Fixed64 m23)
+            & Fixed64.TryMultiplyAdd(rotation.M31, scale.Z, Fixed64.Zero, out Fixed64 m31)
+            & Fixed64.TryMultiplyAdd(rotation.M32, scale.Z, Fixed64.Zero, out Fixed64 m32)
+            & Fixed64.TryMultiplyAdd(rotation.M33, scale.Z, Fixed64.Zero, out Fixed64 m33);
+        if (!representable)
+        {
+            matrix = Fixed4x4.Zero;
+            return false;
+        }
+
+        matrix = new Fixed4x4(
+            m11, m12, m13, Fixed64.Zero,
+            m21, m22, m23, Fixed64.Zero,
+            m31, m32, m33, Fixed64.Zero,
+            translation.X, translation.Y, translation.Z, Fixed64.One);
+        return true;
+    }
+
     /// <summary>
     /// Constructs a transformation matrix from translation, rotation, and scale by multiplying
     /// separate matrices in the order: Scale * Rotation * Translation.

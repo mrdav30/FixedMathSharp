@@ -505,6 +505,27 @@ public sealed class FixedTransformTests
     }
 
     [Fact]
+    public void FixedTransform_TrySetParentKeepingWorld_KeepsAbsoluteWorldPreservationContract()
+    {
+        var parent = new FixedTransform(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.One);
+        var child = new FixedTransform(
+            Vector3d.One,
+            FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)19, (Fixed64)31, (Fixed64)11),
+            Vector3d.One * (Fixed64)2048);
+        Fixed4x4 world = child.LocalToWorldMatrix;
+        FixedQuaternion rotation = child.LocalRotation;
+        Vector3d scale = child.LocalScale;
+        Assert.True(Fixed4x4.Decompose(world, out _, out _, out _));
+
+        Assert.False(child.TrySetParentKeepingWorld(parent));
+        Assert.Null(child.Parent);
+        Assert.Equal(Vector3d.One, child.LocalPosition);
+        Assert.Equal(rotation, child.LocalRotation);
+        Assert.Equal(scale, child.LocalScale);
+        Assert.Equal(world, child.LocalToWorldMatrix);
+    }
+
+    [Fact]
     public void FixedTransform_TrySetParentKeepingWorld_ShearedRelativeMatrixFailsAtomically()
     {
         var proposedParent = new FixedTransform(

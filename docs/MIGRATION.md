@@ -487,6 +487,15 @@ components from a matrix. Calls using named constructor arguments must also
 rename `position`, `rotation`, and `scale` to `localPosition`, `localRotation`,
 and `localScale`.
 
+Strict matrix import and `Fixed4x4.Decompose` validate normalized rotation
+coefficients within `Fixed64.Epsilon`. Scaled reconstruction must be
+representable, with coefficient error bounded per row by
+`abs(scale) * (Epsilon + q/2) + q/2`, where `q` is one raw Q32.32 unit.
+Large scales can therefore import despite quaternion rounding exceeding an
+absolute world-space epsilon. Perspective, normalized shear and singular
+matrices remain rejected. `TrySetParentKeepingWorld` retains its additional
+absolute-epsilon world-matrix preservation check and atomic failure behavior.
+
 `LocalToWorldMatrix`, `WorldPosition`, and `LossyScale` traverse parents on
 read. `FixedTransform` does not own a scene graph, child collection, matrix
 cache, or engine object.

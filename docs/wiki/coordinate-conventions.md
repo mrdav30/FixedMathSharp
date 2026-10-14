@@ -84,13 +84,21 @@ This distinction matters with nonuniform scale:
   negative X because a matrix cannot recover the originally negative axis.
 
 `FixedTransform.TryCreateFromLocalMatrix` accepts only affine, nonsingular,
-orthogonal TRS matrices that survive strict decomposition and recomposition.
-Perspective, shear, zero scale, unrepresentable values, and non-round-trippable
-inputs return `false`.
+orthogonal TRS matrices that survive strict decomposition and representable
+recomposition. `Fixed4x4.Decompose` checks orthogonality and quaternion
+reconstruction in the normalized basis against `Fixed64.Epsilon`. For a row
+with extracted scale `s` and one raw unit `q = 1 / 2^32`, the reconstructed
+coefficient error is bounded by `abs(s) * (Epsilon + q/2) + q/2`. This accounts
+for scale amplifying quaternion rounding without relaxing normalized shear
+rejection. Perspective, zero scale, unrepresentable values and rotation bases
+outside that normalized tolerance return `false`.
 
 World-preserving mutation and reparenting are atomic. They fail without partial
 changes when a required inverse is singular or cannot be verified. Reparenting
-also rejects self-parenting and hierarchy cycles.
+also rejects self-parenting and hierarchy cycles. `TrySetParentKeepingWorld`
+additionally requires the complete recomposed world matrix to match within
+absolute `Fixed64.Epsilon`; it can reject a large-scale decomposition that is
+valid for import when its world-space rounding exceeds that stronger bound.
 
 ## X/Z planar helpers
 

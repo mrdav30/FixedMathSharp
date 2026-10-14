@@ -144,8 +144,11 @@ public partial struct Fixed4x4
     /// </summary>
     /// <remarks>
     /// Perspective, shear, singular or unrepresentable basis magnitudes, and
-    /// rotation bases that cannot round-trip within <see cref="Fixed64.Epsilon"/>
-    /// are rejected. Reflections assign their single negative scale sign to X.
+    /// normalized rotation bases that cannot round-trip within <see cref="Fixed64.Epsilon"/>
+    /// are rejected. Reconstructed scaled coefficients must also be representable.
+    /// For each row's extracted scale s and one raw unit q, coefficient reconstruction error
+    /// is bounded by <c>abs(s) * (Epsilon + q/2) + q/2</c>.
+    /// Reflections assign their single negative scale sign to X.
     /// Every failure writes zero translation, identity rotation, and unit scale.
     /// </remarks>
     /// <param name="matrix">The 4x4 matrix to decompose.</param>
@@ -206,12 +209,16 @@ public partial struct Fixed4x4
 
         Vector3d candidateTranslation = new(matrix.M41, matrix.M42, matrix.M43);
         Vector3d candidateScale = new(scaleX, scaleY, scaleZ);
-        Fixed4x4 reconstructedTransform = CreateTransform(
+        // The normalized gate bounds row error by |scale| * (Epsilon + half a raw unit)
+        // plus final half-raw rounding. Only representability remains to be checked here.
+        if (!TryCreateTransform(
             candidateTranslation,
             reconstructed,
-            candidateScale);
-        if (!reconstructedTransform.FuzzyEqualAbsolute(matrix, Fixed64.Epsilon))
+            candidateScale,
+            out _))
+        {
             return false;
+        }
 
         translation = candidateTranslation;
         rotation = candidateRotation;

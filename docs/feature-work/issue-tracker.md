@@ -28,31 +28,7 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ## Active Issues
 
-### FMS-Issue-029: Strict decomposition rejects representable scaled rotations
-
-- **Status:** Confirmed limitation; tolerance contract needs review.
-- **Priority:** Medium.
-- **Affected area:** `Fixed4x4.Decompose` final reconstructed-transform check.
-- **Evidence:** On committed core `819dbde` (2026-10-12, Release, Windows x64,
-  .NET 8.0.29), create `FixedTransform(Vector3d.Zero, q, Vector3d.One * s)`.
-  For `q = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)19, (Fixed64)31,
-  (Fixed64)11)`, `TryGetLocalToWorldMatrix` succeeds at `s=1` and `2,048`, but
-  `Fixed4x4.Decompose` succeeds only at `1`. The normalized basis is orthogonal
-  within one raw increment and its quaternion reconstruction passes. The final
-  scaled reconstruction differs by `3,724` raw increments, exceeding the fixed
-  absolute `Fixed64.Epsilon` of `256`. A planar rotation from
-  `FixedQuaternion.FromAxisAngle(Vector3d.Up, -Fixed64.PiOver4)` reproduces the
-  same boundary: scale-one difference `3`, scale-2,048 difference `2,097`.
-- **Impact:** Rotation-to-quaternion rounding is amplified by scale, rejecting
-  useful representable TRS matrices even without meaningful shear. Consumers
-  using strict decomposition for collider hierarchy validation can reject small
-  compensated physical geometry. This follows the current strict absolute
-  round-trip contract; it is not an observed saturation or contact miss.
-- **Next action:** Review normalized-basis and scaled reconstruction error
-  bounds together. Preserve genuine shear, perspective and representability
-  rejection; do not blindly relax all tolerances or bypass decomposition in
-  consumers. Cover uniform/nonuniform scale, reflection, hierarchy composition
-  and planar parity before revising the public contract.
+No active issues remain.
 
 **Next issue ID:** `FMS-Issue-032`
 
