@@ -69,7 +69,8 @@ No active signals remain.
   shared exact arithmetic and finite witnesses dominate. Reopen on a
   representative residual profile or measured shared-arithmetic improvement.
   Consumer pruning remains separate. The characterization also exposed the
-  separate open correctness issue [FMS-Issue-030](issue-tracker.md#fms-issue-030-convex-sweep-normal-and-witness-depend-on-polygon-origin).
+  separate correctness issue [FMS-Issue-030](done/2026-10-14-convex-sweep-normal-witness.md),
+  now resolved.
 - **Record:** [Completed measurements, proofs, controls and reproduction](done/2026-10-14-projected-triangle-sweep-throughput.md).
 
 ### Centered forward-scaled planar transforms repeat zero-offset wide arithmetic

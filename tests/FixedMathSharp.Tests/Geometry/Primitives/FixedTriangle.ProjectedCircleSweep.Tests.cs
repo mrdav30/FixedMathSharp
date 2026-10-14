@@ -63,8 +63,10 @@ public sealed class FixedTriangleProjectedCircleSweepTests
         };
         Assert.True(FixedConvex2dRelations.TryGetSweptCircleFirstDistance(start, Fixed64.Half,
             reverse ? Vector2d.Left : Vector2d.Right, (Fixed64)8, new Vector2d(7, -13), projection,
-            out Fixed64 projectedDistance, out _, out _));
+            out Fixed64 projectedDistance, out Vector2d projectedNormal, out Vector2d projectedContact));
         Assert.Equal(distance, projectedDistance);
+        Assert.Equal(reverse ? Vector2d.Right : Vector2d.Left, projectedNormal);
+        Assert.Equal(new Vector2d(Fixed64.FromFraction(reverse ? 5 : 3, 2), Fixed64.Zero), projectedContact);
     }
 
     [Fact]

@@ -54,35 +54,32 @@ Work that requires staged implementation belongs in a focused feature-work plan.
   consumers. Cover uniform/nonuniform scale, reflection, hierarchy composition
   and planar parity before revising the public contract.
 
-### FMS-Issue-030: Convex sweep normal and witness depend on polygon origin
+### FMS-Issue-031: Zero-area convex polygons report false containment and initial overlap
 
-- **Status:** Confirmed; separate from projected triangle sweep throughput.
-- **Priority:** High.
-- **Affected area:** `FixedConvex2dRelations.TryGetSweptCircleFirstDistance` and
-  the shared swept centered-capsule reducer's final normal/witness construction.
-- **Evidence:** On core `6842809` (2026-10-14, Release, local source stack), use
-  polygon origin `(7,-13)` and offsets `[(1.5,0),(2.5,0),(2.5,1.5),(1.5,2.5)]`.
-  Sweep circle center `(5,-13)`, radius `1/2`, direction Right, maximum distance
-  `8`. The API returns the correct distance `3` but contact offset `(2.5,0)`.
-  At that distance the circle center is `(8,-13)` and its first-contact point
-  must be `(8.5,-13)`, offset `(1.5,0)`, with normal Left. The returned witness
-  is 1.5 units from the center despite a radius of 0.5. Both triangle windings
-  and both triangle sweep overloads independently agree with the analytic point.
-  The failed comparison is preserved in `artifacts/projected-sweep-characterization.log`;
-  these literal inputs suffice without the artifact.
-- **Cause / impact:** The reducer reorients its motion-facing normal using the
-  source position relative to `convexOrigin`, although that origin need not lie
-  inside the polygon. This flips the forward fixture's normal and subsequent
-  witness reconstruction chooses the opposite support. Equivalent authored
-  frames can therefore change normals and witnesses. The shared core also serves
-  capsule sweeps and downstream convex queries; this does not establish that
-  centered downstream collider fixtures reproduce the defect.
-- **Next action:** Preserve the admitted sweep normal through final witness
-  construction. Add a failing literal regression and a frame-rebasing check
-  (move origin by `(2,1)` while subtracting that shift from every offset), then
-  validate circle/capsule, reverse and transformed-frame parity in both libraries.
+- **Status:** Confirmed; separate from the resolved post-admission normal/witness defect.
+- **Priority:** Medium.
+- **Affected area:** `WideConvex2dRelations.ContainsPointUnrotated` and static
+  convex contact axis completeness for collapsed polygons.
+- **Evidence:** On baseline `eae5775` and the 030 working change, use origin zero
+  and target offsets `[(0,0),(0,0),(2,0)]`. A segment starting at `(-2,0)`,
+  direction Right, maximum distance `4` must enter at distance `2`, but
+  `TryGetSegmentFirstIntersectionDistance` reports initial distance `0`.
+  All-zero target offsets classify every point in the plane as contained.
+  A convex mover at `(-2,0)` with offsets `[(-0.5,0),(0,0),(0.5,0)]` similarly
+  reports initial overlap with the line target despite a true entry of `1.5`.
+- **Cause / impact:** Zero edge determinants do not check finite collinear
+  extent, while edge-normal SAT omits longitudinal separation for collinear
+  cores. Public validation accepts three offsets without requiring nonzero
+  area. These early classifications bypass the sweep's finite-feature admission
+  and can produce false containment/contact and distance-zero query results.
+- **Next action:** Define closed point/segment degeneration consistently for
+  containment and static contacts, then reuse finite extent and longitudinal
+  projection checks. Cover repeated vertices, coincident points, collinear
+  finite gaps, winding, transformed frames and scalar-limit anchors. Preserve
+  zero-area recovery tests below the public precheck; do not weaken them to
+  accept false initial overlaps.
 
-**Next issue ID:** `FMS-Issue-031`
+**Next issue ID:** `FMS-Issue-032`
 
 ## Issue Template
 

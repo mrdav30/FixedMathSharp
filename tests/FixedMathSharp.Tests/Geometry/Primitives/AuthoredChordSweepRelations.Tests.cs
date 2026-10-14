@@ -18,15 +18,19 @@ public sealed class AuthoredChordSweepRelationsTests
         Vector2d tangent = new(-b, a), travel = new(a, b);
         Vector2d start = tangent - travel, displacement = travel * Fixed64.Two;
         if (reverse) { start = tangent + travel; displacement = -displacement; }
-        Vector2d[] vertices = { new(0, 0), new(100, 0), new(100, -100), new(0, -100) };
-
-        Assert.True(FixedConvex2dRelations.TryGetSweptCenteredCapsuleFirstDistanceCore(
-            start, Vector2d.Right, Fixed64.Zero, (Fixed64)radius, displacement,
-            (Fixed64)(radius * 2), Vector2d.Zero, Fixed64.Zero, vertices,
-            out Fixed64 distance, out _, out Vector2d contact, authoredDisplacement: true));
-
-        Assert.Equal((Fixed64)radius, distance);
-        Assert.Equal(Vector2d.Zero, contact);
+        for (int frame = 0; frame < 2; frame++)
+        {
+            Vector2d shift = frame == 0 ? Vector2d.Zero : new(0, 200);
+            Vector2d[] vertices = { new Vector2d(0, 0) - shift, new Vector2d(100, 0) - shift,
+                new Vector2d(100, -100) - shift, new Vector2d(0, -100) - shift };
+            Assert.True(FixedConvex2dRelations.TryGetSweptCenteredCapsuleFirstDistanceCore(
+                start, Vector2d.Right, Fixed64.Zero, (Fixed64)radius, displacement,
+                (Fixed64)(radius * 2), shift, Fixed64.Zero, vertices,
+                out Fixed64 distance, out Vector2d normal, out Vector2d contact, authoredDisplacement: true));
+            Assert.Equal((Fixed64)radius, distance);
+            Assert.Equal(new Vector2d(Fixed64.FromFraction(-b, radius), Fixed64.FromFraction(a, radius)), normal);
+            Assert.Equal(-shift, contact);
+        }
     }
 
     [Theory]

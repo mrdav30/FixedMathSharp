@@ -269,31 +269,6 @@ internal static partial class WideConvex2dRelations
         return vertexOffsets[bestIndex];
     }
 
-    internal static Vector2d OrientTargetToSourceNormal(
-        Vector2d normal,
-        Vector2d sourceOrigin,
-        Vector2d sourceTranslationOffset,
-        Vector2d targetOrigin)
-    {
-        Signed192 x = WideArithmetic.AddSigned192(
-            WideArithmetic.Difference(sourceOrigin.X, targetOrigin.X),
-            Signed192.Raw(sourceTranslationOffset.X));
-        Signed192 y = WideArithmetic.AddSigned192(
-            WideArithmetic.Difference(sourceOrigin.Y, targetOrigin.Y),
-            Signed192.Raw(sourceTranslationOffset.Y));
-        Signed320 centerProjection = WideArithmetic.AddSigned320(
-            WideArithmetic.MultiplySigned192(x, Signed192.Raw(normal.X)),
-            WideArithmetic.MultiplySigned192(y, Signed192.Raw(normal.Y)));
-        if (centerProjection.Sign > 0)
-            return normal;
-        if (centerProjection.Sign < 0)
-            return -normal;
-
-        // Sweep normals already face against motion. Preserve that orientation
-        // when coincident centers provide no geometric preference.
-        return normal;
-    }
-
     internal static Vector2d GetClosestPointOffset(
         Vector2d pointOrigin,
         Vector2d pointOriginOffset,
@@ -437,48 +412,6 @@ internal static partial class WideConvex2dRelations
             new RotationFrame2d(source.Rotation),
             source.LocalPoint,
             source.LocalDisplacement,
-            sourceTranslationOffset,
-            targetOrigin,
-            targetFrame,
-            targetFeature.Start,
-            targetFeature.End,
-            requireInteriorProjection: false,
-            out Vector2d targetContactOffset);
-        return targetContactOffset;
-    }
-
-    internal static Vector2d GetSweptConvexTargetContactOffset(
-        Vector2d sourceOrigin,
-        Fixed64 sourceRotation,
-        ReadOnlySpan<Vector2d> sourceVertexOffsets,
-        Vector2d sourceTranslationOffset,
-        Vector2d targetOrigin,
-        Fixed64 targetRotation,
-        ReadOnlySpan<Vector2d> targetVertexOffsets,
-        Vector2d targetSupportDirection)
-    {
-        RotationFrame2d sourceFrame = new(sourceRotation);
-        RotationFrame2d targetFrame = new(targetRotation);
-        GetDirection(targetSupportDirection, out WideAxis2d targetAxis);
-        GetSupportFeature(
-            targetOrigin,
-            targetFrame,
-            targetVertexOffsets,
-            targetAxis,
-            maximum: true,
-            out Feature targetFeature);
-        GetSupportFeature(
-            sourceOrigin,
-            sourceFrame,
-            sourceVertexOffsets,
-            -targetAxis,
-            maximum: true,
-            out Feature sourceFeature);
-        _ = TryProjectPointOntoFeature(
-            sourceOrigin,
-            sourceFrame,
-            sourceFeature.Start,
-            Vector2d.Zero,
             sourceTranslationOffset,
             targetOrigin,
             targetFrame,

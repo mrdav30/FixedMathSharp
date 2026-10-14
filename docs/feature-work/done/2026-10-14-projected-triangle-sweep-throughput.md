@@ -103,10 +103,10 @@ refinement.
 
 The independent polygon comparison exposed a pre-existing normal/witness
 defect, recorded with literal inputs and root cause as
-[FMS-Issue-030](../issue-tracker.md#fms-issue-030-convex-sweep-normal-and-witness-depend-on-polygon-origin).
+[FMS-Issue-030](2026-10-14-convex-sweep-normal-witness.md).
 The polygon's first distance agrees, but an arbitrary authored origin can flip
 its normal and select the opposite support point. The triangle's analytic
-anchor remains correct. This issue is separate from throughput and remains open.
+anchor remains correct. This issue was separate from throughput and is resolved in the linked correctness pass.
 
 ## Final Measurements And Decision
 
@@ -207,9 +207,10 @@ belong to existing shared owners, with no demonstrated smaller optimization to
 retain here. Full batches remain linear and the 2,048-triangle row still costs
 46 ms; this does not establish a universal 32-FPS simulation budget. Reopen on
 a representative residual profile or a measured shared-arithmetic improvement.
-Consumer upper-distance pruning remains separate, and the polygon-normal defect
-remains open as FMS-Issue-030. This validation uses the Windows local source
-stack; released-package validation remains a future release gate.
+Consumer upper-distance pruning remains separate. The polygon-normal defect
+was subsequently resolved in
+[FMS-Issue-030](2026-10-14-convex-sweep-normal-witness.md). This validation uses
+the Windows local source stack; released-package validation remains a future release gate.
 
 ## Reproduction
 

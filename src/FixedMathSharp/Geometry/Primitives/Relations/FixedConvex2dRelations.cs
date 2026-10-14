@@ -877,35 +877,14 @@ public static partial class FixedConvex2dRelations
                         targetEnd,
                         Fixed64.Zero,
                         out Fixed64 candidateDistance,
-                        out Vector2d candidateNormal,
+                        out _,
                         authoredDisplacement))
                 {
-                    candidateNormal = OrientSweepNormal(
-                        candidateNormal,
-                        direction);
-                    Vector2d candidateTranslation =
-                        authoredDisplacement
-                            ? new FixedSegment2d(Vector2d.Zero, direction).GetPointAtDistance(candidateDistance, maximumDistance)
-                            : direction * candidateDistance;
-                    candidateNormal =
-                        WideConvex2dRelations.OrientTargetToSourceNormal(
-                            candidateNormal,
-                            moverOrigin,
-                            candidateTranslation,
-                            targetOrigin);
-                    if (!ShouldReplaceSweepCandidate(
-                            candidateDistance,
-                            candidateNormal,
-                            direction,
-                            found,
-                            distance,
-                            normal))
+                    if (!found || candidateDistance < distance)
                     {
-                        continue;
+                        found = true;
+                        distance = candidateDistance;
                     }
-                    found = true;
-                    distance = candidateDistance;
-                    normal = candidateNormal;
                 }
             }
         }
@@ -913,18 +892,9 @@ public static partial class FixedConvex2dRelations
         if (!found)
             return false;
 
-        targetContactOffset =
-            WideConvex2dRelations.GetSweptConvexTargetContactOffset(
-            moverOrigin,
-            moverRotation,
-            moverVertexOffsets,
-            authoredDisplacement
-                ? new FixedSegment2d(Vector2d.Zero, direction).GetPointAtDistance(distance, maximumDistance)
-                : direction * distance,
-            targetOrigin,
-            targetRotation,
-            targetVertexOffsets,
-            normal);
+        WideConvex2dRelations.GetSweptConvexContact(
+            moverOrigin, moverRotation, moverVertexOffsets, targetOrigin, targetRotation, targetVertexOffsets,
+            direction, out normal, out targetContactOffset);
         return true;
     }
 
@@ -997,19 +967,10 @@ public static partial class FixedConvex2dRelations
                     out Vector2d candidateNormal,
                     authoredDisplacement))
             {
-                candidateNormal = OrientSweepNormal(
-                    candidateNormal,
-                    direction);
-                Vector2d candidateTranslation =
-                    authoredDisplacement
-                        ? new FixedSegment2d(Vector2d.Zero, direction).GetPointAtDistance(candidateDistance, maximumDistance)
-                        : direction * candidateDistance;
-                candidateNormal =
-                    WideConvex2dRelations.OrientTargetToSourceNormal(
-                        candidateNormal,
-                        center,
-                        candidateTranslation,
-                        convexOrigin);
+                // Positive radius preserves the geometric side; a rounded tangent normal's motion dot need not be zero.
+                candidateNormal = radius == Fixed64.Zero
+                    ? OrientZeroRadiusSweepNormal(candidateNormal, direction)
+                    : -candidateNormal;
                 if (!ShouldReplaceSweepCandidate(
                         candidateDistance,
                         candidateNormal,
@@ -1029,6 +990,16 @@ public static partial class FixedConvex2dRelations
         if (!found)
             return false;
 
+        if (radius == Fixed64.Zero && WideConvex2dRelations.TryGetSweptCenteredAxisContact(
+                center, axisDirection, axisLength, convexOrigin, convexRotation, convexVertexOffsets,
+                direction, out Vector2d entryNormal, out convexContactOffset))
+        {
+            normal = entryNormal;
+            return true;
+        }
+        Vector2d translation = authoredDisplacement
+            ? new FixedSegment2d(Vector2d.Zero, direction).GetPointAtDistance(distance, maximumDistance)
+            : direction * distance;
         FixedPointAnchor2d sourceSupport =
             WideFiniteAxisIntersection.GetCenteredCapsuleSupportAnchor(
                 center,
@@ -1040,9 +1011,7 @@ public static partial class FixedConvex2dRelations
         convexContactOffset =
             WideConvex2dRelations.GetSweptAnchorTargetContactOffset(
             sourceSupport,
-            authoredDisplacement
-                ? new FixedSegment2d(Vector2d.Zero, direction).GetPointAtDistance(distance, maximumDistance)
-                : direction * distance,
+            translation,
             convexOrigin,
             convexRotation,
             convexVertexOffsets,
@@ -1063,12 +1032,9 @@ public static partial class FixedConvex2dRelations
             && Vector2d.Dot(candidateNormal, direction)
                 < Vector2d.Dot(bestNormal, direction));
 
-    private static Vector2d OrientSweepNormal(
-        Vector2d normal,
-        Vector2d direction) =>
-        Vector2d.Dot(normal, direction) > Fixed64.Zero
-            ? -normal
-            : normal;
+    // A zero-radius crossing can round beyond the face, so its reconstructed normal needs motion orientation.
+    private static Vector2d OrientZeroRadiusSweepNormal(Vector2d normal, Vector2d direction) =>
+        Vector2d.Dot(normal, direction) > Fixed64.Zero ? -normal : normal;
 
     private static void ValidateSweep(
         Vector2d direction,
