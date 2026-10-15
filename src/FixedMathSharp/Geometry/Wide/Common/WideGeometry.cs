@@ -692,6 +692,37 @@ internal static partial class WideGeometry
         sumHigh = unchecked(sumHigh + productHigh + carryHigh);
     }
 
+    /// <summary>
+    /// Returns the outward Q32.32 norm of componentwise products, retaining exact
+    /// products until the final ceiling. Returns false for an unrepresentable norm.
+    /// </summary>
+    internal static bool TryGetScaledMagnitudeCeiling(
+        Vector3d vector,
+        Vector3d scale,
+        out Fixed64 magnitude)
+    {
+        magnitude = default;
+        Signed192 x = Fixed64.GetExactRawProduct(vector.X, scale.X);
+        Signed192 y = Fixed64.GetExactRawProduct(vector.Y, scale.Y);
+        Signed192 z = Fixed64.GetExactRawProduct(vector.Z, scale.Z);
+        Signed320 squared = GetSquaredMagnitude(x, y, z, out _, out _, out _);
+        Signed192 root = WideArithmetic.GetFloorSquareRoot(squared, out Signed192 remainder);
+
+        // Each Q64 product has magnitude <= 2^126, so the three squares sum to
+        // less than 2^254 and root.High is zero. Divide the Q64 root by 2^32.
+        if ((root.Middle >> 31) != 0UL)
+            return false;
+
+        ulong raw = (root.Middle << 32) | (root.Low >> 32);
+        if ((root.Low & uint.MaxValue) != 0UL || !remainder.IsZero)
+            raw++;
+        if (raw > long.MaxValue)
+            return false;
+
+        magnitude = Fixed64.FromRaw((long)raw);
+        return true;
+    }
+
     internal static bool TryGetMagnitudeCeiling(
         Fixed64 x,
         Fixed64 y,
