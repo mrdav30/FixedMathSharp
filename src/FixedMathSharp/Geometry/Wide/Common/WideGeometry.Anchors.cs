@@ -78,6 +78,33 @@ internal static partial class WideGeometry
 
     internal static FixedPointAnchor GetCenteredCylinderSupportAnchor(
         Vector3d center,
+        FixedQuaternion canonicalAxisRotation,
+        Fixed64 axisLength,
+        Fixed64 radius,
+        Vector3d worldDirection,
+        bool preferAxialCenter)
+    {
+        if (!preferAxialCenter)
+            return GetCenteredCylinderSupportAnchor(
+                center, canonicalAxisRotation, axisLength, radius, worldDirection);
+
+        int axialSign = WideOrientedBox.GetRotatedLocalProjectionSign(
+            canonicalAxisRotation, Vector3d.Up, worldDirection);
+        // A perpendicular support exposes the whole axial generator. A zero
+        // effective length selects its midpoint without changing radial support.
+        return GetCenteredAxisSupportAnchor(
+            center,
+            canonicalAxisRotation,
+            Vector3d.Up,
+            axialSign == 0 ? Fixed64.Zero : axisLength,
+            radius,
+            worldDirection,
+            CenteredAxisSupportKind.Cylinder,
+            forcedAxialSign: axialSign);
+    }
+
+    internal static FixedPointAnchor GetCenteredCylinderSupportAnchor(
+        Vector3d center,
         FixedQuaternion rotation,
         Vector3d localAxis,
         Fixed64 axisLength,

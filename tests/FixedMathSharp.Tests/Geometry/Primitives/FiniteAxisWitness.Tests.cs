@@ -250,6 +250,59 @@ public sealed partial class FiniteAxisIntersectionTests
         Assert.Equal(Vector3d.Up, support);
     }
 
+    [Theory]
+    [InlineData(false, 0, 3L)]
+    [InlineData(false, 1, 8589934593L)]
+    [InlineData(false, -1, 8589934593L)]
+    [InlineData(true, 0, 8589934593L)]
+    [InlineData(true, 1, 3L)]
+    [InlineData(true, -1, 3L)]
+    public void CenteredCylinderSupportAnchor_PerpendicularMidpointIsAnExplicitInternalChoice(
+        bool rotated, int scalarFace, long lengthRaw)
+    {
+        FixedQuaternion rotation = rotated
+            ? new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.One, Fixed64.One).Normalized
+            : FixedQuaternion.Identity;
+        Fixed64 face = scalarFace > 0 ? Fixed64.MaxValue
+            : scalarFace < 0 ? Fixed64.MinValue : Fixed64.Zero;
+        Vector3d center = rotated
+            ? new Vector3d(face, Fixed64.Zero, Fixed64.Zero)
+            : new Vector3d(Fixed64.Zero, face, Fixed64.Zero);
+        Fixed64 length = Fixed64.FromRaw(lengthRaw);
+        FixedPointAnchor publicAnchor = FixedSegment.GetCenteredFiniteCylinderSupportAnchor(
+            center, rotation, length, Fixed64.One, Vector3d.Forward);
+        Assert.Equal(Vector3d.Down * (length / Fixed64.Two), publicAnchor.LocalPoint);
+        FixedPointAnchor defaultAnchor = WideGeometry.GetCenteredCylinderSupportAnchor(
+            center, rotation, length, Fixed64.One, Vector3d.Forward, preferAxialCenter: false);
+        Assert.Equal(publicAnchor.LocalPoint, defaultAnchor.LocalPoint);
+        Assert.Equal(publicAnchor.LocalDisplacement, defaultAnchor.LocalDisplacement);
+        FixedPointAnchor anchor = WideGeometry.GetCenteredCylinderSupportAnchor(
+            center, rotation, length, Fixed64.One, Vector3d.Forward, preferAxialCenter: true);
+
+        Assert.Equal(Vector3d.Zero, anchor.LocalPoint);
+        Assert.Equal(Vector3d.Forward, anchor.LocalDisplacement);
+        Assert.True(anchor.TryGetPoint(out Vector3d support));
+        Assert.Equal(center + Vector3d.Forward, support);
+        Assert.True(anchor.TryGetOffsetFrom(
+            new FixedPointAnchor(center, rotation, Vector3d.Zero), out Vector3d offset));
+        Assert.Equal(Vector3d.Forward, offset);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public void CenteredCylinderSupportAnchor_NearPerpendicularDirectionKeepsExactAxialSign(int sign)
+    {
+        Fixed64 axial = Fixed64.FromRaw(sign);
+        FixedPointAnchor anchor = WideGeometry.GetCenteredCylinderSupportAnchor(
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Two, Fixed64.One,
+            new Vector3d(Fixed64.Zero, axial, Fixed64.One), preferAxialCenter: true);
+
+        Assert.Equal(Vector3d.Up * (Fixed64)sign, anchor.LocalPoint);
+        Assert.True(anchor.TryGetPoint(out Vector3d support));
+        Assert.Equal(new Vector3d(Fixed64.Zero, (Fixed64)sign, Fixed64.One), support);
+    }
+
     [Fact]
     public void CenteredCylinderSupportAnchor_ValidatesRigidFrameAndGeometry()
     {
