@@ -22,7 +22,8 @@ internal readonly struct CapsulePlaneRaySelectionMetadata
 }
 
 /// <summary>Borrowed exact point and depth storage for an admitted capsule plane ray.</summary>
-internal ref struct CapsulePlaneRaySelection
+/// <content>Native event selection, retained coefficient banks and witness reconstruction.</content>
+internal ref partial struct CapsulePlaneRaySelection
 {
     internal const int FieldWords = 64;
     internal const int RootWords = 48;

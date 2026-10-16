@@ -117,4 +117,26 @@ internal ref struct ConePlaneRaySelection
             throw new OverflowException("The exact plane-ray maximum is outside the Fixed64 range.");
         return depth;
     }
+
+    /// <summary>Compares physical depths across certified coplanar members in the same cone chart.</summary>
+    /// <remarks>Member coordinate denominators may differ; the reduced normal metric must agree.</remarks>
+    internal int CompareDepth(scoped in ConePlaneRaySelection other)
+    {
+        if (!HasValue || !other.HasValue)
+            throw new InvalidOperationException("Both plane-ray selections must have an admitted value.");
+        if (metric.IsZero || !metric.Equals(other.metric))
+            throw new ArgumentException("The plane-ray selections must share a nonzero reduced normal metric.");
+        ContactQuadratic firstD = ContactQuadratic.At(Values, Signs, 1, FieldWords);
+        ContactQuadratic secondD = ContactQuadratic.At(other.Values, other.Signs, 1, FieldWords);
+        // sqrt(metric) cancels. Each positive 2D scale adds at most three limbs;
+        // the ratio owner's subsequent cross products reserve their full widths.
+        int words = Math.Max(ContactQuadratic.ActiveWords(firstD), ContactQuadratic.ActiveWords(secondD)) + 3;
+        Span<ulong> values = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
+        ContactQuadratic firstScaled = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic secondScaled = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic.Scale(firstD, Signed576.ExtendValue(Signed320.ExtendValue(scale)), firstScaled);
+        ContactQuadratic.Scale(secondD, Signed576.ExtendValue(Signed320.ExtendValue(other.scale)), secondScaled);
+        return ContactQuadratic.CompareRatios(ContactQuadratic.At(Values, Signs, 0, FieldWords), firstScaled, Root,
+            ContactQuadratic.At(other.Values, other.Signs, 0, FieldWords), secondScaled, other.Root);
+    }
 }

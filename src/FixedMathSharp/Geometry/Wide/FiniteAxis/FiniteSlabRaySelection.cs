@@ -108,6 +108,95 @@ internal ref struct FiniteSlabRaySelection
             other._parameterIsDepth, second, other.DepthN, other.DepthD);
     }
 
+    /// <summary>Compares physical depths across certified coplanar members in the same slab chart.</summary>
+    /// <remarks>Positive depths are independent of ray orientation. The caller certifies common physical geometry.</remarks>
+    internal readonly int CompareDepthAcrossFrames(scoped in FiniteSlabRaySelection other,
+        in FiniteSlabRayFrame frame, in FiniteSlabRayFrame otherFrame)
+    {
+        if (!HasValue || !other.HasValue)
+            throw new InvalidOperationException("Both slab-ray selections must have an admitted value.");
+        if (frame.Plane.NormalSquared.IsZero || !frame.Plane.NormalSquared.Equals(otherFrame.Plane.NormalSquared))
+            throw new ArgumentException("The slab-ray frames must share a nonzero reduced normal metric.");
+        int axis = !frame.Plane.Normal.X.IsZero ? 0 : !frame.Plane.Normal.Y.IsZero ? 1 : 2;
+        // The common primitive-normal length cancels. Its selected component
+        // leaves t*|RayNormal[axis]|/(2D), including each independent conditioning shift.
+        // LP coefficients <1005 bits; PlaneDisk elimination raises the conic's
+        // <1065-bit coefficients to <2133-bit retained quadratics. The Mobius
+        // conversion adds <4 bits, the conditioned component <268 and 2D <132.
+        // Six extra limbs cover these products; quadratic discriminants and
+        // the shared ratio owner's later products use complete adaptive widths.
+        int words = Math.Max(DepthCoefficientWords(), other.DepthCoefficientWords()) + 6;
+        Span<ulong> values = stackalloc ulong[8 * words]; Span<int> signs = stackalloc int[8];
+        Span<ulong> firstRoot = stackalloc ulong[2 * words + 1], secondRoot = stackalloc ulong[2 * words + 1];
+        ContactQuadratic firstN = ContactQuadratic.At(values, signs, 0, words), firstD = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic secondN = ContactQuadratic.At(values, signs, 2, words), secondD = ContactQuadratic.At(values, signs, 3, words);
+        GetPhysicalDepthRatio(frame, axis, firstRoot, firstN, firstD);
+        other.GetPhysicalDepthRatio(otherFrame, axis, secondRoot, secondN, secondD);
+        return ContactQuadratic.CompareRatios(firstN, firstD, firstRoot, secondN, secondD, secondRoot);
+    }
+
+    private readonly int DepthCoefficientWords()
+    {
+        ReadOnlySpan<ulong> values = _parameterIsDepth ? Polynomial.Values
+            : _values.Slice(11 * FiniteSlabPolynomial.Words, 2 * FiniteSlabPolynomial.Words);
+        int words = 1;
+        for (int index = 0; index < values.Length; index += FiniteSlabPolynomial.Words)
+            words = Math.Max(words, WideArithmetic.GetActiveMagnitudeLength(values.Slice(index, FiniteSlabPolynomial.Words)));
+        return words;
+    }
+
+    private readonly void GetPhysicalDepthRatio(in FiniteSlabRayFrame frame, int axis,
+        scoped Span<ulong> radical, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator)
+    {
+        int words = numerator.FieldWords;
+        Span<ulong> values = stackalloc ulong[10 * words]; Span<int> signs = stackalloc int[10];
+        ContactQuadratic a = ContactQuadratic.At(values, signs, 0, words), b = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic c = ContactQuadratic.At(values, signs, 2, words), uN = ContactQuadratic.At(values, signs, 3, words);
+        ContactQuadratic uD = ContactQuadratic.At(values, signs, 4, words);
+        radical.Clear();
+        if (_parameterIsDepth)
+        {
+            CopyDepthCoefficient(Polynomial, 2, a); a.Add(a);
+            CopyDepthCoefficient(Polynomial, 1, b);
+            CopyDepthCoefficient(Polynomial, 0, c); c.Add(c);
+            int branch = 1;
+            if (a.Signs[0] != 0)
+            {
+                Span<ulong> cell = stackalloc ulong[CellWords]; FiniteAxisValueRoot root = Restore(cell);
+                Span<ulong> derivativeValues = stackalloc ulong[2 * FiniteSlabPolynomial.Words];
+                Span<sbyte> derivativeSigns = stackalloc sbyte[2];
+                FiniteSlabPolynomial derivative = new(derivativeValues, derivativeSigns);
+                derivative.Clear(); derivative.Add(Polynomial.Slice(1, 1)); derivative.Add(Polynomial.Slice(2, 1), 2, 1);
+                int derivativeSign = FiniteSlabPolynomial.Sign(ref root, derivative);
+                if (derivativeSign != 0) branch = derivativeSign * a.Signs[0];
+            }
+            // TryGetParameter uses a*u²+2*b*u+c: (2A,B,2C) preserves the original polynomial.
+            bool represented = ContactQuadratic.TryGetParameter(a, b, c, branch, radical, uN, uD);
+            System.Diagnostics.Debug.Assert(represented);
+        }
+        else
+        {
+            CopyDepthCoefficient(DepthN, 0, uN); CopyDepthCoefficient(DepthD, 0, uD);
+        }
+        uN.CopyTo(numerator); numerator.Add(numerator); numerator.Add(uD, -1);
+        uD.CopyTo(denominator); denominator.Add(uN, -1);
+        Span<ulong> normal = stackalloc ulong[9];
+        WideArithmetic.GetMagnitude(Signed576.ExtendValue(Component(frame.RayNormal, axis)), normal);
+        ContactQuadratic.Scale(numerator, normal, 1, a); a.CopyTo(numerator);
+        Signed192 scale = WideArithmetic.AddSigned192(frame.Section.RadialFrame.ShapeFrame.Denominator,
+            frame.Section.RadialFrame.ShapeFrame.Denominator);
+        ContactQuadratic.Scale(denominator, Signed576.ExtendValue(Signed320.ExtendValue(scale)), a); a.CopyTo(denominator);
+    }
+
+    private static void CopyDepthCoefficient(scoped FiniteSlabPolynomial polynomial, int index, scoped ContactQuadratic value)
+    {
+        value.Clear();
+        if (polynomial.Signs[index] == 0) return;
+        ReadOnlySpan<ulong> coefficient = polynomial.Values.Slice(index * FiniteSlabPolynomial.Words, FiniteSlabPolynomial.Words);
+        coefficient[..WideArithmetic.GetActiveMagnitudeLength(coefficient)].CopyTo(value.Rational);
+        value.Signs[0] = polynomial.Signs[index];
+    }
+
     private static int Compare(bool firstIsDepth, scoped FiniteAxisValueRoot first,
         scoped FiniteSlabPolynomial firstN, scoped FiniteSlabPolynomial firstD,
         bool secondIsDepth, scoped FiniteAxisValueRoot second,

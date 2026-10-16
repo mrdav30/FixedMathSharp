@@ -23,6 +23,26 @@ internal readonly struct RationalSegmentInterval
             Signed832.ExtendValue(Signed576.ExtendValue(secondD)), Signed832.ExtendValue(Signed576.ExtendValue(secondN)),
             Signed832.ExtendValue(Signed576.ExtendValue(firstD)));
 
+    /// <summary>
+    /// Clips a unit interval by the linear half-plane value at its original
+    /// endpoints. Bounds have positive denominators; first-second must fit
+    /// Signed320 (current framed coverage callers require fewer than 268 bits).
+    /// </summary>
+    internal static bool TryClipHalfPlane(Signed320 first, Signed320 second,
+        ref Signed320 lowerN, ref Signed320 lowerD, ref Signed320 upperN, ref Signed320 upperD)
+    {
+        if (first.Sign >= 0 && second.Sign >= 0) return true;
+        if (first.Sign < 0 && second.Sign < 0) return false;
+        Signed320 n = first, d = WideArithmetic.SubtractSigned320(first, second);
+        if (d.Sign < 0) { n = WideArithmetic.Negate(n); d = WideArithmetic.Negate(d); }
+        if (first.Sign < 0)
+        {
+            if (CompareParameters(n, d, lowerN, lowerD) > 0) { lowerN = n; lowerD = d; }
+        }
+        else if (CompareParameters(n, d, upperN, upperD) < 0) { upperN = n; upperD = d; }
+        return CompareParameters(lowerN, lowerD, upperN, upperD) <= 0;
+    }
+
     internal RationalSegmentInterval(Signed320 lowerNumerator, Signed320 lowerDenominator,
         Signed320 upperNumerator, Signed320 upperDenominator)
     {

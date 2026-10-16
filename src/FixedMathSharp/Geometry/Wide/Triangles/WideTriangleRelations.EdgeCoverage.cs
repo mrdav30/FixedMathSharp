@@ -57,7 +57,7 @@ internal static partial class WideTriangleRelations
             Vector3d a = vertices[edge], b = vertices[(edge + 1) % 3];
             Signed320 f0 = CoverageHalfPlane(a, b, points[u], points[v], d, u, v, orientation);
             Signed320 f1 = CoverageHalfPlane(a, b, points[3 + u], points[3 + v], d, u, v, orientation);
-            if (!ClipCoverageHalfPlane(f0, f1, ref lowerN, ref lowerD, ref upperN, ref upperD)) return false;
+            if (!RationalSegmentInterval.TryClipHalfPlane(f0, f1, ref lowerN, ref lowerD, ref upperN, ref upperD)) return false;
             if (sides == 4) continue;
             int side = inward * CoverageCross(dx, dy,
                 CoverageDifference(points[u], a[u], d), CoverageDifference(points[v], a[v], d)).Sign;
@@ -100,20 +100,4 @@ internal static partial class WideTriangleRelations
         return Signed320.NarrowValue(orientation < 0 ? WideArithmetic.SubtractSigned576(default, value) : value);
     }
 
-    private static bool ClipCoverageHalfPlane(Signed320 first, Signed320 second,
-        ref Signed320 lowerN, ref Signed320 lowerD, ref Signed320 upperN, ref Signed320 upperD)
-    {
-        if (first.Sign >= 0 && second.Sign >= 0) return true;
-        if (first.Sign < 0 && second.Sign < 0) return false;
-        Signed320 n = first, d = WideArithmetic.SubtractSigned320(first, second);
-        if (d.Sign < 0) { n = WideArithmetic.Negate(n); d = WideArithmetic.Negate(d); }
-        if (first.Sign < 0)
-        {
-            if (RationalSegmentInterval.CompareParameters(n, d, lowerN, lowerD) > 0)
-            { lowerN = n; lowerD = d; }
-        }
-        else if (RationalSegmentInterval.CompareParameters(n, d, upperN, upperD) < 0)
-        { upperN = n; upperD = d; }
-        return RationalSegmentInterval.CompareParameters(lowerN, lowerD, upperN, upperD) <= 0;
-    }
 }

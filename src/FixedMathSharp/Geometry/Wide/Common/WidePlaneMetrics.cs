@@ -14,6 +14,14 @@ internal readonly struct WidePlaneMetrics
     private readonly WideAxis3 normal;
     private readonly Signed576 metric;
 
+    /// <summary>Uses a nonzero exact normal with components below 262 bits.</summary>
+    internal WidePlaneMetrics(in WideAxis3 exactNormal)
+    {
+        if (exactNormal.IsZero) throw new ArgumentException("The metric requires a nonzero normal.", nameof(exactNormal));
+        normal = exactNormal;
+        metric = normal.SquaredLength;
+    }
+
     internal WidePlaneMetrics(FixedTriangle plane, FixedQuaternion rotation)
     {
         plane.GetExactNormal(out Signed192 x, out Signed192 y, out Signed192 z, out _);

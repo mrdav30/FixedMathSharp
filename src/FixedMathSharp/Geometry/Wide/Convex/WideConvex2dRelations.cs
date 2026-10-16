@@ -12,6 +12,7 @@ namespace FixedMathSharp.Geometry;
 /// <summary>
 /// Contains methods for computing geometric relations between convex shapes in 2D space using wide fixed-point arithmetic.
 /// </summary>
+/// <content>Owns exact planar convex projection, containment, contact and sweep relations.</content>
 internal static partial class WideConvex2dRelations
 {
     #region Nested Types
@@ -418,7 +419,8 @@ internal static partial class WideConvex2dRelations
             targetFeature.Start,
             targetFeature.End,
             requireInteriorProjection: false,
-            out Vector2d targetContactOffset);
+            out Vector2d targetContactOffset,
+            source.ExactLocalTerm);
         return targetContactOffset;
     }
 
@@ -559,7 +561,8 @@ internal static partial class WideConvex2dRelations
             featureStart,
             featureEnd,
             requireInteriorProjection,
-            out targetOffset);
+            out targetOffset,
+            source.ExactLocalTerm);
 
     internal static bool TryGetContactOffsets(
         Vector2d firstOrigin,

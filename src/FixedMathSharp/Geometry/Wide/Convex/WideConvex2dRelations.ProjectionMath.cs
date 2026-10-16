@@ -260,7 +260,8 @@ internal static partial class WideConvex2dRelations
         Vector2d featureStart,
         Vector2d featureEnd,
         bool requireInteriorProjection,
-        out Vector2d targetOffset)
+        out Vector2d targetOffset,
+        FixedPointAnchorTerm2d exactLocalTerm = default)
     {
         GetTransformedEdge(
             targetRotation,
@@ -303,6 +304,26 @@ internal static partial class WideConvex2dRelations
         Signed320 numerator = WideArithmetic.AddSigned320(
             WideArithmetic.MultiplySigned192(sourceX, edgeX),
             WideArithmetic.MultiplySigned192(sourceY, edgeY));
+        if (!exactLocalTerm.IsZero)
+        {
+            // The public local components are rounded; the anchor retains the
+            // omitted feature term over 2S. Lift this existing ratio by 2S and
+            // add its rotated residual before closed-feature admission. Cached
+            // frame values avoid repeating trigonometry or world projection.
+            Signed192 residualX = Signed192.NarrowValue(WideArithmetic.MultiplySubtract(
+                Signed192.Signed(exactLocalTerm.X), sourceRotation.Cosine,
+                Signed192.Signed(exactLocalTerm.Y), sourceRotation.Sine));
+            Signed192 residualY = Signed192.NarrowValue(WideArithmetic.AddSigned320(
+                WideArithmetic.MultiplySigned192(Signed192.Signed(exactLocalTerm.X), sourceRotation.Sine),
+                WideArithmetic.MultiplySigned192(Signed192.Signed(exactLocalTerm.Y), sourceRotation.Cosine)));
+            Signed320 scale = Signed320.ExtendValue(FixedPointAnchorTerm3d.Denominator);
+            numerator = WideArithmetic.AddSigned320(Signed320.NarrowValue(WideArithmetic.MultiplySigned320(numerator, scale)),
+                WideArithmetic.AddSigned320(WideArithmetic.MultiplySigned192(residualX, edgeX),
+                    WideArithmetic.MultiplySigned192(residualY, edgeY)));
+            denominator = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(denominator, scale));
+            // Full raw origins/offsets keep the lifted dot products below
+            // 234 bits and residual coordinates below 98 bits (Signed320/192).
+        }
         if (numerator.Sign < 0)
         {
             if (requireInteriorProjection)

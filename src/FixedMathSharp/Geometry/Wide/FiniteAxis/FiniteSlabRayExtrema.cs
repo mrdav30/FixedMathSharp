@@ -158,7 +158,8 @@ internal static class FiniteSlabRayExtrema
 {
     // Width ledger: exact rigid points/edges <198 bits; conditioned normal
     // components <268; prism linear rows <334; chart radial coordinates <532;
-    // conic coefficients <1065. The single radial constraint produces only
+    // conic coefficients <1065; PlaneDisk elimination retains quadratic
+    // coefficients <2133. The single radial constraint produces only
     // quadratic roots; reconstructed point coefficients and final depth/sign
     // products remain <3400 bits.
     // The shared 64-word bank retains every intermediate without narrowing.
