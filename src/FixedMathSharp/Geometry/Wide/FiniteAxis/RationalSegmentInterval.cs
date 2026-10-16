@@ -17,6 +17,12 @@ internal readonly struct RationalSegmentInterval
     internal readonly Signed320 LowerNumerator, LowerDenominator, UpperNumerator, UpperDenominator;
     internal bool IsClipped => !LowerDenominator.IsZero;
 
+    /// <summary>Compares nonnegative unit parameters with positive denominators without narrowing products.</summary>
+    internal static int CompareParameters(Signed320 firstN, Signed320 firstD, Signed320 secondN, Signed320 secondD) =>
+        WideArithmetic.CompareNonNegativeProducts(Signed832.ExtendValue(Signed576.ExtendValue(firstN)),
+            Signed832.ExtendValue(Signed576.ExtendValue(secondD)), Signed832.ExtendValue(Signed576.ExtendValue(secondN)),
+            Signed832.ExtendValue(Signed576.ExtendValue(firstD)));
+
     internal RationalSegmentInterval(Signed320 lowerNumerator, Signed320 lowerDenominator,
         Signed320 upperNumerator, Signed320 upperDenominator)
     {
@@ -26,10 +32,7 @@ internal readonly struct RationalSegmentInterval
             || WideArithmetic.SubtractSigned320(lowerDenominator, lowerNumerator).Sign < 0
             || WideArithmetic.SubtractSigned320(upperDenominator, upperNumerator).Sign < 0)
             throw new ArgumentOutOfRangeException(nameof(lowerNumerator), "Interval bounds must lie in [0,1].");
-        if (WideArithmetic.CompareNonNegativeProducts(Signed832.ExtendValue(Signed576.ExtendValue(lowerNumerator)),
-                Signed832.ExtendValue(Signed576.ExtendValue(upperDenominator)),
-                Signed832.ExtendValue(Signed576.ExtendValue(upperNumerator)),
-                Signed832.ExtendValue(Signed576.ExtendValue(lowerDenominator))) > 0)
+        if (CompareParameters(lowerNumerator, lowerDenominator, upperNumerator, upperDenominator) > 0)
             throw new ArgumentException("The lower interval bound must not exceed the upper bound.");
         this = default;
         if (lowerNumerator.IsZero && upperNumerator.Equals(upperDenominator)) return;
