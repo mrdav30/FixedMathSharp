@@ -26,6 +26,25 @@ public sealed class CapsulePlaneRayValueTests
     }
 
     [Theory]
+    [InlineData(0, 2, 3, 4, 6, 0)]
+    [InlineData(2, 1, 7, 3, 21, 1)]
+    [InlineData(0, 3, 3, 2, 1, -1)]
+    public void DividedValues_ShouldComparePhysicalValuesAcrossBinaryAndNonbinaryScales(
+        int firstShift, int secondShift, int firstDivisor, int secondTwiceValue, int secondDivisor, int expected)
+    {
+        Span<ulong> firstStorage = stackalloc ulong[CapsulePlaneRayValue.StorageWords];
+        Span<sbyte> firstSigns = stackalloc sbyte[CapsulePlaneRayValue.SignCount];
+        Span<ulong> secondStorage = stackalloc ulong[CapsulePlaneRayValue.StorageWords];
+        Span<sbyte> secondSigns = stackalloc sbyte[CapsulePlaneRayValue.SignCount];
+        var first = new CapsulePlaneRayValue(firstStorage, firstSigns);
+        var second = new CapsulePlaneRayValue(secondStorage, secondSigns);
+        SetLinear(ref first, 2, firstShift);
+        SetLinear(ref second, secondTwiceValue, secondShift);
+        Assert.Equal(expected, first.Compare(second, Signed192.Signed(firstDivisor), Signed192.Signed(secondDivisor)));
+        Assert.Equal(-expected, second.Compare(first, Signed192.Signed(secondDivisor), Signed192.Signed(firstDivisor)));
+    }
+
+    [Theory]
     [InlineData(1)]
     [InlineData(-1)]
     public void UpperRoot_ShouldRejectConjugateAndInwardIntersections(int radicalSign)

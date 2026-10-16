@@ -63,12 +63,47 @@ internal static partial class WideFiniteAxisIntersection
             ? 0 : -1;
     }
 
-    internal static int CompareFiniteValueRoots(FiniteAxisValueRoot first, FiniteAxisValueRoot second)
+    internal static int CompareFiniteValueRoots(FiniteAxisValueRoot first, FiniteAxisValueRoot second) =>
+        CompareFiniteValueRootsCore(first, default, second, default, false);
+
+    /// <summary>
+    /// Compares first/firstDivisor with second/secondDivisor. Divisors are positive
+    /// integer magnitudes; original defining polynomials and cells remain unchanged.
+    /// </summary>
+    internal static int CompareFiniteValueRoots(FiniteAxisValueRoot first, ReadOnlySpan<ulong> firstDivisor,
+        FiniteAxisValueRoot second, ReadOnlySpan<ulong> secondDivisor) =>
+        CompareFiniteValueRootsCore(first, firstDivisor, second, secondDivisor, true);
+
+    private static int CompareFiniteValueRootsCore(FiniteAxisValueRoot first, ReadOnlySpan<ulong> firstDivisor,
+        FiniteAxisValueRoot second, ReadOnlySpan<ulong> secondDivisor, bool certifyScaledIdentity)
     {
-        if (first.Signs.SequenceEqual(second.Signs) && first.Coefficients.SequenceEqual(second.Coefficients))
+        bool scaled = false;
+        if (certifyScaledIdentity)
+        {
+            firstDivisor = firstDivisor[..WideArithmetic.GetActiveMagnitudeLength(firstDivisor)];
+            secondDivisor = secondDivisor[..WideArithmetic.GetActiveMagnitudeLength(secondDivisor)];
+            System.Diagnostics.Debug.Assert(!firstDivisor.IsEmpty && !secondDivisor.IsEmpty);
+            scaled = !firstDivisor.SequenceEqual(secondDivisor);
+        }
+        if (!scaled && first.Signs.SequenceEqual(second.Signs) && first.Coefficients.SequenceEqual(second.Coefficients))
             return first.Ordinal.CompareTo(second.Ordinal);
+        if (certifyScaledIdentity)
+        {
+            ReadOnlySpan<ulong> one = stackalloc ulong[1] { 1 };
+            // Equal divisors cancel even when source polynomials differ by content.
+            // Keep this new certificate off the existing unscaled hot path.
+            if (HaveProportionalScaledValuePolynomials(first, scaled ? firstDivisor : one,
+                second, scaled ? secondDivisor : one)) return first.Ordinal.CompareTo(second.Ordinal);
+        }
         int firstBits = GetFiniteRootCoefficientBits(first.Coefficients, first.Signs.Length);
         int secondBits = GetFiniteRootCoefficientBits(second.Coefficients, second.Signs.Length);
+        // P(E*x) defines alpha/E without constructing or re-isolating it.
+        // Degree n and coefficient height B grow by at most n*bitLength(E).
+        if (scaled)
+        {
+            firstBits += (first.Signs.Length - 1) * GetFiniteRootBits(firstDivisor);
+            secondBits += (second.Signs.Length - 1) * GetFiniteRootBits(secondDivisor);
+        }
         // For unequal selected roots, the resultant/factor separation bound
         // is >2^(-8*(Bf+Bg+22)-89), including a shared irreducible factor.
         // Equal-width overlapping cells below that gap prove equality.
@@ -78,6 +113,9 @@ internal static partial class WideFiniteAxisIntersection
         int words = (certifiedShift + 127) / 64;
         Span<ulong> firstCell = stackalloc ulong[words];
         Span<ulong> secondCell = stackalloc ulong[words];
+        int productWords = scaled ? words + Math.Max(firstDivisor.Length, secondDivisor.Length) + 1 : 0;
+        Span<ulong> firstProduct = stackalloc ulong[productWords];
+        Span<ulong> secondProduct = stackalloc ulong[productWords];
         CopyFiniteRootMagnitude(first.LowerNumerator, firstCell);
         CopyFiniteRootMagnitude(second.LowerNumerator, secondCell);
         var left = new FiniteAxisValueRoot
@@ -103,14 +141,77 @@ internal static partial class WideFiniteAxisIntersection
             ShiftFiniteRootLeft(firstCell, shift - left.DenominatorShift);
             ShiftFiniteRootLeft(secondCell, shift - right.DenominatorShift);
             left.DenominatorShift = right.DenominatorShift = shift;
-            comparison = WideArithmetic.CompareMagnitudeEqualLength(firstCell, secondCell);
-            bool singleton = left.IsRational || right.IsRational;
-            if (comparison == 0 && singleton)
-                comparison = left.IsRational == right.IsRational ? 0 : left.IsRational ? -1 : 1;
-            finished = comparison != 0 || singleton || shift == certifiedShift;
+            if (scaled)
+            {
+                // Different scaled grids can overlap despite ordered lower endpoints.
+                // Compare the complete intervals; non-singleton endpoints are open.
+                WideArithmetic.MultiplyMagnitudes(firstCell, secondDivisor, firstProduct);
+                WideArithmetic.MultiplyMagnitudes(secondCell, firstDivisor, secondProduct);
+                comparison = WideArithmetic.CompareMagnitudeEqualLength(firstProduct, secondProduct);
+                finished = left.IsRational && right.IsRational;
+                if (!finished)
+                {
+                    if (comparison <= 0)
+                    {
+                        if (!left.IsRational) WideArithmetic.AddMagnitudeInto(secondDivisor, firstProduct);
+                        finished = WideArithmetic.CompareMagnitudeEqualLength(firstProduct, secondProduct) <= 0;
+                        comparison = -1;
+                    }
+                    else
+                    {
+                        if (!right.IsRational) WideArithmetic.AddMagnitudeInto(firstDivisor, secondProduct);
+                        finished = WideArithmetic.CompareMagnitudeEqualLength(firstProduct, secondProduct) >= 0;
+                        comparison = 1;
+                    }
+                    if (!finished && shift == certifiedShift) { comparison = 0; finished = true; }
+                }
+            }
+            else
+            {
+                comparison = WideArithmetic.CompareMagnitudeEqualLength(firstCell, secondCell);
+                bool singleton = left.IsRational || right.IsRational;
+                if (comparison == 0 && singleton)
+                    comparison = left.IsRational == right.IsRational ? 0 : left.IsRational ? -1 : 1;
+                finished = comparison != 0 || singleton || shift == certifiedShift;
+            }
             shift = Math.Min(certifiedShift, Math.Max(32, 2 * shift));
         } while (!finished);
         return comparison;
+    }
+
+    private static bool HaveProportionalScaledValuePolynomials(FiniteAxisValueRoot first, ReadOnlySpan<ulong> firstDivisor,
+        FiniteAxisValueRoot second, ReadOnlySpan<ulong> secondDivisor)
+    {
+        if (first.Signs.Length != second.Signs.Length) return false;
+        int pivot = 0;
+        while (first.Signs[pivot] == 0) pivot++;
+        if (second.Signs[pivot] == 0) return false;
+        for (int i = 0; i < first.Signs.Length; i++)
+            if (first.Signs[i] * second.Signs[pivot] != second.Signs[i] * first.Signs[pivot]) return false;
+        int firstWords = first.Coefficients.Length / first.Signs.Length;
+        int secondWords = second.Coefficients.Length / second.Signs.Length;
+        int powerWords = (first.Signs.Length - pivot - 1) * Math.Max(firstDivisor.Length, secondDivisor.Length);
+        int factorWords = Math.Max(firstWords, secondWords) + powerWords + 1;
+        int productWords = firstWords + secondWords + powerWords + 1;
+        Span<ulong> leftFactor = stackalloc ulong[factorWords], rightFactor = stackalloc ulong[factorWords];
+        Span<ulong> left = stackalloc ulong[productWords], right = stackalloc ulong[productWords];
+        leftFactor.Clear(); rightFactor.Clear();
+        second.Coefficients.Slice(pivot * secondWords, secondWords).CopyTo(leftFactor);
+        first.Coefficients.Slice(pivot * firstWords, firstWords).CopyTo(rightFactor);
+        // With pivot k, proportionality is P[i]*Q[k]*E^(i-k)
+        // == Q[i]*P[k]*F^(i-k). Positive scaling preserves root ordinals.
+        // Certifying this identity avoids separation-bound refinement of ties.
+        for (int i = pivot + 1; i < first.Signs.Length; i++)
+        {
+            WideArithmetic.MultiplyMagnitudes(leftFactor, firstDivisor, left);
+            WideArithmetic.MultiplyMagnitudes(rightFactor, secondDivisor, right);
+            left[..factorWords].CopyTo(leftFactor); right[..factorWords].CopyTo(rightFactor);
+            if (first.Signs[i] == 0) continue;
+            WideArithmetic.MultiplyMagnitudes(first.Coefficients.Slice(i * firstWords, firstWords), leftFactor, left);
+            WideArithmetic.MultiplyMagnitudes(second.Coefficients.Slice(i * secondWords, secondWords), rightFactor, right);
+            if (WideArithmetic.CompareMagnitudeEqualLength(left, right) != 0) return false;
+        }
+        return true;
     }
 
     internal static int GetSignAtFiniteValueRoot(FiniteAxisValueRoot root,

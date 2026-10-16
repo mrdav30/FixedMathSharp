@@ -22,27 +22,42 @@ internal static class CapsulePlaneRayEvents
         // Visitor dispatch never retains a global maximum; the caller owns
         // finite-region ranking, so no unused coefficient banks are needed.
         CapsulePlaneRaySelection maximum = default;
-        return Dispatch(source, frame, orientation, ref maximum, visitor, false, default);
+        return Dispatch(source, frame, orientation, ref maximum, visitor, false, default, default);
     }
 
     internal static bool Accumulate(in CapsulePlaneRayEventSource source, in CapsulePlaneRayFrame frame,
         int orientation, ref CapsulePlaneRaySelection maximum) =>
-        Dispatch(source, frame, orientation, ref maximum, null, false, default);
+        Dispatch(source, frame, orientation, ref maximum, null, false, default, default);
+
+    internal static bool VisitEvents(in CapsulePlaneRayEventSource source, in CapsulePlaneRayFrame frame,
+        int orientation, in RationalSegmentInterval interval, CapsulePlaneRayEventVisitor visitor)
+    {
+        if (visitor == null) throw new ArgumentNullException(nameof(visitor));
+        CapsulePlaneRaySelection maximum = default;
+        return Dispatch(source, frame, orientation, ref maximum, visitor, false, default, interval);
+    }
 
     internal static bool Reconstruct(in CapsulePlaneRayEventSource source, in CapsulePlaneRayFrame frame,
         CapsulePlaneRayEvent descriptor, int orientation, ref CapsulePlaneRaySelection selection) =>
-        Dispatch(source, frame, orientation, ref selection, null, true, descriptor);
+        Dispatch(source, frame, orientation, ref selection, null, true, descriptor, default);
+
+    internal static bool Reconstruct(in CapsulePlaneRayEventSource source, in CapsulePlaneRayFrame frame,
+        CapsulePlaneRayEvent descriptor, int orientation, in RationalSegmentInterval interval,
+        ref CapsulePlaneRaySelection selection) =>
+        Dispatch(source, frame, orientation, ref selection, null, true, descriptor, interval);
 
     private static bool Dispatch(in CapsulePlaneRayEventSource source, in CapsulePlaneRayFrame frame,
         int orientation, ref CapsulePlaneRaySelection maximum, CapsulePlaneRayEventVisitor? visitor,
-        bool targeted, CapsulePlaneRayEvent target)
+        bool targeted, CapsulePlaneRayEvent target, in RationalSegmentInterval interval)
     {
         if (orientation is not (1 or -1)) throw new ArgumentOutOfRangeException(nameof(orientation));
+        if (interval.IsClipped && !source.IsSegment)
+            throw new ArgumentException("Only finite segment sources can have a clipped interval.", nameof(source));
         if (frame.NormalSquared.IsZero) return false;
         // A retained non-projection event has no support/endpoint work to replay.
         if (targeted && target.Kind is not (CapsulePlaneRayEventKind.Support or CapsulePlaneRayEventKind.Endpoint))
             return source.IsSegment
-                ? AccumulateSegment(source, frame, orientation, ref maximum, visitor, true, target)
+                ? AccumulateSegment(source, frame, orientation, ref maximum, visitor, true, target, interval)
                 : AccumulateIntrinsic(source, frame, orientation, ref maximum, visitor, true, target);
         int words = GetProducerWords(frame, CapsulePlaneRayEventKind.Support);
         Span<ulong> values = stackalloc ulong[12 * words]; Span<int> signs = stackalloc int[12];
@@ -56,9 +71,13 @@ internal static class CapsulePlaneRayEvents
             if (targeted && !target.Matches(descriptor)) continue;
             if (source.IsSegment)
             {
-                WideAxis3 point = frame.Finite.Transform(endpoint == 0 ? source.A : source.B);
-                x.Set(Signed576.ExtendValue(point.X)); y.Set(Signed576.ExtendValue(point.Y));
-                z.Set(Signed576.ExtendValue(point.Z)); d.Set(Integer(1));
+                if (interval.IsClipped) SetClippedEndpoint(source, frame.Finite, interval, endpoint, x, y, z, d);
+                else
+                {
+                    WideAxis3 point = frame.Finite.Transform(endpoint == 0 ? source.A : source.B);
+                    x.Set(Signed576.ExtendValue(point.X)); y.Set(Signed576.ExtendValue(point.Y));
+                    z.Set(Signed576.ExtendValue(point.Z)); d.Set(Integer(1));
+                }
             }
             else
             {
@@ -81,10 +100,27 @@ internal static class CapsulePlaneRayEvents
         }
         if (targeted) return found;
         if (source.IsSegment)
-            found |= AccumulateSegment(source, frame, orientation, ref maximum, visitor, targeted, target);
+            found |= AccumulateSegment(source, frame, orientation, ref maximum, visitor, targeted, target, interval);
         else
             found |= AccumulateIntrinsic(source, frame, orientation, ref maximum, visitor, targeted, target);
         return found;
+    }
+
+    private static void SetClippedEndpoint(in CapsulePlaneRayEventSource source, in CapsuleFiniteSectionFrame finite,
+        in RationalSegmentInterval interval, int endpoint, ContactQuadratic x, ContactQuadratic y,
+        ContactQuadratic z, ContactQuadratic denominator)
+    {
+        WideAxis3 start = finite.Transform(source.A), end = finite.Transform(source.B);
+        Signed320 n = endpoint == 0 ? interval.LowerNumerator : interval.UpperNumerator;
+        Signed320 d = endpoint == 0 ? interval.LowerDenominator : interval.UpperDenominator;
+        // Doubled rigid coordinates/differences are <198 bits and rational
+        // bounds <319 bits. Their complete affine sums fit Signed576.
+        x.Set(Coordinate(start.X, end.X)); y.Set(Coordinate(start.Y, end.Y)); z.Set(Coordinate(start.Z, end.Z));
+        denominator.Set(Signed576.ExtendValue(d));
+
+        Signed576 Coordinate(Signed320 first, Signed320 last) =>
+            WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned320(first, d),
+                WideArithmetic.MultiplySigned320(WideArithmetic.SubtractSigned320(last, first), n));
     }
 
     private static bool AccumulateIntrinsic(in CapsulePlaneRayEventSource source, in CapsulePlaneRayFrame frame,
@@ -324,7 +360,7 @@ internal static class CapsulePlaneRayEvents
 
     private static bool AccumulateSegment(in CapsulePlaneRayEventSource source, in CapsulePlaneRayFrame frame,
         int orientation, ref CapsulePlaneRaySelection maximum, CapsulePlaneRayEventVisitor? visitor,
-        bool targeted, CapsulePlaneRayEvent target)
+        bool targeted, CapsulePlaneRayEvent target, in RationalSegmentInterval interval)
     {
         if (targeted && target.Kind is not (CapsulePlaneRayEventKind.Section or CapsulePlaneRayEventKind.Stationary)) return false;
         WideAxis3 p = frame.Finite.Transform(source.A), end = frame.Finite.Transform(source.B);
@@ -369,7 +405,9 @@ internal static class CapsulePlaneRayEvents
                 {
                     var descriptor = new CapsulePlaneRayEvent(CapsulePlaneRayEventKind.Section, primitive, branch);
                     if (targeted && !target.Matches(descriptor)) continue;
-                    if (!ContactQuadratic.TryGetParameter(a, b, c, branch, root, u, ud) || !IsUnitParameter(u, ud, root, term)) continue;
+                    if (!ContactQuadratic.TryGetParameter(a, b, c, branch, root, u, ud)
+                        || !IsUnitParameter(u, ud, root, term)
+                        || interval.IsClipped && !interval.Contains(u, ud, root)) continue;
                     SetAffinePoint(p, e, u, ud, x, y, z, d, term);
                     if (ContainsPrimitivePoint(frame, y, d, root, primitive))
                         found |= EmitPoint(source, frame, descriptor, orientation, x, y, z, d, root, ref maximum, visitor,
@@ -408,7 +446,8 @@ internal static class CapsulePlaneRayEvents
                     ContactQuadratic.Multiply(m, t, root, term); u.Add(term); u.MultiplySign(-1);
                     ContactQuadratic.Multiply(a, td, root, ud);
                 }
-                if (!IsUnitParameter(u, ud, root, term)) continue;
+                if (!IsUnitParameter(u, ud, root, term)
+                    || interval.IsClipped && !interval.Contains(u, ud, root)) continue;
                 SetAffinePoint(p, e, u, ud, x, y, z, d, term);
                 ContactQuadratic.Multiply(y, td, root, exitY);
                 ContactQuadratic.Multiply(d, t, root, term);

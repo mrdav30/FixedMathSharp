@@ -105,6 +105,42 @@ internal ref struct CapsulePlaneRaySelection
                 other.DepthNumerator, other.DepthDenominator, other.Root);
     }
 
+    /// <summary>
+    /// Compares physical depths from certified coplanar member frames in the
+    /// same capsule chart. Their reduced normal metrics must be identical.
+    /// </summary>
+    internal readonly int CompareCoplanarDepth(scoped in CapsulePlaneRaySelection other,
+        in CapsulePlaneRayFrame frame, in CapsulePlaneRayFrame otherFrame)
+    {
+        System.Diagnostics.Debug.Assert(frame.NormalSquared.Equals(otherFrame.NormalSquared));
+        Signed192 divisor = frame.Finite.ShapeFrame.Denominator;
+        Signed192 otherDivisor = otherFrame.Finite.ShapeFrame.Denominator;
+        if (divisor.Equals(otherDivisor)) return CompareDepth(other);
+        if (usesValueRoot && other.usesValueRoot) return Value.Compare(other.Value, divisor, otherDivisor);
+
+        const int words = FieldWords + 3;
+        Span<ulong> values = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
+        ContactQuadratic first = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic second = ContactQuadratic.At(values, signs, 1, words);
+        Signed576 scale = Signed576.ExtendValue(Signed320.ExtendValue(divisor));
+        Signed576 otherScale = Signed576.ExtendValue(Signed320.ExtendValue(otherDivisor));
+        if (usesValueRoot)
+        {
+            ContactQuadratic.Scale(other.DepthNumerator, scale, first);
+            ContactQuadratic.Scale(other.DepthDenominator, otherScale, second);
+            return Value.CompareQuadratic(first, second, other.Root);
+        }
+        if (other.usesValueRoot)
+        {
+            ContactQuadratic.Scale(DepthNumerator, otherScale, first);
+            ContactQuadratic.Scale(DepthDenominator, scale, second);
+            return -other.Value.CompareQuadratic(first, second, Root);
+        }
+        ContactQuadratic.Scale(DepthDenominator, scale, first);
+        ContactQuadratic.Scale(other.DepthDenominator, otherScale, second);
+        return ContactQuadratic.CompareRatios(DepthNumerator, first, Root, other.DepthNumerator, second, other.Root);
+    }
+
     internal void KeepEvaluated(scoped CapsulePlaneRaySelection other, in CapsulePlaneRayFrame frame)
     {
         if (!other.HasValue) return;

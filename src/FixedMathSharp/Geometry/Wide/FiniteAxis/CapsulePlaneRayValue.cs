@@ -125,6 +125,30 @@ internal ref struct CapsulePlaneRayValue
         return WideFiniteAxisIntersection.CompareFiniteValueRoots(first, second);
     }
 
+    internal int Compare(scoped CapsulePlaneRayValue other, Signed192 divisor, Signed192 otherDivisor)
+    {
+        System.Diagnostics.Debug.Assert(divisor.Sign > 0 && otherDivisor.Sign > 0);
+        Span<ulong> firstCell = stackalloc ulong[CellCapacity()];
+        Span<ulong> secondCell = stackalloc ulong[other.CellCapacity()];
+        FiniteAxisValueRoot first = GetRoot(_polynomial, _signs, _cell, _metadata, firstCell),
+            second = GetRoot(other._polynomial, other._signs, other._cell, other._metadata, secondCell);
+        int shift = Math.Max(_metadata.ValueShift, other._metadata.ValueShift);
+        int firstScale = shift - _metadata.ValueShift, secondScale = shift - other._metadata.ValueShift;
+        Span<ulong> firstDenominator = stackalloc ulong[3 + (firstScale + 63) / 64];
+        Span<ulong> secondDenominator = stackalloc ulong[3 + (secondScale + 63) / 64];
+        Span<ulong> magnitude = stackalloc ulong[3];
+        firstDenominator.Clear(); secondDenominator.Clear();
+        WideArithmetic.GetMagnitude(divisor, out magnitude[2], out magnitude[1], out magnitude[0]);
+        int sign = 0;
+        WideArithmetic.AddShiftedSignedMagnitude(magnitude, 1, firstScale, firstDenominator, ref sign);
+        WideArithmetic.GetMagnitude(otherDivisor, out magnitude[2], out magnitude[1], out magnitude[0]);
+        sign = 0;
+        WideArithmetic.AddShiftedSignedMagnitude(magnitude, 1, secondScale, secondDenominator, ref sign);
+        // t = alpha*2^ValueShift. A common binary factor cancels, leaving
+        // original roots divided by D*2^(commonShift-ValueShift).
+        return WideFiniteAxisIntersection.CompareFiniteValueRoots(first, firstDenominator, second, secondDenominator);
+    }
+
     /// <summary>Compares this positive value with an exact quadratic ratio whose denominator is positive.</summary>
     internal int CompareQuadratic(scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
         scoped ReadOnlySpan<ulong> root)
