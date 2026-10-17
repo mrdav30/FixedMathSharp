@@ -359,7 +359,7 @@ internal static partial class WideConvex2dRelations
         return true;
     }
 
-    private static Fixed64 GetProjectedOffsetCoordinate(
+    internal static Fixed64 GetProjectedOffsetCoordinate(
         Fixed64 featureStart,
         Signed192 edge,
         Signed320 parameterNumerator,

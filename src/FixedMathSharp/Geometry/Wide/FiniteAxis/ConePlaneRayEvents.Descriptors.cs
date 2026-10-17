@@ -62,17 +62,20 @@ internal ref struct ConePlaneRayEventSink
     private readonly ConePlaneRayEventVisitor? visitor;
     private readonly ConePlaneRayEventSource source;
     private readonly ConePlaneRayFrame frame;
+    internal readonly ReadOnlySpan<RationalSegmentInterval> Clip;
     internal bool IsStreaming => visitor != null;
     internal bool HasPoint;
 
     internal ConePlaneRayEventSink(ConePlaneRayEvent target, ConePlaneRayPoint point, Span<ulong> root,
-        bool pointOnly = false, int requestedOrientation = 0)
+        bool pointOnly = false, int requestedOrientation = 0, in ConePlaneRayEventSource source = default,
+        in ConePlaneRayFrame frame = default, ReadOnlySpan<RationalSegmentInterval> clip = default)
     { Target = target; outputPoint = point; outputRoot = root; PointOnly = pointOnly; RequestedOrientation = requestedOrientation;
-        HasPoint = false; visitor = null; source = default; frame = default; }
+        HasPoint = false; visitor = null; this.source = source; this.frame = frame; Clip = clip; }
 
-    internal ConePlaneRayEventSink(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame, ConePlaneRayEventVisitor visitor)
+    internal ConePlaneRayEventSink(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame, ConePlaneRayEventVisitor visitor,
+        ReadOnlySpan<RationalSegmentInterval> clip = default)
     { this.source = source; this.frame = frame; this.visitor = visitor; Target = default; outputPoint = default; outputRoot = default;
-        PointOnly = false; RequestedOrientation = 0; HasPoint = false; }
+        PointOnly = false; RequestedOrientation = 0; HasPoint = false; Clip = clip; }
 
     internal bool Wants(ConePlaneRayEventKind kind)
     {
@@ -91,6 +94,7 @@ internal ref struct ConePlaneRayEventSink
         scoped in ConePlaneRaySelection positive, scoped in ConePlaneRaySelection negative)
     {
         if (!Wants(descriptor)) return;
+        if (!Clip.IsEmpty && !ConePlaneRayEvents.IsPointInClip(source, frame, point, root, Clip[0])) return;
         if (visitor != null)
         {
             visitor(source, frame, descriptor, point, root, positive, negative);

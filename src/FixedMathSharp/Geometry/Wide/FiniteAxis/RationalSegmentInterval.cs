@@ -17,6 +17,25 @@ internal readonly struct RationalSegmentInterval
     internal readonly Signed320 LowerNumerator, LowerDenominator, UpperNumerator, UpperDenominator;
     internal bool IsClipped => !LowerDenominator.IsZero;
 
+    /// <summary>
+    /// Materializes one endpoint on the original 2D edge, rounding each local
+    /// coordinate once to nearest-even. The retained interval, not this final
+    /// point, remains authoritative for incidence and admission.
+    /// </summary>
+    internal Vector2d GetEndpoint(FixedSegment2d edge, bool upper)
+    {
+        if (!IsClipped) return upper ? edge.End : edge.Start;
+        Signed320 n = upper ? UpperNumerator : LowerNumerator;
+        Signed320 d = upper ? UpperDenominator : LowerDenominator;
+        // Full raw endpoints and a unit Signed320 ratio need fewer than 386
+        // coefficient bits; existing Signed576 interpolation preserves them.
+        return new Vector2d(
+            WideConvex2dRelations.GetProjectedOffsetCoordinate(edge.Start.X,
+                WideArithmetic.Difference(edge.End.X, edge.Start.X), n, d),
+            WideConvex2dRelations.GetProjectedOffsetCoordinate(edge.Start.Y,
+                WideArithmetic.Difference(edge.End.Y, edge.Start.Y), n, d));
+    }
+
     /// <summary>Compares nonnegative unit parameters with positive denominators without narrowing products.</summary>
     internal static int CompareParameters(Signed320 firstN, Signed320 firstD, Signed320 secondN, Signed320 secondD) =>
         WideArithmetic.CompareNonNegativeProducts(Signed832.ExtendValue(Signed576.ExtendValue(firstN)),

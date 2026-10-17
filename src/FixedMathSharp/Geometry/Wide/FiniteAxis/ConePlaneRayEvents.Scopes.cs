@@ -28,6 +28,24 @@ internal static partial class ConePlaneRayEvents
         return Accumulate(source, frame, ref positive, ref negative, ref sink);
     }
 
+    /// <summary>Creates exact cut-endpoint events and admits every cohort against the original segment parameter.</summary>
+    internal static bool VisitEvents(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
+        in RationalSegmentInterval clip, ConePlaneRayEventVisitor visitor)
+    {
+        if (!clip.IsClipped) return VisitEvents(source, frame, visitor);
+        if (source.Scope != ConePlaneRayEventScope.Segment)
+            throw new ArgumentException("Only finite segment sources can have a clipped interval.", nameof(source));
+        Span<ulong> positiveValues = stackalloc ulong[ConePlaneRaySelection.StorageWords], negativeValues = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+        Span<int> positiveSigns = stackalloc int[ConePlaneRaySelection.SignCount], negativeSigns = stackalloc int[ConePlaneRaySelection.SignCount];
+        var positive = new ConePlaneRaySelection(positiveValues, positiveSigns);
+        var negative = new ConePlaneRaySelection(negativeValues, negativeSigns);
+        // Borrow the clip without enlarging ordinary event or source records.
+        Span<RationalSegmentInterval> clips = stackalloc RationalSegmentInterval[1] { clip };
+        scoped ConePlaneRayEventSink sink = new(source, frame, visitor, clips);
+        Accumulate(source, frame, ref positive, ref negative, ref sink);
+        return sink.HasPoint;
+    }
+
     /// <summary>Tests closed finite triangle admission without reconstructing exits or rounding witnesses.</summary>
     /// <remarks>The triangle belongs to the frame's exact authored plane.</remarks>
     internal static bool IntersectsTriangle(in ConePlaneRayFrame frame, FixedTriangle triangle)
@@ -159,6 +177,29 @@ internal static partial class ConePlaneRayEvents
             positive.Restore(frame, evaluatedPositive.MaximumSource, evaluatedPositive.MaximumEvent);
         if (evaluatedNegative.HasValue)
             negative.Restore(frame, evaluatedNegative.MaximumSource, evaluatedNegative.MaximumEvent);
+        return true;
+    }
+
+    /// <summary>Replays a clipped boundary descriptor with the same original-parameter interval used to create it.</summary>
+    internal static bool TryEvaluateEvent(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
+        ConePlaneRayEvent descriptor, in RationalSegmentInterval clip, scoped ConePlaneRayPoint point, scoped Span<ulong> root,
+        scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, int requestedOrientation = 0)
+    {
+        if (!clip.IsClipped) return TryEvaluateEvent(source, frame, descriptor, point, root, ref positive, ref negative, requestedOrientation);
+        if (source.Scope != ConePlaneRayEventScope.Segment)
+            throw new ArgumentException("Only finite segment sources can have a clipped interval.", nameof(source));
+        if (requestedOrientation < -1 || requestedOrientation > 1)
+            throw new ArgumentOutOfRangeException(nameof(requestedOrientation));
+        positive.HasValue = negative.HasValue = false; root.Clear();
+        scoped ConePlaneRaySelection evaluatedPositive = new(positive.Values, positive.Signs);
+        scoped ConePlaneRaySelection evaluatedNegative = new(negative.Values, negative.Signs);
+        Span<RationalSegmentInterval> clips = stackalloc RationalSegmentInterval[1] { clip };
+        var sink = new ConePlaneRayEventSink(descriptor, point, root, requestedOrientation: requestedOrientation,
+            source: source, frame: frame, clip: clips);
+        Accumulate(source, frame, ref evaluatedPositive, ref evaluatedNegative, ref sink);
+        if (!sink.HasPoint) return false;
+        if (evaluatedPositive.HasValue) positive.Restore(frame, evaluatedPositive.MaximumSource, evaluatedPositive.MaximumEvent);
+        if (evaluatedNegative.HasValue) negative.Restore(frame, evaluatedNegative.MaximumSource, evaluatedNegative.MaximumEvent);
         return true;
     }
 }

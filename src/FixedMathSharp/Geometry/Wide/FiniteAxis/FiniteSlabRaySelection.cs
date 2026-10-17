@@ -11,7 +11,8 @@ internal readonly struct FiniteSlabRaySelectionMetadata
     internal readonly bool HasValue, ParameterIsDepth, HasCompactCell, IsRational;
     internal readonly int Ordinal, RootCount, CoefficientCount, Orientation, DenominatorShift;
     /// <summary>
-    /// Bit i marks an active authored domain edge i that generated this event.
+    /// Bit i marks an active authored domain edge i that generated this event;
+    /// clipped segment queries additionally use bits 3/4 for their rational cuts.
     /// Zero marks a shape-intrinsic event, which remains intrinsic when its
     /// source point happens to coincide with a covered mesh seam.
     /// </summary>

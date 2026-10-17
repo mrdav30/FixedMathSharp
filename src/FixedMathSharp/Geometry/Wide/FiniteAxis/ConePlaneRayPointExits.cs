@@ -111,6 +111,8 @@ internal static class ConePlaneRayPointExits
         // this path: coordinate numerators <526, denominator <326. Then the
         // ray equation A<1302, B<1241, C<1181 has discriminant <2485,
         // and its root fits the 40-word chart.
+        // Rational cuts with positive <319-bit denominators give coordinates
+        // <198+319+1=518 bits and remain inside the same endpoint bounds.
         if (requestedOrientation >= 0) AccumulateRationalOrientation(point, frame, 1, ref positive);
         if (requestedOrientation <= 0) AccumulateRationalOrientation(point, frame, -1, ref negative);
         return true;

@@ -234,6 +234,17 @@ internal static class FiniteSlabRayExtrema
         FiniteSlabRayCandidateVisitor? visitor = null) =>
         AccumulateDomain(frame, triangle, prismOffsets, orientation, true, false, ref maximum, visitor);
 
+    /// <summary>Clips the original segment parameter without rounding either rational cut point.</summary>
+    internal static void AccumulateSegment(in FiniteSlabRayFrame frame, FixedSegment segment, in RationalSegmentInterval clip,
+        ReadOnlySpan<Vector2d> prismOffsets, int orientation, ref FiniteSlabRaySelection maximum,
+        FiniteSlabRayCandidateVisitor? visitor = null)
+    {
+        FixedTriangle triangle = new(segment.Start, segment.End, segment.End);
+        if (!clip.IsClipped) { AccumulateTriangle(frame, triangle, prismOffsets, orientation, ref maximum, visitor); return; }
+        Span<RationalSegmentInterval> clips = stackalloc RationalSegmentInterval[1] { clip };
+        AccumulateDomain(frame, triangle, prismOffsets, orientation, true, false, ref maximum, visitor, clips);
+    }
+
     /// <summary>
     /// Clips physical support charts to a nondegenerate coplanar triangle.
     /// Nonaxial faces with a fixed Y cap use their point/line charts; other
@@ -258,7 +269,13 @@ internal static class FiniteSlabRayExtrema
 
     private static void AccumulateDomain(in FiniteSlabRayFrame frame, FixedTriangle triangle,
         ReadOnlySpan<Vector2d> prismOffsets, int orientation, bool finiteDomain, bool physicalSupportOnly,
-        ref FiniteSlabRaySelection maximum, FiniteSlabRayCandidateVisitor? visitor)
+        ref FiniteSlabRaySelection maximum, FiniteSlabRayCandidateVisitor? visitor) =>
+        AccumulateDomain(frame, triangle, prismOffsets, orientation, finiteDomain, physicalSupportOnly, ref maximum, visitor,
+            ReadOnlySpan<RationalSegmentInterval>.Empty);
+
+    private static void AccumulateDomain(in FiniteSlabRayFrame frame, FixedTriangle triangle,
+        ReadOnlySpan<Vector2d> prismOffsets, int orientation, bool finiteDomain, bool physicalSupportOnly,
+        ref FiniteSlabRaySelection maximum, FiniteSlabRayCandidateVisitor? visitor, scoped ReadOnlySpan<RationalSegmentInterval> clips)
     {
         if (orientation != -1 && orientation != 1) throw new ArgumentOutOfRangeException(nameof(orientation));
         if (frame.Plane.NormalSquared.IsZero) return;
@@ -273,7 +290,7 @@ internal static class FiniteSlabRayExtrema
             return;
         }
         int pieces = prismOffsets.IsEmpty && frame.HasCore ? 3 : 1;
-        int capacity = 10 + prismOffsets.Length;
+        int capacity = 10 + prismOffsets.Length + (clips.IsEmpty ? 0 : 2);
         Span<Linear> lines = stackalloc Linear[capacity]; Span<Radial> disks = stackalloc Radial[1];
         for (int exitPiece = 0; exitPiece < pieces; exitPiece++)
         {
@@ -284,6 +301,20 @@ internal static class FiniteSlabRayExtrema
                 lines[count++] = new(default, S(1), default, default);
                 lines[count++] = new(S(-1), S(-1), default, S(1));
             }
+            if (!clips.IsEmpty)
+            {
+                ref readonly RationalSegmentInterval clip = ref clips[0];
+                // In the degenerate triangle A,B,B the original parameter is
+                // lambda+mu. Cut numerators/positive denominators are <319 bits,
+                // below the existing <334-bit prism rows. Active sets still
+                // use at most three linear rows: LP determinants <1005 bits,
+                // radial chart coefficients <1065, eliminated quadratics
+                // <2133 and final witness/sign products <3400 fit the existing
+                // 4096-bit retained fields. Constraint count adds no width.
+                lines[count++] = new(S(clip.LowerDenominator), S(clip.LowerDenominator), default, S(Negate(clip.LowerNumerator)));
+                lines[count++] = new(S(Negate(clip.UpperDenominator)), S(Negate(clip.UpperDenominator)), default, S(clip.UpperNumerator));
+            }
+            int domainLineCount = count;
             lines[count++] = new(default, default, S(1), default);
             int exitLinearStart = count;
             // Clearance concerns every finite-domain source point that can
@@ -325,7 +356,7 @@ internal static class FiniteSlabRayExtrema
             }
             Problem problem = new(lines[..count], disks[..diskCount], triangle, orientation, visitor,
                 new(a, e, f, n, frame.Radius), frame.Section.Cap, frame.CoreCap, frame.HasCore,
-                !prismOffsets.IsEmpty, exitLinearStart, domainLineCount: finiteDomain ? 3 : 0,
+                !prismOffsets.IsEmpty, exitLinearStart, domainLineCount: domainLineCount,
                 exitRegion: frame.HasCore && exitPiece != 0 ? exitPiece == 1 ? -1 : 1 : 0);
             if (!finiteDomain || physicalSupportOnly && !axial && !n.Y.IsZero)
                 AccumulatePhysicalSupport(problem, frame, prismOffsets, exitPiece, ref maximum);

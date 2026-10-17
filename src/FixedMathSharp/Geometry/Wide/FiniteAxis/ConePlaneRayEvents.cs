@@ -96,6 +96,15 @@ internal static partial class ConePlaneRayEvents
         if (!frame.Finite.TryGetAxialInterval(p.Y, e.Y, out Signed320 ln, out Signed320 ld,
             out Signed320 un, out Signed320 ud))
             return false;
+        if (!sink.Clip.IsEmpty)
+        {
+            ref readonly RationalSegmentInterval clip = ref sink.Clip[0];
+            if (RationalSegmentInterval.CompareParameters(clip.LowerNumerator, clip.LowerDenominator, ln, ld) > 0)
+            { ln = clip.LowerNumerator; ld = clip.LowerDenominator; }
+            if (RationalSegmentInterval.CompareParameters(clip.UpperNumerator, clip.UpperDenominator, un, ud) < 0)
+            { un = clip.UpperNumerator; ud = clip.UpperDenominator; }
+            if (RationalSegmentInterval.CompareParameters(ln, ld, un, ud) > 0) return false;
+        }
         Span<ulong> values = stackalloc ulong[30 * Words];
         Span<int> signs = stackalloc int[30];
         Span<ulong> root = stackalloc ulong[RootWords];
@@ -172,5 +181,28 @@ internal static partial class ConePlaneRayEvents
             found |= stationaryAdmitted;
         }
         return found;
+    }
+
+    internal static bool IsPointInClip(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
+        scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root, in RationalSegmentInterval clip)
+    {
+        WideAxis3 start = frame.Transform(source.A), end = frame.Transform(source.B);
+        Signed320 dx = WideArithmetic.SubtractSigned320(end.X, start.X);
+        Signed320 dy = WideArithmetic.SubtractSigned320(end.Y, start.Y);
+        Signed320 dz = WideArithmetic.SubtractSigned320(end.Z, start.Z);
+        int axis = !dx.IsZero ? 0 : !dy.IsZero ? 1 : 2;
+        Signed320 delta = axis == 0 ? dx : axis == 1 ? dy : dz;
+        if (delta.IsZero) return true;
+        ContactQuadratic coordinate = axis == 0 ? point.X : axis == 1 ? point.Y : point.Z;
+        // Transformed authored endpoints/differences are <199 bits. Preserve
+        // the complete point fields plus four limbs before interval products.
+        int words = Math.Max(ContactQuadratic.ActiveWords(coordinate), ContactQuadratic.ActiveWords(point.Denominator)) + 4;
+        Span<ulong> values = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
+        ContactQuadratic numerator = ContactQuadratic.At(values, signs, 0, words), denominator = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic.Scale(point.Denominator, Extend(axis == 0 ? start.X : axis == 1 ? start.Y : start.Z), numerator);
+        numerator.MultiplySign(-1); numerator.Add(coordinate);
+        ContactQuadratic.Scale(point.Denominator, Extend(delta), denominator);
+        if (denominator.Sign(root) < 0) { numerator.MultiplySign(-1); denominator.MultiplySign(-1); }
+        return clip.Contains(numerator, denominator, root);
     }
 }
