@@ -120,6 +120,279 @@ public sealed class FixedConvexHullRelationsTests
             Fixed64.Zero), separation);
     }
 
+    [Theory]
+    [InlineData(0, -1)]
+    [InlineData(0, 1)]
+    [InlineData(1, -1)]
+    [InlineData(1, 1)]
+    [InlineData(2, -1)]
+    [InlineData(2, 1)]
+    public void HullPenetration_RetainsExactDepthAndOrientedAxis(int axis, int sign)
+    {
+        Vector3d origin = Vector3d.Zero;
+        origin[axis] = sign * Fixed64.FromFraction(3, 2);
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            origin, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            out WidePointSpanPenetration penetration));
+
+        WideAxis3 oriented = penetration.Negate ? -penetration.Axis : penetration.Axis;
+        Vector3d normal = WideNormalization.GetNormalized(Signed576.ExtendValue(oriented.X),
+            Signed576.ExtendValue(oriented.Y), Signed576.ExtendValue(oriented.Z));
+        Vector3d expected = Vector3d.Zero;
+        expected[axis] = (Fixed64)sign;
+        Assert.Equal(expected, normal);
+        Assert.Equal(Fixed64.Half, penetration.GetRoundedDepth(out bool clamped));
+        Assert.False(clamped);
+
+        origin[axis] = sign * (Fixed64)3;
+        Assert.False(WideOrientedBox.TryGetConvexHullPenetration(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            origin, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            out penetration));
+        Assert.False(penetration.HasValue);
+    }
+
+    [Fact]
+    public void HullPenetration_RejectsEdgeCrossSeparationBetweenRotatedHulls()
+    {
+        Vector3d origin = new(Fixed64.FromFraction(-27, 10), Fixed64.FromFraction(-3, 2),
+            Fixed64.FromFraction(-19, 10));
+        FixedQuaternion rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)15, (Fixed64)30, (Fixed64)45);
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, ReadOnlySpan<int>.Empty,
+            origin, rotation, CubePoints, CubeTriangles, ReadOnlySpan<int>.Empty, out _));
+        Assert.False(WideOrientedBox.TryGetConvexHullPenetration(
+            Vector3d.Zero, FixedQuaternion.Identity, CubePoints, CubeTriangles, CubeEdges,
+            origin, rotation, CubePoints, CubeTriangles, CubeEdges, out WidePointSpanPenetration penetration));
+        Assert.False(penetration.HasValue);
+    }
+
+    [Fact]
+    public void HullPenetration_RedundantLocalDirectionsPreserveTheFirstExactAxis()
+    {
+        int[] triangles = new int[3 + 2 * CubeTriangles.Length], edges = new int[2 + 2 * CubeEdges.Length];
+        for (int index = 0; index < CubeTriangles.Length; index += 3)
+        {
+            int output = 3 + 2 * index;
+            Array.Copy(CubeTriangles, index, triangles, output, 3);
+            triangles[output + 3] = CubeTriangles[index + 2];
+            triangles[output + 4] = CubeTriangles[index + 1];
+            triangles[output + 5] = CubeTriangles[index];
+        }
+        for (int index = 0; index < CubeEdges.Length; index += 2)
+        {
+            int output = 2 + 2 * index;
+            edges[output] = edges[output + 3] = CubeEdges[index];
+            edges[output + 1] = edges[output + 2] = CubeEdges[index + 1];
+        }
+        FixedQuaternion firstRotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)17, (Fixed64)23, (Fixed64)31),
+            secondRotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)7, (Fixed64)11, (Fixed64)19);
+        Vector3d offset = new(Fixed64.One, Fixed64.Quarter, Fixed64.FromFraction(1, 8));
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(
+            Vector3d.Zero, firstRotation, CubePoints, CubeTriangles, CubeEdges,
+            offset, secondRotation, CubePoints, CubeTriangles, CubeEdges, out WidePointSpanPenetration expected));
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(
+            Vector3d.Zero, firstRotation, CubePoints, triangles, edges,
+            offset, secondRotation, CubePoints, triangles, edges, out WidePointSpanPenetration actual, skipParallelDirections: true));
+        Assert.Equal(expected.Axis.X, actual.Axis.X);
+        Assert.Equal(expected.Axis.Y, actual.Axis.Y);
+        Assert.Equal(expected.Axis.Z, actual.Axis.Z);
+        Assert.Equal(expected.Negate, actual.Negate);
+        Assert.Equal(expected.ExactOverlap, actual.ExactOverlap);
+        Assert.Equal(expected.ExactSquaredAxisLength, actual.ExactSquaredAxisLength);
+        Assert.Equal(expected.ExactCommonDenominator, actual.ExactCommonDenominator);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void HullContacts_EdgeCrossWinnerRetainsMatchedFiniteSupportEdges(bool reverse)
+    {
+        Vector3d offset = new(Fixed64.FromFraction(-24, 10), -Fixed64.One, Fixed64.FromFraction(-12, 10));
+        FixedQuaternion rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)15, (Fixed64)30, (Fixed64)45);
+        Vector3d firstOrigin = reverse ? offset : Vector3d.Zero, secondOrigin = reverse ? Vector3d.Zero : offset;
+        FixedQuaternion firstRotation = reverse ? rotation : FixedQuaternion.Identity,
+            secondRotation = reverse ? FixedQuaternion.Identity : rotation;
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(
+            firstOrigin, firstRotation, CubePoints, CubeTriangles, CubeEdges,
+            secondOrigin, secondRotation, CubePoints, CubeTriangles, CubeEdges, out WidePointSpanPenetration penetration));
+        var contacts = new System.Collections.Generic.List<FixedContactAnchors>();
+        int count = WideOrientedBox.VisitConvexHullContacts(
+            firstOrigin, firstRotation, CubePoints, CubeTriangles, CubeEdges,
+            secondOrigin, secondRotation, CubePoints, CubeTriangles, CubeEdges,
+            penetration, contacts, static (list, contact) => list.Add(contact));
+        Assert.Equal(1, count);
+        FixedContactAnchors contact = Assert.Single(contacts);
+        Assert.Equal(penetration.GetRoundedDepth(out bool clamped), contact.Depth);
+        Assert.False(clamped);
+        Assert.True(contact.FirstAnchor.TryGetOffsetFrom(contact.SecondAnchor, out Vector3d gap));
+        Assert.InRange(Vector3d.Cross(gap, contact.Normal).Magnitude.m_rawValue, 0L, 64L);
+        Assert.InRange(FixedMath.Abs(Vector3d.Dot(gap, contact.Normal) - contact.Depth).m_rawValue, 0L, 64L);
+        AssertEdge(contact.FirstAnchor.LocalPoint); AssertEdge(contact.SecondAnchor.LocalPoint);
+
+        static void AssertEdge(Vector3d point)
+        {
+            int boundaryCoordinates = 0;
+            for (int axis = 0; axis < 3; axis++)
+            {
+                Assert.InRange(point[axis].m_rawValue, -Fixed64.One.m_rawValue, Fixed64.One.m_rawValue);
+                if (FixedMath.Abs(point[axis]) == Fixed64.One) boundaryCoordinates++;
+            }
+            Assert.Equal(2, boundaryCoordinates);
+        }
+    }
+
+    [Fact]
+    public void ClosestNonparallelSegmentAnchors_RejectsParallelSegments()
+    {
+        var segment = new FixedSegment(Vector3d.Left, Vector3d.Right);
+        Assert.False(WideTriangleRelations.TryGetClosestNonparallelSegmentAnchors(
+            Vector3d.Zero, FixedQuaternion.Identity, segment,
+            Vector3d.Up, FixedQuaternion.Identity, segment, out _, out _));
+    }
+
+    [Theory]
+    [InlineData(-2, 0)]
+    [InlineData(2, 0)]
+    [InlineData(0, 2)]
+    [InlineData(0, -2)]
+    public void ClosestNonparallelSegmentAnchors_RejectsLineFeetOutsideFiniteSegments(int x, int z)
+    {
+        Assert.False(WideTriangleRelations.TryGetClosestNonparallelSegmentAnchors(
+            Vector3d.Zero, FixedQuaternion.Identity, new FixedSegment(Vector3d.Left, Vector3d.Right),
+            new Vector3d(x, 1, z), FixedQuaternion.Identity, new FixedSegment(Vector3d.Backward, Vector3d.Forward),
+            out _, out _));
+    }
+
+    [Fact]
+    public void HullContacts_VertexTouchWithoutFaceOrEdgeWitnessReturnsNoContacts()
+    {
+        Vector3d[] first = { new(-1, -1, -1), new(1, -1, -1), new(0, 1, -1), new(0, 0, 1) };
+        Vector3d[] second = Array.ConvertAll(first, point => new Vector3d(point.X, point.Y, -point.Z));
+        int[] triangles = { 0, 2, 1, 0, 1, 3, 1, 2, 3, 2, 0, 3 };
+        int[] edges = { 0, 1, 1, 2, 2, 0, 0, 3, 1, 3, 2, 3 };
+        Vector3d offset = Vector3d.Forward * 2;
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(
+            Vector3d.Zero, FixedQuaternion.Identity, first, triangles, edges,
+            offset, FixedQuaternion.Identity, second, triangles, edges, out WidePointSpanPenetration penetration));
+        Assert.Equal(Fixed64.Zero, penetration.GetRoundedDepth(out _));
+        var contacts = new System.Collections.Generic.List<FixedContactAnchors>();
+        Assert.Equal(0, WideOrientedBox.VisitConvexHullContacts(
+            Vector3d.Zero, FixedQuaternion.Identity, first, triangles, edges,
+            offset, FixedQuaternion.Identity, second, triangles, edges,
+            penetration, contacts, static (list, contact) => list.Add(contact)));
+        Assert.Empty(contacts);
+    }
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 0)]
+    [InlineData(false, 17)]
+    [InlineData(true, 17)]
+    public void HullFaceContacts_MatchFiniteFaceProjectionsInBothOrders(bool reverse, int angle)
+    {
+        Vector3d[] wideCube = Array.ConvertAll(CubePoints, point => new Vector3d(point.X, point.Y * 2, point.Z * 2));
+        Vector3d offset = new(Fixed64.FromFraction(3, 2), Fixed64.Zero, Fixed64.Zero);
+        FixedQuaternion rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)angle, Fixed64.Zero, Fixed64.Zero);
+        Vector3d firstOrigin = reverse ? offset : Vector3d.Zero, secondOrigin = reverse ? Vector3d.Zero : offset;
+        FixedQuaternion firstRotation = reverse ? rotation : FixedQuaternion.Identity,
+            secondRotation = reverse ? FixedQuaternion.Identity : rotation;
+        Vector3d[] firstPoints = reverse ? wideCube : CubePoints, secondPoints = reverse ? CubePoints : wideCube;
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(
+            firstOrigin, firstRotation, firstPoints, CubeTriangles, CubeEdges,
+            secondOrigin, secondRotation, secondPoints, CubeTriangles, CubeEdges,
+            out WidePointSpanPenetration penetration));
+        var contacts = new System.Collections.Generic.List<FixedContactAnchors>();
+        int count = WideOrientedBox.VisitConvexHullContacts(
+            firstOrigin, firstRotation, firstPoints, CubeTriangles, CubeEdges,
+            secondOrigin, secondRotation, secondPoints, CubeTriangles, CubeEdges, penetration, contacts, static (list, contact) => list.Add(contact));
+
+        Assert.Equal(count, contacts.Count);
+        if (!reverse) Assert.Equal(4, count);
+        var unique = new System.Collections.Generic.HashSet<Vector3d>();
+        for (int index = 0; index < count; index++)
+        {
+            FixedContactAnchors contact = contacts[index];
+            Assert.Equal(reverse ? Vector3d.Left : Vector3d.Right, contact.Normal);
+            Assert.Equal(Fixed64.Half, contact.Depth);
+            Assert.False(contact.DepthIsClamped);
+            Assert.True(contact.FirstAnchor.TryGetOffsetFrom(contact.SecondAnchor, out Vector3d separation));
+            Assert.InRange(Vector3d.Cross(separation, contact.Normal).Magnitude.m_rawValue, 0L, 32L);
+            Assert.Equal(reverse ? -Fixed64.Half : Fixed64.Half, separation.X);
+            FixedPointAnchor cubeAnchor = reverse ? contact.SecondAnchor : contact.FirstAnchor;
+            unique.Add(cubeAnchor.LocalPoint);
+            Assert.Equal(Fixed64.One, cubeAnchor.LocalPoint.X);
+            Assert.Equal(Fixed64.One, FixedMath.Abs(cubeAnchor.LocalPoint.Y));
+            Assert.Equal(Fixed64.One, FixedMath.Abs(cubeAnchor.LocalPoint.Z));
+        }
+        Assert.Equal(4, unique.Count);
+    }
+
+    [Fact]
+    public void HullFaceContacts_RetainTheCompleteCrossedFacePatch()
+    {
+        Vector3d[] firstPoints = Array.ConvertAll(CubePoints,
+            point => new Vector3d(point.X, point.Y * 2, point.Z * Fixed64.Quarter));
+        Vector3d[] secondPoints = Array.ConvertAll(CubePoints,
+            point => new Vector3d(point.X, point.Y * Fixed64.Quarter, point.Z * 2));
+        Vector3d offset = new(Fixed64.FromFraction(3, 2), Fixed64.Zero, Fixed64.Zero);
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(
+            Vector3d.Zero, FixedQuaternion.Identity, firstPoints, CubeTriangles, CubeEdges,
+            offset, FixedQuaternion.Identity, secondPoints, CubeTriangles, CubeEdges,
+            out WidePointSpanPenetration penetration));
+        var contacts = new System.Collections.Generic.List<FixedContactAnchors>();
+        int count = WideOrientedBox.VisitConvexHullContacts(
+            Vector3d.Zero, FixedQuaternion.Identity, firstPoints, CubeTriangles, CubeEdges,
+            offset, FixedQuaternion.Identity, secondPoints, CubeTriangles, CubeEdges, penetration, contacts, static (list, contact) => list.Add(contact));
+        var corners = new System.Collections.Generic.HashSet<Vector3d>();
+        for (int index = 0; index < count; index++)
+        {
+            Assert.True(contacts[index].FirstAnchor.TryGetPoint(out Vector3d first));
+            Assert.True(contacts[index].SecondAnchor.TryGetPoint(out Vector3d second));
+            Assert.Equal(new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Zero), first - second);
+            Assert.Equal(Fixed64.One, first.X);
+            Assert.Equal(Fixed64.Quarter, FixedMath.Abs(first.Y));
+            Assert.Equal(Fixed64.Quarter, FixedMath.Abs(first.Z));
+            corners.Add(first);
+        }
+        Assert.Equal(4, corners.Count);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void HullFaceContacts_CompletePartiallyClippedFacesWithoutTriangleDiagonalCuts(bool reverse)
+    {
+        Vector3d[] wall = Array.ConvertAll(CubePoints,
+            point => new Vector3d(point.X, point.Y * 2, point.Z * Fixed64.Half));
+        Vector3d offset = new(Fixed64.FromFraction(3, 2), Fixed64.Zero, -Fixed64.Half);
+        Vector3d firstOrigin = reverse ? offset : Vector3d.Zero, secondOrigin = reverse ? Vector3d.Zero : offset;
+        Vector3d[] firstPoints = reverse ? wall : CubePoints, secondPoints = reverse ? CubePoints : wall;
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(
+            firstOrigin, FixedQuaternion.Identity, firstPoints, CubeTriangles, CubeEdges,
+            secondOrigin, FixedQuaternion.Identity, secondPoints, CubeTriangles, CubeEdges,
+            out WidePointSpanPenetration penetration));
+        var contacts = new System.Collections.Generic.List<FixedContactAnchors>();
+        int count = WideOrientedBox.VisitConvexHullContacts(
+            firstOrigin, FixedQuaternion.Identity, firstPoints, CubeTriangles, CubeEdges,
+            secondOrigin, FixedQuaternion.Identity, secondPoints, CubeTriangles, CubeEdges, penetration, contacts, static (list, contact) => list.Add(contact));
+        var corners = new System.Collections.Generic.HashSet<Vector3d>();
+        for (int index = 0; index < count; index++)
+        {
+            FixedContactAnchors contact = contacts[index];
+            Assert.True(contact.FirstAnchor.TryGetOffsetFrom(contact.SecondAnchor, out Vector3d separation));
+            Assert.Equal(new Vector3d(reverse ? -Fixed64.Half : Fixed64.Half, Fixed64.Zero, Fixed64.Zero), separation);
+            FixedPointAnchor cubeAnchor = reverse ? contact.SecondAnchor : contact.FirstAnchor;
+            Assert.True(cubeAnchor.TryGetPoint(out Vector3d corner));
+            Assert.Equal(Fixed64.One, corner.X);
+            Assert.Equal(Fixed64.One, FixedMath.Abs(corner.Y));
+            Assert.True(corner.Z == -Fixed64.One || corner.Z == Fixed64.Zero);
+            corners.Add(corner);
+        }
+        Assert.Equal(4, corners.Count);
+    }
+
     [Fact]
     public void TryGetContact_PreservesWitnessWhenAbsolutePointIsUnavailable()
     {
