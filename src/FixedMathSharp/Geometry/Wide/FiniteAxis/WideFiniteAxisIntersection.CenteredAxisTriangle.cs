@@ -257,18 +257,21 @@ internal static partial class WideFiniteAxisIntersection
         out AxisTriangleContactFeature feature,
         out Vector3d rayRadialOffset,
         out int rayEndpointSign,
-        out bool hasBoundaryRay)
+        out bool hasBoundaryRay,
+        out int intervalEndpoint,
+        in RationalSegmentInterval interval = default)
     {
         feature = default;
         rayRadialOffset = default;
         rayEndpointSign = 0;
         hasBoundaryRay = false;
-        GetClosestCenteredAxisTriangleCandidate(
-            triangle,
-            center,
-            axisDirection,
-            axisLength,
-            out AxisTriangleCandidate candidate);
+        intervalEndpoint = 0;
+        AxisTriangleCandidate candidate;
+        if (interval.IsClipped)
+            candidate = GetClosestClippedAxisSegment(triangle.A, triangle.B, center, axisDirection,
+                axisLength, interval, out intervalEndpoint);
+        else
+            GetClosestCenteredAxisTriangleCandidate(triangle, center, axisDirection, axisLength, out candidate);
         Signed576 radiusNumerator = WideArithmetic.MultiplySigned576(
             candidate.Denominator,
             Signed192.Signed(radius.m_rawValue));

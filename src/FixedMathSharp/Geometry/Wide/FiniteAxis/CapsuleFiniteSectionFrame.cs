@@ -50,6 +50,25 @@ internal readonly struct CapsuleFiniteSectionFrame
         return false;
     }
 
+    /// <summary>Tests the retained exact subsegment, without rounding its endpoints.</summary>
+    internal bool IntersectsSegment(FixedSegment segment, in RationalSegmentInterval clip)
+    {
+        if (!clip.IsClipped) return IntersectsSegment(segment);
+        WideAxis3 start = Transform(segment.Start), delta = Difference(Transform(segment.End), start);
+        for (int primitive = 0; primitive < (Length == Fixed64.Zero ? 1 : 3); primitive++)
+        {
+            if (!TryGetPrimitive(start, delta, primitive, out Signed576 a, out Signed576 b, out Signed576 c,
+                out Signed320 ln, out Signed320 ld, out Signed320 un, out Signed320 ud)) continue;
+            if (RationalSegmentInterval.CompareParameters(ln, ld, clip.LowerNumerator, clip.LowerDenominator) < 0)
+            { ln = clip.LowerNumerator; ld = clip.LowerDenominator; }
+            if (RationalSegmentInterval.CompareParameters(un, ud, clip.UpperNumerator, clip.UpperDenominator) > 0)
+            { un = clip.UpperNumerator; ud = clip.UpperDenominator; }
+            if (RationalSegmentInterval.CompareParameters(ln, ld, un, ud) <= 0
+                && IntersectsQuadratic(a, b, c, ln, ld, un, ud)) return true;
+        }
+        return false;
+    }
+
     /// <summary>Retains the first closed section parameter in the input segment's order.</summary>
     internal bool TryGetFirstSegmentParameter(FixedSegment segment,
         ContactQuadratic numerator, ContactQuadratic denominator, Span<ulong> root)

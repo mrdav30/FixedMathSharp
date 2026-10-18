@@ -179,7 +179,7 @@ public partial struct FixedTriangle
         out FixedContactAnchors contact) =>
         TryGetCenteredCapsuleContact(triangleOrigin, triangleRotation, capsuleCenter,
             capsuleRotation, capsuleAxisLength, capsuleRadius, fallbackNormal,
-            retainFeature: false, out contact, out _, out _);
+            retainFeature: false, out contact, out _, out _, out _);
 
     /// <summary>Retains exact feature incidence in the selected local or world contact chart.</summary>
     internal readonly bool TryGetCenteredCapsuleContact(
@@ -190,7 +190,16 @@ public partial struct FixedTriangle
         out bool chartIsTriangleLocal) =>
         TryGetCenteredCapsuleContact(triangleOrigin, triangleRotation, capsuleCenter,
             capsuleRotation, capsuleAxisLength, capsuleRadius, fallbackNormal,
-            retainFeature: true, out contact, out feature, out chartIsTriangleLocal);
+            retainFeature: true, out contact, out feature, out chartIsTriangleLocal, out _);
+
+    /// <summary>Contacts the exact clipped A/B segment of a degenerate A/B/B triangle.
+    /// Clip ratios must use fewer than 268 bits, as produced by rigid edge coverage.</summary>
+    internal readonly bool TryGetClippedCenteredCapsuleContact(
+        Vector3d origin, FixedQuaternion rotation, Vector3d center, FixedQuaternion capsuleRotation,
+        Fixed64 length, Fixed64 radius, Vector3d fallback, in RationalSegmentInterval interval,
+        out FixedContactAnchors contact, out AxisTriangleContactFeature feature, out int endpoint) =>
+        TryGetCenteredCapsuleContact(origin, rotation, center, capsuleRotation, length, radius, fallback,
+            true, out contact, out feature, out _, out endpoint, interval);
 
     private readonly bool TryGetCenteredCapsuleContact(
         Vector3d triangleOrigin,
@@ -203,8 +212,11 @@ public partial struct FixedTriangle
         bool retainFeature,
         out FixedContactAnchors contact,
         out AxisTriangleContactFeature feature,
-        out bool chartIsTriangleLocal)
+        out bool chartIsTriangleLocal,
+        out int intervalEndpoint,
+        in RationalSegmentInterval interval = default)
     {
+        intervalEndpoint = 0;
         feature = default;
         chartIsTriangleLocal = false;
         ValidateRigidTriangleFrame(triangleRotation);
@@ -242,7 +254,7 @@ public partial struct FixedTriangle
                 capsuleCenter,
                 capsuleRotation,
                 chartIsTriangleLocal: true,
-                retainFeature, out contact, out feature);
+                retainFeature, out contact, out feature, out intervalEndpoint, interval);
         }
 
         FixedPointAnchor first = new(
@@ -279,7 +291,7 @@ public partial struct FixedTriangle
             capsuleCenter,
             capsuleRotation,
             chartIsTriangleLocal: false,
-            retainFeature, out contact, out feature);
+            retainFeature, out contact, out feature, out intervalEndpoint, interval);
     }
 
     /// <summary>
@@ -463,7 +475,9 @@ public partial struct FixedTriangle
         bool chartIsTriangleLocal,
         bool retainFeature,
         out FixedContactAnchors contact,
-        out AxisTriangleContactFeature feature)
+        out AxisTriangleContactFeature feature,
+        out int intervalEndpoint,
+        in RationalSegmentInterval interval = default)
     {
         if (!WideFiniteAxisIntersection
             .TryGetCenteredCapsuleTriangleLocalContact(
@@ -481,7 +495,7 @@ public partial struct FixedTriangle
                 out Fixed64 depth,
                 out bool depthIsClamped,
                 retainFeature, out feature, out Vector3d rayRadialOffset,
-                out int rayEndpointSign, out bool hasBoundaryRay))
+                out int rayEndpointSign, out bool hasBoundaryRay, out intervalEndpoint, interval))
         {
             contact = default;
             return false;
