@@ -260,6 +260,80 @@ internal ref struct FiniteSlabRaySelection
             Signed192.Raw(_triangle.C[axis]), Signed192.Raw(_triangle.A[axis])))); numerator.Add(term);
     }
 
+    /// <summary>Admits this exact source point against another member of the same physical slab chart.</summary>
+    internal readonly bool ContainsTrianglePoint(in FiniteSlabRayFrame target, FixedTriangle triangle,
+        in FiniteSlabRayFrame source)
+    {
+        if (!HasValue || target.Plane.NormalSquared.IsZero) return false;
+        Span<ulong> cell = stackalloc ulong[CellWords]; FiniteAxisValueRoot root = Restore(cell);
+        Span<ulong> values = stackalloc ulong[12 * FiniteSlabPolynomial.Words];
+        Span<sbyte> signs = stackalloc sbyte[12];
+        FiniteSlabPolynomial x = FiniteSlabPolynomial.At(values, signs, 0, 2),
+            y = FiniteSlabPolynomial.At(values, signs, 2, 2), z = FiniteSlabPolynomial.At(values, signs, 4, 2),
+            denominator = FiniteSlabPolynomial.At(values, signs, 6, 2),
+            query = FiniteSlabPolynomial.At(values, signs, 8, 2), term = FiniteSlabPolynomial.At(values, signs, 10, 2);
+        WideAxis3 a = source.Section.Transform(_triangle.A), e = Difference(source.Section.Transform(_triangle.B), a),
+            f = Difference(source.Section.Transform(_triangle.C), a);
+        Signed320 targetScale = Signed320.ExtendValue(target.Section.RadialFrame.ShapeFrame.Denominator);
+        for (int axis = 0; axis < 3; axis++)
+        {
+            FiniteSlabPolynomial coordinate = axis == 0 ? x : axis == 1 ? y : z;
+            query.Scale(D, Component(a, axis)); term.Scale(Lambda, Component(e, axis)); query.Add(term);
+            term.Scale(Mu, Component(f, axis)); query.Add(term);
+            coordinate.Scale(query, targetScale);
+        }
+        denominator.Scale(D, Signed320.ExtendValue(source.Section.RadialFrame.ShapeFrame.Denominator));
+        int denominatorSign = FiniteSlabPolynomial.Sign(ref root, denominator);
+        // Source coordinates carry 2Ds and target walls expect 2Dt. Cross
+        // scaling preserves the exact point; <3400-bit source products plus
+        // <132-bit scale and <526-bit walls still fit the 4096-bit bank.
+        for (int edge = -1; edge < 3; edge++)
+        {
+            Signed576 wx, wy, wz, offset;
+            if (edge < 0)
+            {
+                wx = Signed576.ExtendValue(target.Plane.Normal.X); wy = Signed576.ExtendValue(target.Plane.Normal.Y);
+                wz = Signed576.ExtendValue(target.Plane.Normal.Z); offset = target.Plane.PlaneConstant;
+            }
+            else target.Plane.GetTriangleEdgeWall(triangle, edge, out wx, out wy, out wz, out offset);
+            query.Scale(x, wx); term.Scale(y, wy); query.Add(term); term.Scale(z, wz); query.Add(term);
+            term.Scale(denominator, offset); query.Add(term, -1);
+            int sign = FiniteSlabPolynomial.Sign(ref root, query) * denominatorSign;
+            if (edge < 0 ? sign != 0 : sign < 0) return false;
+        }
+        return true;
+    }
+
+    /// <summary>Rounds the source once on the world lattice, returning its offset from the slab center.</summary>
+    internal readonly bool TryGetSourcePointInSamplingFrame(in FiniteSlabRayFrame frame, out Vector3d point)
+    {
+        point = default;
+        if (!HasValue) return false;
+        Span<ulong> cell = stackalloc ulong[CellWords]; FiniteAxisValueRoot root = Restore(cell);
+        Span<ulong> values = stackalloc ulong[12 * FiniteSlabPolynomial.Words];
+        Span<sbyte> signs = stackalloc sbyte[12];
+        FiniteSlabPolynomial x = FiniteSlabPolynomial.At(values, signs, 0, 2),
+            y = FiniteSlabPolynomial.At(values, signs, 2, 2), z = FiniteSlabPolynomial.At(values, signs, 4, 2),
+            denominator = FiniteSlabPolynomial.At(values, signs, 6, 2),
+            numerator = FiniteSlabPolynomial.At(values, signs, 8, 2), term = FiniteSlabPolynomial.At(values, signs, 10, 2);
+        BuildAuthoredCoordinate(0, x, term); BuildAuthoredCoordinate(1, y, term); BuildAuthoredCoordinate(2, z, term);
+        WideRationalBasis3d basis = new(frame.Rotation);
+        denominator.Scale(D, Signed320.ExtendValue(basis.Denominator));
+        // Basis coefficients add <130 bits and the origin difference <65;
+        // subtraction precedes narrowing, including near scalar-range limits.
+        for (int axis = 0; axis < 3; axis++)
+        {
+            numerator.Scale(x, Signed320.ExtendValue(axis == 0 ? basis.Xx : axis == 1 ? basis.Xy : basis.Xz));
+            term.Scale(y, Signed320.ExtendValue(axis == 0 ? basis.Yx : axis == 1 ? basis.Yy : basis.Yz)); numerator.Add(term);
+            term.Scale(z, Signed320.ExtendValue(axis == 0 ? basis.Zx : axis == 1 ? basis.Zy : basis.Zz)); numerator.Add(term);
+            term.Scale(denominator, Signed320.ExtendValue(WideArithmetic.SubtractSigned192(
+                Signed192.Raw(frame.Origin[axis]), Signed192.Raw(frame.Center[axis])))); numerator.Add(term);
+            if (!TryRoundRatio(ref root, numerator, denominator, out Fixed64 component, frame.Center[axis].m_rawValue)) return false;
+            point[axis] = component;
+        }
+        return true;
+    }
+
     /// <summary>
     /// Retains the exit in bounded axial/radial components. A stadium endpoint
     /// can exceed the local scalar range even when its translated world anchor
@@ -286,6 +360,7 @@ internal ref struct FiniteSlabRaySelection
         WideAxis3 f = Difference(frame.Section.Transform(_triangle.C), a);
         Vector3d axial = default, exit = default;
         FixedPointAnchorTerm3d exactTerm = default;
+        int fullHeightCap = 0;
         for (int axis = 0; axis < 3; axis++)
         {
             BuildAuthoredCoordinate(axis, numerator, term);
@@ -294,6 +369,18 @@ internal ref struct FiniteSlabRaySelection
             numerator.Scale(D, Component(a, axis)); term.Scale(Lambda, Component(e, axis)); numerator.Add(term);
             term.Scale(Mu, Component(f, axis)); numerator.Add(term);
             term.Scale(T, Signed(Component(frame.RayNormal, axis), _orientation)); numerator.Add(term);
+            if (axis == 1 && (frame.FullHeight.m_rawValue & 1L) != 0)
+            {
+                term.Scale(D, frame.Section.Cap);
+                FiniteSlabPolynomial capQuery = square.Slice(0, 5);
+                capQuery.Copy(numerator); capQuery.Add(term, -1);
+                if (FiniteSlabPolynomial.Sign(ref root, capQuery) == 0) fullHeightCap = 1;
+                else
+                {
+                    capQuery.Copy(numerator); capQuery.Add(term);
+                    if (FiniteSlabPolynomial.Sign(ref root, capQuery) == 0) fullHeightCap = -1;
+                }
+            }
             bool bounded;
             if (frame.HasCore && axis == 2)
             {
@@ -344,6 +431,12 @@ internal ref struct FiniteSlabRaySelection
             System.Diagnostics.Debug.Assert(bounded);
             exit[axis] = component;
         }
+        if (fullHeightCap != 0)
+            // The cap's half-raw residual composes with any retained odd core;
+            // applying it after the Z loop prevents a radial rounding reset.
+            exactTerm = new(exactTerm.X, FixedPointAnchorTerm3d.GetResidual(Fixed64.One,
+                fullHeightCap < 0 ? -frame.FullHeight : frame.FullHeight, Fixed64.Zero, Fixed64.Zero,
+                axial.Y, exit.Y), exactTerm.Z);
         anchor = new FixedPointAnchor(frame.Center, frame.SlabRotation, axial, exit, exactTerm);
         if (IsConstant(T) && IsConstant(D))
         {

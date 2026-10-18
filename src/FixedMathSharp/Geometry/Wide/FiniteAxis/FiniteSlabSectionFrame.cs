@@ -20,11 +20,14 @@ internal readonly partial struct FiniteSlabSectionFrame
     internal WideAxis3 Transform(Vector3d point) => _radial.Transform(point);
 
     internal FiniteSlabSectionFrame(Vector3d origin, FixedQuaternion rotation,
-        Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness)
+        Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness, bool fullHeight = false)
     {
         if (halfThickness <= Fixed64.Zero) throw new ArgumentOutOfRangeException(nameof(halfThickness));
         _radial = new CapsuleFiniteSectionFrame(origin, rotation, center, slabRotation, length, radius);
-        Signed192 height = WideArithmetic.AddSigned192(Signed192.Raw(halfThickness), Signed192.Raw(halfThickness));
+        // Transformed coordinates carry 2D, so an authored full height
+        // supplies the exact cap directly, including an odd raw half-height.
+        Signed192 height = fullHeight ? Signed192.Raw(halfThickness)
+            : WideArithmetic.AddSigned192(Signed192.Raw(halfThickness), Signed192.Raw(halfThickness));
         _cap = WideArithmetic.MultiplySigned192(height, _radial.ShapeFrame.Denominator);
     }
 

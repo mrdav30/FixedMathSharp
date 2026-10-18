@@ -18,12 +18,13 @@ internal readonly struct FiniteSlabRayFrame
     internal readonly FixedTriangle SourcePlane;
     internal readonly WideAxis3 RayNormal;
     internal readonly Signed576 RayNormalSquared;
-    internal readonly Fixed64 RadiusValue, HalfThickness;
+    // HalfThickness retains the supplied extent; FullHeight is zero for authored half-thickness slabs.
+    internal readonly Fixed64 RadiusValue, HalfThickness, FullHeight;
 
     internal FiniteSlabRayFrame(FixedTriangle sourcePlane, Vector3d origin, FixedQuaternion rotation,
-        Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness)
+        Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness, bool fullHeight = false)
     {
-        Section = new(origin, rotation, center, slabRotation, length, radius, halfThickness);
+        Section = new(origin, rotation, center, slabRotation, length, radius, halfThickness, fullHeight);
         Plane = new(sourcePlane, Section.RadialFrame);
         Origin = origin; Rotation = rotation; Center = center; SlabRotation = slabRotation;
         Radius = WideArithmetic.MultiplySigned192(Section.RadialFrame.ShapeFrame.Radius,
@@ -31,7 +32,7 @@ internal readonly struct FiniteSlabRayFrame
         CoreCap = Section.RadialFrame.ShapeFrame.Cap;
         HasCore = length != Fixed64.Zero;
         SourcePlane = sourcePlane;
-        RadiusValue = radius; HalfThickness = halfThickness;
+        RadiusValue = radius; HalfThickness = halfThickness; FullHeight = fullHeight ? halfThickness : Fixed64.Zero;
         // Match the established plane-ray variable conditioning: numerator
         // coordinates include the rigid frame denominator, so an unscaled
         // primitive normal can make ordinary t enormous and u nearly one.
@@ -58,7 +59,7 @@ internal readonly struct FiniteSlabRayFrame
         if (orientation != -1 && orientation != 1) throw new ArgumentOutOfRangeException(nameof(orientation));
         // A zero normal coefficient leaves that factor of the extrusion free.
         // The stadium disk and core share the X/Z plane, whose dimension is at most two.
-        int height = Plane.Normal.Y.IsZero && HalfThickness > Fixed64.Zero ? 1 : 0;
+        int height = Plane.Normal.Y.IsZero && Section.Cap.Sign > 0 ? 1 : 0;
         bool axial = Plane.Normal.X.IsZero && Plane.Normal.Z.IsZero;
         if (prismOffsets.IsEmpty)
         {
@@ -142,6 +143,9 @@ internal readonly ref struct FiniteSlabPolynomial
     internal void Scale(FiniteSlabPolynomial source, Signed320 factor) => Scale(source, Signed576.ExtendValue(factor));
     internal static int Sign(scoped ref FiniteAxisValueRoot root, scoped FiniteSlabPolynomial query)
     {
+        int degree = query.Count - 1;
+        while (degree > 0 && query.Signs[degree] == 0) degree--;
+        if (degree == 0) return query.Signs[0];
         // A common positive scale cannot change a sign. Strip it from a
         // scratch copy, never from a retained coordinate/denominator ratio;
         // otherwise exact-zero queries pay a needlessly large equality bound.
@@ -605,19 +609,30 @@ internal static class FiniteSlabRayExtrema
     private static void Determinant(FiniteSlabPolynomial result, Linear a, Linear b, Linear c,
         int x, int y, int z)
     {
-        Span<ulong> values = stackalloc ulong[6 * Words]; Span<sbyte> signs = stackalloc sbyte[6];
-        FiniteSlabPolynomial first = P(values, signs, 0), second = P(values, signs, 1),
-            third = P(values, signs, 2), pair = P(values, signs, 3), term = P(values, signs, 4);
+        // Three Signed576 scalar factors need 27 limbs, not polynomial banks.
+        // Reuse the magnitude owner; the existing result still has 64 limbs.
+        Span<ulong> values = stackalloc ulong[72];
+        Span<ulong> first = values[..9], second = values.Slice(9, 9), third = values.Slice(18, 9),
+            pair = values.Slice(27, 18), term = values.Slice(45, 27);
         result.Clear();
+        int sign = 0;
         for (int permutation = 0; permutation < 6; permutation++)
         {
             int i = permutation % 3;
             int j = permutation < 3 ? (i + 1) % 3 : (i + 2) % 3;
             int k = 3 - i - j;
-            first.Set(a[i == 0 ? x : i == 1 ? y : z]); second.Set(b[j == 0 ? x : j == 1 ? y : z]);
-            third.Set(c[k == 0 ? x : k == 1 ? y : z]);
-            pair.Multiply(first, second); term.Multiply(pair, third); result.Add(term, permutation < 3 ? 1 : -1);
+            Signed576 av = a[i == 0 ? x : i == 1 ? y : z], bv = b[j == 0 ? x : j == 1 ? y : z],
+                cv = c[k == 0 ? x : k == 1 ? y : z];
+            // Sparse cap/footprint rows have many exact zero products; they
+            // need no polynomial scratch initialization or multiplication.
+            if (av.IsZero || bv.IsZero || cv.IsZero) continue;
+            WideArithmetic.GetMagnitude(av, first); WideArithmetic.GetMagnitude(bv, second); WideArithmetic.GetMagnitude(cv, third);
+            WideArithmetic.MultiplyMagnitudes(first, second, pair);
+            WideArithmetic.MultiplyMagnitudes(pair, third, term);
+            WideArithmetic.AddShiftedSignedMagnitude(term, av.Sign * bv.Sign * cv.Sign * (permutation < 3 ? 1 : -1),
+                0, result.Values, ref sign);
         }
+        result.Signs[0] = (sbyte)sign;
     }
 
     private static void Process(scoped Problem problem, scoped FiniteSlabPolynomial equation,
@@ -681,13 +696,8 @@ internal static class FiniteSlabRayExtrema
     {
         int denominatorSign = FiniteSlabPolynomial.Sign(ref root, d);
         System.Diagnostics.Debug.Assert(denominatorSign != 0);
-        Span<ulong> values = stackalloc ulong[34 * Words]; Span<sbyte> signs = stackalloc sbyte[34];
-        FiniteSlabPolynomial q = P(values, signs, 0, 5), term = P(values, signs, 5, 5),
-            x = P(values, signs, 10, 5), z = P(values, signs, 15, 5),
-            square = P(values, signs, 20, 9), second = P(values, signs, 29, 5);
-        Span<ulong> scratchValues = stackalloc ulong[18 * Words]; Span<sbyte> scratchSigns = stackalloc sbyte[18];
-        FiniteSlabPolynomial other = new(scratchValues[..(9 * Words)], scratchSigns[..9]);
-        FiniteSlabPolynomial radiusSquare = new(scratchValues[(9 * Words)..], scratchSigns[9..]);
+        Span<ulong> values = stackalloc ulong[10 * Words]; Span<sbyte> signs = stackalloc sbyte[10];
+        FiniteSlabPolynomial q = P(values, signs, 0, 5), term = P(values, signs, 5, 5);
         if (problem.ExitRegion != 0)
         {
             // End disks are admitted only on their genuine hemispheres.
@@ -709,6 +719,14 @@ internal static class FiniteSlabRayExtrema
             term.Scale(d, line.D); q.Add(term);
             if (FiniteSlabPolynomial.Sign(ref root, q) * denominatorSign < 0) return false;
         }
+        // Prisms and already separated candidates never need radial scratch.
+        if (problem.Disks.IsEmpty) return true;
+        Span<ulong> radialValues = stackalloc ulong[24 * Words]; Span<sbyte> radialSigns = stackalloc sbyte[24];
+        FiniteSlabPolynomial x = P(radialValues, radialSigns, 0, 5), z = P(radialValues, radialSigns, 5, 5),
+            square = P(radialValues, radialSigns, 10, 9), second = P(radialValues, radialSigns, 19, 5);
+        Span<ulong> scratchValues = stackalloc ulong[18 * Words]; Span<sbyte> scratchSigns = stackalloc sbyte[18];
+        FiniteSlabPolynomial other = new(scratchValues[..(9 * Words)], scratchSigns[..9]);
+        FiniteSlabPolynomial radiusSquare = new(scratchValues[(9 * Words)..], scratchSigns[9..]);
         for (int index = 0; index < problem.Disks.Length; index++)
         {
             if ((problem.SolvedDisks & (1 << index)) != 0) continue;

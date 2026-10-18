@@ -90,7 +90,23 @@ internal static partial class SegmentSlabSurfaceContact
     private static bool Seed(scoped Input input, scoped Candidate candidate, int seed)
     {
         candidate.Clear();
-        if (seed == 1) candidate.Parameter.Set(One);
+        if (!input.Clip.IsEmpty && seed < 3)
+        {
+            ref readonly RationalSegmentInterval clip = ref input.Clip[0];
+            if (seed < 2)
+            {
+                candidate.Parameter.Set(Extend(seed == 0 ? clip.LowerNumerator : clip.UpperNumerator));
+                candidate.ParameterDenominator.Set(Extend(seed == 0 ? clip.LowerDenominator : clip.UpperDenominator));
+            }
+            else
+            {
+                // The mediant lies strictly inside distinct positive-denominator
+                // bounds without the 640-bit denominator of their arithmetic mean.
+                candidate.Parameter.Set(WideArithmetic.AddSigned576(Extend(clip.LowerNumerator), Extend(clip.UpperNumerator)));
+                candidate.ParameterDenominator.Set(WideArithmetic.AddSigned576(Extend(clip.LowerDenominator), Extend(clip.UpperDenominator)));
+            }
+        }
+        else if (seed == 1) candidate.Parameter.Set(One);
         else if (seed == 2)
         { candidate.Parameter.Set(One); candidate.ParameterDenominator.Set(Extend(Signed320.ExtendValue(Signed192.Signed(2)))); }
         else if (seed >= 3)
@@ -430,7 +446,20 @@ internal static partial class SegmentSlabSurfaceContact
         int denominator = RootSign(ref root, d0, d1);
         // A zero tangent divisor is meridional: L=0 then W=0 forces K=0, rejected by chart admission.
         System.Diagnostics.Debug.Assert(denominator != 0);
-        int start = -RootSign(ref root, a0, a1) * denominator, end = RootSign(ref root, b0, b1) * denominator;
+        int start, end;
+        if (input.Clip.IsEmpty)
+        {
+            start = -RootSign(ref root, a0, a1) * denominator;
+            end = RootSign(ref root, b0, b1) * denominator;
+        }
+        else
+        {
+            ref readonly RationalSegmentInterval clip = ref input.Clip[0];
+            start = CompareObliqueParameter(ref root, a0, a1, d0, d1,
+                clip.LowerNumerator, clip.LowerDenominator) * denominator;
+            end = -CompareObliqueParameter(ref root, a0, a1, d0, d1,
+                clip.UpperNumerator, clip.UpperDenominator) * denominator;
+        }
         if (start < 0 || end < 0 || input.InteriorOnly && (start == 0 || end == 0)) return false;
         if (!input.RequireSourceInside) return true;
         // The tangent-plane ratio is the matched finite foot. Check the full
@@ -447,6 +476,27 @@ internal static partial class SegmentSlabSurfaceContact
         CircularRimContactAlgebra.Write(coordinates, coordinateSigns, 6, denominator < 0 ? WideArithmetic.SubtractSigned576(default, d0) : d0);
         CircularRimContactAlgebra.Write(coordinates, coordinateSigns, 7, denominator < 0 ? WideArithmetic.SubtractSigned576(default, d1) : d1);
         return ContainsObliqueFoot(input, coordinates, coordinateSigns, ref root);
+    }
+
+    private static int CompareObliqueParameter(scoped ref FiniteAxisValueRoot root,
+        Signed576 a0, Signed576 a1, Signed576 d0, Signed576 d1, Signed320 numerator, Signed320 denominator)
+    {
+        // The foot is -a(u)/d(u). A retained bound adds at most 319
+        // bits to the <398-bit linear coefficients; do not narrow to Signed576.
+        Span<ulong> values = stackalloc ulong[2 * Words], factor = stackalloc ulong[9],
+            coefficient = stackalloc ulong[9], product = stackalloc ulong[Words];
+        Span<sbyte> signs = stackalloc sbyte[2];
+        for (int index = 0; index < 2; index++)
+        {
+            Signed576 a = index == 0 ? a0 : a1, d = index == 0 ? d0 : d1;
+            Import(denominator, factor); Import(a, coefficient);
+            WideArithmetic.MultiplyMagnitudes(coefficient, factor, Slot(values, index));
+            int sign = -a.Sign;
+            Import(numerator, factor); Import(d, coefficient);
+            WideArithmetic.MultiplyMagnitudes(coefficient, factor, product);
+            Add(product, -d.Sign * numerator.Sign, Slot(values, index), ref sign); signs[index] = (sbyte)sign;
+        }
+        return WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, values, signs);
     }
 
     private static void WriteRootCoordinate(scoped Input input, int axis, Signed576 a0, Signed576 a1,
@@ -542,7 +592,12 @@ internal static partial class SegmentSlabSurfaceContact
             exactTerm = TriangleCapsuleSlabEndpointWitnesses.CreateTerm(Vector2d.Forward,
                 best.Region < 0 ? -input.Length : input.Length, core, integralMask);
         }
-        local.Y = best.Cap < 0 ? -input.HalfThickness : input.HalfThickness;
+        Fixed64 halfThickness = input.FullHeight == Fixed64.Zero ? input.HalfThickness : input.FullHeight * Fixed64.Half;
+        local.Y = best.Cap < 0 ? -halfThickness : halfThickness;
+        if ((input.FullHeight.m_rawValue & 1L) != 0)
+            exactTerm = new(exactTerm.X, FixedPointAnchorTerm3d.GetResidual(Fixed64.One,
+                best.Cap < 0 ? -input.FullHeight : input.FullHeight, Fixed64.Zero, Fixed64.Zero,
+                core.Y, local.Y), exactTerm.Z);
         var basis = new WideRationalBasis3d(input.SlabRotation);
         CircularRimContactAlgebra.WriteGradient(CircularRimContactAlgebra.Transform(basis, best.First),
             CircularRimContactAlgebra.Transform(basis, best.Second), gradient, gradientSigns);

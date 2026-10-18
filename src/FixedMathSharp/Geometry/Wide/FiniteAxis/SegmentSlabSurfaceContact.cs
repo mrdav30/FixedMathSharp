@@ -21,9 +21,24 @@ internal static partial class SegmentSlabSurfaceContact
     internal static bool TryGetContact(FixedSegment segment, Vector3d origin, FixedQuaternion rotation,
         Vector3d slabCenter, FixedQuaternion slabRotation, Fixed64 coreLength, Fixed64 radius,
         Fixed64 halfThickness, ReadOnlySpan<Vector2d> prismOffsets,
-        ReadOnlySpan<WideAxis3> authoredHalfspaces, bool interiorOnly, out FixedContactAnchors contact)
+        ReadOnlySpan<WideAxis3> authoredHalfspaces, bool interiorOnly, out FixedContactAnchors contact, bool fullHeight = false)
         => TryGetContactCore(segment, origin, rotation, slabCenter, slabRotation, coreLength, radius,
-            halfThickness, prismOffsets, authoredHalfspaces, interiorOnly, true, out contact);
+            halfThickness, prismOffsets, authoredHalfspaces, interiorOnly, true, default, fullHeight, out contact);
+
+    /// <summary>Restricts witnesses to the original segment's exact retained interval before selection.</summary>
+    internal static bool TryGetContact(FixedSegment segment, Vector3d origin, FixedQuaternion rotation,
+        Vector3d slabCenter, FixedQuaternion slabRotation, Fixed64 coreLength, Fixed64 radius,
+        Fixed64 halfThickness, ReadOnlySpan<Vector2d> prismOffsets,
+        ReadOnlySpan<WideAxis3> authoredHalfspaces, bool interiorOnly,
+        in RationalSegmentInterval clip, out FixedContactAnchors contact, bool fullHeight = false)
+    {
+        if (!clip.IsClipped)
+            return TryGetContact(segment, origin, rotation, slabCenter, slabRotation, coreLength, radius,
+                halfThickness, prismOffsets, authoredHalfspaces, interiorOnly, out contact, fullHeight);
+        Span<RationalSegmentInterval> interval = stackalloc RationalSegmentInterval[1] { clip };
+        return TryGetContactCore(segment, origin, rotation, slabCenter, slabRotation, coreLength, radius,
+            halfThickness, prismOffsets, authoredHalfspaces, interiorOnly, true, interval, fullHeight, out contact);
+    }
 
     /// <summary>Returns a finite feature exit after the caller independently admits its owner's overlap.</summary>
     /// <remarks>The halfspaces must certify both the finite feature's normal fan and global support of its owner.
@@ -31,18 +46,18 @@ internal static partial class SegmentSlabSurfaceContact
     internal static bool TryGetFeaturePenetration(FixedSegment segment, Vector3d origin, FixedQuaternion rotation,
         Vector3d slabCenter, FixedQuaternion slabRotation, Fixed64 coreLength, Fixed64 radius,
         Fixed64 halfThickness, ReadOnlySpan<Vector2d> prismOffsets,
-        ReadOnlySpan<WideAxis3> authoredHalfspaces, bool interiorOnly, out FixedContactAnchors contact)
+        ReadOnlySpan<WideAxis3> authoredHalfspaces, bool interiorOnly, out FixedContactAnchors contact, bool fullHeight = false)
         => TryGetContactCore(segment, origin, rotation, slabCenter, slabRotation, coreLength, radius,
-            halfThickness, prismOffsets, authoredHalfspaces, interiorOnly, false, out contact);
+            halfThickness, prismOffsets, authoredHalfspaces, interiorOnly, false, default, fullHeight, out contact);
 
     private static bool TryGetContactCore(FixedSegment segment, Vector3d origin, FixedQuaternion rotation,
         Vector3d slabCenter, FixedQuaternion slabRotation, Fixed64 coreLength, Fixed64 radius,
         Fixed64 halfThickness, ReadOnlySpan<Vector2d> prismOffsets,
-        ReadOnlySpan<WideAxis3> authoredHalfspaces, bool interiorOnly, bool requireSourceInside, out FixedContactAnchors contact)
+        ReadOnlySpan<WideAxis3> authoredHalfspaces, bool interiorOnly, bool requireSourceInside, ReadOnlySpan<RationalSegmentInterval> clip, bool fullHeight, out FixedContactAnchors contact)
     {
         contact = default;
         var frame = new FiniteSlabSectionFrame(origin, rotation, slabCenter, slabRotation,
-            coreLength, radius, halfThickness);
+            coreLength, radius, halfThickness, fullHeight);
         if (requireSourceInside && !frame.IntersectsSegment(segment, prismOffsets)) return false;
         Span<WideAxis3> fan = stackalloc WideAxis3[authoredHalfspaces.Length + (interiorOnly ? 2 : 0)];
         for (int index = 0; index < authoredHalfspaces.Length; index++)
@@ -58,7 +73,7 @@ internal static partial class SegmentSlabSurfaceContact
             fan[^2] = edge; fan[^1] = -edge;
         }
         var input = new Input(segment, origin, rotation, slabCenter, slabRotation,
-            coreLength, radius, halfThickness, frame, first, edge, prismOffsets, fan, interiorOnly, requireSourceInside);
+            coreLength, radius, halfThickness, frame, first, edge, prismOffsets, fan, interiorOnly, requireSourceInside, clip, fullHeight);
         Span<ulong> best = stackalloc ulong[StorageWords], bestRoot = stackalloc ulong[Words];
         Span<int> bestSigns = stackalloc int[2 * Fields];
         Span<ulong> bestMetric = stackalloc ulong[ConvexContactCandidate.Slots * Words];
@@ -77,24 +92,26 @@ internal static partial class SegmentSlabSurfaceContact
         internal readonly FixedSegment Segment;
         internal readonly Vector3d Origin, Center;
         internal readonly FixedQuaternion Rotation, SlabRotation;
-        internal readonly Fixed64 Length, Radius, HalfThickness;
+        internal readonly Fixed64 Length, Radius, HalfThickness, FullHeight;
         internal readonly FiniteSlabSectionFrame Frame;
         internal readonly WideAxis3 First, Edge;
         internal readonly Signed320 Scale, Cap, Core, Radial;
         internal readonly ReadOnlySpan<Vector2d> Offsets;
         internal readonly ReadOnlySpan<WideAxis3> Fan;
+        internal readonly ReadOnlySpan<RationalSegmentInterval> Clip;
         internal readonly bool InteriorOnly, RequireSourceInside;
 
         internal Input(FixedSegment segment, Vector3d origin, FixedQuaternion rotation,
             Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness,
             FiniteSlabSectionFrame frame, WideAxis3 first, WideAxis3 edge,
-            ReadOnlySpan<Vector2d> offsets, ReadOnlySpan<WideAxis3> fan, bool interiorOnly, bool requireSourceInside)
+            ReadOnlySpan<Vector2d> offsets, ReadOnlySpan<WideAxis3> fan, bool interiorOnly, bool requireSourceInside,
+            ReadOnlySpan<RationalSegmentInterval> clip, bool fullHeight)
         {
             Segment = segment; Origin = origin; Rotation = rotation; Center = center;
             SlabRotation = slabRotation; Length = length; Radius = radius; Frame = frame;
-            HalfThickness = halfThickness;
+            HalfThickness = halfThickness; FullHeight = fullHeight ? halfThickness : Fixed64.Zero;
             First = first; Edge = edge; Offsets = offsets; Fan = fan; InteriorOnly = interiorOnly;
-            RequireSourceInside = requireSourceInside;
+            RequireSourceInside = requireSourceInside; Clip = clip;
             Scale = Signed320.ExtendValue(WideArithmetic.AddSigned192(frame.RadialFrame.ShapeFrame.Denominator,
                 frame.RadialFrame.ShapeFrame.Denominator));
             Cap = frame.Cap; Core = frame.RadialFrame.ShapeFrame.Cap;
@@ -166,8 +183,24 @@ internal static partial class SegmentSlabSurfaceContact
         ContactQuadratic remainder = ContactQuadratic.At(values, signs, 0), sum = ContactQuadratic.At(values, signs, 1),
             term = ContactQuadratic.At(values, signs, 2), delta = ContactQuadratic.At(values, signs, 3),
             divisor = ContactQuadratic.At(values, signs, 4);
-        candidate.ParameterDenominator.CopyTo(remainder); remainder.Add(candidate.Parameter, -1);
-        int lower = candidate.Parameter.Sign(candidate.Root), upper = remainder.Sign(candidate.Root);
+        int lower, upper;
+        if (input.Clip.IsEmpty)
+        {
+            candidate.ParameterDenominator.CopyTo(remainder); remainder.Add(candidate.Parameter, -1);
+            lower = candidate.Parameter.Sign(candidate.Root); upper = remainder.Sign(candidate.Root);
+        }
+        else
+        {
+            ref readonly RationalSegmentInterval clip = ref input.Clip[0];
+            // Unit bounds add at most 319 coefficient bits; the unchanged
+            // quadratic field remains within the forty-word candidate bank.
+            ContactQuadratic.Scale(candidate.Parameter, Extend(clip.LowerDenominator), remainder);
+            ContactQuadratic.Scale(candidate.ParameterDenominator, Extend(clip.LowerNumerator), term); remainder.Add(term, -1);
+            lower = remainder.Sign(candidate.Root);
+            ContactQuadratic.Scale(candidate.ParameterDenominator, Extend(clip.UpperNumerator), remainder);
+            ContactQuadratic.Scale(candidate.Parameter, Extend(clip.UpperDenominator), term); remainder.Add(term, -1);
+            upper = remainder.Sign(candidate.Root);
+        }
         if (lower < 0 || upper < 0 || input.InteriorOnly && (lower == 0 || upper == 0)) return false;
         if (input.RequireSourceInside && !Contains(input, candidate, boundary: false)
             || !Contains(input, candidate, boundary: true)) return false;
@@ -332,6 +365,23 @@ internal static partial class SegmentSlabSurfaceContact
                 exactTerm = default;
             }
             local[axis] = ContactQuadratic.RoundRatio(coordinate, denominator, best.Root, parityOffset: core[axis].m_rawValue);
+        }
+        if ((input.FullHeight.m_rawValue & 1L) != 0)
+        {
+            // An exact odd full-height cap lies halfway between local raw
+            // coordinates. Retain that half-raw after radial/core rounding.
+            ContactQuadratic.Scale(best.Denominator, Extend(input.Cap), term);
+            best.Boundary(1).CopyTo(residual); residual.Add(term, -1);
+            int cap = residual.Sign(best.Root) == 0 ? 1 : 0;
+            if (cap == 0)
+            {
+                best.Boundary(1).CopyTo(residual); residual.Add(term);
+                if (residual.Sign(best.Root) == 0) cap = -1;
+            }
+            if (cap != 0)
+                exactTerm = new(exactTerm.X, FixedPointAnchorTerm3d.GetResidual(Fixed64.One,
+                    cap < 0 ? -input.FullHeight : input.FullHeight, Fixed64.Zero, Fixed64.Zero,
+                    core.Y, local.Y), exactTerm.Z);
         }
         Span<ulong> normals = stackalloc ulong[7 * Words]; Span<int> normalSigns = stackalloc int[7];
         Span<ulong> source = stackalloc ulong[6 * Words]; Span<int> sourceSigns = stackalloc int[6];

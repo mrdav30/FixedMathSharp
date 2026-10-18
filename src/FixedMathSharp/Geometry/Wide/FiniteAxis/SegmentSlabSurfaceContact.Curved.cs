@@ -15,7 +15,17 @@ internal static partial class SegmentSlabSurfaceContact
         Span<ulong> values = stackalloc ulong[StorageWords], root = stackalloc ulong[Words];
         Span<int> signs = stackalloc int[2 * Fields];
         var candidate = new Candidate(values, signs, root);
-        if (!input.InteriorOnly)
+        if (!input.Clip.IsEmpty)
+        {
+            // Restriction changes a flat/parallel family's finite ends and
+            // midpoint. Generate them before exact fan admission and ranking.
+            for (int seed = 0; seed < 3; seed++)
+            {
+                Seed(input, candidate, seed);
+                AccumulateCurvedPoint(input, candidate, ref selection);
+            }
+        }
+        else if (!input.InteriorOnly)
         {
             candidate.Clear(); SetPoint(input, candidate);
             AccumulateCurvedPoint(input, candidate, ref selection);

@@ -19,7 +19,7 @@ internal readonly struct FixedPointAnchorTerm3d : IEquatable<FixedPointAnchorTer
     internal readonly long Y;
     internal readonly long Z;
 
-    private FixedPointAnchorTerm3d(
+    internal FixedPointAnchorTerm3d(
         long x,
         long y,
         long z)
