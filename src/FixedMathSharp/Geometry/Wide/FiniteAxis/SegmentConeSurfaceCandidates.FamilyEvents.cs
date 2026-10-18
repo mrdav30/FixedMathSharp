@@ -37,13 +37,15 @@ internal static partial class SegmentConeSurfaceCandidates
     }
 
     internal static bool AccumulateFamilyEvents(SegmentConeSurfaceCandidate candidate, scoped ReadOnlySpan<WideAxis3> fan,
-        ConeSurfacePointLocation location, scoped ref ConeSurfaceFamilySelection selection)
+        ConeSurfacePointLocation location, scoped ref ConeSurfaceFamilySelection selection, in RationalSegmentInterval clip = default)
     {
         if (location == ConeSurfacePointLocation.SegmentIntervalUnspecified)
             throw new ArgumentException("A family query requires Start, Interior, or End incident halfspaces.", nameof(location));
         if (candidate.Family == ConeSurfaceFamily.None
-            || candidate.Family != ConeSurfaceFamily.SegmentInterval && candidate.PointLocation != location)
+            || !clip.IsClipped && candidate.Family != ConeSurfaceFamily.SegmentInterval && candidate.PointLocation != location)
             return false;
+        // Clipping can turn an original interior point into a genuine endpoint;
+        // its exact reconstructed parameter decides that stratum below.
         var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
         if (geometry.Edge.IsZero && location != ConeSurfacePointLocation.Start) return false;
         int before = selection.Count;
@@ -59,44 +61,44 @@ internal static partial class SegmentConeSurfaceCandidates
                 // one-plane lineality direction, or a two-plane extreme ray.
                 for (int axis = 0; axis < 3; axis++)
                 for (int branch = -1; branch <= 1; branch += 2)
-                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.Axis, axis, -1, branch, parameter, location), ref selection);
+                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.Axis, axis, -1, branch, parameter, location), ref selection, clip);
                 for (int a = 0; a < constraints; a++)
                 {
                     for (int axis = 0; axis < 3; axis++)
                     for (int branch = -1; branch <= 1; branch += 2)
-                        AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.AxisPlane, a, axis, branch, parameter, location), ref selection);
+                        AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.AxisPlane, a, axis, branch, parameter, location), ref selection, clip);
                     for (int b = a + 1; b < constraints; b++)
                     for (int branch = -1; branch <= 1; branch += 2)
-                        AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.AxisPair, a, b, branch, parameter, location), ref selection);
+                        AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.AxisPair, a, b, branch, parameter, location), ref selection, clip);
                 }
             }
             else if (candidate.Family == ConeSurfaceFamily.SegmentInterval)
-                AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.Interval, 0, 0, 0, parameter, location), ref selection);
+                AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.Interval, 0, 0, 0, parameter, location), ref selection, clip);
             else if (candidate.Feature == ConeSurfaceFeature.Rim && candidate.Family == ConeSurfaceFamily.NormalCone)
             {
                 // The generators and every linear-boundary intersection
                 // contain the endpoints of every nonempty clipped interval.
                 for (int bound = -2; bound < constraints; bound++)
-                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.RimBound, bound, 0, 0, parameter, location), ref selection);
+                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.RimBound, bound, 0, 0, parameter, location), ref selection, clip);
             }
             else
             {
                 // Every nonempty proper closed subset of a circle cut by
                 // halfplanes has a boundary root. Seams cover the full circle.
                 for (int seam = 0; seam < 4; seam++)
-                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.CircleSeam, seam, 0, 0, parameter, location), ref selection);
+                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.CircleSeam, seam, 0, 0, parameter, location), ref selection, clip);
                 for (int line = 0; line < constraints; line++)
                 for (int branch = -1; branch <= 1; branch += 2)
-                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.CircleBoundary, line, 0, branch, parameter, location), ref selection);
+                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.CircleBoundary, line, 0, branch, parameter, location), ref selection, clip);
                 if (candidate.Family == ConeSurfaceFamily.NormalCone)
                 {
                     // A clipped disk also needs the center and polygon
                     // vertices: its entire feasible polygon may lie inside
                     // the circle, with no admissible circle boundary point.
-                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.DiskCenter, 0, 0, 0, parameter, location), ref selection);
+                    AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.DiskCenter, 0, 0, 0, parameter, location), ref selection, clip);
                     for (int a = 0; a < constraints; a++)
                     for (int b = a + 1; b < constraints; b++)
-                        AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.DiskPair, a, b, 0, parameter, location), ref selection);
+                        AddFamilyEvent(candidate, geometry, fan, new(ConeSurfaceFamilyEventKind.DiskPair, a, b, 0, parameter, location), ref selection, clip);
                 }
             }
         }
@@ -104,12 +106,13 @@ internal static partial class SegmentConeSurfaceCandidates
     }
 
     private static void AddFamilyEvent(SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
-        scoped ReadOnlySpan<WideAxis3> fan, ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilySelection selection)
+        scoped ReadOnlySpan<WideAxis3> fan, ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilySelection selection,
+        in RationalSegmentInterval clip)
     {
         Span<ulong> data = stackalloc ulong[24 * FamilyWords], root = stackalloc ulong[FamilyWords];
         Span<int> signs = stackalloc int[24];
         var witness = new ConeSurfaceFamilyWitness(data, signs, root);
-        if (!BuildFamilyEvent(candidate, geometry, fan, item, ref witness)) return;
+        if (!BuildFamilyEvent(candidate, geometry, fan, item, ref witness, clip)) return;
         if (witness[0].Sign(root) == 0 && witness[1].Sign(root) == 0 && witness[2].Sign(root) == 0) return;
         for (int index = 0; index < fan.Length + 4; index++)
         {
@@ -120,13 +123,13 @@ internal static partial class SegmentConeSurfaceCandidates
     }
 
     internal static bool TryGetFamilyWorldAnchors(SegmentConeSurfaceCandidate candidate, scoped ReadOnlySpan<WideAxis3> fan,
-        ConeSurfaceFamilyEvent item, out Vector3d first, out Vector3d second)
+        ConeSurfaceFamilyEvent item, out Vector3d first, out Vector3d second, in RationalSegmentInterval clip = default)
     {
         Span<ulong> data = stackalloc ulong[24 * FamilyWords], root = stackalloc ulong[FamilyWords];
         Span<int> signs = stackalloc int[24];
         var witness = new ConeSurfaceFamilyWitness(data, signs, root);
         first = second = default;
-        if (!BuildFamilyEvent(candidate, new SegmentConeSurfaceGeometry(candidate.Input), fan, item, ref witness)) return false;
+        if (!BuildFamilyEvent(candidate, new SegmentConeSurfaceGeometry(candidate.Input), fan, item, ref witness, clip)) return false;
         return QuadraticPointMaterialization.TryGetWorldPoint(candidate.Input.Center, candidate.Input.ConeRotation,
                 witness[3], witness[4], witness[5], witness[9], root, out first)
             && QuadraticPointMaterialization.TryGetWorldPoint(candidate.Input.Center, candidate.Input.ConeRotation,
@@ -134,12 +137,12 @@ internal static partial class SegmentConeSurfaceCandidates
     }
 
     internal static FixedContactAnchors GetFamilyContact(SegmentConeSurfaceCandidate candidate, scoped ReadOnlySpan<WideAxis3> fan,
-        ConeSurfaceFamilyEvent item)
+        ConeSurfaceFamilyEvent item, in RationalSegmentInterval clip = default)
     {
         Span<ulong> data = stackalloc ulong[24 * FamilyWords], root = stackalloc ulong[FamilyWords];
         Span<int> signs = stackalloc int[24];
         var witness = new ConeSurfaceFamilyWitness(data, signs, root);
-        if (!BuildFamilyEvent(candidate, new SegmentConeSurfaceGeometry(candidate.Input), fan, item, ref witness))
+        if (!BuildFamilyEvent(candidate, new SegmentConeSurfaceGeometry(candidate.Input), fan, item, ref witness, clip))
             throw new InvalidOperationException("The family certificate requires its original candidate and halfspaces.");
         Vector3d first = RoundSegmentPoint(candidate.Input.Segment, witness[10], witness[11], root), second = default;
         for (int axis = 0; axis < 3; axis++)
@@ -210,8 +213,13 @@ internal readonly struct ConeSurfaceFamilyEvent
     { Kind = kind; First = first; Second = second; Branch = branch; Parameter = parameter; PointLocation = location; }
     internal FixedContactAnchors GetContact(SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces) =>
         SegmentConeSurfaceCandidates.GetFamilyContact(candidate, halfspaces, this);
+    internal FixedContactAnchors GetContact(SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces,
+        in RationalSegmentInterval clip) => SegmentConeSurfaceCandidates.GetFamilyContact(candidate, halfspaces, this, clip);
     internal bool TryGetWorldAnchors(SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces, out Vector3d first, out Vector3d second) =>
         SegmentConeSurfaceCandidates.TryGetFamilyWorldAnchors(candidate, halfspaces, this, out first, out second);
+    internal bool TryGetWorldAnchors(SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces,
+        in RationalSegmentInterval clip, out Vector3d first, out Vector3d second) =>
+        SegmentConeSurfaceCandidates.TryGetFamilyWorldAnchors(candidate, halfspaces, this, out first, out second, clip);
 }
 
 /// <summary>Caller-owned finite pool of already admitted exact family events.</summary>

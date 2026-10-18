@@ -116,6 +116,41 @@ internal static partial class SegmentConeSurfaceCandidates
         d0 = WideArithmetic.SubtractSigned576(b0, a0); d1 = WideArithmetic.SubtractSigned576(b1, a1);
     }
 
+    private static bool IsRimParameterInInterval(in SegmentConeSurfaceGeometry geometry,
+        SegmentConeSurfaceCandidate candidate, in RationalSegmentInterval clip, bool interiorOnly)
+    {
+        GetRimBasis(geometry.Edge, candidate.Chart, out WideAxis3 first, out WideAxis3 second);
+        Span<ulong> data = stackalloc ulong[RimSlots * Words]; Span<sbyte> signs = stackalloc sbyte[RimSlots];
+        TriangleConeRimContacts.BuildConeParameter(geometry.BaseOffset, geometry.Radius, geometry.RawScale,
+            geometry.Input.Height, geometry.Input.Radius, first, second, data, signs);
+        Span<ulong> cell = stackalloc ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(data[..(5 * Words)], signs[..5])];
+        bool found = WideFiniteAxisIntersection.TryGetFiniteValueRoot(data[..(5 * Words)], signs[..5], candidate.RootOrdinal, cell, out FiniteAxisValueRoot root);
+        System.Diagnostics.Debug.Assert(found);
+        GetRimParameter(geometry, first, second, out Signed576 a0, out Signed576 a1,
+            out _, out _, out Signed576 d0, out Signed576 d1);
+        Span<ulong> query = stackalloc ulong[2 * Words]; Span<sbyte> querySigns = stackalloc sbyte[2];
+        int denominatorSign = LinearSign(ref root, d0, d1, query, querySigns);
+        for (int bound = 0; bound < 2; bound++)
+        {
+            Signed320 n = bound == 0 ? clip.LowerNumerator : clip.UpperNumerator;
+            Signed320 d = bound == 0 ? clip.LowerDenominator : clip.UpperDenominator;
+            // t=-a(u)/d(u). Full clip weights add at most 319 bits to
+            // the <432-bit affine coefficients; Signed832 retains both products.
+            for (int power = 0; power < 2; power++)
+            {
+                Signed832 value = WideArithmetic.SubtractSigned832(default, WideArithmetic.AddSigned832(
+                    WideArithmetic.MultiplySigned576ToSigned832(power == 0 ? a0 : a1, d),
+                    WideArithmetic.MultiplySigned576ToSigned832(power == 0 ? d0 : d1, n)));
+                Span<ulong> destination = Slot(query, power); destination.Clear();
+                WideArithmetic.GetMagnitude(value, destination[..13]); querySigns[power] = (sbyte)value.Sign;
+            }
+            int sign = denominatorSign * WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns);
+            if (bound == 0 ? sign < 0 : sign > 0) return false;
+            if (interiorOnly && sign == 0) return false;
+        }
+        return true;
+    }
+
     private static bool AdmitRimParameter(in SegmentConeSurfaceGeometry geometry, WideAxis3 first, WideAxis3 second,
         ref FiniteAxisValueRoot root, out ConeSurfacePointLocation location)
     {

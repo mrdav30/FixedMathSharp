@@ -33,12 +33,50 @@ internal readonly ref struct ConePlaneRayPoint
         X.CopyTo(target.X); Y.CopyTo(target.Y); Z.CopyTo(target.Z); Denominator.CopyTo(target.Denominator);
     }
 
+    /// <summary>Changes only the native scale of coordinates in the same physical cone frame.</summary>
+    internal void CopyTo(scoped ConePlaneRayPoint target, Signed192 sourceScale, Signed192 targetScale)
+    {
+        // Coordinates carry 2D native scale. Cross multiplication adds fewer
+        // than 132 bits to certified point fields below 3072 bits.
+        Signed576 scale = Signed576.ExtendValue(Signed320.ExtendValue(targetScale));
+        ContactQuadratic.Scale(X, scale, target.X);
+        ContactQuadratic.Scale(Y, scale, target.Y);
+        ContactQuadratic.Scale(Z, scale, target.Z);
+        ContactQuadratic.Scale(Denominator, Signed576.ExtendValue(Signed320.ExtendValue(sourceScale)), target.Denominator);
+    }
+
     internal int CompareTo(scoped ConePlaneRayPoint other, scoped ReadOnlySpan<ulong> root, scoped ReadOnlySpan<ulong> otherRoot)
     {
         for (int axis = 0; axis < 3; axis++)
         {
             int order = ContactQuadratic.CompareRatios(axis == 0 ? X : axis == 1 ? Y : Z, Denominator, root,
                 axis == 0 ? other.X : axis == 1 ? other.Y : other.Z, other.Denominator, otherRoot);
+            if (order != 0) return order;
+        }
+        return 0;
+    }
+
+    /// <summary>Orders physical cone-frame points across independently scaled authored frames of the same cone.</summary>
+    /// <remarks>Both points have positive homogeneous denominators and the frames describe the same physical cone.</remarks>
+    internal int CompareTo(scoped ConePlaneRayPoint other, scoped ReadOnlySpan<ulong> root,
+        scoped ReadOnlySpan<ulong> otherRoot, in ConePlaneRayFrame frame, in ConePlaneRayFrame otherFrame)
+    {
+        Signed192 scale = frame.Finite.ShapeFrame.Denominator;
+        Signed192 otherScale = otherFrame.Finite.ShapeFrame.Denominator;
+        if (scale.Equals(otherScale)) return CompareTo(other, root, otherRoot);
+        // Each native coordinate is 2D times the physical coordinate. Carry
+        // D in the homogeneous denominator; at most three extra limbs keep
+        // the comparison exact even when Q32.32 witnesses coincide.
+        int words = Math.Max(ContactQuadratic.ActiveWords(Denominator), ContactQuadratic.ActiveWords(other.Denominator)) + 3;
+        Span<ulong> values = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
+        ContactQuadratic denominator = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic otherDenominator = ContactQuadratic.At(values, signs, 1, words);
+        ContactQuadratic.Scale(Denominator, Signed576.ExtendValue(Signed320.ExtendValue(scale)), denominator);
+        ContactQuadratic.Scale(other.Denominator, Signed576.ExtendValue(Signed320.ExtendValue(otherScale)), otherDenominator);
+        for (int axis = 0; axis < 3; axis++)
+        {
+            int order = ContactQuadratic.CompareRatios(axis == 0 ? X : axis == 1 ? Y : Z, denominator, root,
+                axis == 0 ? other.X : axis == 1 ? other.Y : other.Z, otherDenominator, otherRoot);
             if (order != 0) return order;
         }
         return 0;

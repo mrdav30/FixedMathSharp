@@ -186,12 +186,21 @@ internal enum ConeSurfacePointLocation { SegmentIntervalUnspecified, Start, Inte
 /// <summary>One exact chart branch or a retained degenerate family.</summary>
 internal readonly struct SegmentConeSurfaceCandidate
 {
+    /// <summary>Tests a unique retained parameter against the original segment's exact clip.</summary>
+    /// <remarks>Interval families must instead be clipped before their family events are selected.</remarks>
+    internal bool IsInInterval(in RationalSegmentInterval clip, bool interiorOnly = false) =>
+        SegmentConeSurfaceCandidates.IsInInterval(this, clip, interiorOnly);
+
     internal int GetMaximumFamilyEventCount(int halfspaceCount) =>
         SegmentConeSurfaceCandidates.GetMaximumFamilyEventCount(this, halfspaceCount);
 
     internal bool AccumulateFamilyEvents(scoped ReadOnlySpan<WideAxis3> authoredHalfspaces,
         ConeSurfacePointLocation location, scoped ref ConeSurfaceFamilySelection selection) =>
         SegmentConeSurfaceCandidates.AccumulateFamilyEvents(this, authoredHalfspaces, location, ref selection);
+
+    internal bool AccumulateFamilyEvents(scoped ReadOnlySpan<WideAxis3> authoredHalfspaces,
+        ConeSurfacePointLocation location, in RationalSegmentInterval clip, scoped ref ConeSurfaceFamilySelection selection) =>
+        SegmentConeSurfaceCandidates.AccumulateFamilyEvents(this, authoredHalfspaces, location, ref selection, clip);
 
     internal ConeSurfaceFeature Feature { get; }
     internal ConeSurfaceFamily Family { get; }

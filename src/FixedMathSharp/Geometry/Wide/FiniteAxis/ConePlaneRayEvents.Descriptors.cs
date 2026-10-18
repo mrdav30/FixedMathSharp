@@ -128,6 +128,21 @@ internal static partial class ConePlaneRayEvents
         return sink.HasPoint;
     }
 
+    /// <summary>Reconstructs only a clipped event's admitted point, without solving unused exits.</summary>
+    internal static bool ReconstructPoint(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
+        ConePlaneRayEvent descriptor, in RationalSegmentInterval clip, scoped ConePlaneRayPoint point, scoped Span<ulong> root)
+    {
+        if (!clip.IsClipped) return ReconstructPoint(source, frame, descriptor, point, root);
+        if (source.Scope != ConePlaneRayEventScope.Segment)
+            throw new ArgumentException("Only finite segment sources can have a clipped interval.", nameof(source));
+        scoped ConePlaneRaySelection positive = default, negative = default;
+        Span<RationalSegmentInterval> clips = stackalloc RationalSegmentInterval[1] { clip };
+        var sink = new ConePlaneRayEventSink(descriptor, point, root, pointOnly: true,
+            source: source, frame: frame, clip: clips);
+        Accumulate(source, frame, ref positive, ref negative, ref sink);
+        return sink.HasPoint;
+    }
+
     internal static int CompareEventAnchors(in ConePlaneRayEventSource firstSource, ConePlaneRayEvent first,
         in ConePlaneRayEventSource secondSource, ConePlaneRayEvent second, in ConePlaneRayFrame frame,
         bool includeCoincidentProvenance = true)

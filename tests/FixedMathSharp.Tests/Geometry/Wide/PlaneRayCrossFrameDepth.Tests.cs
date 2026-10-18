@@ -10,6 +10,73 @@ public class PlaneRayCrossFrameDepthTests
         new Vector3d(4, 0, -4), new Vector3d(0, 0, 4));
     private static readonly FixedQuaternion NegativeIdentity = new(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, -Fixed64.One);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ConeTriangleAdmissionPreservesNativePointScaleAndClosedWalls(bool differentScale)
+    {
+        var containing = new FixedTriangle(new(-16, 0, -16), new(16, 0, -16), new(0, 0, 16));
+        var outside = new FixedTriangle(new(10, 0, 10), new(11, 0, 10), new(10, 0, 11));
+        FixedQuaternion tilted = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)37, Fixed64.Zero, Fixed64.Zero);
+        ConePlaneRayFrame source = new(Plane, Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero, tilted, (Fixed64)4, Fixed64.Two);
+        ConePlaneRayFrame target = new(Plane, Vector3d.Zero, differentScale ? NegativeIdentity : FixedQuaternion.Identity,
+            Vector3d.Zero, tilted, (Fixed64)4, Fixed64.Two);
+        int count = 0;
+        void Visit(in ConePlaneRayEventSource _, in ConePlaneRayFrame frame,
+            ConePlaneRayEvent descriptor, scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root,
+            scoped in ConePlaneRaySelection positive, scoped in ConePlaneRaySelection negative)
+        {
+            Assert.True(ConePlaneRayPointExits.ContainsTrianglePoint(containing, target, point, root, frame));
+            Assert.False(ConePlaneRayPointExits.ContainsTrianglePoint(outside, target, point, root, frame));
+            Assert.False(ConePlaneRayPointExits.ContainsTrianglePoint(default, target, point, root, frame));
+            count++;
+        }
+        // An oblique cone makes the section contain genuine quadratic points;
+        // admission must retain their fields instead of using rounded anchors.
+        ConePlaneRayEvents.VisitEvents(ConePlaneRayEventSource.Plane, source, Visit);
+        Assert.True(count > 0);
+
+        Span<ulong> values = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+        var wall = new FixedTriangle(Vector3d.Zero, Vector3d.Right, Vector3d.Forward);
+        ConePlaneRayPoint wallPoint = new(values, signs); wallPoint.Set(source.Transform(Vector3d.Zero));
+        Assert.True(ConePlaneRayPointExits.ContainsTrianglePoint(wall, target, wallPoint, ReadOnlySpan<ulong>.Empty, source));
+    }
+
+    [Theory]
+    [InlineData(false, -1)]
+    [InlineData(false, 0)]
+    [InlineData(false, 1)]
+    [InlineData(false, 2)]
+    [InlineData(true, -1)]
+    [InlineData(true, 0)]
+    [InlineData(true, 1)]
+    [InlineData(true, 2)]
+    public void ConePointOrderComparesPhysicalCoordinatesBeforeRounding(bool differentScale, int differentAxis)
+    {
+        ConePlaneRayFrame firstFrame = new(Plane, Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
+        ConePlaneRayFrame otherFrame = new(Plane, Vector3d.Zero, differentScale ? NegativeIdentity : FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
+        Span<ulong> firstValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> otherValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<int> firstSigns = stackalloc int[ConePlaneRayPoint.SignCount], otherSigns = stackalloc int[ConePlaneRayPoint.SignCount];
+        ConePlaneRayPoint first = new(firstValues, firstSigns), other = new(otherValues, otherSigns);
+        first.Set(firstFrame.Transform(Vector3d.Zero)); other.Set(otherFrame.Transform(Vector3d.Zero));
+        if (differentAxis >= 0)
+        {
+            ContactQuadratic coordinate = differentAxis == 0 ? other.X : differentAxis == 1 ? other.Y : other.Z;
+            // Add sqrt(2)/D native units, smaller than one raw physical unit
+            // in both charts. The exact order must survive equal rounded points.
+            coordinate.Radical[0] = 1; coordinate.Signs[1] = 1;
+        }
+        Span<ulong> root = stackalloc ulong[1] { 2 };
+        int expected = differentAxis < 0 ? 0 : -1;
+        Assert.Equal(expected, first.CompareTo(other, root, root, firstFrame, otherFrame));
+        Assert.Equal(-expected, other.CompareTo(first, root, root, otherFrame, firstFrame));
+        Assert.Equal(0, first.CompareTo(first, root, root, firstFrame, firstFrame));
+    }
+
     [Fact]
     public void ConePhysicalDepthComparisonPreservesApexReflectionAndUnequalMemberScales()
     {

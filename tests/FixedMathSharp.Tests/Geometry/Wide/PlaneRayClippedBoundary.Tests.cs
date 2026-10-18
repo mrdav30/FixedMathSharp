@@ -35,6 +35,8 @@ public class PlaneRayClippedBoundaryTests
             Assert.True(ConePlaneRayEvents.TryEvaluateEvent(source, frame, descriptor, clip, replayPoint,
                 replayRoot, ref p, ref n));
             Assert.Equal(0, point.CompareTo(replayPoint, root, replayRoot));
+            Assert.True(ConePlaneRayEvents.ReconstructPoint(source, frame, descriptor, clip, replayPoint, replayRoot));
+            Assert.Equal(0, point.CompareTo(replayPoint, root, replayRoot));
             if (positive.HasValue) Assert.Equal(0, p.CompareDepth(positive));
             if (negative.HasValue) Assert.Equal(0, n.CompareDepth(negative));
             if (descriptor.Kind != ConePlaneRayEventKind.EdgeEndpoint) return;
@@ -300,6 +302,18 @@ public class PlaneRayClippedBoundaryTests
         Assert.Throws<ArgumentException>(() => Replay(ConePlaneRayEventSource.Plane, 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => Replay(source, -2));
         Assert.Throws<ArgumentOutOfRangeException>(() => Replay(source, 2));
+
+        bool ReplayPoint(ConePlaneRayEventSource input, RationalSegmentInterval interval)
+        {
+            Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords], root = stackalloc ulong[ConePlaneRaySelection.RootWords];
+            Span<int> pointSigns = stackalloc int[ConePlaneRayPoint.SignCount];
+            ConePlaneRayPoint point = new(pointValues, pointSigns);
+            return ConePlaneRayEvents.ReconstructPoint(input, frame,
+                new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeEndpoint, endpoint: 0), interval, point, root);
+        }
+        Assert.False(ReplayPoint(source, clip));
+        Assert.True(ReplayPoint(source, default));
+        Assert.Throws<ArgumentException>(() => ReplayPoint(ConePlaneRayEventSource.Plane, clip));
     }
 
     internal static RationalSegmentInterval FullWidthMiddleInterval()

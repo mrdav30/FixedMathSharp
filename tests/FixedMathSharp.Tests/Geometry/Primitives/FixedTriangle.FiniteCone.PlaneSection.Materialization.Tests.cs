@@ -252,6 +252,16 @@ public sealed class ConePlaneRayMaterializationTests
         Vector3d expectedLocal = new(Fixed64.FromRaw(localRaw), Fixed64.Zero, Fixed64.Zero);
         Assert.True(ConePlaneRayPointMaterialization.TryGetAuthoredPoint(frame, point, ReadOnlySpan<ulong>.Empty, out Vector3d authored));
         Assert.Equal(expectedLocal, authored);
+        Assert.True(ConePlaneRayPointMaterialization.TryGetAuthoredPoint(frame, point,
+            ReadOnlySpan<ulong>.Empty, frame, out Vector3d sameFrameAuthored));
+        Assert.Equal(expectedLocal, sameFrameAuthored);
+        var otherFrame = new ConePlaneRayFrame(plane, center,
+            new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.Zero, -Fixed64.One),
+            center, FixedQuaternion.Identity, (Fixed64)4, Fixed64.Two);
+        Assert.False(frame.Finite.ShapeFrame.Denominator.Equals(otherFrame.Finite.ShapeFrame.Denominator));
+        Assert.True(ConePlaneRayPointMaterialization.TryGetAuthoredPoint(otherFrame, point,
+            ReadOnlySpan<ulong>.Empty, frame, out Vector3d crossFrameAuthored));
+        Assert.Equal(expectedLocal, crossFrameAuthored);
         Assert.True(ConePlaneRayPointMaterialization.TryGetExitConeLocalPoint(frame, point,
             ReadOnlySpan<ulong>.Empty, n, d, 1, out Vector3d coneLocal));
         Assert.Equal(expectedLocal, coneLocal);

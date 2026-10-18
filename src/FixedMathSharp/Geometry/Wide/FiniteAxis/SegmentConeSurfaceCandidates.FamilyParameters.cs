@@ -14,9 +14,10 @@ namespace FixedMathSharp.Geometry;
 internal static partial class SegmentConeSurfaceCandidates
 {
     private static bool BuildFamilyEvent(SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
-        scoped ReadOnlySpan<WideAxis3> fan, ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilyWitness witness)
+        scoped ReadOnlySpan<WideAxis3> fan, ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilyWitness witness,
+        in RationalSegmentInterval clip = default)
     {
-        if (!BuildFamilyParameter(candidate, geometry, item, ref witness)) return false;
+        if (!BuildFamilyParameter(candidate, geometry, item, ref witness, clip)) return false;
         Span<ulong> work = stackalloc ulong[4 * FamilyWords]; Span<int> signs = stackalloc int[4];
         ContactQuadratic term = At(work, signs, 0, FamilyWords);
         for (int axis = 0; axis < 3; axis++)
@@ -35,10 +36,10 @@ internal static partial class SegmentConeSurfaceCandidates
     }
 
     private static bool BuildFamilyParameter(SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
-        ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilyWitness witness)
+        ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilyWitness witness, in RationalSegmentInterval clip = default)
     {
         if (candidate.Family == ConeSurfaceFamily.SegmentInterval)
-            return BuildFamilyIntervalParameter(candidate, geometry, item, ref witness);
+            return BuildFamilyIntervalParameter(candidate, geometry, item, ref witness, clip);
         Signed576 numerator, denominator;
         if (candidate.Feature == ConeSurfaceFeature.Apex)
             TryBuildApex(geometry, candidate.RootOrdinal, out numerator, out denominator, out _, out _, out _);
@@ -65,19 +66,21 @@ internal static partial class SegmentConeSurfaceCandidates
         else
             TryGetRimPoint(geometry, candidate.RootOrdinal, out _, out _, out _, out numerator, out denominator);
         witness[10].Set(numerator); witness[11].Set(denominator);
-        return FamilyParameterLocation(witness) == item.PointLocation;
+        return (!clip.IsClipped || clip.Contains(witness[10], witness[11], witness.Root))
+            && FamilyParameterLocation(witness, clip) == item.PointLocation;
     }
 
     private static bool BuildFamilyIntervalParameter(SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
-        ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilyWitness witness)
+        ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilyWitness witness, in RationalSegmentInterval clip)
     {
         Span<ulong> work = stackalloc ulong[12 * FamilyWords], lowerRoot = stackalloc ulong[FamilyWords], upperRoot = stackalloc ulong[FamilyWords];
         Span<int> signs = stackalloc int[12];
         ContactQuadratic low = At(work, signs, 0, FamilyWords), lowD = At(work, signs, 1, FamilyWords);
         ContactQuadratic high = At(work, signs, 2, FamilyWords), highD = At(work, signs, 3, FamilyWords);
         ContactQuadratic product = At(work, signs, 4, FamilyWords);
-        GetFamilyIntervalBound(candidate, geometry, false, low, lowD, lowerRoot);
-        GetFamilyIntervalBound(candidate, geometry, true, high, highD, upperRoot);
+        GetFamilyIntervalBound(candidate, geometry, false, low, lowD, lowerRoot, clip);
+        GetFamilyIntervalBound(candidate, geometry, true, high, highD, upperRoot, clip);
+        if (clip.IsClipped && CompareRatios(low, lowD, lowerRoot, high, highD, upperRoot) > 0) return false;
         (IsZero(lowerRoot) ? upperRoot : lowerRoot).CopyTo(witness.Root);
         ContactQuadratic n = witness[10], d = witness[11];
         if (item.Parameter == 0) { low.CopyTo(n); lowD.CopyTo(d); }
@@ -91,40 +94,118 @@ internal static partial class SegmentConeSurfaceCandidates
         }
         else
         {
-            n.Set(ExtendFamily(Signed192.Signed(item.Parameter == 3 ? 0 : 1)));
-            d.Set(ExtendFamily(Signed192.Signed(1)));
+            if (clip.IsClipped)
+            {
+                n.Set(Signed576.ExtendValue(item.Parameter == 3 ? clip.LowerNumerator : clip.UpperNumerator));
+                d.Set(Signed576.ExtendValue(item.Parameter == 3 ? clip.LowerDenominator : clip.UpperDenominator));
+            }
+            else
+            {
+                n.Set(ExtendFamily(Signed192.Signed(item.Parameter == 3 ? 0 : 1)));
+                d.Set(ExtendFamily(Signed192.Signed(1)));
+            }
         }
         if (CompareRatios(n, d, witness.Root, low, lowD, lowerRoot) < 0
             || CompareRatios(n, d, witness.Root, high, highD, upperRoot) > 0)
             return false;
-        return FamilyParameterLocation(witness) == item.PointLocation;
+        return FamilyParameterLocation(witness, clip) == item.PointLocation;
     }
 
     private static void GetFamilyIntervalBound(SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
-        bool upper, ContactQuadratic numerator, ContactQuadratic denominator, Span<ulong> root)
+        bool upper, ContactQuadratic numerator, ContactQuadratic denominator, Span<ulong> root, in RationalSegmentInterval clip)
     {
         if (candidate.Feature != ConeSurfaceFeature.Side || candidate.Input.Radius == Fixed64.Zero)
         {
             bool exists = FiniteSectionPoint.TryGetSegmentParameter(candidate.Input.Segment, geometry.Finite, upper, numerator, denominator, root);
             System.Diagnostics.Debug.Assert(exists);
-            return;
         }
-        Span<ulong> work = stackalloc ulong[24 * Words], oldRoot = stackalloc ulong[Words]; Span<int> signs = stackalloc int[24];
-        BuildSideNormal(geometry, -1, candidate.Chart, work, signs, oldRoot);
-        TryBuildSideFoot(geometry, -1, work, signs, oldRoot, out _);
-        FiniteSectionPoint.TryGetSegmentParameter(candidate.Input.Segment, geometry.Finite, upper, At(work, signs, 5), At(work, signs, 6), oldRoot);
-        ClipSideEndpoint(geometry, upper, work, signs, oldRoot);
-        At(work, signs, 5).CopyTo(numerator); At(work, signs, 6).CopyTo(denominator);
-        root.Clear(); oldRoot.CopyTo(root);
+        else
+        {
+            Span<ulong> work = stackalloc ulong[24 * Words], oldRoot = stackalloc ulong[Words]; Span<int> signs = stackalloc int[24];
+            BuildSideNormal(geometry, -1, candidate.Chart, work, signs, oldRoot);
+            TryBuildSideFoot(geometry, -1, work, signs, oldRoot, out _);
+            FiniteSectionPoint.TryGetSegmentParameter(candidate.Input.Segment, geometry.Finite, upper, At(work, signs, 5), At(work, signs, 6), oldRoot);
+            ClipSideEndpoint(geometry, upper, work, signs, oldRoot);
+            At(work, signs, 5).CopyTo(numerator); At(work, signs, 6).CopyTo(denominator);
+            root.Clear(); oldRoot.CopyTo(root);
+        }
+        if (!clip.IsClipped) return;
+        Span<ulong> bounds = stackalloc ulong[4 * FamilyWords]; Span<int> boundSigns = stackalloc int[4];
+        ContactQuadratic bound = At(bounds, boundSigns, 0, FamilyWords), boundD = At(bounds, boundSigns, 1, FamilyWords);
+        bound.Set(Signed576.ExtendValue(upper ? clip.UpperNumerator : clip.LowerNumerator));
+        boundD.Set(Signed576.ExtendValue(upper ? clip.UpperDenominator : clip.LowerDenominator));
+        int comparison = CompareRatios(bound, boundD, ReadOnlySpan<ulong>.Empty, numerator, denominator, root);
+        if (upper ? comparison < 0 : comparison > 0)
+        {
+            bound.CopyTo(numerator); boundD.CopyTo(denominator); root.Clear();
+        }
     }
 
-    private static ConeSurfacePointLocation FamilyParameterLocation(scoped ConeSurfaceFamilyWitness witness)
+    private static ConeSurfacePointLocation FamilyParameterLocation(scoped ConeSurfaceFamilyWitness witness,
+        in RationalSegmentInterval clip = default)
     {
+        if (clip.IsClipped)
+        {
+            Span<ulong> bounds = stackalloc ulong[4 * FamilyWords]; Span<int> clipSigns = stackalloc int[4];
+            ContactQuadratic bound = At(bounds, clipSigns, 0, FamilyWords), boundD = At(bounds, clipSigns, 1, FamilyWords);
+            bound.Set(Signed576.ExtendValue(clip.LowerNumerator)); boundD.Set(Signed576.ExtendValue(clip.LowerDenominator));
+            if (CompareRatios(witness[10], witness[11], witness.Root, bound, boundD, ReadOnlySpan<ulong>.Empty) == 0)
+                return ConeSurfacePointLocation.Start;
+            bound.Set(Signed576.ExtendValue(clip.UpperNumerator)); boundD.Set(Signed576.ExtendValue(clip.UpperDenominator));
+            if (CompareRatios(witness[10], witness[11], witness.Root, bound, boundD, ReadOnlySpan<ulong>.Empty) == 0)
+                return ConeSurfacePointLocation.End;
+        }
         if (witness[10].Sign(witness.Root) == 0) return ConeSurfacePointLocation.Start;
         Span<ulong> data = stackalloc ulong[2 * FamilyWords]; Span<int> signs = stackalloc int[2];
         ContactQuadratic margin = At(data, signs, 0, FamilyWords);
         witness[11].CopyTo(margin); margin.Add(witness[10], -1);
         return margin.Sign(witness.Root) == 0 ? ConeSurfacePointLocation.End : ConeSurfacePointLocation.Interior;
+    }
+
+    internal static bool IsInInterval(SegmentConeSurfaceCandidate candidate, in RationalSegmentInterval clip, bool interiorOnly)
+    {
+        if (candidate.Family == ConeSurfaceFamily.SegmentInterval)
+            throw new ArgumentException("An interval family requires clipping before family event selection.", nameof(candidate));
+        if (!clip.IsClipped) return !interiorOnly || candidate.IsSegmentInterior;
+        if (candidate.PointLocation == ConeSurfacePointLocation.Start) return !interiorOnly && clip.LowerNumerator.IsZero;
+        if (candidate.PointLocation == ConeSurfacePointLocation.End)
+            return !interiorOnly && clip.UpperNumerator.Equals(clip.UpperDenominator);
+        var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
+        if (candidate.Feature == ConeSurfaceFeature.Rim && candidate.Chart >= 0)
+            return IsRimParameterInInterval(geometry, candidate, clip, interiorOnly);
+        Span<ulong> values = stackalloc ulong[24 * Words], root = stackalloc ulong[Words];
+        Span<int> signs = stackalloc int[24];
+        ContactQuadratic n = At(values, signs, 5), d = At(values, signs, 6);
+        root.Clear();
+        if (candidate.Feature == ConeSurfaceFeature.Side && candidate.Input.Radius != Fixed64.Zero)
+        {
+            bool normal = BuildSideNormal(geometry, candidate.RootOrdinal, candidate.Chart, values, signs, root);
+            bool foot = TryBuildSideFoot(geometry, candidate.RootOrdinal, values, signs, root, out _);
+            System.Diagnostics.Debug.Assert(normal && foot);
+        }
+        else if (candidate.Feature == ConeSurfaceFeature.Rim && candidate.RootOrdinal <= -3)
+        {
+            bool admitted = BuildMeridionalRim(geometry, candidate.RootOrdinal, candidate.Chart == -2 ? 1 : -1, values, signs, root);
+            System.Diagnostics.Debug.Assert(admitted);
+        }
+        else
+        {
+            Signed576 numerator, denominator;
+            if (candidate.Feature == ConeSurfaceFeature.Apex)
+                TryBuildApex(geometry, candidate.RootOrdinal, out numerator, out denominator, out _, out _, out _);
+            else if (candidate.Feature == ConeSurfaceFeature.Side)
+                GetAxisParameter(geometry, out numerator, out denominator);
+            else
+                TryGetRimPoint(geometry, candidate.RootOrdinal, out _, out _, out _, out numerator, out denominator);
+            n.Set(numerator); d.Set(denominator);
+        }
+        if (!clip.Contains(n, d, root)) return false;
+        if (!interiorOnly) return true;
+        ContactQuadratic bound = At(values, signs, 0), boundD = At(values, signs, 1);
+        bound.Set(Signed576.ExtendValue(clip.LowerNumerator)); boundD.Set(Signed576.ExtendValue(clip.LowerDenominator));
+        if (CompareRatios(n, d, root, bound, boundD, ReadOnlySpan<ulong>.Empty) == 0) return false;
+        bound.Set(Signed576.ExtendValue(clip.UpperNumerator)); boundD.Set(Signed576.ExtendValue(clip.UpperDenominator));
+        return CompareRatios(n, d, root, bound, boundD, ReadOnlySpan<ulong>.Empty) != 0;
     }
 
     private static void FamilyConstraint(in SegmentConeSurfaceGeometry geometry, scoped ReadOnlySpan<WideAxis3> fan,

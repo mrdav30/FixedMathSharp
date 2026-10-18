@@ -99,6 +99,25 @@ internal static class ConePlaneRayPointExits
         return true;
     }
 
+    /// <summary>Tests a certified source-frame point against triangle walls in another frame of the same cone.</summary>
+    /// <remarks>The target triangle and the certified point are coplanar; both frames describe the same physical cone.</remarks>
+    internal static bool ContainsTrianglePoint(FixedTriangle triangle, in ConePlaneRayFrame frame,
+        scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root, in ConePlaneRayFrame sourceFrame)
+    {
+        Signed192 sourceScale = sourceFrame.Finite.ShapeFrame.Denominator;
+        Signed192 targetScale = frame.Finite.ShapeFrame.Denominator;
+        if (sourceScale.Equals(targetScale)) return ContainsTrianglePoint(triangle, frame, point, root);
+        // Apex-to-base coordinates share the same physical cone frame but
+        // carry 2D native scale. Cross multiplication preserves every root
+        // and closed wall sign without materializing a rounded point. Point
+        // fields <3072 plus D<132 and wall offsets <526 stay <3733 bits.
+        Span<ulong> values = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+        ConePlaneRayPoint transformed = new(values, signs);
+        point.CopyTo(transformed, sourceScale, targetScale);
+        return ContainsTrianglePoint(triangle, frame, transformed, root);
+    }
+
     internal static bool AccumulateRationalPoint(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ConePlaneRayPoint point, scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         bool pointOnly = false, int requestedOrientation = 0)

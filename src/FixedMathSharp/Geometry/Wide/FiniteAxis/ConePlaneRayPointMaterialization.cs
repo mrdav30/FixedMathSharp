@@ -125,6 +125,20 @@ internal static class ConePlaneRayPointMaterialization
             ContactQuadratic.At(work, signs, 7, words), d, root, out localPoint);
     }
 
+    /// <summary>Rounds a source-frame point directly in another authored frame of the same cone.</summary>
+    internal static bool TryGetAuthoredPoint(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
+        scoped ReadOnlySpan<ulong> root, in ConePlaneRayFrame sourceFrame, out Vector3d localPoint)
+    {
+        Signed192 sourceScale = sourceFrame.Finite.ShapeFrame.Denominator;
+        Signed192 targetScale = frame.Finite.ShapeFrame.Denominator;
+        if (sourceScale.Equals(targetScale)) return TryGetAuthoredPoint(frame, point, root, out localPoint);
+        Span<ulong> values = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
+        ConePlaneRayPoint transformed = new(values, signs);
+        point.CopyTo(transformed, sourceScale, targetScale);
+        return TryGetAuthoredPoint(frame, transformed, root, out localPoint);
+    }
+
     /// <summary>Tests the final nearest-even exit coordinate range without materializing a world point.</summary>
     internal static bool IsExitWorldPointRepresentable(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
         scoped ReadOnlySpan<ulong> root, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
