@@ -110,7 +110,8 @@ internal static partial class WideTriangleRelations
     internal static bool TryGetProjectedSegmentFaceAnchors(
         FixedTriangle triangle, Vector3d origin, FixedQuaternion rotation,
         in FixedPointAnchor first, in FixedPointAnchor second, Signed832 n, Signed832 d,
-        int physicalBoundaryMask, out FixedPointAnchor source, out FixedPointAnchor target)
+        int physicalBoundaryMask, out FixedPointAnchor source, out FixedPointAnchor target,
+        bool requirePhysicalTargetBoundary = true, bool materialize = true)
     {
         source = target = default;
         System.Diagnostics.Debug.Assert(first.Origin == second.Origin && first.Rotation == second.Rotation
@@ -156,7 +157,8 @@ internal static partial class WideTriangleRelations
             physical |= barycentric.Signs[0] == 0 && (physicalBoundaryMask & (1 << index)) != 0;
             denominator.Add(barycentric);
         }
-        if (!physical) return false;
+        if (requirePhysicalTargetBoundary && !physical) return false;
+        if (!materialize) return true;
         Vector3d sourcePoint = default, targetPoint = default;
         Span<Vector3d> corners = stackalloc Vector3d[3] { triangle.A, triangle.B, triangle.C };
         for (int axis = 0; axis < 3; axis++)
@@ -294,12 +296,14 @@ internal static partial class WideTriangleRelations
             WideArithmetic.MultiplySigned576ToSigned704(bo, ab));
     }
 
-    internal static bool TryGetClosestNonparallelSegmentAnchors(
+    /// <summary>Retains both closed finite line-foot parameters before witness rounding.</summary>
+    internal static bool TryGetClosestNonparallelSegmentParameters(
         Vector3d firstOrigin, FixedQuaternion firstRotation, FixedSegment first,
         Vector3d secondOrigin, FixedQuaternion secondRotation, FixedSegment second,
-        out FixedPointAnchor firstAnchor, out FixedPointAnchor secondAnchor)
+        out Signed832 firstNumerator, out Signed832 firstDenominator,
+        out Signed832 secondNumerator, out Signed832 secondDenominator)
     {
-        firstAnchor = secondAnchor = default;
+        firstNumerator = firstDenominator = secondNumerator = secondDenominator = default;
         GetPointLocalNumerators(new FixedPointAnchor(firstOrigin, firstRotation, first.Start), secondOrigin, secondRotation,
             out Signed576 px, out Signed576 py, out Signed576 pz, out Signed320 pointD);
         GetPointLocalNumerators(new FixedPointAnchor(firstOrigin, firstRotation, first.End), secondOrigin, secondRotation,
@@ -324,26 +328,24 @@ internal static partial class WideTriangleRelations
         if (firstN.Sign < 0 || WideArithmetic.SubtractSigned576(determinant, firstN).Sign < 0
             || secondN.Sign < 0 || WideArithmetic.SubtractSigned704(secondD, secondN).Sign < 0) return false;
         // Rigid numerators fit 202 bits; line minors fit 540/680, and final local coordinates fit 744/808.
-        firstAnchor = new FixedPointAnchor(firstOrigin, firstRotation,
-            Materialize(first, Signed832.ExtendValue(firstN), Signed832.ExtendValue(determinant)));
-        secondAnchor = new FixedPointAnchor(secondOrigin, secondRotation,
-            Materialize(second, Signed832.ExtendValue(secondN), Signed832.ExtendValue(secondD)));
+        firstNumerator = Signed832.ExtendValue(firstN); firstDenominator = Signed832.ExtendValue(determinant);
+        secondNumerator = Signed832.ExtendValue(secondN); secondDenominator = Signed832.ExtendValue(secondD);
         return true;
+    }
 
-        static Vector3d Materialize(FixedSegment segment, Signed832 n, Signed832 d)
+    internal static Vector3d MaterializeSegmentPoint(FixedSegment segment, Signed832 n, Signed832 d)
+    {
+        Vector3d point = default;
+        Signed832 remaining = WideArithmetic.SubtractSigned832(d, n);
+        for (int axis = 0; axis < 3; axis++)
         {
-            Vector3d point = default;
-            Signed832 remaining = WideArithmetic.SubtractSigned832(d, n);
-            for (int axis = 0; axis < 3; axis++)
-            {
-                Signed832 coordinate = WideArithmetic.AddSigned832(
-                    WideArithmetic.MultiplySigned832(remaining, Signed192.Raw(segment.Start[axis])),
-                    WideArithmetic.MultiplySigned832(n, Signed192.Raw(segment.End[axis])));
-                bool represented = Fixed64.TryGetSignedRawRatio(coordinate, d, 0, out Fixed64 component);
-                System.Diagnostics.Debug.Assert(represented); point[axis] = component;
-            }
-            return point;
+            Signed832 coordinate = WideArithmetic.AddSigned832(
+                WideArithmetic.MultiplySigned832(remaining, Signed192.Raw(segment.Start[axis])),
+                WideArithmetic.MultiplySigned832(n, Signed192.Raw(segment.End[axis])));
+            bool represented = Fixed64.TryGetSignedRawRatio(coordinate, d, 0, out Fixed64 component);
+            System.Diagnostics.Debug.Assert(represented); point[axis] = component;
         }
+        return point;
     }
 
     private static Signed576 GetProjectedCoreDot(

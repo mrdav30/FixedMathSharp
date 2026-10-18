@@ -9,6 +9,18 @@ using System;
 
 namespace FixedMathSharp.Geometry;
 
+/// <summary>Admits a signed exact projection exit before depth ranking.</summary>
+internal delegate bool PointSpanPenetrationAdmission(in WidePointSpanPenetration candidate);
+
+/// <summary>Exact finite feature restrictions in the original hull vertex and edge identities.</summary>
+internal interface IConvexHullContactDomain
+{
+    /// <summary>Closed retained intervals; empty rejects the edge and a default interval retains its full extent.</summary>
+    ReadOnlySpan<RationalSegmentInterval> GetEdgeIntervals(bool first, int start, int end, in WideAxis3 normal);
+    /// <summary>Applies all domain restrictions to an exact unit parameter, including edge ends and vertex fans.</summary>
+    bool ContainsPoint(bool first, int start, int end, in Signed832 numerator, in Signed832 denominator, in WideAxis3 normal);
+}
+
 /// <content>
 /// Provides high-precision convex hull containment and separating-axis
 /// tests for oriented boxes against arbitrary convex hulls.
@@ -170,6 +182,7 @@ internal static partial class WideOrientedBox
         return true;
     }
 
+    // planarPair requires two convex planar vertex sets with their real boundary edges.
     internal static bool TryGetConvexHullPenetration(
         Vector3d firstOrigin,
         FixedQuaternion firstRotation,
@@ -181,14 +194,15 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<Vector3d> secondLocalPoints,
         ReadOnlySpan<int> secondTriangleVertexIndices,
         ReadOnlySpan<int> secondEdgeVertexPairs,
-        out WidePointSpanPenetration best, bool skipParallelDirections = false)
+        out WidePointSpanPenetration best, bool skipParallelDirections = false,
+        PointSpanPenetrationAdmission? admission = null, bool planarPair = false)
     {
         WideRationalBasis3d firstBasis = new(firstRotation);
         WideRationalBasis3d secondBasis = new(secondRotation);
         return TryGetConvexHullPenetration(
             firstOrigin, firstBasis, firstLocalPoints, firstTriangleVertexIndices, firstEdgeVertexPairs,
             secondOrigin, secondBasis, secondLocalPoints, secondTriangleVertexIndices, secondEdgeVertexPairs,
-            out best, skipParallelDirections);
+            out best, skipParallelDirections, admission, planarPair);
     }
 
     private static bool TryGetConvexHullPenetration(
@@ -196,9 +210,11 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<Vector3d> firstLocalPoints, ReadOnlySpan<int> firstTriangleVertexIndices, ReadOnlySpan<int> firstEdgeVertexPairs,
         Vector3d secondOrigin, in WideRationalBasis3d secondBasis,
         ReadOnlySpan<Vector3d> secondLocalPoints, ReadOnlySpan<int> secondTriangleVertexIndices, ReadOnlySpan<int> secondEdgeVertexPairs,
-        out WidePointSpanPenetration best, bool skipParallelDirections)
+        out WidePointSpanPenetration best, bool skipParallelDirections,
+        PointSpanPenetrationAdmission? admission = null, bool planarPair = false)
     {
         best = default;
+        bool hasAxis = false;
 
         if (!TryKeepHullFaceAxes(
                 firstLocalPoints,
@@ -210,7 +226,7 @@ internal static partial class WideOrientedBox
                 secondOrigin,
                 secondBasis,
                 secondLocalPoints,
-                ref best, skipParallelDirections)
+                ref best, skipParallelDirections, ref hasAxis, admission)
             || !TryKeepHullFaceAxes(
                 secondLocalPoints,
                 secondTriangleVertexIndices,
@@ -221,10 +237,41 @@ internal static partial class WideOrientedBox
                 secondOrigin,
                 secondBasis,
                 secondLocalPoints,
-                ref best, skipParallelDirections))
+                ref best, skipParallelDirections, ref hasAxis, admission))
         {
             best = default;
             return false;
+        }
+
+        if (planarPair)
+        {
+            // Two finite planar polygons also need their own in-plane edge
+            // normals. Face normals and cross-edge axes alone cannot separate
+            // disjoint coplanar polygons. Keep the cross in the local chart:
+            // raw differences <65 bits, normal <132, cross <198 and transformed
+            // components <264; crossing transformed normals could exceed 320.
+            for (int side = 0; side < 2; side++)
+            {
+                ReadOnlySpan<Vector3d> points = side == 0 ? firstLocalPoints : secondLocalPoints;
+                ReadOnlySpan<int> triangles = side == 0 ? firstTriangleVertexIndices : secondTriangleVertexIndices;
+                ReadOnlySpan<int> edges = side == 0 ? firstEdgeVertexPairs : secondEdgeVertexPairs;
+                ref readonly WideRationalBasis3d basis = ref (side == 0 ? ref firstBasis : ref secondBasis);
+                WideAxis3 normal = default;
+                for (int triangle = 0; triangle < triangles.Length && normal.IsZero; triangle += 3)
+                    normal = GetLocalHullFaceAxis(points, triangles, triangle);
+                for (int edge = 0; edge < edges.Length; edge += 2)
+                {
+                    if (skipParallelDirections && !IsFirstHullEdgeDirection(points, edges, edge)) continue;
+                    Vector3d start = points[edges[edge]], end = points[edges[edge + 1]];
+                    WideAxis3 axis = WideRigidProjection.TransformLocalNormalCrossEdge(basis,
+                        Signed192.NarrowProven(normal.X), Signed192.NarrowProven(normal.Y), Signed192.NarrowProven(normal.Z),
+                        WideArithmetic.Difference(end.X, start.X), WideArithmetic.Difference(end.Y, start.Y),
+                        WideArithmetic.Difference(end.Z, start.Z));
+                    if (!TryKeepHullPairAxis(axis, firstOrigin, firstBasis, firstLocalPoints,
+                            secondOrigin, secondBasis, secondLocalPoints, ref best, ref hasAxis, admission))
+                    { best = default; return false; }
+                }
+            }
         }
 
         for (int firstIndex = 0;
@@ -240,6 +287,7 @@ internal static partial class WideOrientedBox
                 secondIndex < secondEdgeVertexPairs.Length;
                 secondIndex += 2)
             {
+                if (skipParallelDirections && !IsFirstHullEdgeDirection(secondLocalPoints, secondEdgeVertexPairs, secondIndex)) continue;
                 WideAxis3 secondEdge = GetHullEdge(
                     secondBasis,
                     secondLocalPoints[secondEdgeVertexPairs[secondIndex]],
@@ -252,7 +300,7 @@ internal static partial class WideOrientedBox
                         secondOrigin,
                         secondBasis,
                         secondLocalPoints,
-                        ref best))
+                        ref best, ref hasAxis, admission))
                 {
                     best = default;
                     return false;
@@ -260,7 +308,9 @@ internal static partial class WideOrientedBox
             }
         }
 
-        return best.HasValue;
+        // Admission restricts response witnesses, never the geometric SAT
+        // overlap result. Its caller can retain overlap without a response.
+        return admission == null ? best.HasValue : hasAxis;
     }
 
     internal static int VisitConvexHullContacts<TState>(
@@ -268,13 +318,15 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<Vector3d> firstLocalPoints, ReadOnlySpan<int> firstTriangleVertexIndices, ReadOnlySpan<int> firstEdgeVertexPairs,
         Vector3d secondOrigin, FixedQuaternion secondRotation,
         ReadOnlySpan<Vector3d> secondLocalPoints, ReadOnlySpan<int> secondTriangleVertexIndices, ReadOnlySpan<int> secondEdgeVertexPairs,
-        in WidePointSpanPenetration penetration, TState state, Action<TState, FixedContactAnchors> visitor)
+        in WidePointSpanPenetration penetration, TState state, Action<TState, FixedContactAnchors> visitor,
+        IConvexHullContactDomain? domain = null, bool admissionOnly = false)
     {
         System.Diagnostics.Debug.Assert(penetration.HasValue);
         WideAxis3 axis = penetration.Negate ? -penetration.Axis : penetration.Axis;
-        Vector3d normal = WideNormalization.GetNormalized(Signed576.ExtendValue(axis.X),
+        Vector3d normal = admissionOnly ? default : WideNormalization.GetNormalized(Signed576.ExtendValue(axis.X),
             Signed576.ExtendValue(axis.Y), Signed576.ExtendValue(axis.Z));
-        Fixed64 depth = penetration.GetRoundedDepth(out bool clamped);
+        bool clamped = false;
+        Fixed64 depth = admissionOnly ? default : penetration.GetRoundedDepth(out clamped);
         WideRationalBasis3d firstBasis = new(firstRotation), secondBasis = new(secondRotation);
         int count = 0;
         for (int side = 0; side < 2; side++)
@@ -302,8 +354,9 @@ internal static partial class WideOrientedBox
                 GetHullSupportLocalPoint(targetBasis, targetPoints, axis, maximize: reverse),
                 targetX, targetY, targetZ);
             int supportVertices = 0, admittedVertices = 0;
-            foreach (Vector3d vertex in sourcePoints)
+            for (int vertexIndex = 0; vertexIndex < sourcePoints.Length; vertexIndex++)
             {
+                Vector3d vertex = sourcePoints[vertexIndex];
                 if (!IsSupport(vertex, sourceX, sourceY, sourceZ, sourceSupport)) continue;
                 supportVertices++;
                 var source = new FixedPointAnchor(sourceOrigin, sourceRotation, vertex);
@@ -317,6 +370,11 @@ internal static partial class WideOrientedBox
                         || !IsSupport(c, targetX, targetY, targetZ, targetSupport)) continue;
                     var face = new FixedTriangle(a, b, c);
                     if (!WideTriangleRelations.ContainsProjection(face, targetOrigin, targetRotation, source)) continue;
+                    // The domain does not depend on which target triangle
+                    // admits the vertex. Reject it once, after finite geometry.
+                    if (domain != null && !domain.ContainsPoint(!reverse, vertexIndex, vertexIndex,
+                        default, Signed832.ExtendValue(Signed192.Signed(1)), axis)) break;
+                    if (admissionOnly) return 1;
                     FixedPointAnchor target = WideTriangleRelations.GetClosestPointAnchor(
                         face, targetOrigin, targetRotation, source, preserveExactFace: true);
                     visitor(state, reverse
@@ -336,6 +394,9 @@ internal static partial class WideOrientedBox
                     || !IsSupport(end, sourceX, sourceY, sourceZ, sourceSupport)) continue;
                 var first = new FixedPointAnchor(sourceOrigin, sourceRotation, start);
                 var second = new FixedPointAnchor(sourceOrigin, sourceRotation, end);
+                ReadOnlySpan<RationalSegmentInterval> intervals = domain == null ? default
+                    : domain.GetEdgeIntervals(!reverse, sourceEdges[edge], sourceEdges[edge + 1], axis);
+                if (domain != null && intervals.IsEmpty) continue;
                 for (int triangle = 0; triangle < targetTriangles.Length; triangle += 3)
                 {
                     int ia = targetTriangles[triangle], ib = targetTriangles[triangle + 1], ic = targetTriangles[triangle + 2];
@@ -348,17 +409,27 @@ internal static partial class WideOrientedBox
                             out Signed832 lowerN, out Signed832 lowerD, out Signed832 upperN, out Signed832 upperD)) continue;
                     int mask = (HasEdge(ib, ic, targetEdges) ? 1 : 0)
                         | (HasEdge(ic, ia, targetEdges) ? 2 : 0) | (HasEdge(ia, ib, targetEdges) ? 4 : 0);
-                    for (int endpoint = 0; endpoint < 2; endpoint++)
+                    for (int interval = 0; interval < (domain == null ? 1 : intervals.Length); interval++)
                     {
-                        Signed832 n = endpoint == 0 ? lowerN : upperN, d = endpoint == 0 ? lowerD : upperD;
-                        if (n.Sign == 0 || WideArithmetic.SubtractSigned832(d, n).IsZero) continue;
-                        if (!WideTriangleRelations.TryGetProjectedSegmentFaceAnchors(face, targetOrigin, targetRotation,
-                                first, second, n, d,
-                                mask, out FixedPointAnchor source, out FixedPointAnchor target)) continue;
-                        visitor(state, reverse
-                            ? new FixedContactAnchors(target, source, normal, depth, clamped)
-                            : new FixedContactAnchors(source, target, normal, depth, clamped));
-                        count++;
+                        RationalSegmentInterval clip = domain == null ? default : intervals[interval];
+                        Signed832 ln = lowerN, ld = lowerD, un = upperN, ud = upperD;
+                        if (!Intersect(clip, ref ln, ref ld, ref un, ref ud)) continue;
+                        for (int endpoint = 0; endpoint < 2; endpoint++)
+                        {
+                            Signed832 n = endpoint == 0 ? ln : un, d = endpoint == 0 ? ld : ud;
+                            if (n.Sign == 0 || WideArithmetic.SubtractSigned832(d, n).IsZero
+                                || domain != null && !domain.ContainsPoint(!reverse, sourceEdges[edge], sourceEdges[edge + 1], n, d, axis)) continue;
+                            bool clipEnd = clip.IsClipped && (Equal(n, d, clip.LowerNumerator, clip.LowerDenominator)
+                                || Equal(n, d, clip.UpperNumerator, clip.UpperDenominator));
+                            if (!WideTriangleRelations.TryGetProjectedSegmentFaceAnchors(face, targetOrigin, targetRotation,
+                                    first, second, n, d, mask, out FixedPointAnchor source, out FixedPointAnchor target,
+                                    requirePhysicalTargetBoundary: !clipEnd, materialize: !admissionOnly)) continue;
+                            if (admissionOnly) return 1;
+                            visitor(state, reverse
+                                ? new FixedContactAnchors(target, source, normal, depth, clamped)
+                                : new FixedContactAnchors(source, target, normal, depth, clamped));
+                            count++;
+                        }
                     }
                 }
             }
@@ -380,9 +451,15 @@ internal static partial class WideOrientedBox
             {
                 Vector3d c = secondLocalPoints[secondEdgeVertexPairs[secondEdge]], d = secondLocalPoints[secondEdgeVertexPairs[secondEdge + 1]];
                 if (!IsSupport(c, secondX, secondY, secondZ, secondSupport) || !IsSupport(d, secondX, secondY, secondZ, secondSupport)) continue;
-                if (!WideTriangleRelations.TryGetClosestNonparallelSegmentAnchors(
-                        firstOrigin, firstRotation, new FixedSegment(a, b), secondOrigin, secondRotation, new FixedSegment(c, d),
-                        out FixedPointAnchor firstAnchor, out FixedPointAnchor secondAnchor)) continue;
+                var firstSegment = new FixedSegment(a, b); var secondSegment = new FixedSegment(c, d);
+                if (!WideTriangleRelations.TryGetClosestNonparallelSegmentParameters(
+                        firstOrigin, firstRotation, firstSegment, secondOrigin, secondRotation, secondSegment,
+                        out Signed832 firstN, out Signed832 firstD, out Signed832 secondN, out Signed832 secondD)) continue;
+                if (domain != null && (!domain.ContainsPoint(true, firstEdgeVertexPairs[firstEdge], firstEdgeVertexPairs[firstEdge + 1], firstN, firstD, axis)
+                    || !domain.ContainsPoint(false, secondEdgeVertexPairs[secondEdge], secondEdgeVertexPairs[secondEdge + 1], secondN, secondD, axis))) continue;
+                if (admissionOnly) return 1;
+                FixedPointAnchor firstAnchor = new(firstOrigin, firstRotation, WideTriangleRelations.MaterializeSegmentPoint(firstSegment, firstN, firstD));
+                FixedPointAnchor secondAnchor = new(secondOrigin, secondRotation, WideTriangleRelations.MaterializeSegmentPoint(secondSegment, secondN, secondD));
                 visitor(state, new FixedContactAnchors(firstAnchor, secondAnchor, normal, depth, clamped));
                 return 1;
             }
@@ -399,6 +476,23 @@ internal static partial class WideOrientedBox
                     || edges[index] == second && edges[index + 1] == first) return true;
             return false;
         }
+
+        static bool Equal(Signed832 n, Signed832 d, Signed320 otherN, Signed320 otherD) =>
+            WideArithmetic.CompareNonNegativeProducts(n, Signed832.ExtendValue(Signed576.ExtendValue(otherD)),
+                Signed832.ExtendValue(Signed576.ExtendValue(otherN)), d) == 0;
+
+        static bool Intersect(in RationalSegmentInterval clip, ref Signed832 ln, ref Signed832 ld,
+            ref Signed832 un, ref Signed832 ud)
+        {
+            if (!clip.IsClipped) return true;
+            Signed832 n = Signed832.ExtendValue(Signed576.ExtendValue(clip.LowerNumerator)),
+                d = Signed832.ExtendValue(Signed576.ExtendValue(clip.LowerDenominator));
+            if (WideArithmetic.CompareNonNegativeProducts(n, ld, ln, d) > 0) { ln = n; ld = d; }
+            n = Signed832.ExtendValue(Signed576.ExtendValue(clip.UpperNumerator));
+            d = Signed832.ExtendValue(Signed576.ExtendValue(clip.UpperDenominator));
+            if (WideArithmetic.CompareNonNegativeProducts(n, ud, un, d) < 0) { un = n; ud = d; }
+            return WideArithmetic.CompareNonNegativeProducts(ln, ud, un, ld) <= 0;
+        }
     }
 
     private static bool TryKeepHullFaceAxes(
@@ -411,7 +505,7 @@ internal static partial class WideOrientedBox
         Vector3d secondOrigin,
         in WideRationalBasis3d secondBasis,
         ReadOnlySpan<Vector3d> secondPoints,
-        ref WidePointSpanPenetration best, bool skipParallelDirections)
+        ref WidePointSpanPenetration best, bool skipParallelDirections, ref bool hasAxis, PointSpanPenetrationAdmission? admission)
     {
         for (int index = 0; index < axisSourceTriangles.Length; index += 3)
         {
@@ -436,7 +530,7 @@ internal static partial class WideOrientedBox
                     secondOrigin,
                     secondBasis,
                     secondPoints,
-                    ref best))
+                    ref best, ref hasAxis, admission))
             {
                 return false;
             }
@@ -479,10 +573,11 @@ internal static partial class WideOrientedBox
         Vector3d secondOrigin,
         in WideRationalBasis3d secondBasis,
         ReadOnlySpan<Vector3d> secondPoints,
-        ref WidePointSpanPenetration best)
+        ref WidePointSpanPenetration best, ref bool hasAxis, PointSpanPenetrationAdmission? admission)
     {
         if (axis.IsZero)
             return true;
+        hasAxis = true;
 
         GetHullProjectionInterval(
             firstPoints,
@@ -538,12 +633,23 @@ internal static partial class WideOrientedBox
             squaredAxisLength,
             commonDenominator))
         {
-            best = new WidePointSpanPenetration(
+            var candidate = new WidePointSpanPenetration(
                 axis,
                 negate,
                 overlap,
                 squaredAxisLength,
                 commonDenominator);
+            if (admission == null || admission(candidate)) best = candidate;
+        }
+
+        if (admission != null)
+        {
+            overlap = negate ? pushFirstNegative : pushFirstPositive;
+            if (best.ShouldReplace(overlap, squaredAxisLength, commonDenominator))
+            {
+                var candidate = new WidePointSpanPenetration(axis, !negate, overlap, squaredAxisLength, commonDenominator);
+                if (admission(candidate)) best = candidate;
+            }
         }
 
         return true;

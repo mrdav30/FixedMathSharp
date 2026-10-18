@@ -44,6 +44,16 @@ internal readonly struct WideAxis3
                 WideArithmetic.MultiplySigned320(left.X, right.Y),
                 WideArithmetic.MultiplySigned320(left.Y, right.X))));
 
+    // Equality needs the complete cross products, even when the resulting
+    // direction would not fit this owner's Signed320 component storage.
+    internal static bool AreParallel(in WideAxis3 left, in WideAxis3 right) =>
+        WideArithmetic.SubtractSigned704(WideArithmetic.MultiplySigned576ToSigned704(Signed576.ExtendValue(left.Y), right.Z),
+            WideArithmetic.MultiplySigned576ToSigned704(Signed576.ExtendValue(left.Z), right.Y)).IsZero
+        && WideArithmetic.SubtractSigned704(WideArithmetic.MultiplySigned576ToSigned704(Signed576.ExtendValue(left.Z), right.X),
+            WideArithmetic.MultiplySigned576ToSigned704(Signed576.ExtendValue(left.X), right.Z)).IsZero
+        && WideArithmetic.SubtractSigned704(WideArithmetic.MultiplySigned576ToSigned704(Signed576.ExtendValue(left.X), right.Y),
+            WideArithmetic.MultiplySigned576ToSigned704(Signed576.ExtendValue(left.Y), right.X)).IsZero;
+
     internal static Signed576 Dot(in WideAxis3 left, in WideAxis3 right) =>
         WideArithmetic.AddSigned576(
             WideArithmetic.AddSigned576(

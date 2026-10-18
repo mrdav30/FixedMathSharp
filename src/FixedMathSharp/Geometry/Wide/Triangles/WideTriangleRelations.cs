@@ -22,152 +22,12 @@ internal static partial class WideTriangleRelations
         FixedQuaternion secondRotation,
         out FixedContactAnchors contact)
     {
-        first.GetExactNormal(
-            out Signed192 firstNormalX,
-            out Signed192 firstNormalY,
-            out Signed192 firstNormalZ,
-            out Signed320 firstNormalSquared);
-        second.GetExactNormal(
-            out Signed192 secondNormalX,
-            out Signed192 secondNormalY,
-            out Signed192 secondNormalZ,
-            out Signed320 secondNormalSquared);
-        if (firstNormalSquared.IsZero || secondNormalSquared.IsZero)
+        if (!TryGetPenetration(first, firstOrigin, firstRotation, second, secondOrigin, secondRotation,
+            out WidePointSpanPenetration best))
         {
             contact = default;
             return false;
         }
-
-        WideRationalBasis3d firstBasis = new(firstRotation);
-        WideRationalBasis3d secondBasis = new(secondRotation);
-        WideAxis3 firstNormal = WideRigidProjection.TransformLocalAxis(
-            firstBasis,
-            firstNormalX,
-            firstNormalY,
-            firstNormalZ);
-        WideAxis3 secondNormal = WideRigidProjection.TransformLocalAxis(
-            secondBasis,
-            secondNormalX,
-            secondNormalY,
-            secondNormalZ);
-        var best = default(WidePointSpanPenetration);
-        if (!TryKeepPairAxis(
-                firstNormal,
-                first,
-                firstOrigin,
-                firstBasis,
-                second,
-                secondOrigin,
-                secondBasis,
-                ref best)
-            || !TryKeepPairAxis(
-                secondNormal,
-                first,
-                firstOrigin,
-                firstBasis,
-                second,
-                secondOrigin,
-                secondBasis,
-                ref best))
-        {
-            contact = default;
-            return false;
-        }
-
-        for (int firstEdgeIndex = 0;
-            firstEdgeIndex < FixedTriangle.EdgeCount;
-            firstEdgeIndex++)
-        {
-            GetLocalEdge(
-                first,
-                firstEdgeIndex,
-                out Signed192 firstEdgeX,
-                out Signed192 firstEdgeY,
-                out Signed192 firstEdgeZ);
-            WideAxis3 firstEdge = WideRigidProjection.TransformLocalAxis(
-                firstBasis,
-                firstEdgeX,
-                firstEdgeY,
-                firstEdgeZ);
-            if (!TryKeepPairAxis(
-                    TransformLocalNormalCrossEdge(
-                        firstBasis,
-                        firstNormalX,
-                        firstNormalY,
-                        firstNormalZ,
-                        firstEdgeX,
-                        firstEdgeY,
-                        firstEdgeZ),
-                    first,
-                    firstOrigin,
-                    firstBasis,
-                    second,
-                    secondOrigin,
-                    secondBasis,
-                    ref best))
-            {
-                contact = default;
-                return false;
-            }
-
-            GetLocalEdge(
-                second,
-                firstEdgeIndex,
-                out Signed192 secondOwnEdgeX,
-                out Signed192 secondOwnEdgeY,
-                out Signed192 secondOwnEdgeZ);
-            if (!TryKeepPairAxis(
-                    TransformLocalNormalCrossEdge(
-                        secondBasis,
-                        secondNormalX,
-                        secondNormalY,
-                        secondNormalZ,
-                        secondOwnEdgeX,
-                        secondOwnEdgeY,
-                        secondOwnEdgeZ),
-                    first,
-                    firstOrigin,
-                    firstBasis,
-                    second,
-                    secondOrigin,
-                    secondBasis,
-                    ref best))
-            {
-                contact = default;
-                return false;
-            }
-
-            for (int secondEdgeIndex = 0;
-                secondEdgeIndex < FixedTriangle.EdgeCount;
-                secondEdgeIndex++)
-            {
-                GetLocalEdge(
-                    second,
-                    secondEdgeIndex,
-                    out Signed192 secondEdgeX,
-                    out Signed192 secondEdgeY,
-                    out Signed192 secondEdgeZ);
-                WideAxis3 secondEdge = WideRigidProjection.TransformLocalAxis(
-                    secondBasis,
-                    secondEdgeX,
-                    secondEdgeY,
-                    secondEdgeZ);
-                if (!TryKeepPairAxis(
-                        WideAxis3.Cross(firstEdge, secondEdge),
-                        first,
-                        firstOrigin,
-                        firstBasis,
-                        second,
-                        secondOrigin,
-                        secondBasis,
-                        ref best))
-                {
-                    contact = default;
-                    return false;
-                }
-            }
-        }
-
         WideAxis3 orientedAxis = best.Negate ? -best.Axis : best.Axis;
         Vector3d normal = WideNormalization.GetNormalized(
             Signed576.ExtendValue(orientedAxis.X),
@@ -197,6 +57,160 @@ internal static partial class WideTriangleRelations
         return true;
     }
 
+    /// <summary>Returns geometric overlap independently of whether the signed response filter admits a candidate.</summary>
+    internal static bool TryGetPenetration(
+        FixedTriangle first,
+        Vector3d firstOrigin,
+        FixedQuaternion firstRotation,
+        FixedTriangle second,
+        Vector3d secondOrigin,
+        FixedQuaternion secondRotation,
+        out WidePointSpanPenetration best, PointSpanPenetrationAdmission? admission = null)
+    {
+        best = default;
+        first.GetExactNormal(
+            out Signed192 firstNormalX,
+            out Signed192 firstNormalY,
+            out Signed192 firstNormalZ,
+            out Signed320 firstNormalSquared);
+        second.GetExactNormal(
+            out Signed192 secondNormalX,
+            out Signed192 secondNormalY,
+            out Signed192 secondNormalZ,
+            out Signed320 secondNormalSquared);
+        if (firstNormalSquared.IsZero || secondNormalSquared.IsZero)
+        {
+            return false;
+        }
+
+        WideRationalBasis3d firstBasis = new(firstRotation);
+        WideRationalBasis3d secondBasis = new(secondRotation);
+        WideAxis3 firstNormal = WideRigidProjection.TransformLocalAxis(
+            firstBasis,
+            firstNormalX,
+            firstNormalY,
+            firstNormalZ);
+        WideAxis3 secondNormal = WideRigidProjection.TransformLocalAxis(
+            secondBasis,
+            secondNormalX,
+            secondNormalY,
+            secondNormalZ);
+        if (!TryKeepPairAxis(
+                firstNormal,
+                first,
+                firstOrigin,
+                firstBasis,
+                second,
+                secondOrigin,
+                secondBasis,
+                ref best, admission)
+            || !TryKeepPairAxis(
+                secondNormal,
+                first,
+                firstOrigin,
+                firstBasis,
+                second,
+                secondOrigin,
+                secondBasis,
+                ref best, admission))
+        {
+            return false;
+        }
+
+        for (int firstEdgeIndex = 0;
+            firstEdgeIndex < FixedTriangle.EdgeCount;
+            firstEdgeIndex++)
+        {
+            GetLocalEdge(
+                first,
+                firstEdgeIndex,
+                out Signed192 firstEdgeX,
+                out Signed192 firstEdgeY,
+                out Signed192 firstEdgeZ);
+            WideAxis3 firstEdge = WideRigidProjection.TransformLocalAxis(
+                firstBasis,
+                firstEdgeX,
+                firstEdgeY,
+                firstEdgeZ);
+            if (!TryKeepPairAxis(
+                    WideRigidProjection.TransformLocalNormalCrossEdge(
+                        firstBasis,
+                        firstNormalX,
+                        firstNormalY,
+                        firstNormalZ,
+                        firstEdgeX,
+                        firstEdgeY,
+                        firstEdgeZ),
+                    first,
+                    firstOrigin,
+                    firstBasis,
+                    second,
+                    secondOrigin,
+                    secondBasis,
+                    ref best, admission))
+            {
+                return false;
+            }
+
+            GetLocalEdge(
+                second,
+                firstEdgeIndex,
+                out Signed192 secondOwnEdgeX,
+                out Signed192 secondOwnEdgeY,
+                out Signed192 secondOwnEdgeZ);
+            if (!TryKeepPairAxis(
+                    WideRigidProjection.TransformLocalNormalCrossEdge(
+                        secondBasis,
+                        secondNormalX,
+                        secondNormalY,
+                        secondNormalZ,
+                        secondOwnEdgeX,
+                        secondOwnEdgeY,
+                        secondOwnEdgeZ),
+                    first,
+                    firstOrigin,
+                    firstBasis,
+                    second,
+                    secondOrigin,
+                    secondBasis,
+                    ref best, admission))
+            {
+                return false;
+            }
+
+            for (int secondEdgeIndex = 0;
+                secondEdgeIndex < FixedTriangle.EdgeCount;
+                secondEdgeIndex++)
+            {
+                GetLocalEdge(
+                    second,
+                    secondEdgeIndex,
+                    out Signed192 secondEdgeX,
+                    out Signed192 secondEdgeY,
+                    out Signed192 secondEdgeZ);
+                WideAxis3 secondEdge = WideRigidProjection.TransformLocalAxis(
+                    secondBasis,
+                    secondEdgeX,
+                    secondEdgeY,
+                    secondEdgeZ);
+                if (!TryKeepPairAxis(
+                        WideAxis3.Cross(firstEdge, secondEdge),
+                        first,
+                        firstOrigin,
+                        firstBasis,
+                        second,
+                        secondOrigin,
+                        secondBasis,
+                        ref best, admission))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     private static bool TryKeepPairAxis(
         in WideAxis3 axis,
         in FixedTriangle first,
@@ -205,7 +219,7 @@ internal static partial class WideTriangleRelations
         in FixedTriangle second,
         Vector3d secondOrigin,
         in WideRationalBasis3d secondBasis,
-        ref WidePointSpanPenetration best)
+        ref WidePointSpanPenetration best, PointSpanPenetrationAdmission? admission)
     {
         if (axis.IsZero)
             return true;
@@ -259,6 +273,16 @@ internal static partial class WideTriangleRelations
             firstBasis.Denominator,
             secondBasis.Denominator);
         Signed576 squaredAxisLength = axis.SquaredLength;
+        if (admission != null)
+        {
+            // Both signed exits retain the original projection intervals.
+            // Filtering a seam response never removes its separating-axis test.
+            var negative = new WidePointSpanPenetration(axis, false, pushNegative, squaredAxisLength, commonDenominator);
+            if (best.ShouldReplace(pushNegative, squaredAxisLength, commonDenominator) && admission(negative)) best = negative;
+            var positive = new WidePointSpanPenetration(axis, true, pushPositive, squaredAxisLength, commonDenominator);
+            if (best.ShouldReplace(pushPositive, squaredAxisLength, commonDenominator) && admission(positive)) best = positive;
+            return true;
+        }
         if (!best.ShouldReplace(
                 overlap,
                 squaredAxisLength,
@@ -334,32 +358,6 @@ internal static partial class WideTriangleRelations
             WideArithmetic.AddSigned576(first, second),
             third);
     }
-
-    private static WideAxis3 TransformLocalNormalCrossEdge(
-        WideRationalBasis3d basis,
-        Signed192 normalX,
-        Signed192 normalY,
-        Signed192 normalZ,
-        Signed192 edgeX,
-        Signed192 edgeY,
-        Signed192 edgeZ) =>
-        WideRigidProjection.TransformLocalTriangleNormalCrossEdgeAxis(
-            basis,
-            WideArithmetic.MultiplySubtract(
-                normalY,
-                edgeZ,
-                normalZ,
-                edgeY),
-            WideArithmetic.MultiplySubtract(
-                normalZ,
-                edgeX,
-                normalX,
-                edgeZ),
-            WideArithmetic.MultiplySubtract(
-                normalX,
-                edgeY,
-                normalY,
-                edgeX));
 
     private static void GetLocalEdge(
         FixedTriangle triangle,

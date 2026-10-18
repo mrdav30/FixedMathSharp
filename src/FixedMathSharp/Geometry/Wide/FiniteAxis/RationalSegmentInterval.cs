@@ -36,6 +36,54 @@ internal readonly struct RationalSegmentInterval
                 WideArithmetic.Difference(edge.End.Y, edge.Start.Y), n, d));
     }
 
+    /// <summary>
+    /// Maps this source interval onto a collinear target segment in the same
+    /// local frame, preserving closed endpoints without coordinate rounding.
+    /// Degenerate, off-line and disjoint segments return false. The endpoint
+    /// half-plane coefficients and their absolute differences must fit Signed320;
+    /// unsupported widths throw rather than truncate an interval.
+    /// </summary>
+    internal bool TryMapToSegment(FixedSegment source, FixedSegment target, out RationalSegmentInterval mapped)
+    {
+        mapped = default;
+        if (source.Start == source.End || target.Start == target.End) return false;
+        Span<Signed192> direction = stackalloc Signed192[3], first = stackalloc Signed192[3], second = stackalloc Signed192[3];
+        int axis = 0;
+        for (int coordinate = 0; coordinate < 3; coordinate++)
+        {
+            direction[coordinate] = WideArithmetic.Difference(source.End[coordinate], source.Start[coordinate]);
+            first[coordinate] = WideArithmetic.Difference(target.Start[coordinate], source.Start[coordinate]);
+            second[coordinate] = WideArithmetic.Difference(target.End[coordinate], source.Start[coordinate]);
+            if (!direction[coordinate].IsZero) axis = coordinate;
+        }
+        for (int coordinate = 0; coordinate < 3; coordinate++)
+            if (!WideArithmetic.MultiplySubtract(direction[axis], first[coordinate], direction[coordinate], first[axis]).IsZero
+                || !WideArithmetic.MultiplySubtract(direction[axis], second[coordinate], direction[coordinate], second[axis]).IsZero)
+                return false;
+
+        Signed320 lowerN = default, lowerD = Signed320.One, upperN = Signed320.One, upperD = Signed320.One;
+        for (int bound = 0; bound < 2; bound++)
+        {
+            Signed320 n = IsClipped ? (bound == 0 ? LowerNumerator : UpperNumerator) : bound == 0 ? default : Signed320.One;
+            Signed320 d = IsClipped ? (bound == 0 ? LowerDenominator : UpperDenominator) : Signed320.One;
+            // A full raw difference and a Signed320 ratio need <386 bits.
+            // Compare in Signed576 before enforcing the clipping bank's width.
+            Signed576 offset = WideArithmetic.MultiplySigned320(n, direction[axis]);
+            Signed576 a = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned320(d, first[axis]), offset);
+            Signed576 b = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned320(d, second[axis]), offset);
+            if ((direction[axis].Sign < 0) != (bound != 0))
+            { a = WideArithmetic.SubtractSigned576(default, a); b = WideArithmetic.SubtractSigned576(default, b); }
+            Signed576 difference = WideArithmetic.SubtractSigned576(a, b);
+            if (difference.Sign < 0) difference = WideArithmetic.SubtractSigned576(default, difference);
+            if (!Signed320.TryNarrowSigned(a, out Signed320 start) || !Signed320.TryNarrowSigned(b, out Signed320 end)
+                || !Signed320.TryNarrowSigned(difference, out _))
+                throw new OverflowException("Mapped segment half-planes must fit Signed320.");
+            if (!TryClipHalfPlane(start, end, ref lowerN, ref lowerD, ref upperN, ref upperD)) return false;
+        }
+        mapped = new RationalSegmentInterval(lowerN, lowerD, upperN, upperD);
+        return true;
+    }
+
     /// <summary>Compares nonnegative unit parameters with positive denominators without narrowing products.</summary>
     internal static int CompareParameters(Signed320 firstN, Signed320 firstD, Signed320 secondN, Signed320 secondD) =>
         WideArithmetic.CompareNonNegativeProducts(Signed832.ExtendValue(Signed576.ExtendValue(firstN)),

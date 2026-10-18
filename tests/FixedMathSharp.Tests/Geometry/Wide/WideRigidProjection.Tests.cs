@@ -12,6 +12,36 @@ namespace FixedMathSharp.Tests.Geometry.Wide;
 
 public sealed class WideRigidProjectionTests
 {
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void FullWidthAxes_ShouldRetainEachNonzeroCrossComponent(int component)
+    {
+        Signed320 large = new(1UL << 44, 0, 0, 0, 0); // 2^300; each nonzero product is 2^600.
+        var first = component == 0 ? new WideAxis3(default, large, default)
+            : component == 1 ? new WideAxis3(default, default, large) : new WideAxis3(large, default, default);
+        var second = component == 0 ? new WideAxis3(default, default, large)
+            : component == 1 ? new WideAxis3(large, default, default) : new WideAxis3(default, large, default);
+        Assert.False(WideAxis3.AreParallel(first, second));
+        Assert.False(WideAxis3.AreParallel(second, first));
+        Assert.False(WideAxis3.AreParallel(-first, second));
+    }
+
+    [Fact]
+    public void FullWidthParallelAndZeroAxes_ShouldRemainExactlyParallel()
+    {
+        Signed320 large = new(1UL << 44, 0, 0, 0, 0), doubled = new(1UL << 45, 0, 0, 0, 0);
+        var first = new WideAxis3(large, large, large);
+        var second = new WideAxis3(doubled, doubled, doubled);
+        Assert.True(WideAxis3.AreParallel(first, second));
+        Assert.True(WideAxis3.AreParallel(second, first));
+        Assert.True(WideAxis3.AreParallel(first, -second));
+        Assert.True(WideAxis3.AreParallel(default, first));
+        Assert.True(WideAxis3.AreParallel(first, default));
+        Assert.True(WideAxis3.AreParallel(default, default));
+    }
+
     [Fact]
     public void PreparedLocalAxis_MatchesRotatedPointProjection()
     {

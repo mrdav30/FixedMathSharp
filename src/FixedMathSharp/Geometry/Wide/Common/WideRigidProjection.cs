@@ -50,6 +50,16 @@ internal static class WideRigidProjection
                 localX, localY, localZ,
                 basis.Xz, basis.Yz, basis.Zz));
 
+    /// <summary>Transforms a raw finite face normal crossed with a raw finite edge, preserving its exact local construction.</summary>
+    internal static WideAxis3 TransformLocalNormalCrossEdge(
+        in WideRationalBasis3d basis,
+        Signed192 normalX, Signed192 normalY, Signed192 normalZ,
+        Signed192 edgeX, Signed192 edgeY, Signed192 edgeZ) =>
+        TransformLocalTriangleNormalCrossEdgeAxis(basis,
+            WideArithmetic.MultiplySubtract(normalY, edgeZ, normalZ, edgeY),
+            WideArithmetic.MultiplySubtract(normalZ, edgeX, normalX, edgeZ),
+            WideArithmetic.MultiplySubtract(normalX, edgeY, normalY, edgeX));
+
     internal static void GetLocalAxisProjections(
         in WideAxis3 axis,
         in WideRationalBasis3d basis,
