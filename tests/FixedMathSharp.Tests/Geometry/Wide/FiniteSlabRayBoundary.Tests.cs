@@ -426,15 +426,21 @@ public sealed class FiniteSlabRayBoundaryTests
     }
 
     [Theory]
-    [InlineData(0, -1, 5)]
-    [InlineData(0, 1, 5)]
-    [InlineData(1, -1, 7)]
-    [InlineData(1, 1, 7)]
-    [InlineData(2, -1, 4)]
-    [InlineData(2, 1, 4)]
-    [InlineData(3, -1, 1)]
-    [InlineData(3, 1, 1)]
-    public void HorizontalPlaneRetainsTheFullPhysicalCapFootprint(int shape, int orientation, int expectedPoints)
+    [InlineData(0, -1, 5, true)]
+    [InlineData(0, 1, 5, true)]
+    [InlineData(1, -1, 7, true)]
+    [InlineData(1, 1, 7, true)]
+    [InlineData(2, -1, 4, true)]
+    [InlineData(2, 1, 4, true)]
+    [InlineData(3, -1, 1, true)]
+    [InlineData(3, 1, 1, true)]
+    [InlineData(0, -1, 4, false)]
+    [InlineData(0, 1, 4, false)]
+    [InlineData(1, -1, 6, false)]
+    [InlineData(1, 1, 6, false)]
+    [InlineData(2, 1, 4, false)]
+    [InlineData(3, 1, 1, false)]
+    public void HorizontalPlaneRetainsTheFullPhysicalCapFootprint(int shape, int orientation, int expectedPoints, bool includeInteriorSample)
     {
         FixedTriangle plane = new(new Vector3d(-5, 0, -5), new Vector3d(5, 0, -5), new Vector3d(0, 0, 5));
         Vector2d[] offsets = shape == 2
@@ -457,7 +463,7 @@ public sealed class FiniteSlabRayBoundaryTests
         Span<ulong> values = stackalloc ulong[FiniteSlabRaySelection.StorageWords];
         Span<sbyte> signs = stackalloc sbyte[FiniteSlabRaySelection.SignCount];
         FiniteSlabRaySelection maximum = new(values, signs);
-        FiniteSlabRayExtrema.AccumulatePlane(frame, offsets, orientation, ref maximum, Visit);
+        FiniteSlabRayExtrema.AccumulatePlane(frame, offsets, orientation, ref maximum, Visit, includeInteriorSample);
         Assert.Equal(expectedPoints, points.Count);
     }
 

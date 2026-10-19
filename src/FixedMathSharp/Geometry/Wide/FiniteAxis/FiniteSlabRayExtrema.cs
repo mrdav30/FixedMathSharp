@@ -345,11 +345,14 @@ internal static class FiniteSlabRayExtrema
     /// inequalities. Hosts must independently certify its retained source
     /// projected clearance footprint is covered before using this in a finite
     /// mesh domain. Original-section coverage suffices only for axial rays.
+    /// Axial consumers with representable boundary poles may omit the redundant
+    /// interior sample; otherwise it remains a potentially sole representable witness.
     /// </summary>
     internal static void AccumulatePlane(in FiniteSlabRayFrame frame,
         ReadOnlySpan<Vector2d> prismOffsets, int orientation, ref FiniteSlabRaySelection maximum,
-        FiniteSlabRayCandidateVisitor? visitor = null) =>
-        AccumulateDomain(frame, frame.SourcePlane, prismOffsets, orientation, false, false, ref maximum, visitor);
+        FiniteSlabRayCandidateVisitor? visitor = null, bool includeInteriorSample = true) =>
+        AccumulateDomain(frame, frame.SourcePlane, prismOffsets, orientation, false, false, ref maximum, visitor,
+            ReadOnlySpan<RationalSegmentInterval>.Empty, includeInteriorSample);
 
     private static void AccumulateDomain(in FiniteSlabRayFrame frame, FixedTriangle triangle,
         ReadOnlySpan<Vector2d> prismOffsets, int orientation, bool finiteDomain, bool physicalSupportOnly,
@@ -359,7 +362,8 @@ internal static class FiniteSlabRayExtrema
 
     private static void AccumulateDomain(in FiniteSlabRayFrame frame, FixedTriangle triangle,
         ReadOnlySpan<Vector2d> prismOffsets, int orientation, bool finiteDomain, bool physicalSupportOnly,
-        ref FiniteSlabRaySelection maximum, FiniteSlabRayCandidateVisitor? visitor, scoped ReadOnlySpan<RationalSegmentInterval> clips)
+        ref FiniteSlabRaySelection maximum, FiniteSlabRayCandidateVisitor? visitor, scoped ReadOnlySpan<RationalSegmentInterval> clips,
+        bool includeInteriorSample = true)
     {
         if (orientation != -1 && orientation != 1) throw new ArgumentOutOfRangeException(nameof(orientation));
         if (frame.Plane.NormalSquared.IsZero) return;
@@ -370,7 +374,7 @@ internal static class FiniteSlabRayExtrema
         bool axial = n.X.IsZero && n.Z.IsZero;
         if (!finiteDomain && axial)
         {
-            AccumulateHorizontalPlane(frame, triangle, prismOffsets, orientation, a, e, f, n, ref maximum, visitor);
+            AccumulateHorizontalPlane(frame, triangle, prismOffsets, orientation, a, e, f, n, ref maximum, visitor, includeInteriorSample);
             return;
         }
         int pieces = prismOffsets.IsEmpty && frame.HasCore ? 3 : 1;
@@ -569,7 +573,7 @@ internal static class FiniteSlabRayExtrema
 
     private static void AccumulateHorizontalPlane(in FiniteSlabRayFrame frame, FixedTriangle triangle,
         ReadOnlySpan<Vector2d> offsets, int orientation, WideAxis3 a, WideAxis3 e, WideAxis3 f, WideDirection3d n,
-        ref FiniteSlabRaySelection maximum, FiniteSlabRayCandidateVisitor? visitor)
+        ref FiniteSlabRaySelection maximum, FiniteSlabRayCandidateVisitor? visitor, bool includeInteriorSample)
     {
         // The intrinsic horizontal section is the complete footprint at one
         // Y coordinate. Every point has the same rational clearance depth;
@@ -584,7 +588,7 @@ internal static class FiniteSlabRayExtrema
         Problem problem = new(lines, ReadOnlySpan<Radial>.Empty, triangle, orientation, visitor,
             shape, frame.Section.Cap, frame.CoreCap, frame.HasCore,
             !offsets.IsEmpty, 1, activeFirst: capIndex, domainLineCount: 0, fieldWords: frame.FieldWords);
-        int samples = !offsets.IsEmpty ? offsets.Length : frame.HasCore ? 7 : 5;
+        int samples = !offsets.IsEmpty ? offsets.Length : (frame.HasCore ? 6 : 4) + (includeInteriorSample ? 1 : 0);
         Signed320 scale = WideArithmetic.AddSigned320(frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator,
             frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator);
         for (int index = 0; index < samples; index++)
