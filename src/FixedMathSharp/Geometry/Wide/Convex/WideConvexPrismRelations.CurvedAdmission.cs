@@ -11,6 +11,16 @@ namespace FixedMathSharp.Geometry;
 /// <content>Owns complete closed cylinder/cone admission against the finite prism boundary.</content>
 internal static partial class WideConvexPrismRelations
 {
+    internal static bool IntersectsCurvedPrism(bool cone, Vector3d center, FixedQuaternion rotation,
+        Vector3d localAxis, Fixed64 length, Fixed64 radius, Vector3d origin, Fixed64 yaw,
+        ReadOnlySpan<Vector2d> offsets, Fixed64 halfThickness)
+    {
+        WideOrientedBox.GetRotatedLocalAxisNumerators(rotation, localAxis,
+            out Signed192 x, out Signed192 y, out Signed192 z, out Signed192 denominator);
+        return IntersectsCurvedPrism(cone ? FiniteShapeKind.Cone : FiniteShapeKind.Cylinder,
+            center, new RigidAxis3(x, y, z, denominator), length, radius, origin, yaw, offsets, halfThickness);
+    }
+
     private static bool IntersectsCurvedPrism(FiniteShapeKind kind, Vector3d center,
         RigidAxis3 axis, Fixed64 length, Fixed64 radius, Vector3d origin, Fixed64 yaw,
         ReadOnlySpan<Vector2d> offsets, Fixed64 halfThickness)

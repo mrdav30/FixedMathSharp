@@ -126,6 +126,7 @@ internal static partial class WideArithmetic
     /// </summary>
     internal static Signed832 MultiplySigned576ToSigned832(Signed576 left, Signed576 right)
     {
+        if (left.IsZero || right.IsZero) return default;
         Span<ulong> leftMagnitude = stackalloc ulong[9];
         Span<ulong> rightMagnitude = stackalloc ulong[9];
         GetMagnitude(left, leftMagnitude);
@@ -144,6 +145,7 @@ internal static partial class WideArithmetic
     /// </summary>
     internal static Signed832 MultiplySigned576ToSigned832(Signed576 left, Signed320 right)
     {
+        if (left.IsZero || right.IsZero) return default;
         Span<ulong> leftMagnitude = stackalloc ulong[9];
         Span<ulong> rightMagnitude = stackalloc ulong[5];
         GetMagnitude(left, leftMagnitude);

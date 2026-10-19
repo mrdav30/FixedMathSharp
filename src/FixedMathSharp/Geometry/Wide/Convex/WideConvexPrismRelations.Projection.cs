@@ -11,12 +11,11 @@ namespace FixedMathSharp.Geometry;
 
 /// <content>
 /// Contains projection helpers for computing wide-precision separating-axis
-/// projection depths of convex prism shapes (capsules, disks, cones) onto arbitrary axes.
+/// projection depths of capsule/prism contacts and shared radial depth rounding.
 /// </content>
 internal static partial class WideConvexPrismRelations
 {
-    private static void GetShapeProjectionDepths(
-        FiniteShapeKind shapeKind,
+    private static void GetCapsuleProjectionDepths(
         Axis3 axis,
         RigidAxis3 shapeAxis,
         Fixed64 axisLength,
@@ -50,112 +49,36 @@ internal static partial class WideConvexPrismRelations
         Signed576 axisSquared = GetAxisSquared(axis);
         Signed320 shapeAxisSquared = GetAxisSquared(shapeAxis);
 
-        if (shapeKind != FiniteShapeKind.Cone)
-        {
-            Signed704 axialMagnitude = GetMagnitude(axial);
-            RadialKind radialKind = shapeKind == FiniteShapeKind.Capsule
-                ? RadialKind.Capsule
-                : RadialKind.Disk;
-            Signed832 planeSquared = radialKind == RadialKind.Disk
-                ? GetPlaneSquared(
-                    axisSquared,
-                    shapeAxisSquared,
-                    alignment)
-                : default;
-            positive = new ProjectionDepth(
-                WideArithmetic.SubtractSigned704(
-                    axialMagnitude,
-                    scaledMinimum),
-                common,
-                radius,
-                radialKind,
-                axisSquared,
-                shapeAxisSquared,
-                planeSquared);
-            negative = new ProjectionDepth(
-                WideArithmetic.AddSigned704(
-                    axialMagnitude,
-                    scaledMaximum),
-                common,
-                radius,
-                radialKind,
-                axisSquared,
-                shapeAxisSquared,
-                planeSquared);
-            return;
-        }
-
-        Signed832 conePlaneSquared = GetPlaneSquared(
-            axisSquared,
-            shapeAxisSquared,
-            alignment);
-        Signed704 doubledAxial = WideArithmetic.AddSigned704(axial, axial);
-        bool positiveUsesBase = doubledAxial.Sign <= 0
-            || IsDiskRadicalAtLeast(
-                common,
-                radius,
-                conePlaneSquared,
-                shapeAxisSquared,
-                doubledAxial);
-        Signed704 negativeBaseThreshold =
-            WideArithmetic.SubtractSigned704(default, doubledAxial);
-        bool negativeUsesBase = negativeBaseThreshold.Sign <= 0
-            || IsDiskRadicalAtLeast(
-                common,
-                radius,
-                conePlaneSquared,
-                shapeAxisSquared,
-                negativeBaseThreshold);
+        Signed704 axialMagnitude = GetMagnitude(axial);
         positive = new ProjectionDepth(
             WideArithmetic.SubtractSigned704(
-                positiveUsesBase
-                    ? WideArithmetic.SubtractSigned704(default, axial)
-                    : axial,
+                axialMagnitude,
                 scaledMinimum),
             common,
             radius,
-            positiveUsesBase ? RadialKind.Disk : RadialKind.None,
+            RadialKind.Capsule,
             axisSquared,
-            shapeAxisSquared,
-            conePlaneSquared,
-            positiveUsesBase ? ShapeSupportFeature.ConeBase : ShapeSupportFeature.ConeApex);
+            shapeAxisSquared);
         negative = new ProjectionDepth(
-            WideArithmetic.SubtractSigned704(
-                scaledMaximum,
-                negativeUsesBase
-                    ? WideArithmetic.SubtractSigned704(default, axial)
-                    : axial),
+            WideArithmetic.AddSigned704(
+                axialMagnitude,
+                scaledMaximum),
             common,
             radius,
-            negativeUsesBase ? RadialKind.Disk : RadialKind.None,
+            RadialKind.Capsule,
             axisSquared,
-            shapeAxisSquared,
-            conePlaneSquared,
-            negativeUsesBase ? ShapeSupportFeature.ConeBase : ShapeSupportFeature.ConeApex);
+            shapeAxisSquared);
     }
 
     private static bool IsProjectionNonNegative(in ProjectionDepth depth)
     {
         if (depth.Rational.Sign >= 0)
             return true;
-        if (depth.RadialKind == RadialKind.None)
-            return false;
-
-        if (depth.RadialKind == RadialKind.Capsule)
-        {
-            Span<ulong> left = stackalloc ulong[40];
-            Span<ulong> right = stackalloc ulong[40];
-            BuildLocalCapsuleRadicand(depth, left);
-            BuildRationalSquare(depth.Rational, right);
-            return WideArithmetic.CompareMagnitudeEqualLength(left, right) >= 0;
-        }
-
-        return IsDiskRadicalAtLeast(
-            depth.Common,
-            depth.Radius,
-            depth.PlaneSquared,
-            depth.ShapeAxisSquared,
-            GetMagnitude(depth.Rational));
+        Span<ulong> left = stackalloc ulong[40];
+        Span<ulong> right = stackalloc ulong[40];
+        BuildLocalCapsuleRadicand(depth, left);
+        BuildRationalSquare(depth.Rational, right);
+        return WideArithmetic.CompareMagnitudeEqualLength(left, right) >= 0;
     }
 
     private static int CompareProjectionDepths(
@@ -165,61 +88,19 @@ internal static partial class WideConvexPrismRelations
         Signed576 unit = Signed576.ExtendValue(
             Signed320.ExtendValue(
                 Signed192.Signed(1L)));
-        GetRadialProjection(
-            left,
-            unit,
-            out Signed320 leftCoefficient,
-            out Signed832 leftNumerator,
-            out Signed576 leftDenominator);
-        GetRadialProjection(
-            right,
-            unit,
-            out Signed320 rightCoefficient,
-            out Signed832 rightNumerator,
-            out Signed576 rightDenominator);
+        Signed320 leftCoefficient = WideArithmetic.MultiplySigned192(left.Common, Signed192.Raw(left.Radius));
+        Signed320 rightCoefficient = WideArithmetic.MultiplySigned192(right.Common, Signed192.Raw(right.Radius));
         return WideArithmetic.CompareRadialProjectionDepths(
             left.Rational,
             leftCoefficient,
-            leftNumerator,
-            leftDenominator,
+            Signed832.ExtendValue(left.AxisSquared),
+            unit,
             left.AxisSquared,
             right.Rational,
             rightCoefficient,
-            rightNumerator,
-            rightDenominator,
+            Signed832.ExtendValue(right.AxisSquared),
+            unit,
             right.AxisSquared);
-    }
-
-    private static void GetRadialProjection(
-        in ProjectionDepth depth,
-        Signed576 unit,
-        out Signed320 coefficient,
-        out Signed832 numerator,
-        out Signed576 denominator)
-    {
-        if (depth.RadialKind == RadialKind.None)
-        {
-            coefficient = default;
-            numerator = default;
-            denominator = unit;
-            return;
-        }
-
-        coefficient = WideArithmetic.MultiplySigned192(
-            depth.Common,
-            Signed192.Raw(depth.Radius));
-        if (depth.RadialKind == RadialKind.Capsule)
-        {
-            numerator = Signed832.ExtendValue(
-                depth.AxisSquared);
-            denominator = unit;
-        }
-        else
-        {
-            numerator = depth.PlaneSquared;
-            denominator = Signed576.ExtendValue(
-                depth.ShapeAxisSquared);
-        }
     }
 
     private static Fixed64 GetRoundedDepth(
@@ -290,14 +171,7 @@ internal static partial class WideConvexPrismRelations
         Signed576 rationalDenominator = WideArithmetic.MultiplySigned576(
             rationalAxisLength,
             depth.Common);
-        Fixed64 radial = depth.RadialKind switch
-        {
-            RadialKind.Capsule => depth.Radius,
-            RadialKind.Disk => GetDiskDepthApproximation(
-                depth,
-                axisCeiling),
-            _ => Fixed64.Zero,
-        };
+        Fixed64 radial = depth.RadialKind == RadialKind.Capsule ? depth.Radius : Fixed64.Zero;
         Signed704 combinedNumerator = WideArithmetic.AddSigned704(
             depth.Rational,
             WideArithmetic.MultiplySigned576ToSigned704(
@@ -308,33 +182,6 @@ internal static partial class WideConvexPrismRelations
         return Fixed64.GetNonNegativeRawRatioFloor(
             combinedNumerator,
             Signed704.ExtendValue(rationalDenominator));
-    }
-
-    private static Fixed64 GetDiskDepthApproximation(
-        in ProjectionDepth depth,
-        Signed576 axisCeiling)
-    {
-        Signed576 planeLength =
-            WideArithmetic.GetFloorSquareRootOfProduct(
-                depth.PlaneSquared,
-                Signed192.Signed(1L));
-        Signed192 shapeAxisFloor = WideArithmetic.GetFloorSquareRoot(
-            depth.ShapeAxisSquared,
-            out Signed192 shapeAxisRemainder);
-        Signed192 shapeAxisCeiling = shapeAxisRemainder.IsZero
-            ? shapeAxisFloor
-            : WideArithmetic.AddSigned192(
-                shapeAxisFloor,
-                Signed192.Signed(1L));
-        Signed576 numerator = WideArithmetic.MultiplySigned576(
-            planeLength,
-            Signed192.Raw(depth.Radius));
-        Signed576 denominator = WideArithmetic.MultiplySigned576(
-            axisCeiling,
-            shapeAxisCeiling);
-        return Fixed64.GetNonNegativeRawRatioFloor(
-            Signed704.ExtendValue(numerator),
-            Signed704.ExtendValue(denominator));
     }
 
     private static Signed576 GetCeilingSquareRoot(
@@ -394,10 +241,7 @@ internal static partial class WideConvexPrismRelations
             Span<ulong> radialTerm = IsZero(leftFirst)
                 ? leftFirst
                 : leftSecond;
-            if (depth.RadialKind == RadialKind.Capsule)
-                BuildThresholdCapsuleRadicand(depth, radialTerm);
-            else
-                BuildLocalDiskRadicand(depth, radialTerm);
+            BuildThresholdCapsuleRadicand(depth, radialTerm);
             ShiftLeft(radialTerm, 2);
         }
 
@@ -413,23 +257,6 @@ internal static partial class WideConvexPrismRelations
             leftSecond,
             rightFirst,
             rightSecond);
-    }
-
-    private static bool IsDiskRadicalAtLeast(
-        Signed192 common,
-        Fixed64 radius,
-        Signed832 planeSquared,
-        Signed320 shapeAxisSquared,
-        Signed704 threshold)
-    {
-        Span<ulong> radial = stackalloc ulong[40];
-        Span<ulong> rational = stackalloc ulong[40];
-        Signed320 coefficient = WideArithmetic.MultiplySigned192(
-            common,
-            Signed192.Raw(radius));
-        BuildProduct(coefficient, coefficient, planeSquared, radial);
-        BuildProduct(threshold, threshold, shapeAxisSquared, rational);
-        return WideArithmetic.CompareMagnitudeEqualLength(radial, rational) >= 0;
     }
 
     private static Signed576 GetAxisProjection(
@@ -460,18 +287,6 @@ internal static partial class WideConvexPrismRelations
                 WideArithmetic.MultiplySigned192(axis.X, axis.X),
                 WideArithmetic.MultiplySigned192(axis.Y, axis.Y)),
             WideArithmetic.MultiplySigned192(axis.Z, axis.Z));
-
-    private static Signed832 GetPlaneSquared(
-        Signed576 axisSquared,
-        Signed320 shapeAxisSquared,
-        Signed576 alignment) =>
-        WideArithmetic.SubtractSigned832(
-            WideArithmetic.MultiplyNonNegativeToSigned832(
-                Signed832.ExtendValue(axisSquared),
-                shapeAxisSquared),
-            WideArithmetic.MultiplySigned576ToSigned832(
-                alignment,
-                alignment));
 
     private static Signed704 GetMagnitude(Signed704 value) =>
         value.Sign >= 0
@@ -504,20 +319,6 @@ internal static partial class WideConvexPrismRelations
             coefficient,
             depth.ShapeAxisSquared,
             depth.AxisSquared,
-            result);
-    }
-
-    private static void BuildLocalDiskRadicand(
-        in ProjectionDepth depth,
-        Span<ulong> result)
-    {
-        Signed320 coefficient = WideArithmetic.MultiplySigned192(
-            depth.Common,
-            Signed192.Raw(depth.Radius));
-        BuildProduct(
-            coefficient,
-            coefficient,
-            depth.PlaneSquared,
             result);
     }
 

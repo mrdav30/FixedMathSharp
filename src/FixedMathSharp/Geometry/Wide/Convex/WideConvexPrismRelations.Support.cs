@@ -21,7 +21,6 @@ internal static partial class WideConvexPrismRelations
 
     private enum FiniteShapeKind
     {
-        Capsule,
         Cylinder,
         Cone,
     }
@@ -30,14 +29,6 @@ internal static partial class WideConvexPrismRelations
     {
         None,
         Capsule,
-        Disk,
-    }
-
-    internal enum ShapeSupportFeature
-    {
-        Axis,
-        ConeApex,
-        ConeBase,
     }
 
     internal readonly struct Axis3
@@ -112,7 +103,6 @@ internal static partial class WideConvexPrismRelations
     {
         internal readonly Axis3 Axis;
         internal readonly bool Negate;
-        internal readonly ShapeSupportFeature SupportFeature;
         internal readonly Vector3d PrismOffset;
         internal readonly bool PrismPlanarTie;
         internal readonly ProjectionDepth ExactDepth;
@@ -120,14 +110,12 @@ internal static partial class WideConvexPrismRelations
         internal PenetrationCandidate(
             Axis3 axis,
             bool negate,
-            ShapeSupportFeature supportFeature,
             Vector3d prismOffset,
             bool prismPlanarTie,
             ProjectionDepth exactDepth)
         {
             Axis = axis;
             Negate = negate;
-            SupportFeature = supportFeature;
             PrismOffset = prismOffset;
             PrismPlanarTie = prismPlanarTie;
             ExactDepth = exactDepth;
@@ -145,8 +133,6 @@ internal static partial class WideConvexPrismRelations
         internal readonly RadialKind RadialKind;
         internal readonly Signed576 AxisSquared;
         internal readonly Signed320 ShapeAxisSquared;
-        internal readonly Signed832 PlaneSquared;
-        internal readonly ShapeSupportFeature SupportFeature;
 
         internal ProjectionDepth(
             Signed704 rational,
@@ -154,9 +140,7 @@ internal static partial class WideConvexPrismRelations
             Fixed64 radius,
             RadialKind radialKind,
             Signed576 axisSquared,
-            Signed320 shapeAxisSquared,
-            Signed832 planeSquared,
-            ShapeSupportFeature supportFeature = ShapeSupportFeature.Axis)
+            Signed320 shapeAxisSquared)
         {
             Rational = rational;
             Common = common;
@@ -164,8 +148,6 @@ internal static partial class WideConvexPrismRelations
             RadialKind = radialKind;
             AxisSquared = axisSquared;
             ShapeAxisSquared = shapeAxisSquared;
-            PlaneSquared = planeSquared;
-            SupportFeature = supportFeature;
         }
     }
 
@@ -218,9 +200,8 @@ internal static partial class WideConvexPrismRelations
 
     #endregion
 
-    private static bool TryMaterializeContact(
+    private static Penetration MaterializeContact(
         in PenetrationCandidate candidate,
-        FiniteShapeKind shapeKind,
         RigidAxis3 shapeAxis,
         Vector3d center,
         FixedQuaternion shapeRotation,
@@ -228,22 +209,10 @@ internal static partial class WideConvexPrismRelations
         Fixed64 axisLength,
         Fixed64 radius,
         Vector3d prismOrigin,
-        Fixed64 prismRotation,
         FixedQuaternion prismOrientation,
         ReadOnlySpan<Vector2d> prismOffsets,
-        Fixed64 prismHalfThickness,
-        out Penetration contact)
+        Fixed64 prismHalfThickness)
     {
-        // Overlap on the finite projection inventory does not prove curved
-        // intersection. Complete admission precedes all witness materialization.
-        if (shapeKind != FiniteShapeKind.Capsule && !IntersectsCurvedPrism(
-                shapeKind, center, shapeAxis, axisLength, radius,
-                prismOrigin, prismRotation, prismOffsets, prismHalfThickness))
-        {
-            contact = default;
-            return false;
-        }
-
         Axis3 orientedAxis = candidate.Negate
             ? Negate(candidate.Axis)
             : candidate.Axis;
@@ -254,16 +223,14 @@ internal static partial class WideConvexPrismRelations
         int axialSign = GetAxisProjection(
             orientedAxis,
             shapeAxis).Sign;
-        FixedPointAnchor shapeAnchor = GetShapeSupportAnchor(
-            shapeKind,
+        FixedPointAnchor shapeAnchor = WideGeometry.GetCenteredCapsuleSupportAnchor(
             center,
-            axisLength,
-            radius,
             shapeRotation,
             localAxisDirection,
+            axisLength,
+            radius,
             normal,
-            axialSign,
-            candidate.SupportFeature);
+            axialSign);
         GetMatchedPrismOffset(
             shapeAnchor,
             prismOrigin,
@@ -277,14 +244,13 @@ internal static partial class WideConvexPrismRelations
         Fixed64 depth = GetRoundedDepth(
             candidate.ExactDepth,
             out bool depthIsClamped);
-        contact = new Penetration(
+        return new Penetration(
             normal,
             shapeAnchor,
             prismOrientation,
             prismOffset,
             depth,
             depthIsClamped);
-        return true;
     }
 
     private static void GetMatchedPrismOffset(
@@ -341,46 +307,6 @@ internal static partial class WideConvexPrismRelations
             : fallbackPrismOffset.Y;
         prismOffset = new Vector3d(planarOffset.X, y, planarOffset.Y);
     }
-
-    private static FixedPointAnchor GetShapeSupportAnchor(
-        FiniteShapeKind shapeKind,
-        Vector3d center,
-        Fixed64 axisLength,
-        Fixed64 radius,
-        FixedQuaternion shapeRotation,
-        Vector3d localAxisDirection,
-        Vector3d direction,
-        int axialSign,
-        ShapeSupportFeature supportFeature) =>
-        shapeKind switch
-        {
-            FiniteShapeKind.Capsule =>
-                WideGeometry.GetCenteredCapsuleSupportAnchor(
-                    center,
-                    shapeRotation,
-                    localAxisDirection,
-                    axisLength,
-                    radius,
-                    direction,
-                    axialSign),
-            FiniteShapeKind.Cylinder =>
-                WideGeometry.GetCenteredCylinderSupportAnchor(
-                    center,
-                    shapeRotation,
-                    localAxisDirection,
-                    axisLength,
-                    radius,
-                    direction,
-                    axialSign),
-            _ => WideGeometry.GetCenteredConeSupportAnchor(
-                    center,
-                    shapeRotation,
-                    localAxisDirection,
-                axisLength,
-                radius,
-                direction,
-                supportFeature == ShapeSupportFeature.ConeApex),
-        };
 
     private static Axis3 FromDirection(Vector3d direction) =>
         new(

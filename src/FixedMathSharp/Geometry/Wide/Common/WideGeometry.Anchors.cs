@@ -152,24 +152,6 @@ internal static partial class WideGeometry
             worldDirection,
             CenteredAxisSupportKind.Cone);
 
-    internal static FixedPointAnchor GetCenteredConeSupportAnchor(
-        Vector3d center,
-        FixedQuaternion rotation,
-        Vector3d localAxis,
-        Fixed64 height,
-        Fixed64 radius,
-        Vector3d worldDirection,
-        bool apexSupport) =>
-        GetCenteredAxisSupportAnchor(
-            center,
-            rotation,
-            localAxis,
-            height,
-            radius,
-            worldDirection,
-            CenteredAxisSupportKind.Cone,
-            forcedConeApex: apexSupport);
-
     private static FixedPointAnchor GetCenteredAxisSupportAnchor(
         Vector3d center,
         FixedQuaternion canonicalAxisRotation,
@@ -178,8 +160,7 @@ internal static partial class WideGeometry
         Fixed64 radius,
         Vector3d worldDirection,
         CenteredAxisSupportKind kind,
-        int? forcedAxialSign = null,
-        bool? forcedConeApex = null)
+        int? forcedAxialSign = null)
     {
         Vector3d localDirection = WideNormalization.GetNormalized(
             canonicalAxisRotation.Inverse().Rotate(worldDirection));
@@ -228,8 +209,7 @@ internal static partial class WideGeometry
                     planarDirection.Y);
             }
             localDisplacement = localRadialDirection * radius;
-            bool coneApex = forcedConeApex
-                ?? WideFiniteAxisIntersection
+            bool coneApex = WideFiniteAxisIntersection
                     .IsCenteredFiniteConeApexSupport(
                         Vector3d.Up,
                         axisLength,

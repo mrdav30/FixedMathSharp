@@ -61,23 +61,6 @@ internal static partial class WideConvexPrismRelations
     private static void BuildProduct(
         Signed320 first,
         Signed320 second,
-        Signed832 third,
-        Span<ulong> result)
-    {
-        Span<ulong> firstWords = stackalloc ulong[5];
-        Span<ulong> secondWords = stackalloc ulong[5];
-        Span<ulong> thirdWords = stackalloc ulong[13];
-        GetMagnitude(first, firstWords);
-        GetMagnitude(second, secondWords);
-        WideArithmetic.GetMagnitude(third, thirdWords);
-        Span<ulong> intermediate = stackalloc ulong[40];
-        WideArithmetic.MultiplyMagnitudes(firstWords, secondWords, intermediate);
-        WideArithmetic.MultiplyMagnitudes(intermediate, thirdWords, result);
-    }
-
-    private static void BuildProduct(
-        Signed320 first,
-        Signed320 second,
         Signed320 third,
         Signed576 fourth,
         Span<ulong> result)

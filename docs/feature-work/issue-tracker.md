@@ -36,9 +36,16 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ### FMS-Issue-034: Canonical curved-prism depth can correct an exactly touching cone
 
-- **Status:** Confirmed, 2026-10-19; pre-existing on source revision `5674103`,
-  with identical touching outputs before and after the Issue 033 admission fix.
+- **Status:** Correctness repair and bounded throughput refinement validated on
+  2026-10-19: both repositories pass Release/Lean tests with complete coverage;
+  all 479 benchmark smoke children and the documentation build pass. The issue
+  remains active for the measured oblique cost. The defect was pre-existing
+  on `5674103`, with identical touching outputs before/after Issue 033.
 - **Priority:** High.
+- **Implementation:** [Complete curved-prism contact selection](2026-10-19-curved-prism-contact-depth.md)
+  records the complete support-fan repair, finite witness matching, verified
+  retained-source Release/Lean coverage in both repositories and balanced
+  performance evidence. The issue remains active for throughput follow-through.
 - **Affected area:** `FixedConvexPrismRelations.TryGetCenteredConeContact(...)`
   and the canonical projection depth/normal reducer in
   `WideConvexPrismRelations.TryGetContact(...)`. Gravitas forwards this depth
@@ -63,16 +70,67 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 - **Impact:** An exactly touching or slightly overlapping pair can receive an
   excessive correction along a noncontact support direction. Closed intersection
   correctness does not establish correct physical contact depth or normals.
-  Current public XML and geometry guidance describe this limitation explicitly.
-- **Next action:** Complete supporting-feature normal and depth selection in
-  the native owner, with independent whole-shape clearance and witness checks.
-  Include ordinary full-volume and collapsed prisms, cone generator/base/apex
-  cases, and audit the shared finite-cylinder rim path. Retain the Issue 033
-  closed admission guarantees and the warmed dispatcher baseline. Adding only
-  this fixture's gradient direction would leave the general contact fan
-  incomplete.
+  The starting public XML documented the canonical bound; the repaired XML and
+  geometry guidance describe exact minimum selection and final rounding limits.
+- **Next action:** Review the validated small refinement and remaining exact
+  rim/analytic selection cost before closure. Balanced timing against the
+  accurate pre-refinement repair reduces
+  cone/cylinder miss time by 9.9%/9.2%, face time by 35.0%/35.4% and oblique
+  time by 12.6%/10.1%; the oblique means are 2.421/2.369 ms. Keep Issue 034
+  active for this remaining cost; no universal simulation budget is claimed.
+  The linked plan preserves the
+  older incomplete-bound comparison, exact-source captures, independent
+  geometric oracles and raw coverage counts.
 
-**Next issue ID:** `FMS-Issue-035`
+### FMS-Issue-035: Contained sphere/capsule prism contacts reverse the selected exit
+
+- **Status:** Confirmed pre-existing, 2026-10-19. Reproduced on committed
+  `b813236` and the retained Issue 034 source with identical outputs.
+- **Priority:** High.
+- **Affected area:** `FixedConvexPrismRelations.TryGetSphereContact(...)`,
+  `TryGetCenteredCapsuleContact(...)` and the inside-projection branches of
+  `WideConvexPrismRelations.TryKeepAxis(...)`. Gravitas forwards these contacts
+  into mixed sphere/capsule positional response. Issue 034's new cone/cylinder
+  owner bypasses this preserved capsule-only reducer.
+- **Evidence:** Identity frames, prism origin zero, yaw zero, half-thickness
+  `1`, footprint `(-2,-2), (2,-2), (2,2), (-2,2)`. Sphere center `(0,0.5,0)`,
+  radius `0.25`; alternatively a capsule at that center with local axis Right,
+  core length `1`, radius `0.25`. Both public queries return `true`, depth
+  `0.75` (raw `3221225472`), normal Up and witnesses `(0,0.75,0)` /
+  `(0,1,0)`. Their difference is `-0.25*Up`, inconsistent with the published
+  `depth*normal`. A portable capsule reproducer is:
+
+  ```csharp
+  Vector2d[] offsets = { new(-2, -2), new(2, -2), new(2, 2), new(-2, 2) };
+  var center = new Vector3d(Fixed64.Zero, Fixed64.Half, Fixed64.Zero);
+  FixedConvexPrismRelations.TryGetCenteredCapsuleContact(
+      center, FixedQuaternion.Identity, Vector3d.Right, Fixed64.One,
+      Fixed64.Quarter, Vector3d.Zero, Fixed64.Zero, offsets, Fixed64.One,
+      out FixedContactAnchors contact);
+  // The returned exit direction still leaves the complete capsule inside.
+  FixedConvexPrismRelations.TryGetCenteredCapsuleContact(
+      center - contact.Normal * (contact.Depth + Fixed64.FromRaw(1)),
+      FixedQuaternion.Identity, Vector3d.Right, Fixed64.One, Fixed64.Quarter,
+      Vector3d.Zero, Fixed64.Zero, offsets, Fixed64.One, out _); // true
+  ```
+
+  The exact minimum is `0.75` with normal Down. Both shapes have Y extent
+  `[0.25,0.75]`; moving Up by `0.75` touches the complete prism's upper face,
+  and another positive raw unit separates. Moving Down by the returned depth
+  leaves Y extent `[-0.5,0]` inside the prism. The sphere overload reproduces
+  the same failure. The inside-projection branch pairs `negativeDepth` with
+  the positive axis and conversely, then materializes the mismatched support.
+- **Impact:** A contained mixed sphere/capsule pair can receive correction in
+  the wrong direction and a physically inconsistent witness pair. Complete
+  execution coverage does not establish this geometric invariant.
+- **Next action:** Add public regressions for both sphere and positive-core
+  capsule before correcting the shared orientation/endpoint associations.
+  Check finite paired witnesses, complete-shape exit, signed interval cases,
+  closed tangency, transformed frames and downstream host-step response. Keep
+  the existing canonical capsule scope distinct from Issue 034's complete
+  cone/cylinder minimum solver.
+
+**Next issue ID:** `FMS-Issue-036`
 
 ## Resolved Issues
 

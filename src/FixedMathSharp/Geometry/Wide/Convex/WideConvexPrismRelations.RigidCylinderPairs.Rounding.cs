@@ -26,7 +26,7 @@ internal static partial class WideConvexPrismRelations
             var projection = new ProjectionDepth(
                 depth.Rational, depth.Common, Fixed64.FromRaw((long)depth.RadiusRaw),
                 depth.RadiusRaw == 0UL ? RadialKind.None : RadialKind.Capsule,
-                depth.AxisSquared, Signed320.ExtendValue(Signed192.Signed(1L)), default);
+                depth.AxisSquared, Signed320.ExtendValue(Signed192.Signed(1L)));
             result = GetRoundedDepth(projection, out isClamped);
             return;
         }

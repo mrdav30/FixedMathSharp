@@ -365,20 +365,44 @@ query when deciding whether the shapes intersect.
 
 ### Vertical convex-prism contacts
 
-`FixedConvexPrismRelations` constructs canonical contacts against a convex
+`FixedConvexPrismRelations` provides contacts against a convex
 footprint extruded through a positive Y half-thickness. Footprint offsets are
 boundary-ordered in either winding; repeated or collinear offsets retain their
 finite closed extent. Touching counts as contact, including zero-radius finite
 axes. The shape's local axis and rotation remain separately authored.
 
-Finite-cylinder and cone admission checks the complete closed geometry through
-real prism edges and face sections. Overlap on the canonical projection
-directions alone does not establish intersection. Admitted contacts retain the
-existing canonical projection ranking. Depth rounds the selected projection
-overlap, a sufficient separating displacement before final rounding. This can
-exceed the first exit and can be positive at true geometric tangency. The normal
-and anchors describe the selected support features; these prism methods do not
-yet supply a complete minimum-correction contact solver.
+`TryGetCenteredCylinderContact` and `TryGetCenteredConeContact` find the minimum
+exit through the complete support fan. Prism faces, real edges and vertices
+meet the cylinder's caps, side and rims, or the cone's base disk and rim, apex
+and lateral generators. Complete closed admission precedes depth selection;
+projection overlap alone does not establish intersection. The authored local
+axis retains its actual squared norm, and the prism retains its scalar yaw.
+
+Classification, feature admission and minimum-depth ordering are exact.
+Touching returns zero depth; a tiny positive overlap can also round to zero.
+Equal minima retain stable feature order. The normal points from the curved
+primitive toward the prism, so the exact minimum translation moves the
+primitive opposite that direction to the touching boundary. `DepthIsClamped`
+distinguishes an exact minimum above `Fixed64.MaxValue`.
+
+The selected depth, unit-normal components and witness coordinates round
+nearest-even only at the public boundary. An unclamped depth has at most half
+a raw unit of error. Normal rounding also matters when reconstructing that
+unclamped exit: with `e = 2^-33`, interpreting the returned scalars exactly gives
+a displacement error of at most `e + Depth * sqrt(3) * e` from the exact minimum
+translation.
+Each subsequent `Fixed64` component product can add another half raw unit of
+rounding error. A strict separating move needs margin for those final rounding
+terms; touching remains contact.
+
+Both witnesses are matched on the selected finite support features before
+coordinate rounding. Their origins remain the primitive center and prism
+origin, respectively, while both anchors use the primitive's quaternion frame.
+This preserves the native scalar-yaw footprint without introducing a rounded
+prism quaternion. Materialize or compare points through the anchor operations;
+the second anchor's local coordinates are expressed in that retained frame.
+Separate additive terms preserve coordinates outside a single scalar's range.
+Curved prism contacts use the bounded stack scratch described above.
 
 ## Sweeps and finite-shape intervals
 

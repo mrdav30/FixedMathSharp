@@ -66,7 +66,7 @@ internal static class CircularRimContactAlgebra
         else
         {
             first = new WideDirection3d(default, WideArithmetic.Negate(edge.Z), edge.Y);
-            second = new WideDirection3d(edge.Y, default, default);
+            second = new WideDirection3d(edge.Y.IsZero ? edge.Z : edge.Y, default, default);
         }
     }
 

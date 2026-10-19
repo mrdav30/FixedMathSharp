@@ -171,14 +171,31 @@ public static class FixedConvexPrismRelations
     }
 
     /// <summary>
-    /// Attempts to construct canonical contact anchors between a centered
+    /// Attempts to find the minimum-depth contact between a centered
     /// finite cylinder and a rotated vertical convex prism.
     /// </summary>
     /// <remarks>
-    /// Intersection admission is exact and includes touching. Depth rounds the
-    /// selected canonical projection overlap; it can exceed the minimum
-    /// correction and be positive at true tangency. The normal and anchors
-    /// describe those selected support features.
+    /// The complete support fan includes prism faces, real edges and vertices
+    /// against both flat caps, the side and circular rims. Classification and
+    /// minimum-depth ranking use the exact authored geometry. Touching is
+    /// contact with zero depth; an overlap smaller than half a raw unit can
+    /// also round to zero. A zero radius is the finite axis segment.
+    /// <para>
+    /// The normal points from the cylinder toward the prism. Depth and each
+    /// unit-normal component round nearest-even after selection. Unclamped
+    /// depth differs from the exact minimum by at most half a raw unit;
+    /// translating along the rounded normal additionally introduces an error
+    /// proportional to depth. <see cref="FixedContactAnchors.DepthIsClamped"/>
+    /// identifies an exact minimum above <see cref="Fixed64.MaxValue"/>.
+    /// </para>
+    /// <para>
+    /// Both finite support witnesses are matched before final coordinate
+    /// rounding. The first anchor retains the cylinder center and the second
+    /// the prism origin; both use the cylinder rotation as their local frame.
+    /// The prism's scalar yaw remains authoritative. Use the anchor operations
+    /// to compare or materialize points rather than interpreting the second
+    /// anchor's local coordinates as prism footprint offsets.
+    /// </para>
     /// </remarks>
     public static bool TryGetCenteredCylinderContact(
         Vector3d cylinderCenter,
@@ -215,14 +232,32 @@ public static class FixedConvexPrismRelations
     }
 
     /// <summary>
-    /// Attempts to construct canonical contact anchors between a centered
+    /// Attempts to find the minimum-depth contact between a centered
     /// finite cone and a rotated vertical convex prism.
     /// </summary>
     /// <remarks>
-    /// Intersection admission is exact and includes touching. Depth rounds the
-    /// selected canonical projection overlap; it can exceed the minimum
-    /// correction and be positive at true tangency. The normal and anchors
-    /// describe those selected support features.
+    /// The complete support fan includes prism faces, real edges and vertices
+    /// against the base disk and rim, apex and lateral generators.
+    /// Classification and minimum-depth ranking use the exact authored
+    /// geometry. Touching is contact with zero depth; an overlap smaller than
+    /// half a raw unit can also round to zero. A zero radius is the finite axis
+    /// segment.
+    /// <para>
+    /// The normal points from the cone toward the prism. Depth and each
+    /// unit-normal component round nearest-even after selection. Unclamped
+    /// depth differs from the exact minimum by at most half a raw unit;
+    /// translating along the rounded normal additionally introduces an error
+    /// proportional to depth. <see cref="FixedContactAnchors.DepthIsClamped"/>
+    /// identifies an exact minimum above <see cref="Fixed64.MaxValue"/>.
+    /// </para>
+    /// <para>
+    /// Both finite support witnesses are matched before final coordinate
+    /// rounding. The first anchor retains the cone center and the second the
+    /// prism origin; both use the cone rotation as their local frame. The
+    /// prism's scalar yaw remains authoritative. Use the anchor operations to
+    /// compare or materialize points rather than interpreting the second
+    /// anchor's local coordinates as prism footprint offsets.
+    /// </para>
     /// </remarks>
     public static bool TryGetCenteredConeContact(
         Vector3d coneCenter,

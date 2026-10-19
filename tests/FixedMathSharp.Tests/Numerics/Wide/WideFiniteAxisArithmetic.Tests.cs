@@ -827,6 +827,14 @@ public sealed class WideFiniteAxisArithmeticTests
     [Fact]
     public void Signed832_MultiplicationSubtractAndProductSquareRoot_MatchBigIntegerOracle()
     {
+        AssertSigned832(BigInteger.Zero, WideArithmetic.MultiplySigned576ToSigned832(
+            ToSigned576(-(BigInteger.One << 575)), default(Signed576)));
+        AssertSigned832(BigInteger.Zero, WideArithmetic.MultiplySigned576ToSigned832(
+            default(Signed576), ToSigned576((BigInteger.One << 575) - 1)));
+        AssertSigned832(BigInteger.Zero, WideArithmetic.MultiplySigned576ToSigned832(
+            ToSigned576(-(BigInteger.One << 575)), default(Signed320)));
+        AssertSigned832(BigInteger.Zero, WideArithmetic.MultiplySigned576ToSigned832(
+            default(Signed576), ToSigned320(-(BigInteger.One << 319))));
         BigInteger left = (BigInteger.One << 410) + (BigInteger.One << 321) + 1;
         BigInteger right = (BigInteger.One << 368) + (BigInteger.One << 129) + 3;
         BigInteger product = left * right;

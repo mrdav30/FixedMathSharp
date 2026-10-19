@@ -26,7 +26,6 @@ internal static partial class WideConvexPrismRelations
         Fixed64 prismHalfThickness,
         out FixedContactAnchors contact) =>
         TryGetAnchoredContact(
-            FiniteShapeKind.Capsule,
             center,
             rotation,
             localAxisDirection,
@@ -49,8 +48,7 @@ internal static partial class WideConvexPrismRelations
         ReadOnlySpan<Vector2d> prismLocalOffsets,
         Fixed64 prismHalfThickness,
         out FixedContactAnchors contact) =>
-        TryGetAnchoredContact(
-            FiniteShapeKind.Cylinder,
+        CurvedPrismContact.TryGetContact(
             center,
             rotation,
             localAxisDirection,
@@ -60,6 +58,7 @@ internal static partial class WideConvexPrismRelations
             prismRotation,
             prismLocalOffsets,
             prismHalfThickness,
+            false,
             out contact);
 
     internal static bool TryGetCenteredConeContact(
@@ -73,8 +72,7 @@ internal static partial class WideConvexPrismRelations
         ReadOnlySpan<Vector2d> prismLocalOffsets,
         Fixed64 prismHalfThickness,
         out FixedContactAnchors contact) =>
-        TryGetAnchoredContact(
-            FiniteShapeKind.Cone,
+        CurvedPrismContact.TryGetContact(
             center,
             rotation,
             localAxisDirection,
@@ -84,10 +82,10 @@ internal static partial class WideConvexPrismRelations
             prismRotation,
             prismLocalOffsets,
             prismHalfThickness,
+            true,
             out contact);
 
     private static bool TryGetAnchoredContact(
-        FiniteShapeKind shapeKind,
         Vector3d center,
         FixedQuaternion shapeRotation,
         Vector3d localAxisDirection,
@@ -100,7 +98,6 @@ internal static partial class WideConvexPrismRelations
         out FixedContactAnchors contact)
     {
         if (!TryGetContact(
-                shapeKind,
                 center,
                 shapeRotation,
                 localAxisDirection,
@@ -129,7 +126,6 @@ internal static partial class WideConvexPrismRelations
     }
 
     private static bool TryGetContact(
-        FiniteShapeKind shapeKind,
         Vector3d center,
         FixedQuaternion shapeRotation,
         Vector3d localAxisDirection,
@@ -163,45 +159,33 @@ internal static partial class WideConvexPrismRelations
         if (!TryKeepAxis(
                 up,
                 rigidShapeAxis,
-                shapeKind,
                 center,
                 axisLength,
                 radius,
-                shapeRotation,
-                localAxisDirection,
                 prismOrigin,
                 prismRotation,
-                prismOrientation,
                 prismLocalOffsets,
                 prismHalfThickness,
                 ref best)
             || !TryKeepAxis(
                 shapeAxis,
                 rigidShapeAxis,
-                shapeKind,
                 center,
                 axisLength,
                 radius,
-                shapeRotation,
-                localAxisDirection,
                 prismOrigin,
                 prismRotation,
-                prismOrientation,
                 prismLocalOffsets,
                 prismHalfThickness,
                 ref best)
             || !TryKeepAxis(
                 Cross(shapeAxis, up),
                 rigidShapeAxis,
-                shapeKind,
                 center,
                 axisLength,
                 radius,
-                shapeRotation,
-                localAxisDirection,
                 prismOrigin,
                 prismRotation,
-                prismOrientation,
                 prismLocalOffsets,
                 prismHalfThickness,
                 ref best))
@@ -233,45 +217,33 @@ internal static partial class WideConvexPrismRelations
             _ = TryKeepAxis(
                 face,
                 rigidShapeAxis,
-                shapeKind,
                 center,
                 axisLength,
                 radius,
-                shapeRotation,
-                localAxisDirection,
                 prismOrigin,
                 prismRotation,
-                prismOrientation,
                 prismLocalOffsets,
                 prismHalfThickness,
                 ref best);
             if (!TryKeepAxis(
                     Cross(shapeAxis, edge),
                     rigidShapeAxis,
-                    shapeKind,
                     center,
                     axisLength,
                     radius,
-                    shapeRotation,
-                    localAxisDirection,
                     prismOrigin,
                     prismRotation,
-                    prismOrientation,
                     prismLocalOffsets,
                     prismHalfThickness,
                     ref best)
                 || !TryKeepAxis(
                     planarVertexAxis,
                     rigidShapeAxis,
-                    shapeKind,
                     center,
                     axisLength,
                     radius,
-                    shapeRotation,
-                    localAxisDirection,
                     prismOrigin,
                     prismRotation,
-                    prismOrientation,
                     prismLocalOffsets,
                     prismHalfThickness,
                     ref best))
@@ -301,15 +273,11 @@ internal static partial class WideConvexPrismRelations
                     if (!TryKeepAxis(
                             endpointAxis,
                             rigidShapeAxis,
-                            shapeKind,
                             center,
                             axisLength,
                             radius,
-                            shapeRotation,
-                            localAxisDirection,
                             prismOrigin,
                             prismRotation,
-                            prismOrientation,
                             prismLocalOffsets,
                             prismHalfThickness,
                             ref best))
@@ -321,9 +289,8 @@ internal static partial class WideConvexPrismRelations
             }
         }
 
-        return TryMaterializeContact(
+        contact = MaterializeContact(
             best,
-            shapeKind,
             rigidShapeAxis,
             center,
             shapeRotation,
@@ -331,25 +298,20 @@ internal static partial class WideConvexPrismRelations
             axisLength,
             radius,
             prismOrigin,
-            prismRotation,
             prismOrientation,
             prismLocalOffsets,
-            prismHalfThickness,
-            out contact);
+            prismHalfThickness);
+        return true;
     }
 
     private static bool TryKeepAxis(
         Axis3 axis,
         RigidAxis3 shapeAxis,
-        FiniteShapeKind shapeKind,
         Vector3d center,
         Fixed64 axisLength,
         Fixed64 radius,
-        FixedQuaternion shapeRotation,
-        Vector3d localAxisDirection,
         Vector3d prismOrigin,
         Fixed64 prismRotation,
-        FixedQuaternion prismOrientation,
         ReadOnlySpan<Vector2d> prismLocalOffsets,
         Fixed64 prismHalfThickness,
         ref PenetrationCandidate best)
@@ -370,8 +332,7 @@ internal static partial class WideConvexPrismRelations
             out Vector3d maximumPrismOffset,
             out bool minimumPlanarTie,
             out bool maximumPlanarTie);
-        GetShapeProjectionDepths(
-            shapeKind,
+        GetCapsuleProjectionDepths(
             axis,
             shapeAxis,
             axisLength,
@@ -389,14 +350,12 @@ internal static partial class WideConvexPrismRelations
         bool usePositiveNormal;
         bool useMinimumPrismOffset;
         ProjectionDepth selectedDepth;
-        ShapeSupportFeature supportFeature;
         bool planarTie;
         if (prismMinimum.Sign >= 0)
         {
             usePositiveNormal = true;
             useMinimumPrismOffset = true;
             selectedDepth = positiveDepth;
-            supportFeature = positiveDepth.SupportFeature;
             planarTie = minimumPlanarTie;
         }
         else if (prismMaximum.Sign <= 0)
@@ -404,7 +363,6 @@ internal static partial class WideConvexPrismRelations
             usePositiveNormal = false;
             useMinimumPrismOffset = false;
             selectedDepth = negativeDepth;
-            supportFeature = negativeDepth.SupportFeature;
             planarTie = maximumPlanarTie;
         }
         else if (CompareProjectionDepths(
@@ -414,7 +372,6 @@ internal static partial class WideConvexPrismRelations
             usePositiveNormal = true;
             useMinimumPrismOffset = false;
             selectedDepth = negativeDepth;
-            supportFeature = negativeDepth.SupportFeature;
             planarTie = maximumPlanarTie;
         }
         else
@@ -422,7 +379,6 @@ internal static partial class WideConvexPrismRelations
             usePositiveNormal = false;
             useMinimumPrismOffset = true;
             selectedDepth = positiveDepth;
-            supportFeature = positiveDepth.SupportFeature;
             planarTie = minimumPlanarTie;
         }
 
@@ -440,7 +396,6 @@ internal static partial class WideConvexPrismRelations
         best = new PenetrationCandidate(
             axis,
             !usePositiveNormal,
-            supportFeature,
             prismOffset,
             planarTie,
             selectedDepth);
