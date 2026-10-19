@@ -120,18 +120,20 @@ internal static class WideCenteredCapsule2dRelations
             out _,
             out _);
 
-    internal static bool DoesCapsulePenetrateConvex(
+    /// <summary>Tests exact closed contact or strict penetration without materializing contact anchors or depth.</summary>
+    internal static bool DoesCapsuleOverlapConvex(
         Vector2d center,
         Vector2d capsuleAxis,
         Fixed64 axisLength,
         Fixed64 radius,
         Vector2d convexOrigin,
         Fixed64 convexRotation,
-        ReadOnlySpan<Vector2d> convexOriginOffsets) =>
+        ReadOnlySpan<Vector2d> convexOriginOffsets,
+        bool strict = true) =>
         TryGetContactAxis(
             center, capsuleAxis, axisLength, radius,
             convexOrigin, convexRotation, convexOriginOffsets,
-            strict: true, out _);
+            strict, out _);
 
     internal static bool TryGetContacts(
         Vector2d capsuleCenter,
@@ -273,6 +275,38 @@ internal static class WideCenteredCapsule2dRelations
             convexRotation,
             convexOffset);
         contactCount = 1;
+        return true;
+    }
+
+    /// <summary>Admits an original finite vertex normal against all exact incident sectors before normalization.</summary>
+    internal static bool TryGetBoundaryVertexContact(Vector2d center, Fixed64 rotation, Fixed64 axisLength,
+        Fixed64 radius, in FixedPointAnchor2d vertex, ReadOnlySpan<FixedPointAnchor2d> incidentPoints,
+        out FixedContactAnchors2d contact)
+    {
+        _ = Vector2d.TryRotate(Vector2d.Forward, rotation, out Vector2d axis);
+        Span<Vector2d> point = stackalloc Vector2d[1] { vertex.LocalPoint };
+        if (!TryGetContactAxis(center, axis, axisLength, radius, vertex.Origin, vertex.Rotation, point,
+            strict: false, out ContactAxis best)) { contact = default; return false; }
+        if (!WideConvex2dRelations.SupportsBoundaryFan(best.X, best.Y, vertex, incidentPoints))
+        {
+            // A point on the core has tied opposite side directions. Do not
+            // let the ordinary authored-direction tie hide an admissible side.
+            if (!best.Overlap.IsZero || !WideConvex2dRelations.SupportsBoundaryFan(
+                WideArithmetic.Negate(best.X), WideArithmetic.Negate(best.Y), vertex, incidentPoints))
+            { contact = default; return false; }
+            best = new ContactAxis(WideArithmetic.Negate(best.X), WideArithmetic.Negate(best.Y),
+                best.SquaredLength, best.Overlap, best.FromEdge);
+        }
+        Vector2d normal = WideNormalization.GetNormalized(best.X, best.Y);
+        _ = Vector2d.TryRotate(normal, -rotation, out Vector2d localNormal);
+        localNormal = localNormal.Normalized;
+        FixedPointAnchor2d anchor = WideFiniteAxisIntersection.GetCenteredCapsuleSupportAnchor(
+            center, rotation, Vector2d.Forward, axisLength, radius, localNormal);
+        if (axisLength > Fixed64.Zero && WideArithmetic.AddProducts(best.X, Signed192.Raw(axis.X),
+            best.Y, Signed192.Raw(axis.Y)).IsZero)
+            anchor = GetProjectedSideAnchor(center, rotation, Vector2d.Forward, axisLength, localNormal,
+                radius, vertex.Origin, vertex.Rotation, vertex.LocalPoint);
+        contact = new FixedContactAnchors2d(anchor, vertex, normal, GetDepth(best, radius, out bool clamped), clamped);
         return true;
     }
 

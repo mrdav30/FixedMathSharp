@@ -100,6 +100,22 @@ internal static partial class WideConvex2dRelations
 
     #endregion
 
+    /// <summary>Tests exact closed contact or strict penetration without rounding a normal or contact depth.</summary>
+    internal static bool DoConvexesOverlap(Vector2d firstOrigin, Fixed64 firstRotation, ReadOnlySpan<Vector2d> firstOffsets,
+        Vector2d secondOrigin, Fixed64 secondRotation, ReadOnlySpan<Vector2d> secondOffsets, bool strict = true)
+    {
+        RotationFrame2d firstFrame = new(firstRotation), secondFrame = new(secondRotation);
+        PenetrationAxis best = default;
+        if (!TryKeepAxes(firstOrigin, firstFrame, firstOffsets, secondOrigin, secondFrame, secondOffsets, true, ref best)
+            || !TryKeepAxes(secondOrigin, secondFrame, secondOffsets, firstOrigin, firstFrame, firstOffsets, false, ref best)) return false;
+        if (GetPlanarSweepWinding(firstOffsets) == 0 && GetPlanarSweepWinding(secondOffsets) == 0
+            && (!TryKeepAxis(new(Signed192.One, default), firstOrigin, firstFrame, firstOffsets,
+                secondOrigin, secondFrame, secondOffsets, true, ref best)
+                || !TryKeepAxis(new(default, Signed192.One), firstOrigin, firstFrame, firstOffsets,
+                    secondOrigin, secondFrame, secondOffsets, true, ref best))) return false;
+        return strict ? best.Overlap.Sign > 0 : best.Overlap.Sign >= 0;
+    }
+
     internal static FixedBoundArea GetBoundsClippedToDomain(
         Vector2d origin,
         Fixed64 rotation,

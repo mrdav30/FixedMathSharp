@@ -70,7 +70,7 @@ public partial struct FixedSegment2d
                 nameof(convexVertexOffsets));
         }
 
-        return WideCenteredCapsule2dRelations.DoesCapsulePenetrateConvex(
+        return WideCenteredCapsule2dRelations.DoesCapsuleOverlapConvex(
             center, axisDirection, axisLength, radius,
             convexOrigin, convexRotation, convexVertexOffsets);
     }
