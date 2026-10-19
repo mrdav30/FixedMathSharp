@@ -324,6 +324,38 @@ internal readonly struct CapsuleFiniteSectionFrame
         return WideArithmetic.CompareNonNegativeProducts(b, b, a, c) >= 0;
     }
 
+    /// <summary>Tests a rational borrowed quadratic on a closed clipped segment.</summary>
+    internal static bool IntersectsQuadratic(scoped ContactQuadratic a, scoped ContactQuadratic b,
+        scoped ContactQuadratic c, Signed320 lowerN, Signed320 lowerD, Signed320 upperN, Signed320 upperD)
+    {
+        Signed832 ln = Signed832.ExtendValue(Signed576.ExtendValue(lowerN));
+        Signed832 ld = Signed832.ExtendValue(Signed576.ExtendValue(lowerD));
+        Signed832 un = Signed832.ExtendValue(Signed576.ExtendValue(upperN));
+        Signed832 ud = Signed832.ExtendValue(Signed576.ExtendValue(upperD));
+        if (WideFiniteConeIntersection.GetBorrowedPolynomialSignAtRationalParameter(a, b, c, ln, ld) <= 0
+            || WideFiniteConeIntersection.GetBorrowedPolynomialSignAtRationalParameter(a, b, c, un, ud) <= 0)
+            return true;
+        if (a.Signs[0] <= 0 || b.Signs[0] >= 0) return false;
+
+        // Positive endpoints leave only an interior convex minimum. Preserve
+        // both complete products, including the discriminant's subtraction bit.
+        int coefficientWords = Math.Max(a.FieldWords, Math.Max(b.FieldWords, c.FieldWords));
+        int words = Math.Max(2 * coefficientWords, coefficientWords + 5) + 1;
+        Span<ulong> storage = stackalloc ulong[4 * words];
+        Span<int> signs = stackalloc int[4];
+        ContactQuadratic left = ContactQuadratic.At(storage, signs, 0, words);
+        ContactQuadratic right = ContactQuadratic.At(storage, signs, 1, words);
+        ContactQuadratic.Scale(b, ld, left); left.MultiplySign(-1);
+        ContactQuadratic.Scale(a, ln, right); left.Add(right, -1);
+        if (left.Signs[0] < 0) return false;
+        ContactQuadratic.Scale(b, ud, left); left.MultiplySign(-1);
+        ContactQuadratic.Scale(a, un, right); left.Add(right, -1);
+        if (left.Signs[0] > 0) return false;
+        ContactQuadratic.Multiply(b, b, ReadOnlySpan<ulong>.Empty, left);
+        ContactQuadratic.Multiply(a, c, ReadOnlySpan<ulong>.Empty, right); left.Add(right, -1);
+        return left.Signs[0] >= 0;
+    }
+
     private static Signed832 DotWide(WideAxis3 left, WideAxis3 right) => WideArithmetic.AddSigned832(
         WideArithmetic.AddSigned832(Product(left.X, right.X), Product(left.Y, right.Y)), Product(left.Z, right.Z));
 

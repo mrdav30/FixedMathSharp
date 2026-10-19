@@ -174,6 +174,12 @@ public static class FixedConvexPrismRelations
     /// Attempts to construct canonical contact anchors between a centered
     /// finite cylinder and a rotated vertical convex prism.
     /// </summary>
+    /// <remarks>
+    /// Intersection admission is exact and includes touching. Depth rounds the
+    /// selected canonical projection overlap; it can exceed the minimum
+    /// correction and be positive at true tangency. The normal and anchors
+    /// describe those selected support features.
+    /// </remarks>
     public static bool TryGetCenteredCylinderContact(
         Vector3d cylinderCenter,
         FixedQuaternion cylinderRotation,
@@ -212,6 +218,12 @@ public static class FixedConvexPrismRelations
     /// Attempts to construct canonical contact anchors between a centered
     /// finite cone and a rotated vertical convex prism.
     /// </summary>
+    /// <remarks>
+    /// Intersection admission is exact and includes touching. Depth rounds the
+    /// selected canonical projection overlap; it can exceed the minimum
+    /// correction and be positive at true tangency. The normal and anchors
+    /// describe those selected support features.
+    /// </remarks>
     public static bool TryGetCenteredConeContact(
         Vector3d coneCenter,
         FixedQuaternion coneRotation,

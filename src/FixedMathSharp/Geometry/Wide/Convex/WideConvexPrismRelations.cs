@@ -321,7 +321,7 @@ internal static partial class WideConvexPrismRelations
             }
         }
 
-        contact = MaterializeContact(
+        return TryMaterializeContact(
             best,
             shapeKind,
             rigidShapeAxis,
@@ -331,10 +331,11 @@ internal static partial class WideConvexPrismRelations
             axisLength,
             radius,
             prismOrigin,
+            prismRotation,
             prismOrientation,
             prismLocalOffsets,
-            prismHalfThickness);
-        return true;
+            prismHalfThickness,
+            out contact);
     }
 
     private static bool TryKeepAxis(

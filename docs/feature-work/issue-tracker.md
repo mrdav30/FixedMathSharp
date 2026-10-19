@@ -2,8 +2,9 @@
 
 ## Purpose
 
-This document tracks unresolved correctness, determinism, API, documentation,
-build, and tooling issues that fall outside an active implementation plan.
+This document tracks active correctness, determinism, API, documentation,
+build, and tooling issues that fall outside an active implementation plan, and
+indexes their verified resolutions or documented investigation closures.
 
 Measured performance and allocation concerns belong in
 [`benchmark-signal-hardening-backlog.md`](benchmark-signal-hardening-backlog.md).
@@ -11,67 +12,114 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ## Tracker Rules
 
-- Record only unresolved, reproducible concerns.
-- Include the affected area, evidence, user or runtime impact, priority, and
-  smallest useful next action.
+- Add unresolved concerns with concrete evidence to `Active Issues`. Include the
+  affected area, reproducer, source revision, impact, priority and next action.
 - Use repository-relative paths and portable commands. Do not record
-  developer-specific drive letters, home directories, or machine-local
-  dependency locations.
-- Preserve the reproducer, source revision, observed failure and investigation
-  conclusions here. Ignored artifacts are disposable supporting evidence;
+  developer-specific drive letters, home directories or dependency locations.
+- Keep active entries self-contained. Ignored artifacts are supplemental;
   reproducing or continuing an issue must not require their survival.
-- Keep an issue here while it needs investigation or is deliberately deferred.
 - Link an active implementation plan instead of duplicating its task details.
-- Remove an entry after its resolution and verification are complete. Preserve
-  durable design decisions in the completed plan, public documentation, or
-  release notes rather than retaining a resolved-issue archive here.
+- After verification, replace the active entry with a compact `Resolved Issues`
+  row: the same ID, resolution/closure date, brief outcome and an evidence link.
+  Keep detailed root causes, decisions and validation in an existing completion
+  record, regression or fix commit rather than duplicating them in this index.
+- Distinguish verified fixes, mitigations and investigations closed without a
+  reproduced defect. A closed investigation does not establish a runtime fix or
+  an attributed cause; preserve its limits and recurrence guidance in the record.
+- Resolved means verified in source or closed by documented decision, not
+  released. Add release/version claims only when separately confirmed.
+- Preserve every assigned ID through closure; never delete or reuse it. Retain
+  prior evidence when new findings change an issue's status. Unknown historical
+  IDs stay reserved rather than acquiring an inferred cause.
 
 ## Active Issues
 
-### FMS-Issue-033: Finite curved-prism axes can report overlap across a separating plane
+### FMS-Issue-034: Canonical curved-prism depth can correct an exactly touching cone
 
-- **Status:** Confirmed, 2026-10-17; pre-existing on source revision `039f4c4`.
+- **Status:** Confirmed, 2026-10-19; pre-existing on source revision `5674103`,
+  with identical touching outputs before and after the Issue 033 admission fix.
 - **Priority:** High.
 - **Affected area:** `FixedConvexPrismRelations.TryGetCenteredConeContact(...)`
-  and `TryGetCenteredCylinderContact(...)`, owned by
-  `WideConvexPrismRelations.TryGetContact(...)`.
-- **Evidence:** The finite candidate-axis set omits a curved separating
-  direction. Both public methods return `true` for the following bounded inputs,
-  despite a strict whole-primitive separating plane. Reproduced against the
-  authenticated committed binary and the current source graph; this is not
-  introduced by static-surface contact reduction.
+  and the canonical projection depth/normal reducer in
+  `WideConvexPrismRelations.TryGetContact(...)`. Gravitas forwards this depth
+  into mixed-contact positional correction.
+- **Evidence:** Cone center zero, identity rotation, local axis `Vector3d.Up`,
+  height `2`, radius `1`. Prism origin `(0.5,1,0)`, zero yaw, half-thickness `1`,
+  offsets `(0,-1), (1,-1), (1,1), (0,1)`. This is a full-volume prism with
+  `X in [0.5,1.5], Y in [0,2], Z in [-1,1]`. Both versions return `true`,
+  `Depth = 0.5` (raw `2147483648`) and `Normal = Vector3d.Right`.
 
-  Cone: radius `0.5`, height `1`, identity rotation, center raw components
-  `(-565576967, -557169159, -565576967)`. The target prism has origin `(2,1,2)`,
-  zero yaw, half-thickness `1` and offsets `(-2,-2), (2,-2), (2,2), (-2,2)`.
-  The axis with raw components `(2716375826,1920767767,2716375826)` has target
-  minimum projection `0`; the cone maximum is `-4194303` raw units. Independently
-  obtain the cone maximum as
-  `dot(center,n) + max(h/2*n.Y, r*sqrt(n.X*n.X+n.Z*n.Z)-h/2*n.Y)`.
+  The exact plane `2*x+y=1` proves touching: the cone's apex and base-disk
+  maximum are both `1`, and the prism minimum is `1`. Their only common point
+  is `(0.5,0,0)`. Any positive prism translation along Right separates the
+  shapes, so `0.5` is only a sufficient selected-projection separation bound,
+  not the first exit or physical minimum correction. The same result occurs
+  with collapsed offsets `(0,-1), (0,1), (0,1)`.
 
-  Cylinder: radius `1`, height `2`, rotation
-  `FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)22,(Fixed64)17,(Fixed64)9)`.
-  Set `n = new Vector3d(Fixed64.Zero, Fixed64.FromRaw(-3980925575),
-  Fixed64.FromRaw(-1612133878))` and center to
-  `(0.25,0.75,0.25) - n * (Fixed64.FromRaw(1918558518) + Fixed64.FromFraction(1,1024))`.
-  The target has origin `(0,-4,0)`, zero yaw, half-thickness `4` and offsets
-  `(-1,-0.5), (1,-0.5), (1,0.5), (-1,0.5)`.
-  With `local = rotation.Conjugate().Rotate(n)`, the cylinder maximum is
-  `dot(center,n) + r*sqrt(local.X*local.X+local.Z*local.Z) + h/2*abs(local.Y)`.
-  The target minimum is `n.Z/2`. The independently computed clearance is
-  `4194303` raw units, approximately `1/1024` unit, while the method reports
-  positive penetration. This margin is far larger than the bounded fixtures'
-  final fixed-point projection rounding.
-- **Impact:** Mixed cone/cylinder versus AABB or polygon slabs can publish
-  geometric false positives and incorrect penetration. The ordinary predicate
-  must not be the sole independent oracle for exact curved-contact clearance.
-- **Next action:** Complete separating-feature admission in the existing native
-  curved-prism owner, reusing exact finite-feature/support geometry. Preserve
-  the ordinary warmed baseline and cover separated/touching/penetrating cases,
-  frame reversal, winding, dimensions and full-domain positions. Do not replace
-  this with more sampled axes or loosen the exact contact certificates.
+  Translating prism X by one positive raw unit exposes the separate Issue 033
+  classification defect on the old implementation; the completed admission
+  gate correctly rejects that neighbor. It preserves the existing depth and
+  normal for the admitted touching and overlapping neighbors.
+- **Impact:** An exactly touching or slightly overlapping pair can receive an
+  excessive correction along a noncontact support direction. Closed intersection
+  correctness does not establish correct physical contact depth or normals.
+  Current public XML and geometry guidance describe this limitation explicitly.
+- **Next action:** Complete supporting-feature normal and depth selection in
+  the native owner, with independent whole-shape clearance and witness checks.
+  Include ordinary full-volume and collapsed prisms, cone generator/base/apex
+  cases, and audit the shared finite-cylinder rim path. Retain the Issue 033
+  closed admission guarantees and the warmed dispatcher baseline. Adding only
+  this fixture's gradient direction would leave the general contact fan
+  incomplete.
 
-**Next issue ID:** `FMS-Issue-034`
+**Next issue ID:** `FMS-Issue-035`
+
+## Resolved Issues
+
+Historical rows come from committed tracker entries and linked completion
+records. Dates reflect recorded resolution/closure, which can precede the commit
+date. Evidence describes verification at closure; it does not claim a fresh
+rerun or package release.
+
+| Issue | Resolved/closed | Outcome | Evidence |
+| --- | --- | --- | --- |
+| FMS-Issue-033 | 2026-10-19 | Completed closed cylinder/cone-prism admission; the separate contact depth/normal defect remains active as FMS-Issue-034. | [Record](done/2026-10-19-curved-prism-admission.md) |
+| FMS-Issue-031 | 2026-10-14 | Preserved finite point/segment polygon extents and rejected false containment and initial sweep overlap. | [Record](done/2026-10-14-degenerate-convex-relations.md) |
+| FMS-Issue-030 | 2026-10-14 | Preserved convex sweep normals and exact witnesses independently of polygon-origin placement. | [Record](done/2026-10-14-convex-sweep-normal-witness.md) |
+| FMS-Issue-029 | 2026-10-14 | Made strict scaled-rotation decomposition scale-aware while retaining shear, perspective and representability rejection. | [Record](done/2026-10-14-scaled-rotation-decomposition.md) |
+| FMS-Issue-028 | 2026-10-11 | Rematched finite hull/capsule and box/capsule support witnesses to remove tangential disagreement. | [7ca6c70](https://github.com/mrdav30/FixedMathSharp/commit/7ca6c707173eabe50582c6d660a77600e5002f5c) |
+| FMS-Issue-027 | 2026-09-28 | Completed triangle/capsule-slab finite cap/rim/edge contacts, retaining positive-core and zero-core geometry. | [3f7a606](https://github.com/mrdav30/FixedMathSharp/commit/3f7a606c000b032d22e42022051ea1a44b0cd9ea) |
+| FMS-Issue-026 | 2026-09-24 | Bounded exact cylinder-pair depth rounding with a midpoint-proven binary-search fallback; geometric completeness was separate issue 024. | [Record](done/2026-09-24-cylinder-pair-depth-rounding.md) |
+| FMS-Issue-025 | 2026-09-27 | Completed exact box/cylinder contacts, including cap-clipped radial separation. | [fd1cb8f](https://github.com/mrdav30/FixedMathSharp/commit/fd1cb8ff014c64af2863f6c0b5a6d4fa80c9a2ce) |
+| FMS-Issue-024 | 2026-09-26 | Completed finite-cylinder pair cap/rim contact classification, depth ranking and witnesses. | [Record](done/2026-09-25-cylinder-pair-contact-design.md) |
+| FMS-Issue-023 | 2026-09-25 | Completed cylinder/capsule cap-rim classification, minimum depth and finite witness selection. | [Record](done/2026-09-24-cylinder-capsule-contact-design.md) |
+| FMS-Issue-022 | 2026-09-21 | Rematched capsule-side witnesses to opposing polygon features, eliminating tangential anchor offsets. | [Record](done/2026-09-21-capsule-side-contact-witness.md) |
+| FMS-Issue-021 | 2026-09-21 | Closed an unreproduced capsule benchmark crash investigation; no runtime fix or native-cause claim. | [Record](done/2026-09-21-capsule-benchmark-crash.md) |
+| FMS-Issue-020 | 2026-09-21 | Retained exact capsule/convex projection axes through closed admission before final contact rounding. | [Record](done/2026-09-21-exact-capsule-convex-contacts.md) |
+| FMS-Issue-019 | 2026-09-21 | Mitigated .NET 8 background-GC allocation-counter artifacts in the test host while preserving strict zero-byte guards. | [Record](done/2026-09-21-allocation-counter-accounting.md) |
+| FMS-Issue-018 | 2026-09-21 | Closed unreproduced containment benchmark crashes and fixed launcher failure reporting; original native/NRE cause remains unattributed. | [Record](done/2026-09-11-convex-point-containment-performance.md#2026-09-21-fms-issue-018-closure) |
+| FMS-Issue-017 | 2026-07-21 | Completed exact finite-cone segment intervals, point containment and conservative bounds. | [aa2ad5a](https://github.com/mrdav30/FixedMathSharp/commit/aa2ad5a0c9efa366045ba9592b6d276ef3aafd8a) |
+| FMS-Issue-016 | 2026-07-20 | Hardened area/box centers, sizes and extents, atomic failures and explicit domain-clipped factories. | [a5a406c](https://github.com/mrdav30/FixedMathSharp/commit/a5a406cccf4b966fbd2ba4d6f37c344e0808587d) |
+| FMS-Issue-015 | 2026-07-20 | Made sphere construction/merge containment-conservative across the full domain, with explicit overflow rejection. | [390b0d2](https://github.com/mrdav30/FixedMathSharp/commit/390b0d217e9e73c1725caba8aca5e414f5274cbc) |
+| FMS-Issue-014 | 2026-07-19 | Added exact finite-axis capsule/cylinder intervals with wide clipping before final rounding; committed 2026-07-20. | [8effdb1](https://github.com/mrdav30/FixedMathSharp/commit/8effdb12b4147034ea2290f08afa9d708bd5f450) |
+| FMS-Issue-013 | 2026-07-18 | Completed full-domain radial predicates, bounded ray intervals and sphere/slab cross-section queries. | [Record](done/2026-07-18-full-domain-radial-query-plan.md) |
+| FMS-Issue-012 | 2026-06-30 | Closed broad in-process benchmark crash investigation; adopted out-of-process smoke checks without claiming a runtime fix or proven native cause. | [9ce101e](https://github.com/mrdav30/FixedMathSharp/commit/9ce101e16b2f01181300341359a7a6516eb3460d) |
+| FMS-Issue-011 | 2026-06-08 | Guarded floating-point conversion range/rounding and retired obsolete floating-point APIs. | [e7ca0bc](https://github.com/mrdav30/FixedMathSharp/commit/e7ca0bc767bfa426bd747bb671c15235c10613bd) |
+| FMS-Issue-010 | 2026-06-06 | Removed ambiguous long arithmetic overloads and bounded explicit integer conversion. | [5b62303](https://github.com/mrdav30/FixedMathSharp/commit/5b623032a4ff70d8c4a9fd560e0e38d807cebc29) |
+| FMS-Issue-009 | 2026-06-05 | Aligned matrix point transforms, quaternion conversion and composition with the row-vector affine convention. | [7877e01](https://github.com/mrdav30/FixedMathSharp/commit/7877e01df5804b25d9deaf7bec2337d9923365ea) |
+| FMS-Issue-008 | 2026-06-04 | Isolated restore/intermediate outputs by host and configuration, retaining the benchmark-generated-project exception. | [Record](2026-06-04-benchmark-regression-followups.md) |
+| FMS-Issue-007 | 2026-06-03 | Retired FixedThrowHelper in favor of direct guarded throws that defer message construction. | [Record](done/2026-06-03-benchmark-hot-path-followups.md) |
+| FMS-Issue-006 | 2026-06-04 | Resolved Lean MemoryPack shim warnings caused by stale conditional assets, using matching restore and output isolation. | [Record](2026-06-04-benchmark-regression-followups.md) |
+| FMS-Issue-005 | 2026-06-04 | Mitigated Coverlet restoration failures by making local coverage opt-in; no upstream-engine fix claimed. | [Record](2026-06-04-benchmark-regression-followups.md) |
+| FMS-Issue-004 | 2026-06-03 | Reused static Pow10Lookup backing storage behind the existing span API. | [Record](done/2026-06-03-benchmark-hot-path-followups.md) |
+| FMS-Issue-003 | 2026-06-03 | Removed eager diagnostic-message allocations from valid scalar/trigonometry paths. | [Record](done/2026-06-03-benchmark-hot-path-followups.md) |
+| FMS-Issue-002 | 2026-06-03 | Corrected Vector3d.Direction pitch/yaw documentation and signed-direction regressions. | [9c288c8](https://github.com/mrdav30/FixedMathSharp/commit/9c288c8245be6e8b7d8d80afbb45261762f64460) |
+| FMS-Issue-001 | 2026-06-03 | Fixed backward-direction quaternion construction with deterministic antiparallel handling. | [c02069e](https://github.com/mrdav30/FixedMathSharp/commit/c02069eae77ba2eca190f520978f59c9166bb9b6) |
+
+**Reserved historical ID:** `FMS-Issue-032`. [Commit 9145a7a](https://github.com/mrdav30/FixedMathSharp/commit/9145a7a20fcaae500eaf8c568ebfc2351d6bfacc)
+advances the counter from 032 to 033, but no committed numbered entry or verified
+identity survives. Keep this slot reserved; do not infer a fix or assign it to an
+unrelated closed diagnostic.
 
 ## Issue Template
 

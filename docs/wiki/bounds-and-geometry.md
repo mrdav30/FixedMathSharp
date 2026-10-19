@@ -363,6 +363,23 @@ one caller-selected cone support onto the triangle. A failed support projection
 does not prove that the complete shapes are separated. Use the complete contact
 query when deciding whether the shapes intersect.
 
+### Vertical convex-prism contacts
+
+`FixedConvexPrismRelations` constructs canonical contacts against a convex
+footprint extruded through a positive Y half-thickness. Footprint offsets are
+boundary-ordered in either winding; repeated or collinear offsets retain their
+finite closed extent. Touching counts as contact, including zero-radius finite
+axes. The shape's local axis and rotation remain separately authored.
+
+Finite-cylinder and cone admission checks the complete closed geometry through
+real prism edges and face sections. Overlap on the canonical projection
+directions alone does not establish intersection. Admitted contacts retain the
+existing canonical projection ranking. Depth rounds the selected projection
+overlap, a sufficient separating displacement before final rounding. This can
+exceed the first exit and can be positive at true geometric tangency. The normal
+and anchors describe the selected support features; these prism methods do not
+yet supply a complete minimum-correction contact solver.
+
 ## Sweeps and finite-shape intervals
 
 `FixedTriangle.TryGetFiniteConeIntersectionMinimumAxialPoint` finds the first

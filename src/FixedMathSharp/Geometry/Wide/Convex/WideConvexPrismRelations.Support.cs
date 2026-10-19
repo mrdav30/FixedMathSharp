@@ -218,7 +218,7 @@ internal static partial class WideConvexPrismRelations
 
     #endregion
 
-    private static Penetration MaterializeContact(
+    private static bool TryMaterializeContact(
         in PenetrationCandidate candidate,
         FiniteShapeKind shapeKind,
         RigidAxis3 shapeAxis,
@@ -228,10 +228,22 @@ internal static partial class WideConvexPrismRelations
         Fixed64 axisLength,
         Fixed64 radius,
         Vector3d prismOrigin,
+        Fixed64 prismRotation,
         FixedQuaternion prismOrientation,
         ReadOnlySpan<Vector2d> prismOffsets,
-        Fixed64 prismHalfThickness)
+        Fixed64 prismHalfThickness,
+        out Penetration contact)
     {
+        // Overlap on the finite projection inventory does not prove curved
+        // intersection. Complete admission precedes all witness materialization.
+        if (shapeKind != FiniteShapeKind.Capsule && !IntersectsCurvedPrism(
+                shapeKind, center, shapeAxis, axisLength, radius,
+                prismOrigin, prismRotation, prismOffsets, prismHalfThickness))
+        {
+            contact = default;
+            return false;
+        }
+
         Axis3 orientedAxis = candidate.Negate
             ? Negate(candidate.Axis)
             : candidate.Axis;
@@ -265,13 +277,14 @@ internal static partial class WideConvexPrismRelations
         Fixed64 depth = GetRoundedDepth(
             candidate.ExactDepth,
             out bool depthIsClamped);
-        return new Penetration(
+        contact = new Penetration(
             normal,
             shapeAnchor,
             prismOrientation,
             prismOffset,
             depth,
             depthIsClamped);
+        return true;
     }
 
     private static void GetMatchedPrismOffset(
