@@ -13,6 +13,7 @@ internal static partial class SegmentConeSurfaceCandidates
 {
     private static void AccumulateAxis(in SegmentConeSurfaceGeometry geometry, ref ConeSurfaceSelection selection)
     {
+
         if (!geometry.Radius.IsZero)
             return;
         if (geometry.Edge.X.IsZero && geometry.Edge.Z.IsZero)
@@ -23,21 +24,22 @@ internal static partial class SegmentConeSurfaceCandidates
                 ConeSurfaceFamily.SegmentInterval, 0, 0, ConeSurfacePointLocation.SegmentIntervalUnspecified));
             return;
         }
-        GetAxisParameter(geometry, out Signed576 numerator, out Signed576 denominator);
+        GetAxisParameter(geometry, out Signed832 numerator, out Signed832 denominator);
         ConeSurfacePointLocation location = numerator.IsZero ? ConeSurfacePointLocation.Start
-            : WideArithmetic.SubtractSigned576(denominator, numerator).IsZero ? ConeSurfacePointLocation.End : ConeSurfacePointLocation.Interior;
+            : WideArithmetic.SubtractSigned832(denominator, numerator).IsZero ? ConeSurfacePointLocation.End : ConeSurfacePointLocation.Interior;
         selection.Add(new SegmentConeSurfaceCandidate(geometry.Input, ConeSurfaceFeature.Side,
             ConeSurfaceFamily.NormalCone, 0, 0, location));
     }
 
     private static void GetAxisParameter(in SegmentConeSurfaceGeometry geometry,
-        out Signed576 numerator, out Signed576 denominator)
+        out Signed832 numerator, out Signed832 denominator)
     {
+
         // A non-coaxial segment already certified to intersect a zero-radius
         // cone has exactly one finite radial-axis crossing. Reuse that proof;
         // its projection parameter does not require a second admission test.
         denominator = CircularRimContactAlgebra.RadialDot(geometry.Edge, geometry.Edge);
-        numerator = WideArithmetic.SubtractSigned576(default, CircularRimContactAlgebra.RadialDot(geometry.A, geometry.Edge));
+        numerator = WideArithmetic.SubtractSigned832(default, CircularRimContactAlgebra.RadialDot(geometry.A, geometry.Edge));
     }
 
 }

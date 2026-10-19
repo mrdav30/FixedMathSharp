@@ -129,7 +129,7 @@ public class PlaneRayCrossFrameDepthTests
         ContactQuadratic d = ContactQuadratic.At(values, signs, 1, ConePlaneRaySelection.FieldWords);
         Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
         Span<int> pointSigns = stackalloc int[ConePlaneRayPoint.SignCount];
-        ConePlaneRayPoint point = new(pointValues, pointSigns); point.Set(default);
+        ConePlaneRayPoint point = new(pointValues, pointSigns); point.Set(default(WideAxis3));
         // Physical raw depth is n/(d*2D): both start at exactly one raw unit.
         Assert.False(firstFrame.Finite.ShapeFrame.Denominator.Equals(secondFrame.Finite.ShapeFrame.Denominator));
         n.Set(Signed576.ExtendValue(Signed320.ExtendValue(WideArithmetic.AddSigned192(firstFrame.Finite.ShapeFrame.Denominator,

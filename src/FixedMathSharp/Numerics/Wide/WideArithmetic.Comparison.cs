@@ -262,6 +262,89 @@ internal static partial class WideArithmetic
 
     #endregion
 
+    #region Scaled-Frame Normalized Depth Comparison
+
+    /// <summary>Compares exact scaled-frame depths without narrowing their squared axes.</summary>
+    internal static int CompareNonNegativeNormalizedDepths(
+        Signed832 leftOverlap, Signed832 leftSquaredAxisLength, Signed576 leftCommonDenominator,
+        Signed832 rightOverlap, Signed832 rightSquaredAxisLength, Signed576 rightCommonDenominator)
+    {
+        Span<ulong> leftN = stackalloc ulong[13], rightN = stackalloc ulong[13];
+        Span<ulong> leftAxis = stackalloc ulong[13], rightAxis = stackalloc ulong[13];
+        GetMagnitude(leftOverlap, leftN); GetMagnitude(rightOverlap, rightN);
+        GetMagnitude(leftSquaredAxisLength, leftAxis); GetMagnitude(rightSquaredAxisLength, rightAxis);
+        if (leftCommonDenominator.Equals(rightCommonDenominator))
+            return CompareSignedNormalizedMagnitudes(leftN, leftOverlap.Sign, leftAxis,
+                rightN, rightOverlap.Sign, rightAxis);
+
+        Span<ulong> leftD = stackalloc ulong[9], rightD = stackalloc ulong[9];
+        GetMagnitude(leftCommonDenominator, leftD); GetMagnitude(rightCommonDenominator, rightD);
+        Span<ulong> leftSquared = stackalloc ulong[26], rightSquared = stackalloc ulong[26];
+        Span<ulong> leftDSquared = stackalloc ulong[18], rightDSquared = stackalloc ulong[18];
+        MultiplyMagnitudes(leftN, leftN, leftSquared); MultiplyMagnitudes(rightN, rightN, rightSquared);
+        MultiplyMagnitudes(leftD, leftD, leftDSquared); MultiplyMagnitudes(rightD, rightD, rightDSquared);
+        Span<ulong> leftOnce = stackalloc ulong[44], rightOnce = stackalloc ulong[44];
+        Span<ulong> left = stackalloc ulong[57], right = stackalloc ulong[57];
+        MultiplyMagnitudes(leftSquared, rightDSquared, leftOnce);
+        MultiplyMagnitudes(rightSquared, leftDSquared, rightOnce);
+        MultiplyMagnitudes(leftOnce, rightAxis, left); MultiplyMagnitudes(rightOnce, leftAxis, right);
+        return CompareMagnitudeEqualLength(left, right);
+    }
+
+    /// <summary>Rounds a scaled-frame normalized depth once, with the same nearest-even contract as rigid SAT.</summary>
+    internal static Fixed64 GetRoundedNonNegativeNormalizedDepth(Signed832 overlap,
+        Signed832 squaredAxisLength, Signed576 commonDenominator, out bool isClamped)
+    {
+        Signed192 maximumTwice = AddSigned192(Signed192.Signed(long.MaxValue), Signed192.Signed(long.MaxValue));
+        if (CompareNormalizedDepthToTwiceRaw(overlap, squaredAxisLength, commonDenominator, maximumTwice) > 0)
+        { isClamped = true; return Fixed64.MaxValue; }
+        isClamped = false;
+        // The scaled floor root has less than one raw-unit quotient error for
+        // axes >= 2^62; exact midpoint admission corrects its final rounding.
+        if (SubtractSigned832(squaredAxisLength, Signed832.ExtendValue(Signed192.Signed(1L << 62))).Sign >= 0)
+        {
+            Signed576 root = GetFloorSquareRootOfProduct(squaredAxisLength, new Signed192(0UL, 1UL, 0UL));
+            Signed832 denominator = MultiplySigned576ToSigned832(root, commonDenominator);
+            if (!Fixed64.TryGetSignedRawRatio(overlap, denominator, FixedMath.SHIFT_AMOUNT_I, out Fixed64 result))
+                result = Fixed64.MaxValue;
+            if (result == Fixed64.Zero) return result;
+            Signed192 midpoint = SubtractSigned192(AddSigned192(Signed192.Signed(result.m_rawValue),
+                Signed192.Signed(result.m_rawValue)), Signed192.Signed(1));
+            if (CompareNormalizedDepthToTwiceRaw(overlap, squaredAxisLength, commonDenominator, midpoint)
+                < (result.m_rawValue & 1L)) result = Fixed64.FromRaw(result.m_rawValue - 1);
+            return result;
+        }
+        long low = 0, high = long.MaxValue;
+        while (low < high)
+        {
+            long candidate = (long)(((ulong)low + (ulong)high + 1UL) >> 1);
+            Signed192 midpoint = SubtractSigned192(AddSigned192(Signed192.Signed(candidate),
+                Signed192.Signed(candidate)), Signed192.Signed(1));
+            int comparison = CompareNormalizedDepthToTwiceRaw(overlap, squaredAxisLength, commonDenominator, midpoint);
+            if (comparison > 0 || (comparison == 0 && (candidate & 1L) == 0)) low = candidate;
+            else high = candidate - 1;
+        }
+        return Fixed64.FromRaw(low);
+    }
+
+    private static int CompareNormalizedDepthToTwiceRaw(Signed832 overlap,
+        Signed832 squaredAxisLength, Signed576 commonDenominator, Signed192 twiceRaw)
+    {
+        Span<ulong> n = stackalloc ulong[13], axis = stackalloc ulong[13], d = stackalloc ulong[9];
+        Span<ulong> raw = stackalloc ulong[3];
+        GetMagnitude(overlap, n); GetMagnitude(squaredAxisLength, axis); GetMagnitude(commonDenominator, d);
+        GetMagnitude(twiceRaw, out raw[2], out raw[1], out raw[0]);
+        Span<ulong> left = stackalloc ulong[37], right = stackalloc ulong[37];
+        Span<ulong> dSquared = stackalloc ulong[18], rawSquared = stackalloc ulong[6];
+        Span<ulong> threshold = stackalloc ulong[24];
+        MultiplyMagnitudes(n, n, left); ShiftLeftMagnitude(left, 2);
+        MultiplyMagnitudes(d, d, dSquared); MultiplyMagnitudes(raw, raw, rawSquared);
+        MultiplyMagnitudes(dSquared, rawSquared, threshold); MultiplyMagnitudes(threshold, axis, right);
+        return CompareMagnitudeEqualLength(left, right);
+    }
+
+    #endregion
+
     #region Normalized Magnitude Comparison
 
     /// <summary>

@@ -25,25 +25,25 @@ internal static class TriangleConeGeneratorFeatures
         WideArithmetic.AddEqualMagnitudes(hSquared, rSquared, length);
         // All generator directions share the raw-coordinate scale. Include
         // its square once in the length factor used by every gap denominator.
-        Import(Signed320.ExtendValue(geometry.RawScale), product);
+        Import(Signed576.ExtendValue(geometry.RawScale), product);
         WideArithmetic.MultiplyMagnitudes(product, product, Slot(work, 6));
         WideArithmetic.MultiplyMagnitudes(length, Slot(work, 6), product);
         product.CopyTo(length);
         values.Clear(); signs.Clear();
-        Write(values, signs, 0, Signed576.ExtendValue(Signed320.ExtendValue(h)));
-        Write(values, signs, 1, Signed576.ExtendValue(Signed320.ExtendValue(WideArithmetic.SubtractSigned192(default, r))));
+        Write(values, signs, 0, Signed832.ExtendValue(Signed576.ExtendValue(h)));
+        Write(values, signs, 1, Signed832.ExtendValue(Signed576.ExtendValue(WideArithmetic.SubtractSigned192(default, r))));
         // A zero-radial vertex can own the whole constant support circle.
         Keep(geometry, values, signs, length, ref selection);
         for (int vertex = 0; vertex < 3 && !selection.Separated; vertex++)
         {
-            WideAxis3 p = geometry.Vertex(vertex);
-            Signed576 radial = CircularRimContactAlgebra.RadialDot(p, p);
+            WideDirection3d p = geometry.Vertex(vertex);
+            Signed832 radial = CircularRimContactAlgebra.RadialDot(p, p);
             if (radial.Sign != 0)
             {
                 values.Clear(); signs.Clear();
-                Write(values, signs, 0, WideArithmetic.MultiplySigned320(p.X, h), -1);
-                Write(values, signs, 2, WideArithmetic.MultiplySigned320(p.Z, h), -1);
-                Write(values, signs, 4, Signed576.ExtendValue(Signed320.ExtendValue(r)), -1);
+                Write(values, signs, 0, Signed832.ExtendValue(WideArithmetic.MultiplySigned576(p.X, h)), -1);
+                Write(values, signs, 2, Signed832.ExtendValue(WideArithmetic.MultiplySigned576(p.Z, h)), -1);
+                Write(values, signs, 4, Signed832.ExtendValue(Signed576.ExtendValue(r)), -1);
                 Import(radial, Slot(values, 6));
                 WideArithmetic.MultiplyMagnitudes(Slot(values, 6), length, metric);
                 for (int orientation = -1; orientation <= 1; orientation += 2)
@@ -52,24 +52,24 @@ internal static class TriangleConeGeneratorFeatures
                     signs[0] = -signs[0]; signs[2] = -signs[2];
                 }
             }
-            WideAxis3 e = geometry.Edge(vertex);
-            Signed576 eSquared = CircularRimContactAlgebra.RadialDot(e, e);
+            WideDirection3d e = geometry.Edge(vertex);
+            Signed832 eSquared = CircularRimContactAlgebra.RadialDot(e, e);
             if (eSquared.Sign == 0)
                 continue;
             values.Clear(); signs.Clear();
             Import(eSquared, metric);
             WideArithmetic.MultiplyMagnitudes(metric, hSquared, Slot(values, 6));
-            Import(WideArithmetic.MultiplySigned320(e.Y, e.Y), product);
+            Import(WideArithmetic.MultiplySigned576(e.Y, e.Y), product);
             WideArithmetic.MultiplyMagnitudes(product, rSquared, Slot(work, 5));
             int discriminantSign = 1;
             Add(Slot(work, 5), -1, Slot(values, 6), ref discriminantSign);
             if (discriminantSign < 0)
                 continue;
-            Write(values, signs, 0, WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(e.Y, e.X), radius.m_rawValue));
-            Write(values, signs, 1, WideArithmetic.MultiplySigned576(eSquared, radius.m_rawValue), -1);
-            Write(values, signs, 2, WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(e.Y, e.Z), radius.m_rawValue));
-            Write(values, signs, 3, Signed576.ExtendValue(e.Z), -1);
-            Write(values, signs, 5, Signed576.ExtendValue(e.X));
+            Write(values, signs, 0, WideArithmetic.MultiplySigned832(WideArithmetic.MultiplySigned576(e.Y, e.X), Signed192.Raw(radius)));
+            Write(values, signs, 1, WideArithmetic.MultiplySigned832(eSquared, Signed192.Raw(radius)), -1);
+            Write(values, signs, 2, WideArithmetic.MultiplySigned832(WideArithmetic.MultiplySigned576(e.Y, e.Z), Signed192.Raw(radius)));
+            Write(values, signs, 3, Signed832.ExtendValue(e.Z), -1);
+            Write(values, signs, 5, Signed832.ExtendValue(e.X));
             WideArithmetic.MultiplyMagnitudes(metric, metric, product);
             WideArithmetic.MultiplyMagnitudes(product, length, metric);
             Keep(geometry, values, signs, metric, ref selection);
@@ -101,13 +101,13 @@ internal static class TriangleConeGeneratorFeatures
             else if (comparison == 0) mask |= 1 << vertex;
         }
         Component(values, signs, 1, current);
-        Scale(current, Signed576.ExtendValue(geometry.HalfHeight), difference);
+        Scale(current, Signed832.ExtendValue(geometry.HalfHeight), difference);
         maximum.Add(difference, -1);
         int gapSign = BuildQuadraticCandidate(maximum, root, denominator, values, signs);
         selection.Keep(values, signs, gapSign, mask, TriangleConeContactSelection.Generator);
     }
 
-    internal static void Dot(WideAxis3 axis, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> signs, ContactQuadratic result)
+    internal static void Dot(in WideDirection3d axis, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> signs, ContactQuadratic result)
     {
         CylinderContactAlgebra.Dot(axis, normal[..(3 * Words)], signs[..3], result.Rational, out int rationalSign);
         CylinderContactAlgebra.Dot(axis, normal.Slice(3 * Words, 3 * Words), signs.Slice(3, 3), result.Radical, out int radicalSign);
@@ -120,7 +120,7 @@ internal static class TriangleConeGeneratorFeatures
         result.Signs[0] = signs[component]; result.Signs[1] = signs[component + 3];
     }
 
-    private static void Write(Span<ulong> values, Span<int> signs, int slot, Signed576 value, int orientation = 1)
+    private static void Write(Span<ulong> values, Span<int> signs, int slot, Signed832 value, int orientation = 1)
     {
         Import(value, Slot(values, slot)); signs[slot] = orientation * value.Sign;
     }

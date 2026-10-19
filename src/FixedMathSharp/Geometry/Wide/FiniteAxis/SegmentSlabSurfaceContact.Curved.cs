@@ -12,6 +12,8 @@ internal static partial class SegmentSlabSurfaceContact
 {
     private static void AccumulateCurved(scoped Input input, scoped ref Selection selection)
     {
+        int Words = input.Words;
+        int StorageWords = Fields * 2 * Words;
         Span<ulong> values = stackalloc ulong[StorageWords], root = stackalloc ulong[Words];
         Span<int> signs = stackalloc int[2 * Fields];
         var candidate = new Candidate(values, signs, root);
@@ -49,14 +51,14 @@ internal static partial class SegmentSlabSurfaceContact
         int start = input.Length == Fixed64.Zero ? 0 : -1;
         for (int region = start; region <= (input.Length == Fixed64.Zero ? 0 : 1); region += 2)
         {
-            Signed320 center = region < 0 ? WideArithmetic.Negate(input.Core) : region > 0 ? input.Core : default;
-            WideAxis3 offset = new(input.First.X, default, WideArithmetic.SubtractSigned320(input.First.Z, center));
-            WideAxis3 planarEdge = new(input.Edge.X, default, input.Edge.Z);
-            Signed576 square = planarEdge.SquaredLength;
+            Signed576 center = region < 0 ? WideArithmetic.Negate(input.Core) : region > 0 ? input.Core : default;
+            WideDirection3d offset = new(input.First.X, default, WideArithmetic.SubtractSigned576(input.First.Z, center));
+            WideDirection3d planarEdge = new(input.Edge.X, default, input.Edge.Z);
+            Signed832 square = planarEdge.SquaredLength;
             if (!square.IsZero)
             {
                 candidate.Clear();
-                candidate.Parameter.Set(WideArithmetic.SubtractSigned576(default, WideAxis3.Dot(offset, planarEdge)));
+                candidate.Parameter.Set(WideArithmetic.SubtractSigned832(default, WideDirection3d.Dot(offset, planarEdge)));
                 candidate.ParameterDenominator.Set(square); SetPoint(input, candidate);
                 AccumulateArcFoot(input, candidate, region, cap: 0, ref selection);
                 if (input.Edge.Y.IsZero)
@@ -102,15 +104,17 @@ internal static partial class SegmentSlabSurfaceContact
 
     private static bool SetSectionParameter(scoped Input input, scoped Candidate candidate, bool projected = false)
     {
+        int Words = input.Words;
         candidate.Clear();
         if (!input.RequireSourceInside && !projected)
         {
-            if (!CapsuleFiniteSectionFrame.TryGetCenteredAxisInterval(input.First.Y, input.Edge.Y, input.Cap,
+            if (!CapsuleFiniteSectionFrame.TryGetCenteredAxisInterval(Signed320.NarrowValue(input.First.Y),
+                Signed320.NarrowValue(input.Edge.Y), Signed320.NarrowValue(input.Cap),
                 out Signed320 ln, out Signed320 ld, out Signed320 un, out Signed320 ud)) return false;
-            candidate.Parameter.Set(WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned320(ln, ud),
-                WideArithmetic.MultiplySigned320(un, ld)));
-            Signed576 denominator = WideArithmetic.MultiplySigned320(ld, ud);
-            candidate.ParameterDenominator.Set(WideArithmetic.AddSigned576(denominator, denominator));
+            candidate.Parameter.Set(WideArithmetic.AddSigned832(WideArithmetic.MultiplySigned576(Signed576.ExtendValue(ln), Signed576.ExtendValue(ud)),
+                WideArithmetic.MultiplySigned576(Signed576.ExtendValue(un), Signed576.ExtendValue(ld))));
+            Signed832 denominator = WideArithmetic.MultiplySigned576(Signed576.ExtendValue(ld), Signed576.ExtendValue(ud));
+            candidate.ParameterDenominator.Set(WideArithmetic.AddSigned832(denominator, denominator));
             return true;
         }
         bool admitted = input.RequireSourceInside
@@ -136,21 +140,23 @@ internal static partial class SegmentSlabSurfaceContact
         if (remainder.Sign(candidate.Root) == 0)
         {
             candidate.Clear(); candidate.Parameter.Set(One);
-            candidate.ParameterDenominator.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(2))));
+            candidate.ParameterDenominator.Set(Signed832.ExtendValue(Signed576.ExtendValue(Signed192.Signed(2))));
         }
         return true;
     }
 
     private static void AccumulateArcFoot(scoped Input input, scoped Candidate source, int region, int cap, scoped ref Selection selection)
     {
+        int Words = input.Words;
+        int StorageWords = Fields * 2 * Words;
         Span<ulong> saved = stackalloc ulong[StorageWords], savedRoot = stackalloc ulong[Words];
         Span<int> savedSigns = stackalloc int[2 * Fields];
         var candidate = new Candidate(saved, savedSigns, savedRoot);
         Span<ulong> values = stackalloc ulong[14 * Words]; Span<int> signs = stackalloc int[14];
-        ContactQuadratic x = ContactQuadratic.At(values, signs, 0), z = ContactQuadratic.At(values, signs, 1),
-            center = ContactQuadratic.At(values, signs, 2), square = ContactQuadratic.At(values, signs, 3),
-            term = ContactQuadratic.At(values, signs, 4), coefficient = ContactQuadratic.At(values, signs, 5),
-            remainder = ContactQuadratic.At(values, signs, 6);
+        ContactQuadratic x = ContactQuadratic.At(values, signs, 0, Words), z = ContactQuadratic.At(values, signs, 1, Words),
+            center = ContactQuadratic.At(values, signs, 2, Words), square = ContactQuadratic.At(values, signs, 3, Words),
+            term = ContactQuadratic.At(values, signs, 4, Words), coefficient = ContactQuadratic.At(values, signs, 5, Words),
+            remainder = ContactQuadratic.At(values, signs, 6, Words);
         source.Point(0).CopyTo(x); source.Point(2).CopyTo(z);
         ContactQuadratic.Scale(source.Denominator, Extend(input.Core), center); center.MultiplySign(region);
         z.Add(center, -1);
@@ -216,6 +222,8 @@ internal static partial class SegmentSlabSurfaceContact
 
     private static void AccumulateRadialFamily(scoped Input input, scoped Candidate source, int region, int cap, scoped ref Selection selection)
     {
+        int Words = input.Words;
+        int StorageWords = Fields * 2 * Words;
         // At a planar axis point every radial orientation has equal distance.
         // A nonempty halfspace-clipped circle either includes a principal
         // axis or an exact intersection with one of its linear walls.
@@ -230,7 +238,7 @@ internal static partial class SegmentSlabSurfaceContact
             ContactQuadratic.Scale(source.Denominator, Extend(input.Core), candidate.Boundary(2));
             candidate.Boundary(2).MultiplySign(region);
             if (cap != 0 && !SetCap(input, candidate, cap)) return;
-            Span<WideAxis3> cone = stackalloc WideAxis3[3];
+            Span<WideDirection3d> cone = stackalloc WideDirection3d[3];
             int count = 0;
             cone[count++] = Axis(0, cap == 0 ? 1 : -cap, 0);
             if (cap == 0) cone[count++] = Axis(0, -1, 0);
@@ -239,10 +247,10 @@ internal static partial class SegmentSlabSurfaceContact
             return;
         }
         Span<ulong> work = stackalloc ulong[16 * Words]; Span<int> workSigns = stackalloc int[16];
-        ContactQuadratic a = ContactQuadratic.At(work, workSigns, 0), b = ContactQuadratic.At(work, workSigns, 1),
-            c = ContactQuadratic.At(work, workSigns, 2), metric = ContactQuadratic.At(work, workSigns, 3),
-            discriminant = ContactQuadratic.At(work, workSigns, 4), term = ContactQuadratic.At(work, workSigns, 5),
-            radial = ContactQuadratic.At(work, workSigns, 6), axial = ContactQuadratic.At(work, workSigns, 7);
+        ContactQuadratic a = ContactQuadratic.At(work, workSigns, 0, Words), b = ContactQuadratic.At(work, workSigns, 1, Words),
+            c = ContactQuadratic.At(work, workSigns, 2, Words), metric = ContactQuadratic.At(work, workSigns, 3, Words),
+            discriminant = ContactQuadratic.At(work, workSigns, 4, Words), term = ContactQuadratic.At(work, workSigns, 5, Words),
+            radial = ContactQuadratic.At(work, workSigns, 6, Words), axial = ContactQuadratic.At(work, workSigns, 7, Words);
         ContactQuadratic.Scale(source.Denominator, Extend(input.Radial), radial);
         axial.Clear();
         if (cap != 0)
@@ -265,8 +273,8 @@ internal static partial class SegmentSlabSurfaceContact
             }
         for (int wall = 0; wall < input.Fan.Length + (region == 0 ? 0 : 1); wall++)
         {
-            WideAxis3 constraint = wall < input.Fan.Length ? input.Fan[wall]
-                : new(default, default, Signed320.ExtendValue(Signed192.Signed(-region)));
+            WideDirection3d constraint = wall < input.Fan.Length ? input.Fan[wall]
+                : new(default, default, Signed576.ExtendValue(Signed192.Signed(-region)));
             a.Set(Extend(constraint.X)); b.Set(Extend(constraint.Z));
             ContactQuadratic.Multiply(a, a, source.Root, metric);
             ContactQuadratic.Multiply(b, b, source.Root, term); metric.Add(term);
@@ -299,14 +307,15 @@ internal static partial class SegmentSlabSurfaceContact
     {
         for (int component = 0; component < 3; component++) candidate.Normal(component).Clear();
         candidate.Normal(axis).Set(One); candidate.Normal(axis).MultiplySign(branch);
-        if (cap != 0) candidate.Normal(1).Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(cap))));
+        if (cap != 0) candidate.Normal(1).Set(Signed832.ExtendValue(Signed576.ExtendValue(Signed192.Signed(cap))));
     }
 
     private static void AccumulateTouchNormals(scoped Input input, scoped Candidate candidate, int region, int cap, scoped ref Selection selection)
     {
+        int Words = input.Words;
         Span<ulong> values = stackalloc ulong[8 * Words]; Span<int> signs = stackalloc int[8];
-        ContactQuadratic radial = ContactQuadratic.At(values, signs, 0), up = ContactQuadratic.At(values, signs, 1),
-            term = ContactQuadratic.At(values, signs, 2), projection = ContactQuadratic.At(values, signs, 3);
+        ContactQuadratic radial = ContactQuadratic.At(values, signs, 0, Words), up = ContactQuadratic.At(values, signs, 1, Words),
+            term = ContactQuadratic.At(values, signs, 2, Words), projection = ContactQuadratic.At(values, signs, 3, Words);
         candidate.Boundary(0).CopyTo(candidate.Normal(0)); candidate.Normal(1).Clear();
         ContactQuadratic.Scale(candidate.Denominator, Extend(input.Core), term); term.MultiplySign(region);
         candidate.Boundary(2).CopyTo(candidate.Normal(2)); candidate.Normal(2).Add(term, -1);
@@ -317,7 +326,7 @@ internal static partial class SegmentSlabSurfaceContact
             // The normal cone is the nonnegative span of this radial normal
             // and the cap normal. Its clipped endpoints are generators or
             // one exact fan-wall crossing; no angular sampling is needed.
-            WideAxis3 constraint = wall < input.Fan.Length ? input.Fan[wall] : default;
+            WideDirection3d constraint = wall < input.Fan.Length ? input.Fan[wall] : default;
             candidate.Boundary(0).CopyTo(candidate.Normal(0)); candidate.Normal(1).Clear();
             candidate.Boundary(2).CopyTo(candidate.Normal(2)); candidate.Normal(2).Add(term, -1);
             Dot(candidate, constraint, radial, projection);
@@ -341,15 +350,17 @@ internal static partial class SegmentSlabSurfaceContact
 
     private static void AccumulateMeridionalRims(scoped Input input, scoped ref Selection selection)
     {
+        int Words = input.Words;
+        int StorageWords = Fields * 2 * Words;
         if (input.Edge.Y.IsZero) return;
-        Signed576 radialSquare = CircularRimContactAlgebra.RadialDot(input.Edge, input.Edge);
+        Signed832 radialSquare = CircularRimContactAlgebra.RadialDot(input.Edge, input.Edge);
         if (radialSquare.IsZero) return;
         Span<ulong> values = stackalloc ulong[StorageWords], root = stackalloc ulong[Words];
         Span<int> signs = stackalloc int[2 * Fields]; var candidate = new Candidate(values, signs, root);
         Span<ulong> work = stackalloc ulong[12 * Words]; Span<int> workSigns = stackalloc int[12];
-        ContactQuadratic qx = ContactQuadratic.At(work, workSigns, 0), qy = ContactQuadratic.At(work, workSigns, 1),
-            qz = ContactQuadratic.At(work, workSigns, 2), a = ContactQuadratic.At(work, workSigns, 3),
-            b = ContactQuadratic.At(work, workSigns, 4), term = ContactQuadratic.At(work, workSigns, 5);
+        ContactQuadratic qx = ContactQuadratic.At(work, workSigns, 0, Words), qy = ContactQuadratic.At(work, workSigns, 1, Words),
+            qz = ContactQuadratic.At(work, workSigns, 2, Words), a = ContactQuadratic.At(work, workSigns, 3, Words),
+            b = ContactQuadratic.At(work, workSigns, 4, Words), term = ContactQuadratic.At(work, workSigns, 5, Words);
         int firstRegion = input.Length == Fixed64.Zero ? 0 : -1;
         for (int region = firstRegion; region <= (input.Length == Fixed64.Zero ? 0 : 1); region += 2)
             for (int cap = -1; cap <= 1; cap += 2)
@@ -381,6 +392,8 @@ internal static partial class SegmentSlabSurfaceContact
 
     private static void AccumulatePrincipalRims(scoped Input input, scoped ref Selection selection)
     {
+        int Words = input.Words;
+        int StorageWords = Fields * 2 * Words;
         if (input.Edge.Y.IsZero || input.Edge.IsZero) return;
         // The quartic charts isolate (0,1]; their exact principal-axis ends
         // are separate rational feet, rather than angular samples.
@@ -392,11 +405,11 @@ internal static partial class SegmentSlabSurfaceContact
                 for (int axis = 0; axis < 3; axis += 2)
                     for (int branch = -1; branch <= 1; branch += 2)
                     {
-                        Signed320 x = axis == 0 ? branch < 0 ? WideArithmetic.Negate(input.Radial) : input.Radial : default;
-                        Signed320 z = region < 0 ? WideArithmetic.Negate(input.Core) : region > 0 ? input.Core : default;
-                        if (axis == 2) z = WideArithmetic.AddSigned320(z, branch < 0 ? WideArithmetic.Negate(input.Radial) : input.Radial);
-                        WideAxis3 q = new(x, cap < 0 ? WideArithmetic.Negate(input.Cap) : input.Cap, z);
-                        candidate.Clear(); candidate.Parameter.Set(WideAxis3.Dot(TriangleCircularGeometry.Subtract(q, input.First), input.Edge));
+                        Signed576 x = axis == 0 ? branch < 0 ? WideArithmetic.Negate(input.Radial) : input.Radial : default;
+                        Signed576 z = region < 0 ? WideArithmetic.Negate(input.Core) : region > 0 ? input.Core : default;
+                        if (axis == 2) z = WideArithmetic.AddSigned576(z, branch < 0 ? WideArithmetic.Negate(input.Radial) : input.Radial);
+                        WideDirection3d q = new(x, cap < 0 ? WideArithmetic.Negate(input.Cap) : input.Cap, z);
+                        candidate.Clear(); candidate.Parameter.Set(WideDirection3d.Dot(TriangleCircularGeometry.Subtract(q, input.First), input.Edge));
                         candidate.ParameterDenominator.Set(input.Edge.SquaredLength); SetPoint(input, candidate);
                         for (int component = 0; component < 3; component++)
                             ContactQuadratic.Scale(candidate.Denominator, Extend(Component(q, component)), candidate.Boundary(component));
@@ -406,10 +419,11 @@ internal static partial class SegmentSlabSurfaceContact
 
     private static void KeepRim(scoped Input input, scoped Candidate candidate, int region, int cap, scoped ref Selection selection)
     {
+        int Words = input.Words;
         Span<ulong> values = stackalloc ulong[10 * Words]; Span<int> signs = stackalloc int[10];
-        ContactQuadratic radial = ContactQuadratic.At(values, signs, 0), term = ContactQuadratic.At(values, signs, 1),
-            cross = ContactQuadratic.At(values, signs, 2), dot = ContactQuadratic.At(values, signs, 3),
-            remainder = ContactQuadratic.At(values, signs, 4);
+        ContactQuadratic radial = ContactQuadratic.At(values, signs, 0, Words), term = ContactQuadratic.At(values, signs, 1, Words),
+            cross = ContactQuadratic.At(values, signs, 2, Words), dot = ContactQuadratic.At(values, signs, 3, Words),
+            remainder = ContactQuadratic.At(values, signs, 4, Words);
         if (!AdmitsArc(input, candidate, region, remainder, term)) return;
         for (int axis = 0; axis < 3; axis++)
         { candidate.Boundary(axis).CopyTo(candidate.Normal(axis)); candidate.Normal(axis).Add(candidate.Point(axis), -1); }

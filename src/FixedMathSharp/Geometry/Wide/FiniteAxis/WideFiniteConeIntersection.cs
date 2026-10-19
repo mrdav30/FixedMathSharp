@@ -12,7 +12,7 @@ namespace FixedMathSharp.Geometry;
 /// <summary>
 /// Owns exact full-domain finite-cone containment and segment reduction.
 /// </summary>
-internal static class WideFiniteConeIntersection
+internal static partial class WideFiniteConeIntersection
 {
     private static readonly Signed192 One = Signed192.Signed(1L);
     private static readonly Signed192 Four = Signed192.Signed(4L);
@@ -501,6 +501,15 @@ internal static class WideFiniteConeIntersection
         Signed320 denominator) =>
         EvaluateWidePolynomialSign(coefficient, projection, constant, numerator, denominator, derivative: false);
 
+    internal static int GetPolynomialSignAtRationalParameter(Signed832 coefficient, Signed832 projection,
+        Signed832 constant, Signed832 numerator, Signed832 denominator)
+    {
+        Span<ulong> n = stackalloc ulong[13], d = stackalloc ulong[13];
+        WideArithmetic.GetMagnitude(numerator, n); WideArithmetic.GetMagnitude(denominator, d);
+        return EvaluateWidePolynomialSign(coefficient, projection, constant,
+            n, numerator.Sign, d, denominator.Sign, derivative: false);
+    }
+
     private static int GetDerivativeSign(
         Signed832 coefficient,
         Signed832 projection,
@@ -521,12 +530,21 @@ internal static class WideFiniteConeIntersection
         // Current rigid query bounds are smaller: 660 + 2*200 + 2 < 1,063 bits.
         Span<ulong> n = stackalloc ulong[5];
         Span<ulong> d = stackalloc ulong[5];
-        Span<ulong> factor = stackalloc ulong[10];
-        Span<ulong> coefficientMagnitude = stackalloc ulong[13];
-        Span<ulong> product = stackalloc ulong[24];
-        Span<ulong> sum = stackalloc ulong[24];
         WideArithmetic.GetMagnitude(numerator, out n[4], out n[3], out n[2], out n[1], out n[0]);
         WideArithmetic.GetMagnitude(denominator, out d[4], out d[3], out d[2], out d[1], out d[0]);
+        return EvaluateWidePolynomialSign(coefficient, projection, constant,
+            n, numerator.Sign, d, denominator.Sign, derivative);
+    }
+
+    private static int EvaluateWidePolynomialSign(Signed832 coefficient, Signed832 projection, Signed832 constant,
+        ReadOnlySpan<ulong> n, int numeratorSign, ReadOnlySpan<ulong> d, int denominatorSign, bool derivative)
+    {
+        int factorWords = n.Length + d.Length;
+        // Full coefficient and two complete parameter magnitudes plus one
+        // limb retain the doubled middle term and both addition carries.
+        int words = 14 + factorWords;
+        Span<ulong> factor = stackalloc ulong[factorWords], coefficientMagnitude = stackalloc ulong[13],
+            product = stackalloc ulong[words], sum = stackalloc ulong[words];
         sum.Clear();
         int sign = 0;
         for (int term = 0; term < (derivative ? 2 : 3); term++)
@@ -538,13 +556,13 @@ internal static class WideFiniteConeIntersection
             {
                 factor.Clear();
                 (term == 0 ? n : d).CopyTo(factor);
-                factorSign = term == 0 ? numerator.Sign : denominator.Sign;
+                factorSign = term == 0 ? numeratorSign : denominatorSign;
             }
             else
             {
                 WideArithmetic.MultiplyMagnitudes(term == 2 ? d : n, term == 0 ? n : d, factor);
-                factorSign = term == 0 ? numerator.Sign * numerator.Sign
-                    : term == 1 ? numerator.Sign * denominator.Sign : denominator.Sign * denominator.Sign;
+                factorSign = term == 0 ? numeratorSign * numeratorSign
+                    : term == 1 ? numeratorSign * denominatorSign : denominatorSign * denominatorSign;
             }
             WideArithmetic.MultiplyMagnitudes(coefficientMagnitude, factor, product);
             WideArithmetic.AddShiftedSignedMagnitude(product, value.Sign * factorSign,

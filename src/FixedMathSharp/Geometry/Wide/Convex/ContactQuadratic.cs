@@ -24,13 +24,33 @@ internal readonly ref partial struct ContactQuadratic
     {
         Import(value, Rational); Radical.Clear(); Signs[0] = value.Sign; Signs[1] = 0;
     }
+    internal void Set(in Signed832 value)
+    {
+        if (FieldWords >= 13)
+        {
+            // Plane-ray banks already hold the full scalar width. Import it
+            // directly rather than prepare and rescan a second magnitude bank.
+            WideArithmetic.GetMagnitude(value, Rational);
+            Radical.Clear(); Signs[0] = value.Sign; Signs[1] = 0;
+            return;
+        }
+        Span<ulong> magnitude = stackalloc ulong[13];
+        WideArithmetic.GetMagnitude(value, magnitude);
+        int active = WideArithmetic.GetActiveMagnitudeLength(magnitude);
+        magnitude[..active].CopyTo(Rational);
+        Rational[active..].Clear(); Radical.Clear();
+        Signs[0] = value.Sign; Signs[1] = 0;
+    }
     internal void CopyTo(ContactQuadratic destination, int multiplier = 1)
     {
         // Signs are authoritative: a zero field can retain stale scratch bytes.
         // Both complete active fields must fit the destination's borrowed banks.
         int rationalWords = Signs[0] == 0 ? 0 : WideArithmetic.GetActiveMagnitudeLength(Rational);
         int radicalWords = Signs[1] == 0 ? 0 : WideArithmetic.GetActiveMagnitudeLength(Radical);
-        int rationalSign = Signs[0] * multiplier, radicalSign = Signs[1] * multiplier;
+        // A nonzero retained sign on an empty magnitude is still exact zero.
+        // Reuse the active lengths above to canonicalize it without a rescan.
+        int rationalSign = rationalWords == 0 ? 0 : Signs[0] * multiplier;
+        int radicalSign = radicalWords == 0 ? 0 : Signs[1] * multiplier;
         Rational[..rationalWords].CopyTo(destination.Rational); Radical[..radicalWords].CopyTo(destination.Radical);
         destination.Rational[rationalWords..].Clear(); destination.Radical[radicalWords..].Clear();
         destination.Signs[0] = rationalSign; destination.Signs[1] = radicalSign;
@@ -175,12 +195,26 @@ internal readonly ref partial struct ContactQuadratic
         Import(scalar, magnitude);
         Scale(value, magnitude, scalar.Sign, result);
     }
+    internal static void Scale(ContactQuadratic value, Signed832 scalar, ContactQuadratic result)
+    {
+        Span<ulong> magnitude = stackalloc ulong[13];
+        WideArithmetic.GetMagnitude(scalar, magnitude);
+        Scale(value, magnitude, scalar.Sign, result);
+    }
 
     // The caller proves that result has room for both complete products and
     // does not alias the source coefficient or scalar storage.
     internal static void Scale(ContactQuadratic value, ReadOnlySpan<ulong> magnitude,
         int scalarSign, ContactQuadratic result)
     {
+        // Primitive plane covectors and reduced homogeneous scales often
+        // supply integer +/-1. Copy the same exact fields without multiplying
+        // padded banks; CopyTo also clears stale bytes under zero field signs.
+        if (scalarSign != 0 && WideArithmetic.GetActiveMagnitudeLength(magnitude) == 1 && magnitude[0] == 1UL)
+        {
+            value.CopyTo(result, scalarSign);
+            return;
+        }
         int rationalSign = value.Signs[0] * scalarSign, radicalSign = value.Signs[1] * scalarSign;
         // Retained sign zero is authoritative even when borrowed bank bytes
         // are stale. Clear output rather than scan/multiply a coefficient

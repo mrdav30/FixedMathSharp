@@ -16,35 +16,35 @@ internal static partial class SegmentSlabSurfaceContact
         for (int cap = -1; cap <= 1; cap += 2)
             AccumulatePlane(input, new(default, cap < 0 ? WideArithmetic.Negate(input.Cap) : input.Cap, default),
                 Axis(0, cap, 0), false, ref selection);
-        Span<WideAxis3> cone = stackalloc WideAxis3[5];
+        Span<WideDirection3d> cone = stackalloc WideDirection3d[5];
         for (int index = 0; index < input.Offsets.Length; index++)
         {
-            WideAxis3 a = PrismVertex(input, index), b = PrismVertex(input, (index + 1) % input.Offsets.Length);
-            WideAxis3 edge = TriangleCircularGeometry.Subtract(b, a);
+            WideDirection3d a = PrismVertex(input, index), b = PrismVertex(input, (index + 1) % input.Offsets.Length);
+            WideDirection3d edge = TriangleCircularGeometry.Subtract(b, a);
             if (edge.IsZero) continue;
             int previous = (index + input.Offsets.Length - 1) % input.Offsets.Length;
-            WideAxis3 inward = TriangleCircularGeometry.Subtract(PrismVertex(input, previous), a);
+            WideDirection3d inward = TriangleCircularGeometry.Subtract(PrismVertex(input, previous), a);
             while (inward.IsZero)
             {
                 previous = (previous + input.Offsets.Length - 1) % input.Offsets.Length;
                 inward = TriangleCircularGeometry.Subtract(PrismVertex(input, previous), a);
             }
-            WideAxis3 outward = new(winding > 0 ? edge.Z : WideArithmetic.Negate(edge.Z), default,
+            WideDirection3d outward = new(winding > 0 ? edge.Z : WideArithmetic.Negate(edge.Z), default,
                 winding > 0 ? WideArithmetic.Negate(edge.X) : edge.X);
-            bool straight = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned320(inward.X, edge.Z),
-                WideArithmetic.MultiplySigned320(inward.Z, edge.X)).IsZero;
+            bool straight = WideArithmetic.SubtractSigned832(WideArithmetic.MultiplySigned576(inward.X, edge.Z),
+                WideArithmetic.MultiplySigned576(inward.Z, edge.X)).IsZero;
             AccumulatePlane(input, a, outward, false, ref selection);
             cone[0] = inward; cone[1] = edge;
             cone[2] = Axis(0, 1, 0); cone[3] = Axis(0, -1, 0);
             // Opposite incident rays at a redundant straight vertex also need the wall's outward orientation.
             if (straight) cone[4] = -outward;
-            WideAxis3 bottom = new(a.X, WideArithmetic.Negate(input.Cap), a.Z);
-            WideAxis3 top = new(a.X, input.Cap, a.Z);
+            WideDirection3d bottom = new(a.X, WideArithmetic.Negate(input.Cap), a.Z);
+            WideDirection3d top = new(a.X, input.Cap, a.Z);
             AccumulateLine(input, bottom, top, cone[..(straight ? 5 : 4)], ref selection);
             for (int cap = -1; cap <= 1; cap += 2)
             {
-                WideAxis3 first = new(a.X, cap < 0 ? WideArithmetic.Negate(input.Cap) : input.Cap, a.Z);
-                WideAxis3 second = new(b.X, first.Y, b.Z);
+                WideDirection3d first = new(a.X, cap < 0 ? WideArithmetic.Negate(input.Cap) : input.Cap, a.Z);
+                WideDirection3d second = new(b.X, first.Y, b.Z);
                 cone[0] = -outward; cone[1] = Axis(0, -cap, 0); cone[2] = edge; cone[3] = -edge;
                 AccumulateLine(input, first, second, cone[..4], ref selection);
                 cone[0] = inward; cone[1] = edge; cone[2] = Axis(0, -cap, 0);
@@ -54,31 +54,31 @@ internal static partial class SegmentSlabSurfaceContact
         }
     }
 
-    private static WideAxis3 PrismVertex(scoped Input input, int index)
+    private static WideDirection3d PrismVertex(scoped Input input, int index)
     {
         Vector2d vertex = input.Offsets[index];
-        Signed192 scale = Signed192.NarrowProven(input.Scale);
-        return new(WideArithmetic.MultiplySigned192(Signed192.Raw(vertex.X), scale), default,
-            WideArithmetic.MultiplySigned192(Signed192.Raw(vertex.Y), scale));
+        Signed320 scale = input.Scale;
+        return new(WideArithmetic.MultiplySigned320(scale, Signed192.Raw(vertex.X)), default,
+            WideArithmetic.MultiplySigned320(scale, Signed192.Raw(vertex.Y)));
     }
 
-    private static WideAxis3 Axis(long x, long y, long z) => new(
-        Signed320.ExtendValue(Signed192.Signed(x)), Signed320.ExtendValue(Signed192.Signed(y)),
-        Signed320.ExtendValue(Signed192.Signed(z)));
+    private static WideDirection3d Axis(long x, long y, long z) => new(
+        Signed576.ExtendValue(Signed192.Signed(x)), Signed576.ExtendValue(Signed192.Signed(y)),
+        Signed576.ExtendValue(Signed192.Signed(z)));
 
     private static void AccumulateStraight(scoped Input input, scoped ref Selection selection)
     {
-        Span<WideAxis3> cone = stackalloc WideAxis3[4];
+        Span<WideDirection3d> cone = stackalloc WideDirection3d[4];
         for (int cap = -1; cap <= 1; cap += 2)
             AccumulatePlane(input, new(default, cap < 0 ? WideArithmetic.Negate(input.Cap) : input.Cap, default),
                 Axis(0, cap, 0), true, ref selection);
         for (int side = -1; side <= 1; side += 2)
         {
-            Signed320 x = side < 0 ? WideArithmetic.Negate(input.Radial) : input.Radial;
+            Signed576 x = side < 0 ? WideArithmetic.Negate(input.Radial) : input.Radial;
             AccumulatePlane(input, new(x, default, default), Axis(side, 0, 0), true, ref selection);
             for (int cap = -1; cap <= 1; cap += 2)
             {
-                Signed320 y = cap < 0 ? WideArithmetic.Negate(input.Cap) : input.Cap;
+                Signed576 y = cap < 0 ? WideArithmetic.Negate(input.Cap) : input.Cap;
                 cone[0] = Axis(-side, 0, 0); cone[1] = Axis(0, -cap, 0);
                 cone[2] = Axis(0, 0, 1); cone[3] = Axis(0, 0, -1);
                 AccumulateLine(input, new(x, y, WideArithmetic.Negate(input.Core)),
@@ -95,20 +95,20 @@ internal static partial class SegmentSlabSurfaceContact
             ref readonly RationalSegmentInterval clip = ref input.Clip[0];
             if (seed < 2)
             {
-                candidate.Parameter.Set(Extend(seed == 0 ? clip.LowerNumerator : clip.UpperNumerator));
-                candidate.ParameterDenominator.Set(Extend(seed == 0 ? clip.LowerDenominator : clip.UpperDenominator));
+                candidate.Parameter.Set(seed == 0 ? clip.WideLowerNumerator : clip.WideUpperNumerator);
+                candidate.ParameterDenominator.Set(seed == 0 ? clip.WideLowerDenominator : clip.WideUpperDenominator);
             }
             else
             {
                 // The mediant lies strictly inside distinct positive-denominator
                 // bounds without the 640-bit denominator of their arithmetic mean.
-                candidate.Parameter.Set(WideArithmetic.AddSigned576(Extend(clip.LowerNumerator), Extend(clip.UpperNumerator)));
-                candidate.ParameterDenominator.Set(WideArithmetic.AddSigned576(Extend(clip.LowerDenominator), Extend(clip.UpperDenominator)));
+                candidate.Parameter.Set(WideArithmetic.AddSigned832(clip.WideLowerNumerator, clip.WideUpperNumerator));
+                candidate.ParameterDenominator.Set(WideArithmetic.AddSigned832(clip.WideLowerDenominator, clip.WideUpperDenominator));
             }
         }
         else if (seed == 1) candidate.Parameter.Set(One);
         else if (seed == 2)
-        { candidate.Parameter.Set(One); candidate.ParameterDenominator.Set(Extend(Signed320.ExtendValue(Signed192.Signed(2)))); }
+        { candidate.Parameter.Set(One); candidate.ParameterDenominator.Set(Extend(Signed576.ExtendValue(Signed192.Signed(2)))); }
         else if (seed >= 3)
         {
             FixedSegment segment = seed == 3 ? input.Segment : new(input.Segment.End, input.Segment.Start);
@@ -124,26 +124,28 @@ internal static partial class SegmentSlabSurfaceContact
         SetPoint(input, candidate); return true;
     }
 
-    private static void AccumulatePlane(scoped Input input, WideAxis3 origin, WideAxis3 outward,
+    private static void AccumulatePlane(scoped Input input, WideDirection3d origin, WideDirection3d outward,
         bool central, scoped ref Selection selection)
     {
+        int Words = input.Words;
+        int StorageWords = Fields * 2 * Words;
         Span<ulong> values = stackalloc ulong[StorageWords], root = stackalloc ulong[Words];
         Span<int> signs = stackalloc int[2 * Fields];
         var candidate = new Candidate(values, signs, root);
         Span<ulong> work = stackalloc ulong[8 * Words]; Span<int> workSigns = stackalloc int[8];
-        ContactQuadratic offset = ContactQuadratic.At(work, workSigns, 0), term = ContactQuadratic.At(work, workSigns, 1),
-            product = ContactQuadratic.At(work, workSigns, 2), bound = ContactQuadratic.At(work, workSigns, 3);
-        Signed576 square = outward.SquaredLength;
+        ContactQuadratic offset = ContactQuadratic.At(work, workSigns, 0, Words), term = ContactQuadratic.At(work, workSigns, 1, Words),
+            product = ContactQuadratic.At(work, workSigns, 2, Words), bound = ContactQuadratic.At(work, workSigns, 3, Words);
+        Signed832 square = outward.SquaredLength;
         // Point seeds coincide; keep the first tie and omit segment-only stationary candidates.
         int seedCount = input.Edge.IsZero ? 1 : 6;
         for (int seed = 0; seed < seedCount; seed++)
         {
             if (seed == 5)
             {
-                Signed576 velocity = WideAxis3.Dot(input.Edge, outward);
+                Signed832 velocity = WideDirection3d.Dot(input.Edge, outward);
                 if (velocity.IsZero) continue;
                 candidate.Clear();
-                candidate.Parameter.Set(WideAxis3.Dot(TriangleCircularGeometry.Subtract(origin, input.First), outward));
+                candidate.Parameter.Set(WideDirection3d.Dot(TriangleCircularGeometry.Subtract(origin, input.First), outward));
                 candidate.ParameterDenominator.Set(velocity);
                 if (velocity.Sign < 0)
                 { candidate.Parameter.MultiplySign(-1); candidate.ParameterDenominator.MultiplySign(-1); }
@@ -177,20 +179,22 @@ internal static partial class SegmentSlabSurfaceContact
         }
     }
 
-    private static void AccumulateLine(scoped Input input, WideAxis3 first, WideAxis3 second,
-        scoped ReadOnlySpan<WideAxis3> cone, scoped ref Selection selection)
+    private static void AccumulateLine(scoped Input input, WideDirection3d first, WideDirection3d second,
+        scoped ReadOnlySpan<WideDirection3d> cone, scoped ref Selection selection)
     {
-        WideAxis3 axis = TriangleCircularGeometry.Subtract(second, first);
+        int Words = input.Words;
+        int StorageWords = Fields * 2 * Words;
+        WideDirection3d axis = TriangleCircularGeometry.Subtract(second, first);
         // Positive thickness/core length and distinct prism edges keep every line finite and nonzero.
         System.Diagnostics.Debug.Assert(!axis.IsZero);
-        WideAxis3 offset = TriangleCircularGeometry.Subtract(input.First, first);
-        Signed576 ee = input.Edge.SquaredLength, ff = axis.SquaredLength,
-            ef = WideAxis3.Dot(input.Edge, axis), ew = WideAxis3.Dot(input.Edge, offset), fw = WideAxis3.Dot(axis, offset);
+        WideDirection3d offset = TriangleCircularGeometry.Subtract(input.First, first);
+        Signed832 ee = input.Edge.SquaredLength, ff = axis.SquaredLength,
+            ef = WideDirection3d.Dot(input.Edge, axis), ew = WideDirection3d.Dot(input.Edge, offset), fw = WideDirection3d.Dot(axis, offset);
         Span<ulong> work = stackalloc ulong[16 * Words]; Span<int> workSigns = stackalloc int[16];
-        ContactQuadratic a = ContactQuadratic.At(work, workSigns, 0), b = ContactQuadratic.At(work, workSigns, 1),
-            determinant = ContactQuadratic.At(work, workSigns, 2), term = ContactQuadratic.At(work, workSigns, 3),
-            upper = ContactQuadratic.At(work, workSigns, 5),
-            projection = ContactQuadratic.At(work, workSigns, 6), divisor = ContactQuadratic.At(work, workSigns, 7);
+        ContactQuadratic a = ContactQuadratic.At(work, workSigns, 0, Words), b = ContactQuadratic.At(work, workSigns, 1, Words),
+            determinant = ContactQuadratic.At(work, workSigns, 2, Words), term = ContactQuadratic.At(work, workSigns, 3, Words),
+            upper = ContactQuadratic.At(work, workSigns, 5, Words),
+            projection = ContactQuadratic.At(work, workSigns, 6, Words), divisor = ContactQuadratic.At(work, workSigns, 7, Words);
         a.Set(ee); b.Set(ff); ContactQuadratic.Multiply(a, b, ReadOnlySpan<ulong>.Empty, determinant);
         a.Set(ef); ContactQuadratic.Multiply(a, a, ReadOnlySpan<ulong>.Empty, term); determinant.Add(term, -1);
         Span<ulong> values = stackalloc ulong[StorageWords], root = stackalloc ulong[Words];
@@ -208,7 +212,7 @@ internal static partial class SegmentSlabSurfaceContact
             else if (seed >= 6)
             {
                 if (ef.IsZero) continue;
-                candidate.Clear(); candidate.Parameter.Set(WideArithmetic.SubtractSigned576(seed == 6 ? default : ff, fw));
+                candidate.Clear(); candidate.Parameter.Set(WideArithmetic.SubtractSigned832(seed == 6 ? default : ff, fw));
                 candidate.ParameterDenominator.Set(ef);
                 if (ef.Sign < 0) { candidate.Parameter.MultiplySign(-1); candidate.ParameterDenominator.MultiplySign(-1); }
                 SetPoint(input, candidate);
@@ -243,9 +247,11 @@ internal static partial class SegmentSlabSurfaceContact
         }
     }
 
-    private static void AccumulateVertex(scoped Input input, WideAxis3 point,
-        scoped ReadOnlySpan<WideAxis3> cone, scoped ref Selection selection)
+    private static void AccumulateVertex(scoped Input input, WideDirection3d point,
+        scoped ReadOnlySpan<WideDirection3d> cone, scoped ref Selection selection)
     {
+        int Words = input.Words;
+        int StorageWords = Fields * 2 * Words;
         Span<ulong> values = stackalloc ulong[StorageWords], root = stackalloc ulong[Words];
         Span<int> signs = stackalloc int[2 * Fields]; var candidate = new Candidate(values, signs, root);
         int seedCount = input.Edge.IsZero ? 1 : 4;
@@ -253,7 +259,7 @@ internal static partial class SegmentSlabSurfaceContact
         {
             if (seed == 3)
             {
-                candidate.Clear(); candidate.Parameter.Set(WideAxis3.Dot(
+                candidate.Clear(); candidate.Parameter.Set(WideDirection3d.Dot(
                     TriangleCircularGeometry.Subtract(point, input.First), input.Edge));
                 candidate.ParameterDenominator.Set(input.Edge.SquaredLength); SetPoint(input, candidate);
             }
@@ -265,11 +271,12 @@ internal static partial class SegmentSlabSurfaceContact
     }
 
     private static void KeepPlanar(scoped Input input, scoped Candidate candidate,
-        scoped ReadOnlySpan<WideAxis3> cone, scoped ref Selection selection)
+        scoped ReadOnlySpan<WideDirection3d> cone, scoped ref Selection selection)
     {
+        int Words = input.Words;
         Span<ulong> values = stackalloc ulong[8 * Words]; Span<int> signs = stackalloc int[8];
-        ContactQuadratic sum = ContactQuadratic.At(values, signs, 0), term = ContactQuadratic.At(values, signs, 1),
-            a = ContactQuadratic.At(values, signs, 2), b = ContactQuadratic.At(values, signs, 3);
+        ContactQuadratic sum = ContactQuadratic.At(values, signs, 0, Words), term = ContactQuadratic.At(values, signs, 1, Words),
+            a = ContactQuadratic.At(values, signs, 2, Words), b = ContactQuadratic.At(values, signs, 3, Words);
         bool nonzero = false;
         for (int axis = 0; axis < 3; axis++)
         {
@@ -278,11 +285,11 @@ internal static partial class SegmentSlabSurfaceContact
         }
         if (nonzero)
         {
-            foreach (WideAxis3 wall in cone)
+            foreach (WideDirection3d wall in cone)
             { Dot(candidate, wall, sum, term); if (sum.Sign(candidate.Root) > 0) return; }
             Keep(input, candidate, ref selection); return;
         }
-        Span<WideAxis3> walls = stackalloc WideAxis3[input.Fan.Length + cone.Length];
+        Span<WideDirection3d> walls = stackalloc WideDirection3d[input.Fan.Length + cone.Length];
         input.Fan.CopyTo(walls); cone.CopyTo(walls[input.Fan.Length..]);
         // A nonempty pointed cone in three dimensions contains an axis or
         // an extreme ray at two wall planes. Degenerate lines keep both signs.
@@ -290,7 +297,7 @@ internal static partial class SegmentSlabSurfaceContact
             for (int branch = -1; branch <= 1; branch += 2)
             {
                 for (int component = 0; component < 3; component++)
-                    candidate.Normal(component).Set(component == axis ? Extend(Signed320.ExtendValue(Signed192.Signed(branch))) : default);
+                    candidate.Normal(component).Set(component == axis ? Extend(Signed576.ExtendValue(Signed192.Signed(branch))) : default);
                 KeepPlanarNormal(input, candidate, cone, ref selection);
             }
         for (int first = 0; first < walls.Length; first++)
@@ -311,11 +318,12 @@ internal static partial class SegmentSlabSurfaceContact
     }
 
     private static void KeepPlanarNormal(scoped Input input, scoped Candidate candidate,
-        scoped ReadOnlySpan<WideAxis3> cone, scoped ref Selection selection)
+        scoped ReadOnlySpan<WideDirection3d> cone, scoped ref Selection selection)
     {
+        int Words = input.Words;
         Span<ulong> values = stackalloc ulong[4 * Words]; Span<int> signs = stackalloc int[4];
-        var sum = ContactQuadratic.At(values, signs, 0); var term = ContactQuadratic.At(values, signs, 1);
-        foreach (WideAxis3 wall in cone)
+        var sum = ContactQuadratic.At(values, signs, 0, Words); var term = ContactQuadratic.At(values, signs, 1, Words);
+        foreach (WideDirection3d wall in cone)
         { Dot(candidate, wall, sum, term); if (sum.Sign(candidate.Root) > 0) return; }
         Keep(input, candidate, ref selection);
     }
@@ -324,22 +332,24 @@ internal static partial class SegmentSlabSurfaceContact
     private struct ObliqueSelection
     {
         internal bool HasValue, IsZero, IsRational;
-        internal WideAxis3 First, Second;
+        internal WideDirection3d First, Second;
         internal int Cap, Region, ParameterOrdinal, ValueOrdinal, ValueShift;
     }
 
     private static bool TryImproveObliqueRims(scoped Input input, scoped Selection analytic, out FixedContactAnchors contact)
     {
+        int ValueWords = input.ValueWords;
+        int ObliqueValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
         contact = default;
         if (input.Edge.Y.IsZero || input.Edge.X.IsZero && input.Edge.Z.IsZero || input.Radius == Fixed64.Zero
             || analytic.HasValue && analytic.MetricSigns[10] == 0) return false;
-        Span<ulong> bestValues = stackalloc ulong[5 * CircularRimContactAlgebra.ValueWords];
+        Span<ulong> bestValues = stackalloc ulong[5 * ValueWords];
         Span<sbyte> bestSigns = stackalloc sbyte[5];
         Span<ulong> bestCell = stackalloc ulong[ObliqueValueCellWords];
         ObliqueSelection best = default;
-        CircularRimContactAlgebra.GetBasis(input.Edge, out WideAxis3 u, out WideAxis3 v);
+        CircularRimContactAlgebra.GetBasis(input.Edge, out WideDirection3d u, out WideDirection3d v);
         int firstRegion = input.Length == Fixed64.Zero ? 0 : -1;
-        Span<Signed320> bounds = stackalloc Signed320[9]
+        Span<Signed576> bounds = stackalloc Signed576[9]
         { input.First.X, input.First.Y, input.First.Z, input.Edge.X, input.Edge.Y, input.Edge.Z, input.Cap, input.Core, input.Radial };
         int valueShift = TriangleCircularGeometry.GetValueShift(bounds, 5);
         for (int region = firstRegion; region <= (input.Length == Fixed64.Zero ? 0 : 1); region += 2)
@@ -347,7 +357,7 @@ internal static partial class SegmentSlabSurfaceContact
                 for (int firstSign = -1; firstSign <= 1; firstSign += 2)
                     for (int secondSign = -1; secondSign <= 1; secondSign += 2)
                     {
-                        WideAxis3 first = firstSign < 0 ? -u : u, second = secondSign < 0 ? -v : v;
+                        WideDirection3d first = firstSign < 0 ? -u : u, second = secondSign < 0 ? -v : v;
                         AccumulateObliqueChart(input, analytic, first, second, region, cap, valueShift,
                             bestValues, bestSigns, bestCell, ref best);
                         AccumulateObliqueChart(input, analytic, second, first, region, cap, valueShift,
@@ -358,27 +368,30 @@ internal static partial class SegmentSlabSurfaceContact
         return true;
     }
 
-    private static WideAxis3 RimOffset(scoped Input input, int region, int cap) => new(input.First.X,
-        WideArithmetic.SubtractSigned320(input.First.Y, cap < 0 ? WideArithmetic.Negate(input.Cap) : input.Cap),
-        WideArithmetic.SubtractSigned320(input.First.Z, region < 0 ? WideArithmetic.Negate(input.Core) : region > 0 ? input.Core : default));
+    private static WideDirection3d RimOffset(scoped Input input, int region, int cap) => new(input.First.X,
+        WideArithmetic.SubtractSigned576(input.First.Y, cap < 0 ? WideArithmetic.Negate(input.Cap) : input.Cap),
+        WideArithmetic.SubtractSigned576(input.First.Z, region < 0 ? WideArithmetic.Negate(input.Core) : region > 0 ? input.Core : default));
 
     private static void AccumulateObliqueChart(scoped Input input, scoped Selection analytic,
-        WideAxis3 first, WideAxis3 second, int region, int cap, int valueShift,
+        WideDirection3d first, WideDirection3d second, int region, int cap, int valueShift,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell, ref ObliqueSelection best)
     {
+        int Words = input.Words;
+        int ValueWords = input.ValueWords;
+        int ObliqueValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
         // The cap generator and stadium hemisphere must agree with the exit
         // ray -n. Reject an entirely unpermitted chart before its quartic.
-        if (first.Y.Sign * cap > 0 && WideArithmetic.AddSigned320(first.Y, second.Y).Sign * cap > 0) return;
+        if (first.Y.Sign * cap > 0 && WideArithmetic.AddSigned576(first.Y, second.Y).Sign * cap > 0) return;
         if (region != 0 && first.Z.Sign * region > 0
-            && WideArithmetic.AddSigned320(first.Z, second.Z).Sign * region > 0) return;
+            && WideArithmetic.AddSigned576(first.Z, second.Z).Sign * region > 0) return;
         Span<ulong> data = stackalloc ulong[26 * Words]; Span<sbyte> signs = stackalloc sbyte[26];
-        WideAxis3 offset = RimOffset(input, region, cap);
-        CircularRimContactAlgebra.BuildParameter(offset, input.Radial, Signed192.NarrowProven(input.Scale),
+        WideDirection3d offset = RimOffset(input, region, cap);
+        CircularRimContactAlgebra.BuildParameter(offset, input.Radial, input.Scale,
             first, second, data, signs);
         Span<ulong> batchCells = stackalloc ulong[64]; Span<int> batchShifts = stackalloc int[8];
         FiniteAxisValueRoots roots = WideFiniteAxisIntersection.GetFiniteValueRoots(data[..(5 * Words)], signs[..5], batchCells, batchShifts);
         Span<ulong> cell = stackalloc ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(data[..(5 * Words)], signs[..5])];
-        Span<ulong> values = stackalloc ulong[5 * CircularRimContactAlgebra.ValueWords]; Span<sbyte> valueSigns = stackalloc sbyte[5];
+        Span<ulong> values = stackalloc ulong[5 * ValueWords]; Span<sbyte> valueSigns = stackalloc sbyte[5];
         Span<ulong> valueCell = stackalloc ulong[ObliqueValueCellWords]; bool valuesReady = false;
         for (int ordinal = 0; ordinal < roots.Count; ordinal++)
         {
@@ -394,13 +407,13 @@ internal static partial class SegmentSlabSurfaceContact
             if (best.IsZero) continue;
             if (!valuesReady)
             { CircularRimContactAlgebra.BuildValues(input.Edge, offset, input.Radial, valueShift, values, valueSigns); valuesReady = true; }
-            FiniteAxisValueRoot value = ConvexContactValueRoot.MapSquaredValue(Signed192.NarrowProven(input.Scale), valueShift,
+            FiniteAxisValueRoot value = ConvexContactValueRoot.MapSquaredValue(input.Scale, valueShift,
                 ref root, data.Slice(16 * Words, 5 * Words), signs.Slice(16, 5), data.Slice(21 * Words, 5 * Words), signs.Slice(21, 5),
                 values, valueSigns, valueCell);
             int comparison = best.HasValue ? WideFiniteAxisIntersection.CompareFiniteValueRoots(value,
                 RestoreObliqueValue(bestValues, bestSigns, bestCell, best)) : analytic.HasValue
-                    ? ConvexContactValueRoot.CompareRootSquared(Signed192.NarrowProven(input.Scale), valueShift, ref value,
-                        new ConvexContactCandidate(analytic.Metric, analytic.MetricSigns, analytic.MetricSigns[10])) : -1;
+                    ? ConvexContactValueRoot.CompareRootSquared(input.Scale, valueShift, ref value,
+                        new ConvexContactCandidate(analytic.Metric, analytic.MetricSigns, analytic.MetricSigns[10], Words)) : -1;
             if (comparison >= 0) continue;
             values.CopyTo(bestValues); valueSigns.CopyTo(bestSigns); valueCell.CopyTo(bestCell);
             candidate.ValueOrdinal = value.Ordinal; candidate.ValueShift = value.DenominatorShift;
@@ -413,36 +426,37 @@ internal static partial class SegmentSlabSurfaceContact
     { Coefficients = values, Signs = signs, LowerNumerator = cell, Ordinal = selection.ValueOrdinal,
         DenominatorShift = selection.ValueShift, IsRational = selection.IsRational };
 
-    private static void RimParameter(scoped Input input, WideAxis3 first, WideAxis3 second, int region,
-        out Signed576 a0, out Signed576 a1, out Signed576 b0, out Signed576 b1, out Signed576 d0, out Signed576 d1)
+    private static void RimParameter(scoped Input input, WideDirection3d first, WideDirection3d second, int region,
+        out Signed832 a0, out Signed832 a1, out Signed832 b0, out Signed832 b1, out Signed832 d0, out Signed832 d1)
     {
-        WideAxis3 offset = RimOffset(input, region, 1);
-        WideAxis3 end = new(WideArithmetic.AddSigned320(offset.X, input.Edge.X),
-            WideArithmetic.AddSigned320(offset.Y, input.Edge.Y), WideArithmetic.AddSigned320(offset.Z, input.Edge.Z));
-        WideAxis3 tangent0 = new(WideArithmetic.Negate(first.Z), default, first.X),
+        WideDirection3d offset = RimOffset(input, region, 1);
+        WideDirection3d end = new(WideArithmetic.AddSigned576(offset.X, input.Edge.X),
+            WideArithmetic.AddSigned576(offset.Y, input.Edge.Y), WideArithmetic.AddSigned576(offset.Z, input.Edge.Z));
+        WideDirection3d tangent0 = new(WideArithmetic.Negate(first.Z), default, first.X),
             tangent1 = new(WideArithmetic.Negate(second.Z), default, second.X);
-        a0 = WideAxis3.Dot(offset, tangent0); a1 = WideAxis3.Dot(offset, tangent1);
-        b0 = WideAxis3.Dot(end, tangent0); b1 = WideAxis3.Dot(end, tangent1);
-        d0 = WideArithmetic.SubtractSigned576(b0, a0); d1 = WideArithmetic.SubtractSigned576(b1, a1);
+        a0 = WideDirection3d.Dot(offset, tangent0); a1 = WideDirection3d.Dot(offset, tangent1);
+        b0 = WideDirection3d.Dot(end, tangent0); b1 = WideDirection3d.Dot(end, tangent1);
+        d0 = WideArithmetic.SubtractSigned832(b0, a0); d1 = WideArithmetic.SubtractSigned832(b1, a1);
     }
 
-    private static int RootSign(scoped ref FiniteAxisValueRoot root, Signed576 first, Signed576 second)
+    private static int RootSign(scoped ref FiniteAxisValueRoot root, Signed832 first, Signed832 second)
     {
-        Span<ulong> values = stackalloc ulong[18]; Span<sbyte> signs = stackalloc sbyte[2];
-        WideArithmetic.GetMagnitude(first, values[..9]); WideArithmetic.GetMagnitude(second, values[9..]);
+        Span<ulong> values = stackalloc ulong[26]; Span<sbyte> signs = stackalloc sbyte[2];
+        WideArithmetic.GetMagnitude(first, values[..13]); WideArithmetic.GetMagnitude(second, values[13..]);
         signs[0] = (sbyte)first.Sign; signs[1] = (sbyte)second.Sign;
         return WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, values, signs);
     }
 
-    private static bool AdmitObliqueFoot(scoped Input input, WideAxis3 first, WideAxis3 second,
+    private static bool AdmitObliqueFoot(scoped Input input, WideDirection3d first, WideDirection3d second,
         int region, int cap, scoped ref FiniteAxisValueRoot root)
     {
+        int Words = input.Words;
         if (RootSign(ref root, Extend(first.Y), Extend(second.Y)) * cap > 0
             || region != 0 && RootSign(ref root, Extend(first.Z), Extend(second.Z)) * region > 0) return false;
-        foreach (WideAxis3 wall in input.Fan)
-            if (RootSign(ref root, WideAxis3.Dot(first, wall), WideAxis3.Dot(second, wall)) < 0) return false;
-        RimParameter(input, first, second, region, out Signed576 a0, out Signed576 a1,
-            out Signed576 b0, out Signed576 b1, out Signed576 d0, out Signed576 d1);
+        foreach (WideDirection3d wall in input.Fan)
+            if (RootSign(ref root, WideDirection3d.Dot(first, wall), WideDirection3d.Dot(second, wall)) < 0) return false;
+        RimParameter(input, first, second, region, out Signed832 a0, out Signed832 a1,
+            out Signed832 b0, out Signed832 b1, out Signed832 d0, out Signed832 d1);
         int denominator = RootSign(ref root, d0, d1);
         // A zero tangent divisor is meridional: L=0 then W=0 forces K=0, rejected by chart admission.
         System.Diagnostics.Debug.Assert(denominator != 0);
@@ -456,9 +470,9 @@ internal static partial class SegmentSlabSurfaceContact
         {
             ref readonly RationalSegmentInterval clip = ref input.Clip[0];
             start = CompareObliqueParameter(ref root, a0, a1, d0, d1,
-                clip.LowerNumerator, clip.LowerDenominator) * denominator;
+                clip.WideLowerNumerator, clip.WideLowerDenominator) * denominator;
             end = -CompareObliqueParameter(ref root, a0, a1, d0, d1,
-                clip.UpperNumerator, clip.UpperDenominator) * denominator;
+                clip.WideUpperNumerator, clip.WideUpperDenominator) * denominator;
         }
         if (start < 0 || end < 0 || input.InteriorOnly && (start == 0 || end == 0)) return false;
         if (!input.RequireSourceInside) return true;
@@ -473,42 +487,43 @@ internal static partial class SegmentSlabSurfaceContact
             if (denominator < 0)
             { coordinateSigns[2 * axis] = (sbyte)-coordinateSigns[2 * axis]; coordinateSigns[2 * axis + 1] = (sbyte)-coordinateSigns[2 * axis + 1]; }
         }
-        CircularRimContactAlgebra.Write(coordinates, coordinateSigns, 6, denominator < 0 ? WideArithmetic.SubtractSigned576(default, d0) : d0);
-        CircularRimContactAlgebra.Write(coordinates, coordinateSigns, 7, denominator < 0 ? WideArithmetic.SubtractSigned576(default, d1) : d1);
+        CircularRimContactAlgebra.Write(coordinates, coordinateSigns, 6, denominator < 0 ? WideArithmetic.SubtractSigned832(default, d0) : d0);
+        CircularRimContactAlgebra.Write(coordinates, coordinateSigns, 7, denominator < 0 ? WideArithmetic.SubtractSigned832(default, d1) : d1);
         return ContainsObliqueFoot(input, coordinates, coordinateSigns, ref root);
     }
 
     private static int CompareObliqueParameter(scoped ref FiniteAxisValueRoot root,
-        Signed576 a0, Signed576 a1, Signed576 d0, Signed576 d1, Signed320 numerator, Signed320 denominator)
+        Signed832 a0, Signed832 a1, Signed832 d0, Signed832 d1, Signed832 numerator, Signed832 denominator)
     {
         // The foot is -a(u)/d(u). A retained bound adds at most 319
-        // bits to the <398-bit linear coefficients; do not narrow to Signed576.
-        Span<ulong> values = stackalloc ulong[2 * Words], factor = stackalloc ulong[9],
-            coefficient = stackalloc ulong[9], product = stackalloc ulong[Words];
+        // bits to the <398-bit linear coefficients; do not narrow to Signed832.
+        Span<ulong> values = stackalloc ulong[2 * Words], factor = stackalloc ulong[13],
+            coefficient = stackalloc ulong[13], product = stackalloc ulong[Words];
         Span<sbyte> signs = stackalloc sbyte[2];
         for (int index = 0; index < 2; index++)
         {
-            Signed576 a = index == 0 ? a0 : a1, d = index == 0 ? d0 : d1;
+            Signed832 a = index == 0 ? a0 : a1, d = index == 0 ? d0 : d1;
             Import(denominator, factor); Import(a, coefficient);
-            WideArithmetic.MultiplyMagnitudes(coefficient, factor, Slot(values, index));
+            WideArithmetic.MultiplyMagnitudes(coefficient, factor, Slot(values, index, Words));
             int sign = -a.Sign;
             Import(numerator, factor); Import(d, coefficient);
             WideArithmetic.MultiplyMagnitudes(coefficient, factor, product);
-            Add(product, -d.Sign * numerator.Sign, Slot(values, index), ref sign); signs[index] = (sbyte)sign;
+            Add(product, -d.Sign * numerator.Sign, Slot(values, index, Words), ref sign); signs[index] = (sbyte)sign;
         }
         return WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, values, signs);
     }
 
-    private static void WriteRootCoordinate(scoped Input input, int axis, Signed576 a0, Signed576 a1,
-        Signed576 d0, Signed576 d1, Span<ulong> values, Span<sbyte> signs)
+    private static void WriteRootCoordinate(scoped Input input, int axis, Signed832 a0, Signed832 a1,
+        Signed832 d0, Signed832 d1, Span<ulong> values, Span<sbyte> signs)
     {
+        int Words = input.Words;
         // Coordinate numerators need the complete 198+398-bit product; the
         // existing forty-word polynomial owner retains it without narrowing.
-        Span<ulong> factor = stackalloc ulong[9], first = stackalloc ulong[Words], second = stackalloc ulong[Words], product = stackalloc ulong[Words];
+        Span<ulong> factor = stackalloc ulong[13], first = stackalloc ulong[Words], second = stackalloc ulong[Words], product = stackalloc ulong[Words];
         Import(Component(input.First, axis), factor);
         for (int index = 0; index < 2; index++)
         {
-            Signed576 d = index == 0 ? d0 : d1, a = index == 0 ? a0 : a1;
+            Signed832 d = index == 0 ? d0 : d1, a = index == 0 ? a0 : a1;
             Import(d, first); WideArithmetic.MultiplyMagnitudes(first, factor, values.Slice(index * Words, Words));
             int sign = d.Sign * Component(input.First, axis).Sign;
             Import(a, second); Import(Component(input.Edge, axis), first);
@@ -521,19 +536,20 @@ internal static partial class SegmentSlabSurfaceContact
     private static bool ContainsObliqueFoot(scoped Input input, scoped ReadOnlySpan<ulong> coordinates,
         scoped ReadOnlySpan<sbyte> coordinateSigns, scoped ref FiniteAxisValueRoot root)
     {
+        int Words = input.Words;
         Span<ulong> work = stackalloc ulong[13 * Words]; Span<sbyte> signs = stackalloc sbyte[13];
         Span<ulong> query = work[..(2 * Words)], z = work.Slice(2 * Words, 2 * Words),
             denominator = work.Slice(4 * Words, 2 * Words), square = work.Slice(6 * Words, 3 * Words),
-            term = work.Slice(9 * Words, 3 * Words), product = Slot(work, 12);
-        Span<ulong> scalar = stackalloc ulong[9];
+            term = work.Slice(9 * Words, 3 * Words), product = Slot(work, 12, Words);
+        Span<ulong> scalar = stackalloc ulong[13];
         ReadOnlySpan<ulong> d = coordinates.Slice(6 * Words, 2 * Words); ReadOnlySpan<sbyte> dSigns = coordinateSigns.Slice(6, 2);
         Import(input.Cap, scalar);
         for (int cap = -1; cap <= 1; cap += 2)
         {
             for (int index = 0; index < 2; index++)
             {
-                WideArithmetic.MultiplyMagnitudes(Slot(d, index), scalar, Slot(query, index)); int sign = dSigns[index];
-                Add(Slot(coordinates, index + 2), cap * coordinateSigns[index + 2], Slot(query, index), ref sign); signs[index] = (sbyte)sign;
+                WideArithmetic.MultiplyMagnitudes(Slot(d, index, Words), scalar, Slot(query, index, Words)); int sign = dSigns[index];
+                Add(Slot(coordinates, index + 2, Words), cap * coordinateSigns[index + 2], Slot(query, index, Words), ref sign); signs[index] = (sbyte)sign;
             }
             if (WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, signs[..2]) < 0) return false;
         }
@@ -543,8 +559,8 @@ internal static partial class SegmentSlabSurfaceContact
         {
             for (int index = 0; index < 2; index++)
             {
-                WideArithmetic.MultiplyMagnitudes(Slot(d, index), scalar, Slot(query, index)); int sign = -region * dSigns[index];
-                Add(Slot(coordinates, index + 4), coordinateSigns[index + 4], Slot(query, index), ref sign); signs[index] = (sbyte)sign;
+                WideArithmetic.MultiplyMagnitudes(Slot(d, index, Words), scalar, Slot(query, index, Words)); int sign = -region * dSigns[index];
+                Add(Slot(coordinates, index + 4, Words), coordinateSigns[index + 4], Slot(query, index, Words), ref sign); signs[index] = (sbyte)sign;
             }
             int side = WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, signs[..2]);
             if (side * region >= 0) { query.CopyTo(z); signs[..2].CopyTo(signs.Slice(2, 2)); break; }
@@ -554,34 +570,39 @@ internal static partial class SegmentSlabSurfaceContact
             coordinates[..(2 * Words)], coordinateSigns[..2], square, signs.Slice(6, 3), product);
         WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(z, signs.Slice(2, 2), z, signs.Slice(2, 2), term, signs.Slice(9, 3), product);
         for (int index = 0; index < 3; index++)
-        { int sign = signs[index + 6]; Add(Slot(term, index), signs[index + 9], Slot(square, index), ref sign); signs[index + 6] = (sbyte)sign; }
+        { int sign = signs[index + 6]; Add(Slot(term, index, Words), signs[index + 9], Slot(square, index, Words), ref sign); signs[index + 6] = (sbyte)sign; }
         Import(input.Radial, scalar);
         for (int index = 0; index < 2; index++)
-        { WideArithmetic.MultiplyMagnitudes(Slot(d, index), scalar, Slot(denominator, index)); signs[index + 4] = dSigns[index]; }
+        { WideArithmetic.MultiplyMagnitudes(Slot(d, index, Words), scalar, Slot(denominator, index, Words)); signs[index + 4] = dSigns[index]; }
         WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(denominator, signs.Slice(4, 2), denominator, signs.Slice(4, 2), term, signs.Slice(9, 3), product);
         for (int index = 0; index < 3; index++)
-        { int sign = signs[index + 9]; Add(Slot(square, index), -signs[index + 6], Slot(term, index), ref sign); signs[index + 9] = (sbyte)sign; }
+        { int sign = signs[index + 9]; Add(Slot(square, index, Words), -signs[index + 6], Slot(term, index, Words), ref sign); signs[index + 9] = (sbyte)sign; }
         return WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, term, signs.Slice(9, 3)) >= 0;
     }
 
     private static FixedContactAnchors MaterializeOblique(scoped Input input, ObliqueSelection best, int valueShift,
         scoped ReadOnlySpan<ulong> bestValues, scoped ReadOnlySpan<sbyte> bestSigns, scoped Span<ulong> bestCell)
     {
+        int Words = input.Words;
         Span<ulong> data = stackalloc ulong[26 * Words]; Span<sbyte> signs = stackalloc sbyte[26];
         CircularRimContactAlgebra.BuildParameter(RimOffset(input, best.Region, best.Cap), input.Radial,
-            Signed192.NarrowProven(input.Scale), best.First, best.Second, data, signs);
+            input.Scale, best.First, best.Second, data, signs);
         Span<ulong> cell = stackalloc ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(data[..(5 * Words)], signs[..5])];
         bool found = WideFiniteAxisIntersection.TryGetFiniteValueRoot(data[..(5 * Words)], signs[..5], best.ParameterOrdinal, cell, out FiniteAxisValueRoot root);
         System.Diagnostics.Debug.Assert(found);
-        RimParameter(input, best.First, best.Second, best.Region, out Signed576 a0, out Signed576 a1,
-            out Signed576 b0, out Signed576 b1, out Signed576 d0, out Signed576 d1);
+        RimParameter(input, best.First, best.Second, best.Region, out Signed832 a0, out Signed832 a1,
+            out Signed832 b0, out Signed832 b1, out Signed832 d0, out Signed832 d1);
         int denominator = RootSign(ref root, d0, d1); Vector3d point = default;
         for (int axis = 0; axis < 3; axis++)
-            point[axis] = TriangleCylinderRimWitnesses.RoundRootCoordinate(input.Segment.Start[axis], input.Segment.End[axis],
-                a0, a1, b0, b1, d0, d1, denominator, ref root);
-        Span<ulong> gradient = stackalloc ulong[30]; Span<sbyte> gradientSigns = stackalloc sbyte[6];
+            point[axis] = input.Frame.RadialFrame.ShapeFrame.HasExactScale
+                ? TriangleCylinderRimWitnesses.RoundRootCoordinate(Component(input.First, axis),
+                    WideArithmetic.AddSigned576(Component(input.First, axis), Component(input.Edge, axis)), input.Scale,
+                    a0, a1, b0, b1, d0, d1, denominator, ref root)
+                : TriangleCylinderRimWitnesses.RoundRootCoordinate(input.Segment.Start[axis], input.Segment.End[axis],
+                    a0, a1, b0, b1, d0, d1, denominator, ref root);
+        Span<ulong> gradient = stackalloc ulong[54]; Span<sbyte> gradientSigns = stackalloc sbyte[6];
         CircularRimContactAlgebra.WriteGradient(best.First, best.Second, gradient, gradientSigns);
-        gradient.Slice(10, 10).Clear(); gradientSigns.Slice(2, 2).Clear();
+        gradient.Slice(18, 18).Clear(); gradientSigns.Slice(2, 2).Clear();
         Vector3d local = ConvexContactValueRoot.GetScaledNormalizedDirection(ref root, gradient, gradientSigns, input.Radius, -1);
         Vector3d core = default; FixedPointAnchorTerm3d exactTerm = default;
         if (best.Region != 0)
@@ -606,7 +627,7 @@ internal static partial class SegmentSlabSurfaceContact
         if (!best.IsZero)
         {
             FiniteAxisValueRoot value = RestoreObliqueValue(bestValues, bestSigns, bestCell, best);
-            ConvexContactValueRoot.GetRoundedDepth(Signed192.NarrowProven(input.Scale), valueShift, ref value, out depth, out clamped);
+            ConvexContactValueRoot.GetRoundedDepth(input.Scale, valueShift, ref value, out depth, out clamped);
         }
         return new(new FixedPointAnchor(input.Origin, input.Rotation, point),
             new FixedPointAnchor(input.Center, input.SlabRotation, core, local, exactTerm), normal, depth, clamped);

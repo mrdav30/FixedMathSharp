@@ -20,12 +20,51 @@ internal static class TriangleCylinderContact
             return false;
         var geometry = new TriangleCircularGeometry(triangle, origin, rotation,
             cylinderCenter, cylinderRotation, height, radius);
-        WideAxis3 coreOffset = default, coreAxis = default;
+        return TryGetContact(triangle, geometry, origin, rotation, cylinderCenter, cylinderRotation,
+            height, radius, out contact, out isCapFaceContact, coreDirection, coreLength);
+    }
+
+    internal static bool TryGetContact(FixedTriangle triangle, in ScaledRigidFrame3d sourceFrame,
+        Vector3d cylinderCenter, FixedQuaternion cylinderRotation, Signed192 height, Fixed64 radius,
+        out FixedContactAnchors contact, out bool isCapFaceContact,
+        Vector2d coreDirection = default, Fixed64 coreLength = default)
+    {
+        if (sourceFrame.IsRigid)
+            return TryGetContact(triangle, sourceFrame.RigidOrigin, sourceFrame.Rotation,
+                cylinderCenter, cylinderRotation, height, radius, out contact, out isCapFaceContact, coreDirection, coreLength);
+        contact = default; isCapFaceContact = false;
+        var geometry = new TriangleCircularGeometry(triangle, sourceFrame, cylinderCenter, cylinderRotation, height, radius);
+        // Authored area can be sub-epsilon while exact scale gives a large
+        // physical face. Only exact collapse invalidates the affine fan.
+        if (geometry.FaceNormal.IsZero) return false;
+        return TryGetContact(triangle, geometry, cylinderCenter, cylinderRotation, cylinderCenter, cylinderRotation,
+            height, radius, out contact, out isCapFaceContact, coreDirection, coreLength);
+    }
+
+    internal static bool DoesPenetrate(FixedTriangle triangle, in ScaledRigidFrame3d sourceFrame,
+        Vector3d center, FixedQuaternion rotation, Fixed64 height, Fixed64 radius)
+    {
+        var geometry = new TriangleCircularGeometry(triangle, sourceFrame, center, rotation, Signed192.Raw(height), radius);
+        if (geometry.FaceNormal.IsZero) return false;
+        return TryGetContact(triangle, geometry, center, rotation, center, rotation, Signed192.Raw(height), radius,
+            out _, out _, default, default, strictOnly: true);
+    }
+
+    private static bool TryGetContact(FixedTriangle triangle, in TriangleCircularGeometry inputGeometry,
+        Vector3d origin, FixedQuaternion rotation, Vector3d cylinderCenter, FixedQuaternion cylinderRotation,
+        Signed192 height, Fixed64 radius, out FixedContactAnchors contact, out bool isCapFaceContact,
+        Vector2d coreDirection, Fixed64 coreLength, bool strictOnly = false)
+    {
+        contact = default; isCapFaceContact = false;
+        WideDirection3d coreOffset = default, coreAxis = default;
+        TriangleCircularGeometry coreGeometry;
+        scoped ref readonly TriangleCircularGeometry geometry = ref inputGeometry;
         if (coreLength != Fixed64.Zero)
         {
-            geometry = geometry.WithCore(coreDirection, coreLength, out coreOffset);
-            coreAxis = new WideAxis3(Signed320.ExtendValue(Signed192.Raw(coreDirection.X)), default,
-                Signed320.ExtendValue(Signed192.Raw(coreDirection.Y)));
+            coreGeometry = inputGeometry.WithCore(coreDirection, coreLength, out coreOffset);
+            geometry = ref coreGeometry;
+            coreAxis = new WideDirection3d(Signed576.ExtendValue(Signed192.Raw(coreDirection.X)), default,
+                Signed576.ExtendValue(Signed192.Raw(coreDirection.Y)));
         }
         Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * Words];
         Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
@@ -34,8 +73,16 @@ internal static class TriangleCylinderContact
         if (!TriangleCylinderAnalyticFeatures.TryGetBest(geometry, coreOffset, coreAxis, values, signs, direction, directionSigns,
                 out int gapSign, out int mask, out int coreSign, out bool faceMinimumCertified))
             return false;
+        if (strictOnly && gapSign == 0) return false;
+        bool strictOverlap = gapSign > 0;
         var best = new ConvexContactCandidate(values, signs, gapSign);
-        TriangleCircularGeometry analyticGeometry = coreSign == 0 ? geometry : geometry.AtCoreRegion(coreOffset, coreSign);
+        TriangleCircularGeometry endpointGeometry;
+        scoped ref readonly TriangleCircularGeometry analyticGeometry = ref geometry;
+        if (coreSign != 0)
+        {
+            endpointGeometry = geometry.AtCoreRegion(coreOffset, coreSign);
+            analyticGeometry = ref endpointGeometry;
+        }
         analyticGeometry.GetAnalyticDepth(best, directionSigns, mask, out Fixed64 depth, out bool clamped);
         Vector3d normal = default, radialPoint = default, rootPoint = default;
         bool edgeWinner = false;
@@ -45,7 +92,7 @@ internal static class TriangleCylinderContact
         {
             if (!TriangleCylinderEdgeContacts.TryGetContact(geometry, coreOffset, coreAxis, coreDirection, coreLength,
                     triangle, best, depth, clamped, radius, out edgeWinner, out normal, out radialPoint, out rootPoint, out Fixed64 edgeDepth,
-                    out bool edgeClamped, out int edgeMask, out int edgeCap, out int edgeCoreSign, out integralRadialMask))
+                    out bool edgeClamped, out int edgeMask, out int edgeCap, out int edgeCoreSign, out integralRadialMask, out strictOverlap, materialize: !strictOnly))
                 return false;
             if (edgeWinner)
             {
@@ -53,6 +100,7 @@ internal static class TriangleCylinderContact
                 depth = edgeDepth; clamped = edgeClamped;
             }
         }
+        if (strictOnly) return strictOverlap;
         bool pole = !edgeWinner && directionSigns[0] == 0 && directionSigns[2] == 0;
         if (!edgeWinner)
         {

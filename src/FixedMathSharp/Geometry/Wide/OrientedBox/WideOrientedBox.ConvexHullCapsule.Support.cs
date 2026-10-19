@@ -471,11 +471,16 @@ internal static partial class WideOrientedBox
             supportProjectionSign) == 0;
     }
 
+    private static void GetHullCapsuleDepth(ReadOnlySpan<ulong> rational, int rationalSign,
+        ReadOnlySpan<ulong> squaredAxisLength, Signed192 commonDenominator, Fixed64 radius,
+        out Fixed64 depth, out bool clamped) => GetHullCapsuleDepth(rational, rationalSign,
+            squaredAxisLength, Signed576.ExtendValue(commonDenominator), radius, out depth, out clamped);
+
     private static void GetHullCapsuleDepth(
         ReadOnlySpan<ulong> rational,
         int rationalSign,
         ReadOnlySpan<ulong> squaredAxisLength,
-        Signed192 commonDenominator,
+        Signed576 commonDenominator,
         Fixed64 radius,
         out Fixed64 depth,
         out bool depthIsClamped)
@@ -484,10 +489,9 @@ internal static partial class WideOrientedBox
         // ratio-root owner instead of searching the entire scalar range.
         Span<ulong> numerator = stackalloc ulong[2 * HullCapsuleMagnitudeWords];
         Span<ulong> denominator = stackalloc ulong[2 * HullCapsuleMagnitudeWords];
-        Span<ulong> common = stackalloc ulong[3];
-        Span<ulong> commonSquared = stackalloc ulong[6];
-        WideArithmetic.GetMagnitude(commonDenominator,
-            out common[2], out common[1], out common[0]);
+        Span<ulong> common = stackalloc ulong[9];
+        Span<ulong> commonSquared = stackalloc ulong[18];
+        WideArithmetic.GetMagnitude(commonDenominator, common);
         WideArithmetic.MultiplyMagnitudes(rational, rational, numerator);
         WideArithmetic.MultiplyMagnitudes(common, common, commonSquared);
         WideArithmetic.MultiplyMagnitudes(squaredAxisLength, commonSquared, denominator);
@@ -546,7 +550,7 @@ internal static partial class WideOrientedBox
         ReadOnlySpan<ulong> rational,
         int rationalSign,
         ReadOnlySpan<ulong> squaredAxisLength,
-        Signed192 commonDenominator,
+        Signed576 commonDenominator,
         Fixed64 radius,
         Signed192 twiceRaw)
     {
@@ -561,14 +565,11 @@ internal static partial class WideOrientedBox
                 Signed192.Raw(radius),
                 Signed192.Raw(radius)),
             twiceRaw);
-        Signed320 coefficient = WideArithmetic.MultiplySigned192(
-            commonDenominator,
-            radialDelta);
+        Signed832 coefficient = WideArithmetic.MultiplySigned576ToSigned832(
+            commonDenominator, Signed576.ExtendValue(radialDelta));
         Span<ulong> coefficientMagnitude =
             stackalloc ulong[HullCapsuleMagnitudeWords];
-        GetHullCapsuleMagnitude(
-            coefficient,
-            coefficientMagnitude);
+        WideArithmetic.GetMagnitude(coefficient, coefficientMagnitude);
         return WideArithmetic.GetSignedMagnitudeAndSquareRootSign(
             twiceRational,
             rationalSign,

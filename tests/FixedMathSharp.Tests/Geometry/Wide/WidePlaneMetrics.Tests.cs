@@ -14,6 +14,56 @@ namespace FixedMathSharp.Tests.Geometry.Wide;
 public sealed class WidePlaneMetricsTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AffineAxisMetrics_ShouldMatchIndependentFullDomainProjection(bool oblique)
+    {
+        Signed576 unit = new(0, 0, 1UL << 16, 0, 0, 0, 0, 0, 0);
+        var axis = new WideDirection3d(oblique ? unit : default, WideArithmetic.MultiplySigned576(unit, -3),
+            oblique ? WideArithmetic.MultiplySigned576(unit, 2) : default);
+        BigInteger scale = BigInteger.One << 400;
+        BigInteger[] normal = { oblique ? scale : 0, -3 * scale, oblique ? 2 * scale : 0 };
+        BigInteger metric = Dot(normal, normal);
+        const int words = 32;
+        Span<ulong> values = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
+        var numerator = ContactQuadratic.At(values, signs, 0, words);
+        var denominator = ContactQuadratic.At(values, signs, 1, words);
+        Vector3d[] points = Points();
+        for (int i = 0; i < points.Length; i++)
+        {
+            Vector3d a = points[i], b = points[(i + 1) % points.Length], c = points[(i + 2) % points.Length];
+            BigInteger[] u = Sub(Project(b, normal, metric), Project(a, normal, metric));
+            BigInteger[] v = Sub(Project(c, normal, metric), Project(a, normal, metric));
+            WidePlaneMetrics.GetSpanSquared(axis, a, b, numerator);
+            Assert.Equal(Dot(u, u), Integer(numerator) * metric);
+            WidePlaneMetrics.GetAreaSquared(axis, a, b, c, numerator);
+            Assert.Equal(Dot(Cross(u, v), Cross(u, v)), Integer(numerator) * metric * metric * metric);
+            Assert.Equal(Dot(normal, Cross(Sub(V(b), V(a)), Sub(V(c), V(a)))).Sign,
+                WidePlaneMetrics.GetAreaSign(axis, a, b, c));
+            foreach (Vector3d point in points)
+            {
+                var expected = Distance(Project(point, normal, metric), Project(a, normal, metric),
+                    Project(b, normal, metric), Project(c, normal, metric));
+                WidePlaneMetrics.GetTriangleDistanceSquared(axis, point, a, b, c, numerator, denominator);
+                Assert.True(Integer(numerator) >= 0 && Integer(denominator) > 0);
+                Assert.Equal(expected.N * Integer(denominator), Integer(numerator) * expected.D * metric * metric);
+            }
+        }
+        // A collapsed projected triangle still has a finite point-distance metric.
+        WidePlaneMetrics.GetTriangleDistanceSquared(axis, Vector3d.Right, Vector3d.Zero,
+            Vector3d.Zero, Vector3d.Zero, numerator, denominator);
+        var projected = Project(Vector3d.Right, normal, metric);
+        Assert.Equal(Dot(projected, projected) * Integer(denominator), Integer(numerator) * metric * metric);
+    }
+
+    private static BigInteger Integer(ContactQuadratic value)
+    {
+        BigInteger result = 0;
+        for (int index = value.Rational.Length - 1; index >= 0; index--) result = (result << 64) + value.Rational[index];
+        return value.Signs[0] < 0 ? -result : result;
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
@@ -113,6 +163,51 @@ public sealed class WidePlaneMetricsTests
         var plane = new FixedTriangle(Vector3d.Zero, Vector3d.Right, Vector3d.Forward);
         Assert.Throws<ArgumentException>(() => new WidePlaneMetrics(default, FixedQuaternion.Identity));
         Assert.Throws<ArgumentException>(() => new WidePlaneMetrics(plane, default));
+    }
+
+    [Fact]
+    public void ScaledArea_WithRigidFrame_ShouldRetainMetricScaleAfterNormalCancellation()
+    {
+        var triangle = new FixedTriangle(Vector3d.Zero, Vector3d.Forward, Vector3d.Right);
+        WideTriangleRelations.GetScaledAreaAndNormal(triangle, ScaledRigidFrame3d.Rigid(Vector3d.One, FixedQuaternion.Identity),
+            out Fixed64 area, out Vector3d normal);
+        Assert.Equal(Fixed64.Half, area);
+        Assert.Equal(Vector3d.Up, normal);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(37)]
+    public void ScaledPlaneMetrics_ShouldMatchIndependentUnroundedAffineNormal(int degrees)
+    {
+        var plane = new FixedTriangle(new Vector3d(-2, 1, 0), new Vector3d(3, -1, 2), new Vector3d(1, 2, 4));
+        var rotation = FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)degrees, (Fixed64)degrees, (Fixed64)degrees);
+        Vector3d scale = new(Fixed64.FromFraction(2, 3), Fixed64.FromFraction(3, 5), Fixed64.FromFraction(5, 7));
+        Vector3d part = new(Fixed64.FromFraction(7, 9), Fixed64.One, Fixed64.FromFraction(11, 13));
+        var frame = new ScaledRigidFrame3d(Vector3d.One, rotation, Vector3d.Zero, scale, rotation, Vector3d.Zero, part);
+        var metrics = new WidePlaneMetrics(plane, frame);
+        BigInteger[] firstEdge = Sub(V(plane.B), V(plane.A)), secondEdge = Sub(V(plane.C), V(plane.A));
+        for (int axis = 0; axis < 3; axis++)
+        {
+            BigInteger factor = (BigInteger)scale[axis].m_rawValue * part[axis].m_rawValue;
+            firstEdge[axis] *= factor; secondEdge[axis] *= factor;
+        }
+        BigInteger[] local = Cross(firstEdge, secondEdge), normal = local;
+        if (degrees != 0)
+        {
+            BigInteger x = rotation.X.m_rawValue, y = rotation.Y.m_rawValue, z = rotation.Z.m_rawValue, w = rotation.W.m_rawValue;
+            normal = new[] { (w*w+x*x-y*y-z*z)*local[0]+2*(x*y-z*w)*local[1]+2*(x*z+y*w)*local[2],
+                2*(x*y+z*w)*local[0]+(w*w-x*x+y*y-z*z)*local[1]+2*(y*z-x*w)*local[2],
+                2*(x*z-y*w)*local[0]+2*(y*z+x*w)*local[1]+(w*w-x*x-y*y+z*z)*local[2] };
+        }
+        Vector3d a = Raw(-7, 11, -13), b = Raw(17, -19, 23), c = Raw(29, 31, -37);
+        BigInteger[] edge = Sub(V(b), V(a));
+        Assert.Equal(Dot(normal, normal)*Dot(edge, edge)-BigInteger.Pow(Dot(normal, edge), 2), Integer(metrics.GetSpanSquared(a,b)));
+        BigInteger area = Dot(normal, Cross(edge, Sub(V(c), V(a))));
+        Assert.Equal(area*area, Integer(metrics.GetAreaSquared(a,b,c)));
+        Assert.Throws<ArgumentException>(() => new WidePlaneMetrics(default(FixedTriangle), frame));
+        var rigid = new WidePlaneMetrics(plane, ScaledRigidFrame3d.Rigid(Vector3d.One, rotation));
+        Assert.Equal(Integer(new WidePlaneMetrics(plane, rotation).GetSpanSquared(a,b)), Integer(rigid.GetSpanSquared(a,b)));
     }
 
     private static void GetFrame(int index, out FixedTriangle plane, out FixedQuaternion rotation)

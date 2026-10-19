@@ -15,13 +15,31 @@ internal readonly struct ConePlaneRayFrame
     internal readonly FixedQuaternion ConeRotation;
     internal readonly Fixed64 Height, Radius;
     internal readonly ConeFiniteSectionFrame Finite;
-    internal readonly WideAxis3 Normal;
-    internal readonly Signed576 PlaneConstant, NormalSquared;
+    internal readonly WideDirection3d Normal;
+    internal readonly Signed832 PlaneConstant, NormalSquared;
     private readonly WideAxis3 authoredNormal;
+    private readonly bool _wideParameters;
+    internal ScaledRigidFrame3d SourceFrame => Finite.ShapeFrame.SourceFrame;
+    internal bool UsesWideBanks => Finite.ShapeFrame.HasExactScale || _wideParameters;
+    internal int FieldWords => UsesWideBanks ? 192 : ConePlaneRaySelection.FieldWords;
+    internal int RootWords => UsesWideBanks ? 120 : ConePlaneRaySelection.RootWords;
+    internal int CircleWords => UsesWideBanks ? 60 : 20;
+    internal int PointStorageWords => 8 * FieldWords;
+    internal int SelectionStorageWords => 12 * FieldWords + RootWords;
+    internal int AdmissionWords => UsesWideBanks ? 432 : 144;
+    internal int VerificationWords => UsesWideBanks ? 528 : 176;
+    internal ConePlaneRayFrame WithWideParameters() => UsesWideBanks ? this : new ConePlaneRayFrame(this);
+
+    private ConePlaneRayFrame(in ConePlaneRayFrame source)
+    {
+        this = source;
+        _wideParameters = true;
+    }
 
     internal ConePlaneRayFrame(FixedTriangle planeTriangle, Vector3d origin, FixedQuaternion rotation,
         Vector3d coneCenter, FixedQuaternion coneRotation, Fixed64 height, Fixed64 radius)
     {
+        _wideParameters = false;
         ConeCenter = coneCenter; ConeRotation = coneRotation; Height = height; Radius = radius;
         Finite = new ConeFiniteSectionFrame(origin, rotation, coneCenter, coneRotation, height, radius);
         planeTriangle.GetExactNormal(out Signed192 nx, out Signed192 ny, out Signed192 nz, out _);
@@ -46,9 +64,45 @@ internal readonly struct ConePlaneRayFrame
         // the quaternion basis denominator here so it does not multiply every
         // critical-event coefficient, while preserving the authored orientation.
         if (!localNormal.IsZero) WideArithmetic.ReduceCommonScale(primitive);
-        Normal = new WideAxis3(primitive[0], primitive[1], primitive[2]);
-        PlaneConstant = WideAxis3.Dot(Normal, Transform(planeTriangle.A));
-        NormalSquared = WideAxis3.Dot(Normal, Normal);
+        Normal = new WideDirection3d(new WideAxis3(primitive[0], primitive[1], primitive[2]));
+        PlaneConstant = WideDirection3d.Dot(Normal, Transform(planeTriangle.A));
+        NormalSquared = Normal.SquaredLength;
+    }
+
+    internal ConePlaneRayFrame(FixedTriangle planeTriangle, in ScaledRigidFrame3d sourceFrame,
+        Vector3d coneCenter, FixedQuaternion coneRotation, Fixed64 height, Fixed64 radius)
+    {
+        if (sourceFrame.IsRigid)
+        {
+            this = new ConePlaneRayFrame(planeTriangle, sourceFrame.RigidOrigin, sourceFrame.Rotation,
+                coneCenter, coneRotation, height, radius);
+            return;
+        }
+        ConeCenter = coneCenter; ConeRotation = coneRotation; Height = height; Radius = radius;
+        _wideParameters = false;
+        Finite = new ConeFiniteSectionFrame(sourceFrame, coneCenter, coneRotation, height, radius);
+        WideDirection3d edge = WideDirection3d.GetLocalEdge(sourceFrame, planeTriangle.A, planeTriangle.B);
+        WideDirection3d side = WideDirection3d.GetLocalEdge(sourceFrame, planeTriangle.A, planeTriangle.C);
+        WideDirection3d cross = WideDirection3d.Cross(edge, side);
+        Span<Signed320> primitive = stackalloc Signed320[3]
+        {
+            Signed320.NarrowValue(cross.X), Signed320.NarrowValue(cross.Y), Signed320.NarrowValue(cross.Z)
+        };
+        if (!cross.IsZero) WideArithmetic.ReduceCommonScale(primitive);
+        int orientation = primitive[0].Sign != 0 ? primitive[0].Sign
+            : primitive[1].Sign != 0 ? primitive[1].Sign : primitive[2].Sign;
+        if (orientation < 0)
+            for (int axis = 0; axis < 3; axis++) primitive[axis] = WideArithmetic.Negate(primitive[axis]);
+        authoredNormal = new WideAxis3(primitive[0], primitive[1], primitive[2]);
+        WideDirection3d local = new WideDirection3d(authoredNormal).Transform(Finite.ShapeFrame.Basis);
+        Span<Signed576> localComponents = stackalloc Signed576[3]
+        { local.X, WideArithmetic.SubtractSigned576(default, local.Y), local.Z };
+        if (!local.IsZero) WideArithmetic.ReduceCommonScale(localComponents);
+        Normal = new WideDirection3d(localComponents[0], localComponents[1], localComponents[2]);
+        // Scaled edges <110 bits give an authored normal <221; a relative
+        // rigid basis adds <130. Plane and norm² stay below 660/705 bits.
+        PlaneConstant = WideDirection3d.Dot(Normal, Transform(planeTriangle.A));
+        NormalSquared = Normal.SquaredLength;
     }
 
     /// <summary>Gets the exact canonical covector in the original authored frame, before normal rounding.</summary>
@@ -58,6 +112,8 @@ internal readonly struct ConePlaneRayFrame
     /// <remarks>The rotation is the same validated authored rotation used to construct this frame.</remarks>
     internal Vector3d GetWorldNormal(FixedQuaternion authoredRotation)
     {
+        if (Finite.ShapeFrame.HasExactScale)
+            return new WideDirection3d(authoredNormal).Transform(SourceFrame.GeometryBasis).GetNormal(false);
         // Primitive authored normal components are <130 bits and a normalized
         // quaternion's exact basis numerators are <65 bits. The three-term
         // transform stays <197 bits, within Signed320, without rounding a
@@ -83,28 +139,37 @@ internal readonly struct ConePlaneRayFrame
     }
 
     internal bool IsCoplanar(WideAxis3 point) =>
-        WideArithmetic.SubtractSigned576(WideAxis3.Dot(Normal, point), PlaneConstant).IsZero;
+        WideArithmetic.SubtractSigned832(WideDirection3d.Dot(Normal, point), PlaneConstant).IsZero;
 
     internal void GetTriangleEdgeWall(FixedTriangle triangle, int edgeIndex,
-        out Signed576 x, out Signed576 y, out Signed576 z, out Signed576 offset)
+        out Signed576 x, out Signed576 y, out Signed576 z, out Signed832 offset)
     {
         FixedSegment edge = triangle.GetEdge(edgeIndex);
         GetEdgeLine(edge, out x, out y, out z, out offset);
         WideAxis3 opposite = Transform(edgeIndex == 0 ? triangle.C : edgeIndex == 1 ? triangle.A : triangle.B);
-        if (WideArithmetic.SubtractSigned576(DotWall(x, y, z, opposite), offset).Sign < 0)
+        if (WideArithmetic.SubtractSigned832(DotWall(x, y, z, opposite), offset).Sign < 0)
         {
             x = WideArithmetic.SubtractSigned576(default, x);
             y = WideArithmetic.SubtractSigned576(default, y);
             z = WideArithmetic.SubtractSigned576(default, z);
-            offset = WideArithmetic.SubtractSigned576(default, offset);
+            offset = WideArithmetic.SubtractSigned832(default, offset);
         }
     }
 
     // The sign of an exact line equation is immaterial for its roots. Segment
     // sources therefore need no invented opposite vertex or enclosing triangle.
     internal void GetEdgeLine(FixedSegment edge,
-        out Signed576 x, out Signed576 y, out Signed576 z, out Signed576 offset)
+        out Signed576 x, out Signed576 y, out Signed576 z, out Signed832 offset)
     {
+        if (Finite.ShapeFrame.HasExactScale)
+        {
+            WideDirection3d direction = WideDirection3d.GetLocalEdge(SourceFrame, edge.Start, edge.End);
+            WideDirection3d scaledWall = WideDirection3d.Cross(new WideDirection3d(authoredNormal), direction)
+                .Transform(Finite.ShapeFrame.Basis);
+            x = scaledWall.X; y = WideArithmetic.SubtractSigned576(default, scaledWall.Y); z = scaledWall.Z;
+            offset = DotWall(x, y, z, Transform(edge.Start));
+            return;
+        }
         WideAxis3 delta = new(
             Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(edge.End.X), Signed192.Raw(edge.Start.X))),
             Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(edge.End.Y), Signed192.Raw(edge.Start.Y))),
@@ -118,14 +183,13 @@ internal readonly struct ConePlaneRayFrame
         offset = DotWall(x, y, z, Transform(edge.Start));
     }
 
-    private static Signed576 DotWall(Signed576 x, Signed576 y, Signed576 z, WideAxis3 point)
+    private static Signed832 DotWall(Signed576 x, Signed576 y, Signed576 z, WideAxis3 point)
     {
         // Each transformed authored wall component <326 and point <198;
         // three signed products need <526 bits, safely inside Signed576.
-        Signed704 product = WideArithmetic.AddSigned704(
-            WideArithmetic.AddSigned704(WideArithmetic.MultiplySigned576ToSigned704(x, point.X),
-                WideArithmetic.MultiplySigned576ToSigned704(y, point.Y)),
-            WideArithmetic.MultiplySigned576ToSigned704(z, point.Z));
-        return Signed576.NarrowValue(product);
+        return WideArithmetic.AddSigned832(
+            WideArithmetic.AddSigned832(WideArithmetic.MultiplySigned576ToSigned832(x, point.X),
+                WideArithmetic.MultiplySigned576ToSigned832(y, point.Y)),
+            WideArithmetic.MultiplySigned576ToSigned832(z, point.Z));
     }
 }

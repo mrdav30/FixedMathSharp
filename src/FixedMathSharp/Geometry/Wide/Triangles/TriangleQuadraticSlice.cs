@@ -104,22 +104,33 @@ internal static class TriangleQuadraticSlice
             result.Add(product);
         }
     }
-    internal static Fixed64 RoundTriangleCoordinate(Fixed64 a, Fixed64 b, Fixed64 c,
+    internal static Fixed64 RoundTriangleCoordinate(in TriangleCircularGeometry geometry, FixedTriangle triangle, int component,
         Span<ulong> weights, Span<int> signs, ContactQuadratic denominator, ReadOnlySpan<ulong> root)
     {
-        Span<Signed576> coordinates = stackalloc Signed576[3]
-        {
-            Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(a))),
-            Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(b))),
-            Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(c)))
-        };
-        Span<ulong> values = stackalloc ulong[2 * Words];
-        Span<int> valueSigns = stackalloc int[2];
+        Span<Signed576> coordinates = stackalloc Signed576[3];
+        for (int vertex = 0; vertex < 3; vertex++)
+            coordinates[vertex] = geometry.WitnessCoordinate(triangle, vertex, component);
+        Span<ulong> values = stackalloc ulong[(geometry.IsAffine ? 4 : 2) * Words];
+        Span<int> valueSigns = stackalloc int[geometry.IsAffine ? 4 : 2];
         ContactQuadratic numerator = At(values, valueSigns, 0);
         Sum(coordinates, weights, signs, numerator);
-        return RoundRatio(numerator, denominator, root,
-            Math.Min(a.m_rawValue, Math.Min(b.m_rawValue, c.m_rawValue)),
-            Math.Max(a.m_rawValue, Math.Max(b.m_rawValue, c.m_rawValue)));
+        if (!geometry.IsAffine) return RoundRatio(numerator, denominator, root);
+        ContactQuadratic scaledDenominator = At(values, valueSigns, 1);
+        Scale(denominator, Signed576.ExtendValue(geometry.RawScale), scaledDenominator);
+        return RoundRatio(numerator, scaledDenominator, root);
+    }
+
+    internal static void Sum(ReadOnlySpan<Signed832> coordinates, Span<ulong> weights, Span<int> signs, ContactQuadratic result)
+    {
+        Span<ulong> values = stackalloc ulong[2 * Words];
+        Span<int> productSigns = stackalloc int[2];
+        ContactQuadratic product = At(values, productSigns, 0);
+        result.Clear();
+        for (int vertex = 0; vertex < 3; vertex++)
+        {
+            Scale(At(weights, signs, vertex), coordinates[vertex], product);
+            result.Add(product);
+        }
     }
 
     internal static void Sum(ReadOnlySpan<Signed576> coordinates, Span<ulong> weights, Span<int> signs, ContactQuadratic result)

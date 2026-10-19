@@ -15,11 +15,11 @@ internal static partial class ConePlaneRayEvents
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
-        Span<ulong> values = stackalloc ulong[6 * Words];
+        Span<ulong> values = stackalloc ulong[6 * frame.FieldWords];
         Span<int> signs = stackalloc int[6];
-        Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> pointValues = stackalloc ulong[frame.PointStorageWords];
         Span<int> pointSigns = stackalloc int[8];
-        var point = new ConePlaneRayPoint(pointValues, pointSigns);
+        var point = new ConePlaneRayPoint(pointValues, pointSigns, frame.FieldWords);
         ContactQuadratic n = At(values, signs, 0), d = At(values, signs, 1), term = At(values, signs, 2);
         point.X.Clear(); point.Z.Clear();
         bool found = false;
@@ -83,17 +83,17 @@ internal static partial class ConePlaneRayEvents
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
-        Signed576 radialSquared = WideArithmetic.AddSigned576(
-            WideArithmetic.MultiplySigned320(frame.Normal.X, frame.Normal.X),
-            WideArithmetic.MultiplySigned320(frame.Normal.Z, frame.Normal.Z));
+        Signed832 radialSquared = WideArithmetic.AddSigned832(
+            WideArithmetic.MultiplySigned576ToSigned832(frame.Normal.X, frame.Normal.X),
+            WideArithmetic.MultiplySigned576ToSigned832(frame.Normal.Z, frame.Normal.Z));
         if (radialSquared.IsZero)
             return false;
-        Span<ulong> values = stackalloc ulong[22 * Words];
+        Span<ulong> values = stackalloc ulong[22 * frame.FieldWords];
         Span<int> signs = stackalloc int[22];
-        Span<ulong> root = stackalloc ulong[RootWords];
-        Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> root = stackalloc ulong[frame.RootWords];
+        Span<ulong> pointValues = stackalloc ulong[frame.PointStorageWords];
         Span<int> pointSigns = stackalloc int[8];
-        var point = new ConePlaneRayPoint(pointValues, pointSigns);
+        var point = new ConePlaneRayPoint(pointValues, pointSigns, frame.FieldWords);
         ContactQuadratic k = At(values, signs, 0), L = At(values, signs, 1), A = At(values, signs, 2);
         ContactQuadratic a = At(values, signs, 3), b = At(values, signs, 4), c = At(values, signs, 5);
         ContactQuadratic term = At(values, signs, 6), work = At(values, signs, 7), t = At(values, signs, 8);

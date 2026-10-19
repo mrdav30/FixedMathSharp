@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using FixedMathSharp.Geometry;
 using Xunit;
 
@@ -7,6 +8,71 @@ namespace FixedMathSharp.Tests.Geometry;
 public class FiniteSlabRaySelectionTests
 {
     private static readonly FixedTriangle Floor = new(new Vector3d(-4, 0, -4), new(4, 0, -4), new(0, 0, 4));
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CrossWidthPolynomialCopy_ShouldPreserveSignedCoefficientsAndClearStaleTails(bool wideSource)
+    {
+        int sourceWords = wideSource ? FiniteSlabPolynomial.AffineWords : FiniteSlabPolynomial.Words;
+        int targetWords = wideSource ? FiniteSlabPolynomial.Words : FiniteSlabPolynomial.AffineWords;
+        Span<ulong> sourceValues = stackalloc ulong[2 * sourceWords], targetValues = stackalloc ulong[2 * targetWords];
+        Span<sbyte> sourceSigns = stackalloc sbyte[2], targetSigns = stackalloc sbyte[2];
+        var source = new FiniteSlabPolynomial(sourceValues, sourceSigns);
+        var target = new FiniteSlabPolynomial(targetValues, targetSigns);
+        source.Set(2); source.Set(-3, 1);
+        targetValues.Fill(ulong.MaxValue); targetSigns.Fill(1);
+        target.Copy(source);
+        Assert.Equal((sbyte)1, targetSigns[0]); Assert.Equal((sbyte)(-1), targetSigns[1]);
+        Assert.Equal(2UL, targetValues[0]); Assert.Equal(3UL, targetValues[targetWords]);
+        for (int word = 1; word < targetWords; word++)
+        {
+            Assert.Equal(0UL, targetValues[word]); Assert.Equal(0UL, targetValues[targetWords + word]);
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void PolynomialScale_ShouldPreserveExactSignedCoefficientsAndClearUnusedMagnitudeWords(bool wideFactor, bool wideTarget)
+    {
+        int targetWords = wideTarget ? FiniteSlabPolynomial.AffineWords : FiniteSlabPolynomial.Words;
+        int sourceWords = wideTarget ? FiniteSlabPolynomial.Words : FiniteSlabPolynomial.AffineWords;
+        Span<ulong> sourceValues = stackalloc ulong[3 * sourceWords], targetValues = stackalloc ulong[3 * targetWords];
+        Span<sbyte> sourceSigns = stackalloc sbyte[3], targetSigns = stackalloc sbyte[3];
+        var source = new FiniteSlabPolynomial(sourceValues, sourceSigns);
+        var target = new FiniteSlabPolynomial(targetValues, targetSigns);
+        sourceValues.Fill(ulong.MaxValue);
+        source.Set(Signed576.ExtendValue(Signed192.Signed(2)));
+        source.Set(Signed832.ExtendValue(Signed192.Signed(-3)), 1);
+        // A zero sign makes the padded magnitude irrelevant. Scaling must not
+        // copy those stale bytes into a retained zero coefficient.
+        sourceSigns[2] = 0;
+        for (int factorIndex = -2; factorIndex <= 4; factorIndex++)
+        {
+            Signed576 factor = factorIndex <= 2 ? Signed576.ExtendValue(Signed192.Signed(factorIndex))
+                : new(0, 0, 0, 0, 0, 0, 0, factorIndex == 3 ? 1UL : 0UL, factorIndex == 3 ? 1UL : ulong.MaxValue);
+            BigInteger exactFactor = factorIndex <= 2 ? factorIndex
+                : factorIndex == 3 ? (BigInteger.One << 64) + 1 : ulong.MaxValue;
+            targetValues.Fill(ulong.MaxValue); targetSigns.Fill(1);
+            if (wideFactor) target.Scale(source, Signed832.ExtendValue(factor));
+            else target.Scale(source, factor);
+            for (int coefficient = 0; coefficient < 3; coefficient++)
+            {
+                BigInteger expected = exactFactor * (coefficient == 0 ? 2 : coefficient == 1 ? -3 : 0);
+                Assert.Equal((sbyte)expected.Sign, targetSigns[coefficient]);
+                BigInteger magnitude = BigInteger.Abs(expected);
+                for (int word = 0; word < targetWords; word++)
+                {
+                    Assert.Equal((ulong)(magnitude & ulong.MaxValue), targetValues[coefficient * targetWords + word]);
+                    magnitude >>= 64;
+                }
+                Assert.Equal(BigInteger.Zero, magnitude);
+            }
+        }
+    }
 
     [Theory]
     [InlineData(false)]

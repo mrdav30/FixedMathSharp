@@ -8,7 +8,7 @@ public sealed class CapsulePlaneRayValueTests
 {
     private const int Words = 10;
     private static ContactQuadratic Field(Span<ulong> values, Span<int> signs, int index) => ContactQuadratic.At(values, signs, index, Words);
-    private static Signed576 Wide(long value) => Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(value)));
+    private static Signed832 Wide(long value) => Signed832.ExtendValue(Signed320.ExtendValue(Signed192.Signed(value)));
 
     private static void Set(ContactQuadratic value, long rational, long radical = 0)
     {
@@ -40,8 +40,8 @@ public sealed class CapsulePlaneRayValueTests
         var second = new CapsulePlaneRayValue(secondStorage, secondSigns);
         SetLinear(ref first, 2, firstShift);
         SetLinear(ref second, secondTwiceValue, secondShift);
-        Assert.Equal(expected, first.Compare(second, Signed192.Signed(firstDivisor), Signed192.Signed(secondDivisor)));
-        Assert.Equal(-expected, second.Compare(first, Signed192.Signed(secondDivisor), Signed192.Signed(firstDivisor)));
+        Assert.Equal(expected, first.Compare(second, Signed320.ExtendValue(Signed192.Signed(firstDivisor)), Signed320.ExtendValue(Signed192.Signed(secondDivisor))));
+        Assert.Equal(-expected, second.Compare(first, Signed320.ExtendValue(Signed192.Signed(secondDivisor)), Signed320.ExtendValue(Signed192.Signed(firstDivisor))));
     }
 
     [Theory]
@@ -59,7 +59,7 @@ public sealed class CapsulePlaneRayValueTests
         Assert.True(value.TrySetUpperRoot(a, b, c, root, 2));
         Assert.True(value.HasValue);
         Signed576 metric = Signed576.ExtendValue(WideArithmetic.MultiplySigned192(Signed192.Raw(Fixed64.One), Signed192.Raw(Fixed64.One)));
-        Assert.True(value.TryGetDepth(metric, Signed192.Signed(1), out Fixed64 depth, out bool overflow));
+        Assert.True(value.TryGetDepth(Signed832.ExtendValue(metric), Signed320.ExtendValue(Signed192.Signed(1)), out Fixed64 depth, out bool overflow));
         Assert.False(overflow);
         Fixed64 expected = radicalSign > 0 ? FixedMath.Sqrt((Fixed64)3) - FixedMath.Sqrt(Fixed64.Two)
             : FixedMath.Sqrt(Fixed64.Two) + Fixed64.One;
@@ -89,14 +89,14 @@ public sealed class CapsulePlaneRayValueTests
         Assert.Equal(1, value.CompareQuadratic(a, b, pointRoot));
         Signed192 scale = Signed192.Raw(Fixed64.One);
         Signed576 metric = Signed576.ExtendValue(WideArithmetic.MultiplySigned192(scale, scale));
-        Assert.True(value.TryGetDepth(metric, Signed192.Signed(1), out Fixed64 depth, out bool overflow));
+        Assert.True(value.TryGetDepth(Signed832.ExtendValue(metric), Signed320.ExtendValue(Signed192.Signed(1)), out Fixed64 depth, out bool overflow));
         Assert.False(overflow);
         Assert.InRange(FixedMath.Abs(depth - FixedMath.Sqrt((Fixed64)3)).m_rawValue, 0L, 1L);
 
         ContactQuadratic x = a, y = b, z = c, d = Field(values, signs, 3);
         Set(x, 0, Fixed64.One.m_rawValue); Set(y, 0); Set(z, 0); Set(d, 1);
-        var direction = new WideAxis3(default, Signed320.ExtendValue(scale), default);
-        Assert.True(value.TryGetPoint(x, y, z, d, pointRoot, direction, Signed192.Signed(1), out Vector3d point));
+        var direction = new WideDirection3d(new WideAxis3(default, Signed320.ExtendValue(scale), default));
+        Assert.True(value.TryGetPoint(x, y, z, d, pointRoot, direction, Signed320.ExtendValue(Signed192.Signed(1)), out Vector3d point));
         Assert.InRange(FixedMath.Abs(point.X - FixedMath.Sqrt(Fixed64.Two)).m_rawValue, 0L, 1L);
         Assert.Equal(depth, point.Y);
         Assert.Equal(Fixed64.Zero, point.Z);
@@ -143,7 +143,7 @@ public sealed class CapsulePlaneRayValueTests
         Assert.Equal(0, value.CompareQuadratic(a, b, ReadOnlySpan<ulong>.Empty));
         Signed192 scale = Signed192.Raw(Fixed64.One);
         Signed576 metric = Signed576.ExtendValue(WideArithmetic.MultiplySigned192(scale, scale));
-        Assert.True(value.TryGetDepth(metric, Signed192.Signed(1), out Fixed64 depth, out bool overflow));
+        Assert.True(value.TryGetDepth(Signed832.ExtendValue(metric), Signed320.ExtendValue(Signed192.Signed(1)), out Fixed64 depth, out bool overflow));
         Assert.False(overflow);
         Assert.Equal((Fixed64)expected, depth);
     }
@@ -196,12 +196,12 @@ public sealed class CapsulePlaneRayValueTests
         Assert.False(value.Metadata.HasCompactCell);
         Set(a, 1); Set(b, 2);
         Assert.Equal(1, value.CompareQuadratic(a, b, ReadOnlySpan<ulong>.Empty));
-        Assert.True(value.TryGetDepth(Wide(1), Signed192.Signed(1), out Fixed64 depth, out bool overflow));
+        Assert.True(value.TryGetDepth(Wide(1), Signed320.ExtendValue(Signed192.Signed(1)), out Fixed64 depth, out bool overflow));
         Assert.False(overflow); Assert.Equal(1L, depth.m_rawValue);
         Set(a, 0); Set(b, 1); Set(c, 0);
         Assert.True(value.TryGetPoint(a, a, c, b, ReadOnlySpan<ulong>.Empty,
-            new WideAxis3(default, Signed320.ExtendValue(Signed192.Signed(1)), default),
-            Signed192.Signed(1), out Vector3d point));
+            new WideDirection3d(new WideAxis3(default, Signed320.ExtendValue(Signed192.Signed(1)), default)),
+            Signed320.ExtendValue(Signed192.Signed(1)), out Vector3d point));
         Assert.Equal(Vector3d.Up * Fixed64.FromRaw(1), point);
 
         // The same exact exit approaches both final coordinate limits from
@@ -214,8 +214,8 @@ public sealed class CapsulePlaneRayValueTests
         b.Set(Signed576.ExtendValue(Signed320.ExtendValue(lowerStart)));
         ContactQuadratic d = ContactQuadratic.At(values, signs, 3, words); Set(d, 1);
         Assert.True(value.TryGetPoint(a, b, c, d, ReadOnlySpan<ulong>.Empty,
-            new WideAxis3(Signed320.ExtendValue(Signed192.Signed(-1)), Signed320.ExtendValue(Signed192.Signed(1)), default),
-            Signed192.Signed(1), out point));
+            new WideDirection3d(new WideAxis3(Signed320.ExtendValue(Signed192.Signed(-1)), Signed320.ExtendValue(Signed192.Signed(1)), default)),
+            Signed320.ExtendValue(Signed192.Signed(1)), out point));
         Assert.Equal(new Vector3d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.Zero), point);
     }
 
@@ -246,7 +246,7 @@ public sealed class CapsulePlaneRayValueTests
         Span<sbyte> valueSigns = stackalloc sbyte[CapsulePlaneRayValue.SignCount];
         var value = new CapsulePlaneRayValue(storage, valueSigns);
         SetLinear(ref value, twiceValue, 2);
-        Assert.True(value.TryGetDepth(Wide(1), Signed192.Signed(1), out Fixed64 depth, out bool overflow));
+        Assert.True(value.TryGetDepth(Wide(1), Signed320.ExtendValue(Signed192.Signed(1)), out Fixed64 depth, out bool overflow));
         Assert.False(overflow); Assert.Equal(expectedRaw, depth.m_rawValue);
     }
 
@@ -259,7 +259,7 @@ public sealed class CapsulePlaneRayValueTests
         Span<sbyte> valueSigns = stackalloc sbyte[CapsulePlaneRayValue.SignCount];
         var value = new CapsulePlaneRayValue(storage, valueSigns); SetLinear(ref value, twiceValue, 2);
         Signed576 metric = Signed576.ExtendValue(WideArithmetic.MultiplySigned192(Signed192.Raw(Fixed64.MaxValue), Signed192.Raw(Fixed64.MaxValue)));
-        Assert.True(value.TryGetDepth(metric, Signed192.Signed(1), out Fixed64 depth, out bool overflow));
+        Assert.True(value.TryGetDepth(Signed832.ExtendValue(metric), Signed320.ExtendValue(Signed192.Signed(1)), out Fixed64 depth, out bool overflow));
         Assert.Equal(Fixed64.MaxValue, depth); Assert.Equal(expectedOverflow, overflow);
     }
 
@@ -272,8 +272,8 @@ public sealed class CapsulePlaneRayValueTests
         Span<ulong> values = stackalloc ulong[8 * Words]; Span<int> signs = stackalloc int[8];
         ContactQuadratic x = Field(values, signs, 0), y = Field(values, signs, 1), z = Field(values, signs, 2), d = Field(values, signs, 3);
         Set(x, 0); Set(y, 2); Set(z, 0); Set(d, 1);
-        var direction = new WideAxis3(default, Signed320.ExtendValue(Signed192.Raw(Fixed64.One)), default);
-        Assert.True(value.TryGetPoint(x, y, z, d, ReadOnlySpan<ulong>.Empty, direction, Signed192.Signed(1), out Vector3d point));
+        var direction = new WideDirection3d(new WideAxis3(default, Signed320.ExtendValue(Signed192.Raw(Fixed64.One)), default));
+        Assert.True(value.TryGetPoint(x, y, z, d, ReadOnlySpan<ulong>.Empty, direction, Signed320.ExtendValue(Signed192.Signed(1)), out Vector3d point));
         Assert.Equal(Vector3d.Up * (Fixed64.FromFraction(3, 2) + Fixed64.FromRaw(2)), point);
     }
 
@@ -293,7 +293,7 @@ public sealed class CapsulePlaneRayValueTests
         Span<ulong> values = stackalloc ulong[8 * Words]; Span<int> signs = stackalloc int[8];
         ContactQuadratic x = Field(values, signs, 0), y = Field(values, signs, 1), z = Field(values, signs, 2), d = Field(values, signs, 3);
         Set(x, 0); Set(y, numerator + 2 * addedRaw); Set(z, 0); Set(d, 1);
-        Assert.True(value.TryGetPoint(x, y, z, d, ReadOnlySpan<ulong>.Empty, default, Signed192.Signed(2), out Vector3d point));
+        Assert.True(value.TryGetPoint(x, y, z, d, ReadOnlySpan<ulong>.Empty, default, Signed320.ExtendValue(Signed192.Signed(2)), out Vector3d point));
         Assert.Equal(Vector3d.Up * Fixed64.FromRaw(expectedRaw), point);
     }
 
@@ -311,9 +311,9 @@ public sealed class CapsulePlaneRayValueTests
         Span<ulong> values = stackalloc ulong[8 * Words]; Span<int> signs = stackalloc int[8];
         ContactQuadratic x = Field(values, signs, 0), y = Field(values, signs, 1), z = Field(values, signs, 2), d = Field(values, signs, 3);
         Set(x, 0); Set(y, 0); Set(z, 0); Set(d, 1);
-        var direction = new WideAxis3(default, Signed320.ExtendValue(Signed192.Signed(directionSign)), default);
+        var direction = new WideDirection3d(new WideAxis3(default, Signed320.ExtendValue(Signed192.Signed(directionSign)), default));
         Assert.True(value.TryGetPoint(x, y, z, d, ReadOnlySpan<ulong>.Empty, direction,
-            Signed192.Signed(1), out Vector3d point));
+            Signed320.ExtendValue(Signed192.Signed(1)), out Vector3d point));
         Assert.Equal(Vector3d.Up * Fixed64.FromRaw(expectedRaw), point);
     }
 
@@ -332,8 +332,8 @@ public sealed class CapsulePlaneRayValueTests
         Span<ulong> root = stackalloc ulong[1] { 3 };
         // D=2-sqrt(3)>0 although its coarse interval includes zero.
         // 1/D=2+sqrt(3), so adding +/-1/2 rounds to raw 4 or 3.
-        var direction = new WideAxis3(default, Signed320.ExtendValue(Signed192.Signed(directionSign)), default);
-        Assert.True(value.TryGetPoint(x, y, z, d, root, direction, Signed192.Signed(1), out Vector3d point));
+        var direction = new WideDirection3d(new WideAxis3(default, Signed320.ExtendValue(Signed192.Signed(directionSign)), default));
+        Assert.True(value.TryGetPoint(x, y, z, d, root, direction, Signed320.ExtendValue(Signed192.Signed(1)), out Vector3d point));
         Assert.Equal(Vector3d.Up * Fixed64.FromRaw(expectedRaw), point);
     }
 
@@ -351,9 +351,9 @@ public sealed class CapsulePlaneRayValueTests
         Assert.True(value.TrySetUpperRoot(x, y, z, ReadOnlySpan<ulong>.Empty, 1));
         Set(x, 0); Set(y, 0, Fixed64.One.m_rawValue); Set(z, 0); Set(d, 1);
         Span<ulong> root = stackalloc ulong[1] { 3 };
-        var direction = new WideAxis3(default,
-            Signed320.ExtendValue(Signed192.Raw(Fixed64.One * directionSign)), default);
-        Assert.True(value.TryGetPoint(x, y, z, d, root, direction, Signed192.Signed(1), out Vector3d point));
+        var direction = new WideDirection3d(new WideAxis3(default,
+            Signed320.ExtendValue(Signed192.Raw(Fixed64.One * directionSign)), default));
+        Assert.True(value.TryGetPoint(x, y, z, d, root, direction, Signed320.ExtendValue(Signed192.Signed(1)), out Vector3d point));
         Fixed64 expected = FixedMath.Sqrt((Fixed64)3) + FixedMath.Sqrt(Fixed64.Two) * directionSign;
         Assert.InRange(FixedMath.Abs(point.Y - expected).m_rawValue, 0L, 1L);
         Assert.Equal(Fixed64.Zero, point.X); Assert.Equal(Fixed64.Zero, point.Z);
@@ -376,8 +376,8 @@ public sealed class CapsulePlaneRayValueTests
         Set(x, 0); Set(y, 0); Set(z, 0); Set(d, 1);
         Set(axis == 0 ? x : axis == 1 ? y : z, sign > 0 ? long.MaxValue : long.MinValue);
         Signed320 raw = Signed320.ExtendValue(Signed192.Raw(Fixed64.One * sign));
-        var direction = new WideAxis3(axis == 0 ? raw : default, axis == 1 ? raw : default, axis == 2 ? raw : default);
-        Assert.False(value.TryGetPoint(x, y, z, d, ReadOnlySpan<ulong>.Empty, direction, Signed192.Signed(1), out Vector3d point));
+        var direction = new WideDirection3d(new WideAxis3(axis == 0 ? raw : default, axis == 1 ? raw : default, axis == 2 ? raw : default));
+        Assert.False(value.TryGetPoint(x, y, z, d, ReadOnlySpan<ulong>.Empty, direction, Signed320.ExtendValue(Signed192.Signed(1)), out Vector3d point));
         Assert.Equal(Vector3d.Zero, point);
     }
 }

@@ -9,7 +9,6 @@ namespace FixedMathSharp.Geometry;
 /// <summary>The shared stationary quartic on a cylinder's edge-normal chart.</summary>
 internal static class CylinderEdgeContactPolynomial
 {
-    internal const int Words = 40;
     internal const int Slots = 26;
 
     /// <summary>
@@ -17,20 +16,21 @@ internal static class CylinderEdgeContactPolynomial
     /// Q,K,L,J=PK-L,N=J²,D=scale²K²M into slots 0,5,8,10,13,16,21.
     /// K=2P'M-PM' and L=Q'M-QM'. M is a positive quadratic metric.
     /// Root admission must retain L=-K sqrt(Q), cap and polytope cones.
-    /// All buffers are disjoint, and each coefficient must fit forty words.
+    /// All buffers are disjoint, and each coefficient must fit its supplied word stride.
     /// </summary>
     internal static void Build(ReadOnlySpan<ulong> p, ReadOnlySpan<sbyte> ps,
         ReadOnlySpan<ulong> q, ReadOnlySpan<sbyte> qs,
         ReadOnlySpan<ulong> metric, ReadOnlySpan<sbyte> ms,
         ReadOnlySpan<ulong> scale, Span<ulong> data, Span<sbyte> signs)
     {
+        int words = data.Length / signs.Length;
         data.Clear(); signs.Clear();
-        q.CopyTo(data.Slice(5 * Words, 3 * Words)); qs.CopyTo(signs.Slice(5, 3));
-        Span<ulong> scratch = stackalloc ulong[9 * Words];
+        q.CopyTo(data.Slice(5 * words, 3 * words)); qs.CopyTo(signs.Slice(5, 3));
+        Span<ulong> scratch = stackalloc ulong[9 * words];
         Span<sbyte> scratchSigns = stackalloc sbyte[8];
         scratch.Clear(); scratchSigns.Clear();
-        Span<ulong> product = scratch.Slice(8 * Words, Words);
-        Span<ulong> k = data.Slice(8 * Words, 2 * Words), l = data.Slice(10 * Words, 3 * Words);
+        Span<ulong> product = scratch.Slice(8 * words, words);
+        Span<ulong> k = data.Slice(8 * words, 2 * words), l = data.Slice(10 * words, 3 * words);
         Span<sbyte> ks = signs.Slice(8, 2), ls = signs.Slice(10, 3);
         Term(p, ps, 1, metric, ms, 0, k, ks, 0, 2, product);
         Term(p, ps, 0, metric, ms, 1, k, ks, 0, -1, product);
@@ -42,35 +42,36 @@ internal static class CylinderEdgeContactPolynomial
         Term(q, qs, 0, metric, ms, 2, l, ls, 1, -2, product);
         Term(q, qs, 2, metric, ms, 1, l, ls, 2, 1, product);
         Term(q, qs, 1, metric, ms, 2, l, ls, 2, -1, product);
-        Span<ulong> kSquared = scratch[..(3 * Words)], temporary = scratch.Slice(3 * Words, 5 * Words);
+        Span<ulong> kSquared = scratch[..(3 * words)], temporary = scratch.Slice(3 * words, 5 * words);
         Span<sbyte> kSquaredSigns = scratchSigns[..3], temporarySigns = scratchSigns.Slice(3, 5);
-        Multiply(l, ls, l, ls, data[..(5 * Words)], signs[..5], product);
+        Multiply(l, ls, l, ls, data[..(5 * words)], signs[..5], product);
         Multiply(k, ks, k, ks, kSquared, kSquaredSigns, product);
         Multiply(kSquared, kSquaredSigns, q, qs, temporary, temporarySigns, product);
-        Add(temporary, temporarySigns, data[..(5 * Words)], signs[..5], -1);
-        Span<ulong> j = data.Slice(13 * Words, 3 * Words);
+        Add(temporary, temporarySigns, data[..(5 * words)], signs[..5], -1);
+        Span<ulong> j = data.Slice(13 * words, 3 * words);
         Span<sbyte> js = signs.Slice(13, 3);
         Multiply(p, ps, k, ks, j, js, product);
         Add(l, ls, j, js, -1);
-        Multiply(j, js, j, js, data.Slice(16 * Words, 5 * Words), signs.Slice(16, 5), product);
+        Multiply(j, js, j, js, data.Slice(16 * words, 5 * words), signs.Slice(16, 5), product);
         Multiply(kSquared, kSquaredSigns, metric, ms, temporary, temporarySigns, product);
-        WideArithmetic.MultiplyMagnitudes(scale, scale, kSquared[..Words]);
+        WideArithmetic.MultiplyMagnitudes(scale, scale, kSquared[..words]);
         kSquaredSigns[0] = 1;
-        Multiply(temporary, temporarySigns, kSquared[..Words], kSquaredSigns[..1],
-            data.Slice(21 * Words, 5 * Words), signs.Slice(21, 5), product);
-        WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(data[..(5 * Words)], signs[..5]);
-        WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(data.Slice(16 * Words, 10 * Words), signs.Slice(16, 10));
+        Multiply(temporary, temporarySigns, kSquared[..words], kSquaredSigns[..1],
+            data.Slice(21 * words, 5 * words), signs.Slice(21, 5), product);
+        WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(data[..(5 * words)], signs[..5]);
+        WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(data.Slice(16 * words, 10 * words), signs.Slice(16, 10));
     }
 
     private static void Term(ReadOnlySpan<ulong> a, ReadOnlySpan<sbyte> aSigns, int ai,
         ReadOnlySpan<ulong> b, ReadOnlySpan<sbyte> bSigns, int bi,
         Span<ulong> result, Span<sbyte> resultSigns, int ri, int multiplier, Span<ulong> product)
     {
-        WideArithmetic.MultiplyMagnitudes(a.Slice(ai * Words, Words), b.Slice(bi * Words, Words), product);
+        int words = product.Length;
+        WideArithmetic.MultiplyMagnitudes(a.Slice(ai * words, words), b.Slice(bi * words, words), product);
         int sign = resultSigns[ri];
         WideArithmetic.AddShiftedSignedMagnitude(product,
             aSigns[ai] * bSigns[bi] * Math.Sign(multiplier), Math.Abs(multiplier) == 2 ? 1 : 0,
-            result.Slice(ri * Words, Words), ref sign);
+            result.Slice(ri * words, words), ref sign);
         resultSigns[ri] = (sbyte)sign;
     }
     private static void Multiply(ReadOnlySpan<ulong> a, ReadOnlySpan<sbyte> aSigns,

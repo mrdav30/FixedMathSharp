@@ -62,6 +62,15 @@ internal static class ConePlaneRayCharts
     // Admission products and depth comparisons use larger transient storage;
     // these bounds do not authorize materializing those products in a field.
 
+    // Affine near-field ingress retains scaled local coordinates below 110
+    // bits. Exact relative coordinates are <306, normals <351, normal² <704,
+    // plane constants <659, wall coefficients <463 and wall offsets <771.
+    // Independently retained cross-frame clips can use 832-bit parameters
+    // instead of rigid 319-bit parameters. Every independent input bound is
+    // therefore below three times the rigid ledger above; these same fixed-
+    // degree polynomials fit three times its retained/transient capacities.
+    // Only affine frames select those banks.
+
     /// <summary>Tests a positive-denominator parameter against the closed or open unit interval.</summary>
     internal static bool IsUnitParameter(ContactQuadratic numerator, ContactQuadratic denominator,
         ReadOnlySpan<ulong> root, bool includeEndpoints = true)
@@ -69,9 +78,10 @@ internal static class ConePlaneRayCharts
         int sign = numerator.Sign(root);
         if (includeEndpoints ? sign < 0 : sign <= 0)
             return false;
-        Span<ulong> work = stackalloc ulong[2 * Words];
+        int words = numerator.FieldWords;
+        Span<ulong> work = stackalloc ulong[2 * words];
         Span<int> signs = stackalloc int[2];
-        ContactQuadratic difference = ContactQuadratic.At(work, signs, 0, Words);
+        ContactQuadratic difference = ContactQuadratic.At(work, signs, 0, words);
         numerator.CopyTo(difference); difference.Add(denominator, -1);
         sign = difference.Sign(root);
         return includeEndpoints ? sign <= 0 : sign < 0;

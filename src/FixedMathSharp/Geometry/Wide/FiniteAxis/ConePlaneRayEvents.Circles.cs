@@ -14,7 +14,6 @@ internal static partial class ConePlaneRayEvents
     // Circle coefficients <1248 bits; chart sums and doubled linear
     // denominators <1250 bits fit this 1280-bit bank. Full generator,
     // discriminant and exit fields retain their independently larger banks.
-    private const int CircleWords = 20;
 
     private static bool AccumulateCircles(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
@@ -29,7 +28,7 @@ internal static partial class ConePlaneRayEvents
         // entry before the remaining quadrants read it. Axial plane cohorts have no
         // nonseam lines. One allocation outside the loop bounds stack usage.
         int lineFields = source.Scope == ConePlaneRayEventScope.Segment ? 6 : axial ? 0 : 48;
-        Span<ulong> lines = stackalloc ulong[lineFields * CircleWords];
+        Span<ulong> lines = stackalloc ulong[lineFields * frame.CircleWords];
         Span<int> lineSigns = stackalloc int[lineFields];
         bool found = false;
         // Match the compact inventories exactly, including seam ownership and
@@ -81,11 +80,11 @@ internal static partial class ConePlaneRayEvents
         if (source.Scope == ConePlaneRayEventScope.Segment && (!upper || line != 0)) return false;
         if (!upper && line == 8 && frame.Normal.X.IsZero && frame.Normal.Z.IsZero && !frame.Normal.Y.IsZero)
             return AccumulateAxialCardinal(source, frame, quadrant, firstBranch, ref positive, ref negative, ref sink);
-        Span<ulong> values = stackalloc ulong[16 * CircleWords], root = stackalloc ulong[RootWords];
+        Span<ulong> values = stackalloc ulong[16 * frame.CircleWords], root = stackalloc ulong[frame.RootWords];
         Span<int> signs = stackalloc int[16];
-        ContactQuadratic x = ContactQuadratic.At(values, signs, 0, CircleWords), z = ContactQuadratic.At(values, signs, 1, CircleWords), constant = ContactQuadratic.At(values, signs, 2, CircleWords);
-        ContactQuadratic a = ContactQuadratic.At(values, signs, 3, CircleWords), b = ContactQuadratic.At(values, signs, 4, CircleWords), c = ContactQuadratic.At(values, signs, 5, CircleWords);
-        ContactQuadratic n = ContactQuadratic.At(values, signs, 6, CircleWords), d = ContactQuadratic.At(values, signs, 7, CircleWords);
+        ContactQuadratic x = ContactQuadratic.At(values, signs, 0, frame.CircleWords), z = ContactQuadratic.At(values, signs, 1, frame.CircleWords), constant = ContactQuadratic.At(values, signs, 2, frame.CircleWords);
+        ContactQuadratic a = ContactQuadratic.At(values, signs, 3, frame.CircleWords), b = ContactQuadratic.At(values, signs, 4, frame.CircleWords), c = ContactQuadratic.At(values, signs, 5, frame.CircleWords);
+        ContactQuadratic n = ContactQuadratic.At(values, signs, 6, frame.CircleWords), d = ContactQuadratic.At(values, signs, 7, frame.CircleWords);
         int sx = (quadrant & 1) == 0 ? 1 : -1, sz = (quadrant & 2) == 0 ? 1 : -1;
         ConePlaneRayEventKind kind = upper ? ConePlaneRayEventKind.UpperRim : ConePlaneRayEventKind.LowerCircle;
         if (line == 8)
@@ -98,9 +97,9 @@ internal static partial class ConePlaneRayEvents
         }
         if (sink.IsStreaming)
         {
-            ContactQuadratic lx = ContactQuadratic.At(lines, lineSigns, 3 * line, CircleWords);
-            ContactQuadratic lz = ContactQuadratic.At(lines, lineSigns, 3 * line + 1, CircleWords);
-            ContactQuadratic lc = ContactQuadratic.At(lines, lineSigns, 3 * line + 2, CircleWords);
+            ContactQuadratic lx = ContactQuadratic.At(lines, lineSigns, 3 * line, frame.CircleWords);
+            ContactQuadratic lz = ContactQuadratic.At(lines, lineSigns, 3 * line + 1, frame.CircleWords);
+            ContactQuadratic lc = ContactQuadratic.At(lines, lineSigns, 3 * line + 2, frame.CircleWords);
             if (quadrant == 0) GetCircleLine(source, frame, upper, line, lx, lz, lc);
             lx.CopyTo(x); lz.CopyTo(z); lc.CopyTo(constant);
         }
@@ -134,14 +133,15 @@ internal static partial class ConePlaneRayEvents
         int quadrant, int branch, scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
-        Signed576 sectionHeight = frame.Normal.Y.Sign < 0
-            ? WideArithmetic.SubtractSigned576(default, frame.PlaneConstant) : frame.PlaneConstant;
-        if (sectionHeight.Sign < 0 || WideArithmetic.SubtractSigned576(sectionHeight, Extend(frame.Finite.FullHeight)).Sign > 0)
+        Signed832 sectionHeight = frame.Normal.Y.Sign < 0
+            ? WideArithmetic.SubtractSigned832(default, frame.PlaneConstant) : frame.PlaneConstant;
+        if (sectionHeight.Sign < 0 || WideArithmetic.SubtractSigned832(sectionHeight,
+                Signed832.ExtendValue(Extend(frame.Finite.FullHeight))).Sign > 0)
             return false;
-        Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> pointValues = stackalloc ulong[frame.PointStorageWords];
         Span<int> pointSigns = stackalloc int[ConePlaneRayPoint.SignCount];
-        var point = new ConePlaneRayPoint(pointValues, pointSigns); point.Set(default);
-        Span<ulong> values = stackalloc ulong[2 * Words]; Span<int> signs = stackalloc int[2];
+        var point = new ConePlaneRayPoint(pointValues, pointSigns, frame.FieldWords); point.Set(default(WideAxis3));
+        Span<ulong> values = stackalloc ulong[2 * frame.FieldWords]; Span<int> signs = stackalloc int[2];
         ContactQuadratic height = At(values, signs, 0);
         // A primitive axial normal has Ny=+/-1, hence s=c*sign(Ny).
         // With positive homogeneous denominator Hraw, a cardinal generator
@@ -184,22 +184,22 @@ internal static partial class ConePlaneRayEvents
     private static void GetCircleLine(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame,
         bool upper, int line, ContactQuadratic x, ContactQuadratic z, ContactQuadratic constant)
     {
-        Span<ulong> values = stackalloc ulong[14 * CircleWords];
+        Span<ulong> values = stackalloc ulong[14 * frame.CircleWords];
         Span<int> signs = stackalloc int[14];
-        ContactQuadratic lx = ContactQuadratic.At(values, signs, 0, CircleWords), ly = ContactQuadratic.At(values, signs, 1, CircleWords), lz = ContactQuadratic.At(values, signs, 2, CircleWords);
-        ContactQuadratic offset = ContactQuadratic.At(values, signs, 3, CircleWords), A = ContactQuadratic.At(values, signs, 4, CircleWords);
-        ContactQuadratic term = ContactQuadratic.At(values, signs, 5, CircleWords), scalar = ContactQuadratic.At(values, signs, 6, CircleWords);
+        ContactQuadratic lx = ContactQuadratic.At(values, signs, 0, frame.CircleWords), ly = ContactQuadratic.At(values, signs, 1, frame.CircleWords), lz = ContactQuadratic.At(values, signs, 2, frame.CircleWords);
+        ContactQuadratic offset = ContactQuadratic.At(values, signs, 3, frame.CircleWords), A = ContactQuadratic.At(values, signs, 4, frame.CircleWords);
+        ContactQuadratic term = ContactQuadratic.At(values, signs, 5, frame.CircleWords), scalar = ContactQuadratic.At(values, signs, 6, frame.CircleWords);
         lx.Clear(); ly.Clear(); lz.Clear(); offset.Clear();
         if (source.Scope == ConePlaneRayEventScope.Segment)
         {
             frame.GetEdgeLine(new FixedSegment(source.A, source.B), out Signed576 wx, out Signed576 wy,
-                out Signed576 wz, out Signed576 w);
+                out Signed576 wz, out Signed832 w);
             lx.Set(wx); ly.Set(wy); lz.Set(wz);
-            offset.Set(WideArithmetic.SubtractSigned576(default, w));
+            offset.Set(WideArithmetic.SubtractSigned832(default, w));
         }
         else if (line == (upper ? 7 : 5))
         {
-            lx.Set(Extend(frame.Normal.Z)); lz.Set(Extend(WideArithmetic.Negate(frame.Normal.X)));
+            lx.Set(Extend(frame.Normal.Z)); lz.Set(Extend(WideArithmetic.SubtractSigned576(default, frame.Normal.X)));
         }
         else if (upper && (line == 4 || line == 5))
         {
@@ -219,9 +219,9 @@ internal static partial class ConePlaneRayEvents
             // For a radial plane A=H²*|N|². Cancel that strictly positive
             // common factor from the line before chart substitution; its
             // roots, branch labels and projected witnesses are unchanged.
-            lx.Set(Extend(WideArithmetic.Negate(frame.Normal.X)));
-            lz.Set(Extend(WideArithmetic.Negate(frame.Normal.Z)));
-            offset.Set(WideArithmetic.SubtractSigned576(default, frame.PlaneConstant));
+            lx.Set(Extend(WideArithmetic.SubtractSigned576(default, frame.Normal.X)));
+            lz.Set(Extend(WideArithmetic.SubtractSigned576(default, frame.Normal.Z)));
+            offset.Set(WideArithmetic.SubtractSigned832(default, frame.PlaneConstant));
         }
         else if (upper && line == 6)
         {
@@ -242,10 +242,10 @@ internal static partial class ConePlaneRayEvents
         {
             lx.Set(Extend(frame.Normal.X)); ly.Set(Extend(frame.Normal.Y)); lz.Set(Extend(frame.Normal.Z));
             if (upper || line == 1)
-                offset.Set(WideArithmetic.SubtractSigned576(default, frame.PlaneConstant));
+                offset.Set(WideArithmetic.SubtractSigned832(default, frame.PlaneConstant));
         }
-        Signed320 radius = WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Radius,
-            frame.Finite.ShapeFrame.Denominator);
+        Signed320 radius = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
+            frame.Finite.ShapeFrame.CoordinateDenominator, frame.Finite.ShapeFrame.Radius));
         ContactQuadratic.Scale(lx, Extend(radius), x);
         ContactQuadratic.Scale(lz, Extend(radius), z);
         ContactQuadratic.Scale(ly, Extend(frame.Finite.FullHeight), constant); constant.Add(offset);
@@ -257,17 +257,17 @@ internal static partial class ConePlaneRayEvents
         scoped ContactQuadratic lineConstant, int circleRootSign,
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative, scoped ref ConePlaneRayEventSink sink)
     {
-        Span<ulong> values = stackalloc ulong[20 * Words];
+        Span<ulong> values = stackalloc ulong[20 * frame.FieldWords];
         Span<int> signs = stackalloc int[20];
-        Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> pointValues = stackalloc ulong[frame.PointStorageWords];
         Span<int> pointSigns = stackalloc int[8];
-        var point = new ConePlaneRayPoint(pointValues, pointSigns);
+        var point = new ConePlaneRayPoint(pointValues, pointSigns, frame.FieldWords);
         ContactQuadratic nn = At(values, signs, 0), dd = At(values, signs, 1), gx = At(values, signs, 2);
         ContactQuadratic gy = At(values, signs, 3), gz = At(values, signs, 4), gd = At(values, signs, 5);
         ContactQuadratic dot = At(values, signs, 6), term = At(values, signs, 7);
         ContactQuadratic t = At(values, signs, 8), td = At(values, signs, 9);
-        Signed320 radius = WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Radius,
-            frame.Finite.ShapeFrame.Denominator);
+        Signed320 radius = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
+            frame.Finite.ShapeFrame.CoordinateDenominator, frame.Finite.ShapeFrame.Radius));
         if (circleRootSign != 0)
         {
             // x*cos+z*sin+c=0 gives (cos,sin)=(-c*x+e*z*sqrt(D),
@@ -350,14 +350,14 @@ internal static partial class ConePlaneRayEvents
         scoped ref ConePlaneRayEventSink sink)
     {
         if (!sink.Wants(ConePlaneRayEventKind.Generator) || !sink.IsStreaming && (uint)sink.Target.Endpoint > 1) return false;
-        Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> pointValues = stackalloc ulong[frame.PointStorageWords];
         Span<int> pointSigns = stackalloc int[ConePlaneRayPoint.SignCount];
-        var point = new ConePlaneRayPoint(pointValues, pointSigns);
+        var point = new ConePlaneRayPoint(pointValues, pointSigns, frame.FieldWords);
         // Only the cone's generator endpoints are intrinsic. Its intersection
         // with a finite boundary is already that segment's side root/endpoint.
         for (int endpoint = sink.IsStreaming ? 0 : sink.Target.Endpoint; endpoint <= (sink.IsStreaming ? 1 : sink.Target.Endpoint); endpoint++)
         {
-            if (endpoint == 0) point.Set(default);
+            if (endpoint == 0) point.Set(default(WideAxis3));
             else { gx.CopyTo(point.X); gy.CopyTo(point.Y); gz.CopyTo(point.Z); gd.CopyTo(point.Denominator); }
             var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.Generator, generator.Feature,
                 generator.Quadrant, generator.Branch, endpoint);

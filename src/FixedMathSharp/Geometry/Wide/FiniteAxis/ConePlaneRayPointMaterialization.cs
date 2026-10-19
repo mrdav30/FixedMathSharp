@@ -76,6 +76,20 @@ internal static class ConePlaneRayPointMaterialization
     internal static bool TryGetAuthoredPoint(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
         scoped ReadOnlySpan<ulong> root, out Vector3d localPoint)
     {
+        if (frame.Finite.ShapeFrame.HasExactScale)
+        {
+            int fieldWords = Math.Max(ContactQuadratic.ActiveWords(point.Y),
+                ContactQuadratic.ActiveWords(point.Denominator)) + 5;
+            Span<ulong> fields = stackalloc ulong[4 * fieldWords]; Span<int> fieldSigns = stackalloc int[4];
+            ContactQuadratic centered = ContactQuadratic.At(fields, fieldSigns, 0, fieldWords),
+                denominator = ContactQuadratic.At(fields, fieldSigns, 1, fieldWords);
+            ContactQuadratic.Scale(point.Denominator, Signed576.ExtendValue(frame.Finite.ShapeFrame.Cap), centered);
+            centered.Add(point.Y, -1);
+            ContactQuadratic.Scale(point.Denominator, Signed576.ExtendValue(WideArithmetic.AddSigned320(
+                frame.Finite.ShapeFrame.CoordinateDenominator, frame.Finite.ShapeFrame.CoordinateDenominator)), denominator);
+            return QuadraticPointMaterialization.TryGetPointInScaledFrame(frame.ConeCenter, frame.ConeRotation,
+                frame.SourceFrame, point.X, centered, point.Z, denominator, root, out localPoint);
+        }
         // The retained centered transform is P=2*(B*a+T), with B/D exactly
         // orthogonal. Its inverse is a=B^T*(P-2*T)/(2*D^2). Relative basis
         // entries <130 bits and translation <198 add <333 bits to any retained
@@ -129,12 +143,12 @@ internal static class ConePlaneRayPointMaterialization
     internal static bool TryGetAuthoredPoint(in ConePlaneRayFrame frame, scoped ConePlaneRayPoint point,
         scoped ReadOnlySpan<ulong> root, in ConePlaneRayFrame sourceFrame, out Vector3d localPoint)
     {
-        Signed192 sourceScale = sourceFrame.Finite.ShapeFrame.Denominator;
-        Signed192 targetScale = frame.Finite.ShapeFrame.Denominator;
+        Signed320 sourceScale = sourceFrame.Finite.ShapeFrame.CoordinateDenominator;
+        Signed320 targetScale = frame.Finite.ShapeFrame.CoordinateDenominator;
         if (sourceScale.Equals(targetScale)) return TryGetAuthoredPoint(frame, point, root, out localPoint);
-        Span<ulong> values = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> values = stackalloc ulong[frame.PointStorageWords];
         Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
-        ConePlaneRayPoint transformed = new(values, signs);
+        ConePlaneRayPoint transformed = new(values, signs, frame.FieldWords);
         point.CopyTo(transformed, sourceScale, targetScale);
         return TryGetAuthoredPoint(frame, transformed, root, out localPoint);
     }
@@ -190,9 +204,9 @@ internal static class ConePlaneRayPointMaterialization
         {
             ContactQuadratic coordinate = axis == 0 ? point.X : axis == 1 ? point.Y : point.Z;
             ContactQuadratic target = axis == 0 ? x : axis == 1 ? y : z;
-            Signed320 normal = axis == 0 ? frame.Normal.X : axis == 1 ? frame.Normal.Y : frame.Normal.Z;
+            Signed576 normal = axis == 0 ? frame.Normal.X : axis == 1 ? frame.Normal.Y : frame.Normal.Z;
             ContactQuadratic.Multiply(coordinate, denominator, root, target);
-            ContactQuadratic.Scale(d, Signed576.ExtendValue(normal), term); target.Add(term, orientation);
+            ContactQuadratic.Scale(d, normal, term); target.Add(term, orientation);
         }
         ContactQuadratic.Multiply(point.Denominator, denominator, root, d);
         // Reuse the exact exit, then round each output on its own lattice.
@@ -207,14 +221,15 @@ internal static class ConePlaneRayPointMaterialization
     {
         // Convert apex coordinates to centered raw cone coordinates before
         // the shared exact rigid transform. This changes no retained field.
-        int words = Math.Max(ContactQuadratic.ActiveWords(py), ContactQuadratic.ActiveWords(pd)) + 4;
+        int words = Math.Max(ContactQuadratic.ActiveWords(py), ContactQuadratic.ActiveWords(pd)) + 5;
         Span<ulong> work = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
         ContactQuadratic centeredY = ContactQuadratic.At(work, signs, 0, words);
         ContactQuadratic denominator = ContactQuadratic.At(work, signs, 1, words);
         ContactQuadratic.Scale(pd, Signed576.ExtendValue(frame.Finite.ShapeFrame.Cap), centeredY);
         centeredY.Add(py, -1);
-        Signed192 scale = WideArithmetic.AddSigned192(frame.Finite.ShapeFrame.Denominator, frame.Finite.ShapeFrame.Denominator);
-        ContactQuadratic.Scale(pd, Extend(scale), denominator);
+        Signed320 scale = WideArithmetic.AddSigned320(frame.Finite.ShapeFrame.CoordinateDenominator,
+            frame.Finite.ShapeFrame.CoordinateDenominator);
+        ContactQuadratic.Scale(pd, Signed576.ExtendValue(scale), denominator);
         return QuadraticPointMaterialization.TryGetWorldPoint(coneLocal ? Vector3d.Zero : frame.ConeCenter,
             coneLocal ? FixedQuaternion.Identity : frame.ConeRotation,
             px, centeredY, pz, denominator, root, materialize, samplingOrigin, out worldPoint);

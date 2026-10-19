@@ -103,6 +103,47 @@ internal static partial class WideOrientedBox
         return false;
     }
 
+    internal static bool DoesCenteredCylinderPenetrateTriangle(
+        Vector3d center, FixedQuaternion rotation, Fixed64 height, Fixed64 radius,
+        FixedTriangle triangle, in ScaledRigidFrame3d sourceFrame)
+    {
+        if (sourceFrame.IsRigid)
+            return DoesCenteredCylinderPenetrateTriangle(center, rotation, height, radius,
+                triangle, sourceFrame.RigidOrigin, sourceFrame.Rotation);
+        return TriangleCylinderContact.DoesPenetrate(triangle, sourceFrame, center, rotation, height, radius);
+    }
+
+    internal static bool DoesCenteredCylinderPenetrateConvexHull(
+        Vector3d center, FixedQuaternion rotation, Fixed64 height, Fixed64 radius,
+        in ScaledRigidFrame3d sourceFrame, ReadOnlySpan<Vector3d> points,
+        ReadOnlySpan<int> triangles, bool closedVolume)
+    {
+        if (sourceFrame.IsRigid)
+            return DoesCenteredCylinderPenetrateConvexHull(center, rotation, height, radius,
+                sourceFrame.RigidOrigin, sourceFrame.Rotation, points, triangles, closedVolume);
+        if (closedVolume)
+        {
+            int interiorSign = 0; bool inside = true;
+            RationalPoint3d point = RationalPoint3d.FromScalarPoint(center);
+            for (int index = 0; index < triangles.Length; index += 3)
+            {
+                FixedTriangle face = new(points[triangles[index]], points[triangles[index + 1]], points[triangles[index + 2]]);
+                WideDirection3d normal = WideTriangleRelations.GetScaledTriangleLocalNormal(face, sourceFrame).Transform(sourceFrame.GeometryBasis);
+                int sign = WideDirection3d.Dot(normal, WideTriangleRelations.GetScaledPointDifference(
+                    point, sourceFrame.GetPoint(face.A), sourceFrame.RotationDenominator)).Sign;
+                if (sign == 0 || interiorSign != 0 && sign != interiorSign) { inside = false; break; }
+                interiorSign = sign;
+            }
+            if (inside && interiorSign != 0) return true;
+        }
+        for (int index = 0; index < triangles.Length; index += 3)
+        {
+            FixedTriangle face = new(points[triangles[index]], points[triangles[index + 1]], points[triangles[index + 2]]);
+            if (TriangleCylinderContact.DoesPenetrate(face, sourceFrame, center, rotation, height, radius)) return true;
+        }
+        return false;
+    }
+
     private static bool IsStrictCylinderBoxCoordinateInside(Signed192 coordinate,
         Fixed64 extent, Signed192 denominator) =>
         WideArithmetic.CompareMagnitude(Signed320.ExtendValue(coordinate),

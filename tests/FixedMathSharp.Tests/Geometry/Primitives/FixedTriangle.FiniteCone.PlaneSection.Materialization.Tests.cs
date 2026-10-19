@@ -248,7 +248,7 @@ public sealed class ConePlaneRayMaterializationTests
         Span<int> fieldSigns = stackalloc int[4];
         ContactQuadratic n = ContactQuadratic.At(fields, fieldSigns, 0, ConePlaneRayCharts.Words);
         ContactQuadratic d = ContactQuadratic.At(fields, fieldSigns, 1, ConePlaneRayCharts.Words);
-        n.Set(default); d.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1))));
+        n.Set(default(Signed576)); d.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1))));
         Vector3d expectedLocal = new(Fixed64.FromRaw(localRaw), Fixed64.Zero, Fixed64.Zero);
         Assert.True(ConePlaneRayPointMaterialization.TryGetAuthoredPoint(frame, point, ReadOnlySpan<ulong>.Empty, out Vector3d authored));
         Assert.Equal(expectedLocal, authored);
@@ -350,12 +350,12 @@ public sealed class ConePlaneRayMaterializationTests
             center, FixedQuaternion.Identity, Fixed64.FromRaw(heightRaw), Fixed64.One);
         Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords];
         Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
-        var point = new ConePlaneRayPoint(words, signs); point.Set(default);
+        var point = new ConePlaneRayPoint(words, signs); point.Set(default(WideAxis3));
         Span<ulong> fields = stackalloc ulong[4 * ConePlaneRayCharts.Words];
         Span<int> fieldSigns = stackalloc int[4];
         ContactQuadratic n = ContactQuadratic.At(fields, fieldSigns, 0, ConePlaneRayCharts.Words);
         ContactQuadratic d = ContactQuadratic.At(fields, fieldSigns, 1, ConePlaneRayCharts.Words);
-        n.Set(default); d.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1))));
+        n.Set(default(Signed576)); d.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1))));
         // Apex Y=0 in the retained frame means centered Y=fullHeight/2,
         // including half-raw heights which have no authored Fixed64 point.
         Vector3d expectedLocal = new(Fixed64.Zero, Fixed64.FromRaw(localRaw), Fixed64.Zero);
@@ -466,7 +466,7 @@ public sealed class ConePlaneRayMaterializationTests
         // quarterRaws/4 before world rounding, without authoring a rounded q.
         n.Set(Signed576.ExtendValue(WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Denominator, Signed192.Signed(quarterRaws))));
         n.Add(n);
-        d.Set(Signed576.ExtendValue(frame.Normal.X)); d.Add(d); d.Add(d);
+        d.Set(frame.Normal.X); d.Add(d); d.Add(d);
         int orientation = maximum ? 1 : -1;
         Assert.Equal(expected, ConePlaneRayPointMaterialization.IsExitWorldPointRepresentable(frame, point,
             ReadOnlySpan<ulong>.Empty, n, d, orientation));
@@ -551,7 +551,7 @@ public sealed class ConePlaneRayMaterializationTests
         // sqrt(1) keeps the retained quadratic path exact while exercising its
         // threshold signs at a half tie. Global origin +1 flips local parity.
         SetField(x, 4 * (BigInteger)limit + (maximum ? quarterRaws : -quarterRaws) - 1, 1);
-        zero.Set(default); SetField(d, 4, 0);
+        zero.Set(default(Signed576)); SetField(d, 4, 0);
         var origin = new Vector3d(Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.Zero);
         Assert.Equal(expected, QuadraticPointMaterialization.TryGetPointInFrame(origin, FixedQuaternion.Identity,
             x, zero, zero, d, new ulong[] { 1 }, origin, out Vector3d sampled));

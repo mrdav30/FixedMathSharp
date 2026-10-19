@@ -21,8 +21,11 @@ internal static partial class SegmentConeSurfaceCandidates
 
     /// <summary>Compares the exact nonnegative depths of certificates from the same input segment and cone frame.</summary>
     /// <remarks>Clipping a retained family changes its witnesses, but not its source depth. No rounded anchor or depth participates.</remarks>
-    internal static int CompareDepths(SegmentConeSurfaceCandidate first, SegmentConeSurfaceCandidate second)
+    internal static int CompareDepths(in SegmentConeSurfaceCandidate first, in SegmentConeSurfaceCandidate second)
     {
+        int Words = first.Input.Words;
+        int ValueWords = first.Input.ValueWords;
+        int ValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
         var geometry = new SegmentConeSurfaceGeometry(first.Input);
         bool firstRoot = first.Feature == ConeSurfaceFeature.Rim && first.Family == ConeSurfaceFamily.None && first.Chart >= 0;
         bool secondRoot = second.Feature == ConeSurfaceFeature.Rim && second.Family == ConeSurfaceFamily.None && second.Chart >= 0;
@@ -31,14 +34,14 @@ internal static partial class SegmentConeSurfaceCandidates
             Span<ulong> a = stackalloc ulong[ConvexContactCandidate.Slots * Words], b = stackalloc ulong[ConvexContactCandidate.Slots * Words];
             Span<int> aSigns = stackalloc int[ConvexContactCandidate.Slots], bSigns = stackalloc int[ConvexContactCandidate.Slots];
             int aSign = BuildAnalyticSquaredDepth(geometry, first, a, aSigns), bSign = BuildAnalyticSquaredDepth(geometry, second, b, bSigns);
-            return WideConvexPrismRelations.CompareConvexContactCandidates(new ConvexContactCandidate(a, aSigns, aSign), new ConvexContactCandidate(b, bSigns, bSign));
+            return WideConvexPrismRelations.CompareConvexContactCandidates(new ConvexContactCandidate(a, aSigns, aSign, Words), new ConvexContactCandidate(b, bSigns, bSign, Words));
         }
         if (!firstRoot || !secondRoot)
             return firstRoot ? CompareRimToAnalyticDepth(geometry, first, second) : -CompareRimToAnalyticDepth(geometry, second, first);
 
-        Span<ulong> firstValues = stackalloc ulong[5 * CircularRimContactAlgebra.ValueWords], secondValues = stackalloc ulong[5 * CircularRimContactAlgebra.ValueWords];
+        Span<ulong> firstValues = stackalloc ulong[5 * ValueWords], secondValues = stackalloc ulong[5 * ValueWords];
         Span<sbyte> firstSigns = stackalloc sbyte[5], secondSigns = stackalloc sbyte[5];
-        Span<ulong> firstCell = stackalloc ulong[TriangleConeRimContacts.ValueCellWords], secondCell = stackalloc ulong[TriangleConeRimContacts.ValueCellWords];
+        Span<ulong> firstCell = stackalloc ulong[ValueCellWords], secondCell = stackalloc ulong[ValueCellWords];
         bool firstPositive = TryGetRimSquaredDepth(geometry, first, firstValues, firstSigns, firstCell, out FiniteAxisValueRoot firstValue);
         bool secondPositive = TryGetRimSquaredDepth(geometry, second, secondValues, secondSigns, secondCell, out FiniteAxisValueRoot secondValue);
         // A zero depth is outside the value isolator's (0,1] domain. The same
@@ -48,69 +51,72 @@ internal static partial class SegmentConeSurfaceCandidates
     }
 
     private static int CompareRimToAnalyticDepth(in SegmentConeSurfaceGeometry geometry,
-        SegmentConeSurfaceCandidate rim, SegmentConeSurfaceCandidate analytic)
+        in SegmentConeSurfaceCandidate rim, in SegmentConeSurfaceCandidate analytic)
     {
+        int Words = geometry.Words;
+        int ValueWords = geometry.ValueWords;
+        int ValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
         Span<ulong> data = stackalloc ulong[ConvexContactCandidate.Slots * Words];
         Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
         int gapSign = BuildAnalyticSquaredDepth(geometry, analytic, data, signs);
-        Span<ulong> values = stackalloc ulong[5 * CircularRimContactAlgebra.ValueWords];
+        Span<ulong> values = stackalloc ulong[5 * ValueWords];
         Span<sbyte> valueSigns = stackalloc sbyte[5];
-        Span<ulong> cell = stackalloc ulong[TriangleConeRimContacts.ValueCellWords];
+        Span<ulong> cell = stackalloc ulong[ValueCellWords];
         return TryGetRimSquaredDepth(geometry, rim, values, valueSigns, cell, out FiniteAxisValueRoot value)
-            ? ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref value, new ConvexContactCandidate(data, signs, gapSign))
+            ? ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref value, new ConvexContactCandidate(data, signs, gapSign, Words))
             : -gapSign;
     }
 
     private static int BuildAnalyticSquaredDepth(in SegmentConeSurfaceGeometry geometry,
-        SegmentConeSurfaceCandidate candidate, Span<ulong> destination, Span<int> destinationSigns)
+        in SegmentConeSurfaceCandidate candidate, Span<ulong> destination, Span<int> destinationSigns)
     {
+        int Words = geometry.Words;
         destination.Clear(); destinationSigns.Clear();
         ContactQuadratic numerator = new(destination.Slice(7 * Words, 2 * Words), destinationSigns.Slice(7, 2));
         Span<ulong> root = destination.Slice(9 * Words, Words);
         Span<ulong> scratch = stackalloc ulong[24 * Words];
         Span<int> scratchSigns = stackalloc int[24];
-        ContactQuadratic denominator = At(scratch, scratchSigns, 10), product = At(scratch, scratchSigns, 11);
-        Signed576 one = Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1)));
+        ContactQuadratic denominator = At(scratch, scratchSigns, 10, Words), product = At(scratch, scratchSigns, 11, Words);
+        Signed832 one = Signed832.ExtendValue(Signed576.ExtendValue(Signed192.Signed(1)));
         denominator.Set(one);
         if (candidate.Family == ConeSurfaceFamily.NormalCone || candidate.Feature == ConeSurfaceFeature.Side && geometry.Radius.IsZero)
         {
-            Slot(destination, 10)[0] = 1;
+            Slot(destination, 10, Words)[0] = 1;
             return 0;
         }
         if (candidate.Feature == ConeSurfaceFeature.Apex)
         {
-            bool admitted = TryBuildApex(geometry, candidate.RootOrdinal, out _, out Signed576 divisor, out Signed832 x, out Signed832 y, out Signed832 z);
+            ContactQuadratic x = At(scratch, scratchSigns, 0, Words), y = At(scratch, scratchSigns, 1, Words), z = At(scratch, scratchSigns, 2, Words);
+            bool admitted = TryBuildApex(geometry, candidate.RootOrdinal, out _, out Signed832 divisor, x, y, z);
             System.Diagnostics.Debug.Assert(admitted);
-            ContactQuadratic coordinate = At(scratch, scratchSigns, 0);
-            Span<Signed832> coordinates = stackalloc Signed832[3] { x, y, z };
-            foreach (Signed832 component in coordinates)
+            for (int axis = 0; axis < 3; axis++)
             {
-                coordinate.Clear(); WideArithmetic.GetMagnitude(component, coordinate.Rational[..13]); coordinate.Signs[0] = component.Sign;
+                ContactQuadratic coordinate = axis == 0 ? x : axis == 1 ? y : z;
                 Multiply(coordinate, coordinate, root, product); numerator.Add(product);
             }
-            coordinate.Set(divisor); Multiply(coordinate, coordinate, root, denominator);
+            product.Set(divisor); Multiply(product, product, root, denominator);
         }
         else if (candidate.Feature == ConeSurfaceFeature.Base)
         {
-            product.Set(Signed576.ExtendValue(WideArithmetic.AddSigned320(candidate.RootOrdinal == 1 ? geometry.B.Y : geometry.A.Y, geometry.Finite.ShapeFrame.Cap)));
+            product.Set(Signed832.ExtendValue(WideArithmetic.AddSigned576(candidate.RootOrdinal == 1 ? geometry.B.Y : geometry.A.Y, geometry.Cap)));
             Multiply(product, product, root, numerator);
         }
         else if (candidate.Feature == ConeSurfaceFeature.Side && candidate.Family == ConeSurfaceFamily.RotationCircle)
         {
-            product.Set(Signed576.ExtendValue(WideArithmetic.SubtractSigned320(geometry.Finite.ShapeFrame.Cap, candidate.RootOrdinal == 1 ? geometry.B.Y : geometry.A.Y)));
-            ContactQuadratic square = At(scratch, scratchSigns, 0);
+            product.Set(Signed832.ExtendValue(WideArithmetic.SubtractSigned576(geometry.Cap, candidate.RootOrdinal == 1 ? geometry.B.Y : geometry.A.Y)));
+            ContactQuadratic square = At(scratch, scratchSigns, 0, Words);
             Multiply(product, product, root, square);
             Signed192 h = Signed192.Raw(geometry.Input.Height), r = Signed192.Raw(geometry.Input.Radius);
-            Scale(square, Signed576.ExtendValue(WideArithmetic.MultiplySigned192(r, r)), numerator);
-            denominator.Set(Signed576.ExtendValue(WideArithmetic.AddSigned320(WideArithmetic.MultiplySigned192(h, h), WideArithmetic.MultiplySigned192(r, r))));
+            Scale(square, Signed832.ExtendValue(WideArithmetic.MultiplySigned192(r, r)), numerator);
+            denominator.Set(Signed832.ExtendValue(WideArithmetic.AddSigned320(WideArithmetic.MultiplySigned192(h, h), WideArithmetic.MultiplySigned192(r, r))));
         }
         else if (candidate.Feature == ConeSurfaceFeature.Side)
         {
             bool normal = BuildSideNormal(geometry, candidate.RootOrdinal, candidate.Chart, scratch, scratchSigns, root);
             System.Diagnostics.Debug.Assert(normal);
             BuildSideMetric(geometry, candidate.RootOrdinal, scratch, scratchSigns, root);
-            Multiply(At(scratch, scratchSigns, 8), At(scratch, scratchSigns, 8), root, numerator);
-            At(scratch, scratchSigns, 7).CopyTo(denominator);
+            Multiply(At(scratch, scratchSigns, 8, Words), At(scratch, scratchSigns, 8, Words), root, numerator);
+            At(scratch, scratchSigns, 7, Words).CopyTo(denominator);
         }
         else
         {
@@ -118,19 +124,19 @@ internal static partial class SegmentConeSurfaceCandidates
             {
                 bool admitted = BuildMeridionalRim(geometry, candidate.RootOrdinal, candidate.Chart == -2 ? 1 : -1, scratch, scratchSigns, root);
                 System.Diagnostics.Debug.Assert(admitted);
-                Multiply(At(scratch, scratchSigns, 7), At(scratch, scratchSigns, 7), root, denominator);
+                Multiply(At(scratch, scratchSigns, 7, Words), At(scratch, scratchSigns, 7, Words), root, denominator);
             }
             else
             {
-                bool admitted = TryGetRimPoint(geometry, candidate.RootOrdinal, out WideAxis3 radialAxis, out Signed576 coefficient, out Signed320 axial, out _, out _);
+                bool admitted = TryGetRimPoint(geometry, candidate.RootOrdinal, out WideDirection3d radialAxis, out Signed832 coefficient, out Signed576 axial, out _, out _);
                 System.Diagnostics.Debug.Assert(admitted);
                 if (candidate.Family == ConeSurfaceFamily.RotationCircle)
                 {
-                    numerator.Set(WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned320(geometry.Radius, geometry.Radius), WideArithmetic.MultiplySigned320(axial, axial)));
+                    numerator.Set(WideArithmetic.AddSigned832(WideArithmetic.MultiplySigned576(geometry.Radius, geometry.Radius), WideArithmetic.MultiplySigned576(axial, axial)));
                 }
                 else
                 {
-                    Signed576 radialSquare = radialAxis.SquaredLength;
+                    Signed832 radialSquare = radialAxis.SquaredLength;
                     Import(radialSquare, root);
                     BuildRimPointNormal(geometry, radialAxis, coefficient, axial, radialSquare, candidate.Chart == -2 ? 1 : -1, scratch, scratchSigns);
                     WideArithmetic.MultiplyMagnitudes(root, root, denominator.Rational);
@@ -141,7 +147,7 @@ internal static partial class SegmentConeSurfaceCandidates
             {
                 for (int axis = 0; axis < 3; axis++)
                 {
-                    Multiply(At(scratch, scratchSigns, axis), At(scratch, scratchSigns, axis), root, product); numerator.Add(product);
+                    Multiply(At(scratch, scratchSigns, axis, Words), At(scratch, scratchSigns, axis, Words), root, product); numerator.Add(product);
                 }
             }
         }
@@ -149,11 +155,11 @@ internal static partial class SegmentConeSurfaceCandidates
         // materializer. The largest meridional coefficients are <2000 bits;
         // denominator scaling adds <268 bits, within the existing 40 limbs.
         Span<ulong> scale = stackalloc ulong[Words], scaleSquared = stackalloc ulong[Words];
-        Import(Signed320.ExtendValue(geometry.RawScale), scale);
+        Import(Signed576.ExtendValue(geometry.RawScale), scale);
         WideArithmetic.MultiplyMagnitudes(scale, scale, scaleSquared);
         Scale(denominator, scaleSquared, 1, product);
         System.Diagnostics.Debug.Assert(product.Signs[1] == 0 && product.Signs[0] > 0);
-        product.Rational.CopyTo(Slot(destination, 10));
+        product.Rational.CopyTo(Slot(destination, 10, Words));
         return numerator.Sign(root) == 0 ? 0 : 1;
     }
 
@@ -163,6 +169,17 @@ internal static partial class SegmentConeSurfaceCandidates
         scoped ref ConeSurfaceSelection selection)
     {
         var input = new SegmentConeSurfaceInput(segment, origin, rotation, coneCenter, coneRotation, height, radius);
+        return AccumulateSegmentConeSurfaceCandidates(input, ref selection);
+    }
+
+    internal static bool AccumulateSegmentConeSurfaceCandidates(FixedSegment segment,
+        in ScaledRigidFrame3d sourceFrame, Vector3d center, FixedQuaternion rotation,
+        Fixed64 height, Fixed64 radius, scoped ref ConeSurfaceSelection selection) =>
+        AccumulateSegmentConeSurfaceCandidates(new SegmentConeSurfaceInput(segment, sourceFrame, center, rotation, height, radius), ref selection);
+
+    private static bool AccumulateSegmentConeSurfaceCandidates(in SegmentConeSurfaceInput input, scoped ref ConeSurfaceSelection selection)
+    {
+        FixedSegment segment = input.Segment;
         var geometry = new SegmentConeSurfaceGeometry(input);
         if (!geometry.Finite.IntersectsTransformedSegment(geometry.Finite.Transform(segment.Start),
                 geometry.Finite.Transform(segment.End)))
@@ -210,19 +227,19 @@ internal readonly struct SegmentConeSurfaceCandidate
     internal readonly SegmentConeSurfaceInput Input;
     internal readonly int Chart, RootOrdinal;
 
-    internal SegmentConeSurfaceCandidate(SegmentConeSurfaceInput input, int chart, int rootOrdinal, ConeSurfacePointLocation location)
+    internal SegmentConeSurfaceCandidate(in SegmentConeSurfaceInput input, int chart, int rootOrdinal, ConeSurfacePointLocation location)
     {
         Input = input; Chart = chart; RootOrdinal = rootOrdinal;
         Feature = ConeSurfaceFeature.Rim; Family = ConeSurfaceFamily.None; PointLocation = location;
     }
 
-    internal SegmentConeSurfaceCandidate(SegmentConeSurfaceInput input, ConeSurfaceFeature feature, ConeSurfaceFamily family)
+    internal SegmentConeSurfaceCandidate(in SegmentConeSurfaceInput input, ConeSurfaceFeature feature, ConeSurfaceFamily family)
     {
         Input = input; Feature = feature; Family = family;
         PointLocation = ConeSurfacePointLocation.SegmentIntervalUnspecified; Chart = RootOrdinal = 0;
     }
 
-    internal SegmentConeSurfaceCandidate(SegmentConeSurfaceInput input, ConeSurfaceFeature feature,
+    internal SegmentConeSurfaceCandidate(in SegmentConeSurfaceInput input, ConeSurfaceFeature feature,
         ConeSurfaceFamily family, int chart, int ordinal, ConeSurfacePointLocation location)
     {
         Input = input; Feature = feature; Family = family; Chart = chart;
@@ -254,7 +271,7 @@ internal ref struct ConeSurfaceSelection
         this.candidates = candidates; Count = 0;
     }
 
-    internal void Add(SegmentConeSurfaceCandidate candidate)
+    internal void Add(in SegmentConeSurfaceCandidate candidate)
     {
         if (Count == candidates.Length)
             throw new InvalidOperationException("The caller-owned surface candidate storage is full.");
@@ -269,12 +286,28 @@ internal readonly struct SegmentConeSurfaceInput
     internal readonly Vector3d Origin, Center;
     internal readonly FixedQuaternion Rotation, ConeRotation;
     internal readonly Fixed64 Height, Radius;
+    internal readonly ScaledRigidFrame3d SourceFrame;
+    internal readonly bool HasSourceFrame;
+    internal bool IsAffine => HasSourceFrame && !SourceFrame.IsRigid;
+    internal int Words => IsAffine ? 120 : CylinderContactAlgebra.Words;
+    internal int FamilyWords => IsAffine ? 3 * SegmentConeSurfaceCandidates.FamilyWords : SegmentConeSurfaceCandidates.FamilyWords;
+    internal int ValueWords => IsAffine ? 3 * CircularRimContactAlgebra.ValueWords : CircularRimContactAlgebra.ValueWords;
 
     internal SegmentConeSurfaceInput(FixedSegment segment, Vector3d origin, FixedQuaternion rotation,
         Vector3d center, FixedQuaternion coneRotation, Fixed64 height, Fixed64 radius)
     {
+        SourceFrame = default; HasSourceFrame = false;
         Segment = segment; Origin = origin; Rotation = rotation; Center = center;
         ConeRotation = coneRotation; Height = height; Radius = radius;
+    }
+
+    internal SegmentConeSurfaceInput(FixedSegment segment, in ScaledRigidFrame3d sourceFrame,
+        Vector3d center, FixedQuaternion rotation, Fixed64 height, Fixed64 radius)
+    {
+        SourceFrame = sourceFrame; HasSourceFrame = true; Segment = segment;
+        Origin = sourceFrame.IsRigid ? sourceFrame.RigidOrigin : center;
+        Rotation = sourceFrame.IsRigid ? sourceFrame.Rotation : rotation;
+        Center = center; ConeRotation = rotation; Height = height; Radius = radius;
     }
 }
 
@@ -283,27 +316,40 @@ internal readonly struct SegmentConeSurfaceGeometry
 {
     internal readonly SegmentConeSurfaceInput Input;
     internal readonly ConeFiniteSectionFrame Finite;
-    internal readonly WideAxis3 A, B, Edge, BaseOffset;
-    internal readonly Signed320 Radius;
-    internal readonly Signed192 RawScale;
+    internal readonly WideDirection3d A, B, Edge, BaseOffset;
+    internal readonly Signed576 Radius;
+    // Affine coordinates have at most 306 bits, dots at most 615. Weighted
+    // points can exceed 832 bits and remain in the existing borrowed banks.
+    internal readonly Signed320 RawScale;
+    internal readonly Signed576 Cap;
+    internal Signed576 FullHeight => WideArithmetic.AddSigned576(Cap, Cap);
+    internal int Words => Input.Words;
+    internal int FamilyWords => Input.FamilyWords;
+    internal int ValueWords => Input.ValueWords;
     internal readonly int ValueShift;
 
-    internal SegmentConeSurfaceGeometry(SegmentConeSurfaceInput input)
+    internal SegmentConeSurfaceGeometry(in SegmentConeSurfaceInput input)
     {
         Input = input;
-        Finite = new ConeFiniteSectionFrame(input.Origin, input.Rotation, input.Center,
-            input.ConeRotation, input.Height, input.Radius);
-        A = Finite.ShapeFrame.Transform(input.Segment.Start);
-        B = Finite.ShapeFrame.Transform(input.Segment.End);
-        Edge = new WideAxis3(WideArithmetic.SubtractSigned320(B.X, A.X),
-            WideArithmetic.SubtractSigned320(B.Y, A.Y), WideArithmetic.SubtractSigned320(B.Z, A.Z));
-        BaseOffset = new WideAxis3(A.X, WideArithmetic.AddSigned320(A.Y, Finite.ShapeFrame.Cap), A.Z);
-        Radius = WideArithmetic.MultiplySigned192(Finite.ShapeFrame.Radius, Finite.ShapeFrame.Denominator);
-        RawScale = WideArithmetic.AddSigned192(Finite.ShapeFrame.Denominator, Finite.ShapeFrame.Denominator);
-        Span<Signed320> coordinates = stackalloc Signed320[8]
+        Finite = input.HasSourceFrame
+            ? new ConeFiniteSectionFrame(input.SourceFrame, input.Center, input.ConeRotation, input.Height, input.Radius)
+            : new ConeFiniteSectionFrame(input.Origin, input.Rotation, input.Center, input.ConeRotation, input.Height, input.Radius);
+        WideAxis3 first = Finite.ShapeFrame.Transform(input.Segment.Start), second = Finite.ShapeFrame.Transform(input.Segment.End);
+        Span<Signed320> components = stackalloc Signed320[9]
         {
-            A.X, A.Y, A.Z, B.X, B.Y, B.Z, Finite.ShapeFrame.Cap, Radius
+            WideArithmetic.AddSigned320(Finite.ShapeFrame.CoordinateDenominator, Finite.ShapeFrame.CoordinateDenominator),
+            first.X, first.Y, first.Z, second.X, second.Y, second.Z, Finite.ShapeFrame.Cap,
+            Signed320.NarrowValue(WideArithmetic.MultiplySigned320(Finite.ShapeFrame.CoordinateDenominator, Finite.ShapeFrame.Radius))
         };
+        // One common reduction preserves the entire line and shape together.
+        // It removes harmless composed-frame factors before fixed-degree charts.
+        if (input.IsAffine) WideArithmetic.ReduceCommonScale(components);
+        RawScale = components[0]; A = new(components[1], components[2], components[3]); B = new(components[4], components[5], components[6]);
+        Cap = Signed576.ExtendValue(components[7]); Radius = Signed576.ExtendValue(components[8]);
+        Edge = TriangleCircularGeometry.Subtract(B, A);
+        BaseOffset = new(A.X, WideArithmetic.AddSigned576(A.Y, Cap), A.Z);
+        Span<Signed576> coordinates = stackalloc Signed576[8]
+        { A.X, A.Y, A.Z, B.X, B.Y, B.Z, Cap, Radius };
         ValueShift = TriangleCircularGeometry.GetValueShift(coordinates, 4);
     }
 }

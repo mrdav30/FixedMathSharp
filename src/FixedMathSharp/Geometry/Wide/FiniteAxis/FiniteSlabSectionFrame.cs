@@ -15,9 +15,12 @@ internal readonly partial struct FiniteSlabSectionFrame
     // union; extra hemisphere clipping would only add redundant constraints.
     private readonly CapsuleFiniteSectionFrame _radial;
     private readonly Signed320 _cap;
+    private ScaledRigidFrame3d SourceFrame => _radial.ShapeFrame.SourceFrame;
     internal CapsuleFiniteSectionFrame RadialFrame => _radial;
     internal Signed320 Cap => _cap;
     internal WideAxis3 Transform(Vector3d point) => _radial.Transform(point);
+    internal int PointWords => _radial.ShapeFrame.HasExactScale ? FiniteSectionPoint.AffineWords : FiniteSectionPoint.Words;
+    internal int RootWords => _radial.ShapeFrame.HasExactScale ? FiniteSectionPoint.AffineRootWords : FiniteSectionPoint.RootWords;
 
     internal FiniteSlabSectionFrame(Vector3d origin, FixedQuaternion rotation,
         Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness, bool fullHeight = false)
@@ -29,6 +32,23 @@ internal readonly partial struct FiniteSlabSectionFrame
         Signed192 height = fullHeight ? Signed192.Raw(halfThickness)
             : WideArithmetic.AddSigned192(Signed192.Raw(halfThickness), Signed192.Raw(halfThickness));
         _cap = WideArithmetic.MultiplySigned192(height, _radial.ShapeFrame.Denominator);
+    }
+
+    internal FiniteSlabSectionFrame(in ScaledRigidFrame3d sourceFrame,
+        Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness, bool fullHeight = false)
+    {
+        if (sourceFrame.IsRigid)
+        {
+            this = new FiniteSlabSectionFrame(sourceFrame.RigidOrigin, sourceFrame.Rotation,
+                center, slabRotation, length, radius, halfThickness, fullHeight);
+            return;
+        }
+        if (halfThickness <= Fixed64.Zero || halfThickness > (Fixed64)(fullHeight ? 8192 : 4096))
+            throw new ArgumentOutOfRangeException(nameof(halfThickness));
+        _radial = new CapsuleFiniteSectionFrame(sourceFrame, center, slabRotation, length, radius);
+        Signed192 height = fullHeight ? Signed192.Raw(halfThickness)
+            : WideArithmetic.AddSigned192(Signed192.Raw(halfThickness), Signed192.Raw(halfThickness));
+        _cap = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(_radial.ShapeFrame.CoordinateDenominator, height));
     }
 
     internal bool ContainsPoint(Vector3d point)
@@ -55,11 +75,11 @@ internal readonly partial struct FiniteSlabSectionFrame
     internal bool IntersectsSegment(FixedSegment segment, ReadOnlySpan<Vector2d> prismOffsets)
     {
         if (prismOffsets.IsEmpty) return IntersectsSegment(segment);
-        Span<ulong> values = stackalloc ulong[4 * FiniteSectionPoint.Words]; Span<int> signs = stackalloc int[4];
-        Span<ulong> root = stackalloc ulong[FiniteSectionPoint.RootWords]; root.Clear();
+        Span<ulong> values = stackalloc ulong[4 * PointWords]; Span<int> signs = stackalloc int[4];
+        Span<ulong> root = stackalloc ulong[RootWords]; root.Clear();
         return TryGetPrismSegmentParameter(segment, prismOffsets,
-            ContactQuadratic.At(values, signs, 0, FiniteSectionPoint.Words),
-            ContactQuadratic.At(values, signs, 1, FiniteSectionPoint.Words), root);
+            ContactQuadratic.At(values, signs, 0, PointWords),
+            ContactQuadratic.At(values, signs, 1, PointWords), root);
     }
 
     internal bool TryGetFirstSegmentParameter(FixedSegment segment, ReadOnlySpan<Vector2d> prismOffsets,
@@ -77,11 +97,11 @@ internal readonly partial struct FiniteSlabSectionFrame
         ContactQuadratic numerator, ContactQuadratic denominator, Span<ulong> root, bool includeHeight = true)
     {
         numerator.Clear(); denominator.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1)))); root.Clear();
-        Span<ulong> values = stackalloc ulong[8 * FiniteSectionPoint.Words]; Span<int> signs = stackalloc int[8];
-        ContactQuadratic upperN = ContactQuadratic.At(values, signs, 0, FiniteSectionPoint.Words),
-            upperD = ContactQuadratic.At(values, signs, 1, FiniteSectionPoint.Words),
-            n = ContactQuadratic.At(values, signs, 2, FiniteSectionPoint.Words),
-            d = ContactQuadratic.At(values, signs, 3, FiniteSectionPoint.Words);
+        Span<ulong> values = stackalloc ulong[8 * PointWords]; Span<int> signs = stackalloc int[8];
+        ContactQuadratic upperN = ContactQuadratic.At(values, signs, 0, PointWords),
+            upperD = ContactQuadratic.At(values, signs, 1, PointWords),
+            n = ContactQuadratic.At(values, signs, 2, PointWords),
+            d = ContactQuadratic.At(values, signs, 3, PointWords);
         upperN.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1)))); upperN.CopyTo(upperD);
         WideAxis3 first = Transform(segment.Start), last = Transform(segment.End);
         int winding = GetPrismWinding(offsets);
@@ -125,9 +145,9 @@ internal readonly partial struct FiniteSlabSectionFrame
 
     private Signed576 PrismWall(WideAxis3 point, Vector2d start, Vector2d end)
     {
-        Signed192 scale = WideArithmetic.AddSigned192(_radial.ShapeFrame.Denominator, _radial.ShapeFrame.Denominator);
-        Signed320 x = WideArithmetic.SubtractSigned320(point.X, WideArithmetic.MultiplySigned192(Signed192.Raw(start.X), scale));
-        Signed320 z = WideArithmetic.SubtractSigned320(point.Z, WideArithmetic.MultiplySigned192(Signed192.Raw(start.Y), scale));
+        Signed320 scale = WideArithmetic.AddSigned320(_radial.ShapeFrame.CoordinateDenominator, _radial.ShapeFrame.CoordinateDenominator);
+        Signed320 x = WideArithmetic.SubtractSigned320(point.X, Signed320.NarrowValue(WideArithmetic.MultiplySigned320(scale, Signed192.Raw(start.X))));
+        Signed320 z = WideArithmetic.SubtractSigned320(point.Z, Signed320.NarrowValue(WideArithmetic.MultiplySigned320(scale, Signed192.Raw(start.Y))));
         Signed320 ex = Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(end.X), Signed192.Raw(start.X)));
         Signed320 ez = Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(end.Y), Signed192.Raw(start.Y)));
         return WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned320(ex, z), WideArithmetic.MultiplySigned320(ez, x));
@@ -153,7 +173,7 @@ internal readonly partial struct FiniteSlabSectionFrame
     {
         WideAxis3 start = _radial.Transform(segment.Start), delta = Difference(_radial.Transform(segment.End), start);
         for (int primitive = 0; primitive < (_radial.Length == Fixed64.Zero ? 1 : 3); primitive++)
-            if (TryGetPrimitive(start, delta, primitive, out Signed576 a, out Signed576 b, out Signed576 c,
+            if (TryGetPrimitive(start, delta, primitive, out Signed832 a, out Signed832 b, out Signed832 c,
                     out Signed320 ln, out Signed320 ld, out Signed320 un, out Signed320 ud)
                 && CapsuleFiniteSectionFrame.IntersectsQuadratic(a, b, c, ln, ld, un, ud)) return true;
         return false;
@@ -168,21 +188,21 @@ internal readonly partial struct FiniteSlabSectionFrame
     {
         numerator.Clear(); denominator.Clear(); root.Clear();
         WideAxis3 start = _radial.Transform(segment.Start), delta = Difference(_radial.Transform(segment.End), start);
-        Span<ulong> values = stackalloc ulong[10 * FiniteSectionPoint.Words]; Span<int> signs = stackalloc int[10];
-        Span<ulong> candidateRoot = stackalloc ulong[FiniteSectionPoint.RootWords];
-        ContactQuadratic qa = ContactQuadratic.At(values, signs, 0, FiniteSectionPoint.Words),
-            qb = ContactQuadratic.At(values, signs, 1, FiniteSectionPoint.Words),
-            qc = ContactQuadratic.At(values, signs, 2, FiniteSectionPoint.Words),
-            n = ContactQuadratic.At(values, signs, 3, FiniteSectionPoint.Words),
-            d = ContactQuadratic.At(values, signs, 4, FiniteSectionPoint.Words);
+        Span<ulong> values = stackalloc ulong[10 * PointWords]; Span<int> signs = stackalloc int[10];
+        Span<ulong> candidateRoot = stackalloc ulong[RootWords];
+        ContactQuadratic qa = ContactQuadratic.At(values, signs, 0, PointWords),
+            qb = ContactQuadratic.At(values, signs, 1, PointWords),
+            qc = ContactQuadratic.At(values, signs, 2, PointWords),
+            n = ContactQuadratic.At(values, signs, 3, PointWords),
+            d = ContactQuadratic.At(values, signs, 4, PointWords);
         bool found = false;
         for (int primitive = 0; primitive < (_radial.Length == Fixed64.Zero ? 1 : 3); primitive++)
         {
-            if (!TryGetPrimitive(start, delta, primitive, out Signed576 a, out Signed576 b, out Signed576 c,
+            if (!TryGetPrimitive(start, delta, primitive, out Signed832 a, out Signed832 b, out Signed832 c,
                     out Signed320 ln, out Signed320 ld, out Signed320 un, out Signed320 ud, includeHeight)
                 || !CapsuleFiniteSectionFrame.IntersectsQuadratic(a, b, c, ln, ld, un, ud)) continue;
             n.Clear(); d.Clear(); candidateRoot.Clear();
-            CapsuleFiniteSectionFrame.GetFirstQuadraticParameter(a, b, c, ln, ld, qa, qb, qc, n, d, candidateRoot);
+            SetFirstQuadraticParameter(a, b, c, ln, ld, qa, qb, qc, n, d, candidateRoot);
             if (!found || ContactQuadratic.CompareRatios(n, d, candidateRoot, numerator, denominator, root) < 0)
             {
                 n.CopyTo(numerator); d.CopyTo(denominator); candidateRoot.CopyTo(root); found = true;
@@ -192,10 +212,10 @@ internal readonly partial struct FiniteSlabSectionFrame
     }
 
     private bool TryGetPrimitive(WideAxis3 start, WideAxis3 delta, int primitive,
-        out Signed576 a, out Signed576 b, out Signed576 c,
+        out Signed832 a, out Signed832 b, out Signed832 c,
         out Signed320 ln, out Signed320 ld, out Signed320 un, out Signed320 ud, bool includeHeight = true)
     {
-        if (!_radial.TryGetPrimitive(Radial(start), Radial(delta), primitive, out a, out b, out c,
+        if (!_radial.TryGetPrimitiveWide(Radial(start), Radial(delta), primitive, out a, out b, out c,
                 out ln, out ld, out un, out ud)) return false;
         if (!includeHeight) return true;
         Signed320 rn = ln, rd = ld, sn = un, sd = ud;
@@ -211,8 +231,22 @@ internal readonly partial struct FiniteSlabSectionFrame
     }
 
     private static int Compare(Signed320 n, Signed320 d, Signed320 otherN, Signed320 otherD) =>
-        WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned320(n, otherD),
-            WideArithmetic.MultiplySigned320(otherN, d)).Sign;
+        WideArithmetic.SubtractSigned832(WideArithmetic.MultiplySigned576ToSigned832(Signed576.ExtendValue(n), otherD), WideArithmetic.MultiplySigned576ToSigned832(Signed576.ExtendValue(otherN), d)).Sign;
+
+    private static void SetFirstQuadraticParameter(Signed832 a, Signed832 b, Signed832 c,
+        Signed320 lowerN, Signed320 lowerD, ContactQuadratic qa, ContactQuadratic qb, ContactQuadratic qc,
+        ContactQuadratic numerator, ContactQuadratic denominator, Span<ulong> root)
+    {
+        if (WideFiniteConeIntersection.GetPolynomialSignAtRationalParameter(a, b, c, lowerN, lowerD) <= 0)
+        {
+            numerator.Set(Signed576.ExtendValue(lowerN)); denominator.Set(Signed576.ExtendValue(lowerD));
+            return;
+        }
+        qa.Set(a); qb.Set(b); qc.Set(c);
+        bool retained = ContactQuadratic.TryGetParameter(qa, qb, qc, -1, root, numerator, denominator);
+        if (!retained) retained = ContactQuadratic.TryGetParameter(qa, qb, qc, 1, root, numerator, denominator);
+        System.Diagnostics.Debug.Assert(retained);
+    }
 
     private static WideAxis3 Radial(WideAxis3 point) => new(point.X, point.Z, default);
     private static WideAxis3 Difference(WideAxis3 end, WideAxis3 start) => new(

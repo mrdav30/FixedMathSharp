@@ -10,9 +10,9 @@ namespace FixedMathSharp.Geometry;
 /// <summary>Face, cap-pole, vertex/side and edge/side boundaries of the support fan.</summary>
 internal static class TriangleCylinderAnalyticFeatures
 {
-    private static WideAxis3 Up => new(default, Signed320.One, default);
+    private static WideDirection3d Up => new(default, Signed576.One, default);
 
-    internal static bool TryGetBest(in TriangleCircularGeometry geometry, WideAxis3 coreOffset, WideAxis3 coreAxis,
+    internal static bool TryGetBest(in TriangleCircularGeometry geometry, in WideDirection3d coreOffset, in WideDirection3d coreAxis,
         Span<ulong> bestValues, Span<int> bestSigns, Span<ulong> bestDirection,
         Span<int> bestDirectionSigns, out int gapSign, out int supportMask, out int coreSign, out bool faceMinimumCertified)
     {
@@ -28,7 +28,7 @@ internal static class TriangleCylinderAnalyticFeatures
             // core-perpendicular face has the same support in both shapes;
             // Up or Up x core already attained it in the explicit seam fan.
             faceMinimumCertified = selection.GapSign >= 0
-                && WideAxis3.Dot(geometry.FaceNormal, coreAxis).Sign == 0
+                && WideDirection3d.Dot(geometry.FaceNormal, coreAxis).Sign == 0
                 && geometry.HasFaceMinimumCertificate();
             for (int region = -1; region <= 1 && selection.GapSign >= 0 && !faceMinimumCertified; region += 2)
             {
@@ -46,22 +46,22 @@ internal static class TriangleCylinderAnalyticFeatures
         return gapSign >= 0;
     }
 
-    private static void KeepSeam(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, ref Selection selection)
+    private static void KeepSeam(in TriangleCircularGeometry geometry, in WideDirection3d coreAxis, ref Selection selection)
     {
         Span<ulong> direction = stackalloc ulong[3 * Words];
         Span<int> signs = stackalloc int[3];
         WriteDirection(Up, direction, signs);
         KeepAxis(geometry, coreAxis, 0, direction, signs, ref selection);
-        WriteDirection(new WideAxis3(WideArithmetic.Negate(coreAxis.Z), default, coreAxis.X), direction, signs);
+        WriteDirection(new WideDirection3d(WideArithmetic.Negate(coreAxis.Z), default, coreAxis.X), direction, signs);
         KeepAxis(geometry, coreAxis, 0, direction, signs, ref selection);
         for (int edge = 0; edge < 3; edge++)
         {
-            WriteDirection(WideAxis3.Cross(geometry.Edge(edge), coreAxis), direction, signs);
+            WriteDirection(WideDirection3d.Cross(geometry.Edge(edge), coreAxis), direction, signs);
             KeepAxis(geometry, coreAxis, 0, direction, signs, ref selection);
         }
     }
 
-    private static void KeepRegion(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region,
+    private static void KeepRegion(in TriangleCircularGeometry geometry, in WideDirection3d coreAxis, int region,
         ref Selection selection, out bool faceMinimumCertified)
     {
         Span<ulong> direction = stackalloc ulong[3 * Words];
@@ -78,20 +78,20 @@ internal static class TriangleCylinderAnalyticFeatures
         faceMinimumCertified = coreAxis.IsZero && selection.GapSign >= 0 && geometry.HasFaceMinimumCertificate();
         for (int vertex = 0; vertex < 3 && selection.GapSign >= 0 && !faceMinimumCertified; vertex++)
         {
-            WideAxis3 point = geometry.Vertex(vertex);
-            WriteDirection(new WideAxis3(point.X, default, point.Z), direction, signs);
+            WideDirection3d point = geometry.Vertex(vertex);
+            WriteDirection(new WideDirection3d(point.X, default, point.Z), direction, signs);
             KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
-            WideAxis3 edge = geometry.Edge(vertex);
+            WideDirection3d edge = geometry.Edge(vertex);
             bool oblique = !edge.Y.IsZero && (!edge.X.IsZero || !edge.Z.IsZero);
             if (oblique)
             {
-                CircularRimContactAlgebra.GetBasis(edge, out WideAxis3 first, out WideAxis3 second);
+                CircularRimContactAlgebra.GetBasis(edge, out WideDirection3d first, out WideDirection3d second);
                 WriteDirection(first, direction, signs);
                 KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
                 WriteDirection(second, direction, signs);
                 KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
             }
-            WriteDirection(new WideAxis3(WideArithmetic.Negate(edge.Z), default, edge.X), direction, signs);
+            WriteDirection(new WideDirection3d(WideArithmetic.Negate(edge.Z), default, edge.X), direction, signs);
             KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
             // Principal axes and K=0 directions are rational and must be
             // included separately from the stationary quartic's division by K.
@@ -120,7 +120,7 @@ internal static class TriangleCylinderAnalyticFeatures
         }
     }
 
-    private static void KeepAxis(in TriangleCircularGeometry geometry, WideAxis3 coreAxis, int region, scoped Span<ulong> direction,
+    private static void KeepAxis(in TriangleCircularGeometry geometry, in WideDirection3d coreAxis, int region, scoped Span<ulong> direction,
         scoped Span<int> directionSigns, ref Selection selection)
     {
         if (selection.HasValue && selection.GapSign < 0)
@@ -195,22 +195,22 @@ internal static class TriangleCylinderAnalyticFeatures
         WideArithmetic.MultiplyMagnitudes(current, current, temporary);
         WideArithmetic.MultiplyMagnitudes(radial, temporary, current);
         SumSquares(direction, metric);
-        Import(Signed320.ExtendValue(geometry.RawScale), scale);
+        Import(Signed576.ExtendValue(geometry.RawScale), scale);
         WideArithmetic.MultiplyMagnitudes(scale, scale, temporary);
         WideArithmetic.MultiplyMagnitudes(metric, temporary, denominator);
         return BuildRadialCandidate(rational, rationalSign, current, denominator, values, signs);
     }
 
     private static bool HasVertexRimSeparation(in TriangleCircularGeometry geometry, int vertex, int cap,
-        WideAxis3 coreAxis, int region)
+        in WideDirection3d coreAxis, int region)
     {
-        WideAxis3 c = geometry.CapOffset(vertex, cap);
+        WideDirection3d c = geometry.CapOffset(vertex, cap);
         if (c.Y.Sign * cap > 0)
             return false;
-        Signed576 radialSquared = WideArithmetic.AddSigned576(
-            WideArithmetic.MultiplySigned320(c.X, c.X), WideArithmetic.MultiplySigned320(c.Z, c.Z));
-        if (WideArithmetic.SubtractSigned576(radialSquared,
-                WideArithmetic.MultiplySigned320(geometry.Radius, geometry.Radius)).Sign <= 0)
+        Signed832 radialSquared = WideArithmetic.AddSigned832(
+            WideArithmetic.MultiplySigned576(c.X, c.X), WideArithmetic.MultiplySigned576(c.Z, c.Z));
+        if (WideArithmetic.SubtractSigned832(radialSquared,
+                WideArithmetic.MultiplySigned576(geometry.Radius, geometry.Radius)).Sign <= 0)
             return false;
         Span<ulong> work = stackalloc ulong[4 * Words];
         Span<ulong> rational = Slot(work, 0), radical = Slot(work, 1), root = Slot(work, 2), radius = Slot(work, 3);
@@ -229,14 +229,14 @@ internal static class TriangleCylinderAnalyticFeatures
         return true;
     }
 
-    private static int ResidualProjectionSign(WideAxis3 c, WideAxis3 axis, Span<ulong> rational,
+    private static int ResidualProjectionSign(in WideDirection3d c, in WideDirection3d axis, Span<ulong> rational,
         Span<ulong> radical, ReadOnlySpan<ulong> root, ReadOnlySpan<ulong> radius)
     {
-        Signed576 planar = WideArithmetic.AddSigned576(
-            WideArithmetic.MultiplySigned320(c.X, axis.X), WideArithmetic.MultiplySigned320(c.Z, axis.Z));
+        Signed832 planar = WideArithmetic.AddSigned832(
+            WideArithmetic.MultiplySigned576(c.X, axis.X), WideArithmetic.MultiplySigned576(c.Z, axis.Z));
         Import(planar, radical);
         WideArithmetic.MultiplyMagnitudes(radical, radius, rational);
-        Signed576 full = WideAxis3.Dot(c, axis);
+        Signed832 full = WideDirection3d.Dot(c, axis);
         Import(full, radical);
         return WideConvexPrismRelations.GetConvexContactCandidateQuadraticSign(
             rational, planar.Sign, radical, -full.Sign, root);

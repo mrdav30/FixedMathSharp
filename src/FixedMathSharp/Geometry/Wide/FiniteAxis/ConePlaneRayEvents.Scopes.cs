@@ -20,10 +20,10 @@ internal static partial class ConePlaneRayEvents
     /// <summary>Constructs the scoped inventory once and synchronously visits its admitted exact events.</summary>
     internal static bool VisitEvents(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame, ConePlaneRayEventVisitor visitor)
     {
-        Span<ulong> positiveValues = stackalloc ulong[ConePlaneRaySelection.StorageWords], negativeValues = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+        Span<ulong> positiveValues = stackalloc ulong[frame.SelectionStorageWords], negativeValues = stackalloc ulong[frame.SelectionStorageWords];
         Span<int> positiveSigns = stackalloc int[ConePlaneRaySelection.SignCount], negativeSigns = stackalloc int[ConePlaneRaySelection.SignCount];
-        var positive = new ConePlaneRaySelection(positiveValues, positiveSigns);
-        var negative = new ConePlaneRaySelection(negativeValues, negativeSigns);
+        var positive = new ConePlaneRaySelection(positiveValues, positiveSigns, frame.FieldWords, frame.RootWords);
+        var negative = new ConePlaneRaySelection(negativeValues, negativeSigns, frame.FieldWords, frame.RootWords);
         scoped ConePlaneRayEventSink sink = new(source, frame, visitor);
         return Accumulate(source, frame, ref positive, ref negative, ref sink);
     }
@@ -33,12 +33,14 @@ internal static partial class ConePlaneRayEvents
         in RationalSegmentInterval clip, ConePlaneRayEventVisitor visitor)
     {
         if (!clip.IsClipped) return VisitEvents(source, frame, visitor);
+        if (clip.HasWideBounds && !frame.UsesWideBanks)
+            return VisitEvents(source, frame.WithWideParameters(), clip, visitor);
         if (source.Scope != ConePlaneRayEventScope.Segment)
             throw new ArgumentException("Only finite segment sources can have a clipped interval.", nameof(source));
-        Span<ulong> positiveValues = stackalloc ulong[ConePlaneRaySelection.StorageWords], negativeValues = stackalloc ulong[ConePlaneRaySelection.StorageWords];
+        Span<ulong> positiveValues = stackalloc ulong[frame.SelectionStorageWords], negativeValues = stackalloc ulong[frame.SelectionStorageWords];
         Span<int> positiveSigns = stackalloc int[ConePlaneRaySelection.SignCount], negativeSigns = stackalloc int[ConePlaneRaySelection.SignCount];
-        var positive = new ConePlaneRaySelection(positiveValues, positiveSigns);
-        var negative = new ConePlaneRaySelection(negativeValues, negativeSigns);
+        var positive = new ConePlaneRaySelection(positiveValues, positiveSigns, frame.FieldWords, frame.RootWords);
+        var negative = new ConePlaneRaySelection(negativeValues, negativeSigns, frame.FieldWords, frame.RootWords);
         // Borrow the clip without enlarging ordinary event or source records.
         Span<RationalSegmentInterval> clips = stackalloc RationalSegmentInterval[1] { clip };
         scoped ConePlaneRayEventSink sink = new(source, frame, visitor, clips);
@@ -50,13 +52,21 @@ internal static partial class ConePlaneRayEvents
     /// <remarks>The triangle belongs to the frame's exact authored plane.</remarks>
     internal static bool IntersectsTriangle(in ConePlaneRayFrame frame, FixedTriangle triangle)
     {
-        if (triangle.IsDegenerate || frame.NormalSquared.IsZero) return false;
+        if (frame.NormalSquared.IsZero) return false;
+        if (frame.Finite.ShapeFrame.HasExactScale)
+        {
+            // The caller's retained plane owns physical scale; an authored
+            // epsilon-area test can discard a perfectly large scaled face.
+            triangle.GetExactNormal(out _, out _, out _, out Signed320 squared);
+            if (squared.IsZero) return false;
+        }
+        else if (triangle.IsDegenerate) return false;
         for (int edge = 0; edge < 3; edge++)
             if (frame.IntersectsSegment(triangle.GetEdge(edge))) return true;
-        Span<ulong> words = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> words = stackalloc ulong[frame.PointStorageWords];
         Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
-        Span<ulong> root = stackalloc ulong[ConePlaneRaySelection.RootWords];
-        var point = new ConePlaneRayPoint(words, signs);
+        Span<ulong> root = stackalloc ulong[frame.RootWords];
+        var point = new ConePlaneRayPoint(words, signs, frame.FieldWords);
         var axis = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis, endpoint: frame.Normal.Y.IsZero ? 0 : -1);
         if (ReconstructPoint(ConePlaneRayEventSource.Plane, frame, axis, point, root))
             return ConePlaneRayPointExits.ContainsTrianglePoint(triangle, frame, point, root);
@@ -168,8 +178,8 @@ internal static partial class ConePlaneRayEvents
         root.Clear();
         // Reborrow coefficient storage locally: the sink borrows this call's
         // output point/root, and no such reference may enter caller metadata.
-        scoped ConePlaneRaySelection evaluatedPositive = new(positive.Values, positive.Signs);
-        scoped ConePlaneRaySelection evaluatedNegative = new(negative.Values, negative.Signs);
+        scoped ConePlaneRaySelection evaluatedPositive = new(positive.Values, positive.Signs, frame.FieldWords, frame.RootWords);
+        scoped ConePlaneRaySelection evaluatedNegative = new(negative.Values, negative.Signs, frame.FieldWords, frame.RootWords);
         var sink = new ConePlaneRayEventSink(descriptor, point, root, requestedOrientation: requestedOrientation);
         Accumulate(source, frame, ref evaluatedPositive, ref evaluatedNegative, ref sink);
         if (!sink.HasPoint) return false;
@@ -191,8 +201,8 @@ internal static partial class ConePlaneRayEvents
         if (requestedOrientation < -1 || requestedOrientation > 1)
             throw new ArgumentOutOfRangeException(nameof(requestedOrientation));
         positive.HasValue = negative.HasValue = false; root.Clear();
-        scoped ConePlaneRaySelection evaluatedPositive = new(positive.Values, positive.Signs);
-        scoped ConePlaneRaySelection evaluatedNegative = new(negative.Values, negative.Signs);
+        scoped ConePlaneRaySelection evaluatedPositive = new(positive.Values, positive.Signs, frame.FieldWords, frame.RootWords);
+        scoped ConePlaneRaySelection evaluatedNegative = new(negative.Values, negative.Signs, frame.FieldWords, frame.RootWords);
         Span<RationalSegmentInterval> clips = stackalloc RationalSegmentInterval[1] { clip };
         var sink = new ConePlaneRayEventSink(descriptor, point, root, requestedOrientation: requestedOrientation,
             source: source, frame: frame, clip: clips);

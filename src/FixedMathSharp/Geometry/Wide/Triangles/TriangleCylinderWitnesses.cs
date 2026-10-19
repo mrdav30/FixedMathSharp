@@ -93,12 +93,12 @@ internal static class TriangleCylinderWitnesses
         }
         SumWeights(weights, denominator);
         SumCoordinates(geometry, weights, 1, bound, out int axialSign);
-        Import(Signed320.ExtendValue(geometry.RawScale), half);
+        Import(Signed576.ExtendValue(geometry.RawScale), half);
         Span<ulong> scaledDenominator = stackalloc ulong[Words];
         WideArithmetic.MultiplyMagnitudes(denominator, half, scaledDenominator);
         bool represented = Fixed64.TryGetSignedRawRatio(bound, scaledDenominator, axialSign < 0, out axial);
         System.Diagnostics.Debug.Assert(represented);
-        return RoundTriangle(triangle, weights, denominator);
+        return RoundTriangle(geometry, triangle, weights, denominator);
     }
 
     /// <summary>
@@ -114,11 +114,11 @@ internal static class TriangleCylinderWitnesses
         Span<ulong> denominator = stackalloc ulong[Words];
         GetCapWeights(geometry, mask, weights);
         SumWeights(weights, denominator);
-        Vector3d point = RoundTriangle(triangle, weights, denominator);
+        Vector3d point = RoundTriangle(geometry, triangle, weights, denominator);
         Span<ulong> scale = stackalloc ulong[Words];
         Span<ulong> scaledDenominator = stackalloc ulong[Words];
         Span<ulong> coordinate = stackalloc ulong[Words];
-        Import(Signed320.ExtendValue(geometry.RawScale), scale);
+        Import(Signed576.ExtendValue(geometry.RawScale), scale);
         WideArithmetic.MultiplyMagnitudes(denominator, scale, scaledDenominator);
         SumCoordinates(geometry, weights, 0, coordinate, out int sign);
         bool representedX = Fixed64.TryGetSignedRawRatio(coordinate, scaledDenominator, sign < 0, out Fixed64 x);
@@ -144,17 +144,17 @@ internal static class TriangleCylinderWitnesses
     {
         int first = (mask & 1) != 0 ? 0 : 1;
         int second = (mask & 4) != 0 ? 2 : 1;
-        WideAxis3 edge = geometry.EdgeFromTo(first, second);
+        WideDirection3d edge = geometry.EdgeFromTo(first, second);
         // A pole's selected feature has constant local Y. Projecting the
         // origin is identical to projecting either cap center onto it.
-        Signed576 parameter = WideAxis3.Dot(TriangleCircularGeometry.Subtract(default, geometry.Vertex(first)), edge);
-        Signed576 denominatorValue = WideArithmetic.MultiplySigned576(edge.SquaredLength, geometry.EdgeScale);
+        Signed832 parameter = WideDirection3d.Dot(TriangleCircularGeometry.Subtract(default, geometry.Vertex(first)), edge);
+        Signed832 denominatorValue = WideArithmetic.MultiplySigned832(edge.SquaredLength, geometry.EdgeScale);
         if (parameter.Sign <= 0)
         {
             weights[first * Words] = 1;
             return;
         }
-        Signed576 remainder = WideArithmetic.SubtractSigned576(denominatorValue, parameter);
+        Signed832 remainder = WideArithmetic.SubtractSigned832(denominatorValue, parameter);
         if (remainder.Sign <= 0)
         {
             weights[second * Words] = 1;
@@ -165,18 +165,18 @@ internal static class TriangleCylinderWitnesses
 
     private static void GetFaceWeights(in TriangleCircularGeometry geometry, Span<ulong> weights)
     {
-        WideAxis3 e = geometry.Edge(0), f = -geometry.Edge(2);
-        WideAxis3 offset = TriangleCircularGeometry.Subtract(default, geometry.A);
-        Signed576 d1 = WideAxis3.Dot(e, offset), d2 = WideAxis3.Dot(f, offset);
+        WideDirection3d e = geometry.Edge(0), f = -geometry.Edge(2);
+        WideDirection3d offset = TriangleCircularGeometry.Subtract(default, geometry.A);
+        Signed832 d1 = WideDirection3d.Dot(e, offset), d2 = WideDirection3d.Dot(f, offset);
         if (d1.Sign <= 0 && d2.Sign <= 0)
         {
             weights[0] = 1;
             return;
         }
-        Signed576 ee = e.SquaredLength, ff = f.SquaredLength, ef = WideAxis3.Dot(e, f);
-        Signed576 d3 = WideArithmetic.SubtractSigned576(d1, WideArithmetic.MultiplySigned576(ee, geometry.EdgeScale));
-        Signed576 d4 = WideArithmetic.SubtractSigned576(d2, WideArithmetic.MultiplySigned576(ef, geometry.EdgeScale));
-        if (d3.Sign >= 0 && WideArithmetic.SubtractSigned576(d4, d3).Sign <= 0)
+        Signed832 ee = e.SquaredLength, ff = f.SquaredLength, ef = WideDirection3d.Dot(e, f);
+        Signed832 d3 = WideArithmetic.SubtractSigned832(d1, WideArithmetic.MultiplySigned832(ee, geometry.EdgeScale));
+        Signed832 d4 = WideArithmetic.SubtractSigned832(d2, WideArithmetic.MultiplySigned832(ef, geometry.EdgeScale));
+        if (d3.Sign >= 0 && WideArithmetic.SubtractSigned832(d4, d3).Sign <= 0)
         {
             weights[Words] = 1;
             return;
@@ -184,59 +184,58 @@ internal static class TriangleCylinderWitnesses
         // Retained edges are <196 bits even for shifted core regions. Gram
         // dots are <394, offset dots <430; cancelled barycentric minors are
         // <825 and the EdgeScale-adjusted alpha <827, within Signed832.
-        Signed832 vc = Cross(ee, d2, ef, d1);
-        if (vc.Sign <= 0 && d1.Sign >= 0 && d3.Sign <= 0)
+        Span<ulong> minors = stackalloc ulong[4 * Words];
+        Span<ulong> vc = Slot(minors, 0), vb = Slot(minors, 1), va = Slot(minors, 2), determinant = Slot(minors, 3);
+        DifferenceOfProducts(ee, d2, ef, d1, vc, out int vcSign);
+        if (vcSign <= 0 && d1.Sign >= 0 && d3.Sign <= 0)
         {
-            SetEdgeWeights(0, 1, WideArithmetic.SubtractSigned576(default, d3), d1, weights);
+            SetEdgeWeights(0, 1, WideArithmetic.SubtractSigned832(default, d3), d1, weights);
             return;
         }
-        Signed576 d5 = WideArithmetic.SubtractSigned576(d1, WideArithmetic.MultiplySigned576(ef, geometry.EdgeScale));
-        Signed576 d6 = WideArithmetic.SubtractSigned576(d2, WideArithmetic.MultiplySigned576(ff, geometry.EdgeScale));
-        if (d6.Sign >= 0 && WideArithmetic.SubtractSigned576(d5, d6).Sign <= 0)
+        Signed832 d5 = WideArithmetic.SubtractSigned832(d1, WideArithmetic.MultiplySigned832(ef, geometry.EdgeScale));
+        Signed832 d6 = WideArithmetic.SubtractSigned832(d2, WideArithmetic.MultiplySigned832(ff, geometry.EdgeScale));
+        if (d6.Sign >= 0 && WideArithmetic.SubtractSigned832(d5, d6).Sign <= 0)
         {
             weights[2 * Words] = 1;
             return;
         }
-        Signed832 vb = Cross(ff, d1, ef, d2);
+        DifferenceOfProducts(ff, d1, ef, d2, vb, out int vbSign);
         // Once A/B/AB are excluded, vb<=0 proves d2>=0: the opposite
         // signs would force the earlier AB or B Voronoi region (Gram det>0).
-        if (vb.Sign <= 0 && d6.Sign <= 0)
+        if (vbSign <= 0 && d6.Sign <= 0)
         {
-            SetEdgeWeights(0, 2, WideArithmetic.SubtractSigned576(default, d6), d2, weights);
+            SetEdgeWeights(0, 2, WideArithmetic.SubtractSigned832(default, d6), d2, weights);
             return;
         }
-        Signed832 va = WideArithmetic.SubtractSigned832(WideArithmetic.SubtractSigned832(
-            WideArithmetic.MultiplySigned832(Cross(ee, ff, ef, ef), geometry.EdgeScale), vb), vc);
-        Signed576 first = WideArithmetic.SubtractSigned576(d4, d3), second = WideArithmetic.SubtractSigned576(d5, d6);
+        DifferenceOfProducts(ee, ff, ef, ef, determinant, out int vaSign);
+        Span<ulong> factor = stackalloc ulong[Words];
+        Import(Signed576.ExtendValue(geometry.EdgeScale), factor);
+        WideArithmetic.MultiplyMagnitudes(determinant, factor, va);
+        Add(vb, -vbSign, va, ref vaSign); Add(vc, -vcSign, va, ref vaSign);
+        Signed832 first = WideArithmetic.SubtractSigned832(d4, d3), second = WideArithmetic.SubtractSigned832(d5, d6);
         // The preceding vertex and edge regions already prove both BC
         // weights nonnegative whenever va<=0 for this nondegenerate face.
-        if (va.Sign <= 0)
+        if (vaSign <= 0)
         {
             SetEdgeWeights(1, 2, second, first, weights);
             return;
         }
-        WideArithmetic.GetMagnitude(va, weights[..13]);
-        WideArithmetic.GetMagnitude(vb, weights.Slice(Words, 13));
-        WideArithmetic.GetMagnitude(vc, weights.Slice(2 * Words, 13));
+        va.CopyTo(Slot(weights, 0)); vb.CopyTo(Slot(weights, 1)); vc.CopyTo(Slot(weights, 2));
     }
 
     private static void SetEdgeWeights(int first, int second,
-        Signed576 firstWeight, Signed576 secondWeight, Span<ulong> weights)
+        Signed832 firstWeight, Signed832 secondWeight, Span<ulong> weights)
     {
         Import(firstWeight, Slot(weights, first)); Import(secondWeight, Slot(weights, second));
     }
 
-    private static Signed832 Cross(Signed576 a, Signed576 b, Signed576 c, Signed576 d) =>
-        WideArithmetic.SubtractSigned832(WideArithmetic.MultiplySigned576ToSigned832(a, b),
-            WideArithmetic.MultiplySigned576ToSigned832(c, d));
-
-    private static Vector3d RoundTriangle(FixedTriangle triangle, ReadOnlySpan<ulong> weights,
+    private static Vector3d RoundTriangle(in TriangleCircularGeometry geometry, FixedTriangle triangle, ReadOnlySpan<ulong> weights,
         ReadOnlySpan<ulong> denominator) => new(
-        RoundComponent(triangle.A.X, triangle.B.X, triangle.C.X, weights, denominator),
-        RoundComponent(triangle.A.Y, triangle.B.Y, triangle.C.Y, weights, denominator),
-        RoundComponent(triangle.A.Z, triangle.B.Z, triangle.C.Z, weights, denominator));
+        RoundComponent(geometry, triangle, 0, weights, denominator),
+        RoundComponent(geometry, triangle, 1, weights, denominator),
+        RoundComponent(geometry, triangle, 2, weights, denominator));
 
-    private static Fixed64 RoundComponent(Fixed64 a, Fixed64 b, Fixed64 c,
+    private static Fixed64 RoundComponent(in TriangleCircularGeometry geometry, FixedTriangle triangle, int component,
         ReadOnlySpan<ulong> weights, ReadOnlySpan<ulong> denominator)
     {
         Span<ulong> sum = stackalloc ulong[Words];
@@ -245,12 +244,21 @@ internal static class TriangleCylinderWitnesses
         sum.Clear(); int sign = 0;
         for (int vertex = 0; vertex < 3; vertex++)
         {
-            Signed320 coordinate = Signed320.ExtendValue(Signed192.Raw(vertex == 0 ? a : vertex == 1 ? b : c));
+            Signed576 coordinate = geometry.WitnessCoordinate(triangle, vertex, component);
             Import(coordinate, value);
             WideArithmetic.MultiplyMagnitudes(value, Slot(weights, vertex), product);
             Add(product, coordinate.Sign, sum, ref sign);
         }
-        bool represented = Fixed64.TryGetSignedRawRatio(sum, denominator, sign < 0, out Fixed64 result);
+        Span<ulong> scaledDenominator = stackalloc ulong[geometry.IsAffine ? Words : 0];
+        scoped ReadOnlySpan<ulong> witnessDenominator = denominator;
+        if (geometry.IsAffine)
+        {
+            Span<ulong> scale = stackalloc ulong[5];
+            WideArithmetic.GetMagnitude(geometry.RawScale, out scale[4], out scale[3], out scale[2], out scale[1], out scale[0]);
+            WideArithmetic.MultiplyMagnitudes(denominator, scale, scaledDenominator);
+            witnessDenominator = scaledDenominator;
+        }
+        bool represented = Fixed64.TryGetSignedRawRatio(sum, witnessDenominator, sign < 0, out Fixed64 result);
         System.Diagnostics.Debug.Assert(represented); // A convex combination of representable authored vertices.
         return result;
     }
@@ -269,7 +277,7 @@ internal static class TriangleCylinderWitnesses
         result.Clear(); sign = 0;
         for (int vertex = 0; vertex < 3; vertex++)
         {
-            Signed320 value = Component(geometry.Vertex(vertex), component);
+            Signed576 value = Component(geometry.Vertex(vertex), component);
             Import(value, coordinate);
             WideArithmetic.MultiplyMagnitudes(coordinate, Slot(weights, vertex), product);
             Add(product, value.Sign, result, ref sign);

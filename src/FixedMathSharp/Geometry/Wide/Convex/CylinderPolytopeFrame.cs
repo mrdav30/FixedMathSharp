@@ -13,6 +13,12 @@ internal readonly struct CylinderPolytopeFrame
     internal readonly Signed192 Denominator;
     internal readonly Signed320 Cap;
     internal readonly Signed192 Radius;
+    internal readonly Signed320 CoordinateDenominator;
+    internal readonly bool HasExactScale;
+    private readonly ScaledRigidFrame3d _sourceFrame;
+    private readonly Vector3d _cylinderCenter;
+    private readonly FixedQuaternion _cylinderRotation;
+    internal ScaledRigidFrame3d SourceFrame => _sourceFrame;
 
     internal CylinderPolytopeFrame(Vector3d cylinderCenter, FixedQuaternion cylinderRotation,
         Fixed64 height, Fixed64 radius, Vector3d origin, FixedQuaternion rotation)
@@ -23,10 +29,12 @@ internal readonly struct CylinderPolytopeFrame
     internal CylinderPolytopeFrame(Vector3d cylinderCenter, FixedQuaternion cylinderRotation,
         Signed192 height, Fixed64 radius, Vector3d origin, FixedQuaternion rotation)
     {
+        this = default;
         WideRationalBasis3d cylinderBasis = new(cylinderRotation);
         WideRationalBasis3d shapeBasis = new(rotation);
         Basis = WideRationalBasis3d.CreateRelative(cylinderBasis, shapeBasis);
         Denominator = Basis.Denominator;
+        CoordinateDenominator = Signed320.ExtendValue(Denominator);
         WideOrientedBox.GetRelativeLocalPointNumerators(origin, cylinderCenter, cylinderBasis,
             out Signed192 x, out Signed192 y, out Signed192 z);
         Translation = new WideAxis3(
@@ -39,8 +47,40 @@ internal readonly struct CylinderPolytopeFrame
         Radius = WideArithmetic.AddSigned192(Signed192.Raw(radius), Signed192.Raw(radius));
     }
 
+    /// <summary>
+    /// Retains an affine source for finite near-field geometry. Callers admit
+    /// source/target reach at most 4096 and relative coordinates at most 16384.
+    /// </summary>
+    internal CylinderPolytopeFrame(in ScaledRigidFrame3d sourceFrame,
+        Vector3d cylinderCenter, FixedQuaternion cylinderRotation, Signed192 height, Fixed64 radius)
+    {
+        // Finite-section and triangle owners dispatch rigid source frames
+        // before reaching this affine arithmetic owner.
+        this = default;
+        _sourceFrame = sourceFrame;
+        _cylinderCenter = cylinderCenter;
+        _cylinderRotation = cylinderRotation;
+        HasExactScale = true;
+        WideRationalBasis3d cylinderBasis = new(cylinderRotation);
+        Basis = WideRationalBasis3d.CreateRelative(cylinderBasis, sourceFrame.GeometryBasis);
+        CoordinateDenominator = Signed320.NarrowValue(
+            WideArithmetic.MultiplySigned320(sourceFrame.Denominator, cylinderBasis.Denominator));
+        Cap = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(CoordinateDenominator, height));
+        Radius = WideArithmetic.AddSigned192(Signed192.Raw(radius), Signed192.Raw(radius));
+    }
+
     internal WideAxis3 Transform(Vector3d point)
     {
+        if (HasExactScale)
+        {
+            _sourceFrame.GetPoint(point).GetLocalPointNumerators(_cylinderCenter, _cylinderRotation,
+                out Signed576 px, out Signed576 py, out Signed576 pz, out _);
+            // Near-field raw coordinates <2^46 and the common denominator
+            // <2^259 leave doubled numerators below 306 magnitude bits.
+            return new WideAxis3(Signed320.NarrowValue(WideArithmetic.AddSigned576(px, px)),
+                Signed320.NarrowValue(WideArithmetic.AddSigned576(py, py)),
+                Signed320.NarrowValue(WideArithmetic.AddSigned576(pz, pz)));
+        }
         WideAxis3 local = WideRigidProjection.TransformLocalAxis(Basis,
             Signed192.Raw(point.X), Signed192.Raw(point.Y), Signed192.Raw(point.Z));
         Signed320 x = WideArithmetic.AddSigned320(local.X, Translation.X);

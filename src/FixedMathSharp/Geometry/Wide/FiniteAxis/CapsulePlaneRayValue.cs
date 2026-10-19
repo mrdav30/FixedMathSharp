@@ -34,16 +34,19 @@ internal ref struct CapsulePlaneRayValue
     // radicand is <2256. Its complete degree-four norm stays <9600 bits.
     internal const int PolynomialWords = 160, SignCount = 5, CellWords = 8;
     internal const int StorageWords = SignCount * PolynomialWords + CellWords;
+    internal static int GetStorageWords(int polynomialWords) => SignCount * polynomialWords + CellWords;
+    private readonly int _words;
     private readonly Span<ulong> _polynomial, _cell;
     private readonly Span<sbyte> _signs;
     private CapsulePlaneRayValueMetadata _metadata;
     internal CapsulePlaneRayValueMetadata Metadata => _metadata;
     internal bool HasValue => _metadata.HasValue;
 
-    internal CapsulePlaneRayValue(Span<ulong> storage, Span<sbyte> signs)
+    internal CapsulePlaneRayValue(Span<ulong> storage, Span<sbyte> signs, int polynomialWords = PolynomialWords)
     {
-        _polynomial = storage[..(SignCount * PolynomialWords)];
-        _cell = storage.Slice(SignCount * PolynomialWords, CellWords);
+        _words = polynomialWords;
+        _polynomial = storage[..(SignCount * polynomialWords)];
+        _cell = storage.Slice(SignCount * polynomialWords, CellWords);
         _signs = signs[..SignCount]; _metadata = default;
     }
 
@@ -51,7 +54,13 @@ internal ref struct CapsulePlaneRayValue
 
     internal void CopyFrom(scoped CapsulePlaneRayValue other)
     {
-        other._polynomial.CopyTo(_polynomial); other._signs.CopyTo(_signs); other._cell.CopyTo(_cell);
+        _polynomial.Clear();
+        for (int index = 0; index < SignCount; index++)
+        {
+            ReadOnlySpan<ulong> coefficient = other._polynomial.Slice(index * other._words, other._words);
+            coefficient[..WideArithmetic.GetActiveMagnitudeLength(coefficient)].CopyTo(_polynomial.Slice(index * _words, _words));
+        }
+        other._signs.CopyTo(_signs); other._cell.CopyTo(_cell);
         _metadata = other._metadata;
     }
 
@@ -60,8 +69,8 @@ internal ref struct CapsulePlaneRayValue
         scoped ReadOnlySpan<ulong> pointRoot, int valueShift)
     {
         _metadata = default;
-        Span<ulong> rational = stackalloc ulong[3 * PolynomialWords];
-        Span<ulong> radical = stackalloc ulong[3 * PolynomialWords];
+        Span<ulong> rational = stackalloc ulong[3 * _words];
+        Span<ulong> radical = stackalloc ulong[3 * _words];
         Span<sbyte> rationalSigns = stackalloc sbyte[3], radicalSigns = stackalloc sbyte[3];
         rational.Clear(); radical.Clear(); rationalSigns.Clear(); radicalSigns.Clear();
         SetCoefficient(c, rational, rationalSigns, radical, radicalSigns, 0, 0);
@@ -82,8 +91,8 @@ internal ref struct CapsulePlaneRayValue
         Span<ulong> batchCells = stackalloc ulong[64]; Span<int> shifts = stackalloc int[8];
         FiniteAxisValueRoots roots = WideFiniteAxisIntersection.GetFiniteValueRoots(_polynomial, _signs, batchCells, shifts);
         Span<ulong> cell = stackalloc ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(_polynomial, _signs)];
-        Span<ulong> derivativeRational = stackalloc ulong[2 * PolynomialWords];
-        Span<ulong> derivativeRadical = stackalloc ulong[2 * PolynomialWords];
+        Span<ulong> derivativeRational = stackalloc ulong[2 * _words];
+        Span<ulong> derivativeRadical = stackalloc ulong[2 * _words];
         Span<sbyte> derivativeRationalSigns = stackalloc sbyte[2], derivativeRadicalSigns = stackalloc sbyte[2];
         WideFiniteAxisIntersection.DifferentiateFiniteAxisPolynomial(rational, rationalSigns, derivativeRational, derivativeRationalSigns);
         WideFiniteAxisIntersection.DifferentiateFiniteAxisPolynomial(radical, radicalSigns, derivativeRadical, derivativeRadicalSigns);
@@ -113,8 +122,8 @@ internal ref struct CapsulePlaneRayValue
         FiniteAxisValueRoot first = GetRoot(_polynomial, _signs, _cell, _metadata, firstCell),
             second = GetRoot(other._polynomial, other._signs, other._cell, other._metadata, secondCell);
         int shift = Math.Max(_metadata.ValueShift, other._metadata.ValueShift);
-        Span<ulong> firstPolynomial = stackalloc ulong[SignCount * PolynomialWords];
-        Span<ulong> secondPolynomial = stackalloc ulong[SignCount * PolynomialWords];
+        Span<ulong> firstPolynomial = stackalloc ulong[SignCount * _words];
+        Span<ulong> secondPolynomial = stackalloc ulong[SignCount * other._words];
         first.Coefficients.CopyTo(firstPolynomial); second.Coefficients.CopyTo(secondPolynomial);
         int firstScale = shift - _metadata.ValueShift, secondScale = shift - other._metadata.ValueShift;
         first.Coefficients = firstPolynomial[..first.Coefficients.Length];
@@ -125,7 +134,7 @@ internal ref struct CapsulePlaneRayValue
         return WideFiniteAxisIntersection.CompareFiniteValueRoots(first, second);
     }
 
-    internal int Compare(scoped CapsulePlaneRayValue other, Signed192 divisor, Signed192 otherDivisor)
+    internal int Compare(scoped CapsulePlaneRayValue other, Signed320 divisor, Signed320 otherDivisor)
     {
         System.Diagnostics.Debug.Assert(divisor.Sign > 0 && otherDivisor.Sign > 0);
         Span<ulong> firstCell = stackalloc ulong[CellCapacity()];
@@ -134,14 +143,14 @@ internal ref struct CapsulePlaneRayValue
             second = GetRoot(other._polynomial, other._signs, other._cell, other._metadata, secondCell);
         int shift = Math.Max(_metadata.ValueShift, other._metadata.ValueShift);
         int firstScale = shift - _metadata.ValueShift, secondScale = shift - other._metadata.ValueShift;
-        Span<ulong> firstDenominator = stackalloc ulong[3 + (firstScale + 63) / 64];
-        Span<ulong> secondDenominator = stackalloc ulong[3 + (secondScale + 63) / 64];
-        Span<ulong> magnitude = stackalloc ulong[3];
+        Span<ulong> firstDenominator = stackalloc ulong[5 + (firstScale + 63) / 64];
+        Span<ulong> secondDenominator = stackalloc ulong[5 + (secondScale + 63) / 64];
+        Span<ulong> magnitude = stackalloc ulong[5];
         firstDenominator.Clear(); secondDenominator.Clear();
-        WideArithmetic.GetMagnitude(divisor, out magnitude[2], out magnitude[1], out magnitude[0]);
+        WideArithmetic.GetMagnitude(divisor, out magnitude[4], out magnitude[3], out magnitude[2], out magnitude[1], out magnitude[0]);
         int sign = 0;
         WideArithmetic.AddShiftedSignedMagnitude(magnitude, 1, firstScale, firstDenominator, ref sign);
-        WideArithmetic.GetMagnitude(otherDivisor, out magnitude[2], out magnitude[1], out magnitude[0]);
+        WideArithmetic.GetMagnitude(otherDivisor, out magnitude[4], out magnitude[3], out magnitude[2], out magnitude[1], out magnitude[0]);
         sign = 0;
         WideArithmetic.AddShiftedSignedMagnitude(magnitude, 1, secondScale, secondDenominator, ref sign);
         // t = alpha*2^ValueShift. A common binary factor cancels, leaving
@@ -170,7 +179,8 @@ internal ref struct CapsulePlaneRayValue
     private static int LinearSign(scoped ref FiniteAxisValueRoot parameter, scoped ContactQuadratic constant,
         scoped ContactQuadratic slope, scoped ReadOnlySpan<ulong> root, int valueShift)
     {
-        Span<ulong> rational = stackalloc ulong[2 * PolynomialWords], radical = stackalloc ulong[2 * PolynomialWords];
+        int _words = Math.Max(parameter.Coefficients.Length / parameter.Signs.Length, 2 * Math.Max(constant.FieldWords, slope.FieldWords) + (root.Length + 1));
+        Span<ulong> rational = stackalloc ulong[2 * _words], radical = stackalloc ulong[2 * _words];
         Span<sbyte> rationalSigns = stackalloc sbyte[2], radicalSigns = stackalloc sbyte[2];
         rational.Clear(); radical.Clear(); rationalSigns.Clear(); radicalSigns.Clear();
         SetCoefficient(constant, rational, rationalSigns, radical, radicalSigns, 0, 0);
@@ -181,17 +191,17 @@ internal ref struct CapsulePlaneRayValue
     /// <summary>Rounds capsule-local (q+t*direction)/coordinateScale once at the final coordinate lattice.</summary>
     internal bool TryGetPoint(scoped ContactQuadratic qx, scoped ContactQuadratic qy,
         scoped ContactQuadratic qz, scoped ContactQuadratic qd, scoped ReadOnlySpan<ulong> pointRoot,
-        WideAxis3 direction, Signed192 coordinateScale, out Vector3d point)
+        WideDirection3d direction, Signed320 coordinateScale, out Vector3d point)
     {
-        Span<ulong> values = stackalloc ulong[8 * PolynomialWords]; Span<int> signs = stackalloc int[8];
-        ContactQuadratic denominator = ContactQuadratic.At(values, signs, 0, PolynomialWords);
-        ContactQuadratic sx = ContactQuadratic.At(values, signs, 1, PolynomialWords);
-        ContactQuadratic sy = ContactQuadratic.At(values, signs, 2, PolynomialWords);
-        ContactQuadratic sz = ContactQuadratic.At(values, signs, 3, PolynomialWords);
-        ContactQuadratic.Scale(qd, Signed576.ExtendValue(Signed320.ExtendValue(coordinateScale)), denominator);
-        ContactQuadratic.Scale(qd, Signed576.ExtendValue(direction.X), sx);
-        ContactQuadratic.Scale(qd, Signed576.ExtendValue(direction.Y), sy);
-        ContactQuadratic.Scale(qd, Signed576.ExtendValue(direction.Z), sz);
+        Span<ulong> values = stackalloc ulong[8 * _words]; Span<int> signs = stackalloc int[8];
+        ContactQuadratic denominator = ContactQuadratic.At(values, signs, 0, _words);
+        ContactQuadratic sx = ContactQuadratic.At(values, signs, 1, _words);
+        ContactQuadratic sy = ContactQuadratic.At(values, signs, 2, _words);
+        ContactQuadratic sz = ContactQuadratic.At(values, signs, 3, _words);
+        ContactQuadratic.Scale(qd, Signed576.ExtendValue(coordinateScale), denominator);
+        ContactQuadratic.Scale(qd, direction.X, sx);
+        ContactQuadratic.Scale(qd, direction.Y, sy);
+        ContactQuadratic.Scale(qd, direction.Z, sz);
         Span<ulong> cell = stackalloc ulong[CellCapacity()];
         FiniteAxisValueRoot parameter = GetRoot(_polynomial, _signs, _cell, _metadata, cell);
         if (!TryRoundCoordinate(ref parameter, qx, sx, denominator, pointRoot, _metadata.ValueShift, out Fixed64 px)
@@ -210,10 +220,11 @@ internal ref struct CapsulePlaneRayValue
         int valueShift, out Fixed64 coordinate)
     {
         coordinate = default;
-        Span<ulong> values = stackalloc ulong[6 * PolynomialWords]; Span<int> signs = stackalloc int[6];
-        ContactQuadratic query = ContactQuadratic.At(values, signs, 0, PolynomialWords);
-        ContactQuadratic term = ContactQuadratic.At(values, signs, 1, PolynomialWords);
-        ContactQuadratic doubledSlope = ContactQuadratic.At(values, signs, 2, PolynomialWords);
+        int _words = Math.Max(constant.FieldWords, Math.Max(slope.FieldWords, denominator.FieldWords)) + 2;
+        Span<ulong> values = stackalloc ulong[6 * _words]; Span<int> signs = stackalloc int[6];
+        ContactQuadratic query = ContactQuadratic.At(values, signs, 0, _words);
+        ContactQuadratic term = ContactQuadratic.At(values, signs, 1, _words);
+        ContactQuadratic doubledSlope = ContactQuadratic.At(values, signs, 2, _words);
         slope.CopyTo(doubledSlope); doubledSlope.Add(slope);
         Signed192 upper = WideArithmetic.AddSigned192(WideArithmetic.AddSigned192(Signed192.Signed(long.MaxValue),
             Signed192.Signed(long.MaxValue)), Signed192.Signed(1));
@@ -301,12 +312,12 @@ internal ref struct CapsulePlaneRayValue
     }
 
     /// <summary>Rounds t*sqrt(metric)/scale to nonnegative raw depth; scale and metric are positive.</summary>
-    internal bool TryGetDepth(Signed576 metric, Signed192 scale, out Fixed64 depth, out bool overflow)
+    internal bool TryGetDepth(Signed832 metric, Signed320 scale, out Fixed64 depth, out bool overflow)
     {
         Span<ulong> cell = stackalloc ulong[CellCapacity()]; FiniteAxisValueRoot parameter = GetRoot(_polynomial, _signs, _cell, _metadata, cell);
-        Span<ulong> metricWords = stackalloc ulong[9]; WideArithmetic.GetMagnitude(metric, metricWords);
-        Span<ulong> scaleWords = stackalloc ulong[3]; WideArithmetic.GetMagnitude(scale, out scaleWords[2], out scaleWords[1], out scaleWords[0]);
-        Span<ulong> squaredScale = stackalloc ulong[6]; WideArithmetic.MultiplyMagnitudes(scaleWords, scaleWords, squaredScale);
+        Span<ulong> metricWords = stackalloc ulong[13]; WideArithmetic.GetMagnitude(metric, metricWords);
+        Span<ulong> scaleWords = stackalloc ulong[5]; WideArithmetic.GetMagnitude(scale, out scaleWords[4], out scaleWords[3], out scaleWords[2], out scaleWords[1], out scaleWords[0]);
+        Span<ulong> squaredScale = stackalloc ulong[10]; WideArithmetic.MultiplyMagnitudes(scaleWords, scaleWords, squaredScale);
         int maximum = CompareDepth(ref parameter, metricWords, squaredScale, unchecked((ulong)long.MaxValue << 1), _metadata.ValueShift);
         if (maximum >= 0) { depth = Fixed64.MaxValue; overflow = maximum > 0; return true; }
         ulong lower = 0, upper = 1UL << 63;
@@ -361,24 +372,26 @@ internal ref struct CapsulePlaneRayValue
     private static int CompareDepth(scoped ref FiniteAxisValueRoot parameter, scoped ReadOnlySpan<ulong> metric,
         scoped ReadOnlySpan<ulong> squaredScale, ulong twiceRaw, int valueShift)
     {
-        Span<ulong> query = stackalloc ulong[3 * PolynomialWords]; Span<sbyte> signs = stackalloc sbyte[3];
+        int _words = Math.Max(PolynomialWords, parameter.Coefficients.Length / parameter.Signs.Length);
+        Span<ulong> query = stackalloc ulong[3 * _words]; Span<sbyte> signs = stackalloc sbyte[3];
         query.Clear(); signs.Clear();
         int sign = 0;
         WideArithmetic.AddShiftedSignedMagnitude(metric, 1, 2 * valueShift + 2,
-            query.Slice(2 * PolynomialWords, PolynomialWords), ref sign); signs[2] = (sbyte)sign;
+            query.Slice(2 * _words, _words), ref sign); signs[2] = (sbyte)sign;
         Span<ulong> threshold = stackalloc ulong[2]; Fixed64.Multiply64To128(twiceRaw, twiceRaw, out threshold[1], out threshold[0]);
-        WideArithmetic.MultiplyMagnitudes(threshold, squaredScale, query[..PolynomialWords]);
-        signs[0] = WideArithmetic.GetActiveMagnitudeLength(query[..PolynomialWords]) == 0 ? (sbyte)0 : (sbyte)-1;
+        WideArithmetic.MultiplyMagnitudes(threshold, squaredScale, query[.._words]);
+        signs[0] = WideArithmetic.GetActiveMagnitudeLength(query[.._words]) == 0 ? (sbyte)0 : (sbyte)-1;
         return WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref parameter, query, signs);
     }
 
     private int CellCapacity() => _metadata.HasCompactCell ? CellWords
-        : WideFiniteAxisIntersection.GetFiniteValueRootCellWords(_polynomial[..(_metadata.PolynomialCount * PolynomialWords)], _signs[.._metadata.PolynomialCount]);
+        : WideFiniteAxisIntersection.GetFiniteValueRootCellWords(_polynomial[..(_metadata.PolynomialCount * _words)], _signs[.._metadata.PolynomialCount]);
 
     private static FiniteAxisValueRoot GetRoot(ReadOnlySpan<ulong> polynomial, ReadOnlySpan<sbyte> polynomialSigns,
         ReadOnlySpan<ulong> retainedCell, CapsulePlaneRayValueMetadata metadata, Span<ulong> cell)
     {
-        ReadOnlySpan<ulong> coefficients = polynomial[..(metadata.PolynomialCount * PolynomialWords)];
+        int _words = polynomial.Length / polynomialSigns.Length;
+        ReadOnlySpan<ulong> coefficients = polynomial[..(metadata.PolynomialCount * _words)];
         ReadOnlySpan<sbyte> signs = polynomialSigns[..metadata.PolynomialCount];
         if (!metadata.HasCompactCell)
             return WideFiniteAxisIntersection.GetKnownFiniteValueRoot(coefficients, signs, metadata.Ordinal, metadata.RootCount, cell);
@@ -390,11 +403,12 @@ internal ref struct CapsulePlaneRayValue
     private static void SetCoefficient(scoped ContactQuadratic value, Span<ulong> rational, Span<sbyte> rationalSigns,
         Span<ulong> radical, Span<sbyte> radicalSigns, int index, int shift)
     {
+        int _words = rational.Length / rationalSigns.Length;
         int rationalSign = 0, radicalSign = 0;
         WideArithmetic.AddShiftedSignedMagnitude(value.Rational, value.Signs[0], shift,
-            rational.Slice(index * PolynomialWords, PolynomialWords), ref rationalSign);
+            rational.Slice(index * _words, _words), ref rationalSign);
         WideArithmetic.AddShiftedSignedMagnitude(value.Radical, value.Signs[1], shift,
-            radical.Slice(index * PolynomialWords, PolynomialWords), ref radicalSign);
+            radical.Slice(index * _words, _words), ref radicalSign);
         rationalSigns[index] = (sbyte)rationalSign; radicalSigns[index] = (sbyte)radicalSign;
     }
 

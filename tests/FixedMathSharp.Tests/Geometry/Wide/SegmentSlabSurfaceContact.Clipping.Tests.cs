@@ -11,6 +11,73 @@ public sealed class SegmentSlabSurfaceContactClippingTests
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(true, true)]
+    public void AffineObliqueRim_ShouldMaterializeTheFinitePhysicalStationaryFoot(bool boundary, bool reverse)
+    {
+        var source = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+            Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+        Vector3d a = new(5 * Fixed64.One / 2, Fixed64.Half, 9 * Fixed64.One / 2),
+            b = new(7 * Fixed64.One / 2, 3 * Fixed64.One / 2, 7 * Fixed64.One / 2);
+        RationalSegmentInterval clip = boundary ? Interval(1, 2, 3, 4, reverse) : Interval(1, 4, 3, 4, reverse);
+        if (reverse) (a, b) = (b, a);
+        WideAxis3[] fan = { Axis(1, -4, 0), Axis(-1, 2, 0), Axis(1, 1, -1), Axis(-1, -1, 1) };
+        Assert.True(SegmentSlabSurfaceContact.TryGetContact(new(a, b), source, Vector3d.Zero,
+            FixedQuaternion.Identity, Fixed64.Zero, (Fixed64)5, Fixed64.One, Array.Empty<Vector2d>(),
+            fan, !boundary, clip, out FixedContactAnchors contact));
+        Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first));
+        Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));
+        Vector3d expectedFirst = new(3 * Fixed64.One / 2, Fixed64.Half, Fixed64.Two), expectedSecond = new(3, 1, 4);
+        for (int axis = 0; axis < 3; axis++)
+        {
+            Assert.InRange(first[axis].m_rawValue, expectedFirst[axis].m_rawValue - 1, expectedFirst[axis].m_rawValue + 1);
+            Assert.InRange(second[axis].m_rawValue, expectedSecond[axis].m_rawValue - 1, expectedSecond[axis].m_rawValue + 1);
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void SourceFrames_ShouldRetainWorldFanAndClippedFiniteSideWitnesses(bool rigid, bool prism)
+    {
+        var source = rigid ? ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity)
+            : new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+                Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+        Fixed64 authored = rigid ? Fixed64.One : Fixed64.Two;
+        var segment = new FixedSegment(new Vector3d(Fixed64.Half, Fixed64.Zero, Fixed64.Zero) * authored,
+            new Vector3d(Fixed64.Half, Fixed64.Half, Fixed64.Zero) * authored);
+        WideAxis3[] fan = { Axis(-1, 0, 0), Axis(0, 1, 0), Axis(0, -1, 0), Axis(0, 0, 1), Axis(0, 0, -1) };
+        Vector2d[] offsets = Offsets(prism);
+        Assert.True(SegmentSlabSurfaceContact.TryGetContact(segment, source, Vector3d.Zero,
+            FixedQuaternion.Identity, Fixed64.Zero, Fixed64.One, Fixed64.One, offsets, fan, true,
+            default(RationalSegmentInterval), out FixedContactAnchors native));
+        RationalSegmentInterval clip = Interval(0, 1, 1, 4, false);
+        Assert.True(SegmentSlabSurfaceContact.TryGetContact(segment, source, Vector3d.Zero,
+            FixedQuaternion.Identity, Fixed64.Zero, Fixed64.One, Fixed64.One, offsets, fan, true, clip,
+            out FixedContactAnchors clipped));
+        Assert.Equal(Fixed64.Half, native.Depth); Assert.Equal(native.Depth, clipped.Depth);
+        Assert.Equal(Vector3d.Left, clipped.Normal);
+        Assert.True(clipped.FirstAnchor.TryGetPoint(out Vector3d point));
+        Assert.Equal(Fixed64.Half, point.X); Assert.True(point.Y > Fixed64.Zero && point.Y < Fixed64.One / 8);
+        Assert.False(SegmentSlabSurfaceContact.TryGetContact(new(segment.Start, segment.Start), source,
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Zero, Fixed64.One, Fixed64.One,
+            offsets, fan, true, out _));
+        Assert.False(SegmentSlabSurfaceContact.TryGetContact(new(new(20, 0, 0), new(21, 0, 0)), source,
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Zero, Fixed64.One, Fixed64.One,
+            offsets, Array.Empty<WideAxis3>(), false, out _));
+        var far = new FixedSegment(new Vector3d(3, 0, 0) * authored, new Vector3d(4, 0, 0) * authored);
+        WideAxis3[] farFan = { Axis(1, 0, 0), Axis(0, 1, 0), Axis(0, -1, 0), Axis(0, 0, 1), Axis(0, 0, -1) };
+        Assert.True(SegmentSlabSurfaceContact.TryGetFeaturePenetration(far, source, Vector3d.Zero,
+            FixedQuaternion.Identity, Fixed64.Zero, Fixed64.One, Fixed64.One, offsets, farFan, false,
+            out FixedContactAnchors feature));
+        Assert.Equal((Fixed64)4, feature.Depth); Assert.Equal(Vector3d.Right, feature.Normal);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
     public void ParallelSideFamily_ShouldSelectInsideTheRetainedEnd(bool prism, bool reverse)
     {
         var segment = new FixedSegment(new Vector3d(Fixed64.Half, -Fixed64.One, Fixed64.Zero),

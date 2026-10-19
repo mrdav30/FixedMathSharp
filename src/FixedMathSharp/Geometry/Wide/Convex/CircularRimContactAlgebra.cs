@@ -13,6 +13,112 @@ internal static class CircularRimContactAlgebra
 {
     internal const int ValueWords = 56;
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void BuildParameter(in WideDirection3d offset, Signed576 radius, Signed320 rawScale,
+        in WideDirection3d first, in WideDirection3d second, Span<ulong> data, Span<sbyte> signs,
+        bool useRigidBounds = false)
+    {
+        if (useRigidBounds)
+        {
+            // The rigid triangle owner retains its original bounds even after
+            // an endpoint-core shift: offsets/radius <232, chart axes <198,
+            // and RawScale <164 bits. Reuse its existing coefficient path;
+            // exact scaled source frames must keep the wider products below.
+            BuildParameter(GetRigidAxis(offset), Signed320.NarrowValue(radius), Signed192.NarrowProven(rawScale),
+                GetRigidAxis(first), GetRigidAxis(second), data, signs);
+            return;
+        }
+        int words = data.Length / signs.Length;
+        Span<ulong> inputs = stackalloc ulong[11 * words]; Span<sbyte> inputSigns = stackalloc sbyte[9];
+        inputs.Clear(); inputSigns.Clear();
+        Span<ulong> p = inputs[..(2 * words)], q = inputs.Slice(2 * words, 3 * words),
+            metric = inputs.Slice(5 * words, 3 * words), scale = inputs.Slice(8 * words, words),
+            square = inputs.Slice(9 * words, words), product = inputs.Slice(10 * words, words);
+        Write(p, inputSigns[..2], 0, WideDirection3d.Dot(offset, first), words);
+        Write(p, inputSigns[..2], 1, WideDirection3d.Dot(offset, second), words);
+        Write(metric, inputSigns.Slice(5, 3), 0, first.SquaredLength, words);
+        Write(metric, inputSigns.Slice(5, 3), 1, Twice(WideDirection3d.Dot(first, second)), words);
+        Write(metric, inputSigns.Slice(5, 3), 2, second.SquaredLength, words);
+        Write(q, inputSigns.Slice(2, 3), 0, RadialDot(first, first), words);
+        Write(q, inputSigns.Slice(2, 3), 1, Twice(RadialDot(first, second)), words);
+        Write(q, inputSigns.Slice(2, 3), 2, RadialDot(second, second), words);
+        Import(WideArithmetic.MultiplySigned576ToSigned832(radius, radius), square);
+        for (int index = 0; index < 3; index++)
+        {
+            WideArithmetic.MultiplyMagnitudes(q.Slice(index * words, words), square, product);
+            product.CopyTo(q.Slice(index * words, words));
+        }
+        Import(rawScale, scale);
+        CylinderEdgeContactPolynomial.Build(p, inputSigns[..2], q, inputSigns.Slice(2, 3),
+            metric, inputSigns.Slice(5, 3), scale, data[..(26 * words)], signs[..26]);
+    }
+
+    private static WideAxis3 GetRigidAxis(in WideDirection3d value) => new(
+        Signed320.NarrowValue(value.X), Signed320.NarrowValue(value.Y), Signed320.NarrowValue(value.Z));
+
+    internal static void GetBasis(in WideDirection3d edge, out WideDirection3d first, out WideDirection3d second)
+    {
+        if (!edge.X.IsZero)
+        {
+            first = new WideDirection3d(WideArithmetic.Negate(edge.Y), edge.X, default);
+            second = new WideDirection3d(WideArithmetic.Negate(edge.Z), default, edge.X);
+        }
+        else
+        {
+            first = new WideDirection3d(default, WideArithmetic.Negate(edge.Z), edge.Y);
+            second = new WideDirection3d(edge.Y, default, default);
+        }
+    }
+
+    internal static WideDirection3d Transform(in WideRationalBasis3d basis, in WideDirection3d value) => value.Transform(basis);
+    internal static Signed832 RadialDot(in WideDirection3d first, in WideDirection3d second) => WideArithmetic.AddSigned832(
+        WideArithmetic.MultiplySigned576ToSigned832(first.X, second.X),
+        WideArithmetic.MultiplySigned576ToSigned832(first.Z, second.Z));
+    internal static Signed832 Twice(Signed832 value) => WideArithmetic.AddSigned832(value, value);
+    internal static void Write(Span<ulong> values, Span<sbyte> signs, int index, Signed832 value, int words = 0)
+    {
+        if (words == 0) words = values.Length / signs.Length;
+        Span<ulong> target = values.Slice(index * words, words);
+        WideArithmetic.GetMagnitude(value, target); signs[index] = (sbyte)value.Sign;
+    }
+
+    internal static void WriteGradient(in WideDirection3d first, in WideDirection3d second, Span<ulong> values, Span<sbyte> signs)
+    {
+        values.Clear();
+        int words = values.Length / signs.Length;
+        for (int component = 0; component < 3; component++)
+        {
+            Signed576 a = Component(first, component), b = Component(second, component);
+            WideArithmetic.GetMagnitude(a, values.Slice(component * 2 * words, words));
+            WideArithmetic.GetMagnitude(b, values.Slice((component * 2 + 1) * words, words));
+            signs[component * 2] = (sbyte)a.Sign; signs[component * 2 + 1] = (sbyte)b.Sign;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void BuildValues(in WideDirection3d edge, in WideDirection3d offset, Signed576 radius, int valueShift,
+        Span<ulong> values, Span<sbyte> signs, bool useRigidBounds = false)
+    {
+        if (useRigidBounds)
+        {
+            BuildValues(GetRigidAxis(edge), GetRigidAxis(offset), Signed320.NarrowValue(radius), valueShift, values, signs);
+            return;
+        }
+        int words = values.Length / signs.Length;
+        Span<ulong> invariants = stackalloc ulong[8 * words]; Span<sbyte> invariantSigns = stackalloc sbyte[8];
+        invariants.Clear(); invariantSigns.Clear();
+        Write(invariants, invariantSigns, 0, Signed832.ExtendValue(Signed192.Signed(1)), words);
+        Write(invariants, invariantSigns, 1, edge.SquaredLength, words);
+        Write(invariants, invariantSigns, 2, Signed832.ExtendValue(edge.Y), words);
+        Write(invariants, invariantSigns, 3, offset.SquaredLength, words);
+        Write(invariants, invariantSigns, 4, Signed832.ExtendValue(offset.Y), words);
+        Write(invariants, invariantSigns, 5, WideDirection3d.Dot(edge, offset), words);
+        Write(invariants, invariantSigns, 6, WideArithmetic.MultiplySigned576ToSigned832(radius, radius), words);
+        CylinderPairSideValuePolynomial.BuildUnshifted(invariants, invariantSigns, words, values, signs);
+        WideFiniteAxisIntersection.ScaleFiniteAxisPolynomialVariable(values, 5, valueShift);
+        WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(values, signs);
+    }
+
     /// <summary>
     /// Tests whether the radial support point projects within a finite segment.
     /// halfAxis must be a positive multiple of axis; radius and Q are positive,
@@ -75,8 +181,8 @@ internal static class CircularRimContactAlgebra
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void BuildParameter(WideAxis3 offset, Signed320 radius, Signed192 rawScale,
-        WideAxis3 first, WideAxis3 second, Span<ulong> data, Span<sbyte> signs)
+    internal static void BuildParameter(in WideAxis3 offset, Signed320 radius, Signed192 rawScale,
+        in WideAxis3 first, in WideAxis3 second, Span<ulong> data, Span<sbyte> signs)
     {
         // Shifted core-region coordinates are <2^232 but chart directions
         // retain original edges (<2^198), never scaled vertex differences.
@@ -88,9 +194,8 @@ internal static class CircularRimContactAlgebra
         Span<ulong> p = inputs[..(2 * Words)], q = inputs.Slice(2 * Words, 3 * Words);
         Span<ulong> metric = inputs.Slice(5 * Words, 3 * Words), scale = Slot(inputs, 8);
         Span<ulong> radiusSquared = Slot(inputs, 9), product = Slot(inputs, 10);
-        WideAxis3 c = offset;
-        Write(p, inputSigns[..2], 0, WideAxis3.Dot(c, first));
-        Write(p, inputSigns[..2], 1, WideAxis3.Dot(c, second));
+        Write(p, inputSigns[..2], 0, WideAxis3.Dot(offset, first));
+        Write(p, inputSigns[..2], 1, WideAxis3.Dot(offset, second));
         Write(metric, inputSigns.Slice(5, 3), 0, first.SquaredLength);
         Write(metric, inputSigns.Slice(5, 3), 1, Twice(WideAxis3.Dot(first, second)));
         Write(metric, inputSigns.Slice(5, 3), 2, second.SquaredLength);
@@ -131,17 +236,19 @@ internal static class CircularRimContactAlgebra
 
     private static void ReverseCoefficients(Span<ulong> data, Span<sbyte> signs, int start, int count)
     {
+        int words = data.Length / signs.Length;
         signs.Slice(start, count).Reverse();
         for (int index = 0; index < count / 2; index++)
         {
-            Span<ulong> first = Slot(data, start + index), second = Slot(data, start + count - 1 - index);
-            for (int word = 0; word < Words; word++)
+            Span<ulong> first = data.Slice((start + index) * words, words),
+                second = data.Slice((start + count - 1 - index) * words, words);
+            for (int word = 0; word < words; word++)
                 (first[word], second[word]) = (second[word], first[word]);
         }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void BuildValues(WideAxis3 e, WideAxis3 c, Signed320 radius, int valueShift,
+    internal static void BuildValues(in WideAxis3 e, in WideAxis3 c, Signed320 radius, int valueShift,
         Span<ulong> values, Span<sbyte> signs)
     {
         Span<ulong> invariants = stackalloc ulong[8 * ValueWords];
@@ -195,11 +302,12 @@ internal static class CircularRimContactAlgebra
         TransformComponent(basis.Xz, basis.Yz, basis.Zz, axis));
     internal static Signed320 TransformComponent(Signed192 x, Signed192 y, Signed192 z, WideAxis3 axis) =>
         Signed320.NarrowValue(WideAxis3.Dot(new WideAxis3(Signed320.ExtendValue(x), Signed320.ExtendValue(y), Signed320.ExtendValue(z)), axis));
-    internal static Signed576 RadialDot(WideAxis3 a, WideAxis3 b) => WideArithmetic.AddSigned576(
+    internal static Signed576 RadialDot(in WideAxis3 a, in WideAxis3 b) => WideArithmetic.AddSigned576(
         WideArithmetic.MultiplySigned320(a.X, b.X), WideArithmetic.MultiplySigned320(a.Z, b.Z));
     internal static Signed576 Twice(Signed576 value) => WideArithmetic.AddSigned576(value, value);
     internal static int Sign(ref FiniteAxisValueRoot root, ReadOnlySpan<ulong> data, ReadOnlySpan<sbyte> signs, int start, int count) =>
-        WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, data.Slice(start * Words, count * Words), signs.Slice(start, count));
+        WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root,
+            data.Slice(start * (data.Length / signs.Length), count * (data.Length / signs.Length)), signs.Slice(start, count));
     internal static void Write(Span<ulong> values, Span<sbyte> signs, int index, Signed576 value, int words = Words)
     {
         Span<ulong> target = values.Slice(index * words, words);

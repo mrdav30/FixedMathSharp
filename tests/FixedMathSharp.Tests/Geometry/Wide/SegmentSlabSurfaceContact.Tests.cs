@@ -185,20 +185,35 @@ public sealed class SegmentSlabSurfaceContactTests
     }
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public void ObliqueRim_ShouldSelectTheExactFiniteStationaryFoot(bool stadium, bool reverse)
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, true)]
+    public void ObliqueRim_ShouldSelectTheExactFiniteStationaryFoot(bool stadium, bool reverse, bool affine)
     {
         Fixed64 core = stadium ? Fixed64.One : Fixed64.Zero;
         Vector3d a = new(Fixed64.One * 5 / 4, Fixed64.One / 4, core + Fixed64.One * 9 / 4);
         Vector3d b = new(Fixed64.One * 7 / 4, Fixed64.One * 3 / 4, core + Fixed64.One * 7 / 4);
         if (reverse) (a, b) = (b, a);
         WideAxis3[] fan = { Axis(1, -4, 0), Axis(-1, 2, 0) };
-        Assert.True(SegmentSlabSurfaceContact.TryGetContact(new(a, b), Vector3d.Zero, FixedQuaternion.Identity,
+        FixedContactAnchors contact;
+        bool found;
+        if (affine)
+        {
+            var frame = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+                Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+            found = SegmentSlabSurfaceContact.TryGetContact(new(a * Fixed64.Two, b * Fixed64.Two), frame,
+                Vector3d.Zero, FixedQuaternion.Identity, stadium ? Fixed64.Two : Fixed64.Zero,
+                (Fixed64)5, Fixed64.One, Array.Empty<Vector2d>(), fan, interiorOnly: true, out contact);
+        }
+        else found = SegmentSlabSurfaceContact.TryGetContact(new(a, b), Vector3d.Zero, FixedQuaternion.Identity,
             Vector3d.Zero, FixedQuaternion.Identity, stadium ? Fixed64.Two : Fixed64.Zero,
-            (Fixed64)5, Fixed64.One, Array.Empty<Vector2d>(), fan, interiorOnly: true, out FixedContactAnchors contact));
+            (Fixed64)5, Fixed64.One, Array.Empty<Vector2d>(), fan, interiorOnly: true, out contact);
+        Assert.True(found);
         Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d p));
         Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d q));
         Vector3d expectedP = new(Fixed64.One * 3 / 2, Fixed64.Half, core + Fixed64.Two);

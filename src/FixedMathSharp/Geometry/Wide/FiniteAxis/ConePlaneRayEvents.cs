@@ -12,20 +12,19 @@ namespace FixedMathSharp.Geometry;
 /// <content>Scoped event dispatch and authored-edge endpoint, side and stationary candidates.</content>
 internal static partial class ConePlaneRayEvents
 {
-    private const int Words = ConePlaneRayCharts.Words;
-    private const int RootWords = ConePlaneRayCharts.RootWords;
     private static ContactQuadratic At(Span<ulong> values, Span<int> signs, int index) =>
-        ContactQuadratic.At(values, signs, index, Words);
+        ContactQuadratic.At(values, signs, index, values.Length / signs.Length);
     private static Signed576 Extend(Signed320 value) => Signed576.ExtendValue(value);
+    private static Signed576 Extend(Signed576 value) => value;
     private static Signed576 Integer(long value) => Extend(Signed320.ExtendValue(Signed192.Signed(value)));
 
     // The fixed-width frame product is sufficient for two authored points,
     // but not for the larger canonical normal. Keep normal products in the
     // existing quadratic owner instead of narrowing their exact coefficients.
-    private static void Product(WideAxis3 left, WideAxis3 right,
+    private static void Product(in WideAxis3 left, in WideAxis3 right,
         in ConePlaneRayFrame frame, ContactQuadratic result)
     {
-        Span<ulong> values = stackalloc ulong[8 * Words];
+        Span<ulong> values = stackalloc ulong[8 * frame.FieldWords];
         Span<int> signs = stackalloc int[8];
         ContactQuadratic x = At(values, signs, 0), y = At(values, signs, 1);
         ContactQuadratic term = At(values, signs, 2), scaled = At(values, signs, 3);
@@ -41,10 +40,32 @@ internal static partial class ConePlaneRayEvents
         }
     }
 
-    private static void SetAffinePoint(ConePlaneRayPoint point, WideAxis3 start, WideAxis3 delta,
+    private static void Product(in WideAxis3 left, in WideDirection3d right,
+        in ConePlaneRayFrame frame, ContactQuadratic result) => Product(new WideDirection3d(left), right, frame, result);
+
+    private static void Product(in WideDirection3d left, in WideDirection3d right,
+        in ConePlaneRayFrame frame, ContactQuadratic result)
+    {
+        Span<ulong> values = stackalloc ulong[8 * frame.FieldWords];
+        Span<int> signs = stackalloc int[8];
+        ContactQuadratic x = At(values, signs, 0), y = At(values, signs, 1);
+        ContactQuadratic term = At(values, signs, 2), scaled = At(values, signs, 3);
+        result.Clear();
+        for (int axis = 0; axis < 3; axis++)
+        {
+            x.Set(axis == 0 ? left.X : axis == 1 ? left.Y : left.Z);
+            y.Set(axis == 0 ? right.X : axis == 1 ? right.Y : right.Z);
+            ContactQuadratic.Multiply(x, y, ReadOnlySpan<ulong>.Empty, term);
+            Signed192 raw = Signed192.Raw(axis == 1 ? frame.Radius : frame.Height);
+            ContactQuadratic.Scale(term, Extend(WideArithmetic.MultiplySigned192(raw, raw)), scaled);
+            result.Add(scaled, axis == 1 ? -1 : 1);
+        }
+    }
+
+    private static void SetAffinePoint(ConePlaneRayPoint point, in WideAxis3 start, in WideAxis3 delta,
         ContactQuadratic numerator, ContactQuadratic denominator)
     {
-        Span<ulong> values = stackalloc ulong[2 * Words];
+        Span<ulong> values = stackalloc ulong[2 * point.BankWords];
         Span<int> signs = stackalloc int[2];
         ContactQuadratic term = At(values, signs, 0);
         for (int axis = 0; axis < 3; axis++)
@@ -96,21 +117,25 @@ internal static partial class ConePlaneRayEvents
         if (!frame.Finite.TryGetAxialInterval(p.Y, e.Y, out Signed320 ln, out Signed320 ld,
             out Signed320 un, out Signed320 ud))
             return false;
+        Signed832 lowerN = Signed832.ExtendValue(Signed576.ExtendValue(ln)),
+            lowerD = Signed832.ExtendValue(Signed576.ExtendValue(ld)),
+            upperN = Signed832.ExtendValue(Signed576.ExtendValue(un)),
+            upperD = Signed832.ExtendValue(Signed576.ExtendValue(ud));
         if (!sink.Clip.IsEmpty)
         {
             ref readonly RationalSegmentInterval clip = ref sink.Clip[0];
-            if (RationalSegmentInterval.CompareParameters(clip.LowerNumerator, clip.LowerDenominator, ln, ld) > 0)
-            { ln = clip.LowerNumerator; ld = clip.LowerDenominator; }
-            if (RationalSegmentInterval.CompareParameters(clip.UpperNumerator, clip.UpperDenominator, un, ud) < 0)
-            { un = clip.UpperNumerator; ud = clip.UpperDenominator; }
-            if (RationalSegmentInterval.CompareParameters(ln, ld, un, ud) > 0) return false;
+            if (RationalSegmentInterval.CompareParameters(clip.WideLowerNumerator, clip.WideLowerDenominator, lowerN, lowerD) > 0)
+            { lowerN = clip.WideLowerNumerator; lowerD = clip.WideLowerDenominator; }
+            if (RationalSegmentInterval.CompareParameters(clip.WideUpperNumerator, clip.WideUpperDenominator, upperN, upperD) < 0)
+            { upperN = clip.WideUpperNumerator; upperD = clip.WideUpperDenominator; }
+            if (RationalSegmentInterval.CompareParameters(lowerN, lowerD, upperN, upperD) > 0) return false;
         }
-        Span<ulong> values = stackalloc ulong[30 * Words];
+        Span<ulong> values = stackalloc ulong[30 * frame.FieldWords];
         Span<int> signs = stackalloc int[30];
-        Span<ulong> root = stackalloc ulong[RootWords];
-        Span<ulong> pointValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> root = stackalloc ulong[frame.RootWords];
+        Span<ulong> pointValues = stackalloc ulong[frame.PointStorageWords];
         Span<int> pointSigns = stackalloc int[8];
-        var point = new ConePlaneRayPoint(pointValues, pointSigns);
+        var point = new ConePlaneRayPoint(pointValues, pointSigns, frame.FieldWords);
         ContactQuadratic a = At(values, signs, 0), b = At(values, signs, 1), c = At(values, signs, 2);
         ContactQuadratic m = At(values, signs, 3), n = At(values, signs, 4), A = At(values, signs, 5);
         ContactQuadratic qa = At(values, signs, 6), qb = At(values, signs, 7), qc = At(values, signs, 8);
@@ -121,7 +146,7 @@ internal static partial class ConePlaneRayEvents
         {
             var descriptor = new ConePlaneRayEvent(ConePlaneRayEventKind.EdgeEndpoint, endpoint: endpoint);
             if (!sink.Wants(descriptor)) continue;
-            s.Set(Extend(endpoint == 0 ? ln : un)); sd.Set(Extend(endpoint == 0 ? ld : ud));
+            s.Set(endpoint == 0 ? lowerN : upperN); sd.Set(endpoint == 0 ? lowerD : upperD);
             SetAffinePoint(point, p, e, s, sd);
             SetEvent(source, descriptor, ref positive, ref negative);
             bool admitted = ConePlaneRayPointExits.AccumulateRationalPoint(source, frame, point, ref positive, ref negative, sink.PointOnly, sink.RequestedOrientation);

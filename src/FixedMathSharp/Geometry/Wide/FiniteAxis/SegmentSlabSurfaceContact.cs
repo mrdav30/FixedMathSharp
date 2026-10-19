@@ -14,9 +14,12 @@ internal static partial class SegmentSlabSurfaceContact
     // Authored rigid coordinates are <198 bits. Rational edge/edge minors
     // are <800 bits; their point products and quadratic radial branches are
     // <1100. Squared separations and scaled denominators remain <2400 bits,
-    // within the existing forty-word contact candidate owner.
+    // within the existing forty-word contact candidate owner. Exact source
+    // frames retain <306-bit coordinates and <385-bit local fan directions;
+    // clip ratios can occupy 832 bits. Each primitive input fits three times
+    // the original bit bound, so the unchanged fixed-degree formulas use
+    // three times the borrowed fields. Ordinary rigid inputs keep 40 words.
     private const int Fields = 12;
-    private const int StorageWords = Fields * 2 * Words;
 
     internal static bool TryGetContact(FixedSegment segment, Vector3d origin, FixedQuaternion rotation,
         Vector3d slabCenter, FixedQuaternion slabRotation, Fixed64 coreLength, Fixed64 radius,
@@ -59,21 +62,84 @@ internal static partial class SegmentSlabSurfaceContact
         var frame = new FiniteSlabSectionFrame(origin, rotation, slabCenter, slabRotation,
             coreLength, radius, halfThickness, fullHeight);
         if (requireSourceInside && !frame.IntersectsSegment(segment, prismOffsets)) return false;
-        Span<WideAxis3> fan = stackalloc WideAxis3[authoredHalfspaces.Length + (interiorOnly ? 2 : 0)];
+        Span<WideDirection3d> fan = stackalloc WideDirection3d[authoredHalfspaces.Length + (interiorOnly ? 2 : 0)];
         for (int index = 0; index < authoredHalfspaces.Length; index++)
-            fan[index] = WideRigidProjection.TransformLocalAxis(frame.RadialFrame.ShapeFrame.Basis,
+            fan[index] = new WideDirection3d(WideRigidProjection.TransformLocalAxis(frame.RadialFrame.ShapeFrame.Basis,
                 Signed192.NarrowProven(authoredHalfspaces[index].X),
                 Signed192.NarrowProven(authoredHalfspaces[index].Y),
-                Signed192.NarrowProven(authoredHalfspaces[index].Z));
-        WideAxis3 first = frame.Transform(segment.Start), second = frame.Transform(segment.End);
-        WideAxis3 edge = TriangleCircularGeometry.Subtract(second, first);
+                Signed192.NarrowProven(authoredHalfspaces[index].Z)));
+        WideDirection3d first = new(frame.Transform(segment.Start)), second = new(frame.Transform(segment.End));
+        WideDirection3d edge = TriangleCircularGeometry.Subtract(second, first);
         if (interiorOnly)
         {
             if (edge.IsZero) return false;
             fan[^2] = edge; fan[^1] = -edge;
         }
+        return TryGetContactCore(segment, origin, rotation, slabCenter, slabRotation, coreLength, radius,
+            halfThickness, prismOffsets, fan, interiorOnly, requireSourceInside, clip, fullHeight, frame, first, edge, out contact);
+    }
+
+    internal static bool TryGetContact(FixedSegment segment, in ScaledRigidFrame3d sourceFrame,
+        Vector3d slabCenter, FixedQuaternion slabRotation, Fixed64 coreLength, Fixed64 radius,
+        Fixed64 halfThickness, ReadOnlySpan<Vector2d> prismOffsets,
+        ReadOnlySpan<WideAxis3> worldHalfspaces, bool interiorOnly, out FixedContactAnchors contact, bool fullHeight = false) =>
+        TryGetContactCore(segment, sourceFrame, slabCenter, slabRotation, coreLength, radius, halfThickness,
+            prismOffsets, worldHalfspaces, interiorOnly, true, default, fullHeight, out contact);
+
+    internal static bool TryGetContact(FixedSegment segment, in ScaledRigidFrame3d sourceFrame,
+        Vector3d slabCenter, FixedQuaternion slabRotation, Fixed64 coreLength, Fixed64 radius,
+        Fixed64 halfThickness, ReadOnlySpan<Vector2d> prismOffsets, ReadOnlySpan<WideAxis3> worldHalfspaces,
+        bool interiorOnly, in RationalSegmentInterval clip, out FixedContactAnchors contact, bool fullHeight = false)
+    {
+        if (!clip.IsClipped)
+            return TryGetContact(segment, sourceFrame, slabCenter, slabRotation, coreLength, radius,
+                halfThickness, prismOffsets, worldHalfspaces, interiorOnly, out contact, fullHeight);
+        Span<RationalSegmentInterval> intervals = stackalloc RationalSegmentInterval[1] { clip };
+        return TryGetContactCore(segment, sourceFrame, slabCenter, slabRotation, coreLength, radius, halfThickness,
+            prismOffsets, worldHalfspaces, interiorOnly, true, intervals, fullHeight, out contact);
+    }
+
+    internal static bool TryGetFeaturePenetration(FixedSegment segment, in ScaledRigidFrame3d sourceFrame,
+        Vector3d slabCenter, FixedQuaternion slabRotation, Fixed64 coreLength, Fixed64 radius,
+        Fixed64 halfThickness, ReadOnlySpan<Vector2d> prismOffsets,
+        ReadOnlySpan<WideAxis3> worldHalfspaces, bool interiorOnly, out FixedContactAnchors contact, bool fullHeight = false) =>
+        TryGetContactCore(segment, sourceFrame, slabCenter, slabRotation, coreLength, radius, halfThickness,
+            prismOffsets, worldHalfspaces, interiorOnly, false, default, fullHeight, out contact);
+
+    private static bool TryGetContactCore(FixedSegment segment, in ScaledRigidFrame3d sourceFrame,
+        Vector3d center, FixedQuaternion rotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness,
+        ReadOnlySpan<Vector2d> offsets, ReadOnlySpan<WideAxis3> worldHalfspaces, bool interiorOnly,
+        bool requireSourceInside, ReadOnlySpan<RationalSegmentInterval> clip, bool fullHeight, out FixedContactAnchors contact)
+    {
+        contact = default;
+        var frame = new FiniteSlabSectionFrame(sourceFrame, center, rotation, length, radius, halfThickness, fullHeight);
+        if (requireSourceInside && !frame.IntersectsSegment(segment, offsets)) return false;
+        Span<WideDirection3d> fan = stackalloc WideDirection3d[worldHalfspaces.Length + (interiorOnly ? 2 : 0)];
+        var inverse = new WideRationalBasis3d(rotation.Conjugate());
+        for (int index = 0; index < worldHalfspaces.Length; index++)
+            fan[index] = new WideDirection3d(worldHalfspaces[index]).Transform(inverse);
+        WideDirection3d first = new(frame.Transform(segment.Start)), edge = TriangleCircularGeometry.Subtract(new WideDirection3d(frame.Transform(segment.End)), first);
+        if (interiorOnly)
+        {
+            if (edge.IsZero) return false;
+            fan[^2] = edge; fan[^1] = -edge;
+        }
+        return TryGetContactCore(segment, sourceFrame.IsRigid ? sourceFrame.RigidOrigin : center,
+            sourceFrame.IsRigid ? sourceFrame.Rotation : rotation, center, rotation, length, radius,
+            halfThickness, offsets, fan, interiorOnly, requireSourceInside, clip, fullHeight, frame, first, edge, out contact);
+    }
+
+    private static bool TryGetContactCore(FixedSegment segment, Vector3d origin, FixedQuaternion rotation,
+        Vector3d slabCenter, FixedQuaternion slabRotation, Fixed64 coreLength, Fixed64 radius,
+        Fixed64 halfThickness, ReadOnlySpan<Vector2d> prismOffsets, ReadOnlySpan<WideDirection3d> fan,
+        bool interiorOnly, bool requireSourceInside, ReadOnlySpan<RationalSegmentInterval> clip, bool fullHeight,
+        in FiniteSlabSectionFrame frame, WideDirection3d first, WideDirection3d edge, out FixedContactAnchors contact)
+    {
+        contact = default;
         var input = new Input(segment, origin, rotation, slabCenter, slabRotation,
             coreLength, radius, halfThickness, frame, first, edge, prismOffsets, fan, interiorOnly, requireSourceInside, clip, fullHeight);
+        int Words = input.Words;
+        int StorageWords = Fields * 2 * Words;
         Span<ulong> best = stackalloc ulong[StorageWords], bestRoot = stackalloc ulong[Words];
         Span<int> bestSigns = stackalloc int[2 * Fields];
         Span<ulong> bestMetric = stackalloc ulong[ConvexContactCandidate.Slots * Words];
@@ -94,17 +160,20 @@ internal static partial class SegmentSlabSurfaceContact
         internal readonly FixedQuaternion Rotation, SlabRotation;
         internal readonly Fixed64 Length, Radius, HalfThickness, FullHeight;
         internal readonly FiniteSlabSectionFrame Frame;
-        internal readonly WideAxis3 First, Edge;
-        internal readonly Signed320 Scale, Cap, Core, Radial;
+        internal readonly WideDirection3d First, Edge;
+        internal readonly Signed320 Scale;
+        internal readonly Signed576 Cap, Core, Radial;
+        internal int Words => Frame.RadialFrame.ShapeFrame.HasExactScale || !Clip.IsEmpty && Clip[0].HasWideBounds ? 120 : CylinderContactAlgebra.Words;
+        internal int ValueWords => Words == CylinderContactAlgebra.Words ? CircularRimContactAlgebra.ValueWords : 3 * CircularRimContactAlgebra.ValueWords;
         internal readonly ReadOnlySpan<Vector2d> Offsets;
-        internal readonly ReadOnlySpan<WideAxis3> Fan;
+        internal readonly ReadOnlySpan<WideDirection3d> Fan;
         internal readonly ReadOnlySpan<RationalSegmentInterval> Clip;
         internal readonly bool InteriorOnly, RequireSourceInside;
 
         internal Input(FixedSegment segment, Vector3d origin, FixedQuaternion rotation,
             Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness,
-            FiniteSlabSectionFrame frame, WideAxis3 first, WideAxis3 edge,
-            ReadOnlySpan<Vector2d> offsets, ReadOnlySpan<WideAxis3> fan, bool interiorOnly, bool requireSourceInside,
+            FiniteSlabSectionFrame frame, WideDirection3d first, WideDirection3d edge,
+            ReadOnlySpan<Vector2d> offsets, ReadOnlySpan<WideDirection3d> fan, bool interiorOnly, bool requireSourceInside,
             ReadOnlySpan<RationalSegmentInterval> clip, bool fullHeight)
         {
             Segment = segment; Origin = origin; Rotation = rotation; Center = center;
@@ -112,11 +181,10 @@ internal static partial class SegmentSlabSurfaceContact
             HalfThickness = halfThickness; FullHeight = fullHeight ? halfThickness : Fixed64.Zero;
             First = first; Edge = edge; Offsets = offsets; Fan = fan; InteriorOnly = interiorOnly;
             RequireSourceInside = requireSourceInside; Clip = clip;
-            Scale = Signed320.ExtendValue(WideArithmetic.AddSigned192(frame.RadialFrame.ShapeFrame.Denominator,
-                frame.RadialFrame.ShapeFrame.Denominator));
-            Cap = frame.Cap; Core = frame.RadialFrame.ShapeFrame.Cap;
-            Radial = WideArithmetic.MultiplySigned192(frame.RadialFrame.ShapeFrame.Radius,
-                frame.RadialFrame.ShapeFrame.Denominator);
+            Scale = WideArithmetic.AddSigned320(frame.RadialFrame.ShapeFrame.CoordinateDenominator,
+                frame.RadialFrame.ShapeFrame.CoordinateDenominator);
+            Cap = Signed576.ExtendValue(frame.Cap); Core = Signed576.ExtendValue(frame.RadialFrame.ShapeFrame.Cap);
+            Radial = WideArithmetic.MultiplySigned320(frame.RadialFrame.ShapeFrame.CoordinateDenominator, frame.RadialFrame.ShapeFrame.Radius);
         }
     }
 
@@ -126,7 +194,8 @@ internal static partial class SegmentSlabSurfaceContact
         internal readonly Span<int> Signs;
         internal Candidate(Span<ulong> values, Span<int> signs, Span<ulong> root)
         { Values = values; Signs = signs; Root = root; }
-        internal ContactQuadratic Field(int index) => ContactQuadratic.At(Values, Signs, index);
+        internal int Words => Values.Length / (Fields * 2);
+        internal ContactQuadratic Field(int index) => ContactQuadratic.At(Values, Signs, index, Words);
         internal ContactQuadratic Point(int component) => Field(component);
         internal ContactQuadratic Boundary(int component) => Field(component + 3);
         internal ContactQuadratic Parameter => Field(6);
@@ -153,11 +222,13 @@ internal static partial class SegmentSlabSurfaceContact
     }
 
     // Homogeneous coefficients use integer unity, rather than Q32.32 raw unity.
-    private static Signed576 One => Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1)));
-    private static Signed576 Extend(Signed320 value) => Signed576.ExtendValue(value);
+    private static Signed832 One => Signed832.ExtendValue(Signed576.ExtendValue(Signed192.Signed(1)));
+    private static Signed832 Extend(Signed576 value) => Signed832.ExtendValue(value);
+    private static Signed832 Extend(Signed320 value) => Signed832.ExtendValue(value);
 
     private static void SetPoint(scoped Input input, scoped Candidate candidate)
     {
+        int Words = input.Words;
         Span<ulong> values = stackalloc ulong[2 * Words]; Span<int> signs = stackalloc int[2];
         var term = new ContactQuadratic(values, signs);
         for (int axis = 0; axis < 3; axis++)
@@ -179,10 +250,11 @@ internal static partial class SegmentSlabSurfaceContact
 
     private static bool Keep(scoped Input input, scoped Candidate candidate, scoped ref Selection selection)
     {
+        int Words = input.Words;
         Span<ulong> values = stackalloc ulong[10 * Words]; Span<int> signs = stackalloc int[10];
-        ContactQuadratic remainder = ContactQuadratic.At(values, signs, 0), sum = ContactQuadratic.At(values, signs, 1),
-            term = ContactQuadratic.At(values, signs, 2), delta = ContactQuadratic.At(values, signs, 3),
-            divisor = ContactQuadratic.At(values, signs, 4);
+        ContactQuadratic remainder = ContactQuadratic.At(values, signs, 0, Words), sum = ContactQuadratic.At(values, signs, 1, Words),
+            term = ContactQuadratic.At(values, signs, 2, Words), delta = ContactQuadratic.At(values, signs, 3, Words),
+            divisor = ContactQuadratic.At(values, signs, 4, Words);
         int lower, upper;
         if (input.Clip.IsEmpty)
         {
@@ -194,11 +266,11 @@ internal static partial class SegmentSlabSurfaceContact
             ref readonly RationalSegmentInterval clip = ref input.Clip[0];
             // Unit bounds add at most 319 coefficient bits; the unchanged
             // quadratic field remains within the forty-word candidate bank.
-            ContactQuadratic.Scale(candidate.Parameter, Extend(clip.LowerDenominator), remainder);
-            ContactQuadratic.Scale(candidate.ParameterDenominator, Extend(clip.LowerNumerator), term); remainder.Add(term, -1);
+            ContactQuadratic.Scale(candidate.Parameter, clip.WideLowerDenominator, remainder);
+            ContactQuadratic.Scale(candidate.ParameterDenominator, clip.WideLowerNumerator, term); remainder.Add(term, -1);
             lower = remainder.Sign(candidate.Root);
-            ContactQuadratic.Scale(candidate.ParameterDenominator, Extend(clip.UpperNumerator), remainder);
-            ContactQuadratic.Scale(candidate.Parameter, Extend(clip.UpperDenominator), term); remainder.Add(term, -1);
+            ContactQuadratic.Scale(candidate.ParameterDenominator, clip.WideUpperNumerator, remainder);
+            ContactQuadratic.Scale(candidate.Parameter, clip.WideUpperDenominator, term); remainder.Add(term, -1);
             upper = remainder.Sign(candidate.Root);
         }
         if (lower < 0 || upper < 0 || input.InteriorOnly && (lower == 0 || upper == 0)) return false;
@@ -217,7 +289,7 @@ internal static partial class SegmentSlabSurfaceContact
             { candidate.Boundary(axis).CopyTo(candidate.Normal(axis)); candidate.Normal(axis).Add(candidate.Point(axis), -1); }
         else if (candidate.Normal(0).Sign(candidate.Root) == 0 && candidate.Normal(1).Sign(candidate.Root) == 0
             && candidate.Normal(2).Sign(candidate.Root) == 0) return false;
-        foreach (WideAxis3 constraint in input.Fan)
+        foreach (WideDirection3d constraint in input.Fan)
         {
             Dot(candidate, constraint, remainder, term);
             if (remainder.Sign(candidate.Root) > 0) return false;
@@ -225,21 +297,21 @@ internal static partial class SegmentSlabSurfaceContact
         Span<ulong> metric = stackalloc ulong[ConvexContactCandidate.Slots * Words];
         Span<int> metricSigns = stackalloc int[ConvexContactCandidate.Slots];
         metric.Clear(); metricSigns.Clear();
-        sum.Rational.CopyTo(Slot(metric, 7)); sum.Radical.CopyTo(Slot(metric, 8));
+        sum.Rational.CopyTo(Slot(metric, 7, Words)); sum.Radical.CopyTo(Slot(metric, 8, Words));
         metricSigns[7] = sum.Signs[0]; metricSigns[8] = sum.Signs[1];
-        candidate.Root.CopyTo(Slot(metric, 9));
+        candidate.Root.CopyTo(Slot(metric, 9, Words));
         ContactQuadratic.Multiply(candidate.Denominator, candidate.Denominator, candidate.Root, divisor);
-        Signed576 scaleSquare = WideArithmetic.MultiplySigned320(input.Scale, input.Scale);
+        Signed832 scaleSquare = WideArithmetic.MultiplySigned576ToSigned832(Signed576.ExtendValue(input.Scale), Signed576.ExtendValue(input.Scale));
         ContactQuadratic.Scale(divisor, scaleSquare, term);
         System.Diagnostics.Debug.Assert(term.Signs[1] == 0 && term.Signs[0] > 0);
-        term.Rational.CopyTo(Slot(metric, 10));
+        term.Rational.CopyTo(Slot(metric, 10, Words));
         int gapSign = nonzero ? 1 : 0;
-        var current = new ConvexContactCandidate(metric, metricSigns, gapSign);
+        var current = new ConvexContactCandidate(metric, metricSigns, gapSign, Words);
         if (selection.HasValue)
         {
             int comparison = WideConvexPrismRelations.CompareConvexContactCandidates(current,
                 new ConvexContactCandidate(selection.Metric, selection.MetricSigns,
-                    selection.MetricSigns[10]));
+                    selection.MetricSigns[10], Words));
             if (comparison > 0 || comparison == 0 && CompareWitnesses(candidate, selection.Best) >= 0) return false;
         }
         metric.CopyTo(selection.Metric); metricSigns.CopyTo(selection.MetricSigns);
@@ -248,7 +320,7 @@ internal static partial class SegmentSlabSurfaceContact
         return true;
     }
 
-    private static void Dot(scoped Candidate candidate, WideAxis3 axis, scoped ContactQuadratic sum, scoped ContactQuadratic term)
+    private static void Dot(scoped Candidate candidate, WideDirection3d axis, scoped ContactQuadratic sum, scoped ContactQuadratic term)
     {
         sum.Clear();
         for (int component = 0; component < 3; component++)
@@ -269,10 +341,11 @@ internal static partial class SegmentSlabSurfaceContact
 
     private static bool Contains(scoped Input input, scoped Candidate candidate, bool boundary)
     {
+        int Words = input.Words;
         Span<ulong> values = stackalloc ulong[12 * Words]; Span<int> signs = stackalloc int[12];
-        ContactQuadratic bound = ContactQuadratic.At(values, signs, 0), difference = ContactQuadratic.At(values, signs, 1),
-            x = ContactQuadratic.At(values, signs, 2), z = ContactQuadratic.At(values, signs, 3),
-            square = ContactQuadratic.At(values, signs, 4), term = ContactQuadratic.At(values, signs, 5);
+        ContactQuadratic bound = ContactQuadratic.At(values, signs, 0, Words), difference = ContactQuadratic.At(values, signs, 1, Words),
+            x = ContactQuadratic.At(values, signs, 2, Words), z = ContactQuadratic.At(values, signs, 3, Words),
+            square = ContactQuadratic.At(values, signs, 4, Words), term = ContactQuadratic.At(values, signs, 5, Words);
         ContactQuadratic y = candidate.Field(boundary ? 4 : 1);
         ContactQuadratic.Scale(candidate.Denominator, Extend(input.Cap), bound);
         bound.CopyTo(difference); difference.Add(y, -1);
@@ -289,12 +362,12 @@ internal static partial class SegmentSlabSurfaceContact
                 Vector2d a = input.Offsets[edge], b = input.Offsets[(edge + 1) % input.Offsets.Length];
                 Signed192 dx = WideArithmetic.SubtractSigned192(Signed192.Raw(b.X), Signed192.Raw(a.X));
                 Signed192 dz = WideArithmetic.SubtractSigned192(Signed192.Raw(b.Y), Signed192.Raw(a.Y));
-                ContactQuadratic.Scale(candidate.Denominator, Extend(WideArithmetic.MultiplySigned192(Signed192.Raw(a.X), Signed192.NarrowProven(input.Scale))), bound);
+                ContactQuadratic.Scale(candidate.Denominator, Extend(WideArithmetic.MultiplySigned320(input.Scale, Signed192.Raw(a.X))), bound);
                 x.CopyTo(difference); difference.Add(bound, -1);
-                ContactQuadratic.Scale(difference, Signed576.ExtendValue(Signed320.ExtendValue(dz)), square);
-                ContactQuadratic.Scale(candidate.Denominator, Extend(WideArithmetic.MultiplySigned192(Signed192.Raw(a.Y), Signed192.NarrowProven(input.Scale))), bound);
+                ContactQuadratic.Scale(difference, Signed832.ExtendValue(Signed576.ExtendValue(dz)), square);
+                ContactQuadratic.Scale(candidate.Denominator, Extend(WideArithmetic.MultiplySigned320(input.Scale, Signed192.Raw(a.Y))), bound);
                 z.CopyTo(difference); difference.Add(bound, -1);
-                ContactQuadratic.Scale(difference, Signed576.ExtendValue(Signed320.ExtendValue(dx)), term); term.Add(square, -1);
+                ContactQuadratic.Scale(difference, Signed832.ExtendValue(Signed576.ExtendValue(dx)), term); term.Add(square, -1);
                 if (term.Sign(candidate.Root) * winding < 0) return false;
             }
             return true;
@@ -316,15 +389,22 @@ internal static partial class SegmentSlabSurfaceContact
 
     private static FixedContactAnchors Materialize(scoped Input input, scoped Selection selection)
     {
+        int Words = input.Words;
         Candidate best = selection.Best;
         Span<ulong> values = stackalloc ulong[8 * Words]; Span<int> signs = stackalloc int[8];
-        ContactQuadratic coordinate = ContactQuadratic.At(values, signs, 0), term = ContactQuadratic.At(values, signs, 1),
-            denominator = ContactQuadratic.At(values, signs, 2), residual = ContactQuadratic.At(values, signs, 3);
+        ContactQuadratic coordinate = ContactQuadratic.At(values, signs, 0, Words), term = ContactQuadratic.At(values, signs, 1, Words),
+            denominator = ContactQuadratic.At(values, signs, 2, Words), residual = ContactQuadratic.At(values, signs, 3, Words);
         Vector3d point = default;
+        ContactQuadratic.Scale(best.Denominator, Extend(input.Scale), denominator);
         for (int axis = 0; axis < 3; axis++)
         {
-            ContactQuadratic.Scale(best.ParameterDenominator, Extend(Signed320.ExtendValue(Signed192.Raw(input.Segment.Start[axis]))), coordinate);
-            ContactQuadratic.Scale(best.Parameter, Extend(Signed320.ExtendValue(WideArithmetic.SubtractSigned192(
+            if (input.Frame.RadialFrame.ShapeFrame.HasExactScale)
+            {
+                point[axis] = ContactQuadratic.RoundRatio(best.Point(axis), denominator, best.Root);
+                continue;
+            }
+            ContactQuadratic.Scale(best.ParameterDenominator, Extend(Signed576.ExtendValue(Signed192.Raw(input.Segment.Start[axis]))), coordinate);
+            ContactQuadratic.Scale(best.Parameter, Extend(Signed576.ExtendValue(WideArithmetic.SubtractSigned192(
                 Signed192.Raw(input.Segment.End[axis]), Signed192.Raw(input.Segment.Start[axis])))), term);
             coordinate.Add(term);
             point[axis] = ContactQuadratic.RoundRatio(coordinate, best.ParameterDenominator, best.Root,
@@ -348,7 +428,7 @@ internal static partial class SegmentSlabSurfaceContact
         for (int axis = 0; axis < 3; axis++)
         {
             best.Boundary(axis).CopyTo(coordinate);
-            ContactQuadratic.Scale(denominator, Extend(Signed320.ExtendValue(Signed192.Raw(core[axis]))), term);
+            ContactQuadratic.Scale(denominator, Extend(Signed576.ExtendValue(Signed192.Raw(core[axis]))), term);
             coordinate.Add(term, -1);
             // Retain an integral radial term with the exact odd half-core.
             // Otherwise round the complete sum once and absorb that residual.
@@ -358,7 +438,7 @@ internal static partial class SegmentSlabSurfaceContact
                 term.MultiplySign(core.Z.m_rawValue < 0 ? -1 : 1);
                 best.Boundary(axis).CopyTo(residual); residual.Add(term, -1);
                 Fixed64 rounded = ContactQuadratic.RoundRatio(residual, denominator, best.Root);
-                ContactQuadratic.Scale(denominator, Extend(Signed320.ExtendValue(Signed192.Raw(rounded))), term);
+                ContactQuadratic.Scale(denominator, Extend(Signed576.ExtendValue(Signed192.Raw(rounded))), term);
                 residual.Add(term, -1);
                 if (residual.Sign(best.Root) == 0)
                 { local[axis] = rounded; continue; }
@@ -388,17 +468,17 @@ internal static partial class SegmentSlabSurfaceContact
         normals.Clear(); normalSigns.Clear();
         for (int axis = 0; axis < 3; axis++)
         {
-            best.Normal(axis).Rational.CopyTo(Slot(source, axis));
-            best.Normal(axis).Radical.CopyTo(Slot(source, axis + 3));
+            best.Normal(axis).Rational.CopyTo(Slot(source, axis, Words));
+            best.Normal(axis).Radical.CopyTo(Slot(source, axis + 3, Words));
             sourceSigns[axis] = best.Normal(axis).Signs[0]; sourceSigns[axis + 3] = best.Normal(axis).Signs[1];
         }
         var basis = new WideRationalBasis3d(input.SlabRotation);
         WriteWorldDirection(basis, source[..(3 * Words)], sourceSigns[..3], normals[..(3 * Words)], normalSigns[..3], -1);
         WriteWorldDirection(basis, source[(3 * Words)..], sourceSigns[3..], normals.Slice(3 * Words, 3 * Words), normalSigns.Slice(3, 3), -1);
-        best.Root.CopyTo(Slot(normals, 6));
-        Vector3d normal = WideConvexPrismRelations.GetConvexContactCandidateNormal(new ConvexContactCandidate(normals, normalSigns, 0));
+        best.Root.CopyTo(Slot(normals, 6, Words));
+        Vector3d normal = WideConvexPrismRelations.GetConvexContactCandidateNormal(new ConvexContactCandidate(normals, normalSigns, 0, Words));
         WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(new ConvexContactCandidate(selection.Metric,
-            selection.MetricSigns, selection.MetricSigns[10]), Fixed64.Zero, out Fixed64 depth, out bool clamped);
+            selection.MetricSigns, selection.MetricSigns[10], Words), Fixed64.Zero, out Fixed64 depth, out bool clamped);
         return new FixedContactAnchors(new FixedPointAnchor(input.Origin, input.Rotation, point),
             new FixedPointAnchor(input.Center, input.SlabRotation, core, local, exactTerm), normal, depth, clamped);
     }

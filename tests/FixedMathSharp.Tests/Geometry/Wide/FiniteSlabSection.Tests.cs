@@ -7,6 +7,48 @@ namespace FixedMathSharp.Tests;
 public sealed class FiniteSlabSectionTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AffineSection_ShouldRetainOddRawHeightAdmission(bool fullHeight)
+    {
+        var source = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+            Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+        var frame = new FiniteSlabSectionFrame(source, Vector3d.Zero, FixedQuaternion.Identity,
+            Fixed64.Zero, Fixed64.One, Fixed64.FromRaw(1), fullHeight);
+        long boundary = fullHeight ? 1 : 2;
+        Assert.True(frame.ContainsPoint(new(Fixed64.Zero, Fixed64.FromRaw(boundary), Fixed64.Zero)));
+        Assert.True(frame.ContainsPoint(new(Fixed64.Zero, Fixed64.FromRaw(-boundary), Fixed64.Zero)));
+        Assert.False(frame.ContainsPoint(new(Fixed64.Zero, Fixed64.FromRaw(boundary + 1), Fixed64.Zero)));
+        Assert.False(frame.ContainsPoint(new(Fixed64.Zero, Fixed64.FromRaw(-boundary - 1), Fixed64.Zero)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new FiniteSlabSectionFrame(source, Vector3d.Zero,
+            FixedQuaternion.Identity, Fixed64.Zero, Fixed64.One, Fixed64.Zero, fullHeight));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new FiniteSlabSectionFrame(source, Vector3d.Zero,
+            FixedQuaternion.Identity, Fixed64.Zero, Fixed64.One, (Fixed64)(fullHeight ? 8193 : 4097), fullHeight));
+        var rigid = new FiniteSlabSectionFrame(ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity),
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Zero, Fixed64.One, Fixed64.One, fullHeight);
+        Assert.True(rigid.ContainsPoint(Vector3d.Zero));
+    }
+
+    [Fact]
+    public void AffineTriangleAdmission_ShouldRetainAContainedCurvedOrPrismSection()
+    {
+        var source = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+            Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+        var frame = new FiniteSlabSectionFrame(source, Vector3d.Zero, FixedQuaternion.Identity,
+            Fixed64.Two, Fixed64.One, Fixed64.Half);
+        FixedTriangle horizontal = new(new Vector3d(-8, 0, -8), new Vector3d(8, 0, -8), new Vector3d(0, 0, 8));
+        Assert.True(frame.IntersectsTriangle(horizontal));
+        Assert.False(frame.IntersectsTriangle(new(new Vector3d(-8, 2, -8), new Vector3d(8, 2, -8), new Vector3d(0, 2, 8))));
+        FixedTriangle vertical = new(new Vector3d(Fixed64.FromFraction(3, 2), (Fixed64)(-8), (Fixed64)(-8)),
+            new Vector3d(Fixed64.FromFraction(3, 2), (Fixed64)8, (Fixed64)(-8)),
+            new Vector3d(Fixed64.FromFraction(3, 2), Fixed64.Zero, (Fixed64)8));
+        Assert.True(frame.IntersectsTriangle(vertical));
+        Span<Vector2d> offsets = stackalloc Vector2d[4] { new(-1, -1), new(1, -1), new(1, 1), new(-1, 1) };
+        Assert.True(frame.IntersectsTriangle(horizontal, offsets));
+        Assert.True(frame.IntersectsTriangle(vertical, offsets));
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(2)]
     public void TriangleAdmission_ShouldUseAContainedSectionWithoutContactMaterialization(int length)

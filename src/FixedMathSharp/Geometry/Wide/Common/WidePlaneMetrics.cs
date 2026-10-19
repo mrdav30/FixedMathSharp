@@ -9,7 +9,8 @@ using System;
 namespace FixedMathSharp.Geometry;
 
 /// <summary>Exact metrics of representable points projected onto an exact rigid plane.</summary>
-internal readonly struct WidePlaneMetrics
+/// <content>Compact projected metrics and shared exact plane geometry.</content>
+internal readonly partial struct WidePlaneMetrics
 {
     private readonly WideAxis3 normal;
     private readonly Signed576 metric;
@@ -31,6 +32,20 @@ internal readonly struct WidePlaneMetrics
         if (basis.Denominator.IsZero)
             throw new ArgumentException("The metric requires a nonzero rotation.", nameof(rotation));
         normal = WideRigidProjection.TransformLocalAxis(basis, x, y, z);
+        metric = normal.SquaredLength;
+    }
+
+    /// <summary>Uses admitted scaled geometry with centered reach at most 4096 units.</summary>
+    internal WidePlaneMetrics(FixedTriangle plane, in ScaledRigidFrame3d frame)
+    {
+        if (frame.IsRigid) { this = new WidePlaneMetrics(plane, frame.Rotation); return; }
+        WideDirection3d direction = WideTriangleRelations.GetScaledTriangleLocalNormal(plane, frame)
+            .Transform(frame.GeometryBasis);
+        normal = new WideAxis3(Signed320.NarrowValue(direction.X), Signed320.NarrowValue(direction.Y), Signed320.NarrowValue(direction.Z));
+        if (normal.IsZero) throw new ArgumentException("The metric requires a nondegenerate scaled plane.", nameof(plane));
+        // Centered raw radius <=2^44 gives scaled-edge numerators <=2^109.
+        // Their cross and one normalized basis give |N|<2^283. Thus M<2^566
+        // and full-domain projected area squares <2^830 fit the compact owners.
         metric = normal.SquaredLength;
     }
 

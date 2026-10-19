@@ -135,6 +135,13 @@ Avoid:
 
 ## Performance And Benchmarking Bar
 
+`ScaledRigidFrame3d` retains exact diagonal scale and separately rotated
+placement for implemented geometry consumers. Keep scale outside the orthogonal
+`WideRationalBasis3d`; transpose-as-inverse relies on that invariant. Exact
+classification, feature admission and ranking precede final physical witness
+rounding. Retain compact rigid arithmetic where the same map is proven, and
+prove complete intermediate widths before widening an existing operation.
+
 FixedMathSharp should not do something merely because engines or common math
 libraries do it that way. Optimizations, new algorithms, and unusual data
 layouts are welcome when they are deterministic, measurable, and maintainable.

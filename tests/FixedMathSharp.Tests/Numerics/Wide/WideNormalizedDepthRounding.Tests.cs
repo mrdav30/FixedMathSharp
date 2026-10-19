@@ -29,6 +29,9 @@ public sealed class WideNormalizedDepthRoundingTests
             ToSigned320(rightCommon));
 
         Assert.Equal(expected, Math.Sign(actual));
+        Assert.Equal(expected, Math.Sign(WideArithmetic.CompareNonNegativeNormalizedDepths(
+            Signed832.ExtendValue(ToSigned576(leftOverlap)), Signed832.ExtendValue(ToSigned576(leftSquaredAxis)), ToSigned576(leftCommon),
+            Signed832.ExtendValue(ToSigned576(rightOverlap)), Signed832.ExtendValue(ToSigned576(rightSquaredAxis)), ToSigned576(rightCommon))));
     }
 
     [Fact]
@@ -212,7 +215,30 @@ public sealed class WideNormalizedDepthRoundingTests
 
             Assert.Equal(expectedRaw, actual.m_rawValue);
             Assert.Equal(expectedClamped, actualClamped);
+            Fixed64 scaled = WideArithmetic.GetRoundedNonNegativeNormalizedDepth(
+                Signed832.ExtendValue(ToSigned576(overlap)), Signed832.ExtendValue(ToSigned576(squaredAxis)),
+                ToSigned576(common), out bool scaledClamped);
+            Assert.Equal(expectedRaw, scaled.m_rawValue);
+            Assert.Equal(expectedClamped, scaledClamped);
         }
+    }
+
+    [Theory]
+    [InlineData(0, 1, 1)]
+    [InlineData(5, 1, 2)]
+    [InlineData(7, 1, 2)]
+    [InlineData(9, 2, 1)]
+    public void ScaledDepth_TinyAxesAndUnequalDenominators_ShouldRetainExactRounding(long overlap, long axis, long common)
+    {
+        Signed832 n = Signed832.ExtendValue(ToSigned576(overlap)), a = Signed832.ExtendValue(ToSigned576(axis));
+        Fixed64 actual = WideArithmetic.GetRoundedNonNegativeNormalizedDepth(n, a, ToSigned576(common), out bool clamped);
+        var expected = GetExpected(overlap, axis, common);
+        Assert.Equal(expected.Raw, actual.m_rawValue);
+        Assert.Equal(expected.Clamped, clamped);
+        int comparison = WideArithmetic.CompareNonNegativeNormalizedDepths(n, a, ToSigned576(common),
+            Signed832.ExtendValue(ToSigned576(overlap + 1)), a, ToSigned576(common + 1));
+        Assert.Equal(Math.Sign(((BigInteger)overlap * overlap * (common + 1) * (common + 1))
+            .CompareTo((BigInteger)(overlap + 1) * (overlap + 1) * common * common)), Math.Sign(comparison));
     }
 
     [Fact]

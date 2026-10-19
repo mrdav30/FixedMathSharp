@@ -265,7 +265,40 @@ public sealed class ContactQuadraticRatioTests
     }
 
     [Theory]
+    [InlineData(5, false)]
+    [InlineData(13, false)]
+    [InlineData(24, false)]
+    [InlineData(13, true)]
+    [InlineData(24, true)]
+    public void SetWideInteger_PreservesCompleteMagnitudeAndClearsBothPaddedBanks(int words, bool upperWord)
+    {
+        Span<ulong> fields = stackalloc ulong[2 * words]; Span<int> signs = stackalloc int[2];
+        ContactQuadratic result = ContactQuadratic.At(fields, signs, 0, words);
+        // A live word12 proves that the direct import retains all 832 bits;
+        // the narrow destination instead exercises the complete active prefix.
+        Signed832 value = new(upperWord ? 1UL : 0UL,0UL,0UL,0UL,0UL,0UL,0UL,0UL,0UL,0UL,0UL,0UL,3UL);
+        Signed832 original = value;
+        fields.Fill(ulong.MaxValue); signs.Fill(-1); result.Set(value);
+        Assert.Equal(1,result.Signs[0]); Assert.Equal(0,result.Signs[1]);
+        for(int index=0;index<words;index++)
+        {
+            Assert.Equal(index==0?3UL:upperWord&&index==12?1UL:0UL,result.Rational[index]);
+            Assert.Equal(0UL,result.Radical[index]);
+        }
+        Assert.True(value.Equals(original));
+        Signed832 negative = WideArithmetic.SubtractSigned832(default,value); result.Set(negative);
+        Assert.Equal(-1,result.Signs[0]); Assert.Equal(0,result.Signs[1]);
+        for(int index=0;index<words;index++)
+            Assert.Equal(index==0?3UL:upperWord&&index==12?1UL:0UL,result.Rational[index]);
+        Assert.True(value.Equals(original));
+        result.Set(default(Signed832));
+        foreach(ulong limb in fields) Assert.Equal(0UL,limb);
+        Assert.Equal(0,result.Signs[0]); Assert.Equal(0,result.Signs[1]);
+    }
+
+    [Theory]
     [InlineData(-7)]
+    [InlineData(-1)]
     [InlineData(0)]
     [InlineData(1)]
     public void Scale_PreservesExactSignedCoefficientProductsAndClearsZeroSignBanks(int scalar)
@@ -302,6 +335,45 @@ public sealed class ContactQuadraticRatioTests
         ContactQuadratic.Scale(value, expected, 1, result);
         foreach (ulong word in result.Values) Assert.Equal(0UL, word);
         Assert.Equal(0, result.Signs[0]); Assert.Equal(0, result.Signs[1]);
+    }
+
+    [Theory]
+    [InlineData(-1, false)]
+    [InlineData(-1, true)]
+    [InlineData(1, false)]
+    [InlineData(1, true)]
+    public void UnitScale_CanonicalizesSignedZeroAndRetainsCrossWidthSource(int scalar, bool staleRadical)
+    {
+        const int sourceWords = 24, destinationWords = 5;
+        Span<ulong> sourceValues = stackalloc ulong[2 * sourceWords], outputValues = stackalloc ulong[2 * destinationWords];
+        Span<int> sourceSigns = stackalloc int[2], outputSigns = stackalloc int[2];
+        ContactQuadratic source = ContactQuadratic.At(sourceValues, sourceSigns, 0, sourceWords);
+        ContactQuadratic output = ContactQuadratic.At(outputValues, outputSigns, 0, destinationWords);
+        source.Clear();
+        if (staleRadical)
+        {
+            source.Signs[0] = 1; // Nonzero sign on a zero magnitude is mathematical zero.
+            source.Radical.Fill(ulong.MaxValue); source.Signs[1] = 0;
+        }
+        else
+        {
+            source.Rational[0] = 3; source.Rational[2] = 1; source.Signs[0] = -1;
+            source.Signs[1] = -1; // The independent radical also canonicalizes signed zero.
+        }
+        ulong[] original = sourceValues.ToArray(); int[] originalSigns = sourceSigns.ToArray();
+        outputValues.Fill(ulong.MaxValue); outputSigns.Fill(1);
+        ContactQuadratic.Scale(source, Signed576.ExtendValue(Signed192.Signed(scalar)), output);
+        Assert.Equal(staleRadical ? 0 : -scalar, output.Signs[0]); Assert.Equal(0, output.Signs[1]);
+        for (int word = 0; word < destinationWords; word++)
+        {
+            Assert.Equal(!staleRadical && word == 0 ? 3UL : !staleRadical && word == 2 ? 1UL : 0UL, output.Rational[word]);
+            Assert.Equal(0UL, output.Radical[word]);
+        }
+        Assert.True(sourceValues.SequenceEqual(original)); Assert.True(sourceSigns.SequenceEqual(originalSigns));
+        // Direct copy has the same mathematical zero contract as unit scaling.
+        outputValues.Fill(ulong.MaxValue); outputSigns.Fill(1); source.CopyTo(output, scalar);
+        Assert.Equal(staleRadical ? 0 : -scalar, output.Signs[0]); Assert.Equal(0, output.Signs[1]);
+        Assert.True(sourceValues.SequenceEqual(original)); Assert.True(sourceSigns.SequenceEqual(originalSigns));
     }
 
     [Theory]

@@ -17,11 +17,13 @@ internal static partial class SegmentConeSurfaceCandidates
     // homogeneous normals <1504. Rational rim bounds are <1320 and their
     // substituted normals <2220. Interval midpoint products and side feet
     // stay <3700. These 4096-bit fields retain complete coordinates; squared
-    // metrics below use separately sized complete-product scratch.
+    // metrics below use separately sized complete-product scratch. Affine
+    // source frames and full Signed832 clips select three-times-wider fields.
     internal const int FamilyWords = 64;
 
-    internal static int GetMaximumFamilyEventCount(SegmentConeSurfaceCandidate candidate, int halfspaceCount)
+    internal static int GetMaximumFamilyEventCount(in SegmentConeSurfaceCandidate candidate, int halfspaceCount)
     {
+
         if (halfspaceCount < 0) throw new ArgumentOutOfRangeException(nameof(halfspaceCount));
         checked
         {
@@ -36,9 +38,10 @@ internal static partial class SegmentConeSurfaceCandidates
         }
     }
 
-    internal static bool AccumulateFamilyEvents(SegmentConeSurfaceCandidate candidate, scoped ReadOnlySpan<WideAxis3> fan,
+    internal static bool AccumulateFamilyEvents(in SegmentConeSurfaceCandidate candidate, scoped ReadOnlySpan<WideAxis3> fan,
         ConeSurfacePointLocation location, scoped ref ConeSurfaceFamilySelection selection, in RationalSegmentInterval clip = default)
     {
+
         if (location == ConeSurfacePointLocation.SegmentIntervalUnspecified)
             throw new ArgumentException("A family query requires Start, Interior, or End incident halfspaces.", nameof(location));
         if (candidate.Family == ConeSurfaceFamily.None
@@ -105,10 +108,11 @@ internal static partial class SegmentConeSurfaceCandidates
         return before != selection.Count;
     }
 
-    private static void AddFamilyEvent(SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
+    private static void AddFamilyEvent(in SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
         scoped ReadOnlySpan<WideAxis3> fan, ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilySelection selection,
         in RationalSegmentInterval clip)
     {
+        int FamilyWords = clip.HasWideBounds ? 3 * SegmentConeSurfaceCandidates.FamilyWords : geometry.FamilyWords;
         Span<ulong> data = stackalloc ulong[24 * FamilyWords], root = stackalloc ulong[FamilyWords];
         Span<int> signs = stackalloc int[24];
         var witness = new ConeSurfaceFamilyWitness(data, signs, root);
@@ -116,15 +120,16 @@ internal static partial class SegmentConeSurfaceCandidates
         if (witness[0].Sign(root) == 0 && witness[1].Sign(root) == 0 && witness[2].Sign(root) == 0) return;
         for (int index = 0; index < fan.Length + 4; index++)
         {
-            FamilyConstraint(geometry, fan, item, witness, index, out Signed576 x, out Signed576 y, out Signed576 z);
+            FamilyConstraint(geometry, fan, item, witness, index, out Signed832 x, out Signed832 y, out Signed832 z);
             if (QuadraticNormalDotSign(witness.Values, witness.Signs, witness.Root, x, y, z, FamilyWords) > 0) return;
         }
         selection.Add(item);
     }
 
-    internal static bool TryGetFamilyWorldAnchors(SegmentConeSurfaceCandidate candidate, scoped ReadOnlySpan<WideAxis3> fan,
+    internal static bool TryGetFamilyWorldAnchors(in SegmentConeSurfaceCandidate candidate, scoped ReadOnlySpan<WideAxis3> fan,
         ConeSurfaceFamilyEvent item, out Vector3d first, out Vector3d second, in RationalSegmentInterval clip = default)
     {
+        int FamilyWords = clip.HasWideBounds ? 3 * SegmentConeSurfaceCandidates.FamilyWords : candidate.Input.FamilyWords;
         Span<ulong> data = stackalloc ulong[24 * FamilyWords], root = stackalloc ulong[FamilyWords];
         Span<int> signs = stackalloc int[24];
         var witness = new ConeSurfaceFamilyWitness(data, signs, root);
@@ -136,15 +141,17 @@ internal static partial class SegmentConeSurfaceCandidates
                 witness[6], witness[7], witness[8], witness[9], root, out second);
     }
 
-    internal static FixedContactAnchors GetFamilyContact(SegmentConeSurfaceCandidate candidate, scoped ReadOnlySpan<WideAxis3> fan,
+    internal static FixedContactAnchors GetFamilyContact(in SegmentConeSurfaceCandidate candidate, scoped ReadOnlySpan<WideAxis3> fan,
         ConeSurfaceFamilyEvent item, in RationalSegmentInterval clip = default)
     {
+        int FamilyWords = clip.HasWideBounds ? 3 * SegmentConeSurfaceCandidates.FamilyWords : candidate.Input.FamilyWords;
         Span<ulong> data = stackalloc ulong[24 * FamilyWords], root = stackalloc ulong[FamilyWords];
         Span<int> signs = stackalloc int[24];
         var witness = new ConeSurfaceFamilyWitness(data, signs, root);
-        if (!BuildFamilyEvent(candidate, new SegmentConeSurfaceGeometry(candidate.Input), fan, item, ref witness, clip))
+        var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
+        if (!BuildFamilyEvent(candidate, geometry, fan, item, ref witness, clip))
             throw new InvalidOperationException("The family certificate requires its original candidate and halfspaces.");
-        Vector3d first = RoundSegmentPoint(candidate.Input.Segment, witness[10], witness[11], root), second = default;
+        Vector3d first = RoundSourceSegmentPoint(geometry, witness[10], witness[11], root), second = default;
         for (int axis = 0; axis < 3; axis++)
         {
             second[axis] = RoundRatio(witness[6 + axis], witness[9], root);
@@ -173,6 +180,7 @@ internal static partial class SegmentConeSurfaceCandidates
     private static Vector3d FamilyWorldNormal(FixedQuaternion rotation, scoped ConeSurfaceFamilyWitness witness,
         Span<ulong> work, Span<int> signs, int words)
     {
+        int FamilyWords = witness.FieldWords;
         var basis = new WideRationalBasis3d(rotation);
         ContactQuadratic metric = At(work, signs, 0, words), product = At(work, signs, 1, words);
         ContactQuadratic term = At(work, signs, 2, words), square = At(work, signs, 3, words);
@@ -186,7 +194,7 @@ internal static partial class SegmentConeSurfaceCandidates
             Multiply(normal, normal, witness.Root, square); metric.Add(square);
         }
         Vector3d result = default;
-        Signed576 rawSquared = Signed576.ExtendValue(WideArithmetic.MultiplySigned192(Signed192.Raw(Fixed64.One), Signed192.Raw(Fixed64.One)));
+        Signed832 rawSquared = Signed832.ExtendValue(WideArithmetic.MultiplySigned192(Signed192.Raw(Fixed64.One), Signed192.Raw(Fixed64.One)));
         for (int axis = 0; axis < 3; axis++)
         {
             ContactQuadratic normal = At(work, signs, 4 + axis, words);
@@ -198,7 +206,8 @@ internal static partial class SegmentConeSurfaceCandidates
         return result;
     }
 
-    private static Signed576 ExtendFamily(Signed192 value) => Signed576.ExtendValue(Signed320.ExtendValue(value));
+    private static Signed832 ExtendFamily(Signed192 value) => Signed832.ExtendValue(value);
+    private static Signed832 ExtendFamily(Signed320 value) => Signed832.ExtendValue(value);
 }
 
 internal enum ConeSurfaceFamilyEventKind { Interval, CircleSeam, CircleBoundary, DiskCenter, DiskPair, RimBound, Axis, AxisPlane, AxisPair }
@@ -211,13 +220,13 @@ internal readonly struct ConeSurfaceFamilyEvent
     internal ConeSurfacePointLocation PointLocation { get; }
     internal ConeSurfaceFamilyEvent(ConeSurfaceFamilyEventKind kind, int first, int second, int branch, int parameter, ConeSurfacePointLocation location)
     { Kind = kind; First = first; Second = second; Branch = branch; Parameter = parameter; PointLocation = location; }
-    internal FixedContactAnchors GetContact(SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces) =>
+    internal FixedContactAnchors GetContact(in SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces) =>
         SegmentConeSurfaceCandidates.GetFamilyContact(candidate, halfspaces, this);
-    internal FixedContactAnchors GetContact(SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces,
+    internal FixedContactAnchors GetContact(in SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces,
         in RationalSegmentInterval clip) => SegmentConeSurfaceCandidates.GetFamilyContact(candidate, halfspaces, this, clip);
-    internal bool TryGetWorldAnchors(SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces, out Vector3d first, out Vector3d second) =>
+    internal bool TryGetWorldAnchors(in SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces, out Vector3d first, out Vector3d second) =>
         SegmentConeSurfaceCandidates.TryGetFamilyWorldAnchors(candidate, halfspaces, this, out first, out second);
-    internal bool TryGetWorldAnchors(SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces,
+    internal bool TryGetWorldAnchors(in SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces,
         in RationalSegmentInterval clip, out Vector3d first, out Vector3d second) =>
         SegmentConeSurfaceCandidates.TryGetFamilyWorldAnchors(candidate, halfspaces, this, out first, out second, clip);
 }
@@ -242,7 +251,8 @@ internal readonly ref struct ConeSurfaceFamilyWitness
 {
     internal readonly Span<ulong> Values, Root;
     internal readonly Span<int> Signs;
-    internal ContactQuadratic this[int index] => ContactQuadratic.At(Values, Signs, index, SegmentConeSurfaceCandidates.FamilyWords);
+    internal int FieldWords => Values.Length / 24;
+    internal ContactQuadratic this[int index] => ContactQuadratic.At(Values, Signs, index, FieldWords);
     internal ConeSurfaceFamilyWitness(Span<ulong> values, Span<int> signs, Span<ulong> root)
     { Values = values; Signs = signs; Root = root; values.Clear(); signs.Clear(); root.Clear(); }
 }

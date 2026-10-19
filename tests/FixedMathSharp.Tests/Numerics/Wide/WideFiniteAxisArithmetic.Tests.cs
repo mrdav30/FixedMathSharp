@@ -299,7 +299,7 @@ public sealed class WideFiniteAxisArithmeticTests
     }
 
     [Fact]
-    public void WideMagnitudeExtraction_ClearsOversizedDirtyDestinations()
+    public void WideMagnitudeExtraction_OverwritesExactAndOversizedDirtyDestinations()
     {
         BigInteger signed576 = (BigInteger.One << 511) + (BigInteger.One << 257) + 17;
         BigInteger signed704 = (BigInteger.One << 639) + (BigInteger.One << 321) + 19;
@@ -308,12 +308,16 @@ public sealed class WideFiniteAxisArithmeticTests
         AssertMagnitude(signed576, ToSigned576(signed576));
         AssertMagnitude(-signed576, ToSigned576(-signed576));
         AssertMagnitude(BigInteger.Zero, default(Signed576));
+        AssertMagnitude(-(BigInteger.One << 575), ToSigned576(-(BigInteger.One << 575)));
+        AssertMagnitude((BigInteger.One << 575) - 1, ToSigned576((BigInteger.One << 575) - 1));
         AssertMagnitude(signed704, ToSigned704(signed704));
         AssertMagnitude(-signed704, ToSigned704(-signed704));
         AssertMagnitude(BigInteger.Zero, default(Signed704));
         AssertMagnitude(signed832, ToSigned832(signed832));
         AssertMagnitude(-signed832, ToSigned832(-signed832));
         AssertMagnitude(BigInteger.Zero, default(Signed832));
+        AssertMagnitude(-(BigInteger.One << 831), ToSigned832(-(BigInteger.One << 831)));
+        AssertMagnitude((BigInteger.One << 831) - 1, ToSigned832((BigInteger.One << 831) - 1));
     }
 
     [Fact]
@@ -1204,10 +1208,14 @@ public sealed class WideFiniteAxisArithmeticTests
     private static void AssertMagnitude(BigInteger expected, Signed576 value)
     {
         Span<ulong> magnitude = stackalloc ulong[36];
-        magnitude.Fill(ulong.MaxValue);
-        WideArithmetic.GetMagnitude(value, magnitude);
-        Assert.Equal(BigInteger.Abs(expected), FromMagnitudeWords(magnitude));
-        AssertZeroTail(magnitude, 9);
+        foreach (int words in new[] { 9, 36 })
+        {
+            Span<ulong> destination = magnitude[..words];
+            destination.Fill(ulong.MaxValue);
+            WideArithmetic.GetMagnitude(value, destination);
+            Assert.Equal(BigInteger.Abs(expected), FromMagnitudeWords(destination));
+            AssertZeroTail(destination, 9);
+        }
     }
 
     private static void AssertMagnitude(BigInteger expected, Signed704 value)
@@ -1222,10 +1230,14 @@ public sealed class WideFiniteAxisArithmeticTests
     private static void AssertMagnitude(BigInteger expected, Signed832 value)
     {
         Span<ulong> magnitude = stackalloc ulong[36];
-        magnitude.Fill(ulong.MaxValue);
-        WideArithmetic.GetMagnitude(value, magnitude);
-        Assert.Equal(BigInteger.Abs(expected), FromMagnitudeWords(magnitude));
-        AssertZeroTail(magnitude, 13);
+        foreach (int words in new[] { 13, 36 })
+        {
+            Span<ulong> destination = magnitude[..words];
+            destination.Fill(ulong.MaxValue);
+            WideArithmetic.GetMagnitude(value, destination);
+            Assert.Equal(BigInteger.Abs(expected), FromMagnitudeWords(destination));
+            AssertZeroTail(destination, 13);
+        }
     }
 
     private static void AssertZeroTail(

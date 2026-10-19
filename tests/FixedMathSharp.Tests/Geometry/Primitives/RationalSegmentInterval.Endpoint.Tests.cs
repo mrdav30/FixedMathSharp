@@ -8,6 +8,97 @@ namespace FixedMathSharp.Tests.Bounds;
 public sealed class RationalSegmentIntervalEndpointTests
 {
     [Fact]
+    public void WideMapping_ShouldRejectAResultWhoseReducedDenominatorExceedsItsDocumentedStorage()
+    {
+        Signed832 d = new(1UL << 32,0,0,0,0,0,0,0,0,0,0,0,1);
+        Signed832 lower = new(1UL << 31,0,0,0,0,0,0,0,0,0,0,0,1);
+        Signed832 upper = new(3UL << 30,0,0,0,0,0,0,0,0,0,0,0,1);
+        var interval = new RationalSegmentInterval(lower, d, upper, d);
+        var source = new FixedSegment(Vector3d.Zero, new(Fixed64.FromRaw(long.MaxValue - 1), Fixed64.Zero, Fixed64.Zero));
+        var target = new FixedSegment(Vector3d.Zero, new(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero));
+        // The input bounds each fit 801 bits. Mapping the lower endpoint gives
+        // ((2^799+1)*(2^63-2))/((2^800+1)*(2^63-1)); its coprime
+        // denominator needs 863 bits, so preserving it cannot use Signed832.
+        BigInteger numerator = ((BigInteger.One << 799) + 1) * (long.MaxValue - 1);
+        BigInteger denominator = ((BigInteger.One << 800) + 1) * long.MaxValue;
+        Assert.Equal(BigInteger.One, BigInteger.GreatestCommonDivisor(numerator, denominator));
+        Assert.True(denominator > (BigInteger.One << 831));
+        Assert.Throws<OverflowException>(() => interval.TryMapToSegment(source, target, out _));
+    }
+
+    [Theory]
+    [InlineData(320)]
+    [InlineData(384)]
+    [InlineData(448)]
+    [InlineData(512)]
+    [InlineData(576)]
+    [InlineData(640)]
+    [InlineData(704)]
+    [InlineData(768)]
+    [InlineData(800)]
+    public void WideOddDenominators_ShouldKeepSubRawEndpointOrderAcrossTheCompleteParameterDomain(int bits)
+    {
+        BigInteger d = (BigInteger.One << bits) + 1, low = (BigInteger.One << (bits - 1)) + 1;
+        var interval = new RationalSegmentInterval(Wide(low), Wide(d), Wide(low + 1), Wide(d));
+        Assert.True(interval.HasWideBounds);
+        var edge = new FixedSegment2d(new(Fixed64.MinValue, Fixed64.MaxValue), new(Fixed64.MaxValue, Fixed64.MinValue));
+        foreach (bool upper in new[] { false, true })
+        {
+            BigInteger n = low + (upper ? 1 : 0);
+            Vector2d point = interval.GetEndpoint(edge, upper);
+            Assert.Equal(RoundEven((BigInteger)long.MinValue * d + ((BigInteger)long.MaxValue - long.MinValue) * n, d), point.X.m_rawValue);
+            Assert.Equal(RoundEven((BigInteger)long.MaxValue * d + ((BigInteger)long.MinValue - long.MaxValue) * n, d), point.Y.m_rawValue);
+        }
+        Assert.True(RationalSegmentInterval.CompareParameters(interval.WideLowerNumerator, interval.WideLowerDenominator,
+            interval.WideUpperNumerator, interval.WideUpperDenominator) < 0);
+
+        static Signed832 Wide(BigInteger value)
+        {
+            Span<ulong> words = stackalloc ulong[13];
+            for (int word = 0; word < words.Length; word++) { words[word] = (ulong)(value & ulong.MaxValue); value >>= 64; }
+            return new(words[12], words[11], words[10], words[9], words[8], words[7], words[6], words[5],
+                words[4], words[3], words[2], words[1], words[0]);
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void WideParameters_ShouldRetainFiniteEndpointsAndMapAcrossReversal(bool reverse, bool reverseSource)
+    {
+        Signed832 unit = new(0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0);
+        Signed832 twice = WideArithmetic.AddSigned832(unit, unit),
+            three = WideArithmetic.AddSigned832(twice, unit), four = WideArithmetic.AddSigned832(twice, twice);
+        var interval = new RationalSegmentInterval(unit, four, three, four);
+        Assert.True(interval.HasWideBounds);
+        Assert.Throws<OverflowException>(() => { _ = interval.LowerNumerator; });
+        var edge = new FixedSegment2d(new(-2, 0), new(2, 4));
+        Assert.Equal(new Vector2d(-1, 1), interval.GetEndpoint(edge, false));
+        Assert.Equal(new Vector2d(1, 3), interval.GetEndpoint(edge, true));
+        var source = reverseSource ? new FixedSegment(new(2, 0, 0), new(-2, 0, 0))
+            : new FixedSegment(new(-2, 0, 0), new(2, 0, 0));
+        var target = reverse ? new FixedSegment(new(2, 0, 0), new(-2, 0, 0)) : new FixedSegment(new(-2,0,0), new(2,0,0));
+        Assert.True(interval.TryMapToSegment(source, target, out RationalSegmentInterval mapped));
+        Assert.Equal(0, RationalSegmentInterval.CompareParameters(mapped.WideLowerNumerator,
+            mapped.WideLowerDenominator, unit, four));
+        Assert.Equal(0, RationalSegmentInterval.CompareParameters(mapped.WideUpperNumerator,
+            mapped.WideUpperDenominator, three, four));
+        Assert.False(interval.TryMapToSegment(source, new(new(3, 0, 0), new(4, 0, 0)), out _));
+        foreach ((int start, int end, int retainedStart, int retainedEnd) in new[]
+            { (-3, 0, -1, 0), (0, 3, 0, 1), (-3, -1, -1, -1), (1, 3, 1, 1), (-1, 1, -1, 1) })
+        {
+            var portion = reverse ? new FixedSegment(new(end,0,0), new(start,0,0))
+                : new FixedSegment(new(start,0,0), new(end,0,0));
+            Assert.True(interval.TryMapToSegment(source, portion, out mapped));
+            var planar = new FixedSegment2d(new(portion.Start.X, Fixed64.Zero), new(portion.End.X, Fixed64.Zero));
+            Assert.Equal((Fixed64)(reverse ? retainedEnd : retainedStart), mapped.GetEndpoint(planar, false).X);
+            Assert.Equal((Fixed64)(reverse ? retainedStart : retainedEnd), mapped.GetEndpoint(planar, true).X);
+        }
+    }
+
+    [Fact]
     public void CompleteInterval_ShouldReturnTheOriginalEndpoints()
     {
         var edge = new FixedSegment2d(new(Fixed64.MinValue, Fixed64.MaxValue), new(Fixed64.MaxValue, Fixed64.MinValue));
@@ -185,14 +276,22 @@ public sealed class RationalSegmentIntervalEndpointTests
     [InlineData(2L, 3L)]
     [InlineData(0L, 2L)]
     [InlineData(-1L, 1L)]
-    public void MappingBeyondTheClippingBank_ShouldThrowInsteadOfTruncating(long start, long end)
+    public void MappingBeyondTheRigidClippingBank_ShouldRetainTheExactWiderBounds(long start, long end)
     {
         var denominator = new Signed320(1UL << 62, 0, 0, 0, 1);
         var interval = new RationalSegmentInterval(Integer(1), denominator, new(1UL << 62, 0, 0, 0, 0), denominator);
         var source = new FixedSegment(Vector3d.Zero, new(Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.Zero));
         var target = new FixedSegment(new(Fixed64.FromRaw(start), Fixed64.Zero, Fixed64.Zero),
             new(Fixed64.FromRaw(end), Fixed64.Zero, Fixed64.Zero));
-        Assert.Throws<OverflowException>(() => interval.TryMapToSegment(source, target, out _));
+        bool found = interval.TryMapToSegment(source, target, out var mapped);
+        BigInteger sourceD = (BigInteger.One << 318) + 1;
+        BigInteger expectedD = (end - start) * sourceD;
+        BigInteger lower = BigInteger.Max(BigInteger.Zero, 1 - start * sourceD);
+        BigInteger upper = BigInteger.Min(expectedD, sourceD - 1 - start * sourceD);
+        Assert.Equal(lower <= upper, found);
+        if (!found) return;
+        Assert.Equal(lower * Wide(mapped.WideLowerDenominator), Wide(mapped.WideLowerNumerator) * expectedD);
+        Assert.Equal(upper * Wide(mapped.WideUpperDenominator), Wide(mapped.WideUpperNumerator) * expectedD);
     }
 
     [Fact]
@@ -204,10 +303,22 @@ public sealed class RationalSegmentIntervalEndpointTests
         var source = new FixedSegment(Vector3d.Zero, new(Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.Zero));
         var target = new FixedSegment(new(Fixed64.FromRaw(-1), Fixed64.Zero, Fixed64.Zero),
             new(Fixed64.FromRaw(1), Fixed64.Zero, Fixed64.Zero));
-        Assert.Throws<OverflowException>(() => interval.TryMapToSegment(source, target, out _));
+        Assert.True(interval.TryMapToSegment(source, target, out var mapped));
+        BigInteger sourceD = BigInteger.One << 318, expectedD = 2 * sourceD;
+        Assert.Equal((sourceD + 1) * Wide(mapped.WideLowerDenominator), Wide(mapped.WideLowerNumerator) * expectedD);
+        Assert.Equal((2 * sourceD - 1) * Wide(mapped.WideUpperDenominator), Wide(mapped.WideUpperNumerator) * expectedD);
     }
 
     private static Signed320 Integer(long value) => Signed320.ExtendValue(Signed192.Signed(value));
+
+    private static BigInteger Wide(Signed832 value)
+    {
+        ulong[] words = { value.Word12, value.Word11, value.Word10, value.Word9, value.Word8, value.Word7,
+            value.Word6, value.Word5, value.Word4, value.Word3, value.Word2, value.Word1, value.Word0 };
+        BigInteger result = 0;
+        foreach (ulong word in words) result = (result << 64) + word;
+        return value.Sign < 0 ? result - (BigInteger.One << 832) : result;
+    }
 
     private static long RoundEven(BigInteger numerator, BigInteger denominator)
     {

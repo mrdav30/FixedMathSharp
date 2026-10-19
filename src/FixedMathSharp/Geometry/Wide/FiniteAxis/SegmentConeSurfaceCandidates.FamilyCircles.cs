@@ -12,9 +12,10 @@ namespace FixedMathSharp.Geometry;
 /// <content>Unit-circle boundary roots and clipped apex-disk vertices.</content>
 internal static partial class SegmentConeSurfaceCandidates
 {
-    private static bool BuildFamilyCircle(SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
+    private static bool BuildFamilyCircle(in SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
         scoped ReadOnlySpan<WideAxis3> fan, ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilyWitness witness)
     {
+        int FamilyWords = witness.FieldWords;
         Span<ulong> work = stackalloc ulong[24 * FamilyWords]; Span<int> signs = stackalloc int[24];
         ContactQuadratic u = At(work, signs, 0, FamilyWords), v = At(work, signs, 1, FamilyWords), d = At(work, signs, 2, FamilyWords);
         ContactQuadratic a = At(work, signs, 3, FamilyWords), b = At(work, signs, 4, FamilyWords), c = At(work, signs, 5, FamilyWords);
@@ -53,15 +54,15 @@ internal static partial class SegmentConeSurfaceCandidates
             Multiply(d, d, witness.Root, product); temporary.Add(product, -1);
             if (temporary.Sign(witness.Root) > 0) return false;
         }
-        Signed576 radial = candidate.Feature == ConeSurfaceFeature.Rim ? Signed576.ExtendValue(geometry.Radius)
+        Signed832 radial = candidate.Feature == ConeSurfaceFeature.Rim ? Signed832.ExtendValue(geometry.Radius)
             : ExtendFamily(Signed192.Raw(candidate.Input.Height));
         Scale(u, radial, witness[0]); Scale(v, radial, witness[2]);
         if (candidate.Family == ConeSurfaceFamily.RotationCircle)
         { witness[0].MultiplySign(-1); witness[2].MultiplySign(-1); }
         if (candidate.Feature == ConeSurfaceFeature.Rim)
         {
-            TryGetRimPoint(geometry, candidate.RootOrdinal, out _, out _, out Signed320 offset, out _, out _);
-            Scale(d, Signed576.ExtendValue(offset), witness[1]);
+            TryGetRimPoint(geometry, candidate.RootOrdinal, out _, out _, out Signed576 offset, out _, out _);
+            Scale(d, Signed832.ExtendValue(offset), witness[1]);
         }
         else
         {
@@ -76,14 +77,15 @@ internal static partial class SegmentConeSurfaceCandidates
         return true;
     }
 
-    private static void FamilyCircleLine(SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
+    private static void FamilyCircleLine(in SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
         scoped ReadOnlySpan<WideAxis3> fan, ConeSurfaceFamilyEvent item, scoped ConeSurfaceFamilyWitness witness,
         int index, ContactQuadratic a, ContactQuadratic b, ContactQuadratic c)
     {
-        FamilyConstraint(geometry, fan, item, witness, index, out Signed576 x, out Signed576 y, out Signed576 z);
+        int FamilyWords = witness.FieldWords;
+        FamilyConstraint(geometry, fan, item, witness, index, out Signed832 x, out Signed832 y, out Signed832 z);
         Span<ulong> work = stackalloc ulong[2 * FamilyWords]; Span<int> signs = stackalloc int[2];
         ContactQuadratic scalar = At(work, signs, 0, FamilyWords);
-        Signed576 radial = candidate.Feature == ConeSurfaceFeature.Rim ? Signed576.ExtendValue(geometry.Radius)
+        Signed832 radial = candidate.Feature == ConeSurfaceFeature.Rim ? Signed832.ExtendValue(geometry.Radius)
             : ExtendFamily(Signed192.Raw(candidate.Input.Height));
         scalar.Set(x); Scale(scalar, radial, a);
         scalar.Set(z); Scale(scalar, radial, b);
@@ -91,21 +93,22 @@ internal static partial class SegmentConeSurfaceCandidates
         scalar.Set(y);
         if (candidate.Feature == ConeSurfaceFeature.Rim)
         {
-            TryGetRimPoint(geometry, candidate.RootOrdinal, out _, out _, out Signed320 offset, out _, out _);
-            Scale(scalar, Signed576.ExtendValue(offset), c);
+            TryGetRimPoint(geometry, candidate.RootOrdinal, out _, out _, out Signed576 offset, out _, out _);
+            Scale(scalar, Signed832.ExtendValue(offset), c);
         }
         else { Scale(scalar, ExtendFamily(Signed192.Raw(candidate.Input.Radius)), c); c.MultiplySign(-1); }
     }
 
-    private static void BuildFamilyCircleAnchors(SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
+    private static void BuildFamilyCircleAnchors(in SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
         scoped ContactQuadratic u, scoped ContactQuadratic v, scoped ContactQuadratic d, scoped ref ConeSurfaceFamilyWitness witness)
     {
+        int FamilyWords = witness.FieldWords;
         Span<ulong> work = stackalloc ulong[12 * FamilyWords]; Span<int> signs = stackalloc int[12];
         ContactQuadratic oldD = At(work, signs, 0, FamilyWords), factor = At(work, signs, 1, FamilyWords);
         ContactQuadratic gap = At(work, signs, 2, FamilyWords), product = At(work, signs, 3, FamilyWords);
         ContactQuadratic temporary = At(work, signs, 4, FamilyWords), oldY = At(work, signs, 5, FamilyWords);
         witness[9].CopyTo(oldD); witness[4].CopyTo(oldY);
-        Signed576 radius = ExtendFamily(Signed192.Raw(candidate.Input.Radius)), height = ExtendFamily(Signed192.Raw(candidate.Input.Height));
+        Signed832 radius = ExtendFamily(Signed192.Raw(candidate.Input.Radius)), height = ExtendFamily(Signed192.Raw(candidate.Input.Height));
         if (candidate.Feature == ConeSurfaceFeature.Rim)
         {
             d.CopyTo(factor); factor.Add(factor);
@@ -115,11 +118,11 @@ internal static partial class SegmentConeSurfaceCandidates
         }
         else
         {
-            Signed576 metric = Signed576.ExtendValue(WideArithmetic.AddSigned320(
+            Signed832 metric = Signed832.ExtendValue(WideArithmetic.AddSigned320(
                 WideArithmetic.MultiplySigned192(Signed192.Raw(candidate.Input.Height), Signed192.Raw(candidate.Input.Height)),
                 WideArithmetic.MultiplySigned192(Signed192.Raw(candidate.Input.Radius), Signed192.Raw(candidate.Input.Radius))));
             Scale(d, metric, factor);
-            Scale(witness[11], Signed576.ExtendValue(geometry.Finite.ShapeFrame.Cap), gap); gap.Add(oldY, -1);
+            Scale(witness[11], Signed832.ExtendValue(geometry.Cap), gap); gap.Add(oldY, -1);
             Scale(gap, radius, temporary); Scale(temporary, height, gap);
             Multiply(gap, u, witness.Root, witness[6]); Multiply(gap, v, witness.Root, witness[8]);
             Scale(oldY, metric, gap); Scale(temporary, radius, product); gap.Add(product);

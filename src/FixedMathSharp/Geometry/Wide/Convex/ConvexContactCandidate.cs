@@ -11,7 +11,7 @@ namespace FixedMathSharp.Geometry;
 /// GapSign sqrt((A+B sqrt(C))/D), with positive D and nonnegative radicand.
 /// </summary>
 /// <remarks>
-/// Each little-endian magnitude occupies forty words. Slots 0..2 are a,
+/// Each little-endian magnitude occupies the caller-selected field width (forty words by default). Slots 0..2 are a,
 /// 3..5 are b, 6 is K, and 7..10 are A, B, C, D. Signs 0..5, 7, and 8
 /// are -1, 0, or 1, with zero sign exactly for zero magnitude; unused
 /// signs do not affect the value. GapSign is zero exactly when the gap is
@@ -23,13 +23,15 @@ internal readonly ref struct ConvexContactCandidate
     internal const int Words = 40;
     internal const int Slots = 11;
 
-    internal ConvexContactCandidate(ReadOnlySpan<ulong> values, ReadOnlySpan<int> signs, int gapSign)
+    internal ConvexContactCandidate(ReadOnlySpan<ulong> values, ReadOnlySpan<int> signs, int gapSign, int fieldWords = Words)
     {
+        _fieldWords = fieldWords;
         Values = values;
         Signs = signs;
         GapSign = gapSign;
     }
 
+    private readonly int _fieldWords;
     internal ReadOnlySpan<ulong> Values { get; }
     internal ReadOnlySpan<int> Signs { get; }
     internal int GapSign { get; }
@@ -42,5 +44,5 @@ internal readonly ref struct ConvexContactCandidate
     internal int GapRadicalSign => Signs[8];
     internal ReadOnlySpan<ulong> GapRadicand => Slot(9);
     internal ReadOnlySpan<ulong> GapDenominator => Slot(10);
-    private ReadOnlySpan<ulong> Slot(int slot) => Values.Slice(slot * Words, Words);
+    private ReadOnlySpan<ulong> Slot(int slot) => Values.Slice(slot * _fieldWords, _fieldWords);
 }

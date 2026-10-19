@@ -17,7 +17,6 @@ internal static partial class WideArithmetic
 {
     internal static void GetMagnitude(Signed832 value, Span<ulong> magnitude)
     {
-        magnitude.Clear();
         magnitude[0] = value.Word0;
         magnitude[1] = value.Word1;
         magnitude[2] = value.Word2;
@@ -31,6 +30,7 @@ internal static partial class WideArithmetic
         magnitude[10] = value.Word10;
         magnitude[11] = value.Word11;
         magnitude[12] = value.Word12;
+        magnitude[13..].Clear();
         if (value.Sign >= 0)
             return;
 
@@ -244,6 +244,17 @@ internal static partial class WideArithmetic
             out rightMagnitude[0]);
         Span<ulong> product = stackalloc ulong[16];
         MultiplyMagnitudes(leftMagnitude, rightMagnitude, product);
+        ApplySigned832Sign(product, left.Sign * right.Sign < 0);
+        return CreateSigned832(product);
+    }
+
+    /// <summary>Multiplies values whose caller has proved the result fits thirteen words.</summary>
+    internal static Signed832 MultiplySigned832(Signed832 left, Signed320 right)
+    {
+        Span<ulong> a = stackalloc ulong[13], b = stackalloc ulong[5], product = stackalloc ulong[18];
+        GetMagnitude(left, a);
+        GetMagnitude(right, out b[4], out b[3], out b[2], out b[1], out b[0]);
+        MultiplyMagnitudes(a, b, product);
         ApplySigned832Sign(product, left.Sign * right.Sign < 0);
         return CreateSigned832(product);
     }

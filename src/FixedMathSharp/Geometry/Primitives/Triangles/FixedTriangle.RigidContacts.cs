@@ -201,6 +201,38 @@ public partial struct FixedTriangle
         TryGetCenteredCapsuleContact(origin, rotation, center, capsuleRotation, length, radius, fallback,
             true, out contact, out feature, out _, out endpoint, interval);
 
+    internal readonly bool TryGetCenteredCapsuleContact(in ScaledRigidFrame3d triangleFrame,
+        Vector3d capsuleCenter, FixedQuaternion capsuleRotation, Fixed64 length, Fixed64 radius,
+        Vector3d fallbackNormal, out FixedContactAnchors contact, out AxisTriangleContactFeature feature,
+        out bool chartIsTriangleLocal)
+    {
+        if (triangleFrame.IsRigid)
+            return TryGetCenteredCapsuleContact(triangleFrame.RigidOrigin, triangleFrame.Rotation,
+                capsuleCenter, capsuleRotation, length, radius, fallbackNormal, out contact, out feature, out chartIsTriangleLocal);
+        chartIsTriangleLocal = false;
+        ValidateRigidShapeFrame(capsuleRotation, nameof(capsuleRotation));
+        Vector3d axis = length == Fixed64.Zero ? Vector3d.Up : capsuleRotation.Rotate(Vector3d.Up).Normalized;
+        ValidateCenteredCapsuleContact(axis, length, radius, fallbackNormal);
+        return WideFiniteAxisIntersection.TryGetScaledCenteredCapsuleTriangleContact(this, triangleFrame,
+            capsuleCenter, capsuleRotation, length, radius, fallbackNormal, out contact, out feature, out _);
+    }
+
+    internal readonly bool TryGetClippedCenteredCapsuleContact(in ScaledRigidFrame3d triangleFrame,
+        Vector3d capsuleCenter, FixedQuaternion capsuleRotation, Fixed64 length, Fixed64 radius,
+        Vector3d fallbackNormal, in RationalSegmentInterval interval, out FixedContactAnchors contact,
+        out AxisTriangleContactFeature feature, out int endpoint, out bool chartIsTriangleLocal)
+    {
+        if (triangleFrame.IsRigid && !interval.HasWideBounds)
+            return TryGetCenteredCapsuleContact(triangleFrame.RigidOrigin, triangleFrame.Rotation,
+                capsuleCenter, capsuleRotation, length, radius, fallbackNormal, true, out contact, out feature,
+                out chartIsTriangleLocal, out endpoint, interval);
+        chartIsTriangleLocal = false;
+        ValidateRigidShapeFrame(capsuleRotation, nameof(capsuleRotation));
+        Vector3d axis = length == Fixed64.Zero ? Vector3d.Up : capsuleRotation.Rotate(Vector3d.Up).Normalized;
+        ValidateCenteredCapsuleContact(axis, length, radius, fallbackNormal);
+        return WideFiniteAxisIntersection.TryGetScaledCenteredCapsuleTriangleContact(this, triangleFrame,
+            capsuleCenter, capsuleRotation, length, radius, fallbackNormal, out contact, out feature, out endpoint, interval);
+    }
     private readonly bool TryGetCenteredCapsuleContact(
         Vector3d triangleOrigin,
         FixedQuaternion triangleRotation,

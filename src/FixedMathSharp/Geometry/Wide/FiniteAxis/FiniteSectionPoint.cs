@@ -12,6 +12,7 @@ namespace FixedMathSharp.Geometry;
 internal readonly ref struct FiniteSectionPoint
 {
     internal const int Words = 10, RootWords = 17, StorageWords = 8 * Words + RootWords;
+    internal const int AffineWords = 13, AffineRootWords = 23;
     internal const int SignCount = 8;
     internal readonly Span<ulong> Values;
     internal readonly Span<int> Signs;
@@ -34,10 +35,11 @@ internal readonly ref struct FiniteSectionPoint
         result.Values.Clear(); result.Signs.Clear();
         if (ComparePositions(segment.Start, segment.End) > 0)
             segment = new FixedSegment(segment.End, segment.Start);
-        Span<ulong> work = stackalloc ulong[4 * Words];
+        int words = result._fieldWords;
+        Span<ulong> work = stackalloc ulong[4 * words];
         Span<int> signs = stackalloc int[4];
-        ContactQuadratic parameter = ContactQuadratic.At(work, signs, 0, Words);
-        ContactQuadratic term = ContactQuadratic.At(work, signs, 1, Words);
+        ContactQuadratic parameter = ContactQuadratic.At(work, signs, 0, words);
+        ContactQuadratic term = ContactQuadratic.At(work, signs, 1, words);
         ContactQuadratic denominator = result.Denominator;
         if (!TryGetSegmentParameter(segment, frame, false, parameter, denominator, result.Root))
             return false;
@@ -81,17 +83,18 @@ internal readonly ref struct FiniteSectionPoint
             out Signed320 upperN, out Signed320 upperD);
         System.Diagnostics.Debug.Assert(axial);
         Signed320 clipN = upper ? upperN : lowerN, clipD = upper ? upperD : lowerD;
-        Signed576 a = frame.QuadraticProduct(delta, delta), b = frame.QuadraticProduct(start, delta), c = frame.QuadraticProduct(start, start);
-        if (WideFiniteConeIntersection.GetPolynomialSignAtRationalParameter(Signed832.ExtendValue(a),
-                Signed832.ExtendValue(b), Signed832.ExtendValue(c), clipN, clipD) <= 0)
+        Signed832 a = frame.QuadraticProductWide(delta, delta), b = frame.QuadraticProductWide(start, delta),
+            c = frame.QuadraticProductWide(start, start);
+        if (WideFiniteConeIntersection.GetPolynomialSignAtRationalParameter(a, b, c, clipN, clipD) <= 0)
         {
             numerator.Set(Signed576.ExtendValue(clipN)); denominator.Set(Signed576.ExtendValue(clipD));
             return true;
         }
-        Span<ulong> work = stackalloc ulong[6 * Words];
+        int words = numerator.FieldWords;
+        Span<ulong> work = stackalloc ulong[6 * words];
         Span<int> signs = stackalloc int[6];
-        ContactQuadratic qa = ContactQuadratic.At(work, signs, 0, Words), qb = ContactQuadratic.At(work, signs, 1, Words);
-        ContactQuadratic qc = ContactQuadratic.At(work, signs, 2, Words);
+        ContactQuadratic qa = ContactQuadratic.At(work, signs, 0, words), qb = ContactQuadratic.At(work, signs, 1, words);
+        ContactQuadratic qc = ContactQuadratic.At(work, signs, 2, words);
         qa.Set(a); qb.Set(b); qc.Set(c);
         // For A>0 the admitted interval is between the roots; for A<0 it
         // lies outside them. Finite axial clipping excludes the opposite
@@ -141,10 +144,11 @@ internal readonly ref struct FiniteSectionPoint
         result.Values.Clear(); result.Signs.Clear();
         if (ComparePositions(segment.Start, segment.End) > 0)
             segment = new FixedSegment(segment.End, segment.Start);
-        Span<ulong> work = stackalloc ulong[4 * Words];
+        int words = result._fieldWords;
+        Span<ulong> work = stackalloc ulong[4 * words];
         Span<int> signs = stackalloc int[4];
-        ContactQuadratic parameter = ContactQuadratic.At(work, signs, 0, Words);
-        ContactQuadratic term = ContactQuadratic.At(work, signs, 1, Words);
+        ContactQuadratic parameter = ContactQuadratic.At(work, signs, 0, words);
+        ContactQuadratic term = ContactQuadratic.At(work, signs, 1, words);
         if (!frame.TryGetFirstSegmentParameter(segment, parameter, result.Denominator, result.Root)) return false;
         // Capsule coefficients <400 bits need <466 bits after authored
         // endpoint multiplication, within the existing cone-sized bank.
@@ -162,9 +166,10 @@ internal readonly ref struct FiniteSectionPoint
         result.Values.Clear(); result.Signs.Clear();
         if (ComparePositions(segment.Start, segment.End) > 0)
             segment = new FixedSegment(segment.End, segment.Start);
-        Span<ulong> work = stackalloc ulong[4 * Words]; Span<int> signs = stackalloc int[4];
-        ContactQuadratic parameter = ContactQuadratic.At(work, signs, 0, Words);
-        ContactQuadratic term = ContactQuadratic.At(work, signs, 1, Words);
+        int words = result._fieldWords;
+        Span<ulong> work = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
+        ContactQuadratic parameter = ContactQuadratic.At(work, signs, 0, words);
+        ContactQuadratic term = ContactQuadratic.At(work, signs, 1, words);
         if (!frame.TryGetFirstSegmentParameter(segment, prismOffsets, parameter, result.Denominator, result.Root)) return false;
         SetSegmentPoint(segment, parameter, result.Denominator, term, result);
         return true;

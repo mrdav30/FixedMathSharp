@@ -27,6 +27,31 @@ internal static partial class TriangleConeContact
                 Signed192.Raw(height), radius, out contact, out _);
         var geometry = new TriangleCircularGeometry(triangle, origin, rotation, center, coneRotation,
             Signed192.Raw(height), radius);
+        return TryGetContact(triangle, geometry, origin, rotation, center, coneRotation, height, radius, out contact);
+    }
+
+    internal static bool TryGetContact(FixedTriangle triangle, in ScaledRigidFrame3d sourceFrame,
+        Vector3d center, FixedQuaternion coneRotation, Fixed64 height, Fixed64 radius,
+        out FixedContactAnchors contact)
+    {
+        if (sourceFrame.IsRigid)
+            return TryGetContact(triangle, sourceFrame.RigidOrigin, sourceFrame.Rotation,
+                center, coneRotation, height, radius, out contact);
+        contact = default;
+        if (radius == Fixed64.Zero)
+            return TriangleCylinderContact.TryGetContact(triangle, sourceFrame, center, coneRotation,
+                Signed192.Raw(height), radius, out contact, out _);
+        var geometry = new TriangleCircularGeometry(triangle, sourceFrame, center, coneRotation, Signed192.Raw(height), radius);
+        // Physical scale, rather than authored epsilon area, owns this fan.
+        if (geometry.FaceNormal.IsZero) return false;
+        return TryGetContact(triangle, geometry, center, coneRotation, center, coneRotation, height, radius, out contact);
+    }
+
+    private static bool TryGetContact(FixedTriangle triangle, in TriangleCircularGeometry geometry,
+        Vector3d origin, FixedQuaternion rotation, Vector3d center, FixedQuaternion coneRotation,
+        Fixed64 height, Fixed64 radius, out FixedContactAnchors contact)
+    {
+        contact = default;
         Span<ulong> bestValues = stackalloc ulong[ConvexContactCandidate.Slots * Words];
         Span<int> bestSigns = stackalloc int[ConvexContactCandidate.Slots];
         var selection = new TriangleConeContactSelection(bestValues, bestSigns);
@@ -116,7 +141,7 @@ internal static partial class TriangleConeContact
     {
         Span<ulong> direction = stackalloc ulong[3 * Words];
         Span<int> signs = stackalloc int[3];
-        WriteDirection(new WideAxis3(default, Signed320.One, default), direction, signs);
+        WriteDirection(new WideDirection3d(default, Signed576.One, default), direction, signs);
         KeepAxis(geometry, direction, signs, true, ref selection);
         // Horizontal faces duplicate the already tested +/-Up support masks
         // and gaps. Their equal candidates retain the earlier axial winner.
@@ -130,17 +155,17 @@ internal static partial class TriangleConeContact
         TriangleConeGeneratorFeatures.KeepAll(geometry, height, radius, ref selection);
         for (int vertex = 0; vertex < 3 && !selection.Separated; vertex++)
         {
-            WideAxis3 p = geometry.Vertex(vertex), edge = geometry.Edge(vertex);
-            WriteDirection(new WideAxis3(p.X, default, p.Z), direction, signs);
+            WideDirection3d p = geometry.Vertex(vertex), edge = geometry.Edge(vertex);
+            WriteDirection(new WideDirection3d(p.X, default, p.Z), direction, signs);
             KeepAxis(geometry, direction, signs, false, ref selection);
-            WriteDirection(new WideAxis3(WideArithmetic.Negate(edge.Z), default, edge.X), direction, signs);
+            WriteDirection(new WideDirection3d(WideArithmetic.Negate(edge.Z), default, edge.X), direction, signs);
             KeepAxis(geometry, direction, signs, false, ref selection);
             if (edge.Y.IsZero || edge.X.IsZero && edge.Z.IsZero)
                 continue;
-            CircularRimContactAlgebra.GetBasis(edge, out WideAxis3 first, out WideAxis3 second);
+            CircularRimContactAlgebra.GetBasis(edge, out WideDirection3d first, out WideDirection3d second);
             WriteDirection(first, direction, signs); KeepAxis(geometry, direction, signs, false, ref selection);
             WriteDirection(second, direction, signs); KeepAxis(geometry, direction, signs, false, ref selection);
-            ProjectPerpendicular(edge, new WideAxis3(default, Signed320.One, default), direction, signs);
+            ProjectPerpendicular(edge, new WideDirection3d(default, Signed576.One, default), direction, signs);
             KeepAxis(geometry, direction, signs, false, ref selection);
             ProjectPerpendicular(edge, geometry.CapOffset(vertex, 1), direction, signs);
             KeepAxis(geometry, direction, signs, false, ref selection);
@@ -155,19 +180,19 @@ internal static partial class TriangleConeContact
         // about the segment's projection minus that segment contains ball(d).
         // The retained support attains d, proving the global minimum.
         if (geometry.FaceNormal.X.IsZero && geometry.FaceNormal.Z.IsZero)
-            return geometry.HasFaceDiskMinimumCertificate(new WideAxis3(default, Signed320.One, default), best);
+            return geometry.HasFaceDiskMinimumCertificate(new WideDirection3d(default, Signed576.One, default), best);
         if (!geometry.FaceNormal.Y.IsZero)
             return false;
-        WideAxis3 axis = geometry.FaceNormal.Z.IsZero
-            ? new WideAxis3(Signed320.One, default, default)
-            : geometry.FaceNormal.X.IsZero ? new WideAxis3(default, default, Signed320.One) : default;
+        WideDirection3d axis = geometry.FaceNormal.Z.IsZero
+            ? new WideDirection3d(Signed576.One, default, default)
+            : geometry.FaceNormal.X.IsZero ? new WideDirection3d(default, default, Signed576.One) : default;
         if (axis.IsZero)
             return false;
         // Translate only the certificate to the base center. Original
         // geometry and selection remain authoritative for paired witnesses.
         // Canonical axes keep tangents <231 and shifted dots <431 bits,
         // within the shared certificate's established fixed-carrier bounds.
-        TriangleCircularGeometry baseCentered = geometry.AtCoreRegion(new WideAxis3(default, geometry.HalfHeight, default), 1);
+        TriangleCircularGeometry baseCentered = geometry.AtCoreRegion(new WideDirection3d(default, geometry.HalfHeight, default), 1);
         return baseCentered.HasFaceDiskMinimumCertificate(axis, best);
     }
 
@@ -225,7 +250,7 @@ internal static partial class TriangleConeContact
         // the complete fan, without building an unused normalized denominator.
         if (side == 0 && !compactGenerator)
             return;
-        Import(Signed320.ExtendValue(geometry.RawScale), scale);
+        Import(Signed576.ExtendValue(geometry.RawScale), scale);
         WideArithmetic.MultiplyMagnitudes(scale, scale, temporary);
         WideArithmetic.MultiplyMagnitudes(metric, temporary, denominator);
         if (side == 0)

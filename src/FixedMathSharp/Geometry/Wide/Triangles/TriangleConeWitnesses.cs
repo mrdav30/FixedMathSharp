@@ -36,34 +36,34 @@ internal static class TriangleConeWitnesses
         ContactQuadratic bound = At(work, workSigns, 2), sum = At(work, workSigns, 3);
         ContactQuadratic denominator = At(work, workSigns, 4), tNumerator = At(work, workSigns, 5), tDenominator = At(work, workSigns, 6);
         Signed192 h = Signed192.Raw(height), r = Signed192.Raw(radius);
-        Signed576 hh = Signed576.ExtendValue(WideArithmetic.MultiplySigned192(h, h));
-        Signed576 rr = Signed576.ExtendValue(WideArithmetic.MultiplySigned192(r, r));
-        Signed576 length = WideArithmetic.AddSigned576(hh, rr);
+        Signed832 hh = Signed832.ExtendValue(WideArithmetic.MultiplySigned192(h, h));
+        Signed832 rr = Signed832.ExtendValue(WideArithmetic.MultiplySigned192(r, r));
+        Signed832 length = WideArithmetic.AddSigned832(hh, rr);
         for (int axis = 0; axis < 3; axis++)
         {
             TriangleConeGeneratorFeatures.Component(normal, normalSigns, axis, component);
             Scale(component, axis == 1 ? hh : Negate(rr), At(d, dSigns, axis));
         }
         TriangleConeGeneratorFeatures.Component(normal, normalSigns, 1, component);
-        Scale(component, Negate(Signed576.ExtendValue(Signed320.ExtendValue(h))), product);
+        Scale(component, Negate(Signed832.ExtendValue(Signed576.ExtendValue(h))), product);
         Scale(product, length, component);
-        Scale(component, Signed576.ExtendValue(Signed320.ExtendValue(geometry.RawScale)), bound);
+        Scale(component, Signed832.ExtendValue(Signed576.ExtendValue(geometry.RawScale)), bound);
         System.Diagnostics.Debug.Assert(bound.Sign(root) > 0);
         for (int vertex = 0; vertex < 3; vertex++)
         {
-            WideAxis3 p = geometry.Vertex(vertex);
+            WideDirection3d p = geometry.Vertex(vertex);
             ContactQuadratic distance = At(distances, distanceSigns, vertex);
             TriangleConeGeneratorFeatures.Component(normal, normalSigns, 0, component);
-            Scale(component, Signed576.ExtendValue(p.Z), distance);
+            Scale(component, Signed832.ExtendValue(p.Z), distance);
             TriangleConeGeneratorFeatures.Component(normal, normalSigns, 2, component);
-            Scale(component, Signed576.ExtendValue(p.X), product);
+            Scale(component, Signed832.ExtendValue(p.X), product);
             distance.Add(product, -1);
             sum.Clear();
             for (int axis = 0; axis < 3; axis++)
             {
-                Signed320 coordinate = CylinderContactAlgebra.Component(p, axis);
-                if (axis == 1) coordinate = WideArithmetic.SubtractSigned320(coordinate, geometry.HalfHeight);
-                Scale(At(d, dSigns, axis), Signed576.ExtendValue(coordinate), product);
+                Signed576 coordinate = CylinderContactAlgebra.Component(p, axis);
+                if (axis == 1) coordinate = WideArithmetic.SubtractSigned576(coordinate, geometry.HalfHeight);
+                Scale(At(d, dSigns, axis), Signed832.ExtendValue(coordinate), product);
                 sum.Add(product);
             }
             ContactQuadratic projection = At(projections, projectionSigns, vertex);
@@ -79,15 +79,15 @@ internal static class TriangleConeWitnesses
         System.Diagnostics.Debug.Assert(found);
         SumWeights(weights, weightSigns, denominator);
         trianglePoint = new Vector3d(
-            RoundTriangleCoordinate(triangle.A.X, triangle.B.X, triangle.C.X, weights, weightSigns, denominator, root),
-            RoundTriangleCoordinate(triangle.A.Y, triangle.B.Y, triangle.C.Y, weights, weightSigns, denominator, root),
-            RoundTriangleCoordinate(triangle.A.Z, triangle.B.Z, triangle.C.Z, weights, weightSigns, denominator, root));
+            RoundTriangleCoordinate(geometry, triangle, 0, weights, weightSigns, denominator, root),
+            RoundTriangleCoordinate(geometry, triangle, 1, weights, weightSigns, denominator, root),
+            RoundTriangleCoordinate(geometry, triangle, 2, weights, weightSigns, denominator, root));
         if (centered)
         {
             // The larger blended triangle weights must not be reprojected:
             // their semantic generator parameter is exactly one half.
-            tNumerator.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1))));
-            tDenominator.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(2))));
+            tNumerator.Set(Signed832.ExtendValue(Signed576.ExtendValue(Signed192.Signed(1))));
+            tDenominator.Set(Signed832.ExtendValue(Signed576.ExtendValue(Signed192.Signed(2))));
         }
         else
         {
@@ -109,7 +109,7 @@ internal static class TriangleConeWitnesses
     }
 
     private static Fixed64 RoundRadial(int axis, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> signs,
-        Signed576 radiusSquared, Signed192 height, ContactQuadratic tNumerator, ContactQuadratic tDenominator,
+        Signed832 radiusSquared, Signed192 height, ContactQuadratic tNumerator, ContactQuadratic tDenominator,
         ReadOnlySpan<ulong> root, Fixed64 radius)
     {
         // Endpoint weights <658 bits give t numerators <1448 and final
@@ -122,7 +122,7 @@ internal static class TriangleConeWitnesses
         Scale(component, radiusSquared, scaled);
         Multiply(scaled, tNumerator, root, numerator);
         TriangleConeGeneratorFeatures.Component(normal, signs, 1, component);
-        Scale(component, Signed576.ExtendValue(Signed320.ExtendValue(height)), scaled);
+        Scale(component, Signed832.ExtendValue(Signed576.ExtendValue(height)), scaled);
         Multiply(scaled, tDenominator, root, denominator);
         numerator.MultiplySign(-1); denominator.MultiplySign(-1);
         return RoundRatio(numerator, denominator, root, -radius.m_rawValue, radius.m_rawValue);
@@ -135,10 +135,10 @@ internal static class TriangleConeWitnesses
         Span<int> signs = stackalloc int[6];
         ContactQuadratic difference = At(work, signs, 0), numerator = At(work, signs, 1), denominator = At(work, signs, 2);
         tDenominator.CopyTo(difference); difference.Add(tNumerator, -1); difference.Add(tNumerator, -1);
-        Scale(difference, Signed576.ExtendValue(Signed320.ExtendValue(height)), numerator);
+        Scale(difference, Signed832.ExtendValue(Signed576.ExtendValue(height)), numerator);
         tDenominator.CopyTo(denominator); denominator.Add(tDenominator);
         return RoundRatio(numerator, denominator, root);
     }
 
-    private static Signed576 Negate(Signed576 value) => WideArithmetic.SubtractSigned576(default, value);
+    private static Signed832 Negate(Signed832 value) => WideArithmetic.SubtractSigned832(default, value);
 }

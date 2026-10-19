@@ -10,6 +10,60 @@ namespace FixedMathSharp.Geometry;
 /// <summary>Exact comparison and materialization of retained convex contact value roots.</summary>
 internal static class ConvexContactValueRoot
 {
+    internal static FiniteAxisValueRoot MapSquaredValue(Signed192 rawScale, int valueShift,
+        scoped ref FiniteAxisValueRoot parameter, scoped ReadOnlySpan<ulong> numerator,
+        scoped ReadOnlySpan<sbyte> numeratorSigns, scoped ReadOnlySpan<ulong> denominator,
+        scoped ReadOnlySpan<sbyte> denominatorSigns, ReadOnlySpan<ulong> values, ReadOnlySpan<sbyte> signs, Span<ulong> cell)
+    {
+        Span<ulong> scale = stackalloc ulong[3];
+        WideArithmetic.GetMagnitude(rawScale, out scale[2], out scale[1], out scale[0]);
+        return MapSquaredValue(scale, valueShift, ref parameter, numerator, numeratorSigns,
+            denominator, denominatorSigns, values, signs, cell);
+    }
+
+    internal static FiniteAxisValueRoot MapSquaredValue(Signed320 rawScale, int valueShift,
+        scoped ref FiniteAxisValueRoot parameter, scoped ReadOnlySpan<ulong> numerator,
+        scoped ReadOnlySpan<sbyte> numeratorSigns, scoped ReadOnlySpan<ulong> denominator,
+        scoped ReadOnlySpan<sbyte> denominatorSigns, ReadOnlySpan<ulong> values, ReadOnlySpan<sbyte> signs, Span<ulong> cell)
+    {
+        Span<ulong> scale = stackalloc ulong[5];
+        WideArithmetic.GetMagnitude(rawScale, out scale[4], out scale[3], out scale[2], out scale[1], out scale[0]);
+        return MapSquaredValue(scale, valueShift, ref parameter, numerator, numeratorSigns,
+            denominator, denominatorSigns, values, signs, cell);
+    }
+
+    internal static int CompareRootSquared(Signed192 rawScale, int valueShift,
+        scoped ref FiniteAxisValueRoot root, ConvexContactCandidate candidate)
+    {
+        Span<ulong> scale = stackalloc ulong[3];
+        WideArithmetic.GetMagnitude(rawScale, out scale[2], out scale[1], out scale[0]);
+        return CompareRootSquared(scale, valueShift, ref root, candidate);
+    }
+
+    internal static int CompareRootSquared(Signed320 rawScale, int valueShift,
+        scoped ref FiniteAxisValueRoot root, ConvexContactCandidate candidate)
+    {
+        Span<ulong> scale = stackalloc ulong[5];
+        WideArithmetic.GetMagnitude(rawScale, out scale[4], out scale[3], out scale[2], out scale[1], out scale[0]);
+        return CompareRootSquared(scale, valueShift, ref root, candidate);
+    }
+
+    internal static bool GetRoundedDepth(Signed192 rawScale, int valueShift, ref FiniteAxisValueRoot root,
+        out Fixed64 depth, out bool clamped, int gapSign = 1, Fixed64 radiusOffset = default)
+    {
+        Span<ulong> scale = stackalloc ulong[3];
+        WideArithmetic.GetMagnitude(rawScale, out scale[2], out scale[1], out scale[0]);
+        return GetRoundedDepth(scale, valueShift, ref root, out depth, out clamped, gapSign, radiusOffset);
+    }
+
+    internal static bool GetRoundedDepth(Signed320 rawScale, int valueShift, ref FiniteAxisValueRoot root,
+        out Fixed64 depth, out bool clamped, int gapSign = 1, Fixed64 radiusOffset = default)
+    {
+        Span<ulong> scale = stackalloc ulong[5];
+        WideArithmetic.GetMagnitude(rawScale, out scale[4], out scale[3], out scale[2], out scale[1], out scale[0]);
+        return GetRoundedDepth(scale, valueShift, ref root, out depth, out clamped, gapSign, radiusOffset);
+    }
+
     /// <summary>Compares a positive raw squared gap N/D to (twiceRaw/2)²; D must be positive at the admitted parameter.</summary>
     internal static int CompareSquaredGapToTwiceRaw(scoped ref FiniteAxisValueRoot parameter,
         scoped ReadOnlySpan<ulong> numerator, scoped ReadOnlySpan<sbyte> numeratorSigns,
@@ -17,13 +71,14 @@ internal static class ConvexContactValueRoot
     {
         Span<ulong> endpoint = stackalloc ulong[2];
         Fixed64.Multiply64To128(twiceRaw, twiceRaw, out endpoint[1], out endpoint[0]);
-        return CompareSquaredValueEndpoint(Signed192.Signed(1), 0, ref parameter,
+        Span<ulong> scale = stackalloc ulong[1] { 1 };
+        return CompareSquaredValueEndpoint(scale, 0, ref parameter,
             numerator, numeratorSigns, denominator, denominatorSigns, endpoint, 2);
     }
 
     /// <summary>Maps one admitted stationary parameter to its exact squared-gap value root.</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static FiniteAxisValueRoot MapSquaredValue(Signed192 rawScale, int valueShift,
+    internal static FiniteAxisValueRoot MapSquaredValue(scoped ReadOnlySpan<ulong> scale, int valueShift,
         scoped ref FiniteAxisValueRoot parameter, scoped ReadOnlySpan<ulong> numerator,
         scoped ReadOnlySpan<sbyte> numeratorSigns, scoped ReadOnlySpan<ulong> denominator,
         scoped ReadOnlySpan<sbyte> denominatorSigns,
@@ -38,7 +93,7 @@ internal static class ConvexContactValueRoot
             FiniteAxisValueRoot root = FiniteAxisValueRoots.GetRoot(roots, ordinal, values, signs, cell);
             if (root.IsRational)
             {
-                if (CompareSquaredValueEndpoint(rawScale, valueShift, ref parameter,
+                if (CompareSquaredValueEndpoint(scale, valueShift, ref parameter,
                         numerator, numeratorSigns, denominator, denominatorSigns, cell, root.DenominatorShift) == 0)
                     return root;
             }
@@ -46,7 +101,7 @@ internal static class ConvexContactValueRoot
             {
                 cell.CopyTo(upper);
                 WideArithmetic.AddWord(upper, 0, 1);
-                if (CompareSquaredValueEndpoint(rawScale, valueShift, ref parameter,
+                if (CompareSquaredValueEndpoint(scale, valueShift, ref parameter,
                         numerator, numeratorSigns, denominator, denominatorSigns, upper, root.DenominatorShift) < 0)
                     return root;
             }
@@ -56,20 +111,18 @@ internal static class ConvexContactValueRoot
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static int CompareSquaredValueEndpoint(Signed192 rawScale, int valueShift,
+    private static int CompareSquaredValueEndpoint(scoped ReadOnlySpan<ulong> scale, int valueShift,
         scoped ref FiniteAxisValueRoot parameter, scoped ReadOnlySpan<ulong> numerator,
         scoped ReadOnlySpan<sbyte> numeratorSigns, scoped ReadOnlySpan<ulong> denominator,
         scoped ReadOnlySpan<sbyte> denominatorSigns, scoped ReadOnlySpan<ulong> endpoint, int shift)
     {
         int sourceWords = numerator.Length / numeratorSigns.Length;
-        int words = (shift + valueShift + sourceWords * 64 + 384 + 127) / 64;
+        int words = (shift + valueShift + sourceWords * 64 + scale.Length * 128 + 127) / 64;
         Span<ulong> query = stackalloc ulong[5 * words];
         Span<sbyte> signs = stackalloc sbyte[5];
         Span<ulong> product = stackalloc ulong[words];
-        Span<ulong> scale = stackalloc ulong[3];
-        Span<ulong> scaleSquared = stackalloc ulong[6];
+        Span<ulong> scaleSquared = stackalloc ulong[2 * scale.Length];
         query.Clear(); signs.Clear();
-        WideArithmetic.GetMagnitude(rawScale, out scale[2], out scale[1], out scale[0]);
         WideArithmetic.MultiplyMagnitudes(scale, scale, scaleSquared);
         for (int index = 0; index < 5; index++)
         {
@@ -89,17 +142,16 @@ internal static class ConvexContactValueRoot
     /// raw gap. Gap signs are deliberately excluded; the caller ranks them first.
     /// Retains certified cell refinement and its metadata when caller storage permits.
     /// </summary>
-    internal static int CompareRootSquared(Signed192 rawScale, int valueShift,
+    internal static int CompareRootSquared(scoped ReadOnlySpan<ulong> scale, int valueShift,
         scoped ref FiniteAxisValueRoot root, ConvexContactCandidate candidate)
     {
-        Span<ulong> scale = stackalloc ulong[3];
-        WideArithmetic.GetMagnitude(rawScale, out scale[2], out scale[1], out scale[0]);
-        Span<ulong> squaredScale = stackalloc ulong[6];
+        Span<ulong> squaredScale = stackalloc ulong[2 * scale.Length];
         WideArithmetic.MultiplyMagnitudes(scale, scale, squaredScale);
         int scaleWords = WideArithmetic.GetActiveMagnitudeLength(squaredScale);
+        int denominatorWords = WideArithmetic.GetActiveMagnitudeLength(candidate.GapDenominator);
         int linearWords = Math.Max(
             WideArithmetic.GetActiveMagnitudeLength(candidate.GapRational) + scaleWords,
-            WideArithmetic.GetActiveMagnitudeLength(candidate.GapDenominator) + (valueShift + 63) / 64);
+            denominatorWords + (valueShift + 63) / 64);
         int radicalWords = WideArithmetic.GetActiveMagnitudeLength(candidate.GapRadical) + scaleWords;
         int words = Math.Max(ConvexContactCandidate.Words, Math.Max(2 * linearWords + 1,
             2 * radicalWords + WideArithmetic.GetActiveMagnitudeLength(candidate.GapRadicand) + 1));
@@ -109,7 +161,9 @@ internal static class ConvexContactValueRoot
         WideArithmetic.MultiplyMagnitudes(candidate.GapRational, squaredScale, linear[..words]);
         linearSigns[0] = (sbyte)-candidate.GapRationalSign;
         linear[words..].Clear();
-        candidate.GapDenominator.CopyTo(linear[words..]);
+        // Query scratch follows active coefficient widths, while a retained
+        // affine candidate can have a wider padded field. Copy only its value.
+        candidate.GapDenominator[..denominatorWords].CopyTo(linear[words..]);
         linearSigns[1] = 1;
         WideFiniteAxisIntersection.ScaleFiniteAxisPolynomialVariable(linear, 2, valueShift);
         int rationalSign = WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, linear, linearSigns);
@@ -172,16 +226,14 @@ internal static class ConvexContactValueRoot
     }
 
     /// <summary>Classifies and rounds radiusOffset + gapSign*sqrt(value) as one exact value.</summary>
-    internal static bool GetRoundedDepth(Signed192 rawScale, int valueShift, ref FiniteAxisValueRoot root,
+    internal static bool GetRoundedDepth(scoped ReadOnlySpan<ulong> scale, int valueShift, ref FiniteAxisValueRoot root,
         out Fixed64 depth, out bool clamped, int gapSign = 1, Fixed64 radiusOffset = default)
     {
         depth = default; clamped = false;
         // Isolated squared-value roots are strictly positive. Exact zero-gap
         // features are retained separately by their geometry owner.
         System.Diagnostics.Debug.Assert(gapSign is -1 or 1);
-        Span<ulong> scale = stackalloc ulong[3];
-        WideArithmetic.GetMagnitude(rawScale, out scale[2], out scale[1], out scale[0]);
-        Span<ulong> squaredScale = stackalloc ulong[6];
+        Span<ulong> squaredScale = stackalloc ulong[2 * scale.Length];
         WideArithmetic.MultiplyMagnitudes(scale, scale, squaredScale);
         if (gapSign < 0 && CompareDepthToTwiceRaw(root, squaredScale, valueShift, 0, gapSign, radiusOffset) < 0)
             return false;
@@ -227,7 +279,7 @@ internal static class ConvexContactValueRoot
         WideArithmetic.GetMagnitude(difference, out _, out _, out ulong magnitude);
         Fixed64.Multiply64To128(magnitude, magnitude, out ulong high, out ulong low);
         Span<ulong> squaredRaw = stackalloc ulong[2] { low, high };
-        Span<ulong> threshold = stackalloc ulong[8];
+        Span<ulong> threshold = stackalloc ulong[squaredScale.Length + 2];
         WideArithmetic.MultiplyMagnitudes(squaredScale, squaredRaw, threshold);
         return gapSign * WideFiniteAxisIntersection.CompareFiniteValueRootToDyadic(root, threshold, valueShift + 2);
     }

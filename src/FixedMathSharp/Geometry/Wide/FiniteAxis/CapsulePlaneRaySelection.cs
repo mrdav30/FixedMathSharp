@@ -31,6 +31,10 @@ internal ref partial struct CapsulePlaneRaySelection
     internal const int StorageWords = QuadraticStorageWords + CapsulePlaneRayValue.StorageWords;
     internal const int SignCount = 12;
     internal const int ValueSignCount = CapsulePlaneRayValue.SignCount;
+    internal readonly int CoefficientWords, RadicalWords, PolynomialWords;
+    private readonly int QuadraticWords => 12 * CoefficientWords + RadicalWords;
+    internal static int GetStorageWords(int fieldWords, int rootWords, int valueWords) =>
+        12 * fieldWords + rootWords + CapsulePlaneRayValue.GetStorageWords(valueWords);
     internal readonly Span<ulong> Values;
     internal readonly Span<int> Signs;
     internal readonly Span<sbyte> ValueSigns;
@@ -40,13 +44,13 @@ internal ref partial struct CapsulePlaneRaySelection
     internal int Primitive;
     internal CapsulePlaneRayEventSource CurrentSource, MaximumSource;
     internal CapsulePlaneRayEvent CurrentEvent, MaximumEvent;
-    internal readonly ContactQuadratic X => ContactQuadratic.At(Values, Signs, 0, FieldWords);
-    internal readonly ContactQuadratic Y => ContactQuadratic.At(Values, Signs, 1, FieldWords);
-    internal readonly ContactQuadratic Z => ContactQuadratic.At(Values, Signs, 2, FieldWords);
-    internal readonly ContactQuadratic Denominator => ContactQuadratic.At(Values, Signs, 3, FieldWords);
-    internal readonly ContactQuadratic DepthNumerator => ContactQuadratic.At(Values, Signs, 4, FieldWords);
-    internal readonly ContactQuadratic DepthDenominator => ContactQuadratic.At(Values, Signs, 5, FieldWords);
-    internal readonly ReadOnlySpan<ulong> Root => Values.Slice(12 * FieldWords, RootWords);
+    internal readonly ContactQuadratic X => ContactQuadratic.At(Values, Signs, 0, CoefficientWords);
+    internal readonly ContactQuadratic Y => ContactQuadratic.At(Values, Signs, 1, CoefficientWords);
+    internal readonly ContactQuadratic Z => ContactQuadratic.At(Values, Signs, 2, CoefficientWords);
+    internal readonly ContactQuadratic Denominator => ContactQuadratic.At(Values, Signs, 3, CoefficientWords);
+    internal readonly ContactQuadratic DepthNumerator => ContactQuadratic.At(Values, Signs, 4, CoefficientWords);
+    internal readonly ContactQuadratic DepthDenominator => ContactQuadratic.At(Values, Signs, 5, CoefficientWords);
+    internal readonly ReadOnlySpan<ulong> Root => Values.Slice(12 * CoefficientWords, RadicalWords);
     internal readonly CapsulePlaneRaySelectionMetadata Metadata => new(HasValue, usesValueRoot, Primitive,
         MaximumSource, MaximumEvent, valueMetadata);
 
@@ -54,11 +58,13 @@ internal ref partial struct CapsulePlaneRaySelection
     internal readonly int ComparePoint(scoped in CapsulePlaneRaySelection other, scoped in CapsulePlaneRayFrame frame) =>
         frame.ComparePoints(X, Y, Z, Denominator, Root, other.X, other.Y, other.Z, other.Denominator, other.Root);
 
-    internal CapsulePlaneRaySelection(Span<ulong> values, Span<int> signs, Span<sbyte> valueSigns)
+    internal CapsulePlaneRaySelection(Span<ulong> values, Span<int> signs, Span<sbyte> valueSigns,
+        int fieldWords = FieldWords, int rootWords = RootWords, int valueWords = CapsulePlaneRayValue.PolynomialWords)
     {
-        if (values.Length < StorageWords || signs.Length < SignCount || valueSigns.Length < ValueSignCount)
+        if (values.Length < GetStorageWords(fieldWords, rootWords, valueWords) || signs.Length < SignCount || valueSigns.Length < ValueSignCount)
             throw new ArgumentException("The capsule ray selection storage is too small.");
-        Values = values[..StorageWords]; Signs = signs[..SignCount]; HasValue = false; Primitive = 0;
+        CoefficientWords = fieldWords; RadicalWords = rootWords; PolynomialWords = valueWords;
+        Values = values[..GetStorageWords(fieldWords, rootWords, valueWords)]; Signs = signs[..SignCount]; HasValue = false; Primitive = 0;
         ValueSigns = valueSigns[..ValueSignCount]; usesValueRoot = false; valueMetadata = default;
         CurrentSource = MaximumSource = default; CurrentEvent = MaximumEvent = default;
     }
@@ -67,7 +73,7 @@ internal ref partial struct CapsulePlaneRaySelection
     {
         get
         {
-            var value = new CapsulePlaneRayValue(Values[QuadraticStorageWords..], ValueSigns);
+            var value = new CapsulePlaneRayValue(Values[QuadraticWords..], ValueSigns, PolynomialWords);
             value.Restore(valueMetadata); return value;
         }
     }
@@ -89,7 +95,7 @@ internal ref partial struct CapsulePlaneRaySelection
         }
         x.CopyTo(X); y.CopyTo(Y); z.CopyTo(Z); denominator.CopyTo(Denominator);
         numerator.CopyTo(DepthNumerator); divisor.CopyTo(DepthDenominator);
-        Span<ulong> destination = Values.Slice(12 * FieldWords, RootWords);
+        Span<ulong> destination = Values.Slice(12 * CoefficientWords, RadicalWords);
         root.CopyTo(destination); destination[root.Length..].Clear();
         HasValue = true; Primitive = primitive;
         usesValueRoot = false; valueMetadata = default;
@@ -114,17 +120,17 @@ internal ref partial struct CapsulePlaneRaySelection
         in CapsulePlaneRayFrame frame, in CapsulePlaneRayFrame otherFrame)
     {
         System.Diagnostics.Debug.Assert(frame.NormalSquared.Equals(otherFrame.NormalSquared));
-        Signed192 divisor = frame.Finite.ShapeFrame.Denominator;
-        Signed192 otherDivisor = otherFrame.Finite.ShapeFrame.Denominator;
+        Signed320 divisor = frame.Finite.ShapeFrame.CoordinateDenominator;
+        Signed320 otherDivisor = otherFrame.Finite.ShapeFrame.CoordinateDenominator;
         if (divisor.Equals(otherDivisor)) return CompareDepth(other);
         if (usesValueRoot && other.usesValueRoot) return Value.Compare(other.Value, divisor, otherDivisor);
 
-        const int words = FieldWords + 3;
+        int words = Math.Max(CoefficientWords, other.CoefficientWords) + 5;
         Span<ulong> values = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
         ContactQuadratic first = ContactQuadratic.At(values, signs, 0, words);
         ContactQuadratic second = ContactQuadratic.At(values, signs, 1, words);
-        Signed576 scale = Signed576.ExtendValue(Signed320.ExtendValue(divisor));
-        Signed576 otherScale = Signed576.ExtendValue(Signed320.ExtendValue(otherDivisor));
+        Signed576 scale = Signed576.ExtendValue(divisor);
+        Signed576 otherScale = Signed576.ExtendValue(otherDivisor);
         if (usesValueRoot)
         {
             ContactQuadratic.Scale(other.DepthNumerator, scale, first);
@@ -179,9 +185,9 @@ internal ref partial struct CapsulePlaneRaySelection
             }
         }
         x.CopyTo(X); y.CopyTo(Y); z.CopyTo(Z); denominator.CopyTo(Denominator);
-        Span<ulong> destination = Values.Slice(12 * FieldWords, RootWords);
+        Span<ulong> destination = Values.Slice(12 * CoefficientWords, RadicalWords);
         root.CopyTo(destination); destination[root.Length..].Clear();
-        var retained = new CapsulePlaneRayValue(Values[QuadraticStorageWords..], ValueSigns);
+        var retained = new CapsulePlaneRayValue(Values[QuadraticWords..], ValueSigns, PolynomialWords);
         retained.CopyFrom(value); valueMetadata = retained.Metadata;
         HasValue = usesValueRoot = true; Primitive = primitive;
         MaximumSource = CurrentSource; MaximumEvent = CurrentEvent;
@@ -194,10 +200,10 @@ internal ref partial struct CapsulePlaneRaySelection
     {
         depth = default; clamped = false;
         if (!HasValue) return false;
-        Signed192 doubleScale = WideArithmetic.AddSigned192(frame.Finite.ShapeFrame.Denominator, frame.Finite.ShapeFrame.Denominator);
+        Signed320 doubleScale = WideArithmetic.AddSigned320(frame.Finite.ShapeFrame.CoordinateDenominator, frame.Finite.ShapeFrame.CoordinateDenominator);
         if (usesValueRoot) return Value.TryGetDepth(frame.NormalSquared, doubleScale, out depth, out clamped);
-        Span<ulong> metric = stackalloc ulong[9]; WideArithmetic.GetMagnitude(frame.NormalSquared, metric);
-        Span<ulong> scale = stackalloc ulong[3]; WideArithmetic.GetMagnitude(doubleScale, out scale[2], out scale[1], out scale[0]);
+        Span<ulong> metric = stackalloc ulong[13]; WideArithmetic.GetMagnitude(frame.NormalSquared, metric);
+        Span<ulong> scale = stackalloc ulong[5]; WideArithmetic.GetMagnitude(doubleScale, out scale[4], out scale[3], out scale[2], out scale[1], out scale[0]);
         clamped = !ContactQuadratic.TryRoundRootRatio(DepthNumerator, DepthDenominator, Root, metric, scale, out depth);
         if (clamped) depth = Fixed64.MaxValue;
         return true;
@@ -206,13 +212,26 @@ internal ref partial struct CapsulePlaneRaySelection
     internal bool ContainsTrianglePoint(in CapsulePlaneRayFrame frame, FixedTriangle triangle) =>
         HasValue && frame.ContainsTrianglePoint(triangle, X, Y, Z, Denominator, Root);
 
+    /// <summary>Materializes the physical source point directly into a requested rigid sampling frame.</summary>
+    internal bool TryGetPointInRigidFrame(in CapsulePlaneRayFrame frame, Vector3d samplingOrigin,
+        FixedQuaternion samplingRotation, Vector3d center, FixedQuaternion rotation, out Vector3d point)
+    {
+        point = default;
+        if (!HasValue) return false;
+        int words = Math.Max(CoefficientWords, ContactQuadratic.ActiveWords(Denominator) + 5);
+        Span<ulong> values = stackalloc ulong[2 * words]; Span<int> signs = stackalloc int[2];
+        ContactQuadratic d = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic.Scale(Denominator, GetCoordinateScale(frame), d);
+        return QuadraticPointMaterialization.TryGetPointInRigidFrame(center, rotation, samplingOrigin, samplingRotation,
+            X, Y, Z, d, Root, out point);
+    }
     internal bool TryGetAuthoredPoint(in CapsulePlaneRayFrame frame, Vector3d meshOrigin, FixedQuaternion meshRotation,
         Vector3d center, FixedQuaternion rotation, out Vector3d point)
     {
         point = default;
         if (!HasValue) return false;
-        Span<ulong> values = stackalloc ulong[2 * FieldWords]; Span<int> signs = stackalloc int[2];
-        ContactQuadratic d = ContactQuadratic.At(values, signs, 0, FieldWords);
+        Span<ulong> values = stackalloc ulong[2 * CoefficientWords]; Span<int> signs = stackalloc int[2];
+        ContactQuadratic d = ContactQuadratic.At(values, signs, 0, CoefficientWords);
         ContactQuadratic.Scale(Denominator, GetCoordinateScale(frame), d);
         return QuadraticPointMaterialization.TryGetPointInRigidFrame(center, rotation, meshOrigin, meshRotation,
             X, Y, Z, d, Root, out point);
@@ -227,15 +246,14 @@ internal ref partial struct CapsulePlaneRaySelection
         if (!HasValue) return false;
         bool depthRepresented = TryGetDepth(frame, out depth, out clamped);
         System.Diagnostics.Debug.Assert(depthRepresented);
-        Span<ulong> values = stackalloc ulong[16 * FieldWords]; Span<int> signs = stackalloc int[16];
-        ContactQuadratic x = ContactQuadratic.At(values, signs, 0, FieldWords), y = ContactQuadratic.At(values, signs, 1, FieldWords);
-        ContactQuadratic z = ContactQuadratic.At(values, signs, 2, FieldWords), d = ContactQuadratic.At(values, signs, 3, FieldWords);
-        ContactQuadratic term = ContactQuadratic.At(values, signs, 4, FieldWords), work = ContactQuadratic.At(values, signs, 5, FieldWords);
-        ContactQuadratic zero = ContactQuadratic.At(values, signs, 6, FieldWords), scaled = ContactQuadratic.At(values, signs, 7, FieldWords);
+        Span<ulong> values = stackalloc ulong[16 * CoefficientWords]; Span<int> signs = stackalloc int[16];
+        ContactQuadratic x = ContactQuadratic.At(values, signs, 0, CoefficientWords), y = ContactQuadratic.At(values, signs, 1, CoefficientWords);
+        ContactQuadratic z = ContactQuadratic.At(values, signs, 2, CoefficientWords), d = ContactQuadratic.At(values, signs, 3, CoefficientWords);
+        ContactQuadratic term = ContactQuadratic.At(values, signs, 4, CoefficientWords), work = ContactQuadratic.At(values, signs, 5, CoefficientWords);
+        ContactQuadratic zero = ContactQuadratic.At(values, signs, 6, CoefficientWords), scaled = ContactQuadratic.At(values, signs, 7, CoefficientWords);
         zero.Clear();
-        Signed192 coordinateScale = WideArithmetic.AddSigned192(frame.Finite.ShapeFrame.Denominator, frame.Finite.ShapeFrame.Denominator);
-        WideAxis3 direction = orientation > 0 ? frame.Normal : new(WideArithmetic.Negate(frame.Normal.X),
-            WideArithmetic.Negate(frame.Normal.Y), WideArithmetic.Negate(frame.Normal.Z));
+        Signed320 coordinateScale = WideArithmetic.AddSigned320(frame.Finite.ShapeFrame.CoordinateDenominator, frame.Finite.ShapeFrame.CoordinateDenominator);
+        WideDirection3d direction = orientation > 0 ? frame.Normal : -frame.Normal;
         int endpoint = frame.Finite.Length == Fixed64.Zero ? 0 : Primitive == 1 ? -1 : Primitive == 2 ? 1 : 0;
         Vector3d axial = default, radial;
         if (usesValueRoot)
@@ -247,14 +265,14 @@ internal ref partial struct CapsulePlaneRaySelection
             {
                 ContactQuadratic.Scale(Denominator, Signed576.ExtendValue(frame.Finite.ShapeFrame.Cap), work);
                 Y.CopyTo(term); term.Add(work, -1);
-                ContactQuadratic.Scale(Denominator, Signed576.ExtendValue(direction.Y), scaled);
+                ContactQuadratic.Scale(Denominator, direction.Y, scaled);
                 if (value.SignLinear(term, scaled, Root) == 0) endpoint = 1;
                 else { Y.CopyTo(term); term.Add(work); if (value.SignLinear(term, scaled, Root) == 0) endpoint = -1; }
             }
             if (endpoint == 0 && frame.Finite.Length != Fixed64.Zero)
             {
                 bool axialRepresented = value.TryGetPoint(zero, Y, zero, Denominator, Root,
-                    new WideAxis3(default, direction.Y, default), coordinateScale, out axial);
+                    new WideDirection3d(default, direction.Y, default), coordinateScale, out axial);
                 System.Diagnostics.Debug.Assert(axialRepresented);
                 y.Clear();
             }
@@ -265,7 +283,7 @@ internal ref partial struct CapsulePlaneRaySelection
                     : endpoint > 0 ? frame.Finite.ShapeFrame.Cap : default;
                 ContactQuadratic.Scale(Denominator, Signed576.ExtendValue(cap), term); y.Add(term, -1);
             }
-            WideAxis3 radialDirection = endpoint == 0 && frame.Finite.Length != Fixed64.Zero
+            WideDirection3d radialDirection = endpoint == 0 && frame.Finite.Length != Fixed64.Zero
                 ? new(direction.X, default, direction.Z) : direction;
             bool radialRepresented = value.TryGetPoint(X, y, Z, Denominator, Root, radialDirection, coordinateScale, out radial);
             System.Diagnostics.Debug.Assert(radialRepresented);
@@ -318,12 +336,11 @@ internal ref partial struct CapsulePlaneRaySelection
             ContactQuadratic source = axis == 0 ? X : axis == 1 ? Y : Z;
             ContactQuadratic target = axis == 0 ? x : axis == 1 ? y : z;
             ContactQuadratic.Multiply(source, DepthDenominator, Root, target);
-            Signed320 direction = axis == 0 ? frame.Normal.X : axis == 1 ? frame.Normal.Y : frame.Normal.Z;
-            ContactQuadratic.Scale(term, Signed576.ExtendValue(direction), work); target.Add(work, orientation);
+            Signed576 direction = axis == 0 ? frame.Normal.X : axis == 1 ? frame.Normal.Y : frame.Normal.Z;
+            ContactQuadratic.Scale(term, direction, work); target.Add(work, orientation);
         }
     }
 
     private static Signed576 GetCoordinateScale(in CapsulePlaneRayFrame frame) =>
-        Signed576.ExtendValue(Signed320.ExtendValue(WideArithmetic.AddSigned192(
-            frame.Finite.ShapeFrame.Denominator, frame.Finite.ShapeFrame.Denominator)));
+        Signed576.ExtendValue(WideArithmetic.AddSigned320(frame.Finite.ShapeFrame.CoordinateDenominator, frame.Finite.ShapeFrame.CoordinateDenominator));
 }

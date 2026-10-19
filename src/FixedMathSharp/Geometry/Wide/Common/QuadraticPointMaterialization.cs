@@ -11,6 +11,50 @@ namespace FixedMathSharp.Geometry;
 /// <summary>Final nearest-even rigid-frame points from retained exact quadratic coordinates.</summary>
 internal static class QuadraticPointMaterialization
 {
+    /// <summary>Composes an exact rigid point with an affine inverse before final source-lattice rounding.</summary>
+    internal static bool TryGetPointInScaledFrame(Vector3d sourceOrigin, FixedQuaternion sourceRotation,
+        in ScaledRigidFrame3d target, scoped ContactQuadratic px, scoped ContactQuadratic py,
+        scoped ContactQuadratic pz, scoped ContactQuadratic pd, scoped ReadOnlySpan<ulong> root,
+        out Vector3d sourcePoint)
+    {
+        sourcePoint = default;
+        if (pd.Sign(root) <= 0) return false;
+        // The rigid composition adds <132 bits, and affine inverse
+        // coefficients/offsets add <453. Ten extra limbs retain every sum.
+        int words = Math.Max(Math.Max(ContactQuadratic.ActiveWords(px), ContactQuadratic.ActiveWords(py)),
+            Math.Max(ContactQuadratic.ActiveWords(pz), ContactQuadratic.ActiveWords(pd))) + 10;
+        Span<ulong> work = stackalloc ulong[16 * words]; Span<int> signs = stackalloc int[16];
+        ContactQuadratic x = ContactQuadratic.At(work, signs, 0, words),
+            y = ContactQuadratic.At(work, signs, 1, words), z = ContactQuadratic.At(work, signs, 2, words),
+            denominator = ContactQuadratic.At(work, signs, 3, words), term = ContactQuadratic.At(work, signs, 4, words),
+            coordinate = ContactQuadratic.At(work, signs, 5, words), divisor = ContactQuadratic.At(work, signs, 6, words),
+            zero = ContactQuadratic.At(work, signs, 7, words);
+        zero.Clear();
+        TransformPointInRigidFrame(sourceOrigin, sourceRotation, Vector3d.Zero, FixedQuaternion.Identity,
+            px, py, pz, pd, x, y, z, denominator, term);
+        Span<Fixed64> coordinates = stackalloc Fixed64[3];
+        for (int axis = 0; axis < 3; axis++)
+        {
+            target.GetSourceCoordinateTransform(axis, out Signed576 cx, out Signed576 cy, out Signed576 cz,
+                out Signed576 offset, out Signed576 scale);
+            if (scale.IsZero) return false;
+            ContactQuadratic.Scale(x, cx, coordinate);
+            ContactQuadratic.Scale(y, cy, term); coordinate.Add(term);
+            ContactQuadratic.Scale(z, cz, term); coordinate.Add(term);
+            ContactQuadratic.Scale(denominator, offset, term); coordinate.Add(term);
+            ContactQuadratic.Scale(denominator, scale, divisor);
+            if (scale.Sign < 0) { coordinate.MultiplySign(-1); divisor.MultiplySign(-1); }
+            // Reuse the authoritative scalar range/tie policy; the two zero
+            // coordinates add no geometry or intermediate materialization.
+            if (!TryGetWorldPoint(Vector3d.Zero, FixedQuaternion.Identity,
+                    coordinate, zero, zero, divisor, root, out Vector3d rounded))
+                return false;
+            coordinates[axis] = rounded.X;
+        }
+        sourcePoint = new Vector3d(coordinates[0], coordinates[1], coordinates[2]);
+        return true;
+    }
+
     /// <summary>Rounds an exact offset after composing its source and target rigid bases.</summary>
     internal static bool TryGetOffsetInFrame(FixedQuaternion sourceRotation, FixedQuaternion targetRotation,
         scoped ContactQuadratic px, scoped ContactQuadratic py, scoped ContactQuadratic pz,

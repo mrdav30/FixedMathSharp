@@ -40,11 +40,26 @@ internal delegate void CapsulePlaneRayEventVisitor(in CapsulePlaneRayEventSource
 internal readonly struct CapsulePlaneRayFrame
 {
     internal readonly CapsuleFiniteSectionFrame Finite;
-    internal readonly WideAxis3 Normal, AuthoredNormal;
-    internal readonly Signed576 PlaneConstant, NormalSquared;
+    internal readonly WideDirection3d Normal;
+    internal readonly WideAxis3 AuthoredNormal;
+    internal readonly Signed832 PlaneConstant, NormalSquared;
+    private readonly bool _wideParameters;
+    internal bool UsesWideBanks => Finite.ShapeFrame.HasExactScale || _wideParameters;
+    // Affine event points retain <7680-bit radicands and <12288-bit
+    // coefficients. Opposite-ray value norms square the coefficients and
+    // include the point radicand plus <=618 conditioning bits per factor;
+    // 544 words cover that complete norm. Ordinary banks stay unchanged.
+    internal int FieldWords => UsesWideBanks ? 192 : CapsulePlaneRaySelection.FieldWords;
+    internal int RootWords => UsesWideBanks ? 120 : CapsulePlaneRaySelection.RootWords;
+    internal int ValueWords => UsesWideBanks ? 544 : CapsulePlaneRayValue.PolynomialWords;
+    internal int SelectionStorageWords => CapsulePlaneRaySelection.GetStorageWords(FieldWords, RootWords, ValueWords);
+    internal CapsulePlaneRayFrame WithWideParameters() => UsesWideBanks ? this : new CapsulePlaneRayFrame(this);
+    private CapsulePlaneRayFrame(in CapsulePlaneRayFrame source) { this = source; _wideParameters = true; }
+    internal ScaledRigidFrame3d SourceFrame => Finite.ShapeFrame.SourceFrame;
 
     internal CapsulePlaneRayFrame(FixedTriangle planeTriangle, in CapsuleFiniteSectionFrame finite)
     {
+        _wideParameters = false;
         Finite = finite;
         planeTriangle.GetExactNormal(out Signed192 nx, out Signed192 ny, out Signed192 nz, out _);
         Span<Signed320> primitive = stackalloc Signed320[3]
@@ -61,13 +76,47 @@ internal readonly struct CapsulePlaneRayFrame
             Signed192.NarrowProven(primitive[0]), Signed192.NarrowProven(primitive[1]), Signed192.NarrowProven(primitive[2]));
         primitive[0] = transformed.X; primitive[1] = transformed.Y; primitive[2] = transformed.Z;
         if (!transformed.IsZero) WideArithmetic.ReduceCommonScale(primitive);
-        Normal = new WideAxis3(primitive[0], primitive[1], primitive[2]);
-        PlaneConstant = WideAxis3.Dot(Normal, finite.Transform(planeTriangle.A));
-        NormalSquared = WideAxis3.Dot(Normal, Normal);
+        var compactNormal = new WideAxis3(primitive[0], primitive[1], primitive[2]);
+        Normal = new WideDirection3d(compactNormal);
+        PlaneConstant = Signed832.ExtendValue(WideAxis3.Dot(compactNormal, finite.Transform(planeTriangle.A)));
+        NormalSquared = Signed832.ExtendValue(WideAxis3.Dot(compactNormal, compactNormal));
+    }
+
+    internal CapsulePlaneRayFrame(FixedTriangle planeTriangle, in ScaledRigidFrame3d sourceFrame,
+        in CapsuleFiniteSectionFrame finite)
+    {
+        if (sourceFrame.IsRigid)
+        {
+            this = new CapsulePlaneRayFrame(planeTriangle, finite);
+            return;
+        }
+        _wideParameters = false;
+        Finite = finite;
+        WideDirection3d first = WideDirection3d.GetLocalEdge(sourceFrame, planeTriangle.A, planeTriangle.B);
+        WideDirection3d second = WideDirection3d.GetLocalEdge(sourceFrame, planeTriangle.A, planeTriangle.C);
+        WideDirection3d cross = WideDirection3d.Cross(first, second);
+        Span<Signed320> primitive = stackalloc Signed320[3]
+        {
+            Signed320.NarrowValue(cross.X), Signed320.NarrowValue(cross.Y), Signed320.NarrowValue(cross.Z)
+        };
+        if (!cross.IsZero) WideArithmetic.ReduceCommonScale(primitive);
+        int sign = primitive[0].Sign != 0 ? primitive[0].Sign
+            : primitive[1].Sign != 0 ? primitive[1].Sign : primitive[2].Sign;
+        if (sign < 0)
+            for (int index = 0; index < 3; index++) primitive[index] = WideArithmetic.Negate(primitive[index]);
+        AuthoredNormal = new WideAxis3(primitive[0], primitive[1], primitive[2]);
+        WideDirection3d transformed = new WideDirection3d(AuthoredNormal).Transform(finite.ShapeFrame.Basis);
+        Span<Signed576> reduced = stackalloc Signed576[3] { transformed.X, transformed.Y, transformed.Z };
+        if (!transformed.IsZero) WideArithmetic.ReduceCommonScale(reduced);
+        Normal = new WideDirection3d(reduced[0], reduced[1], reduced[2]);
+        PlaneConstant = WideDirection3d.Dot(Normal, finite.Transform(planeTriangle.A));
+        NormalSquared = Normal.SquaredLength;
     }
 
     internal Vector3d GetWorldNormal(FixedQuaternion authoredRotation)
     {
+        if (Finite.ShapeFrame.HasExactScale)
+            return new WideDirection3d(AuthoredNormal).Transform(SourceFrame.GeometryBasis).GetNormal(false);
         WideAxis3 normal = WideRigidProjection.TransformLocalAxis(new WideRationalBasis3d(authoredRotation),
             Signed192.NarrowProven(AuthoredNormal.X), Signed192.NarrowProven(AuthoredNormal.Y),
             Signed192.NarrowProven(AuthoredNormal.Z));
@@ -116,18 +165,19 @@ internal readonly struct CapsulePlaneRayFrame
         // Plane/wall products add at most 526 bits to a point coefficient.
         // Input banks may be larger than this owner's rational witness bank.
         int words = Math.Max(Math.Max(ContactQuadratic.ActiveWords(x), ContactQuadratic.ActiveWords(y)),
-            Math.Max(ContactQuadratic.ActiveWords(z), ContactQuadratic.ActiveWords(denominator))) + 9;
+            Math.Max(ContactQuadratic.ActiveWords(z), ContactQuadratic.ActiveWords(denominator)))
+            + (Finite.ShapeFrame.HasExactScale ? 13 : 9);
         Span<ulong> values = stackalloc ulong[4 * words];
         Span<int> signs = stackalloc int[4];
         ContactQuadratic value = ContactQuadratic.At(values, signs, 0, words);
         ContactQuadratic term = ContactQuadratic.At(values, signs, 1, words);
-        DotPoint(Signed576.ExtendValue(Normal.X), Signed576.ExtendValue(Normal.Y), Signed576.ExtendValue(Normal.Z),
+        DotPoint(Normal.X, Normal.Y, Normal.Z,
             x, y, z, value, term);
         ContactQuadratic.Scale(denominator, PlaneConstant, term); value.Add(term, -1);
         if (value.Sign(root) != 0) return false;
         for (int edge = 0; edge < 3; edge++)
         {
-            GetTriangleEdgeWall(triangle, edge, out Signed576 wx, out Signed576 wy, out Signed576 wz, out Signed576 offset);
+            GetTriangleEdgeWall(triangle, edge, out Signed832 wx, out Signed832 wy, out Signed832 wz, out Signed832 offset);
             DotPoint(wx, wy, wz, x, y, z, value, term);
             ContactQuadratic.Scale(denominator, offset, term); value.Add(term, -1);
             if (value.Sign(root) < 0) return false;
@@ -136,9 +186,25 @@ internal readonly struct CapsulePlaneRayFrame
     }
 
     internal void GetTriangleEdgeWall(FixedTriangle triangle, int index,
-        out Signed576 x, out Signed576 y, out Signed576 z, out Signed576 offset)
+        out Signed832 x, out Signed832 y, out Signed832 z, out Signed832 offset)
     {
         FixedSegment edge = triangle.GetEdge(index);
+        if (Finite.ShapeFrame.HasExactScale)
+        {
+            WideDirection3d deltaExact = WideDirection3d.GetLocalEdge(SourceFrame, edge.Start, edge.End);
+            WideDirection3d wallExact = WideDirection3d.Cross(new WideDirection3d(AuthoredNormal), deltaExact)
+                .Transform(Finite.ShapeFrame.Basis);
+            x = Signed832.ExtendValue(wallExact.X); y = Signed832.ExtendValue(wallExact.Y);
+            z = Signed832.ExtendValue(wallExact.Z);
+            offset = WideDirection3d.Dot(wallExact, Finite.Transform(edge.Start));
+            WideAxis3 oppositeExact = Finite.Transform(index == 0 ? triangle.C : index == 1 ? triangle.A : triangle.B);
+            if (WideArithmetic.SubtractSigned832(WideDirection3d.Dot(wallExact, oppositeExact), offset).Sign < 0)
+            {
+                x = WideArithmetic.SubtractSigned832(default, x); y = WideArithmetic.SubtractSigned832(default, y);
+                z = WideArithmetic.SubtractSigned832(default, z); offset = WideArithmetic.SubtractSigned832(default, offset);
+            }
+            return;
+        }
         WideAxis3 delta = new(
             Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(edge.End.X), Signed192.Raw(edge.Start.X))),
             Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(edge.End.Y), Signed192.Raw(edge.Start.Y))),
@@ -146,13 +212,14 @@ internal readonly struct CapsulePlaneRayFrame
         // Form the authored wall before transforming it: 130-bit normal,
         // 65-bit edge, 130-bit relative basis keep the wall below 327 bits.
         WideAxis3 wall = WideAxis3.Cross(AuthoredNormal, delta);
-        WideRigidProjection.TransformLocalAxis(Finite.ShapeFrame.Basis, wall, out x, out y, out z);
-        offset = DotWall(x, y, z, Finite.Transform(edge.Start));
+        WideRigidProjection.TransformLocalAxis(Finite.ShapeFrame.Basis, wall, out Signed576 wx, out Signed576 wy, out Signed576 wz);
+        x = Signed832.ExtendValue(wx); y = Signed832.ExtendValue(wy); z = Signed832.ExtendValue(wz);
+        offset = Signed832.ExtendValue(DotWall(wx, wy, wz, Finite.Transform(edge.Start)));
         WideAxis3 opposite = Finite.Transform(index == 0 ? triangle.C : index == 1 ? triangle.A : triangle.B);
-        if (WideArithmetic.SubtractSigned576(DotWall(x, y, z, opposite), offset).Sign < 0)
+        if (WideArithmetic.SubtractSigned832(Signed832.ExtendValue(DotWall(wx, wy, wz, opposite)), offset).Sign < 0)
         {
-            x = WideArithmetic.SubtractSigned576(default, x); y = WideArithmetic.SubtractSigned576(default, y);
-            z = WideArithmetic.SubtractSigned576(default, z); offset = WideArithmetic.SubtractSigned576(default, offset);
+            x = WideArithmetic.SubtractSigned832(default, x); y = WideArithmetic.SubtractSigned832(default, y);
+            z = WideArithmetic.SubtractSigned832(default, z); offset = WideArithmetic.SubtractSigned832(default, offset);
         }
     }
 
@@ -163,6 +230,14 @@ internal readonly struct CapsulePlaneRayFrame
             WideArithmetic.MultiplySigned576ToSigned704(z, point.Z)));
 
     private static void DotPoint(Signed576 wx, Signed576 wy, Signed576 wz, ContactQuadratic x,
+        ContactQuadratic y, ContactQuadratic z, ContactQuadratic result, ContactQuadratic term)
+    {
+        ContactQuadratic.Scale(x, wx, result);
+        ContactQuadratic.Scale(y, wy, term); result.Add(term);
+        ContactQuadratic.Scale(z, wz, term); result.Add(term);
+    }
+
+    private static void DotPoint(Signed832 wx, Signed832 wy, Signed832 wz, ContactQuadratic x,
         ContactQuadratic y, ContactQuadratic z, ContactQuadratic result, ContactQuadratic term)
     {
         ContactQuadratic.Scale(x, wx, result);

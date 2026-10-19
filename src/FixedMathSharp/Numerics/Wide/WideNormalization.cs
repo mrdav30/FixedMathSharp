@@ -7,6 +7,8 @@
 
 using FixedMathSharp.Geometry;
 
+using System;
+
 namespace FixedMathSharp;
 
 /// <summary>
@@ -127,6 +129,28 @@ internal static class WideNormalization
             denominator,
             out Fixed64 scaledY);
         return Vector2d.GetScaleNormalized(new Vector2d(scaledX, scaledY));
+    }
+
+    /// <summary>Normalizes exact scaled-frame 2D components using nearest-even bounded component ratios.</summary>
+    internal static Vector2d GetNormalized(Signed832 x, Signed832 y)
+    {
+        Signed832 ax = x.Sign < 0 ? WideArithmetic.SubtractSigned832(default, x) : x;
+        Signed832 ay = y.Sign < 0 ? WideArithmetic.SubtractSigned832(default, y) : y;
+        Signed832 scale = WideArithmetic.SubtractSigned832(ax, ay).Sign >= 0 ? ax : ay;
+        if (scale.IsZero) return Vector2d.Zero;
+        // Keep the Q32 rescale transient so even full-width inputs cannot
+        // overflow the persistent component carrier.
+        Span<ulong> values = stackalloc ulong[6 * 14]; Span<int> signs = stackalloc int[6];
+        var numerator = ContactQuadratic.At(values, signs, 0, 14);
+        var denominator = ContactQuadratic.At(values, signs, 1, 14);
+        var scaled = ContactQuadratic.At(values, signs, 2, 14);
+        denominator.Set(scale); numerator.Set(x);
+        ContactQuadratic.Scale(numerator, Signed576.ExtendValue(Signed192.Raw(Fixed64.One)), scaled);
+        _ = Fixed64.TryGetSignedRawRatio(scaled.Rational, denominator.Rational, scaled.Signs[0] < 0, out Fixed64 sx);
+        numerator.Set(y);
+        ContactQuadratic.Scale(numerator, Signed576.ExtendValue(Signed192.Raw(Fixed64.One)), scaled);
+        _ = Fixed64.TryGetSignedRawRatio(scaled.Rational, denominator.Rational, scaled.Signs[0] < 0, out Fixed64 sy);
+        return Vector2d.GetScaleNormalized(new Vector2d(sx, sy));
     }
 
     /// <summary>
@@ -282,6 +306,27 @@ internal static class WideNormalization
             new Vector3d(scaledX, scaledY, scaledZ));
     }
 
+    /// <summary>Normalizes exact 13-word components through one common scale before scalar normalization.</summary>
+    internal static Vector3d GetNormalized(Signed832 x, Signed832 y, Signed832 z)
+    {
+        Span<ulong> values = stackalloc ulong[4 * 13];
+        Span<ulong> mx = values[..13], my = values.Slice(13, 13), mz = values.Slice(26, 13), maximum = values.Slice(39, 13);
+        WideArithmetic.GetMagnitude(x, mx); WideArithmetic.GetMagnitude(y, my); WideArithmetic.GetMagnitude(z, mz);
+        (WideArithmetic.CompareMagnitudeEqualLength(mx, my) >= 0 ? mx : my).CopyTo(maximum);
+        if (WideArithmetic.CompareMagnitudeEqualLength(mz, maximum) > 0) mz.CopyTo(maximum);
+        if (WideArithmetic.GetActiveMagnitudeLength(maximum) == 0) return Vector3d.Zero;
+        Span<ulong> numerator = stackalloc ulong[14];
+        Vector3d result = default;
+        Span<int> signs = stackalloc int[3] { x.Sign, y.Sign, z.Sign };
+        for (int axis = 0; axis < 3; axis++)
+        {
+            numerator.Clear(); int sign = 0;
+            WideArithmetic.AddShiftedSignedMagnitude(values.Slice(axis * 13, 13), 1, 32, numerator, ref sign);
+            _ = Fixed64.TryGetSignedRawRatio(numerator, maximum, signs[axis] < 0, out Fixed64 component);
+            result[axis] = component;
+        }
+        return Vector3d.GetScaleNormalized(result);
+    }
     /// <summary>
     /// Returns the nearest representable normalized direction for a nonzero 4D
     /// vector using its exact raw components.

@@ -7,7 +7,7 @@ using System;
 namespace FixedMathSharp.Geometry;
 
 /// <summary>Exact edge/face minimum-axial reduction in the triangle's authored frame.</summary>
-internal static class WideTriangleConeIntersection
+internal static partial class WideTriangleConeIntersection
 {
     private static readonly Signed192 Scale = Signed192.Raw(Fixed64.One);
     private static readonly Signed192 MaximumParameter = Signed192.Raw(Fixed64.MaxValue);

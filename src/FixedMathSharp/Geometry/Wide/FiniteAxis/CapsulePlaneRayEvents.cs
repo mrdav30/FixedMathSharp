@@ -60,6 +60,7 @@ internal static class CapsulePlaneRayEvents
                 ? AccumulateSegment(source, frame, orientation, ref maximum, visitor, true, target, interval)
                 : AccumulateIntrinsic(source, frame, orientation, ref maximum, visitor, true, target);
         int words = GetProducerWords(frame, CapsulePlaneRayEventKind.Support);
+        if (interval.HasWideBounds) words = Math.Max(words, 19);
         Span<ulong> values = stackalloc ulong[12 * words]; Span<int> signs = stackalloc int[12];
         ContactQuadratic x = Field(values, signs, 0, words), y = Field(values, signs, 1, words), z = Field(values, signs, 2, words);
         ContactQuadratic d = Field(values, signs, 3, words), gap = Field(values, signs, 4, words), term = Field(values, signs, 5, words);
@@ -75,8 +76,8 @@ internal static class CapsulePlaneRayEvents
                 else
                 {
                     WideAxis3 point = frame.Finite.Transform(endpoint == 0 ? source.A : source.B);
-                    x.Set(Signed576.ExtendValue(point.X)); y.Set(Signed576.ExtendValue(point.Y));
-                    z.Set(Signed576.ExtendValue(point.Z)); d.Set(Integer(1));
+                    x.Set(Signed832.ExtendValue(point.X)); y.Set(Signed832.ExtendValue(point.Y));
+                    z.Set(Signed832.ExtendValue(point.Z)); d.Set(Integer(1));
                 }
             }
             else
@@ -88,12 +89,12 @@ internal static class CapsulePlaneRayEvents
                     && endpointSign != orientation * frame.Normal.Y.Sign) continue;
                 Signed320 cap = endpointSign < 0 ? WideArithmetic.Negate(frame.Finite.ShapeFrame.Cap) : frame.Finite.ShapeFrame.Cap;
                 gap.Set(frame.PlaneConstant);
-                term.Set(Signed576.ExtendValue(cap));
-                ContactQuadratic.Scale(term, Signed576.ExtendValue(frame.Normal.Y), y); gap.Add(y, -1);
-                ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.X), x);
-                ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.Y), y);
-                term.Set(frame.NormalSquared); ContactQuadratic.Scale(term, Signed576.ExtendValue(cap), z); y.Add(z);
-                ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.Z), z); d.Set(frame.NormalSquared);
+                term.Set(Signed832.ExtendValue(cap));
+                ContactQuadratic.Scale(term, Signed832.ExtendValue(frame.Normal.Y), y); gap.Add(y, -1);
+                ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.X), x);
+                ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.Y), y);
+                term.Set(frame.NormalSquared); ContactQuadratic.Scale(term, Signed832.ExtendValue(cap), z); y.Add(z);
+                ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.Z), z); d.Set(frame.NormalSquared);
             }
             found |= EmitPoint(source, frame, descriptor, orientation, x, y, z, d, ReadOnlySpan<ulong>.Empty,
                 ref maximum, visitor);
@@ -111,18 +112,22 @@ internal static class CapsulePlaneRayEvents
         ContactQuadratic z, ContactQuadratic denominator)
     {
         WideAxis3 start = finite.Transform(source.A), end = finite.Transform(source.B);
-        Signed320 n = endpoint == 0 ? interval.LowerNumerator : interval.UpperNumerator;
-        Signed320 d = endpoint == 0 ? interval.LowerDenominator : interval.UpperDenominator;
-        // Doubled rigid coordinates/differences are <198 bits and rational
-        // bounds <319 bits. Their complete affine sums fit Signed576.
-        x.Set(Coordinate(start.X, end.X)); y.Set(Coordinate(start.Y, end.Y)); z.Set(Coordinate(start.Z, end.Z));
-        denominator.Set(Signed576.ExtendValue(d));
-
-        Signed576 Coordinate(Signed320 first, Signed320 last) =>
-            WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned320(first, d),
-                WideArithmetic.MultiplySigned320(WideArithmetic.SubtractSigned320(last, first), n));
+        Signed832 n = endpoint == 0 ? interval.WideLowerNumerator : interval.WideUpperNumerator;
+        Signed832 d = endpoint == 0 ? interval.WideLowerDenominator : interval.WideUpperDenominator;
+        int words = x.FieldWords;
+        Span<ulong> values = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
+        ContactQuadratic parameter = Field(values, signs, 0, words), term = Field(values, signs, 1, words);
+        parameter.Set(n); denominator.Set(d);
+        for (int axis = 0; axis < 3; axis++)
+        {
+            ContactQuadratic coordinate = axis == 0 ? x : axis == 1 ? y : z;
+            Signed320 first = axis == 0 ? start.X : axis == 1 ? start.Y : start.Z;
+            Signed320 last = axis == 0 ? end.X : axis == 1 ? end.Y : end.Z;
+            ContactQuadratic.Scale(denominator, Signed576.ExtendValue(first), coordinate);
+            ContactQuadratic.Scale(parameter, Signed576.ExtendValue(WideArithmetic.SubtractSigned320(last, first)), term);
+            coordinate.Add(term);
+        }
     }
-
     private static bool AccumulateIntrinsic(in CapsulePlaneRayEventSource source, in CapsulePlaneRayFrame frame,
         int orientation, ref CapsulePlaneRaySelection maximum, CapsulePlaneRayEventVisitor? visitor,
         bool targeted, CapsulePlaneRayEvent target)
@@ -135,10 +140,10 @@ internal static class CapsulePlaneRayEvents
             // Axial planes in the closed core interval own the body circle,
             // including seams. Cap-circle descriptors there remain stale even
             // though their endpoint sphere intersects the same geometric circle.
-            Signed576 extent = WideArithmetic.MultiplySigned320(frame.Normal.Y, frame.Finite.ShapeFrame.Cap);
-            if (extent.Sign < 0) extent = WideArithmetic.SubtractSigned576(default, extent);
-            if (WideArithmetic.AddSigned576(frame.PlaneConstant, extent).Sign >= 0
-                && WideArithmetic.SubtractSigned576(frame.PlaneConstant, extent).Sign <= 0)
+            Signed832 extent = Product(frame.Normal.Y, frame.Finite.ShapeFrame.Cap);
+            if (extent.Sign < 0) extent = WideArithmetic.SubtractSigned832(default, extent);
+            if (WideArithmetic.AddSigned832(frame.PlaneConstant, extent).Sign >= 0
+                && WideArithmetic.SubtractSigned832(frame.PlaneConstant, extent).Sign <= 0)
                 return AccumulateCircle(source, frame, 0, default, true, orientation, ref maximum, visitor, true, target);
             if (target.Feature is not (1 or 2)) return false;
             Signed320 cap = target.Feature == 1
@@ -147,23 +152,23 @@ internal static class CapsulePlaneRayEvents
         }
         int words = GetProducerWords(frame, CapsulePlaneRayEventKind.Sagittal);
         Span<ulong> values = stackalloc ulong[28 * words]; Span<int> signs = stackalloc int[28];
-        Span<ulong> root = stackalloc ulong[CapsulePlaneRaySelection.RootWords];
+        Span<ulong> root = stackalloc ulong[frame.RootWords];
         ContactQuadratic x = Field(values, signs, 0, words), y = Field(values, signs, 1, words), z = Field(values, signs, 2, words), d = Field(values, signs, 3, words);
         ContactQuadratic radial = Field(values, signs, 4, words), metric = Field(values, signs, 5, words), r2 = Field(values, signs, 6, words);
         ContactQuadratic gap = Field(values, signs, 7, words), radicand = Field(values, signs, 8, words), term = Field(values, signs, 9, words);
         ContactQuadratic work = Field(values, signs, 10, words), coefficient = Field(values, signs, 11, words);
         ContactQuadratic radx = Field(values, signs, 12, words), rady = Field(values, signs, 13, words);
-        Signed320 radius = WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Radius, frame.Finite.ShapeFrame.Denominator);
-        radial.Set(WideArithmetic.AddSigned576(WideArithmetic.MultiplySigned320(frame.Normal.X, frame.Normal.X),
-            WideArithmetic.MultiplySigned320(frame.Normal.Z, frame.Normal.Z)));
-        metric.Set(frame.NormalSquared); r2.Set(WideArithmetic.MultiplySigned320(radius, radius));
+        Signed320 radius = GetRadius(frame);
+        radial.Set(WideArithmetic.AddSigned832(Product(frame.Normal.X, frame.Normal.X),
+            Product(frame.Normal.Z, frame.Normal.Z)));
+        metric.Set(frame.NormalSquared); r2.Set(Product(radius, radius));
         bool found = false;
         if (radial.Signs[0] == 0)
         {
             // A plane perpendicular to the core cuts a full body circle even
             // when it is strictly between the two body/cap seams.
             gap.Set(frame.PlaneConstant);
-            ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.Y), y); metric.CopyTo(d);
+            ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.Y), y); metric.CopyTo(d);
             if (ContainsPrimitivePoint(frame, y, d, ReadOnlySpan<ulong>.Empty, 0))
                 return AccumulateCircle(source, frame, 0, default, true, orientation, ref maximum, visitor,
                     targeted, target);
@@ -185,17 +190,17 @@ internal static class CapsulePlaneRayEvents
                 var descriptor = new CapsulePlaneRayEvent(CapsulePlaneRayEventKind.Sagittal, kind == 0 ? 0 : 3, branch);
                 if (targeted && !target.Matches(descriptor)) continue;
                 CopyRadicand(radial, root);
-                ContactQuadratic.Scale(radial, Signed576.ExtendValue(frame.Normal.Y), d);
+                ContactQuadratic.Scale(radial, Signed832.ExtendValue(frame.Normal.Y), d);
                 ContactQuadratic.Scale(radial, frame.PlaneConstant, y);
-                coefficient.Set(Signed576.ExtendValue(radius));
-                ContactQuadratic.Scale(coefficient, Signed576.ExtendValue(kind == 0 ? frame.Normal.X : frame.Normal.Z), term);
+                coefficient.Set(Signed832.ExtendValue(radius));
+                ContactQuadratic.Scale(coefficient, Signed832.ExtendValue(kind == 0 ? frame.Normal.X : frame.Normal.Z), term);
                 if (kind != 0) term.MultiplySign(-1);
-                ContactQuadratic.Scale(term, Signed576.ExtendValue(frame.Normal.Y), work); SetRadical(x, work, branch);
-                ContactQuadratic.Scale(coefficient, Signed576.ExtendValue(kind == 0 ? frame.Normal.Z : frame.Normal.X), term);
-                ContactQuadratic.Scale(term, Signed576.ExtendValue(frame.Normal.Y), work); SetRadical(z, work, branch);
+                ContactQuadratic.Scale(term, Signed832.ExtendValue(frame.Normal.Y), work); SetRadical(x, work, branch);
+                ContactQuadratic.Scale(coefficient, Signed832.ExtendValue(kind == 0 ? frame.Normal.Z : frame.Normal.X), term);
+                ContactQuadratic.Scale(term, Signed832.ExtendValue(frame.Normal.Y), work); SetRadical(z, work, branch);
                 if (kind == 0)
                 {
-                    ContactQuadratic.Scale(radial, Signed576.ExtendValue(radius), work);
+                    ContactQuadratic.Scale(radial, Signed832.ExtendValue(radius), work);
                     SetRadical(term, work, -branch); y.Add(term);
                 }
                 if (d.Signs[0] < 0) { x.MultiplySign(-1); y.MultiplySign(-1); z.MultiplySign(-1); d.MultiplySign(-1); }
@@ -207,7 +212,7 @@ internal static class CapsulePlaneRayEvents
         {
             Signed320 cap = endpoint == 0 ? WideArithmetic.Negate(frame.Finite.ShapeFrame.Cap) : frame.Finite.ShapeFrame.Cap;
             int primitive = endpoint + 1;
-            gap.Set(WideArithmetic.SubtractSigned576(frame.PlaneConstant, WideArithmetic.MultiplySigned320(frame.Normal.Y, cap)));
+            gap.Set(WideArithmetic.SubtractSigned832(frame.PlaneConstant, Product(frame.Normal.Y, cap)));
             for (int kind = 0; kind < 3; kind++)
             {
                 var eventKind = kind == 1 ? CapsulePlaneRayEventKind.Seam : CapsulePlaneRayEventKind.Sagittal;
@@ -225,44 +230,44 @@ internal static class CapsulePlaneRayEvents
                     if (kind == 0)
                     {
                         // The cap section's sagittal tangent is (-Ny*Nx,T,-Ny*Nz).
-                        coefficient.Set(Signed576.ExtendValue(frame.Normal.Y));
-                        ContactQuadratic.Scale(coefficient, Signed576.ExtendValue(frame.Normal.X), radx); radx.MultiplySign(-1);
+                        coefficient.Set(Signed832.ExtendValue(frame.Normal.Y));
+                        ContactQuadratic.Scale(coefficient, Signed832.ExtendValue(frame.Normal.X), radx); radx.MultiplySign(-1);
                         radial.CopyTo(rady);
                     }
                     else
                     {
                         // Its transverse tangent (-Nz,0,Nx) completes finite
                         // coverage even when the circle lies wholly in one cap.
-                        radx.Set(Signed576.ExtendValue(frame.Normal.Z)); radx.MultiplySign(-1); rady.Clear();
+                        radx.Set(Signed832.ExtendValue(frame.Normal.Z)); radx.MultiplySign(-1); rady.Clear();
                     }
                 }
-                else { radial.CopyTo(d); radx.Set(Signed576.ExtendValue(frame.Normal.Z)); rady.Clear(); }
+                else { radial.CopyTo(d); radx.Set(Signed832.ExtendValue(frame.Normal.Z)); rady.Clear(); }
                 CopyRadicand(radicand, root);
                 for (int branch = -1; branch <= 1; branch += 2)
                 {
                     var descriptor = new CapsulePlaneRayEvent(eventKind, feature, branch);
                     if (targeted && !target.Matches(descriptor)) continue;
-                    ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.X), x);
-                    ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.Z), z);
+                    ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.X), x);
+                    ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.Z), z);
                     if (kind != 1)
                     {
                         ContactQuadratic.Multiply(x, radial, ReadOnlySpan<ulong>.Empty, work); work.CopyTo(x);
                         ContactQuadratic.Multiply(z, radial, ReadOnlySpan<ulong>.Empty, work); work.CopyTo(z);
-                        ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.Y), y);
-                        ContactQuadratic.Scale(metric, Signed576.ExtendValue(cap), term); y.Add(term);
+                        ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.Y), y);
+                        ContactQuadratic.Scale(metric, Signed832.ExtendValue(cap), term); y.Add(term);
                         ContactQuadratic.Multiply(y, radial, ReadOnlySpan<ulong>.Empty, work); work.CopyTo(y);
                         SetRadical(term, rady, branch); y.Add(term);
                         if (kind == 0)
                         {
-                            coefficient.Set(Signed576.ExtendValue(frame.Normal.Y));
-                            ContactQuadratic.Scale(coefficient, Signed576.ExtendValue(frame.Normal.Z), work); work.MultiplySign(-1);
+                            coefficient.Set(Signed832.ExtendValue(frame.Normal.Y));
+                            ContactQuadratic.Scale(coefficient, Signed832.ExtendValue(frame.Normal.Z), work); work.MultiplySign(-1);
                         }
-                        else work.Set(Signed576.ExtendValue(frame.Normal.X));
+                        else work.Set(Signed832.ExtendValue(frame.Normal.X));
                     }
                     else
                     {
-                        ContactQuadratic.Scale(radial, Signed576.ExtendValue(cap), y);
-                        work.Set(Signed576.ExtendValue(frame.Normal.X)); work.MultiplySign(-1);
+                        ContactQuadratic.Scale(radial, Signed832.ExtendValue(cap), y);
+                        work.Set(Signed832.ExtendValue(frame.Normal.X)); work.MultiplySign(-1);
                     }
                     SetRadical(term, radx, branch); x.Add(term); SetRadical(term, work, branch); z.Add(term);
                     if (kind == 1 || ContainsPrimitivePoint(frame, y, d, root, primitive))
@@ -283,16 +288,16 @@ internal static class CapsulePlaneRayEvents
         if (targeted && (target.Kind != CapsulePlaneRayEventKind.Circle || target.Feature != primitive)) return false;
         int words = GetProducerWords(frame, CapsulePlaneRayEventKind.Circle);
         Span<ulong> values = stackalloc ulong[28 * words]; Span<int> signs = stackalloc int[28];
-        Span<ulong> root = stackalloc ulong[CapsulePlaneRaySelection.RootWords];
+        Span<ulong> root = stackalloc ulong[frame.RootWords];
         ContactQuadratic x = Field(values, signs, 0, words), y = Field(values, signs, 1, words), z = Field(values, signs, 2, words), d = Field(values, signs, 3, words);
         ContactQuadratic gap = Field(values, signs, 4, words), section = Field(values, signs, 5, words), metric = Field(values, signs, 6, words);
         ContactQuadratic v2 = Field(values, signs, 7, words), radicand = Field(values, signs, 8, words), term = Field(values, signs, 9, words);
         ContactQuadratic vx = Field(values, signs, 10, words), vy = Field(values, signs, 11, words), vz = Field(values, signs, 12, words);
         ContactQuadratic work = Field(values, signs, 13, words);
-        Signed320 radius = WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Radius, frame.Finite.ShapeFrame.Denominator);
-        metric.Set(frame.NormalSquared); section.Set(WideArithmetic.MultiplySigned320(radius, radius));
+        Signed320 radius = GetRadius(frame);
+        metric.Set(frame.NormalSquared); section.Set(Product(radius, radius));
         ContactQuadratic.Multiply(section, metric, ReadOnlySpan<ulong>.Empty, work); work.CopyTo(section);
-        gap.Set(WideArithmetic.SubtractSigned576(frame.PlaneConstant, WideArithmetic.MultiplySigned320(frame.Normal.Y, cap)));
+        gap.Set(WideArithmetic.SubtractSigned832(frame.PlaneConstant, Product(frame.Normal.Y, cap)));
         if (!body) { ContactQuadratic.Multiply(gap, gap, ReadOnlySpan<ulong>.Empty, term); section.Add(term, -1); }
         if (section.Signs[0] < 0) return false;
         // Author the family basis in the mesh plane. Capsule yaw (and a
@@ -300,15 +305,14 @@ internal static class CapsulePlaneRayEvents
         WideAxis3 seed = frame.AuthoredNormal.X.IsZero && frame.AuthoredNormal.Z.IsZero
             ? new(Signed320.ExtendValue(Signed192.Signed(1)), default, default)
             : new(default, Signed320.ExtendValue(Signed192.Signed(1)), default);
-        WideAxis3 first = WideAxis3.Cross(frame.AuthoredNormal, seed);
+        WideDirection3d first = WideDirection3d.Cross(new WideDirection3d(frame.AuthoredNormal), new WideDirection3d(seed));
         bool found = false;
         for (int tangent = 0; tangent < 2; tangent++)
         {
             if (targeted && tangent != target.Branch / 2) continue;
-            WideAxis3 authored = tangent == 0 ? first : WideAxis3.Cross(frame.AuthoredNormal, first);
-            WideRigidProjection.TransformLocalAxis(frame.Finite.ShapeFrame.Basis, authored,
-                out Signed576 ax, out Signed576 ay, out Signed576 az);
-            vx.Set(ax); vy.Set(ay); vz.Set(az); Squared(vx, vy, vz, v2, term);
+            WideDirection3d authored = tangent == 0 ? first : WideDirection3d.Cross(new WideDirection3d(frame.AuthoredNormal), first);
+            WideDirection3d transformed = authored.Transform(frame.Finite.ShapeFrame.Basis);
+            vx.Set(transformed.X); vy.Set(transformed.Y); vz.Set(transformed.Z); Squared(vx, vy, vz, v2, term);
             ContactQuadratic.Multiply(section, metric, ReadOnlySpan<ulong>.Empty, work);
             ContactQuadratic.Multiply(work, v2, ReadOnlySpan<ulong>.Empty, radicand); CopyRadicand(radicand, root);
             ContactQuadratic.Multiply(metric, v2, ReadOnlySpan<ulong>.Empty, d);
@@ -317,12 +321,12 @@ internal static class CapsulePlaneRayEvents
                 var descriptor = new CapsulePlaneRayEvent(CapsulePlaneRayEventKind.Circle,
                     primitive, 2 * tangent + (branch > 0 ? 1 : 0));
                 if (targeted && !target.Matches(descriptor)) continue;
-                ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.X), work);
+                ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.X), work);
                 ContactQuadratic.Multiply(work, v2, ReadOnlySpan<ulong>.Empty, x);
-                ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.Y), work);
-                ContactQuadratic.Scale(metric, Signed576.ExtendValue(cap), term); work.Add(term);
+                ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.Y), work);
+                ContactQuadratic.Scale(metric, Signed832.ExtendValue(cap), term); work.Add(term);
                 ContactQuadratic.Multiply(work, v2, ReadOnlySpan<ulong>.Empty, y);
-                ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.Z), work);
+                ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.Z), work);
                 ContactQuadratic.Multiply(work, v2, ReadOnlySpan<ulong>.Empty, z);
                 SetRadical(term, vx, branch); x.Add(term); SetRadical(term, vy, branch); y.Add(term);
                 SetRadical(term, vz, branch); z.Add(term);
@@ -352,7 +356,7 @@ internal static class CapsulePlaneRayEvents
         if (frame.Finite.Length == Fixed64.Zero) return true;
         Span<ulong> values = stackalloc ulong[4 * Words]; Span<int> signs = stackalloc int[4];
         ContactQuadratic extent = Field(values, signs, 0), query = Field(values, signs, 1);
-        ContactQuadratic.Scale(d, Signed576.ExtendValue(frame.Finite.ShapeFrame.Cap), extent);
+        ContactQuadratic.Scale(d, Signed832.ExtendValue(frame.Finite.ShapeFrame.Cap), extent);
         y.CopyTo(query); query.Add(extent, -1); int upper = query.Sign(root);
         y.CopyTo(query); query.Add(extent); int lower = query.Sign(root);
         return primitive == 0 ? upper <= 0 && lower >= 0 : primitive == 1 ? lower <= 0 : upper >= 0;
@@ -369,11 +373,11 @@ internal static class CapsulePlaneRayEvents
         // Primitive section roots are already capsule boundary certificates.
         // Their plane certificate is shared only by genuinely coplanar sources;
         // arbitrary internal segment inputs retain the full point admission.
-        bool sourceOnPlane = WideArithmetic.SubtractSigned576(WideAxis3.Dot(p, frame.Normal), frame.PlaneConstant).IsZero
-            && WideAxis3.Dot(e, frame.Normal).IsZero;
+        bool sourceOnPlane = WideArithmetic.SubtractSigned832(WideDirection3d.Dot(frame.Normal, p), frame.PlaneConstant).IsZero
+            && DotVectors(e, frame.Normal).IsZero;
         int words = GetSegmentWords(frame, p, end, e);
         Span<ulong> values = stackalloc ulong[40 * words]; Span<int> signs = stackalloc int[40];
-        Span<ulong> root = stackalloc ulong[CapsulePlaneRaySelection.RootWords];
+        Span<ulong> root = stackalloc ulong[frame.RootWords];
         ContactQuadratic a = Field(values, signs, 0, words), b = Field(values, signs, 1, words), c = Field(values, signs, 2, words);
         ContactQuadratic m = Field(values, signs, 3, words), n = Field(values, signs, 4, words), A = Field(values, signs, 5, words);
         ContactQuadratic qa = Field(values, signs, 6, words), qb = Field(values, signs, 7, words), qc = Field(values, signs, 8, words);
@@ -381,12 +385,12 @@ internal static class CapsulePlaneRayEvents
         ContactQuadratic work = Field(values, signs, 13, words), term = Field(values, signs, 14, words);
         ContactQuadratic x = Field(values, signs, 15, words), y = Field(values, signs, 16, words), z = Field(values, signs, 17, words), d = Field(values, signs, 18, words);
         ContactQuadratic exitY = Field(values, signs, 19, words);
-        Span<ulong> candidateValues = stackalloc ulong[CapsulePlaneRaySelection.StorageWords];
+        Span<ulong> candidateValues = stackalloc ulong[frame.SelectionStorageWords];
         Span<int> candidateSigns = stackalloc int[CapsulePlaneRaySelection.SignCount];
         Span<sbyte> candidateValueSigns = stackalloc sbyte[CapsulePlaneRaySelection.ValueSignCount];
-        var candidate = new CapsulePlaneRaySelection(candidateValues, candidateSigns, candidateValueSigns);
-        Signed320 radius = WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Radius, frame.Finite.ShapeFrame.Denominator);
-        Signed576 radiusSquared = WideArithmetic.MultiplySigned320(radius, radius);
+        var candidate = new CapsulePlaneRaySelection(candidateValues, candidateSigns, candidateValueSigns, frame.FieldWords, frame.RootWords, frame.ValueWords);
+        Signed320 radius = GetRadius(frame);
+        Signed832 radiusSquared = Product(radius, radius);
         bool found = false;
         for (int primitive = frame.Finite.Length == Fixed64.Zero ? 2 : 0; primitive < 3; primitive++)
         {
@@ -395,9 +399,9 @@ internal static class CapsulePlaneRayEvents
             Signed320 cap = primitive == 1 ? WideArithmetic.Negate(frame.Finite.ShapeFrame.Cap) : frame.Finite.ShapeFrame.Cap;
             WideAxis3 basePoint = new(p.X, body ? default : WideArithmetic.SubtractSigned320(p.Y, cap), p.Z);
             WideAxis3 delta = new(e.X, body ? default : e.Y, e.Z);
-            WideAxis3 normal = new(frame.Normal.X, body ? default : frame.Normal.Y, frame.Normal.Z);
-            a.Set(WideAxis3.Dot(delta, delta)); b.Set(WideAxis3.Dot(basePoint, delta));
-            c.Set(WideArithmetic.SubtractSigned576(WideAxis3.Dot(basePoint, basePoint), radiusSquared));
+            WideDirection3d normal = new(frame.Normal.X, body ? default : frame.Normal.Y, frame.Normal.Z);
+            a.Set(DotVectors(delta, delta)); b.Set(DotVectors(basePoint, delta));
+            c.Set(WideArithmetic.SubtractSigned832(DotVectors(basePoint, basePoint), radiusSquared));
             bool wantSection = !targeted || target.Kind == CapsulePlaneRayEventKind.Section;
             if (wantSection)
             {
@@ -417,7 +421,7 @@ internal static class CapsulePlaneRayEvents
             if (a.Signs[0] == 0 || targeted && target.Kind != CapsulePlaneRayEventKind.Stationary) continue;
             // Eliminate u from G(u,t)=0 and G_u(u,t)=0. A zero
             // edge coefficient is a constant family covered by its endpoints.
-            m.Set(WideAxis3.Dot(delta, normal)); n.Set(WideAxis3.Dot(basePoint, normal)); A.Set(WideAxis3.Dot(normal, normal));
+            m.Set(DotVectors(delta, normal)); n.Set(DotVectors(basePoint, normal)); A.Set(DotVectors(normal, normal));
             ContactQuadratic.Multiply(a, A, ReadOnlySpan<ulong>.Empty, qa);
             ContactQuadratic.Multiply(m, m, ReadOnlySpan<ulong>.Empty, term); qa.Add(term, -1);
             ContactQuadratic.Multiply(a, n, ReadOnlySpan<ulong>.Empty, qb);
@@ -451,7 +455,7 @@ internal static class CapsulePlaneRayEvents
                 SetAffinePoint(p, e, u, ud, x, y, z, d, term);
                 ContactQuadratic.Multiply(y, td, root, exitY);
                 ContactQuadratic.Multiply(d, t, root, term);
-                ContactQuadratic.Scale(term, Signed576.ExtendValue(frame.Normal.Y), work); exitY.Add(work);
+                ContactQuadratic.Scale(term, Signed832.ExtendValue(frame.Normal.Y), work); exitY.Add(work);
                 ContactQuadratic.Multiply(d, td, root, work);
                 if (!ContainsPrimitivePoint(frame, exitY, work, root, primitive)) continue;
                 if (constructionOrientation == orientation)
@@ -485,8 +489,8 @@ internal static class CapsulePlaneRayEvents
         for (int axis = 0; axis < 3; axis++)
         {
             ContactQuadratic point = axis == 0 ? x : axis == 1 ? y : z;
-            ContactQuadratic.Scale(ud, Signed576.ExtendValue(axis == 0 ? start.X : axis == 1 ? start.Y : start.Z), point);
-            ContactQuadratic.Scale(u, Signed576.ExtendValue(axis == 0 ? delta.X : axis == 1 ? delta.Y : delta.Z), term); point.Add(term);
+            ContactQuadratic.Scale(ud, Signed832.ExtendValue(axis == 0 ? start.X : axis == 1 ? start.Y : start.Z), point);
+            ContactQuadratic.Scale(u, Signed832.ExtendValue(axis == 0 ? delta.X : axis == 1 ? delta.Y : delta.Z), term); point.Add(term);
         }
         ud.CopyTo(d);
     }
@@ -501,7 +505,7 @@ internal static class CapsulePlaneRayEvents
         int words = Math.Max(9, Math.Max(Math.Max(ContactQuadratic.ActiveWords(x), ContactQuadratic.ActiveWords(y)),
             Math.Max(ContactQuadratic.ActiveWords(z), ContactQuadratic.ActiveWords(d))));
         Span<ulong> pointValues = stackalloc ulong[8 * words]; Span<int> pointSigns = stackalloc int[8];
-        Span<ulong> pointRoot = stackalloc ulong[CapsulePlaneRaySelection.RootWords];
+        Span<ulong> pointRoot = stackalloc ulong[frame.RootWords];
         ContactQuadratic nx = Field(pointValues, pointSigns, 0, words), ny = Field(pointValues, pointSigns, 1, words);
         ContactQuadratic nz = Field(pointValues, pointSigns, 2, words), nd = Field(pointValues, pointSigns, 3, words);
         x.CopyTo(nx); y.CopyTo(ny); z.CopyTo(nz); d.CopyTo(nd);
@@ -509,10 +513,10 @@ internal static class CapsulePlaneRayEvents
         // Keep source branch-loop coefficients and the output selection apart:
         // cap admission can retain an exit before testing the opposite cap.
         WideFiniteAxisIntersection.NormalizeQuadraticPointPowerOfTwo(nx, ny, nz, nd, pointRoot);
-        Span<ulong> values = stackalloc ulong[CapsulePlaneRaySelection.StorageWords];
+        Span<ulong> values = stackalloc ulong[frame.SelectionStorageWords];
         Span<int> signs = stackalloc int[CapsulePlaneRaySelection.SignCount];
         Span<sbyte> valueSigns = stackalloc sbyte[CapsulePlaneRaySelection.ValueSignCount];
-        var candidate = new CapsulePlaneRaySelection(values, signs, valueSigns) { CurrentSource = source, CurrentEvent = descriptor };
+        var candidate = new CapsulePlaneRaySelection(values, signs, valueSigns, frame.FieldWords, frame.RootWords, frame.ValueWords) { CurrentSource = source, CurrentEvent = descriptor };
         if (descriptor.Kind == CapsulePlaneRayEventKind.Support
             && (frame.Finite.Length == Fixed64.Zero || frame.Normal.Y.IsZero
                 || (descriptor.Feature == 0 ? -1 : 1) == orientation * frame.Normal.Y.Sign))
@@ -524,13 +528,12 @@ internal static class CapsulePlaneRayEvents
             // hemisphere retains the general finite body/cap solver below.
             Signed320 cap = descriptor.Feature == 0 ? WideArithmetic.Negate(frame.Finite.ShapeFrame.Cap)
                 : frame.Finite.ShapeFrame.Cap;
-            Signed576 gap = WideArithmetic.SubtractSigned576(frame.PlaneConstant,
-                WideArithmetic.MultiplySigned320(frame.Normal.Y, cap));
-            Signed320 radius = WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Radius,
-                frame.Finite.ShapeFrame.Denominator);
+            Signed832 gap = WideArithmetic.SubtractSigned832(frame.PlaneConstant,
+                Product(frame.Normal.Y, cap));
+            Signed320 radius = GetRadius(frame);
             ContactQuadratic numerator = candidate.DepthNumerator, divisor = candidate.DepthDenominator;
-            numerator.Set(orientation > 0 ? WideArithmetic.SubtractSigned576(default, gap) : gap);
-            divisor.Set(Signed576.ExtendValue(radius));
+            numerator.Set(orientation > 0 ? WideArithmetic.SubtractSigned832(default, gap) : gap);
+            divisor.Set(Signed832.ExtendValue(radius));
             divisor.Rational.CopyTo(numerator.Radical); numerator.Signs[1] = divisor.Signs[0];
             divisor.Set(frame.NormalSquared); CopyRadicand(divisor, pointRoot);
             candidate.Keep(nx, ny, nz, nd, numerator, divisor, pointRoot,
@@ -540,23 +543,23 @@ internal static class CapsulePlaneRayEvents
             && (frame.Finite.Length == Fixed64.Zero || descriptor.Feature == 0))
         {
             ContactQuadratic numerator = candidate.DepthNumerator, divisor = candidate.DepthDenominator;
-            Signed576 depthNumerator;
+            Signed832 depthNumerator;
             if (frame.Finite.Length == Fixed64.Zero)
             {
                 // A sphere rim has q.N=C. Its outward upper root is the
                 // nonnegative part of -2*orientation*C/S, for every family q.
-                depthNumerator = WideArithmetic.AddSigned576(frame.PlaneConstant, frame.PlaneConstant);
-                if (orientation > 0) depthNumerator = WideArithmetic.SubtractSigned576(default, depthNumerator);
+                depthNumerator = WideArithmetic.AddSigned832(frame.PlaneConstant, frame.PlaneConstant);
+                if (orientation > 0) depthNumerator = WideArithmetic.SubtractSigned832(default, depthNumerator);
                 if (depthNumerator.Sign < 0) depthNumerator = default;
             }
             else
             {
                 // The axial body family lies on a tube generator. Its first
                 // exit is the forward closed seam: (|Ny|*Cap-orientation*C)/S.
-                Signed320 normalY = frame.Normal.Y.Sign < 0 ? WideArithmetic.Negate(frame.Normal.Y) : frame.Normal.Y;
-                Signed576 extent = WideArithmetic.MultiplySigned320(normalY, frame.Finite.ShapeFrame.Cap);
-                depthNumerator = orientation > 0 ? WideArithmetic.SubtractSigned576(extent, frame.PlaneConstant)
-                    : WideArithmetic.AddSigned576(extent, frame.PlaneConstant);
+                Signed576 normalY = frame.Normal.Y.Sign < 0 ? WideArithmetic.SubtractSigned576(default, frame.Normal.Y) : frame.Normal.Y;
+                Signed832 extent = Product(normalY, frame.Finite.ShapeFrame.Cap);
+                depthNumerator = orientation > 0 ? WideArithmetic.SubtractSigned832(extent, frame.PlaneConstant)
+                    : WideArithmetic.AddSigned832(extent, frame.PlaneConstant);
             }
             numerator.Set(depthNumerator); divisor.Set(frame.NormalSquared);
             candidate.Keep(nx, ny, nz, nd, numerator, divisor, pointRoot,
@@ -570,7 +573,22 @@ internal static class CapsulePlaneRayEvents
         return true;
     }
 
-    private static Signed576 Integer(long value) => Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(value)));
+    private static Signed832 DotVectors(WideAxis3 first, WideAxis3 second) =>
+        WideDirection3d.Dot(new WideDirection3d(first), second);
+    private static Signed832 DotVectors(WideAxis3 first, WideDirection3d second) =>
+        WideDirection3d.Dot(second, first);
+    private static Signed832 DotVectors(WideDirection3d first, WideDirection3d second) =>
+        WideArithmetic.AddSigned832(WideArithmetic.AddSigned832(Product(first.X, second.X),
+            Product(first.Y, second.Y)), Product(first.Z, second.Z));
+    private static Signed320 GetRadius(in CapsulePlaneRayFrame frame) => Signed320.NarrowValue(
+        WideArithmetic.MultiplySigned320(frame.Finite.ShapeFrame.CoordinateDenominator, frame.Finite.ShapeFrame.Radius));
+    private static Signed832 Product(Signed320 first, Signed320 second) =>
+        WideArithmetic.MultiplySigned576ToSigned832(Signed576.ExtendValue(first), second);
+    private static Signed832 Product(Signed576 first, Signed320 second) =>
+        WideArithmetic.MultiplySigned576ToSigned832(first, second);
+    private static Signed832 Product(Signed576 first, Signed576 second) =>
+        WideArithmetic.MultiplySigned576ToSigned832(first, second);
+    private static Signed832 Integer(long value) => Signed832.ExtendValue(Signed320.ExtendValue(Signed192.Signed(value)));
 
     /// <summary>Accumulates the actual first outward ray through one rational admitted plane point.</summary>
     /// <remarks>Point coefficients are rational; quadratic finite-edge points use the retained value-root branch.</remarks>
@@ -587,7 +605,7 @@ internal static class CapsulePlaneRayEvents
         if (frame.NormalSquared.IsZero || denominator.Sign(pointRoot) <= 0) return false;
         int words = GetPointRayWords(frame, x, y, z, denominator, pointRoot);
         Span<ulong> values = stackalloc ulong[32 * words]; Span<int> signs = stackalloc int[32];
-        Span<ulong> root = stackalloc ulong[CapsulePlaneRaySelection.RootWords];
+        Span<ulong> root = stackalloc ulong[frame.RootWords];
         ContactQuadratic a = Field(values, signs, 0, words), b = Field(values, signs, 1, words), c = Field(values, signs, 2, words);
         ContactQuadratic rx = Field(values, signs, 3, words), ry = Field(values, signs, 4, words), rz = Field(values, signs, 5, words);
         ContactQuadratic squaredDenominator = Field(values, signs, 6, words), term = Field(values, signs, 7, words), work = Field(values, signs, 8, words);
@@ -595,15 +613,15 @@ internal static class CapsulePlaneRayEvents
         ContactQuadratic px = Field(values, signs, 11, words), py = Field(values, signs, 12, words), pz = Field(values, signs, 13, words);
         ContactQuadratic pd = Field(values, signs, 14, words), extent = Field(values, signs, 15, words);
         ContactQuadratic.Multiply(denominator, denominator, pointRoot, squaredDenominator);
-        Signed320 radius = WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Radius, frame.Finite.ShapeFrame.Denominator);
-        Signed576 radiusSquared = WideArithmetic.MultiplySigned320(radius, radius);
+        Signed320 radius = GetRadius(frame);
+        Signed832 radiusSquared = Product(radius, radius);
         if (!admitted && !ContainsQuadraticPoint(frame, x, y, z, denominator, radiusSquared, squaredDenominator,
                 rx, ry, rz, c, term, work, pointRoot)) return false;
         bool rational = x.Signs[1] == 0 && y.Signs[1] == 0 && z.Signs[1] == 0 && denominator.Signs[1] == 0;
-        Span<ulong> valueStorage = stackalloc ulong[CapsulePlaneRayValue.StorageWords];
+        Span<ulong> valueStorage = stackalloc ulong[CapsulePlaneRayValue.GetStorageWords(frame.ValueWords)];
         Span<sbyte> valueSigns = stackalloc sbyte[CapsulePlaneRayValue.SignCount];
         Span<sbyte> coefficientSigns = stackalloc sbyte[6];
-        var value = new CapsulePlaneRayValue(valueStorage, valueSigns);
+        var value = new CapsulePlaneRayValue(valueStorage, valueSigns, frame.ValueWords);
         bool found = false;
         // A ray parallel to the finite core leaves only through its forward
         // cap. The opposite cap and zero-quadratic body cannot own that exit.
@@ -619,11 +637,11 @@ internal static class CapsulePlaneRayEvents
             else
             {
                 Signed320 endpoint = primitive == 1 ? WideArithmetic.Negate(frame.Finite.ShapeFrame.Cap) : frame.Finite.ShapeFrame.Cap;
-                ContactQuadratic.Scale(denominator, Signed576.ExtendValue(endpoint), term); ry.Add(term, -1);
+                ContactQuadratic.Scale(denominator, Signed832.ExtendValue(endpoint), term); ry.Add(term, -1);
             }
-            Signed576 metric = body ? WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned320(frame.Normal.X, frame.Normal.X),
-                WideArithmetic.MultiplySigned320(frame.Normal.Z, frame.Normal.Z)) : frame.NormalSquared;
+            Signed832 metric = body ? WideArithmetic.AddSigned832(
+                Product(frame.Normal.X, frame.Normal.X),
+                Product(frame.Normal.Z, frame.Normal.Z)) : frame.NormalSquared;
             ContactQuadratic.Scale(squaredDenominator, metric, a);
             Dot(rx, ry, rz, frame.Normal, b, term);
             ContactQuadratic.Multiply(b, denominator, pointRoot, work); work.CopyTo(b); b.MultiplySign(orientation);
@@ -644,9 +662,9 @@ internal static class CapsulePlaneRayEvents
                 if (!value.TrySetUpperRoot(a, b, c, pointRoot, GetDepthValueShift(frame))) continue;
                 // Keep the original section field: the two radicals can be
                 // independent even when the exit depth itself is quadratic.
-                y.CopyTo(term); ContactQuadratic.Scale(denominator, Signed576.ExtendValue(frame.Finite.ShapeFrame.Cap), extent);
+                y.CopyTo(term); ContactQuadratic.Scale(denominator, Signed832.ExtendValue(frame.Finite.ShapeFrame.Cap), extent);
                 term.Add(extent, -1);
-                ContactQuadratic.Scale(denominator, Signed576.ExtendValue(frame.Normal.Y), work); work.MultiplySign(orientation);
+                ContactQuadratic.Scale(denominator, Signed832.ExtendValue(frame.Normal.Y), work); work.MultiplySign(orientation);
                 int upper = value.SignLinear(term, work, pointRoot);
                 if (body)
                 {
@@ -686,10 +704,10 @@ internal static class CapsulePlaneRayEvents
                 ContactQuadratic target = axis == 0 ? px : axis == 1 ? py : pz;
                 ContactQuadratic.Multiply(source, divisor, root, target);
                 ContactQuadratic.Multiply(denominator, numerator, root, term);
-                Signed320 direction = axis == 0 ? frame.Normal.X : axis == 1 ? frame.Normal.Y : frame.Normal.Z;
-                ContactQuadratic.Scale(term, Signed576.ExtendValue(direction), work); target.Add(work, orientation);
+                Signed576 direction = axis == 0 ? frame.Normal.X : axis == 1 ? frame.Normal.Y : frame.Normal.Z;
+                ContactQuadratic.Scale(term, Signed832.ExtendValue(direction), work); target.Add(work, orientation);
             }
-            ContactQuadratic.Scale(pd, Signed576.ExtendValue(frame.Finite.ShapeFrame.Cap), extent);
+            ContactQuadratic.Scale(pd, Signed832.ExtendValue(frame.Finite.ShapeFrame.Cap), extent);
             py.CopyTo(term); term.Add(extent, -1);
             if (body)
             {
@@ -732,7 +750,7 @@ internal static class CapsulePlaneRayEvents
 
     private static bool ContainsQuadraticPoint(in CapsulePlaneRayFrame frame,
         scoped ContactQuadratic x, scoped ContactQuadratic y, scoped ContactQuadratic z, scoped ContactQuadratic denominator,
-        Signed576 radiusSquared, ContactQuadratic squaredDenominator, ContactQuadratic rx,
+        Signed832 radiusSquared, ContactQuadratic squaredDenominator, ContactQuadratic rx,
         ContactQuadratic ry, ContactQuadratic rz, ContactQuadratic value, ContactQuadratic term, ContactQuadratic work,
         ReadOnlySpan<ulong> root)
     {
@@ -740,7 +758,7 @@ internal static class CapsulePlaneRayEvents
         ContactQuadratic.Scale(denominator, frame.PlaneConstant, term); value.Add(term, -1);
         if (value.Sign(root) != 0) return false;
         x.CopyTo(rx); y.CopyTo(ry); z.CopyTo(rz);
-        ContactQuadratic.Scale(denominator, Signed576.ExtendValue(frame.Finite.ShapeFrame.Cap), term);
+        ContactQuadratic.Scale(denominator, Signed832.ExtendValue(frame.Finite.ShapeFrame.Cap), term);
         y.CopyTo(value); value.Add(term, -1);
         if (value.Sign(root) > 0) ry.Add(term, -1);
         else
@@ -766,26 +784,26 @@ internal static class CapsulePlaneRayEvents
         ContactQuadratic rz = Field(values, signs, 3, words), value = Field(values, signs, 4, words);
         ContactQuadratic term = Field(values, signs, 5, words), work = Field(values, signs, 6, words);
         ContactQuadratic.Multiply(denominator, denominator, root, d2);
-        Signed320 radius = WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Radius, frame.Finite.ShapeFrame.Denominator);
-        return ContainsQuadraticPoint(frame, x, y, z, denominator, WideArithmetic.MultiplySigned320(radius, radius),
+        Signed320 radius = GetRadius(frame);
+        return ContainsQuadraticPoint(frame, x, y, z, denominator, Product(radius, radius),
             d2, rx, ry, rz, value, term, work, root);
     }
 
     private static int GetSegmentWords(in CapsulePlaneRayFrame frame, WideAxis3 start, WideAxis3 end, WideAxis3 delta)
     {
         Span<int> scalarBits = stackalloc int[6]; GetGeometryScalarBits(frame, scalarBits);
-        Span<ulong> magnitude = stackalloc ulong[9];
+        Span<ulong> magnitude = stackalloc ulong[13];
         int point = 0, edge = 0;
         for (int axis = 0; axis < 3; axis++)
         {
             Signed320 first = axis == 0 ? start.X : axis == 1 ? start.Y : start.Z;
             Signed320 last = axis == 0 ? end.X : axis == 1 ? end.Y : end.Z;
             Signed320 difference = axis == 0 ? delta.X : axis == 1 ? delta.Y : delta.Z;
-            WideArithmetic.GetMagnitude(Signed576.ExtendValue(first), magnitude);
+            WideArithmetic.GetMagnitude(Signed832.ExtendValue(first), magnitude);
             point = Math.Max(point, WideArithmetic.GetMagnitudeBitLength(magnitude));
-            WideArithmetic.GetMagnitude(Signed576.ExtendValue(last), magnitude);
+            WideArithmetic.GetMagnitude(Signed832.ExtendValue(last), magnitude);
             point = Math.Max(point, WideArithmetic.GetMagnitudeBitLength(magnitude));
-            WideArithmetic.GetMagnitude(Signed576.ExtendValue(difference), magnitude);
+            WideArithmetic.GetMagnitude(Signed832.ExtendValue(difference), magnitude);
             edge = Math.Max(edge, WideArithmetic.GetMagnitudeBitLength(magnitude));
         }
         int basis = Math.Max(point, scalarBits[0]) + 1;
@@ -799,21 +817,22 @@ internal static class CapsulePlaneRayEvents
         // delta=0 or Cauchy equality also annihilates the linear coefficient.
         int bits = Math.Max(2 * edge + 2 * Math.Max(basis, scalarBits[1]) + 6,
             basis + 6 * edge + 4 * normal + 16);
-        return Math.Max(9, Math.Min(Words, (bits + 4 + 63) / 64));
+        return frame.UsesWideBanks ? Math.Max(13, (bits + 4 + 63) / 64)
+            : Math.Max(9, Math.Min(Words, (bits + 4 + 63) / 64));
     }
 
     private static int GetProducerWords(in CapsulePlaneRayFrame frame, CapsulePlaneRayEventKind kind)
     {
         Span<int> scalarBits = stackalloc int[6]; GetGeometryScalarBits(frame, scalarBits);
         int normal = Math.Max(scalarBits[2], Math.Max(scalarBits[3], scalarBits[4]));
-        Span<ulong> magnitude = stackalloc ulong[9];
+        Span<ulong> magnitude = stackalloc ulong[13];
         WideArithmetic.GetMagnitude(frame.NormalSquared, magnitude);
         int metric = WideArithmetic.GetMagnitudeBitLength(magnitude), gap = scalarBits[5];
-        Signed576 end = WideArithmetic.MultiplySigned320(frame.Normal.Y, frame.Finite.ShapeFrame.Cap);
+        Signed832 end = Product(frame.Normal.Y, frame.Finite.ShapeFrame.Cap);
         for (int orientation = -1; orientation <= 1; orientation += 2)
         {
-            Signed576 value = orientation < 0 ? WideArithmetic.SubtractSigned576(frame.PlaneConstant, end)
-                : WideArithmetic.AddSigned576(frame.PlaneConstant, end);
+            Signed832 value = orientation < 0 ? WideArithmetic.SubtractSigned832(frame.PlaneConstant, end)
+                : WideArithmetic.AddSigned832(frame.PlaneConstant, end);
             WideArithmetic.GetMagnitude(value, magnitude);
             gap = Math.Max(gap, WideArithmetic.GetMagnitudeBitLength(magnitude));
         }
@@ -832,10 +851,10 @@ internal static class CapsulePlaneRayEvents
                 {
                     Signed320 component = axis == 0 ? frame.AuthoredNormal.X
                         : axis == 1 ? frame.AuthoredNormal.Y : frame.AuthoredNormal.Z;
-                    WideArithmetic.GetMagnitude(Signed576.ExtendValue(component), magnitude);
+                    WideArithmetic.GetMagnitude(Signed832.ExtendValue(component), magnitude);
                     authored = Math.Max(authored, WideArithmetic.GetMagnitudeBitLength(magnitude));
                 }
-                WideArithmetic.GetMagnitude(Signed576.ExtendValue(Signed320.ExtendValue(frame.Finite.ShapeFrame.Basis.Denominator)), magnitude);
+                WideArithmetic.GetMagnitude(Signed832.ExtendValue(Signed320.ExtendValue(frame.Finite.ShapeFrame.Basis.Denominator)), magnitude);
                 // The authored tangents use at most two normal products. A
                 // rigid numerator is bounded by its positive denominator, so
                 // transformed V<=2A+B+3 and its three-term square W<=2V+2.
@@ -845,20 +864,21 @@ internal static class CapsulePlaneRayEvents
             }
             else bits = Math.Max(section + 2 * metric, scalarBits[0] + 2 * metric + 1);
         }
-        // Four spare carry bits cover all sums; complete Signed576 imports
+        // Four spare carry bits cover all sums; complete Signed832 imports
         // still require nine words. Retained point/root banks stay unchanged.
-        return Math.Max(9, Math.Min(Words, (bits + 4 + 63) / 64));
+        return frame.UsesWideBanks ? Math.Max(13, (bits + 4 + 63) / 64)
+            : Math.Max(9, Math.Min(Words, (bits + 4 + 63) / 64));
     }
 
     private static void GetGeometryScalarBits(in CapsulePlaneRayFrame frame, Span<int> bits)
     {
-        Span<ulong> magnitude = stackalloc ulong[9];
-        Signed320 radius = WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Radius, frame.Finite.ShapeFrame.Denominator);
+        Span<ulong> magnitude = stackalloc ulong[13];
+        Signed320 radius = GetRadius(frame);
         for (int scalar = 0; scalar < bits.Length; scalar++)
         {
-            Signed576 value = scalar == 0 ? Signed576.ExtendValue(frame.Finite.ShapeFrame.Cap)
-                : scalar == 1 ? Signed576.ExtendValue(radius) : scalar == 2 ? Signed576.ExtendValue(frame.Normal.X)
-                : scalar == 3 ? Signed576.ExtendValue(frame.Normal.Y) : scalar == 4 ? Signed576.ExtendValue(frame.Normal.Z)
+            Signed832 value = scalar == 0 ? Signed832.ExtendValue(frame.Finite.ShapeFrame.Cap)
+                : scalar == 1 ? Signed832.ExtendValue(radius) : scalar == 2 ? Signed832.ExtendValue(frame.Normal.X)
+                : scalar == 3 ? Signed832.ExtendValue(frame.Normal.Y) : scalar == 4 ? Signed832.ExtendValue(frame.Normal.Z)
                 : frame.PlaneConstant;
             WideArithmetic.GetMagnitude(value, magnitude);
             bits[scalar] = WideArithmetic.GetMagnitudeBitLength(magnitude);
@@ -881,17 +901,18 @@ internal static class CapsulePlaneRayEvents
         for (int scalar = 0; scalar < geometryBits.Length; scalar++) scalarBits = Math.Max(scalarBits, geometryBits[scalar]);
         // C bounds point coefficients, M unsquared geometry scalars, and K the
         // radicand. Complete exit/hemisphere products need 3C+3M+2K+8 bits;
-        // two spare carry bits cover sums. Signed576 imports require nine words.
+        // two spare carry bits cover sums. Signed832 imports require nine words.
         int bits = 3 * coefficientBits + 3 * scalarBits + 2 * WideArithmetic.GetMagnitudeBitLength(root) + 10;
-        return Math.Max(9, Math.Min(Words, (bits + 63) / 64));
+        return frame.UsesWideBanks ? Math.Max(13, (bits + 63) / 64)
+            : Math.Max(9, Math.Min(Words, (bits + 63) / 64));
     }
 
     private static int GetDepthValueShift(in CapsulePlaneRayFrame frame)
     {
-        Signed320 radius = WideArithmetic.MultiplySigned192(frame.Finite.ShapeFrame.Radius, frame.Finite.ShapeFrame.Denominator);
+        Signed320 radius = GetRadius(frame);
         Signed320 bound = WideArithmetic.AddSigned320(frame.Finite.ShapeFrame.Cap, radius);
-        Span<ulong> magnitude = stackalloc ulong[9];
-        WideArithmetic.GetMagnitude(Signed576.ExtendValue(bound), magnitude);
+        Span<ulong> magnitude = stackalloc ulong[13];
+        WideArithmetic.GetMagnitude(Signed832.ExtendValue(bound), magnitude);
         int boundBits = WideArithmetic.GetMagnitudeBitLength(magnitude);
         WideArithmetic.GetMagnitude(frame.NormalSquared, magnitude);
         int normalPower = (WideArithmetic.GetMagnitudeBitLength(magnitude) - 1) / 2;
@@ -900,12 +921,12 @@ internal static class CapsulePlaneRayEvents
         return Math.Max(0, boundBits + 2 - normalPower);
     }
 
-    private static void Dot(ContactQuadratic x, ContactQuadratic y, ContactQuadratic z, WideAxis3 direction,
+    private static void Dot(ContactQuadratic x, ContactQuadratic y, ContactQuadratic z, WideDirection3d direction,
         ContactQuadratic result, ContactQuadratic term)
     {
-        ContactQuadratic.Scale(x, Signed576.ExtendValue(direction.X), result);
-        ContactQuadratic.Scale(y, Signed576.ExtendValue(direction.Y), term); result.Add(term);
-        ContactQuadratic.Scale(z, Signed576.ExtendValue(direction.Z), term); result.Add(term);
+        ContactQuadratic.Scale(x, Signed832.ExtendValue(direction.X), result);
+        ContactQuadratic.Scale(y, Signed832.ExtendValue(direction.Y), term); result.Add(term);
+        ContactQuadratic.Scale(z, Signed832.ExtendValue(direction.Z), term); result.Add(term);
     }
 
     private static void Squared(ContactQuadratic x, ContactQuadratic y, ContactQuadratic z,
@@ -922,12 +943,13 @@ internal static class CapsulePlaneRayEvents
         if (finite.ContainsPoint(triangle.A) || finite.ContainsPoint(triangle.B) || finite.ContainsPoint(triangle.C)) return true;
         for (int edge = 0; edge < 3; edge++)
             if (finite.IntersectsSegment(triangle.GetEdge(edge))) return true;
-        var frame = new CapsulePlaneRayFrame(triangle, finite);
+        var frame = finite.ShapeFrame.HasExactScale ? new CapsulePlaneRayFrame(triangle, finite.ShapeFrame.SourceFrame, finite)
+            : new CapsulePlaneRayFrame(triangle, finite);
         if (frame.NormalSquared.IsZero) return false;
         // With no admitted boundary crossing, an intersecting capsule section
         // is wholly inside the triangle. Its projected nearest core point is
         // an interior certificate; endpoint projection alone is not admission.
-        const int words = 20;
+        int words = frame.UsesWideBanks ? 60 : 20;
         Span<ulong> values = stackalloc ulong[20 * words];
         Span<int> signs = stackalloc int[20];
         ContactQuadratic x = ContactQuadratic.At(values, signs, 0, words);
@@ -940,38 +962,38 @@ internal static class CapsulePlaneRayEvents
         ContactQuadratic right = ContactQuadratic.At(values, signs, 7, words);
         ContactQuadratic squaredRadius = ContactQuadratic.At(values, signs, 8, words);
         ContactQuadratic metric = ContactQuadratic.At(values, signs, 9, words);
-        Signed576 projectedEnd = WideArithmetic.MultiplySigned320(frame.Normal.Y, finite.ShapeFrame.Cap);
-        Signed576 absoluteEnd = projectedEnd.Sign < 0 ? WideArithmetic.SubtractSigned576(default, projectedEnd) : projectedEnd;
+        Signed832 projectedEnd = Product(frame.Normal.Y, finite.ShapeFrame.Cap);
+        Signed832 absoluteEnd = projectedEnd.Sign < 0 ? WideArithmetic.SubtractSigned832(default, projectedEnd) : projectedEnd;
         x.Clear(); y.Clear(); z.Clear();
         bool crossesCore = !frame.Normal.Y.IsZero
-            && WideArithmetic.AddSigned576(frame.PlaneConstant, absoluteEnd).Sign >= 0
-            && WideArithmetic.SubtractSigned576(frame.PlaneConstant, absoluteEnd).Sign <= 0;
+            && WideArithmetic.AddSigned832(frame.PlaneConstant, absoluteEnd).Sign >= 0
+            && WideArithmetic.SubtractSigned832(frame.PlaneConstant, absoluteEnd).Sign <= 0;
         if (crossesCore)
         {
             y.Set(frame.PlaneConstant); y.MultiplySign(frame.Normal.Y.Sign);
-            Signed320 positive = frame.Normal.Y.Sign < 0 ? WideArithmetic.Negate(frame.Normal.Y) : frame.Normal.Y;
-            denominator.Set(Signed576.ExtendValue(positive));
+            Signed576 positive = frame.Normal.Y.Sign < 0 ? WideArithmetic.SubtractSigned576(default, frame.Normal.Y) : frame.Normal.Y;
+            denominator.Set(Signed832.ExtendValue(positive));
         }
         else
         {
             int endpointSign = frame.Normal.Y.IsZero ? 0 : frame.PlaneConstant.Sign * frame.Normal.Y.Sign;
             Signed320 endpoint = endpointSign < 0 ? WideArithmetic.Negate(finite.ShapeFrame.Cap)
                 : endpointSign > 0 ? finite.ShapeFrame.Cap : default;
-            gap.Set(WideArithmetic.SubtractSigned576(frame.PlaneConstant,
-                WideArithmetic.MultiplySigned320(frame.Normal.Y, endpoint)));
+            gap.Set(WideArithmetic.SubtractSigned832(frame.PlaneConstant,
+                Product(frame.Normal.Y, endpoint)));
             ContactQuadratic.Multiply(gap, gap, ReadOnlySpan<ulong>.Empty, left);
-            squaredRadius.Set(WideArithmetic.MultiplySigned320(
-                WideArithmetic.MultiplySigned192(finite.ShapeFrame.Radius, finite.ShapeFrame.Denominator),
-                WideArithmetic.MultiplySigned192(finite.ShapeFrame.Radius, finite.ShapeFrame.Denominator)));
+            squaredRadius.Set(Product(
+                GetRadius(frame),
+                GetRadius(frame)));
             metric.Set(frame.NormalSquared);
             ContactQuadratic.Multiply(squaredRadius, metric, ReadOnlySpan<ulong>.Empty, right);
             left.Add(right, -1);
             if (left.Sign(ReadOnlySpan<ulong>.Empty) > 0) return false;
-            ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.X), x);
-            ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.Y), y);
-            ContactQuadratic.Scale(gap, Signed576.ExtendValue(frame.Normal.Z), z);
+            ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.X), x);
+            ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.Y), y);
+            ContactQuadratic.Scale(gap, Signed832.ExtendValue(frame.Normal.Z), z);
             denominator.Set(frame.NormalSquared);
-            ContactQuadratic.Scale(denominator, Signed576.ExtendValue(endpoint), term); y.Add(term);
+            ContactQuadratic.Scale(denominator, Signed832.ExtendValue(endpoint), term); y.Add(term);
         }
         // Rational witness coordinates are below 727 bits; gap squares and
         // radius²*normal² below 930 bits fit the 1280-bit local bank.

@@ -31,6 +31,27 @@ internal readonly struct ConeFiniteSectionFrame
         FullHeight = WideArithmetic.AddSigned320(ShapeFrame.Cap, ShapeFrame.Cap);
     }
 
+    internal ConeFiniteSectionFrame(in ScaledRigidFrame3d sourceFrame,
+        Vector3d coneCenter, FixedQuaternion coneRotation, Fixed64 height, Fixed64 radius)
+    {
+        if (sourceFrame.IsRigid)
+        {
+            this = new ConeFiniteSectionFrame(sourceFrame.RigidOrigin, sourceFrame.Rotation,
+                coneCenter, coneRotation, height, radius);
+            return;
+        }
+        if (height <= Fixed64.Zero || height > (Fixed64)8192)
+            throw new ArgumentOutOfRangeException(nameof(height));
+        if (radius < Fixed64.Zero || radius > (Fixed64)4096)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        if (!coneRotation.IsNormalized())
+            throw new ArgumentException("The cone rotation must be normalized.", nameof(coneRotation));
+        Height = height; Radius = radius;
+        ShapeFrame = new CylinderPolytopeFrame(sourceFrame, coneCenter, coneRotation,
+            Signed192.Raw(height), radius);
+        FullHeight = WideArithmetic.AddSigned320(ShapeFrame.Cap, ShapeFrame.Cap);
+    }
+
     internal WideAxis3 Transform(Vector3d point)
     {
         WideAxis3 centered = ShapeFrame.Transform(point);
@@ -44,6 +65,8 @@ internal readonly struct ConeFiniteSectionFrame
         if (!TryGetAxialInterval(start.Y, delta.Y, out Signed320 lowerN, out Signed320 lowerD,
                 out Signed320 upperN, out Signed320 upperD))
             return false;
+        if (ShapeFrame.HasExactScale)
+            return IntersectsWideQuadratic(start, delta, lowerN, lowerD, upperN, upperD);
         Signed576 a = QuadraticProduct(delta, delta), b = QuadraticProduct(start, delta), c = QuadraticProduct(start, start);
         if (WideFiniteConeIntersection.GetPolynomialSignAtRationalParameter(Signed832.ExtendValue(a), Signed832.ExtendValue(b), Signed832.ExtendValue(c), lowerN, lowerD) <= 0
             || WideFiniteConeIntersection.GetPolynomialSignAtRationalParameter(Signed832.ExtendValue(a), Signed832.ExtendValue(b), Signed832.ExtendValue(c), upperN, upperD) <= 0)
@@ -65,7 +88,32 @@ internal readonly struct ConeFiniteSectionFrame
 
     internal bool ContainsTransformedPoint(WideAxis3 point) => point.Y.Sign >= 0
         && WideArithmetic.SubtractSigned320(point.Y, FullHeight).Sign <= 0
-        && QuadraticProduct(point, point).Sign <= 0;
+        && (ShapeFrame.HasExactScale ? QuadraticProductWide(point, point).Sign : QuadraticProduct(point, point).Sign) <= 0;
+
+    internal Signed832 QuadraticProductWide(WideAxis3 left, WideAxis3 right)
+    {
+        if (!ShapeFrame.HasExactScale)
+            return Signed832.ExtendValue(QuadraticProduct(left, right));
+        // Admitted doubled coordinates are <306 bits and H/R raw <46.
+        // Three squared terms and two extent factors stay below 707 bits.
+        Signed832 radial = WideArithmetic.AddSigned832(Product(left.X, right.X), Product(left.Z, right.Z));
+        Signed832 axial = Product(left.Y, right.Y);
+        Signed192 height = Signed192.Raw(Height), radius = Signed192.Raw(Radius);
+        return WideArithmetic.SubtractSigned832(
+            WideArithmetic.MultiplySigned832(WideArithmetic.MultiplySigned832(radial, height), height),
+            WideArithmetic.MultiplySigned832(WideArithmetic.MultiplySigned832(axial, radius), radius));
+    }
+
+    private bool IntersectsWideQuadratic(WideAxis3 start, WideAxis3 delta,
+        Signed320 lowerN, Signed320 lowerD, Signed320 upperN, Signed320 upperD)
+    {
+        Signed832 a = QuadraticProductWide(delta, delta), b = QuadraticProductWide(start, delta),
+            c = QuadraticProductWide(start, start);
+        return CapsuleFiniteSectionFrame.IntersectsQuadratic(a, b, c, lowerN, lowerD, upperN, upperD);
+    }
+
+    private static Signed832 Product(Signed320 first, Signed320 second) =>
+        WideArithmetic.MultiplySigned576ToSigned832(Signed576.ExtendValue(first), second);
 
     internal Signed576 QuadraticProduct(WideAxis3 left, WideAxis3 right)
     {

@@ -17,10 +17,11 @@ internal static partial class SegmentConeSurfaceCandidates
     private const int RimSlots = 31;
 
     private static bool TryGetRimSquaredDepth(in SegmentConeSurfaceGeometry geometry,
-        SegmentConeSurfaceCandidate candidate, Span<ulong> values, Span<sbyte> valueSigns,
+        in SegmentConeSurfaceCandidate candidate, Span<ulong> values, Span<sbyte> valueSigns,
         Span<ulong> valueCell, out FiniteAxisValueRoot value)
     {
-        GetRimBasis(geometry.Edge, candidate.Chart, out WideAxis3 first, out WideAxis3 second);
+        int Words = geometry.Words;
+        GetRimBasis(geometry.Edge, candidate.Chart, out WideDirection3d first, out WideDirection3d second);
         Span<ulong> data = stackalloc ulong[RimSlots * Words];
         Span<sbyte> signs = stackalloc sbyte[RimSlots];
         TriangleConeRimContacts.BuildConeParameter(geometry.BaseOffset, geometry.Radius, geometry.RawScale,
@@ -51,6 +52,7 @@ internal static partial class SegmentConeSurfaceCandidates
 
     private static void AccumulateRimRoots(in SegmentConeSurfaceGeometry geometry, ref ConeSurfaceSelection selection)
     {
+
         // Horizontal and axial segments use the principal meridional/circular
         // charts. The quartic chart's K!=0 admission deliberately excludes them.
         if (geometry.Edge.Y.IsZero || geometry.Edge.X.IsZero && geometry.Edge.Z.IsZero || geometry.Radius.IsZero || IsMeridionalRim(geometry))
@@ -62,7 +64,8 @@ internal static partial class SegmentConeSurfaceCandidates
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void AccumulateRimChart(in SegmentConeSurfaceGeometry geometry, int chart, ref ConeSurfaceSelection selection)
     {
-        GetRimBasis(geometry.Edge, chart, out WideAxis3 first, out WideAxis3 second);
+        int Words = geometry.Words;
+        GetRimBasis(geometry.Edge, chart, out WideDirection3d first, out WideDirection3d second);
         Span<ulong> data = stackalloc ulong[RimSlots * Words];
         Span<sbyte> signs = stackalloc sbyte[RimSlots];
         // C,R and the affine chart axes are <200 bits; scale<134.
@@ -94,7 +97,7 @@ internal static partial class SegmentConeSurfaceCandidates
         }
     }
 
-    private static void GetRimBasis(WideAxis3 edge, int chart, out WideAxis3 first, out WideAxis3 second)
+    private static void GetRimBasis(WideDirection3d edge, int chart, out WideDirection3d first, out WideDirection3d second)
     {
         GetBasis(edge, out first, out second);
         // Consecutive (+u,+v,-u,-v) quadrant endpoints. The isolator's (0,1]
@@ -102,47 +105,48 @@ internal static partial class SegmentConeSurfaceCandidates
         if (chart == 1) (first, second) = (second, -first);
         else if (chart == 2) (first, second) = (-first, -second);
         else if (chart == 3) (first, second) = (-second, first);
-        second = new WideAxis3(WideArithmetic.SubtractSigned320(second.X, first.X),
-            WideArithmetic.SubtractSigned320(second.Y, first.Y), WideArithmetic.SubtractSigned320(second.Z, first.Z));
+        second = new WideDirection3d(WideArithmetic.SubtractSigned576(second.X, first.X),
+            WideArithmetic.SubtractSigned576(second.Y, first.Y), WideArithmetic.SubtractSigned576(second.Z, first.Z));
     }
 
-    private static void GetRimParameter(in SegmentConeSurfaceGeometry geometry, WideAxis3 first, WideAxis3 second,
-        out Signed576 a0, out Signed576 a1, out Signed576 b0, out Signed576 b1, out Signed576 d0, out Signed576 d1)
+    private static void GetRimParameter(in SegmentConeSurfaceGeometry geometry, WideDirection3d first, WideDirection3d second,
+        out Signed832 a0, out Signed832 a1, out Signed832 b0, out Signed832 b1, out Signed832 d0, out Signed832 d1)
     {
-        WideAxis3 tangent0 = new(WideArithmetic.Negate(first.Z), default, first.X);
-        WideAxis3 tangent1 = new(WideArithmetic.Negate(second.Z), default, second.X);
-        a0 = WideAxis3.Dot(geometry.A, tangent0); a1 = WideAxis3.Dot(geometry.A, tangent1);
-        b0 = WideAxis3.Dot(geometry.B, tangent0); b1 = WideAxis3.Dot(geometry.B, tangent1);
-        d0 = WideArithmetic.SubtractSigned576(b0, a0); d1 = WideArithmetic.SubtractSigned576(b1, a1);
+
+        WideDirection3d tangent0 = new(WideArithmetic.Negate(first.Z), default, first.X);
+        WideDirection3d tangent1 = new(WideArithmetic.Negate(second.Z), default, second.X);
+        a0 = WideDirection3d.Dot(geometry.A, tangent0); a1 = WideDirection3d.Dot(geometry.A, tangent1);
+        b0 = WideDirection3d.Dot(geometry.B, tangent0); b1 = WideDirection3d.Dot(geometry.B, tangent1);
+        d0 = WideArithmetic.SubtractSigned832(b0, a0); d1 = WideArithmetic.SubtractSigned832(b1, a1);
     }
 
     private static bool IsRimParameterInInterval(in SegmentConeSurfaceGeometry geometry,
-        SegmentConeSurfaceCandidate candidate, in RationalSegmentInterval clip, bool interiorOnly)
+        in SegmentConeSurfaceCandidate candidate, in RationalSegmentInterval clip, bool interiorOnly)
     {
-        GetRimBasis(geometry.Edge, candidate.Chart, out WideAxis3 first, out WideAxis3 second);
+        int Words = geometry.Words;
+        GetRimBasis(geometry.Edge, candidate.Chart, out WideDirection3d first, out WideDirection3d second);
         Span<ulong> data = stackalloc ulong[RimSlots * Words]; Span<sbyte> signs = stackalloc sbyte[RimSlots];
         TriangleConeRimContacts.BuildConeParameter(geometry.BaseOffset, geometry.Radius, geometry.RawScale,
             geometry.Input.Height, geometry.Input.Radius, first, second, data, signs);
         Span<ulong> cell = stackalloc ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(data[..(5 * Words)], signs[..5])];
         bool found = WideFiniteAxisIntersection.TryGetFiniteValueRoot(data[..(5 * Words)], signs[..5], candidate.RootOrdinal, cell, out FiniteAxisValueRoot root);
         System.Diagnostics.Debug.Assert(found);
-        GetRimParameter(geometry, first, second, out Signed576 a0, out Signed576 a1,
-            out _, out _, out Signed576 d0, out Signed576 d1);
+        GetRimParameter(geometry, first, second, out Signed832 a0, out Signed832 a1,
+            out _, out _, out Signed832 d0, out Signed832 d1);
         Span<ulong> query = stackalloc ulong[2 * Words]; Span<sbyte> querySigns = stackalloc sbyte[2];
         int denominatorSign = LinearSign(ref root, d0, d1, query, querySigns);
         for (int bound = 0; bound < 2; bound++)
         {
-            Signed320 n = bound == 0 ? clip.LowerNumerator : clip.UpperNumerator;
-            Signed320 d = bound == 0 ? clip.LowerDenominator : clip.UpperDenominator;
+            Signed832 n = bound == 0 ? clip.WideLowerNumerator : clip.WideUpperNumerator;
+            Signed832 d = bound == 0 ? clip.WideLowerDenominator : clip.WideUpperDenominator;
             // t=-a(u)/d(u). Full clip weights add at most 319 bits to
             // the <432-bit affine coefficients; Signed832 retains both products.
             for (int power = 0; power < 2; power++)
             {
-                Signed832 value = WideArithmetic.SubtractSigned832(default, WideArithmetic.AddSigned832(
-                    WideArithmetic.MultiplySigned576ToSigned832(power == 0 ? a0 : a1, d),
-                    WideArithmetic.MultiplySigned576ToSigned832(power == 0 ? d0 : d1, n)));
-                Span<ulong> destination = Slot(query, power); destination.Clear();
-                WideArithmetic.GetMagnitude(value, destination[..13]); querySigns[power] = (sbyte)value.Sign;
+                Span<ulong> destination = Slot(query, power, Words);
+                CylinderContactAlgebra.DifferenceOfProducts(power == 0 ? a0 : a1, d,
+                    WideArithmetic.SubtractSigned832(default, power == 0 ? d0 : d1), n, destination, out int coefficientSign);
+                querySigns[power] = (sbyte)-coefficientSign;
             }
             int sign = denominatorSign * WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns);
             if (bound == 0 ? sign < 0 : sign > 0) return false;
@@ -151,11 +155,12 @@ internal static partial class SegmentConeSurfaceCandidates
         return true;
     }
 
-    private static bool AdmitRimParameter(in SegmentConeSurfaceGeometry geometry, WideAxis3 first, WideAxis3 second,
+    private static bool AdmitRimParameter(in SegmentConeSurfaceGeometry geometry, WideDirection3d first, WideDirection3d second,
         ref FiniteAxisValueRoot root, out ConeSurfacePointLocation location)
     {
-        GetRimParameter(geometry, first, second, out Signed576 a0, out Signed576 a1,
-            out Signed576 b0, out Signed576 b1, out Signed576 d0, out Signed576 d1);
+        int Words = geometry.Words;
+        GetRimParameter(geometry, first, second, out Signed832 a0, out Signed832 a1,
+            out Signed832 b0, out Signed832 b1, out Signed832 d0, out Signed832 d1);
         Span<ulong> query = stackalloc ulong[2 * Words];
         Span<sbyte> querySigns = stackalloc sbyte[2];
         int denominatorSign = LinearSign(ref root, d0, d1, query, querySigns);
@@ -172,7 +177,7 @@ internal static partial class SegmentConeSurfaceCandidates
         return ContainsRimFoot(geometry, a0, a1, d0, d1, denominatorSign, ref root);
     }
 
-    private static int LinearSign(ref FiniteAxisValueRoot root, Signed576 first, Signed576 second,
+    private static int LinearSign(ref FiniteAxisValueRoot root, Signed832 first, Signed832 second,
         scoped Span<ulong> values, scoped Span<sbyte> signs)
     {
         Write(values, signs, 0, first); Write(values, signs, 1, second);
@@ -180,26 +185,25 @@ internal static partial class SegmentConeSurfaceCandidates
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static bool ContainsRimFoot(in SegmentConeSurfaceGeometry geometry, Signed576 a0, Signed576 a1,
-        Signed576 d0, Signed576 d1, int denominatorSign, ref FiniteAxisValueRoot root)
+    private static bool ContainsRimFoot(in SegmentConeSurfaceGeometry geometry, Signed832 a0, Signed832 a1,
+        Signed832 d0, Signed832 d1, int denominatorSign, ref FiniteAxisValueRoot root)
     {
+        int Words = geometry.Words;
         // t=-a/d, where both a,d are affine in the retained quartic root.
         // Source coordinates <198 bits and a,d <432 give point numerators
         // <631. The cone query coefficients are <1390 bits; forty words
         // suffice without introducing a second algebraic root or rounding t.
         Span<ulong> points = stackalloc ulong[8 * Words];
         Span<sbyte> pointSigns = stackalloc sbyte[8];
-        WideAxis3 start = geometry.Finite.Transform(geometry.Input.Segment.Start);
-        WideAxis3 delta = new(geometry.Edge.X, WideArithmetic.Negate(geometry.Edge.Y), geometry.Edge.Z);
+        WideDirection3d start = new(geometry.A.X, WideArithmetic.SubtractSigned576(geometry.Cap, geometry.A.Y), geometry.A.Z);
+        WideDirection3d delta = new(geometry.Edge.X, WideArithmetic.Negate(geometry.Edge.Y), geometry.Edge.Z);
         for (int axis = 0; axis < 3; axis++)
         for (int power = 0; power < 2; power++)
         {
-            Signed832 numerator = WideArithmetic.SubtractSigned832(
-                WideArithmetic.MultiplySigned576ToSigned832(power == 0 ? d0 : d1, Component(start, axis)),
-                WideArithmetic.MultiplySigned576ToSigned832(power == 0 ? a0 : a1, Component(delta, axis)));
-            Span<ulong> destination = Slot(points, 2 * axis + power);
-            destination.Clear(); WideArithmetic.GetMagnitude(numerator, destination[..13]);
-            pointSigns[2 * axis + power] = (sbyte)(denominatorSign * numerator.Sign);
+            Span<ulong> destination = Slot(points, 2 * axis + power, Words);
+            CylinderContactAlgebra.DifferenceOfProducts(power == 0 ? d0 : d1, Signed832.ExtendValue(Component(start, axis)),
+                power == 0 ? a0 : a1, Signed832.ExtendValue(Component(delta, axis)), destination, out int coefficientSign);
+            pointSigns[2 * axis + power] = (sbyte)(denominatorSign * coefficientSign);
         }
         Write(points, pointSigns, 6, d0); Write(points, pointSigns, 7, d1);
         pointSigns[6] *= (sbyte)denominatorSign; pointSigns[7] *= (sbyte)denominatorSign;
@@ -209,12 +213,12 @@ internal static partial class SegmentConeSurfaceCandidates
         Span<sbyte> querySigns = stackalloc sbyte[3];
         Span<ulong> product = stackalloc ulong[Words];
         Span<ulong> scale = stackalloc ulong[Words];
-        Import(geometry.Finite.FullHeight, scale);
+        Import(geometry.FullHeight, scale);
         for (int power = 0; power < 2; power++)
         {
-            WideArithmetic.MultiplyMagnitudes(Slot(points, 6 + power), scale, Slot(query, power));
+            WideArithmetic.MultiplyMagnitudes(Slot(points, 6 + power, Words), scale, Slot(query, power, Words));
             int sign = pointSigns[6 + power];
-            CylinderContactAlgebra.Add(Slot(points, 2 + power), -pointSigns[2 + power], Slot(query, power), ref sign);
+            CylinderContactAlgebra.Add(Slot(points, 2 + power, Words), -pointSigns[2 + power], Slot(query, power, Words), ref sign);
             querySigns[power] = (sbyte)sign;
         }
         if (WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query[..(2 * Words)], querySigns[..2]) < 0)
@@ -232,9 +236,9 @@ internal static partial class SegmentConeSurfaceCandidates
             Import(WideArithmetic.MultiplySigned192(dimension, dimension), scale);
             for (int power = 0; power < 3; power++)
             {
-                WideArithmetic.MultiplyMagnitudes(Slot(square, power), scale, product);
+                WideArithmetic.MultiplyMagnitudes(Slot(square, power, Words), scale, product);
                 int sign = querySigns[power];
-                CylinderContactAlgebra.Add(product, squareSigns[power] * (axis == 1 ? -1 : 1), Slot(query, power), ref sign);
+                CylinderContactAlgebra.Add(product, squareSigns[power] * (axis == 1 ? -1 : 1), Slot(query, power, Words), ref sign);
                 querySigns[power] = (sbyte)sign;
             }
         }
@@ -242,10 +246,13 @@ internal static partial class SegmentConeSurfaceCandidates
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static FixedContactAnchors GetRimRootContact(SegmentConeSurfaceCandidate candidate)
+    internal static FixedContactAnchors GetRimRootContact(in SegmentConeSurfaceCandidate candidate)
     {
+        int Words = candidate.Input.Words;
+        int ValueWords = candidate.Input.ValueWords;
+        int ValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
         var geometry = new SegmentConeSurfaceGeometry(candidate.Input);
-        GetRimBasis(geometry.Edge, candidate.Chart, out WideAxis3 first, out WideAxis3 second);
+        GetRimBasis(geometry.Edge, candidate.Chart, out WideDirection3d first, out WideDirection3d second);
         Span<ulong> data = stackalloc ulong[RimSlots * Words];
         Span<sbyte> signs = stackalloc sbyte[RimSlots];
         TriangleConeRimContacts.BuildConeParameter(geometry.BaseOffset, geometry.Radius, geometry.RawScale,
@@ -253,20 +260,23 @@ internal static partial class SegmentConeSurfaceCandidates
         Span<ulong> cell = stackalloc ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(data[..(5 * Words)], signs[..5])];
         bool found = WideFiniteAxisIntersection.TryGetFiniteValueRoot(data[..(5 * Words)], signs[..5], candidate.RootOrdinal, cell, out FiniteAxisValueRoot root);
         System.Diagnostics.Debug.Assert(found);
-        GetRimParameter(geometry, first, second, out Signed576 a0, out Signed576 a1,
-            out Signed576 b0, out Signed576 b1, out Signed576 d0, out Signed576 d1);
+        GetRimParameter(geometry, first, second, out Signed832 a0, out Signed832 a1,
+            out Signed832 b0, out Signed832 b1, out Signed832 d0, out Signed832 d1);
         Span<ulong> query = stackalloc ulong[2 * Words];
         Span<sbyte> querySigns = stackalloc sbyte[2];
         int denominatorSign = LinearSign(ref root, d0, d1, query, querySigns);
         FixedSegment segment = candidate.Input.Segment;
-        Vector3d point = new(
-            TriangleCylinderRimWitnesses.RoundRootCoordinate(segment.Start.X, segment.End.X, a0, a1, b0, b1, d0, d1, denominatorSign, ref root),
-            TriangleCylinderRimWitnesses.RoundRootCoordinate(segment.Start.Y, segment.End.Y, a0, a1, b0, b1, d0, d1, denominatorSign, ref root),
-            TriangleCylinderRimWitnesses.RoundRootCoordinate(segment.Start.Z, segment.End.Z, a0, a1, b0, b1, d0, d1, denominatorSign, ref root));
-        Span<ulong> gradient = stackalloc ulong[30];
+        Vector3d point = default;
+        for (int axis = 0; axis < 3; axis++)
+            point[axis] = geometry.Input.IsAffine
+                ? TriangleCylinderRimWitnesses.RoundRootCoordinate(Component(geometry.A, axis), Component(geometry.B, axis),
+                    geometry.RawScale, a0, a1, b0, b1, d0, d1, denominatorSign, ref root)
+                : TriangleCylinderRimWitnesses.RoundRootCoordinate(segment.Start[axis], segment.End[axis],
+                    a0, a1, b0, b1, d0, d1, denominatorSign, ref root);
+        Span<ulong> gradient = stackalloc ulong[54];
         Span<sbyte> gradientSigns = stackalloc sbyte[6];
         WriteGradient(first, second, gradient, gradientSigns);
-        gradient.Slice(10, 10).Clear(); gradientSigns.Slice(2, 2).Clear();
+        gradient.Slice(18, 18).Clear(); gradientSigns.Slice(2, 2).Clear();
         Vector3d radialPoint = ConvexContactValueRoot.GetScaledNormalizedDirection(ref root, gradient, gradientSigns, candidate.Input.Radius, -1);
         var basis = new WideRationalBasis3d(candidate.Input.ConeRotation);
         WriteGradient(Transform(basis, first), Transform(basis, second), gradient, gradientSigns);
@@ -277,7 +287,7 @@ internal static partial class SegmentConeSurfaceCandidates
         {
             Span<ulong> values = stackalloc ulong[5 * ValueWords];
             Span<sbyte> valueSigns = stackalloc sbyte[5];
-            Span<ulong> valueCell = stackalloc ulong[TriangleConeRimContacts.ValueCellWords];
+            Span<ulong> valueCell = stackalloc ulong[ValueCellWords];
             BuildValues(geometry.Edge, geometry.BaseOffset, geometry.Radius, geometry.ValueShift, values, valueSigns);
             FiniteAxisValueRoot value = ConvexContactValueRoot.MapSquaredValue(geometry.RawScale, geometry.ValueShift,
                 ref root, data.Slice(16 * Words, 5 * Words), signs.Slice(16, 5), data.Slice(21 * Words, 5 * Words), signs.Slice(21, 5),

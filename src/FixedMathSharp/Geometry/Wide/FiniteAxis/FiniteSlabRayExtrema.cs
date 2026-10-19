@@ -16,19 +16,39 @@ internal readonly struct FiniteSlabRayFrame
     internal readonly Signed320 Radius, CoreCap;
     internal readonly bool HasCore;
     internal readonly FixedTriangle SourcePlane;
-    internal readonly WideAxis3 RayNormal;
-    internal readonly Signed576 RayNormalSquared;
+    internal readonly WideDirection3d RayNormal;
+    internal readonly Signed832 RayNormalSquared;
+    private readonly bool _wideParameters;
+    internal bool UsesWideBanks => Section.RadialFrame.ShapeFrame.HasExactScale || _wideParameters;
+    internal int FieldWords => UsesWideBanks ? FiniteSlabPolynomial.AffineWords : FiniteSlabPolynomial.Words;
+    internal int SelectionStorageWords => FiniteSlabRaySelection.GetStorageWords(FieldWords);
+    internal FiniteSlabRayFrame WithWideParameters() => UsesWideBanks ? this : new FiniteSlabRayFrame(this);
+    private FiniteSlabRayFrame(in FiniteSlabRayFrame source) { this = source; _wideParameters = true; }
     // HalfThickness retains the supplied extent; FullHeight is zero for authored half-thickness slabs.
     internal readonly Fixed64 RadiusValue, HalfThickness, FullHeight;
 
     internal FiniteSlabRayFrame(FixedTriangle sourcePlane, Vector3d origin, FixedQuaternion rotation,
         Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness, bool fullHeight = false)
+        : this(sourcePlane, origin, rotation, center, slabRotation, length, radius, halfThickness, fullHeight, default, false)
+    { }
+
+    internal FiniteSlabRayFrame(FixedTriangle sourcePlane, in ScaledRigidFrame3d sourceFrame,
+        Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness, bool fullHeight = false)
+        : this(sourcePlane, sourceFrame.RigidOrigin, sourceFrame.Rotation, center, slabRotation, length, radius,
+            halfThickness, fullHeight, sourceFrame, !sourceFrame.IsRigid)
+    { }
+
+    private FiniteSlabRayFrame(FixedTriangle sourcePlane, Vector3d origin, FixedQuaternion rotation,
+        Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness,
+        bool fullHeight, in ScaledRigidFrame3d sourceFrame, bool exact)
     {
-        Section = new(origin, rotation, center, slabRotation, length, radius, halfThickness, fullHeight);
-        Plane = new(sourcePlane, Section.RadialFrame);
+        _wideParameters = false;
+        Section = exact ? new(sourceFrame, center, slabRotation, length, radius, halfThickness, fullHeight)
+            : new(origin, rotation, center, slabRotation, length, radius, halfThickness, fullHeight);
+        Plane = exact ? new(sourcePlane, sourceFrame, Section.RadialFrame) : new(sourcePlane, Section.RadialFrame);
         Origin = origin; Rotation = rotation; Center = center; SlabRotation = slabRotation;
-        Radius = WideArithmetic.MultiplySigned192(Section.RadialFrame.ShapeFrame.Radius,
-            Section.RadialFrame.ShapeFrame.Denominator);
+        Radius = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(
+            Section.RadialFrame.ShapeFrame.CoordinateDenominator, Section.RadialFrame.ShapeFrame.Radius));
         CoreCap = Section.RadialFrame.ShapeFrame.Cap;
         HasCore = length != Fixed64.Zero;
         SourcePlane = sourcePlane;
@@ -37,17 +57,21 @@ internal readonly struct FiniteSlabRayFrame
         // coordinates include the rigid frame denominator, so an unscaled
         // primitive normal can make ordinary t enormous and u nearly one.
         Signed320 bound = WideArithmetic.AddSigned320(WideArithmetic.AddSigned320(Radius, CoreCap), Section.Cap);
-        Span<ulong> magnitude = stackalloc ulong[9];
+        Span<ulong> magnitude = stackalloc ulong[13];
         WideArithmetic.GetMagnitude(Signed576.ExtendValue(bound), magnitude);
         int boundBits = WideArithmetic.GetMagnitudeBitLength(magnitude);
         WideArithmetic.GetMagnitude(Plane.NormalSquared, magnitude);
         int normalPower = (WideArithmetic.GetMagnitudeBitLength(magnitude) - 1) / 2;
         int shift = Math.Max(0, boundBits + 2 - normalPower);
         // The resulting components need at most max(original bits,bound+3),
-        // below 268 bits; this is not a fixed shift added to a 264-bit normal.
-        RayNormal = new(ScalePowerOfTwo(Plane.Normal.X, shift), ScalePowerOfTwo(Plane.Normal.Y, shift),
-            ScalePowerOfTwo(Plane.Normal.Z, shift));
-        RayNormalSquared = WideAxis3.Dot(RayNormal, RayNormal);
+        // below 268 rigid or 352 affine bits; conditioning never adds a
+        // fixed shift to an already maximal normal.
+        RayNormal = exact ? new(ScalePowerOfTwo(Plane.Normal.X, shift), ScalePowerOfTwo(Plane.Normal.Y, shift),
+            ScalePowerOfTwo(Plane.Normal.Z, shift))
+            : new WideDirection3d(new WideAxis3(ScalePowerOfTwo(Signed320.NarrowValue(Plane.Normal.X), shift),
+                ScalePowerOfTwo(Signed320.NarrowValue(Plane.Normal.Y), shift),
+                ScalePowerOfTwo(Signed320.NarrowValue(Plane.Normal.Z), shift)));
+        RayNormalSquared = RayNormal.SquaredLength;
     }
 
     internal Vector3d GetNormal(int orientation) =>
@@ -74,8 +98,8 @@ internal readonly struct FiniteSlabRayFrame
         {
             Vector2d offset = prismOffsets[index];
             Signed576 projection = WideArithmetic.AddSigned576(
-                WideArithmetic.MultiplySigned320(Plane.Normal.X, Signed320.ExtendValue(Signed192.Raw(offset.X))),
-                WideArithmetic.MultiplySigned320(Plane.Normal.Z, Signed320.ExtendValue(Signed192.Raw(offset.Y))));
+                WideArithmetic.MultiplySigned576(Plane.Normal.X, offset.X.m_rawValue),
+                WideArithmetic.MultiplySigned576(Plane.Normal.Z, offset.Y.m_rawValue));
             if (orientation < 0) projection = WideArithmetic.SubtractSigned576(default, projection);
             int order = WideArithmetic.SubtractSigned576(projection, maximum).Sign;
             if (index == 0 || order > 0) { maximum = projection; vertex = offset; tied = false; }
@@ -95,6 +119,17 @@ internal readonly struct FiniteSlabRayFrame
         }
         return value;
     }
+
+    private static Signed576 ScalePowerOfTwo(Signed576 value, int shift)
+    {
+        while (shift > 0)
+        {
+            int step = Math.Min(62, shift);
+            value = WideArithmetic.MultiplySigned576(value, 1L << step);
+            shift -= step;
+        }
+        return value;
+    }
 }
 
 /// <summary>
@@ -104,39 +139,75 @@ internal readonly struct FiniteSlabRayFrame
 internal readonly ref struct FiniteSlabPolynomial
 {
     internal const int Words = 64;
+    internal const int AffineWords = 128;
+    internal int FieldWords => Values.Length / Signs.Length;
     internal readonly Span<ulong> Values;
     internal readonly Span<sbyte> Signs;
     internal int Count => Signs.Length;
     internal bool IsZero { get { foreach (sbyte sign in Signs) if (sign != 0) return false; return true; } }
     internal FiniteSlabPolynomial(Span<ulong> values, Span<sbyte> signs)
-    { Values = values[..(signs.Length * Words)]; Signs = signs; }
+    { Values = values; Signs = signs; }
     internal static FiniteSlabPolynomial At(Span<ulong> values, Span<sbyte> signs, int index, int count) =>
-        new(values.Slice(index * Words, count * Words), signs.Slice(index, count));
+        new(values.Slice(index * (values.Length / signs.Length), count * (values.Length / signs.Length)), signs.Slice(index, count));
     internal FiniteSlabPolynomial Slice(int index, int count) => At(Values, Signs, index, count);
     internal void Clear() { Values.Clear(); Signs.Clear(); }
     internal void Set(Signed576 value, int index = 0)
     {
-        Span<ulong> slot = Values.Slice(index * Words, Words); slot.Clear();
-        WideArithmetic.GetMagnitude(value, slot[..9]); Signs[index] = (sbyte)value.Sign;
+        Span<ulong> slot = Values.Slice(index * FieldWords, FieldWords);
+        WideArithmetic.GetMagnitude(value, slot); Signs[index] = (sbyte)value.Sign;
+    }
+    internal void Set(Signed832 value, int index = 0)
+    {
+        Span<ulong> slot = Values.Slice(index * FieldWords, FieldWords);
+        WideArithmetic.GetMagnitude(value, slot); Signs[index] = (sbyte)value.Sign;
     }
     internal void Set(Signed320 value, int index = 0) => Set(Signed576.ExtendValue(value), index);
     internal void Set(int value, int index = 0) => Set(Signed320.ExtendValue(Signed192.Signed(value)), index);
     internal void Copy(FiniteSlabPolynomial source)
     {
-        Clear(); source.Values.CopyTo(Values); source.Signs.CopyTo(Signs);
+        Clear();
+        if (FieldWords == source.FieldWords)
+        {
+            source.Values.CopyTo(Values); source.Signs.CopyTo(Signs);
+        }
+        else Add(source);
     }
     internal void Add(FiniteSlabPolynomial source, int multiplier = 1, int offset = 0) =>
         WideFiniteAxisIntersection.AddFiniteAxisPolynomial(source.Values, source.Signs,
             Values, Signs, multiplier, offset);
     internal void Multiply(FiniteSlabPolynomial left, FiniteSlabPolynomial right)
     {
-        Span<ulong> product = stackalloc ulong[Words];
+        Span<ulong> product = FieldWords == Words ? stackalloc ulong[Words] : stackalloc ulong[AffineWords];
         WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(left.Values, left.Signs,
             right.Values, right.Signs, Values, Signs, product);
     }
     internal void Scale(FiniteSlabPolynomial source, Signed576 factor)
     {
-        Span<ulong> data = stackalloc ulong[Words]; Span<sbyte> signs = stackalloc sbyte[1];
+        if (factor.IsZero) { Clear(); return; }
+        // Polynomial coefficients are integers; these units are literal 1,
+        // rather than the Q32.32 value retained by Signed576.One.
+        if ((factor.Word0 == 1UL && factor.Equals(Signed576.ExtendValue(Signed192.Signed(1))))
+            || (factor.Word0 == ulong.MaxValue && factor.Equals(Signed576.ExtendValue(Signed192.Signed(-1)))))
+        {
+            Clear(); Add(source, factor.Sign);
+            return;
+        }
+        Span<ulong> data = FieldWords == Words ? stackalloc ulong[Words] : stackalloc ulong[AffineWords];
+        Span<sbyte> signs = stackalloc sbyte[1];
+        FiniteSlabPolynomial scalar = new(data, signs); scalar.Set(factor);
+        Multiply(source, scalar);
+    }
+    internal void Scale(FiniteSlabPolynomial source, Signed832 factor)
+    {
+        if (factor.IsZero) { Clear(); return; }
+        if ((factor.Word0 == 1UL && factor.Equals(Signed832.ExtendValue(Signed192.Signed(1))))
+            || (factor.Word0 == ulong.MaxValue && factor.Equals(Signed832.ExtendValue(Signed192.Signed(-1)))))
+        {
+            Clear(); Add(source, factor.Sign);
+            return;
+        }
+        Span<ulong> data = FieldWords == Words ? stackalloc ulong[Words] : stackalloc ulong[AffineWords];
+        Span<sbyte> signs = stackalloc sbyte[1];
         FiniteSlabPolynomial scalar = new(data, signs); scalar.Set(factor);
         Multiply(source, scalar);
     }
@@ -166,20 +237,27 @@ internal static class FiniteSlabRayExtrema
     // coefficients <2133. The single radial constraint produces only
     // quadratic roots; reconstructed point coefficients and final depth/sign
     // products remain <3400 bits.
-    // The shared 64-word bank retains every intermediate without narrowing.
+    // Rigid calls retain the 64-word bank. For exact affine ingress, the
+    // full clipping rows have <832 bits and coordinates/rays <352. A plane
+    // chart has <1186-bit coordinates, <2374-bit conics and <4751-bit
+    // eliminated quadratics. Reconstructed witnesses stay <3563 bits;
+    // their squared physical metric stays <7834, within 128 words.
     private const int Words = FiniteSlabPolynomial.Words;
     private readonly struct Linear
     {
-        internal readonly Signed576 A, B, C, D;
-        internal Linear(Signed576 a, Signed576 b, Signed576 c, Signed576 d)
+        internal readonly Signed832 A, B, C, D;
+        internal Linear(Signed832 a, Signed832 b, Signed832 c, Signed832 d)
         { A = a; B = b; C = c; D = d; }
-        internal Signed576 this[int index] => index == 0 ? A : index == 1 ? B : index == 2 ? C : D;
+        internal Linear(Signed576 a, Signed576 b, Signed576 c, Signed576 d)
+            : this(Signed832.ExtendValue(a), Signed832.ExtendValue(b), Signed832.ExtendValue(c), Signed832.ExtendValue(d)) { }
+        internal Signed832 this[int index] => index == 0 ? A : index == 1 ? B : index == 2 ? C : D;
     }
     private readonly struct Radial
     {
-        internal readonly WideAxis3 A, E, F, N;
+        internal readonly WideAxis3 A, E, F;
+        internal readonly WideDirection3d N;
         internal readonly Signed320 Radius;
-        internal Radial(WideAxis3 a, WideAxis3 e, WideAxis3 f, WideAxis3 n, Signed320 radius)
+        internal Radial(WideAxis3 a, WideAxis3 e, WideAxis3 f, WideDirection3d n, Signed320 radius)
         { A = a; E = e; F = f; N = n; Radius = radius; }
     }
     private readonly ref struct Problem
@@ -189,7 +267,8 @@ internal static class FiniteSlabRayExtrema
         internal readonly FixedTriangle Triangle;
         internal readonly int Orientation;
         internal readonly FiniteSlabRayCandidateVisitor? Visitor;
-        internal readonly Radial Shape;
+        private readonly ReadOnlySpan<Radial> _shape;
+        internal ref readonly Radial Shape => ref _shape[0];
         internal readonly Signed320 HalfThickness, CoreCap;
         internal readonly bool HasCore, IsPrism;
         internal readonly int ExitLinearStart;
@@ -197,31 +276,32 @@ internal static class FiniteSlabRayExtrema
         internal readonly int ActiveFirst, ActiveSecond, ActiveThird, SolvedDisks;
         internal readonly int DomainLineCount;
         internal readonly int ExitRegion;
+        internal readonly int FieldWords;
         internal Problem(ReadOnlySpan<Linear> lines, ReadOnlySpan<Radial> disks,
             FixedTriangle triangle, int orientation, FiniteSlabRayCandidateVisitor? visitor,
-            Radial shape, Signed320 halfThickness, Signed320 coreCap, bool hasCore, bool isPrism, int exitLinearStart,
+            ReadOnlySpan<Radial> shape, Signed320 halfThickness, Signed320 coreCap, bool hasCore, bool isPrism, int exitLinearStart,
             int domainEdgeMask = 0, int activeFirst = -1, int activeSecond = -1, int activeThird = -1, int solvedDisks = 0,
-            int domainLineCount = 3, int exitRegion = 0)
+            int domainLineCount = 3, int exitRegion = 0, int fieldWords = Words)
         {
             Lines = lines; Disks = disks; Triangle = triangle; Orientation = orientation; Visitor = visitor;
-            Shape = shape; HalfThickness = halfThickness; CoreCap = coreCap; HasCore = hasCore;
+            _shape = shape; HalfThickness = halfThickness; CoreCap = coreCap; HasCore = hasCore;
             IsPrism = isPrism; ExitLinearStart = exitLinearStart;
             DomainEdgeMask = domainEdgeMask;
             ActiveFirst = activeFirst; ActiveSecond = activeSecond; ActiveThird = activeThird; SolvedDisks = solvedDisks;
             DomainLineCount = domainLineCount;
-            ExitRegion = exitRegion;
+            ExitRegion = exitRegion; FieldWords = fieldWords;
         }
         internal Problem WithActive(int first, int second = -1, int third = -1) => new(Lines, Disks, Triangle, Orientation, Visitor,
-            Shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart,
+            _shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart,
             DomainEdge(first, DomainLineCount) | DomainEdge(second, DomainLineCount) | DomainEdge(third, DomainLineCount),
-            first, second, third, SolvedDisks, DomainLineCount, ExitRegion);
+            first, second, third, SolvedDisks, DomainLineCount, ExitRegion, FieldWords);
         internal Problem WithDisk(int disk) => new(Lines, Disks, Triangle, Orientation, Visitor,
-            Shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart, DomainEdgeMask,
-            ActiveFirst, ActiveSecond, ActiveThird, SolvedDisks | (1 << disk), DomainLineCount, ExitRegion);
+            _shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart, DomainEdgeMask,
+            ActiveFirst, ActiveSecond, ActiveThird, SolvedDisks | (1 << disk), DomainLineCount, ExitRegion, FieldWords);
         internal Problem WithoutSolvedDisks() => new(Lines, Disks, Triangle, Orientation, Visitor,
-            Shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart, DomainEdgeMask,
+            _shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart, DomainEdgeMask,
             ActiveFirst, ActiveSecond, ActiveThird, domainLineCount: DomainLineCount,
-            exitRegion: ExitRegion);
+            exitRegion: ExitRegion, fieldWords: FieldWords);
         internal bool IsActive(int index) => index == ActiveFirst || index == ActiveSecond || index == ActiveThird;
     }
 
@@ -286,7 +366,7 @@ internal static class FiniteSlabRayExtrema
         WideAxis3 a = frame.Section.Transform(triangle.A);
         WideAxis3 e = Difference(frame.Section.Transform(triangle.B), a);
         WideAxis3 f = Difference(frame.Section.Transform(triangle.C), a);
-        WideAxis3 n = Signed(frame.RayNormal, orientation);
+        WideDirection3d n = Signed(frame.RayNormal, orientation);
         bool axial = n.X.IsZero && n.Z.IsZero;
         if (!finiteDomain && axial)
         {
@@ -296,6 +376,8 @@ internal static class FiniteSlabRayExtrema
         int pieces = prismOffsets.IsEmpty && frame.HasCore ? 3 : 1;
         int capacity = 10 + prismOffsets.Length + (clips.IsEmpty ? 0 : 2);
         Span<Linear> lines = stackalloc Linear[capacity]; Span<Radial> disks = stackalloc Radial[1];
+        // Every active-set view borrows the same immutable shape for this call.
+        Span<Radial> shape = stackalloc Radial[1] { new(a, e, f, n, frame.Radius) };
         for (int exitPiece = 0; exitPiece < pieces; exitPiece++)
         {
             int count = 0, diskCount = 0;
@@ -315,8 +397,8 @@ internal static class FiniteSlabRayExtrema
                 // radial chart coefficients <1065, eliminated quadratics
                 // <2133 and final witness/sign products <3400 fit the existing
                 // 4096-bit retained fields. Constraint count adds no width.
-                lines[count++] = new(S(clip.LowerDenominator), S(clip.LowerDenominator), default, S(Negate(clip.LowerNumerator)));
-                lines[count++] = new(S(Negate(clip.UpperDenominator)), S(Negate(clip.UpperDenominator)), default, S(clip.UpperNumerator));
+                lines[count++] = new(clip.WideLowerDenominator, clip.WideLowerDenominator, default, Negate(clip.WideLowerNumerator));
+                lines[count++] = new(Negate(clip.WideUpperDenominator), Negate(clip.WideUpperDenominator), default, clip.WideUpperNumerator);
             }
             int domainLineCount = count;
             lines[count++] = new(default, default, S(1), default);
@@ -329,15 +411,15 @@ internal static class FiniteSlabRayExtrema
             if (!prismOffsets.IsEmpty)
             {
                 int winding = FiniteSlabSectionFrame.GetPrismWinding(prismOffsets);
-                Signed192 scale = WideArithmetic.AddSigned192(frame.Section.RadialFrame.ShapeFrame.Denominator,
-                    frame.Section.RadialFrame.ShapeFrame.Denominator);
+                Signed320 scale = WideArithmetic.AddSigned320(frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator,
+                    frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator);
                 for (int edge = 0; edge < prismOffsets.Length; edge++)
                 {
                     Vector2d first = prismOffsets[edge], last = prismOffsets[(edge + 1) % prismOffsets.Length];
                     Signed320 dx = Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(last.X), Signed192.Raw(first.X)));
                     Signed320 dz = Signed320.ExtendValue(WideArithmetic.SubtractSigned192(Signed192.Raw(last.Y), Signed192.Raw(first.Y)));
-                    WideAxis3 offset = new(WideArithmetic.SubtractSigned320(a.X, WideArithmetic.MultiplySigned192(Signed192.Raw(first.X), scale)),
-                        a.Y, WideArithmetic.SubtractSigned320(a.Z, WideArithmetic.MultiplySigned192(Signed192.Raw(first.Y), scale)));
+                    WideAxis3 offset = new(WideArithmetic.SubtractSigned320(a.X, ScaledOffset(first.X, scale)),
+                        a.Y, WideArithmetic.SubtractSigned320(a.Z, ScaledOffset(first.Y, scale)));
                     lines[count++] = new(Signed(Wall(e, dx, dz), winding), Signed(Wall(f, dx, dz), winding),
                         Signed(Wall(n, dx, dz), winding), Signed(Wall(offset, dx, dz), winding));
                 }
@@ -359,9 +441,9 @@ internal static class FiniteSlabRayExtrema
                 else disks[diskCount++] = new(offset, e, f, n, frame.Radius);
             }
             Problem problem = new(lines[..count], disks[..diskCount], triangle, orientation, visitor,
-                new(a, e, f, n, frame.Radius), frame.Section.Cap, frame.CoreCap, frame.HasCore,
+                shape, frame.Section.Cap, frame.CoreCap, frame.HasCore,
                 !prismOffsets.IsEmpty, exitLinearStart, domainLineCount: domainLineCount,
-                exitRegion: frame.HasCore && exitPiece != 0 ? exitPiece == 1 ? -1 : 1 : 0);
+                exitRegion: frame.HasCore && exitPiece != 0 ? exitPiece == 1 ? -1 : 1 : 0, fieldWords: frame.FieldWords);
             if (!finiteDomain || physicalSupportOnly && !axial && !n.Y.IsZero)
                 AccumulatePhysicalSupport(problem, frame, prismOffsets, exitPiece, ref maximum);
             else if (axial) AccumulateAxial(problem, n.Y.Sign, ref maximum);
@@ -372,7 +454,7 @@ internal static class FiniteSlabRayExtrema
     private static void AccumulatePhysicalSupport(scoped Problem problem, in FiniteSlabRayFrame frame,
         ReadOnlySpan<Vector2d> offsets, int exitPiece, ref FiniteSlabRaySelection maximum)
     {
-        WideAxis3 n = problem.Shape.N;
+        WideDirection3d n = problem.Shape.N;
         if (offsets.IsEmpty && frame.HasCore)
         {
             if (exitPiece == 0 && !n.Z.IsZero) return;
@@ -414,7 +496,7 @@ internal static class FiniteSlabRayExtrema
             }
         for (int capIndex = firstCap; capIndex <= lastCap; capIndex++)
         {
-            Linear cap = problem.Lines[capIndex];
+            ref readonly Linear cap = ref problem.Lines[capIndex];
             if (!offsets.IsEmpty)
             {
                 if (supportWall >= 0)
@@ -422,8 +504,8 @@ internal static class FiniteSlabRayExtrema
                     AccumulateSupportLine(problem, capIndex, supportWall, ref maximum);
                     continue;
                 }
-                Signed192 scale = WideArithmetic.AddSigned192(frame.Section.RadialFrame.ShapeFrame.Denominator,
-                    frame.Section.RadialFrame.ShapeFrame.Denominator);
+                Signed320 scale = WideArithmetic.AddSigned320(frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator,
+                    frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator);
                 // A convex footprint's tied support is one straight face;
                 // its lexical endpoints omit duplicate/collinear authored samples.
                 for (int vertex = 0; vertex < (firstVertex == lastVertex ? 1 : 2); vertex++)
@@ -431,10 +513,10 @@ internal static class FiniteSlabRayExtrema
                     Vector2d offset = offsets[vertex == 0 ? firstVertex : lastVertex];
                     Linear x = new(S(problem.Shape.E.X), S(problem.Shape.F.X), S(n.X),
                         S(WideArithmetic.SubtractSigned320(problem.Shape.A.X,
-                            WideArithmetic.MultiplySigned192(Signed192.Raw(offset.X), scale))));
+                            ScaledOffset(offset.X, scale))));
                     Linear z = new(S(problem.Shape.E.Z), S(problem.Shape.F.Z), S(n.Z),
                         S(WideArithmetic.SubtractSigned320(problem.Shape.A.Z,
-                            WideArithmetic.MultiplySigned192(Signed192.Raw(offset.Y), scale))));
+                            ScaledOffset(offset.Y, scale))));
                     // Direct coordinates retain authored collinear/duplicate
                     // corners whose adjacent wall equations are dependent.
                     ThreePlanes(problem.WithActive(capIndex), cap, x, z, ref maximum);
@@ -481,12 +563,12 @@ internal static class FiniteSlabRayExtrema
         }
     }
 
-    private static Signed576 FootprintProjection(WideAxis3 n, Vector2d offset) => WideArithmetic.AddSigned576(
-        WideArithmetic.MultiplySigned320(n.X, Signed320.ExtendValue(Signed192.Raw(offset.X))),
-        WideArithmetic.MultiplySigned320(n.Z, Signed320.ExtendValue(Signed192.Raw(offset.Y))));
+    private static Signed576 FootprintProjection(WideDirection3d n, Vector2d offset) => WideArithmetic.AddSigned576(
+        WideArithmetic.MultiplySigned576(n.X, offset.X.m_rawValue),
+        WideArithmetic.MultiplySigned576(n.Z, offset.Y.m_rawValue));
 
     private static void AccumulateHorizontalPlane(in FiniteSlabRayFrame frame, FixedTriangle triangle,
-        ReadOnlySpan<Vector2d> offsets, int orientation, WideAxis3 a, WideAxis3 e, WideAxis3 f, WideAxis3 n,
+        ReadOnlySpan<Vector2d> offsets, int orientation, WideAxis3 a, WideAxis3 e, WideAxis3 f, WideDirection3d n,
         ref FiniteSlabRaySelection maximum, FiniteSlabRayCandidateVisitor? visitor)
     {
         // The intrinsic horizontal section is the complete footprint at one
@@ -498,19 +580,20 @@ internal static class FiniteSlabRayExtrema
         lines[count++] = new(default, default, S(1), default);
         AddInterval(lines, ref count, a.Y, e.Y, f.Y, n.Y, frame.Section.Cap);
         int capIndex = 1 + (n.Y.Sign > 0 ? 1 : 0);
+        Span<Radial> shape = stackalloc Radial[1] { new(a, e, f, n, frame.Radius) };
         Problem problem = new(lines, ReadOnlySpan<Radial>.Empty, triangle, orientation, visitor,
-            new(a, e, f, n, frame.Radius), frame.Section.Cap, frame.CoreCap, frame.HasCore,
-            !offsets.IsEmpty, 1, activeFirst: capIndex, domainLineCount: 0);
+            shape, frame.Section.Cap, frame.CoreCap, frame.HasCore,
+            !offsets.IsEmpty, 1, activeFirst: capIndex, domainLineCount: 0, fieldWords: frame.FieldWords);
         int samples = !offsets.IsEmpty ? offsets.Length : frame.HasCore ? 7 : 5;
-        Signed192 scale = WideArithmetic.AddSigned192(frame.Section.RadialFrame.ShapeFrame.Denominator,
-            frame.Section.RadialFrame.ShapeFrame.Denominator);
+        Signed320 scale = WideArithmetic.AddSigned320(frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator,
+            frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator);
         for (int index = 0; index < samples; index++)
         {
             Signed320 x = default, z = default;
             if (!offsets.IsEmpty)
             {
-                x = WideArithmetic.MultiplySigned192(Signed192.Raw(offsets[index].X), scale);
-                z = WideArithmetic.MultiplySigned192(Signed192.Raw(offsets[index].Y), scale);
+                x = ScaledOffset(offsets[index].X, scale);
+                z = ScaledOffset(offsets[index].Y, scale);
             }
             else if (frame.HasCore)
             {
@@ -531,10 +614,10 @@ internal static class FiniteSlabRayExtrema
     }
 
     private static void AddInterval(Span<Linear> lines, ref int count,
-        Signed320 a, Signed320 e, Signed320 f, Signed320 n, Signed320 cap)
+        Signed320 a, Signed320 e, Signed320 f, Signed576 n, Signed320 cap)
     {
         lines[count++] = new(S(e), S(f), S(n), S(WideArithmetic.AddSigned320(a, cap)));
-        lines[count++] = new(S(Negate(e)), S(Negate(f)), S(Negate(n)), S(WideArithmetic.SubtractSigned320(cap, a)));
+        lines[count++] = new(S(Negate(e)), S(Negate(f)), S(Signed(n, -1)), S(WideArithmetic.SubtractSigned320(cap, a)));
     }
 
     private static void Accumulate(scoped Problem problem, ref FiniteSlabRaySelection maximum)
@@ -546,10 +629,10 @@ internal static class FiniteSlabRayExtrema
         // to one of these real planes, so no separate zero-plane chart is needed.
         for (int first = 0; first < problem.Lines.Length; first++)
         {
-            Linear a = problem.Lines[first];
+            ref readonly Linear a = ref problem.Lines[first];
             for (int second = first + 1; second < problem.Lines.Length; second++)
             {
-                Linear b = problem.Lines[second];
+                ref readonly Linear b = ref problem.Lines[second];
                 for (int third = second + 1; third < problem.Lines.Length; third++)
                     ThreePlanes(problem.WithActive(first, second, third),
                         a, b, problem.Lines[third], ref maximum);
@@ -569,7 +652,7 @@ internal static class FiniteSlabRayExtrema
         // active sets containing it retains all clipped-region extrema and
         // cardinal witnesses, without solving irrelevant radial exit charts.
         int capIndex = problem.ExitLinearStart + (direction > 0 ? 1 : 0);
-        Linear cap = problem.Lines[capIndex];
+        ref readonly Linear cap = ref problem.Lines[capIndex];
         for (int first = 0; first < problem.Lines.Length; first++)
         {
             if (first == capIndex) continue;
@@ -586,10 +669,12 @@ internal static class FiniteSlabRayExtrema
             PlaneDisk(problem.WithActive(capIndex).WithDisk(disk), cap, problem.Disks[disk], ref maximum);
     }
 
-    private static void ThreePlanes(scoped Problem problem, Linear a, Linear b, Linear c,
+    private static void ThreePlanes(scoped Problem problem, in Linear a, in Linear b, in Linear c,
         ref FiniteSlabRaySelection maximum)
     {
-        Span<ulong> values = stackalloc ulong[8 * Words]; Span<sbyte> signs = stackalloc sbyte[8];
+        int words = problem.FieldWords;
+        Span<ulong> values = words == Words ? stackalloc ulong[8 * Words] : stackalloc ulong[8 * FiniteSlabPolynomial.AffineWords];
+        Span<sbyte> signs = stackalloc sbyte[8];
         FiniteSlabPolynomial l = P(values, signs, 0), m = P(values, signs, 1),
             t = P(values, signs, 2), d = P(values, signs, 3), n = P(values, signs, 4), u = P(values, signs, 5, 2);
         Determinant(d, a, b, c, 0, 1, 2);
@@ -601,19 +686,21 @@ internal static class FiniteSlabRayExtrema
         if (t.Signs[0] < 0) return;
         // The LP witness is rational. Its source has no algebraic parameter;
         // retain a known half-unit root and the independent rational depth.
-        WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(values[..(4 * Words)], signs[..4]);
+        WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(values[..(4 * words)], signs[..4]);
         n.Copy(t); n.Add(d); u.Clear(); u.Add(t); u.Add(d, 2);
         ProcessRational(problem, l, m, t, d, n, u.Slice(0, 1), ref maximum);
     }
 
-    private static void Determinant(FiniteSlabPolynomial result, Linear a, Linear b, Linear c,
+    private static void Determinant(FiniteSlabPolynomial result, in Linear a, in Linear b, in Linear c,
         int x, int y, int z)
     {
-        // Three Signed576 scalar factors need 27 limbs, not polynomial banks.
-        // Reuse the magnitude owner; the existing result still has 64 limbs.
-        Span<ulong> values = stackalloc ulong[72];
-        Span<ulong> first = values[..9], second = values.Slice(9, 9), third = values.Slice(18, 9),
-            pair = values.Slice(27, 18), term = values.Slice(45, 27);
+        // Rigid rows retain their original 576-bit factors and scratch. Only
+        // affine coordinates or wide clips require complete 832-bit factors.
+        bool compact = result.FieldWords == Words;
+        int limbs = compact ? 9 : 13;
+        Span<ulong> values = compact ? stackalloc ulong[72] : stackalloc ulong[104];
+        Span<ulong> first = values[..limbs], second = values.Slice(limbs, limbs), third = values.Slice(2 * limbs, limbs),
+            pair = values.Slice(3 * limbs, 2 * limbs), term = values.Slice(5 * limbs, 3 * limbs);
         result.Clear();
         int sign = 0;
         for (int permutation = 0; permutation < 6; permutation++)
@@ -621,12 +708,21 @@ internal static class FiniteSlabRayExtrema
             int i = permutation % 3;
             int j = permutation < 3 ? (i + 1) % 3 : (i + 2) % 3;
             int k = 3 - i - j;
-            Signed576 av = a[i == 0 ? x : i == 1 ? y : z], bv = b[j == 0 ? x : j == 1 ? y : z],
+            Signed832 av = a[i == 0 ? x : i == 1 ? y : z], bv = b[j == 0 ? x : j == 1 ? y : z],
                 cv = c[k == 0 ? x : k == 1 ? y : z];
             // Sparse cap/footprint rows have many exact zero products; they
             // need no polynomial scratch initialization or multiplication.
             if (av.IsZero || bv.IsZero || cv.IsZero) continue;
-            WideArithmetic.GetMagnitude(av, first); WideArithmetic.GetMagnitude(bv, second); WideArithmetic.GetMagnitude(cv, third);
+            if (compact)
+            {
+                WideArithmetic.GetMagnitude(Signed576.NarrowValue(av), first);
+                WideArithmetic.GetMagnitude(Signed576.NarrowValue(bv), second);
+                WideArithmetic.GetMagnitude(Signed576.NarrowValue(cv), third);
+            }
+            else
+            {
+                WideArithmetic.GetMagnitude(av, first); WideArithmetic.GetMagnitude(bv, second); WideArithmetic.GetMagnitude(cv, third);
+            }
             WideArithmetic.MultiplyMagnitudes(first, second, pair);
             WideArithmetic.MultiplyMagnitudes(pair, third, term);
             WideArithmetic.AddShiftedSignedMagnitude(term, av.Sign * bv.Sign * cv.Sign * (permutation < 3 ? 1 : -1),
@@ -641,12 +737,13 @@ internal static class FiniteSlabRayExtrema
         scoped FiniteSlabPolynomial depthN, scoped FiniteSlabPolynomial depthD,
         ref FiniteSlabRaySelection maximum)
     {
+        int words = problem.FieldWords;
         if (equation.IsZero) return;
         WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(equation.Values, equation.Signs);
         Span<ulong> cells = stackalloc ulong[64]; Span<int> shifts = stackalloc int[8];
         FiniteAxisValueRoots roots = WideFiniteAxisIntersection.GetFiniteValueRoots(equation.Values, equation.Signs, cells, shifts);
         Span<ulong> cell = stackalloc ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(equation.Values, equation.Signs)];
-        Span<ulong> candidateValues = stackalloc ulong[problem.Visitor is null ? 0 : FiniteSlabRaySelection.StorageWords];
+        Span<ulong> candidateValues = stackalloc ulong[problem.Visitor is null ? 0 : FiniteSlabRaySelection.GetStorageWords(words)];
         Span<sbyte> candidateSigns = stackalloc sbyte[problem.Visitor is null ? 0 : FiniteSlabRaySelection.SignCount];
         Span<ulong> half = stackalloc ulong[1] { 1 };
         for (int ordinal = 0; ordinal < roots.Count; ordinal++)
@@ -660,7 +757,7 @@ internal static class FiniteSlabRayExtrema
                 problem.Triangle, problem.Orientation, problem.DomainEdgeMask);
             if (problem.Visitor is not null && IsClearanceExit(problem, ref root, l, m, t, d))
             {
-                FiniteSlabRaySelection candidate = new(candidateValues, candidateSigns);
+                FiniteSlabRaySelection candidate = new(candidateValues, candidateSigns, words);
                 candidate.Keep(root, roots.Count, l, m, t, d, parameterIsDepth, depthN, depthD,
                     problem.Triangle, problem.Orientation, problem.DomainEdgeMask);
                 problem.Visitor(candidate);
@@ -673,7 +770,8 @@ internal static class FiniteSlabRayExtrema
         scoped FiniteSlabPolynomial d, scoped FiniteSlabPolynomial depthN, scoped FiniteSlabPolynomial depthD,
         ref FiniteSlabRaySelection maximum)
     {
-        Span<ulong> values = stackalloc ulong[2 * Words]; Span<sbyte> signs = stackalloc sbyte[2];
+        int words = problem.FieldWords;
+        Span<ulong> values = stackalloc ulong[2 * words]; Span<sbyte> signs = stackalloc sbyte[2];
         FiniteSlabPolynomial equation = new(values, signs); equation.Clear(); equation.Set(-1); equation.Set(2, 1);
         Span<ulong> cell = stackalloc ulong[1]; cell[0] = 1;
         FiniteAxisValueRoot root = new() { Coefficients = values, Signs = signs,
@@ -682,9 +780,9 @@ internal static class FiniteSlabRayExtrema
         maximum.Keep(root, 1, l, m, t, d, false, depthN, depthD,
             problem.Triangle, problem.Orientation, problem.DomainEdgeMask);
         if (problem.Visitor is null || !IsClearanceExit(problem, ref root, l, m, t, d)) return;
-        Span<ulong> candidateValues = stackalloc ulong[FiniteSlabRaySelection.StorageWords];
+        Span<ulong> candidateValues = stackalloc ulong[FiniteSlabRaySelection.GetStorageWords(words)];
         Span<sbyte> candidateSigns = stackalloc sbyte[FiniteSlabRaySelection.SignCount];
-        FiniteSlabRaySelection candidate = new(candidateValues, candidateSigns);
+        FiniteSlabRaySelection candidate = new(candidateValues, candidateSigns, words);
         candidate.Keep(root, 1, l, m, t, d, false, depthN, depthD,
             problem.Triangle, problem.Orientation, problem.DomainEdgeMask);
         problem.Visitor(candidate);
@@ -694,9 +792,10 @@ internal static class FiniteSlabRayExtrema
         scoped FiniteSlabPolynomial l, scoped FiniteSlabPolynomial m,
         scoped FiniteSlabPolynomial t, scoped FiniteSlabPolynomial d)
     {
+        int words = problem.FieldWords;
         int denominatorSign = FiniteSlabPolynomial.Sign(ref root, d);
         System.Diagnostics.Debug.Assert(denominatorSign != 0);
-        Span<ulong> values = stackalloc ulong[10 * Words]; Span<sbyte> signs = stackalloc sbyte[10];
+        Span<ulong> values = stackalloc ulong[10 * words]; Span<sbyte> signs = stackalloc sbyte[10];
         FiniteSlabPolynomial q = P(values, signs, 0, 5), term = P(values, signs, 5, 5);
         if (problem.ExitRegion != 0)
         {
@@ -714,19 +813,19 @@ internal static class FiniteSlabRayExtrema
             // Defining planes are exact algebraic identities of this chart.
             // Rechecking them would invoke the full resultant equality bound.
             if (problem.IsActive(index)) continue;
-            Linear line = problem.Lines[index];
+            ref readonly Linear line = ref problem.Lines[index];
             q.Scale(l, line.A); term.Scale(m, line.B); q.Add(term); term.Scale(t, line.C); q.Add(term);
             term.Scale(d, line.D); q.Add(term);
             if (FiniteSlabPolynomial.Sign(ref root, q) * denominatorSign < 0) return false;
         }
         // Prisms and already separated candidates never need radial scratch.
         if (problem.Disks.IsEmpty) return true;
-        Span<ulong> radialValues = stackalloc ulong[24 * Words]; Span<sbyte> radialSigns = stackalloc sbyte[24];
+        Span<ulong> radialValues = stackalloc ulong[24 * words]; Span<sbyte> radialSigns = stackalloc sbyte[24];
         FiniteSlabPolynomial x = P(radialValues, radialSigns, 0, 5), z = P(radialValues, radialSigns, 5, 5),
             square = P(radialValues, radialSigns, 10, 9), second = P(radialValues, radialSigns, 19, 5);
-        Span<ulong> scratchValues = stackalloc ulong[18 * Words]; Span<sbyte> scratchSigns = stackalloc sbyte[18];
-        FiniteSlabPolynomial other = new(scratchValues[..(9 * Words)], scratchSigns[..9]);
-        FiniteSlabPolynomial radiusSquare = new(scratchValues[(9 * Words)..], scratchSigns[9..]);
+        Span<ulong> scratchValues = stackalloc ulong[18 * words]; Span<sbyte> scratchSigns = stackalloc sbyte[18];
+        FiniteSlabPolynomial other = new(scratchValues[..(9 * words)], scratchSigns[..9]);
+        FiniteSlabPolynomial radiusSquare = new(scratchValues[(9 * words)..], scratchSigns[9..]);
         for (int index = 0; index < problem.Disks.Length; index++)
         {
             if ((problem.SolvedDisks & (1 << index)) != 0) continue;
@@ -751,10 +850,11 @@ internal static class FiniteSlabRayExtrema
         scoped FiniteSlabPolynomial l, scoped FiniteSlabPolynomial m,
         scoped FiniteSlabPolynomial t, scoped FiniteSlabPolynomial d)
     {
+        int words = problem.FieldWords;
         for (int index = problem.ExitLinearStart; index < problem.Lines.Length; index++)
             if (problem.IsActive(index) && problem.Lines[index].C.Sign < 0
                 && (problem.IsPrism || index < problem.ExitLinearStart + 2)) return true;
-        Span<ulong> values = stackalloc ulong[48 * Words]; Span<sbyte> signs = stackalloc sbyte[48];
+        Span<ulong> values = stackalloc ulong[48 * words]; Span<sbyte> signs = stackalloc sbyte[48];
         FiniteSlabPolynomial x = P(values, signs, 0, 5), y = P(values, signs, 5, 5),
             z = P(values, signs, 10, 5), offset = P(values, signs, 15, 5), term = P(values, signs, 20, 5),
             square = P(values, signs, 25, 9), other = P(values, signs, 34, 9), dot = P(values, signs, 43, 5);
@@ -770,7 +870,7 @@ internal static class FiniteSlabRayExtrema
         }
         if (problem.IsPrism)
         {
-            foreach (Linear wall in problem.Lines[problem.ExitLinearStart..])
+            foreach (ref readonly Linear wall in problem.Lines[problem.ExitLinearStart..])
             {
                 if (wall.C.Sign >= 0) continue;
                 offset.Scale(l, wall.A); term.Scale(m, wall.B); offset.Add(term);
@@ -813,10 +913,11 @@ internal static class FiniteSlabRayExtrema
         return false;
     }
 
-    private static void TwoPlanesDisk(scoped Problem problem, Linear a, Linear b, Radial disk,
+    private static void TwoPlanesDisk(scoped Problem problem, Linear a, in Linear b, Radial disk,
         ref FiniteSlabRaySelection maximum)
     {
-        Span<ulong> values = stackalloc ulong[22 * Words]; Span<sbyte> signs = stackalloc sbyte[22];
+        int words = problem.FieldWords;
+        Span<ulong> values = stackalloc ulong[22 * words]; Span<sbyte> signs = stackalloc sbyte[22];
         FiniteSlabPolynomial l = P(values, signs, 0, 2), m = P(values, signs, 2, 2),
             t = P(values, signs, 4, 2), d = P(values, signs, 6), n = P(values, signs, 7),
             equation = P(values, signs, 8, 3), x = P(values, signs, 11, 2), z = P(values, signs, 13, 2),
@@ -837,7 +938,7 @@ internal static class FiniteSlabRayExtrema
             if (a.A.IsZero && a.B.IsZero)
             {
                 if (a.C.IsZero || b.A.IsZero && b.B.IsZero) return;
-                n.Set(Signed(a.D, -1)); d.Set(a.C); a = b;
+                n.Set(Negate(a.D)); d.Set(a.C); a = b;
             }
             else
             {
@@ -849,8 +950,8 @@ internal static class FiniteSlabRayExtrema
             // These active planes already fix t=n/d. A negative value is
             // infeasible before any radial polynomial or root is constructed.
             if (n.Signs[0] * d.Signs[0] < 0) return;
-            PlaneChart(a, out Signed576 l0, out Signed576 ls, out Signed576 lt,
-                out Signed576 m0, out Signed576 ms, out Signed576 mt, out Signed576 denominator);
+            PlaneChart(a, out Signed832 l0, out Signed832 ls, out Signed832 lt,
+                out Signed832 m0, out Signed832 ms, out Signed832 mt, out Signed832 denominator);
             l.Scale(d, l0); term.Scale(n, lt); l.Add(term); term.Scale(d, ls); l.Add(term, 1, 1);
             m.Scale(d, m0); term.Scale(n, mt); m.Add(term); term.Scale(d, ms); m.Add(term, 1, 1);
             t.Scale(n, denominator); term.Scale(d, denominator); d.Copy(term.Slice(0, 1));
@@ -863,9 +964,10 @@ internal static class FiniteSlabRayExtrema
         ProcessChart(problem, equation, l, m, t, d, depthParameter, depthN, depthD, ref maximum);
     }
 
-    private static void PlaneDisk(scoped Problem problem, Linear plane, Radial disk,
+    private static void PlaneDisk(scoped Problem problem, in Linear plane, Radial disk,
         ref FiniteSlabRaySelection maximum)
     {
+        int words = problem.FieldWords;
         if (plane.A.IsZero && plane.B.IsZero)
         {
             if (plane.C.IsZero) return;
@@ -885,15 +987,15 @@ internal static class FiniteSlabRayExtrema
             }
             return;
         }
-        Span<ulong> values = stackalloc ulong[25 * Words]; Span<sbyte> signs = stackalloc sbyte[25];
+        Span<ulong> values = stackalloc ulong[25 * words]; Span<sbyte> signs = stackalloc sbyte[25];
         FiniteSlabPolynomial conic = P(values, signs, 0, 6), equation = P(values, signs, 6, 3),
             sn = P(values, signs, 9, 2), sd = P(values, signs, 11),
             l = P(values, signs, 12, 2), m = P(values, signs, 14, 2),
             t = P(values, signs, 16, 2), d = P(values, signs, 18),
             first = P(values, signs, 19), second = P(values, signs, 20), term = P(values, signs, 21, 2),
             depthN = P(values, signs, 23), depthD = P(values, signs, 24);
-        PlaneChart(plane, out Signed576 l0, out Signed576 ls, out Signed576 lt,
-            out Signed576 m0, out Signed576 ms, out Signed576 mt, out Signed576 denominator);
+        PlaneChart(plane, out Signed832 l0, out Signed832 ls, out Signed832 lt,
+            out Signed832 m0, out Signed832 ms, out Signed832 mt, out Signed832 denominator);
         BuildConic(disk, l0, ls, lt, m0, ms, mt, denominator, conic);
         FiniteSlabPolynomial a = conic.Slice(0, 1), b = conic.Slice(1, 1), c = conic.Slice(2, 1),
             e = conic.Slice(4, 1), f = conic.Slice(5, 1), h = conic.Slice(3, 1);
@@ -910,30 +1012,31 @@ internal static class FiniteSlabRayExtrema
         ProcessChart(problem, equation, l, m, t, d, true, depthN, depthD, ref maximum);
     }
 
-    private static void PlaneChart(Linear plane, out Signed576 l0, out Signed576 ls, out Signed576 lt,
-        out Signed576 m0, out Signed576 ms, out Signed576 mt, out Signed576 denominator)
+    private static void PlaneChart(in Linear plane, out Signed832 l0, out Signed832 ls, out Signed832 lt,
+        out Signed832 m0, out Signed832 ms, out Signed832 mt, out Signed832 denominator)
     {
         if (!plane.B.IsZero)
         {
             denominator = plane.B; l0 = lt = default; ls = denominator;
-            m0 = Signed(plane.D, -1); ms = Signed(plane.A, -1); mt = Signed(plane.C, -1);
+            m0 = Negate(plane.D); ms = Negate(plane.A); mt = Negate(plane.C);
         }
         else
         {
             denominator = plane.A; m0 = mt = default; ms = denominator;
-            l0 = Signed(plane.D, -1); ls = Signed(plane.B, -1); lt = Signed(plane.C, -1);
+            l0 = Negate(plane.D); ls = Negate(plane.B); lt = Negate(plane.C);
         }
         if (denominator.Sign < 0)
         {
-            denominator = Signed(denominator, -1); l0 = Signed(l0, -1); ls = Signed(ls, -1); lt = Signed(lt, -1);
-            m0 = Signed(m0, -1); ms = Signed(ms, -1); mt = Signed(mt, -1);
+            denominator = Negate(denominator); l0 = Negate(l0); ls = Negate(ls); lt = Negate(lt);
+            m0 = Negate(m0); ms = Negate(ms); mt = Negate(mt);
         }
     }
 
-    private static void BuildConic(Radial disk, Signed576 l0, Signed576 ls, Signed576 lt,
-        Signed576 m0, Signed576 ms, Signed576 mt, Signed576 denominator, FiniteSlabPolynomial conic)
+    private static void BuildConic(Radial disk, Signed832 l0, Signed832 ls, Signed832 lt,
+        Signed832 m0, Signed832 ms, Signed832 mt, Signed832 denominator, FiniteSlabPolynomial conic)
     {
-        Span<ulong> values = stackalloc ulong[10 * Words]; Span<sbyte> signs = stackalloc sbyte[10];
+        int words = conic.FieldWords;
+        Span<ulong> values = stackalloc ulong[10 * words]; Span<sbyte> signs = stackalloc sbyte[10];
         FiniteSlabPolynomial x = P(values, signs, 0, 3), z = P(values, signs, 3, 3),
             first = P(values, signs, 6), second = P(values, signs, 7), factor = P(values, signs, 8), term = P(values, signs, 9);
         for (int axis = 0; axis < 2; axis++)
@@ -948,7 +1051,7 @@ internal static class FiniteSlabRayExtrema
                 term.Multiply(first, factor); coordinate.Slice(index, 1).Add(term);
                 if (index != 1)
                 {
-                    first.Set(denominator); factor.Set(Component(index == 0 ? disk.A : disk.N, component));
+                    first.Set(denominator); factor.Set(index == 0 ? Signed576.ExtendValue(Component(disk.A, component)) : Component(disk.N, component));
                     term.Multiply(first, factor); coordinate.Slice(index, 1).Add(term);
                 }
             }
@@ -965,9 +1068,10 @@ internal static class FiniteSlabRayExtrema
         conic.Slice(5, 1).Add(first, -1);
     }
 
-    private static void Cross(FiniteSlabPolynomial result, Signed576 a, Signed576 b, Signed576 c, Signed576 d)
+    private static void Cross(FiniteSlabPolynomial result, Signed832 a, Signed832 b, Signed832 c, Signed832 d)
     {
-        Span<ulong> values = stackalloc ulong[5 * Words]; Span<sbyte> signs = stackalloc sbyte[5];
+        int words = result.FieldWords;
+        Span<ulong> values = stackalloc ulong[5 * words]; Span<sbyte> signs = stackalloc sbyte[5];
         FiniteSlabPolynomial first = P(values, signs, 0), second = P(values, signs, 1),
             third = P(values, signs, 2), fourth = P(values, signs, 3), term = P(values, signs, 4);
         first.Set(a); second.Set(b); third.Set(c); fourth.Set(d);
@@ -980,7 +1084,8 @@ internal static class FiniteSlabRayExtrema
         scoped FiniteSlabPolynomial depthN, scoped FiniteSlabPolynomial depthD,
         ref FiniteSlabRaySelection maximum)
     {
-        Span<ulong> values = stackalloc ulong[11 * Words]; Span<sbyte> signs = stackalloc sbyte[11];
+        int words = problem.FieldWords;
+        Span<ulong> values = stackalloc ulong[11 * words]; Span<sbyte> signs = stackalloc sbyte[11];
         FiniteSlabPolynomial transformedEquation = P(values, signs, 0, 3),
             tl = P(values, signs, 3, 2), tm = P(values, signs, 5, 2),
             tt = P(values, signs, 7, 2), td = P(values, signs, 9, 2);
@@ -994,7 +1099,7 @@ internal static class FiniteSlabRayExtrema
             // These four homogeneous numerators share one denominator. Strip
             // only their common scale, preserving every exact ratio while
             // avoiding inherited transform powers in all admission products.
-            WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(values[(3 * Words)..], signs[3..]);
+            WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(values[(3 * words)..], signs[3..]);
             Process(problem, transformedEquation, tl, tm, tt, td, depthParameter, depthN, depthD, ref maximum);
         }
         if (!depthParameter && equation.Signs[0] == 0)
@@ -1031,15 +1136,24 @@ internal static class FiniteSlabRayExtrema
         FiniteSlabPolynomial.At(values, signs, index, count);
     private static Signed576 S(int value) => S(Signed320.ExtendValue(Signed192.Signed(value)));
     private static Signed576 S(Signed320 value) => Signed576.ExtendValue(value);
+    private static Signed576 S(Signed576 value) => value;
+    private static Signed320 ScaledOffset(Fixed64 value, Signed320 scale) =>
+        Signed320.NarrowValue(WideArithmetic.MultiplySigned320(scale, Signed192.Raw(value)));
     private static Signed320 Negate(Signed320 value) => WideArithmetic.Negate(value);
     private static Signed320 Signed(Signed320 value, int sign) => sign < 0 ? Negate(value) : value;
+    private static Signed832 Negate(Signed832 value) => WideArithmetic.SubtractSigned832(default, value);
     private static Signed576 Signed(Signed576 value, int sign) => sign < 0 ? WideArithmetic.SubtractSigned576(default, value) : value;
-    private static WideAxis3 Signed(WideAxis3 p, int sign) => new(Signed(p.X, sign), Signed(p.Y, sign), Signed(p.Z, sign));
+    private static WideDirection3d Signed(WideDirection3d p, int sign) => new(Signed(p.X, sign), Signed(p.Y, sign), Signed(p.Z, sign));
+    private static Signed576 Component(WideDirection3d p, int axis) => axis == 0 ? p.X : axis == 1 ? p.Y : p.Z;
     private static Signed320 Component(WideAxis3 p, int axis) => axis == 0 ? p.X : axis == 1 ? p.Y : p.Z;
     private static WideAxis3 Difference(WideAxis3 p, WideAxis3 q) => new(
         WideArithmetic.SubtractSigned320(p.X, q.X), WideArithmetic.SubtractSigned320(p.Y, q.Y),
         WideArithmetic.SubtractSigned320(p.Z, q.Z));
     private static Signed576 Wall(WideAxis3 p, Signed320 x, Signed320 z) => WideArithmetic.SubtractSigned576(
         WideArithmetic.MultiplySigned320(x, p.Z), WideArithmetic.MultiplySigned320(z, p.X));
+    private static Signed576 Wall(WideDirection3d p, Signed320 x, Signed320 z) =>
+        Signed576.NarrowValue(WideArithmetic.SubtractSigned704(
+            WideArithmetic.MultiplySigned576ToSigned704(p.Z, x),
+            WideArithmetic.MultiplySigned576ToSigned704(p.X, z)));
     private static int DomainEdge(int line, int count) => count == 0 ? 0 : line == 0 ? 4 : line == 1 ? 1 : line == 2 ? 2 : 0;
 }

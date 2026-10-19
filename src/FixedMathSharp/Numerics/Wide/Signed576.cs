@@ -62,6 +62,8 @@ internal readonly struct Signed576
             value.Word4, value.Word3, value.Word2, value.Word1, value.Word0);
     }
 
+    internal static Signed576 ExtendValue(Signed192 value) => ExtendValue(Signed320.ExtendValue(value));
+
     internal static Signed576 NarrowValue(Signed704 value) =>
         new(value.Word8,
             value.Word7,
@@ -72,6 +74,11 @@ internal readonly struct Signed576
             value.Word2,
             value.Word1,
             value.Word0);
+
+    /// <summary>Narrows a value whose caller has proved a signed nine-word result.</summary>
+    internal static Signed576 NarrowValue(Signed832 value) =>
+        new(value.Word8, value.Word7, value.Word6, value.Word5, value.Word4,
+            value.Word3, value.Word2, value.Word1, value.Word0);
 
     internal bool Equals(Signed576 other) =>
         ((Word8 ^ other.Word8)

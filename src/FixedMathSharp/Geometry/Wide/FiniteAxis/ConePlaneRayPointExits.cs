@@ -11,17 +11,14 @@ namespace FixedMathSharp.Geometry;
 /// <summary>Exact closed admission and first finite exits of retained plane-section points.</summary>
 internal static class ConePlaneRayPointExits
 {
-    private const int Words = ConePlaneRayPoint.FieldWords;
-    private const int AdmissionWords = 144;
-    private const int VerificationWords = 176;
-
     // A point certificate stores four homogeneous quadratic-field integers;
     // their rational/radical coefficients are <3072 bits, root <2498 bits.
     // One cone product needs <2*3072+2498+126+3=8771 bits (144 words).
     // Dot/axial/wall predicates need <3072+526+3=3601 bits (64 words).
     // Depth fields are <4096 bits. Stationary exit verification multiplies
     // one depth, one point, A<650 and the shared root; <10320 bits, 176 words.
-    // These are transient products, never retained as point/depth fields.
+    // These ordinary-path products are transient, never retained as point/depth
+    // fields. Exact affine/wide-clip cohorts select the frame's wider banks.
 
     /// <summary>Tests closed shared-plane and finite-source admission in the cone.</summary>
     /// <remarks>A side certificate proves F(point)=0 exactly in the supplied root; only that solid predicate may then be skipped.</remarks>
@@ -30,12 +27,12 @@ internal static class ConePlaneRayPointExits
     {
         if (frame.NormalSquared.IsZero || point.Denominator.Sign(root) <= 0)
             return false;
-        Span<ulong> work = stackalloc ulong[4 * Words];
+        Span<ulong> work = stackalloc ulong[4 * frame.FieldWords];
         Span<int> signs = stackalloc int[4];
-        ContactQuadratic value = ContactQuadratic.At(work, signs, 0, Words);
-        ContactQuadratic term = ContactQuadratic.At(work, signs, 1, Words);
-        Dot(point, Signed576.ExtendValue(frame.Normal.X), Signed576.ExtendValue(frame.Normal.Y),
-            Signed576.ExtendValue(frame.Normal.Z), value, term);
+        ContactQuadratic value = ContactQuadratic.At(work, signs, 0, frame.FieldWords);
+        ContactQuadratic term = ContactQuadratic.At(work, signs, 1, frame.FieldWords);
+        Dot(point, frame.Normal.X, frame.Normal.Y,
+            frame.Normal.Z, value, term);
         ContactQuadratic.Scale(point.Denominator, frame.PlaneConstant, term); value.Add(term, -1);
         if (value.Sign(root) != 0 || point.Y.Sign(root) < 0)
             return false;
@@ -45,14 +42,21 @@ internal static class ConePlaneRayPointExits
             return false;
         if (!sideCertificate)
         {
-            Span<ulong> coneWork = stackalloc ulong[2 * AdmissionWords];
-            Span<int> coneSigns = stackalloc int[2];
-            ContactQuadratic cone = ContactQuadratic.At(coneWork, coneSigns, 0, AdmissionWords);
-            ConeProduct(point, point, frame, root, cone);
-            if (cone.Sign(root) > 0) return false;
+            ContactQuadratic x = point.X, z = point.Z;
+            // The admitted axial interval already proves an axis point is in
+            // the cone: F(0,Y,0)=-R^2Y^2<=0, also when R=0. Use identically
+            // zero fields only; root-dependent cancellation keeps the full test.
+            if ((x.Signs[0] | x.Signs[1] | z.Signs[0] | z.Signs[1]) != 0)
+            {
+                Span<ulong> coneWork = stackalloc ulong[2 * frame.AdmissionWords];
+                Span<int> coneSigns = stackalloc int[2];
+                ContactQuadratic cone = ContactQuadratic.At(coneWork, coneSigns, 0, frame.AdmissionWords);
+                ConeProduct(point, point, frame, root, cone);
+                if (cone.Sign(root) > 0) return false;
+            }
         }
         if (source.Scope == ConePlaneRayEventScope.Plane) return true;
-        frame.GetEdgeLine(new FixedSegment(source.A, source.B), out Signed576 wx, out Signed576 wy, out Signed576 wz, out Signed576 offset);
+        frame.GetEdgeLine(new FixedSegment(source.A, source.B), out Signed576 wx, out Signed576 wy, out Signed576 wz, out Signed832 offset);
         Dot(point, wx, wy, wz, value, term);
         ContactQuadratic.Scale(point.Denominator, offset, term); value.Add(term, -1);
         if (value.Sign(root) != 0) return false;
@@ -75,9 +79,9 @@ internal static class ConePlaneRayPointExits
         // Point coefficients <3072 and transformed edge <198 keep the
         // complete projection and squared-edge bounds <3472 bits (64 words).
         Dot(point, Signed576.ExtendValue(delta.X), Signed576.ExtendValue(delta.Y), Signed576.ExtendValue(delta.Z), value, term);
-        ContactQuadratic.Scale(point.Denominator, WideAxis3.Dot(start, delta), term); value.Add(term, -1);
+        ContactQuadratic.Scale(point.Denominator, WideDirection3d.Dot(new WideDirection3d(start), delta), term); value.Add(term, -1);
         if (value.Sign(root) < 0) return false;
-        ContactQuadratic.Scale(point.Denominator, delta.SquaredLength, term); term.Add(value, -1);
+        ContactQuadratic.Scale(point.Denominator, new WideDirection3d(delta).SquaredLength, term); term.Add(value, -1);
         return term.Sign(root) >= 0;
     }
 
@@ -87,11 +91,11 @@ internal static class ConePlaneRayPointExits
     {
         triangle.GetExactNormal(out Signed192 nx, out Signed192 ny, out Signed192 nz, out _);
         if (nx.IsZero && ny.IsZero && nz.IsZero) return false;
-        Span<ulong> work = stackalloc ulong[4 * Words]; Span<int> signs = stackalloc int[4];
-        ContactQuadratic value = ContactQuadratic.At(work, signs, 0, Words), term = ContactQuadratic.At(work, signs, 1, Words);
+        Span<ulong> work = stackalloc ulong[4 * frame.FieldWords]; Span<int> signs = stackalloc int[4];
+        ContactQuadratic value = ContactQuadratic.At(work, signs, 0, frame.FieldWords), term = ContactQuadratic.At(work, signs, 1, frame.FieldWords);
         for (int edge = 0; edge < 3; edge++)
         {
-            frame.GetTriangleEdgeWall(triangle, edge, out Signed576 x, out Signed576 y, out Signed576 z, out Signed576 offset);
+            frame.GetTriangleEdgeWall(triangle, edge, out Signed576 x, out Signed576 y, out Signed576 z, out Signed832 offset);
             Dot(point, x, y, z, value, term);
             ContactQuadratic.Scale(point.Denominator, offset, term); value.Add(term, -1);
             if (value.Sign(root) < 0) return false;
@@ -104,16 +108,16 @@ internal static class ConePlaneRayPointExits
     internal static bool ContainsTrianglePoint(FixedTriangle triangle, in ConePlaneRayFrame frame,
         scoped ConePlaneRayPoint point, scoped ReadOnlySpan<ulong> root, in ConePlaneRayFrame sourceFrame)
     {
-        Signed192 sourceScale = sourceFrame.Finite.ShapeFrame.Denominator;
-        Signed192 targetScale = frame.Finite.ShapeFrame.Denominator;
+        Signed320 sourceScale = sourceFrame.Finite.ShapeFrame.CoordinateDenominator;
+        Signed320 targetScale = frame.Finite.ShapeFrame.CoordinateDenominator;
         if (sourceScale.Equals(targetScale)) return ContainsTrianglePoint(triangle, frame, point, root);
         // Apex-to-base coordinates share the same physical cone frame but
         // carry 2D native scale. Cross multiplication preserves every root
         // and closed wall sign without materializing a rounded point. Point
         // fields <3072 plus D<132 and wall offsets <526 stay <3733 bits.
-        Span<ulong> values = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> values = stackalloc ulong[frame.PointStorageWords];
         Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
-        ConePlaneRayPoint transformed = new(values, signs);
+        ConePlaneRayPoint transformed = new(values, signs, frame.FieldWords);
         point.CopyTo(transformed, sourceScale, targetScale);
         return ContainsTrianglePoint(triangle, frame, transformed, root);
     }
@@ -122,7 +126,7 @@ internal static class ConePlaneRayPointExits
         scoped ConePlaneRayPoint point, scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         bool pointOnly = false, int requestedOrientation = 0)
     {
-        Span<ulong> root = stackalloc ulong[ConePlaneRaySelection.RootWords]; root.Clear();
+        Span<ulong> root = stackalloc ulong[frame.RootWords]; root.Clear();
         if (!ContainsPoint(source, frame, point, root))
             return false;
         if (pointOnly) return true;
@@ -177,16 +181,16 @@ internal static class ConePlaneRayPointExits
     {
         if (!ContainsPoint(source, frame, point, root) || numerator.Sign(root) < 0 || denominator.Sign(root) <= 0)
             return false;
-        Span<ulong> work = stackalloc ulong[10 * VerificationWords];
+        Span<ulong> work = stackalloc ulong[10 * frame.VerificationWords];
         Span<int> signs = stackalloc int[10];
-        ContactQuadratic y = ContactQuadratic.At(work, signs, 0, VerificationWords);
-        ContactQuadratic d = ContactQuadratic.At(work, signs, 1, VerificationWords);
-        ContactQuadratic term = ContactQuadratic.At(work, signs, 2, VerificationWords);
-        ContactQuadratic derivative = ContactQuadratic.At(work, signs, 3, VerificationWords);
-        ContactQuadratic a = ContactQuadratic.At(work, signs, 4, VerificationWords);
+        ContactQuadratic y = ContactQuadratic.At(work, signs, 0, frame.VerificationWords);
+        ContactQuadratic d = ContactQuadratic.At(work, signs, 1, frame.VerificationWords);
+        ContactQuadratic term = ContactQuadratic.At(work, signs, 2, frame.VerificationWords);
+        ContactQuadratic derivative = ContactQuadratic.At(work, signs, 3, frame.VerificationWords);
+        ContactQuadratic a = ContactQuadratic.At(work, signs, 4, frame.VerificationWords);
         ContactQuadratic.Multiply(point.Y, denominator, root, y);
         ContactQuadratic.Multiply(point.Denominator, numerator, root, term);
-        ContactQuadratic.Scale(term, Signed576.ExtendValue(frame.Normal.Y), d); d.MultiplySign(orientation); y.Add(d);
+        ContactQuadratic.Scale(term, frame.Normal.Y, d); d.MultiplySign(orientation); y.Add(d);
         ContactQuadratic.Multiply(point.Denominator, denominator, root, d);
         if (y.Sign(root) < 0)
             return false;
@@ -235,9 +239,9 @@ internal static class ConePlaneRayPointExits
     private static void GetRayCoefficients(scoped ConePlaneRayPoint point, in ConePlaneRayFrame frame,
         scoped ReadOnlySpan<ulong> root, ContactQuadratic a, ContactQuadratic b)
     {
-        Span<ulong> normalWords = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> normalWords = stackalloc ulong[frame.PointStorageWords];
         Span<int> normalSigns = stackalloc int[ConePlaneRayPoint.SignCount];
-        ConePlaneRayPoint normal = new(normalWords, normalSigns); normal.Set(frame.Normal);
+        ConePlaneRayPoint normal = new(normalWords, normalSigns, frame.FieldWords); normal.Set(frame.Normal);
         ConeProduct(normal, normal, frame, root, a);
         ConeProduct(point, normal, frame, root, b);
     }
@@ -247,19 +251,19 @@ internal static class ConePlaneRayPointExits
     {
         if (TryAccumulateAxialOrientation(point, frame, ReadOnlySpan<ulong>.Empty,
             orientation, sidePoint: false, ref selection)) return;
-        Span<ulong> work = stackalloc ulong[20 * Words]; Span<int> signs = stackalloc int[20];
-        ContactQuadratic a = ContactQuadratic.At(work, signs, 0, Words);
-        ContactQuadratic b = ContactQuadratic.At(work, signs, 1, Words);
-        ContactQuadratic c = ContactQuadratic.At(work, signs, 2, Words);
-        ContactQuadratic term = ContactQuadratic.At(work, signs, 3, Words);
-        ContactQuadratic polynomialA = ContactQuadratic.At(work, signs, 4, Words);
-        ContactQuadratic polynomialB = ContactQuadratic.At(work, signs, 5, Words);
-        ContactQuadratic numerator = ContactQuadratic.At(work, signs, 6, Words);
-        ContactQuadratic denominator = ContactQuadratic.At(work, signs, 7, Words);
-        ContactQuadratic bestN = ContactQuadratic.At(work, signs, 8, Words);
-        ContactQuadratic bestD = ContactQuadratic.At(work, signs, 9, Words);
-        Span<ulong> root = stackalloc ulong[ConePlaneRaySelection.RootWords]; root.Clear();
-        Span<ulong> bestRoot = stackalloc ulong[ConePlaneRaySelection.RootWords]; bestRoot.Clear();
+        Span<ulong> work = stackalloc ulong[20 * frame.FieldWords]; Span<int> signs = stackalloc int[20];
+        ContactQuadratic a = ContactQuadratic.At(work, signs, 0, frame.FieldWords);
+        ContactQuadratic b = ContactQuadratic.At(work, signs, 1, frame.FieldWords);
+        ContactQuadratic c = ContactQuadratic.At(work, signs, 2, frame.FieldWords);
+        ContactQuadratic term = ContactQuadratic.At(work, signs, 3, frame.FieldWords);
+        ContactQuadratic polynomialA = ContactQuadratic.At(work, signs, 4, frame.FieldWords);
+        ContactQuadratic polynomialB = ContactQuadratic.At(work, signs, 5, frame.FieldWords);
+        ContactQuadratic numerator = ContactQuadratic.At(work, signs, 6, frame.FieldWords);
+        ContactQuadratic denominator = ContactQuadratic.At(work, signs, 7, frame.FieldWords);
+        ContactQuadratic bestN = ContactQuadratic.At(work, signs, 8, frame.FieldWords);
+        ContactQuadratic bestD = ContactQuadratic.At(work, signs, 9, frame.FieldWords);
+        Span<ulong> root = stackalloc ulong[frame.RootWords]; root.Clear();
+        Span<ulong> bestRoot = stackalloc ulong[frame.RootWords]; bestRoot.Clear();
         bool hasValue = false;
         GetRayCoefficients(point, frame, root, a, b); b.MultiplySign(orientation);
         ConeProduct(point, point, frame, root, c);
@@ -294,14 +298,14 @@ internal static class ConePlaneRayPointExits
     {
         if (TryAccumulateAxialOrientation(point, frame, root,
             orientation, sidePoint: true, ref selection)) return;
-        Span<ulong> work = stackalloc ulong[12 * Words]; Span<int> signs = stackalloc int[12];
-        ContactQuadratic a = ContactQuadratic.At(work, signs, 0, Words);
-        ContactQuadratic b = ContactQuadratic.At(work, signs, 1, Words);
-        ContactQuadratic numerator = ContactQuadratic.At(work, signs, 2, Words);
-        ContactQuadratic denominator = ContactQuadratic.At(work, signs, 3, Words);
-        ContactQuadratic bestN = ContactQuadratic.At(work, signs, 4, Words);
-        ContactQuadratic bestD = ContactQuadratic.At(work, signs, 5, Words);
-        Span<ulong> bestRoot = stackalloc ulong[ConePlaneRaySelection.RootWords]; bestRoot.Clear();
+        Span<ulong> work = stackalloc ulong[12 * frame.FieldWords]; Span<int> signs = stackalloc int[12];
+        ContactQuadratic a = ContactQuadratic.At(work, signs, 0, frame.FieldWords);
+        ContactQuadratic b = ContactQuadratic.At(work, signs, 1, frame.FieldWords);
+        ContactQuadratic numerator = ContactQuadratic.At(work, signs, 2, frame.FieldWords);
+        ContactQuadratic denominator = ContactQuadratic.At(work, signs, 3, frame.FieldWords);
+        ContactQuadratic bestN = ContactQuadratic.At(work, signs, 4, frame.FieldWords);
+        ContactQuadratic bestD = ContactQuadratic.At(work, signs, 5, frame.FieldWords);
+        Span<ulong> bestRoot = stackalloc ulong[frame.RootWords]; bestRoot.Clear();
         bool hasValue = false;
         GetRayCoefficients(point, frame, root, a, b); b.MultiplySign(orientation);
         int bSign = b.Sign(root), aSign = a.Sign(root);
@@ -320,7 +324,7 @@ internal static class ConePlaneRayPointExits
         // A=B=0 is a generator interval and likewise keeps its finite endpoint.
         if (GetAxialExit(point, frame, orientation, numerator, denominator))
             KeepFirstExit(numerator, denominator, root, bestN, bestD, bestRoot, ref hasValue);
-        // With Ny=0, A=H²(Nx²+Nz²)>0 and a side exit exists. Otherwise
+        // With Ny=0, A=HÂ^2(NxÂ^2+NzÂ^2)>0 and a side exit exists. Otherwise
         // the admitted finite axial interval supplies an endpoint.
         System.Diagnostics.Debug.Assert(hasValue);
         selection.Keep(bestN, bestD, bestRoot, frame, point);
@@ -335,9 +339,9 @@ internal static class ConePlaneRayPointExits
         bool axisPoint = point.X.Sign(root) == 0 && point.Z.Sign(root) == 0;
         int direction = frame.Normal.Y.Sign * orientation;
         if (!sidePoint && direction < 0 && !axisPoint) return false;
-        Span<ulong> work = stackalloc ulong[4 * Words]; Span<int> signs = stackalloc int[4];
-        ContactQuadratic n = ContactQuadratic.At(work, signs, 0, Words);
-        ContactQuadratic d = ContactQuadratic.At(work, signs, 1, Words);
+        Span<ulong> work = stackalloc ulong[4 * frame.FieldWords]; Span<int> signs = stackalloc int[4];
+        ContactQuadratic n = ContactQuadratic.At(work, signs, 0, frame.FieldWords);
+        ContactQuadratic d = ContactQuadratic.At(work, signs, 1, frame.FieldWords);
         // Along the axis the widening direction stays inside until the base.
         // A point on the axis reaches either axial endpoint (also for R=0).
         // A nonaxial side point exits immediately in the narrowing direction.
@@ -357,7 +361,7 @@ internal static class ConePlaneRayPointExits
         int direction = frame.Normal.Y.Sign * orientation;
         if (direction == 0)
             return false;
-        Signed576 ny = Signed576.ExtendValue(frame.Normal.Y);
+        Signed576 ny = frame.Normal.Y;
         if (direction > 0)
         {
             ContactQuadratic.Scale(point.Denominator, Signed576.ExtendValue(frame.Finite.FullHeight), numerator);

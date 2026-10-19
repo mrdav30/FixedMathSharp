@@ -69,6 +69,10 @@ internal readonly struct Signed832
         ExtendValue(Signed576.ExtendValue(Signed320.ExtendValue(value)));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Signed832 ExtendValue(Signed320 value) =>
+        ExtendValue(Signed576.ExtendValue(value));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static Signed832 ExtendValue(Signed576 value)
     {
         ulong extension = unchecked((ulong)((long)value.Word8 >> 63));

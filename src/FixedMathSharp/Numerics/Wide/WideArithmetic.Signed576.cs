@@ -16,6 +16,32 @@ namespace FixedMathSharp;
 /// </content>
 internal static partial class WideArithmetic
 {
+    internal static Signed576 Negate(Signed576 value) => SubtractSigned576(default, value);
+    internal static Signed832 MultiplySigned576(Signed576 first, Signed576 second) =>
+        MultiplySigned576ToSigned832(first, second);
+    /// <summary>Removes common positive content without changing signs or exact ratios.</summary>
+    internal static void ReduceCommonScale(Span<Signed576> values)
+    {
+        Span<ulong> content = stackalloc ulong[9], other = stackalloc ulong[9],
+            division = stackalloc ulong[19], remainder = stackalloc ulong[9];
+        GetMagnitude(values[0], content);
+        for (int index = 1; index < values.Length; index++)
+        {
+            GetMagnitude(values[index], other);
+            GetMagnitudeGreatestCommonDivisor(content, other, division);
+            if (content[0] == 1 && GetActiveMagnitudeLength(content) == 1) return;
+        }
+        for (int index = 0; index < values.Length; index++)
+        {
+            int sign = values[index].Sign;
+            GetMagnitude(values[index], other);
+            DivideMagnitudes(other, content, other, remainder, division);
+            Signed576 value = new(other[8], other[7], other[6], other[5], other[4],
+                other[3], other[2], other[1], other[0]);
+            values[index] = sign < 0 ? SubtractSigned576(default, value) : value;
+        }
+    }
+
     /// <summary>
     /// Divides signed integers, truncating toward zero. Throws for a zero
     /// denominator or a quotient outside the signed 192-bit domain.
@@ -48,7 +74,6 @@ internal static partial class WideArithmetic
 
     internal static void GetMagnitude(Signed576 value, Span<ulong> magnitude)
     {
-        magnitude.Clear();
         magnitude[0] = value.Word0;
         magnitude[1] = value.Word1;
         magnitude[2] = value.Word2;
@@ -58,6 +83,7 @@ internal static partial class WideArithmetic
         magnitude[6] = value.Word6;
         magnitude[7] = value.Word7;
         magnitude[8] = value.Word8;
+        magnitude[9..].Clear();
         if (value.Sign >= 0)
             return;
 
@@ -129,8 +155,8 @@ internal static partial class WideArithmetic
     /// Multiplies signed five-word values in the finite-axis domain exactly.
     /// </summary>
     /// <remarks>
-    /// Callers guarantee magnitudes below 262 bits, so the product is below
-    /// 523 bits and cannot overflow the nine-word result.
+    /// Callers prove that the sum of the operand magnitude bit lengths is at
+    /// most 575, so the complete signed product fits the nine-word result.
     /// </remarks>
     internal static Signed576 MultiplySigned320(Signed320 left, Signed320 right)
     {

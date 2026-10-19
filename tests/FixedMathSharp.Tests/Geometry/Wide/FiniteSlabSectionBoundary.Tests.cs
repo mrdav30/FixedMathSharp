@@ -7,6 +7,26 @@ namespace FixedMathSharp.Tests;
 public sealed class FiniteSlabSectionBoundaryTests
 {
     [Theory]
+    [InlineData(-1, 0L, true)]
+    [InlineData(1, 0L, true)]
+    [InlineData(-1, 1L, false)]
+    [InlineData(1, 1L, false)]
+    public void AffineContainedPlane_ShouldRetainBothClosedCapsAndRejectHalfRawHeightGaps(int side, long gap, bool admitted)
+    {
+        var source = new ScaledRigidFrame3d(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Zero,
+            Vector3d.One * Fixed64.Half, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+        var frame = new FiniteSlabSectionFrame(source, Vector3d.Zero, FixedQuaternion.Identity,
+            Fixed64.Two, Fixed64.One, Fixed64.Half);
+        Fixed64 y = side * (Fixed64.One + Fixed64.FromRaw(gap));
+        // Every edge lies outside the slab footprint, so admission must use
+        // the complete interior plane section rather than an endpoint.
+        FixedTriangle triangle = new(new Vector3d((Fixed64)(-16), y, (Fixed64)(-16)),
+            new Vector3d((Fixed64)16, y, (Fixed64)(-16)), new Vector3d(Fixed64.Zero, y, (Fixed64)16));
+        Assert.Equal(admitted, frame.IntersectsTriangle(triangle));
+        Assert.Equal(admitted, frame.IntersectsTriangle(new(triangle.C, triangle.B, triangle.A)));
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void PrismPointAdmission_ShouldRespectEveryClosedWallAndBothCaps(bool reverse)

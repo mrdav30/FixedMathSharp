@@ -7,6 +7,8 @@
 
 using System.Runtime.CompilerServices;
 
+using System;
+
 namespace FixedMathSharp.Geometry;
 
 /// <summary>
@@ -723,6 +725,28 @@ internal static partial class WideGeometry
         return true;
     }
 
+    /// <summary>Ceils the norm of exact integer coordinates divided by a positive divisor into raw Fixed64 units.</summary>
+    internal static bool TryGetMagnitudeCeiling(Signed192 x, Signed192 y, Signed192 z,
+        Signed192 divisor, out Fixed64 magnitude)
+    {
+        if (divisor.Sign <= 0) throw new ArgumentOutOfRangeException(nameof(divisor));
+        // Three full 192-bit squares and their sum fit the existing 576-bit owner.
+        Signed576 squared = WideArithmetic.AddSigned576(WideArithmetic.AddSigned576(Square(x), Square(y)), Square(z));
+        Signed576 denominator = Square(divisor);
+        Span<ulong> numeratorWords = stackalloc ulong[9], denominatorWords = stackalloc ulong[9];
+        WideArithmetic.GetMagnitude(squared, numeratorWords); WideArithmetic.GetMagnitude(denominator, denominatorWords);
+        ulong floor = WideArithmetic.GetRatioFloorSquareRoot(numeratorWords, denominatorWords, long.MaxValue);
+        Signed576 threshold = WideArithmetic.MultiplySigned576(denominator, Signed192.Signed((long)floor));
+        threshold = WideArithmetic.MultiplySigned576(threshold, Signed192.Signed((long)floor));
+        int order = WideArithmetic.CompareNonNegative(squared, threshold);
+        if (order > 0 && floor == long.MaxValue) { magnitude = default; return false; }
+        magnitude = Fixed64.FromRaw((long)(floor + (order > 0 ? 1UL : 0UL)));
+        return true;
+
+        static Signed576 Square(Signed192 value) => WideArithmetic.MultiplySigned576(
+            Signed576.ExtendValue(Signed320.ExtendValue(value)), value);
+    }
+
     internal static bool TryGetMagnitudeCeiling(
         Fixed64 x,
         Fixed64 y,
@@ -805,6 +829,38 @@ internal static partial class WideGeometry
             numerator,
             CenteredAxisDenominator,
             minimum);
+    }
+
+    /// <summary>
+    /// Materializes a rational raw bound outwards, clipping at the scalar faces.
+    /// Numerator magnitudes stay below 570 bits and nonzero denominator
+    /// magnitudes below 510 bits, so scalar boundary products and signed
+    /// differences fit the 576-bit owner.
+    /// </summary>
+    internal static Fixed64 GetRationalBoundClippedToDomain(
+        Signed576 numerator,
+        Signed576 denominator,
+        bool minimum)
+    {
+        if (denominator.Sign < 0)
+        {
+            numerator = WideArithmetic.SubtractSigned576(default, numerator);
+            denominator = WideArithmetic.SubtractSigned576(default, denominator);
+        }
+        Signed576 minimumNumerator = WideArithmetic.MultiplySigned576(denominator, Fixed64.MinValue.m_rawValue);
+        Signed576 maximumNumerator = WideArithmetic.MultiplySigned576(denominator, Fixed64.MaxValue.m_rawValue);
+        if (WideArithmetic.SubtractSigned576(numerator, minimumNumerator).Sign < 0)
+            return Fixed64.MinValue;
+        if (WideArithmetic.SubtractSigned576(numerator, maximumNumerator).Sign > 0)
+            return Fixed64.MaxValue;
+        _ = Fixed64.TryGetSignedRawRatio(numerator, denominator, out Fixed64 bound);
+        Signed576 represented = WideArithmetic.MultiplySigned576(denominator, bound.m_rawValue);
+        int comparison = WideArithmetic.SubtractSigned576(represented, numerator).Sign;
+        if (minimum && comparison > 0)
+            return Fixed64.FromRaw(bound.m_rawValue - 1L);
+        if (!minimum && comparison < 0)
+            return Fixed64.FromRaw(bound.m_rawValue + 1L);
+        return bound;
     }
 
     internal static Fixed64 GetRationalBoundClippedToDomain(

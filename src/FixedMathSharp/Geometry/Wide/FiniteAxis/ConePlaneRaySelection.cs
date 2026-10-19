@@ -20,16 +20,20 @@ internal ref struct ConePlaneRaySelection
     internal bool HasValue;
     internal ConePlaneRayEvent CurrentEvent, MaximumEvent;
     internal ConePlaneRayEventSource CurrentSource, MaximumSource;
-    private Signed576 metric;
-    private Signed192 scale;
-    internal ReadOnlySpan<ulong> Root => Values.Slice(4 * FieldWords, RootWords);
-    internal ConePlaneRayPoint Point => new(Values[(4 * FieldWords + RootWords)..], Signs[4..]);
+    private Signed832 metric;
+    private Signed320 scale;
+    private readonly int _fieldWords, _rootWords;
+    internal ReadOnlySpan<ulong> Root => Values.Slice(4 * _fieldWords, _rootWords);
+    internal ConePlaneRayPoint Point => new(Values[(4 * _fieldWords + _rootWords)..], Signs[4..], _fieldWords);
 
-    internal ConePlaneRaySelection(Span<ulong> values, Span<int> signs)
+    internal ConePlaneRaySelection(Span<ulong> values, Span<int> signs,
+        int fieldWords = FieldWords, int rootWords = RootWords)
     {
-        if (values.Length < StorageWords || signs.Length < SignCount)
+        int storageWords = 12 * fieldWords + rootWords;
+        if (values.Length < storageWords || signs.Length < SignCount)
             throw new ArgumentException("The plane-ray selection storage is too small.");
-        Values = values[..StorageWords]; Signs = signs[..SignCount]; HasValue = false;
+        Values = values[..storageWords]; Signs = signs[..SignCount]; HasValue = false;
+        _fieldWords = fieldWords; _rootWords = rootWords;
         CurrentEvent = MaximumEvent = default;
         CurrentSource = MaximumSource = default;
         metric = default; scale = default;
@@ -40,8 +44,8 @@ internal ref struct ConePlaneRaySelection
     {
         if (numerator.Sign(root) < 0 || denominator.Sign(root) <= 0)
             throw new ArgumentException("The admitted depth must be nonnegative with a positive denominator.");
-        ContactQuadratic bestN = ContactQuadratic.At(Values, Signs, 0, FieldWords);
-        ContactQuadratic bestD = ContactQuadratic.At(Values, Signs, 1, FieldWords);
+        ContactQuadratic bestN = ContactQuadratic.At(Values, Signs, 0, _fieldWords);
+        ContactQuadratic bestD = ContactQuadratic.At(Values, Signs, 1, _fieldWords);
         if (HasValue)
         {
             int comparison = ContactQuadratic.CompareRatios(numerator, denominator, root, bestN, bestD, Root);
@@ -51,10 +55,10 @@ internal ref struct ConePlaneRaySelection
                 return false;
         }
         numerator.CopyTo(bestN); denominator.CopyTo(bestD);
-        Span<ulong> retainedRoot = Values.Slice(4 * FieldWords, RootWords);
+        Span<ulong> retainedRoot = Values.Slice(4 * _fieldWords, _rootWords);
         root.CopyTo(retainedRoot); retainedRoot[root.Length..].Clear();
         metric = frame.NormalSquared;
-        scale = WideArithmetic.AddSigned192(frame.Finite.ShapeFrame.Denominator, frame.Finite.ShapeFrame.Denominator);
+        scale = WideArithmetic.AddSigned320(frame.Finite.ShapeFrame.CoordinateDenominator, frame.Finite.ShapeFrame.CoordinateDenominator);
         HasValue = true;
         MaximumEvent = CurrentEvent;
         MaximumSource = CurrentSource;
@@ -69,15 +73,15 @@ internal ref struct ConePlaneRaySelection
     {
         if (!other.HasValue) return false;
         CurrentSource = other.MaximumSource; CurrentEvent = other.MaximumEvent;
-        return Keep(ContactQuadratic.At(other.Values, other.Signs, 0, FieldWords),
-            ContactQuadratic.At(other.Values, other.Signs, 1, FieldWords), other.Root, frame, other.Point);
+        return Keep(ContactQuadratic.At(other.Values, other.Signs, 0, other._fieldWords),
+            ContactQuadratic.At(other.Values, other.Signs, 1, other._fieldWords), other.Root, frame, other.Point);
     }
 
     /// <summary>Restores metadata after reborrowing previously populated winning coefficient/sign storage.</summary>
     internal void Restore(in ConePlaneRayFrame frame, in ConePlaneRayEventSource source, ConePlaneRayEvent descriptor)
     {
         metric = frame.NormalSquared;
-        scale = WideArithmetic.AddSigned192(frame.Finite.ShapeFrame.Denominator, frame.Finite.ShapeFrame.Denominator);
+        scale = WideArithmetic.AddSigned320(frame.Finite.ShapeFrame.CoordinateDenominator, frame.Finite.ShapeFrame.CoordinateDenominator);
         CurrentSource = MaximumSource = source; CurrentEvent = MaximumEvent = descriptor; HasValue = true;
     }
 
@@ -93,7 +97,7 @@ internal ref struct ConePlaneRaySelection
         return HasValue && ConePlaneRayPointMaterialization.TryGetPointInFrame(frame, Point, Root, samplingOrigin, out lower)
             && TryGetRoundedMaximumDepth(out depth)
             && ConePlaneRayPointMaterialization.TryGetExitPointInFrame(frame, Point, Root,
-                ContactQuadratic.At(Values, Signs, 0, FieldWords), ContactQuadratic.At(Values, Signs, 1, FieldWords), orientation, samplingOrigin, out upper);
+                ContactQuadratic.At(Values, Signs, 0, _fieldWords), ContactQuadratic.At(Values, Signs, 1, _fieldWords), orientation, samplingOrigin, out upper);
     }
 
     internal bool TryGetRoundedMaximumDepth(out Fixed64 depth)
@@ -101,12 +105,12 @@ internal ref struct ConePlaneRaySelection
         depth = Fixed64.Zero;
         if (!HasValue)
             return false;
-        Span<ulong> metricWords = stackalloc ulong[9];
+        Span<ulong> metricWords = stackalloc ulong[13];
         WideArithmetic.GetMagnitude(metric, metricWords);
-        Span<ulong> scaleWords = stackalloc ulong[3];
-        WideArithmetic.GetMagnitude(scale, out scaleWords[2], out scaleWords[1], out scaleWords[0]);
-        return ContactQuadratic.TryRoundRootRatio(ContactQuadratic.At(Values, Signs, 0, FieldWords),
-            ContactQuadratic.At(Values, Signs, 1, FieldWords), Root, metricWords, scaleWords, out depth);
+        Span<ulong> scaleWords = stackalloc ulong[5];
+        WideArithmetic.GetMagnitude(scale, out scaleWords[4], out scaleWords[3], out scaleWords[2], out scaleWords[1], out scaleWords[0]);
+        return ContactQuadratic.TryRoundRootRatio(ContactQuadratic.At(Values, Signs, 0, _fieldWords),
+            ContactQuadratic.At(Values, Signs, 1, _fieldWords), Root, metricWords, scaleWords, out depth);
     }
 
     internal Fixed64 GetRoundedMaximumDepth()
@@ -126,17 +130,17 @@ internal ref struct ConePlaneRaySelection
             throw new InvalidOperationException("Both plane-ray selections must have an admitted value.");
         if (metric.IsZero || !metric.Equals(other.metric))
             throw new ArgumentException("The plane-ray selections must share a nonzero reduced normal metric.");
-        ContactQuadratic firstD = ContactQuadratic.At(Values, Signs, 1, FieldWords);
-        ContactQuadratic secondD = ContactQuadratic.At(other.Values, other.Signs, 1, FieldWords);
+        ContactQuadratic firstD = ContactQuadratic.At(Values, Signs, 1, _fieldWords);
+        ContactQuadratic secondD = ContactQuadratic.At(other.Values, other.Signs, 1, other._fieldWords);
         // sqrt(metric) cancels. Each positive 2D scale adds at most three limbs;
         // the ratio owner's subsequent cross products reserve their full widths.
-        int words = Math.Max(ContactQuadratic.ActiveWords(firstD), ContactQuadratic.ActiveWords(secondD)) + 3;
+        int words = Math.Max(ContactQuadratic.ActiveWords(firstD), ContactQuadratic.ActiveWords(secondD)) + 5;
         Span<ulong> values = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
         ContactQuadratic firstScaled = ContactQuadratic.At(values, signs, 0, words);
         ContactQuadratic secondScaled = ContactQuadratic.At(values, signs, 1, words);
-        ContactQuadratic.Scale(firstD, Signed576.ExtendValue(Signed320.ExtendValue(scale)), firstScaled);
-        ContactQuadratic.Scale(secondD, Signed576.ExtendValue(Signed320.ExtendValue(other.scale)), secondScaled);
-        return ContactQuadratic.CompareRatios(ContactQuadratic.At(Values, Signs, 0, FieldWords), firstScaled, Root,
-            ContactQuadratic.At(other.Values, other.Signs, 0, FieldWords), secondScaled, other.Root);
+        ContactQuadratic.Scale(firstD, Signed576.ExtendValue(scale), firstScaled);
+        ContactQuadratic.Scale(secondD, Signed576.ExtendValue(other.scale), secondScaled);
+        return ContactQuadratic.CompareRatios(ContactQuadratic.At(Values, Signs, 0, _fieldWords), firstScaled, Root,
+            ContactQuadratic.At(other.Values, other.Signs, 0, other._fieldWords), secondScaled, other.Root);
     }
 }

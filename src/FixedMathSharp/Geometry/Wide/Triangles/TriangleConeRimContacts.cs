@@ -20,7 +20,7 @@ internal static class TriangleConeRimContacts
     private struct Selection
     {
         internal bool HasValue, IsZero, IsRational;
-        internal WideAxis3 First, Second;
+        internal WideDirection3d First, Second;
         internal int Edge, ParameterOrdinal, ValueOrdinal, ValueShift;
     }
 
@@ -29,6 +29,8 @@ internal static class TriangleConeRimContacts
         out bool hasBetter, out Vector3d normal, out Vector3d radialPoint,
         out Vector3d trianglePoint, out Fixed64 depth, out bool clamped)
     {
+        int ValueWords = geometry.ValueWords;
+        int ValueCellWords = (16 * (geometry.ValueWords * 64 + 11) + 255) / 64;
         hasBetter = false; normal = radialPoint = trianglePoint = default;
         depth = analyticDepth; clamped = false;
         Span<ulong> bestValues = stackalloc ulong[5 * ValueWords];
@@ -51,23 +53,24 @@ internal static class TriangleConeRimContacts
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
         ref Selection best)
     {
+
         // The caller's exact face-width proof excludes a clamped analytic gap.
         // Its rounded value d bounds the original gap by d+1/2 raw, including Max.
         ulong upperTwiceRaw = ((ulong)analyticDepth.m_rawValue << 1) | 1UL;
         for (int edge = 0; edge < 3; edge++)
         {
-            WideAxis3 e = geometry.Edge(edge);
+            WideDirection3d e = geometry.Edge(edge);
             // Horizontal edges are meridional; vertical edges are circular.
             // Their complete boundaries/principal radial directions are analytic.
             if (e.Y.IsZero || e.X.IsZero && e.Z.IsZero)
                 continue;
-            GetBasis(e, out WideAxis3 u, out WideAxis3 v);
+            GetBasis(e, out WideDirection3d u, out WideDirection3d v);
             for (int firstSign = -1; firstSign <= 1; firstSign += 2)
                 for (int secondSign = -1; secondSign <= 1; secondSign += 2)
                     for (int chart = 0; chart < 2; chart++)
                     {
-                        WideAxis3 first = firstSign > 0 ? u : -u;
-                        WideAxis3 second = secondSign > 0 ? v : -v;
+                        WideDirection3d first = firstSign > 0 ? u : -u;
+                        WideDirection3d second = secondSign > 0 ? v : -v;
                         if (chart != 0) (first, second) = (second, first);
                         if (!TryChart(geometry, height, radius, edge, first, second,
                                 analytic, upperTwiceRaw, bestValues, bestSigns, bestCell, ref best))
@@ -79,9 +82,10 @@ internal static class TriangleConeRimContacts
 
     private static void GetContactMaterials(in TriangleCircularGeometry geometry, FixedTriangle triangle,
         Fixed64 height, Fixed64 radius, ReadOnlySpan<ulong> bestValues, ReadOnlySpan<sbyte> bestSigns,
-        Span<ulong> bestCell, Selection best, out Vector3d normal, out Vector3d radialPoint,
+        Span<ulong> bestCell, in Selection best, out Vector3d normal, out Vector3d radialPoint,
         out Vector3d trianglePoint, out Fixed64 depth, out bool clamped)
     {
+
         clamped = false;
         GetMaterials(geometry, triangle, height, radius, best, out normal, out radialPoint, out trianglePoint);
         if (best.IsZero)
@@ -96,15 +100,18 @@ internal static class TriangleConeRimContacts
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool TryChart(in TriangleCircularGeometry geometry, Fixed64 height, Fixed64 radius,
-        int edge, WideAxis3 first, WideAxis3 second, scoped ConvexContactCandidate analytic, ulong upperTwiceRaw,
+        int edge, in WideDirection3d first, in WideDirection3d second, scoped ConvexContactCandidate analytic, ulong upperTwiceRaw,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
         ref Selection best)
     {
-        WideAxis3 outward = geometry.EdgeFromTo((edge + 2) % 3, edge);
-        Signed576 a = WideAxis3.Dot(first, outward), b = WideAxis3.Dot(second, outward);
+        int Words = geometry.ParameterWords;
+        int ValueWords = geometry.ValueWords;
+        int ValueCellWords = (16 * (geometry.ValueWords * 64 + 11) + 255) / 64;
+        WideDirection3d outward = geometry.EdgeFromTo((edge + 2) % 3, edge);
+        Signed832 a = WideDirection3d.Dot(first, outward), b = WideDirection3d.Dot(second, outward);
         // Each root needs positive outward projection a+t*b on t in (0,1].
         // Nonpositive endpoints exclude the complete affine chart before construction.
-        if (a.Sign <= 0 && WideArithmetic.AddSigned576(a, b).Sign <= 0)
+        if (a.Sign <= 0 && WideArithmetic.AddSigned832(a, b).Sign <= 0)
             return true;
         Span<ulong> data = stackalloc ulong[ParameterSlots * Words];
         Span<sbyte> signs = stackalloc sbyte[ParameterSlots];
@@ -155,7 +162,7 @@ internal static class TriangleConeRimContacts
                 continue;
             // Materialize only roots that survive feature admission and the
             // analytic bound. Rebuilding is valid for any number of survivors.
-            BuildValues(geometry.Edge(edge), geometry.CapOffset(edge, 1), geometry.Radius, geometry.ValueShift, values, valueSigns);
+            BuildValues(geometry.Edge(edge), geometry.CapOffset(edge, 1), geometry.Radius, geometry.ValueShift, values, valueSigns, useRigidBounds: !geometry.IsAffine);
             scoped FiniteAxisValueRoot value = ConvexContactValueRoot.MapSquaredValue(
                 geometry.RawScale, geometry.ValueShift, ref root,
                 data.Slice(16 * Words, 5 * Words), signs.Slice(16, 5),
@@ -174,50 +181,53 @@ internal static class TriangleConeRimContacts
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void BuildConeParameter(in TriangleCircularGeometry geometry, Fixed64 height, Fixed64 radius,
-        int edge, WideAxis3 first, WideAxis3 second, Span<ulong> data, Span<sbyte> signs)
+        int edge, in WideDirection3d first, in WideDirection3d second, Span<ulong> data, Span<sbyte> signs)
     {
+
         BuildConeParameter(geometry.CapOffset(edge, 1), geometry.Radius, geometry.RawScale,
-            height, radius, first, second, data, signs);
-        WideAxis3 outward = geometry.EdgeFromTo((edge + 2) % 3, edge);
-        Write(data, signs, 31, WideAxis3.Dot(outward, first));
-        Write(data, signs, 32, WideAxis3.Dot(outward, second));
+            height, radius, first, second, data, signs, useRigidBounds: !geometry.IsAffine);
+        WideDirection3d outward = geometry.EdgeFromTo((edge + 2) % 3, edge);
+        Write(data, signs, 31, WideDirection3d.Dot(outward, first));
+        Write(data, signs, 32, WideDirection3d.Dot(outward, second));
     }
 
     // Writes the shared rim stationary chart and cone support switch into
     // slots 0..30. Triangle-only support walls occupy the following two slots.
-    internal static void BuildConeParameter(WideAxis3 offset, Signed320 scaledRadius, Signed192 rawScale,
-        Fixed64 height, Fixed64 radius, WideAxis3 first, WideAxis3 second,
-        Span<ulong> data, Span<sbyte> signs)
+    internal static void BuildConeParameter(in WideDirection3d offset, Signed576 scaledRadius, Signed320 rawScale,
+        Fixed64 height, Fixed64 radius, in WideDirection3d first, in WideDirection3d second,
+        Span<ulong> data, Span<sbyte> signs, bool useRigidBounds = false)
     {
-        BuildParameter(offset, scaledRadius, rawScale, first, second, data, signs);
-        Write(data, signs, 26, Signed576.ExtendValue(first.Y));
-        Write(data, signs, 27, Signed576.ExtendValue(second.Y));
+        int Words = data.Length / signs.Length;
+        BuildParameter(offset, scaledRadius, rawScale, first, second, data, signs, useRigidBounds);
+        Write(data, signs, 26, Signed832.ExtendValue(first.Y));
+        Write(data, signs, 27, Signed832.ExtendValue(second.Y));
         Signed192 h = Signed192.Raw(height), r = Signed192.Raw(radius);
         Signed320 hh = WideArithmetic.MultiplySigned192(h, h), rr = WideArithmetic.MultiplySigned192(r, r);
         Span<ulong> work = stackalloc ulong[3 * Words];
         for (int index = 0; index < 3; index++)
         {
-            WideAxis3 left = index < 2 ? first : second, right = index == 0 ? first : second;
+            WideDirection3d left = index < 2 ? first : second, right = index == 0 ? first : second;
             // Triangle axes <198 bits; segment affine-chart axes <200 bits.
             // Raw dimensions <63 give region coefficients <532 bits. The
             // forty-word magnitude owner retains both without narrowing.
-            Signed576 radial = RadialDot(left, right), axial = WideArithmetic.MultiplySigned320(left.Y, right.Y);
-            Import(radial, Slot(work, 0)); Import(rr, Slot(work, 1));
-            WideArithmetic.MultiplyMagnitudes(Slot(work, 0), Slot(work, 1), Slot(data, 28 + index));
+            Signed832 radial = RadialDot(left, right), axial = WideArithmetic.MultiplySigned576(left.Y, right.Y);
+            Import(radial, Slot(work, 0, Words)); Import(rr, Slot(work, 1, Words));
+            WideArithmetic.MultiplyMagnitudes(Slot(work, 0, Words), Slot(work, 1, Words), Slot(data, 28 + index, Words));
             int sign = radial.Sign;
-            Import(axial, Slot(work, 0)); Import(hh, Slot(work, 1));
-            WideArithmetic.MultiplyMagnitudes(Slot(work, 0), Slot(work, 1), Slot(work, 2));
-            Add(Slot(work, 2), -axial.Sign, Slot(data, 28 + index), ref sign);
-            if (index == 1) WideArithmetic.AddMagnitudeInto(Slot(data, 29), Slot(data, 29));
+            Import(axial, Slot(work, 0, Words)); Import(hh, Slot(work, 1, Words));
+            WideArithmetic.MultiplyMagnitudes(Slot(work, 0, Words), Slot(work, 1, Words), Slot(work, 2, Words));
+            Add(Slot(work, 2, Words), -axial.Sign, Slot(data, 28 + index, Words), ref sign);
+            if (index == 1) WideArithmetic.AddMagnitudeInto(Slot(data, 29, Words), Slot(data, 29, Words));
             signs[28 + index] = (sbyte)sign;
         }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void GetMaterials(in TriangleCircularGeometry geometry, FixedTriangle triangle,
-        Fixed64 height, Fixed64 radius, Selection best,
+        Fixed64 height, Fixed64 radius, in Selection best,
         out Vector3d normal, out Vector3d radialPoint, out Vector3d trianglePoint)
     {
+        int Words = geometry.ParameterWords;
         Span<ulong> data = stackalloc ulong[ParameterSlots * Words];
         Span<sbyte> signs = stackalloc sbyte[ParameterSlots];
         BuildConeParameter(geometry, height, radius, best.Edge, best.First, best.Second, data, signs);
@@ -226,17 +236,17 @@ internal static class TriangleConeRimContacts
             best.ParameterOrdinal, cell, out FiniteAxisValueRoot root);
         System.Diagnostics.Debug.Assert(found);
         trianglePoint = TriangleCylinderRimWitnesses.GetRootPoint(geometry, triangle, best.Edge, best.First, best.Second, ref root);
-        Span<ulong> gradient = stackalloc ulong[30];
+        Span<ulong> gradient = stackalloc ulong[54];
         Span<sbyte> gradientSigns = stackalloc sbyte[6];
         WriteGradient(best.First, best.Second, gradient, gradientSigns);
-        gradient.Slice(10, 10).Clear(); gradientSigns.Slice(2, 2).Clear();
+        gradient.Slice(18, 18).Clear(); gradientSigns.Slice(2, 2).Clear();
         radialPoint = ConvexContactValueRoot.GetScaledNormalizedDirection(ref root, gradient, gradientSigns, radius, -1);
         WriteGradient(Transform(geometry.WorldBasis, best.First), Transform(geometry.WorldBasis, best.Second), gradient, gradientSigns);
         normal = ConvexContactValueRoot.GetNormalizedDirection(ref root, gradient, gradientSigns, 1);
     }
 
     private static FiniteAxisValueRoot Restore(ReadOnlySpan<ulong> values, ReadOnlySpan<sbyte> signs,
-        Span<ulong> cell, Selection selection) => new()
+        Span<ulong> cell, in Selection selection) => new()
     {
         Coefficients = values, Signs = signs, LowerNumerator = cell,
         DenominatorShift = selection.ValueShift, Ordinal = selection.ValueOrdinal, IsRational = selection.IsRational

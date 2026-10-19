@@ -34,6 +34,9 @@ internal ref struct FiniteSlabRaySelection
 {
     private const int RetainedCellWords = 8;
     internal const int StorageWords = 13 * FiniteSlabPolynomial.Words + RetainedCellWords;
+    private readonly int Words => FieldWords;
+    internal static int GetStorageWords(int fieldWords) => 13 * fieldWords + RetainedCellWords;
+    internal readonly int FieldWords;
     internal const int SignCount = 13;
     private readonly Span<ulong> _values;
     private readonly Span<sbyte> _signs;
@@ -52,15 +55,15 @@ internal ref struct FiniteSlabRaySelection
     private readonly FiniteSlabPolynomial D => At(9, 2);
     private readonly FiniteSlabPolynomial DepthN => At(11, 1);
     private readonly FiniteSlabPolynomial DepthD => At(12, 1);
-    private readonly Span<ulong> RetainedCell => _values[(13 * FiniteSlabPolynomial.Words)..];
+    private readonly Span<ulong> RetainedCell => _values[(13 * Words)..];
     private readonly FiniteSlabPolynomial At(int start, int count) =>
         FiniteSlabPolynomial.At(_values, _signs, start, count);
 
-    internal FiniteSlabRaySelection(Span<ulong> values, Span<sbyte> signs)
+    internal FiniteSlabRaySelection(Span<ulong> values, Span<sbyte> signs, int fieldWords = FiniteSlabPolynomial.Words)
     {
-        if (values.Length < StorageWords || signs.Length < SignCount)
+        if (values.Length < GetStorageWords(fieldWords) || signs.Length < SignCount)
             throw new ArgumentException("The finite slab ray selection storage is too small.");
-        _values = values[..StorageWords]; _signs = signs[..SignCount];
+        FieldWords = fieldWords; _values = values[..GetStorageWords(fieldWords)]; _signs = signs[..SignCount];
         HasValue = _parameterIsDepth = false; _ordinal = _rootCount = _coefficientCount = _orientation = _domainEdgeMask = 0;
         _triangle = default;
         _hasCompactCell = _isRational = false; _denominatorShift = 0;
@@ -71,12 +74,12 @@ internal ref struct FiniteSlabRaySelection
         if (_hasCompactCell)
         {
             RetainedCell.CopyTo(cell); cell[RetainedCellWords..].Clear();
-            return new() { Coefficients = Polynomial.Values[..(_coefficientCount * FiniteSlabPolynomial.Words)],
+            return new() { Coefficients = Polynomial.Values[..(_coefficientCount * Words)],
                 Signs = Polynomial.Signs[.._coefficientCount], LowerNumerator = cell,
                 DenominatorShift = _denominatorShift, Ordinal = _ordinal, IsRational = _isRational };
         }
         return WideFiniteAxisIntersection.GetKnownFiniteValueRoot(
-            Polynomial.Values[..(_coefficientCount * FiniteSlabPolynomial.Words)],
+            Polynomial.Values[..(_coefficientCount * Words)],
             Polynomial.Signs[.._coefficientCount], _ordinal, _rootCount, cell);
     }
     private readonly int CellWords => Math.Max(RetainedCellWords,
@@ -139,10 +142,10 @@ internal ref struct FiniteSlabRaySelection
     private readonly int DepthCoefficientWords()
     {
         ReadOnlySpan<ulong> values = _parameterIsDepth ? Polynomial.Values
-            : _values.Slice(11 * FiniteSlabPolynomial.Words, 2 * FiniteSlabPolynomial.Words);
+            : _values.Slice(11 * Words, 2 * Words);
         int words = 1;
-        for (int index = 0; index < values.Length; index += FiniteSlabPolynomial.Words)
-            words = Math.Max(words, WideArithmetic.GetActiveMagnitudeLength(values.Slice(index, FiniteSlabPolynomial.Words)));
+        for (int index = 0; index < values.Length; index += Words)
+            words = Math.Max(words, WideArithmetic.GetActiveMagnitudeLength(values.Slice(index, Words)));
         return words;
     }
 
@@ -164,7 +167,7 @@ internal ref struct FiniteSlabRaySelection
             if (a.Signs[0] != 0)
             {
                 Span<ulong> cell = stackalloc ulong[CellWords]; FiniteAxisValueRoot root = Restore(cell);
-                Span<ulong> derivativeValues = stackalloc ulong[2 * FiniteSlabPolynomial.Words];
+                Span<ulong> derivativeValues = stackalloc ulong[2 * Words];
                 Span<sbyte> derivativeSigns = stackalloc sbyte[2];
                 FiniteSlabPolynomial derivative = new(derivativeValues, derivativeSigns);
                 derivative.Clear(); derivative.Add(Polynomial.Slice(1, 1)); derivative.Add(Polynomial.Slice(2, 1), 2, 1);
@@ -182,18 +185,19 @@ internal ref struct FiniteSlabRaySelection
         uN.CopyTo(numerator); numerator.Add(numerator); numerator.Add(uD, -1);
         uD.CopyTo(denominator); denominator.Add(uN, -1);
         Span<ulong> normal = stackalloc ulong[9];
-        WideArithmetic.GetMagnitude(Signed576.ExtendValue(Component(frame.RayNormal, axis)), normal);
+        WideArithmetic.GetMagnitude(Component(frame.RayNormal, axis), normal);
         ContactQuadratic.Scale(numerator, normal, 1, a); a.CopyTo(numerator);
-        Signed192 scale = WideArithmetic.AddSigned192(frame.Section.RadialFrame.ShapeFrame.Denominator,
-            frame.Section.RadialFrame.ShapeFrame.Denominator);
-        ContactQuadratic.Scale(denominator, Signed576.ExtendValue(Signed320.ExtendValue(scale)), a); a.CopyTo(denominator);
+        Signed320 scale = WideArithmetic.AddSigned320(frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator,
+            frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator);
+        ContactQuadratic.Scale(denominator, Signed576.ExtendValue(scale), a); a.CopyTo(denominator);
     }
 
     private static void CopyDepthCoefficient(scoped FiniteSlabPolynomial polynomial, int index, scoped ContactQuadratic value)
     {
+        int Words = polynomial.FieldWords;
         value.Clear();
         if (polynomial.Signs[index] == 0) return;
-        ReadOnlySpan<ulong> coefficient = polynomial.Values.Slice(index * FiniteSlabPolynomial.Words, FiniteSlabPolynomial.Words);
+        ReadOnlySpan<ulong> coefficient = polynomial.Values.Slice(index * Words, Words);
         coefficient[..WideArithmetic.GetActiveMagnitudeLength(coefficient)].CopyTo(value.Rational);
         value.Signs[0] = polynomial.Signs[index];
     }
@@ -203,11 +207,12 @@ internal ref struct FiniteSlabRaySelection
         bool secondIsDepth, scoped FiniteAxisValueRoot second,
         scoped FiniteSlabPolynomial secondN, scoped FiniteSlabPolynomial secondD)
     {
+        int Words = Math.Max(firstN.FieldWords, secondN.FieldWords);
         if (firstIsDepth && secondIsDepth)
             return WideFiniteAxisIntersection.CompareFiniteValueRoots(first, second);
-        Span<ulong> values = stackalloc ulong[3 * FiniteSlabPolynomial.Words];
+        Span<ulong> values = stackalloc ulong[3 * Words];
         Span<sbyte> signs = stackalloc sbyte[3];
-        FiniteSlabPolynomial query = new(values[..(2 * FiniteSlabPolynomial.Words)], signs[..2]);
+        FiniteSlabPolynomial query = new(values[..(2 * Words)], signs[..2]);
         if (firstIsDepth || secondIsDepth)
         {
             FiniteSlabPolynomial n = firstIsDepth ? secondN : firstN;
@@ -217,7 +222,7 @@ internal ref struct FiniteSlabRaySelection
                 : -WideFiniteAxisIntersection.GetSignAtFiniteValueRoot(second, query.Values, query.Signs);
         }
         FiniteSlabPolynomial left = query.Slice(0, 1), right = query.Slice(1, 1);
-        FiniteSlabPolynomial difference = new(values[(2 * FiniteSlabPolynomial.Words)..], signs[2..]);
+        FiniteSlabPolynomial difference = new(values[(2 * Words)..], signs[2..]);
         left.Multiply(firstN, secondD); right.Multiply(secondN, firstD);
         difference.Copy(left); difference.Add(right, -1);
         return difference.Signs[0];
@@ -266,7 +271,7 @@ internal ref struct FiniteSlabRaySelection
     {
         if (!HasValue || target.Plane.NormalSquared.IsZero) return false;
         Span<ulong> cell = stackalloc ulong[CellWords]; FiniteAxisValueRoot root = Restore(cell);
-        Span<ulong> values = stackalloc ulong[12 * FiniteSlabPolynomial.Words];
+        Span<ulong> values = stackalloc ulong[12 * Words];
         Span<sbyte> signs = stackalloc sbyte[12];
         FiniteSlabPolynomial x = FiniteSlabPolynomial.At(values, signs, 0, 2),
             y = FiniteSlabPolynomial.At(values, signs, 2, 2), z = FiniteSlabPolynomial.At(values, signs, 4, 2),
@@ -274,7 +279,7 @@ internal ref struct FiniteSlabRaySelection
             query = FiniteSlabPolynomial.At(values, signs, 8, 2), term = FiniteSlabPolynomial.At(values, signs, 10, 2);
         WideAxis3 a = source.Section.Transform(_triangle.A), e = Difference(source.Section.Transform(_triangle.B), a),
             f = Difference(source.Section.Transform(_triangle.C), a);
-        Signed320 targetScale = Signed320.ExtendValue(target.Section.RadialFrame.ShapeFrame.Denominator);
+        Signed320 targetScale = target.Section.RadialFrame.ShapeFrame.CoordinateDenominator;
         for (int axis = 0; axis < 3; axis++)
         {
             FiniteSlabPolynomial coordinate = axis == 0 ? x : axis == 1 ? y : z;
@@ -282,18 +287,18 @@ internal ref struct FiniteSlabRaySelection
             term.Scale(Mu, Component(f, axis)); query.Add(term);
             coordinate.Scale(query, targetScale);
         }
-        denominator.Scale(D, Signed320.ExtendValue(source.Section.RadialFrame.ShapeFrame.Denominator));
+        denominator.Scale(D, source.Section.RadialFrame.ShapeFrame.CoordinateDenominator);
         int denominatorSign = FiniteSlabPolynomial.Sign(ref root, denominator);
         // Source coordinates carry 2Ds and target walls expect 2Dt. Cross
         // scaling preserves the exact point; <3400-bit source products plus
         // <132-bit scale and <526-bit walls still fit the 4096-bit bank.
         for (int edge = -1; edge < 3; edge++)
         {
-            Signed576 wx, wy, wz, offset;
+            Signed832 wx, wy, wz, offset;
             if (edge < 0)
             {
-                wx = Signed576.ExtendValue(target.Plane.Normal.X); wy = Signed576.ExtendValue(target.Plane.Normal.Y);
-                wz = Signed576.ExtendValue(target.Plane.Normal.Z); offset = target.Plane.PlaneConstant;
+                wx = Signed832.ExtendValue(target.Plane.Normal.X); wy = Signed832.ExtendValue(target.Plane.Normal.Y);
+                wz = Signed832.ExtendValue(target.Plane.Normal.Z); offset = target.Plane.PlaneConstant;
             }
             else target.Plane.GetTriangleEdgeWall(triangle, edge, out wx, out wy, out wz, out offset);
             query.Scale(x, wx); term.Scale(y, wy); query.Add(term); term.Scale(z, wz); query.Add(term);
@@ -310,15 +315,33 @@ internal ref struct FiniteSlabRaySelection
         point = default;
         if (!HasValue) return false;
         Span<ulong> cell = stackalloc ulong[CellWords]; FiniteAxisValueRoot root = Restore(cell);
-        Span<ulong> values = stackalloc ulong[12 * FiniteSlabPolynomial.Words];
+        Span<ulong> values = stackalloc ulong[12 * Words];
         Span<sbyte> signs = stackalloc sbyte[12];
         FiniteSlabPolynomial x = FiniteSlabPolynomial.At(values, signs, 0, 2),
             y = FiniteSlabPolynomial.At(values, signs, 2, 2), z = FiniteSlabPolynomial.At(values, signs, 4, 2),
             denominator = FiniteSlabPolynomial.At(values, signs, 6, 2),
             numerator = FiniteSlabPolynomial.At(values, signs, 8, 2), term = FiniteSlabPolynomial.At(values, signs, 10, 2);
-        BuildAuthoredCoordinate(0, x, term); BuildAuthoredCoordinate(1, y, term); BuildAuthoredCoordinate(2, z, term);
-        WideRationalBasis3d basis = new(frame.Rotation);
-        denominator.Scale(D, Signed320.ExtendValue(basis.Denominator));
+        bool exact = frame.Section.RadialFrame.ShapeFrame.HasExactScale;
+        WideRationalBasis3d basis = new(exact ? frame.SlabRotation : frame.Rotation);
+        if (exact)
+        {
+            WideAxis3 a = frame.Section.Transform(_triangle.A), e = Difference(frame.Section.Transform(_triangle.B), a),
+                f = Difference(frame.Section.Transform(_triangle.C), a);
+            for (int axis = 0; axis < 3; axis++)
+            {
+                FiniteSlabPolynomial coordinate = axis == 0 ? x : axis == 1 ? y : z;
+                coordinate.Scale(D, Component(a, axis)); term.Scale(Lambda, Component(e, axis)); coordinate.Add(term);
+                term.Scale(Mu, Component(f, axis)); coordinate.Add(term);
+            }
+            Signed320 scale = frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator;
+            Signed576 divisor = WideArithmetic.MultiplySigned320(WideArithmetic.AddSigned320(scale, scale), basis.Denominator);
+            denominator.Scale(D, divisor);
+        }
+        else
+        {
+            BuildAuthoredCoordinate(0, x, term); BuildAuthoredCoordinate(1, y, term); BuildAuthoredCoordinate(2, z, term);
+            denominator.Scale(D, Signed320.ExtendValue(basis.Denominator));
+        }
         // Basis coefficients add <130 bits and the origin difference <65;
         // subtraction precedes narrowing, including near scalar-range limits.
         for (int axis = 0; axis < 3; axis++)
@@ -326,8 +349,11 @@ internal ref struct FiniteSlabRaySelection
             numerator.Scale(x, Signed320.ExtendValue(axis == 0 ? basis.Xx : axis == 1 ? basis.Xy : basis.Xz));
             term.Scale(y, Signed320.ExtendValue(axis == 0 ? basis.Yx : axis == 1 ? basis.Yy : basis.Yz)); numerator.Add(term);
             term.Scale(z, Signed320.ExtendValue(axis == 0 ? basis.Zx : axis == 1 ? basis.Zy : basis.Zz)); numerator.Add(term);
-            term.Scale(denominator, Signed320.ExtendValue(WideArithmetic.SubtractSigned192(
-                Signed192.Raw(frame.Origin[axis]), Signed192.Raw(frame.Center[axis])))); numerator.Add(term);
+            if (!exact)
+            {
+                term.Scale(denominator, Signed320.ExtendValue(WideArithmetic.SubtractSigned192(
+                    Signed192.Raw(frame.Origin[axis]), Signed192.Raw(frame.Center[axis])))); numerator.Add(term);
+            }
             if (!TryRoundRatio(ref root, numerator, denominator, out Fixed64 component, frame.Center[axis].m_rawValue)) return false;
             point[axis] = component;
         }
@@ -345,16 +371,16 @@ internal ref struct FiniteSlabRaySelection
         depth = default; source = default; clamped = false; anchor = default;
         if (!HasValue) return false;
         Span<ulong> cell = stackalloc ulong[CellWords]; FiniteAxisValueRoot root = Restore(cell);
-        Span<ulong> values = stackalloc ulong[25 * FiniteSlabPolynomial.Words];
+        Span<ulong> values = stackalloc ulong[25 * Words];
         Span<sbyte> signs = stackalloc sbyte[25];
         FiniteSlabPolynomial numerator = FiniteSlabPolynomial.At(values, signs, 0, 5);
         FiniteSlabPolynomial term = FiniteSlabPolynomial.At(values, signs, 5, 5);
         FiniteSlabPolynomial divisor = FiniteSlabPolynomial.At(values, signs, 10, 5);
         FiniteSlabPolynomial square = FiniteSlabPolynomial.At(values, signs, 15, 9);
         FiniteSlabPolynomial scalar = FiniteSlabPolynomial.At(values, signs, 24, 1);
-        Signed192 scale = WideArithmetic.AddSigned192(frame.Section.RadialFrame.ShapeFrame.Denominator,
-            frame.Section.RadialFrame.ShapeFrame.Denominator);
-        divisor.Scale(D, Signed320.ExtendValue(scale));
+        Signed320 scale = WideArithmetic.AddSigned320(frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator,
+            frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator);
+        divisor.Scale(D, scale);
         WideAxis3 a = frame.Section.Transform(_triangle.A);
         WideAxis3 e = Difference(frame.Section.Transform(_triangle.B), a);
         WideAxis3 f = Difference(frame.Section.Transform(_triangle.C), a);
@@ -440,17 +466,17 @@ internal ref struct FiniteSlabRaySelection
         anchor = new FixedPointAnchor(frame.Center, frame.SlabRotation, axial, exit, exactTerm);
         if (IsConstant(T) && IsConstant(D))
         {
-            Span<ulong> rationalValues = stackalloc ulong[4 * FiniteSlabPolynomial.Words];
+            Span<ulong> rationalValues = stackalloc ulong[4 * Words];
             Span<int> rationalSigns = stackalloc int[4];
-            ContactQuadratic numeratorValue = ContactQuadratic.At(rationalValues, rationalSigns, 0, FiniteSlabPolynomial.Words);
-            ContactQuadratic denominatorValue = ContactQuadratic.At(rationalValues, rationalSigns, 1, FiniteSlabPolynomial.Words);
+            ContactQuadratic numeratorValue = ContactQuadratic.At(rationalValues, rationalSigns, 0, Words);
+            ContactQuadratic denominatorValue = ContactQuadratic.At(rationalValues, rationalSigns, 1, Words);
             numeratorValue.Clear(); denominatorValue.Clear();
-            T.Values[..FiniteSlabPolynomial.Words].CopyTo(numeratorValue.Rational);
-            D.Values[..FiniteSlabPolynomial.Words].CopyTo(denominatorValue.Rational);
+            T.Values[..Words].CopyTo(numeratorValue.Rational);
+            D.Values[..Words].CopyTo(denominatorValue.Rational);
             numeratorValue.Signs[0] = T.Signs[0] * D.Signs[0]; denominatorValue.Signs[0] = 1;
-            Span<ulong> metricValue = stackalloc ulong[9]; WideArithmetic.GetMagnitude(frame.RayNormalSquared, metricValue);
-            Span<ulong> scaleValue = stackalloc ulong[3];
-            WideArithmetic.GetMagnitude(scale, out scaleValue[2], out scaleValue[1], out scaleValue[0]);
+            Span<ulong> metricValue = stackalloc ulong[13]; WideArithmetic.GetMagnitude(frame.RayNormalSquared, metricValue);
+            Span<ulong> scaleValue = stackalloc ulong[5];
+            WideArithmetic.GetMagnitude(scale, out scaleValue[4], out scaleValue[3], out scaleValue[2], out scaleValue[1], out scaleValue[0]);
             clamped = !ContactQuadratic.TryRoundRootRatio(numeratorValue, denominatorValue, ReadOnlySpan<ulong>.Empty,
                 metricValue, scaleValue, out depth);
             if (clamped) depth = Fixed64.MaxValue;
@@ -459,7 +485,7 @@ internal ref struct FiniteSlabRaySelection
         // Depth uses the same conditioned canonical normal as candidate t;
         // numerator²*|N|² / ((2D)²*denominator²) stays exact until this point.
         square.Multiply(T, T);
-        Span<ulong> depthValues = stackalloc ulong[27 * FiniteSlabPolynomial.Words];
+        Span<ulong> depthValues = stackalloc ulong[27 * Words];
         Span<sbyte> depthSigns = stackalloc sbyte[27];
         FiniteSlabPolynomial metric = FiniteSlabPolynomial.At(depthValues, depthSigns, 0, 9);
         FiniteSlabPolynomial squaredDivisor = FiniteSlabPolynomial.At(depthValues, depthSigns, 9, 9);
@@ -493,7 +519,8 @@ internal ref struct FiniteSlabRaySelection
         scoped FiniteSlabPolynomial metric, scoped FiniteSlabPolynomial divisor, scoped FiniteSlabPolynomial query,
         scoped FiniteSlabPolynomial scalar, ulong twiceRaw)
     {
-        Span<ulong> factor = stackalloc ulong[FiniteSlabPolynomial.Words]; factor.Clear();
+        int Words = metric.FieldWords;
+        Span<ulong> factor = stackalloc ulong[Words]; factor.Clear();
         Fixed64.Multiply64To128(twiceRaw, twiceRaw, out factor[1], out factor[0]);
         scalar.Clear(); factor.CopyTo(scalar.Values); scalar.Signs[0] = twiceRaw == 0 ? (sbyte)0 : (sbyte)1;
         query.Multiply(divisor, scalar);
@@ -505,15 +532,16 @@ internal ref struct FiniteSlabRaySelection
         scoped FiniteSlabPolynomial numerator, scoped FiniteSlabPolynomial denominator, out Fixed64 value,
         long parityOffset = 0)
     {
+        int Words = numerator.FieldWords;
         value = default;
         if (IsConstant(numerator) && IsConstant(denominator))
         {
             System.Diagnostics.Debug.Assert(denominator.Signs[0] != 0);
-            return Fixed64.TryGetSignedRawRatio(numerator.Values[..FiniteSlabPolynomial.Words],
-                denominator.Values[..FiniteSlabPolynomial.Words],
+            return Fixed64.TryGetSignedRawRatio(numerator.Values[..Words],
+                denominator.Values[..Words],
                 numerator.Signs[0] * denominator.Signs[0] < 0, out value, parityOffset);
         }
-        Span<ulong> values = stackalloc ulong[11 * FiniteSlabPolynomial.Words];
+        Span<ulong> values = stackalloc ulong[11 * Words];
         Span<sbyte> signs = stackalloc sbyte[11];
         FiniteSlabPolynomial query = FiniteSlabPolynomial.At(values, signs, 0, 5);
         FiniteSlabPolynomial term = FiniteSlabPolynomial.At(values, signs, 5, 5);
@@ -554,6 +582,7 @@ internal ref struct FiniteSlabRaySelection
         int numeratorSign, int denominatorSign, ulong limit, bool squareRoot,
         out ulong minimum, out ulong maximum)
     {
+        int Words = numerator.FieldWords;
         minimum = 0; maximum = limit;
         const int precision = 59;
         // At most nine coefficients: 59 + 2*ceil(log2(9)) <= 67.
@@ -564,13 +593,13 @@ internal ref struct FiniteSlabRaySelection
         {
             signs[index] = (sbyte)(numerator.Signs[index] * numeratorSign);
             numeratorBits = Math.Max(numeratorBits, WideArithmetic.GetMagnitudeBitLength(
-                numerator.Values.Slice(index * FiniteSlabPolynomial.Words, FiniteSlabPolynomial.Words)));
+                numerator.Values.Slice(index * Words, Words)));
         }
         for (int index = 0; index < denominator.Count; index++)
         {
             signs[numerator.Count + index] = (sbyte)(denominator.Signs[index] * denominatorSign);
             denominatorBits = Math.Max(denominatorBits, WideArithmetic.GetMagnitudeBitLength(
-                denominator.Values.Slice(index * FiniteSlabPolynomial.Words, FiniteSlabPolynomial.Words)));
+                denominator.Values.Slice(index * Words, Words)));
         }
         WideFiniteAxisIntersection.GetFiniteValueRootNonnegativeBounds(root, numerator.Values,
             signs[..numerator.Count], precision, numeratorBits, out ulong nMin, out ulong nMax);
@@ -607,11 +636,14 @@ internal ref struct FiniteSlabRaySelection
 
     private static bool IsConstant(FiniteSlabPolynomial value)
     {
+        int Words = value.FieldWords;
         for (int index = 1; index < value.Count; index++) if (value.Signs[index] != 0) return false;
         return true;
     }
 
     private static Signed320 Component(WideAxis3 p, int axis) => axis == 0 ? p.X : axis == 1 ? p.Y : p.Z;
+    private static Signed576 Component(WideDirection3d p, int axis) => axis == 0 ? p.X : axis == 1 ? p.Y : p.Z;
+    private static Signed576 Signed(Signed576 value, int sign) => sign < 0 ? WideArithmetic.SubtractSigned576(default, value) : value;
     private static Signed320 Signed(Signed320 value, int sign) => sign < 0 ? WideArithmetic.Negate(value) : value;
     private static WideAxis3 Difference(WideAxis3 p, WideAxis3 q) => new(
         WideArithmetic.SubtractSigned320(p.X, q.X), WideArithmetic.SubtractSigned320(p.Y, q.Y),

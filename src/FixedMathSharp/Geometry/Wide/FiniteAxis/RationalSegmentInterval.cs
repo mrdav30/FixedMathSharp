@@ -14,8 +14,19 @@ namespace FixedMathSharp.Geometry;
 /// </summary>
 internal readonly struct RationalSegmentInterval
 {
-    internal readonly Signed320 LowerNumerator, LowerDenominator, UpperNumerator, UpperDenominator;
-    internal bool IsClipped => !LowerDenominator.IsZero;
+    internal readonly Signed832 WideLowerNumerator, WideLowerDenominator, WideUpperNumerator, WideUpperDenominator;
+    internal bool HasWideBounds { get; }
+    internal Signed320 LowerNumerator => GetLegacyBound(WideLowerNumerator);
+    internal Signed320 LowerDenominator => GetLegacyBound(WideLowerDenominator);
+    internal Signed320 UpperNumerator => GetLegacyBound(WideUpperNumerator);
+    internal Signed320 UpperDenominator => GetLegacyBound(WideUpperDenominator);
+    internal bool IsClipped => !WideLowerDenominator.IsZero;
+
+    private Signed320 GetLegacyBound(Signed832 value)
+    {
+        if (HasWideBounds) throw new OverflowException("This interval requires its exact wide bounds.");
+        return new Signed320(value.Word4, value.Word3, value.Word2, value.Word1, value.Word0);
+    }
 
     /// <summary>
     /// Materializes one endpoint on the original 2D edge, rounding each local
@@ -25,6 +36,13 @@ internal readonly struct RationalSegmentInterval
     internal Vector2d GetEndpoint(FixedSegment2d edge, bool upper)
     {
         if (!IsClipped) return upper ? edge.End : edge.Start;
+        if (HasWideBounds)
+        {
+            Signed832 wideN = upper ? WideUpperNumerator : WideLowerNumerator;
+            Signed832 wideD = upper ? WideUpperDenominator : WideLowerDenominator;
+            return new Vector2d(GetWideCoordinate(edge.Start.X, edge.End.X, wideN, wideD),
+                GetWideCoordinate(edge.Start.Y, edge.End.Y, wideN, wideD));
+        }
         Signed320 n = upper ? UpperNumerator : LowerNumerator;
         Signed320 d = upper ? UpperDenominator : LowerDenominator;
         // Full raw endpoints and a unit Signed320 ratio need fewer than 386
@@ -40,8 +58,8 @@ internal readonly struct RationalSegmentInterval
     /// Maps this source interval onto a collinear target segment in the same
     /// local frame, preserving closed endpoints without coordinate rounding.
     /// Degenerate, off-line and disjoint segments return false. The endpoint
-    /// half-plane coefficients and their absolute differences must fit Signed320;
-    /// unsupported widths throw rather than truncate an interval.
+    /// half-plane coefficients retain their full transient products. Reduced
+    /// retained bounds must fit Signed832; unsupported widths throw rather than truncate.
     /// </summary>
     internal bool TryMapToSegment(FixedSegment source, FixedSegment target, out RationalSegmentInterval mapped)
     {
@@ -61,6 +79,8 @@ internal readonly struct RationalSegmentInterval
                 || !WideArithmetic.MultiplySubtract(direction[axis], second[coordinate], direction[coordinate], second[axis]).IsZero)
                 return false;
 
+        if (HasWideBounds) return TryMapWide(direction[axis], first[axis], second[axis], out mapped);
+
         Signed320 lowerN = default, lowerD = Signed320.One, upperN = Signed320.One, upperD = Signed320.One;
         for (int bound = 0; bound < 2; bound++)
         {
@@ -77,11 +97,68 @@ internal readonly struct RationalSegmentInterval
             if (difference.Sign < 0) difference = WideArithmetic.SubtractSigned576(default, difference);
             if (!Signed320.TryNarrowSigned(a, out Signed320 start) || !Signed320.TryNarrowSigned(b, out Signed320 end)
                 || !Signed320.TryNarrowSigned(difference, out _))
-                throw new OverflowException("Mapped segment half-planes must fit Signed320.");
+                return TryMapWide(direction[axis], first[axis], second[axis], out mapped);
             if (!TryClipHalfPlane(start, end, ref lowerN, ref lowerD, ref upperN, ref upperD)) return false;
         }
         mapped = new RationalSegmentInterval(lowerN, lowerD, upperN, upperD);
         return true;
+    }
+
+    private bool TryMapWide(Signed192 direction, Signed192 first, Signed192 second, out RationalSegmentInterval mapped)
+    {
+        mapped = default;
+        Signed832 lowerN = default, lowerD = Signed832.ExtendValue(Signed192.One), upperN = lowerD, upperD = lowerD;
+        const int words = 15;
+        Span<ulong> values = stackalloc ulong[14 * words]; Span<int> signs = stackalloc int[14];
+        var parameter = ContactQuadratic.At(values, signs, 0, words);
+        var denominator = ContactQuadratic.At(values, signs, 1, words);
+        var offset = ContactQuadratic.At(values, signs, 2, words);
+        var a = ContactQuadratic.At(values, signs, 3, words);
+        var b = ContactQuadratic.At(values, signs, 4, words);
+        var rootN = ContactQuadratic.At(values, signs, 5, words);
+        var rootD = ContactQuadratic.At(values, signs, 6, words);
+        for (int bound = 0; bound < 2; bound++)
+        {
+            parameter.Set(bound == 0 ? WideLowerNumerator : WideUpperNumerator);
+            denominator.Set(bound == 0 ? WideLowerDenominator : WideUpperDenominator);
+            ContactQuadratic.Scale(parameter, Signed576.ExtendValue(Signed320.ExtendValue(direction)), offset);
+            ContactQuadratic.Scale(denominator, Signed576.ExtendValue(Signed320.ExtendValue(first)), a); a.Add(offset, -1);
+            ContactQuadratic.Scale(denominator, Signed576.ExtendValue(Signed320.ExtendValue(second)), b); b.Add(offset, -1);
+            if ((direction.Sign < 0) != (bound != 0)) { a.MultiplySign(-1); b.MultiplySign(-1); }
+            if (a.Signs[0] >= 0 && b.Signs[0] >= 0) continue;
+            if (a.Signs[0] < 0 && b.Signs[0] < 0) return false;
+            a.CopyTo(rootN); a.CopyTo(rootD); rootD.Add(b, -1);
+            if (rootD.Signs[0] < 0) { rootN.MultiplySign(-1); rootD.MultiplySign(-1); }
+            PackReducedParameter(rootN.Rational, rootD.Rational, out Signed832 n, out Signed832 d);
+            // A collinear nondegenerate target has a monotone source
+            // parameter, in either direction. The two ordered source bounds
+            // therefore clip different target endpoints, each at most once.
+            // A crossing root lies strictly inside its rejected endpoint;
+            // disjoint targets were rejected above by their two negative signs.
+            if (a.Signs[0] < 0) { lowerN = n; lowerD = d; }
+            else { upperN = n; upperD = d; }
+        }
+        mapped = new RationalSegmentInterval(lowerN, lowerD, upperN, upperD);
+        return true;
+    }
+
+    private static void PackReducedParameter(ReadOnlySpan<ulong> numerator, ReadOnlySpan<ulong> denominator,
+        out Signed832 n, out Signed832 d)
+    {
+        int words = numerator.Length;
+        Span<ulong> gcd = stackalloc ulong[words], quotient = stackalloc ulong[words];
+        Span<ulong> remainder = stackalloc ulong[words], scratch = stackalloc ulong[2 * words + 1];
+        numerator.CopyTo(gcd); denominator.CopyTo(quotient);
+        WideArithmetic.GetMagnitudeGreatestCommonDivisor(gcd, quotient, scratch);
+        WideArithmetic.DivideMagnitudes(numerator, gcd, quotient, remainder, scratch); n = Pack(quotient);
+        WideArithmetic.DivideMagnitudes(denominator, gcd, quotient, remainder, scratch); d = Pack(quotient);
+        static Signed832 Pack(ReadOnlySpan<ulong> magnitude)
+        {
+            if (WideArithmetic.GetActiveMagnitudeLength(magnitude) > 13 || (magnitude[12] & (1UL << 63)) != 0)
+                throw new OverflowException("Mapped segment bounds must fit Signed832 after exact reduction.");
+            return new Signed832(magnitude[12], magnitude[11], magnitude[10], magnitude[9], magnitude[8], magnitude[7],
+                magnitude[6], magnitude[5], magnitude[4], magnitude[3], magnitude[2], magnitude[1], magnitude[0]);
+        }
     }
 
     /// <summary>Compares nonnegative unit parameters with positive denominators without narrowing products.</summary>
@@ -89,6 +166,9 @@ internal readonly struct RationalSegmentInterval
         WideArithmetic.CompareNonNegativeProducts(Signed832.ExtendValue(Signed576.ExtendValue(firstN)),
             Signed832.ExtendValue(Signed576.ExtendValue(secondD)), Signed832.ExtendValue(Signed576.ExtendValue(secondN)),
             Signed832.ExtendValue(Signed576.ExtendValue(firstD)));
+
+    internal static int CompareParameters(Signed832 firstN, Signed832 firstD, Signed832 secondN, Signed832 secondD) =>
+        WideArithmetic.CompareNonNegativeProducts(firstN, secondD, secondN, firstD);
 
     /// <summary>
     /// Clips a unit interval by the linear half-plane value at its original
@@ -112,19 +192,30 @@ internal readonly struct RationalSegmentInterval
 
     internal RationalSegmentInterval(Signed320 lowerNumerator, Signed320 lowerDenominator,
         Signed320 upperNumerator, Signed320 upperDenominator)
+        : this(Signed832.ExtendValue(Signed576.ExtendValue(lowerNumerator)),
+            Signed832.ExtendValue(Signed576.ExtendValue(lowerDenominator)),
+            Signed832.ExtendValue(Signed576.ExtendValue(upperNumerator)),
+            Signed832.ExtendValue(Signed576.ExtendValue(upperDenominator)))
+    {
+    }
+
+    internal RationalSegmentInterval(Signed832 lowerNumerator, Signed832 lowerDenominator,
+        Signed832 upperNumerator, Signed832 upperDenominator)
     {
         if (lowerDenominator.Sign <= 0 || upperDenominator.Sign <= 0)
             throw new ArgumentOutOfRangeException(nameof(lowerDenominator), "Interval denominators must be positive.");
         if (lowerNumerator.Sign < 0 || upperNumerator.Sign < 0
-            || WideArithmetic.SubtractSigned320(lowerDenominator, lowerNumerator).Sign < 0
-            || WideArithmetic.SubtractSigned320(upperDenominator, upperNumerator).Sign < 0)
+            || WideArithmetic.SubtractSigned832(lowerDenominator, lowerNumerator).Sign < 0
+            || WideArithmetic.SubtractSigned832(upperDenominator, upperNumerator).Sign < 0)
             throw new ArgumentOutOfRangeException(nameof(lowerNumerator), "Interval bounds must lie in [0,1].");
         if (CompareParameters(lowerNumerator, lowerDenominator, upperNumerator, upperDenominator) > 0)
             throw new ArgumentException("The lower interval bound must not exceed the upper bound.");
         this = default;
         if (lowerNumerator.IsZero && upperNumerator.Equals(upperDenominator)) return;
-        LowerNumerator = lowerNumerator; LowerDenominator = lowerDenominator;
-        UpperNumerator = upperNumerator; UpperDenominator = upperDenominator;
+        WideLowerNumerator = lowerNumerator; WideLowerDenominator = lowerDenominator;
+        WideUpperNumerator = upperNumerator; WideUpperDenominator = upperDenominator;
+        HasWideBounds = !FitsLegacy(lowerNumerator) || !FitsLegacy(lowerDenominator)
+            || !FitsLegacy(upperNumerator) || !FitsLegacy(upperDenominator);
     }
 
     /// <summary>Restricts an already admitted unit parameter; requires a clipped interval.</summary>
@@ -132,16 +223,46 @@ internal readonly struct RationalSegmentInterval
         scoped ReadOnlySpan<ulong> root)
     {
         System.Diagnostics.Debug.Assert(IsClipped);
-        // Bounds add at most 319 bits; the event radicand is unchanged.
-        int words = Math.Max(ContactQuadratic.ActiveWords(numerator), ContactQuadratic.ActiveWords(denominator)) + 6;
+        // Only the retained parameter width changes; its event radicand is unchanged.
+        int words = Math.Max(ContactQuadratic.ActiveWords(numerator), ContactQuadratic.ActiveWords(denominator))
+            + (HasWideBounds ? 14 : 6);
         Span<ulong> values = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
         var query = ContactQuadratic.At(values, signs, 0, words);
         var term = ContactQuadratic.At(values, signs, 1, words);
-        ContactQuadratic.Scale(numerator, Signed576.ExtendValue(LowerDenominator), query);
-        ContactQuadratic.Scale(denominator, Signed576.ExtendValue(LowerNumerator), term); query.Add(term, -1);
+        ScaleParameter(numerator, WideLowerDenominator, query);
+        ScaleParameter(denominator, WideLowerNumerator, term); query.Add(term, -1);
         if (query.Sign(root) < 0) return false;
-        ContactQuadratic.Scale(denominator, Signed576.ExtendValue(UpperNumerator), query);
-        ContactQuadratic.Scale(numerator, Signed576.ExtendValue(UpperDenominator), term); query.Add(term, -1);
+        ScaleParameter(denominator, WideUpperNumerator, query);
+        ScaleParameter(numerator, WideUpperDenominator, term); query.Add(term, -1);
         return query.Sign(root) >= 0;
+    }
+
+    private static bool FitsLegacy(Signed832 value)
+    {
+        ulong extension = (value.Word4 & (1UL << 63)) != 0 ? ulong.MaxValue : 0UL;
+        return value.Word5 == extension && value.Word6 == extension && value.Word7 == extension
+            && value.Word8 == extension && value.Word9 == extension && value.Word10 == extension
+            && value.Word11 == extension && value.Word12 == extension;
+    }
+
+    private static void ScaleParameter(ContactQuadratic value, Signed832 parameter, ContactQuadratic result)
+    {
+        Span<ulong> magnitude = stackalloc ulong[13]; WideArithmetic.GetMagnitude(parameter, magnitude);
+        ContactQuadratic.Scale(value, magnitude, parameter.Sign, result);
+    }
+
+    private static Fixed64 GetWideCoordinate(Fixed64 start, Fixed64 end, Signed832 n, Signed832 d)
+    {
+        const int words = 15;
+        Span<ulong> values = stackalloc ulong[8 * words]; Span<int> signs = stackalloc int[8];
+        var parameter = ContactQuadratic.At(values, signs, 0, words);
+        var denominator = ContactQuadratic.At(values, signs, 1, words);
+        var numerator = ContactQuadratic.At(values, signs, 2, words);
+        var term = ContactQuadratic.At(values, signs, 3, words);
+        parameter.Set(n); denominator.Set(d);
+        ContactQuadratic.Scale(denominator, Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Raw(start))), numerator);
+        ContactQuadratic.Scale(parameter, Signed576.ExtendValue(Signed320.ExtendValue(WideArithmetic.Difference(end, start))), term);
+        numerator.Add(term);
+        return ContactQuadratic.RoundRatio(numerator, denominator, ReadOnlySpan<ulong>.Empty);
     }
 }

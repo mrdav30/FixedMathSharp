@@ -28,7 +28,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
         // Its primitive covector avoids retaining arbitrary quaternion scale
         // in every subsequent homogeneous critical-event construction.
         Assert.True(frame.Normal.X.IsZero && frame.Normal.Z.IsZero);
-        Assert.Equal(Signed320.ExtendValue(Signed192.Signed(-1)), frame.Normal.Y);
+        Assert.Equal(Signed576.ExtendValue(Signed192.Signed(-1)), frame.Normal.Y);
         Assert.True(ConePlaneRayEvents.IntersectsTriangle(frame, triangle));
     }
 
@@ -185,7 +185,7 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
             ? new(Fixed64.One, Fixed64.Zero, Fixed64.Zero, Fixed64.Zero) : FixedQuaternion.Identity;
         var frame = new ConePlaneRayFrame(plane, center, FixedQuaternion.Identity,
             center, rotation, height, (Fixed64)radius);
-        Assert.Equal(Signed320.ExtendValue(Signed192.Signed(invertAxis ? 1 : -1)), frame.Normal.Y);
+        Assert.Equal(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(invertAxis ? 1 : -1))), frame.Normal.Y);
         var right = new ConePlaneRayEvent(ConePlaneRayEventKind.LowerCircle, 8, 0, 0, 0);
         var left = new ConePlaneRayEvent(ConePlaneRayEventKind.LowerCircle, 8, 1, 0, 0);
         var axis = new ConePlaneRayEvent(ConePlaneRayEventKind.Axis);
@@ -657,11 +657,11 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
             ContactQuadratic d = ContactQuadratic.At(values, signs, 6, words), term = ContactQuadratic.At(values, signs, 7, words);
             Signed576 radius = Signed576.ExtendValue(WideArithmetic.MultiplySigned192(
                 currentFrame.Finite.ShapeFrame.Radius, currentFrame.Finite.ShapeFrame.Denominator));
-            x.Set(Signed576.ExtendValue(line == 3 ? currentFrame.Normal.X : currentFrame.Normal.Z));
+            x.Set(line == 3 ? currentFrame.Normal.X : currentFrame.Normal.Z);
             ContactQuadratic.Scale(x, radius, term); term.CopyTo(x);
-            z.Set(Signed576.ExtendValue(line == 3 ? currentFrame.Normal.Z : WideArithmetic.Negate(currentFrame.Normal.X)));
+            z.Set(line == 3 ? currentFrame.Normal.Z : WideArithmetic.Negate(currentFrame.Normal.X));
             ContactQuadratic.Scale(z, radius, term); term.CopyTo(z);
-            c.Set(Signed576.ExtendValue(currentFrame.Normal.Y));
+            c.Set(currentFrame.Normal.Y);
             ContactQuadratic.Scale(c, Signed576.ExtendValue(currentFrame.Finite.FullHeight), term);
             c.Set(currentFrame.PlaneConstant); c.MultiplySign(-1); c.Add(term);
             if (line == 7) c.Clear();
@@ -684,16 +684,16 @@ public sealed class FixedTriangleFiniteConePlaneSectionScopesTests
             Span<ulong> projectedValues = stackalloc ulong[ConePlaneRayPoint.StorageWords];
             Span<int> projectedSigns = stackalloc int[ConePlaneRayPoint.SignCount];
             var projected = new ConePlaneRayPoint(projectedValues, projectedSigns);
-            ContactQuadratic.Scale(expected.X, Signed576.ExtendValue(currentFrame.Normal.X), n);
-            ContactQuadratic.Scale(expected.Y, Signed576.ExtendValue(currentFrame.Normal.Y), term); n.Add(term);
-            ContactQuadratic.Scale(expected.Z, Signed576.ExtendValue(currentFrame.Normal.Z), term); n.Add(term);
+            ContactQuadratic.Scale(expected.X, currentFrame.Normal.X, n);
+            ContactQuadratic.Scale(expected.Y, currentFrame.Normal.Y, term); n.Add(term);
+            ContactQuadratic.Scale(expected.Z, currentFrame.Normal.Z, term); n.Add(term);
             ContactQuadratic.Scale(expected.Denominator, currentFrame.PlaneConstant, term); n.Add(term, -1);
             for (int axis = 0; axis < 3; axis++)
             {
                 ContactQuadratic coordinate = axis == 0 ? expected.X : axis == 1 ? expected.Y : expected.Z;
                 ContactQuadratic output = axis == 0 ? projected.X : axis == 1 ? projected.Y : projected.Z;
                 ContactQuadratic.Scale(coordinate, currentFrame.NormalSquared, output);
-                ContactQuadratic.Scale(n, Signed576.ExtendValue(axis == 0 ? currentFrame.Normal.X : axis == 1 ? currentFrame.Normal.Y : currentFrame.Normal.Z), term);
+                ContactQuadratic.Scale(n, (axis == 0 ? currentFrame.Normal.X : axis == 1 ? currentFrame.Normal.Y : currentFrame.Normal.Z), term);
                 output.Add(term, -1);
             }
             ContactQuadratic.Scale(expected.Denominator, currentFrame.NormalSquared, projected.Denominator);

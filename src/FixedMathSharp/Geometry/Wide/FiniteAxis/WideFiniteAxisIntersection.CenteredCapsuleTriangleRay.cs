@@ -29,82 +29,80 @@ internal static partial class WideFiniteAxisIntersection
         ContactQuadratic numerator, ContactQuadratic denominator, Span<ulong> root,
         out int endpointSign)
     {
-        // Coordinates are raw integers: p=Q/D, p+u*d. The endpoint denominator
-        // 2*S*D retains odd raw lengths. Current candidates have D<434 bits,
-        // Q<500; endpoint coefficients stay <1080 and discriminants <2165 bits.
-        // Complete products belong in the existing quadratic owner, not Signed832.
-        Signed192 aa = GetDot(axis, Vector3d.Zero, axis, Vector3d.Zero);
-        Signed192 ad = GetDot(axis, Vector3d.Zero, direction, Vector3d.Zero);
-        Signed192 dd = GetDot(direction, Vector3d.Zero, direction, Vector3d.Zero);
-        Signed320 perpendicular = WideArithmetic.MultiplySubtract(aa, dd, ad, ad);
-        Signed576 x = SubtractVertex(point.AxisX, center.X, point.Denominator);
-        Signed576 y = SubtractVertex(point.AxisY, center.Y, point.Denominator);
-        Signed576 z = SubtractVertex(point.AxisZ, center.Z, point.Denominator);
-        Signed576 projection = GetRetainedRayDot(x, y, z, axis);
-        Span<ulong> values = stackalloc ulong[12 * CapsuleTriangleRayWords];
-        Span<int> signs = stackalloc int[12];
-        ContactQuadratic a = RayField(values, signs, 0), b = RayField(values, signs, 1);
-        ContactQuadratic c = RayField(values, signs, 2), term = RayField(values, signs, 3);
-        ContactQuadratic work = RayField(values, signs, 4), bound = RayField(values, signs, 5);
-        if (!perpendicular.IsZero)
-        {
-            // At a core point the radial linear term is exactly zero.
-            a.Set(Signed576.ExtendValue(perpendicular)); b.Clear();
-            c.Set(WideArithmetic.MultiplySigned576(
-                RayExtend(WideArithmetic.MultiplySigned192(Signed192.Raw(radius), Signed192.Raw(radius))), aa));
-            c.MultiplySign(-1);
-            _ = ContactQuadratic.TryGetParameter(a, b, c, 1, root, numerator, denominator);
-            Signed192 doubleScale = DoubleParameterScale;
-            Signed576 axialRay = WideArithmetic.MultiplySigned576(
-                WideArithmetic.MultiplySigned576(point.Denominator, ad), doubleScale);
-            ContactQuadratic.Scale(numerator, axialRay, work);
-            ContactQuadratic.Scale(denominator, WideArithmetic.MultiplySigned576(projection, doubleScale), term);
-            work.Add(term);
-            Signed576 extent = WideArithmetic.MultiplySigned576(
-                WideArithmetic.MultiplySigned576(point.Denominator, Signed192.Raw(length)), aa);
-            ContactQuadratic.Scale(denominator, extent, bound);
-            bound.CopyTo(term); term.Add(work, -1);
-            bool belowUpper = term.Sign(root) >= 0;
-            bound.CopyTo(term); term.Add(work);
-            if (belowUpper && term.Sign(root) >= 0)
-            {
-                endpointSign = 0;
-                return;
-            }
-        }
-        // Axial projection is monotone along the ray, so only its approached
-        // endpoint can supply the exit after the finite body admission fails.
-        endpointSign = ad.Sign;
-        System.Diagnostics.Debug.Assert(endpointSign != 0);
-        Signed576 f = WideArithmetic.MultiplySigned576(point.Denominator, DoubleParameterScale);
-        Signed192 signedLength = Signed192.Raw(endpointSign > 0 ? length : -length);
-        Signed576 cap = WideArithmetic.MultiplySigned576(point.Denominator, signedLength);
-        x = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned576(x, DoubleParameterScale),
-            WideArithmetic.MultiplySigned576(cap, Signed192.Raw(axis.X)));
-        y = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned576(y, DoubleParameterScale),
-            WideArithmetic.MultiplySigned576(cap, Signed192.Raw(axis.Y)));
-        z = WideArithmetic.SubtractSigned576(WideArithmetic.MultiplySigned576(z, DoubleParameterScale),
-            WideArithmetic.MultiplySigned576(cap, Signed192.Raw(axis.Z)));
-        a.Set(f); ContactQuadratic.Multiply(a, a, ReadOnlySpan<ulong>.Empty, work);
-        ContactQuadratic.Scale(work, RayExtend(dd), a);
-        b.Set(f); c.Set(GetRetainedRayDot(x, y, z, direction));
-        ContactQuadratic.Multiply(b, c, ReadOnlySpan<ulong>.Empty, term); term.CopyTo(b);
-        c.Clear();
-        Span<Signed576> components = stackalloc Signed576[3] { x, y, z };
-        for (int coordinate = 0; coordinate < 3; coordinate++)
-        {
-            term.Set(components[coordinate]);
-            ContactQuadratic.Multiply(term, term, ReadOnlySpan<ulong>.Empty, bound);
-            c.Add(bound);
-        }
-        ContactQuadratic.Scale(work, RayExtend(WideArithmetic.MultiplySigned192(
-            Signed192.Raw(radius), Signed192.Raw(radius))), term);
-        c.Add(term, -1);
-        _ = ContactQuadratic.TryGetParameter(a, b, c, 1, root, numerator, denominator);
-        // The approached hemisphere contains the upper root; cc may be positive
-        // because the retained core point need not be inside the endpoint sphere.
+        Span<ulong> values = stackalloc ulong[8 * CapsuleTriangleRayWords]; Span<int> signs = stackalloc int[8];
+        var x = RayField(values, signs, 0); var y = RayField(values, signs, 1);
+        var z = RayField(values, signs, 2); var d = RayField(values, signs, 3);
+        x.Set(SubtractVertex(point.AxisX, center.X, point.Denominator));
+        y.Set(SubtractVertex(point.AxisY, center.Y, point.Denominator));
+        z.Set(SubtractVertex(point.AxisZ, center.Z, point.Denominator)); d.Set(point.Denominator);
+        GetCoincidentCapsuleRayExit(x, y, z, d, axis, length, radius, direction,
+            numerator, denominator, root, out endpointSign);
     }
 
+    /// <summary>First body/cap exit from an exact rational core point translated about the capsule center.</summary>
+    private static void GetCoincidentCapsuleRayExit(scoped ContactQuadratic px, scoped ContactQuadratic py,
+        scoped ContactQuadratic pz, scoped ContactQuadratic pointD, Vector3d axis, Fixed64 length,
+        Fixed64 radius, Vector3d direction, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
+        scoped Span<ulong> root, out int endpointSign)
+    {
+        Signed192 aa = GetDot(axis, Vector3d.Zero, axis, Vector3d.Zero),
+            ad = GetDot(axis, Vector3d.Zero, direction, Vector3d.Zero),
+            dd = GetDot(direction, Vector3d.Zero, direction, Vector3d.Zero);
+        Signed320 perpendicular = WideArithmetic.MultiplySubtract(aa, dd, ad, ad);
+        int words = numerator.FieldWords;
+        Span<ulong> values = stackalloc ulong[24 * words]; Span<int> signs = stackalloc int[24];
+        var a = ContactQuadratic.At(values, signs, 0, words); var b = ContactQuadratic.At(values, signs, 1, words);
+        var c = ContactQuadratic.At(values, signs, 2, words); var term = ContactQuadratic.At(values, signs, 3, words);
+        var work = ContactQuadratic.At(values, signs, 4, words); var bound = ContactQuadratic.At(values, signs, 5, words);
+        var projection = ContactQuadratic.At(values, signs, 6, words); var f = ContactQuadratic.At(values, signs, 7, words);
+        var x = ContactQuadratic.At(values, signs, 8, words); var y = ContactQuadratic.At(values, signs, 9, words);
+        var z = ContactQuadratic.At(values, signs, 10, words); var cap = ContactQuadratic.At(values, signs, 11, words);
+        ContactQuadratic.Scale(px, RayExtend(Signed192.Raw(axis.X)), projection);
+        ContactQuadratic.Scale(py, RayExtend(Signed192.Raw(axis.Y)), term); projection.Add(term);
+        ContactQuadratic.Scale(pz, RayExtend(Signed192.Raw(axis.Z)), term); projection.Add(term);
+        Signed320 radiusSquared = WideArithmetic.MultiplySigned192(Signed192.Raw(radius), Signed192.Raw(radius));
+        if (!perpendicular.IsZero)
+        {
+            a.Set(Signed576.ExtendValue(perpendicular)); b.Clear(); c.Set(WideArithmetic.MultiplySigned320(radiusSquared, aa)); c.MultiplySign(-1);
+            _ = ContactQuadratic.TryGetParameter(a, b, c, 1, root, numerator, denominator);
+            ContactQuadratic.Scale(pointD, RayExtend(ad), term);
+            ContactQuadratic.Scale(term, RayExtend(DoubleParameterScale), f);
+            ContactQuadratic.Multiply(numerator, f, root, work);
+            ContactQuadratic.Scale(projection, RayExtend(DoubleParameterScale), f);
+            ContactQuadratic.Multiply(denominator, f, root, term); work.Add(term);
+            ContactQuadratic.Scale(pointD, RayExtend(Signed192.Raw(length)), f);
+            ContactQuadratic.Scale(f, RayExtend(aa), cap);
+            ContactQuadratic.Multiply(denominator, cap, root, bound);
+            bound.CopyTo(term); term.Add(work, -1); bool belowUpper = term.Sign(root) >= 0;
+            bound.CopyTo(term); term.Add(work);
+            if (belowUpper && term.Sign(root) >= 0) { endpointSign = 0; return; }
+        }
+        endpointSign = ad.Sign;
+        System.Diagnostics.Debug.Assert(endpointSign != 0);
+        ContactQuadratic.Scale(pointD, RayExtend(DoubleParameterScale), f);
+        ContactQuadratic.Scale(pointD, RayExtend(Signed192.Raw(endpointSign > 0 ? length : -length)), cap);
+        for (int coordinate = 0; coordinate < 3; coordinate++)
+        {
+            ContactQuadratic source = coordinate == 0 ? px : coordinate == 1 ? py : pz;
+            ContactQuadratic target = coordinate == 0 ? x : coordinate == 1 ? y : z;
+            ContactQuadratic.Scale(source, RayExtend(DoubleParameterScale), target);
+            ContactQuadratic.Scale(cap, RayExtend(Signed192.Raw(axis[coordinate])), term); target.Add(term, -1);
+        }
+        ContactQuadratic.Multiply(f, f, ReadOnlySpan<ulong>.Empty, work);
+        ContactQuadratic.Scale(work, RayExtend(dd), a);
+        ContactQuadratic.Scale(x, RayExtend(Signed192.Raw(direction.X)), projection);
+        ContactQuadratic.Scale(y, RayExtend(Signed192.Raw(direction.Y)), term); projection.Add(term);
+        ContactQuadratic.Scale(z, RayExtend(Signed192.Raw(direction.Z)), term); projection.Add(term);
+        ContactQuadratic.Multiply(f, projection, ReadOnlySpan<ulong>.Empty, b);
+        c.Clear();
+        for (int coordinate = 0; coordinate < 3; coordinate++)
+        {
+            ContactQuadratic component = coordinate == 0 ? x : coordinate == 1 ? y : z;
+            ContactQuadratic.Multiply(component, component, ReadOnlySpan<ulong>.Empty, term); c.Add(term);
+        }
+        ContactQuadratic.Scale(work, RayExtend(radiusSquared), term); c.Add(term, -1);
+        _ = ContactQuadratic.TryGetParameter(a, b, c, 1, root, numerator, denominator);
+    }
     private static void GetCapsuleRayDepth(ContactQuadratic numerator, ContactQuadratic denominator,
         ReadOnlySpan<ulong> root, Vector3d direction, out Fixed64 depth, out bool clamped)
     {

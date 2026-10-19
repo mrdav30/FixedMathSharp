@@ -12,9 +12,10 @@ namespace FixedMathSharp.Geometry;
 /// <content>Rational rim normal intervals and finite-axis polyhedral normal cones.</content>
 internal static partial class SegmentConeSurfaceCandidates
 {
-    private static bool BuildFamilyRimBound(SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
+    private static bool BuildFamilyRimBound(in SegmentConeSurfaceCandidate candidate, in SegmentConeSurfaceGeometry geometry,
         scoped ReadOnlySpan<WideAxis3> fan, ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilyWitness witness)
     {
+        int FamilyWords = witness.FieldWords;
         Span<ulong> work = stackalloc ulong[20 * FamilyWords]; Span<int> signs = stackalloc int[20];
         ContactQuadratic sx = At(work, signs, 0, FamilyWords), sy = At(work, signs, 1, FamilyWords), sz = At(work, signs, 2, FamilyWords);
         ContactQuadratic cap = At(work, signs, 3, FamilyWords), n = At(work, signs, 4, FamilyWords), d = At(work, signs, 5, FamilyWords);
@@ -23,8 +24,8 @@ internal static partial class SegmentConeSurfaceCandidates
         // A zero-depth rim point p has rational coordinates and |p_rad|=R.
         // (-H*p.x,-R²,-H*p.z) and (0,R²,0) are exact generators;
         // no square root or rounded radial direction is needed here.
-        Signed576 height = ExtendFamily(Signed192.Raw(candidate.Input.Height));
-        Signed576 radiusSquared = Signed576.ExtendValue(WideArithmetic.MultiplySigned192(
+        Signed832 height = ExtendFamily(Signed192.Raw(candidate.Input.Height));
+        Signed832 radiusSquared = Signed832.ExtendValue(WideArithmetic.MultiplySigned192(
             Signed192.Raw(candidate.Input.Radius), Signed192.Raw(candidate.Input.Radius)));
         Scale(witness[3], height, sx); sx.MultiplySign(-1);
         Scale(witness[5], height, sz); sz.MultiplySign(-1);
@@ -33,7 +34,7 @@ internal static partial class SegmentConeSurfaceCandidates
         n.Set(ExtendFamily(Signed192.Signed(item.First == -1 ? 1 : 0)));
         if (item.First >= 0)
         {
-            FamilyConstraint(geometry, fan, item, witness, item.First, out Signed576 x, out Signed576 y, out Signed576 z);
+            FamilyConstraint(geometry, fan, item, witness, item.First, out Signed832 x, out Signed832 y, out Signed832 z);
             Scale(sx, x, n); Scale(sy, y, term); n.Add(term); Scale(sz, z, term); n.Add(term);
             Scale(cap, y, d); d.Add(n, -1); n.MultiplySign(-1);
             int direction = d.Sign(witness.Root);
@@ -54,15 +55,16 @@ internal static partial class SegmentConeSurfaceCandidates
     private static bool BuildFamilyAxis(in SegmentConeSurfaceGeometry geometry, scoped ReadOnlySpan<WideAxis3> fan,
         ConeSurfaceFamilyEvent item, scoped ref ConeSurfaceFamilyWitness witness)
     {
+        int FamilyWords = witness.FieldWords;
         if (item.Kind == ConeSurfaceFamilyEventKind.Axis)
             witness[item.First].Set(ExtendFamily(Signed192.Signed(item.Branch)));
         else
         {
-            FamilyConstraint(geometry, fan, item, witness, item.First, out Signed576 ax, out Signed576 ay, out Signed576 az);
-            Signed576 bx, by, bz;
+            FamilyConstraint(geometry, fan, item, witness, item.First, out Signed832 ax, out Signed832 ay, out Signed832 az);
+            Signed832 bx, by, bz;
             if (item.Kind == ConeSurfaceFamilyEventKind.AxisPlane)
             {
-                Signed576 unit = ExtendFamily(Signed192.Signed(1));
+                Signed832 unit = ExtendFamily(Signed192.Signed(1));
                 bx = item.Second == 0 ? unit : default; by = item.Second == 1 ? unit : default; bz = item.Second == 2 ? unit : default;
             }
             else FamilyConstraint(geometry, fan, item, witness, item.Second, out bx, out by, out bz);

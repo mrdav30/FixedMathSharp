@@ -15,6 +15,7 @@ internal static partial class SegmentConeSurfaceCandidates
 {
     private static void AccumulateSide(in SegmentConeSurfaceGeometry geometry, ref ConeSurfaceSelection selection)
     {
+        int Words = geometry.Words;
         if (geometry.Radius.IsZero)
             return;
         Span<ulong> values = stackalloc ulong[24 * Words];
@@ -22,7 +23,7 @@ internal static partial class SegmentConeSurfaceCandidates
         Span<ulong> root = stackalloc ulong[Words];
         for (int endpoint = geometry.Edge.IsZero ? 0 : -1; endpoint <= (geometry.Edge.IsZero ? 0 : 1); endpoint++)
         {
-            WideAxis3 point = endpoint == 1 ? geometry.B : geometry.A;
+            WideDirection3d point = endpoint == 1 ? geometry.B : geometry.A;
             if (endpoint >= 0 && point.X.IsZero && point.Z.IsZero)
             {
                 Vector3d authoredPoint = endpoint == 0 ? geometry.Input.Segment.Start : geometry.Input.Segment.End;
@@ -51,24 +52,25 @@ internal static partial class SegmentConeSurfaceCandidates
     private static bool BuildSideNormal(in SegmentConeSurfaceGeometry geometry, int endpoint, int branch,
         Span<ulong> values, Span<int> signs, Span<ulong> root)
     {
-        WideAxis3 axis = endpoint < 0 ? geometry.Edge : endpoint == 0 ? geometry.A : geometry.B;
-        Signed576 radial = CircularRimContactAlgebra.RadialDot(axis, axis);
+        int Words = geometry.Words;
+        WideDirection3d axis = endpoint < 0 ? geometry.Edge : endpoint == 0 ? geometry.A : geometry.B;
+        Signed832 radial = CircularRimContactAlgebra.RadialDot(axis, axis);
         if (radial.IsZero)
             return false;
         Signed192 h = Signed192.Raw(geometry.Input.Height), r = Signed192.Raw(geometry.Input.Radius);
-        ContactQuadratic nx = At(values, signs, 0), ny = At(values, signs, 1), nz = At(values, signs, 2);
+        ContactQuadratic nx = At(values, signs, 0, Words), ny = At(values, signs, 1, Words), nz = At(values, signs, 2, Words);
         if (endpoint >= 0)
         {
             BuildSidePointNormal(geometry, axis, branch, values, signs, root);
             return true;
         }
         Span<ulong> scratch = stackalloc ulong[4 * Words];
-        Span<ulong> hSquared = Slot(scratch, 0), rSquared = Slot(scratch, 1), product = Slot(scratch, 2), square = Slot(scratch, 3);
+        Span<ulong> hSquared = Slot(scratch, 0, Words), rSquared = Slot(scratch, 1, Words), product = Slot(scratch, 2, Words), square = Slot(scratch, 3, Words);
         Import(WideArithmetic.MultiplySigned192(h, h), hSquared);
         Import(WideArithmetic.MultiplySigned192(r, r), rSquared);
         Import(radial, square);
         WideArithmetic.MultiplyMagnitudes(square, hSquared, root);
-        Import(WideArithmetic.MultiplySigned320(axis.Y, axis.Y), square);
+        Import(WideArithmetic.MultiplySigned576(axis.Y, axis.Y), square);
         WideArithmetic.MultiplyMagnitudes(square, rSquared, product);
         int discriminantSign = 1;
         CylinderContactAlgebra.Add(product, -1, root, ref discriminantSign);
@@ -79,38 +81,40 @@ internal static partial class SegmentConeSurfaceCandidates
             // At tangency E is parallel to a generator. Cancel the extra
             // radial edge factor before constructing finite interval bounds:
             // n=(H² Ex sign(Ey),-R² |Ey|,H² Ez sign(Ey)). Components <325 bits.
-            ContactQuadratic component = At(values, signs, 3);
-            component.Set(Signed576.ExtendValue(axis.X)); Scale(component, hSquared, axis.Y.Sign, nx);
-            component.Set(Signed576.ExtendValue(axis.Z)); Scale(component, hSquared, axis.Y.Sign, nz);
-            component.Set(Signed576.ExtendValue(axis.Y)); Scale(component, rSquared, -axis.Y.Sign, ny);
+            ContactQuadratic component = At(values, signs, 3, Words);
+            component.Set(Signed832.ExtendValue(axis.X)); Scale(component, hSquared, axis.Y.Sign, nx);
+            component.Set(Signed832.ExtendValue(axis.Z)); Scale(component, hSquared, axis.Y.Sign, nz);
+            component.Set(Signed832.ExtendValue(axis.Y)); Scale(component, rSquared, -axis.Y.Sign, ny);
             return true;
         }
-        nx.Set(WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(axis.Y, axis.X), geometry.Input.Radius.m_rawValue));
-        ny.Set(WideArithmetic.MultiplySigned576(radial, geometry.Input.Radius.m_rawValue)); ny.MultiplySign(-1);
-        nz.Set(WideArithmetic.MultiplySigned576(WideArithmetic.MultiplySigned320(axis.Y, axis.Z), geometry.Input.Radius.m_rawValue));
+        nx.Set(WideArithmetic.MultiplySigned832(WideArithmetic.MultiplySigned576(axis.Y, axis.X), Signed192.Raw(geometry.Input.Radius)));
+        ny.Set(WideArithmetic.MultiplySigned832(radial, Signed192.Raw(geometry.Input.Radius))); ny.MultiplySign(-1);
+        nz.Set(WideArithmetic.MultiplySigned832(WideArithmetic.MultiplySigned576(axis.Y, axis.Z), Signed192.Raw(geometry.Input.Radius)));
         Import(axis.Z, nx.Radical); nx.Signs[1] = -branch * axis.Z.Sign;
         Import(axis.X, nz.Radical); nz.Signs[1] = branch * axis.X.Sign;
         return true;
     }
 
-    private static void BuildSidePointNormal(in SegmentConeSurfaceGeometry geometry, WideAxis3 radialAxis, int branch,
+    private static void BuildSidePointNormal(in SegmentConeSurfaceGeometry geometry, WideDirection3d radialAxis, int branch,
         Span<ulong> values, Span<int> signs, Span<ulong> root)
     {
+        int Words = geometry.Words;
         Import(CircularRimContactAlgebra.RadialDot(radialAxis, radialAxis), root);
-        ContactQuadratic nx = At(values, signs, 0), ny = At(values, signs, 1), nz = At(values, signs, 2);
+        ContactQuadratic nx = At(values, signs, 0, Words), ny = At(values, signs, 1, Words), nz = At(values, signs, 2, Words);
         Signed192 h = Signed192.Raw(geometry.Input.Height), r = Signed192.Raw(geometry.Input.Radius);
-        nx.Set(WideArithmetic.MultiplySigned320(radialAxis.X, h)); nx.MultiplySign(-branch);
-        nz.Set(WideArithmetic.MultiplySigned320(radialAxis.Z, h)); nz.MultiplySign(-branch);
-        ny.Clear(); Import(Signed320.ExtendValue(r), ny.Radical); ny.Signs[1] = -1;
+        nx.Set(WideArithmetic.MultiplySigned576(radialAxis.X, h)); nx.MultiplySign(-branch);
+        nz.Set(WideArithmetic.MultiplySigned576(radialAxis.Z, h)); nz.MultiplySign(-branch);
+        ny.Clear(); Import(Signed576.ExtendValue(r), ny.Radical); ny.Signs[1] = -1;
     }
 
     private static bool HasSideCircleDomain(in SegmentConeSurfaceGeometry geometry, int endpoint,
         Span<ulong> values, Span<int> signs, Span<ulong> root)
     {
-        ContactQuadratic limit = At(values, signs, 0);
-        limit.Set(WideArithmetic.MultiplySigned320(geometry.Edge.Y, Signed192.Raw(geometry.Input.Radius)));
+        int Words = geometry.Words;
+        ContactQuadratic limit = At(values, signs, 0, Words);
+        limit.Set(WideArithmetic.MultiplySigned576(geometry.Edge.Y, Signed192.Raw(geometry.Input.Radius)));
         limit.MultiplySign(-1);
-        Import(Signed320.ExtendValue(Signed192.Raw(geometry.Input.Height)), limit.Radical);
+        Import(Signed576.ExtendValue(Signed192.Raw(geometry.Input.Height)), limit.Radical);
         limit.Signs[1] = endpoint == 0 ? -1 : 1;
         Import(CircularRimContactAlgebra.RadialDot(geometry.Edge, geometry.Edge), root);
         int sign = limit.Sign(root);
@@ -122,38 +126,40 @@ internal static partial class SegmentConeSurfaceCandidates
     private static void BuildSideMetric(in SegmentConeSurfaceGeometry geometry, int endpoint,
         Span<ulong> values, Span<int> signs, ReadOnlySpan<ulong> root)
     {
-        ContactQuadratic metric = At(values, signs, 7), gap = At(values, signs, 8), product = At(values, signs, 3);
+        int Words = geometry.Words;
+        ContactQuadratic metric = At(values, signs, 7, Words), gap = At(values, signs, 8, Words), product = At(values, signs, 3, Words);
         metric.Clear(); gap.Clear();
-        WideAxis3 point = endpoint == 1 ? geometry.B : geometry.A;
-        WideAxis3 offset = new(point.X, WideArithmetic.SubtractSigned320(point.Y, geometry.Finite.ShapeFrame.Cap), point.Z);
+        WideDirection3d point = endpoint == 1 ? geometry.B : geometry.A;
+        WideDirection3d offset = new(point.X, WideArithmetic.SubtractSigned576(point.Y, geometry.Cap), point.Z);
         for (int axis = 0; axis < 3; axis++)
         {
-            Multiply(At(values, signs, axis), At(values, signs, axis), root, product); metric.Add(product);
-            Scale(At(values, signs, axis), Signed576.ExtendValue(Component(offset, axis)), product); gap.Add(product);
+            Multiply(At(values, signs, axis, Words), At(values, signs, axis, Words), root, product); metric.Add(product);
+            Scale(At(values, signs, axis, Words), Signed832.ExtendValue(Component(offset, axis)), product); gap.Add(product);
         }
     }
 
     private static bool TryBuildSideFoot(in SegmentConeSurfaceGeometry geometry, int endpoint,
         Span<ulong> values, Span<int> signs, ReadOnlySpan<ulong> root, out bool interval)
     {
+        int Words = geometry.Words;
         interval = false;
-        ContactQuadratic numerator = At(values, signs, 5), denominator = At(values, signs, 6);
-        ContactQuadratic metric = At(values, signs, 7), gap = At(values, signs, 8);
-        ContactQuadratic product = At(values, signs, 3), temporary = At(values, signs, 4);
+        ContactQuadratic numerator = At(values, signs, 5, Words), denominator = At(values, signs, 6, Words);
+        ContactQuadratic metric = At(values, signs, 7, Words), gap = At(values, signs, 8, Words);
+        ContactQuadratic product = At(values, signs, 3, Words), temporary = At(values, signs, 4, Words);
         BuildSideMetric(geometry, endpoint, values, signs, root);
         if (endpoint >= 0)
         {
-            numerator.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(endpoint))));
-            denominator.Set(Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1))));
+            numerator.Set(Signed832.ExtendValue(Signed576.ExtendValue(Signed192.Signed(endpoint))));
+            denominator.Set(Signed832.ExtendValue(Signed576.ExtendValue(Signed192.Signed(1))));
             if (!AdmitsEndpointNormal(geometry.Edge, endpoint, values, signs, root))
                 return false;
         }
         else
         {
-            Scale(At(values, signs, 2), Signed576.ExtendValue(geometry.A.X), numerator);
-            Scale(At(values, signs, 0), Signed576.ExtendValue(geometry.A.Z), product); numerator.Add(product, -1); numerator.MultiplySign(-1);
-            Scale(At(values, signs, 2), Signed576.ExtendValue(geometry.Edge.X), denominator);
-            Scale(At(values, signs, 0), Signed576.ExtendValue(geometry.Edge.Z), product); denominator.Add(product, -1);
+            Scale(At(values, signs, 2, Words), Signed832.ExtendValue(geometry.A.X), numerator);
+            Scale(At(values, signs, 0, Words), Signed832.ExtendValue(geometry.A.Z), product); numerator.Add(product, -1); numerator.MultiplySign(-1);
+            Scale(At(values, signs, 2, Words), Signed832.ExtendValue(geometry.Edge.X), denominator);
+            Scale(At(values, signs, 0, Words), Signed832.ExtendValue(geometry.Edge.Z), product); denominator.Add(product, -1);
             int sign = denominator.Sign(root);
             if (sign == 0)
             {
@@ -182,17 +188,18 @@ internal static partial class SegmentConeSurfaceCandidates
     private static bool AdmitsSideParameter(in SegmentConeSurfaceGeometry geometry,
         Span<ulong> values, Span<int> signs, ReadOnlySpan<ulong> root)
     {
-        if (!ContainsQuadraticParameter(geometry, At(values, signs, 5), At(values, signs, 6), root))
+        int Words = geometry.Words;
+        if (!ContainsQuadraticParameter(geometry, At(values, signs, 5, Words), At(values, signs, 6, Words), root))
             return false;
-        ContactQuadratic product = At(values, signs, 3), temporary = At(values, signs, 4);
-        ContactQuadratic qY = At(values, signs, 9), common = At(values, signs, 10), margin = At(values, signs, 11);
-        Scale(At(values, signs, 6), Signed576.ExtendValue(geometry.A.Y), product);
-        Scale(At(values, signs, 5), Signed576.ExtendValue(geometry.Edge.Y), temporary); product.Add(temporary);
-        Multiply(product, At(values, signs, 7), root, qY);
-        Multiply(At(values, signs, 8), At(values, signs, 1), root, product);
-        Multiply(product, At(values, signs, 6), root, temporary); qY.Add(temporary, -1);
-        Multiply(At(values, signs, 6), At(values, signs, 7), root, common);
-        Scale(common, Signed576.ExtendValue(geometry.Finite.ShapeFrame.Cap), margin);
+        ContactQuadratic product = At(values, signs, 3, Words), temporary = At(values, signs, 4, Words);
+        ContactQuadratic qY = At(values, signs, 9, Words), common = At(values, signs, 10, Words), margin = At(values, signs, 11, Words);
+        Scale(At(values, signs, 6, Words), Signed832.ExtendValue(geometry.A.Y), product);
+        Scale(At(values, signs, 5, Words), Signed832.ExtendValue(geometry.Edge.Y), temporary); product.Add(temporary);
+        Multiply(product, At(values, signs, 7, Words), root, qY);
+        Multiply(At(values, signs, 8, Words), At(values, signs, 1, Words), root, product);
+        Multiply(product, At(values, signs, 6, Words), root, temporary); qY.Add(temporary, -1);
+        Multiply(At(values, signs, 6, Words), At(values, signs, 7, Words), root, common);
+        Scale(common, Signed832.ExtendValue(geometry.Cap), margin);
         // p is in the cone and gap>=0 with inward ny<0, hence qY>=pY>=-cap.
         // Only the upper generator endpoint needs an independent rejection.
         margin.Add(qY, -1);
@@ -202,30 +209,31 @@ internal static partial class SegmentConeSurfaceCandidates
     private static bool ContainsQuadraticParameter(in SegmentConeSurfaceGeometry geometry,
         ContactQuadratic numerator, ContactQuadratic denominator, ReadOnlySpan<ulong> root)
     {
+        int Words = geometry.Words;
         // Isolated t coefficients <660 bits; a reduced parallel-family
         // bound has <849 bits. Coordinates then have <1048 bits; the cone
         // quadratic (including raw H²/R²) stays below 2225 bits.
         Span<ulong> values = stackalloc ulong[14 * Words];
         Span<int> signs = stackalloc int[14];
-        ContactQuadratic coordinate = At(values, signs, 0), temporary = At(values, signs, 1), square = At(values, signs, 2);
-        ContactQuadratic radial = At(values, signs, 3), axial = At(values, signs, 4), limit = At(values, signs, 5), result = At(values, signs, 6);
+        ContactQuadratic coordinate = At(values, signs, 0, Words), temporary = At(values, signs, 1, Words), square = At(values, signs, 2, Words);
+        ContactQuadratic radial = At(values, signs, 3, Words), axial = At(values, signs, 4, Words), limit = At(values, signs, 5, Words), result = At(values, signs, 6, Words);
         radial.Clear();
         for (int axis = 0; axis < 3; axis += 2)
         {
-            Scale(denominator, Signed576.ExtendValue(Component(geometry.A, axis)), coordinate);
-            Scale(numerator, Signed576.ExtendValue(Component(geometry.Edge, axis)), temporary); coordinate.Add(temporary);
+            Scale(denominator, Signed832.ExtendValue(Component(geometry.A, axis)), coordinate);
+            Scale(numerator, Signed832.ExtendValue(Component(geometry.Edge, axis)), temporary); coordinate.Add(temporary);
             Multiply(coordinate, coordinate, root, square); radial.Add(square);
         }
-        Scale(denominator, Signed576.ExtendValue(WideArithmetic.SubtractSigned320(geometry.Finite.ShapeFrame.Cap, geometry.A.Y)), axial);
-        Scale(numerator, Signed576.ExtendValue(geometry.Edge.Y), temporary); axial.Add(temporary, -1);
+        Scale(denominator, Signed832.ExtendValue(WideArithmetic.SubtractSigned576(geometry.Cap, geometry.A.Y)), axial);
+        Scale(numerator, Signed832.ExtendValue(geometry.Edge.Y), temporary); axial.Add(temporary, -1);
         if (axial.Sign(root) < 0)
             return false;
-        Scale(denominator, Signed576.ExtendValue(geometry.Finite.FullHeight), limit); limit.Add(axial, -1);
+        Scale(denominator, Signed832.ExtendValue(geometry.FullHeight), limit); limit.Add(axial, -1);
         if (limit.Sign(root) < 0)
             return false;
-        Scale(radial, Signed576.ExtendValue(WideArithmetic.MultiplySigned192(Signed192.Raw(geometry.Input.Height), Signed192.Raw(geometry.Input.Height))), result);
+        Scale(radial, Signed832.ExtendValue(WideArithmetic.MultiplySigned192(Signed192.Raw(geometry.Input.Height), Signed192.Raw(geometry.Input.Height))), result);
         Multiply(axial, axial, root, square);
-        Scale(square, Signed576.ExtendValue(WideArithmetic.MultiplySigned192(Signed192.Raw(geometry.Input.Radius), Signed192.Raw(geometry.Input.Radius))), temporary);
+        Scale(square, Signed832.ExtendValue(WideArithmetic.MultiplySigned192(Signed192.Raw(geometry.Input.Radius), Signed192.Raw(geometry.Input.Radius))), temporary);
         result.Add(temporary, -1);
         return result.Sign(root) <= 0;
     }
@@ -233,33 +241,34 @@ internal static partial class SegmentConeSurfaceCandidates
     private static bool HasSideInterval(in SegmentConeSurfaceGeometry geometry,
         Span<ulong> normals, Span<int> normalSigns, ReadOnlySpan<ulong> root)
     {
+        int Words = geometry.Words;
         // The only dependent tangent case has zero discriminant, hence all
         // bounds are rational. Reducing n in BuildSideNormal keeps clipping
         // weights <849 bits and the subsequent cone query <2225 bits.
         Span<ulong> values = stackalloc ulong[20 * Words];
         Span<int> signs = stackalloc int[20];
-        ContactQuadratic low = At(values, signs, 0), lowD = At(values, signs, 1);
-        ContactQuadratic high = At(values, signs, 2), highD = At(values, signs, 3);
-        ContactQuadratic bound = At(values, signs, 4), boundD = At(values, signs, 5);
-        ContactQuadratic constant = At(values, signs, 6), velocity = At(values, signs, 7);
-        ContactQuadratic temporary = At(values, signs, 8), unit = At(values, signs, 9);
-        Signed576 one = Signed576.ExtendValue(Signed320.ExtendValue(Signed192.Signed(1)));
+        ContactQuadratic low = At(values, signs, 0, Words), lowD = At(values, signs, 1, Words);
+        ContactQuadratic high = At(values, signs, 2, Words), highD = At(values, signs, 3, Words);
+        ContactQuadratic bound = At(values, signs, 4, Words), boundD = At(values, signs, 5, Words);
+        ContactQuadratic constant = At(values, signs, 6, Words), velocity = At(values, signs, 7, Words);
+        ContactQuadratic temporary = At(values, signs, 8, Words), unit = At(values, signs, 9, Words);
+        Signed832 one = Signed832.ExtendValue(Signed576.ExtendValue(Signed192.Signed(1)));
         low.Clear(); lowD.Set(one); high.Set(one); highD.Set(one); unit.Set(one);
         for (int domain = 0; domain < 2; domain++)
         {
-            ContactQuadratic divisor = domain == 0 ? At(normals, normalSigns, 7) : unit;
-            Scale(divisor, Signed576.ExtendValue(geometry.A.Y), constant);
+            ContactQuadratic divisor = domain == 0 ? At(normals, normalSigns, 7, Words) : unit;
+            Scale(divisor, Signed832.ExtendValue(geometry.A.Y), constant);
             if (domain == 0)
             {
-                Multiply(At(normals, normalSigns, 8), At(normals, normalSigns, 1), root, temporary);
+                Multiply(At(normals, normalSigns, 8, Words), At(normals, normalSigns, 1, Words), root, temporary);
                 constant.Add(temporary, -1);
             }
-            Scale(divisor, Signed576.ExtendValue(geometry.Edge.Y), velocity);
+            Scale(divisor, Signed832.ExtendValue(geometry.Edge.Y), velocity);
             int velocitySign = velocity.Sign(root);
             System.Diagnostics.Debug.Assert(velocitySign != 0);
             for (int side = -1; side <= 1; side += 2)
             {
-                Scale(divisor, Signed576.ExtendValue(geometry.Finite.ShapeFrame.Cap), bound);
+                Scale(divisor, Signed832.ExtendValue(geometry.Cap), bound);
                 bound.MultiplySign(side); bound.Add(constant, -1);
                 bound.MultiplySign(velocitySign); velocity.CopyTo(boundD, velocitySign);
                 bool lower = side * velocitySign < 0;

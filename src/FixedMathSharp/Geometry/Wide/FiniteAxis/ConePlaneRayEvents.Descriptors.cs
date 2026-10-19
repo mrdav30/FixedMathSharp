@@ -150,10 +150,10 @@ internal static partial class ConePlaneRayEvents
         if (first.Matches(second) && firstSource.Scope == secondSource.Scope && firstSource.A == secondSource.A
             && firstSource.B == secondSource.B)
             return 0;
-        Span<ulong> av = stackalloc ulong[ConePlaneRayPoint.StorageWords];
+        Span<ulong> av = stackalloc ulong[frame.PointStorageWords];
         Span<int> sa = stackalloc int[ConePlaneRayPoint.SignCount];
-        Span<ulong> ar = stackalloc ulong[RootWords];
-        var a = new ConePlaneRayPoint(av, sa);
+        Span<ulong> ar = stackalloc ulong[frame.RootWords];
+        var a = new ConePlaneRayPoint(av, sa, frame.FieldWords);
         if (!ReconstructPoint(firstSource, frame, first, a, ar))
             throw new InvalidOperationException("An admitted finite event could not be reconstructed.");
         int comparison = CompareEventAnchors(a, ar, secondSource, second, frame);
@@ -167,9 +167,9 @@ internal static partial class ConePlaneRayEvents
     internal static int CompareEventAnchors(scoped ConePlaneRayPoint first, scoped ReadOnlySpan<ulong> firstRoot,
         in ConePlaneRayEventSource secondSource, ConePlaneRayEvent second, in ConePlaneRayFrame frame)
     {
-        Span<ulong> values = stackalloc ulong[ConePlaneRayPoint.StorageWords], root = stackalloc ulong[RootWords];
+        Span<ulong> values = stackalloc ulong[frame.PointStorageWords], root = stackalloc ulong[frame.RootWords];
         Span<int> signs = stackalloc int[ConePlaneRayPoint.SignCount];
-        var point = new ConePlaneRayPoint(values, signs);
+        var point = new ConePlaneRayPoint(values, signs, frame.FieldWords);
         if (!ReconstructPoint(secondSource, frame, second, point, root))
             throw new InvalidOperationException("An admitted finite event could not be reconstructed.");
         return first.CompareTo(point, firstRoot, root);
