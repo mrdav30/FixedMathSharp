@@ -8,6 +8,92 @@ namespace FixedMathSharp.Tests.Bounds;
 public sealed class FixedConvexPrismCurvedWitnessTests
 {
     [Theory]
+    [InlineData(true, -1L, false)]
+    [InlineData(true, 0L, false)]
+    [InlineData(true, 1L, false)]
+    [InlineData(false, -1L, false)]
+    [InlineData(false, 0L, false)]
+    [InlineData(false, 1L, false)]
+    [InlineData(true, 0L, true)]
+    [InlineData(false, 0L, true)]
+    public void InitialZeroCertificate_PreservesCompleteAdmissionAndFiniteWitnesses(bool cone, long gapRaw, bool exterior)
+    {
+        const long k = 1_920_767_767L;
+        FixedQuaternion rotation = cone ? FixedQuaternion.Identity
+            : new(Fixed64.Zero, Fixed64.Zero, Fixed64.FromRaw(-k), Fixed64.FromRaw(2 * k));
+        Vector3d center = Vector3d.Up * (cone ? Fixed64.FromFraction(-3, 2) : (Fixed64)8);
+        Vector3d normal = cone ? Vector3d.Up : Vector3d.Down;
+        Vector3d origin = normal * Fixed64.FromRaw(gapRaw);
+        // An exterior footprint still has zero vertical gap: complete admission
+        // must reject it before that projection can certify a global minimum.
+        if (exterior) origin += Vector3d.Forward * (Fixed64)20;
+        Vector2d[] footprint = Square((Fixed64)10);
+        bool hit = cone
+            ? FixedConvexPrismRelations.TryGetCenteredConeContact(center, rotation, Vector3d.Up,
+                Fixed64.One, Fixed64.Half, origin, Fixed64.Zero, footprint, Fixed64.One, out FixedContactAnchors contact)
+            : FixedConvexPrismRelations.TryGetCenteredCylinderContact(center, rotation, Vector3d.Up,
+                (Fixed64)10, (Fixed64)5, origin, Fixed64.Zero, footprint, Fixed64.One, out contact);
+        Assert.Equal(gapRaw <= 0 && !exterior, hit);
+        if (!hit)
+        {
+            Assert.Equal(default, contact);
+            return;
+        }
+        // The cone apex is (0,-1,0). The cylinder's exact authored axis
+        // (4,3,0)/5 gives its lowest rim point (-1,1,0). The broad prism face
+        // has the same supporting plane at zero and separates after one raw.
+        Assert.Equal(normal, contact.Normal);
+        Assert.Equal(Fixed64.FromRaw(-gapRaw), contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        Vector3d first = Offset(contact.FirstAnchor, Vector3d.Zero);
+        Vector3d second = Offset(contact.SecondAnchor, Vector3d.Zero);
+        Assert.Equal(cone ? new Vector3d(0, -1, 0) : new Vector3d(-1, 1, 0), first);
+        Assert.Equal(first + origin, second);
+        Assert.Equal(center, contact.FirstAnchor.Origin);
+        Assert.Equal(rotation, contact.FirstAnchor.Rotation);
+        Assert.Equal(origin, contact.SecondAnchor.Origin);
+        AssertPaired(first, second, contact);
+    }
+
+    [Theory]
+    [InlineData(-1L)]
+    [InlineData(0L)]
+    [InlineData(1L)]
+    public void CylinderSideVertex_RetainsTheFirstExactZeroAndRadialNeighbors(long gapRaw)
+    {
+        const long k = 1_920_767_767L;
+        FixedQuaternion rotation = new(Fixed64.Zero, Fixed64.Zero,
+            Fixed64.FromRaw(-k), Fixed64.FromRaw(2 * k));
+        Vector3d point = new(3, -4, 12);
+        Vector3d shift = point * Fixed64.FromRaw(gapRaw);
+        Vector3d origin = new Vector3d(3, -5, 12) + shift;
+        Vector2d[] footprint = { new(0, 0), new(2, 0), new(2, 2), new(0, 2) };
+        bool hit = FixedConvexPrismRelations.TryGetCenteredCylinderContact(
+            Vector3d.Zero, rotation, Vector3d.Up, (Fixed64)10, (Fixed64)13,
+            origin, Fixed64.Zero, footprint, Fixed64.One, out FixedContactAnchors contact);
+        Assert.Equal(gapRaw <= 0, hit);
+        if (!hit)
+        {
+            Assert.Equal(default, contact);
+            return;
+        }
+        // Axis=(4,3,0)/5 is perpendicular to P=(3,-4,12), whose length
+        // is 13. The cylinder has 3X-4Y+12Z<=169 and this prism has >=169.
+        // Their unique common point P lies inside the finite cylinder side
+        // and strictly inside the prism vertex's normal cone. A signed raw
+        // multiple of P moves that vertex radially by exactly 13 raw units.
+        // Inward, the cylinder contains a ball of that radius centered at the
+        // prism vertex (cap margin five), proving the matching minimum depth.
+        Assert.Equal(new Vector3d(Fixed64.FromFraction(3, 13), Fixed64.FromFraction(-4, 13),
+            Fixed64.FromFraction(12, 13)), contact.Normal);
+        Assert.Equal(Fixed64.FromRaw(-13 * gapRaw), contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        Assert.Equal(point, Offset(contact.FirstAnchor, Vector3d.Zero));
+        Assert.Equal(point + shift, Offset(contact.SecondAnchor, Vector3d.Zero));
+        AssertPaired(point, point + shift, contact);
+    }
+
+    [Theory]
     [InlineData(false, -1L)]
     [InlineData(false, 0L)]
     [InlineData(false, 1L)]
@@ -106,6 +192,46 @@ public sealed class FixedConvexPrismCurvedWitnessTests
             - (contact.Normal.Y != Fixed64.Zero ? vertical : horizontal);
         Assert.True(prismMinimum > shapeMaximum);
         Assert.False(Query(cone, Vector3d.Zero, Vector3d.Up, length, radius, cleared, footprint, vertical, out _));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CylinderSide_ZeroProjectionPatchRetainsTheEarlierEdgeMinimum(bool reverse)
+    {
+        Vector2d[] footprint = { new(0, 0), new(0, 1), new(1, 1) };
+        if (reverse) Array.Reverse(footprint);
+        Assert.True(Query(false, Vector3d.Zero, Vector3d.Up, (Fixed64)10, Fixed64.One,
+            Vector3d.Zero, footprint, Fixed64.One, out FixedContactAnchors contact));
+
+        // The prism contains the origin and the cylinder contains the unit
+        // ball, so the complete Minkowski difference contains that ball.
+        // Either cardinal support plane attains depth one. The nonzero
+        // diagonal vertex direction has zero minimum projection and the same
+        // depth throughout its patch; the earlier real edge owns this tie.
+        Vector3d normal = reverse ? Vector3d.Forward : Vector3d.Right;
+        Assert.Equal(normal, contact.Normal);
+        Assert.Equal(Fixed64.One, contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        Vector3d first = Offset(contact.FirstAnchor, Vector3d.Zero);
+        Vector3d second = Offset(contact.SecondAnchor, Vector3d.Zero);
+        AssertPaired(first, second, contact);
+        Assert.Equal(normal.X, first.X);
+        Assert.Equal(normal.Z, first.Z);
+        Assert.Equal(Fixed64.Zero, second.X);
+        Assert.Equal(Fixed64.Zero, second.Z);
+        Assert.InRange(first.Y.m_rawValue, (-Fixed64.One).m_rawValue, Fixed64.One.m_rawValue);
+        Assert.Equal(first.Y, second.Y);
+
+        Assert.True(Query(false, Vector3d.Zero, Vector3d.Up, (Fixed64)10, Fixed64.One,
+            normal, footprint, Fixed64.One, out FixedContactAnchors touching));
+        Assert.Equal(Fixed64.Zero, touching.Depth);
+        Vector3d cleared = normal * (Fixed64.One + Fixed64.FromRaw(1));
+        // Every translated prism point now projects beyond the cylinder's
+        // exact cardinal support, independently proving whole-shape clearance.
+        Assert.True(Vector3d.Dot(cleared, normal) > Fixed64.One);
+        Assert.False(Query(false, Vector3d.Zero, Vector3d.Up, (Fixed64)10, Fixed64.One,
+            cleared, footprint, Fixed64.One, out _));
     }
 
     [Theory]

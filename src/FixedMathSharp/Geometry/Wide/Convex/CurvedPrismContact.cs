@@ -33,6 +33,9 @@ internal static partial class CurvedPrismContact
         if (!minimumCertified && !WideConvexPrismRelations.IntersectsCurvedPrism(cone, center, rotation, localAxis,
                 length, radius, prismOrigin, yaw, offsets, halfThickness))
             return false;
+        // Complete admission bounds every gap below by zero; an exact initial
+        // zero is already the earliest global minimum, including its witnesses.
+        minimumCertified |= selection.GapSign == 0;
         if (!minimumCertified) KeepAnalytic(geometry, ref selection);
         WideConvexPrismRelations.GetRoundedConvexContactCandidateDepth(selection.Candidate,
             Fixed64.Zero, out Fixed64 depth, out bool clamped);
@@ -85,11 +88,12 @@ internal static partial class CurvedPrismContact
                 KeepDirection(geometry, direction, signs, ref selection, start);
             }
             KeepAxis(geometry, WideDirection3d.Cross(axis, edge), direction, signs, ref selection, start);
+            if (selection.GapSign == 0) return;
         }
         if (geometry.IsCone)
             CurvedPrismGeneratorFeatures.KeepAll(geometry, ref selection);
         else
-            for (int index = 0; index < geometry.VertexCount; index++)
+            for (int index = 0; index < geometry.VertexCount && selection.GapSign != 0; index++)
             {
                 ProjectPerpendicular(axis, geometry.Vertex(index), direction, signs);
                 KeepDirection(geometry, direction, signs, ref selection);

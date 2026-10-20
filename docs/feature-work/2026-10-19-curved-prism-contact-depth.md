@@ -11,8 +11,9 @@ contacts for mixed-dimensional positional correction.
 Starting revisions: FixedMathSharp `b813236`, Gravitas `db5c3c2`, Chronicler
 `5397348`, SwiftCollections `5e0c4e0`, GridForge `09f810e`. All development,
 benchmark children and validation use `UseLocalLsfStack=true`. The correctness
-repair and initial bounded refinement were committed in `5f2bf65`; the current
-incident-face cone refinement remains unstaged and uncommitted.
+repair and initial bounded refinement were committed in `5f2bf65`; the
+incident-face cone refinement was committed in `43500eb`. Further minimum
+certificates and support-scan reductions are recorded below.
 Both the pre-refinement repair and retained refinement pass coordinated
 Release/Lean correctness and complete coverage, benchmark smoke and documentation
 checks. The evidence below distinguishes those snapshots. Issue 034 remains
@@ -456,6 +457,164 @@ warmed allocation guards pass. The
 [archived allocation diagnostic](benchmark-signal-hardening-backlog.md#capsule-interval-process-wide-allocation-observations)
 retains the earlier evidence and recurrence criteria. No counter suppression,
 tolerance or runtime GC change is introduced.
+
+## Exact-zero certificates and support-scan follow-through (2026-10-20)
+
+The next refinement starts from committed `43500eb`, with Gravitas `0560128`.
+It retains two small reductions, using the existing collectors and arithmetic:
+
+- After complete Issue 033 admission, every support gap is nonnegative. An
+  exact initial zero therefore certifies the global minimum before analytic
+  traversal. A zero found later ends the remaining real-edge, cylinder-vertex
+  or cone-generator loops. Strict candidate ranking already retains the first
+  equal result, so these exits preserve its feature, normal and both witnesses.
+  Rounded zero is deliberately insufficient for this certificate.
+- Incident wall normals are perpendicular to native Up. Bottom and top prism
+  vertices therefore have identical wall projections. One bottom-level scan
+  records the minimum and maximum signs relative to the incident edge point;
+  their sum identifies the unique supporting orientation. Mixed signs and an
+  entirely coplanar footprint retain the existing general-chart fallback.
+  This replaces two complete support queries without changing their result.
+
+Thirteen added public regression rows cover initial zero with penetrating and
+separated neighbors, an exterior footprint whose vertical gap remains zero,
+the canonical first edge on a constant cylinder-side patch, and a smooth
+cylinder-side contact at a strict prism vertex. The last fixture has
+`A=(4,3,0)/5`, `P=(3,-4,12)` and radius `13`: `A.P=0`, `|P|=13`, and the
+plane `3X-4Y+12Z=169` proves the unique touch. An inward raw multiple of `P`
+places a radius-13-raw ball inside the cylinder centered at the prism vertex;
+the matching support plane proves the complete minimum, rather than just
+anchor-distance agreement.
+
+The Gravitas `curved-prism-contact` group retains its six original cases and
+adds exact cone-apex, cone-generator and horizontal cylinder-side touching
+controls. Setup checks classification, zero unclamped depth, normal and both
+finite physical witnesses. The generator control uses `2X+Y=1/2`, whose unique
+common point is `(1/4,0,0)`. The cylinder uses an exactly representable cyclic
+axis permutation. Earlier fixture attempts changed by one quaternion raw unit
+during host-transform matrix reconstruction and produced one/two raw units of
+penetration; those failed captures are preserved and excluded from timing
+evidence. The direct FMS oblique fixture retains its authored frame and its
+exact-neighbor assertions.
+
+The investigation also discarded several correct but unhelpful experiments:
+
+- Early required-edge scan failure and a signed endpoint-offset bound did not
+  establish a convincing net gain in their pilots. Their captures are
+  `artifacts/issue034-{support-scan,signed-bound}-*`.
+- A cylinder-only nonpositive-projection rejection improved cylinder oblique
+  time by 5.20% in a balanced comparison, but cone oblique time worsened by
+  3.97%; its added candidate flags were removed. The complete six-case ABBA
+  evidence remains in `artifacts/issue034-radial-abba-*`.
+- A tighter chart radius bound was mathematically valid and stayed within the
+  existing forty-word fields. Its combined eight-case ABBA pilot showed only
+  0.57%/1.44% lower cone/cylinder oblique means, with a 2.80% adverse cone-face
+  estimate. No confirmed benefit specific to its extra arithmetic was
+  established, so that arithmetic was removed. Preserve
+  `artifacts/issue034-certificate2-*` as a discarded pilot, not retained-source
+  performance evidence.
+- A whole-chart apex certificate was rejected by reach analysis on the ordinary
+  cone fixture. No measured gain is claimed for that unretained gate.
+
+### Retained-source performance
+
+The final balanced ABBA comparison uses the committed `43500eb` runtime and the
+retained source, with identical nine-case benchmark source on both sides.
+Release out-of-process jobs use five warmups, ten measured iterations, one
+launch per case and affinity `3`. All children inherit `UseLocalLsfStack=true`.
+Each table mean weights the two launch means equally; times are microseconds.
+All ten measurement iterations ran; BenchmarkDotNet retained eight to ten
+observations per case after its outlier filtering.
+
+| Dispatcher case | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Cone separated | 82.086 | 82.944 | +1.04% |
+| Cone face penetration | 125.880 | 122.459 | -2.72% |
+| Cone oblique penetration | 2,044.753 | 1,959.352 | -4.18% |
+| Cylinder separated | 129.457 | 126.341 | -2.41% |
+| Cylinder face penetration | 129.077 | 126.141 | -2.27% |
+| Cylinder oblique penetration | 2,074.251 | 2,071.732 | -0.12% |
+| Cone apex touch | 542.536 | 116.185 | -78.58% |
+| Cone generator touch | 659.718 | 510.822 | -22.57% |
+| Cylinder side touch | 472.473 | 142.354 | -69.87% |
+
+The touching reductions are consistent across both retained launches. Ordinary
+oblique cylinder time is effectively unchanged; the cone's lower mean remains
+a modest fixture-specific result. Keep the adverse separated-cone estimate:
+baseline launches are 81.697/82.476 us and retained launches are 79.981/85.906 us.
+This does not establish a general zero-overhead claim or a universal simulation
+budget. Penetrating oblique contacts still cost about two milliseconds each.
+
+All 36 children exit zero, supply complete statistics and report raw
+`GC: 0 0 0 0 <operations>` counters. Before timing, the actual dispatcher returns
+identical classifications, raw depths, normals and both physical witnesses for
+all nine fixtures. Independent cone support and complete oriented-box/cylinder
+oracles also pass. Child PE/portable-PDB identities bind authored source hashes
+for FMS (331 documents), Gravitas (402), the benchmark fixtures (79), Chronicler
+(29), SwiftCollections (80) and GridForge (121).
+
+Captures are `artifacts/issue034-minimum-{A1,B1,B2,A2}*`,
+`issue034-minimum-performance-summary.json`, the two
+`issue034-dispatcher-minimum-{base,checked}.jsonl` files and the per-launch
+`*-payload.json` records. The frozen runtime variants are `minimum-base` and
+`minimum-checked`; earlier pilots do not substitute for this retained source.
+
+The retained-source EventPipe diagnostic still splits oblique work between
+analytic collection and rim charts. Inclusive shares of benchmark activity are
+42.9%/34.9% for `KeepAnalytic` and 38.9%/44.6% for `KeepChart` (cone/cylinder).
+Nested work includes `TryBuildCandidate` at 18.2%/25.0%, `BuildParameter` at
+12.6%/13.1%, and exact candidate comparison at 9.6%/9.7%. These overlapping
+sampled shares are diagnostic, not additive costs or acceptance timings. The
+two-case capture is `artifacts/issue034-minimum-final-profile*`. Further gains
+need enough eliminated candidate/root work to outweigh the proof arithmetic;
+the discarded bounds do not justify another retained helper or representation.
+
+### Retained-source validation
+
+The ordinary-workspace matrix passes with `UseLocalLsfStack=true`, no failed or
+skipped tests, and zero warnings/errors in all four solution builds. Exact
+ReportGenerator counts are:
+
+| Repository/configuration | Core tests | Lines | Branches | Fully covered methods |
+| --- | ---: | ---: | ---: | ---: |
+| FixedMathSharp Release | 6,796 | 65,798 / 65,798 | 20,870 / 20,870 | 5,104 / 5,104 |
+| FixedMathSharp ReleaseLean | 6,775 | 65,891 / 65,891 | 20,870 / 20,870 | 5,100 / 5,100 |
+| Gravitas Release | 7,449 | 66,205 / 66,205 | 25,446 / 25,446 | 6,646 / 6,646 |
+| Gravitas ReleaseLean | 7,380 | 66,205 / 66,205 | 25,446 / 25,446 | 6,646 / 6,646 |
+
+Both FixedMathSharp modes also pass all 49 Chronicler rows. All 1,931
+runtime/test source checkpoint hashes match after the complete matrix. The
+captures use `artifacts/issue034-minimum-{Release,ReleaseLean}-*` in each owning
+repository; `issue034-minimum-validation-sequence.log` records the serial run.
+Independent inspection also finds no unhit raw line nodes, partial branch lines
+or partially covered methods. FMS raw Cobertura counts match the table.
+Gravitas's separate literal Cobertura/OpenCover counts are 50,700/50,700 lines,
+18,878/18,878 branches and 5,371/5,371 method nodes in Release, and
+50,698/50,698 lines, 18,878/18,878 branches and 5,370/5,370 method nodes in Lean.
+These raw representations are kept separate from ReportGenerator totals.
+
+The final broad smoke passes all 479 child executions with statistics across
+26 reports (`all -j Short --iterationTime 10`). Its child PE/PDB binds all 331
+authored FMS documents to the retained source. These bounded smoke times do not
+replace the nine-case ABBA evidence. Captures are
+`artifacts/issue034-minimum-smoke*`.
+
+The smoke retains six 336-byte process-counter observations on unchanged paths:
+frustum/ray intersection (7,168 operations, process 18144), ranged random
+`Fixed64` (288, process 25932), vertical triangle subdivision sweep (2, process
+9396), penetrating cylinder rims (1, process 32188), scalar-face capsule/slab
+projection (432, process 4248), and static vector subtraction (944, process
+31808). The individual deltas remain unattributed; no calling-thread allocation
+or workload-dependent growth is established. The
+[archived allocation diagnostic](benchmark-signal-hardening-backlog.md#capsule-interval-process-wide-allocation-observations)
+retains matched finalizer evidence and recurrence criteria. The 36 matched
+curved-prism timing children all have zero raw counters; these smoke observations
+do not change that result. No counter suppression or tolerance was introduced.
+
+Independent source, geometric proof, retirement, payload, timing, profile and raw
+coverage reviews found no actionable issue in the retained refinement.
+DocFX completes with zero warnings/errors, and all 25 local Markdown targets in
+the changed documentation exist. Both repositories' diffs pass whitespace checks.
 
 ## Pre-refinement validation
 

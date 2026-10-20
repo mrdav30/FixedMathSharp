@@ -180,14 +180,19 @@ internal readonly ref struct CurvedPrismContactGeometry
     {
         if (normal.IsZero) return false;
         Signed832 projection = WideDirection3d.Dot(normal, point);
-        bool positive = WideArithmetic.SubtractSigned832(projection, ProjectionMinimum(normal)).IsZero;
-        WideDirection3d opposite = -normal;
-        bool negative = WideArithmetic.SubtractSigned832(
-            WideArithmetic.SubtractSigned832(default, projection), ProjectionMinimum(opposite)).IsZero;
-        // Both orientations support a collapsed plane; neither certifies an
-        // incident face. Either case retains the general chart fallback.
-        if (positive == negative) return false;
-        if (negative) normal = opposite;
+        int minimumSign = 0, maximumSign = 0;
+        // These incident wall normals are perpendicular to native Up, so
+        // both extrusion levels have identical projections. One scan certifies
+        // either orientation and rejects two-sided or entirely coplanar faces.
+        for (int index = 0; index < VertexCount; index += 2)
+        {
+            int sign = WideArithmetic.SubtractSigned832(WideDirection3d.Dot(normal, Vertex(index)), projection).Sign;
+            minimumSign = Math.Min(minimumSign, sign);
+            maximumSign = Math.Max(maximumSign, sign);
+        }
+        int orientation = minimumSign + maximumSign;
+        if (orientation == 0) return false;
+        if (orientation < 0) normal = -normal;
         return true;
     }
 

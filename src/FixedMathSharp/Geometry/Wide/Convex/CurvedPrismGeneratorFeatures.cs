@@ -46,15 +46,17 @@ internal static class CurvedPrismGeneratorFeatures
         // If a supporting vertex lies on the axis, its circle value is
         // constant. One seed covers a whole-circle patch; otherwise real-edge
         // intersections supply the ends of that vertex's admitted arc.
+        // Complete admission precedes this collector, so the first exact zero
+        // attains the global lower bound and owns all later ties.
         Signed576 one = Signed576.ExtendValue(Signed192.Signed(1));
         WideDirection3d seed = !geometry.Axis.Y.IsZero || !geometry.Axis.Z.IsZero
             ? new WideDirection3d(one, default, default)
             : new WideDirection3d(default, one, default);
         KeepVertex(geometry, seed, commonMetric, values, signs, ref selection);
-        for (int vertex = 0; vertex < geometry.VertexCount; vertex++)
+        for (int vertex = 0; vertex < geometry.VertexCount && selection.GapSign != 0; vertex++)
             KeepVertex(geometry, geometry.Vertex(vertex), commonMetric, values, signs, ref selection, vertex);
 
-        for (int edge = 0; edge < geometry.EdgeCount; edge++)
+        for (int edge = 0; edge < geometry.EdgeCount && selection.GapSign != 0; edge++)
         {
             geometry.Edge(edge, out int start, out int end);
             WideDirection3d e = CurvedPrismContact.Difference(geometry.Vertex(end), geometry.Vertex(start));

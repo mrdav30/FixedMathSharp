@@ -36,12 +36,12 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ### FMS-Issue-034: Canonical curved-prism depth can correct an exactly touching cone
 
-- **Status:** Correctness repair and certified rim normal-cone refinement
-  validated on 2026-10-19: both repositories pass Release/Lean tests with
-  complete coverage; all 479 benchmark smoke children and the documentation
-  build pass. The issue
-  remains active for the measured oblique cost. The defect was pre-existing
-  on `5674103`, with identical touching outputs before/after Issue 033.
+- **Status:** Correctness repair, certified rim normal cones and exact-zero
+  minimum certificates validated through 2026-10-20: both repositories pass
+  Release/Lean tests with complete coverage; all 479 benchmark smoke children
+  and the documentation build pass. The issue remains active for the measured
+  oblique cost. The defect was pre-existing on `5674103`, with identical touching
+  outputs before/after Issue 033.
 - **Priority:** High.
 - **Implementation:** [Complete curved-prism contact selection](2026-10-19-curved-prism-contact-depth.md)
   records the complete support-fan repair, finite witness matching, verified
@@ -73,17 +73,20 @@ Work that requires staged implementation belongs in a focused feature-work plan.
   correctness does not establish correct physical contact depth or normals.
   The starting public XML documented the canonical bound; the repaired XML and
   geometry guidance describe exact minimum selection and final rounding limits.
-- **Next action:** Review the certified incident-face normal-cone refinement
-  and remaining distributed exact-selection cost before closure. Balanced
-  timing against committed accurate `5f2bf65` reduces cone/cylinder oblique
-  time by another 15.1%/10.5%, to 2.043/2.110 ms. All 24 matched benchmark
-  children report zero raw allocation counters and retain identical dispatcher
-  depths, normals and physical witnesses. The small adverse cone-face point
-  estimate (+1.16%) is retained with its launch variation in the plan; no
-  general zero-overhead or universal simulation-budget claim is made.
-  Keep Issue 034 active for the remaining cost. The linked plan preserves
-  both earlier refinements, exact-source captures, independent geometric
-  oracles, the pilot profile's limits and raw coverage counts.
+- **Next action:** Keep the issue active for the remaining penetrating oblique
+  cost; further work needs a measured reduction in exact selection that earns
+  its complexity. The latest balanced comparison against committed `43500eb`
+  reduces cone-apex/cone-generator/cylinder-side touching time by
+  78.58%/22.57%/69.87%, using exact-zero certificates and a single wall-support
+  scan. Cone/cylinder oblique means are 1.959/2.072 ms (-4.18%/-0.12%);
+  cylinder oblique is effectively unchanged. All 36 matched children report
+  zero raw allocation counters and retain identical dispatcher depths, normals
+  and physical witnesses. The adverse separated-cone estimate (+1.04%) and
+  launch variation remain in the plan; no general zero-overhead or universal
+  simulation-budget claim is made. More elaborate rejection experiments were
+  removed when they failed to establish a convincing net gain. The linked plan
+  preserves earlier refinements, exact-source captures, independent geometric
+  oracles, profile limits and raw coverage counts.
 
 ### FMS-Issue-035: Contained sphere/capsule prism contacts reverse the selected exit
 
