@@ -149,6 +149,48 @@ internal readonly ref struct CurvedPrismContactGeometry
         return WideDirection3d.Cross(edge, up);
     }
 
+    /// <summary>Returns the two inward incident face normals of a proper real-edge support cone.</summary>
+    internal bool TryGetEdgeNormalCone(int edge, out WideDirection3d first, out WideDirection3d last)
+    {
+        int vertex = edge / 3, kind = edge % 3;
+        Edge(edge, out int start, out _);
+        WideDirection3d point = Vertex(start);
+        first = kind == 2 ? Plane(3 + (vertex == 0 ? _offsets.Length - 1 : vertex - 1)) : Plane(1);
+        if (kind == 1) first = -first;
+        last = Plane(3 + vertex);
+        // The cap normal already minimizes at its bottom/top edge. Vertical
+        // edges require both incident wall orientations to be certified.
+        if ((kind == 2 && !TryOrientEdgePlane(point, ref first)) || !TryOrientEdgePlane(point, ref last)
+            || WideDirection3d.AreParallel(first, last))
+            return false;
+        // Each endpoint supports the complete prism, so its positive span
+        // does too. Primitive side normals are no larger than native
+        // B^T*(-dz,0,dx), below 165 bits; their difference stays below 166.
+        Span<Signed576> components = stackalloc Signed576[3];
+        components[0] = first.X; components[1] = first.Y; components[2] = first.Z;
+        WideArithmetic.ReduceCommonScale(components);
+        first = new WideDirection3d(components[0], components[1], components[2]);
+        components[0] = last.X; components[1] = last.Y; components[2] = last.Z;
+        WideArithmetic.ReduceCommonScale(components);
+        last = new WideDirection3d(components[0], components[1], components[2]);
+        return true;
+    }
+
+    private bool TryOrientEdgePlane(in WideDirection3d point, ref WideDirection3d normal)
+    {
+        if (normal.IsZero) return false;
+        Signed832 projection = WideDirection3d.Dot(normal, point);
+        bool positive = WideArithmetic.SubtractSigned832(projection, ProjectionMinimum(normal)).IsZero;
+        WideDirection3d opposite = -normal;
+        bool negative = WideArithmetic.SubtractSigned832(
+            WideArithmetic.SubtractSigned832(default, projection), ProjectionMinimum(opposite)).IsZero;
+        // Both orientations support a collapsed plane; neither certifies an
+        // incident face. Either case retains the general chart fallback.
+        if (positive == negative) return false;
+        if (negative) normal = opposite;
+        return true;
+    }
+
     /// <summary>Returns the exact lower support-plane constant in common coordinates.</summary>
     internal Signed832 ProjectionMinimum(in WideDirection3d normal) => ProjectionMinimum(normal, out _);
 

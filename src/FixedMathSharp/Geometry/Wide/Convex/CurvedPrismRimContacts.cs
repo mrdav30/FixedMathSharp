@@ -18,7 +18,7 @@ internal static class CurvedPrismRimContacts
     internal struct Selection
     {
         internal bool HasValue, IsZero;
-        internal int Edge, CapSign, ParameterOrdinal;
+        internal int Edge, CapSign, ParameterOrdinal, Order;
         internal WideDirection3d First, Second;
         internal bool IsRational;
         internal int ValueOrdinal, ValueShift;
@@ -52,7 +52,17 @@ internal static class CurvedPrismRimContacts
                 continue;
             edge = ReduceEdgeDirection(edge);
             CircularRimContactAlgebra.GetBasis(edge, out WideDirection3d u, out WideDirection3d v);
+            bool supportCertified = geometry.TryGetEdgeNormalCone(edgeIndex, out WideDirection3d coneFirst, out WideDirection3d coneLast);
             for (int cap = -1; cap <= (geometry.IsCone ? -1 : 1); cap += 2)
+            {
+                if (supportCertified)
+                {
+                    KeepChart(geometry, edgeIndex, edge, coneFirst, CurvedPrismContact.Difference(coneLast, coneFirst), cap,
+                        analytic, ((ulong)analyticDepth.m_rawValue << 1) | 1UL, !analyticClamped, true,
+                        bestValues, bestSigns, bestCell, ref best);
+                    if (best.IsZero) { depth = Fixed64.Zero; clamped = false; return; }
+                    continue;
+                }
                 for (int firstSign = -1; firstSign <= 1; firstSign += 2)
                     for (int secondSign = -1; secondSign <= 1; secondSign += 2)
                         for (int chart = 0; chart < 2; chart++)
@@ -61,13 +71,14 @@ internal static class CurvedPrismRimContacts
                             WideDirection3d second = secondSign < 0 ? -v : v;
                             if (chart != 0) (first, second) = (second, first);
                             KeepChart(geometry, edgeIndex, edge, first, second, cap, analytic,
-                                ((ulong)analyticDepth.m_rawValue << 1) | 1UL, !analyticClamped,
+                                ((ulong)analyticDepth.m_rawValue << 1) | 1UL, !analyticClamped, false,
                                 bestValues, bestSigns, bestCell, ref best);
                             if (best.IsZero)
                             {
                                 depth = Fixed64.Zero; clamped = false; return;
                             }
                         }
+            }
         }
         if (!best.HasValue) return;
         FiniteAxisValueRoot root = RestoreValue(bestValues, bestSigns, bestCell, best);
@@ -93,7 +104,7 @@ internal static class CurvedPrismRimContacts
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void KeepChart(in CurvedPrismContactGeometry geometry, int edge,
         in WideDirection3d edgeDirection, in WideDirection3d first, in WideDirection3d second, int cap,
-        scoped ConvexContactCandidate analytic, ulong upperTwiceRaw, bool hasUpperBound,
+        scoped ConvexContactCandidate analytic, ulong upperTwiceRaw, bool hasUpperBound, bool supportCertified,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
         ref Selection best)
     {
@@ -109,7 +120,7 @@ internal static class CurvedPrismRimContacts
         WideDirection3d vertex = geometry.Vertex(start);
         // One strictly negative support-wall value at both chart endpoints
         // excludes this entire affine chart before constructing its quartic.
-        for (int index = 0; index < geometry.VertexCount; index++)
+        for (int index = 0; !supportCertified && index < geometry.VertexCount; index++)
         {
             WideDirection3d delta = CurvedPrismContact.Difference(geometry.Vertex(index), vertex);
             Signed832 a = WideDirection3d.Dot(delta, first), b = WideDirection3d.Dot(delta, second);
@@ -142,7 +153,7 @@ internal static class CurvedPrismRimContacts
                 ? axialSign > 0 && Sign(ref root, storage.Slice(28, 3)) <= 0
                 : axialSign < 0)
                 continue;
-            if (!HasPrismSupport(geometry, vertex, first, second, ref root)) continue;
+            if (!supportCertified && !HasPrismSupport(geometry, vertex, first, second, ref root)) continue;
             int kSign = Sign(ref root, k);
             // Q is positive on a nondegenerate ellipse. K=0 is its principal
             // direction, already present in the rational feature fan.
@@ -156,6 +167,8 @@ internal static class CurvedPrismRimContacts
             };
             if (gapSign == 0)
             {
+                // Zero gap and zero derivative place the origin on the strictly
+                // convex projected ellipse: its unique normal needs no tie rank.
                 candidate.IsZero = true; best = candidate; return;
             }
             if (hasUpperBound && ConvexContactValueRoot.CompareSquaredGapToTwiceRaw(ref root,
@@ -171,11 +184,52 @@ internal static class CurvedPrismRimContacts
             int comparison = best.HasValue
                 ? WideFiniteAxisIntersection.CompareFiniteValueRoots(value, RestoreValue(bestValues, bestSigns, bestCell, best))
                 : ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref value, analytic);
-            if (comparison >= 0) continue;
+            if (comparison > 0 || comparison == 0 && (!best.HasValue || best.Edge != edge || best.CapSign != cap)) continue;
+            if (supportCertified)
+            {
+                candidate.Order = GetLegacyOrder(edgeDirection, first, second, ordinal, ref root);
+                if (comparison == 0 && candidate.Order >= best.Order) continue;
+            }
+            else if (comparison == 0) continue;
             values.CopyTo(bestValues); valueSigns.CopyTo(bestSigns); valueCell.CopyTo(bestCell);
             candidate.ValueOrdinal = value.Ordinal; candidate.ValueShift = value.DenominatorShift;
             candidate.IsRational = value.IsRational; best = candidate;
         }
+    }
+
+    private static int GetLegacyOrder(in WideDirection3d edge, in WideDirection3d first,
+        in WideDirection3d second, int ordinal, scoped ref FiniteAxisValueRoot root)
+    {
+        // In the old basis, alpha/beta share a fixed edge pivot. Their signs
+        // and relative magnitudes identify the signed reciprocal chart; its
+        // parameter is fractional-linear in t and has a constant derivative sign.
+        bool xPivot = !edge.X.IsZero, yPivot = !edge.Y.IsZero;
+        int aCoordinate = xPivot ? 1 : yPivot ? 2 : 1, bCoordinate = xPivot ? 2 : 0;
+        int pivotSign = (xPivot ? edge.X : yPivot ? edge.Y : edge.Z).Sign;
+        Signed576 a0 = Component(first, aCoordinate), a1 = Component(second, aCoordinate);
+        Signed576 b0 = Component(first, bCoordinate), b1 = Component(second, bCoordinate);
+        if (pivotSign * (xPivot || yPivot ? 1 : -1) < 0)
+        { a0 = WideArithmetic.Negate(a0); a1 = WideArithmetic.Negate(a1); }
+        if (pivotSign < 0) { b0 = WideArithmetic.Negate(b0); b1 = WideArithmetic.Negate(b1); }
+        Span<ulong> data = stackalloc ulong[26];
+        Span<sbyte> signs = stackalloc sbyte[2];
+        Polynomial query = new(data, signs, 13);
+        Write(query, 0, Signed832.ExtendValue(a0)); Write(query, 1, Signed832.ExtendValue(a1));
+        int aSign = Sign(ref root, query);
+        Write(query, 0, Signed832.ExtendValue(b0)); Write(query, 1, Signed832.ExtendValue(b1));
+        int bSign = Sign(ref root, query);
+        // Old basis-axis directions already belong to the earlier analytic fan.
+        System.Diagnostics.Debug.Assert(aSign != 0 && bSign != 0);
+        Write(query, 0, Signed832.ExtendValue(WideArithmetic.SubtractSigned576(
+            aSign < 0 ? WideArithmetic.Negate(a0) : a0, bSign < 0 ? WideArithmetic.Negate(b0) : b0)));
+        Write(query, 1, Signed832.ExtendValue(WideArithmetic.SubtractSigned576(
+            aSign < 0 ? WideArithmetic.Negate(a1) : a1, bSign < 0 ? WideArithmetic.Negate(b1) : b1)));
+        bool reciprocal = Sign(ref root, query) < 0;
+        Signed832 determinant = WideArithmetic.SubtractSigned832(
+            WideArithmetic.MultiplySigned576ToSigned832(a0, b1), WideArithmetic.MultiplySigned576ToSigned832(a1, b0));
+        bool increasing = determinant.Sign * aSign * bSign * (reciprocal ? -1 : 1) > 0;
+        return (aSign > 0 ? 16 : 0) + (bSign > 0 ? 8 : 0) + (reciprocal ? 4 : 0)
+            + (increasing ? ordinal : 3 - ordinal);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

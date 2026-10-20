@@ -10,8 +10,9 @@ contacts for mixed-dimensional positional correction.
 
 Starting revisions: FixedMathSharp `b813236`, Gravitas `db5c3c2`, Chronicler
 `5397348`, SwiftCollections `5e0c4e0`, GridForge `09f810e`. All development,
-benchmark children and validation use `UseLocalLsfStack=true`. Changes remain
-uncommitted; the correctness repair is staged and the refinement is unstaged.
+benchmark children and validation use `UseLocalLsfStack=true`. The correctness
+repair and initial bounded refinement were committed in `5f2bf65`; the current
+incident-face cone refinement remains unstaged and uncommitted.
 Both the pre-refinement repair and retained refinement pass coordinated
 Release/Lean correctness and complete coverage, benchmark smoke and documentation
 checks. The evidence below distinguishes those snapshots. Issue 034 remains
@@ -310,6 +311,151 @@ children all have zero raw counters, and the warmed guards pass, without
 attributing or erasing those process-wide observations. The archived allocation
 diagnostic linked below retains the investigation and recurrence criteria.
 No counter suppression or tolerance was introduced.
+
+## Exact rim normal-cone refinement
+
+The committed accurate implementation (`5f2bf65`, Gravitas `0560128`) is this
+experiment's baseline. A proper prism edge exposes the positive span of its two
+inward incident face normals. Previously the rim solver searched eight signed
+reciprocal charts in the complete edge-perpendicular plane, then rejected roots
+outside that support cone. The retained refinement certifies the two planes
+against the complete prism once and searches their single affine chart,
+`n(t) = (1-t)*first + t*last`, with the existing stationary quartic and exact
+value/witness machinery. Earlier analytic features already own its endpoints.
+
+The certificate uses actual bottom/top/vertical topology and exact support
+values, so winding does not change the result. Zero, ambiguous and parallel
+incident planes retain the complete general-chart fallback. No convexity guess,
+rounded normal or approximate root enters admission. Primitive plane directions
+stay below 165 bits and their affine difference below 166; the existing
+forty-word polynomial fields and witness bounds remain sufficient.
+
+A changed parameterization can encounter equal positive minima in a different
+order. Only retained or tied candidates recover their historical signed chart
+and root order through exact linear sign queries. This keeps canonical normals
+and paired witnesses stable without solving the old charts again. At zero gap,
+stationarity places the origin on the strictly convex projected ellipse; its
+unique supporting normal permits the existing immediate return.
+
+This changes two existing runtime owners, with no new file, persistent state,
+cache, dependency or public API. The general fallback remains necessary for
+collapsed and repeated-vertex footprints. Independent review checked the
+complete support domain, sign polarity, fixed-width bounds, reciprocal order
+and zero-gap uniqueness proof.
+
+### Measured normal-cone result
+
+Final timings compare frozen `cone-baseline` with `cone-checked` in ABBA order,
+using the unchanged six-case actual Gravitas dispatcher benchmark. The jobs use
+Release/net8.0, one launch, five warmups, ten requested measurement iterations,
+affinity mask 3 and the same local five-repository stack. BenchmarkDotNet retains
+nine samples after outlier analysis for A1's two separated controls; other cases
+retain ten. Each table entry equally weights the two independent launch means.
+
+| Actual dispatcher query | Committed baseline | Normal-cone refinement | Change |
+| --- | ---: | ---: | ---: |
+| Cone separated | 83.782 us | 82.618 us | -1.39% |
+| Cone face | 123.927 us | 125.360 us | +1.16% |
+| Cone oblique | 2,407.369 us | 2,042.862 us | -15.14% |
+| Cylinder separated | 129.071 us | 128.703 us | -0.28% |
+| Cylinder face | 125.658 us | 121.208 us | -3.54% |
+| Cylinder oblique | 2,356.575 us | 2,109.566 us | -10.48% |
+
+Both oblique candidate means beat both baseline means. The cone face adverse
+point estimate is 1.43 us, compared with a 4.98 us baseline launch spread and
+2.57--3.14 us candidate within-run standard deviations. Retain this variation;
+it establishes neither a confirmed regression nor a general zero-overhead
+claim. Small separated/face changes are controls, not attributed optimization
+wins. All 24 children exit successfully, have statistics and report zero raw
+GC/allocation counters. The real dispatcher reproduces all six baseline records
+exactly, including classification, raw depth, normal and both physical anchors.
+
+PE/PDB and authored-source checks bind each A/B child payload to its frozen
+source. Repeated launches use identical assembly/PDB hashes within each variant.
+A complete candidate child also binds 331 FMS, 402 Gravitas, 29 Chronicler,
+80 SwiftCollections and 121 GridForge authored documents. Runtime sources match
+the ordinary workspace allowing only checked CRLF differences. Captures use
+`artifacts/issue034-cone-{A1,B1,B2,A2}*`,
+`issue034-cone-performance-summary.json`, `issue034-cone-stack-payload.json`
+and `issue034-dispatcher-cone-checked.jsonl`. A1's Windows PowerShell 5 wrapper
+failed only after all benchmarks completed because its runtime lacks the
+metadata reader type. Its raw capture is preserved; PowerShell 7 successfully
+rebound that retained payload before B1/B2/A2. No child timing or counter was
+replaced. Both the wrapper failure and recovery are retained in the measurement
+sequence logs.
+
+The pilot sampling profile precedes the final zero-only simplification and is
+diagnostic, while ABBA measures the final runtime. Inclusive rim traversal falls
+from about 52% to 37% of sampled cone activity and 57% to 52% for cylinder;
+parameter construction falls from 16.9% to 7.2% and 15.6% to 13.7%, respectively.
+Analytic candidates remain about 44%/34% of sampled activity. The new complete
+cone certificate itself accounts for about 5.6% of cylinder activity. These
+overlapping inclusive fractions are neither additive time savings nor polynomial
+counts.
+The remaining roughly 2 ms oblique cost is distributed across exact candidate
+construction, algebraic sign/rank comparisons and finite witnesses. This
+refinement does not establish universal frame capacity or an optimal algorithm.
+Pilot evidence uses `artifacts/issue034-cone-pilot-profile*`.
+
+The runtime diff adds 102 and removes six lines, net **96**, in two existing
+owners. Sixteen new maintained regression rows use full-volume exact rim touches and
+one-raw neighbors, alternate authored frames, independently derived equal-root
+minima, cap ties, analytic/rim transitions and equivalent repeated/degenerate
+footprints. They separately check finite witnesses and complete-shape clearance.
+The committed-runtime control passes all 29 feature rows present at that
+checkpoint. The final focused candidate passes 298 rows with complete raw
+line/branch/method coverage of both changed files; its additional repeated-tip
+case exercises a surviving partially admitted support wall with exact
+`d^2 = 3375/16`. Earlier failed coverage captures remain retained; no exclusion,
+tolerance change or test-only production seam closes the gap.
+
+### Coordinated normal-cone validation
+
+The final ordinary-workspace matrix uses the unchanged canonical configurations
+and local source dependencies. Every row passes without failures or skips, and
+all four solution builds have zero warnings/errors. Counts below use the
+canonical ReportGenerator representation:
+
+| Repository/configuration | Core tests | Lines | Branches | Fully covered methods |
+| --- | ---: | ---: | ---: | ---: |
+| FixedMathSharp Release | 6,783 | 65,794 / 65,794 | 20,860 / 20,860 | 5,104 / 5,104 |
+| FixedMathSharp ReleaseLean | 6,762 | 65,887 / 65,887 | 20,860 / 20,860 | 5,100 / 5,100 |
+| Gravitas Release | 7,449 | 66,205 / 66,205 | 25,446 / 25,446 | 6,646 / 6,646 |
+| Gravitas ReleaseLean | 7,380 | 66,205 / 66,205 | 25,446 / 25,446 | 6,646 / 6,646 |
+
+Both FMS configurations also pass all 49 Chronicler rows. Each coverage directory
+contains exactly one input Cobertura XML; no executable line, branch condition
+or method is partial or unhit. FMS raw totals match the table. Gravitas raw XML
+roots separately report 50,700/50,700 lines, 18,878/18,878 branches and
+5,371/5,371 fully covered method nodes for Release; Lean reports
+50,698/50,698, 18,878/18,878 and 5,370/5,370. Both representations are complete.
+The final 1,931-file actual-byte checkpoint matches the ordinary workspace.
+The existing actual host-step/replay, full-domain, one-MiB worker-stack and
+warmed allocation regressions remain green.
+
+Evidence is `artifacts/issue034-cone-{Release,ReleaseLean}-*` in each owning
+repository, `issue034-cone-validation-sequence.log`,
+`issue034-cone-validation-summary.json` and `issue034-cone-final-source.json`.
+
+The final bounded broad smoke passes all 479 child executions and 479 statistics
+across 26 reports. Its child PE/PDB binds all 331 authored FMS documents to the
+retained runtime. DocFX completes with zero warnings/errors; all 23 local
+Markdown targets exist. Captures use `artifacts/issue034-cone-{smoke,catalog,docfx}*`
+and `issue034-cone-smoke-payload.json`. This short smoke is harness/runtime
+validation rather than throughput acceptance evidence. Independent runtime,
+width, tie-order, exact-output, payload, ABBA and four-mode raw coverage reviews
+are clean.
+
+The broad smoke preserves four 336-byte process-counter observations: triangle
+3D containment (PID 31784, 10,240 operations), strict sphere/box relation
+(12212, 4,336), rigid-frame anchor reexpression (8428, 864), and axis zero-core
+2D circle contact (26300, 2,112). These callers do not enter the changed
+curved-prism owners. The individual observations remain unattributed in the raw
+log; all 24 matched curved-prism children report zero raw counters and the
+warmed allocation guards pass. The
+[archived allocation diagnostic](benchmark-signal-hardening-backlog.md#capsule-interval-process-wide-allocation-observations)
+retains the earlier evidence and recurrence criteria. No counter suppression,
+tolerance or runtime GC change is introduced.
 
 ## Pre-refinement validation
 
