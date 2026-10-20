@@ -34,60 +34,6 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ## Active Issues
 
-### FMS-Issue-034: Canonical curved-prism depth can correct an exactly touching cone
-
-- **Status:** Correctness repair, certified rim normal cones and exact-zero
-  minimum certificates validated through 2026-10-20: both repositories pass
-  Release/Lean tests with complete coverage; all 479 benchmark smoke children
-  and the documentation build pass. The issue remains active for the measured
-  oblique cost. The defect was pre-existing on `5674103`, with identical touching
-  outputs before/after Issue 033.
-- **Priority:** High.
-- **Implementation:** [Complete curved-prism contact selection](2026-10-19-curved-prism-contact-depth.md)
-  records the complete support-fan repair, finite witness matching, verified
-  retained-source Release/Lean coverage in both repositories and balanced
-  performance evidence. The issue remains active for throughput follow-through.
-- **Affected area:** `FixedConvexPrismRelations.TryGetCenteredConeContact(...)`
-  and the canonical projection depth/normal reducer in
-  `WideConvexPrismRelations.TryGetContact(...)`. Gravitas forwards this depth
-  into mixed-contact positional correction.
-- **Evidence:** Cone center zero, identity rotation, local axis `Vector3d.Up`,
-  height `2`, radius `1`. Prism origin `(0.5,1,0)`, zero yaw, half-thickness `1`,
-  offsets `(0,-1), (1,-1), (1,1), (0,1)`. This is a full-volume prism with
-  `X in [0.5,1.5], Y in [0,2], Z in [-1,1]`. Both versions return `true`,
-  `Depth = 0.5` (raw `2147483648`) and `Normal = Vector3d.Right`.
-
-  The exact plane `2*x+y=1` proves touching: the cone's apex and base-disk
-  maximum are both `1`, and the prism minimum is `1`. Their only common point
-  is `(0.5,0,0)`. Any positive prism translation along Right separates the
-  shapes, so `0.5` is only a sufficient selected-projection separation bound,
-  not the first exit or physical minimum correction. The same result occurs
-  with collapsed offsets `(0,-1), (0,1), (0,1)`.
-
-  Translating prism X by one positive raw unit exposes the separate Issue 033
-  classification defect on the old implementation; the completed admission
-  gate correctly rejects that neighbor. It preserves the existing depth and
-  normal for the admitted touching and overlapping neighbors.
-- **Impact:** An exactly touching or slightly overlapping pair can receive an
-  excessive correction along a noncontact support direction. Closed intersection
-  correctness does not establish correct physical contact depth or normals.
-  The starting public XML documented the canonical bound; the repaired XML and
-  geometry guidance describe exact minimum selection and final rounding limits.
-- **Next action:** Keep the issue active for the remaining penetrating oblique
-  cost; further work needs a measured reduction in exact selection that earns
-  its complexity. The latest balanced comparison against committed `43500eb`
-  reduces cone-apex/cone-generator/cylinder-side touching time by
-  78.58%/22.57%/69.87%, using exact-zero certificates and a single wall-support
-  scan. Cone/cylinder oblique means are 1.959/2.072 ms (-4.18%/-0.12%);
-  cylinder oblique is effectively unchanged. All 36 matched children report
-  zero raw allocation counters and retain identical dispatcher depths, normals
-  and physical witnesses. The adverse separated-cone estimate (+1.04%) and
-  launch variation remain in the plan; no general zero-overhead or universal
-  simulation-budget claim is made. More elaborate rejection experiments were
-  removed when they failed to establish a convincing net gain. The linked plan
-  preserves earlier refinements, exact-source captures, independent geometric
-  oracles, profile limits and raw coverage counts.
-
 ### FMS-Issue-035: Contained sphere/capsule prism contacts reverse the selected exit
 
 - **Status:** Confirmed pre-existing, 2026-10-19. Reproduced on committed
@@ -147,7 +93,8 @@ rerun or package release.
 
 | Issue | Resolved/closed | Outcome | Evidence |
 | --- | --- | --- | --- |
-| FMS-Issue-033 | 2026-10-19 | Completed closed cylinder/cone-prism admission; the separate contact depth/normal defect remains active as FMS-Issue-034. | [Record](done/2026-10-19-curved-prism-admission.md) |
+| FMS-Issue-034 | 2026-10-20 | Completed exact cone/cylinder-prism minimum depth, normal and finite witnesses; bounded throughput refinements are committed, with residual penetrating oblique cost tracked in the benchmark backlog. | [Record](done/2026-10-19-curved-prism-contact-depth.md) |
+| FMS-Issue-033 | 2026-10-19 | Completed closed cylinder/cone-prism admission; the separate contact depth/normal defect was resolved under FMS-Issue-034. | [Record](done/2026-10-19-curved-prism-admission.md) |
 | FMS-Issue-031 | 2026-10-14 | Preserved finite point/segment polygon extents and rejected false containment and initial sweep overlap. | [Record](done/2026-10-14-degenerate-convex-relations.md) |
 | FMS-Issue-030 | 2026-10-14 | Preserved convex sweep normals and exact witnesses independently of polygon-origin placement. | [Record](done/2026-10-14-convex-sweep-normal-witness.md) |
 | FMS-Issue-029 | 2026-10-14 | Made strict scaled-rotation decomposition scale-aware while retaining shear, perspective and representability rejection. | [Record](done/2026-10-14-scaled-rotation-decomposition.md) |

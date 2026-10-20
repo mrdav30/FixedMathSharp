@@ -12,13 +12,21 @@ Starting revisions: FixedMathSharp `b813236`, Gravitas `db5c3c2`, Chronicler
 `5397348`, SwiftCollections `5e0c4e0`, GridForge `09f810e`. All development,
 benchmark children and validation use `UseLocalLsfStack=true`. The correctness
 repair and initial bounded refinement were committed in `5f2bf65`; the
-incident-face cone refinement was committed in `43500eb`. Further minimum
-certificates and support-scan reductions are recorded below.
+incident-face cone refinement was committed in `43500eb`; exact-zero minimum
+certificates and support-scan reductions were committed in `90722e9`, with
+Gravitas touching benchmark controls in `8bdef3a`.
 Both the pre-refinement repair and retained refinement pass coordinated
 Release/Lean correctness and complete coverage, benchmark smoke and documentation
-checks. The evidence below distinguishes those snapshots. Issue 034 remains
-active for the recorded oblique throughput cost; this bounded refinement does
-not declare a universal production threshold.
+checks. The evidence below distinguishes those snapshots. Issue 034's
+correctness repair is resolved on 2026-10-20. The remaining penetrating oblique
+cost is an [active benchmark signal](../benchmark-signal-hardening-backlog.md#penetrating-oblique-conecylinder-prism-contact-throughput),
+not a production-throughput acceptance claim.
+
+The final bounded source review found no further small experiment with a
+complete correctness proof and convincing reach on these penetrating fixtures.
+The measured bounds and reach checks below did not justify their added
+arithmetic. Revisit exact candidate/root work when a concrete reduction or a
+representative simulation profile justifies another investigation.
 
 ## Reproducer and geometric reason
 
@@ -454,7 +462,7 @@ The broad smoke preserves four 336-byte process-counter observations: triangle
 curved-prism owners. The individual observations remain unattributed in the raw
 log; all 24 matched curved-prism children report zero raw counters and the
 warmed allocation guards pass. The
-[archived allocation diagnostic](benchmark-signal-hardening-backlog.md#capsule-interval-process-wide-allocation-observations)
+[archived allocation diagnostic](../benchmark-signal-hardening-backlog.md#capsule-interval-process-wide-allocation-observations)
 retains the earlier evidence and recurrence criteria. No counter suppression,
 tolerance or runtime GC change is introduced.
 
@@ -606,7 +614,7 @@ frustum/ray intersection (7,168 operations, process 18144), ranged random
 projection (432, process 4248), and static vector subtraction (944, process
 31808). The individual deltas remain unattributed; no calling-thread allocation
 or workload-dependent growth is established. The
-[archived allocation diagnostic](benchmark-signal-hardening-backlog.md#capsule-interval-process-wide-allocation-observations)
+[archived allocation diagnostic](../benchmark-signal-hardening-backlog.md#capsule-interval-process-wide-allocation-observations)
 retains matched finalizer evidence and recurrence criteria. The 36 matched
 curved-prism timing children all have zero raw counters; these smoke observations
 do not change that result. No counter suppression or tolerance was introduced.
@@ -649,7 +657,7 @@ add/subtract (816), two-word/32-bit division (79,520) and axis-circle contact
 in `artifacts/issue034-smoke.log`. These are unchanged workload paths and are
 separate from the 24 matched curved-prism children, whose raw counters are all
 zero. This capture does not attribute these five individual deltas. The
-[archived allocation diagnostic](benchmark-signal-hardening-backlog.md#capsule-interval-process-wide-allocation-observations)
+[archived allocation diagnostic](../benchmark-signal-hardening-backlog.md#capsule-interval-process-wide-allocation-observations)
 retains the earlier matched finalizer evidence and recurrence criteria; neither
 calling-thread allocation nor workload-dependent growth is established here.
 No counter suppression, tolerance or runtime change is introduced.

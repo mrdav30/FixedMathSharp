@@ -45,7 +45,72 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 
 ## Active Signals
 
-No active signals remain.
+### Penetrating oblique cone/cylinder-prism contact throughput
+
+- **Status:** Isolated; further runtime refinement deferred on 2026-10-20
+  after a bounded investigation. Correctness issue FMS-Issue-034 is resolved;
+  its remaining throughput cost is tracked here without a universal acceptance
+  threshold.
+- **Priority:** Medium; escalate with representative simulation cost or a
+  reproducible regression.
+- **Source:** Gravitas `CurvedPrismContactBenchmarks.ConeOblique` and
+  `CylinderOblique`, through the actual mixed-contact dispatcher into FMS
+  `CurvedPrismContact`, `CurvedPrismContactGeometry` and `CurvedPrismRimContacts`.
+  The measured retained runtime is committed as FMS `90722e9`; the identical
+  nine-case benchmark fixture used on both sides is committed as Gravitas
+  `8bdef3a`. The comparison runtime is FMS `43500eb`.
+- **Environment:** Windows 11, i7-9700K, .NET SDK 10.0.302, .NET 8.0.29,
+  BenchmarkDotNet 0.15.8, Release out of process, `UseLocalLsfStack=true` in
+  both environment and build arguments. The overridden Short jobs in balanced
+  ABBA use one launch per case per capture, five warmups, ten measurement
+  iterations and affinity mask `3`. All ten iterations ran; outlier filtering retains eight to ten
+  observations per case. The following averages weight the two launch means
+  equally; these are contact-query times, not complete simulation-step times.
+
+  | Penetrating case | Comparison | Retained | Retained launch means |
+  | --- | ---: | ---: | ---: |
+  | Cone oblique | 2.045 ms | 1.959 ms (-4.18%) | 1.910 / 2.009 ms |
+  | Cylinder oblique | 2.074 ms | 2.072 ms (-0.12%) | 2.075 / 2.068 ms |
+
+- **Controls:** Cylinder oblique is effectively unchanged; the cone result is
+  a modest fixture-specific reduction. The same comparison improves cone-apex,
+  cone-generator and cylinder-side touches by 78.58%/22.57%/69.87%, while the
+  separated-cone estimate is +1.04% with launch variation. All nine dispatcher
+  results retain classification, raw depth, normal and both physical witnesses.
+  All 36 children have zero raw allocation/GC counters. Both repositories pass
+  Release/Lean tests with 100% reachable line, branch and method coverage at
+  that source; the 479-case benchmark smoke also passes.
+- **Remaining cost:** Inclusive EventPipe shares are 42.9%/34.9% in analytic
+  collection and 38.9%/44.6% in rim charts (cone/cylinder). Candidate construction,
+  parameter building and exact ranking are nested costs; these sampled shares
+  overlap and must not be added. At roughly 2 ms per query, a hypothetical ten
+  serial uncached queries would consume about 20 ms of a 31.25 ms step at
+  32 Hz, before the rest of physics. This is rough query-budget arithmetic,
+  not a measured full-step capacity or an expected contact count.
+- **Decision / next isolation step:** No further small, proven reduction was
+  identified. Required-edge scan failure, signed endpoint and tighter-radius
+  bounds, cylinder radial rejection and a whole-chart apex certificate were
+  investigated and removed or rejected when gains were inconclusive, adverse
+  on controls, or unreachable. Resume with a concrete reduction in exact
+  candidate/root work, a reproducible throughput regression, or a representative
+  moving-contact/full-step profile. Preserve exact admission, canonical ties,
+  finite paired witnesses, whole-shape clearance and zero-allocation guards;
+  benchmark any proposal against all nine controls before expanding it.
+- **Record:** [Completed repair, measurements, rejected experiments and validation](done/2026-10-19-curved-prism-contact-depth.md).
+  Supplemental FMS captures use `artifacts/issue034-minimum-{A1,B1,B2,A2}*`,
+  `issue034-minimum-performance-summary.json` and
+  `issue034-minimum-final-profile*`; the maintained fixtures and following
+  commands reproduce the workload without those ignored captures.
+- **Reproduce:** From the sibling Gravitas root, build and run the maintained
+  nine-case control group. Repeat comparable before/after captures in balanced
+  order with separate artifact directories and identical fixture source:
+
+  ```powershell
+  $env:UseLocalLsfStack = 'true'
+  $env:DOTNET_PROCESSOR_COUNT = '2'
+  dotnet build tests/Gravitas.Benchmarks/Gravitas.Benchmarks.csproj -c Release -f net8.0 -p:UseLocalLsfStack=true -p:UseSharedCompilation=false -m:1
+  dotnet tests/Gravitas.Benchmarks/bin/Release/net8.0/Gravitas.Benchmarks.dll curved-prism-contact -j Short --warmupCount 5 --iterationCount 10 --launchCount 1 --affinity 3 --keepFiles --exporters json --artifacts artifacts/benchmarks/curved-prism-oblique-baseline
+  ```
 
 ## Archived Signals
 
