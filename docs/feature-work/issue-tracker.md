@@ -34,69 +34,7 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 ## Active Issues
 
-### FMS-Issue-036: Sphere/capsule prism witnesses can miss the opposing finite support
-
-- **Status:** Confirmed pre-existing, 2026-10-20. Reproduced on committed
-  `5a07adc` and after Issue 035's orientation correction. The tangential
-  mismatch exists in both controls; Issue 035 corrects the normal independently.
-- **Priority:** High.
-- **Affected area:** `WideConvexPrismRelations.MaterializeContact(...)` and
-  `GetMatchedPrismOffset(...)`, serving the public sphere/capsule prism contact
-  queries and Gravitas mixed box/polygon contacts.
-- **Evidence:** Capsule center `(0,0.5,0)`, identity rotation, core axis Right,
-  core length `10`, radius `0.25`. Prism origin `(2.5,0,0)`, zero yaw,
-  half-thickness `1`, offsets `(-0.5,-1), (0.5,-1), (0.5,1), (-0.5,1)`.
-  After Issue 035 the query returns depth `0.75`, normal Down, and witnesses
-  `(0,0.25,0)` / `(2,1,0)`. Their difference `(-2,-0.75,0)` has a tangential
-  component, although finite paired supports exist at `(x,0.25,0)` /
-  `(x,1,0)` for every `x` in `[2,3]`. A portable reproducer is:
-
-  ```csharp
-  Vector2d[] offsets = { new(-Fixed64.Half, -Fixed64.One), new(Fixed64.Half, -Fixed64.One),
-      new(Fixed64.Half, Fixed64.One), new(-Fixed64.Half, Fixed64.One) };
-  FixedConvexPrismRelations.TryGetCenteredCapsuleContact(
-      new Vector3d(Fixed64.Zero, Fixed64.Half, Fixed64.Zero), FixedQuaternion.Identity,
-      Vector3d.Right, (Fixed64)10, Fixed64.Quarter,
-      new Vector3d(Fixed64.FromFraction(5, 2), Fixed64.Zero, Fixed64.Zero), Fixed64.Zero,
-      offsets, Fixed64.One, out FixedContactAnchors contact);
-  contact.FirstAnchor.TryGetOffsetFrom(contact.SecondAnchor, out Vector3d delta);
-  // delta = (-2,-0.75,0), rather than contact.Normal * contact.Depth.
-  ```
-
-  The prism-minus-core box has extents `[-3,8] x [-1.5,0.5] x [-1,1]`.
-  Expanding it by radius `0.25` contains a ball of radius `0.75` at zero,
-  and the upper Y support attains that bound. Thus the exact minimum is
-  independently `0.75`; moving the capsule Up by `0.75` touches and one raw
-  farther separates. Its arbitrary side-support midpoint lies outside the
-  opposing finite prism face; this capsule is not wholly contained in it.
-
-  A fully contained sphere also reproduces the opposing-face error: center zero,
-  radius `0.75`, prism origin/yaw zero, half-thickness `2`, and footprint
-  `(-1,-3), (1,-3), (1,3), (-1,3)`. The corrected normal is Left and depth
-  `1.75`, but witnesses are `(-0.75,0,0)` / `(-1,0,0)`, whose difference is
-  `0.25*Right`. The selected opposing prism witness is `(1,0,0)`. The prism
-  contains a centered ball of radius `1`; adding the sphere's radius proves
-  the minimum `1.75`, attained by the X support. The committed control also
-  picks the same rather than opposing face, with the opposite normal. This
-  finding is not limited to long cores or scalar-limit coordinates.
-
-  A further control uses a centered Up capsule with core length and radius
-  `Fixed64.MaxValue` against a centered prism with square offsets
-  `(+/-MaxValue,+/-MaxValue)` and half-thickness `MaxValue`. Both revisions
-  return coincident finite witnesses despite a clamped positive depth. Matching
-  the closest boundary of the entire polygon can choose the same side as the
-  capsule support instead of the selected opposing support face.
-- **Impact:** Incorrect tangential anchors or a wrong support face can distort
-  mixed-contact lever arms and response even when classification and depth are
-  correct. Individual points lying on finite surfaces do not prove pairing.
-- **Next action:** Add failing public regressions for exposed capsule-core
-  matching and opposing prism-face ownership. Reuse the existing exact projected
-  core/finite-feature clipping owners; retain full-domain anchors, native yaw,
-  stable ties, zero-core sphere parity and complete-shape clearance. Validate
-  downstream host response and both repositories' Release/Lean coverage.
-  Supplemental committed/fixed public probes are
-  `artifacts/issue035-witness-{committed,fixed}.jsonl`; the reproducer above
-  does not depend on those ignored files.
+No active issues.
 
 **Next issue ID:** `FMS-Issue-037`
 
@@ -109,6 +47,7 @@ rerun or package release.
 
 | Issue | Resolved/closed | Outcome | Evidence |
 | --- | --- | --- | --- |
+| <a id="fms-issue-036-spherecapsule-prism-witnesses-can-miss-the-opposing-finite-support"></a>FMS-Issue-036 | 2026-10-25 | Matched finite sphere/capsule prism supports, completed missing rim/vertex contacts and retained exact radial scaling; downstream torque/replay and coordinated coverage pass. | [Record](done/2026-10-25-prism-capsule-finite-witnesses.md) |
 | FMS-Issue-035 | 2026-10-20 | Corrected contained sphere/capsule prism exit orientation and paired support signs; whole-shape clearance and downstream host response/replay pass, with separate finite witness matching tracked as 036. | [Record](done/2026-10-20-contained-prism-exit-orientation.md) |
 | FMS-Issue-034 | 2026-10-20 | Completed exact cone/cylinder-prism minimum depth, normal and finite witnesses; bounded throughput refinements are committed, with residual penetrating oblique cost tracked in the benchmark backlog. | [Record](done/2026-10-19-curved-prism-contact-depth.md) |
 | FMS-Issue-033 | 2026-10-19 | Completed closed cylinder/cone-prism admission; the separate contact depth/normal defect was resolved under FMS-Issue-034. | [Record](done/2026-10-19-curved-prism-admission.md) |

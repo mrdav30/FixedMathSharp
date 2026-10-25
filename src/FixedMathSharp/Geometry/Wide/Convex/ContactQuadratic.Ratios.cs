@@ -12,6 +12,31 @@ namespace FixedMathSharp.Geometry;
 /// <content>Exact comparison of fractions in two possibly different quadratic fields.</content>
 internal readonly ref partial struct ContactQuadratic
 {
+    /// <summary>Rounds one complete coordinate into two additive scalar terms without premature saturation.</summary>
+    internal static void SplitRound(ContactQuadratic numerator, ContactQuadratic denominator,
+        ReadOnlySpan<ulong> root, out Fixed64 first, out Fixed64 second)
+    {
+        int words = Math.Max(numerator.FieldWords, denominator.FieldWords);
+        Span<ulong> work = stackalloc ulong[4 * words];
+        Span<int> signs = stackalloc int[4];
+        ContactQuadratic bound = At(work, signs, 0, words), difference = At(work, signs, 1, words);
+        first = Fixed64.Zero;
+        Scale(denominator, Signed576.ExtendValue(Signed192.Signed(long.MaxValue)), bound);
+        numerator.CopyTo(difference); difference.Add(bound, -1);
+        if (difference.Sign(root) > 0) first = Fixed64.MaxValue;
+        else
+        {
+            Scale(denominator, Signed576.ExtendValue(Signed192.Signed(long.MinValue)), bound);
+            numerator.CopyTo(difference); difference.Add(bound, -1);
+            if (difference.Sign(root) < 0) first = Fixed64.MinValue;
+        }
+        Scale(denominator, Signed576.ExtendValue(Signed192.Signed(first.m_rawValue)), bound);
+        numerator.CopyTo(difference); difference.Add(bound, -1);
+        Fixed64 rounded = RoundRatio(difference, denominator, root, parityOffset: first.m_rawValue);
+        second = first == Fixed64.Zero ? Fixed64.Zero : rounded;
+        if (first == Fixed64.Zero) first = rounded;
+    }
+
     /// <summary>Compares two exact quadratic fractions with nonzero denominators.</summary>
     internal static int CompareRatios(ContactQuadratic firstNumerator, ContactQuadratic firstDenominator,
         ReadOnlySpan<ulong> firstRoot, ContactQuadratic secondNumerator, ContactQuadratic secondDenominator,

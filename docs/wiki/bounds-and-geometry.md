@@ -371,11 +371,16 @@ boundary-ordered in either winding; repeated or collinear offsets retain their
 finite closed extent. Touching counts as contact, including zero-radius finite
 axes. The shape's local axis and rotation remain separately authored.
 
-`TryGetSphereContact` and `TryGetCenteredCapsuleContact` retain canonical
-projection-axis selection. Each axis uses the same signed exit for its depth,
-normal and selected prism projection endpoint, including when the shape center is inside
-the prism. Translate the shape opposite that normal to follow the selected
-exit; equal-depth axes retain their original traversal order.
+`TryGetSphereContact` and `TryGetCenteredCapsuleContact` start with canonical
+projection axes and certify finite opposing supports. Clip an exposed capsule
+core to the selected native-yaw prism plane; keep its midpoint when admitted,
+otherwise its nearest finite parameter. An empty projection is completed by
+the exact closest core/real-edge pair, including horizontal rims and vertices.
+Each exit retains the same signed depth, normal and opposing feature, including
+containment. Translate the shape opposite that normal to follow the exit;
+equal-depth axes and equivalent finite core parameters retain stable order.
+Apply the radius before radial-direction rounding, so full-domain radii do not
+amplify an already rounded unit normal's error.
 
 `TryGetCenteredCylinderContact` and `TryGetCenteredConeContact` find the minimum
 exit through the complete support fan. Prism faces, real edges and vertices

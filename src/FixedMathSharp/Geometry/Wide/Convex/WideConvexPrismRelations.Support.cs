@@ -6,6 +6,7 @@
 //=======================================================================
 
 using System;
+using static FixedMathSharp.Geometry.ContactQuadratic;
 
 namespace FixedMathSharp.Geometry;
 
@@ -73,51 +74,22 @@ internal static partial class WideConvexPrismRelations
                 Signed320.ExtendValue(Z));
     }
 
-    private readonly struct Penetration
-    {
-        internal readonly Vector3d Normal;
-        internal readonly FixedPointAnchor ShapeAnchor;
-        internal readonly FixedQuaternion PrismOrientation;
-        internal readonly Vector3d PrismOffset;
-        internal readonly Fixed64 Depth;
-        internal readonly bool DepthIsClamped;
-
-        internal Penetration(
-            Vector3d normal,
-            FixedPointAnchor shapeAnchor,
-            FixedQuaternion prismOrientation,
-            Vector3d prismOffset,
-            Fixed64 depth,
-            bool depthIsClamped)
-        {
-            Normal = normal;
-            ShapeAnchor = shapeAnchor;
-            PrismOrientation = prismOrientation;
-            PrismOffset = prismOffset;
-            Depth = depth;
-            DepthIsClamped = depthIsClamped;
-        }
-    }
-
     private readonly struct PenetrationCandidate
     {
         internal readonly Axis3 Axis;
         internal readonly bool Negate;
         internal readonly Vector3d PrismOffset;
-        internal readonly bool PrismPlanarTie;
         internal readonly ProjectionDepth ExactDepth;
 
         internal PenetrationCandidate(
             Axis3 axis,
             bool negate,
             Vector3d prismOffset,
-            bool prismPlanarTie,
             ProjectionDepth exactDepth)
         {
             Axis = axis;
             Negate = negate;
             PrismOffset = prismOffset;
-            PrismPlanarTie = prismPlanarTie;
             ExactDepth = exactDepth;
             HasValue = true;
         }
@@ -200,7 +172,7 @@ internal static partial class WideConvexPrismRelations
 
     #endregion
 
-    private static Penetration MaterializeContact(
+    private static bool TryMaterializeContact(
         in PenetrationCandidate candidate,
         RigidAxis3 shapeAxis,
         Vector3d center,
@@ -209,9 +181,11 @@ internal static partial class WideConvexPrismRelations
         Fixed64 axisLength,
         Fixed64 radius,
         Vector3d prismOrigin,
+        Fixed64 prismYaw,
         FixedQuaternion prismOrientation,
         ReadOnlySpan<Vector2d> prismOffsets,
-        Fixed64 prismHalfThickness)
+        Fixed64 prismHalfThickness,
+        out FixedContactAnchors contact)
     {
         Axis3 orientedAxis = candidate.Negate
             ? Negate(candidate.Axis)
@@ -228,84 +202,191 @@ internal static partial class WideConvexPrismRelations
             shapeRotation,
             localAxisDirection,
             axisLength,
-            radius,
+            Fixed64.Zero,
             normal,
             axialSign);
-        GetMatchedPrismOffset(
-            shapeAnchor,
-            prismOrigin,
-            prismOrientation,
-            prismOffsets,
-            prismHalfThickness,
-            candidate.PrismOffset,
-            orientedAxis,
-            candidate.PrismPlanarTie,
-            out Vector3d prismOffset);
-        Fixed64 depth = GetRoundedDepth(
-            candidate.ExactDepth,
-            out bool depthIsClamped);
-        return new Penetration(
-            normal,
-            shapeAnchor,
-            prismOrientation,
-            prismOffset,
-            depth,
-            depthIsClamped);
+        if (!TryGetMatchedPrismAnchor(candidate, orientedAxis, shapeAxis,
+                center, shapeRotation, localAxisDirection, axisLength, normal, axialSign,
+                prismOrigin, prismYaw, prismOrientation, prismOffsets, prismHalfThickness,
+                ref shapeAnchor, out FixedPointAnchor prismAnchor))
+            return TryGetPrismEdgeContact(shapeAxis, center, shapeRotation, axisLength,
+                radius, prismOrigin, prismYaw, prismOrientation, prismOffsets, prismHalfThickness, out contact);
+        shapeAnchor = new FixedPointAnchor(center, shapeRotation, shapeAnchor.LocalPoint,
+            GetPrismCapsuleRadialOffset(orientedAxis, shapeRotation, radius), shapeAnchor.ExactLocalTerm);
+        Fixed64 depth = GetRoundedDepth(candidate.ExactDepth, out bool depthIsClamped);
+        contact = new FixedContactAnchors(shapeAnchor, prismAnchor, normal, depth, depthIsClamped);
+        return true;
     }
 
-    private static void GetMatchedPrismOffset(
-        FixedPointAnchor shapeAnchor,
-        Vector3d prismOrigin,
-        FixedQuaternion prismOrientation,
-        ReadOnlySpan<Vector2d> prismOffsets,
-        Fixed64 prismHalfThickness,
-        Vector3d fallbackPrismOffset,
-        Axis3 normalAxis,
-        bool planarSupportTie,
-        out Vector3d prismOffset)
+    private static bool TryGetMatchedPrismAnchor(in PenetrationCandidate candidate, Axis3 normal,
+        RigidAxis3 shapeAxis, Vector3d center, FixedQuaternion rotation, Vector3d localAxis,
+        Fixed64 length, Vector3d direction, int axialSign, Vector3d origin, Fixed64 yaw,
+        FixedQuaternion orientation, ReadOnlySpan<Vector2d> offsets, Fixed64 halfThickness,
+        ref FixedPointAnchor shapeAnchor, out FixedPointAnchor prismAnchor)
     {
-        if (!shapeAnchor.TryGetLocalPointIn(
-                prismOrigin,
-                prismOrientation,
-                out Vector3d localPoint))
+        prismAnchor = default;
+        // Native coordinates fit 165 bits and selected axes 201. Projection
+        // numerators/denominators fit 571/503, half-plane values 704, and core
+        // parameters 803 bits. Only final interpolation needs the 32-word banks.
+        var frame = new WideConvex2dRelations.RotationFrame2d(yaw);
+        Signed192 twiceRotation = WideArithmetic.AddSigned192(shapeAxis.RotationDenominator, shapeAxis.RotationDenominator);
+        Signed192 coreD = Signed192.NarrowProven(WideArithmetic.MultiplySigned192(twiceRotation, Scale));
+        ReadOnlySpan<Signed320> n = stackalloc Signed320[3] { normal.X, normal.Y, normal.Z };
+        ReadOnlySpan<Signed192> a = stackalloc Signed192[3] { shapeAxis.X, shapeAxis.Y, shapeAxis.Z };
+        Signed576 metric = WideArithmetic.AddSigned576(WideArithmetic.AddSigned576(
+            WideArithmetic.MultiplySigned320(n[0], n[0]), WideArithmetic.MultiplySigned320(n[1], n[1])),
+            WideArithmetic.MultiplySigned320(n[2], n[2]));
+        WideConvex2dRelations.GetRotatedOffset(frame, new Vector2d(candidate.PrismOffset.X, candidate.PrismOffset.Z),
+            out Signed192 vx, out Signed192 vz);
+        ReadOnlySpan<Signed192> vertex = stackalloc Signed192[3]
+            { vx, Signed192.NarrowProven(WideArithmetic.MultiplySigned192(Signed192.Raw(candidate.PrismOffset.Y), Scale)), vz };
+        Span<Signed576> core = stackalloc Signed576[6], support = stackalloc Signed576[3];
+        bool freeCore = axialSign == 0 && length > Fixed64.Zero;
+        for (int axis = 0; axis < 3; axis++)
         {
-            prismOffset = fallbackPrismOffset;
-            return;
+            Signed320 midpoint = WideArithmetic.MultiplySigned192(WideArithmetic.Difference(center[axis], origin[axis]), coreD);
+            Signed320 half = WideArithmetic.MultiplySigned192(a[axis], Signed192.Raw(length));
+            core[axis] = Signed576.ExtendValue(WideArithmetic.AddSigned320(midpoint,
+                freeCore ? WideArithmetic.Negate(half) : axialSign < 0 ? WideArithmetic.Negate(half) : axialSign > 0 ? half : default));
+            core[axis + 3] = freeCore ? Signed576.ExtendValue(WideArithmetic.AddSigned320(midpoint, half)) : core[axis];
+            support[axis] = Signed576.ExtendValue(WideArithmetic.MultiplySigned192(vertex[axis], twiceRotation));
         }
+        Signed576 plane = DotPrismSupport(support, n);
+        Span<Signed832> projected = stackalloc Signed832[6];
+        for (int end = 0; end < 2; end++)
+        {
+            Signed576 distance = WideArithmetic.SubtractSigned576(plane, DotPrismSupport(core.Slice(3 * end, 3), n));
+            for (int axis = 0; axis < 3; axis++)
+                projected[3 * end + axis] = WideArithmetic.AddSigned832(
+                    WideArithmetic.MultiplySigned576ToSigned832(metric, core[3 * end + axis]),
+                    WideArithmetic.MultiplySigned576ToSigned832(distance, n[axis]));
+        }
+        Signed832 pointD = WideArithmetic.MultiplySigned576ToSigned832(metric, Signed320.ExtendValue(coreD));
+        // Projection removes the radial term. Clip the finite core against the
+        // actual native-yaw prism, never its rounded quaternion approximation.
+        Signed832 lowerN = default, lowerD = Signed832.ExtendValue(Signed192.Signed(1));
+        Signed832 upperN = lowerD, upperD = lowerD;
+        int winding = WideConvex2dRelations.GetPlanarSweepWinding(offsets);
+        Signed192 minX = vx, maxX = vx, minZ = vz, maxZ = vz;
+        for (int index = 0; index < offsets.Length; index++)
+        {
+            WideConvex2dRelations.GetRotatedOffset(frame, offsets[index], out Signed192 x, out Signed192 z);
+            WideConvex2dRelations.GetRotatedOffset(frame, offsets[index + 1 == offsets.Length ? 0 : index + 1],
+                out Signed192 nextX, out Signed192 nextZ);
+            if (WideArithmetic.SubtractSigned192(x, minX).Sign < 0) minX = x;
+            if (WideArithmetic.SubtractSigned192(x, maxX).Sign > 0) maxX = x;
+            if (WideArithmetic.SubtractSigned192(z, minZ).Sign < 0) minZ = z;
+            if (WideArithmetic.SubtractSigned192(z, maxZ).Sign > 0) maxZ = z;
+            Signed192 dx = WideArithmetic.SubtractSigned192(nextX, x), dz = WideArithmetic.SubtractSigned192(nextZ, z);
+            Signed832 first = GetPrismEdgeConstraint(projected[..3], pointD, x, z, dx, dz);
+            Signed832 second = GetPrismEdgeConstraint(projected[3..], pointD, x, z, dx, dz);
+            if (winding < 0) { first = WideArithmetic.SubtractSigned832(default, first); second = WideArithmetic.SubtractSigned832(default, second); }
+            if (!WideTriangleRelations.ClipScaledHalfPlane(first, second, ref lowerN, ref lowerD, ref upperN, ref upperD))
+                return false;
+        }
+        Signed192 height = Signed192.NarrowProven(WideArithmetic.MultiplySigned192(Signed192.Raw(halfThickness), Scale));
+        ReadOnlySpan<Signed192> minimum = stackalloc Signed192[3] { minX, WideArithmetic.Negate(height), minZ };
+        ReadOnlySpan<Signed192> maximum = stackalloc Signed192[3] { maxX, height, maxZ };
+        for (int axis = 0; axis < 3; axis++)
+        {
+            // Real polygon edges bound X/Z already; collapsed footprints also
+            // need their finite endpoint bounds along the surviving line.
+            if (winding != 0 && axis != 1) continue;
+            Signed832 first = WideArithmetic.MultiplySigned832(projected[axis], Scale);
+            Signed832 second = WideArithmetic.MultiplySigned832(projected[axis + 3], Scale);
+            Signed832 min = WideArithmetic.MultiplySigned832(pointD, minimum[axis]);
+            Signed832 max = WideArithmetic.MultiplySigned832(pointD, maximum[axis]);
+            if (!WideTriangleRelations.ClipScaledHalfPlane(WideArithmetic.SubtractSigned832(first, min),
+                    WideArithmetic.SubtractSigned832(second, min), ref lowerN, ref lowerD, ref upperN, ref upperD)
+                || !WideTriangleRelations.ClipScaledHalfPlane(WideArithmetic.SubtractSigned832(max, first),
+                    WideArithmetic.SubtractSigned832(max, second), ref lowerN, ref lowerD, ref upperN, ref upperD))
+                return false;
+        }
+        Signed832 tN = Signed832.ExtendValue(Signed192.Signed(1)), tD = Signed832.ExtendValue(Signed192.Signed(2));
+        if (WideArithmetic.SubtractSigned832(WideArithmetic.AddSigned832(lowerN, lowerN), lowerD).Sign > 0)
+        { tN = lowerN; tD = lowerD; }
+        else if (WideArithmetic.SubtractSigned832(WideArithmetic.AddSigned832(upperN, upperN), upperD).Sign < 0)
+        { tN = upperN; tD = upperD; }
+        if (freeCore)
+        {
+            Signed832 axialN = WideArithmetic.MultiplySigned832(WideArithmetic.SubtractSigned832(
+                WideArithmetic.AddSigned832(tN, tN), tD), Signed192.Raw(length));
+            Signed832 axialD = WideArithmetic.AddSigned832(tD, tD);
+            Signed832 magnitude = axialN.Sign < 0 ? WideArithmetic.SubtractSigned832(default, axialN) : axialN;
+            bool endpoint = WideArithmetic.SubtractSigned832(WideArithmetic.MultiplySigned832(axialD, Signed192.Raw(length)),
+                WideArithmetic.AddSigned832(magnitude, magnitude)).IsZero;
+            shapeAnchor = endpoint ? WideGeometry.GetCenteredCapsuleSupportAnchor(center, rotation, localAxis,
+                length, Fixed64.Zero, direction, axialN.Sign)
+                : new FixedPointAnchor(center, rotation, WideTriangleRelations.MaterializeCorePoint(localAxis, axialN, axialD),
+                    shapeAnchor.LocalDisplacement, shapeAnchor.ExactLocalTerm);
+        }
+        prismAnchor = MaterializePrismProjection(projected, pointD, tN, tD, origin, orientation);
+        return true;
+    }
 
-        var planarPoint = new Vector2d(localPoint.X, localPoint.Z);
-        Vector2d planarOffset;
-        bool verticalNormal = normalAxis.X.IsZero
-            && normalAxis.Z.IsZero;
-        if (verticalNormal
-            && FixedConvex2dRelations.ContainsPoint(
-                planarPoint,
-                Vector2d.Zero,
-                prismOffsets))
-        {
-            planarOffset = planarPoint;
-        }
-        else if (verticalNormal | planarSupportTie)
-        {
-            planarOffset = FixedConvex2dRelations.GetClosestPointOffset(
-                planarPoint,
-                Vector2d.Zero,
-                prismOffsets);
-        }
-        else
-        {
-            planarOffset = new Vector2d(
-                fallbackPrismOffset.X,
-                fallbackPrismOffset.Z);
-        }
+    private static Vector3d GetPrismCapsuleRadialOffset(Axis3 normal, FixedQuaternion rotation, Fixed64 radius)
+    {
+        WideRigidProjection.GetLocalAxisProjections(new WideAxis3(normal.X, normal.Y, normal.Z),
+            new WideRationalBasis3d(rotation), out Signed576 x, out Signed576 y, out Signed576 z);
+        // Scale the exact local direction before rounding: a rounded unit
+        // vector's error would otherwise grow with full-domain radii.
+        const int words = 9;
+        Span<ulong> values = stackalloc ulong[7 * words]; Span<int> signs = stackalloc int[7];
+        values.Clear(); signs.Clear();
+        WideArithmetic.GetMagnitude(x, values[..words]); signs[0] = x.Sign;
+        WideArithmetic.GetMagnitude(y, values.Slice(words, words)); signs[1] = y.Sign;
+        WideArithmetic.GetMagnitude(z, values.Slice(2 * words, words)); signs[2] = z.Sign;
+        return GetConvexContactCandidateScaledNormal(new ConvexContactCandidate(values, signs, 1, words), radius);
+    }
 
-        Fixed64 y = normalAxis.Y.IsZero
-            ? FixedMath.Clamp(
-                localPoint.Y,
-                -prismHalfThickness,
-                prismHalfThickness)
-            : fallbackPrismOffset.Y;
-        prismOffset = new Vector3d(planarOffset.X, y, planarOffset.Y);
+    private static Signed576 DotPrismSupport(ReadOnlySpan<Signed576> point, ReadOnlySpan<Signed320> axis) =>
+        Signed576.NarrowValue(WideArithmetic.AddSigned832(WideArithmetic.AddSigned832(
+            WideArithmetic.MultiplySigned576ToSigned832(point[0], axis[0]),
+            WideArithmetic.MultiplySigned576ToSigned832(point[1], axis[1])),
+            WideArithmetic.MultiplySigned576ToSigned832(point[2], axis[2])));
+
+    private static Signed832 GetPrismEdgeConstraint(ReadOnlySpan<Signed832> point, Signed832 denominator,
+        Signed192 x, Signed192 z, Signed192 dx, Signed192 dz) =>
+        WideArithmetic.SubtractSigned832(WideArithmetic.MultiplySigned832(WideArithmetic.SubtractSigned832(
+                WideArithmetic.MultiplySigned832(point[2], Scale), WideArithmetic.MultiplySigned832(denominator, z)), dx),
+            WideArithmetic.MultiplySigned832(WideArithmetic.SubtractSigned832(
+                WideArithmetic.MultiplySigned832(point[0], Scale), WideArithmetic.MultiplySigned832(denominator, x)), dz));
+
+    private static FixedPointAnchor MaterializePrismProjection(ReadOnlySpan<Signed832> projected, Signed832 pointD,
+        Signed832 tN, Signed832 tD, Vector3d origin, FixedQuaternion rotation)
+    {
+        const int words = 32;
+        Span<ulong> values = stackalloc ulong[22 * words]; Span<int> signs = stackalloc int[22];
+        ContactQuadratic first = At(values, signs, 3, words), second = At(values, signs, 4, words),
+            remaining = At(values, signs, 5, words), parameter = At(values, signs, 6, words),
+            denominator = At(values, signs, 7, words), localD = At(values, signs, 8, words),
+            numerator = At(values, signs, 9, words), term = At(values, signs, 10, words);
+        remaining.Set(WideArithmetic.SubtractSigned832(tD, tN)); parameter.Set(tN);
+        for (int axis = 0; axis < 3; axis++)
+        {
+            first.Set(projected[axis]); second.Set(projected[axis + 3]);
+            ContactQuadratic coordinate = At(values, signs, axis, words);
+            Multiply(first, remaining, ReadOnlySpan<ulong>.Empty, coordinate);
+            Multiply(second, parameter, ReadOnlySpan<ulong>.Empty, term); coordinate.Add(term);
+        }
+        first.Set(pointD); second.Set(tD); Multiply(first, second, ReadOnlySpan<ulong>.Empty, denominator);
+        WideRationalBasis3d basis = new(rotation);
+        ContactQuadratic.Scale(denominator, Signed576.ExtendValue(basis.Denominator), localD);
+        ReadOnlySpan<Signed192> coefficients = stackalloc Signed192[9]
+            { basis.Xx, basis.Xy, basis.Xz, basis.Yx, basis.Yy, basis.Yz, basis.Zx, basis.Zy, basis.Zz };
+        Vector3d point = default, displacement = default;
+        for (int axis = 0; axis < 3; axis++)
+        {
+            numerator.Clear();
+            for (int component = 0; component < 3; component++)
+            {
+                ContactQuadratic.Scale(At(values, signs, component, words), Signed576.ExtendValue(coefficients[3 * axis + component]), term);
+                numerator.Add(term);
+            }
+            SplitRound(numerator, localD, ReadOnlySpan<ulong>.Empty, out Fixed64 a, out Fixed64 b);
+            point[axis] = a; displacement[axis] = b;
+        }
+        return new FixedPointAnchor(origin, rotation, point, displacement);
     }
 
     private static Axis3 FromDirection(Vector3d direction) =>

@@ -137,7 +137,7 @@ internal static partial class WideConvex2dRelations
             WideArithmetic.MultiplySigned320(radiusSquared, lengthSquared)).Sign <= maximumDistanceSign;
     }
 
-    private static int GetPlanarSweepWinding(ReadOnlySpan<Vector2d> offsets)
+    internal static int GetPlanarSweepWinding(ReadOnlySpan<Vector2d> offsets)
     {
         // A fan around the first vertex also tolerates repeated edge vertices.
         WideAxis2d first = DoubleSweepOffset(offsets[0]);

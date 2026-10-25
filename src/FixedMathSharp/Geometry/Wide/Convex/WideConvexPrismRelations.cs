@@ -25,7 +25,7 @@ internal static partial class WideConvexPrismRelations
         ReadOnlySpan<Vector2d> prismLocalOffsets,
         Fixed64 prismHalfThickness,
         out FixedContactAnchors contact) =>
-        TryGetAnchoredContact(
+        TryGetContact(
             center,
             rotation,
             localAxisDirection,
@@ -85,46 +85,6 @@ internal static partial class WideConvexPrismRelations
             true,
             out contact);
 
-    private static bool TryGetAnchoredContact(
-        Vector3d center,
-        FixedQuaternion shapeRotation,
-        Vector3d localAxisDirection,
-        Fixed64 axisLength,
-        Fixed64 radius,
-        Vector3d prismOrigin,
-        Fixed64 prismRotation,
-        ReadOnlySpan<Vector2d> prismLocalOffsets,
-        Fixed64 prismHalfThickness,
-        out FixedContactAnchors contact)
-    {
-        if (!TryGetContact(
-                center,
-                shapeRotation,
-                localAxisDirection,
-                axisLength,
-                radius,
-                prismOrigin,
-                prismRotation,
-                prismLocalOffsets,
-                prismHalfThickness,
-                out Penetration penetration))
-        {
-            contact = default;
-            return false;
-        }
-
-        contact = new FixedContactAnchors(
-            penetration.ShapeAnchor,
-            new FixedPointAnchor(
-                prismOrigin,
-                penetration.PrismOrientation,
-                penetration.PrismOffset),
-            penetration.Normal,
-            penetration.Depth,
-            penetration.DepthIsClamped);
-        return true;
-    }
-
     private static bool TryGetContact(
         Vector3d center,
         FixedQuaternion shapeRotation,
@@ -135,7 +95,7 @@ internal static partial class WideConvexPrismRelations
         Fixed64 prismRotation,
         ReadOnlySpan<Vector2d> prismLocalOffsets,
         Fixed64 prismHalfThickness,
-        out Penetration contact)
+        out FixedContactAnchors contact)
     {
         var best = default(PenetrationCandidate);
         WideOrientedBox.GetRotatedLocalAxisNumerators(
@@ -212,9 +172,7 @@ internal static partial class WideConvexPrismRelations
                 prismOrigin,
                 prismRotation,
                 start);
-            // Incident vertex axes reject every face-separated convex input;
-            // the face remains necessary only as an overlap-depth candidate.
-            _ = TryKeepAxis(
+            if (!TryKeepAxis(
                 face,
                 rigidShapeAxis,
                 center,
@@ -224,8 +182,8 @@ internal static partial class WideConvexPrismRelations
                 prismRotation,
                 prismLocalOffsets,
                 prismHalfThickness,
-                ref best);
-            if (!TryKeepAxis(
+                ref best)
+                || !TryKeepAxis(
                     Cross(shapeAxis, edge),
                     rigidShapeAxis,
                     center,
@@ -289,7 +247,17 @@ internal static partial class WideConvexPrismRelations
             }
         }
 
-        contact = MaterializeContact(
+        // A point footprint and parallel vertical core have no edge/cross
+        // normal. Append a perpendicular bound without replacing earlier ties.
+        if (WideConvex2dRelations.GetPlanarSweepWinding(prismLocalOffsets) == 0
+            && !TryKeepAxis(FromDirection(Vector3d.Right), rigidShapeAxis, center, axisLength, radius,
+                prismOrigin, prismRotation, prismLocalOffsets, prismHalfThickness, ref best))
+        {
+            contact = default;
+            return false;
+        }
+
+        return TryMaterializeContact(
             best,
             rigidShapeAxis,
             center,
@@ -298,10 +266,11 @@ internal static partial class WideConvexPrismRelations
             axisLength,
             radius,
             prismOrigin,
+            prismRotation,
             prismOrientation,
             prismLocalOffsets,
-            prismHalfThickness);
-        return true;
+            prismHalfThickness,
+            out contact);
     }
 
     private static bool TryKeepAxis(
@@ -329,9 +298,7 @@ internal static partial class WideConvexPrismRelations
             out Signed576 prismMinimum,
             out Signed576 prismMaximum,
             out Vector3d minimumPrismOffset,
-            out Vector3d maximumPrismOffset,
-            out bool minimumPlanarTie,
-            out bool maximumPlanarTie);
+            out Vector3d maximumPrismOffset);
         GetCapsuleProjectionDepths(
             axis,
             shapeAxis,
@@ -349,18 +316,15 @@ internal static partial class WideConvexPrismRelations
 
         bool usePositiveNormal;
         ProjectionDepth selectedDepth;
-        bool planarTie;
         if (prismMinimum.Sign >= 0)
         {
             usePositiveNormal = true;
             selectedDepth = positiveDepth;
-            planarTie = minimumPlanarTie;
         }
         else if (prismMaximum.Sign <= 0)
         {
             usePositiveNormal = false;
             selectedDepth = negativeDepth;
-            planarTie = maximumPlanarTie;
         }
         else if (CompareProjectionDepths(
                      positiveDepth,
@@ -368,13 +332,11 @@ internal static partial class WideConvexPrismRelations
         {
             usePositiveNormal = false;
             selectedDepth = negativeDepth;
-            planarTie = maximumPlanarTie;
         }
         else
         {
             usePositiveNormal = true;
             selectedDepth = positiveDepth;
-            planarTie = minimumPlanarTie;
         }
 
         if (best.HasValue
@@ -394,7 +356,6 @@ internal static partial class WideConvexPrismRelations
             axis,
             !usePositiveNormal,
             prismOffset,
-            planarTie,
             selectedDepth);
         return true;
     }
@@ -409,9 +370,7 @@ internal static partial class WideConvexPrismRelations
         out Signed576 minimum,
         out Signed576 maximum,
         out Vector3d minimumOffset,
-        out Vector3d maximumOffset,
-        out bool minimumPlanarTie,
-        out bool maximumPlanarTie)
+        out Vector3d maximumOffset)
     {
         Signed576 originProjection = ScaleProjection(
             GetDifferenceProjection(
@@ -429,8 +388,6 @@ internal static partial class WideConvexPrismRelations
             prismRotation,
             axis);
         Signed576 maximumPlanar = minimumPlanar;
-        minimumPlanarTie = false;
-        maximumPlanarTie = false;
         for (int index = 1; index < offsets.Length; index++)
         {
             Signed576 projection = GetRotatedPlanarProjection(
@@ -442,12 +399,6 @@ internal static partial class WideConvexPrismRelations
             {
                 minimumPlanar = projection;
                 minimumIndex = index;
-                minimumPlanarTie = false;
-            }
-            else if (minimumComparison == 0
-                && offsets[index] != offsets[minimumIndex])
-            {
-                minimumPlanarTie = true;
             }
 
             int maximumComparison = Compare(projection, maximumPlanar);
@@ -455,12 +406,6 @@ internal static partial class WideConvexPrismRelations
             {
                 maximumPlanar = projection;
                 maximumIndex = index;
-                maximumPlanarTie = false;
-            }
-            else if (maximumComparison == 0
-                && offsets[index] != offsets[maximumIndex])
-            {
-                maximumPlanarTie = true;
             }
         }
 

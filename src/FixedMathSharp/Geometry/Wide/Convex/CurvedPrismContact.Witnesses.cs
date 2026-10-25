@@ -286,29 +286,6 @@ internal static partial class CurvedPrismContact
         return new FixedPointAnchor(origin, rotation, first, second);
     }
 
-    private static void SplitRound(ContactQuadratic numerator, ContactQuadratic denominator,
-        ReadOnlySpan<ulong> root, out Fixed64 first, out Fixed64 second)
-    {
-        Span<ulong> work = stackalloc ulong[4 * WitnessWords];
-        Span<int> signs = stackalloc int[4];
-        ContactQuadratic bound = WAt(work, signs, 0), difference = WAt(work, signs, 1);
-        first = Fixed64.Zero;
-        Scale(denominator, Integer(long.MaxValue), bound);
-        numerator.CopyTo(difference); difference.Add(bound, -1);
-        if (difference.Sign(root) > 0) first = Fixed64.MaxValue;
-        else
-        {
-            Scale(denominator, Integer(long.MinValue), bound);
-            numerator.CopyTo(difference); difference.Add(bound, -1);
-            if (difference.Sign(root) < 0) first = Fixed64.MinValue;
-        }
-        Scale(denominator, Integer(first.m_rawValue), bound);
-        numerator.CopyTo(difference); difference.Add(bound, -1);
-        Fixed64 rounded = RoundRatio(difference, denominator, root, parityOffset: first.m_rawValue);
-        second = first == Fixed64.Zero ? Fixed64.Zero : rounded;
-        if (first == Fixed64.Zero) first = rounded;
-    }
-
     private static void DotQuadratic(in WideDirection3d vector, Span<ulong> values, Span<int> signs, ContactQuadratic result)
     {
         Span<ulong> work = stackalloc ulong[2 * WitnessWords];
