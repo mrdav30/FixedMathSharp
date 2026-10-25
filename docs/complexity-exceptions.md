@@ -293,6 +293,18 @@ these decisions within their bounded arithmetic owners.
 | `WideArithmetic.DivideMagnitudes(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | Normalized multiword division bounds quotient correction, retains exact remainder and supports documented numerator/output overlap with caller-owned scratch. | A portable exact divider lowers cost while preserving correction bounds and every overlap contract. |
 | `Fixed64.Divide128By64(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Shared quotient-fit division uses two base-2^32 digits with bounded trial correction and an exact remainder, replacing bit-at-a-time wide division. | The quotient-fit precondition changes or a portable intrinsic matches both target frameworks and remainder semantics. |
 
+### Capsule/vertical-prism projection selection
+
+Signed prism endpoints are relative to the capsule center. Positive projection
+depth pairs the capsule maximum with the prism minimum; negative projection
+depth pairs its minimum with the prism maximum. The same orientation chooses
+the prism endpoint and the final capsule support. Endpoint-zero and straddling
+ties retain their distinct branch policy, and earlier axes own equal depths.
+
+| Module | Method | Complexity | Coverage | Rationale | Revisit if |
+| --- | --- | ---: | --- | --- | --- |
+| `FixedMathSharp` | `WideConvexPrismRelations.TryKeepAxis(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | Exact signed projection admission precedes orientation and cross-axis depth ranking. The four endpoint/straddling branches retain deterministic ties while one orientation owns both support signs, without extra arithmetic or independently mutable endpoint flags. | A simpler reducer preserves signed interval admission, collapsed endpoint policy, earlier-axis ties and exact depth ranking. |
+
 ### Curved primitive/vertical-prism contacts
 
 Native scalar-yaw vertices and the primitive's exact quaternion basis share one

@@ -371,6 +371,12 @@ boundary-ordered in either winding; repeated or collinear offsets retain their
 finite closed extent. Touching counts as contact, including zero-radius finite
 axes. The shape's local axis and rotation remain separately authored.
 
+`TryGetSphereContact` and `TryGetCenteredCapsuleContact` retain canonical
+projection-axis selection. Each axis uses the same signed exit for its depth,
+normal and selected prism projection endpoint, including when the shape center is inside
+the prism. Translate the shape opposite that normal to follow the selected
+exit; equal-depth axes retain their original traversal order.
+
 `TryGetCenteredCylinderContact` and `TryGetCenteredConeContact` find the minimum
 exit through the complete support fan. Prism faces, real edges and vertices
 meet the cylinder's caps, side and rims, or the cone's base disk and rim, apex

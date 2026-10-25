@@ -119,79 +119,69 @@ public sealed class FixedConvexPrismRelationsTests
     [Fact]
     public void CapsuleContact_PreservesRelativeAnchorsWhenWorldPointsAreOutsideTheScalarDomain()
     {
-        Vector2d[] fullDomainSquare =
+        Vector2d[] footprint =
         {
-            new(-Fixed64.MaxValue, -Fixed64.MaxValue),
-            new(Fixed64.MaxValue, -Fixed64.MaxValue),
-            new(Fixed64.MaxValue, Fixed64.MaxValue),
-            new(-Fixed64.MaxValue, Fixed64.MaxValue),
+            new(1, -3), new(4, -3), new(4, 3), new(1, 3)
         };
-        Vector3d prismOrigin = new(
-            -Fixed64.One,
-            Fixed64.Zero,
-            Fixed64.Zero);
+        Vector3d origin = new(Fixed64.MaxValue, Fixed64.Zero, Fixed64.Zero);
 
+        // Both supports are beyond MaxValue: capsule X=origin+2 and
+        // prism X=origin+1. Their exact relative gap remains one.
         Assert.True(FixedConvexPrismRelations.TryGetCenteredCapsuleContact(
-            new Vector3d(
-                Fixed64.MinValue,
-                Fixed64.Zero,
-                Fixed64.Zero),
+            origin,
             FixedQuaternion.Identity,
             Vector3d.Up,
-            Fixed64.MaxValue,
-            Fixed64.MaxValue,
-            prismOrigin,
+            Fixed64.One,
+            Fixed64.Two,
+            origin,
             Fixed64.Zero,
-            fullDomainSquare,
-            Fixed64.MaxValue,
+            footprint,
+            Fixed64.One,
             out FixedContactAnchors contact));
 
-        Assert.Equal(Vector3d.Left, contact.Normal);
-        Assert.Equal(Fixed64.MaxValue, contact.Depth);
-        Assert.True(contact.DepthIsClamped);
+        Assert.Equal(Vector3d.Right, contact.Normal);
+        Assert.Equal(Fixed64.One, contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        Assert.Equal(origin, contact.FirstAnchor.Origin);
+        Assert.Equal(origin, contact.SecondAnchor.Origin);
         Assert.False(contact.FirstAnchor.TryGetPoint(out _));
         Assert.False(contact.SecondAnchor.TryGetPoint(out _));
         Assert.True(contact.FirstAnchor.TryGetOffsetFrom(
             contact.SecondAnchor,
             out Vector3d relativeOffset));
-        Assert.Equal(
-            new Vector3d(
-                Fixed64.MinValue + Fixed64.One,
-                Fixed64.MaxValue,
-                Fixed64.MaxValue),
-            relativeOffset);
+        Assert.Equal(Vector3d.Right, relativeOffset);
     }
 
     [Fact]
-    public void SphereContact_FromInsideSelectsNearestFaceWithMirroredOrientation()
+    public void SphereContact_FromInsideSelectsTheNearestWholeShapeExit()
     {
         AssertInsideSphereContact(
             new Vector3d(
                 Fixed64.FromFraction(9, 10),
                 Fixed64.Zero,
                 Fixed64.Zero),
-            Vector3d.Right,
+            Vector3d.Left,
             Fixed64.FromFraction(3, 5));
         AssertInsideSphereContact(
             new Vector3d(
                 -Fixed64.FromFraction(9, 10),
                 Fixed64.Zero,
                 Fixed64.Zero),
-            -Vector3d.Right,
+            Vector3d.Right,
             Fixed64.FromFraction(3, 5));
         AssertInsideSphereContact(
             new Vector3d(
                 Fixed64.Zero,
                 Fixed64.FromFraction(9, 20),
                 Fixed64.Zero),
-            Vector3d.Up,
+            Vector3d.Down,
             Fixed64.FromFraction(11, 20));
         AssertInsideSphereContact(
             new Vector3d(
                 Fixed64.Zero,
                 -Fixed64.FromFraction(9, 20),
                 Fixed64.Zero),
-            Vector3d.Down,
+            Vector3d.Up,
             Fixed64.FromFraction(11, 20));
     }
 
@@ -532,16 +522,18 @@ public sealed class FixedConvexPrismRelationsTests
 
         Assert.Equal(Vector3d.Zero, contact.FirstAnchor.LocalPoint);
         Assert.Equal(
-            -Fixed64.MaxValue,
+            Fixed64.MaxValue,
             contact.FirstAnchor.LocalDisplacement.Z);
         Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d point));
         Assert.Equal(
             new Vector3d(
                 Fixed64.Zero,
                 Fixed64.Zero,
-                -Fixed64.MaxValue),
+                Fixed64.MaxValue),
             point);
-        Assert.Equal(-Vector3d.Forward, contact.Normal);
+        // The first planar face has axis -Z. Equal straddling depths
+        // retain its negative-depth branch, whose physical normal is +Z.
+        Assert.Equal(Vector3d.Forward, contact.Normal);
         Assert.Equal(Fixed64.MaxValue, contact.Depth);
         Assert.True(contact.DepthIsClamped);
     }
@@ -1095,5 +1087,14 @@ public sealed class FixedConvexPrismRelationsTests
         Assert.Equal(expectedNormal, sphere.Normal);
         Assert.Equal(expectedDepth, sphere.Depth);
         AssertEquivalent(sphere, collapsedCapsule);
+        Assert.True(sphere.FirstAnchor.TryGetOffsetFrom(sphere.SecondAnchor, out Vector3d separation));
+        Assert.Equal(sphere.Normal * sphere.Depth, separation);
+        Assert.True(FixedConvexPrismRelations.TryGetSphereContact(
+            sphereCenter - expectedNormal * expectedDepth, Fixed64.Half, Vector3d.Zero,
+            Fixed64.Zero, UnitSquare, Fixed64.Half, out FixedContactAnchors touching));
+        Assert.Equal(Fixed64.Zero, touching.Depth);
+        Assert.False(FixedConvexPrismRelations.TryGetSphereContact(
+            sphereCenter - expectedNormal * (expectedDepth + Fixed64.MinIncrement), Fixed64.Half,
+            Vector3d.Zero, Fixed64.Zero, UnitSquare, Fixed64.Half, out _));
     }
 }

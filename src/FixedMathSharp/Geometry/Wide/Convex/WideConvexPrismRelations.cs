@@ -348,20 +348,17 @@ internal static partial class WideConvexPrismRelations
         }
 
         bool usePositiveNormal;
-        bool useMinimumPrismOffset;
         ProjectionDepth selectedDepth;
         bool planarTie;
         if (prismMinimum.Sign >= 0)
         {
             usePositiveNormal = true;
-            useMinimumPrismOffset = true;
             selectedDepth = positiveDepth;
             planarTie = minimumPlanarTie;
         }
         else if (prismMaximum.Sign <= 0)
         {
             usePositiveNormal = false;
-            useMinimumPrismOffset = false;
             selectedDepth = negativeDepth;
             planarTie = maximumPlanarTie;
         }
@@ -369,15 +366,13 @@ internal static partial class WideConvexPrismRelations
                      positiveDepth,
                      negativeDepth) >= 0)
         {
-            usePositiveNormal = true;
-            useMinimumPrismOffset = false;
+            usePositiveNormal = false;
             selectedDepth = negativeDepth;
             planarTie = maximumPlanarTie;
         }
         else
         {
-            usePositiveNormal = false;
-            useMinimumPrismOffset = true;
+            usePositiveNormal = true;
             selectedDepth = positiveDepth;
             planarTie = minimumPlanarTie;
         }
@@ -390,7 +385,9 @@ internal static partial class WideConvexPrismRelations
             return true;
         }
 
-        Vector3d prismOffset = useMinimumPrismOffset
+        // +axis pairs the capsule maximum with the prism minimum; -axis
+        // pairs its minimum with the prism maximum, including containment.
+        Vector3d prismOffset = usePositiveNormal
             ? minimumPrismOffset
             : maximumPrismOffset;
         best = new PenetrationCandidate(
