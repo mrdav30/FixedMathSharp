@@ -3,7 +3,7 @@
 ![FixedMathSharp icon](icon.png)
 
 [![Build](https://github.com/mrdav30/FixedMathSharp/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/mrdav30/FixedMathSharp/actions/workflows/build-and-test.yml)
-[![Core Branch Coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmrdav30.github.io%2FFixedMathSharp%2Fcoverage%2FSummary.json&query=%24.summary.branchcoverage&suffix=%25&label=core%20branch%20coverage&color=brightgreen)](https://mrdav30.github.io/FixedMathSharp/coverage/)
+[![Coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmrdav30.github.io%2FFixedMathSharp%2Fcoverage%2FSummary.json&query=%24.summary.branchcoverage&suffix=%25&label=coverage&color=brightgreen)](https://mrdav30.github.io/FixedMathSharp/coverage/)
 [![NuGet](https://img.shields.io/nuget/v/FixedMathSharp.svg)](https://www.nuget.org/packages/FixedMathSharp)
 [![License](https://img.shields.io/github/license/mrdav30/FixedMathSharp.svg)](LICENSE)
 [![API](https://img.shields.io/badge/docs-API-f4511e)](https://mrdav30.github.io/FixedMathSharp/)

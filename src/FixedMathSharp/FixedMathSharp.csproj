@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<!-- General Properties -->
 	<PropertyGroup>
@@ -122,4 +122,12 @@
 		<Compile Remove="**\*.MemoryPack.cs" />
 	</ItemGroup>
 
+
+	<ItemGroup Condition="'$(UseLocalLsfStack)' != 'true'">
+		<PackageReference Include="Chronicler.Diagnostics" Version="1.0.0" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(UseLocalLsfStack)' == 'true'">
+		<ProjectReference Include="..\..\..\Chronicler\src\Chronicler.Diagnostics\Chronicler.Diagnostics.csproj"
+			AdditionalProperties="Configuration=$(Configuration);SemVer=1.0.0;AssemblySemVer=1.0.0.0" />
+	</ItemGroup>
 </Project>

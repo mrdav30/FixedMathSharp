@@ -6,6 +6,7 @@
 //=======================================================================
 
 using System;
+using Chronicler.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
@@ -211,8 +212,7 @@ public partial struct Fixed64
     /// <returns>The parsed Fixed64 value.</returns>
     public static Fixed64 Parse(string s, IFormatProvider? formatProvider)
     {
-        if (s is null)
-            throw new ArgumentNullException(nameof(s));
+        ChronicleGuard.ThrowIfNull(s, nameof(s));
 
         if (!decimal.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, formatProvider ?? CultureInfo.InvariantCulture, out decimal value))
             throw new FormatException($"Invalid format: {s}");
@@ -227,8 +227,7 @@ public partial struct Fixed64
     /// <returns>The parsed Fixed64 value.</returns>
     public static Fixed64 ParseRaw(string s)
     {
-        if (s is null)
-            throw new ArgumentNullException(nameof(s));
+        ChronicleGuard.ThrowIfNull(s, nameof(s));
 
         if (!long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out long rawValue))
             throw new FormatException($"Invalid format: {s}");

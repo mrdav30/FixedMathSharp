@@ -1,5 +1,20 @@
 # FixedMathSharp Migration Guide
 
+## Upcoming release
+
+### Shared diagnostics dependency
+
+The math core now references the independent `Chronicler.Diagnostics` v1.0.0
+package in standard and Lean builds. Existing `Fixed64.Parse` and `ParseRaw`
+null guards use its `ChronicleGuard`; their exception contracts are unchanged.
+The core does not acquire a `Chronicler.Core` or SwiftCollections dependency.
+Recording, replay hashing, and time conversion stay in the optional
+`FixedMathSharp.Chronicler` companion. Math formatting remains in FixedMathSharp.
+
+Publish Chronicler.Diagnostics before the updated math packages. Validate
+released dependencies after coordinated `UseLocalLsfStack=true` source builds;
+local source validation does not prove the released package graph is available.
+
 ## Chronicler v1.0.0 Companion Migration
 
 When rebuilding `FixedMathSharp.Chronicler` against Chronicler v1.0.0, import

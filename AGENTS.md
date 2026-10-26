@@ -385,3 +385,11 @@ unchanged. The core Lean build also selects the sibling shim in local mode.
   including new files and coordinated sibling changes. Verify duplication,
   speculative code and retirement findings against actual callers before
   simplifying.
+
+## Shared Diagnostics Ownership
+
+Use the independent `Chronicler.Diagnostics` package for diagnostic channels,
+lazy logging handlers, and `ChronicleGuard` guards. It does not depend on
+`Chronicler.Core`. Keep library-specific channels, formatters, and logger facades
+in their owning library. `UseLocalLsfStack=true` selects the sibling diagnostics
+project; standard and Lean builds use the same diagnostics package.
