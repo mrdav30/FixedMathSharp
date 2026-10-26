@@ -14,9 +14,9 @@ generation, tooling, and replays.**
 
 FixedMathSharp gives you a practical Q32.32 numeric stack—from scalar math and
 random streams to vectors, transforms, and geometry—without tying your runtime
-to a game engine. The same inputs follow the same integer-backed math path,
-which makes the library a strong fit for lockstep simulation, reproducible world
-generation, and replayable systems.
+to any specific engine. The same inputs follow the same integer-backed math
+path, which makes the library a strong fit for lockstep simulation, reproducible
+world generation, and replayable systems.
 
 ## Why use it?
 
@@ -67,14 +67,14 @@ All values in the simulation-facing calculation remain fixed point. Convert to
 
 ## Pick a package
 
-| Package                                                                                                       | Use it for                                                     |
-| ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| [`FixedMathSharp`](https://www.nuget.org/packages/FixedMathSharp)                                             | Core math with MemoryPack support                              |
-| [`FixedMathSharp.Lean`](https://www.nuget.org/packages/FixedMathSharp.Lean)                                   | The same math surface without a direct MemoryPack dependency   |
+| Package                                                                                                       | Use it for                                                    |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [`FixedMathSharp`](https://www.nuget.org/packages/FixedMathSharp)                                             | Core math with MemoryPack support                             |
+| [`FixedMathSharp.Lean`](https://www.nuget.org/packages/FixedMathSharp.Lean)                                   | The same math surface without a direct MemoryPack dependency  |
 | [`FixedMathSharp.Chronicler`](https://www.nuget.org/packages/FixedMathSharp.Chronicler)                       | Deterministic record hashes and exact simulation-time interop |
-| [`FixedMathSharp.Chronicler.Lean`](https://www.nuget.org/packages/FixedMathSharp.Chronicler.Lean)             | Chronicler extensions on the Lean dependency graph             |
-| [`FixedMathSharp.FluentAssertions`](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions)           | Fluent assertions for fixed-point tests                        |
-| [`FixedMathSharp.FluentAssertions.Lean`](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions.Lean) | Fluent assertions paired with the Lean package                 |
+| [`FixedMathSharp.Chronicler.Lean`](https://www.nuget.org/packages/FixedMathSharp.Chronicler.Lean)             | Chronicler extensions on the Lean dependency graph            |
+| [`FixedMathSharp.FluentAssertions`](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions)           | Fluent assertions for fixed-point tests                       |
+| [`FixedMathSharp.FluentAssertions.Lean`](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions.Lean) | Fluent assertions paired with the Lean package                |
 
 Published packages target .NET Standard 2.1 and .NET 8.
 

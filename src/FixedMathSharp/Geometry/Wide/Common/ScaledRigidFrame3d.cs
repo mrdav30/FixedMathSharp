@@ -19,7 +19,7 @@ namespace FixedMathSharp.Geometry;
 /// signed or zero; rotations must be normalized. All inputs use their complete
 /// scalar domains. Only final Q32.32 materialization can fail representability.
 /// </remarks>
-internal readonly struct ScaledRigidFrame3d
+internal readonly struct ScaledRigidFrame3d : IForwardHullFrame3d
 {
     private static readonly Signed192 ScaleDenominator = new(0UL, 1UL, 0UL);
     private readonly Vector3d _reference;
@@ -40,6 +40,19 @@ internal readonly struct ScaledRigidFrame3d
     internal Vector3d RigidOrigin => _translation;
     internal FixedQuaternion Rotation => GeometryRotation;
     internal bool HasLocalPlacement => !(_offsetX.IsZero & _offsetY.IsZero & _offsetZ.IsZero);
+
+    Signed192 IForwardHullFrame3d.RotationDenominator => RotationDenominator;
+    Signed320 IForwardHullFrame3d.Denominator => Denominator;
+    RationalPoint3d IForwardHullFrame3d.GetPoint(Vector3d point) => GetPoint(point);
+    WideDirection3d IForwardHullFrame3d.GetFaceNormal(in FixedTriangle triangle) =>
+        WideTriangleRelations.GetScaledTriangleLocalNormal(triangle, this).Transform(GeometryBasis);
+    WideDirection3d IForwardHullFrame3d.GetEdgeDirection(Vector3d first, Vector3d second) =>
+        WideDirection3d.GetLocalEdge(this, first, second).Transform(GeometryBasis);
+    WideDirection3d IForwardHullFrame3d.GetInwardAxis(in FixedTriangle triangle, Vector3d first, Vector3d second) =>
+        WideDirection3d.Cross(WideTriangleRelations.GetScaledTriangleLocalNormal(triangle, this),
+            WideDirection3d.GetLocalEdge(this, first, second)).Transform(GeometryBasis);
+    bool IForwardHullFrame3d.TryGetTriangleHalfPlanes(in FixedTriangle triangle, in RationalPoint3d point,
+        Span<Signed832> values) => WideTriangleRelations.GetScaledTriangleHalfPlanes(triangle, this, point, values);
 
     internal static ScaledRigidFrame3d Rigid(Vector3d origin, FixedQuaternion rotation) =>
         new(origin, rotation, Vector3d.Zero, Vector3d.One, rotation, Vector3d.Zero, Vector3d.One);

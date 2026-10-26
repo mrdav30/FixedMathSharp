@@ -2,6 +2,7 @@ using FixedMathSharp.Geometry;
 using Xunit;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace FixedMathSharp.Tests.Geometry.Primitives;
 
@@ -13,6 +14,287 @@ public sealed class WideOrientedBoxScaledHullTests
         3, 7, 6, 3, 6, 2, 0, 4, 7, 0, 7, 3, 1, 2, 6, 1, 6, 5 };
     private static readonly int[] Edges = { 0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4,
         0, 4, 1, 5, 2, 6, 3, 7 };
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(17)]
+    [InlineData(-43)]
+    [InlineData(90)]
+    public void NativeYawFrame_ShouldRetainTheExactScalarTransformAndPhysicalPlanes(int degrees)
+    {
+        Fixed64 yaw = Fixed64.FromFraction(degrees, 180) * Fixed64.Pi;
+        Vector3d origin = new((Fixed64)2000000000, -Fixed64.Quarter, (Fixed64)(-1900000000));
+        var frame = new NativePrismYawFrame3d(origin, yaw);
+        Assert.True(frame.RotationDenominator.Equals(Signed192.Signed(1)));
+        BigInteger q = BigInteger.One << 32;
+        BigInteger cosine = FixedMath.Cos(yaw).m_rawValue, sine = FixedMath.Sin(yaw).m_rawValue;
+        foreach (Vector3d local in new[] { Vector3d.Zero, new Vector3d(Fixed64.FromRaw(long.MinValue + 7),
+            Fixed64.FromRaw(3), Fixed64.FromRaw(long.MaxValue - 11)), new Vector3d(2, -3, 5) })
+        {
+            RationalPoint3d point = frame.GetPoint(local);
+            BigInteger denominator = Integer(point.Denominator);
+            Assert.Equal(q * q, denominator);
+            Assert.Equal(((BigInteger)origin.X.m_rawValue * q + cosine * local.X.m_rawValue - sine * local.Z.m_rawValue) * denominator,
+                Integer(point.X) * q);
+            Assert.Equal(((BigInteger)origin.Z.m_rawValue * q + sine * local.X.m_rawValue + cosine * local.Z.m_rawValue) * denominator,
+                Integer(point.Z) * q);
+            Assert.Equal(((BigInteger)origin.Y.m_rawValue + local.Y.m_rawValue) * denominator, Integer(point.Y));
+        }
+        var triangle = new FixedTriangle(new(-1, -2, 3), new(2, 1, 4), new(0, 3, -2));
+        WideDirection3d normal = frame.GetFaceNormal(triangle);
+        Assert.True(WideDirection3d.Dot(normal, frame.GetEdgeDirection(triangle.A, triangle.B)).IsZero);
+        Assert.True(WideDirection3d.Dot(normal, frame.GetEdgeDirection(triangle.A, triangle.C)).IsZero);
+        Span<Signed832> values = stackalloc Signed832[3];
+        var face = new FixedTriangle(Vector3d.Zero, new(2, 0, 0), new(0, 2, 0));
+        Assert.True(frame.TryGetTriangleHalfPlanes(face, frame.GetPoint(new(Fixed64.Half, Fixed64.Half, Fixed64.Zero)), values));
+        foreach (Signed832 value in values) Assert.True(value.Sign > 0);
+        Assert.True(frame.TryGetTriangleHalfPlanes(face, frame.GetPoint(new(2, 2, 0)), values));
+        Assert.Contains(values.ToArray(), value => value.Sign < 0);
+        Assert.False(frame.TryGetTriangleHalfPlanes(default, frame.GetPoint(Vector3d.Zero), values));
+
+        static BigInteger Integer(Signed320 value)
+        {
+            BigInteger result = (BigInteger)value.Word4 << 256 | (BigInteger)value.Word3 << 192
+                | (BigInteger)value.Word2 << 128 | (BigInteger)value.Word1 << 64 | value.Word0;
+            return value.Sign < 0 ? result - (BigInteger.One << 320) : result;
+        }
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    [InlineData(3, false)]
+    [InlineData(3, true)]
+    [InlineData(4, false)]
+    [InlineData(4, true)]
+    [InlineData(5, false)]
+    [InlineData(5, true)]
+    [InlineData(6, false)]
+    [InlineData(6, true)]
+    [InlineData(7, false)]
+    [InlineData(7, true)]
+    [InlineData(8, false)]
+    [InlineData(8, true)]
+    [InlineData(9, false)]
+    [InlineData(9, true)]
+    public void RetainedRectangleWindows_ShouldPreserveExactCornersAcrossEquivalentAxesAndReversedEdges(int window, bool negateAxis)
+    {
+        var source = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
+        Vector3d origin = Vector3d.Backward;
+        var target = new NativePrismYawFrame3d(origin, Fixed64.Zero);
+        Vector3d[] prism = Array.ConvertAll(Cube, p => new Vector3d(p.X * 4, p.Y * 2, p.Z));
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(source, Cube, Faces, Edges,
+            target, prism, Faces, Edges, out var selected));
+        if (negateAxis) selected = new(-selected.Axis, !selected.Negate, selected.Overlap,
+            selected.SquaredAxisLength, selected.CommonDenominator);
+        Fixed64 left = window == 6 ? -Fixed64.Two : window == 9 ? -Fixed64.One / 8 : -Fixed64.Half;
+        Fixed64 right = window == 6 || window is 7 or 8 ? Fixed64.Two : -left;
+        var rectangle = new FixedTriangle(new(left, -Fixed64.Quarter, Fixed64.One),
+            new(right, -Fixed64.Quarter, Fixed64.One), new(left, Fixed64.Quarter, Fixed64.One));
+        RationalSegmentInterval clip = window switch
+        {
+            1 => Range(0, 1, 1, 2), 2 => Range(1, 2, 1, 1), 3 => Range(1, 4, 3, 4),
+            4 => Range(0, 1, 0, 1), 5 => Range(1, 1, 1, 1), 8 => Range(1, 2, 1, 1), _ => default
+        };
+        Fixed64 minimum = window switch { 2 => Fixed64.Zero, 3 => -Fixed64.Quarter,
+            5 => Fixed64.Half, 6 => -Fixed64.One, 8 => 3 * Fixed64.Quarter, _ => left };
+        Fixed64 maximum = window switch { 1 => Fixed64.Zero, 3 => Fixed64.Quarter,
+            4 => -Fixed64.Half, 6 or 7 or 8 => Fixed64.One, _ => right };
+        HashSet<(Vector3d Moving, Vector3d Wall)>? expected = null;
+        foreach (bool reverse in new[] { false, true })
+        {
+            var edges = (int[])Edges.Clone();
+            if (reverse)
+                for (int edge = 0; edge < edges.Length; edge += 2) (edges[edge], edges[edge + 1]) = (edges[edge + 1], edges[edge]);
+            var rows = new List<FixedContactAnchors>();
+            Assert.Equal(1, WideOrientedBox.VisitProjectedHullRectangleContacts(source, Vector3d.Zero, Cube, Faces, edges,
+                target, origin, rectangle, clip, selected, rows, static (pool, row) => pool.Add(row), admissionOnly: true));
+            Assert.Empty(rows);
+            Assert.True(WideOrientedBox.VisitProjectedHullRectangleContacts(source, Vector3d.Zero, Cube, Faces, edges,
+                target, origin, rectangle, clip, selected, rows, static (pool, row) => pool.Add(row)) > 0);
+            var corners = new HashSet<(Vector3d Moving, Vector3d Wall)>();
+            foreach (FixedContactAnchors row in rows)
+            {
+                Assert.Equal(Vector3d.Backward, row.Normal); Assert.Equal(Fixed64.One, row.Depth);
+                Assert.True(row.FirstAnchor.TryGetPoint(out Vector3d moving));
+                Assert.True(row.SecondAnchor.TryGetPoint(out Vector3d wall));
+                Assert.Equal(new Vector3d(moving.X, moving.Y, Fixed64.Zero), wall);
+                Assert.Equal(-Fixed64.One, moving.Z);
+                Assert.True(wall.X == minimum || wall.X == maximum);
+                Assert.Equal(Fixed64.Quarter, wall.Y.Abs());
+                corners.Add((moving, wall));
+            }
+            Assert.Equal(minimum == maximum ? 2 : 4, corners.Count);
+            if (expected != null) Assert.True(expected.SetEquals(corners));
+            expected = corners;
+        }
+
+        static RationalSegmentInterval Range(long a, long b, long c, long d) => new(
+            Signed832.ExtendValue(Signed192.Signed(a)), Signed832.ExtendValue(Signed192.Signed(b)),
+            Signed832.ExtendValue(Signed192.Signed(c)), Signed832.ExtendValue(Signed192.Signed(d)));
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    public void RectangleSampler_ShouldKeepAdmissionSeparateFromUnrepresentableSourceOrTargetCharts(int window, bool badTarget)
+    {
+        Vector3d sourceOrigin = Vector3d.Right * Fixed64.Two, targetOrigin = sourceOrigin + Vector3d.Backward;
+        var source = ScaledRigidFrame3d.Rigid(sourceOrigin, FixedQuaternion.Identity);
+        var target = new NativePrismYawFrame3d(targetOrigin, Fixed64.Zero);
+        Vector3d[] prism = Array.ConvertAll(Cube, p => new Vector3d(p.X * 4, p.Y * 2, p.Z));
+        Assert.True(WideOrientedBox.TryGetConvexHullPenetration(source, Cube, Faces, Edges,
+            target, prism, Faces, Edges, out var selected));
+        Fixed64 width = window == 2 ? Fixed64.Half : (Fixed64)4;
+        Fixed64 height = window == 0 ? Fixed64.Two : Fixed64.Quarter;
+        var rectangle = new FixedTriangle(new(-width, -height, Fixed64.One),
+            new(width, -height, Fixed64.One), new(-width, height, Fixed64.One));
+        // Every retained witness has positive world X; a chart at MinValue
+        // cannot represent its local displacement, although the geometry intersects.
+        Vector3d outside = new(Fixed64.MinValue, Fixed64.Zero, Fixed64.Zero);
+        var rows = new List<FixedContactAnchors>();
+        Assert.True(WideOrientedBox.VisitProjectedHullRectangleContacts(source, sourceOrigin, Cube, Faces, Edges,
+            target, targetOrigin, rectangle, default, selected, rows, static (pool, row) => pool.Add(row)) > 0);
+        foreach (FixedContactAnchors row in rows)
+        { Assert.True(row.FirstAnchor.TryGetPoint(out _)); Assert.True(row.SecondAnchor.TryGetPoint(out _)); }
+        rows.Clear();
+        Assert.Equal(1, WideOrientedBox.VisitProjectedHullRectangleContacts(source, badTarget ? sourceOrigin : outside,
+            Cube, Faces, Edges, target, badTarget ? outside : targetOrigin, rectangle, default, selected,
+            rows, static (pool, row) => pool.Add(row), admissionOnly: true));
+        Assert.Equal(0, WideOrientedBox.VisitProjectedHullRectangleContacts(source, badTarget ? sourceOrigin : outside,
+            Cube, Faces, Edges, target, badTarget ? outside : targetOrigin, rectangle, default, selected,
+            rows, static (pool, row) => pool.Add(row)));
+        Assert.Empty(rows);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void NativeYawIdentityHull_ShouldMatchRigidOverlapDepthAndFiniteWitnesses(int separation)
+    {
+        var first = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
+        Vector3d offset = Vector3d.Right * (Fixed64)separation;
+        var second = new NativePrismYawFrame3d(offset, Fixed64.Zero);
+        bool expected = separation <= 2;
+        Assert.Equal(expected, WideOrientedBox.TryGetConvexHullPenetration(first, Cube, Faces, Edges,
+            second, Cube, Faces, Edges, out var selected, true));
+        Assert.Equal(expected, selected.HasValue);
+        if (!expected) return;
+        Assert.Equal((Fixed64)(2 - separation), selected.GetRoundedDepth(out bool clamped));
+        Assert.False(clamped);
+        var contacts = new List<FixedContactAnchors>();
+        Assert.True(WideOrientedBox.VisitConvexHullContacts(first, Vector3d.Zero, Cube, Faces, Edges,
+            second, offset, Cube, Faces, Edges, selected, contacts, static (pool, contact) => pool.Add(contact)) > 0);
+        foreach (FixedContactAnchors contact in contacts)
+        {
+            Assert.Equal((Fixed64)(2 - separation), contact.Depth);
+            Assert.True(contact.FirstAnchor.TryGetPoint(out var a));
+            Assert.True(contact.SecondAnchor.TryGetPoint(out var b));
+            Assert.InRange(a.X.m_rawValue, (-Fixed64.One).m_rawValue, Fixed64.One.m_rawValue);
+            Assert.InRange((b.X - offset.X).m_rawValue, (-Fixed64.One).m_rawValue, Fixed64.One.m_rawValue);
+        }
+        Vector3d[] quad = { new(-1, 0, -1), new(1, 0, -1), new(1, 0, 1), new(-1, 0, 1) };
+        int[] triangles = { 0, 1, 2, 0, 2, 3 }, edges = { 0, 1, 1, 2, 2, 3, 3, 0 };
+        Assert.Equal(expected, WideOrientedBox.TryGetConvexHullPenetration(second, quad, triangles, edges,
+            first, quad, triangles, edges, out _, true, planarPair: true));
+    }
+
+    [Fact]
+    public void WidenedRigidPenetration_ShouldPreserveBothSignedExitsAndUnsetState()
+    {
+        var unset = new WideScaledHullPenetration(default(WidePointSpanPenetration));
+        Assert.False(unset.HasValue);
+        foreach (int side in new[] { -1, 1 })
+        {
+            Assert.True(WideOrientedBox.TryGetConvexHullPenetration(Vector3d.Zero, FixedQuaternion.Identity,
+                Cube, Faces, Edges, Vector3d.Right * (Fixed64)side, FixedQuaternion.Identity,
+                Cube, Faces, Edges, out var rigid));
+            var wide = new WideScaledHullPenetration(rigid);
+            Assert.True(wide.HasValue); Assert.Equal(rigid.Negate, wide.Negate);
+            Assert.Equal((Fixed64)side * Vector3d.Right, wide.GetNormal());
+            Assert.True(wide.Overlap.Equals(Signed832.ExtendValue(rigid.ExactOverlap)));
+            Assert.True(wide.SquaredAxisLength.Equals(Signed832.ExtendValue(rigid.ExactSquaredAxisLength)));
+            Assert.True(wide.CommonDenominator.Equals(Signed576.ExtendValue(rigid.ExactCommonDenominator)));
+            Assert.Equal(rigid.GetRoundedDepth(out bool rigidClamped), wide.GetRoundedDepth(out bool wideClamped));
+            Assert.Equal(rigidClamped, wideClamped);
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void RetainedRectangleSampler_ShouldKeepOnlyFiniteSupportAndHandleAnEnclosedPatch(bool native, bool affine)
+    {
+        Vector3d rectangleOrigin = Vector3d.Backward;
+        Vector3d[] prism = new Vector3d[Cube.Length];
+        for (int i = 0; i < Cube.Length; i++) prism[i] = new(Cube[i].X * 4, Cube[i].Y * 2, Cube[i].Z);
+        for (int domain = 0; domain < 6; domain++)
+        {
+            Fixed64 extent = affine ? Fixed64.Half : Fixed64.One;
+            Vector3d origin = new(domain == 0 ? -Fixed64.Two : Fixed64.Zero, Fixed64.Zero, Fixed64.Zero);
+            var source = new ScaledRigidFrame3d(origin, FixedQuaternion.Identity, Vector3d.Zero,
+                Vector3d.One * extent, FixedQuaternion.Identity, Vector3d.Zero, Vector3d.One);
+            Fixed64 height = domain == 2 ? Fixed64.Quarter : domain == 4 ? Fixed64.Zero : Fixed64.Two;
+            FixedTriangle rectangle = domain == 5
+                ? new(new Vector3d(0, -2, -1), new(0, -2, 1), new(0, 2, -1))
+                : new(new Vector3d((Fixed64)(-4), -height, Fixed64.One),
+                    new((Fixed64)4, -height, Fixed64.One), new((Fixed64)(-4), height, Fixed64.One));
+            Signed832 one = Signed832.ExtendValue(Signed192.Signed(1));
+            RationalSegmentInterval clip = domain == 3 ? default : domain == 2
+                ? new(Signed832.ExtendValue(Signed192.Signed(15)), Signed832.ExtendValue(Signed192.Signed(32)),
+                    Signed832.ExtendValue(Signed192.Signed(17)), Signed832.ExtendValue(Signed192.Signed(32)))
+                : new(Signed832.ExtendValue(Signed192.Signed(1)), Signed832.ExtendValue(Signed192.Signed(2)), one, one);
+            if (native) Check(new NativePrismYawFrame3d(rectangleOrigin, Fixed64.Zero));
+            else Check(ScaledRigidFrame3d.Rigid(rectangleOrigin, FixedQuaternion.Identity));
+
+            void Check<TFrame>(TFrame target) where TFrame : struct, IForwardHullFrame3d
+            {
+                Assert.True(WideOrientedBox.TryGetConvexHullPenetration(source, Cube, Faces, Edges,
+                    target, prism, Faces, Edges, out var selected));
+                foreach (bool admissionOnly in new[] { true, false })
+                {
+                    var rows = new List<FixedContactAnchors>();
+                    int count = WideOrientedBox.VisitProjectedHullRectangleContacts(source, origin, Cube, Faces, Edges,
+                        target, rectangleOrigin, rectangle, clip, selected, rows,
+                        static (pool, contact) => pool.Add(contact), admissionOnly);
+                    if (domain is 0 or 4 or 5) { Assert.Equal(0, count); Assert.Empty(rows); continue; }
+                    Assert.True(count > 0);
+                    if (admissionOnly) { Assert.Empty(rows); continue; }
+                    var corners = new HashSet<Vector3d>();
+                    foreach (FixedContactAnchors row in rows)
+                    {
+                        Assert.Equal(Vector3d.Backward, row.Normal); Assert.Equal(extent, row.Depth);
+                        Assert.True(row.FirstAnchor.TryGetPoint(out Vector3d moving));
+                        Assert.True(row.SecondAnchor.TryGetPoint(out Vector3d wall));
+                        Assert.Equal(-extent, moving.Z); Assert.Equal(Fixed64.Zero, wall.Z);
+                        Assert.Equal(moving.X, wall.X); Assert.Equal(moving.Y, wall.Y);
+                        Assert.InRange(wall.Y.m_rawValue, (-FixedMath.Min(height, extent)).m_rawValue, FixedMath.Min(height, extent).m_rawValue);
+                        Fixed64 minimum = domain == 2 ? -Fixed64.Quarter : domain == 3 ? -extent : Fixed64.Zero;
+                        Fixed64 maximum = domain == 2 ? Fixed64.Quarter : extent;
+                        Assert.InRange(wall.X.m_rawValue, minimum.m_rawValue, maximum.m_rawValue);
+                        corners.Add(wall);
+                    }
+                    if (domain == 2)
+                    {
+                        Assert.Contains(new Vector3d(-Fixed64.Quarter, -Fixed64.Quarter, Fixed64.Zero), corners);
+                        Assert.Contains(new Vector3d(Fixed64.Quarter, Fixed64.Quarter, Fixed64.Zero), corners);
+                    }
+                }
+            }
+        }
+    }
 
     [Theory]
     [InlineData(0, false)]

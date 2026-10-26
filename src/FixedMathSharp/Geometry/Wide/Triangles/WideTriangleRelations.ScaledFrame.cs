@@ -58,6 +58,11 @@ internal static partial class WideTriangleRelations
 
     internal static bool TryGetSegmentPointAnchor(in ScaledRigidFrame3d frame, in FixedSegment segment,
         scoped ContactQuadratic n, scoped ContactQuadratic d, Vector3d origin, out FixedPointAnchor anchor) =>
+        TryGetSegmentPointAnchor<ScaledRigidFrame3d>(frame, segment, n, d, origin, out anchor);
+
+    internal static bool TryGetSegmentPointAnchor<TFrame>(in TFrame frame, in FixedSegment segment,
+        scoped ContactQuadratic n, scoped ContactQuadratic d, Vector3d origin, out FixedPointAnchor anchor)
+        where TFrame : struct, IForwardHullFrame3d =>
         TryGetSegmentPointAnchor(frame.GetPoint(segment.Start), frame.GetPoint(segment.End), n, d, origin, out anchor);
 
     private static bool TryGetSegmentPointAnchor(in RationalPoint3d a, in RationalPoint3d b,
@@ -102,13 +107,21 @@ internal static partial class WideTriangleRelations
     /// <summary>Locates a retained rational edge parameter without narrowing its transient numerator or denominator.</summary>
     internal static int LocateEdgePoint(in FixedSegment source, in ScaledRigidFrame3d sourceFrame,
         scoped ContactQuadratic n, scoped ContactQuadratic d, in FixedSegment target, in ScaledRigidFrame3d targetFrame,
+        in RationalSegmentInterval targetInterval = default) =>
+        LocateFrameEdgePoint(source, sourceFrame, n, d, target, targetFrame, targetInterval);
+
+    /// <summary>Locates an exact retained point across forward-only scalar and authored charts.</summary>
+    internal static int LocateFrameEdgePoint<TSource, TTarget>(in FixedSegment source, in TSource sourceFrame,
+        scoped ContactQuadratic n, scoped ContactQuadratic d, in FixedSegment target, in TTarget targetFrame,
         in RationalSegmentInterval targetInterval = default)
+        where TSource : struct, IForwardHullFrame3d
+        where TTarget : struct, IForwardHullFrame3d
     {
         RationalPoint3d a = sourceFrame.GetPoint(source.Start), b = sourceFrame.GetPoint(source.End);
         RationalPoint3d targetA = targetFrame.GetPoint(target.Start), targetB = targetFrame.GetPoint(target.End);
         WideDirection3d first = GetScaledPointDifference(a, targetA, targetFrame.RotationDenominator),
             second = GetScaledPointDifference(b, targetA, targetFrame.RotationDenominator);
-        WideDirection3d edge = WideDirection3d.GetLocalEdge(targetFrame, target.Start, target.End).Transform(targetFrame.GeometryBasis);
+        WideDirection3d edge = targetFrame.GetEdgeDirection(target.Start, target.End);
         int words = Math.Max(ContactQuadratic.ActiveWords(n), ContactQuadratic.ActiveWords(d)) + 11;
         Span<ulong> values = stackalloc ulong[12 * words]; Span<int> signs = stackalloc int[12];
         var remaining = ContactQuadratic.At(values, signs, 0, words);
@@ -238,7 +251,12 @@ internal static partial class WideTriangleRelations
 
     /// <summary>Tests the finite orthogonal projection before rounding any vertex or witness.</summary>
     internal static bool ContainsProjection(in FixedTriangle triangle, in ScaledRigidFrame3d frame,
+        in RationalPoint3d point) =>
+        ContainsProjection<ScaledRigidFrame3d>(triangle, frame, point);
+
+    internal static bool ContainsProjection<TFrame>(in FixedTriangle triangle, in TFrame frame,
         in RationalPoint3d point)
+        where TFrame : struct, IForwardHullFrame3d
     {
         Span<Signed832> values = stackalloc Signed832[3];
         return GetScaledTriangleHalfPlanes(triangle, frame, point, values)
@@ -252,16 +270,28 @@ internal static partial class WideTriangleRelations
     /// </summary>
     internal static bool TryGetProjectedPointAnchor(in FixedTriangle triangle, in ScaledRigidFrame3d frame,
         in RationalPoint3d point, Vector3d materializationOrigin, out FixedPointAnchor anchor) =>
+        TryGetProjectedPointAnchor<ScaledRigidFrame3d>(triangle, frame, point, materializationOrigin, out anchor);
+
+    internal static bool TryGetProjectedPointAnchor<TFrame>(in FixedTriangle triangle, in TFrame frame,
+        in RationalPoint3d point, Vector3d materializationOrigin, out FixedPointAnchor anchor)
+        where TFrame : struct, IForwardHullFrame3d =>
         TryGetProjectedPointAnchor(triangle, frame, point, materializationOrigin, default, default, out anchor);
 
-    private static bool TryGetProjectedPointAnchor(in FixedTriangle triangle, in ScaledRigidFrame3d frame,
+    internal static bool TryGetProjectedPlanePointAnchor<TFrame>(in FixedTriangle plane, in TFrame frame,
+        in RationalPoint3d point, Vector3d materializationOrigin, out FixedPointAnchor anchor)
+        where TFrame : struct, IForwardHullFrame3d =>
+        TryGetProjectedPointAnchor(plane, frame, point, materializationOrigin, default, default, out anchor, finite: false);
+
+    private static bool TryGetProjectedPointAnchor<TFrame>(in FixedTriangle triangle, in TFrame frame,
         in RationalPoint3d point, Vector3d materializationOrigin,
         scoped ContactQuadratic squaredDistanceNumerator, scoped ContactQuadratic squaredDistanceDenominator,
-        out FixedPointAnchor anchor)
+        out FixedPointAnchor anchor, bool finite = true)
+        where TFrame : struct, IForwardHullFrame3d
     {
         anchor = default;
-        if (!ContainsProjection(triangle, frame, point)) return false;
-        WideDirection3d normal = GetScaledTriangleLocalNormal(triangle, frame).Transform(frame.GeometryBasis);
+        if (finite && !ContainsProjection(triangle, frame, point)) return false;
+        WideDirection3d normal = frame.GetFaceNormal(triangle);
+        if (normal.IsZero) return false;
         WideDirection3d delta = GetScaledPointDifference(point, frame.GetPoint(triangle.A), frame.RotationDenominator);
         Signed832 plane = DotScaledDirections(normal, delta), squared = normal.SquaredLength;
         Signed576 commonD = WideArithmetic.MultiplySigned320(point.Denominator, frame.RotationDenominator);
@@ -304,7 +334,13 @@ internal static partial class WideTriangleRelations
     /// <summary>Clips a same-frame rational segment's projection to the exact finite triangle.</summary>
     internal static bool TryGetProjectedSegmentInterval(in FixedTriangle triangle, in ScaledRigidFrame3d frame,
         in RationalPoint3d first, in RationalPoint3d second,
+        out Signed832 lowerN, out Signed832 lowerD, out Signed832 upperN, out Signed832 upperD) =>
+        TryGetProjectedSegmentInterval<ScaledRigidFrame3d>(triangle, frame, first, second, out lowerN, out lowerD, out upperN, out upperD);
+
+    internal static bool TryGetProjectedSegmentInterval<TFrame>(in FixedTriangle triangle, in TFrame frame,
+        in RationalPoint3d first, in RationalPoint3d second,
         out Signed832 lowerN, out Signed832 lowerD, out Signed832 upperN, out Signed832 upperD)
+        where TFrame : struct, IForwardHullFrame3d
     {
         System.Diagnostics.Debug.Assert(first.Denominator.Equals(second.Denominator));
         Span<Signed832> start = stackalloc Signed832[3], end = stackalloc Signed832[3];
@@ -317,14 +353,119 @@ internal static partial class WideTriangleRelations
         return true;
     }
 
+    /// <summary>Clips a segment's orthogonal projection to A+u(B-A)+v(C-A), with retained u and v in [0,1].</summary>
+    /// <remarks>
+    /// Both source points must share a positive denominator. The four disjoint output
+    /// banks require 32 words each: full 832-bit cuts times exact face half-planes
+    /// need fewer than 1,667 bits, even when the resulting interval cannot fit
+    /// Signed832. Fractions remain borrowed; no endpoint is materialized.
+    /// </remarks>
+    internal static bool TryGetProjectedRectangleInterval(in FixedTriangle rectangleBasis, in ScaledRigidFrame3d frame,
+        in RationalPoint3d first, in RationalPoint3d second, in RationalSegmentInterval tangentClip,
+        scoped ContactQuadratic lowerN, scoped ContactQuadratic lowerD,
+        scoped ContactQuadratic upperN, scoped ContactQuadratic upperD) =>
+        TryGetProjectedRectangleInterval<ScaledRigidFrame3d>(rectangleBasis, frame, first, second, tangentClip, lowerN, lowerD, upperN, upperD);
+
+    internal static bool TryGetProjectedRectangleInterval<TFrame>(in FixedTriangle rectangleBasis, in TFrame frame,
+        in RationalPoint3d first, in RationalPoint3d second, in RationalSegmentInterval tangentClip,
+        scoped ContactQuadratic lowerN, scoped ContactQuadratic lowerD,
+        scoped ContactQuadratic upperN, scoped ContactQuadratic upperD)
+        where TFrame : struct, IForwardHullFrame3d
+    {
+        System.Diagnostics.Debug.Assert(first.Denominator.Equals(second.Denominator));
+        Signed832 one = Signed832.ExtendValue(Signed192.One);
+        Signed832 cutLowerN = default, cutLowerD = one, cutUpperN = one, cutUpperD = one;
+        if (tangentClip.IsClipped)
+        {
+            cutLowerN = tangentClip.WideLowerNumerator; cutLowerD = tangentClip.WideLowerDenominator;
+            cutUpperN = tangentClip.WideUpperNumerator; cutUpperD = tangentClip.WideUpperDenominator;
+        }
+        lowerN.Clear(); lowerD.Set(one); upperN.Set(one); upperD.Set(one);
+        Span<Signed832> start = stackalloc Signed832[3], end = stackalloc Signed832[3];
+        if (!GetScaledTriangleHalfPlanes(rectangleBasis, frame, first, start)) return false;
+        GetScaledTriangleHalfPlanes(rectangleBasis, frame, second, end);
+        const int words = 32;
+        Span<ulong> values = stackalloc ulong[12 * words]; Span<int> signs = stackalloc int[12];
+        var firstSum = ContactQuadratic.At(values, signs, 0, words);
+        var secondSum = ContactQuadratic.At(values, signs, 1, words);
+        var firstWall = ContactQuadratic.At(values, signs, 2, words);
+        var secondWall = ContactQuadratic.At(values, signs, 3, words);
+        var coefficient = ContactQuadratic.At(values, signs, 4, words);
+        var term = ContactQuadratic.At(values, signs, 5, words);
+        firstSum.Set(start[0]); secondSum.Set(end[0]);
+        for (int index = 1; index < 3; index++)
+        {
+            coefficient.Set(start[index]); firstSum.Add(coefficient);
+            coefficient.Set(end[index]); secondSum.Add(coefficient);
+        }
+        // Half-planes opposite B and C are u and v times their common metric;
+        // the rectangle has no triangular u+v<=1 restriction.
+        for (int wall = 0; wall < 4; wall++)
+        {
+            for (int side = 0; side < 2; side++)
+            {
+                var sum = side == 0 ? firstSum : secondSum;
+                var output = side == 0 ? firstWall : secondWall;
+                ReadOnlySpan<Signed832> point = side == 0 ? start : end;
+                if (wall < 2)
+                {
+                    Signed832 numerator = wall == 0 ? cutLowerN : cutUpperN;
+                    Signed832 denominator = wall == 0 ? cutLowerD : cutUpperD;
+                    coefficient.Set(point[2]); ContactQuadratic.Scale(coefficient, denominator, output);
+                    ContactQuadratic.Scale(sum, numerator, term); output.Add(term, -1);
+                    if (wall != 0) output.MultiplySign(-1);
+                }
+                else if (wall == 2) output.Set(point[0]);
+                else { sum.CopyTo(output); coefficient.Set(point[0]); output.Add(coefficient, -1); }
+            }
+            if (!ClipProjectedRectangleWall(firstWall, secondWall, lowerN, lowerD, upperN, upperD)) return false;
+        }
+        return true;
+    }
+
+    private static bool ClipProjectedRectangleWall(scoped ContactQuadratic first, scoped ContactQuadratic second,
+        scoped ContactQuadratic lowerN, scoped ContactQuadratic lowerD,
+        scoped ContactQuadratic upperN, scoped ContactQuadratic upperD)
+    {
+        int firstSign = first.Signs[0], secondSign = second.Signs[0];
+        if (firstSign >= 0 && secondSign >= 0) return true;
+        if (firstSign < 0 && secondSign < 0) return false;
+        const int words = 32;
+        Span<ulong> values = stackalloc ulong[4 * words]; Span<int> signs = stackalloc int[4];
+        var numerator = ContactQuadratic.At(values, signs, 0, words);
+        var denominator = ContactQuadratic.At(values, signs, 1, words);
+        first.CopyTo(numerator); first.CopyTo(denominator); denominator.Add(second, -1);
+        if (denominator.Signs[0] < 0) { numerator.MultiplySign(-1); denominator.MultiplySign(-1); }
+        if (firstSign < 0)
+        {
+            if (ContactQuadratic.CompareRatios(numerator, denominator, ReadOnlySpan<ulong>.Empty,
+                    lowerN, lowerD, ReadOnlySpan<ulong>.Empty) > 0)
+            { numerator.CopyTo(lowerN); denominator.CopyTo(lowerD); }
+        }
+        else if (ContactQuadratic.CompareRatios(numerator, denominator, ReadOnlySpan<ulong>.Empty,
+                upperN, upperD, ReadOnlySpan<ulong>.Empty) < 0)
+        { numerator.CopyTo(upperN); denominator.CopyTo(upperD); }
+        return ContactQuadratic.CompareRatios(lowerN, lowerD, ReadOnlySpan<ulong>.Empty,
+            upperN, upperD, ReadOnlySpan<ulong>.Empty) <= 0;
+    }
+
     internal static bool TryGetProjectedSegmentFaceAnchors(in FixedTriangle triangle, in ScaledRigidFrame3d frame,
         in RationalPoint3d first, in RationalPoint3d second, Signed832 n, Signed832 d,
         Vector3d sourceOrigin, Vector3d targetOrigin, int physicalBoundaryMask,
         out FixedPointAnchor source, out FixedPointAnchor target,
-        bool requirePhysicalTargetBoundary = true, bool materialize = true)
+        bool requirePhysicalTargetBoundary = true, bool materialize = true) =>
+        TryGetProjectedFrameSegmentFaceAnchors<ScaledRigidFrame3d>(triangle, frame, first, second, n, d, sourceOrigin, targetOrigin, physicalBoundaryMask, out source, out target, requirePhysicalTargetBoundary, materialize);
+
+    internal static bool TryGetProjectedFrameSegmentFaceAnchors<TFrame>(in FixedTriangle triangle, in TFrame frame,
+        in RationalPoint3d first, in RationalPoint3d second, Signed832 n, Signed832 d,
+        Vector3d sourceOrigin, Vector3d targetOrigin, int physicalBoundaryMask,
+        out FixedPointAnchor source, out FixedPointAnchor target,
+        bool requirePhysicalTargetBoundary = true, bool materialize = true,
+        scoped ContactQuadratic wideN = default, scoped ContactQuadratic wideD = default, bool rectangle = false)
+        where TFrame : struct, IForwardHullFrame3d
     {
         source = target = default;
-        const int words = 32;
+        int words = rectangle ? 48 : 32;
         Span<ulong> values = stackalloc ulong[20 * words]; Span<int> signs = stackalloc int[20];
         var sx = ContactQuadratic.At(values, signs, 0, words);
         var sy = ContactQuadratic.At(values, signs, 1, words);
@@ -335,7 +476,7 @@ internal static partial class WideTriangleRelations
         var tz = ContactQuadratic.At(values, signs, 6, words);
         var td = ContactQuadratic.At(values, signs, 7, words);
         if (!TryGetProjectedSegmentFaceWitness(triangle, frame, first, second, n, d,
-                sx, sy, sz, sd, tx, ty, tz, td, out int edgeMask)
+                sx, sy, sz, sd, tx, ty, tz, td, out int edgeMask, wideN, wideD, rectangle)
             || requirePhysicalTargetBoundary && (edgeMask & physicalBoundaryMask) == 0) return false;
         if (!materialize) return true;
         var relative = ContactQuadratic.At(values, signs, 8, words);
@@ -361,24 +502,36 @@ internal static partial class WideTriangleRelations
         return true;
     }
 
+    /// <summary>Materializes a rectangle projection from an already clipped borrowed unit parameter.</summary>
+    internal static bool TryGetProjectedRectangleFaceAnchors<TFrame>(in FixedTriangle rectangleBasis, in TFrame frame,
+        in RationalPoint3d first, in RationalPoint3d second, scoped ContactQuadratic n, scoped ContactQuadratic d,
+        Vector3d sourceOrigin, Vector3d targetOrigin, out FixedPointAnchor source, out FixedPointAnchor target)
+        where TFrame : struct, IForwardHullFrame3d =>
+        TryGetProjectedFrameSegmentFaceAnchors(rectangleBasis, frame, first, second, default, default,
+            sourceOrigin, targetOrigin, 0, out source, out target, requirePhysicalTargetBoundary: false,
+            wideN: n, wideD: d, rectangle: true);
+
     /// <summary>
     /// Retains the exact source point and its finite face projection as borrowed
     /// world-coordinate ratios. The zero barycentric weights identify opposite
     /// triangle edges; no coordinate or separation has been rounded.
     /// </summary>
-    private static bool TryGetProjectedSegmentFaceWitness(in FixedTriangle triangle, in ScaledRigidFrame3d frame,
+    private static bool TryGetProjectedSegmentFaceWitness<TFrame>(in FixedTriangle triangle, in TFrame frame,
         in RationalPoint3d first, in RationalPoint3d second, Signed832 n, Signed832 d,
         scoped ContactQuadratic sourceX, scoped ContactQuadratic sourceY, scoped ContactQuadratic sourceZ,
         scoped ContactQuadratic sourceD, scoped ContactQuadratic targetX, scoped ContactQuadratic targetY,
-        scoped ContactQuadratic targetZ, scoped ContactQuadratic targetD, out int edgeMask)
+        scoped ContactQuadratic targetZ, scoped ContactQuadratic targetD, out int edgeMask,
+        scoped ContactQuadratic wideN = default, scoped ContactQuadratic wideD = default, bool rectangle = false)
+        where TFrame : struct, IForwardHullFrame3d
     {
         edgeMask = 0;
         Span<Signed832> start = stackalloc Signed832[3], end = stackalloc Signed832[3];
         if (!GetScaledTriangleHalfPlanes(triangle, frame, first, start)) return false;
         GetScaledTriangleHalfPlanes(triangle, frame, second, end);
-        // Half-plane interpolation uses <1574 bits. Weighting a world
-        // coordinate still fits the caller's transient 2048-bit banks.
-        const int words = 32;
+        // Compact triangle parameters retain the original 2048-bit banks.
+        // Full rectangle cuts need <1667 parameter bits; adding an 832-bit
+        // half-plane and 320-bit coordinate remains below 3072 bits.
+        int words = rectangle ? 48 : 32;
         Span<ulong> values = stackalloc ulong[20 * words]; Span<int> signs = stackalloc int[20];
         var parameter = ContactQuadratic.At(values, signs, 0, words);
         var divisor = ContactQuadratic.At(values, signs, 1, words);
@@ -386,7 +539,9 @@ internal static partial class WideTriangleRelations
         var sum = ContactQuadratic.At(values, signs, 6, words);
         var term = ContactQuadratic.At(values, signs, 7, words);
         var coefficient = ContactQuadratic.At(values, signs, 8, words);
-        parameter.Set(n); divisor.Set(d); divisor.CopyTo(remaining); remaining.Add(parameter, -1); sum.Clear();
+        if (!wideD.Values.IsEmpty) { wideN.CopyTo(parameter); wideD.CopyTo(divisor); }
+        else { parameter.Set(n); divisor.Set(d); }
+        divisor.CopyTo(remaining); remaining.Add(parameter, -1); sum.Clear();
         for (int corner = 0; corner < 3; corner++)
         {
             int edge = (corner + 1) % 3;
@@ -394,13 +549,20 @@ internal static partial class WideTriangleRelations
             coefficient.Set(start[edge]); ContactQuadratic.Multiply(coefficient, remaining, ReadOnlySpan<ulong>.Empty, barycentric);
             coefficient.Set(end[edge]); ContactQuadratic.Multiply(coefficient, parameter, ReadOnlySpan<ulong>.Empty, term);
             barycentric.Add(term);
-            if (barycentric.Signs[0] < 0) return false;
+            if (barycentric.Signs[0] < 0 && (!rectangle || corner != 0)) return false;
             if (barycentric.Signs[0] == 0) edgeMask |= 1 << corner;
             sum.Add(barycentric);
         }
         // The three barycentric numerators sum to the nonzero face metric
         // times the positive input parameter denominator.
         System.Diagnostics.Debug.Assert(sum.Signs[0] > 0);
+        if (rectangle)
+            for (int corner = 1; corner < 3; corner++)
+            {
+                ContactQuadratic.At(values, signs, 3 + corner, words).CopyTo(term);
+                term.Add(sum, -1);
+                if (term.Signs[0] > 0) return false;
+            }
         coefficient.Set(Signed576.ExtendValue(first.Denominator));
         ContactQuadratic.Multiply(divisor, coefficient, ReadOnlySpan<ulong>.Empty, sourceD);
         coefficient.Set(Signed576.ExtendValue(frame.Denominator));
@@ -441,6 +603,10 @@ internal static partial class WideTriangleRelations
         else if (WideArithmetic.CompareNonNegativeProducts(n, upperD, upperN, d) < 0) { upperN = n; upperD = d; }
         return WideArithmetic.CompareNonNegativeProducts(lowerN, upperD, upperN, lowerD) <= 0;
     }
+
+    internal static bool GetScaledTriangleHalfPlanes<TFrame>(in FixedTriangle triangle, in TFrame frame,
+        in RationalPoint3d point, Span<Signed832> values) where TFrame : struct, IForwardHullFrame3d =>
+        frame.TryGetTriangleHalfPlanes(triangle, point, values);
 
     internal static bool GetScaledTriangleHalfPlanes(in FixedTriangle triangle, in ScaledRigidFrame3d frame,
         in RationalPoint3d point, Span<Signed832> values)
