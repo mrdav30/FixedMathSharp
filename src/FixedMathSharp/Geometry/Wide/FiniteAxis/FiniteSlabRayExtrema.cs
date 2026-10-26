@@ -77,6 +77,32 @@ internal readonly struct FiniteSlabRayFrame
     internal Vector3d GetNormal(int orientation) =>
         Plane.GetWorldNormal(Rotation) * (Fixed64)(-orientation);
 
+    /// <summary>Compares the positive and negative whole-plane exit depths before materialization.</summary>
+    /// <remarks>The caller must establish plane/slab intersection before selecting a nonnegative exit.</remarks>
+    internal int ComparePlaneExitDepths(ReadOnlySpan<Vector2d> offsets)
+    {
+        Signed832 sum = default;
+        if (!offsets.IsEmpty)
+        {
+            Signed320 scale = WideArithmetic.AddSigned320(Section.RadialFrame.ShapeFrame.CoordinateDenominator,
+                Section.RadialFrame.ShapeFrame.CoordinateDenominator);
+            Signed832 low = default, high = default;
+            for (int index = 0; index < offsets.Length; index++)
+            {
+                WideAxis3 point = new(Signed320.NarrowValue(WideArithmetic.MultiplySigned320(scale, Signed192.Raw(offsets[index].X))),
+                    default, Signed320.NarrowValue(WideArithmetic.MultiplySigned320(scale, Signed192.Raw(offsets[index].Y))));
+                Signed832 value = WideDirection3d.Dot(Plane.Normal, point);
+                if (index == 0 || WideArithmetic.SubtractSigned832(value, low).Sign < 0) low = value;
+                if (index == 0 || WideArithmetic.SubtractSigned832(value, high).Sign > 0) high = value;
+            }
+            sum = WideArithmetic.AddSigned832(low, high);
+        }
+        // Height caps and rounded footprints are symmetric. Affine coordinates
+        // and normal components are <352 bits; these dot sums fit within 832 bits.
+        return WideArithmetic.SubtractSigned832(sum,
+            WideArithmetic.AddSigned832(Plane.PlaneConstant, Plane.PlaneConstant)).Sign;
+    }
+
     /// <summary>Affine dimension of the shape face maximizing the oriented plane functional.</summary>
     internal int GetSupportDimension(ReadOnlySpan<Vector2d> prismOffsets, int orientation)
     {
@@ -192,7 +218,8 @@ internal readonly ref struct FiniteSlabPolynomial
             Clear(); Add(source, factor.Sign);
             return;
         }
-        Span<ulong> data = FieldWords == Words ? stackalloc ulong[Words] : stackalloc ulong[AffineWords];
+        // The scalar carrier fills nine words; multiplication supports independent input strides.
+        Span<ulong> data = stackalloc ulong[9];
         Span<sbyte> signs = stackalloc sbyte[1];
         FiniteSlabPolynomial scalar = new(data, signs); scalar.Set(factor);
         Multiply(source, scalar);
@@ -206,7 +233,8 @@ internal readonly ref struct FiniteSlabPolynomial
             Clear(); Add(source, factor.Sign);
             return;
         }
-        Span<ulong> data = FieldWords == Words ? stackalloc ulong[Words] : stackalloc ulong[AffineWords];
+        // The scalar carrier fills thirteen words, independently of the polynomial bank width.
+        Span<ulong> data = stackalloc ulong[13];
         Span<sbyte> signs = stackalloc sbyte[1];
         FiniteSlabPolynomial scalar = new(data, signs); scalar.Set(factor);
         Multiply(source, scalar);
@@ -277,9 +305,12 @@ internal static class FiniteSlabRayExtrema
         internal readonly int DomainLineCount;
         internal readonly int ExitRegion;
         internal readonly int FieldWords;
+        internal readonly Span<ulong> VertexValues;
+        internal readonly Span<sbyte> VertexSigns;
         internal Problem(ReadOnlySpan<Linear> lines, ReadOnlySpan<Radial> disks,
             FixedTriangle triangle, int orientation, FiniteSlabRayCandidateVisitor? visitor,
             ReadOnlySpan<Radial> shape, Signed320 halfThickness, Signed320 coreCap, bool hasCore, bool isPrism, int exitLinearStart,
+            Span<ulong> vertexValues, Span<sbyte> vertexSigns,
             int domainEdgeMask = 0, int activeFirst = -1, int activeSecond = -1, int activeThird = -1, int solvedDisks = 0,
             int domainLineCount = 3, int exitRegion = 0, int fieldWords = Words)
         {
@@ -290,16 +321,17 @@ internal static class FiniteSlabRayExtrema
             ActiveFirst = activeFirst; ActiveSecond = activeSecond; ActiveThird = activeThird; SolvedDisks = solvedDisks;
             DomainLineCount = domainLineCount;
             ExitRegion = exitRegion; FieldWords = fieldWords;
+            VertexValues = vertexValues; VertexSigns = vertexSigns;
         }
         internal Problem WithActive(int first, int second = -1, int third = -1) => new(Lines, Disks, Triangle, Orientation, Visitor,
-            _shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart,
+            _shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart, VertexValues, VertexSigns,
             DomainEdge(first, DomainLineCount) | DomainEdge(second, DomainLineCount) | DomainEdge(third, DomainLineCount),
             first, second, third, SolvedDisks, DomainLineCount, ExitRegion, FieldWords);
         internal Problem WithDisk(int disk) => new(Lines, Disks, Triangle, Orientation, Visitor,
-            _shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart, DomainEdgeMask,
+            _shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart, VertexValues, VertexSigns, DomainEdgeMask,
             ActiveFirst, ActiveSecond, ActiveThird, SolvedDisks | (1 << disk), DomainLineCount, ExitRegion, FieldWords);
         internal Problem WithoutSolvedDisks() => new(Lines, Disks, Triangle, Orientation, Visitor,
-            _shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart, DomainEdgeMask,
+            _shape, HalfThickness, CoreCap, HasCore, IsPrism, ExitLinearStart, VertexValues, VertexSigns, DomainEdgeMask,
             ActiveFirst, ActiveSecond, ActiveThird, domainLineCount: DomainLineCount,
             exitRegion: ExitRegion, fieldWords: FieldWords);
         internal bool IsActive(int index) => index == ActiveFirst || index == ActiveSecond || index == ActiveThird;
@@ -331,8 +363,8 @@ internal static class FiniteSlabRayExtrema
 
     /// <summary>
     /// Clips physical support charts to a nondegenerate coplanar triangle.
-    /// Nonaxial faces with a fixed Y cap use their point/line charts; other
-    /// families retain general clipping. Compare with the unbounded plane
+    /// Nonaxial faces use their point/line charts; free-height supports also
+    /// clip against original domain edges. Compare with the unbounded plane
     /// peak to certify admission; a lower stationary root is not support.
     /// </summary>
     internal static void AccumulatePhysicalSupportTriangle(in FiniteSlabRayFrame frame, FixedTriangle triangle,
@@ -380,6 +412,10 @@ internal static class FiniteSlabRayExtrema
         int pieces = prismOffsets.IsEmpty && frame.HasCore ? 3 : 1;
         int capacity = 10 + prismOffsets.Length + (clips.IsEmpty ? 0 : 2);
         Span<Linear> lines = stackalloc Linear[capacity]; Span<Radial> disks = stackalloc Radial[1];
+        // Active vertices are processed sequentially. Each determinant writes its
+        // complete bank; retained selections copy their coefficients before reuse.
+        Span<ulong> vertexValues = stackalloc ulong[7 * frame.FieldWords];
+        Span<sbyte> vertexSigns = stackalloc sbyte[7];
         // Every active-set view borrows the same immutable shape for this call.
         Span<Radial> shape = stackalloc Radial[1] { new(a, e, f, n, frame.Radius) };
         for (int exitPiece = 0; exitPiece < pieces; exitPiece++)
@@ -446,9 +482,9 @@ internal static class FiniteSlabRayExtrema
             }
             Problem problem = new(lines[..count], disks[..diskCount], triangle, orientation, visitor,
                 shape, frame.Section.Cap, frame.CoreCap, frame.HasCore,
-                !prismOffsets.IsEmpty, exitLinearStart, domainLineCount: domainLineCount,
+                !prismOffsets.IsEmpty, exitLinearStart, vertexValues, vertexSigns, domainLineCount: domainLineCount,
                 exitRegion: frame.HasCore && exitPiece != 0 ? exitPiece == 1 ? -1 : 1 : 0, fieldWords: frame.FieldWords);
-            if (!finiteDomain || physicalSupportOnly && !axial && !n.Y.IsZero)
+            if (!finiteDomain || physicalSupportOnly && !axial)
                 AccumulatePhysicalSupport(problem, frame, prismOffsets, exitPiece, ref maximum);
             else if (axial) AccumulateAxial(problem, n.Y.Sign, ref maximum);
             else Accumulate(problem, ref maximum);
@@ -486,8 +522,10 @@ internal static class FiniteSlabRayExtrema
                 }
             }
         int supportWall = -1;
-        // Finite calls enter this owner only when the source normal has a Y
-        // component; axial and free-Y families retain the general domain path.
+        // A free-height support can end on a triangle edge before either Y cap.
+        // Keep those original domain constraints as well as the two real caps;
+        // the same point/line charts then clip the entire physical support face.
+        int domainChoices = n.Y.IsZero ? problem.DomainLineCount : 0;
         if (!offsets.IsEmpty && problem.DomainLineCount != 0 && firstVertex != lastVertex)
             for (int edge = 0; edge < offsets.Length; edge++)
             {
@@ -498,8 +536,9 @@ internal static class FiniteSlabRayExtrema
                 supportWall = problem.ExitLinearStart + 2 + edge;
                 break;
             }
-        for (int capIndex = firstCap; capIndex <= lastCap; capIndex++)
+        for (int choice = 0; choice < domainChoices + lastCap - firstCap + 1; choice++)
         {
+            int capIndex = choice < domainChoices ? choice : firstCap + choice - domainChoices;
             ref readonly Linear cap = ref problem.Lines[capIndex];
             if (!offsets.IsEmpty)
             {
@@ -585,9 +624,11 @@ internal static class FiniteSlabRayExtrema
         AddInterval(lines, ref count, a.Y, e.Y, f.Y, n.Y, frame.Section.Cap);
         int capIndex = 1 + (n.Y.Sign > 0 ? 1 : 0);
         Span<Radial> shape = stackalloc Radial[1] { new(a, e, f, n, frame.Radius) };
+        Span<ulong> vertexValues = stackalloc ulong[7 * frame.FieldWords];
+        Span<sbyte> vertexSigns = stackalloc sbyte[7];
         Problem problem = new(lines, ReadOnlySpan<Radial>.Empty, triangle, orientation, visitor,
             shape, frame.Section.Cap, frame.CoreCap, frame.HasCore,
-            !offsets.IsEmpty, 1, activeFirst: capIndex, domainLineCount: 0, fieldWords: frame.FieldWords);
+            !offsets.IsEmpty, 1, vertexValues, vertexSigns, activeFirst: capIndex, domainLineCount: 0, fieldWords: frame.FieldWords);
         int samples = !offsets.IsEmpty ? offsets.Length : (frame.HasCore ? 6 : 4) + (includeInteriorSample ? 1 : 0);
         Signed320 scale = WideArithmetic.AddSigned320(frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator,
             frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator);
@@ -677,8 +718,8 @@ internal static class FiniteSlabRayExtrema
         ref FiniteSlabRaySelection maximum)
     {
         int words = problem.FieldWords;
-        Span<ulong> values = words == Words ? stackalloc ulong[8 * Words] : stackalloc ulong[8 * FiniteSlabPolynomial.AffineWords];
-        Span<sbyte> signs = stackalloc sbyte[8];
+        Span<ulong> values = problem.VertexValues;
+        Span<sbyte> signs = problem.VertexSigns;
         FiniteSlabPolynomial l = P(values, signs, 0), m = P(values, signs, 1),
             t = P(values, signs, 2), d = P(values, signs, 3), n = P(values, signs, 4), u = P(values, signs, 5, 2);
         Determinant(d, a, b, c, 0, 1, 2);
