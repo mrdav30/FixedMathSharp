@@ -81,7 +81,12 @@ internal static partial class WideConvexPrismRelations
         return WideArithmetic.CompareMagnitudeEqualLength(left, right) >= 0;
     }
 
-    private static int CompareProjectionDepths(
+    /// <summary>Tests the selected sphere support plane's exact center distance against its radius.</summary>
+    internal static bool IsSphereProjectionWithinRadius(in ProjectionDepth depth) =>
+        IsProjectionNonNegative(new ProjectionDepth(WideArithmetic.SubtractSigned704(default, depth.Rational), depth.Common,
+            depth.Radius, depth.RadialKind, depth.AxisSquared, depth.ShapeAxisSquared));
+
+    internal static int CompareProjectionDepths(
         in ProjectionDepth left,
         in ProjectionDepth right)
     {
@@ -90,6 +95,10 @@ internal static partial class WideConvexPrismRelations
                 Signed192.Signed(1L)));
         Signed320 leftCoefficient = WideArithmetic.MultiplySigned192(left.Common, Signed192.Raw(left.Radius));
         Signed320 rightCoefficient = WideArithmetic.MultiplySigned192(right.Common, Signed192.Raw(right.Radius));
+        // Equal radial terms and axis norms cancel exactly; widening the
+        // rational subtraction preserves the full signed input range.
+        if (left.AxisSquared.Equals(right.AxisSquared) && leftCoefficient.Equals(rightCoefficient))
+            return WideArithmetic.SubtractSigned832(Signed832.ExtendValue(left.Rational), Signed832.ExtendValue(right.Rational)).Sign;
         return WideArithmetic.CompareRadialProjectionDepths(
             left.Rational,
             leftCoefficient,

@@ -222,12 +222,13 @@ internal static partial class WideConvexPrismRelations
         RigidAxis3 shapeAxis, Vector3d center, FixedQuaternion rotation, Vector3d localAxis,
         Fixed64 length, Vector3d direction, int axialSign, Vector3d origin, Fixed64 yaw,
         FixedQuaternion orientation, ReadOnlySpan<Vector2d> offsets, Fixed64 halfThickness,
-        ref FixedPointAnchor shapeAnchor, out FixedPointAnchor prismAnchor)
+        ref FixedPointAnchor shapeAnchor, out FixedPointAnchor prismAnchor,
+        PrismPointAdmission? admission = null, bool materialize = true)
     {
         prismAnchor = default;
-        // Native coordinates fit 165 bits and selected axes 201. Projection
-        // numerators/denominators fit 571/503, half-plane values 704, and core
-        // parameters 803 bits. Only final interpolation needs the 32-word banks.
+        // Ordinary capsule axes fit 201 bits: projection N/D 571/503,
+        // half-planes 704 and free-core parameters 803. Bounded zero-core sphere
+        // axes fit 244 bits and keep fixed-core projections within Signed832.
         var frame = new WideConvex2dRelations.RotationFrame2d(yaw);
         Signed192 twiceRotation = WideArithmetic.AddSigned192(shapeAxis.RotationDenominator, shapeAxis.RotationDenominator);
         Signed192 coreD = Signed192.NarrowProven(WideArithmetic.MultiplySigned192(twiceRotation, Scale));
@@ -302,6 +303,8 @@ internal static partial class WideConvexPrismRelations
                     WideArithmetic.SubtractSigned832(max, second), ref lowerN, ref lowerD, ref upperN, ref upperD))
                 return false;
         }
+        if (admission != null && !AdmitPrismSpherePoint(normal, candidate.ExactDepth, projected, pointD, yaw, admission)) return false;
+        if (!materialize) return true;
         Signed832 tN = Signed832.ExtendValue(Signed192.Signed(1)), tD = Signed832.ExtendValue(Signed192.Signed(2));
         if (WideArithmetic.SubtractSigned832(WideArithmetic.AddSigned832(lowerN, lowerN), lowerD).Sign > 0)
         { tN = lowerN; tD = lowerD; }

@@ -57,6 +57,23 @@ internal readonly struct CapsulePlaneRayFrame
     private CapsulePlaneRayFrame(in CapsulePlaneRayFrame source) { this = source; _wideParameters = true; }
     internal ScaledRigidFrame3d SourceFrame => Finite.ShapeFrame.SourceFrame;
 
+    /// <summary>Prepares a explicit sphere plane ray; its rational base point is supplied separately.</summary>
+    /// <remarks>Only the rational-point accumulator is valid for this frame, not authored plane/edge reconstruction.</remarks>
+    internal static CapsulePlaneRayFrame ForSpherePointRay(Fixed64 radius, in WideDirection3d direction,
+        in Signed832 planeConstant, bool wideParameters = false) => new(radius, direction, planeConstant, wideParameters);
+
+    private CapsulePlaneRayFrame(Fixed64 radius, in WideDirection3d direction, in Signed832 planeConstant, bool wideParameters)
+    {
+        this = default;
+        Finite = new CapsuleFiniteSectionFrame(Vector3d.Zero, FixedQuaternion.Identity,
+            Vector3d.Zero, FixedQuaternion.Identity, Fixed64.Zero, radius);
+        Normal = direction; PlaneConstant = planeConstant;
+        AuthoredNormal = new WideAxis3(Signed320.NarrowValue(direction.X),
+            Signed320.NarrowValue(direction.Y), Signed320.NarrowValue(direction.Z));
+        NormalSquared = direction.SquaredLength;
+        _wideParameters = wideParameters;
+    }
+
     internal CapsulePlaneRayFrame(FixedTriangle planeTriangle, in CapsuleFiniteSectionFrame finite)
     {
         _wideParameters = false;
