@@ -36,7 +36,7 @@ namespace FixedMathSharp;
 [Serializable]
 [MemoryPackable]
 public partial struct Vector2d : IEquatable<Vector2d>, IComparable<Vector2d>, IEqualityComparer<Vector2d>, IFormattable
-#if NET8_0_OR_GREATER
+#if NET10_0_OR_GREATER
     , ISpanFormattable
 #endif
 {

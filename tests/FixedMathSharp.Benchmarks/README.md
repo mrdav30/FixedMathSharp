@@ -12,7 +12,7 @@ These measure complete public contact queries, including finite witness selectio
 ## Requirements
 
 - .NET 10 SDK selected by `global.json`
-- .NET 8 runtime for the benchmark target
+- .NET 10 runtime for the benchmark target
 - `Release` configuration for meaningful measurements
 
 Avoid measuring `Debug` builds except when diagnosing benchmark setup failures.
@@ -23,7 +23,7 @@ Build the benchmark runner first, then execute the compiled DLL through the
 configured `dotnet` host:
 
 ```bash
-dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net10.0
 ```
 
 On Linux/WSL this avoids `dotnet run` launching a generated apphost that does
@@ -34,13 +34,13 @@ can use that capability.
 ### List available benchmark selections
 
 ```bash
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll list
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll list
 ```
 
 ### Run all benchmarks
 
 ```bash
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll all
 ```
 
 ### Run a selection by alias
@@ -51,13 +51,13 @@ stripped, and the remaining words are joined with `-`.
 For a class named `Vector3dBenchmarks`, the selection alias is `vector3d`:
 
 ```bash
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll vector3d
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll vector3d
 ```
 
 Multiple aliases can run together:
 
 ```bash
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic vector3d
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll fixed64-arithmetic vector3d
 ```
 
 ### Forward BenchmarkDotNet arguments
@@ -65,7 +65,7 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchma
 Arguments after the selection are forwarded to BenchmarkDotNet:
 
 ```bash
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all --list flat
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll all --list flat
 ```
 
 The launcher returns a nonzero exit code for malformed arguments, unmatched
@@ -101,14 +101,14 @@ verifies benchmark code compiles and produces plausible output while preserving
 row-level process isolation:
 
 ```bash
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all -j Short
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll all -j Short
 ```
 
 For narrow diagnostics, a filtered in-process run is still useful because it is
 fast and keeps setup noise low:
 
 ```bash
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i --filter "*FrustumCreateFromMatrix*"
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll bounds -j Short -i --filter "*FrustumCreateFromMatrix*"
 ```
 
 Do not treat short-run numbers as canonical measurements, and do not use broad
@@ -252,7 +252,7 @@ geometry and paired-witness regressions.
 Before starting optimization work, capture a baseline:
 
 ```bash
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all --exporters json
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll all --exporters json
 ```
 
 BenchmarkDotNet writes results to `BenchmarkDotNet.Artifacts/results/` by
@@ -321,7 +321,7 @@ Example:
 
 ```text
 Improved FixedMath.Sin valid-input hot path by removing eager exception-message
-allocation. In a .NET 8 Release BenchmarkDotNet run on <CPU/OS>, the focused
+allocation. In a .NET 10 Release BenchmarkDotNet run on <CPU/OS>, the focused
 fixed64-arithmetic suite reported 0 B allocated for Sin/Cos/Tan after the
 change, with correctness tests passing for FixedMath and FixedTrigonometry.
 ```

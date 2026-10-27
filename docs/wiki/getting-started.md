@@ -108,7 +108,7 @@ dependency with the `Chronicler.MemoryPackShim` compatibility package.
 
 ## Build from source
 
-Install the .NET 10 SDK selected by `global.json` and the .NET 8 runtime used by
+Install the .NET 10 SDK selected by `global.json` and the .NET 10 runtime used by
 the test and benchmark targets.
 
 ```bash

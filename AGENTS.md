@@ -81,7 +81,7 @@ libraries' documentation.
 
 | Path                                                                             | Purpose                                                   | Notes                                                                                                                                                                                                                                             |
 | -------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`src/FixedMathSharp`](src/FixedMathSharp)                                       | Main math library                                         | Multi-targets `netstandard2.1` and `net8.0`.                                                                                                                                                                                                      |
+| [`src/FixedMathSharp`](src/FixedMathSharp)                                       | Main math library                                         | Multi-targets `netstandard2.1` and `net10.0`.                                                                                                                                                                                                      |
 | [`src/FixedMathSharp/Numerics/Scalars`](src/FixedMathSharp/Numerics/Scalars)     | `Fixed64` and scalar helpers                              | Preserve guarded overflow and deterministic rounding.                                                                                                                                                                                             |
 | [`src/FixedMathSharp/Core`](src/FixedMathSharp/Core)                             | Shared fixed math and trigonometry algorithms             | Hot deterministic backbone. Measure before redesigning.                                                                                                                                                                                           |
 | [`src/FixedMathSharp/Numerics/Vectors`](src/FixedMathSharp/Numerics/Vectors)     | `Vector2d`, `Vector3d`, `Vector4d`, and vector extensions | Watch coordinate-convention assumptions.                                                                                                                                                                                                          |
@@ -168,9 +168,9 @@ Canonical benchmark workflow and evidence rules live in
 The required build and smoke-check shape is:
 
 ```bash
-dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll list
-dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all -j Short
+dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net10.0
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll list
+dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchmarks.dll all -j Short
 ```
 
 Use short out-of-process runs for broad smoke checks. Reserve `-i` in-process
@@ -203,7 +203,7 @@ deterministic.
 - Match existing style: regions, XML docs, explicit namespaces, no implicit
   usings in project files.
 - Shared runtime code must remain compatible with both `netstandard2.1` and
-  `net8.0`. Do not use APIs that are unavailable to `netstandard2.1` unless they
+  `net10.0`. Do not use APIs that are unavailable to `netstandard2.1` unless they
   are guarded, isolated to a compatible target, or intentionally placed in
   tooling/benchmark code.
 - Keep operations allocation-light; many hot methods use `m_rawValue` and
@@ -282,8 +282,8 @@ Serialization compatibility is intentional.
 Solution: [`FixedMathSharp.slnx`](FixedMathSharp.slnx), with core, Chronicler,
 and FluentAssertions packages plus core, Chronicler, and benchmark test
 projects. `global.json` selects the .NET 10 SDK for `.slnx` tooling consistency.
-Install the .NET 8 runtime as well to execute the `net8.0` tests and benchmarks;
-the runtime packages target `netstandard2.1` and `net8.0`.
+Install the .NET 10 runtime as well to execute the `net10.0` tests and benchmarks;
+the runtime packages target `netstandard2.1` and `net10.0`.
 
 Typical local workflow:
 

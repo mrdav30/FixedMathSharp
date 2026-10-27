@@ -23,7 +23,7 @@ namespace FixedMathSharp;
 [Serializable]
 [MemoryPackable]
 public partial struct Fixed64 : IEquatable<Fixed64>, IComparable<Fixed64>, IEqualityComparer<Fixed64>, IFormattable
-#if NET8_0_OR_GREATER
+#if NET10_0_OR_GREATER
     , ISpanFormattable
 #endif
 {

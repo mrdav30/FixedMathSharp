@@ -1285,6 +1285,6 @@ Human-readable formatting is now separated from raw payload representation:
 - Use `ToRawString`, `ParseRaw`, and `TryParseRaw` for raw Q32.32 payload text.
 - Use MemoryPack or JSON support for structured serialization.
 
-On `net8.0`, supported types implement `ISpanFormattable`. On `netstandard2.1`,
+On `net10.0`, supported types implement `ISpanFormattable`. On `netstandard2.1`,
 the same `TryFormat` method shape is exposed where the interface itself is
 unavailable.

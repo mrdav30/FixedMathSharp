@@ -19,7 +19,7 @@ namespace FixedMathSharp;
 [Serializable]
 [MemoryPackable]
 public partial struct FixedRange : IEquatable<FixedRange>, IFormattable
-#if NET8_0_OR_GREATER
+#if NET10_0_OR_GREATER
     , ISpanFormattable
 #endif
 {

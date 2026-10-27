@@ -34,7 +34,7 @@ namespace FixedMathSharp;
 [Serializable]
 [MemoryPackable]
 public partial struct Vector3d : IEquatable<Vector3d>, IComparable<Vector3d>, IEqualityComparer<Vector3d>, IFormattable
-#if NET8_0_OR_GREATER
+#if NET10_0_OR_GREATER
     , ISpanFormattable
 #endif
 {

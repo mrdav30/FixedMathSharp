@@ -27,7 +27,7 @@ The formatting surface follows familiar .NET shapes:
 - `TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider)`
   writes into a caller supplied buffer and avoids the string allocation when the
   buffer is large enough.
-- Runtime targets that support `ISpanFormattable`, such as `net8.0`, implement
+- Runtime targets that support `ISpanFormattable`, such as `net10.0`, implement
   the interface. `netstandard2.1` exposes the same `TryFormat` method shape but
   cannot implement `ISpanFormattable` because the interface is unavailable.
 

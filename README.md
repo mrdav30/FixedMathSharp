@@ -76,7 +76,7 @@ All values in the simulation-facing calculation remain fixed point. Convert to
 | [`FixedMathSharp.FluentAssertions`](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions)           | Fluent assertions for fixed-point tests                       |
 | [`FixedMathSharp.FluentAssertions.Lean`](https://www.nuget.org/packages/FixedMathSharp.FluentAssertions.Lean) | Fluent assertions paired with the Lean package                |
 
-Published packages target .NET Standard 2.1 and .NET 8.
+Published packages target .NET Standard 2.1 and .NET 10.
 
 ## Explore the library
 

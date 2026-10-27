@@ -14,7 +14,7 @@ dotnet add package FixedMathSharp.Chronicler
 Use
 [`FixedMathSharp.Chronicler.Lean`](https://www.nuget.org/packages/FixedMathSharp.Chronicler.Lean)
 when the rest of your application uses the FixedMathSharp Lean package graph.
-Both variants target .NET Standard 2.1 and .NET 8.
+Both variants target .NET Standard 2.1 and .NET 10.
 
 ## Record hashes
 

@@ -38,7 +38,6 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
-            8.0.x
             10.0.x
 
       - name: Cache NuGet packages
@@ -63,8 +62,8 @@ jobs:
 
       - name: Build API documentation
         run: |
-          test -f src/FixedMathSharp/bin/Release/net8.0/FixedMathSharp.dll
-          test -f src/FixedMathSharp/bin/Release/net8.0/FixedMathSharp.xml
+          test -f src/FixedMathSharp/bin/Release/net10.0/FixedMathSharp.dll
+          test -f src/FixedMathSharp/bin/Release/net10.0/FixedMathSharp.xml
           dotnet tool run docfx docs/api/docfx.json
           test -f docs/api/obj/_site/index.html
           test -f docs/api/obj/_site/api/FixedMathSharp.html

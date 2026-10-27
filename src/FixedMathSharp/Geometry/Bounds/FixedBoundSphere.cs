@@ -32,7 +32,7 @@ namespace FixedMathSharp.Geometry;
 [Serializable]
 [MemoryPackable]
 public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormattable
-#if NET8_0_OR_GREATER
+#if NET10_0_OR_GREATER
     , ISpanFormattable
 #endif
 {
