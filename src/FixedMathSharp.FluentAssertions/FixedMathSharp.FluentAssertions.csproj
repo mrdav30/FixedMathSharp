@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <LangVersion>11.0</LangVersion>
-    <LangVersion Condition="'$(TargetFramework)' == 'net10.0'">14.0</LangVersion>
+    <LangVersion>14.0</LangVersion>
+    <LangVersion Condition="'$(TargetFramework)' == 'netstandard2.1'">11.0</LangVersion>
     <TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>
     <DisableMemoryPack Condition="'$(DisableMemoryPack)' == ''">false</DisableMemoryPack>
     <SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>

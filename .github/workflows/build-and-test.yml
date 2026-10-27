@@ -53,7 +53,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: mrdav30/Chronicler
-          ref: 28f4f57a41fbe8ca0f4319e3b2396786f1d74cdd
+          ref: c547e5c633ec71bb3cd0e072720a75fb9b8580ad
           path: Chronicler
           persist-credentials: false
 

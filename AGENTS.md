@@ -199,6 +199,9 @@ deterministic.
 
 ## Code Conventions Specific To This Repo
 
+C# 14 is the default language version; runtime projects override it to C# 11
+for `netstandard2.1`. Tests and benchmarks use C# 14.
+
 - Preserve public API shape unless the task explicitly requests API changes.
 - Match existing style: regions, XML docs, explicit namespaces, no implicit
   usings in project files.
