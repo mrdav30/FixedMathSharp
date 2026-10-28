@@ -16,6 +16,16 @@ internal readonly struct CapsuleFiniteSectionFrame
     private readonly Signed576 _radiusSquared;
     private readonly Signed832 _wideRadiusSquared;
 
+    /// <summary>Exact capsule-local coordinates supplied by a retained rational source chart.</summary>
+    internal CapsuleFiniteSectionFrame(Fixed64 length, Fixed64 radius, Signed320 coordinateDenominator)
+    {
+        Length = length;
+        ShapeFrame = new CylinderPolytopeFrame(length, radius, coordinateDenominator);
+        Signed320 scaledRadius = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(coordinateDenominator, Signed320.ExtendValue(ShapeFrame.Radius)));
+        _wideRadiusSquared = ShapeFrame.HasExactScale ? Product(scaledRadius, scaledRadius) : default;
+        _radiusSquared = ShapeFrame.HasExactScale ? default : WideArithmetic.MultiplySigned320(scaledRadius, scaledRadius);
+    }
+
     internal CapsuleFiniteSectionFrame(Vector3d origin, FixedQuaternion rotation,
         Vector3d center, FixedQuaternion capsuleRotation, Fixed64 length, Fixed64 radius)
     {

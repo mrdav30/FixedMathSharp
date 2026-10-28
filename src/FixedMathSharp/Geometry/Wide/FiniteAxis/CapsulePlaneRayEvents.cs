@@ -368,6 +368,45 @@ internal static class CapsulePlaneRayEvents
     {
         if (targeted && target.Kind is not (CapsulePlaneRayEventKind.Section or CapsulePlaneRayEventKind.Stationary)) return false;
         WideAxis3 p = frame.Finite.Transform(source.A), end = frame.Finite.Transform(source.B);
+        return AccumulateSegment(source, frame, p, end, orientation, ref maximum, visitor, targeted, target, interval);
+    }
+
+    /// <summary>Visits an exact pretransformed segment without rounding native source coordinates.</summary>
+    internal static bool VisitLocalSegmentEvents(in CapsulePlaneRayEventSource source, in CapsulePlaneRayFrame frame,
+        in WideAxis3 start, in WideAxis3 end, int orientation, in RationalSegmentInterval interval,
+        CapsulePlaneRayEventVisitor visitor)
+    {
+        CapsulePlaneRaySelection maximum = default;
+        const int words = 32;
+        Span<ulong> values = stackalloc ulong[12 * words]; Span<int> signs = stackalloc int[12];
+        ContactQuadratic x = Field(values, signs, 0, words), y = Field(values, signs, 1, words), z = Field(values, signs, 2, words);
+        ContactQuadratic d = Field(values, signs, 3, words), parameter = Field(values, signs, 4, words), term = Field(values, signs, 5, words);
+        bool found = false;
+        for (int endpoint = 0; endpoint < 2; endpoint++)
+        {
+            Signed832 n = interval.IsClipped ? endpoint == 0 ? interval.WideLowerNumerator : interval.WideUpperNumerator
+                : Signed832.ExtendValue(Signed192.Signed(endpoint));
+            Signed832 denominator = interval.IsClipped ? endpoint == 0 ? interval.WideLowerDenominator : interval.WideUpperDenominator
+                : Signed832.ExtendValue(Signed192.Signed(1));
+            parameter.Set(n); d.Set(denominator);
+            for (int axis = 0; axis < 3; axis++)
+            {
+                Signed320 first = axis == 0 ? start.X : axis == 1 ? start.Y : start.Z;
+                Signed320 last = axis == 0 ? end.X : axis == 1 ? end.Y : end.Z;
+                ContactQuadratic coordinate = axis == 0 ? x : axis == 1 ? y : z;
+                ContactQuadratic.Scale(d, Signed576.ExtendValue(first), coordinate);
+                ContactQuadratic.Scale(parameter, Signed576.ExtendValue(WideArithmetic.SubtractSigned320(last, first)), term); coordinate.Add(term);
+            }
+            found |= EmitPoint(source, frame, new CapsulePlaneRayEvent(CapsulePlaneRayEventKind.Endpoint, endpoint), orientation,
+                x, y, z, d, ReadOnlySpan<ulong>.Empty, ref maximum, visitor);
+        }
+        return AccumulateSegment(source, frame, start, end, orientation, ref maximum, visitor, false, default, interval) || found;
+    }
+
+    private static bool AccumulateSegment(in CapsulePlaneRayEventSource source, in CapsulePlaneRayFrame frame,
+        in WideAxis3 p, in WideAxis3 end, int orientation, ref CapsulePlaneRaySelection maximum,
+        CapsulePlaneRayEventVisitor? visitor, bool targeted, CapsulePlaneRayEvent target, in RationalSegmentInterval interval)
+    {
         WideAxis3 e = new(WideArithmetic.SubtractSigned320(end.X, p.X), WideArithmetic.SubtractSigned320(end.Y, p.Y),
             WideArithmetic.SubtractSigned320(end.Z, p.Z));
         // Primitive section roots are already capsule boundary certificates.

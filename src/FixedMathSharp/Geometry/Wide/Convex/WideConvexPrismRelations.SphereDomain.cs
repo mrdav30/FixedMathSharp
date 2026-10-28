@@ -9,22 +9,24 @@ internal static partial class WideConvexPrismRelations
 {
     private static void KeepSphereProjection(Axis3 axis, bool negate, Vector3d offset, ProjectionDepth depth,
         RigidAxis3 shapeAxis, Vector3d center, Vector3d origin, Fixed64 yaw, ReadOnlySpan<Vector2d> offsets,
-        Fixed64 halfThickness, PrismPointAdmission admission, ref PenetrationCandidate best)
+        Fixed64 halfThickness, PrismPointAdmission admission, ref PenetrationCandidate best, Fixed64 length,
+        IPrismCapsuleContactDomain? capsuleDomain, in FixedQuaternion shapeRotation)
     {
         if (best.HasValue && CompareProjectionDepths(depth, best.ExactDepth) >= 0) return;
         var candidate = new PenetrationCandidate(axis, negate, offset, depth);
         FixedPointAnchor unused = default;
         if (TryGetMatchedPrismAnchor(candidate, negate ? Negate(axis) : axis, shapeAxis, center,
-            FixedQuaternion.Identity, Vector3d.Up, Fixed64.Zero, default, 0, origin, yaw,
-            FixedQuaternion.Identity, offsets, halfThickness, ref unused, out _, admission, materialize: false))
+            shapeRotation, Vector3d.Up, length, default, GetAxisProjection(negate ? Negate(axis) : axis, shapeAxis).Sign, origin, yaw,
+            FixedQuaternion.Identity, offsets, halfThickness, ref unused, out _, admission, materialize: false,
+            capsuleDomain: capsuleDomain))
             best = candidate;
     }
 
     private static bool AdmitPrismSpherePoint(Axis3 normal, in ProjectionDepth depth, ReadOnlySpan<Signed832> projected,
-        Signed832 pointD, Fixed64 yaw, PrismPointAdmission admission)
+        Signed832 pointD, Fixed64 yaw, PrismPointAdmission admission, Signed832 coreN = default, Signed832 coreD = default)
     {
         const int words = 32;
-        Span<ulong> values = stackalloc ulong[14 * words]; Span<int> signs = stackalloc int[14];
+        Span<ulong> values = stackalloc ulong[20 * words]; Span<int> signs = stackalloc int[20];
         var x = ContactQuadratic.At(values, signs, 0, words);
         var y = ContactQuadratic.At(values, signs, 1, words);
         var z = ContactQuadratic.At(values, signs, 2, words);
@@ -35,15 +37,29 @@ internal static partial class WideConvexPrismRelations
         var frame = new WideConvex2dRelations.RotationFrame2d(yaw);
         Signed320 metric = WideArithmetic.AddSigned320(WideArithmetic.MultiplySigned192(frame.Cosine, frame.Cosine),
             WideArithmetic.MultiplySigned192(frame.Sine, frame.Sine));
-        first.Set(projected[0]); second.Set(projected[2]);
+        if (coreD.IsZero)
+        { x.Set(projected[0]); y.Set(projected[1]); z.Set(projected[2]); d.Set(pointD); }
+        else
+        {
+            var parameter = ContactQuadratic.At(values, signs, 7, words); parameter.Set(coreN);
+            var remaining = ContactQuadratic.At(values, signs, 8, words); remaining.Set(WideArithmetic.SubtractSigned832(coreD, coreN));
+            for (int component = 0; component < 3; component++)
+            {
+                var coordinate = component == 0 ? x : component == 1 ? y : z;
+                first.Set(projected[component]); ContactQuadratic.Multiply(first, remaining, ReadOnlySpan<ulong>.Empty, coordinate);
+                first.Set(projected[component + 3]); ContactQuadratic.Multiply(first, parameter, ReadOnlySpan<ulong>.Empty, term); coordinate.Add(term);
+            }
+            first.Set(pointD); second.Set(coreD); ContactQuadratic.Multiply(first, second, ReadOnlySpan<ulong>.Empty, d);
+        }
+        x.CopyTo(first); z.CopyTo(second);
         ContactQuadratic.Scale(first, Signed576.ExtendValue(frame.Cosine), x);
         ContactQuadratic.Scale(second, Signed576.ExtendValue(frame.Sine), term); x.Add(term);
         ContactQuadratic.Scale(first, Signed576.ExtendValue(WideArithmetic.Negate(frame.Sine)), z);
         ContactQuadratic.Scale(second, Signed576.ExtendValue(frame.Cosine), term); z.Add(term);
         x.CopyTo(first); ContactQuadratic.Scale(first, Signed576.ExtendValue(Scale), x);
         z.CopyTo(first); ContactQuadratic.Scale(first, Signed576.ExtendValue(Scale), z);
-        first.Set(projected[1]); ContactQuadratic.Scale(first, Signed576.ExtendValue(metric), y);
-        first.Set(pointD); ContactQuadratic.Scale(first, Signed576.ExtendValue(metric), d);
+        y.CopyTo(first); ContactQuadratic.Scale(first, Signed576.ExtendValue(metric), y);
+        d.CopyTo(first); ContactQuadratic.Scale(first, Signed576.ExtendValue(metric), d);
         // Native scalar Sin/Cos need not have unit squared length. Divide by
         // their actual metric; never substitute a rounded quaternion inverse.
         return admission(new WideDirection3d(normal.X, normal.Y, normal.Z), depth, x, y, z, d);
@@ -83,7 +99,7 @@ internal static partial class WideConvexPrismRelations
             // The zero core fixes t=1/2 in the shared witness projection, so
             // its <740-bit half-planes fit Signed832 without the free-core bank.
             if (!TryKeepAxis(new(normal[0], normal[1], normal[2]), shapeAxis, center, Fixed64.Zero, radius,
-                origin, yaw, offsets, halfThickness, ref best, admission)) return false;
+                origin, yaw, offsets, halfThickness, ref best, admission, null, FixedQuaternion.Identity)) return false;
           }
         return true;
     }

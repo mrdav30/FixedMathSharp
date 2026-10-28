@@ -142,7 +142,7 @@ internal readonly struct RationalSegmentInterval
         return true;
     }
 
-    private static void PackReducedParameter(ReadOnlySpan<ulong> numerator, ReadOnlySpan<ulong> denominator,
+    internal static void PackReducedParameter(ReadOnlySpan<ulong> numerator, ReadOnlySpan<ulong> denominator,
         out Signed832 n, out Signed832 d)
     {
         int words = numerator.Length;

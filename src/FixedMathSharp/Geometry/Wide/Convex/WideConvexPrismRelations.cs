@@ -13,6 +13,19 @@ namespace FixedMathSharp.Geometry;
 internal delegate bool PrismPointAdmission(in WideDirection3d normal, in WideConvexPrismRelations.ProjectionDepth depth, scoped ContactQuadratic x,
     scoped ContactQuadratic y, scoped ContactQuadratic z, scoped ContactQuadratic denominator);
 
+/// <summary>Supplies retained support intervals and consumes finite capsule contacts.</summary>
+internal interface IPrismCapsuleContactDomain
+{
+    bool IncludeRecovery { get; }
+    ReadOnlySpan<RationalSegmentInterval> GetSupportIntervals(in WideDirection3d normal,
+        ReadOnlySpan<Signed832> projected, Signed832 denominator, in RationalSegmentInterval solidClip);
+    void AddSupportContact(in FixedContactAnchors contact, in WideDirection3d normal,
+        in WideConvexPrismRelations.ProjectionDepth depth, bool physical, int interval);
+    ReadOnlySpan<RationalSegmentInterval> GetEdgeIntervals(int vertex, int kind);
+    bool AdmitEdgePoint(int vertex, int kind, in Signed832 edgeN, in Signed832 edgeD, in WideDirection3d normal);
+    void AddEdgeContact(in FixedContactAnchors contact, in WideDirection3d normal, int vertex, int kind, int interval);
+}
+
 /// <summary>Owns full-domain finite-surface versus convex-prism contact construction.</summary>
 /// <content>Dispatches finite shapes and ranks exact prism support candidates.</content>
 internal static partial class WideConvexPrismRelations
@@ -26,6 +39,96 @@ internal static partial class WideConvexPrismRelations
         depth = selected.ExactDepth;
         Axis3 direction = selected.Negate ? Negate(selected.Axis) : selected.Axis;
         axis = selected.HasValue ? new WideDirection3d(direction.X, direction.Y, direction.Z) : default;
+        return found;
+    }
+
+    internal static bool VisitCapsuleContacts(Vector3d center, FixedQuaternion rotation, Fixed64 length, Fixed64 radius,
+        Vector3d origin, Fixed64 yaw, ReadOnlySpan<Vector2d> offsets, Fixed64 halfThickness,
+        PrismPointAdmission admission, IPrismCapsuleContactDomain domain, out bool overlaps)
+    {
+        // The ordinary finite owner remains the full-solid overlap oracle;
+        // removing a support from response must never remove geometric overlap.
+        overlaps = TryGetContact(center, rotation, Vector3d.Up, length, radius, origin, yaw, offsets,
+            halfThickness, out _, null, out var selected, out _);
+        if (!overlaps) return false;
+        WideOrientedBox.GetRotatedLocalAxisNumerators(rotation, Vector3d.Up, out var x, out var y, out var z, out var denominator);
+        var shapeAxis = new RigidAxis3(x, y, z, denominator);
+        Axis3 direction = selected.Negate ? Negate(selected.Axis) : selected.Axis;
+        int axialSign = GetAxisProjection(direction, shapeAxis).Sign;
+        FixedQuaternion prismRotation = FixedQuaternion.FromAxisAngle(Vector3d.Up, -yaw);
+        FixedPointAnchor unused = default;
+        // The unfiltered minimum remains minimal when its exact support has a
+        // retained interval. Only a rejected original axis requires another SAT.
+        if (!TryGetMatchedPrismAnchor(selected, direction, shapeAxis, center, rotation, Vector3d.Up, length,
+                default, axialSign, origin, yaw, prismRotation, offsets, halfThickness,
+                ref unused, out _, admission, materialize: false, capsuleDomain: domain))
+        {
+            if (!TryGetContact(center, rotation, Vector3d.Up, length, radius, origin, yaw, offsets,
+                    halfThickness, out _, admission, out selected, out _, domain, false))
+                return !PrismContainsPoint(center, origin, yaw, offsets, halfThickness, out _)
+                    && TryGetPrismEdgeContact(shapeAxis, center, rotation, length, radius, origin, yaw,
+                        prismRotation, offsets, halfThickness, out _, domain);
+            direction = selected.Negate ? Negate(selected.Axis) : selected.Axis;
+            axialSign = GetAxisProjection(direction, shapeAxis).Sign;
+        }
+        Vector3d normal = WideNormalization.GetNormalized(Signed576.ExtendValue(direction.X), Signed576.ExtendValue(direction.Y), Signed576.ExtendValue(direction.Z));
+        var wideNormal = new WideDirection3d(direction.X, direction.Y, direction.Z);
+        Span<Signed832> projected = stackalloc Signed832[6];
+        bool prepared = TryGetPrismSupportInterval(selected, direction, shapeAxis, center, length, axialSign, origin, yaw,
+            offsets, halfThickness, projected, out Signed832 pointD, out var solidClip);
+        System.Diagnostics.Debug.Assert(prepared); // The selected axis already passed this exact finite admission.
+        ReadOnlySpan<RationalSegmentInterval> intervals = domain.GetSupportIntervals(wideNormal, projected, pointD, solidClip);
+        Signed832 one = Signed832.ExtendValue(Signed192.Signed(1)), two = Signed832.ExtendValue(Signed192.Signed(2));
+        bool physical = IsProjectedPrismPointWithinCapsule(projected, pointD, one, two, center - origin, rotation, length, radius);
+        System.Diagnostics.Debug.Assert(domain.IncludeRecovery || physical);
+        bool freeCore = axialSign == 0 && length > Fixed64.Zero, useExtremes = freeCore && physical;
+        FixedPointAnchor baseShape = WideGeometry.GetCenteredCapsuleSupportAnchor(center, rotation, Vector3d.Up, length, Fixed64.Zero, normal, axialSign);
+        Vector3d radialOffset = GetPrismCapsuleRadialOffset(direction, rotation, radius);
+        Fixed64 depth = GetRoundedDepth(selected.ExactDepth, out bool clamped);
+        bool found = false, hasPhysical = false;
+        for (int index = 0; index < intervals.Length; index++)
+        {
+            RationalSegmentInterval retained = intervals[index];
+            Signed832 lowerN = retained.IsClipped ? retained.WideLowerNumerator : default, lowerD = retained.IsClipped ? retained.WideLowerDenominator : one;
+            Signed832 upperN = retained.IsClipped ? retained.WideUpperNumerator : one, upperD = retained.IsClipped ? retained.WideUpperDenominator : one;
+            bool sameEndpoint = useExtremes && RationalSegmentInterval.CompareParameters(lowerN, lowerD, upperN, upperD) == 0;
+            Signed832 primaryN = default, primaryD = one; bool primary = false;
+            // Retain the preferred point for stable pressure placement and both
+            // genuine extrema for angular leverage. Exact parameter deduplication
+            // keeps collapsed or endpoint-selected families from adding duplicates.
+            for (int sample = 0; sample < (useExtremes ? 3 : 1); sample++)
+            {
+                Signed832 tN, tD;
+                if (sample == 0)
+                {
+                    primary = TryGetPrismDomainParameter(direction, selected.ExactDepth, projected, pointD, yaw,
+                        retained, admission, out primaryN, out primaryD);
+                    if (!primary) continue;
+                    tN = primaryN; tD = primaryD;
+                }
+                else
+                {
+                    tN = sample == 1 ? lowerN : upperN; tD = sample == 1 ? lowerD : upperD;
+                    if (sample == 2 && sameEndpoint
+                        || primary && RationalSegmentInterval.CompareParameters(tN, tD, primaryN, primaryD) == 0) continue;
+                    // Admission also supplies the consumer's exact incident fan;
+                    // it must belong to this sample when the callback consumes it.
+                    if (!AdmitPrismSpherePoint(direction, selected.ExactDepth, projected, pointD, yaw, admission, tN, tD)) continue;
+                }
+                FixedPointAnchor shape = freeCore ? GetPrismCoreAnchor(baseShape, Vector3d.Up, length, normal, tN, tD) : baseShape;
+                shape = new FixedPointAnchor(center, rotation, shape.LocalPoint, radialOffset, shape.ExactLocalTerm);
+                FixedPointAnchor target = MaterializePrismProjection(projected, pointD, tN, tD, origin, prismRotation);
+                domain.AddSupportContact(new(shape, target, normal, depth, clamped), wideNormal, selected.ExactDepth, physical, index);
+                found = true; hasPhysical |= physical;
+            }
+        }
+        // Match the ordinary finite owner: a physical supporting face already
+        // supplies the convex contact. Recovery-only/empty faces still need a real edge.
+        // A core point inside the prism rules out every nonzero separating
+        // closest-edge pair, independently of which surfaces admit response.
+        if (!hasPhysical && !PrismContainsPoint(center, origin, yaw, offsets, halfThickness, out _))
+            found |= TryGetPrismEdgeContact(shapeAxis, center, rotation, length, radius, origin, yaw,
+                prismRotation, offsets, halfThickness, out _, domain);
         return found;
     }
 
@@ -117,7 +220,8 @@ internal static partial class WideConvexPrismRelations
     private static bool TryGetContact(Vector3d center, FixedQuaternion shapeRotation, Vector3d localAxisDirection,
         Fixed64 axisLength, Fixed64 radius, Vector3d prismOrigin, Fixed64 prismRotation,
         ReadOnlySpan<Vector2d> prismLocalOffsets, Fixed64 prismHalfThickness, out FixedContactAnchors contact,
-        PrismPointAdmission? admission, out PenetrationCandidate best, out bool overlaps)
+        PrismPointAdmission? admission, out PenetrationCandidate best, out bool overlaps,
+        IPrismCapsuleContactDomain? capsuleDomain = null, bool materialize = true)
     {
         best = default;
         overlaps = false;
@@ -149,7 +253,7 @@ internal static partial class WideConvexPrismRelations
                 prismRotation,
                 prismLocalOffsets,
                 prismHalfThickness,
-                ref best, admission)
+                ref best, admission, capsuleDomain, shapeRotation)
             || !TryKeepAxis(
                 shapeAxis,
                 rigidShapeAxis,
@@ -160,7 +264,7 @@ internal static partial class WideConvexPrismRelations
                 prismRotation,
                 prismLocalOffsets,
                 prismHalfThickness,
-                ref best, admission)
+                ref best, admission, capsuleDomain, shapeRotation)
             || !TryKeepAxis(
                 Cross(shapeAxis, up),
                 rigidShapeAxis,
@@ -171,7 +275,7 @@ internal static partial class WideConvexPrismRelations
                 prismRotation,
                 prismLocalOffsets,
                 prismHalfThickness,
-                ref best, admission))
+                ref best, admission, capsuleDomain, shapeRotation))
         {
             contact = default;
             return false;
@@ -205,7 +309,7 @@ internal static partial class WideConvexPrismRelations
                 prismRotation,
                 prismLocalOffsets,
                 prismHalfThickness,
-                ref best, admission)
+                ref best, admission, capsuleDomain, shapeRotation)
                 || !TryKeepAxis(
                     Cross(shapeAxis, edge),
                     rigidShapeAxis,
@@ -216,7 +320,7 @@ internal static partial class WideConvexPrismRelations
                     prismRotation,
                     prismLocalOffsets,
                     prismHalfThickness,
-                    ref best, admission)
+                    ref best, admission, capsuleDomain, shapeRotation)
                 || !TryKeepAxis(
                     planarVertexAxis,
                     rigidShapeAxis,
@@ -227,7 +331,7 @@ internal static partial class WideConvexPrismRelations
                     prismRotation,
                     prismLocalOffsets,
                     prismHalfThickness,
-                    ref best, admission))
+                    ref best, admission, capsuleDomain, shapeRotation))
             {
                 contact = default;
                 return false;
@@ -261,7 +365,7 @@ internal static partial class WideConvexPrismRelations
                             prismRotation,
                             prismLocalOffsets,
                             prismHalfThickness,
-                            ref best, admission))
+                            ref best, admission, capsuleDomain, shapeRotation))
                     {
                         contact = default;
                         return false;
@@ -274,17 +378,18 @@ internal static partial class WideConvexPrismRelations
         // normal. Append a perpendicular bound without replacing earlier ties.
         if (WideConvex2dRelations.GetPlanarSweepWinding(prismLocalOffsets) == 0
             && !TryKeepAxis(FromDirection(Vector3d.Right), rigidShapeAxis, center, axisLength, radius,
-                prismOrigin, prismRotation, prismLocalOffsets, prismHalfThickness, ref best, admission))
+                prismOrigin, prismRotation, prismLocalOffsets, prismHalfThickness, ref best, admission, capsuleDomain, shapeRotation))
         {
             contact = default;
             return false;
         }
 
-        if (admission != null && !KeepSphereEdgeAxes(center, radius, prismOrigin, prismRotation, prismLocalOffsets,
+        if (admission != null && capsuleDomain == null && !KeepSphereEdgeAxes(center, radius, prismOrigin, prismRotation, prismLocalOffsets,
                 prismHalfThickness, rigidShapeAxis, admission, ref best))
         { contact = default; return false; }
         overlaps = true;
         if (!best.HasValue) { contact = default; return false; }
+        if (!materialize) { contact = default; return true; }
         return TryMaterializeContact(
             best,
             rigidShapeAxis,
@@ -311,7 +416,8 @@ internal static partial class WideConvexPrismRelations
         Fixed64 prismRotation,
         ReadOnlySpan<Vector2d> prismLocalOffsets,
         Fixed64 prismHalfThickness,
-        ref PenetrationCandidate best, PrismPointAdmission? admission = null)
+        ref PenetrationCandidate best, PrismPointAdmission? admission, IPrismCapsuleContactDomain? capsuleDomain,
+        in FixedQuaternion shapeRotation)
     {
         if (axis.IsZero)
             return true;
@@ -347,9 +453,9 @@ internal static partial class WideConvexPrismRelations
             // Solid admission above still checks both sides. Exposure ranks both
             // oriented exits independently, including a farther genuine boundary.
             KeepSphereProjection(axis, false, minimumPrismOffset, positiveDepth, shapeAxis, center,
-                prismOrigin, prismRotation, prismLocalOffsets, prismHalfThickness, admission, ref best);
+                prismOrigin, prismRotation, prismLocalOffsets, prismHalfThickness, admission, ref best, axisLength, capsuleDomain, shapeRotation);
             KeepSphereProjection(axis, true, maximumPrismOffset, negativeDepth, shapeAxis, center,
-                prismOrigin, prismRotation, prismLocalOffsets, prismHalfThickness, admission, ref best);
+                prismOrigin, prismRotation, prismLocalOffsets, prismHalfThickness, admission, ref best, axisLength, capsuleDomain, shapeRotation);
             return true;
         }
 

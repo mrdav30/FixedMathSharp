@@ -20,6 +20,28 @@ internal readonly struct CylinderPolytopeFrame
     private readonly FixedQuaternion _cylinderRotation;
     internal ScaledRigidFrame3d SourceFrame => _sourceFrame;
 
+    /// <summary>Exact capsule-local identity chart at a retained rational coordinate denominator.</summary>
+    internal CylinderPolytopeFrame(Fixed64 height, Fixed64 radius, Signed320 coordinateDenominator)
+    {
+        this = default;
+        CoordinateDenominator = coordinateDenominator;
+        Cap = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(coordinateDenominator, Signed320.ExtendValue(Signed192.Raw(height))));
+        Radius = WideArithmetic.AddSigned192(Signed192.Raw(radius), Signed192.Raw(radius));
+        HasExactScale = !Signed192.TryNarrowSigned(coordinateDenominator, out Signed192 denominator);
+        if (HasExactScale)
+        {
+            Basis = new WideRationalBasis3d(FixedQuaternion.Identity);
+            Denominator = Signed192.Signed(1);
+            _sourceFrame = ScaledRigidFrame3d.Rigid(Vector3d.Zero, FixedQuaternion.Identity);
+            _cylinderRotation = FixedQuaternion.Identity;
+        }
+        else
+        {
+            Denominator = denominator;
+            Basis = WideRationalBasis3d.ScaledIdentity(denominator);
+        }
+    }
+
     internal CylinderPolytopeFrame(Vector3d cylinderCenter, FixedQuaternion cylinderRotation,
         Fixed64 height, Fixed64 radius, Vector3d origin, FixedQuaternion rotation)
         : this(cylinderCenter, cylinderRotation, Signed192.Raw(height), radius, origin, rotation)
@@ -73,6 +95,15 @@ internal readonly struct CylinderPolytopeFrame
     {
         if (HasExactScale)
         {
+            // Existing affine sources are nonrigid. The local identity chart
+            // retains a wider rational denominator without changing its mapping.
+            if (_sourceFrame.IsRigid)
+            {
+                Signed320 chartX = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(CoordinateDenominator, Signed320.ExtendValue(Signed192.Raw(point.X))));
+                Signed320 chartY = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(CoordinateDenominator, Signed320.ExtendValue(Signed192.Raw(point.Y))));
+                Signed320 chartZ = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(CoordinateDenominator, Signed320.ExtendValue(Signed192.Raw(point.Z))));
+                return new WideAxis3(WideArithmetic.AddSigned320(chartX, chartX), WideArithmetic.AddSigned320(chartY, chartY), WideArithmetic.AddSigned320(chartZ, chartZ));
+            }
             _sourceFrame.GetPoint(point).GetLocalPointNumerators(_cylinderCenter, _cylinderRotation,
                 out Signed576 px, out Signed576 py, out Signed576 pz, out _);
             // Near-field raw coordinates <2^46 and the common denominator

@@ -25,12 +25,7 @@ internal static partial class WideConvexPrismRelations
         RigidAxis3 axis, Fixed64 length, Fixed64 radius, Vector3d origin, Fixed64 yaw,
         ReadOnlySpan<Vector2d> offsets, Fixed64 halfThickness)
     {
-        Signed192 centerY = WideArithmetic.Difference(center.Y, origin.Y);
-        bool footprintContainsCenter = WideConvex2dRelations.ContainsPoint(new Vector2d(center.X, center.Z),
-            new Vector2d(origin.X, origin.Z), yaw, offsets);
-        if (footprintContainsCenter
-            && WideArithmetic.AddSigned192(centerY, Signed192.Raw(halfThickness)).Sign >= 0
-            && WideArithmetic.SubtractSigned192(centerY, Signed192.Raw(halfThickness)).Sign <= 0)
+        if (PrismContainsPoint(center, origin, yaw, offsets, halfThickness, out bool footprintContainsCenter))
             return true;
 
         // The projected contact already proved world-Up overlap. An upright
@@ -69,6 +64,17 @@ internal static partial class WideConvexPrismRelations
                 return true;
         }
         return false;
+    }
+
+    private static bool PrismContainsPoint(Vector3d point, Vector3d origin, Fixed64 yaw,
+        ReadOnlySpan<Vector2d> offsets, Fixed64 halfThickness, out bool footprintContainsPoint)
+    {
+        footprintContainsPoint = WideConvex2dRelations.ContainsPoint(new Vector2d(point.X, point.Z),
+            new Vector2d(origin.X, origin.Z), yaw, offsets);
+        Signed192 height = WideArithmetic.Difference(point.Y, origin.Y);
+        return footprintContainsPoint
+            && WideArithmetic.AddSigned192(height, Signed192.Raw(halfThickness)).Sign >= 0
+            && WideArithmetic.SubtractSigned192(height, Signed192.Raw(halfThickness)).Sign <= 0;
     }
 
     private readonly ref struct CurvedPrismAdmission

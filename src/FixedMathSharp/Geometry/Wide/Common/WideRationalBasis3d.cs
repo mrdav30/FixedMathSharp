@@ -156,6 +156,10 @@ internal readonly struct WideRationalBasis3d
                 target.Zx, target.Zy, target.Zz,
                 source.Zx, source.Zy, source.Zz)));
 
+    /// <summary>Retains the identity mapping at a caller's exact positive coordinate scale.</summary>
+    internal static WideRationalBasis3d ScaledIdentity(Signed192 denominator) =>
+        new(denominator, denominator, default, default, default, denominator, default, default, default, denominator);
+
     internal WideAxis3 GetAxis(int index) =>
         index switch
         {

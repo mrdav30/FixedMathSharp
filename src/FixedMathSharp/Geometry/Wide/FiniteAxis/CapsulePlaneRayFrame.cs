@@ -74,6 +74,21 @@ internal readonly struct CapsulePlaneRayFrame
         _wideParameters = wideParameters;
     }
 
+    /// <summary>Prepares a capsule-local ray chart for exact pretransformed native geometry.</summary>
+    internal static CapsulePlaneRayFrame ForCapsulePointRay(Fixed64 length, Fixed64 radius,
+        Signed320 coordinateDenominator, in WideDirection3d direction, in Signed832 planeConstant) =>
+        new(length, radius, coordinateDenominator, direction, planeConstant);
+
+    private CapsulePlaneRayFrame(Fixed64 length, Fixed64 radius, Signed320 coordinateDenominator,
+        in WideDirection3d direction, in Signed832 planeConstant)
+    {
+        this = default;
+        Finite = new CapsuleFiniteSectionFrame(length, radius, coordinateDenominator);
+        Normal = direction; PlaneConstant = planeConstant; NormalSquared = direction.SquaredLength;
+        AuthoredNormal = new WideAxis3(Signed320.NarrowValue(direction.X),
+            Signed320.NarrowValue(direction.Y), Signed320.NarrowValue(direction.Z));
+    }
+
     internal CapsulePlaneRayFrame(FixedTriangle planeTriangle, in CapsuleFiniteSectionFrame finite)
     {
         _wideParameters = false;

@@ -99,6 +99,18 @@ internal static partial class WideConvexPrismRelations
         // rational subtraction preserves the full signed input range.
         if (left.AxisSquared.Equals(right.AxisSquared) && leftCoefficient.Equals(rightCoefficient))
             return WideArithmetic.SubtractSigned832(Signed832.ExtendValue(left.Rational), Signed832.ExtendValue(right.Rational)).Sign;
+        if (leftCoefficient.Equals(rightCoefficient))
+        {
+            // The same radial term cancels across different axis scales too.
+            // Compare the remaining signed rational projections with the existing exact owner.
+            Span<ulong> values = stackalloc ulong[40];
+            var leftN = values[..11]; var rightN = values.Slice(11, 11);
+            var leftAxis = values.Slice(22, 9); var rightAxis = values.Slice(31, 9);
+            WideArithmetic.GetMagnitude(left.Rational, leftN); WideArithmetic.GetMagnitude(right.Rational, rightN);
+            WideArithmetic.GetMagnitude(left.AxisSquared, leftAxis); WideArithmetic.GetMagnitude(right.AxisSquared, rightAxis);
+            return WideArithmetic.CompareSignedNormalizedMagnitudes(leftN, left.Rational.Sign, leftAxis,
+                rightN, right.Rational.Sign, rightAxis);
+        }
         return WideArithmetic.CompareRadialProjectionDepths(
             left.Rational,
             leftCoefficient,
