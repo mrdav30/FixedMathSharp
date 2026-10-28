@@ -167,6 +167,24 @@ internal ref struct CapsulePlaneRayValue
         return SignLinear(constant, denominator, root);
     }
 
+    /// <summary>Compares this nonnegative value squared with a nonnegative exact quadratic ratio.</summary>
+    internal int CompareSquaredQuadratic(scoped ContactQuadratic numerator, scoped ContactQuadratic denominator,
+        scoped ReadOnlySpan<ulong> root)
+    {
+        Span<ulong> cell = stackalloc ulong[CellCapacity()];
+        FiniteAxisValueRoot parameter = GetRoot(_polynomial, _signs, _cell, _metadata, cell);
+        int words = Math.Max(parameter.Coefficients.Length / parameter.Signs.Length,
+            Math.Max(ContactQuadratic.ActiveWords(numerator), ContactQuadratic.ActiveWords(denominator))
+                + (2 * _metadata.ValueShift + 63) / 64) + 1;
+        Span<ulong> rational = stackalloc ulong[3 * words], radical = stackalloc ulong[3 * words];
+        Span<sbyte> rationalSigns = stackalloc sbyte[3], radicalSigns = stackalloc sbyte[3];
+        rational.Clear(); radical.Clear(); rationalSigns.Clear(); radicalSigns.Clear();
+        SetCoefficient(numerator, rational, rationalSigns, radical, radicalSigns, 0, 0);
+        rationalSigns[0] = (sbyte)-rationalSigns[0]; radicalSigns[0] = (sbyte)-radicalSigns[0];
+        SetCoefficient(denominator, rational, rationalSigns, radical, radicalSigns, 2, 2 * _metadata.ValueShift);
+        return SignAtRoot(ref parameter, rational, rationalSigns, radical, radicalSigns, root);
+    }
+
     /// <summary>Exact sign of constant+slope*t, including an independent quadratic coefficient field.</summary>
     internal int SignLinear(scoped ContactQuadratic constant, scoped ContactQuadratic slope,
         scoped ReadOnlySpan<ulong> root)

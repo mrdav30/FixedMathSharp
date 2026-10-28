@@ -80,7 +80,8 @@ internal static partial class WideConvexPrismRelations
                         // Closed adjacent height bands can share one unique
                         // closest point; it is one physical constraint.
                         if (hasPreviousTarget && selection.SameTarget(previousTarget)) continue;
-                        domain.AddEdgeContact(physical, selection.BestNormal, index, kind, interval);
+                        var native = new CapsulePrismContactDepth(selection.BestQ, selection.BestD, radius);
+                        domain.AddEdgeContact(physical, native, selection.BestNormal, index, kind, interval);
                         selection.CopyTarget(previousTarget); hasPreviousTarget = true;
                         contact = physical; any = true;
                     }
@@ -190,9 +191,9 @@ internal static partial class WideConvexPrismRelations
     {
         private readonly ReadOnlySpan<Signed192> _core, _u;
         private readonly Signed192 _coordinateD, _twiceRotation, _radiusSquared;
-        private readonly ContactQuadratic _currentQ, _currentD, _term, _product, _bestD;
+        private readonly ContactQuadratic _currentQ, _currentD, _term, _product;
         private readonly ContactQuadratic _gapQ, _gapD;
-        internal readonly ContactQuadratic BestQ;
+        internal readonly ContactQuadratic BestQ, BestD;
         private readonly Span<Signed832> _best;
         private readonly IPrismCapsuleContactDomain? _domain;
         private readonly ReadOnlySpan<Vector2d> _offsets;
@@ -213,7 +214,7 @@ internal static partial class WideConvexPrismRelations
             // A nonnegative scalar radius has at most 63 magnitude bits; its exact
             // raw square fits Signed192 and is shared by all retained candidates.
             _radiusSquared = Signed192.NarrowProven(WideArithmetic.MultiplySigned192(Signed192.Raw(radius), Signed192.Raw(radius)));
-            BestQ = ContactQuadratic.At(values, signs, 0, PrismEdgeWords); _bestD = ContactQuadratic.At(values, signs, 1, PrismEdgeWords);
+            BestQ = ContactQuadratic.At(values, signs, 0, PrismEdgeWords); BestD = ContactQuadratic.At(values, signs, 1, PrismEdgeWords);
             _currentQ = ContactQuadratic.At(values, signs, 2, PrismEdgeWords); _currentD = ContactQuadratic.At(values, signs, 3, PrismEdgeWords);
             _term = ContactQuadratic.At(values, signs, 4, PrismEdgeWords); _product = ContactQuadratic.At(values, signs, 5, PrismEdgeWords);
             _gapQ = domain == null ? _currentQ : ContactQuadratic.At(values, signs, 6, PrismEdgeWords);
@@ -252,11 +253,11 @@ internal static partial class WideConvexPrismRelations
             if (_domain != null && (!WithinRadius(_gapQ, _gapD) || !TryGetPrismEdgeDirection(points, out normal)
                 || !Supports(points, d, normal) || !_domain.AdmitEdgePoint(_vertex, _kind, t, d, normal))) return;
             int comparison = Found ? ContactQuadratic.CompareRatios(_gapQ, _gapD, ReadOnlySpan<ulong>.Empty,
-                BestQ, _bestD, ReadOnlySpan<ulong>.Empty) : -1;
+                BestQ, BestD, ReadOnlySpan<ulong>.Empty) : -1;
             Signed832 middle = WideArithmetic.SubtractSigned832(WideArithmetic.AddSigned832(s, s), d);
             if (middle.Sign < 0) middle = WideArithmetic.SubtractSigned832(default, middle);
             if (comparison > 0 || comparison == 0 && WideArithmetic.CompareNonNegativeProducts(middle, _middleD, _middleN, d) >= 0) return;
-            _gapQ.CopyTo(BestQ); _gapD.CopyTo(_bestD); points.CopyTo(_best);
+            _gapQ.CopyTo(BestQ); _gapD.CopyTo(BestD); points.CopyTo(_best);
             _middleN = middle; _middleD = d; Found = true; BestNormal = normal;
         }
 
@@ -282,7 +283,7 @@ internal static partial class WideConvexPrismRelations
         {
             contact = default;
             if (!Found) return false;
-            if (!WithinRadius(BestQ, _bestD)) return false;
+            if (!WithinRadius(BestQ, BestD)) return false;
             contact = MaterializePrismEdgeContact(_best, BestQ.Rational, center, rotation, origin, prismRotation, radius);
             return true;
         }

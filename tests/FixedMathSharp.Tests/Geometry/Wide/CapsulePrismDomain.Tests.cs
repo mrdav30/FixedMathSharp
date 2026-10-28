@@ -9,6 +9,112 @@ namespace FixedMathSharp.Tests.Geometry;
 public sealed class CapsulePrismDomainTests
 {
     [Theory]
+    [InlineData(false, -1)]
+    [InlineData(false, 0)]
+    [InlineData(false, 1)]
+    [InlineData(true, -1)]
+    [InlineData(true, 0)]
+    [InlineData(true, 1)]
+    public void BoundaryComparisonRetainsNativeOrdersWithinOneRoundedRawCell(bool edge, int delta)
+    {
+        var worker = new CapsulePrismBoundaryContacts();
+        Assert.True(worker.TryGetContact(new(Fixed64.Zero, Fixed64.Zero, 5 * Fixed64.Quarter), FixedQuaternion.Identity,
+            Fixed64.One, Fixed64.Half, Vector3d.Zero, Fixed64.Zero, new(-1, 1), new(1, 1), Vector2d.Zero,
+            default, Fixed64.Zero, Fixed64.Zero, 0, out var contact));
+        Assert.Equal(Fixed64.Quarter, contact.Depth);
+        long raw = Fixed64.Quarter.m_rawValue, numerator = 4 * raw + delta;
+        if (edge)
+        {
+            Span<ulong> values = stackalloc ulong[16]; Span<int> signs = stackalloc int[4];
+            var q = ContactQuadratic.At(values, signs, 0, 4); var d = ContactQuadratic.At(values, signs, 1, 4);
+            q.Set(Signed832.ExtendValue(WideArithmetic.MultiplySigned192(Signed192.Signed(numerator), Signed192.Signed(numerator))));
+            d.Set(Integer(16));
+            var native = new CapsulePrismContactDepth(q, d, Fixed64.Half);
+            // Distance=(4*quarterRaw+delta)/4, so native gap is quarterRaw-delta/4.
+            Assert.Equal(delta, worker.CompareDepth(native));
+        }
+        else
+        {
+            var projection = new WideConvexPrismRelations.ProjectionDepth(Signed704.ExtendValue(Signed576.ExtendValue(Signed192.Signed(numerator))),
+                Signed192.Signed(4), Fixed64.Zero, WideConvexPrismRelations.RadialKind.Capsule,
+                Signed576.ExtendValue(Signed192.Signed(1)), Signed320.One);
+            var native = new CapsulePrismContactDepth(projection);
+            // All three native depths round to quarterRaw; exact order still differs.
+            Assert.Equal(-delta, worker.CompareDepth(native));
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NativeCallbacksExposeTheExactSupportOrClosestEdgeDepth(bool edge)
+    {
+        Vector3d center = edge ? new(5 * Fixed64.Quarter, Fixed64.Zero, 5 * Fixed64.Quarter)
+            : new(Fixed64.Zero, Fixed64.Zero, 5 * Fixed64.Quarter);
+        var worker = new CapsulePrismBoundaryContacts();
+        Assert.True(worker.TryGetContact(center, FixedQuaternion.Identity, Fixed64.One, Fixed64.Half,
+            Vector3d.Zero, Fixed64.Zero, edge ? new(0, 2) : new(-1, 1), edge ? new(2, 0) : new(1, 1), Vector2d.Zero,
+            edge ? Interval(1, 2, 1, 2) : default, edge ? -Fixed64.Half : Fixed64.Zero,
+            edge ? Fixed64.Half : Fixed64.Zero, 0, out _));
+        var domain = new CaptureDomain(edge ? Array.Empty<RationalSegmentInterval>() : new RationalSegmentInterval[] { default })
+            { IncludeRecovery = false, CompareBoundary = worker };
+        Assert.True(Visit(center, FixedQuaternion.Identity, Fixed64.One, Fixed64.Half, Fixed64.One, domain, out bool overlaps));
+        Assert.True(overlaps); Assert.NotEmpty(domain.NativeComparisons);
+        Assert.All(domain.NativeComparisons, comparison => Assert.Equal(0, comparison));
+        if (edge) { Assert.NotEmpty(domain.Edges); Assert.Empty(domain.Supports); }
+        else { Assert.NotEmpty(domain.Supports); Assert.Empty(domain.Edges); }
+    }
+
+    [Theory]
+    [InlineData(false, false, 0)]
+    [InlineData(false, true, 0)]
+    [InlineData(true, false, 0)]
+    [InlineData(true, true, 0)]
+    [InlineData(false, false, 7)]
+    [InlineData(false, true, 7)]
+    [InlineData(true, false, 7)]
+    [InlineData(true, true, 7)]
+    public void QuarticRayComparisonPreservesThePhysicalMetricAndSameRoundedNativeOrders(bool edge, bool upper, int shift)
+    {
+        const int words = 10;
+        Span<ulong> values = stackalloc ulong[16 * words]; Span<int> signs = stackalloc int[16];
+        var a = ContactQuadratic.At(values, signs, 0, words); var b = ContactQuadratic.At(values, signs, 1, words);
+        var c = ContactQuadratic.At(values, signs, 2, words); var x = ContactQuadratic.At(values, signs, 3, words);
+        var y = ContactQuadratic.At(values, signs, 4, words); var z = ContactQuadratic.At(values, signs, 5, words);
+        var d = ContactQuadratic.At(values, signs, 6, words); var q = ContactQuadratic.At(values, signs, 7, words);
+        a.Set(Integer(4)); b.Clear(); c.Set(Integer(-1)); c.Radical[0] = 2; c.Signs[1] = -1;
+        Span<ulong> root = stackalloc ulong[1] { 2 };
+        Span<ulong> valueStorage = stackalloc ulong[CapsulePlaneRayValue.StorageWords]; Span<sbyte> valueSigns = stackalloc sbyte[CapsulePlaneRayValue.SignCount];
+        var value = new CapsulePlaneRayValue(valueStorage, valueSigns);
+        Assert.True(value.TrySetUpperRoot(a, b, c, root, shift));
+        Span<ulong> selectionStorage = stackalloc ulong[CapsulePlaneRaySelection.StorageWords];
+        Span<int> selectionSigns = stackalloc int[CapsulePlaneRaySelection.SignCount]; Span<sbyte> selectionValueSigns = stackalloc sbyte[CapsulePlaneRaySelection.ValueSignCount];
+        var selection = new CapsulePlaneRaySelection(selectionStorage, selectionSigns, selectionValueSigns);
+        var frame = CapsulePlaneRayFrame.ForCapsulePointRay(Fixed64.Zero, Fixed64.FromRaw(1), Signed320.ExtendValue(Signed192.Signed(1)),
+            new(default, Signed576.ExtendValue(Signed192.Signed(2)), default), default);
+        // Source=(sqrt(2)-1,0,0)/(2D) lies inside the one-raw sphere.
+        // The +Y ray has physical raw depth sqrt(1+2sqrt(2))/2, rounding to one.
+        x.Set(Integer(-1)); x.Radical[0] = 1; x.Signs[1] = 1; y.Clear(); z.Clear(); d.Set(Integer(1));
+        selection.KeepValue(x, y, z, d, root, value, 1, frame);
+        Assert.True(selection.Metadata.UsesValueRoot);
+        Assert.True(selection.TryGetDepth(frame, out Fixed64 rounded)); Assert.Equal(Fixed64.FromRaw(1), rounded);
+        if (edge)
+        {
+            q.Set(Integer(upper ? 1 : 2)); d.Set(Integer(upper ? 2 : 1));
+            var native = new CapsulePrismContactDepth(q, d, Fixed64.FromRaw(2));
+            Assert.Equal(upper ? -1 : 1, native.Compare(selection, frame));
+        }
+        else
+        {
+            var projection = new WideConvexPrismRelations.ProjectionDepth(Signed704.ExtendValue(Signed576.ExtendValue(Signed192.Signed(upper ? -2 : -4))),
+                Signed192.Signed(1), Fixed64.FromRaw(2), WideConvexPrismRelations.RadialKind.Capsule,
+                Signed576.ExtendValue(Signed192.Signed(8)), Signed320.One);
+            // Native gaps 2-sqrt(2) and 2-1/sqrt(2) also round to one raw.
+            Assert.Equal(upper ? -1 : 1, new CapsulePrismContactDepth(projection).Compare(selection, frame));
+        }
+    }
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(true, true)]
     public void SideClippingRetainsTheNativeTangentHeightAndCoreIntersection(bool yawed, bool reversedHorizontalEdge)
@@ -762,6 +868,8 @@ public sealed class CapsulePrismDomainTests
         internal int EdgeVertex = -1, EdgeKind = -1;
         internal bool RejectEdgeEndpoints;
         internal int RejectNormalZ;
+        internal CapsulePrismBoundaryContacts? CompareBoundary;
+        internal readonly List<int> NativeComparisons = new();
         private readonly RationalSegmentInterval[] _retainedSupport;
         public bool IncludeRecovery { get; set; } = true;
 
@@ -796,8 +904,12 @@ public sealed class CapsulePrismDomainTests
             return _retainedSupport.AsSpan(0, count);
         }
 
-        public void AddSupportContact(in FixedContactAnchors contact, in WideDirection3d normal,
-            in WideConvexPrismRelations.ProjectionDepth depth, bool physical, int interval) => Supports.Add((contact, physical, interval));
+        public void AddSupportContact(in FixedContactAnchors contact, scoped in CapsulePrismContactDepth native, in WideDirection3d normal,
+            in WideConvexPrismRelations.ProjectionDepth depth, bool physical, int interval)
+        {
+            Supports.Add((contact, physical, interval));
+            if (CompareBoundary != null) NativeComparisons.Add(CompareBoundary.CompareDepth(native));
+        }
 
         public ReadOnlySpan<RationalSegmentInterval> GetEdgeIntervals(int vertex, int kind) =>
             EdgeVertex < 0 || vertex == EdgeVertex && kind == EdgeKind ? EdgeIntervals : ReadOnlySpan<RationalSegmentInterval>.Empty;
@@ -812,8 +924,12 @@ public sealed class CapsulePrismDomainTests
             return false;
         }
 
-        public void AddEdgeContact(in FixedContactAnchors contact, in WideDirection3d normal, int vertex, int kind, int interval) =>
+        public void AddEdgeContact(in FixedContactAnchors contact, scoped in CapsulePrismContactDepth native,
+            in WideDirection3d normal, int vertex, int kind, int interval)
+        {
             Edges.Add((contact, vertex, kind, interval));
+            if (CompareBoundary != null) NativeComparisons.Add(CompareBoundary.CompareDepth(native));
+        }
     }
 
     private static Signed832[] Projected(in RationalPoint3d first, in RationalPoint3d second, out Signed832 pointD)

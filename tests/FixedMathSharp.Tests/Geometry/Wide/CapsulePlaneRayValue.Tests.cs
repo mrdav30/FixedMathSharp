@@ -6,6 +6,29 @@ namespace FixedMathSharp.Tests;
 
 public sealed class CapsulePlaneRayValueTests
 {
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(0, 0)]
+    [InlineData(1, 0)]
+    [InlineData(-1, 7)]
+    [InlineData(0, 7)]
+    [InlineData(1, 7)]
+    public void SquaredQuarticValueComparesAnIndependentFieldWithoutRounding(int delta, int shift)
+    {
+        Span<ulong> storage = stackalloc ulong[CapsulePlaneRayValue.StorageWords];
+        Span<sbyte> valueSigns = stackalloc sbyte[CapsulePlaneRayValue.SignCount];
+        var value = new CapsulePlaneRayValue(storage, valueSigns);
+        Span<ulong> values = stackalloc ulong[6 * Words]; Span<int> signs = stackalloc int[6];
+        ContactQuadratic a = Field(values, signs, 0), b = Field(values, signs, 1), c = Field(values, signs, 2);
+        Set(a, 4); Set(b, 0); Set(c, -1, -2);
+        Span<ulong> pointRoot = stackalloc ulong[1] { 2 }, thresholdRoot = stackalloc ulong[1] { 8 };
+        Assert.True(value.TrySetUpperRoot(a, b, c, pointRoot, shift));
+        // t²=(1+2sqrt(2))/4. The independently represented threshold is
+        // (256+256sqrt(8)+delta)/1024, including the exact algebraic tie.
+        Set(a, 256 + delta, 256); Set(b, 1024);
+        Assert.Equal(-delta, value.CompareSquaredQuadratic(a, b, thresholdRoot));
+    }
+
     private const int Words = 10;
     private static ContactQuadratic Field(Span<ulong> values, Span<int> signs, int index) => ContactQuadratic.At(values, signs, index, Words);
     private static Signed832 Wide(long value) => Signed832.ExtendValue(Signed320.ExtendValue(Signed192.Signed(value)));

@@ -19,11 +19,12 @@ internal interface IPrismCapsuleContactDomain
     bool IncludeRecovery { get; }
     ReadOnlySpan<RationalSegmentInterval> GetSupportIntervals(in WideDirection3d normal,
         ReadOnlySpan<Signed832> projected, Signed832 denominator, in RationalSegmentInterval solidClip);
-    void AddSupportContact(in FixedContactAnchors contact, in WideDirection3d normal,
+    void AddSupportContact(in FixedContactAnchors contact, scoped in CapsulePrismContactDepth native, in WideDirection3d normal,
         in WideConvexPrismRelations.ProjectionDepth depth, bool physical, int interval);
     ReadOnlySpan<RationalSegmentInterval> GetEdgeIntervals(int vertex, int kind);
     bool AdmitEdgePoint(int vertex, int kind, in Signed832 edgeN, in Signed832 edgeD, in WideDirection3d normal);
-    void AddEdgeContact(in FixedContactAnchors contact, in WideDirection3d normal, int vertex, int kind, int interval);
+    void AddEdgeContact(in FixedContactAnchors contact, scoped in CapsulePrismContactDepth native,
+        in WideDirection3d normal, int vertex, int kind, int interval);
 }
 
 /// <summary>Owns full-domain finite-surface versus convex-prism contact construction.</summary>
@@ -118,7 +119,8 @@ internal static partial class WideConvexPrismRelations
                 FixedPointAnchor shape = freeCore ? GetPrismCoreAnchor(baseShape, Vector3d.Up, length, normal, tN, tD) : baseShape;
                 shape = new FixedPointAnchor(center, rotation, shape.LocalPoint, radialOffset, shape.ExactLocalTerm);
                 FixedPointAnchor target = MaterializePrismProjection(projected, pointD, tN, tD, origin, prismRotation);
-                domain.AddSupportContact(new(shape, target, normal, depth, clamped), wideNormal, selected.ExactDepth, physical, index);
+                var native = new CapsulePrismContactDepth(selected.ExactDepth);
+                domain.AddSupportContact(new(shape, target, normal, depth, clamped), native, wideNormal, selected.ExactDepth, physical, index);
                 found = true; hasPhysical |= physical;
             }
         }

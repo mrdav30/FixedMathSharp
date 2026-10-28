@@ -31,18 +31,13 @@ internal sealed class CapsulePrismBoundaryContacts
 
     internal CapsulePrismBoundaryContacts() => _visitor = Keep;
 
-    /// <summary>Finds the deepest physical ray on one fully admitted closed line or point.</summary>
-    /// <remarks>
-    /// At least one of the height range and tangent interval must be degenerate. The caller proves
-    /// continuity/incident admission over the complete stratum before numerical event selection.
-    /// A collapsed height and tangent interval represent an isolated boundary point.
-    /// </remarks>
-    internal bool TryGetContact(Vector3d center, FixedQuaternion rotation, Fixed64 length, Fixed64 radius,
+    /// <summary>Restores one admitted source chart for connectivity without repeating finite event selection.</summary>
+    internal bool PrepareSource(Vector3d center, FixedQuaternion rotation, Fixed64 length, Fixed64 radius,
         Vector3d origin, Fixed64 yaw, Vector2d start, Vector2d end, Vector2d inside,
         in RationalSegmentInterval clip, Fixed64 lowerY, Fixed64 upperY, int verticalNormal,
-        out FixedContactAnchors contact)
+        out WideDirection3d localNormal)
     {
-        contact = default; _winner = default; _supportPrepared = _hasSupport = false;
+        localNormal = default; _supportPrepared = _hasSupport = false;
         if (lowerY > upperY || start == end) return false;
         _center = center; _origin = origin; _rotation = rotation; _length = length; _radius = radius;
         _start = start; _end = end; _lowerY = lowerY; _upperY = upperY; _clip = clip; _yawAngle = yaw;
@@ -54,10 +49,27 @@ internal sealed class CapsulePrismBoundaryContacts
             ReduceParameter(clip.WideLowerNumerator, clip.WideLowerDenominator, out _lowerN, out _lowerD);
             ReduceParameter(clip.WideUpperNumerator, clip.WideUpperDenominator, out _upperN, out _upperD);
         }
-        if (!GetNormal(inside, verticalNormal, out WideDirection3d localNormal)) return false;
-        bool horizontal = lowerY == upperY;
-        if (!horizontal && (!clip.IsClipped || RationalSegmentInterval.CompareParameters(_lowerN, _lowerD, _upperN, _upperD) != 0))
+        if (!GetNormal(inside, verticalNormal, out localNormal)) return false;
+        if (lowerY != upperY && (!clip.IsClipped || RationalSegmentInterval.CompareParameters(_lowerN, _lowerD, _upperN, _upperD) != 0))
             throw new ArgumentException("A boundary stratum must be a line or point.", nameof(clip));
+        return true;
+    }
+
+    /// <summary>Finds the deepest physical ray on one fully admitted closed line or point.</summary>
+    /// <remarks>
+    /// At least one of the height range and tangent interval must be degenerate. The caller proves
+    /// continuity/incident admission over the complete stratum before numerical event selection.
+    /// A collapsed height and tangent interval represent an isolated boundary point.
+    /// </remarks>
+    internal bool TryGetContact(Vector3d center, FixedQuaternion rotation, Fixed64 length, Fixed64 radius,
+        Vector3d origin, Fixed64 yaw, Vector2d start, Vector2d end, Vector2d inside,
+        in RationalSegmentInterval clip, Fixed64 lowerY, Fixed64 upperY, int verticalNormal,
+        out FixedContactAnchors contact)
+    {
+        contact = default; _winner = default;
+        if (!PrepareSource(center, rotation, length, radius, origin, yaw, start, end, inside, clip,
+            lowerY, upperY, verticalNormal, out WideDirection3d localNormal)) return false;
+        bool horizontal = lowerY == upperY;
         Signed320 zero = default, one = Signed320.ExtendValue(Signed192.Signed(1));
         WideAxis3 first = GetPoint(horizontal ? zero : _lowerN, horizontal ? one : _lowerD, lowerY, out Signed320 denominator);
         WideAxis3 last = GetPoint(horizontal ? one : _lowerN, horizontal ? one : _lowerD, upperY, out Signed320 lastDenominator);
@@ -129,6 +141,13 @@ internal sealed class CapsulePrismBoundaryContacts
         selection.Restore(_winner); return selection;
     }
 
+    /// <summary>Compares this admitted line maximum with the borrowed native source depth before rounding.</summary>
+    internal int CompareDepth(scoped in CapsulePrismContactDepth native)
+    {
+        System.Diagnostics.Debug.Assert(_winner.HasValue);
+        return native.Compare(BorrowWinner(), _frame);
+    }
+
     private void Keep(in CapsulePlaneRayEventSource source, in CapsulePlaneRayFrame frame,
         CapsulePlaneRayEvent descriptor, int orientation, scoped in CapsulePlaneRaySelection candidate)
     {
@@ -191,6 +210,66 @@ internal sealed class CapsulePrismBoundaryContacts
         // <65 keep doubled coordinates <309 and their denominator <259 bits.
         return new WideAxis3(Signed320.NarrowValue(WideArithmetic.AddSigned576(x, x)),
             Signed320.NarrowValue(WideArithmetic.AddSigned576(y, y)), Signed320.NarrowValue(WideArithmetic.AddSigned576(z, z)));
+    }
+}
+
+/// <summary>Borrowed exact capsule/prism depth from a support projection or certified closest pair.</summary>
+internal readonly ref struct CapsulePrismContactDepth
+{
+    private readonly WideConvexPrismRelations.ProjectionDepth _projection;
+    private readonly ContactQuadratic _distanceSquared, _distanceDenominator;
+    private readonly Fixed64 _radius;
+    private readonly bool _edge;
+
+    internal CapsulePrismContactDepth(in WideConvexPrismRelations.ProjectionDepth projection)
+    {
+        this = default; _projection = projection;
+        System.Diagnostics.Debug.Assert(projection.RadialKind == WideConvexPrismRelations.RadialKind.Capsule);
+    }
+    internal CapsulePrismContactDepth(ContactQuadratic distanceSquared, ContactQuadratic denominator, Fixed64 radius)
+    { this = default; _edge = true; _distanceSquared = distanceSquared; _distanceDenominator = denominator; _radius = radius; }
+
+    internal int Compare(scoped in CapsulePlaneRaySelection ray, in CapsulePlaneRayFrame frame)
+    {
+        int qWords = _edge ? ContactQuadratic.ActiveWords(_distanceSquared) : 0;
+        int dWords = _edge ? ContactQuadratic.ActiveWords(_distanceDenominator) : 0;
+        // Projection P² needs <1409 bits; the remaining terms fit 24 words.
+        // Closest-pair products retain their complete active rational banks.
+        int words = _edge ? Math.Max(qWords, dWords + 2) + 2 : 24;
+        Span<ulong> values = stackalloc ulong[16 * words], root = stackalloc ulong[_edge ? qWords + dWords : 9];
+        Span<int> signs = stackalloc int[16];
+        var n = ContactQuadratic.At(values, signs, 0, words); var d = ContactQuadratic.At(values, signs, 1, words);
+        var p = ContactQuadratic.At(values, signs, 2, words); var c = ContactQuadratic.At(values, signs, 3, words);
+        var a = ContactQuadratic.At(values, signs, 4, words); var t = ContactQuadratic.At(values, signs, 5, words);
+        var u = ContactQuadratic.At(values, signs, 6, words); var v = ContactQuadratic.At(values, signs, 7, words);
+        root.Clear();
+        if (_edge)
+        {
+            // (R-sqrt(Q/D))² = (R²D+Q-2R*sqrt(QD))/D.
+            _distanceSquared.CopyTo(n); _distanceDenominator.CopyTo(d);
+            p.Set(Signed832.ExtendValue(Signed192.Raw(_radius)));
+            ContactQuadratic.Multiply(p, p, ReadOnlySpan<ulong>.Empty, t);
+            ContactQuadratic.Multiply(t, d, ReadOnlySpan<ulong>.Empty, u); n.Add(u);
+            p.CopyTo(t); t.Add(t); t.Rational[..WideArithmetic.GetActiveMagnitudeLength(t.Rational)].CopyTo(n.Radical);
+            n.Signs[1] = -t.Signs[0];
+            WideArithmetic.MultiplyMagnitudes(_distanceSquared.Rational[..qWords], _distanceDenominator.Rational[..dWords], root);
+        }
+        else
+        {
+            // (R+P/(C*sqrt(A)))² retains C: ray and support charts need not share it.
+            p.Set(Signed832.ExtendValue(_projection.Rational)); c.Set(Signed576.ExtendValue(_projection.Common));
+            a.Set(_projection.AxisSquared);
+            ContactQuadratic.Scale(c, Signed576.ExtendValue(Signed192.Raw(_projection.Radius)), t);
+            ContactQuadratic.Multiply(p, p, ReadOnlySpan<ulong>.Empty, n);
+            ContactQuadratic.Multiply(t, t, ReadOnlySpan<ulong>.Empty, u);
+            ContactQuadratic.Multiply(u, a, ReadOnlySpan<ulong>.Empty, v); n.Add(v);
+            ContactQuadratic.Multiply(p, t, ReadOnlySpan<ulong>.Empty, u); u.Add(u);
+            u.Rational[..WideArithmetic.GetActiveMagnitudeLength(u.Rational)].CopyTo(n.Radical); n.Signs[1] = u.Signs[0];
+            ContactQuadratic.Multiply(c, c, ReadOnlySpan<ulong>.Empty, u);
+            ContactQuadratic.Multiply(u, a, ReadOnlySpan<ulong>.Empty, d);
+            WideArithmetic.GetMagnitude(_projection.AxisSquared, root);
+        }
+        return ray.CompareSquaredDepth(frame, n, d, root);
     }
 }
 

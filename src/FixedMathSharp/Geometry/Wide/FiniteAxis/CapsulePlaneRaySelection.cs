@@ -112,6 +112,29 @@ internal ref partial struct CapsulePlaneRaySelection
                 other.DepthNumerator, other.DepthDenominator, other.Root);
     }
 
+    /// <summary>Compares this physical raw depth with a nonnegative exact squared raw-depth ratio.</summary>
+    internal readonly int CompareSquaredDepth(in CapsulePlaneRayFrame frame, scoped ContactQuadratic numerator,
+        scoped ContactQuadratic denominator, scoped ReadOnlySpan<ulong> radical)
+    {
+        int words = Math.Max(ContactQuadratic.ActiveWords(numerator), ContactQuadratic.ActiveWords(denominator)) + 14;
+        if (!usesValueRoot) words = Math.Max(words,
+            2 * Math.Max(ContactQuadratic.ActiveWords(DepthNumerator), ContactQuadratic.ActiveWords(DepthDenominator))
+                + WideArithmetic.GetActiveMagnitudeLength(Root) + 1);
+        Span<ulong> values = stackalloc ulong[8 * words], metric = stackalloc ulong[13], scale = stackalloc ulong[5], square = stackalloc ulong[10];
+        Span<int> signs = stackalloc int[8];
+        var n = ContactQuadratic.At(values, signs, 0, words); var d = ContactQuadratic.At(values, signs, 1, words);
+        var rn = ContactQuadratic.At(values, signs, 2, words); var rd = ContactQuadratic.At(values, signs, 3, words);
+        Signed320 doubleD = WideArithmetic.AddSigned320(frame.Finite.ShapeFrame.CoordinateDenominator, frame.Finite.ShapeFrame.CoordinateDenominator);
+        WideArithmetic.GetMagnitude(doubleD, out scale[4], out scale[3], out scale[2], out scale[1], out scale[0]);
+        WideArithmetic.MultiplyMagnitudes(scale, scale, square); WideArithmetic.GetMagnitude(frame.NormalSquared, metric);
+        // t² competes with nativeDepth²*(2D)²/|N|² in this ray chart.
+        ContactQuadratic.Scale(numerator, square, 1, n); ContactQuadratic.Scale(denominator, metric, 1, d);
+        if (usesValueRoot) return Value.CompareSquaredQuadratic(n, d, radical);
+        ContactQuadratic.Multiply(DepthNumerator, DepthNumerator, Root, rn);
+        ContactQuadratic.Multiply(DepthDenominator, DepthDenominator, Root, rd);
+        return ContactQuadratic.CompareRatios(rn, rd, Root, n, d, radical);
+    }
+
     /// <summary>
     /// Compares physical depths from certified coplanar member frames in the
     /// same capsule chart. Their reduced normal metrics must be identical.
