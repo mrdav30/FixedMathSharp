@@ -30,7 +30,8 @@ internal readonly struct FiniteSlabRaySelectionMetadata
 }
 
 /// <summary>Independently retained finite-domain ray maximum and exact witness.</summary>
-internal ref struct FiniteSlabRaySelection
+/// <content>Retains exact active-set roots and materializes their original source charts.</content>
+internal ref partial struct FiniteSlabRaySelection
 {
     private const int RetainedCellWords = 8;
     internal const int StorageWords = 13 * FiniteSlabPolynomial.Words + RetainedCellWords;
@@ -153,33 +154,16 @@ internal ref struct FiniteSlabRaySelection
         scoped Span<ulong> radical, scoped ContactQuadratic numerator, scoped ContactQuadratic denominator)
     {
         int words = numerator.FieldWords;
-        Span<ulong> values = stackalloc ulong[10 * words]; Span<int> signs = stackalloc int[10];
-        ContactQuadratic a = ContactQuadratic.At(values, signs, 0, words), b = ContactQuadratic.At(values, signs, 1, words);
-        ContactQuadratic c = ContactQuadratic.At(values, signs, 2, words), uN = ContactQuadratic.At(values, signs, 3, words);
-        ContactQuadratic uD = ContactQuadratic.At(values, signs, 4, words);
-        radical.Clear();
+        Span<ulong> values = stackalloc ulong[6 * words]; Span<int> signs = stackalloc int[6];
+        ContactQuadratic a = ContactQuadratic.At(values, signs, 0, words);
+        ContactQuadratic uN = ContactQuadratic.At(values, signs, 1, words), uD = ContactQuadratic.At(values, signs, 2, words);
         if (_parameterIsDepth)
         {
-            CopyDepthCoefficient(Polynomial, 2, a); a.Add(a);
-            CopyDepthCoefficient(Polynomial, 1, b);
-            CopyDepthCoefficient(Polynomial, 0, c); c.Add(c);
-            int branch = 1;
-            if (a.Signs[0] != 0)
-            {
-                Span<ulong> cell = stackalloc ulong[CellWords]; FiniteAxisValueRoot root = Restore(cell);
-                Span<ulong> derivativeValues = stackalloc ulong[2 * Words];
-                Span<sbyte> derivativeSigns = stackalloc sbyte[2];
-                FiniteSlabPolynomial derivative = new(derivativeValues, derivativeSigns);
-                derivative.Clear(); derivative.Add(Polynomial.Slice(1, 1)); derivative.Add(Polynomial.Slice(2, 1), 2, 1);
-                int derivativeSign = FiniteSlabPolynomial.Sign(ref root, derivative);
-                if (derivativeSign != 0) branch = derivativeSign * a.Signs[0];
-            }
-            // TryGetParameter uses a*u²+2*b*u+c: (2A,B,2C) preserves the original polynomial.
-            bool represented = ContactQuadratic.TryGetParameter(a, b, c, branch, radical, uN, uD);
-            System.Diagnostics.Debug.Assert(represented);
+            GetRootParameter(radical, uN, uD);
         }
         else
         {
+            radical.Clear();
             CopyDepthCoefficient(DepthN, 0, uN); CopyDepthCoefficient(DepthD, 0, uD);
         }
         uN.CopyTo(numerator); numerator.Add(numerator); numerator.Add(uD, -1);
@@ -464,6 +448,29 @@ internal ref struct FiniteSlabRaySelection
                 fullHeightCap < 0 ? -frame.FullHeight : frame.FullHeight, Fixed64.Zero, Fixed64.Zero,
                 axial.Y, exit.Y), exactTerm.Z);
         anchor = new FixedPointAnchor(frame.Center, frame.SlabRotation, axial, exit, exactTerm);
+        GetRoundedDepth(frame, ref root, divisor, square, scalar, out depth, out clamped);
+        return true;
+    }
+
+    internal readonly void GetDepth(in FiniteSlabRayFrame frame, out Fixed64 depth, out bool clamped)
+    {
+        System.Diagnostics.Debug.Assert(HasValue);
+        Span<ulong> cell = stackalloc ulong[CellWords]; FiniteAxisValueRoot root = Restore(cell);
+        Span<ulong> values = stackalloc ulong[15 * Words]; Span<sbyte> signs = stackalloc sbyte[15];
+        var divisor = FiniteSlabPolynomial.At(values, signs, 0, 5);
+        var square = FiniteSlabPolynomial.At(values, signs, 5, 9);
+        var scalar = FiniteSlabPolynomial.At(values, signs, 14, 1);
+        Signed320 coordinateD = frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator;
+        divisor.Scale(D, WideArithmetic.AddSigned320(coordinateD, coordinateD));
+        GetRoundedDepth(frame, ref root, divisor, square, scalar, out depth, out clamped);
+    }
+
+    private readonly void GetRoundedDepth(in FiniteSlabRayFrame frame, scoped ref FiniteAxisValueRoot root,
+        scoped FiniteSlabPolynomial divisor, scoped FiniteSlabPolynomial square, scoped FiniteSlabPolynomial scalar,
+        out Fixed64 depth, out bool clamped)
+    {
+        Signed320 coordinateD = frame.Section.RadialFrame.ShapeFrame.CoordinateDenominator;
+        Signed320 scale = WideArithmetic.AddSigned320(coordinateD, coordinateD);
         if (IsConstant(T) && IsConstant(D))
         {
             Span<ulong> rationalValues = stackalloc ulong[4 * Words];
@@ -480,7 +487,7 @@ internal ref struct FiniteSlabRaySelection
             clamped = !ContactQuadratic.TryRoundRootRatio(numeratorValue, denominatorValue, ReadOnlySpan<ulong>.Empty,
                 metricValue, scaleValue, out depth);
             if (clamped) depth = Fixed64.MaxValue;
-            return true;
+            return;
         }
         // Depth uses the same conditioned canonical normal as candidate t;
         // numerator²*|N|² / ((2D)²*denominator²) stays exact until this point.
@@ -512,7 +519,6 @@ internal ref struct FiniteSlabRaySelection
         ulong rounded = floor + (comparison > 0 || comparison == 0 && (floor & 1) != 0 ? 1UL : 0);
         clamped = rounded > long.MaxValue;
         depth = clamped ? Fixed64.MaxValue : Fixed64.FromRaw((long)rounded);
-        return true;
     }
 
     private static int CompareDepth(scoped ref FiniteAxisValueRoot root,

@@ -55,7 +55,9 @@ internal static class ConePlaneRayPointExits
                 if (cone.Sign(root) > 0) return false;
             }
         }
-        if (source.Scope == ConePlaneRayEventScope.Plane) return true;
+        // Native segment bounds are checked by the sink using its same exact
+        // borrowed endpoints, before a candidate can enter the retained maximum.
+        if (source.Scope != ConePlaneRayEventScope.Segment) return true;
         frame.GetEdgeLine(new FixedSegment(source.A, source.B), out Signed576 wx, out Signed576 wy, out Signed576 wz, out Signed832 offset);
         Dot(point, wx, wy, wz, value, term);
         ContactQuadratic.Scale(point.Denominator, offset, term); value.Add(term, -1);

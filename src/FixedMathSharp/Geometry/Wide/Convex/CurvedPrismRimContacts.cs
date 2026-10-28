@@ -17,7 +17,7 @@ internal static class CurvedPrismRimContacts
 
     internal struct Selection
     {
-        internal bool HasValue, IsZero;
+        internal bool HasValue, IsZero, Physical;
         internal int Edge, CapSign, ParameterOrdinal, Order;
         internal WideDirection3d First, Second;
         internal bool IsRational;
@@ -31,7 +31,7 @@ internal static class CurvedPrismRimContacts
     /// </summary>
     internal static void GetContact(in CurvedPrismContactGeometry geometry,
         scoped ConvexContactCandidate analytic, Fixed64 analyticDepth, bool analyticClamped,
-        out Selection best, out Fixed64 depth, out bool clamped)
+        out Selection best, out Fixed64 depth, out bool clamped, PrismCurvedContactDomain domain = default, bool hasAnalytic = true)
     {
         best = default; depth = analyticDepth; clamped = analyticClamped;
         // A radius-zero primitive is a finite segment, owned by the rational fan.
@@ -58,8 +58,8 @@ internal static class CurvedPrismRimContacts
                 if (supportCertified)
                 {
                     KeepChart(geometry, edgeIndex, edge, coneFirst, CurvedPrismContact.Difference(coneLast, coneFirst), cap,
-                        analytic, ((ulong)analyticDepth.m_rawValue << 1) | 1UL, !analyticClamped, true,
-                        bestValues, bestSigns, bestCell, ref best);
+                        analytic, ((ulong)analyticDepth.m_rawValue << 1) | 1UL, hasAnalytic && !analyticClamped, true,
+                        bestValues, bestSigns, bestCell, ref best, domain, hasAnalytic);
                     if (best.IsZero) { depth = Fixed64.Zero; clamped = false; return; }
                     continue;
                 }
@@ -71,8 +71,8 @@ internal static class CurvedPrismRimContacts
                             WideDirection3d second = secondSign < 0 ? -v : v;
                             if (chart != 0) (first, second) = (second, first);
                             KeepChart(geometry, edgeIndex, edge, first, second, cap, analytic,
-                                ((ulong)analyticDepth.m_rawValue << 1) | 1UL, !analyticClamped, false,
-                                bestValues, bestSigns, bestCell, ref best);
+                                ((ulong)analyticDepth.m_rawValue << 1) | 1UL, hasAnalytic && !analyticClamped, false,
+                                bestValues, bestSigns, bestCell, ref best, domain, hasAnalytic);
                             if (best.IsZero)
                             {
                                 depth = Fixed64.Zero; clamped = false; return;
@@ -84,6 +84,19 @@ internal static class CurvedPrismRimContacts
         FiniteAxisValueRoot root = RestoreValue(bestValues, bestSigns, bestCell, best);
         ConvexContactValueRoot.GetRoundedDepth(geometry.RawScale, geometry.ValueShift,
             ref root, out depth, out clamped);
+    }
+
+    /// <summary>Replays the selected value polynomial, without rounding or rebuilding its witness.</summary>
+    internal static int CompareSquaredDepth(in CurvedPrismContactGeometry geometry, in Selection selected,
+        scoped ContactQuadratic numerator, scoped ContactQuadratic denominator, scoped ReadOnlySpan<ulong> radical)
+    {
+        if (selected.IsZero) return -numerator.Sign(radical);
+        Span<ulong> values = stackalloc ulong[5 * ValueWords], cell = stackalloc ulong[ValueCellWords];
+        Span<sbyte> signs = stackalloc sbyte[5];
+        BuildValues(geometry, selected.Edge, selected.CapSign, values, signs);
+        bool found = WideFiniteAxisIntersection.TryGetFiniteValueRoot(values, signs, selected.ValueOrdinal, cell, out var root);
+        System.Diagnostics.Debug.Assert(found);
+        return ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref root, numerator, denominator, radical);
     }
 
     private static WideDirection3d ReduceEdgeDirection(in WideDirection3d edge)
@@ -106,7 +119,7 @@ internal static class CurvedPrismRimContacts
         in WideDirection3d edgeDirection, in WideDirection3d first, in WideDirection3d second, int cap,
         scoped ConvexContactCandidate analytic, ulong upperTwiceRaw, bool hasUpperBound, bool supportCertified,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
-        ref Selection best)
+        ref Selection best, PrismCurvedContactDomain domain, bool hasAnalytic)
     {
         if (!geometry.IsCone)
         {
@@ -127,7 +140,7 @@ internal static class CurvedPrismRimContacts
             if (a.Sign < 0 && WideArithmetic.AddSigned832(a, b).Sign < 0) return;
         }
         WideDirection3d offset = CurvedPrismContact.Difference(cap < 0 ? -geometry.Half : geometry.Half, vertex);
-        if (IsChartDominated(geometry, edgeDirection, offset, first, second, analytic)) return;
+        if (hasAnalytic && IsChartDominated(geometry, edgeDirection, offset, first, second, analytic)) return;
         Span<ulong> data = stackalloc ulong[Slots * Words];
         Span<sbyte> signs = stackalloc sbyte[Slots];
         BuildParameter(geometry, edge, first, second, cap, data, signs);
@@ -159,19 +172,25 @@ internal static class CurvedPrismRimContacts
             // direction, already present in the rational feature fan.
             if (kSign == 0 || Sign(ref root, l) != -kSign) continue;
             int gapSign = Sign(ref root, gap) * kSign;
+            if (domain.Enabled && gapSign < 0) continue;
             System.Diagnostics.Debug.Assert(gapSign >= 0);
             Selection candidate = new()
             {
                 HasValue = true, Edge = edge, CapSign = cap, First = first, Second = second,
                 ParameterOrdinal = ordinal
             };
+            if (domain.Enabled)
+            {
+                if (!TryAdmitDomain(geometry, domain, candidate, data, signs, ref root, out bool physical)) continue;
+                candidate.Physical = physical;
+            }
             if (gapSign == 0)
             {
                 // Zero gap and zero derivative place the origin on the strictly
                 // convex projected ellipse: its unique normal needs no tie rank.
                 candidate.IsZero = true; best = candidate; return;
             }
-            if (hasUpperBound && ConvexContactValueRoot.CompareSquaredGapToTwiceRaw(ref root,
+            if (hasAnalytic && hasUpperBound && ConvexContactValueRoot.CompareSquaredGapToTwiceRaw(ref root,
                     numerator.Values, numerator.Signs, denominator.Values, denominator.Signs, upperTwiceRaw) >= 0)
                 continue;
             if (!valuesReady)
@@ -183,7 +202,7 @@ internal static class CurvedPrismRimContacts
                 denominator.Values, denominator.Signs, values, valueSigns, valueCell);
             int comparison = best.HasValue
                 ? WideFiniteAxisIntersection.CompareFiniteValueRoots(value, RestoreValue(bestValues, bestSigns, bestCell, best))
-                : ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref value, analytic);
+                : hasAnalytic ? ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref value, analytic) : -1;
             if (comparison > 0 || comparison == 0 && (!best.HasValue || best.Edge != edge || best.CapSign != cap)) continue;
             if (supportCertified)
             {
@@ -195,6 +214,131 @@ internal static class CurvedPrismRimContacts
             candidate.ValueOrdinal = value.Ordinal; candidate.ValueShift = value.DenominatorShift;
             candidate.IsRational = value.IsRational; best = candidate;
         }
+    }
+
+    private static bool TryAdmitDomain(in CurvedPrismContactGeometry geometry, PrismCurvedContactDomain domain,
+        in Selection candidate, Span<ulong> parameters, Span<sbyte> parameterSigns,
+        scoped ref FiniteAxisValueRoot root, out bool physical)
+    {
+        physical = false;
+        Span<ulong> fields = stackalloc ulong[36 * Words]; Span<sbyte> signs = stackalloc sbyte[36];
+        fields.Clear(); signs.Clear();
+        Polynomial storage = new(fields, signs, Words), shape = storage.Slice(0, 9), point = storage.Slice(9, 18);
+        Polynomial shapeD = storage.Slice(27, 3), pointD = storage.Slice(30, 6);
+        BuildPointPolynomials(geometry, candidate, parameters, parameterSigns, shape, point, shapeD, pointD);
+        geometry.Edge(candidate.Edge, out int sourceVertex, out _);
+        foreach (var window in domain.Edges)
+        {
+            if (NormalDotSign(candidate, CurvedPrismContact.Difference(geometry.Vertex(window.ReferenceVertex), geometry.Vertex(sourceVertex)), ref root) != 0) continue;
+            bool admitted = true;
+            foreach (var delta in domain.FanCovectors.Slice(window.FanStart, window.FanCount))
+                if (NormalDotSign(candidate, delta, ref root) < 0) { admitted = false; break; }
+            if (!admitted || !PointInEdgeWindow(geometry, window, point, pointD, ref root)) continue;
+            physical = IsPhysicalPoint(geometry, point, pointD, ref root);
+            return physical || domain.IncludeFarBoundary;
+        }
+        // Every face-normal direction already belongs to the earlier rational
+        // inventory. Its equal-depth rim representation cannot improve it.
+        return false;
+    }
+
+    private static int NormalDotSign(in Selection candidate, in WideDirection3d delta, scoped ref FiniteAxisValueRoot root)
+    {
+        Span<ulong> values = stackalloc ulong[26]; Span<sbyte> signs = stackalloc sbyte[2];
+        Polynomial query = new(values, signs, 13);
+        Write(query, 0, WideDirection3d.Dot(delta, candidate.First));
+        Write(query, 1, WideDirection3d.Dot(delta, candidate.Second)); return Sign(ref root, query);
+    }
+
+    private static bool PointInEdgeWindow(in CurvedPrismContactGeometry geometry, in PrismCurvedEdgeWindow window,
+        scoped Polynomial point, scoped Polynomial denominator, scoped ref FiniteAxisValueRoot root)
+    {
+        geometry.Edge(window.Edge, out int first, out int last);
+        var a = geometry.Vertex(first); var edge = CurvedPrismContact.Difference(geometry.Vertex(last), a);
+        // A retained source coefficient needs <2560 bits. Translating by a
+        // vertex adds <165, projection <167 and a cut ratio <163: complete
+        // interval comparisons need <3060 bits, inside 56-word banks.
+        const int words = 56;
+        Span<ulong> values = stackalloc ulong[38 * words]; Span<sbyte> signs = stackalloc sbyte[37];
+        values.Clear(); signs.Clear(); Polynomial storage = new(values[..(37 * words)], signs, words);
+        Polynomial q = storage.Slice(0, 18), n = storage.Slice(18, 6), d = storage.Slice(24, 6);
+        Polynomial work = storage.Slice(30, 6), scalar = storage.Slice(36, 1);
+        Span<ulong> product = values[(37 * words)..];
+        int pivot = !edge.X.IsZero ? 0 : !edge.Y.IsZero ? 1 : 2;
+        for (int axis = 0; axis < 3; axis++)
+        {
+            for (int coefficient = 0; coefficient < 6; coefficient++)
+                point.Values.Slice((6 * axis + coefficient) * point.Words, point.Words)
+                    .CopyTo(q.Values.Slice((6 * axis + coefficient) * words, words));
+            point.Slice(6 * axis, 6).Signs.CopyTo(q.Slice(6 * axis, 6).Signs);
+            Write(scalar, 0, Signed832.ExtendValue(Component(a, axis)));
+            AddProduct(q.Slice(6 * axis, 6), denominator, scalar, -1, product);
+        }
+        for (int axis = 0; axis < 3; axis++)
+        {
+            Write(scalar, 0, Signed832.ExtendValue(Component(edge, pivot))); Multiply(work, q.Slice(6 * axis, 6), scalar, product);
+            Write(scalar, 0, Signed832.ExtendValue(Component(edge, axis))); AddProduct(work, q.Slice(6 * pivot, 6), scalar, -1, product);
+            if (Sign(ref root, work) != 0) return false;
+            Write(scalar, 0, Signed832.ExtendValue(Component(edge, axis))); AddProduct(n, q.Slice(6 * axis, 6), scalar, 1, product);
+        }
+        Write(scalar, 0, edge.SquaredLength); Multiply(d, denominator, scalar, product);
+        int orientation = Sign(ref root, d);
+        var clip = window.Interval;
+        Write(scalar, 0, Signed832.ExtendValue(Signed576.ExtendValue(clip.IsClipped ? clip.LowerDenominator : Signed320.One)));
+        Multiply(work, n, scalar, product);
+        Write(scalar, 0, Signed832.ExtendValue(Signed576.ExtendValue(clip.IsClipped ? clip.LowerNumerator : default)));
+        AddProduct(work, d, scalar, -1, product);
+        int lower = Sign(ref root, work) * orientation; if (lower < 0 || !window.Point && lower == 0) return false;
+        Write(scalar, 0, Signed832.ExtendValue(Signed576.ExtendValue(clip.IsClipped ? clip.UpperDenominator : Signed320.One)));
+        Multiply(work, n, scalar, product);
+        Write(scalar, 0, Signed832.ExtendValue(Signed576.ExtendValue(clip.IsClipped ? clip.UpperNumerator : Signed320.One)));
+        AddProduct(work, d, scalar, -1, product);
+        int upper = Sign(ref root, work) * orientation; return upper <= 0 && (window.Point || upper < 0);
+    }
+
+    private static bool IsPhysicalPoint(in CurvedPrismContactGeometry geometry, scoped Polynomial point,
+        scoped Polynomial denominator, scoped ref FiniteAxisValueRoot root)
+    {
+        // Source coefficients fit the existing 2560-bit banks. Squared cone
+        // admission adds <832 bits, so complete products fit 96-word banks.
+        const int words = 96;
+        Span<ulong> values = stackalloc ulong[53 * words]; Span<sbyte> signs = stackalloc sbyte[52];
+        values.Clear(); signs.Clear(); Polynomial fields = new(values[..(52 * words)], signs, words);
+        Polynomial axial = fields.Slice(0, 6), radial = fields.Slice(6, 11), work = fields.Slice(17, 11);
+        Polynomial limit = fields.Slice(28, 11), maximum = fields.Slice(39, 6), height = fields.Slice(45, 6);
+        Polynomial scalar = fields.Slice(51, 1); Span<ulong> product = values[(52 * words)..];
+        for (int axis = 0; axis < 3; axis++)
+        {
+            Write(scalar, 0, Signed832.ExtendValue(Signed576.ExtendValue(Component(geometry.Axis, axis))));
+            AddProduct(axial, point.Slice(6 * axis, 6), scalar, 1, product);
+            Multiply(work, point.Slice(6 * axis, 6), point.Slice(6 * axis, 6), product); Add(radial, work, 1);
+        }
+        Write(scalar, 0, Signed832.ExtendValue(WideArithmetic.MultiplySigned320(geometry.SquaredAxis, geometry.HalfFactor)));
+        Multiply(maximum, denominator, scalar, product);
+        maximum.Values.CopyTo(height.Values); maximum.Signs.CopyTo(height.Signs); Add(height, axial, -1);
+        int orientation = Sign(ref root, denominator);
+        if (Sign(ref root, height) * orientation < 0) return false;
+        maximum.Values.CopyTo(work.Slice(0, 6).Values); maximum.Signs.CopyTo(work.Slice(0, 6).Signs); Add(work.Slice(0, 6), axial, 1);
+        if (Sign(ref root, work.Slice(0, 6)) * orientation < 0) return false;
+        Write(scalar, 0, Signed832.ExtendValue(geometry.SquaredAxis)); Multiply(work, radial, scalar, product);
+        work.Values.CopyTo(radial.Values); work.Signs.CopyTo(radial.Signs);
+        Multiply(work, axial, axial, product); Add(radial, work, -1);
+        Signed576 radiusSquared = WideArithmetic.MultiplySigned320(geometry.Radius, geometry.Radius);
+        if (geometry.IsCone)
+        {
+            Multiply(work, height, height, product); Write(scalar, 0, Signed832.ExtendValue(radiusSquared)); Multiply(limit, work, scalar, product);
+            Signed576 factor = WideArithmetic.MultiplySigned320(Signed320.ExtendValue(geometry.HalfFactor), geometry.HalfFactor);
+            factor = Signed576.NarrowValue(WideArithmetic.MultiplySigned576ToSigned832(factor, geometry.SquaredAxis));
+            factor = WideArithmetic.AddSigned576(factor, factor); factor = WideArithmetic.AddSigned576(factor, factor);
+            Write(scalar, 0, Signed832.ExtendValue(factor)); Multiply(work, radial, scalar, product);
+        }
+        else
+        {
+            Multiply(work, denominator, denominator, product);
+            Write(scalar, 0, WideArithmetic.MultiplySigned576ToSigned832(radiusSquared, geometry.SquaredAxis)); Multiply(limit, work, scalar, product);
+            radial.Values.CopyTo(work.Values); radial.Signs.CopyTo(work.Signs);
+        }
+        Add(work, limit, -1); return Sign(ref root, work) <= 0;
     }
 
     private static int GetLegacyOrder(in WideDirection3d edge, in WideDirection3d first,

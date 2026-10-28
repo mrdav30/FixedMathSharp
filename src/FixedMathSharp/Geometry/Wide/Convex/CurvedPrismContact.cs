@@ -8,6 +8,7 @@ using static FixedMathSharp.Geometry.CylinderContactAlgebra;
 namespace FixedMathSharp.Geometry;
 
 /// <summary>Complete native-yaw prism support-fan selection for finite cones and cylinders.</summary>
+/// <content>Selects exact analytic, generator and rim contacts against native convex prisms.</content>
 internal static partial class CurvedPrismContact
 {
     internal static bool TryGetContact(Vector3d center, FixedQuaternion rotation, Vector3d localAxis,
@@ -88,12 +89,12 @@ internal static partial class CurvedPrismContact
                 KeepDirection(geometry, direction, signs, ref selection, start);
             }
             KeepAxis(geometry, WideDirection3d.Cross(axis, edge), direction, signs, ref selection, start);
-            if (selection.GapSign == 0) return;
+            if (selection.HasValue && selection.GapSign == 0) return;
         }
         if (geometry.IsCone)
             CurvedPrismGeneratorFeatures.KeepAll(geometry, ref selection);
         else
-            for (int index = 0; index < geometry.VertexCount && selection.GapSign != 0; index++)
+            for (int index = 0; index < geometry.VertexCount && (!selection.HasValue || selection.GapSign != 0); index++)
             {
                 ProjectPerpendicular(axis, geometry.Vertex(index), direction, signs);
                 KeepDirection(geometry, direction, signs, ref selection);
@@ -161,7 +162,7 @@ internal static partial class CurvedPrismContact
         {
             if (geometry.TryBuildCandidate(direction, directionSigns, values, signs, requiredVertex,
                     out int gap, out int vertex, out int feature))
-                selection.Keep(values, signs, gap, vertex, feature);
+                selection.Keep(geometry, values, signs, gap, vertex, feature);
             for (int component = 0; component < 3; component++) directionSigns[component] = -directionSigns[component];
         }
     }

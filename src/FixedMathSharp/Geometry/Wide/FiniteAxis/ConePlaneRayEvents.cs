@@ -86,21 +86,21 @@ internal static partial class ConePlaneRayEvents
         if (frame.NormalSquared.IsZero)
             return false;
         bool found = false;
-        if (source.Scope == ConePlaneRayEventScope.Segment && sink.Target.Feature == 0
+        if (source.IsSegment && sink.Target.Feature == 0
             && (sink.Wants(ConePlaneRayEventKind.EdgeEndpoint) || sink.Wants(ConePlaneRayEventKind.EdgeSide)
                 || sink.Wants(ConePlaneRayEventKind.EdgeStationary)))
             found |= AccumulateEdge(source, frame, ref positive, ref negative, ref sink);
-        if (!sink.IsStreaming && source.Scope != ConePlaneRayEventScope.Segment
+        if (!sink.IsStreaming && !source.IsSegment
             && (sink.Wants(ConePlaneRayEventKind.Axis) || sink.Wants(ConePlaneRayEventKind.Apex)))
             found |= AccumulateAxisAndApex(source, frame, ref positive, ref negative, ref sink);
         if (sink.Wants(ConePlaneRayEventKind.LowerCircle) || sink.Wants(ConePlaneRayEventKind.UpperRim)
             || sink.Wants(ConePlaneRayEventKind.Generator))
             found |= AccumulateCircles(source, frame, ref positive, ref negative, ref sink);
-        if (sink.IsStreaming && source.Scope != ConePlaneRayEventScope.Segment)
+        if (sink.IsStreaming && !source.IsSegment)
             found |= AccumulateAxisAndApex(source, frame, ref positive, ref negative, ref sink);
         // Radial base-stationary points/exits already belong to upper line 7
         // or its cardinal seams, with earlier canonical provenance.
-        if (source.Scope != ConePlaneRayEventScope.Segment && sink.Wants(ConePlaneRayEventKind.BaseStationary)
+        if (!source.IsSegment && sink.Wants(ConePlaneRayEventKind.BaseStationary)
             && (!sink.IsStreaming || !frame.Normal.Y.IsZero))
             found |= AccumulateBaseStationary(source, frame, ref positive, ref negative, ref sink);
         return found;
@@ -110,8 +110,7 @@ internal static partial class ConePlaneRayEvents
         scoped ref ConePlaneRaySelection positive, scoped ref ConePlaneRaySelection negative,
         scoped ref ConePlaneRayEventSink sink)
     {
-        FixedSegment segment = new(source.A, source.B);
-        WideAxis3 p = frame.Transform(segment.Start), end = frame.Transform(segment.End);
+        sink.GetSegment(source, frame, out WideAxis3 p, out WideAxis3 end);
         WideAxis3 e = new(WideArithmetic.SubtractSigned320(end.X, p.X),
             WideArithmetic.SubtractSigned320(end.Y, p.Y), WideArithmetic.SubtractSigned320(end.Z, p.Z));
         if (!frame.Finite.TryGetAxialInterval(p.Y, e.Y, out Signed320 ln, out Signed320 ld,

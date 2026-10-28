@@ -334,6 +334,21 @@ internal readonly struct CapsuleFiniteSectionFrame
         return WideArithmetic.CompareNonNegativeProducts(b, b, a, c) >= 0;
     }
 
+    /// <summary>Intersects closed shape bounds with an exact source subsegment before quadratic admission.</summary>
+    internal static bool IntersectsQuadratic(Signed832 a, Signed832 b, Signed832 c,
+        Signed320 lowerN, Signed320 lowerD, Signed320 upperN, Signed320 upperD, in RationalSegmentInterval clip)
+    {
+        if (!clip.IsClipped) return IntersectsQuadratic(a, b, c, lowerN, lowerD, upperN, upperD);
+        Signed832 ln = Signed832.ExtendValue(lowerN), ld = Signed832.ExtendValue(lowerD),
+            un = Signed832.ExtendValue(upperN), ud = Signed832.ExtendValue(upperD);
+        if (RationalSegmentInterval.CompareParameters(ln, ld, clip.WideLowerNumerator, clip.WideLowerDenominator) < 0)
+        { ln = clip.WideLowerNumerator; ld = clip.WideLowerDenominator; }
+        if (RationalSegmentInterval.CompareParameters(un, ud, clip.WideUpperNumerator, clip.WideUpperDenominator) > 0)
+        { un = clip.WideUpperNumerator; ud = clip.WideUpperDenominator; }
+        return RationalSegmentInterval.CompareParameters(ln, ld, un, ud) <= 0
+            && IntersectsQuadratic(a, b, c, ln, ld, un, ud);
+    }
+
     /// <summary>Tests a rational borrowed quadratic on a closed clipped segment.</summary>
     internal static bool IntersectsQuadratic(scoped ContactQuadratic a, scoped ContactQuadratic b,
         scoped ContactQuadratic c, Signed320 lowerN, Signed320 lowerD, Signed320 upperN, Signed320 upperD)

@@ -24,25 +24,45 @@ internal static partial class CurvedPrismContact
         scoped CurvedPrismContactSelection selection, Vector3d center, FixedQuaternion rotation,
         Vector3d prismOrigin, out Vector3d normal, out FixedPointAnchor shapeAnchor, out FixedPointAnchor prismAnchor)
     {
-        Span<ulong> world = stackalloc ulong[7 * Words];
-        Span<int> worldSigns = stackalloc int[7];
-        world.Clear(); worldSigns.Clear();
-        WriteWorldDirection(geometry.WorldBasis, selection.Values[..(3 * Words)], selection.Signs[..3],
-            world[..(3 * Words)], worldSigns[..3]);
-        WriteWorldDirection(geometry.WorldBasis, selection.Values.Slice(3 * Words, 3 * Words), selection.Signs.Slice(3, 3),
-            world.Slice(3 * Words, 3 * Words), worldSigns.Slice(3, 3));
-        Slot(selection.Values, 6).CopyTo(Slot(world, 6));
-        normal = WideConvexPrismRelations.GetConvexContactCandidateNormal(new ConvexContactCandidate(world, worldSigns, 0));
+        bool matched = TryGetAnalyticWitnesses(geometry, selection, center, rotation, prismOrigin,
+            out normal, out shapeAnchor, out prismAnchor, out _, default);
+        System.Diagnostics.Debug.Assert(matched);
+    }
 
-        Span<ulong> root = stackalloc ulong[WitnessWords];
+    private static bool TryGetAnalyticWitnesses(in CurvedPrismContactGeometry geometry,
+        scoped CurvedPrismContactSelection selection, Vector3d center, FixedQuaternion rotation,
+        Vector3d prismOrigin, out Vector3d normal, out FixedPointAnchor shapeAnchor, out FixedPointAnchor prismAnchor,
+        out bool physical, in FaceWindow window, bool materialize = true)
+    {
+        // Only a clipped algebraic cone-generator family can grow its physical
+        // parameter beyond the ordinary bound. Rational native face normals,
+        // pole disks and unique witnesses retain the existing smaller banks.
+        int words = window.Enabled && window.SourceEdge >= 0 && geometry.IsCone
+            && selection.Feature == CurvedPrismContactSelection.Free ? 192 : WitnessWords;
+        shapeAnchor = prismAnchor = default; physical = false;
+        normal = default;
+        if (materialize)
+        {
+            Span<ulong> world = stackalloc ulong[7 * Words];
+            Span<int> worldSigns = stackalloc int[7];
+            world.Clear(); worldSigns.Clear();
+            WriteWorldDirection(geometry.WorldBasis, selection.Values[..(3 * Words)], selection.Signs[..3],
+                world[..(3 * Words)], worldSigns[..3]);
+            WriteWorldDirection(geometry.WorldBasis, selection.Values.Slice(3 * Words, 3 * Words), selection.Signs.Slice(3, 3),
+                world.Slice(3 * Words, 3 * Words), worldSigns.Slice(3, 3));
+            Slot(selection.Values, 6).CopyTo(Slot(world, 6));
+            normal = WideConvexPrismRelations.GetConvexContactCandidateNormal(new ConvexContactCandidate(world, worldSigns, 0));
+        }
+
+        Span<ulong> root = stackalloc ulong[words];
         root.Clear(); Slot(selection.Values, 6).CopyTo(root);
-        Span<ulong> work = stackalloc ulong[32 * WitnessWords];
-        Span<int> signs = stackalloc int[32];
+        Span<ulong> work = stackalloc ulong[24 * words];
+        Span<int> signs = stackalloc int[24];
         ContactQuadratic metric = WAt(work, signs, 0), axial = WAt(work, signs, 1);
         ContactQuadratic minimum = WAt(work, signs, 2), supportDenominator = WAt(work, signs, 3);
         ContactQuadratic temporary = WAt(work, signs, 4), product = WAt(work, signs, 5);
         ContactQuadratic gap = WAt(work, signs, 6), q = WAt(work, signs, 7);
-        Span<ulong> n = stackalloc ulong[6 * WitnessWords];
+        Span<ulong> n = stackalloc ulong[6 * words];
         Span<int> nSigns = stackalloc int[6];
         for (int axis = 0; axis < 3; axis++)
         {
@@ -63,9 +83,9 @@ internal static partial class CurvedPrismContact
         DotQuadratic(geometry.Vertex(selection.Vertex), n, nSigns, minimum);
         q.Set(Signed576.ExtendValue(geometry.SquaredAxis));
 
-        Span<ulong> support = stackalloc ulong[6 * WitnessWords];
+        Span<ulong> support = stackalloc ulong[6 * words];
         Span<int> supportSigns = stackalloc int[6];
-        Span<ulong> displacement = stackalloc ulong[6 * WitnessWords];
+        Span<ulong> displacement = stackalloc ulong[6 * words];
         Span<int> displacementSigns = stackalloc int[6];
         displacement.Clear(); displacementSigns.Clear();
         Multiply(metric, q, root, temporary);
@@ -75,8 +95,8 @@ internal static partial class CurvedPrismContact
         {
             // The pole's support disk is free in two dimensions. Select a
             // finite prism point inside that disk before translating it back.
-            GetPoleSupport(geometry, selection, n, nSigns, metric, minimum,
-                support, supportSigns, supportDenominator);
+            if (!GetPoleSupport(geometry, selection, n, nSigns, metric, minimum,
+                support, supportSigns, supportDenominator, window)) return false;
         }
         else if (geometry.IsCone && selection.Feature == CurvedPrismContactSelection.Free)
         {
@@ -144,9 +164,9 @@ internal static partial class CurvedPrismContact
 
         DotQuadraticNormal(support, supportSigns, n, nSigns, root, gap);
         Multiply(minimum, supportDenominator, root, product); gap.Add(product, -1);
-        Span<ulong> translated = stackalloc ulong[6 * WitnessWords];
+        Span<ulong> translated = stackalloc ulong[6 * words];
         Span<int> translatedSigns = stackalloc int[6];
-        Span<ulong> translatedDelta = stackalloc ulong[6 * WitnessWords];
+        Span<ulong> translatedDelta = stackalloc ulong[6 * words];
         Span<int> translatedDeltaSigns = stackalloc int[6];
         ContactQuadratic translatedDenominator = WAt(work, signs, 8);
         Multiply(supportDenominator, metric, root, translatedDenominator);
@@ -159,39 +179,62 @@ internal static partial class CurvedPrismContact
                 WAt(translatedDelta, translatedDeltaSigns, axis));
         }
         ContactQuadratic parameterNumerator = WAt(work, signs, 9), parameterDenominator = WAt(work, signs, 10);
-        ClipSegment(geometry, translated, translatedSigns, translatedDelta, translatedDeltaSigns,
-            translatedDenominator, root, parameterNumerator, parameterDenominator);
+        if (!ClipSegment(geometry, translated, translatedSigns, translatedDelta, translatedDeltaSigns,
+            translatedDenominator, root, parameterNumerator, parameterDenominator, window, out physical)) return false;
         ContactQuadratic finalDenominator = WAt(work, signs, 11);
         Blend(support, supportSigns, displacement, displacementSigns,
             parameterNumerator, parameterDenominator, root);
         Multiply(supportDenominator, parameterDenominator, root, finalDenominator);
-        shapeAnchor = CreateQuadraticAnchor(geometry, center, rotation, center,
+        if (materialize) shapeAnchor = CreateQuadraticAnchor(geometry, center, rotation, center,
             support, supportSigns, finalDenominator, root);
         Blend(translated, translatedSigns, translatedDelta, translatedDeltaSigns,
             parameterNumerator, parameterDenominator, root);
         Multiply(translatedDenominator, parameterDenominator, root, finalDenominator);
-        prismAnchor = CreateQuadraticAnchor(geometry, center, rotation, prismOrigin,
+        if (window.SourceEdge >= 0 && window.Open && !IsInsideRealEdgeWindow(geometry, window, translated, translatedSigns, finalDenominator, root)) return false;
+        if (materialize) prismAnchor = CreateQuadraticAnchor(geometry, center, rotation, prismOrigin,
             translated, translatedSigns, finalDenominator, root);
+        return true;
     }
 
-    private static void GetPoleSupport(in CurvedPrismContactGeometry geometry,
+    private static bool GetPoleSupport(in CurvedPrismContactGeometry geometry,
         scoped CurvedPrismContactSelection selection, Span<ulong> normal, Span<int> normalSigns,
         ContactQuadratic metric, ContactQuadratic minimum, Span<ulong> support, Span<int> supportSigns,
-        ContactQuadratic denominator)
+        ContactQuadratic denominator, in FaceWindow window)
     {
-        Span<ulong> point = stackalloc ulong[3 * WitnessWords], pointDenominator = stackalloc ulong[WitnessWords];
+        int words = denominator.FieldWords;
+        Span<ulong> point = stackalloc ulong[3 * words], pointDenominator = stackalloc ulong[words];
         Span<int> pointSigns = stackalloc int[3];
-        bool found = CurvedPrismCapWitness.TryGetPoint(geometry, selection.Values[..(3 * Words)], selection.Signs[..3],
+        bool found;
+        if (window.Enabled && (window.SourceEdge >= 0 || window.Face >= 0))
+        {
+            found = CurvedPrismCapWitness.TryGetWindowPoint(geometry, selection.Vertex, selection.Feature,
+                window.Face, window.SourceEdge, window.Tangent, window.Open, window.Lower, window.Upper,
+                point, pointSigns, pointDenominator, initialSection: true);
+            if (!found) found = CurvedPrismCapWitness.TryGetWindowPoint(geometry, selection.Vertex, selection.Feature,
+                window.Face, window.SourceEdge, window.Tangent, window.Open, window.Lower, window.Upper,
+                point, pointSigns, pointDenominator);
+        }
+        else if (window.Enabled)
+        {
+            Span<ulong> pole = stackalloc ulong[3 * Words]; Span<int> poleSigns = stackalloc int[3];
+            var axis = new WideDirection3d(geometry.Axis); if (selection.Feature < 0) axis = -axis;
+            WriteDirection(axis, pole, poleSigns);
+            found = CurvedPrismCapWitness.TryGetPoint(geometry, pole, poleSigns, selection.Vertex, selection.Feature,
+                point, pointSigns, pointDenominator, initialSection: true);
+            if (!found) found = CurvedPrismCapWitness.TryGetPoint(geometry, pole, poleSigns, selection.Vertex, selection.Feature,
+                point, pointSigns, pointDenominator);
+        }
+        else found = CurvedPrismCapWitness.TryGetPoint(geometry, selection.Values[..(3 * Words)], selection.Signs[..3],
             selection.Vertex, selection.Feature, point, pointSigns, pointDenominator);
-        System.Diagnostics.Debug.Assert(found);
-        Span<ulong> work = stackalloc ulong[6 * WitnessWords];
+        if (!found) return false;
+        Span<ulong> work = stackalloc ulong[6 * words];
         Span<int> signs = stackalloc int[6];
         ContactQuadratic pDen = WAt(work, signs, 0), component = WAt(work, signs, 1), temporary = WAt(work, signs, 2);
         pDen.Clear(); pointDenominator.CopyTo(pDen.Rational); pDen.Signs[0] = 1;
         Multiply(pDen, metric, default, denominator);
         for (int axis = 0; axis < 3; axis++)
         {
-            component.Clear(); Slot(point, axis, WitnessWords).CopyTo(component.Rational); component.Signs[0] = pointSigns[axis];
+            component.Clear(); Slot(point, axis, words).CopyTo(component.Rational); component.Signs[0] = pointSigns[axis];
             ContactQuadratic result = WAt(support, supportSigns, axis);
             Multiply(component, metric, default, result);
             Scale(denominator, Component(geometry.Half, axis), component); component.MultiplySign(selection.Feature);
@@ -199,13 +242,15 @@ internal static partial class CurvedPrismContact
             Multiply(minimum, WAt(normal, normalSigns, axis), default, component);
             Multiply(component, pDen, default, temporary); result.Add(temporary, -1);
         }
+        return true;
     }
 
-    private static void ClipSegment(in CurvedPrismContactGeometry geometry, Span<ulong> start, Span<int> startSigns,
+    private static bool ClipSegment(in CurvedPrismContactGeometry geometry, Span<ulong> start, Span<int> startSigns,
         Span<ulong> delta, Span<int> deltaSigns, ContactQuadratic denominator, ReadOnlySpan<ulong> root,
-        ContactQuadratic parameterNumerator, ContactQuadratic parameterDenominator)
+        ContactQuadratic parameterNumerator, ContactQuadratic parameterDenominator, in FaceWindow window, out bool physical)
     {
-        Span<ulong> work = stackalloc ulong[16 * WitnessWords];
+        int words = denominator.FieldWords; physical = false;
+        Span<ulong> work = stackalloc ulong[16 * words];
         Span<int> signs = stackalloc int[16];
         ContactQuadratic lower = WAt(work, signs, 0), lowerDen = WAt(work, signs, 1);
         ContactQuadratic upper = WAt(work, signs, 2), upperDen = WAt(work, signs, 3);
@@ -224,7 +269,13 @@ internal static partial class CurvedPrismContact
                 int slope = b.Sign(root);
                 if (slope == 0)
                 {
-                    System.Diagnostics.Debug.Assert(a.Sign(root) >= 0);
+                    if (window.Enabled)
+                    {
+                        if (a.Sign(root) < 0) return false;
+                    }
+#if DEBUG
+                    else System.Diagnostics.Debug.Assert(a.Sign(root) >= 0);
+#endif
                     continue;
                 }
                 // a+t*b>=0. Retain exact quadratic endpoints and compare
@@ -237,18 +288,87 @@ internal static partial class CurvedPrismContact
                 if (comparison.Sign(root) * slope > 0) { a.CopyTo(bound); b.CopyTo(boundDen); }
             }
         }
-        Multiply(lower, upperDen, root, comparison);
-        Multiply(upper, lowerDen, root, product); comparison.Add(product, -1);
-        System.Diagnostics.Debug.Assert(comparison.Sign(root) <= 0);
+        if (window.Enabled && !ClipFaceWindow(geometry, window, start, startSigns, delta, deltaSigns,
+            denominator, root, lower, lowerDen, upper, upperDen)) return false;
+        if (window.Enabled)
+        {
+            Multiply(lower, upperDen, root, comparison);
+            Multiply(upper, lowerDen, root, product); comparison.Add(product, -1);
+            if (comparison.Sign(root) > 0) return false;
+        }
+#if DEBUG
+        else
+        {
+            Multiply(lower, upperDen, root, comparison);
+            Multiply(upper, lowerDen, root, product); comparison.Add(product, -1);
+            System.Diagnostics.Debug.Assert(comparison.Sign(root) <= 0);
+        }
+#endif
+        if (window.Enabled)
+        {
+            physical = ClipOriginalBody(geometry, start, startSigns, delta, deltaSigns, denominator, root, lower, lowerDen, upper, upperDen, window);
+            Multiply(lower, upperDen, root, comparison); Multiply(upper, lowerDen, root, product); comparison.Add(product, -1);
+        }
         // A fixed endpoint is deterministic and avoids multiplying two
         // independent interval denominators just to choose their midpoint.
         lower.CopyTo(parameterNumerator); lowerDen.CopyTo(parameterDenominator);
+        if (window.Enabled && window.SourceEdge >= 0 && window.Open && comparison.Sign(root) < 0)
+        {
+            // The mediant lies strictly between ordered ratios with positive
+            // denominators, including quadratic fields, without cross products.
+            parameterNumerator.Add(upper); parameterDenominator.Add(upperDen);
+        }
+        return true;
+    }
+
+    private static bool ClipOriginalBody(in CurvedPrismContactGeometry geometry,
+        Span<ulong> point, Span<int> pointSigns, Span<ulong> delta, Span<int> deltaSigns,
+        ContactQuadratic denominator, ReadOnlySpan<ulong> root, ContactQuadratic lower,
+        ContactQuadratic lowerDen, ContactQuadratic upper, ContactQuadratic upperDen, in FaceWindow window)
+    {
+        int words = denominator.FieldWords;
+        Span<ulong> values = stackalloc ulong[16 * words]; Span<int> signs = stackalloc int[16];
+        var l = WAt(values, signs, 0); var ld = WAt(values, signs, 1);
+        var u = WAt(values, signs, 2); var ud = WAt(values, signs, 3);
+        var a = WAt(values, signs, 4); var b = WAt(values, signs, 5);
+        var comparison = WAt(values, signs, 6); var work = WAt(values, signs, 7);
+        lower.CopyTo(l); lowerDen.CopyTo(ld); upper.CopyTo(u); upperDen.CopyTo(ud);
+        var axis = new WideDirection3d(geometry.Axis);
+        Signed832 bound = Signed832.ExtendValue(WideArithmetic.Negate(WideArithmetic.MultiplySigned320(geometry.SquaredAxis, geometry.HalfFactor)));
+        if (!ClipFaceHalfplane(axis, bound, point, pointSigns, delta, deltaSigns, denominator, root, l, ld, u, ud)
+            || !ClipFaceHalfplane(-axis, bound, point, pointSigns, delta, deltaSigns, denominator, root, l, ld, u, ud)) return false;
+        GetCurvedImplicit(geometry, point, pointSigns, denominator, root, a);
+        Span<ulong> end = stackalloc ulong[6 * words]; Span<int> endSigns = stackalloc int[6];
+        for (int coordinate = 0; coordinate < 3; coordinate++)
+        { WAt(point, pointSigns, coordinate).CopyTo(WAt(end, endSigns, coordinate)); WAt(end, endSigns, coordinate).Add(WAt(delta, deltaSigns, coordinate)); }
+        GetCurvedImplicit(geometry, end, endSigns, denominator, root, b); b.Add(a, -1);
+        // Every free analytic family is a cone generator or cylinder axis;
+        // both are null directions of their radial quadratic form. Its
+        // restriction is therefore LINEAR in t, with no new root field.
+        a.MultiplySign(-1); b.MultiplySign(-1);
+        if (!ClipBound(a, b, root, l, ld, u, ud)) return false;
+        Multiply(l, ud, root, comparison); Multiply(u, ld, root, work); comparison.Add(work, -1);
+        if (comparison.Sign(root) > 0) return false;
+        if (window.SourceEdge >= 0 && window.Open)
+        {
+            var n = a; var d = b;
+            l.CopyTo(n); ld.CopyTo(d);
+            if (comparison.Sign(root) < 0) { n.Add(u); d.Add(ud); }
+            Span<ulong> trial = stackalloc ulong[6 * words]; Span<int> trialSigns = stackalloc int[6];
+            point.CopyTo(trial); pointSigns.CopyTo(trialSigns);
+            Blend(trial, trialSigns, delta, deltaSigns, n, d, root); Multiply(denominator, d, root, a);
+            // A body-only endpoint excluded by this open source stratum must
+            // not suppress the separately admissible far-boundary family.
+            if (!IsInsideRealEdgeWindow(geometry, window, trial, trialSigns, a, root)) return false;
+        }
+        l.CopyTo(lower); ld.CopyTo(lowerDen); u.CopyTo(upper); ud.CopyTo(upperDen); return true;
     }
 
     private static void Blend(Span<ulong> start, Span<int> startSigns, Span<ulong> delta, Span<int> deltaSigns,
         ContactQuadratic numerator, ContactQuadratic denominator, ReadOnlySpan<ulong> root)
     {
-        Span<ulong> work = stackalloc ulong[4 * WitnessWords];
+        int words = start.Length / startSigns.Length;
+        Span<ulong> work = stackalloc ulong[4 * words];
         Span<int> signs = stackalloc int[4];
         ContactQuadratic first = WAt(work, signs, 0), second = WAt(work, signs, 1);
         for (int axis = 0; axis < 3; axis++)
@@ -264,9 +384,10 @@ internal static partial class CurvedPrismContact
         Vector3d center, FixedQuaternion rotation, Vector3d origin, Span<ulong> point, Span<int> pointSigns,
         ContactQuadratic denominator, ReadOnlySpan<ulong> root)
     {
+        int words = point.Length / pointSigns.Length;
         WideOrientedBox.GetRelativeLocalPointNumerators(center, origin, geometry.WorldBasis,
             out Signed192 dx, out Signed192 dy, out Signed192 dz);
-        Span<ulong> work = stackalloc ulong[8 * WitnessWords];
+        Span<ulong> work = stackalloc ulong[8 * words];
         Span<int> signs = stackalloc int[8];
         ContactQuadratic rawDen = WAt(work, signs, 0), finalDen = WAt(work, signs, 1);
         ContactQuadratic numerator = WAt(work, signs, 2), product = WAt(work, signs, 3);
@@ -288,7 +409,7 @@ internal static partial class CurvedPrismContact
 
     private static void DotQuadratic(in WideDirection3d vector, Span<ulong> values, Span<int> signs, ContactQuadratic result)
     {
-        Span<ulong> work = stackalloc ulong[2 * WitnessWords];
+        Span<ulong> work = stackalloc ulong[2 * result.FieldWords];
         Span<int> workSigns = stackalloc int[2];
         ContactQuadratic product = WAt(work, workSigns, 0);
         result.Clear();
@@ -301,7 +422,7 @@ internal static partial class CurvedPrismContact
     private static void DotQuadraticNormal(Span<ulong> first, Span<int> firstSigns, Span<ulong> second,
         Span<int> secondSigns, ReadOnlySpan<ulong> root, ContactQuadratic result)
     {
-        Span<ulong> work = stackalloc ulong[2 * WitnessWords];
+        Span<ulong> work = stackalloc ulong[2 * result.FieldWords];
         Span<int> signs = stackalloc int[2];
         ContactQuadratic product = WAt(work, signs, 0);
         result.Clear();
@@ -311,6 +432,6 @@ internal static partial class CurvedPrismContact
         }
     }
 
-    private static ContactQuadratic WAt(Span<ulong> values, Span<int> signs, int index) => At(values, signs, index, WitnessWords);
+    private static ContactQuadratic WAt(Span<ulong> values, Span<int> signs, int index) => At(values, signs, index, values.Length / signs.Length);
     private static Signed576 Integer(long value) => Signed576.ExtendValue(Signed192.Signed(value));
 }

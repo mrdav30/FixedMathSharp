@@ -7,7 +7,8 @@ using System;
 namespace FixedMathSharp.Geometry;
 
 /// <summary>One canonical source-plane metric shared by all admitted finite domains.</summary>
-internal readonly struct FiniteSlabRayFrame
+/// <content>Prepares exact slab charts and dispatches the shared finite-domain active sets.</content>
+internal readonly partial struct FiniteSlabRayFrame
 {
     internal readonly FiniteSlabSectionFrame Section;
     internal readonly CapsulePlaneRayFrame Plane;
@@ -257,7 +258,8 @@ internal readonly ref struct FiniteSlabPolynomial
 internal delegate void FiniteSlabRayCandidateVisitor(scoped in FiniteSlabRaySelection candidate);
 
 /// <summary>Finite-domain clearance of one flat-capped planar convex primitive.</summary>
-internal static class FiniteSlabRayExtrema
+/// <content>Solves shared finite-domain linear and radial active sets.</content>
+internal static partial class FiniteSlabRayExtrema
 {
     // Width ledger: exact rigid points/edges <198 bits; conditioned normal
     // components <268; prism linear rows <334; chart radial coordinates <532;
@@ -395,13 +397,14 @@ internal static class FiniteSlabRayExtrema
     private static void AccumulateDomain(in FiniteSlabRayFrame frame, FixedTriangle triangle,
         ReadOnlySpan<Vector2d> prismOffsets, int orientation, bool finiteDomain, bool physicalSupportOnly,
         ref FiniteSlabRaySelection maximum, FiniteSlabRayCandidateVisitor? visitor, scoped ReadOnlySpan<RationalSegmentInterval> clips,
-        bool includeInteriorSample = true)
+        bool includeInteriorSample = true, scoped ReadOnlySpan<WideAxis3> nativeSource = default,
+        scoped ReadOnlySpan<Signed832> nativeRows = default)
     {
         if (orientation != -1 && orientation != 1) throw new ArgumentOutOfRangeException(nameof(orientation));
         if (frame.Plane.NormalSquared.IsZero) return;
-        WideAxis3 a = frame.Section.Transform(triangle.A);
-        WideAxis3 e = Difference(frame.Section.Transform(triangle.B), a);
-        WideAxis3 f = Difference(frame.Section.Transform(triangle.C), a);
+        WideAxis3 a = nativeSource.IsEmpty ? frame.Section.Transform(triangle.A) : nativeSource[0];
+        WideAxis3 e = nativeSource.IsEmpty ? Difference(frame.Section.Transform(triangle.B), a) : nativeSource[1];
+        WideAxis3 f = nativeSource.IsEmpty ? Difference(frame.Section.Transform(triangle.C), a) : nativeSource[2];
         WideDirection3d n = Signed(frame.RayNormal, orientation);
         bool axial = n.X.IsZero && n.Z.IsZero;
         if (!finiteDomain && axial)
@@ -410,18 +413,27 @@ internal static class FiniteSlabRayExtrema
             return;
         }
         int pieces = prismOffsets.IsEmpty && frame.HasCore ? 3 : 1;
-        int capacity = 10 + prismOffsets.Length + (clips.IsEmpty ? 0 : 2);
+        int capacity = 10 + prismOffsets.Length + (clips.IsEmpty ? 0 : 2) + nativeRows.Length / 4;
         Span<Linear> lines = stackalloc Linear[capacity]; Span<Radial> disks = stackalloc Radial[1];
         // Active vertices are processed sequentially. Each determinant writes its
         // complete bank; retained selections copy their coefficients before reuse.
-        Span<ulong> vertexValues = stackalloc ulong[7 * frame.FieldWords];
+        // Native callers provide a line (dummy mu=0). Its active-set
+        // coefficients fit the ordinary 4096-bit bank even when the exact
+        // source denominator requires the section's wider coordinate path.
+        int fieldWords = nativeSource.IsEmpty ? frame.FieldWords : FiniteSlabPolynomial.Words;
+        Span<ulong> vertexValues = stackalloc ulong[7 * fieldWords];
         Span<sbyte> vertexSigns = stackalloc sbyte[7];
         // Every active-set view borrows the same immutable shape for this call.
         Span<Radial> shape = stackalloc Radial[1] { new(a, e, f, n, frame.Radius) };
         for (int exitPiece = 0; exitPiece < pieces; exitPiece++)
         {
             int count = 0, diskCount = 0;
-            if (finiteDomain)
+            if (!nativeRows.IsEmpty)
+            {
+                for (int row = 0; row < nativeRows.Length; row += 4)
+                    lines[count++] = new(nativeRows[row], nativeRows[row + 1], nativeRows[row + 2], nativeRows[row + 3]);
+            }
+            else if (finiteDomain)
             {
                 lines[count++] = new(S(1), default, default, default);
                 lines[count++] = new(default, S(1), default, default);
@@ -483,7 +495,7 @@ internal static class FiniteSlabRayExtrema
             Problem problem = new(lines[..count], disks[..diskCount], triangle, orientation, visitor,
                 shape, frame.Section.Cap, frame.CoreCap, frame.HasCore,
                 !prismOffsets.IsEmpty, exitLinearStart, vertexValues, vertexSigns, domainLineCount: domainLineCount,
-                exitRegion: frame.HasCore && exitPiece != 0 ? exitPiece == 1 ? -1 : 1 : 0, fieldWords: frame.FieldWords);
+                exitRegion: frame.HasCore && exitPiece != 0 ? exitPiece == 1 ? -1 : 1 : 0, fieldWords: fieldWords);
             if (!finiteDomain || physicalSupportOnly && !axial)
                 AccumulatePhysicalSupport(problem, frame, prismOffsets, exitPiece, ref maximum);
             else if (axial) AccumulateAxial(problem, n.Y.Sign, ref maximum);

@@ -22,6 +22,14 @@ internal readonly partial struct FiniteSlabSectionFrame
     internal int PointWords => _radial.ShapeFrame.HasExactScale ? FiniteSectionPoint.AffineWords : FiniteSectionPoint.Words;
     internal int RootWords => _radial.ShapeFrame.HasExactScale ? FiniteSectionPoint.AffineRootWords : FiniteSectionPoint.RootWords;
 
+    /// <summary>Prepares an exact primitive-local circle extrusion for pretransformed source coordinates.</summary>
+    internal FiniteSlabSectionFrame(Fixed64 height, Fixed64 radius, Signed320 coordinateDenominator)
+    {
+        _radial = new CapsuleFiniteSectionFrame(Fixed64.Zero, radius, coordinateDenominator);
+        _cap = Signed320.NarrowValue(WideArithmetic.MultiplySigned320(coordinateDenominator,
+            Signed320.ExtendValue(Signed192.Raw(height))));
+    }
+
     internal FiniteSlabSectionFrame(Vector3d origin, FixedQuaternion rotation,
         Vector3d center, FixedQuaternion slabRotation, Fixed64 length, Fixed64 radius, Fixed64 halfThickness, bool fullHeight = false)
     {
@@ -80,6 +88,17 @@ internal readonly partial struct FiniteSlabSectionFrame
         return TryGetPrismSegmentParameter(segment, prismOffsets,
             ContactQuadratic.At(values, signs, 0, PointWords),
             ContactQuadratic.At(values, signs, 1, PointWords), root);
+    }
+
+    /// <summary>Tests an exact pretransformed subsegment in the existing radial and height intervals.</summary>
+    internal bool IntersectsTransformedSegment(WideAxis3 start, WideAxis3 end, in RationalSegmentInterval clip)
+    {
+        WideAxis3 delta = Difference(end, start);
+        // Native boundary ingress is a circle extrusion, with no stadium core.
+        System.Diagnostics.Debug.Assert(_radial.Length == Fixed64.Zero);
+        return TryGetPrimitive(start, delta, 0, out Signed832 a, out Signed832 b, out Signed832 c,
+                out var ln, out var ld, out var un, out var ud)
+            && CapsuleFiniteSectionFrame.IntersectsQuadratic(a, b, c, ln, ld, un, ud, clip);
     }
 
     internal bool TryGetFirstSegmentParameter(FixedSegment segment, ReadOnlySpan<Vector2d> prismOffsets,

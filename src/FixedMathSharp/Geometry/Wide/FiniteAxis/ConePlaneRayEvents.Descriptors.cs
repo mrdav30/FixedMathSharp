@@ -8,16 +8,22 @@ using System;
 
 namespace FixedMathSharp.Geometry;
 
-internal enum ConePlaneRayEventScope : byte { Plane, Segment }
+internal enum ConePlaneRayEventScope : byte { Plane, Segment, NativeSegment }
 
 /// <summary>An unbounded shared plane or one authored finite boundary segment.</summary>
 internal readonly struct ConePlaneRayEventSource
 {
     internal readonly ConePlaneRayEventScope Scope;
+    internal bool IsSegment => Scope != ConePlaneRayEventScope.Plane;
     internal readonly Vector3d A, B;
     internal static ConePlaneRayEventSource Plane => default;
     internal ConePlaneRayEventSource(FixedSegment segment)
     { Scope = ConePlaneRayEventScope.Segment; A = segment.Start; B = segment.End; }
+    // Native rational cuts are borrowed by the synchronous sink, never encoded
+    // as rounded authored endpoints or replayed from this provenance record.
+    internal static ConePlaneRayEventSource NativeSegment => new(ConePlaneRayEventScope.NativeSegment);
+    private ConePlaneRayEventSource(ConePlaneRayEventScope scope)
+    { Scope = scope; A = B = default; }
 }
 
 internal enum ConePlaneRayEventKind : byte
@@ -63,6 +69,7 @@ internal ref struct ConePlaneRayEventSink
     private readonly ConePlaneRayEventSource source;
     private readonly ConePlaneRayFrame frame;
     internal readonly ReadOnlySpan<RationalSegmentInterval> Clip;
+    internal readonly ReadOnlySpan<WideAxis3> NativeSegment;
     internal bool IsStreaming => visitor != null;
     internal bool HasPoint;
 
@@ -70,17 +77,23 @@ internal ref struct ConePlaneRayEventSink
         bool pointOnly = false, int requestedOrientation = 0, in ConePlaneRayEventSource source = default,
         in ConePlaneRayFrame frame = default, ReadOnlySpan<RationalSegmentInterval> clip = default)
     { Target = target; outputPoint = point; outputRoot = root; PointOnly = pointOnly; RequestedOrientation = requestedOrientation;
-        HasPoint = false; visitor = null; this.source = source; this.frame = frame; Clip = clip; }
+        HasPoint = false; visitor = null; this.source = source; this.frame = frame; Clip = clip; NativeSegment = default; }
 
     internal ConePlaneRayEventSink(in ConePlaneRayEventSource source, in ConePlaneRayFrame frame, ConePlaneRayEventVisitor visitor,
-        ReadOnlySpan<RationalSegmentInterval> clip = default)
+        ReadOnlySpan<RationalSegmentInterval> clip = default, ReadOnlySpan<WideAxis3> nativeSegment = default)
     { this.source = source; this.frame = frame; this.visitor = visitor; Target = default; outputPoint = default; outputRoot = default;
-        PointOnly = false; RequestedOrientation = 0; HasPoint = false; Clip = clip; }
+        PointOnly = false; RequestedOrientation = 0; HasPoint = false; Clip = clip; NativeSegment = nativeSegment; }
+
+    internal void GetSegment(in ConePlaneRayEventSource currentSource, in ConePlaneRayFrame currentFrame, out WideAxis3 start, out WideAxis3 end)
+    {
+        if (!NativeSegment.IsEmpty) { start = NativeSegment[0]; end = NativeSegment[1]; }
+        else { start = currentFrame.Transform(currentSource.A); end = currentFrame.Transform(currentSource.B); }
+    }
 
     internal bool Wants(ConePlaneRayEventKind kind)
     {
         if (!IsStreaming) return Target.Kind == kind;
-        if (source.Scope == ConePlaneRayEventScope.Segment)
+        if (source.IsSegment)
             return kind == ConePlaneRayEventKind.EdgeEndpoint || kind == ConePlaneRayEventKind.EdgeSide
                 || kind == ConePlaneRayEventKind.EdgeStationary || kind == ConePlaneRayEventKind.UpperRim;
         if (frame.Normal.X.IsZero && frame.Normal.Z.IsZero && !frame.Normal.Y.IsZero)
@@ -94,7 +107,12 @@ internal ref struct ConePlaneRayEventSink
         scoped in ConePlaneRaySelection positive, scoped in ConePlaneRaySelection negative)
     {
         if (!Wants(descriptor)) return;
-        if (!Clip.IsEmpty && !ConePlaneRayEvents.IsPointInClip(source, frame, point, root, Clip[0])) return;
+        if (!NativeSegment.IsEmpty)
+        {
+            if (!ConePlaneRayEvents.ContainsNativeSegmentPoint(NativeSegment[0], NativeSegment[1], point, root,
+                    Clip.IsEmpty ? default : Clip[0])) return;
+        }
+        else if (!Clip.IsEmpty && !ConePlaneRayEvents.IsPointInClip(source, frame, point, root, Clip[0])) return;
         if (visitor != null)
         {
             visitor(source, frame, descriptor, point, root, positive, negative);
@@ -134,7 +152,7 @@ internal static partial class ConePlaneRayEvents
     {
         if (!clip.IsClipped) return ReconstructPoint(source, frame, descriptor, point, root);
         if (source.Scope != ConePlaneRayEventScope.Segment)
-            throw new ArgumentException("Only finite segment sources can have a clipped interval.", nameof(source));
+            throw new ArgumentException("Only authored segment sources can be replayed with a clipped interval.", nameof(source));
         scoped ConePlaneRaySelection positive = default, negative = default;
         Span<RationalSegmentInterval> clips = stackalloc RationalSegmentInterval[1] { clip };
         var sink = new ConePlaneRayEventSink(descriptor, point, root, pointOnly: true,

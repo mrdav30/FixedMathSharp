@@ -19,6 +19,7 @@ internal readonly ref struct CurvedPrismContactGeometry
     internal readonly WideDirection3d Half;
     internal readonly int ValueShift;
     internal readonly bool IsCone;
+    internal readonly Fixed64 PrismHalfThickness, HeightValue, RadiusValue;
     private readonly WideConvex2dRelations.RotationFrame2d _yaw;
     private readonly ReadOnlySpan<Vector2d> _offsets;
     private readonly Signed192 _relativeX, _relativeY, _relativeZ, _thickness;
@@ -50,7 +51,7 @@ internal readonly ref struct CurvedPrismContactGeometry
         RawScale = Signed192.NarrowProven(WideArithmetic.MultiplySigned192(
             WorldBasis.Denominator, Signed192.Raw(Fixed64.Two)));
         Radius = WideArithmetic.MultiplySigned192(RawScale, Signed192.Raw(radius));
-        IsCone = isCone;
+        IsCone = isCone; PrismHalfThickness = halfThickness; HeightValue = length; RadiusValue = radius;
         _yaw = new WideConvex2dRelations.RotationFrame2d(prismYaw);
         _offsets = offsets;
         _relativeX = ScaleRaw(WideArithmetic.Difference(prismOrigin.X, center.X));
@@ -111,17 +112,28 @@ internal readonly ref struct CurvedPrismContactGeometry
     internal WideDirection3d Vertex(int index) => !_vertices.IsEmpty ? _vertices[index]
         : ReduceVertex(GetNativeVertex(index), _coordinateDivisor);
 
-    private WideDirection3d GetNativeVertex(int index)
+    internal Signed192 NativeRawScale => Signed192.NarrowProven(WideArithmetic.MultiplySigned192(RawScale, _coordinateDivisor));
+
+    // Boundary cuts retain their original source coordinates; do not assume
+    // the content of the original vertices also divides a new height-band point.
+    internal WideDirection3d GetNativeSourcePoint(Vector3d point) =>
+        GetNativeSourcePoint(new Vector2d(point.X, point.Z), ScaleRaw(Signed192.Raw(point.Y)));
+
+    private WideDirection3d GetNativeVertex(int index) =>
+        GetNativeSourcePoint(_offsets[index / 2], (index & 1) == 0 ? WideArithmetic.Negate(_thickness) : _thickness);
+
+    private WideDirection3d GetNativeSourcePoint(Vector2d offset, Signed192 y)
     {
-        WideConvex2dRelations.GetRotatedOffset(_yaw, _offsets[index / 2], out Signed192 x, out Signed192 z);
+        WideConvex2dRelations.GetRotatedOffset(_yaw, offset, out Signed192 x, out Signed192 z);
         var native = new WideAxis3(Signed320.ExtendValue(WideArithmetic.AddSigned192(_relativeX, x)),
-            Signed320.ExtendValue((index & 1) == 0 ? WideArithmetic.SubtractSigned192(_relativeY, _thickness)
-                : WideArithmetic.AddSigned192(_relativeY, _thickness)),
+            Signed320.ExtendValue(WideArithmetic.AddSigned192(_relativeY, y)),
             Signed320.ExtendValue(WideArithmetic.AddSigned192(_relativeZ, z)));
         WideRigidProjection.GetLocalAxisProjections(native, WorldBasis, out Signed576 px, out Signed576 py, out Signed576 pz);
         return new WideDirection3d(WideArithmetic.AddSigned576(px, px),
             WideArithmetic.AddSigned576(py, py), WideArithmetic.AddSigned576(pz, pz));
     }
+
+    internal Vector2d FootprintVertex(int index) => _offsets[index];
 
     /// <summary>Returns the bottom, top and vertical real edges of each footprint vertex.</summary>
     internal void Edge(int index, out int start, out int end)
@@ -269,6 +281,15 @@ internal readonly ref struct CurvedPrismContactGeometry
         if (requiredVertex >= 0 && WideArithmetic.SubtractSigned832(
                 WideDirection3d.Dot(normal, Vertex(requiredVertex)), minimum).Sign != 0)
             return false;
+        gapSign = BuildPlaneCandidate(direction, directionSigns, normal, minimum, values, signs, out feature);
+        return true;
+    }
+
+    // A retained native face uses its own known plane constant. In particular,
+    // its opposite gap tests plane intersection, not the prism's opposite face.
+    internal int BuildPlaneCandidate(ReadOnlySpan<ulong> direction, ReadOnlySpan<int> directionSigns,
+        in WideDirection3d normal, Signed832 minimum, Span<ulong> values, Span<int> signs, out int feature)
+    {
         values.Clear(); signs.Clear();
         direction.CopyTo(values); directionSigns.CopyTo(signs);
         Span<ulong> work = stackalloc ulong[14 * Words];
@@ -326,8 +347,8 @@ internal readonly ref struct CurvedPrismContactGeometry
             WideArithmetic.MultiplyMagnitudes(q, q, temporary);
             WideArithmetic.MultiplyMagnitudes(denominator, temporary, product); product.CopyTo(denominator);
         }
-        gapSign = BuildRadialCandidate(p, rationalSign, root, denominator, values, signs);
-        return true;
+        int gapSign = BuildRadialCandidate(p, rationalSign, root, denominator, values, signs);
+        return gapSign;
     }
 
     private static void DotNormal(in WideDirection3d point, ReadOnlySpan<ulong> normal,
@@ -341,7 +362,7 @@ internal readonly ref struct CurvedPrismContactGeometry
     private static Signed192 ScaleRaw(Signed192 value) =>
         Signed192.NarrowProven(WideArithmetic.MultiplySigned192(value, Signed192.One));
 
-    private static Signed576 ReadDirectionComponent(ReadOnlySpan<ulong> magnitude, int sign)
+    internal static Signed576 ReadDirectionComponent(ReadOnlySpan<ulong> magnitude, int sign)
     {
         // Rational fan components fit 504 bits; the remaining padded words
         // contain no information. Quadratic generator normals use GetMinimum.

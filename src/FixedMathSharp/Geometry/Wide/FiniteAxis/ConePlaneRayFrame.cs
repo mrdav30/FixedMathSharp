@@ -30,10 +30,30 @@ internal readonly struct ConePlaneRayFrame
     internal int VerificationWords => UsesWideBanks ? 528 : 176;
     internal ConePlaneRayFrame WithWideParameters() => UsesWideBanks ? this : new ConePlaneRayFrame(this);
 
+    // Numeric native charts are already cone-local. Materialization supplies
+    // their actual physical pose without retransforming or replaying an event.
+    internal ConePlaneRayFrame WithConePose(Vector3d center, FixedQuaternion rotation) => new(this, center, rotation);
+    private ConePlaneRayFrame(in ConePlaneRayFrame source, Vector3d center, FixedQuaternion rotation)
+    { this = source; ConeCenter = center; ConeRotation = rotation; }
+
     private ConePlaneRayFrame(in ConePlaneRayFrame source)
     {
         this = source;
         _wideParameters = true;
+    }
+
+    /// <summary>Shares an exact primitive-local native plane without a rounded source transform.</summary>
+    internal ConePlaneRayFrame(Fixed64 height, Fixed64 radius, Signed320 coordinateDenominator,
+        in WideDirection3d centeredNormal, Signed832 doubledCenteredConstant)
+    {
+        this = default;
+        ConeRotation = FixedQuaternion.Identity; Height = height; Radius = radius;
+        Finite = new ConeFiniteSectionFrame(height, radius, coordinateDenominator);
+        Normal = new(centeredNormal.X, WideArithmetic.Negate(centeredNormal.Y), centeredNormal.Z);
+        PlaneConstant = WideArithmetic.SubtractSigned832(doubledCenteredConstant,
+            WideArithmetic.MultiplySigned576ToSigned832(centeredNormal.Y, Finite.ShapeFrame.Cap));
+        NormalSquared = Normal.SquaredLength;
+        authoredNormal = new(Signed320.NarrowValue(centeredNormal.X), Signed320.NarrowValue(centeredNormal.Y), Signed320.NarrowValue(centeredNormal.Z));
     }
 
     internal ConePlaneRayFrame(FixedTriangle planeTriangle, Vector3d origin, FixedQuaternion rotation,

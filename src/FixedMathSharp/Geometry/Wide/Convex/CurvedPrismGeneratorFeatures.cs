@@ -53,10 +53,10 @@ internal static class CurvedPrismGeneratorFeatures
             ? new WideDirection3d(one, default, default)
             : new WideDirection3d(default, one, default);
         KeepVertex(geometry, seed, commonMetric, values, signs, ref selection);
-        for (int vertex = 0; vertex < geometry.VertexCount && selection.GapSign != 0; vertex++)
+        for (int vertex = 0; vertex < geometry.VertexCount && (!selection.HasValue || selection.GapSign != 0); vertex++)
             KeepVertex(geometry, geometry.Vertex(vertex), commonMetric, values, signs, ref selection, vertex);
 
-        for (int edge = 0; edge < geometry.EdgeCount && selection.GapSign != 0; edge++)
+        for (int edge = 0; edge < geometry.EdgeCount && (!selection.HasValue || selection.GapSign != 0); edge++)
         {
             geometry.Edge(edge, out int start, out int end);
             WideDirection3d e = CurvedPrismContact.Difference(geometry.Vertex(end), geometry.Vertex(start));
@@ -160,7 +160,7 @@ internal static class CurvedPrismGeneratorFeatures
         Import(metricFactor, Slot(work, 4));
         WideArithmetic.MultiplyMagnitudes(commonMetric, Slot(work, 4), Slot(work, 5));
         int gapSign = BuildQuadraticCandidate(gap, Slot(values, 6), Slot(work, 5), values, signs);
-        selection.Keep(values, signs, gapSign, vertex, CurvedPrismContactSelection.Free);
+        selection.Keep(geometry, values, signs, gapSign, vertex, CurvedPrismContactSelection.Free);
     }
 
     private static WideDirection3d DifferenceScaled(in WideDirection3d first, Signed576 firstScale,

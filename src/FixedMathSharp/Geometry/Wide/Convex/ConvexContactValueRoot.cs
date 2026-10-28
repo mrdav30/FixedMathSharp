@@ -193,6 +193,50 @@ internal static class ConvexContactValueRoot
         return rationalSign * WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns);
     }
 
+    /// <summary>Compares an exact squared value root with a positive-denominator quadratic ratio.</summary>
+    internal static int CompareRootSquared(Signed192 rawScale, int valueShift, scoped ref FiniteAxisValueRoot root,
+        scoped ContactQuadratic numerator, scoped ContactQuadratic denominator, scoped ReadOnlySpan<ulong> radical)
+    {
+        Span<ulong> scale = stackalloc ulong[3], square = stackalloc ulong[6];
+        WideArithmetic.GetMagnitude(rawScale, out scale[2], out scale[1], out scale[0]);
+        WideArithmetic.MultiplyMagnitudes(scale, scale, square);
+        int words = Math.Max(ContactQuadratic.ActiveWords(numerator) + WideArithmetic.GetActiveMagnitudeLength(square),
+            ContactQuadratic.ActiveWords(denominator) + (valueShift + 63) / 64) + 1;
+        Span<ulong> a = stackalloc ulong[2 * words], b = stackalloc ulong[2 * words];
+        Span<sbyte> aSigns = stackalloc sbyte[2], bSigns = stackalloc sbyte[2];
+        WriteLinear(numerator.Rational, numerator.Signs[0], denominator.Rational, denominator.Signs[0], a, aSigns, square, words, valueShift);
+        int firstSign = WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, a, aSigns);
+        if (WideArithmetic.GetActiveMagnitudeLength(radical) == 0) return firstSign;
+        WriteLinear(numerator.Radical, numerator.Signs[1], denominator.Radical, denominator.Signs[1], b, bSigns, square, words, valueShift);
+        int secondSign = WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, b, bSigns);
+        if (firstSign == 0) return secondSign;
+        if (secondSign == 0 || firstSign == secondSign) return firstSign;
+        // A(t)+B(t)*sqrt(K) has opposing terms. The original certified
+        // value root also signs A(t)^2-K*B(t)^2, of degree only two.
+        int squareWords = 2 * words + WideArithmetic.GetActiveMagnitudeLength(radical) + 1;
+        Span<ulong> query = stackalloc ulong[3 * squareWords], secondSquare = stackalloc ulong[3 * squareWords];
+        Span<sbyte> querySigns = stackalloc sbyte[3], secondSigns = stackalloc sbyte[3];
+        Span<ulong> product = stackalloc ulong[squareWords];
+        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(a, aSigns, a, aSigns, query, querySigns, product);
+        WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials(b, bSigns, b, bSigns, secondSquare, secondSigns, product);
+        for (int index = 0; index < 3; index++)
+        {
+            WideArithmetic.MultiplyMagnitudes(secondSquare.Slice(index * squareWords, squareWords), radical, product);
+            int sign = querySigns[index];
+            WideArithmetic.AddShiftedSignedMagnitude(product, -secondSigns[index], 0, query.Slice(index * squareWords, squareWords), ref sign);
+            querySigns[index] = (sbyte)sign;
+        }
+        return firstSign * WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns);
+
+        static void WriteLinear(ReadOnlySpan<ulong> n, int nSign, ReadOnlySpan<ulong> d, int dSign, Span<ulong> values, Span<sbyte> signs,
+            ReadOnlySpan<ulong> square, int words, int valueShift)
+        {
+            WideArithmetic.MultiplyMagnitudes(n, square, values[..words]); signs[0] = (sbyte)-nSign;
+            values[words..].Clear(); d[..WideArithmetic.GetActiveMagnitudeLength(d)].CopyTo(values[words..]); signs[1] = (sbyte)dSign;
+            WideFiniteAxisIntersection.ScaleFiniteAxisPolynomialVariable(values, 2, valueShift);
+        }
+    }
+
     internal static Vector3d GetNormalizedDirection(ref FiniteAxisValueRoot root,
         scoped ReadOnlySpan<ulong> gradient, scoped ReadOnlySpan<sbyte> gradientSigns, int orientation) =>
         GetScaledNormalizedDirection(ref root, gradient, gradientSigns, Fixed64.One, orientation);

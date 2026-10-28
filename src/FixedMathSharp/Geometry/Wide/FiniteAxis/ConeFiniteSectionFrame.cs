@@ -15,6 +15,14 @@ internal readonly struct ConeFiniteSectionFrame
     internal readonly Fixed64 Height, Radius;
     internal readonly Signed320 FullHeight;
 
+    /// <summary>Exact cone-local identity chart supplied by a retained rational native source.</summary>
+    internal ConeFiniteSectionFrame(Fixed64 height, Fixed64 radius, Signed320 coordinateDenominator)
+    {
+        Height = height; Radius = radius;
+        ShapeFrame = new CylinderPolytopeFrame(height, radius, coordinateDenominator);
+        FullHeight = WideArithmetic.AddSigned320(ShapeFrame.Cap, ShapeFrame.Cap);
+    }
+
     internal ConeFiniteSectionFrame(Vector3d origin, FixedQuaternion rotation,
         Vector3d coneCenter, FixedQuaternion coneRotation, Fixed64 height, Fixed64 radius)
     {
@@ -84,6 +92,17 @@ internal readonly struct ConeFiniteSectionFrame
         System.Diagnostics.Debug.Assert(c.Sign > 0);
         return WideArithmetic.CompareNonNegativeProducts(Signed832.ExtendValue(b), Signed832.ExtendValue(b),
             Signed832.ExtendValue(a), Signed832.ExtendValue(c)) >= 0;
+    }
+
+    /// <summary>Tests a pretransformed source subsegment, retaining its exact original parameter.</summary>
+    internal bool IntersectsTransformedSegment(WideAxis3 start, WideAxis3 end, in RationalSegmentInterval clip)
+    {
+        if (!clip.IsClipped) return IntersectsTransformedSegment(start, end);
+        WideAxis3 delta = new(WideArithmetic.SubtractSigned320(end.X, start.X),
+            WideArithmetic.SubtractSigned320(end.Y, start.Y), WideArithmetic.SubtractSigned320(end.Z, start.Z));
+        return TryGetAxialInterval(start.Y, delta.Y, out var ln, out var ld, out var un, out var ud)
+            && CapsuleFiniteSectionFrame.IntersectsQuadratic(QuadraticProductWide(delta, delta),
+                QuadraticProductWide(start, delta), QuadraticProductWide(start, start), ln, ld, un, ud, clip);
     }
 
     internal bool ContainsTransformedPoint(WideAxis3 point) => point.Y.Sign >= 0
