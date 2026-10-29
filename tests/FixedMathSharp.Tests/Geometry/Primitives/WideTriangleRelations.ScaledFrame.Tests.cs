@@ -6,6 +6,22 @@ namespace FixedMathSharp.Tests.Geometry.Primitives;
 
 public sealed class WideTriangleRelationsScaledFrameTests
 {
+    [Theory]
+    [InlineData(-1, 0, -1)] [InlineData(0, 0, 0)] [InlineData(1, 0, 1)]
+    [InlineData(2, 0, 2)] [InlineData(3, 0, -1)] [InlineData(1, 1, -1)]
+    public void AnchoredPointLocation_ShouldKeepExactIncidenceAndBothEndpoints(int x, int z, int expected)
+    {
+        var frame = new NativePrismYawFrame3d(new(7, 2, -3), Fixed64.Quarter);
+        RationalPoint3d point = frame.GetPoint(new(x, 0, z));
+        Assert.Equal(expected, WideTriangleRelations.LocatePointOnFrameEdge(point,
+            new(Vector3d.Zero, new(2, 0, 0)), frame));
+        var clip = new RationalSegmentInterval(Signed320.ExtendValue(Signed192.Signed(1)),
+            Signed320.ExtendValue(Signed192.Signed(4)), Signed320.ExtendValue(Signed192.Signed(3)),
+            Signed320.ExtendValue(Signed192.Signed(4)));
+        Assert.Equal(x == 1 && z == 0 ? 1 : -1, WideTriangleRelations.LocatePointOnFrameEdge(point,
+            new(Vector3d.Zero, new(2, 0, 0)), frame, clip));
+    }
+
     private static readonly FixedTriangle Face = new(new(0, 0, 0), new(4, 0, 0), new(0, 0, 4));
 
     [Theory]

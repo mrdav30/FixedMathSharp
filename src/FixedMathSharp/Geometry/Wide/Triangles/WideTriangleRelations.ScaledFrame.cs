@@ -118,6 +118,24 @@ internal static partial class WideTriangleRelations
         where TTarget : struct, IForwardHullFrame3d
     {
         RationalPoint3d a = sourceFrame.GetPoint(source.Start), b = sourceFrame.GetPoint(source.End);
+        return LocateFrameEdgePoint(a, b, n, d, target, targetFrame, targetInterval);
+    }
+
+    /// <summary>Locates an exact anchored point without rounding its retained feature term.</summary>
+    internal static int LocatePointOnFrameEdge<TFrame>(in RationalPoint3d point,
+        in FixedSegment target, in TFrame frame, in RationalSegmentInterval interval = default)
+        where TFrame : struct, IForwardHullFrame3d
+    {
+        Span<ulong> values = stackalloc ulong[52]; Span<int> signs = stackalloc int[4];
+        var n = ContactQuadratic.At(values, signs, 0, 13); var d = ContactQuadratic.At(values, signs, 1, 13);
+        n.Clear(); d.Set(Signed832.ExtendValue(Signed192.Signed(1)));
+        return LocateFrameEdgePoint(point, point, n, d, target, frame, interval);
+    }
+
+    private static int LocateFrameEdgePoint<TTarget>(in RationalPoint3d a, in RationalPoint3d b,
+        scoped ContactQuadratic n, scoped ContactQuadratic d, in FixedSegment target, in TTarget targetFrame,
+        in RationalSegmentInterval targetInterval) where TTarget : struct, IForwardHullFrame3d
+    {
         RationalPoint3d targetA = targetFrame.GetPoint(target.Start), targetB = targetFrame.GetPoint(target.End);
         WideDirection3d first = GetScaledPointDifference(a, targetA, targetFrame.RotationDenominator),
             second = GetScaledPointDifference(b, targetA, targetFrame.RotationDenominator);

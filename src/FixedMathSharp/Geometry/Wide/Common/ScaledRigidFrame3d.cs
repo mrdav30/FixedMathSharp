@@ -496,6 +496,17 @@ internal readonly struct RationalPoint3d
             Signed320.NarrowValue(WideArithmetic.MultiplySigned320(denominator, qSquared)));
     }
 
+    /// <summary>Embeds a complete planar anchor in X/Z with zero Y, preserving sub-lattice features.</summary>
+    internal static RationalPoint3d FromAnchor(in FixedPointAnchor2d anchor)
+    {
+        WidePointAnchor2d.GetExactRelativeOffsetRatio(anchor.Origin, anchor.LocalPoint, anchor.LocalDisplacement,
+            anchor.ExactLocalTerm, anchor.Rotation, Vector2d.Zero, Vector2d.Zero, Vector2d.Zero, default,
+            Fixed64.Zero, out Signed320 x, out Signed320 z, out Signed320 rawDenominator);
+        // Both owners retain raw-coordinate ratios. The anchor's 2 Q²
+        // denominator already belongs to the shared Q² point domain.
+        return new(x, default, z, rawDenominator);
+    }
+
     /// <summary>Compares exact world projections without materializing either point.</summary>
     internal static int CompareProjection(in RationalPoint3d first, in RationalPoint3d second, Vector3d direction)
     {

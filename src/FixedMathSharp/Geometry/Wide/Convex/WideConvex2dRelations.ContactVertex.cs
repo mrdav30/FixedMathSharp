@@ -79,6 +79,17 @@ internal static partial class WideConvex2dRelations
         return true;
     }
 
+    /// <summary>Tests an unnormalized world outward axis against the complete exact incident sectors.</summary>
+    internal static bool SupportsBoundaryFan(in WideDirection3d outward, in FixedPointAnchor2d point,
+        ReadOnlySpan<FixedPointAnchor2d> incidentPoints)
+    {
+        RationalPoint3d reference = RationalPoint3d.FromAnchor(point);
+        foreach (ref readonly FixedPointAnchor2d incident in incidentPoints)
+            if (WideDirection3d.Dot(outward, WideTriangleRelations.GetScaledPointDifference(
+                RationalPoint3d.FromAnchor(incident), reference,
+                WideArithmetic.TruncateSigned320By64(reference.Denominator))).Sign > 0) return false;
+        return true;
+    }
     /// <summary>Tests exact equality and inward orientation of two independently framed supporting lines.</summary>
     internal static bool SameBoundaryPlane(Vector2d origin, Fixed64 rotation, FixedSegment2d edge, Vector2d inward,
         Vector2d otherOrigin, Fixed64 otherRotation, FixedSegment2d otherEdge, Vector2d otherInward)
@@ -102,6 +113,13 @@ internal static partial class WideConvex2dRelations
     internal static int LocateBoundaryPoint(in FixedPointAnchor2d point, Vector2d origin, Fixed64 rotation,
         FixedSegment2d edge, in RationalSegmentInterval interval)
     {
+        if (point.LocalDisplacement != Vector2d.Zero || !point.ExactLocalTerm.IsZero)
+        {
+            int location = WideTriangleRelations.LocatePointOnFrameEdge(RationalPoint3d.FromAnchor(point),
+                new FixedSegment(new(edge.Start.X, Fixed64.Zero, edge.Start.Y), new(edge.End.X, Fixed64.Zero, edge.End.Y)),
+                new NativePrismYawFrame3d(new(origin.X, Fixed64.Zero, origin.Y), rotation), interval);
+            return location == 0 ? 1 : location == 1 ? 0 : location;
+        }
         GetRelativePointNumerators(point.Origin, point.Rotation, point.LocalPoint, origin, out Signed192 px, out Signed192 py);
         GetRotatedOffset(new RotationFrame2d(rotation), edge.Start, out Signed192 ax, out Signed192 ay);
         GetTransformedEdge(new RotationFrame2d(rotation), edge.Start, edge.End, out Signed192 ex, out Signed192 ey);

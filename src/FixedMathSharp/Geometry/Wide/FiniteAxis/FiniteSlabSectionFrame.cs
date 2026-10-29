@@ -94,12 +94,16 @@ internal readonly partial struct FiniteSlabSectionFrame
     internal bool IntersectsTransformedSegment(WideAxis3 start, WideAxis3 end, in RationalSegmentInterval clip)
     {
         WideAxis3 delta = Difference(end, start);
-        // Native boundary ingress is a circle extrusion, with no stadium core.
-        System.Diagnostics.Debug.Assert(_radial.Length == Fixed64.Zero);
-        return TryGetPrimitive(start, delta, 0, out Signed832 a, out Signed832 b, out Signed832 c,
-                out var ln, out var ld, out var un, out var ud)
-            && CapsuleFiniteSectionFrame.IntersectsQuadratic(a, b, c, ln, ld, un, ud, clip);
+        for (int primitive = 0; primitive < (_radial.Length == Fixed64.Zero ? 1 : 3); primitive++)
+            if (TryGetPrimitive(start, delta, primitive, out Signed832 a, out Signed832 b, out Signed832 c,
+                    out var ln, out var ld, out var un, out var ud)
+                && CapsuleFiniteSectionFrame.IntersectsQuadratic(a, b, c, ln, ld, un, ud, clip)) return true;
+        return false;
     }
+
+    /// <summary>Tests a retained exact subsegment without rounding either cut endpoint.</summary>
+    internal bool IntersectsSegment(FixedSegment segment, in RationalSegmentInterval clip) =>
+        IntersectsTransformedSegment(Transform(segment.Start), Transform(segment.End), clip);
 
     internal bool TryGetFirstSegmentParameter(FixedSegment segment, ReadOnlySpan<Vector2d> prismOffsets,
         ContactQuadratic numerator, ContactQuadratic denominator, Span<ulong> root) => prismOffsets.IsEmpty

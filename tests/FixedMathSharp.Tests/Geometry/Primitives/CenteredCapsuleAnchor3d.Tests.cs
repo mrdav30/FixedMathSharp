@@ -14,6 +14,42 @@ namespace FixedMathSharp.Tests;
 
 public sealed class CenteredCapsuleAnchor3dTests
 {
+    [Theory]
+    [InlineData(2, 0, 1, -2, 0, -1, 2, false)]
+    [InlineData(2, 3, 1, -2, -2, -1, 2, false)]
+    [InlineData(2, -3, 1, -2, 2, -1, 2, false)]
+    [InlineData(0, 0, 0, 0, 0, 0, 2, false)]
+    [InlineData(2, 3, 1, -2, -3, -1, 0, false)]
+    [InlineData(2, 3, 1, -2, -3, -1, 2, true)]
+    public void AnchoredFiniteCoreDirection_ShouldKeepEndpointsInteriorAndRigidRotation(
+        int x, int y, int z, int dx, int dy, int dz, int length, bool zeroAxis)
+    {
+        Vector3d origin = new(7, -3, 11);
+        long k = (1L << 32) / 5;
+        var rotation = new FixedQuaternion(Fixed64.Zero, Fixed64.Zero, Fixed64.FromRaw(3 * k), Fixed64.FromRaw(4 * k));
+        var point = new FixedPointAnchor(origin, rotation, new(x, y, z));
+        WideDirection3d actual = WideFiniteAxisIntersection.GetPointToCenteredCapsuleCoreDirection(point,
+            origin, rotation, zeroAxis ? Vector3d.Zero : Vector3d.Up, (Fixed64)length);
+        var basis = new WideRationalBasis3d(rotation);
+        WideDirection3d expected = new WideDirection3d(Signed320.ExtendValue(Signed192.Raw((Fixed64)dx)),
+            Signed320.ExtendValue(Signed192.Raw((Fixed64)dy)), Signed320.ExtendValue(Signed192.Raw((Fixed64)dz))).Transform(basis);
+        Assert.True(WideDirection3d.Cross(actual, expected).IsZero);
+        Assert.Equal(expected.IsZero, actual.IsZero);
+        if (!actual.IsZero) Assert.True(WideDirection3d.Dot(actual, expected).Sign > 0);
+    }
+
+    [Theory]
+    [InlineData(-1)] [InlineData(1)]
+    public void AnchoredFiniteCoreDirection_ShouldRetainOddLengthSubRawEndpoints(int sign)
+    {
+        var point = WideGeometry.GetCenteredCapsuleSupportAnchor(Vector3d.Zero,
+            FixedQuaternion.Identity, Vector3d.Up, Fixed64.FromRaw(5), Fixed64.Zero, Vector3d.Up * sign);
+        WideDirection3d actual = WideFiniteAxisIntersection.GetPointToCenteredCapsuleCoreDirection(point,
+            Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up, Fixed64.FromRaw(3));
+        Assert.Equal(-sign, actual.Y.Sign);
+        Assert.True(actual.X.IsZero && actual.Z.IsZero);
+    }
+
     [Fact]
     public void SupportAnchor_RejectsOnlyTheUnrepresentableFinalCoordinate()
     {

@@ -15,6 +15,31 @@ namespace FixedMathSharp.Geometry;
 /// </summary>
 internal static class WideCenteredCapsule2dRelations
 {
+    /// <summary>Returns the exact world direction from an anchored point toward its closest finite core point.</summary>
+    internal static WideDirection3d GetPointToCoreDirection(Vector2d origin, Fixed64 rotation,
+        Fixed64 coreLength, in FixedPointAnchor2d point)
+    {
+        RationalPoint3d start = RationalPoint3d.FromAnchor(WideFiniteAxisIntersection.GetCenteredCapsuleSupportAnchor(
+            origin, rotation, Vector2d.Forward, coreLength, Fixed64.Zero, -Vector2d.Forward));
+        RationalPoint3d end = RationalPoint3d.FromAnchor(WideFiniteAxisIntersection.GetCenteredCapsuleSupportAnchor(
+            origin, rotation, Vector2d.Forward, coreLength, Fixed64.Zero, Vector2d.Forward));
+        Signed192 denominator = WideArithmetic.TruncateSigned320By64(start.Denominator);
+        WideDirection3d edge = WideTriangleRelations.GetScaledPointDifference(end, start, denominator),
+            offset = WideTriangleRelations.GetScaledPointDifference(RationalPoint3d.FromAnchor(point), start, denominator);
+        Signed320 n = Signed320.NarrowValue(Signed576.NarrowValue(WideDirection3d.Dot(edge, offset))),
+            d = Signed320.NarrowValue(Signed576.NarrowValue(WideDirection3d.Dot(edge, edge)));
+        if (n.Sign <= 0) return -offset;
+        if (WideArithmetic.SubtractSigned320(n, d).Sign >= 0)
+            return new(WideArithmetic.SubtractSigned576(edge.X, offset.X), default(Signed576),
+                WideArithmetic.SubtractSigned576(edge.Z, offset.Z));
+        // All planar anchors share 2 Q²: differences need fewer than 131 bits,
+        // dot products fewer than 264, and these cleared products fewer than 396.
+        return new(Signed576.NarrowValue(WideArithmetic.SubtractSigned832(
+                WideArithmetic.MultiplySigned576ToSigned832(edge.X, n), WideArithmetic.MultiplySigned576ToSigned832(offset.X, d))),
+            default(Signed576), Signed576.NarrowValue(WideArithmetic.SubtractSigned832(
+                WideArithmetic.MultiplySigned576ToSigned832(edge.Z, n), WideArithmetic.MultiplySigned576ToSigned832(offset.Z, d))));
+    }
+
     // Full-domain bounds (S = 2^32): relative point numerators are below 2^97,
     // exact axis components below 2^99, and signed overlaps below 2^199.
     // Squared-overlap/axis products stay below 2^597, fitting Signed832.

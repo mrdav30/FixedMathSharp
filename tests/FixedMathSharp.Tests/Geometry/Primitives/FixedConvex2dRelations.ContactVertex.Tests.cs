@@ -7,6 +7,55 @@ namespace FixedMathSharp.Tests.Bounds;
 public sealed class FixedConvex2dContactVertexTests
 {
     [Fact]
+    public void CompositeBoundaryWitness_ShouldPreserveDisplacementAndSubRawTerms()
+    {
+        var composite = new FixedPointAnchor2d(Vector2d.Zero, Fixed64.Quarter,
+            Vector2d.Right, Vector2d.Right);
+        Assert.Equal(0, WideConvex2dRelations.LocateBoundaryPoint(composite, Vector2d.Zero,
+            Fixed64.Quarter, new(Vector2d.Zero, new(4, 0)), default));
+        Assert.Equal(2, WideConvex2dRelations.LocateBoundaryPoint(composite, Vector2d.Zero,
+            Fixed64.Quarter, new(Vector2d.Zero, new(2, 0)), default));
+        Assert.Equal(1, WideConvex2dRelations.LocateBoundaryPoint(composite, Vector2d.Zero,
+            Fixed64.Quarter, new(new(2, 0), new(4, 0)), default));
+        var exact = WideFiniteAxisIntersection.GetCenteredCapsuleSupportAnchor(Vector2d.Zero,
+            Fixed64.Zero, Vector2d.Right, Fixed64.FromRaw(3), Fixed64.Half, Vector2d.Right);
+        Fixed64 rounded = Fixed64.Half + Fixed64.FromRaw(2);
+        Assert.Equal(-1, WideConvex2dRelations.LocateBoundaryPoint(exact, Vector2d.Zero,
+            Fixed64.Zero, new(new(rounded, Fixed64.Zero), new(rounded + Fixed64.One, Fixed64.Zero)), default));
+        RationalPoint3d spatial = RationalPoint3d.FromAnchor(composite);
+        var frame = new NativePrismYawFrame3d(Vector3d.Zero, Fixed64.Quarter);
+        Assert.Equal(0, RationalPoint3d.CompareProjection(spatial, frame.GetPoint(new(2, 0, 0)), Vector3d.Right));
+        Assert.Equal(0, RationalPoint3d.CompareProjection(spatial, frame.GetPoint(new(2, 0, 0)), Vector3d.Forward));
+    }
+
+    [Theory]
+    [InlineData(0, true)] [InlineData(1, false)] [InlineData(2, false)] [InlineData(-2, true)]
+    public void ExactFanBoundary_ShouldRetainTheOriginalAxisSign(int rawX, bool admitted)
+    {
+        var witness = Anchor(Vector2d.Zero);
+        FixedPointAnchor2d[] fan = { Anchor(new(1, -1)) };
+        WideDirection3d direction = new(Signed320.ExtendValue(Signed192.Signed(rawX)), default(Signed320), default(Signed320));
+        Assert.Equal(admitted, WideConvex2dRelations.SupportsBoundaryFan(direction, witness, fan));
+    }
+
+    [Theory]
+    [InlineData(-2, 0, 2, 0, 2)] [InlineData(2, 0, -2, 0, 2)]
+    [InlineData(2, 3, -2, -2, 2)] [InlineData(2, -3, -2, 2, 2)]
+    [InlineData(0, 0, 0, 0, 2)] [InlineData(2, 3, -2, -3, 0)]
+    public void ClosestFiniteCoreAxis_ShouldRemainExactAcrossEndpointsAndInterior(int x, int y, int dx, int dy, int length)
+    {
+        Vector2d origin = new(7, -3);
+        var point = new FixedPointAnchor2d(origin, Fixed64.Quarter, new(x, y));
+        WideDirection3d actual = WideCenteredCapsule2dRelations.GetPointToCoreDirection(origin,
+            Fixed64.Quarter, (Fixed64)length, point);
+        var frame = new NativePrismYawFrame3d(new(7, 0, -3), Fixed64.Quarter);
+        WideDirection3d expected = frame.GetEdgeDirection(Vector3d.Zero, new(dx, 0, dy));
+        Assert.True(WideDirection3d.Cross(actual, expected).IsZero);
+        Assert.Equal(expected.IsZero, actual.IsZero);
+        if (!actual.IsZero) Assert.True(WideDirection3d.Dot(actual, expected).Sign > 0);
+    }
+
+    [Fact]
     public void ExactFlatFan_ShouldRejectATangentialAxisThatNormalizesToZero()
     {
         Vector2d center = new(Fixed64.FromRaw(1), (Fixed64)1_000_000_000);
