@@ -392,13 +392,17 @@ Positive-core slabs reuse that owner in two admitted endpoint regions and a
 bounded straight-section seam, rather than introducing another contact solver.
 Closed hulls restrict those same fans to directions supporting every hull
 vertex, with one shared coordinate/value scale across triangles. A separate
-global inscribed-ball certificate can terminate exact ranking; a failed
-certificate retains the complete feature search. Supporting triangles must
-still admit finite matched witnesses before materialization.
+global inscribed-ball certificate can terminate exact ranking. Positive-core
+seeds additionally certify the hull expanded by the actual segment: original
+faces and supported edge/core crosses include every extrusion facet. Failed
+seeds are discarded before the complete feature search, preserving its tie
+order. Supporting triangles must still admit finite matched witnesses before
+materialization.
 
 | Method | Complexity | Coverage | Rationale | Revisit if |
 | --- | ---: | --- | --- | --- |
-| `TriangleCylinderAnalyticFeatures.TryGetBest(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | One exact selection spans the seam and admitted endpoint regions, with proven face certificates. | A new exact certificate removes feature work while preserving canonical ties. |
+| `TriangleCylinderAnalyticFeatures.TryGetSeed(...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | The first seam and ordered hull-face axes retain exact core-region admission. Core-perpendicular faces use a parallel edge/core cross to preserve the finite seam normal-width contract; collapsed faces cannot fabricate a seed. | A cheaper seed preserves exact candidate ranking, bounded directions, deterministic certified ties and complete fallback. |
+| `TriangleCylinderAnalyticFeatures.TryGetBest(...)` | 20 | 100% line / 100% branch (Release / ReleaseLean) | One exact selection spans the seam and admitted endpoint regions; triangle-only certificates require an unrestricted domain. | A new exact certificate removes feature work while preserving canonical ties. |
 | `TriangleCylinderAnalyticFeatures.KeepRegion(...)` | 30 | 100% line / 100% branch (Release / ReleaseLean) | Ordered face, pole, side and edge boundaries exhaust one analytic region. Hull-restricted selection disables triangle-only minimum certificates; smooth vertex/rim residuals retain whole-support separation admission. | The support partition admits fewer necessary boundaries without weakening either native triangle or hull support. |
 | `TriangleCylinderAnalyticFeatures.KeepAxis(...)` | 34 | 100% line / 100% branch (Release / ReleaseLean) | Region and whole-hull support admission precede selection and negative-gap rejection. Opposite directions reuse squared support terms only after an admitted build; the retained local winner is transformed once after selection. | Support ownership or retained candidate layout changes. |
 | `TriangleCylinderAnalyticFeatures.HasVertexRimSeparation(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | A closest-rim residual proves separation only inside the triangle vertex cone, selected core hemisphere and optional whole-hull support cone. All sign decisions precede rounding. | A shared residual authority preserves every admission condition with fewer projections. |
@@ -413,15 +417,16 @@ still admit finite matched witnesses before materialization.
 | `TriangleCylinderRimWitnesses.HasMatchingPoint(...)` | 24 | 100% line / 100% branch (Release / ReleaseLean) | Exact quadratic barycentric weights and cross-component residuals certify a finite triangle point paired with the cylinder support. Separate rigid and affine banks retain complete products, while the shared sign authority sizes its squares. | The witness representation can remove products without rounding support, barycentric admission or residual equality. |
 | `TriangleCylinderRimWitnesses.RoundAnalyticCoordinate(...)` | 22 | 100% line / 100% branch (Release) | Vanished or cancelled radicals use exact rational division; other coordinates retain the established signed nearest-even search within the triangle's scalar extrema. | A shared exact reducer removes further witness search without changing ties or finite triangle bounds. |
 | `TriangleCylinderWitnesses.TryGetSidePoint(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | Tangent-plane intersection and finite axial clipping select a paired witness on the winning support feature. A supporting hull triangle can lack the matching point, so absent crossings and disjoint axial intervals decline before rounding; exact cap endpoints retain their provenance. | Feature representation changes or shared exact clipping removes state without weakening declined-triangle search or finite endpoint ownership. |
-| `ConvexHullCylinderContact.TryGetContact(...)` | 56 | 100% line / 100% branch (Release / ReleaseLean) | One borrowed reducer ranks hull-supported analytic and rim-root candidates in a shared cylinder chart, then searches finite support triangles for the matched witness. Keeping selection and materialization together preserves exact scales, deterministic ties and allocation-free scratch without a second feature solver. | A cohesive feature representation removes substantial repeated traversal or state while preserving complete support fans, finite witnesses and ordinary-input cost. |
+| `ConvexHullCylinderContact.TryGetContact(...)` | 88 | 100% line / 100% branch (Release / ReleaseLean) | One borrowed reducer ranks hull-supported analytic and rim-root candidates in a shared cylinder/core chart, discards uncertified seeds before complete selection, then searches finite support triangles for the matched witness. Keeping selection and materialization together preserves exact scales, deterministic ties and allocation-free scratch without a second feature solver. | A cohesive feature representation removes substantial repeated traversal or state while preserving complete support fans, finite witnesses and ordinary-input cost. |
+| `CylinderHullSupport.HasExtrudedBallMinimumCertificate(...)` | 32 | 100% line / 100% branch (Release / ReleaseLean) | Original hull faces and supported edge/core crosses enumerate every hull-plus-segment facet. Their exact support constants and the cylinder ball bound all exits without rounded distances; zero constants check both support orientations. | A cheaper complete certificate preserves boundary centers, topology validation, exact core scales and the full fallback. |
 | `CylinderHullSupport.HasBallMinimumCertificate(...)` | 20 | 100% line / 100% branch (Release / ReleaseLean) | Every true hull face verifies an outward support plane with a nonnegative constant. Its exact plane distance plus the cylinder's inscribed-ball radius bounds all exits; attaining that bound permits an early return without rounded roots or incomplete face-only correction. | A cheaper exact global lower bound preserves boundary centers, support orientation, odd raw half-heights and complete fallback. |
 | `WideOrientedBox.ContainsConvexHullPoint(ScaledRigidFrame3d,...)` | 14 | 100% line / 100% branch (Release / ReleaseLean) | Exact authored-frame half-spaces retain consistent closed-shell winding and explicit strict or inclusive boundary admission. A point on a supporting plane extension still has to pass every other hull plane. | A common exact point admission owner preserves independently scaled frames and both boundary policies with less state. |
 | `WideOrientedBox.IsCylinderCenterStrictlyInsideHull(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | The rigid half-space traversal retains rational local coordinates and explicit strict or inclusive zero handling. It shares center admission with strict overlap and the contained-center contact path without materializing transformed vertices. | Point/frame representation or hull admission changes permit a simpler exact traversal without changing boundary behavior. |
 | `TriangleCylinderWitnesses.GetFaceWeights(...)` | 24 | 100% line / 100% branch (Release) | Exact Voronoi regions retain barycentric weights for independently rounded triangle/cylinder anchors. | A shared projection owner preserves full-width weights and first-feature boundary ownership. |
-| `TriangleCapsuleSlabWitnesses.GetSideWeights(...)` | 18 | 100% line / 100% branch (Release) | Admitted vertices and finite rectangle boundaries recover a paired witness on the selected straight-side feature. | The same exact clipping contract gains another consumer. |
-| `TriangleCapsuleSlabWitnesses.GetCapWeights(...)` | 12 | 100% line / 100% branch (Release) | Core intersections, triangle vertices and nearest endpoint features exhaust the cap's planar closest-feature cases. | Another owner can share this finite feature reduction without rounding admission. |
+| `TriangleCapsuleSlabWitnesses.TryGetSideWeights(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | Admitted vertices and finite rectangle boundaries recover a paired witness on the selected straight-side feature. | The same exact clipping contract gains another consumer. |
+| `TriangleCapsuleSlabWitnesses.TryGetCapWeights(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Core intersections, triangle vertices and nearest endpoint features exhaust the cap's planar closest-feature cases. | Another owner can share this finite feature reduction without rounding admission. |
 | `TriangleQuadraticSlice.TryGetWeights(...)` | 26 | 100% line / 100% branch (Release / ReleaseLean) | Shared slab/cone support-plane crossings and finite interval clipping retain rational or quadratic weights, including closed boundaries. | A simpler bounded slice preserves feature ordering with lower measured cost. |
-| `TriangleCapsuleSlabWitnesses.GetMaterials(...)` | 28 | 100% line / 100% branch (Release) | Paired triangle/core/radial expressions stay exact until combined-coordinate rounding; integral radial coordinates alone retain exact endpoint residuals. | Anchor storage gains a simpler representation of the same exact feature identity. |
+| `TriangleCapsuleSlabWitnesses.GetMaterials(...)` | 28 | 100% line / 100% branch (Release / ReleaseLean) | Paired triangle/core/radial expressions stay exact until combined-coordinate rounding; integral radial coordinates alone retain exact endpoint residuals. | Anchor storage gains a simpler representation of the same exact feature identity. |
 | `ContactQuadratic.CompareRatios(...)` | 12 | 100% line / 100% branch (Release / ReleaseLean) | Rational fractions first compare their signed numerator/denominator signs, then two complete magnitude cross products; zero-sign radical banks have no contribution even when their storage is stale. General fractions retain all four cross coefficients and exact signs across potentially different quadratic roots. Active operand lengths bound complete products and preserve borrowed inputs without rounding either fraction. | Denominator validity, signed-fraction ordering, quadratic-field representation or complete-product bounds change. |
 | `ContactQuadratic.RoundRatio(...)` | 16 | 100% line / 100% branch (Release / ReleaseLean) | Shared slab/cone nearest-even conversion handles signed quadratic coordinates and total-coordinate parity without rounded intermediate admission. Certified root enclosures narrow its integer search, while exact integer and half-raw signs decide every output; active coefficients determine transient width. | Another ratio owner can consume this representation with the same proven width and rounding contract. |
 | `ContactQuadratic.RefineRoundRatioBounds(...)` | 18 | 100% line / 100% branch (Release / ReleaseLean) | Signed quadratic root enclosures and a strictly positive denominator interval bound the raw quotient. Nearest-even endpoint ratios give conservative floor limits clipped to the caller's domain; nonnegative squared-depth intervals reuse exact ratio square-root bounds. Denominator cancellation or endpoint overflow retains the complete exact search. | The rounding policy, denominator sign contract or root enclosure width changes. |
@@ -639,7 +644,7 @@ translated-coordinate width proof.
 
 Closed-hull/cylinder selection uses one common reduced cylinder chart for every
 triangle. Before reduction, rigid coordinates remain below 197 bits and admitted
-affine coordinates below 306 bits; there is no planar core multiplier. The
+affine coordinates below 306 bits in the zero-core path. The
 hull-wide squared-value shift and raw scale remain identical across analytic,
 root-versus-analytic and root-versus-root comparisons. A per-triangle gcd cannot
 be substituted without also converting those comparison scales.
@@ -658,6 +663,25 @@ Whole-hull resource tests exercise uncertified rigid and affine rim-root paths
 on a 1 MiB worker stack with 64 KiB of live, dirty caller storage, including
 the hull owner's additional global candidate and retained-root banks. Different
 dirty patterns preserve exact output and caller contents.
+
+Positive-core hulls share the existing exact core multiplier and use one
+post-core value shift over all vertices and both endpoint offsets. Whole-hull
+support differences apply that same multiplier and endpoint translation.
+In the admitted affine seam, normals remain below 344 bits and tangents below
+380, blended quadratic weights below 2,515, and final materialization
+coefficients below 4,000. Eighty-word affine fields retain these complete
+products; rigid seam fields remain forty words. Shared quadratic slicing uses
+each input field's actual stride and the output field's workspace width. The
+temporary rational cap weights and normal inputs retain their forty-word
+layout. Rational cap admission squares remain below 3,440 bits, while quadratic
+sign evaluation reserves complete squared scratch independently.
+
+For the expanded-hull certificate, plane constants stay below 861 bits and
+squared/radical terms below 1,725, within forty-word fields. The centered ball
+of hull-plus-core combined with the cylinder's inscribed ball supplies a true
+global lower bound; face seeding is not a substitute for the complete solver.
+Whole-hull positive-core resource tests also retain a live dirty 64 KiB caller
+on a 1 MiB worker stack for rigid and affine uncertified endpoint/rim roots.
 
 Box/cylinder geometry uses the authored rational box frame, an independently
 primitive cylinder axis and one reduced coordinate scale. Coordinates remain

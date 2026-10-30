@@ -12,15 +12,28 @@ namespace FixedMathSharp.Geometry;
 /// <summary>Matched witnesses on the stadium prism's free-core support seam.</summary>
 internal static class TriangleCapsuleSlabWitnesses
 {
-    // The seam's retained edge normal is <230 bits, plane-distance
-    // coefficients <732, and the zero-coordinate blend <1740. Combined
-    // coordinate/rounding products stay below 2520 bits; rational cap
-    // projection weights <832 and their radius checks <2300 fit 40 words.
+    // Rigid seam products fit forty words (<2520 bits). Affine seam normals
+    // stay below 344 bits, blended weights below 2515, and materialization
+    // coefficients below 4000: eighty words retain complete products.
+    // Rational cap admission squares stay below 3440 bits; quadratic sign
+    // comparisons reserve their complete squared scratch separately.
     internal static void GetPoints(in TriangleCircularGeometry geometry, FixedTriangle triangle,
         int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns,
         WideDirection3d coreOffset, Vector2d authoredAxis, Fixed64 coreLength, ref Vector3d radialPoint,
         out Vector3d trianglePoint, out Vector3d coreAndAxialPoint, out FixedPointAnchorTerm3d exactTerm)
     {
+        bool admitted = TryGetPoints(geometry, triangle, mask, normal, normalSigns, coreOffset, authoredAxis, coreLength,
+            ref radialPoint, out trianglePoint, out coreAndAxialPoint, out exactTerm);
+        System.Diagnostics.Debug.Assert(admitted);
+    }
+
+    internal static bool TryGetPoints(in TriangleCircularGeometry geometry, FixedTriangle triangle,
+        int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns,
+        WideDirection3d coreOffset, Vector2d authoredAxis, Fixed64 coreLength, ref Vector3d radialPoint,
+        out Vector3d trianglePoint, out Vector3d coreAndAxialPoint, out FixedPointAnchorTerm3d exactTerm)
+    {
+        int Words = geometry.ParameterWords;
+        trianglePoint = coreAndAxialPoint = default; exactTerm = default;
         WideDirection3d axis = new(Signed576.ExtendValue(Signed192.Raw(authoredAxis.X)), default,
             Signed576.ExtendValue(Signed192.Raw(authoredAxis.Y)));
         Signed832 bound = WideDirection3d.Dot(coreOffset, axis);
@@ -38,30 +51,22 @@ internal static class TriangleCapsuleSlabWitnesses
         Signed832 metric = WideArithmetic.AddSigned832(WideArithmetic.MultiplySigned576(compact.X, compact.X),
             WideArithmetic.MultiplySigned576(compact.Z, compact.Z));
         Import(metric, root);
-        if (pole)
-            GetCapWeights(geometry, mask, axis, coreOffset, projections, bound, weights, weightSigns);
-        else if (cap == 0)
-            GetSideWeights(geometry, mask, projections, bound, weights, weightSigns);
-        else if ((mask & (mask - 1)) == 0)
-        {
-            // A positive oblique vertex gap cannot minimize a linear
-            // rectangle quadrant. At zero, earlier poles or incident AB
-            // own A/B ties; only AB's strict third-vertex support can win.
-            System.Diagnostics.Debug.Assert(mask == 4);
-            At(weights, weightSigns, 2).Set(Signed832.ExtendValue(Signed576.One));
-        }
-        else
-            GetObliqueWeights(geometry, mask, axis, compact, cap,
-                projections, bound, root, weights, weightSigns);
+        bool admitted = pole
+            ? TryGetCapWeights(geometry, mask, axis, coreOffset, projections, bound, weights, weightSigns)
+            : cap == 0 ? TryGetSideWeights(geometry, mask, projections, bound, weights, weightSigns)
+            : TryGetObliqueWeights(geometry, mask, axis, compact, cap, projections, bound, root, weights, weightSigns);
+        if (!admitted) return false;
 
         GetMaterials(geometry, triangle, axis, authoredAxis, coreLength, compact, metric, projections, bound,
             cap, pole, root, weights, weightSigns, ref radialPoint, out trianglePoint, out coreAndAxialPoint, out exactTerm);
+        return true;
     }
 
-    private static void GetSideWeights(in TriangleCircularGeometry geometry, int mask,
+    private static bool TryGetSideWeights(in TriangleCircularGeometry geometry, int mask,
         ReadOnlySpan<Signed832> projections, Signed832 coreBound,
         Span<ulong> weights, Span<int> weightSigns)
     {
+        int Words = geometry.ParameterWords;
         Span<Signed832> axial = stackalloc Signed832[3];
         Signed832 half = Signed832.ExtendValue(geometry.HalfHeight);
         for (int vertex = 0; vertex < 3; vertex++)
@@ -70,8 +75,8 @@ internal static class TriangleCapsuleSlabWitnesses
             if ((mask & (1 << vertex)) != 0 && InInterval(projections[vertex], coreBound)
                 && InInterval(axial[vertex], half))
             {
-                At(weights, weightSigns, vertex).Set(Signed832.ExtendValue(Signed576.One));
-                return;
+                At(weights, weightSigns, vertex, weights.Length / weightSigns.Length).Set(Signed832.ExtendValue(Signed576.One));
+                return true;
             }
         }
         // After excluding admitted vertices, test both axial boundaries.
@@ -84,28 +89,28 @@ internal static class TriangleCapsuleSlabWitnesses
         for (int side = -1; side <= 1; side += 2)
         {
             for (int vertex = 0; vertex < 3; vertex++)
-                At(distances, signs, vertex).Set(WideArithmetic.SubtractSigned832(axial[vertex], side > 0 ? half : Negate(half)));
+                At(distances, signs, vertex, distances.Length / signs.Length).Set(WideArithmetic.SubtractSigned832(axial[vertex], side > 0 ? half : Negate(half)));
             if (TrySlice(mask, distances, signs, projections, coreBound, root, weights, weightSigns))
-                return;
+                return true;
         }
         for (int vertex = 0; vertex < 3; vertex++)
-            At(distances, signs, vertex).Set(WideArithmetic.AddSigned832(projections[vertex], coreBound));
-        bool found = TrySlice(mask, distances, signs, axial, half, root, weights, weightSigns);
-        System.Diagnostics.Debug.Assert(found);
+            At(distances, signs, vertex, distances.Length / signs.Length).Set(WideArithmetic.AddSigned832(projections[vertex], coreBound));
+        return TrySlice(mask, distances, signs, axial, half, root, weights, weightSigns);
     }
 
-    private static void GetCapWeights(in TriangleCircularGeometry geometry, int mask, WideDirection3d axis,
+    private static bool TryGetCapWeights(in TriangleCircularGeometry geometry, int mask, WideDirection3d axis,
         WideDirection3d coreOffset, ReadOnlySpan<Signed832> projections, Signed832 bound,
         Span<ulong> weights, Span<int> weightSigns)
     {
+        int Words = geometry.ParameterWords;
         Span<ulong> distances = stackalloc ulong[6 * Words];
         Span<int> signs = stackalloc int[6];
         Span<ulong> root = stackalloc ulong[Words]; root.Clear();
         WideDirection3d transverse = new(WideArithmetic.Negate(axis.Z), default, axis.X);
         for (int vertex = 0; vertex < 3; vertex++)
-            At(distances, signs, vertex).Set(WideDirection3d.Dot(geometry.Vertex(vertex), transverse));
+            At(distances, signs, vertex, distances.Length / signs.Length).Set(WideDirection3d.Dot(geometry.Vertex(vertex), transverse));
         if (TrySlice(mask, distances, signs, projections, bound, root, weights, weightSigns))
-            return;
+            return true;
 
         // With no core/feature intersection, the closest planar pair has a
         // triangle vertex or a core endpoint. These are witness constructions,
@@ -115,38 +120,40 @@ internal static class TriangleCapsuleSlabWitnesses
             if ((mask & (1 << vertex)) == 0)
                 continue;
             weights.Clear(); weightSigns.Clear();
-            At(weights, weightSigns, vertex).Set(Signed832.ExtendValue(Signed576.One));
+            At(weights, weightSigns, vertex, weights.Length / weightSigns.Length).Set(Signed832.ExtendValue(Signed576.One));
             if (WithinRadius(geometry, axis, projections, bound, weights, weightSigns))
-                return;
+                return true;
         }
         GetEndpointCapWeights(geometry, mask, coreOffset, -1, weights, weightSigns);
         if (WithinRadius(geometry, axis, projections, bound, weights, weightSigns))
-            return;
+            return true;
         // The preceding exhaustive closest-feature cases have failed; the
         // other core endpoint must supply the admitted cap witness.
         GetEndpointCapWeights(geometry, mask, coreOffset, 1, weights, weightSigns);
-        System.Diagnostics.Debug.Assert(WithinRadius(geometry, axis, projections, bound, weights, weightSigns));
+        return WithinRadius(geometry, axis, projections, bound, weights, weightSigns);
     }
 
     private static void GetEndpointCapWeights(in TriangleCircularGeometry geometry, int mask, WideDirection3d coreOffset,
         int side, Span<ulong> weights, Span<int> weightSigns)
     {
-        Span<ulong> rationalWeights = stackalloc ulong[3 * Words];
+        int Words = geometry.ParameterWords;
+        Span<ulong> rationalWeights = stackalloc ulong[3 * CylinderContactAlgebra.Words];
         TriangleCircularGeometry endpoint = geometry.AtCoreRegion(coreOffset, side);
         TriangleCylinderWitnesses.GetCapWeights(endpoint, mask, rationalWeights);
         weights.Clear(); weightSigns.Clear();
         for (int vertex = 0; vertex < 3; vertex++)
         {
-            Slot(rationalWeights, vertex).CopyTo(At(weights, weightSigns, vertex).Rational);
-            At(weights, weightSigns, vertex).Signs[0] = IsZero(Slot(rationalWeights, vertex)) ? 0 : 1;
+            Slot(rationalWeights, vertex).CopyTo(At(weights, weightSigns, vertex, weights.Length / weightSigns.Length).Rational);
+            At(weights, weightSigns, vertex, weights.Length / weightSigns.Length).Signs[0] = IsZero(Slot(rationalWeights, vertex)) ? 0 : 1;
         }
     }
 
-    private static void GetObliqueWeights(in TriangleCircularGeometry geometry, int mask, WideDirection3d axis,
+    private static bool TryGetObliqueWeights(in TriangleCircularGeometry geometry, int mask, WideDirection3d axis,
         WideDirection3d compact, int cap,
         ReadOnlySpan<Signed832> projections, Signed832 bound, ReadOnlySpan<ulong> root,
         Span<ulong> weights, Span<int> weightSigns)
     {
+        int Words = geometry.ParameterWords;
         // Seam ownership supplies Up, its planar perpendicular, or one
         // retained edge crossed with the raw authored axis (<230 bits).
         WideDirection3d tangent = WideDirection3d.Cross(axis, compact);
@@ -155,48 +162,49 @@ internal static class TriangleCapsuleSlabWitnesses
         Span<int> signs = stackalloc int[6];
         Span<ulong> scratch = stackalloc ulong[4 * Words];
         Span<int> scratchSigns = stackalloc int[4];
-        ContactQuadratic radical = At(scratch, scratchSigns, 0), factor = At(scratch, scratchSigns, 1);
+        ContactQuadratic radical = At(scratch, scratchSigns, 0, scratch.Length / scratchSigns.Length), factor = At(scratch, scratchSigns, 1, scratch.Length / scratchSigns.Length);
         // sqrt(K)*tangent·(v-p) =
         // (tangent·v + cap*H*tangent.Y)*sqrt(K) - R*n.Y*tangent.Y.
         radical.Set(WideArithmetic.MultiplySigned576(compact.Y, tangent.Y));
         Scale(radical, Signed832.ExtendValue(geometry.Radius), factor);
         for (int vertex = 0; vertex < 3; vertex++)
         {
-            ContactQuadratic distance = At(distances, signs, vertex);
+            ContactQuadratic distance = At(distances, signs, vertex, distances.Length / signs.Length);
             factor.CopyTo(distance, -1);
             Signed832 axial = WideArithmetic.MultiplySigned576(geometry.HalfHeight, tangent.Y);
             Signed832 value = WideArithmetic.AddSigned832(WideDirection3d.Dot(geometry.Vertex(vertex), tangent),
                 cap > 0 ? axial : Negate(axial));
             Import(value, distance.Radical); distance.Signs[1] = value.Sign;
         }
-        bool found = TrySlice(mask, distances, signs, projections, bound, root, weights, weightSigns);
-        System.Diagnostics.Debug.Assert(found);
+        return TrySlice(mask, distances, signs, projections, bound, root, weights, weightSigns);
     }
 
     private static bool TrySlice(int mask, Span<ulong> distances, Span<int> distanceSigns,
         ReadOnlySpan<Signed832> projections, Signed832 bound, ReadOnlySpan<ulong> root,
         Span<ulong> weights, Span<int> weightSigns)
     {
+        int Words = weights.Length / weightSigns.Length;
         Span<ulong> values = stackalloc ulong[8 * Words];
         Span<int> signs = stackalloc int[8];
         for (int vertex = 0; vertex < 3; vertex++)
-            At(values, signs, vertex).Set(projections[vertex]);
-        At(values, signs, 3).Set(bound);
+            At(values, signs, vertex, values.Length / signs.Length).Set(projections[vertex]);
+        At(values, signs, 3, values.Length / signs.Length).Set(bound);
         return TriangleQuadraticSlice.TryGetWeights(mask, distances, distanceSigns,
-            values[..(6 * Words)], signs[..6], At(values, signs, 3), root,
+            values[..(6 * Words)], signs[..6], At(values, signs, 3, values.Length / signs.Length), root,
             weights, weightSigns, out _);
     }
 
     private static bool WithinRadius(in TriangleCircularGeometry geometry, WideDirection3d axis,
         ReadOnlySpan<Signed832> projections, Signed832 bound, Span<ulong> weights, Span<int> signs)
     {
+        int Words = geometry.ParameterWords;
         Span<ulong> values = stackalloc ulong[16 * Words];
         Span<int> valueSigns = stackalloc int[16];
         Span<ulong> root = stackalloc ulong[Words]; root.Clear();
-        ContactQuadratic denominator = At(values, valueSigns, 0), projection = At(values, valueSigns, 1);
-        ContactQuadratic coordinate = At(values, valueSigns, 2), scaled = At(values, valueSigns, 3);
-        ContactQuadratic difference = At(values, valueSigns, 4), squared = At(values, valueSigns, 5);
-        ContactQuadratic sum = At(values, valueSigns, 6), limit = At(values, valueSigns, 7);
+        ContactQuadratic denominator = At(values, valueSigns, 0, values.Length / valueSigns.Length), projection = At(values, valueSigns, 1, values.Length / valueSigns.Length);
+        ContactQuadratic coordinate = At(values, valueSigns, 2, values.Length / valueSigns.Length), scaled = At(values, valueSigns, 3, values.Length / valueSigns.Length);
+        ContactQuadratic difference = At(values, valueSigns, 4, values.Length / valueSigns.Length), squared = At(values, valueSigns, 5, values.Length / valueSigns.Length);
+        ContactQuadratic sum = At(values, valueSigns, 6, values.Length / valueSigns.Length), limit = At(values, valueSigns, 7, values.Length / valueSigns.Length);
         SumWeights(weights, signs, denominator);
         Sum(projections, weights, signs, projection);
         ClampProjection(denominator, projection, bound, root);
@@ -225,12 +233,13 @@ internal static class TriangleCapsuleSlabWitnesses
         ref Vector3d radialPoint, out Vector3d trianglePoint, out Vector3d coreAndAxialPoint,
         out FixedPointAnchorTerm3d exactTerm)
     {
+        int Words = geometry.ParameterWords;
         Span<ulong> values = stackalloc ulong[16 * Words];
         Span<int> valueSigns = stackalloc int[16];
-        ContactQuadratic denominator = At(values, valueSigns, 0), projection = At(values, valueSigns, 1);
-        ContactQuadratic coordinate = At(values, valueSigns, 2), coreNumerator = At(values, valueSigns, 3);
-        ContactQuadratic coreDenominator = At(values, valueSigns, 4), product = At(values, valueSigns, 5);
-        ContactQuadratic combinedNumerator = At(values, valueSigns, 6), combinedDenominator = At(values, valueSigns, 7);
+        ContactQuadratic denominator = At(values, valueSigns, 0, values.Length / valueSigns.Length), projection = At(values, valueSigns, 1, values.Length / valueSigns.Length);
+        ContactQuadratic coordinate = At(values, valueSigns, 2, values.Length / valueSigns.Length), coreNumerator = At(values, valueSigns, 3, values.Length / valueSigns.Length);
+        ContactQuadratic coreDenominator = At(values, valueSigns, 4, values.Length / valueSigns.Length), product = At(values, valueSigns, 5, values.Length / valueSigns.Length);
+        ContactQuadratic combinedNumerator = At(values, valueSigns, 6, values.Length / valueSigns.Length), combinedDenominator = At(values, valueSigns, 7, values.Length / valueSigns.Length);
         SumWeights(weights, signs, denominator);
         Sum(projections, weights, signs, projection);
         if (pole)
@@ -323,10 +332,11 @@ internal static class TriangleCapsuleSlabWitnesses
 
     private static Fixed64 GetCorePresentation(ContactQuadratic numerator, ContactQuadratic denominator, int radialSign, ReadOnlySpan<ulong> root)
     {
+        int Words = denominator.FieldWords;
         Fixed64 rounded = RoundRatio(numerator, denominator, root);
         Span<ulong> values = stackalloc ulong[2 * Words];
         Span<int> signs = stackalloc int[2];
-        ContactQuadratic difference = At(values, signs, 0);
+        ContactQuadratic difference = At(values, signs, 0, values.Length / signs.Length);
         Scale(denominator, Signed832.ExtendValue(Signed576.ExtendValue(Signed192.Raw(rounded))), difference);
         difference.MultiplySign(-1); difference.Add(numerator);
         int comparison = difference.Sign(root);
@@ -339,9 +349,10 @@ internal static class TriangleCapsuleSlabWitnesses
 
     private static void ClampProjection(ContactQuadratic denominator, ContactQuadratic projection, Signed832 bound, ReadOnlySpan<ulong> root)
     {
+        int Words = denominator.FieldWords;
         Span<ulong> values = stackalloc ulong[4 * Words];
         Span<int> signs = stackalloc int[4];
-        ContactQuadratic limit = At(values, signs, 0), difference = At(values, signs, 1);
+        ContactQuadratic limit = At(values, signs, 0, values.Length / signs.Length), difference = At(values, signs, 1, values.Length / signs.Length);
         Scale(denominator, bound, limit);
         projection.CopyTo(difference); difference.Add(limit, -1);
         if (difference.Sign(root) > 0)

@@ -70,6 +70,78 @@ internal readonly ref struct CylinderHullSupport
         return true;
     }
 
+    internal bool Supports(in TriangleCircularGeometry geometry, in WideDirection3d point,
+        ReadOnlySpan<ulong> direction, ReadOnlySpan<int> signs)
+    {
+        Span<ulong> projection = stackalloc ulong[Words];
+        for (int i = 0; i < Count; i++)
+        {
+            Dot(TriangleCircularGeometry.Subtract(point, geometry.TransformHullVertex(Vertex(i))),
+                direction, signs, projection, out int sign);
+            if (sign < 0) return false;
+        }
+        return true;
+    }
+
+    internal int GetCoreValueShift(in TriangleCircularGeometry chart, in WideDirection3d coreOffset)
+    {
+        Span<Signed576> bounds = stackalloc Signed576[4] { chart.HalfHeight, chart.Radius, coreOffset.X, coreOffset.Z };
+        int shift = TriangleCircularGeometry.GetValueShift(bounds, 5);
+        for (int i = 0; i < Count; i++)
+        {
+            WideDirection3d point = chart.TransformHullVertex(Vertex(i));
+            bounds[0] = point.X; bounds[1] = point.Y; bounds[2] = point.Z;
+            shift = Math.Max(shift, TriangleCircularGeometry.GetValueShift(bounds, 5));
+        }
+        return shift;
+    }
+
+    internal bool HasExtrudedBallMinimumCertificate(in ScaledRigidFrame3d source, ReadOnlySpan<int> triangles,
+        in TriangleCircularGeometry chart, in WideDirection3d coreOffset, in WideDirection3d coreAxis, ConvexContactCandidate best)
+    {
+        // Hull+core has only original-face and edge-cross-core facets. Its
+        // centered ball plus the cylinder's ball bounds every slab exit below.
+        Signed576 ball = WideArithmetic.SubtractSigned576(chart.Radius, chart.HalfHeight).Sign <= 0 ? chart.Radius : chart.HalfHeight;
+        Span<ulong> direction = stackalloc ulong[3 * Words], values = stackalloc ulong[ConvexContactCandidate.Slots * Words];
+        Span<int> directionSigns = stackalloc int[3], signs = stackalloc int[ConvexContactCandidate.Slots];
+        Span<ulong> work = stackalloc ulong[7 * Words];
+        values.Clear(); signs.Clear();
+        for (int index = 0; index < triangles.Length; index += 3)
+        {
+            int a = triangles[index], b = triangles[index + 1], c = triangles[index + 2];
+            var geometry = new TriangleCircularGeometry(new FixedTriangle(points[a], points[b], points[c]), source, this, a, b, c)
+                .WithCoreChart(chart);
+            for (int feature = 0; feature < 4; feature++)
+            {
+                WideDirection3d normal = feature == 0 ? geometry.FaceNormal : WideDirection3d.Cross(geometry.Edge(feature - 1), coreAxis);
+                if (normal.IsZero) { if (feature == 0) return false; continue; }
+                WideDirection3d point = geometry.Vertex(feature == 0 ? 0 : feature - 1);
+                WriteDirection(normal, direction, directionSigns);
+                Dot(point, direction, directionSigns, Slot(work, 0), out int planeSign);
+                if (planeSign < 0)
+                    for (int component = 0; component < 3; component++) directionSigns[component] = -directionSigns[component];
+                if (!Supports(geometry, point, direction, directionSigns))
+                {
+                    if (planeSign != 0) { if (feature == 0) return false; continue; }
+                    for (int component = 0; component < 3; component++) directionSigns[component] = -directionSigns[component];
+                    if (!Supports(geometry, point, direction, directionSigns)) { if (feature == 0) return false; continue; }
+                }
+                Dot(coreOffset, direction, directionSigns, Slot(work, 6), out _);
+                WideArithmetic.AddMagnitudeInto(Slot(work, 6), Slot(work, 0));
+                SumSquares(direction, Slot(work, 1));
+                Import(ball, Slot(work, 2));
+                WideArithmetic.MultiplyMagnitudes(Slot(work, 2), Slot(work, 2), Slot(work, 3));
+                WideArithmetic.MultiplyMagnitudes(Slot(work, 1), Slot(work, 3), Slot(work, 4));
+                Import(Signed576.ExtendValue(chart.RawScale), Slot(work, 2));
+                WideArithmetic.MultiplyMagnitudes(Slot(work, 2), Slot(work, 2), Slot(work, 3));
+                WideArithmetic.MultiplyMagnitudes(Slot(work, 1), Slot(work, 3), Slot(work, 5));
+                int gap = BuildRadialCandidate(Slot(work, 0), IsZero(Slot(work, 0)) ? 0 : 1, Slot(work, 4), Slot(work, 5), values, signs);
+                if (WideConvexPrismRelations.CompareConvexContactCandidates(new ConvexContactCandidate(values, signs, gap), best) < 0) return false;
+            }
+        }
+        return true;
+    }
+
     internal bool HasBallMinimumCertificate(in ScaledRigidFrame3d source, ReadOnlySpan<int> triangles,
         ConvexContactCandidate best)
     {

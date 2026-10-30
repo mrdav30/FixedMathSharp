@@ -111,7 +111,8 @@ internal readonly struct TriangleCircularGeometry
         ValueShift = GetValueShift(coordinates[1..], 4);
     }
 
-    private TriangleCircularGeometry(in TriangleCircularGeometry source, Signed192 multiplier, in WideDirection3d coreOffset)
+    private TriangleCircularGeometry(in TriangleCircularGeometry source, Signed192 multiplier, in WideDirection3d coreOffset,
+        int valueShift = 0)
     {
         materialOffset = Multiply(source.materialOffset, multiplier);
         IsAffine = source.IsAffine;
@@ -132,7 +133,34 @@ internal readonly struct TriangleCircularGeometry
         // small centered triangle even when its common denominator is small.
         // Two additions cover endpoint/cap translation; the extra margin
         // bounds the squared support residual in both regions by 2^ValueShift.
-        ValueShift = GetValueShift(bounds, 5);
+        ValueShift = Math.Max(valueShift, GetValueShift(bounds, 5));
+    }
+
+    internal TriangleCircularGeometry WithCoreChart(in TriangleCircularGeometry chart) =>
+        new(this, chart.EdgeScale, default, chart.ValueShift);
+
+    internal TriangleCircularGeometry WithValueShift(int valueShift)
+    {
+        return new TriangleCircularGeometry(this, Signed192.Signed(1), default, valueShift);
+    }
+
+    internal WideDirection3d TransformHullVertex(in WideDirection3d vertex)
+    {
+        WideDirection3d point = EdgeScale.Equals(Signed192.Signed(1)) ? vertex : Multiply(vertex, EdgeScale);
+        return materialOffset.IsZero ? point : Add(point, materialOffset);
+    }
+
+    internal int GetSupportMask(ReadOnlySpan<ulong> direction, ReadOnlySpan<int> signs)
+    {
+        Span<ulong> projection = stackalloc ulong[Words];
+        int best = 0, mask = 1;
+        for (int i = 1; i < 3; i++)
+        {
+            Dot(Subtract(Vertex(i), Vertex(best)), direction, signs, projection, out int sign);
+            if (sign > 0) { best = i; mask = 1 << i; }
+            else if (sign == 0) mask |= 1 << i;
+        }
+        return mask;
     }
 
     private TriangleCircularGeometry(in TriangleCircularGeometry source, in WideDirection3d offset)

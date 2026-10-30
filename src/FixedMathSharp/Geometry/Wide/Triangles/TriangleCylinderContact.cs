@@ -164,7 +164,7 @@ internal static class TriangleCylinderContact
         return true;
     }
 
-    private static FixedPointAnchor AddCoreEndpoint(FixedPointAnchor anchor, Vector3d core,
+    internal static FixedPointAnchor AddCoreEndpoint(FixedPointAnchor anchor, Vector3d core,
         Vector2d axis, Fixed64 length, int coreSign, int integralRadialMask)
     {
         FixedPointAnchorTerm3d term = TriangleCapsuleSlabEndpointWitnesses.CreateTerm(axis,

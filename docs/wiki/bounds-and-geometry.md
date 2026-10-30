@@ -277,6 +277,12 @@ first supplies a supporting direction need not contain its matched witness.
 An exact inscribed-ball bound can certify a minimum before the remaining
 features are enumerated. Its contained-center entry includes hull boundaries;
 declining center admission does not imply separation for an exterior center.
+The same internal reducer admits finite stadium slabs through a shared planar
+core chart, retaining endpoint regions and straight-section seam witnesses.
+An expanded-hull ball certificate includes every original face and supported
+edge/core extrusion facet; an uncertified seed is discarded before the complete
+feature search. Affine seam products retain wider fields without widening the
+native rigid path or rounding a conceptual core endpoint.
 
 `FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact` includes the finite
 cylinder's caps, side, and rims when finding the minimum translation. It also

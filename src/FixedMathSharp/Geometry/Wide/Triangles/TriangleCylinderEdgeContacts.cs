@@ -184,7 +184,7 @@ internal static class TriangleCylinderEdgeContacts
             // this boundary cannot improve that earlier canonical feature.
             if (Sign(ref root, data, signs, 26, 2) <= 0)
                 continue;
-            if (!hull.IsEmpty && !SupportsHull(hull, geometry.Vertex(edge), first, second, ref root))
+            if (!hull.IsEmpty && !SupportsHull(hull, geometry, geometry.Vertex(edge), first, second, ref root))
                 continue;
             // Boundary roots belong to the explicit seam fan. Reject the
             // opposite endpoint's hemisphere before sign rejection or ranking.
@@ -202,8 +202,14 @@ internal static class TriangleCylinderEdgeContacts
                 continue;
             var candidate = new Selection
             {
-                HasValue = true, First = first, Second = second, Edge = edge,
-                Cap = cap, CoreSign = region, ParameterOrdinal = ordinal, Triangle = triangleIndex
+                HasValue = true,
+                First = first,
+                Second = second,
+                Edge = edge,
+                Cap = cap,
+                CoreSign = region,
+                ParameterOrdinal = ordinal,
+                Triangle = triangleIndex
             };
             if (gapSign == 0)
             {
@@ -296,18 +302,22 @@ internal static class TriangleCylinderEdgeContacts
 
     internal static FiniteAxisValueRoot Restore(ReadOnlySpan<ulong> values, ReadOnlySpan<sbyte> signs,
         Span<ulong> cell, in Selection selection) => new()
-    {
-        Coefficients = values, Signs = signs, LowerNumerator = cell,
-        DenominatorShift = selection.ValueShift, Ordinal = selection.ValueOrdinal, IsRational = selection.IsRational
-    };
+        {
+            Coefficients = values,
+            Signs = signs,
+            LowerNumerator = cell,
+            DenominatorShift = selection.ValueShift,
+            Ordinal = selection.ValueOrdinal,
+            IsRational = selection.IsRational
+        };
 
-    private static bool SupportsHull(in CylinderHullSupport hull, in WideDirection3d point,
+    private static bool SupportsHull(in CylinderHullSupport hull, in TriangleCircularGeometry geometry, in WideDirection3d point,
         in WideDirection3d first, in WideDirection3d second, ref FiniteAxisValueRoot root)
     {
         Span<ulong> query = stackalloc ulong[26]; Span<sbyte> signs = stackalloc sbyte[2];
         for (int i = 0; i < hull.Count; i++)
         {
-            WideDirection3d difference = TriangleCircularGeometry.Subtract(point, hull.Vertex(i));
+            WideDirection3d difference = TriangleCircularGeometry.Subtract(point, geometry.TransformHullVertex(hull.Vertex(i)));
             Signed832 a = WideDirection3d.Dot(difference, first), b = WideDirection3d.Dot(difference, second);
             WideArithmetic.GetMagnitude(a, query[..13]); signs[0] = (sbyte)a.Sign;
             WideArithmetic.GetMagnitude(b, query[13..]); signs[1] = (sbyte)b.Sign;
