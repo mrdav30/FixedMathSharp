@@ -15,9 +15,35 @@ internal static class TriangleCylinderRimWitnesses
     internal static Vector3d GetAnalyticPoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
         int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns, int cap, Signed576 radialRadius)
     {
+        bool admitted = TryGetAnalyticPoint(geometry, triangle, mask, normal, normalSigns, cap, radialRadius,
+            out Vector3d point, false);
+        System.Diagnostics.Debug.Assert(admitted);
+        return point;
+    }
+
+    internal static bool TryGetAnalyticPoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
+        int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns, int cap, Signed576 radialRadius,
+        out Vector3d point, bool requireAdmission = true)
+    {
+        point = default;
         int first = (mask & 1) != 0 ? 0 : 1;
         if ((mask & (mask - 1)) == 0)
-            return geometry.WitnessVertex(triangle, (mask & 4) != 0 ? 2 : first);
+        {
+            int vertex = (mask & 4) != 0 ? 2 : first;
+            if (requireAdmission)
+            {
+                Span<ulong> vertexWeights = stackalloc ulong[6 * Words]; Span<int> vertexSigns = stackalloc int[4];
+                vertexWeights.Clear(); vertexSigns.Clear(); vertexWeights[0] = 1;
+                WideArithmetic.MultiplyMagnitudes(Slot(normal, 0), Slot(normal, 0), Slot(vertexWeights, 5));
+                WideArithmetic.MultiplyMagnitudes(Slot(normal, 2), Slot(normal, 2), Slot(vertexWeights, 1));
+                WideArithmetic.AddMagnitudeInto(Slot(vertexWeights, 1), Slot(vertexWeights, 5));
+                Slot(vertexWeights, 1).Clear();
+                if (!HasMatchingPoint(geometry, vertex, default, default, vertexWeights, vertexSigns,
+                        normal, normalSigns, cap, radialRadius)) return false;
+            }
+            point = geometry.WitnessVertex(triangle, vertex);
+            return true;
+        }
         bool face = mask == 7;
         int second = face ? 1 : (mask & 4) != 0 ? 2 : 1;
         WideDirection3d e = geometry.EdgeFromTo(first, second);
@@ -61,17 +87,83 @@ internal static class TriangleCylinderRimWitnesses
             CylinderContactAlgebra.Import(a, Slot(weights, 1)); signs[0] = a.Sign;
             edgeRadical.CopyTo(Slot(weights, 2)); signs[1] = edgeSign;
         }
+        if (requireAdmission && !HasMatchingPoint(geometry, first, e, f, weights, signs,
+                normal, normalSigns, cap, radialRadius)) return false;
         Vector3d va = Vertex(triangle, first), vb = Vertex(triangle, second), vc = face ? triangle.C : va;
         // Exact feature admission proves this affine projection is on the
         // selected edge/face. No clamp of an already-rounded foot is needed.
         if (geometry.IsAffine)
-            return new Vector3d(
+            point = new Vector3d(
                 RoundAnalyticCoordinate(geometry.WitnessCoordinate(triangle, first, 0), geometry.WitnessCoordinate(triangle, second, 0), geometry.WitnessCoordinate(triangle, face ? 2 : first, 0), geometry.RawScale, weights, signs),
                 RoundAnalyticCoordinate(geometry.WitnessCoordinate(triangle, first, 1), geometry.WitnessCoordinate(triangle, second, 1), geometry.WitnessCoordinate(triangle, face ? 2 : first, 1), geometry.RawScale, weights, signs),
                 RoundAnalyticCoordinate(geometry.WitnessCoordinate(triangle, first, 2), geometry.WitnessCoordinate(triangle, second, 2), geometry.WitnessCoordinate(triangle, face ? 2 : first, 2), geometry.RawScale, weights, signs));
-        return new Vector3d(RoundAnalyticCoordinate(va.X, vb.X, vc.X, weights, signs),
+        else point = new Vector3d(RoundAnalyticCoordinate(va.X, vb.X, vc.X, weights, signs),
             RoundAnalyticCoordinate(va.Y, vb.Y, vc.Y, weights, signs),
             RoundAnalyticCoordinate(va.Z, vb.Z, vc.Z, weights, signs));
+        return true;
+    }
+
+    private static bool HasMatchingPoint(in TriangleCircularGeometry geometry, int first,
+        in WideDirection3d edge, in WideDirection3d faceEdge, ReadOnlySpan<ulong> weights, ReadOnlySpan<int> signs,
+        ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns, int cap, Signed576 radius)
+    {
+        int words = geometry.IsAffine ? 80 : Words;
+        Span<ulong> values = stackalloc ulong[16 * words]; Span<int> valueSigns = stackalloc int[16];
+        ContactQuadratic beta = ContactQuadratic.At(values, valueSigns, 0, words),
+            gamma = ContactQuadratic.At(values, valueSigns, 1, words), denominator = ContactQuadratic.At(values, valueSigns, 2, words),
+            alpha = ContactQuadratic.At(values, valueSigns, 3, words), term = ContactQuadratic.At(values, valueSigns, 4, words),
+            query = ContactQuadratic.At(values, valueSigns, 5, words), product = ContactQuadratic.At(values, valueSigns, 6, words),
+            difference = ContactQuadratic.At(values, valueSigns, 7, words);
+        values.Clear(); valueSigns.Clear();
+        Slot(weights, 2).CopyTo(beta.Rational); Slot(weights, 1).CopyTo(beta.Radical);
+        beta.Signs[0] = signs[1]; beta.Signs[1] = signs[0];
+        Slot(weights, 4).CopyTo(gamma.Rational); Slot(weights, 3).CopyTo(gamma.Radical);
+        gamma.Signs[0] = signs[3]; gamma.Signs[1] = signs[2];
+        Slot(weights, 0).CopyTo(denominator.Radical); denominator.Signs[1] = 1;
+        ReadOnlySpan<ulong> root = Slot(weights, 5);
+        denominator.CopyTo(alpha); alpha.Add(beta, -1); alpha.Add(gamma, -1);
+        if (alpha.Sign(root) < 0 || beta.Sign(root) < 0 || gamma.Sign(root) < 0) return false;
+        Span<ulong> residualValues = stackalloc ulong[6 * words]; Span<int> residualSigns = stackalloc int[6];
+        for (int component = 0; component < 3; component++)
+        {
+            ContactQuadratic residual = ContactQuadratic.At(residualValues, residualSigns, component, words);
+            Signed576 offset = Component(geometry.Vertex(first), component);
+            if (component == 1) offset = WideArithmetic.AddSigned576(offset, cap > 0 ? geometry.HalfHeight : WideArithmetic.Negate(geometry.HalfHeight));
+            ContactQuadratic.Scale(denominator, offset, residual);
+            ContactQuadratic.Scale(beta, Component(edge, component), term); residual.Add(term);
+            ContactQuadratic.Scale(gamma, Component(faceEdge, component), term); residual.Add(term);
+            if (component != 1)
+            {
+                query.Clear(); Slot(weights, 0).CopyTo(query.Rational); query.Signs[0] = 1;
+                ContactQuadratic.Scale(query, radius, product);
+                ContactQuadratic.Scale(product, Slot(normal, component), normalSigns[component], difference);
+                residual.Add(difference);
+            }
+        }
+        int axis = normalSigns[0] != 0 ? 0 : normalSigns[1] != 0 ? 1 : 2;
+        for (int component = 0; component < 3; component++)
+        {
+            ContactQuadratic.Scale(ContactQuadratic.At(residualValues, residualSigns, component, words),
+                Slot(normal, axis), normalSigns[axis], query);
+            ContactQuadratic.Scale(ContactQuadratic.At(residualValues, residualSigns, axis, words),
+                Slot(normal, component), normalSigns[component], product);
+            query.Add(product, -1);
+            if (query.Sign(root) != 0) return false;
+        }
+        return true;
+    }
+
+    internal static bool IsRootPointOnEdge(in TriangleCircularGeometry geometry, int edge,
+        in WideDirection3d first, in WideDirection3d second, ref FiniteAxisValueRoot root)
+    {
+        WideDirection3d t0 = new(WideArithmetic.Negate(first.Z), default, first.X);
+        WideDirection3d t1 = new(WideArithmetic.Negate(second.Z), default, second.X);
+        Signed832 a0 = WideDirection3d.Dot(geometry.Vertex(edge), t0), a1 = WideDirection3d.Dot(geometry.Vertex(edge), t1);
+        Signed832 b0 = WideDirection3d.Dot(geometry.Vertex((edge + 1) % 3), t0), b1 = WideDirection3d.Dot(geometry.Vertex((edge + 1) % 3), t1);
+        Span<ulong> query = stackalloc ulong[26]; Span<sbyte> signs = stackalloc sbyte[2];
+        int denominator = Sign(ref root, WideArithmetic.SubtractSigned832(b0, a0), WideArithmetic.SubtractSigned832(b1, a1), query, signs);
+        return denominator != 0 && Sign(ref root, a0, a1, query, signs) * denominator <= 0
+            && Sign(ref root, b0, b1, query, signs) * denominator >= 0;
     }
 
     internal static Vector3d GetRootPoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,

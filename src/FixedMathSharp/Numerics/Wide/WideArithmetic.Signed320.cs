@@ -16,6 +16,28 @@ namespace FixedMathSharp;
 /// </content>
 internal static partial class WideArithmetic
 {
+    /// <summary>Returns the nonnegative gcd of operands whose magnitudes are below 2^319.</summary>
+    internal static Signed320 GetGreatestCommonDivisor(Signed320 first, Signed320 second)
+    {
+        Span<ulong> a = stackalloc ulong[5], b = stackalloc ulong[5], scratch = stackalloc ulong[11];
+        GetMagnitude(first, out a[4], out a[3], out a[2], out a[1], out a[0]);
+        GetMagnitude(second, out b[4], out b[3], out b[2], out b[1], out b[0]);
+        GetMagnitudeGreatestCommonDivisor(a, b, scratch);
+        return new Signed320(a[4], a[3], a[2], a[1], a[0]);
+    }
+
+    /// <summary>Divides a signed value exactly by a positive divisor; both magnitudes are below 2^319.</summary>
+    internal static Signed320 DivideExactSigned320(Signed320 value, Signed320 divisor)
+    {
+        Span<ulong> n = stackalloc ulong[5], d = stackalloc ulong[5], remainder = stackalloc ulong[5], scratch = stackalloc ulong[11];
+        GetMagnitude(value, out n[4], out n[3], out n[2], out n[1], out n[0]);
+        GetMagnitude(divisor, out d[4], out d[3], out d[2], out d[1], out d[0]);
+        DivideMagnitudes(n, d, n, remainder, scratch);
+        System.Diagnostics.Debug.Assert(GetActiveMagnitudeLength(remainder) == 0);
+        var result = new Signed320(n[4], n[3], n[2], n[1], n[0]);
+        return value.Sign < 0 ? Negate(result) : result;
+    }
+
     /// <summary>
     /// Divides by 2^64 toward zero. The caller proves that the input magnitude
     /// is below 2^255, so the quotient fits the signed 192-bit domain.

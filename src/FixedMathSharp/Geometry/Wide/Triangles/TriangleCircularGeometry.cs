@@ -24,6 +24,21 @@ internal readonly struct TriangleCircularGeometry
     private readonly WideDirection3d firstEdge, secondEdge;
     private readonly WideDirection3d materialOffset;
 
+    internal TriangleCircularGeometry(FixedTriangle triangle, in ScaledRigidFrame3d sourceFrame,
+        in CylinderHullSupport hull, int a, int b, int c)
+    {
+        materialOffset = default;
+        IsAffine = hull.IsAffine; WorldBasis = hull.WorldBasis;
+        A = hull.Vertex(a); B = hull.Vertex(b); C = hull.Vertex(c);
+        RawScale = hull.RawScale; HalfHeight = hull.HalfHeight; Radius = hull.Radius;
+        firstEdge = Subtract(B, A); secondEdge = Subtract(C, B);
+        EdgeScale = Signed192.Signed(1); ValueShift = hull.ValueShift;
+        WideDirection3d localNormal = WideDirection3d.Cross(
+            WideDirection3d.GetLocalEdge(sourceFrame, triangle.A, triangle.B),
+            WideDirection3d.GetLocalEdge(sourceFrame, triangle.A, triangle.C));
+        FaceNormal = localNormal.Transform(hull.Frame.Basis);
+    }
+
     internal TriangleCircularGeometry(FixedTriangle triangle, Vector3d origin, FixedQuaternion rotation,
         Vector3d cylinderCenter, FixedQuaternion cylinderRotation, Signed192 height, Fixed64 radius)
     {

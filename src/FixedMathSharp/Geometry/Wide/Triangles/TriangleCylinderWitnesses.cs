@@ -19,10 +19,11 @@ internal static class TriangleCylinderWitnesses
     /// numerators below 1098, and blended weights below 1964. Their coordinate
     /// products remain below 2200 bits, inside forty-word candidate storage.
     /// </summary>
-    internal static Vector3d GetSidePoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
+    internal static bool TryGetSidePoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
         int mask, ReadOnlySpan<ulong> normal, ReadOnlySpan<int> normalSigns,
-        out Fixed64 axial, out int cap)
+        out Vector3d point, out Fixed64 axial, out int cap)
     {
+        point = default; axial = default; cap = 0;
         Span<ulong> tangent = stackalloc ulong[3 * Words];
         Span<int> tangentSigns = stackalloc int[3];
         tangent.Clear(); tangentSigns.Clear();
@@ -52,7 +53,8 @@ internal static class TriangleCylinderWitnesses
             Slot(distances, edge).CopyTo(Slot(candidates, 3 * count + next));
             count++;
         }
-        System.Diagnostics.Debug.Assert(count > 0 && count <= 2);
+        if (count == 0) return false;
+        System.Diagnostics.Debug.Assert(count <= 2);
         Span<ulong> weights = stackalloc ulong[3 * Words];
         Span<ulong> denominator = stackalloc ulong[Words];
         Span<ulong> bound = stackalloc ulong[Words];
@@ -82,7 +84,7 @@ internal static class TriangleCylinderWitnesses
             // The minimizing side support proves an admitted axial point.
             // If neither endpoint is in the interval, they straddle it. Blend
             // directly at Y=0: w=w0*|Y1 numerator|+w1*|Y0 numerator|.
-            System.Diagnostics.Debug.Assert(count == 2 && axialSigns[0] * axialSigns[1] < 0);
+            if (count != 2 || axialSigns[0] * axialSigns[1] >= 0) return false;
             Span<ulong> product = stackalloc ulong[Words];
             for (int vertex = 0; vertex < 3; vertex++)
             {
@@ -98,7 +100,8 @@ internal static class TriangleCylinderWitnesses
         WideArithmetic.MultiplyMagnitudes(denominator, half, scaledDenominator);
         bool represented = Fixed64.TryGetSignedRawRatio(bound, scaledDenominator, axialSign < 0, out axial);
         System.Diagnostics.Debug.Assert(represented);
-        return RoundTriangle(geometry, triangle, weights, denominator);
+        point = RoundTriangle(geometry, triangle, weights, denominator);
+        return true;
     }
 
     /// <summary>
@@ -110,11 +113,40 @@ internal static class TriangleCylinderWitnesses
     internal static Vector3d GetCapPoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
         int mask, out Vector3d projectedRadial)
     {
+        bool admitted = TryGetCapPoint(geometry, triangle, mask, out Vector3d point, out projectedRadial, false);
+        System.Diagnostics.Debug.Assert(admitted);
+        return point;
+    }
+
+    internal static bool TryGetCapPoint(in TriangleCircularGeometry geometry, FixedTriangle triangle,
+        int mask, out Vector3d point, out Vector3d projectedRadial, bool requireAdmission = true)
+    {
+        point = projectedRadial = default;
         Span<ulong> weights = stackalloc ulong[3 * Words];
         Span<ulong> denominator = stackalloc ulong[Words];
         GetCapWeights(geometry, mask, weights);
         SumWeights(weights, denominator);
-        Vector3d point = RoundTriangle(geometry, triangle, weights, denominator);
+        if (requireAdmission)
+        {
+            Span<ulong> work = stackalloc ulong[3 * Words];
+            SumCoordinates(geometry, weights, 0, Slot(work, 0), out _);
+            SumCoordinates(geometry, weights, 2, Slot(work, 1), out _);
+            Span<ulong> radial = stackalloc ulong[Words];
+            Import(geometry.Radius, radial);
+            WideArithmetic.MultiplyMagnitudes(denominator, radial, Slot(work, 2));
+            // Affine barycentric numerators fit the existing bank; their
+            // squares need complete products plus the radial-sum carry.
+            int squareWords = 2 * Math.Max(WideArithmetic.GetActiveMagnitudeLength(Slot(work, 0)),
+                Math.Max(WideArithmetic.GetActiveMagnitudeLength(Slot(work, 1)), WideArithmetic.GetActiveMagnitudeLength(Slot(work, 2)))) + 1;
+            Span<ulong> squares = stackalloc ulong[3 * squareWords];
+            Span<ulong> sum = squares[..squareWords], term = squares.Slice(squareWords, squareWords), limit = squares.Slice(2 * squareWords, squareWords);
+            WideArithmetic.MultiplyMagnitudes(Slot(work, 0), Slot(work, 0), sum);
+            WideArithmetic.MultiplyMagnitudes(Slot(work, 1), Slot(work, 1), term);
+            WideArithmetic.AddMagnitudeInto(term, sum);
+            WideArithmetic.MultiplyMagnitudes(Slot(work, 2), Slot(work, 2), limit);
+            if (WideArithmetic.CompareMagnitudeEqualLength(sum, limit) > 0) return false;
+        }
+        point = RoundTriangle(geometry, triangle, weights, denominator);
         Span<ulong> scale = stackalloc ulong[Words];
         Span<ulong> scaledDenominator = stackalloc ulong[Words];
         Span<ulong> coordinate = stackalloc ulong[Words];
@@ -126,7 +158,7 @@ internal static class TriangleCylinderWitnesses
         bool representedZ = Fixed64.TryGetSignedRawRatio(coordinate, scaledDenominator, sign < 0, out Fixed64 z);
         System.Diagnostics.Debug.Assert(representedX && representedZ); // Both bounded by the authored radius.
         projectedRadial = new Vector3d(x, Fixed64.Zero, z);
-        return point;
+        return true;
     }
 
     internal static void GetCapWeights(in TriangleCircularGeometry geometry, int mask, Span<ulong> weights)

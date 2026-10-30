@@ -138,8 +138,9 @@ internal static class TriangleCylinderContact
         }
         else if (cap == 0)
         {
-            Vector3d point = TriangleCylinderWitnesses.GetSidePoint(analyticGeometry, triangle, mask,
-                direction, directionSigns, out Fixed64 axial, out int boundaryCap);
+            bool admitted = TriangleCylinderWitnesses.TryGetSidePoint(analyticGeometry, triangle, mask,
+                direction, directionSigns, out Vector3d point, out Fixed64 axial, out int boundaryCap);
+            System.Diagnostics.Debug.Assert(admitted);
             triangleAnchor = new FixedPointAnchor(origin, rotation, point);
             cylinderAnchor = boundaryCap != 0
                 ? TriangleCircularGeometry.GetSupport(cylinderCenter, cylinderRotation, height, radialPoint, boundaryCap)

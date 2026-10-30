@@ -15,11 +15,11 @@ internal static class TriangleCylinderEdgeContacts
     private const int ParameterSlots = 30;
     private const int ValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
 
-    private struct Selection
+    internal struct Selection
     {
         internal bool HasValue, IsZero, IsRational;
         internal WideDirection3d First, Second;
-        internal int Edge, Cap, CoreSign, ParameterOrdinal, ValueOrdinal, ValueShift;
+        internal int Edge, Cap, CoreSign, ParameterOrdinal, ValueOrdinal, ValueShift, Triangle;
     }
 
     internal static bool TryGetContact(in TriangleCircularGeometry geometry, in WideDirection3d coreOffset, in WideDirection3d coreAxis,
@@ -37,6 +37,36 @@ internal static class TriangleCylinderEdgeContacts
         Span<sbyte> bestSigns = stackalloc sbyte[5];
         Span<ulong> bestCell = stackalloc ulong[ValueCellWords];
         Selection best = default;
+        if (!TryKeepContacts(geometry, coreOffset, coreAxis, analytic, analyticDepth, analyticClamped,
+                bestValues, bestSigns, bestCell, ref best)) return false;
+        if (!best.HasValue)
+            return true;
+        strictOverlap = !best.IsZero;
+        if (!materialize) return true;
+        hasBetter = true; mask = (1 << best.Edge) | (1 << ((best.Edge + 1) % 3)); cap = best.Cap; coreSign = best.CoreSign;
+        TriangleCircularGeometry winnerStorage;
+        scoped ref readonly TriangleCircularGeometry winner = ref geometry;
+        if (coreSign != 0)
+        {
+            winnerStorage = geometry.AtCoreRegion(coreOffset, coreSign);
+            winner = ref winnerStorage;
+        }
+        GetMaterials(winner, coreAxis, coreDirection, coreLength, triangle, best, radius,
+            out normal, out radialPoint, out trianglePoint, out integralRadialMask);
+        if (!best.IsZero)
+        {
+            FiniteAxisValueRoot root = Restore(bestValues, bestSigns, bestCell, best);
+            ConvexContactValueRoot.GetRoundedDepth(geometry.RawScale, geometry.ValueShift,
+                ref root, out depth, out clamped);
+        }
+        return true;
+    }
+
+    internal static bool TryKeepContacts(in TriangleCircularGeometry geometry, in WideDirection3d coreOffset, in WideDirection3d coreAxis,
+        in ConvexContactCandidate analytic, Fixed64 analyticDepth, bool analyticClamped,
+        scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell, ref Selection best,
+        in CylinderHullSupport hull = default, int triangleIndex = 0)
+    {
         int regionStart = coreAxis.IsZero ? 0 : -1;
         for (int region = regionStart; region <= (coreAxis.IsZero ? 0 : 1); region += 2)
         {
@@ -63,30 +93,10 @@ internal static class TriangleCylinderEdgeContacts
                             WideDirection3d second = secondSign > 0 ? v : -v;
                             if (!TryCharts(endpoint, coreAxis, region, edge, first, second, capSign, analytic,
                                     ((ulong)analyticDepth.m_rawValue << 1) | 1UL, !analyticClamped,
-                                    bestValues, bestSigns, bestCell, ref best))
+                                    bestValues, bestSigns, bestCell, ref best, hull, triangleIndex))
                                 return false;
                         }
             }
-        }
-        if (!best.HasValue)
-            return true;
-        strictOverlap = !best.IsZero;
-        if (!materialize) return true;
-        hasBetter = true; mask = (1 << best.Edge) | (1 << ((best.Edge + 1) % 3)); cap = best.Cap; coreSign = best.CoreSign;
-        TriangleCircularGeometry winnerStorage;
-        scoped ref readonly TriangleCircularGeometry winner = ref geometry;
-        if (coreSign != 0)
-        {
-            winnerStorage = geometry.AtCoreRegion(coreOffset, coreSign);
-            winner = ref winnerStorage;
-        }
-        GetMaterials(winner, coreAxis, coreDirection, coreLength, triangle, best, radius,
-            out normal, out radialPoint, out trianglePoint, out integralRadialMask);
-        if (!best.IsZero)
-        {
-            FiniteAxisValueRoot root = Restore(bestValues, bestSigns, bestCell, best);
-            ConvexContactValueRoot.GetRoundedDepth(geometry.RawScale, geometry.ValueShift,
-                ref root, out depth, out clamped);
         }
         return true;
     }
@@ -96,7 +106,7 @@ internal static class TriangleCylinderEdgeContacts
         in WideDirection3d originalFirst, in WideDirection3d originalSecond, int cap, scoped ConvexContactCandidate analytic,
         ulong upperTwiceRaw, bool hasUpperBound,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
-        ref Selection best)
+        ref Selection best, in CylinderHullSupport hull, int triangleIndex)
     {
         int Words = geometry.ParameterWords;
         scoped ref readonly WideDirection3d first = ref originalFirst;
@@ -113,14 +123,14 @@ internal static class TriangleCylinderEdgeContacts
         Span<sbyte> signs = stackalloc sbyte[ParameterSlots];
         BuildParameter(geometry, coreAxis, region, edge, first, second, cap, data, signs);
         if (!TryChart(geometry, coreAxis, region, edge, first, second, cap, analytic, upperTwiceRaw, hasUpperBound,
-                data, signs, bestValues, bestSigns, bestCell, ref best)) return false;
+                data, signs, bestValues, bestSigns, bestCell, ref best, hull, triangleIndex)) return false;
         if (!firstAdmitted || !secondAdmitted) return true;
         // Finish the first chart before mutation; winners already own copied
         // value algebra. Preserve its earlier canonical rank when depths tie.
         ReverseParameterChart(data, signs);
         WriteAdmission(geometry, coreAxis, region, edge, second, first, data, signs);
         return TryChart(geometry, coreAxis, region, edge, second, first, cap, analytic, upperTwiceRaw, hasUpperBound,
-            data, signs, bestValues, bestSigns, bestCell, ref best);
+            data, signs, bestValues, bestSigns, bestCell, ref best, hull, triangleIndex);
     }
 
     private static bool IsChartAdmitted(in TriangleCircularGeometry geometry, in WideDirection3d coreAxis, int region, int edge,
@@ -151,7 +161,7 @@ internal static class TriangleCylinderEdgeContacts
         in WideDirection3d first, in WideDirection3d second, int cap, scoped ConvexContactCandidate analytic,
         ulong upperTwiceRaw, bool hasUpperBound, scoped Span<ulong> data, scoped Span<sbyte> signs,
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
-        ref Selection best)
+        ref Selection best, in CylinderHullSupport hull, int triangleIndex)
     {
         int Words = geometry.ParameterWords;
         int ValueWords = geometry.ValueWords;
@@ -174,6 +184,8 @@ internal static class TriangleCylinderEdgeContacts
             // this boundary cannot improve that earlier canonical feature.
             if (Sign(ref root, data, signs, 26, 2) <= 0)
                 continue;
+            if (!hull.IsEmpty && !SupportsHull(hull, geometry.Vertex(edge), first, second, ref root))
+                continue;
             // Boundary roots belong to the explicit seam fan. Reject the
             // opposite endpoint's hemisphere before sign rejection or ranking.
             if (!coreAxis.IsZero && Sign(ref root, data, signs, 28, 2) <= 0)
@@ -184,12 +196,14 @@ internal static class TriangleCylinderEdgeContacts
             int gapSign = Sign(ref root, data, signs, 13, 3) * kSign;
             if (gapSign < 0)
                 return false;
+            if (!hull.IsEmpty && !TriangleCylinderRimWitnesses.IsRootPointOnEdge(geometry, edge, first, second, ref root))
+                continue;
             if (best.IsZero || analytic.GapSign == 0)
                 continue;
             var candidate = new Selection
             {
                 HasValue = true, First = first, Second = second, Edge = edge,
-                Cap = cap, CoreSign = region, ParameterOrdinal = ordinal
+                Cap = cap, CoreSign = region, ParameterOrdinal = ordinal, Triangle = triangleIndex
             };
             if (gapSign == 0)
             {
@@ -250,7 +264,7 @@ internal static class TriangleCylinderEdgeContacts
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void GetMaterials(in TriangleCircularGeometry geometry, in WideDirection3d coreAxis,
+    internal static void GetMaterials(in TriangleCircularGeometry geometry, in WideDirection3d coreAxis,
         Vector2d coreDirection, Fixed64 coreLength, FixedTriangle triangle, in Selection best, Fixed64 radius,
         out Vector3d normal, out Vector3d radialPoint, out Vector3d trianglePoint, out int integralRadialMask)
     {
@@ -280,10 +294,25 @@ internal static class TriangleCylinderEdgeContacts
         normal = ConvexContactValueRoot.GetNormalizedDirection(ref root, gradient, gradientSigns, 1);
     }
 
-    private static FiniteAxisValueRoot Restore(ReadOnlySpan<ulong> values, ReadOnlySpan<sbyte> signs,
+    internal static FiniteAxisValueRoot Restore(ReadOnlySpan<ulong> values, ReadOnlySpan<sbyte> signs,
         Span<ulong> cell, in Selection selection) => new()
     {
         Coefficients = values, Signs = signs, LowerNumerator = cell,
         DenominatorShift = selection.ValueShift, Ordinal = selection.ValueOrdinal, IsRational = selection.IsRational
     };
+
+    private static bool SupportsHull(in CylinderHullSupport hull, in WideDirection3d point,
+        in WideDirection3d first, in WideDirection3d second, ref FiniteAxisValueRoot root)
+    {
+        Span<ulong> query = stackalloc ulong[26]; Span<sbyte> signs = stackalloc sbyte[2];
+        for (int i = 0; i < hull.Count; i++)
+        {
+            WideDirection3d difference = TriangleCircularGeometry.Subtract(point, hull.Vertex(i));
+            Signed832 a = WideDirection3d.Dot(difference, first), b = WideDirection3d.Dot(difference, second);
+            WideArithmetic.GetMagnitude(a, query[..13]); signs[0] = (sbyte)a.Sign;
+            WideArithmetic.GetMagnitude(b, query[13..]); signs[1] = (sbyte)b.Sign;
+            if (WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, signs) < 0) return false;
+        }
+        return true;
+    }
 }

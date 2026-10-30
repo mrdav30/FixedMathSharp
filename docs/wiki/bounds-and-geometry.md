@@ -270,6 +270,14 @@ lie between the rounded ends. The query retains the authored local axis and yaw,
 including half-raw endpoints from odd raw core lengths. A zero core uses the
 cylinder path above, with the same contact anchors.
 
+The internal closed-hull/cylinder contact path used by coordinated consumers
+ranks these finite feature families across the complete hull. A shared rational
+cylinder chart preserves exact ordering between triangles; the triangle that
+first supplies a supporting direction need not contain its matched witness.
+An exact inscribed-ball bound can certify a minimum before the remaining
+features are enumerated. Its contained-center entry includes hull boundaries;
+declining center admission does not imply separation for an exterior center.
+
 `FixedSegment.TryGetCenteredFiniteCylinderCapsuleContact` includes the finite
 cylinder's caps, side, and rims when finding the minimum translation. It also
 handles a capsule core that enters the cylinder: depth is not necessarily just

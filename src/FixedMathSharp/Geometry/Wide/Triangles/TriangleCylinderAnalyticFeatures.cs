@@ -14,15 +14,16 @@ internal static class TriangleCylinderAnalyticFeatures
 
     internal static bool TryGetBest(in TriangleCircularGeometry geometry, in WideDirection3d coreOffset, in WideDirection3d coreAxis,
         Span<ulong> bestValues, Span<int> bestSigns, Span<ulong> bestDirection,
-        Span<int> bestDirectionSigns, out int gapSign, out int supportMask, out int coreSign, out bool faceMinimumCertified)
+        Span<int> bestDirectionSigns, out int gapSign, out int supportMask, out int coreSign, out bool faceMinimumCertified,
+        in CylinderHullSupport hull = default)
     {
         var selection = new Selection(bestValues, bestSigns, bestDirection, bestDirectionSigns);
         faceMinimumCertified = false;
         if (coreAxis.IsZero)
-            KeepRegion(geometry, coreAxis, 0, ref selection, out faceMinimumCertified);
+            KeepRegion(geometry, coreAxis, 0, ref selection, out faceMinimumCertified, hull);
         else
         {
-            KeepSeam(geometry, coreAxis, ref selection);
+            KeepSeam(geometry, coreAxis, ref selection, hull);
             // The centered cylinder is contained in the stadium. Its existing
             // inscribed ball therefore remains a lower bound. An exactly
             // core-perpendicular face has the same support in both shapes;
@@ -33,7 +34,7 @@ internal static class TriangleCylinderAnalyticFeatures
             for (int region = -1; region <= 1 && selection.GapSign >= 0 && !faceMinimumCertified; region += 2)
             {
                 TriangleCircularGeometry endpoint = geometry.AtCoreRegion(coreOffset, region);
-                KeepRegion(endpoint, coreAxis, region, ref selection, out _);
+                KeepRegion(endpoint, coreAxis, region, ref selection, out _, hull);
             }
             if (!faceMinimumCertified && selection.GapSign >= 0)
                 faceMinimumCertified = geometry.HasFaceDiskMinimumCertificate(coreAxis,
@@ -46,53 +47,53 @@ internal static class TriangleCylinderAnalyticFeatures
         return gapSign >= 0;
     }
 
-    private static void KeepSeam(in TriangleCircularGeometry geometry, in WideDirection3d coreAxis, ref Selection selection)
+    private static void KeepSeam(in TriangleCircularGeometry geometry, in WideDirection3d coreAxis, ref Selection selection, in CylinderHullSupport hull)
     {
         Span<ulong> direction = stackalloc ulong[3 * Words];
         Span<int> signs = stackalloc int[3];
         WriteDirection(Up, direction, signs);
-        KeepAxis(geometry, coreAxis, 0, direction, signs, ref selection);
+        KeepAxis(geometry, coreAxis, 0, direction, signs, ref selection, hull);
         WriteDirection(new WideDirection3d(WideArithmetic.Negate(coreAxis.Z), default, coreAxis.X), direction, signs);
-        KeepAxis(geometry, coreAxis, 0, direction, signs, ref selection);
+        KeepAxis(geometry, coreAxis, 0, direction, signs, ref selection, hull);
         for (int edge = 0; edge < 3; edge++)
         {
             WriteDirection(WideDirection3d.Cross(geometry.Edge(edge), coreAxis), direction, signs);
-            KeepAxis(geometry, coreAxis, 0, direction, signs, ref selection);
+            KeepAxis(geometry, coreAxis, 0, direction, signs, ref selection, hull);
         }
     }
 
     private static void KeepRegion(in TriangleCircularGeometry geometry, in WideDirection3d coreAxis, int region,
-        ref Selection selection, out bool faceMinimumCertified)
+        ref Selection selection, out bool faceMinimumCertified, in CylinderHullSupport hull)
     {
         Span<ulong> direction = stackalloc ulong[3 * Words];
         Span<int> signs = stackalloc int[3];
         WriteDirection(Up, direction, signs);
-        KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
+        KeepAxis(geometry, coreAxis, region, direction, signs, ref selection, hull);
         // Horizontal face directions duplicate the already tested +/-Up,
         // including their support masks and first-winner tie ordering.
         if (!geometry.FaceNormal.X.IsZero || !geometry.FaceNormal.Z.IsZero)
         {
             WriteDirection(geometry.FaceNormal, direction, signs);
-            KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
+            KeepAxis(geometry, coreAxis, region, direction, signs, ref selection, hull);
         }
-        faceMinimumCertified = coreAxis.IsZero && selection.GapSign >= 0 && geometry.HasFaceMinimumCertificate();
+        faceMinimumCertified = hull.IsEmpty && coreAxis.IsZero && selection.GapSign >= 0 && geometry.HasFaceMinimumCertificate();
         for (int vertex = 0; vertex < 3 && selection.GapSign >= 0 && !faceMinimumCertified; vertex++)
         {
             WideDirection3d point = geometry.Vertex(vertex);
             WriteDirection(new WideDirection3d(point.X, default, point.Z), direction, signs);
-            KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
+            KeepAxis(geometry, coreAxis, region, direction, signs, ref selection, hull);
             WideDirection3d edge = geometry.Edge(vertex);
             bool oblique = !edge.Y.IsZero && (!edge.X.IsZero || !edge.Z.IsZero);
             if (oblique)
             {
                 CircularRimContactAlgebra.GetBasis(edge, out WideDirection3d first, out WideDirection3d second);
                 WriteDirection(first, direction, signs);
-                KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
+                KeepAxis(geometry, coreAxis, region, direction, signs, ref selection, hull);
                 WriteDirection(second, direction, signs);
-                KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
+                KeepAxis(geometry, coreAxis, region, direction, signs, ref selection, hull);
             }
             WriteDirection(new WideDirection3d(WideArithmetic.Negate(edge.Z), default, edge.X), direction, signs);
-            KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
+            KeepAxis(geometry, coreAxis, region, direction, signs, ref selection, hull);
             // Principal axes and K=0 directions are rational and must be
             // included separately from the stationary quartic's division by K.
             // Parallel/perpendicular edges project a circle/rectangle. Their
@@ -102,16 +103,16 @@ internal static class TriangleCylinderAnalyticFeatures
             if (oblique)
             {
                 ProjectPerpendicular(edge, Up, direction, signs);
-                KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
+                KeepAxis(geometry, coreAxis, region, direction, signs, ref selection, hull);
             }
             for (int cap = -1; cap <= 1; cap += 2)
             {
                 if (oblique)
                 {
                     ProjectPerpendicular(edge, geometry.CapOffset(vertex, cap), direction, signs);
-                    KeepAxis(geometry, coreAxis, region, direction, signs, ref selection);
+                    KeepAxis(geometry, coreAxis, region, direction, signs, ref selection, hull);
                 }
-                if (HasVertexRimSeparation(geometry, vertex, cap, coreAxis, region))
+                if (HasVertexRimSeparation(geometry, vertex, cap, coreAxis, region, hull))
                 {
                     selection.GapSign = -1;
                     return;
@@ -121,7 +122,7 @@ internal static class TriangleCylinderAnalyticFeatures
     }
 
     private static void KeepAxis(in TriangleCircularGeometry geometry, in WideDirection3d coreAxis, int region, scoped Span<ulong> direction,
-        scoped Span<int> directionSigns, ref Selection selection)
+        scoped Span<int> directionSigns, ref Selection selection, in CylinderHullSupport hull)
     {
         if (selection.HasValue && selection.GapSign < 0)
             return;
@@ -140,6 +141,9 @@ internal static class TriangleCylinderAnalyticFeatures
             {
                 int gapSign = BuildAxis(geometry, direction, directionSigns, values, signs, invariantsReady, out int mask);
                 invariantsReady = true;
+                int vertex = (mask & 1) != 0 ? 0 : (mask & 2) != 0 ? 1 : 2;
+                if (!hull.IsEmpty && !hull.Supports(geometry.Vertex(vertex), direction, directionSigns))
+                    goto Reverse;
                 var candidate = new ConvexContactCandidate(values, signs, gapSign);
                 if (!selection.HasValue || WideConvexPrismRelations.CompareConvexContactCandidates(candidate,
                         new ConvexContactCandidate(selection.Values, selection.Signs, selection.GapSign)) < 0)
@@ -150,6 +154,7 @@ internal static class TriangleCylinderAnalyticFeatures
                     selection.CoreSign = region;
                 }
             }
+        Reverse:
             for (int component = 0; component < 3; component++)
                 directionSigns[component] = -directionSigns[component];
             alignment = -alignment;
@@ -202,7 +207,7 @@ internal static class TriangleCylinderAnalyticFeatures
     }
 
     private static bool HasVertexRimSeparation(in TriangleCircularGeometry geometry, int vertex, int cap,
-        in WideDirection3d coreAxis, int region)
+        in WideDirection3d coreAxis, int region, in CylinderHullSupport hull)
     {
         WideDirection3d c = geometry.CapOffset(vertex, cap);
         if (c.Y.Sign * cap > 0)
@@ -226,6 +231,10 @@ internal static class TriangleCylinderAnalyticFeatures
             if (ResidualProjectionSign(c, geometry.EdgeFromTo(other, vertex), rational, radical, root, radius) < 0)
                 return false;
         }
+        for (int other = 0; other < hull.Count; other++)
+            if (ResidualProjectionSign(c, TriangleCircularGeometry.Subtract(geometry.Vertex(vertex), hull.Vertex(other)),
+                    rational, radical, root, radius) < 0)
+                return false;
         return true;
     }
 

@@ -121,21 +121,7 @@ internal static partial class WideOrientedBox
         if (sourceFrame.IsRigid)
             return DoesCenteredCylinderPenetrateConvexHull(center, rotation, height, radius,
                 sourceFrame.RigidOrigin, sourceFrame.Rotation, points, triangles, closedVolume);
-        if (closedVolume)
-        {
-            int interiorSign = 0; bool inside = true;
-            RationalPoint3d point = RationalPoint3d.FromScalarPoint(center);
-            for (int index = 0; index < triangles.Length; index += 3)
-            {
-                FixedTriangle face = new(points[triangles[index]], points[triangles[index + 1]], points[triangles[index + 2]]);
-                WideDirection3d normal = WideTriangleRelations.GetScaledTriangleLocalNormal(face, sourceFrame).Transform(sourceFrame.GeometryBasis);
-                int sign = WideDirection3d.Dot(normal, WideTriangleRelations.GetScaledPointDifference(
-                    point, sourceFrame.GetPoint(face.A), sourceFrame.RotationDenominator)).Sign;
-                if (sign == 0 || interiorSign != 0 && sign != interiorSign) { inside = false; break; }
-                interiorSign = sign;
-            }
-            if (inside && interiorSign != 0) return true;
-        }
+        if (closedVolume && ContainsConvexHullPoint(sourceFrame, points, triangles, center, strict: true)) return true;
         for (int index = 0; index < triangles.Length; index += 3)
         {
             FixedTriangle face = new(points[triangles[index]], points[triangles[index + 1]], points[triangles[index + 2]]);
@@ -151,7 +137,7 @@ internal static partial class WideOrientedBox
 
     private static bool IsCylinderCenterStrictlyInsideHull(Vector3d center,
         Vector3d origin, FixedQuaternion rotation, ReadOnlySpan<Vector3d> vertices,
-        ReadOnlySpan<int> triangles)
+        ReadOnlySpan<int> triangles, bool strict = true)
     {
         GetRelativeLocalPointNumerators(center, origin, rotation,
             out Signed192 x, out Signed192 y, out Signed192 z, out Signed192 denominator);
@@ -171,8 +157,30 @@ internal static partial class WideOrientedBox
             Signed192 dz = WideArithmetic.SubtractSigned192(z, Signed192.NarrowProven(
                 WideArithmetic.MultiplySigned192(Signed192.Raw(a.Z), denominator)));
             int sign = WideArithmetic.GetDotProduct3D(nx, ny, nz, dx, dy, dz).Sign;
+            if (sign == 0 && !strict) continue;
             if (sign == 0 || (interiorSign != 0 && sign != interiorSign))
                 return false;
+            interiorSign = sign;
+        }
+        return interiorSign != 0;
+    }
+
+    /// <summary>Tests a point against a validated consistently wound closed convex hull, including its boundary unless strict.</summary>
+    internal static bool ContainsConvexHullPoint(in ScaledRigidFrame3d sourceFrame, ReadOnlySpan<Vector3d> points,
+        ReadOnlySpan<int> triangles, Vector3d center, bool strict = false)
+    {
+        if (sourceFrame.IsRigid)
+            return IsCylinderCenterStrictlyInsideHull(center, sourceFrame.RigidOrigin, sourceFrame.Rotation, points, triangles, strict);
+        int interiorSign = 0;
+        RationalPoint3d point = RationalPoint3d.FromScalarPoint(center);
+        for (int index = 0; index < triangles.Length; index += 3)
+        {
+            FixedTriangle face = new(points[triangles[index]], points[triangles[index + 1]], points[triangles[index + 2]]);
+            WideDirection3d normal = WideTriangleRelations.GetScaledTriangleLocalNormal(face, sourceFrame).Transform(sourceFrame.GeometryBasis);
+            int sign = WideDirection3d.Dot(normal, WideTriangleRelations.GetScaledPointDifference(
+                point, sourceFrame.GetPoint(face.A), sourceFrame.RotationDenominator)).Sign;
+            if (sign == 0 && !strict) continue;
+            if (sign == 0 || interiorSign != 0 && sign != interiorSign) return false;
             interiorSign = sign;
         }
         return interiorSign != 0;
