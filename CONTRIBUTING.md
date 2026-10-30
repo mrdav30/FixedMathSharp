@@ -29,12 +29,19 @@ for the reproducer and evidence.
 
 ## Coordinated source development
 
-Place the Chronicler checkout beside FixedMathSharp and run
-`dotnet test FixedMathSharp.slnx -c Release -p:UseLocalLsfStack=true` (repeat with
-`ReleaseLean`). This selects source Chronicler for the companion, including the
+Place the Chronicler checkout beside FixedMathSharp and run (repeat with
+`ReleaseLean`):
+
+```powershell
+dotnet test FixedMathSharp.slnx -c Release -p:UseLocalLsfStack=true -p:DisableTransitiveProjectReferences=true -m:1
+```
+
+This selects source Chronicler for the companion and its tests, including the
 Lean shim. Package mode remains the default and is the release-validation path.
 Alternatively, set `$env:UseLocalLsfStack='true'` for the PowerShell session.
-This also selects the local shim for the core math library's Lean build.
+Keep `-p:DisableTransitiveProjectReferences=true` on restore/build/test commands
+even when selecting source mode through the environment. Source mode also
+selects the local shim for the core math library's Lean build.
 Local 0.4.0 identities only coordinate
 assembly resolution; generated source-mode packages are not release artifacts.
 
@@ -46,7 +53,11 @@ branches use released packages with no sibling checkouts; a `develop` -> `main`
 PR validates packages. Release upstream dependencies before promotion and update
 source pins deliberately as the coordinated stack changes. Source/package NuGet
 caches are separated, and source graphs build serially to avoid shared-output
-races. Both Release/Lean Windows/Linux validation lanes remain required.
+races. Restore, build and test also pass
+`-p:DisableTransitiveProjectReferences=${{ env.UseLocalLsfStack }}` globally,
+so inferred references in sibling projects cannot discard explicit assembly
+identities. Serialization alone does not preserve those identities. Package mode
+sets the flag to false. Both Release/Lean Windows/Linux lanes remain required.
 
 ## Code of Conduct
 

@@ -83,14 +83,15 @@ jobs:
             ${{ runner.os }}-${{ matrix.configuration }}-lsf-${{ env.UseLocalLsfStack }}-nuget-
             ${{ runner.os }}-lsf-${{ env.UseLocalLsfStack }}-nuget-
 
+      # Pass globally so sibling projects preserve explicit source-reference identities.
       - name: Restore dependencies
-        run: dotnet restore FixedMathSharp.slnx --property:Configuration=${{ matrix.configuration }} -p:UseLocalLsfStack=${{ env.UseLocalLsfStack }} -m:1
+        run: dotnet restore FixedMathSharp.slnx --property:Configuration=${{ matrix.configuration }} -p:UseLocalLsfStack=${{ env.UseLocalLsfStack }} -p:DisableTransitiveProjectReferences=${{ env.UseLocalLsfStack }} -m:1
 
       - name: Build Solution
         run: |
           echo "Version: ${{ steps.gitversion.outputs.fullSemVer }}"
           echo "Assembly Version: ${{ steps.gitversion.outputs.assemblySemFileVer }}"
-          dotnet build FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-restore -p:UseLocalLsfStack=${{ env.UseLocalLsfStack }} -m:1 -p:BuildInParallel=false
+          dotnet build FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-restore -p:UseLocalLsfStack=${{ env.UseLocalLsfStack }} -p:DisableTransitiveProjectReferences=${{ env.UseLocalLsfStack }} -m:1 -p:BuildInParallel=false
 
       - name: Run Tests
-        run: dotnet test FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-build --no-restore -p:UseLocalLsfStack=${{ env.UseLocalLsfStack }} -m:1 --verbosity normal
+        run: dotnet test FixedMathSharp.slnx --configuration ${{ matrix.configuration }} --no-build --no-restore -p:UseLocalLsfStack=${{ env.UseLocalLsfStack }} -p:DisableTransitiveProjectReferences=${{ env.UseLocalLsfStack }} -m:1 --verbosity normal

@@ -14,6 +14,10 @@
     <DisableMemoryPack>true</DisableMemoryPack>
     <DefineConstants>$(DefineConstants);FIXEDMATHSHARP_DISABLE_MEMORYPACK</DefineConstants>
   </PropertyGroup>
+  <ItemGroup Condition="'$(UseLocalLsfStack)' == 'true'">
+    <ProjectReference Include="..\..\..\Chronicler\src\Chronicler\Chronicler.csproj"
+                      AdditionalProperties="Configuration=$(Configuration);SemVer=0.4.0;AssemblySemVer=0.4.0.0" />
+  </ItemGroup>
   <ItemGroup>
     <Compile Include="..\FixedMathSharp.Tests\Support\FixedMathTestHelper.cs" Link="Support\FixedMathTestHelper.cs" />
     <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj" />
