@@ -1,6 +1,6 @@
 ---
-title: FixedMathSharp API
-description: API reference for deterministic Q32.32 math, transforms, random streams, and geometry.
+title: Home
+description: Guides and API reference for deterministic Q32.32 math, transforms, random streams, and geometry.
 ---
 
 <div class="fms-hero">
@@ -11,7 +11,7 @@ description: API reference for deterministic Q32.32 math, transforms, random str
   model.</p>
   <div class="fms-actions">
     <a class="btn btn-primary" href="xref:FixedMathSharp">Browse the API</a>
-    <a class="btn btn-outline-secondary" href="https://github.com/mrdav30/FixedMathSharp/wiki/Getting-Started">Get started</a>
+    <a class="btn btn-outline-secondary" href="guides/getting-started.md">Get started</a>
   </div>
 </div>
 
@@ -35,16 +35,31 @@ description: API reference for deterministic Q32.32 math, transforms, random str
   </div>
 </div>
 
+## Guides
+
+- [Get started](guides/getting-started.md) with package choice and a first
+  calculation.
+- [Understand Fixed64](guides/fixed64-representation.md): range, precision,
+  rounding, and conversions.
+- [Keep full-domain arithmetic](guides/full-domain-wide-arithmetic.md) correct
+  through wide intermediates.
+- [Use coordinate conventions](guides/coordinate-conventions.md) across vectors,
+  matrices, and host adapters.
+- [Choose geometry queries](guides/bounds-and-geometry.md) and read the
+  [finite-shape contact guarantees](guides/finite-shape-contacts.md).
+- [Format diagnostic values](guides/diagnostics-formatting.md) separately from
+  persisted state.
+
 ## Resources
 
 - [Chronicler companion API](xref:FixedMathSharp.Chronicler) — exact time
   conversions and deterministic record-hash extensions.
-- [Behavioral guides and getting started](https://github.com/mrdav30/FixedMathSharp/wiki)
+- [Behavioral guides](guides/index.md)
 - [Source, issues, and releases](https://github.com/mrdav30/FixedMathSharp)
 - [Core test-suite coverage report](https://mrdav30.github.io/FixedMathSharp/coverage/)
 - [Migration guide](https://github.com/mrdav30/FixedMathSharp/blob/main/docs/MIGRATION.md)
 - [Chronicler companion: record hashes and exact time conversions](https://github.com/mrdav30/FixedMathSharp/blob/main/src/FixedMathSharp.Chronicler/README.md)
 
 The API reference is generated from the library's source XML documentation. The
-wiki explains cross-cutting behavior such as Q32.32 representation, overflow,
+guides explain cross-cutting behavior such as Q32.32 representation, overflow,
 coordinate conventions, and full-domain arithmetic.

@@ -1,7 +1,10 @@
 //=======================================================================
+// TriangleCylinderEdgeContacts.cs
+//=======================================================================
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
+
 using System;
 using System.Runtime.CompilerServices;
 using static FixedMathSharp.Geometry.CylinderContactAlgebra;
@@ -10,17 +13,12 @@ using static FixedMathSharp.Geometry.CircularRimContactAlgebra;
 namespace FixedMathSharp.Geometry;
 
 /// <summary>Every admitted triangle-edge/cylinder-rim stationary support root.</summary>
-internal static class TriangleCylinderEdgeContacts
+internal static partial class TriangleCylinderEdgeContacts
 {
     private const int ParameterSlots = 30;
     private const int ValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
 
-    internal struct Selection
-    {
-        internal bool HasValue, IsZero, IsRational;
-        internal WideDirection3d First, Second;
-        internal int Edge, Cap, CoreSign, ParameterOrdinal, ValueOrdinal, ValueShift, Triangle;
-    }
+
 
     internal static bool TryGetContact(in TriangleCircularGeometry geometry, in WideDirection3d coreOffset, in WideDirection3d coreAxis,
         Vector2d coreDirection, Fixed64 coreLength, FixedTriangle triangle,

@@ -7,7 +7,8 @@ rotations, matrix transforms, geometry, bounds, formatting, and serialization.
 
 Finite capsule contact controls include ordinary and crossing convex-hull cores,
 aligned cuboid sides, oblique thin-face crossings, finite edges and corners.
-These measure complete public contact queries, including finite witness selection.
+These measure complete public contact queries, including finite witness
+selection.
 
 ## Requirements
 
@@ -69,12 +70,12 @@ dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net10.0/FixedMathSharp.Benchm
 ```
 
 The launcher returns a nonzero exit code for malformed arguments, unmatched
-benchmark filters, critical validation errors, failed
-reports, or reported executions with missing workload results or nonzero child
-exits. A successful earlier launch does not hide a later failure. Valid listing,
-help, version and information commands return zero. This checks the results exposed by BenchmarkDotNet;
-retain logs and check expected launches before using a capture as performance
-evidence, including any separate diagnoser processes.
+benchmark filters, critical validation errors, failed reports, or reported
+executions with missing workload results or nonzero child exits. A successful
+earlier launch does not hide a later failure. Valid listing, help, version and
+information commands return zero. This checks the results exposed by
+BenchmarkDotNet; retain logs and check expected launches before using a capture
+as performance evidence, including any separate diagnoser processes.
 
 ### Interpret allocation results
 
@@ -88,11 +89,12 @@ preserves BenchmarkDotNet's summaries and the successful exit status.
 On .NET 8 these are process-wide counters from a separate memory workload pass,
 so other threads can contribute. Retain every raw `// GC:` record and use warmed
 calling-thread guards plus allocator/stack evidence before attributing bytes to
-the measured operation. The [finite-shape investigation](../../docs/feature-work/done/2026-09-25-cylinder-pair-contact-design.md#benchmark-diagnostic-hardening-2026-10-01)
+the measured operation. The
+[finite-shape investigation](../../docs/feature-work/done/2026-09-25-cylinder-pair-contact-design.md#benchmark-diagnostic-hardening-2026-10-01)
 records the reporting mechanism, paired-counter controls and native capture
 procedure. For an intermittent native failure, `--keepFiles` alone is
-insufficient: archive the generated child directory before a later build
-reuses it.
+insufficient: archive the generated child directory before a later build reuses
+it.
 
 ### Fast development check
 
@@ -153,11 +155,11 @@ Start with hot paths that can be isolated and repeated deterministically:
 Keep support helpers specific. Remove copied template helpers when they stop
 serving a FixedMathSharp benchmark scenario.
 
-The `finite-axis-intersection` selection includes circle/sphere physical-distance
-intervals and moving-away misses at scales 1 and 100000. The caller-supplied
-distance domain is intentional; setup checks misses separately from successful
-intervals. Use both when changing shared unit-interval endpoint evaluation,
-alongside the selection's capsule and cylinder controls.
+The `finite-axis-intersection` selection includes circle/sphere
+physical-distance intervals and moving-away misses at scales 1 and 100000. The
+caller-supplied distance domain is intentional; setup checks misses separately
+from successful intervals. Use both when changing shared unit-interval endpoint
+evaluation, alongside the selection's capsule and cylinder controls.
 
 `projected-triangle-sweep` includes finite-Y slab clipping and vertical grids of
 128, 512 and 2,048 triangles. Grid rows measure a complete batch, with setup
@@ -186,9 +188,9 @@ closed-contact rows.
 
 `zero-core-contact` pairs circle and sphere contact construction on axis,
 diagonal, rotated, coincident, large-coordinate and separated fixtures. Its
-`CapsuleControl` case retains nonzero core lengths to detect changes outside
-the point-core path. Setup verifies classification, normal, depth and clamping;
-the matching `ZeroCoreContactTests` cover raw boundaries and retained witnesses.
+`CapsuleControl` case retains nonzero core lengths to detect changes outside the
+point-core path. Setup verifies classification, normal, depth and clamping; the
+matching `ZeroCoreContactTests` cover raw boundaries and retained witnesses.
 These are complete direct geometry queries, not Boolean overlap tests or
 simulation-frame timings.
 
@@ -201,9 +203,9 @@ needs only penetration truth, not normals, ranked depths, or contact witnesses.
 They are not end-to-end posture-transaction or simulation-frame measurements.
 `ContainedHullSphere` and `EdgeFeatureHullSphere` exercise the same hull owner
 with a zero-length capsule core, retaining volume exit and finite-edge contacts
-alongside the nonzero-core controls.
-Ordinary overlap fixtures can exit as soon as a center/core witness proves
-intrusion; their results do not estimate the cost of difficult negative queries.
+alongside the nonzero-core controls. Ordinary overlap fixtures can exit as soon
+as a center/core witness proves intrusion; their results do not estimate the
+cost of difficult negative queries.
 
 The box/cylinder rows also distinguish parallel cap manifolds, general oblique
 contacts, a zero-radius segment, and cap-clipped radial separation. Setup checks
@@ -218,19 +220,19 @@ The cylinder/capsule contact rows also cover endpoint rims, oblique interior
 rims, an intersecting capsule core, zero cylinder radius, zero capsule-core
 length, and full-domain arithmetic. Their geometric expectations live in the
 matching `CenteredCylinderCapsule*` tests. Compare each fixture unchanged across
-revisions; timings from an implementation that returns an incorrect contact
-are historical costs, not equivalent-result speed comparisons. These rows
-measure one contact query, not a complete physics frame.
+revisions; timings from an implementation that returns an incorrect contact are
+historical costs, not equivalent-result speed comparisons. These rows measure
+one contact query, not a complete physics frame.
 
 Additional strict rows exercise cone/capsule, cylinder/cone, separated finite
 rims, and triangle intrusion found only after clipping against the cylinder
 caps. Setup validates each expected classification. Separated-rim rows are
-correctness-sensitive workloads, not equivalent-result speed comparisons with
-an ordinary contact query that misclassifies that geometry.
+correctness-sensitive workloads, not equivalent-result speed comparisons with an
+ordinary contact query that misclassifies that geometry.
 
 `PenetratingRimsCylinderCylinder`, `SeparatedRimsCylinderCylinder`, and
-`TangentRimsCylinderCylinder` measure overlapping, disjoint, and exactly touching
-finite cap rims. Setup validates those classifications;
+`TangentRimsCylinderCylinder` measure overlapping, disjoint, and exactly
+touching finite cap rims. Setup validates those classifications;
 `CenteredCylinderPairStrictRegressionTests` supplies the independent geometry,
 minimum-depth bounds, and exact boundary checks. The penetrating geometry was
 previously named `ReducedCoreAxisCylinderCylinder`; its historical selected-axis
@@ -241,8 +243,8 @@ remain incorrect-answer costs, not equivalent-result performance baselines.
 planar stadium extruded through a flat Y slab. The cases cover cap faces,
 straight sides, odd-raw rounded ends, oblique rims, a certified rim gap, and
 anchors beyond the scalar world-coordinate range. Setup validates overlap and
-separation. Compare these fixtures unchanged; the historical incomplete axis
-set misclassifies the certified gap, so its timings are not a baseline for an
+separation. Compare these fixtures unchanged; the historical incomplete axis set
+misclassifies the certified gap, so its timings are not a baseline for an
 equally complete solver. This does not imply that every historical positive
 fixture had a wrong result. The `FixedTriangleCapsuleSlab*` tests provide exact
 geometry and paired-witness regressions.

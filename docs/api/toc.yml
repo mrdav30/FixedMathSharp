@@ -1,13 +1,30 @@
 items:
   - name: Home
     href: index.md
+  - name: Guides
+    href: guides/index.md
+    items:
+      - name: Getting Started
+        href: guides/getting-started.md
+      - name: Fixed64 Representation
+        href: guides/fixed64-representation.md
+      - name: Full-Domain Arithmetic
+        href: guides/full-domain-wide-arithmetic.md
+      - name: Coordinate Conventions
+        href: guides/coordinate-conventions.md
+      - name: Bounds and Geometry
+        href: guides/bounds-and-geometry.md
+      - name: Finite-Shape Contacts
+        href: guides/finite-shape-contacts.md
+      - name: Diagnostics Formatting
+        href: guides/diagnostics-formatting.md
+      - name: Technical Overview
+        href: guides/overview.md
   - name: API Reference
     href: obj/api/
     homepage: obj/api/FixedMathSharp.yml
   - name: Resources
     items:
-      - name: Wiki
-        href: https://github.com/mrdav30/FixedMathSharp/wiki
       - name: Unity Packages
         href: https://github.com/mrdav30/FixedMathSharp-Unity
       - name: Source

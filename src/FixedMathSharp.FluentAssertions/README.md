@@ -54,5 +54,5 @@ The package includes assertions for:
 
 See the
 [main FixedMathSharp repository](https://github.com/mrdav30/FixedMathSharp) and
-[API reference](https://mrdav30.github.io/FixedMathSharp/) for the numeric
-contracts behind these assertions.
+[API reference](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.html)
+for the numeric contracts behind these assertions.

@@ -4,6 +4,7 @@
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
+
 using System;
 using static FixedMathSharp.Geometry.ContactQuadratic;
 
@@ -208,51 +209,4 @@ internal static partial class SegmentConeSurfaceCandidates
 
     private static Signed832 ExtendFamily(Signed192 value) => Signed832.ExtendValue(value);
     private static Signed832 ExtendFamily(Signed320 value) => Signed832.ExtendValue(value);
-}
-
-internal enum ConeSurfaceFamilyEventKind { Interval, CircleSeam, CircleBoundary, DiskCenter, DiskPair, RimBound, Axis, AxisPlane, AxisPair }
-
-/// <summary>Compact exact construction provenance; replay uses the original candidate and halfspace order.</summary>
-internal readonly struct ConeSurfaceFamilyEvent
-{
-    internal readonly ConeSurfaceFamilyEventKind Kind;
-    internal readonly int First, Second, Branch, Parameter;
-    internal ConeSurfacePointLocation PointLocation { get; }
-    internal ConeSurfaceFamilyEvent(ConeSurfaceFamilyEventKind kind, int first, int second, int branch, int parameter, ConeSurfacePointLocation location)
-    { Kind = kind; First = first; Second = second; Branch = branch; Parameter = parameter; PointLocation = location; }
-    internal FixedContactAnchors GetContact(in SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces) =>
-        SegmentConeSurfaceCandidates.GetFamilyContact(candidate, halfspaces, this);
-    internal FixedContactAnchors GetContact(in SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces,
-        in RationalSegmentInterval clip) => SegmentConeSurfaceCandidates.GetFamilyContact(candidate, halfspaces, this, clip);
-    internal bool TryGetWorldAnchors(in SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces, out Vector3d first, out Vector3d second) =>
-        SegmentConeSurfaceCandidates.TryGetFamilyWorldAnchors(candidate, halfspaces, this, out first, out second);
-    internal bool TryGetWorldAnchors(in SegmentConeSurfaceCandidate candidate, ReadOnlySpan<WideAxis3> halfspaces,
-        in RationalSegmentInterval clip, out Vector3d first, out Vector3d second) =>
-        SegmentConeSurfaceCandidates.TryGetFamilyWorldAnchors(candidate, halfspaces, this, out first, out second, clip);
-}
-
-/// <summary>Caller-owned finite pool of already admitted exact family events.</summary>
-internal ref struct ConeSurfaceFamilySelection
-{
-    private readonly Span<ConeSurfaceFamilyEvent> events;
-    internal int Count { get; private set; }
-    internal ConeSurfaceFamilyEvent this[int index] => events[..Count][index];
-    internal ConeSurfaceFamilySelection(Span<ConeSurfaceFamilyEvent> events) { this.events = events; Count = 0; }
-    internal void Add(ConeSurfaceFamilyEvent item)
-    {
-        if (Count == events.Length) throw new InvalidOperationException("The caller-owned family event storage is full.");
-        events[Count++] = item;
-    }
-}
-
-// Slots 0..2 are a cone-local unnormalized normal; 3..5 and 6..8 are
-// centered raw p/q numerators over common slot 9; 10..11 retain segment t.
-internal readonly ref struct ConeSurfaceFamilyWitness
-{
-    internal readonly Span<ulong> Values, Root;
-    internal readonly Span<int> Signs;
-    internal int FieldWords => Values.Length / 24;
-    internal ContactQuadratic this[int index] => ContactQuadratic.At(Values, Signs, index, FieldWords);
-    internal ConeSurfaceFamilyWitness(Span<ulong> values, Span<int> signs, Span<ulong> root)
-    { Values = values; Signs = signs; Root = root; values.Clear(); signs.Clear(); root.Clear(); }
 }

@@ -2,8 +2,8 @@
 
 Date: 2026-09-21. Issue: FMS-Issue-022. Baseline: `d53bf28`.
 
-Resolved after reproducing the defect, correcting the shared contact owner,
-and validating core and downstream consumers. Removed from the active tracker.
+Resolved after reproducing the defect, correcting the shared contact owner, and
+validating core and downstream consumers. Removed from the active tracker.
 
 ## Reproduction and cause
 
@@ -20,15 +20,15 @@ as the paired witness. It projected the midpoint onto the polygon feature but
 never resolved the capsule's axial position from that feature. This can give a
 physics consumer the wrong contact moment arm.
 
-Four permanent regressions failed before the runtime edit: positive and
-negative axial offsets, each at tangency and at penetration depth `1/4`.
-The failure was deterministic and did not require repeated crash investigations.
+Four permanent regressions failed before the runtime edit: positive and negative
+axial offsets, each at tangency and at penetration depth `1/4`. The failure was
+deterministic and did not require repeated crash investigations.
 
 ## Correction
 
 `WideCenteredCapsule2dRelations.TryGetContacts` now recognizes a side support
-using the exact selected contact axis. After selecting the polygon witness,
-it projects that point onto the capsule's finite side. The parameter is clamped
+using the exact selected contact axis. After selecting the polygon witness, it
+projects that point onto the capsule's finite side. The parameter is clamped
 against the conceptual endpoints before nearest-even narrowing. The resulting
 anchor reuses the existing separate axial/radial terms and sub-lattice residual.
 No world endpoint or contact point must be representable.
@@ -64,23 +64,23 @@ common rotations, different origins/frames, unrepresentable world coordinates,
 sub-epsilon axis lengths, and warmed allocation behavior.
 
 Core Release and ReleaseLean coverage both remain **100% line and branch**,
-including every branch of the new projection. A separate source review found
-no defect in its scaling, width bounds, clamping, or non-side behavior.
+including every branch of the new projection. A separate source review found no
+defect in its scaling, width bounds, clamping, or non-side behavior.
 
 Final full-suite results:
 
-| Repository | Release | ReleaseLean |
-| --- | ---: | ---: |
-| FixedMathSharp core | 2,824 passed | 2,803 passed |
-| FixedMathSharp Chronicler | 8 passed | 8 passed |
+| Repository                    |      Release |  ReleaseLean |
+| ----------------------------- | -----------: | -----------: |
+| FixedMathSharp core           | 2,824 passed | 2,803 passed |
+| FixedMathSharp Chronicler     |     8 passed |     8 passed |
 | Gravitas with the local stack | 4,062 passed | 4,007 passed |
 
 Gravitas has a test-only regression in
-`tests/Gravitas.Tests/Physics2D/CenteredCapsuleExactRelationTests.cs` checking that
-both collider orders produce `(1,1)` on both shapes. Its runtime code and
+`tests/Gravitas.Tests/Physics2D/CenteredCapsuleExactRelationTests.cs` checking
+that both collider orders produce `(1,1)` on both shapes. Its runtime code and
 dependency versions are unchanged; local-stack validation uses
-`-p:UseLocalLsfStack=true`. Release the FixedMathSharp correction before validating
-the published dependency graph.
+`-p:UseLocalLsfStack=true`. Release the FixedMathSharp correction before
+validating the published dependency graph.
 
 Portable verification commands:
 
@@ -96,9 +96,9 @@ dotnet test tests/Gravitas.Tests/Gravitas.Tests.csproj -c ReleaseLean -p:UseLoca
 ```
 
 Core coverage adds `--collect "XPlat Code Coverage"` and
-`--settings tests/FixedMathSharp.Tests/coverlet.runsettings` to its test command.
-The original repro, source tests, arithmetic, and commands are durable evidence;
-temporary reports and logs are supplemental.
+`--settings tests/FixedMathSharp.Tests/coverlet.runsettings` to its test
+command. The original repro, source tests, arithmetic, and commands are durable
+evidence; temporary reports and logs are supplemental.
 
 ## Benchmark
 
@@ -118,13 +118,13 @@ every case. Environment: Windows 11 build 26200.9457, Intel i7-9700K, SDK
 10.0.302, .NET 8.0.29 x64 RyuJIT, workstation concurrent GC, BenchmarkDotNet
 0.15.8.
 
-| Query | Final mean |
-| --- | ---: |
-| Side overlap | 9.065 us |
-| Rotated overlap | 10.240 us |
-| Corner tangency | 8.213 us |
-| Corner miss | 7.061 us |
-| Side/vertex contact anchors | 8.327 us |
+| Query                       | Final mean |
+| --------------------------- | ---------: |
+| Side overlap                |   9.065 us |
+| Rotated overlap             |  10.240 us |
+| Corner tangency             |   8.213 us |
+| Corner miss                 |   7.061 us |
+| Side/vertex contact anchors |   8.327 us |
 
 The side/vertex baseline was 7.460 us with an incorrect midpoint witness. The
 correction adds about 0.867 us (12%) for this case on this host, with no managed

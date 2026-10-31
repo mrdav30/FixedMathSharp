@@ -12,9 +12,9 @@ using System.Runtime.CompilerServices;
 
 namespace FixedMathSharp;
 
-internal static class FixedDiagnosticsFormatter
+internal static partial class FixedDiagnosticsFormatter
 {
-    internal delegate bool TryFormatHandler(Span<char> destination, out int charsWritten);
+
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool TryFormat(

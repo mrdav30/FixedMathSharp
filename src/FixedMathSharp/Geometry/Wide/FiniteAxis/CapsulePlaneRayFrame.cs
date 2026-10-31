@@ -4,37 +4,18 @@
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
+
 using System;
 
 namespace FixedMathSharp.Geometry;
 
-/// <summary>An unbounded plane or one authored finite perimeter segment.</summary>
-internal readonly struct CapsulePlaneRayEventSource
-{
-    internal readonly bool IsSegment;
-    internal readonly Vector3d A, B;
-    internal static CapsulePlaneRayEventSource Plane => default;
-    internal CapsulePlaneRayEventSource(FixedSegment segment)
-    { IsSegment = true; A = segment.Start; B = segment.End; }
-}
 
-internal enum CapsulePlaneRayEventKind : byte { Support, Sagittal, Seam, Endpoint, Section, Stationary, Circle }
 
-/// <summary>A reconstructible exact point in the plane or its finite perimeter.</summary>
-internal readonly struct CapsulePlaneRayEvent
-{
-    internal readonly CapsulePlaneRayEventKind Kind;
-    internal readonly sbyte Feature, Branch, Orientation;
-    internal CapsulePlaneRayEvent(CapsulePlaneRayEventKind kind, int feature = 0, int branch = 0, int orientation = 0)
-    { Kind = kind; Feature = (sbyte)feature; Branch = (sbyte)branch; Orientation = (sbyte)orientation; }
-    internal bool Matches(in CapsulePlaneRayEvent other) =>
-        Kind == other.Kind && Feature == other.Feature && Branch == other.Branch && Orientation == other.Orientation;
-}
 
-/// <summary>Synchronous exact event consumption; borrowed candidate storage cannot escape.</summary>
-internal delegate void CapsulePlaneRayEventVisitor(in CapsulePlaneRayEventSource source,
-    in CapsulePlaneRayFrame frame, CapsulePlaneRayEvent descriptor, int orientation,
-    scoped in CapsulePlaneRaySelection candidate);
+
+
+
+
 
 /// <summary>Canonical finite plane and exact capsule-local coordinates for admitted plane rays.</summary>
 internal readonly struct CapsulePlaneRayFrame

@@ -42,9 +42,9 @@ random streams, curves, ranges, bounds, and computational geometry.
 
 ## Learn more
 
-- [Getting started](https://github.com/mrdav30/FixedMathSharp/blob/main/docs/wiki/getting-started.md)
-- [Behavioral guides](https://github.com/mrdav30/FixedMathSharp/wiki)
-- [API reference](https://mrdav30.github.io/FixedMathSharp/)
+- [Getting started](https://mrdav30.github.io/FixedMathSharp/guides/getting-started.html)
+- [Behavioral guides](https://mrdav30.github.io/FixedMathSharp/guides/index.html)
+- [API reference](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.html)
 - [Migration guide](https://github.com/mrdav30/FixedMathSharp/blob/main/docs/MIGRATION.md)
 - [Source and issues](https://github.com/mrdav30/FixedMathSharp)
 

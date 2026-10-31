@@ -34,30 +34,7 @@ internal static partial class WideConvex2dRelations
             new(WideArithmetic.Negate(value.X), WideArithmetic.Negate(value.Y));
     }
 
-    internal readonly struct RotationFrame2d
-    {
-        internal static readonly RotationFrame2d Identity = new(
-            Signed192.One,
-            default);
 
-        internal readonly Signed192 Cosine;
-        internal readonly Signed192 Sine;
-
-        internal RotationFrame2d(Fixed64 rotation)
-            : this(
-                Signed192.Raw(FixedMath.Cos(rotation)),
-                Signed192.Raw(FixedMath.Sin(rotation)))
-        {
-        }
-
-        private RotationFrame2d(
-            Signed192 cosine,
-            Signed192 sine)
-        {
-            Cosine = cosine;
-            Sine = sine;
-        }
-    }
 
     private readonly struct Feature
     {

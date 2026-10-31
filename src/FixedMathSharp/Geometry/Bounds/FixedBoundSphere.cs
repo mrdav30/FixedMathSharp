@@ -1,7 +1,7 @@
 //=======================================================================
 // FixedBoundSphere.cs
 //=======================================================================
-// MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
+// MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
@@ -36,38 +36,6 @@ public partial struct FixedBoundSphere : IEquatable<FixedBoundSphere>, IFormatta
     , ISpanFormattable
 #endif
 {
-    #region Nested Types
-
-    /// <summary>
-    /// Represents the normalized serializable state of a three-dimensional spherical bound.
-    /// </summary>
-    [Serializable]
-    [MemoryPackable]
-    public readonly partial struct BoundingSphereState
-    {
-        /// <inheritdoc cref="FixedBoundSphere.Center"/>
-        [JsonInclude]
-        [MemoryPackInclude]
-        public readonly Vector3d Center;
-
-        /// <inheritdoc cref="FixedBoundSphere.Radius"/>
-        [JsonInclude]
-        [MemoryPackInclude]
-        public readonly Fixed64 Radius;
-
-        /// <summary>
-        /// Initializes a normalized state from center and radius.
-        /// </summary>
-        [JsonConstructor]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public BoundingSphereState(Vector3d center, Fixed64 radius)
-        {
-            Center = center;
-            Radius = NormalizeRadius(radius);
-        }
-    }
-
-    #endregion
 
     #region Fields
 

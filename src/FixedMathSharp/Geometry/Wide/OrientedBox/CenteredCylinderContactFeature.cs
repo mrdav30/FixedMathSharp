@@ -1,7 +1,10 @@
 //=======================================================================
+// CenteredCylinderContactFeature.cs
+//=======================================================================
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
+
 namespace FixedMathSharp.Geometry;
 
 /// <summary>Exact parallel box-face/cylinder-cap ownership for manifold clipping.</summary>

@@ -39,9 +39,10 @@ compatibility event.
 `WriteTransform` hashes local position, local rotation, and local scale. Parent
 identity and derived world values are intentionally excluded.
 
-Chronicler v1.0.0 places hash types in `Chronicler.Hashing`. Rebuild the companion
-and its consumers together when migrating; this namespace change preserves the
-extension writers' field order and hash output.
+See the
+[migration guide](https://github.com/mrdav30/FixedMathSharp/blob/main/docs/MIGRATION.md)
+when upgrading existing consumers or changing shared diagnostics and hash
+imports.
 
 ## Exact simulation-time conversions
 
@@ -90,7 +91,7 @@ execution, lifetime boundaries, and coordinated restore.
 ## Learn more
 
 - [FixedMathSharp repository](https://github.com/mrdav30/FixedMathSharp)
-- [FixedMathSharp API reference](https://mrdav30.github.io/FixedMathSharp/)
+- [FixedMathSharp API reference](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.html)
 - [Chronicler source](https://github.com/mrdav30/Chronicler)
 
 FixedMathSharp.Chronicler is licensed under the

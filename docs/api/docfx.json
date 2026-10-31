@@ -15,8 +15,17 @@
   ],
   "build": {
     "content": [
-      { "files": ["index.md", "toc.yml"] },
-      { "files": ["**/*.yml"], "src": "obj/api", "dest": "api" }
+      {
+        "files": ["index.md", "toc.yml"]
+      },
+      {
+        "files": ["guides/**/*.md"]
+      },
+      {
+        "files": ["**/*.yml"],
+        "src": "obj/api",
+        "dest": "api"
+      }
     ],
     "resource": [
       {
@@ -25,12 +34,16 @@
         "dest": "assets"
       }
     ],
-    "overwrite": [{ "files": ["overrides/*.md"] }],
+    "overwrite": [
+      {
+        "files": ["overrides/*.md"]
+      }
+    ],
     "output": "obj/_site",
     "template": ["default", "modern", "templates/fixedmathsharp"],
     "globalMetadata": {
-      "_appName": "FixedMathSharp API",
-      "_appTitle": "FixedMathSharp API",
+      "_appName": "FixedMathSharp",
+      "_appTitle": "FixedMathSharp documentation",
       "_enableSearch": true,
       "_enableNewTab": true,
       "_appLogoPath": "assets/icon_128x128.png",

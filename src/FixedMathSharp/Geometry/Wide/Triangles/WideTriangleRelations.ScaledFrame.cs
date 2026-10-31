@@ -4,6 +4,7 @@
 // MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
+
 using System;
 
 namespace FixedMathSharp.Geometry;
@@ -673,4 +674,3 @@ internal static partial class WideTriangleRelations
         WideArithmetic.AddSigned832(WideArithmetic.AddSigned832(WideArithmetic.MultiplySigned576ToSigned832(first.X, second.X),
             WideArithmetic.MultiplySigned576ToSigned832(first.Y, second.Y)), WideArithmetic.MultiplySigned576ToSigned832(first.Z, second.Z));
 }
-

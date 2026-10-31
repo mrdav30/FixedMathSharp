@@ -13,21 +13,21 @@ the distinction between an exact maximum and a depth that must be clamped.
 Candidate enumeration, ranking, normal generation, support anchors, and the
 comparison arithmetic are unchanged. This is a result-preserving runtime
 correction, not a repair for the incomplete cylinder-pair contact geometry in
-[FMS-Issue-024](2026-09-25-cylinder-pair-contact-design.md). No floating-point runtime math, new
-allocation, public API, or approximate fallback was added.
+[FMS-Issue-024](2026-09-25-cylinder-pair-contact-design.md). No floating-point
+runtime math, new allocation, public API, or approximate fallback was added.
 
 ## Root cause
 
-The approximation floors the candidate axis length before dividing rational
-and disk-support terms. The original correction loop assumed the resulting
-depth was only a few raw units from its exact value and moved one raw unit per
-iteration with no bound.
+The approximation floors the candidate axis length before dividing rational and
+disk-support terms. The original correction loop assumed the resulting depth was
+only a few raw units from its exact value and moved one raw unit per iteration
+with no bound.
 
 That assumption is false for an admitted closest-core candidate.
 `WideOrientedBox.RigidClosestCandidate` removes common powers of two from the
-exact direction; the resulting integer components can be small. Flooring a
-small nonsquare length introduces substantial relative error, even though each
-later scalar conversion is correctly rounded.
+exact direction; the resulting integer components can be small. Flooring a small
+nonsquare length introduces substantial relative error, even though each later
+scalar conversion is correctly rounded.
 
 For the FMS-Issue-024 separated fixture, cylinder A has center zero, axis +Y,
 height 2, radius 1; B has center `(7/4,7/4,11/8)`, axis +X, height 2, radius 1.
@@ -39,16 +39,15 @@ and floor length is 13. The selected projection is
 that this axis proves the cylinders intersect.
 
 For the penetrating control with second Z coordinate `5/4`, the reduced
-direction is `(3,3,5)`. Its selected projection is
-`(2*sqrt(34)-43/4)/sqrt(43)`, exactly rounding to raw `597275436`; the estimate
-is raw `652766157`, requiring `55490721` old corrections.
+direction is `(3,3,5)`. Its selected projection is `(2*sqrt(34)-43/4)/sqrt(43)`,
+exactly rounding to raw `597275436`; the estimate is raw `652766157`, requiring
+`55490721` old corrections.
 
 ## Reproduction and before/after evidence
 
 The old rounding owner was inspected at source base `0c2a120`. A stack captured
 while the first fixture was running showed
-`GetMultiquadraticSign -> GetLinearRadicalSumSign ->
-CompareCylinderPairDepthToTwiceRaw -> GetRoundedCylinderCylinderDepth`.
+`GetMultiquadraticSign -> GetLinearRadicalSumSign -> CompareCylinderPairDepthToTwiceRaw -> GetRoundedCylinderCylinderDepth`.
 The unchanged public regression class exceeded a 90-second diagnostic timeout
 without completing its first separated-rim case. A previous diagnostic was
 stopped after roughly 4.5 CPU minutes. These were deliberate test-host aborts,
@@ -56,12 +55,12 @@ not newly observed runtime crashes.
 
 The new independent-oracle regression was executed before the production edit.
 Its `zNumerator=19, denominator=16` case also exceeded a 15-second diagnostic
-timeout without completing. After the edit, the same case passed in about
-80 ms including both argument orders; the other two new reduced-axis cases
-each completed in under 5 ms in that focused run. The unchanged five-case
-public geometric regression finished in 124 ms with its expected three
-failures and two passes; the formerly stalled separated case took 78 ms.
-These are Windows test-runner diagnostics, not steady-state benchmark claims.
+timeout without completing. After the edit, the same case passed in about 80 ms
+including both argument orders; the other two new reduced-axis cases each
+completed in under 5 ms in that focused run. The unchanged five-case public
+geometric regression finished in 124 ms with its expected three failures and two
+passes; the formerly stalled separated case took 78 ms. These are Windows
+test-runner diagnostics, not steady-state benchmark claims.
 
 Portable reproductions (add `-p:UseLocalLsfStack=true` for coordinated source
 development):
@@ -71,8 +70,8 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --
 dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj -c Release --filter FullyQualifiedName~CenteredCylinderPairStrictRegressionTests
 ```
 
-The second command intentionally remains red for FMS-Issue-024. No old
-geometric assertions were removed, weakened, skipped, or excluded.
+The second command intentionally remains red for FMS-Issue-024. No old geometric
+assertions were removed, weakened, skipped, or excluded.
 
 ## Regression proof
 
@@ -85,30 +84,31 @@ inequalities with test-only `BigInteger` arithmetic:
   downward correction, with independent squared-distance midpoint checks.
 - Half-raw ties rounding in both nearest-even directions.
 
-Existing `CenteredCylinderRigidFrameTests` cover exact maximum without
-clamping, half a raw unit above maximum with clamping, deeper overflow,
-full-domain cancellation, multiradical ranking, and warmed allocations.
-The first focused Release run passed all 30 then-present cases.
+Existing `CenteredCylinderRigidFrameTests` cover exact maximum without clamping,
+half a raw unit above maximum with clamping, deeper overflow, full-domain
+cancellation, multiradical ranking, and warmed allocations. The first focused
+Release run passed all 30 then-present cases.
 
-Final Windows verification included every core test, with no excluded or
-skipped geometric regressions:
+Final Windows verification included every core test, with no excluded or skipped
+geometric regressions:
 
-| Configuration | Complete core suite | Instrumented covered lines | Instrumented covered branches | Chronicler suite |
-| --- | --- | --- | --- | --- |
-| Release | 3,123 passed; 6 known failures | 49,417 / 49,417 | 9,578 / 9,578 | 49 passed |
-| ReleaseLean | 3,102 passed; 6 known failures | 49,510 / 49,510 | 9,578 / 9,578 | 49 passed |
+| Configuration | Complete core suite            | Instrumented covered lines | Instrumented covered branches | Chronicler suite |
+| ------------- | ------------------------------ | -------------------------- | ----------------------------- | ---------------- |
+| Release       | 3,123 passed; 6 known failures | 49,417 / 49,417            | 9,578 / 9,578                 | 49 passed        |
+| ReleaseLean   | 3,102 passed; 6 known failures | 49,510 / 49,510            | 9,578 / 9,578                 | 49 passed        |
 
-The coverage totals include `FixedMathSharp` and `FixedMathSharp.FluentAssertions`
-instrumented by the core suite; both assemblies have complete line, branch and
-method coverage. The separate Chronicler suite was executed without coverage.
+The coverage totals include `FixedMathSharp` and
+`FixedMathSharp.FluentAssertions` instrumented by the core suite; both
+assemblies have complete line, branch and method coverage. The separate
+Chronicler suite was executed without coverage.
 
 The six failures are the three FMS-Issue-023 capsule/cylinder cases and three
 FMS-Issue-024 cylinder-pair cases. All eight new rounding cases passed in both
-configurations. All four methods in the rounding owner have 100% line and
-branch coverage; `GetRoundedCylinderCylinderDepth` has cyclomatic complexity
-14. Core `netstandard2.1` builds succeeded in both configurations with zero
-warnings and errors. Tests target `net8.0`; these source-mode results do not
-establish released-package readiness or cross-platform verification.
+configurations. All four methods in the rounding owner have 100% line and branch
+coverage; `GetRoundedCylinderCylinderDepth` has cyclomatic complexity 14. Core
+`netstandard2.1` builds succeeded in both configurations with zero warnings and
+errors. Tests target `net8.0`; these source-mode results do not establish
+released-package readiness or cross-platform verification.
 
 Full coverage commands use the core test project with
 `--collect:"XPlat Code Coverage" --settings tests/FixedMathSharp.Tests/coverlet.runsettings`.
@@ -118,16 +118,17 @@ geometry. Steady-state benchmark comparisons remain separate from these
 diagnostic timings.
 
 The completed out-of-process BenchmarkDotNet 0.15.8 default-job capture on
-Windows 11 / i7-9700K / .NET 8.0.29 measured the penetrating reduced-core fixture
-at **340.74 us mean, 340.64 us median, 0 B allocated**. Matching ordinary
-cylinder/capsule and cylinder/cylinder controls measured 27.48 us and 24.88 us,
-versus 27.48 us and 25.08 us in the preceding capture: no observed ordinary-path
-regression. The pre-fix pathological case timed out, so no invented finite
-baseline or speedup ratio is reported. Reproduce the measured row through
+Windows 11 / i7-9700K / .NET 8.0.29 measured the penetrating reduced-core
+fixture at **340.74 us mean, 340.64 us median, 0 B allocated**. Matching
+ordinary cylinder/capsule and cylinder/cylinder controls measured 27.48 us and
+24.88 us, versus 27.48 us and 25.08 us in the preceding capture: no observed
+ordinary-path regression. The pre-fix pathological case timed out, so no
+invented finite baseline or speedup ratio is reported. Reproduce the measured
+row through
 `rigid-finite-shape-relation --filter '*ReducedCoreAxisCylinderCylinder'` in the
 existing benchmark runner. Raw JSON and complete logs are under
 `artifacts/grv081-final-benchmarks`.
 
 Ignored logs, stack captures, TRX files and diagnostic dumps under `artifacts`
-are supplementary; the fixtures, numerical mechanism and commands above
-preserve the reproducer without those files.
+are supplementary; the fixtures, numerical mechanism and commands above preserve
+the reproducer without those files.

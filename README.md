@@ -80,12 +80,12 @@ Published packages target .NET Standard 2.1 and .NET 10.
 
 ## Explore the library
 
-- [Getting started](docs/wiki/getting-started.md) — package choice, setup,
-  examples, serialization, and source builds
-- [Wiki](docs/wiki/Home.md) — numeric behavior, transforms, conventions,
-  geometry, and formatting
-- [API reference](https://mrdav30.github.io/FixedMathSharp/) — public types and
-  members generated from the source XML documentation
+- [Getting started](https://mrdav30.github.io/FixedMathSharp/guides/getting-started.html)
+  — package choice, setup, examples, serialization, and source builds
+- [Guides](https://mrdav30.github.io/FixedMathSharp/guides/index.html) — numeric
+  behavior, transforms, conventions, geometry, and formatting
+- [API reference](https://mrdav30.github.io/FixedMathSharp/api/FixedMathSharp.html)
+  — public types and members generated from the source XML documentation
 - [Migration guide](docs/MIGRATION.md) — intentional breaking changes and
   upgrade guidance
 - [Benchmarks](tests/FixedMathSharp.Benchmarks/README.md) — reproducible
@@ -96,6 +96,9 @@ Published packages target .NET Standard 2.1 and .NET 10.
 Bug reports, feature requests, performance evidence, and real-world determinism
 stories are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a
 pull request, or join the [Discord community](https://discord.gg/mhwK2QFNBA).
+
+See [Support](.github/SUPPORT.md), the [Code of Conduct](CODE_OF_CONDUCT.md),
+and [Security](SECURITY.md) for help and reporting guidance.
 
 FixedMathSharp is available under the [MIT License](LICENSE). See
 [NOTICE](NOTICE) for the project branding and redistribution terms.

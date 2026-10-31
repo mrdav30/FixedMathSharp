@@ -64,12 +64,57 @@ jobs:
         run: |
           test -f src/FixedMathSharp/bin/Release/net10.0/FixedMathSharp.dll
           test -f src/FixedMathSharp/bin/Release/net10.0/FixedMathSharp.xml
-          dotnet tool run docfx docs/api/docfx.json
+          test -f src/FixedMathSharp.Chronicler/bin/Release/net10.0/FixedMathSharp.Chronicler.dll
+          test -f src/FixedMathSharp.Chronicler/bin/Release/net10.0/FixedMathSharp.Chronicler.xml
+          dotnet tool run docfx docs/api/docfx.json --warningsAsErrors
           test -f docs/api/obj/_site/index.html
           test -f docs/api/obj/_site/api/FixedMathSharp.html
+          test -f docs/api/obj/_site/api/FixedMathSharp.Chronicler.html
+          for guide in index getting-started fixed64-representation full-domain-wide-arithmetic coordinate-conventions bounds-and-geometry finite-shape-contacts diagnostics-formatting overview; do
+            test -f "docs/api/obj/_site/guides/${guide}.html"
+          done
           test -f docs/api/obj/_site/assets/icon_128x128.png
           grep -q "github.com/mrdav30/FixedMathSharp" docs/api/obj/_site/public/main.js
           grep -q "FixedMathSharp-Unity" docs/api/obj/_site/api/FixedMathSharp.html
+
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from urllib.parse import unquote, urlsplit
+
+          site = Path("docs/api/obj/_site").resolve()
+          broken = []
+
+          class Links(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.hrefs = []
+
+              def handle_starttag(self, tag, attrs):
+                  if tag == "a":
+                      href = dict(attrs).get("href")
+                      if href:
+                          self.hrefs.append(href)
+
+          for page in site.rglob("*.html"):
+              parser = Links()
+              parser.feed(page.read_text(encoding="utf-8"))
+              for href in parser.hrefs:
+                  parsed = urlsplit(href)
+                  if parsed.scheme or parsed.netloc or not parsed.path:
+                      continue
+
+                  path = unquote(parsed.path)
+                  target = site / path.lstrip("/") if path.startswith("/") else page.parent / path
+                  target = target.resolve()
+                  if target.is_dir():
+                      target /= "index.html"
+                  if not target.exists():
+                      broken.append(f"{page.relative_to(site)} -> {href}")
+
+          if broken:
+              raise SystemExit("Broken local links:\n" + "\n".join(sorted(broken)))
+          PY
 
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool

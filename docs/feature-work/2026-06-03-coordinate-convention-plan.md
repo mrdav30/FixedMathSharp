@@ -18,9 +18,9 @@ named convention helpers only where they remove ambiguity, and push
 engine-specific transforms, storage rules, and package APIs into integration
 packages and docs.
 
-**Tech Stack:** `netstandard2.1` and `net8.0` runtime targets, xUnit, `Fixed64`,
-`Vector2d`, `Vector3d`, `Vector4d`, `FixedQuaternion`, `Fixed3x3`, `Fixed4x4`,
-FixedMathSharp-Unity adapter extensions.
+**Tech Stack:** `netstandard2.1` and `net10.0` runtime targets, xUnit,
+`Fixed64`, `Vector2d`, `Vector3d`, `Vector4d`, `FixedQuaternion`, `Fixed3x3`,
+`Fixed4x4`, FixedMathSharp-Unity adapter extensions.
 
 ---
 
@@ -131,7 +131,7 @@ dotnet test tests/FixedMathSharp.Tests/FixedMathSharp.Tests.csproj --configurati
 - Modify: `src/FixedMathSharp/Numerics/Rotations/FixedQuaternion.cs`
 - Modify: `src/FixedMathSharp/Numerics/Matrices/Fixed4x4.cs`
 - Modify: `README.md`
-- Create or modify: `docs/wiki/coordinate-conventions.md`
+- Create or modify: `docs/api/guides/coordinate-conventions.md`
 
 - [x] Add XML remark docs that state FixedMathSharp's canonical convention on
       specific properties or methods.
@@ -166,7 +166,7 @@ dotnet build FixedMathSharp.slnx --configuration Debug
 - Modify:
   `tests/FixedMathSharp.Tests/Numerics/CoordinateConventions/CoordinateConvention3d.Tests.cs`
 - Modify: `README.md`
-- Modify: `docs/wiki/coordinate-conventions.md`
+- Modify: `docs/api/guides/coordinate-conventions.md`
 
 - [x] Replace the signed-Z-only `ForwardAxis` model with a signed 3D axis model
       such as `Axis3d.PositiveX`, `Axis3d.NegativeX`, `Axis3d.PositiveY`,
@@ -259,7 +259,7 @@ Base/package runtime extension directories had no post-sync drift.
 **Files:**
 
 - Create or modify only after deciding the separate adapter repo/package shape.
-- Likely docs target: `docs/wiki/coordinate-conventions.md`
+- Likely docs target: `docs/api/guides/coordinate-conventions.md`
 - Optional package target: a separate `FixedMathSharp-MonoGame` repo and
   `FixedMathSharp.MonoGame` package, not `src/FixedMathSharp`.
 
@@ -296,7 +296,7 @@ dotnet build FixedMathSharp.slnx --configuration Debug
 - Review: `src/FixedMathSharp/**/*.cs`
 - Review: `tests/FixedMathSharp.Tests/**/*.cs`
 - Review: `README.md`
-- Review: `docs/wiki/coordinate-conventions.md`
+- Review: `docs/api/guides/coordinate-conventions.md`
 - Review: Unity package extension files if Phase 5 is included.
 
 - [ ] Run the standard debug workflow.

@@ -4,14 +4,15 @@ For substantial API, architecture, or serialization changes, open an issue or
 discussion before implementation so the intended contract is clear. Focused
 fixes can proceed directly through a pull request.
 
-Please note we have a code of conduct, please follow it in all your interactions
-with the project.
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). See
+[Support](.github/SUPPORT.md) for help and [Security](SECURITY.md) for private
+vulnerability reports.
 
 ## Pull Request Process
 
 1. Keep the change focused and preserve deterministic behavior, stable ordering,
    and engine-agnostic runtime boundaries.
-2. Add or update tests for behavior changes and keep the README, wiki, XML
+2. Add or update tests for behavior changes and keep the README, guides, XML
    documentation, and benchmarks aligned with the affected public contract.
 3. Run the `Release` build and tests. Also run `ReleaseLean` when changing
    packages, serialization, MemoryPack conditionals, or shared runtime APIs.
@@ -38,12 +39,15 @@ dotnet test FixedMathSharp.slnx -c Release -p:UseLocalLsfStack=true -p:DisableTr
 
 This selects source Chronicler for the companion and its tests, including the
 Lean shim. Package mode remains the default and is the release-validation path.
-Alternatively, set `$env:UseLocalLsfStack='true'` for the PowerShell session.
-Keep `-p:DisableTransitiveProjectReferences=true` on restore/build/test commands
-even when selecting source mode through the environment. Source mode also
-selects the local shim for the core math library's Lean build.
-Local 0.4.0 identities only coordinate
-assembly resolution; generated source-mode packages are not release artifacts.
+Before release, align package references with the published Chronicler versions
+and validate both profiles in package mode. Source-mode identities are not proof
+that the released dependency graph supplies the same APIs. Alternatively, set
+`$env:UseLocalLsfStack='true'` for the PowerShell session. Keep
+`-p:DisableTransitiveProjectReferences=true` on restore/build/test commands even
+when selecting source mode through the environment. Source mode also selects the
+local shim for the core math library's Lean build. Local development identities
+only coordinate assembly resolution; generated source-mode packages are not
+release artifacts.
 
 ## Branch-Specific CI Dependencies
 
@@ -54,83 +58,53 @@ PR validates packages. Release upstream dependencies before promotion and update
 source pins deliberately as the coordinated stack changes. Source/package NuGet
 caches are separated, and source graphs build serially to avoid shared-output
 races. Restore, build and test also pass
-`-p:DisableTransitiveProjectReferences=${{ env.UseLocalLsfStack }}` globally,
-so inferred references in sibling projects cannot discard explicit assembly
+`-p:DisableTransitiveProjectReferences=${{ env.UseLocalLsfStack }}` globally, so
+inferred references in sibling projects cannot discard explicit assembly
 identities. Serialization alone does not preserve those identities. Package mode
 sets the flag to false. Both Release/Lean Windows/Linux lanes remain required.
 
-## Code of Conduct
+## Documentation and cleanup
 
-### Our Pledge
+Guides live in `docs/api/guides` and publish with the API reference and coverage
+through the existing Pages workflow. The GitHub Wiki contains only a landing
+page pointing to that site; it has no guide copies or synchronization workflow.
+Keep current guides evergreen and put version-specific upgrade steps in
+[Migration](docs/MIGRATION.md). Generated files under `docs/api/obj` are
+ignored.
 
-In the interest of fostering an open and welcoming environment, we as
-contributors and maintainers pledge to making participation in our project and
-our community a harassment-free experience for everyone, regardless of age, body
-size, disability, ethnicity, gender identity and expression, level of
-experience, nationality, personal appearance, race, religion, or sexual identity
-and orientation.
+After a Release build, generate the site with:
 
-### Our Standards
+```bash
+dotnet tool restore
+dotnet tool run docfx docs/api/docfx.json --warningsAsErrors
+```
 
-Examples of behavior that contributes to creating a positive environment
-include:
+Run cleanup explicitly before review, using the SDK from `global.json` and
+Node.js/npm for Prettier:
 
-- Using welcoming and inclusive language
-- Being respectful of differing viewpoints and experiences
-- Gracefully accepting constructive criticism
-- Focusing on what is best for the community
-- Showing empathy towards other community members
+```bash
+dotnet format FixedMathSharp.slnx --severity error
+npx --yes prettier@3.9.5 --write .
+```
 
-Examples of unacceptable behavior by participants include:
+In coordinated-source mode, set `UseLocalLsfStack=true` and
+`DisableTransitiveProjectReferences=true` in the environment for the formatter,
+just as for source builds. Keep formatting separate from commits; no hook
+rewrites or stages files. Prettier's version is pinned in the command and its
+first use can download the tool. Generated output is excluded by
+`.prettierignore`. The .NET formatter follows `.editorconfig`, including
+whitespace and error-level style/analyzer fixes; it does not reproduce a Visual
+Studio cleanup profile.
 
-- The use of sexualized language or imagery and unwelcome sexual attention or
-  advances
-- Trolling, insulting/derogatory comments, and personal or political attacks
-- Public or private harassment
-- Publishing others' private information, such as a physical or electronic
-  address, without explicit permission
-- Other conduct which could reasonably be considered inappropriate in a
-  professional setting
+Check without rewriting files:
 
-### Our Responsibilities
+```bash
+dotnet format FixedMathSharp.slnx --severity error --verify-no-changes
+npx --yes prettier@3.9.5 --check .
+```
 
-Project maintainers are responsible for clarifying the standards of acceptable
-behavior and are expected to take appropriate and fair corrective action in
-response to any instances of unacceptable behavior.
-
-Project maintainers have the right and responsibility to remove, edit, or reject
-comments, commits, code, wiki edits, issues, and other contributions that are
-not aligned to this Code of Conduct, or to ban temporarily or permanently any
-contributor for other behaviors that they deem inappropriate, threatening,
-offensive, or harmful.
-
-### Scope
-
-This Code of Conduct applies both within project spaces and in public spaces
-when an individual is representing the project or its community. Examples of
-representing a project or community include using an official project e-mail
-address, posting via an official social media account, or acting as an appointed
-representative at an online or offline event. Representation of a project may be
-further defined and clarified by project maintainers.
-
-### Enforcement
-
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by contacting the project team at `david.oravsky@gmail.com`. All
-complaints will be reviewed and investigated and will result in a response that
-is deemed necessary and appropriate to the circumstances. The project team is
-obligated to maintain confidentiality with regard to the reporter of an
-incident. Further details of specific enforcement policies may be posted
-separately.
-
-Project maintainers who do not follow or enforce the Code of Conduct in good
-faith may face temporary or permanent repercussions as determined by other
-members of the project's leadership.
-
-### Attribution
-
-This Code of Conduct is adapted from the [Contributor Covenant][homepage],
-version 1.4, available at [http://contributor-covenant.org/version/1/4][version]
-
-[homepage]: http://contributor-covenant.org
-[version]: http://contributor-covenant.org/version/1/4/
+Each namespace-level type or delegate has its own file. Public/internal nested
+types use separate files while preserving their containing types and CLR
+identities; private nested helpers may stay with their owner. Authored C# files
+under `src` carry the filename and MIT license header; test and benchmark files
+under `tests` do not.

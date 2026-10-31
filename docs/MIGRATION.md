@@ -1,6 +1,6 @@
 # FixedMathSharp Migration Guide
 
-## Upcoming release
+## Shared diagnostics migration
 
 ### Shared diagnostics dependency
 
@@ -9,7 +9,8 @@ package in standard and Lean builds. Existing `Fixed64.Parse` and `ParseRaw`
 null guards use its `ChronicleGuard`; their exception contracts are unchanged.
 The core does not acquire a `Chronicler.Core` or SwiftCollections dependency.
 Recording, replay hashing, and time conversion stay in the optional
-`FixedMathSharp.Chronicler` companion. Math formatting remains in FixedMathSharp.
+`FixedMathSharp.Chronicler` companion. Math formatting remains in
+FixedMathSharp.
 
 Publish Chronicler.Diagnostics before the updated math packages. Validate
 released dependencies after coordinated `UseLocalLsfStack=true` source builds;
@@ -505,11 +506,11 @@ and `localScale`.
 Strict matrix import and `Fixed4x4.Decompose` validate normalized rotation
 coefficients within `Fixed64.Epsilon`. Scaled reconstruction must be
 representable, with coefficient error bounded per row by
-`abs(scale) * (Epsilon + q/2) + q/2`, where `q` is one raw Q32.32 unit.
-Large scales can therefore import despite quaternion rounding exceeding an
-absolute world-space epsilon. Perspective, normalized shear and singular
-matrices remain rejected. `TrySetParentKeepingWorld` retains its additional
-absolute-epsilon world-matrix preservation check and atomic failure behavior.
+`abs(scale) * (Epsilon + q/2) + q/2`, where `q` is one raw Q32.32 unit. Large
+scales can therefore import despite quaternion rounding exceeding an absolute
+world-space epsilon. Perspective, normalized shear and singular matrices remain
+rejected. `TrySetParentKeepingWorld` retains its additional absolute-epsilon
+world-matrix preservation check and atomic failure behavior.
 
 `LocalToWorldMatrix`, `WorldPosition`, and `LossyScale` traverse parents on
 read. `FixedTransform` does not own a scene graph, child collection, matrix

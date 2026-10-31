@@ -19,15 +19,17 @@ FixedQuaternion.FromAxisAngle(Vector3d.Up, -Fixed64.PiOver4)
 
 `TryGetLocalToWorldMatrix` succeeds, but `Fixed4x4.Decompose` returns false.
 Scale one succeeds. The normalized basis is orthogonal within one raw increment
-and its quaternion reconstruction passes. The final scaled reconstruction differs
-by 3,724 raw increments for the Euler rotation and 2,097 for the planar rotation,
-exceeding the fixed absolute epsilon of 256. The rejection is caused by scale
-amplifying quaternion rounding, rather than meaningful normalized shear.
+and its quaternion reconstruction passes. The final scaled reconstruction
+differs by 3,724 raw increments for the Euler rotation and 2,097 for the planar
+rotation, exceeding the fixed absolute epsilon of 256. The rejection is caused
+by scale amplifying quaternion rounding, rather than meaningful normalized
+shear.
 
-The existing scale-1,000 arbitrary-axis regression also rejected valid normalized
-TRS solely for this absolute residual. The new acceptance regression replaces
-that old policy assertion. Ten of eleven initial acceptance rows fail before the
-runtime change; the scale-one control passes (`artifacts/issue029-red.log`).
+The existing scale-1,000 arbitrary-axis regression also rejected valid
+normalized TRS solely for this absolute residual. The new acceptance regression
+replaces that old policy assertion. Ten of eleven initial acceptance rows fail
+before the runtime change; the scale-one control passes
+(`artifacts/issue029-red.log`).
 
 ## Contract and smallest shared change
 
@@ -47,16 +49,17 @@ abs(round(s * r) - a) <= abs(s) * (Fixed64.Epsilon + q/2) + q/2
 
 The bound belongs to each row's scale. A large X scale cannot hide Y-row shear.
 Reflection preserves the proof because nearest-even rounding is symmetric under
-sign reversal. Translation is copied exactly, and the affine column is fixed.
-No additional residual comparison is needed: the normalized gate and rounding
+sign reversal. Translation is copied exactly, and the affine column is fixed. No
+additional residual comparison is needed: the normalized gate and rounding
 already prove the bound. A duplicate runtime check would add no rejection role.
 
-The final gate instead requires representable scaled reconstruction. The existing
-nine checked products in `FixedTransform.TryGetStrictLocalMatrix` move unchanged
-to an internal `Fixed4x4.TryCreateTransform` owner, shared by decomposition and
-transform materialization. This reuses `Fixed64.TryMultiplyAdd` with zero addends,
-preserving product rounding while rejecting saturation. There are no public API,
-serialization, dependency or GC-setting changes.
+The final gate instead requires representable scaled reconstruction. The
+existing nine checked products in `FixedTransform.TryGetStrictLocalMatrix` move
+unchanged to an internal `Fixed4x4.TryCreateTransform` owner, shared by
+decomposition and transform materialization. This reuses
+`Fixed64.TryMultiplyAdd` with zero addends, preserving product rounding while
+rejecting saturation. There are no public API, serialization, dependency or
+GC-setting changes.
 
 Every decomposition failure still returns zero translation, identity rotation
 and unit scale. Matrix import returns null and false on failure. The strict
@@ -72,18 +75,19 @@ Y = (-4265141137, 3, 505287218)
 Z = (505287218, -6, 4265141136)
 ```
 
-Its magnitudes and normalized checks pass, but quaternion reconstruction produces
-`M12 = One + 1 raw`. Multiplication by the maximum X scale is unrepresentable.
-Tests retain this case and its X-reflected counterpart, asserting neutral outputs
-and null import. This prevents saturation from masquerading as success under
-the revised error contract.
+Its magnitudes and normalized checks pass, but quaternion reconstruction
+produces `M12 = One + 1 raw`. Multiplication by the maximum X scale is
+unrepresentable. Tests retain this case and its X-reflected counterpart,
+asserting neutral outputs and null import. This prevents saturation from
+masquerading as success under the revised error contract.
 
 `FixedTransform.TryCreateFromLocalMatrix` and Gravitas's ordinary, hierarchy and
 planar collider-scale capture paths benefit through the shared decomposition.
 Planar embedding and physical positivity checks are unchanged. Downstream tests
 initialize actual sphere/circle colliders of radius `1/2048` under rotated
-scale-2,048 transforms and identity-child hierarchies, verifying one-unit physical
-radii and successful registration. Gravitas runtime code needs no change.
+scale-2,048 transforms and identity-child hierarchies, verifying one-unit
+physical radii and successful registration. Gravitas runtime code needs no
+change.
 
 `TrySetParentKeepingWorld` retains its separate absolute-epsilon comparison of
 the complete recomposed world matrix. A newly admissible large-scale import can
@@ -92,9 +96,9 @@ inverse or hierarchy policy is relaxed as part of this decomposition fix.
 
 Focused regressions also cover nonuniform scale, billion-unit rows, fractional
 rows, reflections, planar parity, nonsheared hierarchy composition, normalized
-shear just beyond epsilon on each row, and warmed zero allocations. The coefficient
-bound is checked independently with `BigInteger`, without saturating test
-arithmetic or substituting the largest scale for an individual row.
+shear just beyond epsilon on each row, and warmed zero allocations. The
+coefficient bound is checked independently with `BigInteger`, without saturating
+test arithmetic or substituting the largest scale for an individual row.
 
 ## Validation
 
@@ -104,12 +108,12 @@ are frozen in `artifacts/issue029-final-source.json`. Focused captures pass 247
 FixedMathSharp tests and 26 Gravitas tests; the changed decomposition, shared
 construction and transform-forwarding methods have 100% line/branch coverage.
 
-| Repository / configuration | Passed tests | Reachable lines | Branches | Fully covered methods |
-| --- | ---: | ---: | ---: | ---: |
-| FixedMathSharp Release | 5,861 | 59,890 / 59,890 | 17,100 / 17,100 | 4,552 / 4,552 |
-| FixedMathSharp ReleaseLean | 5,840 | 59,983 / 59,983 | 17,100 / 17,100 | 4,548 / 4,548 |
-| Gravitas Release | 6,030 | 61,041 / 61,041 | 20,144 / 20,144 | 6,042 / 6,042 |
-| Gravitas ReleaseLean | 5,964 | 61,041 / 61,041 | 20,144 / 20,144 | 6,042 / 6,042 |
+| Repository / configuration | Passed tests | Reachable lines |        Branches | Fully covered methods |
+| -------------------------- | -----------: | --------------: | --------------: | --------------------: |
+| FixedMathSharp Release     |        5,861 | 59,890 / 59,890 | 17,100 / 17,100 |         4,552 / 4,552 |
+| FixedMathSharp ReleaseLean |        5,840 | 59,983 / 59,983 | 17,100 / 17,100 |         4,548 / 4,548 |
+| Gravitas Release           |        6,030 | 61,041 / 61,041 | 20,144 / 20,144 |         6,042 / 6,042 |
+| Gravitas ReleaseLean       |        5,964 | 61,041 / 61,041 | 20,144 / 20,144 |         6,042 / 6,042 |
 
 Every count equals its total: 100% reachable line, branch and fully covered
 method coverage in all four configurations. There are zero failed/skipped tests.
@@ -123,13 +127,13 @@ errors. The runtime hashes match after the matrix. Evidence prefix:
 
 The existing `Matrix4x4Benchmarks.Decompose` fixture is unchanged: 256 matrices
 per invocation, with deterministic ordinary rotations and nonuniform scales.
-Matched full Release captures use five warmups, 15 measurement iterations of
-500 ms, two launches and affinity mask 3. BenchmarkDotNet 0.15.8 reports:
+Matched full Release captures use five warmups, 15 measurement iterations of 500
+ms, two launches and affinity mask 3. BenchmarkDotNet 0.15.8 reports:
 
-| Capture | Mean per 256-matrix batch | Error | Mean per decomposition |
-| --- | ---: | ---: | ---: |
-| Before (`issue029-baseline`) | 310.332 us | 3.159 us | 1.212 us |
-| After (`issue029-after`) | 305.118 us | 1.021 us | 1.192 us |
+| Capture                      | Mean per 256-matrix batch |    Error | Mean per decomposition |
+| ---------------------------- | ------------------------: | -------: | ---------------------: |
+| Before (`issue029-baseline`) |                310.332 us | 3.159 us |               1.212 us |
+| After (`issue029-after`)     |                305.118 us | 1.021 us |               1.192 us |
 
 Error is half the 99.9% confidence interval. This is a correctness fix with no
 observed throughput regression; the modest timing difference is not a new
@@ -159,9 +163,9 @@ measurement evidence. Captures: `artifacts/issue029-smoke` and adjacent log.
 Both DocFX builds pass with warnings treated as errors. API local links, icons
 and repository actions pass in both repositories, along with all four existing
 wiki-link rewrite tests. Evidence: `artifacts/issue029-checks-output.log`,
-`artifacts/issue029-checks-run.log`, `artifacts/issue029-wiki-checks.log` and each
-repository's `artifacts/issue029-docfx.log`. Whitespace checks pass, and all three
-runtime hashes still match after final checks.
+`artifacts/issue029-checks-run.log`, `artifacts/issue029-wiki-checks.log` and
+each repository's `artifacts/issue029-docfx.log`. Whitespace checks pass, and
+all three runtime hashes still match after final checks.
 
 Independent numerical, connected-code, documentation and evidence reviews find
 no actionable issue. The Gravitas supported-range plan now records this upstream

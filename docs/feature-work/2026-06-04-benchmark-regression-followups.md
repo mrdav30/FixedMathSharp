@@ -18,7 +18,7 @@ keep `docs/feature-work/issue-tracker.md` as the tooling/correctness issue
 queue, and use full `Release` BenchmarkDotNet artifacts for performance claims.
 Short in-process runs remain smoke checks only.
 
-**Tech Stack:** `netstandard2.1` and `net8.0` runtime targets, .NET 8
+**Tech Stack:** `netstandard2.1` and `net10.0` runtime targets, .NET 10
 BenchmarkDotNet runner, xUnit, MemoryPack, System.Text.Json, `Release`, and
 `ReleaseLean`.
 
@@ -41,12 +41,15 @@ BenchmarkDotNet runner, xUnit, MemoryPack, System.Text.Json, `Release`, and
 Phase 1 result on 2026-06-04: completed. The full `Release` run executed 136
 benchmarks in 00:52:05 and exited successfully.
 
-Verification:
+Historical verification (.NET 8):
 
 ```bash
 dotnet build tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj -c Release -f net8.0
 dotnet tests/FixedMathSharp.Benchmarks/bin/Release/net8.0/FixedMathSharp.Benchmarks.dll all --exporters json
 ```
+
+For a new baseline on the current .NET 10 targets, use the
+[current benchmark guide](../../tests/FixedMathSharp.Benchmarks/README.md).
 
 ## Phase 2: Compare And Prioritize Real Hot Spots
 
@@ -145,7 +148,7 @@ jobs:
 - [ ] Build a self-contained benchmark image in `.bencher/Dockerfile`. The image
       must restore and build
       `tests/FixedMathSharp.Benchmarks/FixedMathSharp.Benchmarks.csproj` in
-      `Release` for `net8.0` at image-build time, then use
+      `Release` for `net10.0` at image-build time, then use
       `.bencher/run-release-snapshot.sh` as the command/entrypoint. Bencher
       shared bare-metal runners cannot fetch missing dependencies while the
       benchmark job is executing, so the image must contain everything needed to

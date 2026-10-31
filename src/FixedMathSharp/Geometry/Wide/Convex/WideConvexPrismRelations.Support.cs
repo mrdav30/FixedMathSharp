@@ -1,7 +1,7 @@
 //=======================================================================
 // WideConvexPrismRelations.Support.cs
 //=======================================================================
-// MIT License, Copyright (c) 2024–present David Oravsky (mrdav30)
+// MIT License, Copyright (c) 2024-present David Oravsky (mrdav30)
 // See LICENSE file in the project root for full license information.
 //=======================================================================
 
@@ -26,27 +26,9 @@ internal static partial class WideConvexPrismRelations
         Cone,
     }
 
-    internal enum RadialKind
-    {
-        None,
-        Capsule,
-    }
 
-    internal readonly struct Axis3
-    {
-        internal readonly Signed320 X;
-        internal readonly Signed320 Y;
-        internal readonly Signed320 Z;
 
-        internal Axis3(Signed320 x, Signed320 y, Signed320 z)
-        {
-            X = x;
-            Y = y;
-            Z = z;
-        }
 
-        internal bool IsZero => X.IsZero && Y.IsZero && Z.IsZero;
-    }
 
     private readonly struct RigidAxis3
     {
@@ -97,78 +79,11 @@ internal static partial class WideConvexPrismRelations
         internal bool HasValue { get; }
     }
 
-    internal readonly struct ProjectionDepth
-    {
-        internal readonly Signed704 Rational;
-        internal readonly Signed192 Common;
-        internal readonly Fixed64 Radius;
-        internal readonly RadialKind RadialKind;
-        internal readonly Signed576 AxisSquared;
-        internal readonly Signed320 ShapeAxisSquared;
 
-        internal ProjectionDepth(
-            Signed704 rational,
-            Signed192 common,
-            Fixed64 radius,
-            RadialKind radialKind,
-            Signed576 axisSquared,
-            Signed320 shapeAxisSquared)
-        {
-            Rational = rational;
-            Common = common;
-            Radius = radius;
-            RadialKind = radialKind;
-            AxisSquared = axisSquared;
-            ShapeAxisSquared = shapeAxisSquared;
-        }
-    }
 
-    internal readonly struct CylinderCylinderPenetration
-    {
-        internal readonly Axis3 Axis;
-        internal readonly bool Negate;
-        internal readonly CylinderPairDepth Depth;
 
-        internal CylinderCylinderPenetration(
-            Axis3 axis,
-            bool negate,
-            CylinderPairDepth depth)
-        {
-            Axis = axis;
-            Negate = negate;
-            Depth = depth;
-            HasValue = true;
-        }
 
-        internal bool HasValue { get; }
-    }
 
-    /// <summary>
-    /// Parallel cap/perpendicular depth R / (C sqrt(A)) + radiusRaw.
-    /// Authored axes need not have an exact unit squared length.
-    /// </summary>
-    internal readonly struct CylinderPairDepth
-    {
-        internal readonly Signed704 Rational;
-        internal readonly Signed192 Common;
-        internal readonly Signed576 AxisSquared;
-        internal readonly ulong RadiusRaw;
-
-        internal CylinderPairDepth(
-            Signed704 rational,
-            Signed192 common,
-            Signed576 axisSquared,
-            ulong radiusRaw)
-        {
-            Rational = rational;
-            Common = common;
-            AxisSquared = axisSquared;
-            RadiusRaw = radiusRaw;
-        }
-
-        internal Signed320 RadialCoefficient => WideArithmetic.MultiplySigned192(
-            Common, new Signed192(0UL, 0UL, RadiusRaw));
-    }
 
     #endregion
 

@@ -58,20 +58,21 @@ claims, serialization layout, or developer workflow changes:
 
 - [`README.md`](README.md)
 - [`AGENTS.md`](AGENTS.md)
-- [`docs`](docs), with [`docs/wiki`](docs/wiki) as the source content for the
-  GitHub Wiki
+- [`docs/api`](docs/api), with [`docs/api/guides`](docs/api/guides) as the
+  source for conceptual documentation
 - [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests)
 - [`tests/FixedMathSharp.Chronicler.Tests`](tests/FixedMathSharp.Chronicler.Tests)
 - [`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks)
 - [`.github/workflows`](.github/workflows)
 
-Keep `docs/wiki` links repo-friendly with their `.md` extensions. The Wiki sync
-workflow performs the narrow link rewrite required by GitHub Wiki routes. Treat
-`docs/api/index.md`, `docs/api/toc.yml`, DocFX configuration, templates, and
-overwrite files as authored source. Never hand-edit or commit `docs/api/obj`;
-DocFX regenerates that tree.
+Keep guide links relative with their `.md` extensions or use DocFX xrefs. The
+GitHub Wiki is a single landing page pointing to the documentation site; it has
+no copied guides or synchronization workflow. Treat `docs/api/index.md`,
+`docs/api/toc.yml`, DocFX configuration, templates, and overwrite files as
+authored source. Never hand-edit or commit `docs/api/obj`; DocFX regenerates
+that tree.
 
-Keep wiki pages and the complexity exception register evergreen. Put dated
+Keep guides and the complexity exception register evergreen. Put dated
 validation summaries, capture paths and implementation history in feature-work
 records. The complexity register must explain its rationale and invariants on
 its own, without artifact references or links to feature-work or other
@@ -81,7 +82,7 @@ libraries' documentation.
 
 | Path                                                                             | Purpose                                                   | Notes                                                                                                                                                                                                                                             |
 | -------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`src/FixedMathSharp`](src/FixedMathSharp)                                       | Main math library                                         | Multi-targets `netstandard2.1` and `net10.0`.                                                                                                                                                                                                      |
+| [`src/FixedMathSharp`](src/FixedMathSharp)                                       | Main math library                                         | Multi-targets `netstandard2.1` and `net10.0`.                                                                                                                                                                                                     |
 | [`src/FixedMathSharp/Numerics/Scalars`](src/FixedMathSharp/Numerics/Scalars)     | `Fixed64` and scalar helpers                              | Preserve guarded overflow and deterministic rounding.                                                                                                                                                                                             |
 | [`src/FixedMathSharp/Core`](src/FixedMathSharp/Core)                             | Shared fixed math and trigonometry algorithms             | Hot deterministic backbone. Measure before redesigning.                                                                                                                                                                                           |
 | [`src/FixedMathSharp/Numerics/Vectors`](src/FixedMathSharp/Numerics/Vectors)     | `Vector2d`, `Vector3d`, `Vector4d`, and vector extensions | Watch coordinate-convention assumptions.                                                                                                                                                                                                          |
@@ -95,7 +96,7 @@ libraries' documentation.
 | [`tests/FixedMathSharp.Chronicler.Tests`](tests/FixedMathSharp.Chronicler.Tests) | Chronicler extension tests                                | Keep standard and Lean package graphs aligned and verify explicit hash ordering.                                                                                                                                                                  |
 | [`tests/FixedMathSharp.Benchmarks`](tests/FixedMathSharp.Benchmarks)             | BenchmarkDotNet project                                   | Experimental performance lab and showcase for hot-path wins.                                                                                                                                                                                      |
 | [`docs/feature-work`](docs/feature-work)                                         | Active and completed implementation plans                 | Use for multi-step design and optimization efforts.                                                                                                                                                                                               |
-| [`docs/wiki`](docs/wiki)                                                         | Deeper package documentation                              | Add focused pages when README would become crowded.                                                                                                                                                                                               |
+| [`docs/api/guides`](docs/api/guides)                                             | Deeper package documentation                              | Add focused pages when README would become crowded.                                                                                                                                                                                               |
 
 Ignore generated output when reviewing structure:
 
@@ -199,15 +200,15 @@ deterministic.
 
 ## Code Conventions Specific To This Repo
 
-C# 14 is the default language version; runtime projects override it to C# 11
-for `netstandard2.1`. Tests and benchmarks use C# 14.
+C# 14 is the default language version; runtime projects override it to C# 11 for
+`netstandard2.1`. Tests and benchmarks use C# 14.
 
 - Preserve public API shape unless the task explicitly requests API changes.
 - Match existing style: regions, XML docs, explicit namespaces, no implicit
   usings in project files.
 - Shared runtime code must remain compatible with both `netstandard2.1` and
-  `net10.0`. Do not use APIs that are unavailable to `netstandard2.1` unless they
-  are guarded, isolated to a compatible target, or intentionally placed in
+  `net10.0`. Do not use APIs that are unavailable to `netstandard2.1` unless
+  they are guarded, isolated to a compatible target, or intentionally placed in
   tooling/benchmark code.
 - Keep operations allocation-light; many hot methods use `m_rawValue` and
   `[MethodImpl(MethodImplOptions.AggressiveInlining)]`.
@@ -285,8 +286,8 @@ Serialization compatibility is intentional.
 Solution: [`FixedMathSharp.slnx`](FixedMathSharp.slnx), with core, Chronicler,
 and FluentAssertions packages plus core, Chronicler, and benchmark test
 projects. `global.json` selects the .NET 10 SDK for `.slnx` tooling consistency.
-Install the .NET 10 runtime as well to execute the `net10.0` tests and benchmarks;
-the runtime packages target `netstandard2.1` and `net10.0`.
+Install the .NET 10 runtime as well to execute the `net10.0` tests and
+benchmarks; the runtime packages target `netstandard2.1` and `net10.0`.
 
 Typical local workflow:
 
@@ -311,9 +312,10 @@ test project. CI runs the complete solution in Release and ReleaseLean on Linux
 and Windows through
 [`.github/workflows/build-and-test.yml`](.github/workflows/build-and-test.yml).
 After a successful `main` push, the coverage workflow publishes the DocFX API
-site and coverage report as one GitHub Pages artifact, while `sync-wiki.yml`
-publishes `docs/wiki` to the GitHub Wiki. Both workflows depend on the
-`build-and-test` workflow name.
+site, conceptual guides, and coverage report as one GitHub Pages artifact. The
+coverage workflow depends on the `build-and-test` workflow name. DocFX builds
+with warnings treated as errors and validates generated pages, local links, and
+assets before deployment.
 
 Packaging/versioning comes from
 [`src/FixedMathSharp/FixedMathSharp.csproj`](src/FixedMathSharp/FixedMathSharp.csproj):
@@ -364,18 +366,30 @@ unchanged. The core Lean build also selects the sibling shim in local mode.
 - For performance-sensitive changes, pair correctness tests with benchmark
   coverage rather than relying on benchmark output alone.
   - For geometry changes, compare equivalent representations where supported
-    (for example, a sphere and a zero-core capsule or a hull and an oriented box).
-    Check classification, normals, depths and all retained anchors, including
-    reversed inputs and transformed frames.
+    (for example, a sphere and a zero-core capsule or a hull and an oriented
+    box). Check classification, normals, depths and all retained anchors,
+    including reversed inputs and transformed frames.
   - Verify that a reported minimum exit clears the complete shape, with touching
     at the boundary and separation beyond the documented rounding bound.
-    Anchor-distance agreement alone does not prove clearance. Include containment,
-    finite edges and corners, degenerate geometry and full-domain coordinates;
-    execution coverage complements these geometric invariants.
+    Anchor-distance agreement alone does not prove clearance. Include
+    containment, finite edges and corners, degenerate geometry and full-domain
+    coordinates; execution coverage complements these geometric invariants.
 - Cyclomatic complexity exceptions are documented in
   [`docs/complexity-exceptions.md`](docs/complexity-exceptions.md); update that
   register when touching methods above the review threshold instead of
   refactoring hot deterministic paths only to lower a metric.
+
+## File layout and cleanup
+
+- Give each namespace-level type or delegate its own file. Public/internal
+  nested types belong in separate companion files while preserving containing
+  types, serialized shapes, and CLR identities. Private nested helpers may stay
+  with their owner.
+- Authored C# files under `src` carry the existing filename/MIT license header.
+  Test and benchmark files under `tests` do not carry license headers.
+- Run the formatter and check commands in [CONTRIBUTING.md](CONTRIBUTING.md),
+  excluding generated output. Do not stage, commit, push, publish, or update the
+  live wiki unless explicitly authorized; preserve the user's review boundary.
 
 ## Agent Editing Guidance
 
@@ -396,6 +410,6 @@ unchanged. The core Lean build also selects the sibling shim in local mode.
 
 Use the independent `Chronicler.Diagnostics` package for diagnostic channels,
 lazy logging handlers, and `ChronicleGuard` guards. It does not depend on
-`Chronicler.Core`. Keep library-specific channels, formatters, and logger facades
-in their owning library. `UseLocalLsfStack=true` selects the sibling diagnostics
-project; standard and Lean builds use the same diagnostics package.
+`Chronicler.Core`. Keep library-specific channels, formatters, and logger
+facades in their owning library. `UseLocalLsfStack=true` selects the sibling
+diagnostics project; standard and Lean builds use the same diagnostics package.
