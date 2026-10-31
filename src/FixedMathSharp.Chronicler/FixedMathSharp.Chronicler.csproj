@@ -66,18 +66,21 @@
 
   <!-- Dependencies and Package References -->
   <ItemGroup Condition="'$(DisableMemoryPack)' != 'true' And '$(UseLocalLsfStack)' != 'true'">
-    <PackageReference Include="Chronicler.Core" Version="0.4.0" />
+    <PackageReference Include="Chronicler.Core" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(DisableMemoryPack)' == 'true' And '$(UseLocalLsfStack)' != 'true'">
-    <PackageReference Include="Chronicler.Core.Lean" Version="0.4.0" />
-    <PackageReference Include="Chronicler.MemoryPackShim" Version="0.4.0" />
+    <PackageReference Include="Chronicler.Core.Lean" Version="1.0.0" />
+    <PackageReference Include="Chronicler.MemoryPackShim" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(UseLocalLsfStack)' == 'true'">
     <!-- Local identity matches the existing package graph; this is not a release version. -->
-    <ProjectReference Include="..\..\..\Chronicler\src\Chronicler\Chronicler.csproj"
-                      AdditionalProperties="Configuration=$(Configuration);SemVer=0.4.0;AssemblySemVer=0.4.0.0" />
+    <ProjectReference Include="..\..\..\Chronicler\src\Chronicler\Chronicler.csproj" AdditionalProperties="Configuration=$(Configuration);SemVer=1.0.0;AssemblySemVer=1.0.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalLsfStack)' == 'true' And ('$(Configuration)' == 'ReleaseLean' Or '$(DisableMemoryPack)' == 'true')">
+    <ProjectReference Include="..\..\..\Chronicler\src\Chronicler.MemoryPackShim\Chronicler.MemoryPackShim.csproj" AdditionalProperties="Configuration=$(Configuration);SemVer=1.0.0;AssemblySemVer=1.0.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -87,8 +90,5 @@
     <None Include="README.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
-  <ItemGroup Condition="'$(UseLocalLsfStack)' == 'true' And ('$(Configuration)' == 'ReleaseLean' Or '$(DisableMemoryPack)' == 'true')">
-    <ProjectReference Include="..\..\..\Chronicler\src\Chronicler.MemoryPackShim\Chronicler.MemoryPackShim.csproj"
-      AdditionalProperties="Configuration=$(Configuration);SemVer=0.4.0;AssemblySemVer=0.4.0.0" />
-  </ItemGroup>
+
 </Project>
