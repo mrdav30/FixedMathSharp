@@ -18,7 +18,7 @@
   </PropertyGroup>
   <ItemGroup Condition="'$(UseLocalLsfStack)' == 'true' And ('$(Configuration)' == 'ReleaseLean' Or '$(DisableMemoryPack)' == 'true')">
     <ProjectReference Include="..\..\..\Chronicler\src\Chronicler.MemoryPackShim\Chronicler.MemoryPackShim.csproj"
-                      AdditionalProperties="Configuration=$(Configuration);SemVer=0.4.0;AssemblySemVer=0.4.0.0" />
+                      AdditionalProperties="Configuration=$(Configuration);SemVer=1.0.0;AssemblySemVer=1.0.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj">

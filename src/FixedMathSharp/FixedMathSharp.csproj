@@ -96,12 +96,12 @@
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(DisableMemoryPack)' == 'true' And '$(UseLocalLsfStack)' != 'true'">
-		<PackageReference Include="Chronicler.MemoryPackShim" Version="0.4.0" />
+		<PackageReference Include="Chronicler.MemoryPackShim" Version="1.0.0" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(DisableMemoryPack)' == 'true' And '$(UseLocalLsfStack)' == 'true'">
 		<ProjectReference Include="..\..\..\Chronicler\src\Chronicler.MemoryPackShim\Chronicler.MemoryPackShim.csproj"
-			AdditionalProperties="Configuration=$(Configuration);SemVer=0.4.0;AssemblySemVer=0.4.0.0" />
+			AdditionalProperties="Configuration=$(Configuration);SemVer=1.0.0;AssemblySemVer=1.0.0.0" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">

@@ -340,7 +340,8 @@ out-of-range rejection, and raw integer floor division for complete-step counts.
 Subtract timestamps before narrowing durations. Coordinated development uses
 `UseLocalLsfStack=true` with the Chronicler sibling checkout; see
 [`CONTRIBUTING.md`](CONTRIBUTING.md#coordinated-source-development). The local
-0.4.0 Chronicler/shim identities are build fixtures, not release decisions. Hash
+1.0.0 Chronicler/shim identities must agree across core, companion, and test
+project references; they coordinate source builds, not release decisions. Hash
 extensions target `Chronicler.Hashing`; their own namespace and field order stay
 unchanged. The core Lean build also selects the sibling shim in local mode.
 

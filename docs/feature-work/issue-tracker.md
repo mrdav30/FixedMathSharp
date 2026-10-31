@@ -37,7 +37,7 @@ Work that requires staged implementation belongs in a focused feature-work plan.
 
 No active issues.
 
-**Next issue ID:** `FMS-Issue-037`
+**Next issue ID:** `FMS-Issue-038`
 
 ## Resolved Issues
 
@@ -48,6 +48,7 @@ rerun or package release.
 
 | Issue                                                                                                      | Resolved/closed | Outcome                                                                                                                                                                                                   | Evidence                                                                                             |
 | ---------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| FMS-Issue-037                                                                                              | 2026-10-31      | Aligned Chronicler and shim source/package identities to 1.0.0; reproduced the companion load failure and passed source/package Release and Lean validation.                                              | [Record](done/2026-10-31-chronicler-v1-dependency-alignment.md)                                      |
 | <a id="fms-issue-036-spherecapsule-prism-witnesses-can-miss-the-opposing-finite-support"></a>FMS-Issue-036 | 2026-10-25      | Matched finite sphere/capsule prism supports, completed missing rim/vertex contacts and retained exact radial scaling; downstream torque/replay and coordinated coverage pass.                            | [Record](done/2026-10-25-prism-capsule-finite-witnesses.md)                                          |
 | FMS-Issue-035                                                                                              | 2026-10-20      | Corrected contained sphere/capsule prism exit orientation and paired support signs; whole-shape clearance and downstream host response/replay pass, with separate finite witness matching tracked as 036. | [Record](done/2026-10-20-contained-prism-exit-orientation.md)                                        |
 | FMS-Issue-034                                                                                              | 2026-10-20      | Completed exact cone/cylinder-prism minimum depth, normal and finite witnesses; bounded throughput refinements are committed, with residual penetrating oblique cost tracked in the benchmark backlog.    | [Record](done/2026-10-19-curved-prism-contact-depth.md)                                              |
