@@ -50,6 +50,17 @@ description: Guides and API reference for deterministic Q32.32 math, transforms,
 - [Format diagnostic values](guides/diagnostics-formatting.md) separately from
   persisted state.
 
+## Part of the LSF ecosystem
+
+FixedMathSharp provides deterministic math for libraries, games, simulations,
+and tools throughout the Lockstep Simulation Framework ecosystem:
+
+- [Chronicler](https://github.com/mrdav30/Chronicler)
+- [SwiftCollections](https://github.com/mrdav30/SwiftCollections)
+- [GridForge](https://github.com/mrdav30/GridForge)
+- [Gravitas](https://github.com/mrdav30/Gravitas)
+- [Trailblazer](https://github.com/mrdav30/Trailblazer)
+
 ## Resources
 
 - [Chronicler companion API](xref:FixedMathSharp.Chronicler) — exact time

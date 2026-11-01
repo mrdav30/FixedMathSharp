@@ -66,11 +66,11 @@ claims, serialization layout, or developer workflow changes:
 - [`.github/workflows`](.github/workflows)
 
 Keep guide links relative with their `.md` extensions or use DocFX xrefs. The
-GitHub Wiki is a single landing page pointing to the documentation site; it has
-no copied guides or synchronization workflow. Treat `docs/api/index.md`,
-`docs/api/toc.yml`, DocFX configuration, templates, and overwrite files as
-authored source. Never hand-edit or commit `docs/api/obj`; DocFX regenerates
-that tree.
+GitHub Wiki is disabled; guides and the API reference publish together through
+DocFX. Do not add wiki copies or synchronization workflows. Treat
+`docs/api/index.md`, `docs/api/toc.yml`, DocFX configuration, templates, and
+overwrite files as authored source. Never hand-edit or commit `docs/api/obj`;
+DocFX regenerates that tree.
 
 Keep guides and the complexity exception register evergreen. Put dated
 validation summaries, capture paths and implementation history in feature-work

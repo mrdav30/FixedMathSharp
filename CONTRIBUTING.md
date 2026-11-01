@@ -66,8 +66,8 @@ sets the flag to false. Both Release/Lean Windows/Linux lanes remain required.
 ## Documentation and cleanup
 
 Guides live in `docs/api/guides` and publish with the API reference and coverage
-through the existing Pages workflow. The GitHub Wiki contains only a landing
-page pointing to that site; it has no guide copies or synchronization workflow.
+through the existing Pages workflow. The GitHub Wiki is disabled; DocFX is the
+published documentation home, with no wiki copies or synchronization workflow.
 Keep current guides evergreen and put version-specific upgrade steps in
 [Migration](docs/MIGRATION.md). Generated files under `docs/api/obj` are
 ignored.
