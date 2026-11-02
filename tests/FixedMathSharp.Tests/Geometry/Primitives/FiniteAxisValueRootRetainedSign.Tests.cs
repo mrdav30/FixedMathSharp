@@ -8,6 +8,33 @@ namespace FixedMathSharp.Tests;
 public sealed class FiniteAxisValueRootRetainedSignTests
 {
     [Theory]
+    [InlineData(0, 1, 1)]
+    [InlineData(1, -1, 1)]
+    [InlineData(0, -1, -1)]
+    [InlineData(-1, 1, -1)]
+    [InlineData(2, 1, 1)]
+    [InlineData(-2, -1, -1)]
+    [InlineData(-1, 3, 0)]
+    [InlineData(-1, 4, 1)]
+    [InlineData(-1, 2, -1)]
+    public void LinearQuery_PreservesOpenCellEndpointSignsAndInteriorEquality(int constant, int linear, int expected)
+    {
+        Encode(new BigInteger[] { -1, 3 }, out ulong[] defining, out sbyte[] definingSigns);
+        var cell = new ulong[16];
+        Assert.True(WideFiniteAxisIntersection.TryGetFiniteValueRoot(defining, definingSigns,
+            0, cell, out FiniteAxisValueRoot root));
+        // The nondyadic root 1/3 is inside an open cell, including when the
+        // linear query is zero at an endpoint or at that root itself.
+        Assert.False(root.IsRational);
+        BigInteger scale = (BigInteger.One << 257) + 1;
+        Encode(new[] { constant * scale, linear * scale }, out ulong[] query, out sbyte[] signs);
+
+        Assert.Equal(expected, WideFiniteAxisIntersection.GetSignAtFiniteValueRoot(root, query, signs));
+        Assert.Equal(expected, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, signs));
+        Assert.Equal(0, WideFiniteAxisIntersection.GetSignAtFiniteValueRoot(root, defining, definingSigns));
+    }
+
+    [Theory]
     [InlineData(36, 1, 1)]
     [InlineData(48, 1, 1)]
     [InlineData(48, 4096, 1)]
@@ -279,10 +306,11 @@ public sealed class FiniteAxisValueRootRetainedSignTests
         Assert.Equal(1UL, cell[0]);
         AssertSquareRootCell(root, 129);
 
-        // 2^65*alpha-1=sqrt(2)-1>0. Resolving the normalized query
+        // 3*2^65*alpha-4=3*sqrt(2)-4>0 has a threshold inside the cell.
+        // Resolving the normalized query
         // needs more precision than the initial tiny cell, not more storage
         // merely because the denominator shift already exceeds64.
-        Encode(new[] { -BigInteger.One, BigInteger.One << 65 }, out ulong[] values, out sbyte[] signs);
+        Encode(new[] { new BigInteger(-4), 3 * (BigInteger.One << 65) }, out ulong[] values, out sbyte[] signs);
         Assert.Equal(1, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, values, signs));
         Assert.True(root.DenominatorShift > 65);
         AssertSquareRootCell(root, 129);
@@ -302,7 +330,7 @@ public sealed class FiniteAxisValueRootRetainedSignTests
     [InlineData(65, true)]
     public void TinyRootSeparatedSign_UsesRelativeCellPrecision(int initialShift, bool zeroLower)
     {
-        // alpha=2^(-(2q-1)/2), so 2^q*alpha-1=sqrt(2)-1>0.
+        // alpha=2^(-(2q-1)/2), so 3*2^q*alpha-4=3*sqrt(2)-4>0.
         // Scaling the same separated geometry must not require q additional
         // bisections just because the linear coefficient has q more bits.
         int power = 2 * initialShift - 1;
@@ -320,7 +348,7 @@ public sealed class FiniteAxisValueRootRetainedSignTests
             root.DenominatorShift--;
             AssertSquareRootCell(root, power);
         }
-        Encode(new[] { -BigInteger.One, BigInteger.One << initialShift },
+        Encode(new[] { new BigInteger(-4), 3 * (BigInteger.One << initialShift) },
             out ulong[] query, out sbyte[] querySigns);
         Assert.Equal(1, WideFiniteAxisIntersection.GetSignAtFiniteValueRootAndRefine(ref root, query, querySigns));
         Assert.InRange(root.DenominatorShift, initialShift + 1, initialShift + 40);

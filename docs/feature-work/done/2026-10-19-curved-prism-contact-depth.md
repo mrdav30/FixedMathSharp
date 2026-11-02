@@ -18,8 +18,9 @@ Gravitas touching benchmark controls in `8bdef3a`. Both the pre-refinement
 repair and retained refinement pass coordinated Release/Lean correctness and
 complete coverage, benchmark smoke and documentation checks. The evidence below
 distinguishes those snapshots. Issue 034's correctness repair is resolved on
-2026-10-20. The remaining penetrating oblique cost is an
-[active benchmark signal](../benchmark-signal-hardening-backlog.md#penetrating-oblique-conecylinder-prism-contact-throughput),
+2026-10-20. The remaining penetrating oblique cost was rechecked on 2026-11-02
+and reopened for deeper exact-work reduction at the owner's request in the
+[experimental benchmark signal](../benchmark-signal-hardening-backlog.md#penetrating-oblique-conecylinder-prism-contact-throughput),
 not a production-throughput acceptance claim.
 
 The final bounded source review found no further small experiment with a
@@ -699,3 +700,482 @@ checkpoint. Ignored diagnostic captures are
 
 Package-mode validation awaits the FixedMathSharp release. Local repeated replay
 and Windows tests do not establish all-platform execution evidence.
+
+## Pre-release throughput recheck (2026-11-02)
+
+**Initial pass (superseded):** The first pass closed this investigation with no
+runtime change. The existing solver's cost is reproduced; it is not a newly
+established regression or an unresolved correctness defect. The guarded
+shared-polynomial square pilot below does not establish a repeatable benefit on
+the target queries. It and its five characterization test rows were removed. The
+runtime, maintained fixtures, public API, internal ABI and allocation policy
+remain unchanged.
+
+The owner reopened the investigation on 2026-11-02 because the remaining cost is
+too high. The measurements below describe the rejected first pilot; they do not
+resolve the throughput concern. Ordinary penetrating oblique queries still cost
+roughly 1.8 ms each here. No universal simulation/contact budget has been
+accepted. Reopen for a regression on unchanged fixtures, a concrete reduction of
+executed exact candidate/root work, or a representative moving-contact/full-step
+profile with an explicit workload budget. Do not infer full-step capacity from
+these queries.
+
+### Current workload and attribution
+
+Starting revisions are FixedMathSharp `4a2d433`, Gravitas `7990c17`, Chronicler
+`c45f9ab`, SwiftCollections `13a3c13` and GridForge `50d5540`. GridForge
+includes pre-existing local development edits; this work does not alter them or
+claim a released-package dependency graph. The maintained Gravitas
+`CurvedPrismContactBenchmarks` supplies nine cone/cylinder controls: separated,
+face penetration and oblique penetration for each primitive, cone apex and
+generator touches, and a cylinder side touch. The five sphere/capsule fixtures
+in the same class also participate in the untimed contact/allocation checks.
+These exercise the actual mixed-contact dispatcher, not a Boolean overlap
+surrogate or a full host step.
+
+Host: Windows 11 `10.0.26300.9818`, Intel i7-9700K, SDK `10.0.302`, .NET
+`10.0.10`, BenchmarkDotNet `0.15.8`, Release out of process, affinity mask `3`,
+`DOTNET_PROCESSOR_COUNT=2`. Environment and generated build arguments both
+select `UseLocalLsfStack=true`, `DisableTransitiveProjectReferences=true` and
+serial builds. The old .NET 8 measurements above remain historical; they are not
+an equivalent-environment performance comparison with this recheck.
+
+Fresh EventPipe samples place analytic collection at 48.4%/33.4% and rim charts
+at 33.8%/52.0% of benchmark activity for cone/cylinder oblique queries. Nested
+parameter construction is 6.9%/10.7%; the shared edge-polynomial builder is
+6.2%/9.9%. These inclusive sampled shares overlap and must not be added. The
+executed path still spends its time on exact candidate and root work.
+
+### Rejected square pilot
+
+`WideFiniteAxisIntersection.MultiplyFiniteAxisPolynomials` performs both `(i,j)`
+and `(j,i)` products for self-squares. The pilot visits only `j>=i` and adds
+off-diagonal products with shift one, using the existing signed accumulator. It
+adds five net runtime lines, no helper, state, allocation, API or caller change.
+Its gate requires all of:
+
+- accumulation is disabled and the coefficient count `n` exceeds one;
+- both input magnitude spans and both sign spans have identical addresses and
+  extents;
+- `2*b + ceil(log2(n)) <= 64*w`, where `b` is the maximum input coefficient bit
+  length and `w` the result coefficient's word stride, using existing helpers.
+
+The last condition bounds every partial absolute coefficient sum by `n*2^(2*b)`.
+A width guard is necessary: with one-word input/output coefficients,
+`[3200000000,0,1600000000,0,-3200000000]` squares correctly in the original
+order, but combining the degree-four off-diagonal terms first produces
+`-20480000000000000000` before diagonal cancellation. That intermediate exceeds
+`ulong.MaxValue`, even though the final coefficient `-17920000000000000000`
+fits. Insufficient-width inputs therefore keep the original row order.
+
+BigInteger characterization uses `[2^70-1,-3,0,2^65+1]` with independent input
+and output strides, shared and nonuniformly changed sign spans, clearing and
+accumulation, plus the cancellation counterexample. All 20 arithmetic rows pass
+on baseline and pilot. Independent review confirms the guard and exact fallback;
+correctness alone does not justify retaining its extra scan and inner-loop
+decisions. No throughput improvement is claimed for this pilot.
+
+### Balanced measurements
+
+A is the unchanged runtime and B the guarded square pilot. All four launches use
+identical nine-case fixture source, five warmups, ten measured iterations and
+one child per case. Every launch completes all 90 measured iterations and all
+nine children exit zero with populated statistics; outlier filtering retains
+eight to ten observations per row. Values below are microseconds. The last
+column compares the equally weighted two-launch means; positive is slower.
+
+| Dispatcher case   |        A1 |        B1 |        B2 |        A2 | Pilot change |
+| ----------------- | --------: | --------: | --------: | --------: | -----------: |
+| ConeSeparated     |    75.443 |    76.004 |    80.947 |    77.689 |       +2.49% |
+| ConeFace          |   106.309 |   106.509 |   107.306 |   108.666 |       -0.54% |
+| ConeOblique       | 1,770.388 | 1,796.079 | 1,794.746 | 1,814.229 |       +0.17% |
+| CylinderSeparated |   118.404 |   120.153 |   118.894 |   121.745 |       -0.46% |
+| CylinderFace      |   105.789 |   110.520 |   109.997 |   106.746 |       +3.76% |
+| CylinderOblique   | 1,730.681 | 1,758.133 | 1,831.900 | 1,869.061 |       -0.27% |
+| ConeApexTouch     |    97.415 |    98.131 |    99.897 |    99.531 |       +0.55% |
+| ConeSideTouch     |   438.671 |   441.362 |   439.286 |   442.889 |       -0.10% |
+| CylinderSideTouch |   119.544 |   120.828 |   121.225 |   123.993 |       -0.61% |
+
+Keep the control variation and adverse estimates. The pilot does not establish a
+penetrating-oblique win and does not warrant adding a general arithmetic branch
+before release. This is a rejected experiment, not an accepted performance
+regression or a claim of zero overhead.
+
+### Contact identity, allocation and evidence limits
+
+All 14 dispatcher fixtures retain identical classifications, raw depths,
+clamping flags, normals and both materialized physical witnesses. In particular:
+
+- Cone oblique: depth `3130426887`, normal `(-4294967296,0,0)`, primitive point
+  `(5459507705,1173094659,6622560427)`, prism point
+  `(8589934592,1173094659,6622560426)`.
+- Cylinder oblique: depth `5416131436`, normal `(-4290580198,-194076362,0)`,
+  primitive point `(3179335467,4050228975,7962578931)`, prism point
+  `(8589934593,4294967296,7962578931)`.
+
+These are raw Q32.32 values and both depths are unclamped. The maintained
+geometric regressions above remain the correctness oracles; baseline identity
+alone would not prove an arbitrary contact correct.
+
+All pilot children have zero raw allocation and GC counters. The A1 baseline
+cylinder-oblique child reports 24,624 process-wide bytes over 512 operations (48
+B/op rounded). The clean A2 baseline cylinder-separated child also reports
+24,624 process-wide bytes, over 8,192 operations (3 B/op rounded). Preserve both
+observations. A separate warmed, non-inlined direct-dispatch probe measures
+exactly zero calling-thread bytes over 128 queries for every one of the 14
+fixtures on both baseline and pilot, after three warm passes. This does not
+attribute the baseline process-wide event or establish every process/thread
+allocation interval is zero.
+
+Child PE/portable-PDB binding checks confirm both pilot launches' changed
+arithmetic and current contact owner (410 authored math documents), unchanged
+consumer (417 documents) and unchanged benchmark fixture source (88 documents).
+BenchmarkDotNet reuses its generated job directory: A1's child payload was
+overwritten before its identity audit. Its baseline source lifecycle and build
+log were recorded; its unmodified parent binary matches the separately checked
+baseline profile, but it has no separately preserved child identity proof.
+
+An initial A2 return was rejected: restoring a source copy also restored its
+older timestamp, so the incremental build reused the candidate binary. The PDB
+source audit caught this. That nine-child capture is preserved as `oblique-A2`
+and excluded from the table. Updating the source timestamp and rebuilding
+explicitly with `-t:Rebuild` precedes the replacement `oblique-A2-clean`, which
+supplies A2 in the table and passes its source audit. The pilot and final
+baseline child binaries/PDBs are saved before any further build. This limit
+precludes claiming all 36 accepted children have separately frozen payloads;
+neither a stale capture nor incomplete binding evidence justifies retaining the
+pilot.
+
+At the end of the initial square pilot, no runtime or maintained test change
+survived; that pass claimed no new full Release/Lean coverage matrix, broad
+benchmark smoke or complete simulation replay. Historical validation above
+applies only to its recorded revisions. Final checks cover source restoration,
+the changed documentation, local links and whitespace. Independent review covers
+the rejected pilot and this disposition.
+
+### Reproduction
+
+From the sibling Gravitas repository root:
+
+```powershell
+$env:UseLocalLsfStack = 'true'
+$env:DisableTransitiveProjectReferences = 'true'
+$env:DOTNET_PROCESSOR_COUNT = '2'
+$env:BuildInParallel = 'false'
+$env:UseSharedCompilation = 'false'
+dotnet build tests/Gravitas.Benchmarks/Gravitas.Benchmarks.csproj -c Release -f net10.0 -p:UseLocalLsfStack=true -p:DisableTransitiveProjectReferences=true -p:UseSharedCompilation=false -m:1
+dotnet tests/Gravitas.Benchmarks/bin/Release/net10.0/Gravitas.Benchmarks.dll curved-prism-contact --filter '*Cone*' '*Cylinder*' --warmupCount 5 --iterationCount 10 --launchCount 1 --affinity 3 --keepFiles --exporters json --artifacts ../FixedMathSharp/artifacts/oblique-A1
+```
+
+For diagnostic attribution, replace the timing options with
+`--profiler EP --warmupCount 2 --iterationCount 3 --launchCount 1 --affinity 3 --keepFiles`
+and use `artifacts/oblique-profile`. For a new pilot, preserve the exact source
+and child DLL/PDBs before the next run overwrites the generated job directory;
+keep fixture source identical and repeat in A1/B1/B2/A2 order with distinct
+artifact directories. Characterization uses the existing
+`FiniteAxisPolynomialArithmeticTests` owner; the mathematical gate, loop change
+and discriminating inputs above describe the discarded pilot without relying on
+temporary source copies.
+
+Supplemental captures are `artifacts/oblique-{A1,B1,B2,A2-clean}*`,
+`oblique-profile*`, `oblique-{baseline,candidate}-contacts.jsonl`,
+`oblique-{baseline,candidate}-allocations.jsonl` and `oblique-summary.json`. The
+revisions, fixtures, commands, pilot definition, measured values and decision in
+this record are the durable evidence if those captures are removed.
+
+## Exact candidate/root reduction (reopened 2026-11-02)
+
+The owner requested deeper reduction of exact work and preservation of this
+unresolved cost under Experimental Signals. Retain the rejected square pilot as
+evidence, not as a reason to close the throughput problem. The provisional
+investigation target is at least 2x lower cost on both penetrating fixtures,
+with unchanged exact outputs, zero warmed calling-thread allocation and no
+confirmed regression across the nine controls. It does not define a universal
+simulation-step budget.
+
+Attribute candidate construction/admission, analytic ranking, chart/root
+isolation, root rejection, value mapping and final witnesses before changing the
+inventory. Investigate mathematical redundancy, repeated proof work and
+stationary extrema that cannot own a minimum. Reuse the existing owners; keep
+disposable counters and timing probes out of the maintained runtime. Preserve
+source and child payload identity before each variant is overwritten.
+
+### Executed work and retained changes
+
+Disposable counters on the unchanged dispatcher fixtures identify analytic
+ranking and repeated root-sign proofs as useful targets. Cone performs 132
+rational attempts (48 built, 58 rank comparisons), 34 generator attempts (10
+built), and 12 rim charts (five dominated, seven quartics, 14 roots). Cylinder
+performs 172 rational attempts (70 built/ranked) and 24 charts (six axial
+rejects, six dominated, 12 quartics, 19 roots). Six cone and seven cylinder
+roots pass the unsquared stationary gate; five and six respectively are strict
+maxima. Every admitted root is rejected by the existing analytic upper bound:
+neither fixture executes value-polynomial construction or root value mapping.
+Optimizing that unexecuted machinery would not help this signal. The fixtures
+make 55/57 root-sign calls, with 14/19 retained refinement calls. Of 25/31
+linear queries, 25/28 have matching nonzero cell-endpoint signs. These are work
+counts, not instrumented timing claims.
+
+Three changes remain in the existing production owners:
+
+- `CurvedPrismRimContacts.KeepChart` rejects strict stationary maxima only for
+  certified ordinary support fans with square-free stationary polynomial
+  `W=L²-K²Q`. At an admitted root `L=-K sqrt(Q)`, the sign of the gap's second
+  derivative is `-sign(W') sign(K)`. Simple roots alternate `W`'s sign, starting
+  from its first nonzero coefficient; excluded zero endpoints keep the same
+  positive-side sign. `K=0` at a simple root is impossible, since it would also
+  force `L=0` and a repeated root of `W`. Existing analytic candidates own fan
+  endpoints. Uncertified, constrained and repeated-root charts retain the
+  complete original admission path. Root ordinals and canonical ties are kept.
+- `GetSignAtFiniteValueRootCore` uses the actual open dyadic cell of a
+  nonsingleton root view. A linear query with matching endpoint signs has that
+  exact sign throughout; if one endpoint is zero, the other determines the
+  interior sign. Opposite signs retain exact refinement and shared-root
+  equality. This avoids requiring a narrower cell solely to establish a sign
+  already certified.
+- `GetConvexContactCandidateThreeTermSign` first encloses each square root using
+  the leading 63 or 64 radicand bits after an even discarded shift. If the
+  integer floor square root of that prefix is `r`, the complete root lies
+  between `r*2^shift` and `(r+1)*2^shift`, including discarded nonzero bits and
+  exact prefix squares. Signed coefficients reverse endpoints as required. Two
+  carry words cover the sum of all three complete shifted terms. A strict
+  positive lower bound or negative upper bound proves the exact rank;
+  cancellation, overlap and equality retain the original radical elimination.
+  Pure-radical comparisons skip the enclosure and retain their existing exact
+  reduction, avoiding unsuccessful bound work on zero-rational ties. Existing
+  quadratic-bound accumulation is reused, not duplicated.
+
+No public API, serialized state, floating-point runtime math, cache or
+dependency pin changes. Runtime growth is confined to these three files. Tests
+cover open cell endpoint zeros and interior equality, wide radical cancellation
+and ties, a stationary chart whose constant coefficient is zero, winding
+reversal, whole-shape exit, and compact/noncompact retained cells. Two older
+tests now use a query threshold inside the initial cell so their original
+refinement and precision assertions continue to test necessary work. The capsule
+value test retains its rounding and scalar-limit assertions and adds a pair
+centered at 1/3 that forces deep isolation independently of derivative-query
+refinement.
+
+Screening also tried common-content normalization of edge directions; it added
+work without a useful gain over the root changes and was removed. A 96-bit
+ranking enclosure was superseded by the cheaper conservative enclosure above.
+The disposable warmed ABBA screen suggested approximately 18–20% lower cost;
+only the controlled BenchmarkDotNet captures below can support acceptance.
+
+### Control-driven correction
+
+The first retained-work pilot completes a fourteen-case dispatcher ABBA and six
+adjacent math controls. Its cone/cylinder oblique means fall by 18.02%/19.87%,
+and the adjacent box/cylinder control improves 14.02%. Retain these as pilot
+results rather than final acceptance. The contained-capsule balanced estimate is
+3.01% slower; a focused BAAB comparison reduces that estimate to 0.76% with
+overlapping launch ranges, so a repeatable capsule regression is not
+established. Cylinder side-touch similarly changes from +0.91% to -0.43%. Cone
+generator side-touch is different: its +1.34% main estimate repeats as +2.59% in
+the focused comparison, so the original enclosure policy is rejected.
+
+Disposable branch counts isolate seven cone side-touch enclosure attempts; all
+have exactly zero rational term, and all fall through to the original exact
+comparison. Neither of the other two new optimizations executes in this fixture.
+The final guard skips the optional enclosure for pure-radical comparisons,
+retaining their existing exact reduction and equality behavior. Each penetrating
+target also has one such unsuccessful attempt removed; its remaining 58/65
+enclosure attempts certify 58/65 signs in this diagnostic. These are operation
+counts, not timing evidence. Instrumentation is confined to an isolated
+disposable source copy; none remains in maintained runtime code.
+
+Independent review caught that equal-rational wide ranking tests would now
+bypass the enclosure. Those remain as pure-radical controls, supplemented by
+`1+sqrt(T²+1)-sqrt((T+1)²+1)>0` and `1+sqrt(T²)-sqrt((T+1)²)=0`, with
+`T=2^160+17`, both signs and comparison orders. The strict inequality follows by
+squaring and using `sqrt(T²+1)>T`; the conservative enclosure remains ambiguous,
+so these exercise wide fallback and exact equality with a nonzero rational term.
+
+The first broad smoke attempt executes no cases: with globally disabled
+transitive project references, BenchmarkDotNet's generated project references
+only the benchmark project, so generated harness signatures returning math types
+cannot resolve the core assembly. The zero-execution capture is excluded. A
+disposable `CustomAfterMicrosoftCommonTargets` import adds an explicit core
+`ProjectReference` only to `BenchmarkDotNet.Autogenerated`. This preserves local
+source selection and the required transitive-reference setting; no maintained
+runner or project is changed. The corrected pre-guard smoke completes all 479
+out-of-process Short cases. Final guarded-source checks are recorded below.
+
+### Final guarded correctness and coordinated validation
+
+Serial local-stack builds and complete test suites pass for the guarded source
+in both repositories, in Release and ReleaseLean, with no build warnings or
+errors. FixedMathSharp passes 7,273 Release and 7,252 Lean core tests, plus all
+49 companion tests in each configuration. Gravitas passes 8,348 Release and
+8,277 Lean tests, including existing simulation/replay scenarios. All four
+stationary-endpoint rows and the nonzero-rational wide fallback cases are now
+included in the full math suites.
+
+Every raw OpenCover sequence point, branch point and method is covered in each
+full capture, without new exclusions or coverage unions:
+
+| Repository/configuration   | Sequence points | Branch points |     Methods |
+| -------------------------- | --------------: | ------------: | ----------: |
+| FixedMathSharp Release     |   68,400/68,400 | 22,598/22,598 | 5,324/5,324 |
+| FixedMathSharp ReleaseLean |   68,493/68,493 | 22,598/22,598 | 5,320/5,320 |
+| Gravitas Release           |   53,559/53,559 | 21,772/21,772 | 5,602/5,602 |
+| Gravitas ReleaseLean       |   53,557/53,557 | 21,772/21,772 | 5,601/5,601 |
+
+The initial standard pilot capture missed the zero-coefficient branch; its
+focused geometry capture closed that gap. Rounded Cobertura percentages alone
+would have concealed it. The final full captures include both outcomes. Both
+configurations' Cobertura reports also cover every reported source line, branch
+and method; normalized source-line/method counts need not equal OpenCover's
+sequence-point/method-file counts. The updated complexity register matches raw
+method metadata: 92 for `KeepChart`, 24 for three-term ranking and 46 for root
+signs.
+
+The scoped semantic formatter verification passes with workspace-load warnings
+and no required source changes; whitespace and documentation formatting are
+checked separately. Independent review checks the three numerical gates,
+connected root-cell consumers, whole-shape tests, both wide sign polarities,
+exact equality and the rejection of the measured control regression.
+
+These are local-source compatibility checks. Validation against the exact
+released math package remains a future release gate; no package publication,
+source pin, public API or serialized state is changed.
+
+### Guarded balanced measurements and residual work
+
+**Disposition:** Retain the three guarded optimizations for owner review, leave
+all changes unstaged/uncommitted, and keep the throughput signal open under
+Experimental Signals. A roughly 1.42 ms query is still expensive; the
+provisional 2x investigation target is not met. No universal query/frame budget
+or complete throughput resolution is claimed.
+
+A is the unchanged runtime; B is the final guarded source. The balanced window
+uses the already preserved A2 baseline, then fresh B3/B4/A3 captures after the
+final matrix. The baseline source and settings are unchanged; the gap before B3
+contains serialized validation and diagnostic work, with no competing work
+during acceptance timing. All fourteen maintained dispatcher fixtures run with
+five warmups, ten measured iterations, a 500 ms iteration target and one launch
+each. All 56 children exit zero, all 560 actual measurements are present, and
+every statistical summary retains at least eight observations. Values are
+microseconds; the last column compares equally weighted baseline/candidate
+launch means.
+
+| Case                        |   A2 (us) |   B3 (us) |   B4 (us) |   A3 (us) | Cost change |
+| --------------------------- | --------: | --------: | --------: | --------: | ----------: |
+| ConeSeparated               |    72.942 |    72.557 |    71.598 |    73.550 |      -1.60% |
+| ConeFace                    |   104.551 |   106.559 |   106.237 |   104.360 |      +1.86% |
+| ConeOblique                 | 1,732.713 | 1,412.896 | 1,433.875 | 1,746.727 |     -18.18% |
+| CylinderSeparated           |   114.063 |   113.758 |   116.350 |   113.587 |      +1.08% |
+| CylinderFace                |   102.851 |   105.436 |   106.116 |   105.599 |      +1.49% |
+| CylinderOblique             | 1,711.200 | 1,420.314 | 1,426.039 | 1,713.774 |     -16.89% |
+| ConeApexTouch               |    94.575 |    94.943 |    94.840 |    94.923 |      +0.15% |
+| ConeSideTouch               |   427.802 |   428.712 |   430.235 |   427.777 |      +0.39% |
+| CylinderSideTouch           |   118.179 |   117.849 |   121.311 |   121.221 |      -0.10% |
+| SphereContained             |   110.526 |   113.342 |   110.699 |   111.969 |      +0.69% |
+| CapsuleContained            |   113.827 |   113.596 |   121.310 |   115.615 |      +2.38% |
+| CapsuleCrossingOffcenter    |   118.535 |   113.250 |   115.683 |   116.448 |      -2.57% |
+| SphereContainedOpposingFace |   112.828 |   116.124 |   110.653 |   110.423 |      +1.58% |
+| SphereHorizontalRim         |   157.043 |   154.751 |   158.951 |   156.021 |      +0.20% |
+
+Cone changes from 1,739.720 to 1,423.386 us (**18.18% lower cost**); cylinder
+from 1,712.487 to 1,423.176 us (**16.89% lower cost**). The corrected side-touch
+estimate is +0.39%, with 428.712/430.235 us candidate launches against
+427.802/427.777 us baselines, rather than the repeated +2.59% pilot penalty.
+Retain the small positive control estimates in the table. A further focused BAAB
+comparison of the largest remaining face/containment concerns gives:
+
+| Case             | A1 (us) | B1 (us) | B2 (us) | A2 (us) | Cost change |
+| ---------------- | ------: | ------: | ------: | ------: | ----------: |
+| ConeFace         | 104.167 | 106.209 | 102.952 | 104.107 |      +0.43% |
+| CapsuleContained | 118.176 | 114.313 | 113.890 | 114.726 |      -2.02% |
+
+The focused face candidate ranges from 102.952 to 106.209 us around the two
+104.1 us baselines; the contained-capsule estimate reverses sign. These controls
+do not establish a consistent regression or equivalence. The counters show one
+existing three-term entry for each face query but no enclosure trial, affine
+certificate or stationary-maximum trial; the capsule enters none of those new
+paths. This distinguishes the variation from the seven unsuccessful enclosure
+attempts that caused the rejected side-touch policy. It does not attribute every
+small timing difference to a specific runtime or machine mechanism. No claim of
+zero control overhead follows from these limited launch samples.
+
+All fourteen guarded contact snapshots preserve classifications, clamping flags,
+raw depths, normals and both finite witnesses. The warmed, non-inlined probe
+records zero calling-thread bytes over 128 queries after three warm passes for
+every fixture on both variants. All 56 main capture children and all eight final
+focused children have exactly zero raw allocation and collection counters. The
+historical square-pilot baseline process events and the 336-byte raw event in
+the earlier adjacent generic-radical baseline remain recorded separately; these
+zero observations do not retrospectively attribute those events.
+
+The source trees preserve the five-sibling layout under
+`artifacts/oblique-deep-perf/{baseline,candidate}`. The three baseline owner
+files match HEAD `4a2d433`; the guarded files match the final working source.
+Starting consumer/dependency revisions remain Gravitas `7990c17`, Chronicler
+`c45f9ab`, SwiftCollections `13a3c13` and GridForge `50d5540`; pre-existing
+GridForge changes are held identical and untouched. Each accepted child is bound
+to its portable PDB, and authored-document hashes are checked before its
+generated directory can be reused: 410 math documents, 417 consumer documents,
+88 fixture documents, and the loaded sibling/diagnostics sources. PDB paths
+inside these nested snapshots are mapped through their recorded
+`/_/artifacts/...` source prefix. Separate source snapshots and forced fresh
+candidate timestamps avoid the stale-restore hazard found in the rejected square
+pilot. The pre-guard source and captures are preserved separately from the
+guarded source.
+
+Final EventPipe attribution is supplemental, not timing acceptance. Use only
+stacks containing the specific benchmark method, excluding fixture setup.
+Analytic collection retains about 40.9%/31.3% of cone/cylinder benchmark
+activity; rim charts retain about 30.2%/44.4%. These inclusive sampled shares
+overlap and must not be added. All seven cone and twelve cylinder quartics are
+still built and isolated. A useful next bounded experiment is an exact
+whole-chart lower bound against the incumbent before quartic
+construction/isolation, with retained fan/end-point ownership; also count
+repeated analytic support directions before considering canonical deduplication.
+Neither unexecuted value mapping nor another general arithmetic
+micro-optimization is the demonstrated next target.
+
+Final full-solution semantic formatter verification passes (workspace-load
+warnings only). The final guarded broad smoke runs all 479 out-of-process Short
+cases: all 479 children exit zero, all 1,437 actual measurements and 479 raw GC
+rows are present, and every report has populated statistics. Positive smoke
+allocations belong to the existing enumerable construction, formatting and
+serialization workloads; the geometry/query evidence above retains its own raw
+allocation checks. Short smoke values and profiler values are not performance
+acceptance. The generated-reference workaround described above applies only to
+the disposable smoke build.
+
+#### Guarded reproduction and capture inventory
+
+The host/runtime/environment are the .NET 10 Windows configuration documented in
+the recheck above. From each frozen Gravitas root, use the same local-stack
+environment and build flags, then run the complete alias:
+
+```powershell
+$env:UseLocalLsfStack = 'true'
+$env:DisableTransitiveProjectReferences = 'true'
+$env:DOTNET_PROCESSOR_COUNT = '2'
+$env:BuildInParallel = 'false'
+$env:UseSharedCompilation = 'false'
+
+dotnet build tests/Gravitas.Benchmarks/Gravitas.Benchmarks.csproj -c Release -f net10.0 -p:UseLocalLsfStack=true -p:DisableTransitiveProjectReferences=true -p:UseSharedCompilation=false -m:1
+dotnet tests/Gravitas.Benchmarks/bin/Release/net10.0/Gravitas.Benchmarks.dll curved-prism-contact --warmupCount 5 --iterationCount 10 --launchCount 1 --iterationTime 500 --affinity 3 --keepFiles --exporters json --artifacts ../../../oblique-deep-gated-B3
+```
+
+Use distinct capture names and preserve each child payload/source binding before
+another run overwrites it. The final focused controls add
+`--filter '*ConeFace' '*CapsuleContained'` and run B/A/A/B. Final profiling adds
+`--filter '*ConeOblique' '*CylinderOblique' --profiler EP`, two warmups, three
+iterations and a 250 ms iteration target. The corrected broad smoke uses the
+standard math alias `all -j Short --iterationTime 10`, with an explicit core
+project reference in the generated project through the disposable MSBuild import
+already described. All source-mode builds retain both required global
+properties.
+
+Supplemental capture families are `artifacts/oblique-deep-{A1,B1,B2,A2}*`,
+`oblique-deep-controls-*`, `oblique-deep-focus-*`,
+`oblique-deep-gated-{B3,B4,A3}*`, `oblique-deep-gatedfocus-*`,
+`oblique-deep-gated-profile*`, `oblique-deep-gated-smoke*`, and
+`oblique-deep-gated-{FixedMathSharp,Gravitas}-{Release,ReleaseLean}-*`. Source
+identities, commands, numerical gates, rejected policy, current values,
+validation counts and remaining experiment in this record are the durable
+evidence if ignored captures and disposable probes are removed.

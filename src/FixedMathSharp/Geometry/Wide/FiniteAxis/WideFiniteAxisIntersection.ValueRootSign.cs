@@ -123,15 +123,21 @@ internal static partial class WideFiniteAxisIntersection
         CopyFiniteRootMagnitude(second.LowerNumerator, secondCell);
         var left = new FiniteAxisValueRoot
         {
-            Coefficients = first.Coefficients, Signs = first.Signs,
-            LowerNumerator = firstCell, DenominatorShift = first.DenominatorShift,
-            IsRational = first.IsRational, Ordinal = first.Ordinal
+            Coefficients = first.Coefficients,
+            Signs = first.Signs,
+            LowerNumerator = firstCell,
+            DenominatorShift = first.DenominatorShift,
+            IsRational = first.IsRational,
+            Ordinal = first.Ordinal
         };
         var right = new FiniteAxisValueRoot
         {
-            Coefficients = second.Coefficients, Signs = second.Signs,
-            LowerNumerator = secondCell, DenominatorShift = second.DenominatorShift,
-            IsRational = second.IsRational, Ordinal = second.Ordinal
+            Coefficients = second.Coefficients,
+            Signs = second.Signs,
+            LowerNumerator = secondCell,
+            DenominatorShift = second.DenominatorShift,
+            IsRational = second.IsRational,
+            Ordinal = second.Ordinal
         };
         int comparison;
         bool finished;
@@ -283,6 +289,19 @@ internal static partial class WideFiniteAxisIntersection
                 coefficients, signs, retainedPrecision, evaluationBits, variableShift);
             if (retainedSign != 0)
                 return retainedSign;
+        }
+        if (degree == 1)
+        {
+            int lowerSign = EvaluateFiniteRootPolynomial(coefficients, signs,
+                root.LowerNumerator, root.DenominatorShift, 0);
+            Span<ulong> upper = stackalloc ulong[GetRoundedCylinderWideLength(root.LowerNumerator) + 1];
+            CopyFiniteRootMagnitude(root.LowerNumerator, upper);
+            WideArithmetic.AddWord(upper, 0, 1);
+            int upperSign = EvaluateFiniteRootPolynomial(coefficients, signs, upper, root.DenominatorShift, 0);
+            // A non-singleton root excludes both cell endpoints. A linear
+            // query with no interior crossing needs no defining-root refinement.
+            if (lowerSign == 0) return upperSign;
+            if (upperSign == 0 || lowerSign == upperSign) return lowerSign;
         }
         // If Q(alpha)!=0, the integer resultant of Q and alpha's primitive
         // minimal polynomial has magnitude >=1. Mahler measure of that

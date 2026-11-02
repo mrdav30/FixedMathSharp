@@ -162,6 +162,50 @@ public sealed class FixedConvexPrismCurvedDepthTests
         Assert.Equal(Vector3d.Zero, contact.SecondAnchor.Origin);
     }
 
+    [Theory]
+    [InlineData(35, false)]
+    [InlineData(35, true)]
+    [InlineData(6, false)]
+    [InlineData(6, true)]
+    public void CylinderRim_StationaryFanEndpointRetainsTheOrderedMinimumAndWholeShapeExit(int prismY, bool reverse)
+    {
+        const long k = 384_153_553;
+        FixedQuaternion rotation = new(Fixed64.FromRaw(4 * k), Fixed64.Zero,
+            Fixed64.FromRaw(-3 * k), Fixed64.FromRaw(10 * k));
+        Vector2d[] footprint = { new(-1, -50), new(1, -50), new(1, 50), new(-1, 50) };
+        if (reverse) Array.Reverse(footprint);
+        Vector3d prismOrigin = new(4, prismY, 0);
+        // Axis (12,15,16)/25 gives the Up rim support (3,35,4).
+        // Its stationary edge-normal chart starts at Up, with zero constant
+        // coefficient. At Y=35 the face owns the minimum; at Y=6
+        // another feature must improve the 30-unit face gap.
+        Assert.True(FixedConvexPrismRelations.TryGetCenteredCylinderContact(Vector3d.Zero,
+            rotation, Vector3d.Up, (Fixed64)50, (Fixed64)25, prismOrigin,
+            Fixed64.Zero, footprint, Fixed64.One, out FixedContactAnchors contact));
+        Assert.False(contact.DepthIsClamped);
+        var box = new FixedOrientedBox(prismOrigin, FixedQuaternion.Identity, new Vector3d(1, 1, 50));
+        Assert.True(box.TryGetCenteredCylinderContact(Vector3d.Zero, rotation, Vector3d.Up,
+            (Fixed64)50, (Fixed64)25, out FixedContactAnchors reference));
+        Assert.Equal(reference.Depth, contact.Depth);
+        Assert.Equal(-reference.Normal, contact.Normal);
+
+        if (prismY == 6)
+        {
+            Assert.True(contact.Depth > Fixed64.Zero && contact.Depth < (Fixed64)30);
+            return;
+        }
+        Assert.Equal(Fixed64.One, contact.Depth);
+        Assert.Equal(Vector3d.Up, contact.Normal);
+
+        Assert.True(FixedConvexPrismRelations.TryGetCenteredCylinderContact(Vector3d.Down,
+            rotation, Vector3d.Up, (Fixed64)50, (Fixed64)25, prismOrigin,
+            Fixed64.Zero, footprint, Fixed64.One, out FixedContactAnchors touching));
+        Assert.Equal(Fixed64.Zero, touching.Depth);
+        Assert.False(FixedConvexPrismRelations.TryGetCenteredCylinderContact(
+            Vector3d.Down * (Fixed64.One + Fixed64.FromRaw(1)), rotation, Vector3d.Up,
+            (Fixed64)50, (Fixed64)25, prismOrigin, Fixed64.Zero, footprint, Fixed64.One, out _));
+    }
+
     private static Vector2d[] ConeFootprint(bool collapsed, bool reverse)
     {
         Vector2d[] footprint = collapsed

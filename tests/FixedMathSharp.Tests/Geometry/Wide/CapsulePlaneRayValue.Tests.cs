@@ -198,8 +198,10 @@ public sealed class CapsulePlaneRayValueTests
         Assert.Equal(0, value.CompareQuadratic(a, b, ReadOnlySpan<ulong>.Empty));
     }
 
-    [Fact]
-    public void CloselySeparatedExitRoots_ShouldRestoreTheExactOrdinalBeyondCompactStorage()
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void CloselySeparatedExitRoots_ShouldRetainTheExactOrdinalAcrossCompactStorage(int centerDenominator)
     {
         Span<ulong> storage = stackalloc ulong[CapsulePlaneRayValue.StorageWords];
         Span<sbyte> valueSigns = stackalloc sbyte[CapsulePlaneRayValue.SignCount];
@@ -210,35 +212,38 @@ public sealed class CapsulePlaneRayValueTests
         ContactQuadratic b = ContactQuadratic.At(values, signs, 1, words);
         ContactQuadratic c = ContactQuadratic.At(values, signs, 2, words);
         a.Clear(); b.Clear(); c.Clear();
-        a.Rational[18] = 1UL << 48; a.Signs[0] = 1;
-        b.Rational[18] = 1UL << 47; b.Signs[0] = -1;
-        c.Rational[..18].Fill(ulong.MaxValue); c.Rational[18] = (1UL << 46) - 1; c.Signs[0] = 1;
-        // The upper outward exit is 1/2+2^-600. A rounded root would lose
-        // its side of the exact half-raw depth threshold.
+        ulong denominator = (ulong)centerDenominator;
+        a.Rational[18] = denominator * denominator << 48; a.Signs[0] = 1;
+        b.Rational[18] = denominator << 48; b.Signs[0] = -1;
+        c.Rational[..18].Fill(ulong.MaxValue); c.Rational[0] -= denominator * denominator - 1;
+        c.Rational[18] = (1UL << 48) - 1; c.Signs[0] = 1;
+        // t=1/d+2^-600 maps to d*t/2=1/2+d*2^-601 raw units.
+        // The nondyadic center 1/3 forces >512-bit isolation independently
+        // of whether a derivative sign needs any further refinement.
         Assert.True(value.TrySetUpperRoot(a, b, c, ReadOnlySpan<ulong>.Empty, 0));
-        Assert.False(value.Metadata.HasCompactCell);
-        Set(a, 1); Set(b, 2);
+        if (centerDenominator == 3) Assert.False(value.Metadata.HasCompactCell);
+        Set(a, 1); Set(b, centerDenominator);
         Assert.Equal(1, value.CompareQuadratic(a, b, ReadOnlySpan<ulong>.Empty));
-        Assert.True(value.TryGetDepth(Wide(1), Signed320.ExtendValue(Signed192.Signed(1)), out Fixed64 depth, out bool overflow));
+        Assert.True(value.TryGetDepth(Wide(centerDenominator * centerDenominator), Signed320.ExtendValue(Signed192.Signed(2)), out Fixed64 depth, out bool overflow));
         Assert.False(overflow); Assert.Equal(1L, depth.m_rawValue);
         Set(a, 0); Set(b, 1); Set(c, 0);
         Assert.True(value.TryGetPoint(a, a, c, b, ReadOnlySpan<ulong>.Empty,
-            new WideDirection3d(new WideAxis3(default, Signed320.ExtendValue(Signed192.Signed(1)), default)),
-            Signed320.ExtendValue(Signed192.Signed(1)), out Vector3d point));
+            new WideDirection3d(new WideAxis3(default, Signed320.ExtendValue(Signed192.Signed(centerDenominator)), default)),
+            Signed320.ExtendValue(Signed192.Signed(2)), out Vector3d point));
         Assert.Equal(Vector3d.Up * Fixed64.FromRaw(1), point);
 
         // The same exact exit approaches both final coordinate limits from
-        // inside: Max+1-t=Max+1/2-2^-600 and Min-1+t=Min-1/2+2^-600.
+        // inside: Max+1-d*t/2 and Min-1+d*t/2 approach their half-raw limits.
         // Range admission must retain the deep cell before coordinate rounding;
         // losing that tiny side of either threshold would reject a valid point.
         Signed192 upperStart = WideArithmetic.AddSigned192(Signed192.Signed(long.MaxValue), Signed192.Signed(1));
         Signed192 lowerStart = WideArithmetic.SubtractSigned192(Signed192.Signed(long.MinValue), Signed192.Signed(1));
-        a.Set(Signed576.ExtendValue(Signed320.ExtendValue(upperStart)));
-        b.Set(Signed576.ExtendValue(Signed320.ExtendValue(lowerStart)));
+        a.Set(Signed576.ExtendValue(Signed320.ExtendValue(WideArithmetic.AddSigned192(upperStart, upperStart))));
+        b.Set(Signed576.ExtendValue(Signed320.ExtendValue(WideArithmetic.AddSigned192(lowerStart, lowerStart))));
         ContactQuadratic d = ContactQuadratic.At(values, signs, 3, words); Set(d, 1);
         Assert.True(value.TryGetPoint(a, b, c, d, ReadOnlySpan<ulong>.Empty,
-            new WideDirection3d(new WideAxis3(Signed320.ExtendValue(Signed192.Signed(-1)), Signed320.ExtendValue(Signed192.Signed(1)), default)),
-            Signed320.ExtendValue(Signed192.Signed(1)), out point));
+            new WideDirection3d(new WideAxis3(Signed320.ExtendValue(Signed192.Signed(-centerDenominator)), Signed320.ExtendValue(Signed192.Signed(centerDenominator)), default)),
+            Signed320.ExtendValue(Signed192.Signed(2)), out point));
         Assert.Equal(new Vector3d(Fixed64.MaxValue, Fixed64.MinValue, Fixed64.Zero), point);
     }
 

@@ -430,6 +430,14 @@ internal static partial class WideConvexPrismRelations
         minimum.CopyTo(maximum);
         minimumSign = IsZero(rational) ? 0 : rationalSign;
         maximumSign = minimumSign;
+        AddConvexContactCandidateRadicalBounds(radical, radicalSign, roots, shift,
+            minimum, maximum, ref minimumSign, ref maximumSign);
+    }
+
+    private static void AddConvexContactCandidateRadicalBounds(
+        ReadOnlySpan<ulong> radical, int radicalSign, ReadOnlySpan<ulong> roots, int shift,
+        Span<ulong> minimum, Span<ulong> maximum, ref int minimumSign, ref int maximumSign)
+    {
         Span<ulong> product = stackalloc ulong[ConvexContactCandidateLength(radical) + 2];
         // Negative coefficients reverse the root endpoints. Accumulate the
         // factored root directly, including signed cancellation and the upper
@@ -535,6 +543,27 @@ internal static partial class WideConvexPrismRelations
         if (firstSign == secondSign && rationalSign != -firstSign)
             return firstSign;
 
+        // Pure radical comparisons retain the cheaper exact path, including ties.
+        if (rationalSign != 0)
+        {
+            Span<ulong> firstRoots = stackalloc ulong[4], secondRoots = stackalloc ulong[4];
+            int firstShift = GetConvexContactCandidateRankRootBounds(firstRadicand, firstRoots);
+            int secondShift = GetConvexContactCandidateRankRootBounds(secondRadicand, secondRoots);
+            // Complete shifted products plus two carry words retain all three signed terms.
+            int boundWords = Math.Max(ConvexContactCandidateLength(rational), Math.Max(
+                ConvexContactCandidateLength(firstCoefficient) + 2 + (firstShift + 63) / 64,
+                ConvexContactCandidateLength(secondCoefficient) + 2 + (secondShift + 63) / 64)) + 2;
+            Span<ulong> minimum = stackalloc ulong[boundWords], maximum = stackalloc ulong[boundWords];
+            GetConvexContactCandidateQuadraticBounds(rational, rationalSign, firstCoefficient, firstSign,
+                firstRoots, firstShift, minimum, maximum, out int minimumSign, out int maximumSign);
+            AddConvexContactCandidateRadicalBounds(secondCoefficient, secondSign, secondRoots, secondShift,
+                minimum, maximum, ref minimumSign, ref maximumSign);
+            // Disjoint signed enclosures decide the exact rank before squaring;
+            // overlapping intervals retain the complete algebra, including ties.
+            if (minimumSign > 0) return 1;
+            if (maximumSign < 0) return -1;
+        }
+
         int words = Math.Max(
             ConvexContactCandidateLength(rational) * 2,
             Math.Max(
@@ -562,6 +591,21 @@ internal static partial class WideConvexPrismRelations
         return CompareRadicalPairs(
             radicands.Slice(0, words), radicands.Slice(words, words),
             radicands.Slice(2 * words, words), radicands.Slice(3 * words, words));
+    }
+
+    private static int GetConvexContactCandidateRankRootBounds(ReadOnlySpan<ulong> value, Span<ulong> roots)
+    {
+        int shift = Math.Max(0, (WideArithmetic.GetMagnitudeBitLength(value) - 63) / 2);
+        int word = 2 * shift / 64, bits = 2 * shift % 64;
+        ulong prefix = value[word] >> bits;
+        if (bits != 0) prefix |= value[word + 1] << (64 - bits);
+        ReadOnlySpan<ulong> leading = stackalloc ulong[1] { prefix };
+        WideArithmetic.GetMagnitudeSquareRootBounds(leading, out Signed192 lower, out _, out _);
+        // An even shift preserves square-root scale. The 63/64-bit prefix
+        // gives a 32-bit lower root; lower+1 also covers every discarded bit.
+        roots[0] = lower.Low; roots[1] = 0;
+        roots[2] = lower.Low + 1; roots[3] = 0;
+        return shift;
     }
 
     private static void CopyConvexContactCandidateSignedRadicand(

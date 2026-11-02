@@ -153,17 +153,29 @@ internal static partial class CurvedPrismRimContacts
         Span<sbyte> valueSigns = stackalloc sbyte[5];
         Span<ulong> valueCell = stackalloc ulong[ValueCellWords];
         bool valuesReady = false;
+        int firstStationarySign = 0;
+        if (supportCertified && !domain.Enabled && !roots.HasRepeatedRoots)
+            foreach (sbyte sign in stationary.Signs)
+                if (sign != 0) { firstStationarySign = sign; break; }
         for (int ordinal = 0; ordinal < roots.Count; ordinal++)
         {
             scoped FiniteAxisValueRoot root = FiniteAxisValueRoots.GetRoot(
                 roots, ordinal, stationary.Values, stationary.Signs, cell);
+            int kSign = 0;
+            if (firstStationarySign != 0)
+            {
+                kSign = Sign(ref root, k);
+                // For W=L²-K²Q and L=-K sqrt(Q), sign(g'')=-sign(W')*sign(K).
+                // Simple roots alternate W's sign from its first nonzero coefficient.
+                if (firstStationarySign * ((ordinal & 1) == 0 ? 1 : -1) * kSign < 0) continue;
+            }
             int axialSign = Sign(ref root, storage.Slice(26, 2));
             if (geometry.IsCone
                 ? axialSign > 0 && Sign(ref root, storage.Slice(28, 3)) <= 0
                 : axialSign < 0)
                 continue;
             if (!supportCertified && !HasPrismSupport(geometry, vertex, first, second, ref root)) continue;
-            int kSign = Sign(ref root, k);
+            if (firstStationarySign == 0) kSign = Sign(ref root, k);
             // Q is positive on a nondegenerate ellipse. K=0 is its principal
             // direction, already present in the rational feature fan.
             if (kSign == 0 || Sign(ref root, l) != -kSign) continue;
@@ -172,7 +184,11 @@ internal static partial class CurvedPrismRimContacts
             System.Diagnostics.Debug.Assert(gapSign >= 0);
             Selection candidate = new()
             {
-                HasValue = true, Edge = edge, CapSign = cap, First = first, Second = second,
+                HasValue = true,
+                Edge = edge,
+                CapSign = cap,
+                First = first,
+                Second = second,
                 ParameterOrdinal = ordinal
             };
             if (domain.Enabled)
@@ -707,11 +723,14 @@ internal static partial class CurvedPrismRimContacts
 
     private static FiniteAxisValueRoot RestoreValue(ReadOnlySpan<ulong> values,
         ReadOnlySpan<sbyte> signs, Span<ulong> cell, in Selection selection) => new()
-    {
-        Coefficients = values, Signs = signs, LowerNumerator = cell,
-        DenominatorShift = selection.ValueShift, Ordinal = selection.ValueOrdinal,
-        IsRational = selection.IsRational
-    };
+        {
+            Coefficients = values,
+            Signs = signs,
+            LowerNumerator = cell,
+            DenominatorShift = selection.ValueShift,
+            Ordinal = selection.ValueOrdinal,
+            IsRational = selection.IsRational
+        };
 
     private static WideDirection3d GetOffset(in CurvedPrismContactGeometry geometry, int edge, int cap)
     {

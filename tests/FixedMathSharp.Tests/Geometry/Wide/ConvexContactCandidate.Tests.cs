@@ -272,6 +272,49 @@ public sealed class ConvexContactCandidateTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RadicalGapRanking_PreservesWideNearCancellationAndScaledRootTies(bool negative)
+    {
+        BigInteger t = (BigInteger.One << 160) + 17;
+        foreach (var (rationalDifference, leftRoot, leftCoefficient, rightRoot, rightCoefficient, expected) in new[]
+        {
+            (0, t * t + 1, BigInteger.One, t * t + 2, BigInteger.One, -1),
+            (0, 4 * (t * t + 1), BigInteger.One, t * t + 1, new BigInteger(2), 0),
+            (0, (BigInteger.One << 192) - 1, BigInteger.One, BigInteger.One << 192, BigInteger.One, -1),
+            (1, t * t + 1, BigInteger.One, (t + 1) * (t + 1) + 1, BigInteger.One, 1),
+            (1, t * t, BigInteger.One, (t + 1) * (t + 1), BigInteger.One, 0)
+        })
+        {
+            // sqrt(T²+1)>T proves 1+sqrt(T²+1)>sqrt((T+1)²+1).
+            BigInteger rational = BigInteger.One << 200;
+            var left = EncodeWideRoot(leftRoot, leftCoefficient, rational + (negative ? -rationalDifference : rationalDifference));
+            var right = EncodeWideRoot(rightRoot, rightCoefficient, rational);
+            int[] signs = new int[ConvexContactCandidate.Slots];
+            signs[7] = 1; signs[8] = negative ? -1 : 1;
+            var a = new ConvexContactCandidate(left, signs, 1);
+            var b = new ConvexContactCandidate(right, signs, 1);
+            int sign = negative ? -expected : expected;
+            Assert.Equal(sign, WideConvexPrismRelations.CompareConvexContactCandidates(a, b));
+            Assert.Equal(-sign, WideConvexPrismRelations.CompareConvexContactCandidates(b, a));
+        }
+    }
+
+    private static ulong[] EncodeWideRoot(BigInteger radicand, BigInteger coefficient, BigInteger rational)
+    {
+        var values = new ulong[ConvexContactCandidate.Slots * ConvexContactCandidate.Words];
+        Write(7, rational);
+        Write(8, coefficient); Write(9, radicand); Write(10, BigInteger.One);
+        return values;
+
+        void Write(int slot, BigInteger value)
+        {
+            for (int word = 0; value != 0; word++, value >>= 64)
+                values[slot * ConvexContactCandidate.Words + word] = (ulong)(value & ulong.MaxValue);
+        }
+    }
+
     private static ulong[] Encode(int rational, int radicand, int word)
     {
         var values = new ulong[ConvexContactCandidate.Slots * ConvexContactCandidate.Words];
