@@ -16,31 +16,31 @@ public sealed class ConvexContactCandidateTests
     [InlineData(0, 26, 1)]
     public void RadialGapEncoding_CanReuseItsOwnInvariantSlots(int p, int q, int expectedSign)
     {
-        const int words = ConvexContactCandidate.Words;
-        foreach (int word in new[] { 0, 12 })
-        {
-            var numerator = new ulong[words]; numerator[word] = (ulong)Math.Abs(p);
-            var radicand = new ulong[words]; radicand[2 * word] = (ulong)q;
-            var denominator = new ulong[words]; denominator[word] = 7;
-            var actual = new ulong[ConvexContactCandidate.Slots * words];
-            var actualSigns = new int[ConvexContactCandidate.Slots];
-            var expected = new ulong[actual.Length];
-            var expectedSigns = new int[actualSigns.Length];
-            CylinderContactAlgebra.BuildRadialCandidate(numerator, -Math.Sign(p), radicand, denominator, actual, actualSigns);
-            int sign = CylinderContactAlgebra.BuildRadialCandidate(numerator, Math.Sign(p),
-                actual.AsSpan(9 * words, words), actual.AsSpan(10 * words, words), actual, actualSigns);
-            Assert.Equal(expectedSign, sign);
-            Assert.Equal(sign, CylinderContactAlgebra.BuildRadialCandidate(numerator, Math.Sign(p),
-                radicand, denominator, expected, expectedSigns));
-            Assert.Equal(expected, actual);
-            Assert.Equal(expectedSigns, actualSigns);
-            var candidate = new ConvexContactCandidate(actual, actualSigns, sign);
-            BigInteger scale = BigInteger.One << (64 * word);
-            Assert.Equal((p * p + q) * scale * scale, Magnitude(candidate.GapRational));
-            Assert.Equal(2 * p * scale, candidate.GapRadicalSign * Magnitude(candidate.GapRadical));
-            Assert.Equal(q * scale * scale, Magnitude(candidate.GapRadicand));
-            Assert.Equal(7 * scale, Magnitude(candidate.GapDenominator));
-        }
+        foreach (int words in new[] { 24, ConvexContactCandidate.Words })
+            foreach (int word in new[] { 0, (words - 2) / 2 })
+            {
+                var numerator = new ulong[words]; numerator[word] = (ulong)Math.Abs(p);
+                var radicand = new ulong[words]; radicand[2 * word] = (ulong)q;
+                var denominator = new ulong[words]; denominator[word] = 7;
+                var actual = new ulong[ConvexContactCandidate.Slots * words];
+                var actualSigns = new int[ConvexContactCandidate.Slots];
+                var expected = new ulong[actual.Length];
+                var expectedSigns = new int[actualSigns.Length];
+                CylinderContactAlgebra.BuildRadialCandidate(numerator, -Math.Sign(p), radicand, denominator, actual, actualSigns);
+                int sign = CylinderContactAlgebra.BuildRadialCandidate(numerator, Math.Sign(p),
+                    actual.AsSpan(9 * words, words), actual.AsSpan(10 * words, words), actual, actualSigns);
+                Assert.Equal(expectedSign, sign);
+                Assert.Equal(sign, CylinderContactAlgebra.BuildRadialCandidate(numerator, Math.Sign(p),
+                    radicand, denominator, expected, expectedSigns));
+                Assert.Equal(expected, actual);
+                Assert.Equal(expectedSigns, actualSigns);
+                var candidate = new ConvexContactCandidate(actual, actualSigns, sign, words);
+                BigInteger scale = BigInteger.One << (64 * word);
+                Assert.Equal((p * p + q) * scale * scale, Magnitude(candidate.GapRational));
+                Assert.Equal(2 * p * scale, candidate.GapRadicalSign * Magnitude(candidate.GapRadical));
+                Assert.Equal(q * scale * scale, Magnitude(candidate.GapRadicand));
+                Assert.Equal(7 * scale, Magnitude(candidate.GapDenominator));
+            }
     }
 
     [Theory]
@@ -299,6 +299,143 @@ public sealed class ConvexContactCandidateTests
             Assert.Equal(sign, WideConvexPrismRelations.CompareConvexContactCandidates(a, b));
             Assert.Equal(-sign, WideConvexPrismRelations.CompareConvexContactCandidates(b, a));
         }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void RationalPrismCandidate_MatchesUnboundedSupportOracleAtBothFieldWidths(bool cone, bool reverse)
+    {
+        // Full raw origin/footprint differences and a 504-bit normal stress the
+        // complete width proof, rather than only comparing two bounded builders.
+        Vector2d[] footprint = {
+            new(Fixed64.FromRaw(long.MinValue + 7), Fixed64.FromRaw(long.MinValue + 9)),
+            new(Fixed64.FromRaw(long.MaxValue - 11), Fixed64.FromRaw(long.MinValue + 9)),
+            new(Fixed64.FromRaw(long.MaxValue - 11), Fixed64.FromRaw(long.MaxValue - 13)),
+            new(Fixed64.FromRaw(long.MinValue + 7), Fixed64.FromRaw(long.MaxValue - 13)) };
+        Span<WideDirection3d> vertices = stackalloc WideDirection3d[8];
+        var geometry = new CurvedPrismContactGeometry(
+            new Vector3d(Fixed64.FromRaw(long.MaxValue - 16), Fixed64.FromRaw(long.MinValue + 32), Fixed64.FromRaw(long.MaxValue - 64)),
+            FixedQuaternion.FromEulerAnglesInDegrees((Fixed64)22, (Fixed64)17, (Fixed64)9),
+            new Vector3d(Fixed64.FromRaw((1L << 32) - 1), Fixed64.FromRaw(1), Fixed64.FromRaw(1)),
+            Fixed64.FromRaw(long.MaxValue - 3), Fixed64.FromRaw((long.MaxValue >> 3) - 5),
+            new Vector3d(Fixed64.FromRaw(long.MinValue + 64), Fixed64.FromRaw(long.MaxValue - 32), Fixed64.FromRaw(long.MinValue + 16)),
+            Fixed64.FromFraction(1, 3), footprint, Fixed64.FromRaw(long.MaxValue - 15), cone, vertices);
+        int orientation = reverse ? -1 : 1;
+        BigInteger x = orientation * ((BigInteger.One << 503) + 7);
+        BigInteger y = -orientation * ((BigInteger.One << 502) + 3);
+        BigInteger z = orientation * ((BigInteger.One << 501) + 11);
+        var normal = new WideDirection3d(Integer576(x), Integer576(y), Integer576(z));
+        BigInteger minimum = 0;
+        int minimumVertex = -1;
+        for (int index = 0; index < geometry.VertexCount; index++)
+        {
+            WideDirection3d vertex = geometry.Vertex(index);
+            BigInteger projection = x * Signed(vertex.X) + y * Signed(vertex.Y) + z * Signed(vertex.Z);
+            if (minimumVertex >= 0 && projection >= minimum) continue;
+            minimum = projection; minimumVertex = index;
+        }
+        BigInteger metric = x * x + y * y + z * z;
+        BigInteger half = x * Signed(geometry.Half.X) + y * Signed(geometry.Half.Y) + z * Signed(geometry.Half.Z);
+        BigInteger q = Signed(geometry.SquaredAxis);
+        BigInteger axial = x * Signed(geometry.Axis.X) + y * Signed(geometry.Axis.Y) + z * Signed(geometry.Axis.Z);
+        BigInteger radial = Signed(geometry.Radius) * Signed(geometry.Radius) * (q * metric - axial * axial);
+        int comparison = half.Sign < 0 ? -1 : (4 * q * half * half).CompareTo(radial);
+        bool apex = cone && comparison >= 0;
+        int expectedFeature = cone ? comparison == 0 ? 0 : apex ? 1 : -1 : half.Sign;
+        BigInteger p = (cone ? apex ? half : -half : BigInteger.Abs(half)) - minimum;
+        if (!apex) p *= q;
+        BigInteger root = apex ? BigInteger.Zero : q * radial;
+        BigInteger scale = Signed(Signed320.ExtendValue(geometry.RawScale));
+        BigInteger[] oracle = { x, y, z, 0, 0, 0, 0, p * p + root, 2 * p, root, scale * scale * metric * (apex ? BigInteger.One : q * q) };
+        int expectedGap = p.Sign < 0 ? root.CompareTo(p * p) : p.Sign > 0 || root.Sign > 0 ? 1 : 0;
+        foreach (int words in new[] { 24, ConvexContactCandidate.Words })
+        {
+            var direction = new ulong[3 * words];
+            var directionSigns = new int[3];
+            var values = new ulong[ConvexContactCandidate.Slots * words];
+            var signs = new int[ConvexContactCandidate.Slots];
+            Assert.True(geometry.TryBuildCandidate(normal, direction, directionSigns, values, signs,
+                -1, out int gap, out int vertex, out int feature));
+            Assert.Equal(expectedGap, gap);
+            Assert.Equal(minimumVertex, vertex);
+            Assert.Equal(expectedFeature, feature);
+            for (int slot = 0; slot < oracle.Length; slot++)
+            {
+                Assert.Equal(BigInteger.Abs(oracle[slot]), Magnitude(values.AsSpan(slot * words, words)));
+                if (slot < 6 || slot == 7 || slot == 8) Assert.Equal(oracle[slot].Sign, signs[slot]);
+            }
+        }
+    }
+
+    [Fact]
+    public void CompactPrismSelection_ClearsUninitializedPaddingAndRetainsTheFirstExactTie()
+    {
+        Vector2d[] footprint = { new(-Fixed64.One, -Fixed64.One), new(Fixed64.One, -Fixed64.One),
+            new(Fixed64.One, Fixed64.One), new(-Fixed64.One, Fixed64.One) };
+        Span<WideDirection3d> vertices = stackalloc WideDirection3d[8];
+        var geometry = new CurvedPrismContactGeometry(Vector3d.Zero, FixedQuaternion.Identity, Vector3d.Up,
+            Fixed64.Two, Fixed64.One, Vector3d.Zero, Fixed64.Zero, footprint, Fixed64.One, false, vertices);
+        const int words = 24;
+        var compact = new ulong[ConvexContactCandidate.Slots * words];
+        var signs = new int[ConvexContactCandidate.Slots];
+        var direction = new ulong[3 * words];
+        var directionSigns = new int[3];
+        // HasValue=false permits arbitrary retained storage. Every padding limb
+        // must be overwritten on the first successful compact admission.
+        var retained = new ulong[ConvexContactCandidate.Slots * ConvexContactCandidate.Words];
+        Array.Fill(retained, ulong.MaxValue);
+        var retainedSigns = new int[ConvexContactCandidate.Slots];
+        Array.Fill(retainedSigns, -1);
+        scoped var selection = new CurvedPrismContactSelection(retained, retainedSigns);
+        var right = new WideDirection3d(Signed576.One, default, default);
+        Assert.True(geometry.TryBuildCandidate(right, direction, directionSigns, compact, signs,
+            -1, out int gap, out int vertex, out int feature));
+        selection.Keep(geometry, compact, signs, gap, vertex, feature, words);
+        Assert.True(selection.HasValue);
+        Assert.Equal(gap, selection.GapSign);
+        Assert.Equal(vertex, selection.Vertex);
+        Assert.Equal(feature, selection.Feature);
+        Assert.Equal(signs, retainedSigns);
+        for (int slot = 0; slot < ConvexContactCandidate.Slots; slot++)
+        {
+            Assert.Equal(compact.AsSpan(slot * words, words).ToArray(),
+                retained.AsSpan(slot * ConvexContactCandidate.Words, words).ToArray());
+            foreach (ulong limb in retained.AsSpan(slot * ConvexContactCandidate.Words + words,
+                ConvexContactCandidate.Words - words)) Assert.Equal(0UL, limb);
+        }
+        var snapshot = (ulong[])retained.Clone();
+        var signSnapshot = (int[])retainedSigns.Clone();
+        int firstVertex = vertex, firstFeature = feature;
+        // Both sides of the centered cube/cylinder have depth two. The later
+        // opposite direction must keep the earlier normal and support witness.
+        Assert.True(geometry.TryBuildCandidate(-right, direction, directionSigns, compact, signs,
+            -1, out gap, out vertex, out feature));
+        selection.Keep(geometry, compact, signs, gap, vertex, feature, words);
+        Assert.Equal(snapshot, retained);
+        Assert.Equal(signSnapshot, retainedSigns);
+        Assert.Equal(firstVertex, selection.Vertex);
+        Assert.Equal(firstFeature, selection.Feature);
+    }
+
+    private static Signed576 Integer576(BigInteger value)
+    {
+        BigInteger magnitude = BigInteger.Abs(value);
+        var words = new ulong[9];
+        for (int word = 0; word < words.Length; word++, magnitude >>= 64)
+            words[word] = (ulong)(magnitude & ulong.MaxValue);
+        Assert.Equal(BigInteger.Zero, magnitude);
+        var result = new Signed576(words[8], words[7], words[6], words[5], words[4], words[3], words[2], words[1], words[0]);
+        return value.Sign < 0 ? WideArithmetic.Negate(result) : result;
+    }
+
+    private static BigInteger Signed(Signed576 value)
+    {
+        Span<ulong> words = stackalloc ulong[9];
+        WideArithmetic.GetMagnitude(value, words);
+        return value.Sign * Magnitude(words);
     }
 
     private static ulong[] EncodeWideRoot(BigInteger radicand, BigInteger coefficient, BigInteger rational)

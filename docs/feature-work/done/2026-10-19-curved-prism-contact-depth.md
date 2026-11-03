@@ -23,11 +23,12 @@ and reopened for deeper exact-work reduction at the owner's request in the
 [experimental benchmark signal](../benchmark-signal-hardening-backlog.md#penetrating-oblique-conecylinder-prism-contact-throughput),
 not a production-throughput acceptance claim.
 
-The final bounded source review found no further small experiment with a
-complete correctness proof and convincing reach on these penetrating fixtures.
-The measured bounds and reach checks below did not justify their added
-arithmetic. Revisit exact candidate/root work when a concrete reduction or a
-representative simulation profile justifies another investigation.
+Earlier bounded reviews did not find another small change with a complete proof
+and convincing reach on these penetrating fixtures. Their rejected experiments
+remain below. The
+[2026-11-03 exact workload reduction](#exact-workload-reduction-2026-11-03)
+records the later substantive improvement, current validation and unresolved
+experimental target.
 
 ## Reproducer and geometric reason
 
@@ -1529,3 +1530,678 @@ survive deletion of those ignored artifacts. No release-package or
 cross-platform validation is claimed. Remaining work is the expensive analytic
 fan and seven cone/twelve cylinder stationary quartics; establish useful reach
 before adding another pruning rule or certificate.
+
+## Local-Y cross-construction follow-up (2026-11-02)
+
+**Disposition at this checkpoint:** Keep committed `87f18d2` unchanged. This
+bounded experiment retains no runtime or test change; the later exact-work
+reduction below continues the open experimental signal.
+
+The previous reduction forms `Cross(Axis,E)` before recognizing an earlier basis
+line. A disposable prototype precomputes whether the primitive-local axis has
+zero X/Z components and bypasses that construction for those queries. For
+`A=(0,Ay,0)`, the cross is `(Ay*Ez,0,-Ay*Ex)`: if `Ex!=0`, this is `-Ay` times
+the earlier second basis; otherwise it is on the earlier X-axis line or zero.
+Both orientations and the same required vertex were already evaluated. This
+includes negative Y axes and constrained domains. Other axes retain the
+committed general predicate, and the end-of-edge zero-gap return stays outside
+the bypass. Independent review confirms the equivalence and scratch behavior.
+
+The prototype matches all **1,320 complete contact/anchor snapshots** and all
+**fourteen mixed fixtures** against the committed implementation. Its probe core
+DLL hash matches the selected frozen prototype. A narrow Release out-of-process
+ABBA uses the same host, local-source settings, affinity three, two advertised
+processors, five warmups, ten actual iterations, one launch and 500 ms iteration
+target as the preceding acceptance window. Baseline is the committed inventory
+reduction, not the older pre-inventory runtime. Values are microseconds/query.
+
+| Query           |   A1 (us) |   B1 (us) |   B2 (us) |   A2 (us) | Cost change |
+| --------------- | --------: | --------: | --------: | --------: | ----------: |
+| ConeOblique     | 1,453.853 | 1,481.337 | 1,459.182 | 1,459.709 |      +0.93% |
+| ConeSideTouch   |   428.700 |   427.341 |   433.655 |   429.154 |      +0.37% |
+| CylinderOblique | 1,480.671 | 1,471.278 | 1,484.514 | 1,465.429 |      +0.33% |
+
+All twelve children exit zero, all 120 actual measurements are present,
+statistical summaries retain at least eight observations, and all raw
+allocation/collection counters are zero. Child PE/PDB and authored-source
+checksums bind the seven-library source graphs. No competing build, test or
+profiler runs during these timings. The roughly **+0.93% cone / +0.33% cylinder
+/ +0.37% side-touch** cost estimates are small and inconsistent across launches;
+they establish no incremental win or conclusive regression. The additional
+boolean and per-edge branch are rejected despite their valid equivalence proof.
+
+Captures are `artifacts/oblique-up-screen-*`, with the disposable candidate
+under `artifacts/oblique-up-perf/candidate`. Reproduce the preceding main
+command with filters `*ConeOblique`, `*CylinderOblique`, `*ConeSideTouch` in
+baseline/candidate/ candidate/baseline order. No new full solution matrix,
+broader controls or smoke is claimed: maintained runtime/tests remain
+byte-identical to `87f18d2`, and the prototype failed the initial throughput
+gate. Documentation formatting, links and scope checks cover the retained
+record. Further substantial progress needs a measured reduction in the remaining
+analytic/root work; this result does not justify another fast-path condition.
+
+## Exact workload reduction (2026-11-03)
+
+The owner continued the investigation after the local-Y construction shortcut
+failed its gate. Baseline is committed `87f18d2`, including the earlier guarded
+and canonical-inventory changes. The retained candidate keeps the public API,
+exact minimum, first ties and complete anchor representation unchanged. This is
+still an experimental throughput signal: the provisional twofold reduction on
+both penetrating fixtures remains unmet despite the repeatable improvement.
+
+### Executed work and retained changes
+
+Disposable counters on the actual mixed queries found seven cone and twelve
+cylinder stationary charts, with fourteen/nineteen roots. Only one chart per
+query reaches a signed gap query; none reaches squared-value construction or
+mapping. Building J/N/D eagerly and resolving every stationary root therefore
+spent work on candidates that could not improve the incumbent.
+
+The retained changes act on those measured costs:
+
+- `CylinderEdgeContactPolynomial` builds W/Q/K/L first and completes J/N/D only
+  after a root survives maximum, cap, support and unsquared-sign admission.
+  Future J/N/D slots temporarily retain P, M, scale and K squared. Completion
+  consumes them before overwrite, once per chart. The existing eager `Build`
+  wrapper remains for box and circular-rim callers, with the same final fields
+  and common-power normalization. Materialization completes before reading J.
+- Certified ordinary charts use W=L squared minus K squared times Q to exclude
+  entire sets of maxima. At K's positive zero beta, W(beta)=L(beta) squared is
+  nonnegative. Negative W(0), positive K(0), negative K slope and two Descartes
+  sign variations exhaust the positive roots as two maxima bracketing beta, or
+  the earlier analytic K-zero direction. This check precedes isolation and
+  includes multiplicity. A second check after isolation uses square-freeness,
+  K(0)>0>K(1), nonzero W(0), and one root or two roots starting from W(0)<0.
+  Existing per-root admission remains for other charts. Constrained and
+  uncertified domains do not use either new proof.
+- The target cone/cylinder isolate six/nine quartics instead of seven/twelve and
+  enter only three/six root iterations instead of fourteen/nineteen. Both
+  complete gap polynomials once instead of seven/twelve times. Analytic
+  endpoints own feature switches and equal minima; no witnesses are fabricated
+  for rejected maxima.
+- A cone-generator family can be excluded using one certified point of the
+  complete prism. Orient native Up so d=Up dot A>0, let m=minPrism(Up), and
+  p=(m/d)A. Require lambda=T*d-m>0 and verify p against both sides of every
+  prism plane, including coordinate extents needed by degenerate footprints.
+  Every generator normal has A dot n/|n|=R*sqrt(q)/sqrt(4*T*T*q+R*R), so its gap
+  is at least lambda*R*sqrt(q)/(d*S*sqrt(4*T*T*q+R*R)). Compare its exact square
+  with the incumbent. Equality belongs to the earlier feature. The membership
+  products fit 576/832 bits; squared numerator/denominator bounds are 913/723
+  bits, retained in sixteen-word fields. This certificate excludes the whole
+  generator family on `ConeOblique`, while required generator winners retain the
+  full traversal.
+- Certified edge charts already own incident normals. Reduce the real edge and
+  construct the generic reciprocal basis only for fallback charts. Derive side
+  normals from exact 65-bit native footprint differences and transform the
+  native perpendicular directly. The old cross product differs by a positive
+  scalar; existing reduction returns the same primitive integer endpoints.
+- Project analytic directions with bounded fixed-width arithmetic for
+  axis-squared times value minus axis-dot-value times axis. Under these caller
+  bounds all results fit 576 bits and complete products fit 832. Reuse the same
+  difference-of-products owner in the generator collector; wider existing
+  triangle/capsule projection callers retain their established general owner.
+- Replace single-bit GCD halving/restoration with trailing-zero counts and bulk
+  shifts, and finish immediately when the ordered odd operand is integer one.
+  Recognize exact power-of-two divisors across all three words and shift their
+  magnitudes before restoring sign. Generic exact division remains unchanged.
+  The old queries execute 52 three-word GCD calls, about 7,516/7,518 single-bit
+  halves, and 66 exact divisions with about 6,933/6,935 long-division steps.
+  Their coordinate divisor is 2^34. The admitted magnitude remains below 2^191;
+  `Signed192.One` is Q32.32 one, not the integer-one termination test.
+
+The implementation adds 193 net runtime lines across eight existing files, with
+no new runtime type/file, cache, allocation or public API. It retires the
+generator's duplicate scaled-difference helpers and the old private GCD halving
+helper. Independent review checks actual callers, scratch ownership, complete
+widths, exact ties and removal opportunities.
+
+### Experiments and decisions
+
+All pilot comparisons use frozen sibling graphs, Release out-of-process
+BenchmarkDotNet, affinity three, two advertised processors, five warmups, ten
+actual iterations, one launch and a 500-ms target. Balanced means compare only
+within their own windows; absolute values from different windows are not pooled.
+
+The balanced eight-pass structural pilot has sixteen successful children and 160
+actual samples, with zero raw allocation/collection counters. Whole-family
+generator exclusion alone reduces cone cost 17.15% and is flat on cylinder
+(+0.52%). Chart topology alone reduces cone/cylinder cost 4.56%/9.04%. Combined
+with deferred coefficients and cheaper chart preparation, the candidate reduces
+them 30.80%/17.85%. All tested variants match 1,320 full contact/anchor
+snapshots and fourteen mixed fixtures.
+
+A fresh profile of that candidate attributes approximately 11.4%/13.7% to the
+older chart bound, 7.1%/14.0% to analytic projection and 12.6%/5.3% to geometry
+construction. Attribution is inclusive sampled activity, not additive timing.
+The following balanced ablations determine the retained combination:
+
+| Follow-up against its immediate candidate                  | Cone cost change | Cylinder cost change | Decision |
+| ---------------------------------------------------------- | ---------------: | -------------------: | -------- |
+| Remove ordinary certified-chart bound                      |           +4.06% |               +0.73% | Reject   |
+| Compact exact projection                                   |           -3.27% |               -4.44% | Keep     |
+| Remove bound and compact projection                        |           +2.27% |               -0.15% | Reject   |
+| Bulk three-word content reduction after compact projection |           -4.77% |               -1.93% | Keep     |
+
+The first ablation window has sixteen successful children/160 actual samples;
+the numeric window has eight/eighty. All raw allocation/collection counters are
+zero, with at least eight retained statistical observations per case. PE/PDB
+identities and authored-source checksums bind the actual generated payloads.
+
+Additional disposable bounds were not retained. A squared level-crossing quartic
+has no useful reach. A branch-aware version with dyadic subdivision rejects
+three cone/four cylinder charts but leaves four/eight with actual
+below-threshold samples, including analytic endpoint ties; stronger subdivision
+cannot exclude those whole charts. A concavity certificate and K-sign cell
+shortcut overlap the simpler whole-maximum proof or still require refinement. No
+helper/API from those prototypes remains in the runtime.
+
+### Final fourteen-fixture comparison
+
+A fresh full-query ABBA against `87f18d2` completes **56 successful children and
+560 actual measurements**, with zero raw allocation/collection counters and at
+least eight retained observations per case. These are microseconds per complete
+mixed query on the measured Windows 11/i7-9700K/.NET 10.0.10 host, SDK 10.0.302.
+Both candidate target launches beat both baseline launches.
+
+| Query                       |        A1 |        B1 |        B2 |        A2 | Balanced cost change |
+| --------------------------- | --------: | --------: | --------: | --------: | -------------------: |
+| ConeOblique                 | 1,405.490 |   949.997 |   924.603 | 1,394.566 |              -33.05% |
+| CylinderOblique             | 1,464.112 | 1,068.994 | 1,042.154 | 1,378.501 |              -25.73% |
+| ConeSeparated               |    74.329 |    61.179 |    62.130 |    74.453 |              -17.12% |
+| CylinderSeparated           |   118.007 |    67.217 |    64.480 |   116.372 |              -43.81% |
+| ConeFace                    |   107.557 |    94.785 |    94.482 |   105.463 |              -11.15% |
+| CylinderFace                |   109.401 |    93.256 |    94.648 |   106.668 |              -13.04% |
+| ConeApexTouch               |    98.371 |    84.169 |    83.688 |    96.383 |              -13.81% |
+| ConeSideTouch               |   434.535 |   388.266 |   386.408 |   409.242 |               -8.19% |
+| CylinderSideTouch           |   129.980 |    91.958 |    91.934 |   119.463 |              -26.28% |
+| SphereContained             |   115.416 |   117.422 |   117.383 |   112.467 |               +3.04% |
+| CapsuleContained            |   127.976 |   117.348 |   115.421 |   116.649 |               -4.85% |
+| CapsuleCrossingOffcenter    |   120.947 |   116.706 |   120.882 |   117.212 |               -0.24% |
+| SphereContainedOpposingFace |   116.416 |   114.265 |   112.367 |   114.477 |               -1.85% |
+| SphereHorizontalRim         |   165.548 |   157.404 |   165.234 |   159.402 |               -0.71% |
+
+Balanced penetrating means are **1,400.028 to 937.300 us cone (-33.05%)** and
+**1,421.307 to 1,055.574 us cylinder (-25.73%)**. Absolute pilot means from
+other windows are not combined with these. A fresh candidate/baseline/baseline/
+candidate five-case window repeats the target gains at **-34.39% cone** and
+**-21.62% cylinder** (1,423.876 to 934.216 us; 1,427.690 to 1,118.996 us). Both
+candidate launches again beat both baseline launches.
+
+`SphereContained` is +3.04% in the main window and -2.36% in the focused window;
+the initial slowdown does not repeat. `CapsuleContained` is -1.32% in that
+focused window. `SphereContainedOpposingFace` is +0.89%, with overlapping launch
+ranges. These noisy controls establish no repeatable penalty or zero overhead.
+
+Six shared-caller controls use another Release ABBA with the same job settings.
+A fresh reversed three-case window checks the capsule signal and adjacent eager
+polynomial callers:
+
+| Shared control                    | Main cost change | Reversed focused change | Interpretation                               |
+| --------------------------------- | ---------------: | ----------------------: | -------------------------------------------- |
+| Box/capsule primary               |           +3.55% |                  -0.62% | Initial slowdown does not repeat             |
+| Oblique box/cylinder primary      |           +0.86% |                  +2.55% | Small positive means; launch ranges overlap  |
+| Ordinary cylinder/capsule         |           -1.61% |            Not repeated | No observed penalty                          |
+| Penetrating cylinder rims         |           -1.09% |            Not repeated | No observed penalty                          |
+| Multi-radical cylinder pair       |           -3.78% |            Not repeated | Both candidate launches below both baselines |
+| Oblique triangle/capsule-slab rim |           +0.30% |                  -2.23% | Initial flat result; focused gain            |
+
+The box/cylinder control remains uncertain. Its main baseline/candidate launch
+ranges are 1,016.698-1,036.910 / 1,030.638-1,040.697 us; focused ranges are
+1,003.694-1,027.879 / 1,026.097-1,057.254 us. Each window has a candidate launch
+inside the baseline range. The positive means are retained, not called zero
+overhead or a confirmed regression. If the cost repeats in a stronger matched
+capture, isolate the eager shared builder before adding a workaround.
+
+All **112 final, focused and shared-control children** exit zero and supply all
+**1,120 actual measurements**, with zero raw allocation/collection counters and
+at least eight retained observations per case. Actual child PE/PDB identities
+and authored-source checksums bind every source graph. The candidate matches all
+**1,320 complete contact/anchor snapshots** and fourteen mixed fixtures; all
+fourteen fixtures report zero calling-thread bytes over 128 warmed queries.
+
+### Validation
+
+Independent polynomial tests derive K/L by differentiation and W/J/N/D by
+BigInteger algebra, including cross-limb staged P/M/scale and joint N/D
+normalization. They check eager and deferred owners and that completion leaves
+W/Q/K/L unchanged. Numeric oracles cover dense full-word power divisors, signed
+and swapped GCD inputs, asymmetric carries, integer-one false positives,
+non-power fallbacks, maximum admitted magnitudes and warmed zero allocation.
+
+The containing tall-prism cone cases prove depth four with complete anchor
+equality, touching after the full exit and separation one raw unit beyond it. A
+cone above-apex case needs its generator minimum: its native-Up axis point
+belongs to the prism but lambda is negative, so membership alone cannot justify
+squaring the bound. A rational supporting plane and contained ball give exact
+depth sqrt(5)/64 and normal (1,2,0)/sqrt(5), with matching witness points and
+exact touching/separation. A separate oblique cylinder has a zero cubic
+stationary coefficient; an independent complete-support inequality proves unique
+Up/depth 2836, followed by exact touching and one-raw separation. Both windings
+and reversed-axis stationary winners remain covered.
+
+The final standard/Lean matrix passes:
+
+| Repository/configuration   | Core tests | Companion tests | Raw sequence points | Raw branch points | Raw methods |
+| -------------------------- | ---------: | --------------: | ------------------: | ----------------: | ----------: |
+| FixedMathSharp Release     |      7,338 |              49 |       68,505/68,505 |     22,688/22,688 | 5,332/5,332 |
+| FixedMathSharp ReleaseLean |      7,317 |              49 |       68,598/68,598 |     22,688/22,688 | 5,328/5,328 |
+| Gravitas Release           |      8,348 |  Not applicable |       53,559/53,559 |     21,772/21,772 | 5,602/5,602 |
+| Gravitas ReleaseLean       |      8,277 |  Not applicable |       53,557/53,557 |     21,772/21,772 | 5,601/5,601 |
+
+The initial complete matrix exposed exactly two unvisited math branches despite
+rounded 100% reports: nonpositive generator lambda and a zero stationary
+coefficient. The physical cases above close both without changing runtime logic.
+The final math suites are rerun in both configurations; consumer and companion
+suites remain valid because runtime/source dependencies are unchanged. Both
+runtime target frameworks build. No exclusion, assertion weakening,
+allocation-counter or package/configuration change is used. The live runtime
+remains byte-identical to the frozen timed source.
+
+The final out-of-process Short smoke completes **479 successful children**, all
+**1,437 actual iterations**, and 479 populated summaries. Raw positive counters
+occur only in the same thirteen enumerable/formatting/serialization workloads as
+the committed smoke control; all other cases, including geometry, retain zero
+raw allocation/collection counters. Generated math/benchmark/diagnostics PE/PDB
+and authored-source bindings pass. Short timings are smoke evidence only. Scoped
+C# formatting, documentation formatting, relative-link/anchor checks and
+`git diff --check` pass. Source and test changes remain unstaged/uncommitted.
+
+### Interrupted pilot and bounded native-fault investigation
+
+An early deferred-coefficient/chart-preparation pilot stops at its second
+candidate cylinder launch. The child throws a managed `NullReferenceException`
+after warmup, at `Signed832.IsZero`, through
+`CurvedPrismContactGeometry.ProjectionMinimum`, `TryBuildCandidate`,
+`CurvedPrismContact.KeepDirection`, `KeepAnalytic` and `TryGetContact`. No
+actual samples exist for that child. The entire interrupted pilot is excluded
+from accepted comparisons; preceding successful measurements are not
+cherry-picked.
+
+That intermediate candidate contains only deferred coefficients and certified
+edge preparation over `87f18d2`, before generator/topology/direct-normal,
+projection and numeric refinements. The three fault-stack source owners
+`Signed832`, `CurvedPrismContactGeometry` and `CurvedPrismContact` are then
+byte-identical to the committed baseline. This does not establish a pre-existing
+cause: earlier calls, generated layout and runtime state can still differ.
+Static inspection finds no span overlap, ref escape or invalid lifetime in
+staging, and no verified unsafe write.
+
+The failed generated seven-library DLL/PDB payload is archived and bound to its
+source checksums; its math DLL SHA-256 is
+`4A1309AC9A785B584458FB71B9E92896AE93CEB16893456C4EFF21AA4CFAE615`. The child
+recipe is
+`dotnet Gravitas.Benchmarks-Job-MRMQXX-1.dll --benchmarkName Gravitas.Benchmarks.CurvedPrismContactBenchmarks.CylinderOblique 1`,
+using its original five-warmup/ten-actual 500-ms job. It supports a console host
+without anonymous benchmark pipes.
+
+A deliberately caught null dereference calibrates a current-runtime CDB
+first-chance AV collector before replay. The collector uses `sxe ... av` to
+write a full dump, exception record, registers, native stack and faulting
+instructions before `gn`. Use `cdb -G -o -cf <commands> dotnet <child> ...`:
+`-G` avoids the final debugger breakpoint reading EOF. The first replay without
+`-G` completes ten actual iterations but the debugger exits with its own read
+fault; it is not a failed application workload or throughput evidence. Two
+further debugger replays, three normal intermediate-candidate replays and three
+normal committed-baseline replays all complete ten actual measurements, with no
+AV/NRE. No native dump of the original fault was captured.
+
+For recurrence, create `artifacts/curved-fault`, run CDB from the repository
+root, and save these commands to `artifacts/curved-fault/capture.cdb`:
+
+```text
+sxi ibp
+sxe -c ".echo CURVED_FIRST_CHANCE_AV; .dump /ma /u artifacts/curved-fault/first-chance.dmp; .exr -1; r; k; u @rip-20 L40; gn" av
+g
+```
+
+Launch the preserved child with
+`cdb -G -o -cf artifacts/curved-fault/capture.cdb dotnet <preserved-child.dll> --benchmarkName Gravitas.Benchmarks.CurvedPrismContactBenchmarks.CylinderOblique 1`.
+First verify the collector using a caught field read through a null reference in
+a method marked `NoInlining | NoOptimization`; throwing a managed exception
+explicitly does not calibrate a native AV collector. Preserve the faulting child
+payload and PDBs before any generated rebuild reuses its output directory.
+
+The cause remains **unattributed and unreproduced**, not fixed. No null guard,
+retry, runtime optimization switch or speculative arithmetic workaround is
+retained. Reopen fault RCA with a fresh first-chance capture and matching child
+DLLs/PDBs; stable final launches establish their own execution results only.
+
+### Reproduction and durable evidence
+
+Keep the same sibling state for baseline and candidate: Gravitas `7990c176`,
+Chronicler `c45f9ab5`, SwiftCollections `13a3c13e`, GridForge `50d55404`,
+including the unchanged pre-existing GridForge working changes. Set
+`UseLocalLsfStack=true`, `DisableTransitiveProjectReferences=true`,
+`UseSharedCompilation=false` and `BuildInParallel=false` in the environment and
+on serial restore/build commands. Build the owning benchmark project with
+`-c Release -f net10.0 -m:1`. Use separate source graphs and fresh timestamps
+when copying a candidate; preserved file times can otherwise leave stale
+incremental binaries. Confirm generated PE/PDB bindings and source checksums.
+
+For the full mixed comparison, run from each Gravitas checkout:
+
+```powershell
+$env:DOTNET_PROCESSOR_COUNT='2'
+dotnet tests/Gravitas.Benchmarks/bin/Release/net10.0/Gravitas.Benchmarks.dll curved-prism-contact --warmupCount 5 --iterationCount 10 --launchCount 1 --iterationTime 500 --affinity 3 --keepFiles --exporters json --artifacts <capture>
+```
+
+Run baseline/candidate/candidate/baseline; add filters `*ConeOblique` and
+`*CylinderOblique` only for the narrow pilots. All acceptance timings exclude
+competing builds, tests and profilers. Inspect every child exit, expected actual
+sample count, retained statistics and raw GC counters, independently of parent
+success and rounded summary allocation.
+
+Capture families are
+`artifacts/oblique-work-{pilot*,profile,final,focus,controls,sharedfocus,covered,accepted,smoke}-*`,
+with source variants under `artifacts/oblique-work-perf`. The committed baseline
+is `artifacts/oblique-inventory-perf/cross`. The failed intermediate payload and
+replays are under `artifacts/oblique-work-pilot-D2-payload` and
+`artifacts/oblique-work-failure-replay`. These ignored files preserve raw
+evidence; the source revisions, fixture recipes, proofs, commands, dispositions
+and numerical results here remain sufficient to understand/reopen the work after
+their deletion. No release-package, cross-platform or simulation-frame
+throughput claim follows from these local query measurements.
+
+## Analytic construction and quartic preparation (2026-11-03)
+
+This continuation uses the retained implementation in the preceding section as
+its incremental baseline. The final cumulative comparison still uses committed
+`87f18d2`; means from different windows are never pooled. The owner requested a
+repeatable twofold gain on both queries while retaining exact ties, complete
+witnesses and downstream Gravitas compatibility. The signal stays experimental
+until both targets earn that comparison.
+
+### Work removed and exactness contracts
+
+A fresh sampled profile attributes roughly 38%/42% to analytic selection and
+41%/41% to rim selection for cone/cylinder, including their callees. Root
+isolation itself is only about 2% for either query. These inclusive samples are
+not additive wall-clock costs. The retained work addresses construction,
+admission and materialization before adding another root solver.
+
+- Pass each fixed-width rational normal directly into candidate admission.
+  Reject unsupported directions before writing generic magnitude fields. For a
+  required edge endpoint, compute its exact projection once, scan the canonical
+  extrusion level in ascending order, and reject at the first smaller value.
+  Successful scans retain the same first equal vertex, including zero-Up ties;
+  rejected candidates avoid the remaining scan and two redundant wide dots.
+- Ordinary rational candidates use 24-word fields; domains keep their original
+  forty-word representation. Normals below 504 bits, vertices below 165 bits,
+  half-axis/radius below 163 bits, raw scale below 99 bits and q below 65 bits
+  give T below 672, q*T below 737, and the largest complete squared field below
+  1,475 bits. All 1,536 bits are retained. Compare the compact view before
+  admission, then clear and pad every accepted slot into the existing forty-word
+  selection. Exact equality keeps the earlier fields and witness metadata. The
+  existing radial builder uses the supplied stride; its q/d inputs may still
+  alias output slots 9/10. No new candidate type, cache or public API is needed.
+- Reduce each nonzero ordinary analytic edge by its positive component GCD once.
+  Crosses/bases scale by its inverse and perpendicular projections by its
+  inverse square. Rays, signs, required vertices, family order and exact ranks
+  therefore stay identical while subsequent products shrink. Real edges fit 192
+  bits. The existing rim fallback uses the same relocated reducer; domain
+  analytic edges retain their original representation for open-window mediants.
+- Certify native wall orientation with complete 65-bit raw footprint differences
+  and determinants below 131 bits, instead of transformed vertex dot products.
+  The omitted transform factor is strictly positive for validated rotations.
+  During segment clipping, a side with an exact authored-yaw X or Z component of
+  zero duplicates an earlier coordinate constraint. Both orientations of the
+  complete coordinate support were already applied, so skipping that duplicate
+  cannot change the retained bound ratio. Zero edges are included in this test.
+- For an ordinary non-pole cylinder side, H.n=0 and M=n.n>0. The translated
+  segment's point, displacement and denominator share one positive M. Retain
+  `point=-H*M+minimum*n`, `delta=2H*M`, `denominator=M` directly. All clipping
+  ratios and final anchors are identical. Poles, cones and enabled windows keep
+  the general representation. A fixed ordinary segment with zero displacement
+  retains the original parameter zero directly; Debug keeps membership asserts.
+- The final ordinary cylinder vertex family needs only positive projected-vertex
+  rays. In the perpendicular plane the gap is R minus the prism minimum
+  projection. An open vertex minimum uses the nearest projected point's positive
+  ray; its negative ray is an open maximum. Boundary/flat cases belong to the
+  earlier real-edge directions. The same supporting vertex and finite side
+  witness are recovered independently of the seed. Domain traversal keeps both
+  orientations and existing canonical order.
+- Recognize the exact metric `M=m*(1-2t+2t*t)`. Build the stationary derivative
+  with unit content, then restore physical M in its staged slots before gap
+  completion. K/L/J lose m and N/D lose m squared together. Original Q, chart
+  vectors, parameter roots, multiplicity and ordinals stay unchanged. Domain rim
+  witnesses are unique stationary point ratios, not analytic interval mediants;
+  different root isolation cells cannot change their exact predicates/rounding.
+- After the existing complete chart bound misses, ordinary certified vertical
+  edges may use a concavity certificate. Let d=A.E, K=q*(E.E), and let alpha be
+  the existing smaller nonnegative normalized endpoint projection. The projected
+  ellipse has semiaxes R and r=R*abs(d)/sqrt(K), with 0<r<R. Its maximum angular
+  second derivative is `(R*R-r*r)/r`. If alpha is at least that value, the
+  entire support gap is concave, so earlier physical endpoints/switches own
+  minima and ties. For alpha squared=a squared/M, compare exactly
+  `a*a*K*d*d >= R*R*(K-d*d)*(K-d*d)*M`. Complete products are below 1,480 bits;
+  four 24-word slices reuse dead bound scratch. No additional bank/helper is
+  introduced. Two additional target charts per query are certified before their
+  stationary builder. Finite domains and other edge families retain the solver.
+
+The independent public concavity fixture uses authored axis `(3k,4k,0)` raw,
+k=858993459, length/radius 2, and footprint X=[-3/2,10], Z=[-1,10],
+half-height 10. Choose center.x=-axis.x for the cylinder and +axis.x for the
+cone. A chord and support-subadditivity proof gives the unique minimum 3 along
++Z. The old bound is only 13/5; the new cleared comparison is 400>=324. Both
+windings retain full anchors: primitive local `-axis +2Z`, prism
+`(0,-axis.y,-1)` for cone and `(-2axis.x,-axis.y,-1)` for cylinder. Translation
+by -3Z touches; one further raw unit separates. All four rows pass against both
+the pre-certificate and retained implementations. A separate nearly
+perpendicular-axis fixture proves an earlier +X/-X exact tie, its complete
+anchors and one-raw clearance. This prevents an apparently redundant offset
+family from silently changing canonical ownership.
+
+### Completed experiment windows
+
+All rows use frozen sibling sources, Release out-of-process BenchmarkDotNet,
+affinity 3, two advertised processors, five warmups, ten actual iterations, one
+launch and 500-ms iterations. Every complete window has all expected successful
+children, ten raw actual samples per child, at least eight statistical retained
+observations per case, zero raw allocation/collection counters and PE/PDB/source
+bindings for actual generated child payloads. Each variant matches 1,320 full
+contact/anchor snapshots and fourteen mixed fixtures before timing.
+
+| Window and variant                                  | Cone mean, us | Cylinder mean, us | Decision                              |
+| --------------------------------------------------- | ------------: | ----------------: | ------------------------------------- |
+| Pilot1 retained baseline                            |       932.609 |          1110.294 | Incremental reference                 |
+| Rational upper bound plus smaller bound fields      |       920.236 |          1121.895 | Reject: cylinder slows 1.05%          |
+| Compact candidates/direct normal alone              |       931.590 |          1069.260 | Retest in combined workload           |
+| Both pilot1 changes                                 |       909.379 |          1076.860 | Reject weaker bound component         |
+| Pilot3 retained baseline                            |       939.980 |          1101.279 | Incremental reference                 |
+| Construction/witness changes, forty-word candidates |       813.665 |           975.746 | Keep measured bundle                  |
+| Same changes, compact candidates                    |       799.256 |           926.624 | Keep: -14.97% / -15.86%               |
+| Forty-word bundle plus three per-query squares      |       817.423 |           961.044 | Reject: fails to beat compact variant |
+| Pilot4 compact bundle baseline                      |       806.560 |           913.583 | Incremental reference                 |
+| Required-support scan and compact/domain cleanup    |       769.816 |           880.623 | Keep: -4.56% / -3.61%                 |
+| Cleanup plus primitive analytic edges               |       733.278 |           850.414 | Keep: -9.09% / -6.91%                 |
+| Pilot5 primitive-edge baseline                      |       709.491 |           833.747 | Incremental reference                 |
+| Add vertical-edge concavity                         |       668.343 |           800.833 | Keep: -5.80% / -3.95%                 |
+
+Pilot1/3/4/5 complete 16/16/12/8 children and 160/160/120/80 actual
+measurements: 52 children and 520 actual measurements total. These window means
+are not pooled. In pilot3, both compact launches beat both retained launches; in
+pilot4, each successive variant beats both launches of its predecessor; in
+pilot5, both candidate launches beat both baseline launches on both queries. The
+per-query square cache adds 152 bytes to geometry and has mixed results; no
+field or consumer change from that experiment remains. The all-chart curvature
+version is not maintained; observed reach supports the narrower vertical family.
+Deleting the projected-offset candidate family is rejected on an exact canonical
+normal/anchor tie counterexample, despite ordinary fixture equality.
+
+### Excluded native-fault window and bounded replay
+
+The intervening pilot2 is excluded in full. Its second core launch's cone child
+finishes five warmups, then reports fatal `0xC0000005` before its first actual
+sample. The stack names
+`System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method`,
+`InvokeDirectByRefWithFewArgs`, `MethodBase.Invoke`, and the generated
+`AfterAssemblyLoadingAttached`/`Main`. It supplies no original instruction,
+faulting address or geometry frame. The cylinder child completes, but those
+samples and the preceding partial window are not accepted throughput evidence.
+
+This core prototype contains direct-normal/compact construction, metric content
+reduction, native orientation and the zero-displacement shortcut. It does not
+contain the later positive vertex family, coordinate-plane clipping,
+side-translation cancellation, required-support scan, primitive analytic edges,
+query-square fields or vertical concavity. Passing B1 and faulting B2 bind the
+same math DLL SHA256:
+`B170539D7C95433F62335054A3A2CEA2505177695F0D2B609277D7187ED6A3FE`. The actual
+generated child tree, seven PE/PDB pairs, source bindings and logs are preserved
+under `artifacts/oblique-next-failure` and pilot2 payload directories. They aid
+replay; the conclusions here do not depend on their future retention.
+
+On the same Windows/.NET 10.0.10 host, CDB's current first-chance collector is
+recalibrated with a caught-null control: an actual AV is captured and the
+control then exits successfully. Five debugger replays of the preserved core
+child and five of the retained baseline all complete ten actual measurements,
+exit 0 and capture no first-chance AV. Static independent audits find no
+verified span overrun, scratch alias, escaping lifetime, unsafe operation or
+capacity defect. Console/debugger replays differ from the original pipe-hosted
+launch; these bounded negatives establish no cause or fix. The fault remains
+unattributed.
+
+The relevant reproduction shape is source mode with UseLocalLsfStack=true,
+DisableTransitiveProjectReferences=true, UseSharedCompilation=false and
+BuildInParallel=false, then the generated Release cone child from the documented
+five-warmup/ten-actual/500-ms/affinity 3 job. Preserve the original child and
+source checksums before rebuilding. On recurrence capture first-chance AV
+instruction, registers, native/managed stacks and a dump before continuation;
+compare matched baseline/candidate launches and exclude incomplete windows. Do
+not catch, retry and pool failed measurements or label later successful runs a
+fix. The earlier managed-fault investigation remains separately recorded above.
+
+### Final validation and cumulative comparison
+
+The final source passes the complete local source-stack matrix on Windows x64,
+SDK 10.0.302/runtime 10.0.10. Solution rebuilds cover both library target
+frameworks; the test projects execute net10.0. All raw OpenCover points, rather
+than rounded report percentages alone, are visited:
+
+| Repository/configuration   | Core tests | Companion tests | Sequence points | Branch points |   Methods |
+| -------------------------- | ---------: | --------------: | --------------: | ------------: | --------: |
+| FixedMathSharp Release     |       7348 |              49 |     68577/68577 |   22746/22746 | 5333/5333 |
+| FixedMathSharp ReleaseLean |       7327 |              49 |     68670/68670 |   22746/22746 | 5329/5329 |
+| Gravitas Release           |       8348 |               — |     53559/53559 |   21772/21772 | 5602/5602 |
+| Gravitas ReleaseLean       |       8277 |               — |     53557/53557 |   21772/21772 | 5601/5601 |
+
+Independent review covers all eleven existing runtime files and five test files,
+including actual shared/eager callers, retirement, complete intermediate widths,
+scratch lifetimes, first ties and physical witnesses. The cumulative runtime
+change is 318 net lines relative to `87f18d2`, with no new runtime file/type,
+cache, public API or allocation. The two redundant constant/quadratic
+metric-sign conditions are retired: valid chart vectors are nonzero, so their
+squared lengths are strictly positive. A Debug assertion records that
+precondition.
+
+The final frozen graph matches all 738 authored source/test/project files in the
+validated math checkout; its 430 source/project files include every runtime
+owner. The unchanged dirty GridForge source matches all 138 checked files in the
+baseline graph. Gravitas, Chronicler and SwiftCollections remain unmodified. The
+benchmark source graph uses the same sibling revisions as the preceding section.
+No released-package or other native platform/architecture lane is claimed.
+
+A fresh full-query ABBA against `87f18d2` completes 56 successful children and
+560 actual samples. Raw allocation/collection counters are zero for all
+children; all expected exports, retained observations and generated payload
+bindings pass. These are microseconds per complete mixed query on the measured
+i7-9700K host.
+
+| Query                       |       A1 |      B1 |      B2 |       A2 | Balanced cost change |
+| --------------------------- | -------: | ------: | ------: | -------: | -------------------: |
+| ConeSeparated               |   73.221 |  60.194 |  58.376 |   74.983 |              -20.00% |
+| ConeFace                    |  109.506 |  70.936 |  71.633 |  108.598 |              -34.63% |
+| ConeOblique                 | 1412.586 | 671.817 | 688.205 | 1425.227 |              -52.07% |
+| CylinderSeparated           |  118.764 |  64.702 |  61.884 |  120.225 |              -47.03% |
+| CylinderFace                |  108.008 |  72.599 |  71.789 |  107.944 |              -33.14% |
+| CylinderOblique             | 1400.221 | 806.764 | 809.023 | 1397.028 |              -42.24% |
+| ConeApexTouch               |   97.774 |  60.553 |  60.628 |   98.324 |              -38.20% |
+| ConeSideTouch               |  414.230 | 318.709 | 319.983 |  408.203 |              -22.34% |
+| CylinderSideTouch           |  123.921 |  67.273 |  69.161 |  121.388 |              -44.38% |
+| SphereContained             |  117.060 | 115.130 | 115.758 |  112.720 |               +0.48% |
+| CapsuleContained            |  121.300 | 117.868 | 118.692 |  118.383 |               -1.30% |
+| CapsuleCrossingOffcenter    |  115.314 | 120.878 | 118.170 |  115.081 |               +3.76% |
+| SphereContainedOpposingFace |  115.484 | 117.749 | 115.789 |  113.716 |               +1.89% |
+| SphereHorizontalRim         |  159.792 | 162.686 | 158.266 |  159.890 |               +0.40% |
+
+Cone averages 1418.906 to 680.011 us, a 52.07% cost reduction and 2.09x
+throughput. Cylinder averages 1398.625 to 807.894 us, a 42.24% reduction and
+1.73x throughput. Both candidate target launches beat both baselines. Cone's
+slower candidate is also below half the faster baseline. Cylinder remains above
+the provisional half-cost target, so the signal remains open under Experimental
+Signals.
+
+A separate direct ABBA against the previously retained 193-line implementation
+completes 8 children/80 actual samples with the same zero raw counters and
+binding checks. Cone averages 917.674 to 677.149 us (-26.21%); cylinder 1087.918
+to 806.944 us (-25.83%). Both candidate launches beat both baselines for each
+query. This measures the incremental gain without pooling earlier experiment
+windows.
+
+All 1320 final full contact/anchor snapshots and 14 mixed fixtures match the
+original expected fields. Each of 14 fixtures reports zero calling-thread bytes
+for 128 warmed queries. The complete out-of-process Short smoke run passes all
+479 children,1437 actual iterations and 479 populated statistic exports. Its13
+positive allocation cases are exactly the previous enumerable-construction,
+formatting and serialization cases; all other 466 cases have zero raw
+allocation/collection counters. All contact kernels retain zero allocation.
+
+The main capsule-crossing control is +3.76%; sphere opposing-face is +1.89%. A
+separate reversed-order shared window completes 12 children/120 actual samples:
+box/capsule 98.262 to 99.509 us (+1.27%), box/cylinder 981.891 to 1002.416 us
+(+2.09%), triangle/capsule 659.889 to 657.906 us (-0.30%). The older
+box/cylinder uncertainty predates this continuation. Those initial signals
+prompted the reversed mixed and direct shared comparisons below.
+
+The reversed five-query BAAB completes 20 children/200 actual samples, all with
+zero raw counters and complete payload/statistic checks. Target gains repeat at
+-52.41% cone and -42.56% cylinder. The earlier capsule-crossing signal does not
+repeat (+0.10%); sphere contained is +0.29%, opposing-face is -0.81%. These
+control windows do not establish a repeatable penalty for those mixed queries.
+
+A direct shared BAAB against the retained implementation completes 12 children
+and 120 actual samples with zero raw counters. Box/capsule is +0.98%, with
+interleaved launch ranges; box/cylinder is -0.74%, also with overlapping ranges.
+This continuation does not establish additional box/cylinder overhead beyond the
+older uncertainty. Triangle/capsule is +2.86%, with both candidate means higher.
+A bounded opposite-order single-case ABBA repeats a +1.77% difference (630.910
+to 642.066 us). This is relevant shared code: the triangle benchmark definitely
+calls BuildRadialCandidate through its first admitted Up seam direction at 40
+words. It cannot be dismissed as a disconnected path.
+
+A final three-version ABC/CBA triangle check changes that result: retained
+636.920, current 632.360 (-0.72%) and proposed scratch-reuse 632.128 us
+(-0.75%). Current and retained launch ranges overlap. Across these windows the
+small triangle percentage is not stable; neither no-overhead nor an assigned
+regression cause is established. Preserve the uncertainty and reopen it for a
+consistent matched signal plus attribution, instead of changing arithmetic on a
+timing hypothesis.
+
+The proposed scratch overload borrows a dead BuildPlaneCandidate temporary and
+restores fixed forty-word scratch for legacy callers. It matches 1320
+full-anchor snapshots,14 mixed fixtures and zero warmed allocations, but the
+triangle check finds no independent gain. A separate target ABBA gives cone
+652.096 to 657.863 us (+0.88%) and cylinder 772.784 to 769.765 us (-0.39%,
+overlapping launch ranges). Reject it: neither the overload nor its caller
+change remains in maintained source. The six triangle and eight target children
+complete 140 actual samples with zero raw counters; they are a separate rejected
+experiment, not pooled final performance evidence.
+
+The main, direct, reversed and shared final/control windows total 112 successful
+children and 1120 actual measurements, all with zero raw allocation/collection
+counters. The rejected scratch experiment adds 14 children/140 actual samples;
+the earlier four complete pilots add 52/520. The broad Short smoke has its
+separate 479/1437 accounting and 13 intentional allocating cases. All
+comparisons use their own paired means and source-bound payloads.
+
+Scoped source whitespace verification, pinned Markdown formatting/checks and
+`git diff --check` pass. Full semantic `dotnet format` exits 2 with workspace
+loading/import diagnostics: it labels required Xunit imports unnecessary and
+reports the Witnesses import order already present in HEAD. Removing the Xunit
+imports was independently disproved by compiler errors, so those imports remain.
+No unrelated formatter edits survive. This limitation does not change the clean
+Release/Lean builds or the complete test/coverage results above.
+
+Final independent code and evidence review finds no actionable correctness,
+width, lifetime, tie, witness, duplication or evidence issue. The shared-control
+uncertainty, semantic-formatter limitation and unattributed native fault remain
+explicit. Changes remain unstaged and uncommitted for owner review.

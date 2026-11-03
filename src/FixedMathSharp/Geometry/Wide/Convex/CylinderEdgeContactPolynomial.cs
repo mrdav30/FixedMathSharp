@@ -26,6 +26,20 @@ internal static class CylinderEdgeContactPolynomial
         ReadOnlySpan<ulong> metric, ReadOnlySpan<sbyte> ms,
         ReadOnlySpan<ulong> scale, Span<ulong> data, Span<sbyte> signs)
     {
+        BuildStationary(p, ps, q, qs, metric, ms, scale, data, signs);
+        CompleteGap(data, signs);
+    }
+
+    /// <summary>
+    /// Builds W,Q,K,L for root isolation/admission. Slots 13..14 borrow P,
+    /// 16..18 borrow M, 19 borrows scale, and 21..23 borrow K squared until
+    /// completion replaces 13..25 by J,N,D. Call CompleteGap at most once.
+    /// </summary>
+    internal static void BuildStationary(ReadOnlySpan<ulong> p, ReadOnlySpan<sbyte> ps,
+        ReadOnlySpan<ulong> q, ReadOnlySpan<sbyte> qs,
+        ReadOnlySpan<ulong> metric, ReadOnlySpan<sbyte> ms,
+        ReadOnlySpan<ulong> scale, Span<ulong> data, Span<sbyte> signs)
+    {
         int words = data.Length / signs.Length;
         data.Clear(); signs.Clear();
         q.CopyTo(data.Slice(5 * words, 3 * words)); qs.CopyTo(signs.Slice(5, 3));
@@ -51,17 +65,49 @@ internal static class CylinderEdgeContactPolynomial
         Multiply(k, ks, k, ks, kSquared, kSquaredSigns, product);
         Multiply(kSquared, kSquaredSigns, q, qs, temporary, temporarySigns, product);
         Add(temporary, temporarySigns, data[..(5 * words)], signs[..5], -1);
-        Span<ulong> j = data.Slice(13 * words, 3 * words);
-        Span<sbyte> js = signs.Slice(13, 3);
-        Multiply(p, ps, k, ks, j, js, product);
-        Add(l, ls, j, js, -1);
-        Multiply(j, js, j, js, data.Slice(16 * words, 5 * words), signs.Slice(16, 5), product);
-        Multiply(kSquared, kSquaredSigns, metric, ms, temporary, temporarySigns, product);
-        WideArithmetic.MultiplyMagnitudes(scale, scale, kSquared[..words]);
-        kSquaredSigns[0] = 1;
-        Multiply(temporary, temporarySigns, kSquared[..words], kSquaredSigns[..1],
-            data.Slice(21 * words, 5 * words), signs.Slice(21, 5), product);
+        p.CopyTo(data.Slice(13 * words, 2 * words));
+        ps.CopyTo(signs.Slice(13, 2));
+        metric.CopyTo(data.Slice(16 * words, 3 * words));
+        ms.CopyTo(signs.Slice(16, 3));
+        scale.CopyTo(data.Slice(19 * words, words));
+        kSquared.CopyTo(data.Slice(21 * words, 3 * words));
+        kSquaredSigns.CopyTo(signs.Slice(21, 3));
         WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(data[..(5 * words)], signs[..5]);
+    }
+
+    /// <summary>
+    /// Completes J=PK-L, N=J squared and D=scale squared*K squared*M once.
+    /// Scratch consumes staged P before J overwrites it; D is written before
+    /// N so staged M/scale can share the future N slots.
+    /// </summary>
+    internal static void CompleteGap(Span<ulong> data, Span<sbyte> signs)
+    {
+        int words = data.Length / signs.Length;
+        Span<ulong> scratch = stackalloc ulong[7 * words];
+        Span<sbyte> scratchSigns = stackalloc sbyte[6];
+        scratch.Clear(); scratchSigns.Clear();
+        Span<ulong> temporary = scratch[..(5 * words)], scaleSquared = scratch.Slice(5 * words, words);
+        Span<sbyte> temporarySigns = scratchSigns[..5], scaleSquaredSigns = scratchSigns.Slice(5, 1);
+        Span<ulong> product = scratch.Slice(6 * words, words);
+        Multiply(data.Slice(13 * words, 2 * words), signs.Slice(13, 2),
+            data.Slice(8 * words, 2 * words), signs.Slice(8, 2),
+            temporary[..(3 * words)], temporarySigns[..3], product);
+        Add(data.Slice(10 * words, 3 * words), signs.Slice(10, 3),
+            temporary[..(3 * words)], temporarySigns[..3], -1);
+        temporary[..(3 * words)].CopyTo(data.Slice(13 * words, 3 * words));
+        temporarySigns[..3].CopyTo(signs.Slice(13, 3));
+        // Consume staged K squared before D overwrites its slots.
+        Multiply(data.Slice(21 * words, 3 * words), signs.Slice(21, 3),
+            data.Slice(16 * words, 3 * words), signs.Slice(16, 3), temporary, temporarySigns, product);
+        ReadOnlySpan<ulong> scale = data.Slice(19 * words, words);
+        WideArithmetic.MultiplyMagnitudes(scale, scale, scaleSquared);
+        scaleSquaredSigns[0] = 1;
+        Multiply(temporary, temporarySigns, scaleSquared, scaleSquaredSigns,
+            data.Slice(21 * words, 5 * words), signs.Slice(21, 5), product);
+        // D no longer borrows M/scale; N can overwrite those slots.
+        Multiply(data.Slice(13 * words, 3 * words), signs.Slice(13, 3),
+            data.Slice(13 * words, 3 * words), signs.Slice(13, 3),
+            data.Slice(16 * words, 5 * words), signs.Slice(16, 5), product);
         WideFiniteAxisIntersection.NormalizeFiniteAxisPolynomialPowerOfTwo(data.Slice(16 * words, 10 * words), signs.Slice(16, 10));
     }
 

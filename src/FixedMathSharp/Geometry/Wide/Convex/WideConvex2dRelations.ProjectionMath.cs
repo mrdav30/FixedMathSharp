@@ -535,7 +535,7 @@ internal static partial class WideConvex2dRelations
             out y);
     }
 
-    private static void GetRotatedOffset(
+    internal static void GetRotatedOffset(
         RotationFrame2d rotation,
         Signed192 localX,
         Signed192 localY,

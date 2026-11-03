@@ -35,6 +35,8 @@ internal static class CurvedPrismGeneratorFeatures
         fourTq = WideArithmetic.AddSigned576(fourTq, fourTq);
         Signed576 radiusSquared = WideArithmetic.MultiplySigned320(geometry.Radius, geometry.Radius);
         Signed576 length = WideArithmetic.AddSigned576(fourTq, radiusSquared);
+        if (selection.HasValue && !selection.Domain.Enabled &&
+            CanExcludeCircle(geometry, selection.Candidate, radiusSquared, length)) return;
 
         Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * Words];
         Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
@@ -82,7 +84,7 @@ internal static class CurvedPrismGeneratorFeatures
             // A.n=Rqk>=0, preserving the unsquared generator condition.
             // Its norm²=q*k²*(4T²q+R²), with no remaining radical.
             WideDirection3d axis = new(geometry.Axis);
-            WideDirection3d u = DifferenceScaled(axis, g, e, d);
+            WideDirection3d u = WideDirection3d.DifferenceScaled(axis, g, e, d);
             WideDirection3d cross = WideDirection3d.Cross(axis, e);
             Signed320 radialScale = Signed320.NarrowValue(
                 WideArithmetic.MultiplySigned320(geometry.Radius, q));
@@ -104,12 +106,69 @@ internal static class CurvedPrismGeneratorFeatures
         }
     }
 
+    private static bool CanExcludeCircle(in CurvedPrismContactGeometry geometry,
+        scoped ConvexContactCandidate incumbent, Signed576 radiusSquared, Signed576 length)
+    {
+        WideDirection3d up = geometry.Plane(1);
+        Signed320 denominator = Signed320.NarrowValue(Signed576.NarrowValue(WideDirection3d.Dot(up, geometry.Axis)));
+        if (denominator.IsZero) return false;
+        if (denominator.Sign < 0) { up = -up; denominator = WideArithmetic.Negate(denominator); }
+        Signed320 numerator = Signed320.NarrowValue(Signed576.NarrowValue(geometry.ProjectionMinimum(up)));
+        Signed576 lambda = WideArithmetic.SubtractSigned576(
+            WideArithmetic.MultiplySigned320(Signed320.ExtendValue(geometry.HalfFactor), denominator),
+            Signed576.ExtendValue(numerator));
+        if (lambda.Sign <= 0) return false;
+        // p=(numerator/denominator)*Axis is the far native-Up slab point.
+        // It must belong to the complete prism, including degenerate extents.
+        // Up<65 bits gives numerator<232, denominator<99 and lambda<261.
+        // Side planes<233 and vertices<165 give plane minima<400 and axial
+        // dots<267. Both membership products and their difference fit 576 bits.
+        for (int plane = 0; plane < geometry.PlaneCount; plane++)
+        {
+            WideDirection3d face = geometry.Plane(plane);
+            for (int orientation = 0; orientation < 2; orientation++, face = -face)
+            {
+                Signed320 projection = Signed320.NarrowValue(Signed576.NarrowValue(WideDirection3d.Dot(face, geometry.Axis)));
+                Signed576 left = WideArithmetic.MultiplySigned320(numerator, projection);
+                Signed832 right = WideArithmetic.MultiplySigned832(geometry.ProjectionMinimum(face), denominator);
+                if (WideArithmetic.SubtractSigned832(Signed832.ExtendValue(left), right).Sign < 0) return false;
+            }
+        }
+        // Every generator normal has Axis.n/|n|=R*sqrt(q)/sqrt(length).
+        // Since minPrism(n)<=p.n, its gap is at least
+        // lambda*R*sqrt(q)/(denominator*S*sqrt(length)). Exact analytic ties
+        // already retain the earlier feature and every witness term.
+        const int boundWords = 16;
+        Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * boundWords];
+        Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
+        Span<ulong> work = stackalloc ulong[3 * boundWords];
+        values.Clear(); signs.Clear();
+        values[0] = 1; signs[0] = signs[7] = 1;
+        Span<ulong> first = Slot(work, 0, boundWords), second = Slot(work, 1, boundWords);
+        Span<ulong> product = Slot(work, 2, boundWords);
+        // lambda<261, R<163 and q<65 give numerator<913 bits;
+        // S<99, denominator<99 and length<327 give denominator<723.
+        // Sixteen-word fields retain every complete product without rounding.
+        Import(WideArithmetic.MultiplySigned576ToSigned832(lambda, lambda), first);
+        Import(radiusSquared, second);
+        WideArithmetic.MultiplyMagnitudes(first, second, product);
+        Import(geometry.SquaredAxis, first);
+        WideArithmetic.MultiplyMagnitudes(product, first, Slot(values, 7, boundWords));
+        Import(WideArithmetic.MultiplySigned192(geometry.RawScale, geometry.RawScale), first);
+        Import(WideArithmetic.MultiplySigned320(denominator, denominator), second);
+        WideArithmetic.MultiplyMagnitudes(first, second, product);
+        Import(length, first);
+        WideArithmetic.MultiplyMagnitudes(product, first, Slot(values, 10, boundWords));
+        return WideConvexPrismRelations.CompareConvexContactCandidates(
+            new ConvexContactCandidate(values, signs, 1, boundWords), incumbent) >= 0;
+    }
+
     private static void KeepVertex(in CurvedPrismContactGeometry geometry, in WideDirection3d point,
         scoped ReadOnlySpan<ulong> commonMetric, scoped Span<ulong> values, scoped Span<int> signs,
         ref CurvedPrismContactSelection selection, int requiredVertex = -1)
     {
         Signed576 projection = Signed576.NarrowValue(WideDirection3d.Dot(point, geometry.Axis));
-        WideDirection3d radial = DifferenceScaled(point, Signed576.ExtendValue(geometry.SquaredAxis),
+        WideDirection3d radial = WideDirection3d.DifferenceScaled(point, Signed576.ExtendValue(geometry.SquaredAxis),
             new WideDirection3d(geometry.Axis), projection);
         if (radial.IsZero)
             return;
@@ -165,16 +224,6 @@ internal static class CurvedPrismGeneratorFeatures
         int gapSign = BuildQuadraticCandidate(gap, Slot(values, 6), Slot(work, 5), values, signs);
         selection.Keep(geometry, values, signs, gapSign, vertex, CurvedPrismContactSelection.Free);
     }
-
-    private static WideDirection3d DifferenceScaled(in WideDirection3d first, Signed576 firstScale,
-        in WideDirection3d second, Signed576 secondScale) => new(
-        Difference(first.X, firstScale, second.X, secondScale),
-        Difference(first.Y, firstScale, second.Y, secondScale),
-        Difference(first.Z, firstScale, second.Z, secondScale));
-
-    private static Signed576 Difference(Signed576 first, Signed576 firstScale,
-        Signed576 second, Signed576 secondScale) => Signed576.NarrowValue(WideArithmetic.SubtractSigned832(
-        WideArithmetic.MultiplySigned576(first, firstScale), WideArithmetic.MultiplySigned576(second, secondScale)));
 
     private static void Write(Span<ulong> values, Span<int> signs, int slot, Signed832 value, int orientation = 1)
     {

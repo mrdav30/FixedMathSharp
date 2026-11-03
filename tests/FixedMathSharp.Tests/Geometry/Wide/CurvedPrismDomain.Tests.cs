@@ -9,6 +9,113 @@ public class CurvedPrismDomainTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void PrismAboveTheApexStillRequiresTheObliqueConesGeneratorFamily(bool reverse)
+    {
+        const long k = 1_920_767_767;
+        FixedQuaternion rotation = new(Fixed64.Zero, Fixed64.Zero, Fixed64.FromRaw(-k), Fixed64.FromRaw(2 * k));
+        Vector3d point = new(Fixed64.FromFraction(-3, 5), Fixed64.FromFraction(4, 5), Fixed64.Zero);
+        Vector3d shift = new(Fixed64.FromFraction(1, 64), Fixed64.FromFraction(1, 32), Fixed64.Zero);
+        Vector3d origin = new(Fixed64.Zero, point.Y + Fixed64.Half, Fixed64.Zero);
+        Vector2d[] footprint = { new(point.X, -Fixed64.Half), new(point.X + Fixed64.Two, -Fixed64.Half),
+            new(point.X + Fixed64.Two, Fixed64.Half), new(point.X, Fixed64.Half) };
+        if (reverse) Array.Reverse(footprint);
+        Assert.True(CurvedPrismContact.TryGetContact(shift, rotation, Vector3d.Up,
+            Fixed64.One, Fixed64.Two, origin, Fixed64.Zero, footprint, Fixed64.Half, true, out var contact));
+        // Axis=(4,3,0)/5 gives generator plane x+2y=1, exactly through P.
+        // The shifted cone contains ball(P,sqrt(5)/64), while P belongs to
+        // the prism. The shared tangent plane proves the matching upper bound.
+        // The far-Up axis point is inside the prism but beyond the apex:
+        // squaring its negative lower bound would incorrectly skip this winner.
+        Assert.Equal(Fixed64.FromRaw(150_059_982), contact.Depth);
+        Assert.Equal(new Vector3d(Fixed64.FromRaw(k), Fixed64.FromRaw(2 * k), Fixed64.Zero), contact.Normal);
+        Assert.False(contact.DepthIsClamped);
+        Assert.True(contact.FirstAnchor.TryGetPoint(out Vector3d first));
+        Assert.True(contact.SecondAnchor.TryGetPoint(out Vector3d second));
+        for (int component = 0; component < 3; component++)
+        {
+            Fixed64 expected = (point + shift)[component];
+            FixedMathTestHelper.AssertWithinRange(first[component], expected - Fixed64.FromRaw(2), expected + Fixed64.FromRaw(2));
+        }
+        Assert.Equal(point, second);
+        Assert.True(CurvedPrismContact.TryGetContact(Vector3d.Zero, rotation, Vector3d.Up,
+            Fixed64.One, Fixed64.Two, origin, Fixed64.Zero, footprint, Fixed64.Half, true, out var touching));
+        Assert.Equal(Fixed64.Zero, touching.Depth);
+        Vector3d separated = new(Fixed64.FromRaw(-1), Fixed64.FromRaw(-2), Fixed64.Zero);
+        Assert.False(CurvedPrismContact.TryGetContact(separated, rotation, Vector3d.Up,
+            Fixed64.One, Fixed64.Two, origin, Fixed64.Zero, footprint, Fixed64.Half, true, out _));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ObliqueCylinderZeroCubicStationaryCoefficient_PreservesMinimumAndClearance(bool reverse)
+    {
+        const long k = 858_993_459;
+        Vector3d axis = new(Fixed64.FromRaw(3 * k), Fixed64.Zero, Fixed64.FromRaw(4 * k));
+        Vector3d center = new(-axis.X, Fixed64.Zero, Fixed64.Zero);
+        Vector3d origin = new(0, 139, 0);
+        Vector2d[] footprint = { new(-664, -10_000), new(664, -10_000), new(664, 10_000), new(-664, 10_000) };
+        if (reverse) Array.Reverse(footprint);
+
+        Assert.True(FixedConvexPrismRelations.TryGetCenteredCylinderContact(center,
+            FixedQuaternion.Identity, axis, Fixed64.Two, (Fixed64)2875,
+            origin, Fixed64.Zero, footprint, (Fixed64)100, out var contact));
+        Assert.Equal((Fixed64)2836, contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        Assert.Equal(Vector3d.Up, contact.Normal);
+        // For r=sqrt(nx^2+ny^2)>0, the projected radius is at least
+        // 2875*r-575*nx^2/r-1725*|nz|. Prism X/Z support pays these
+        // deficits, giving gap>=2836*r+8275*|nz|>=2836*|n|.
+        // The entire axial support segment translates onto the bottom face.
+        // The established witness rule retains its first (-axis) endpoint.
+        Assert.Equal(new FixedPointAnchor(center, FixedQuaternion.Identity,
+            -axis + new Vector3d(0, 2875, 0)), contact.FirstAnchor);
+        Assert.Equal(new FixedPointAnchor(origin, FixedQuaternion.Identity,
+            new Vector3d(-(Fixed64)2 * axis.X, (Fixed64)(-100), -axis.Z)), contact.SecondAnchor);
+
+        Vector3d touchingCenter = center - Vector3d.Up * (Fixed64)2836;
+        Assert.True(FixedConvexPrismRelations.TryGetCenteredCylinderContact(touchingCenter,
+            FixedQuaternion.Identity, axis, Fixed64.Two, (Fixed64)2875,
+            origin, Fixed64.Zero, footprint, (Fixed64)100, out var touching));
+        Assert.Equal(Fixed64.Zero, touching.Depth);
+        Assert.False(FixedConvexPrismRelations.TryGetCenteredCylinderContact(
+            touchingCenter - new Vector3d(Fixed64.Zero, Fixed64.FromRaw(1), Fixed64.Zero),
+            FixedQuaternion.Identity, axis, Fixed64.Two, (Fixed64)2875,
+            origin, Fixed64.Zero, footprint, (Fixed64)100, out _));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TallContainingPrismKeepsTheEarlierRadialTieAndItsWitnesses(bool reverseAxis)
+    {
+        Vector3d axis = reverseAxis ? Vector3d.Down : Vector3d.Up;
+        Vector2d[] footprint = { new(-3, -3), new(3, -3), new(3, 3), new(-3, 3) };
+        Assert.True(CurvedPrismContact.TryGetContact(Vector3d.Zero, FixedQuaternion.Identity, axis,
+            Fixed64.One, Fixed64.One, Vector3d.Zero, Fixed64.Zero, footprint, (Fixed64)10, true, out var contact));
+        // Base-disk and box support give gap>=4*sqrt(nx^2+nz^2)+9.5*|ny|
+        // for a unit normal. Radial faces attain4 before any generator-circle
+        // or stationary rim candidate; the native-Up axis point is inside.
+        Assert.Equal((Fixed64)4, contact.Depth);
+        Assert.False(contact.DepthIsClamped);
+        Assert.Equal(Vector3d.Forward, contact.Normal);
+        Fixed64 baseY = reverseAxis ? Fixed64.Half : -Fixed64.Half;
+        Assert.Equal(new FixedPointAnchor(Vector3d.Zero, FixedQuaternion.Identity,
+            new Vector3d(Fixed64.Zero, baseY, Fixed64.One)), contact.FirstAnchor);
+        Assert.Equal(new FixedPointAnchor(Vector3d.Zero, FixedQuaternion.Identity,
+            new Vector3d(Fixed64.Zero, baseY, (Fixed64)(-3))), contact.SecondAnchor);
+        Vector3d exit = new(0, 0, -4);
+        Assert.True(CurvedPrismContact.TryGetContact(exit, FixedQuaternion.Identity, axis,
+            Fixed64.One, Fixed64.One, Vector3d.Zero, Fixed64.Zero, footprint, (Fixed64)10, true, out var touching));
+        Assert.Equal(Fixed64.Zero, touching.Depth);
+        exit.Z -= Fixed64.FromRaw(1);
+        Assert.False(CurvedPrismContact.TryGetContact(exit, FixedQuaternion.Identity, axis,
+            Fixed64.One, Fixed64.One, Vector3d.Zero, Fixed64.Zero, footprint, (Fixed64)10, true, out _));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void GeneratorFamilyFindsInitialContactBetweenTwoOutsideEndpoints(bool minimum)
     {
         const long k = 1_358_187_913;
@@ -130,8 +237,12 @@ public class CurvedPrismDomainTests
         Assert.Equal(Fixed64.Quarter, contact.Depth); Assert.Equal(Vector3d.Backward, contact.Normal);
         Assert.Equal(supplied.FirstAnchor, contact.FirstAnchor); Assert.Equal(supplied.SecondAnchor, contact.SecondAnchor);
     }
-    [Fact]
-    public void RimWithoutAnAdmittedAnalyticBoundRetainsItsPositiveStationaryMinimum()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void RimWithoutAnAdmittedAnalyticBoundRetainsItsPositiveStationaryMinimum(bool reverseAxis, bool reverseFootprint)
     {
         const long k = 1_920_767_767;
         FixedQuaternion rotation = new(Fixed64.Zero, Fixed64.Zero, Fixed64.FromRaw(-k), Fixed64.FromRaw(2 * k));
@@ -139,8 +250,9 @@ public class CurvedPrismDomainTests
             Fixed64.FromFraction(41, 2) - Fixed64.FromFraction(16, 1024));
         Vector2d[] footprint = { new((Fixed64)(-10), -Fixed64.Half), new((Fixed64)10, -Fixed64.Half),
             new((Fixed64)10, Fixed64.Half), new((Fixed64)(-10), Fixed64.Half) };
+        if (reverseFootprint) Array.Reverse(footprint);
         Span<WideDirection3d> vertices = stackalloc WideDirection3d[8];
-        var geometry = new CurvedPrismContactGeometry(center, rotation, Vector3d.Up,
+        var geometry = new CurvedPrismContactGeometry(center, rotation, reverseAxis ? Vector3d.Down : Vector3d.Up,
             (Fixed64)10, (Fixed64)25, Vector3d.Zero, Fixed64.Zero, footprint, Fixed64.Half, false, vertices);
         // Axis=(4,3,0)/5 and radial=(-9,12,20)/25 give a supporting rim
         // normal (0,15,16)/sqrt(481). This inward displacement has exact

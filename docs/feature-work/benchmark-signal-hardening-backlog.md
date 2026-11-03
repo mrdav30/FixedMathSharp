@@ -54,58 +54,69 @@ These signals retain a measured cost or an unmet investigation target after
 bounded optimization. They remain open without implying a universal frame/query
 budget or a new correctness defect.
 
-| Signal                                                                                                                   | Status                                           | Next experiment                                                                       |
-| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| [Penetrating oblique cone/cylinder-prism contact throughput](#penetrating-oblique-conecylinder-prism-contact-throughput) | Improved; unresolved at roughly 1.4-1.5 ms/query | Remaining analytic fan and stationary-chart work, with proven tie/witness equivalence |
+| Signal                                                                                                                   | Status                                       | Next experiment                                                    |
+| ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- | ------------------------------------------------------------------ |
+| [Penetrating oblique cone/cylinder-prism contact throughput](#penetrating-oblique-conecylinder-prism-contact-throughput) | Improved; open at roughly 0.68/0.81 ms/query | Reprofile remaining cylinder work; retain exact ties and witnesses |
 
 ### Penetrating oblique cone/cylinder-prism contact throughput
 
-- **Status:** Open under Experimental Signals. The guarded improvement is
-  committed in `e30266d`; the subsequent canonical-inventory reduction is
-  retained for review. Neither resolves penetrating-query cost.
-- **Retained change:** Skip a later axis/edge cross only when its line was
-  already visited in both orientations with the same required vertex. Exact
-  support, admission, first ties and every witness term are preserved. Retire
-  the duplicate zero-axis check already owned by direction admission. The
-  addition is eight net runtime lines and one private predicate, with no cache
-  or allocation.
-- **Measured:** Against `e30266d`, the final fourteen-case Release ABBA gives
-  **-2.47% cylinder**, **-6.41% side-touch** and **+0.16% cone** cost. A fresh
-  five-case reversed-order window gives **-3.80% cylinder**, **-6.10%
-  side-touch** and **-2.28% cone**. Cylinder and touching wins repeat; cone's
-  main-window result is flat, so a general cone win remains unproven. Current
-  matched candidate means are roughly **1.45-1.49 ms/query**; these absolute
-  values must not be combined with the older 1.423 ms captures from a different
-  window.
-- **Controls:** A +7.92% capsule-crossing main-window signal does not repeat in
-  focused controls (+0.40%, overlapping baseline/candidate launch ranges).
-  Cylinder-face is +0.77% / +0.31%, with candidate launches on both sides of the
-  focused baseline range. No confirmed regression or zero-overhead claim follows
-  from those small inconsistent controls.
-- **Allocation and exactness:** All 76 final/focused children and 760 actual
-  measurements are complete, with zero raw allocation/collection counters. Both
-  variants match 1,320 complete exact contact/anchor snapshots and all fourteen
-  mixed fixtures, with zero warmed calling-thread bytes.
-- **Validation:** Full math/consumer Release and Lean suites pass with every raw
-  sequence point, branch point and method covered. Independent review covers
-  numerical equivalence, actual callers, scratch lifetime and physical tests.
-  All 479 final out-of-process Short benchmark cases also pass.
-- **Rejected work:** A wider exact repeated-face scan adds uncertain target
-  benefit and costs roughly 2-3% against cross-only on larger footprints; it is
-  removed. Earlier whole-chart certificates, factored stationary-polynomial
-  construction and a query-local direction cache also failed their throughput
-  gates. Their proofs, measurements and disposition remain in the record.
-- **Remaining cost:** The analytic fan and seven cone/twelve cylinder stationary
-  quartics still dominate. Establish useful reach and exact tie/witness
-  equivalence before pruning another family or adding a certificate.
-- **Investigation target:** At least 2x lower cost on the two penetrating
-  fixtures remains provisional and unmet, with unchanged exact outputs, warmed
-  allocation guards and no confirmed control regression. It is not a universal
-  host budget.
+- **Status:** Open under Experimental Signals. The current candidate remains
+  unstaged against committed `87f18d2`. Cone reaches 2x in the fresh matched
+  window; cylinder does not, so the two-query throughput target remains unmet.
+- **Retained work:** Bound and prune exact stationary/generator work, defer gap
+  coefficients, reduce ordinary analytic edge content, use bounded compact
+  candidate fields and canonical early support rejection, cancel common witness
+  factors, and exclude certified vertical concave arcs. Exact first ties and
+  complete anchors remain unchanged. Net runtime growth is 318 lines in 11
+  existing files, with no new runtime file/type, cache or public API.
+- **Measured:** Fresh fourteen-case Release ABBA against `87f18d2` gives
+  **1418.906 to 680.011 us cone (-52.07%, 2.09x)** and **1398.625 to 807.894 us
+  cylinder (-42.24%, 1.73x)**. A direct comparison with the previously retained
+  candidate earns another **-26.21% / -25.83%**. Both target launches beat both
+  baselines in each window. Absolute means from different windows are not
+  pooled; these are complete mixed queries on the measured local host.
+- **Exactness and allocation:** Final source matches 1320 complete
+  contact/anchor snapshots and 14 mixed fixtures, with zero warmed
+  calling-thread bytes over 128 queries per fixture.
+  Candidate-width/alias/padding tests use unbounded integer support algebra, and
+  independent physical fixtures prove exact ties, full anchors, touching and
+  one-raw-unit clearance. All 112 final/focused/control children and 1120 actual
+  samples have zero raw allocation/collection counters.
+- **Validation:** Math passes 7348 Release / 7327 Lean core tests plus 49
+  companion tests per configuration; Gravitas passes 8348 / 8277. Every raw
+  sequence point, branch point and method is covered in both configurations.
+  Independent review covers physical proofs, widths, scratch lifetime, actual
+  callers and retirement. All 479 out-of-process Short smoke children complete
+  1437 actual iterations with populated statistics. The same 13 expected
+  allocating cases remain; the other 466 cases, including all contact kernels,
+  have zero raw counters.
+- **Controls:** Reversed target gains repeat at -52.41% / -42.56%. The main
+  capsule-crossing +3.76% does not repeat (+0.10%); sphere controls are flat.
+  Shared box/cylinder is +2.09% against the original baseline, but -0.74%
+  against the retained implementation, with overlapping ranges. Triangle/capsule
+  gives +2.86% and +1.77% against retained, then -0.72% in a three-version
+  window. Keep these small shared differences unresolved; do not claim zero
+  overhead, noise or an attributed regression.
+- **Rejected work:** Three per-query square fields fail to beat the simpler
+  compact candidate, so no cache fields remain. A weaker rational chart bound
+  slows cylinder; deleting the projected-offset family changes a canonical tie.
+  Earlier local-Y, repeated-face and direction-cache experiments remain
+  rejected. Concavity stays restricted to the measured vertical family. A later
+  shared scratch overload earns no repeatable gain and slows cone 0.88%; it is
+  discarded.
+- **Fault evidence:** The earlier managed fault and one native-AV pilot remain
+  separate, unattributed investigations. The complete native-fault window is
+  excluded. A calibrated collector and ten bounded preserved-child/baseline
+  debugger replays establish no cause or fix; subsequent passing runs do not
+  resolve the event. Provenance and recurrence instructions remain in the
+  record.
+- **Next isolation step:** Reprofile the remaining cylinder work before adding
+  another certificate. Preserve full support admission, exact ties, complete
+  witnesses and the allocation baseline. These local source-stack results do not
+  establish a universal frame/query budget, other-platform determinism or
+  released-package validation.
 - **Record:**
-  [Guarded measurements and root-work reduction](done/2026-10-19-curved-prism-contact-depth.md#guarded-balanced-measurements-and-residual-work).
-  [Post-commit rejected experiments](done/2026-10-19-curved-prism-contact-depth.md#post-commit-squeeze-investigation-2026-11-02).
-  [Canonical inventory proof, both measurement windows and validation](done/2026-10-19-curved-prism-contact-depth.md#canonical-analytic-inventory-reduction-2026-11-02).
+  [Analytic/quartic proofs, matched comparisons, controls, fault RCA and validation](done/2026-10-19-curved-prism-contact-depth.md#analytic-construction-and-quartic-preparation-2026-11-03).
 
 ## Archived Signals
 

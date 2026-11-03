@@ -34,17 +34,19 @@ internal static class CylinderContactAlgebra
         return numerator.Sign(root);
     }
 
-    /// <summary>Encodes (p+sqrt(q))/sqrt(d), including its signed gap.</summary>
+    /// <summary>Encodes (p+sqrt(q))/sqrt(d), including its signed gap, at the input field stride.</summary>
+    // q/d may borrow output slots9/10; consume them before overwriting either slot.
     internal static int BuildRadialCandidate(ReadOnlySpan<ulong> p, int pSign,
         ReadOnlySpan<ulong> q, ReadOnlySpan<ulong> d, Span<ulong> values, Span<int> signs)
     {
-        Span<ulong> squared = stackalloc ulong[Words];
+        int words = p.Length;
+        Span<ulong> squared = stackalloc ulong[words];
         WideArithmetic.MultiplyMagnitudes(p, p, squared);
-        WideArithmetic.AddEqualMagnitudes(squared, q, Slot(values, 7));
-        WideArithmetic.AddEqualMagnitudes(p, p, Slot(values, 8));
-        q.CopyTo(Slot(values, 9));
-        d.CopyTo(Slot(values, 10));
-        signs[7] = IsZero(Slot(values, 7)) ? 0 : 1;
+        WideArithmetic.AddEqualMagnitudes(squared, q, Slot(values, 7, words));
+        WideArithmetic.AddEqualMagnitudes(p, p, Slot(values, 8, words));
+        q.CopyTo(Slot(values, 9, words));
+        d.CopyTo(Slot(values, 10, words));
+        signs[7] = IsZero(Slot(values, 7, words)) ? 0 : 1;
         signs[8] = pSign;
         return pSign < 0 ? WideArithmetic.CompareMagnitudeEqualLength(q, squared)
             : pSign > 0 || !IsZero(q) ? 1 : 0;

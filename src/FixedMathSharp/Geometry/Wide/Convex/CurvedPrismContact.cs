@@ -73,6 +73,7 @@ internal static partial class CurvedPrismContact
             geometry.Edge(index, out int start, out int end);
             WideDirection3d edge = Difference(geometry.Vertex(end), geometry.Vertex(start));
             if (edge.IsZero) continue;
+            if (!selection.Domain.Enabled) edge = ReduceEdgeDirection(edge);
             if (index % 3 == 0)
                 KeepAxis(geometry, WideDirection3d.Cross(edge, up), direction, signs, ref selection);
             // These rational arc endpoints also cover K=0 stationary roots,
@@ -82,14 +83,12 @@ internal static partial class CurvedPrismContact
             CircularRimContactAlgebra.GetBasis(edge, out WideDirection3d first, out WideDirection3d second);
             KeepAxis(geometry, first, direction, signs, ref selection, start);
             KeepAxis(geometry, second, direction, signs, ref selection, start);
-            ProjectPerpendicular(edge, axis, direction, signs);
-            KeepDirection(geometry, direction, signs, ref selection, start);
+            KeepAxis(geometry, WideDirection3d.ProjectPerpendicular(edge, axis), direction, signs, ref selection, start);
             for (int cap = -1; cap <= 1; cap += 2)
             {
                 if (geometry.IsCone && cap > 0) continue;
                 WideDirection3d offset = Difference(cap < 0 ? -geometry.Half : geometry.Half, geometry.Vertex(start));
-                ProjectPerpendicular(edge, offset, direction, signs);
-                KeepDirection(geometry, direction, signs, ref selection, start);
+                KeepAxis(geometry, WideDirection3d.ProjectPerpendicular(edge, offset), direction, signs, ref selection, start);
             }
             WideDirection3d cross = WideDirection3d.Cross(axis, edge);
             if (!IsBasisDirection(edge, cross))
@@ -101,8 +100,10 @@ internal static partial class CurvedPrismContact
         else
             for (int index = 0; index < geometry.VertexCount && (!selection.HasValue || selection.GapSign != 0); index++)
             {
-                ProjectPerpendicular(axis, geometry.Vertex(index), direction, signs);
-                KeepDirection(geometry, direction, signs, ref selection);
+                // Open side minima use the positive vertex projection; real-edge
+                // boundaries were visited before this final ordinary family.
+                KeepAxis(geometry, WideDirection3d.ProjectPerpendicular(axis, geometry.Vertex(index)), direction, signs, ref selection,
+                    orientations: selection.HasValue && !selection.Domain.Enabled ? 1 : 2);
             }
     }
 
@@ -155,27 +156,37 @@ internal static partial class CurvedPrismContact
             : direction.Y.IsZero || direction.Z.IsZero;
 
     private static void KeepAxis(in CurvedPrismContactGeometry geometry, in WideDirection3d axis,
-        scoped Span<ulong> direction, scoped Span<int> signs, ref CurvedPrismContactSelection selection,
-        int requiredVertex = -1)
+        scoped Span<ulong> direction, scoped Span<int> directionSigns, ref CurvedPrismContactSelection selection,
+        int requiredVertex = -1, int orientations = 2)
     {
-        WriteDirection(axis, direction, signs);
-        KeepDirection(geometry, direction, signs, ref selection, requiredVertex);
+        if (selection.HasValue && selection.GapSign < 0 || axis.IsZero) return;
+        // Rational normals need<504 bits; full candidate fields need<1475.
+        // Twenty-four words retain them; domain witnesses keep their original stride.
+        int words = selection.Domain.Enabled ? Words : 24;
+        Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * words];
+        Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
+        direction = direction[..(3 * words)];
+        for (int orientation = 0; orientation < orientations; orientation++)
+        {
+            WideDirection3d normal = orientation == 0 ? axis : -axis;
+            if (geometry.TryBuildCandidate(normal, direction, directionSigns, values, signs, requiredVertex,
+                    out int gap, out int vertex, out int feature))
+                selection.Keep(geometry, values, signs, gap, vertex, feature, words);
+        }
     }
 
-    private static void KeepDirection(in CurvedPrismContactGeometry geometry,
-        scoped Span<ulong> direction, scoped Span<int> directionSigns, ref CurvedPrismContactSelection selection,
-        int requiredVertex = -1)
+    internal static WideDirection3d ReduceEdgeDirection(in WideDirection3d edge)
     {
-        if (selection.HasValue && selection.GapSign < 0 || IsZero(direction)) return;
-        Span<ulong> values = stackalloc ulong[ConvexContactCandidate.Slots * Words];
-        Span<int> signs = stackalloc int[ConvexContactCandidate.Slots];
-        for (int orientation = 0; orientation < 2; orientation++)
-        {
-            if (geometry.TryBuildCandidate(direction, directionSigns, values, signs, requiredVertex,
-                    out int gap, out int vertex, out int feature))
-                selection.Keep(geometry, values, signs, gap, vertex, feature);
-            for (int component = 0; component < 3; component++) directionSigns[component] = -directionSigns[component];
-        }
+        // A positive content preserves analytic normal rays (linear crosses,
+        // quadratic projections) and rim t/ordinals; rim N/D share its eighth power.
+        // Real edge components fit192 bits. Domain mediants retain unreduced rays.
+        Signed192 x = Signed192.NarrowValue(edge.X), y = Signed192.NarrowValue(edge.Y), z = Signed192.NarrowValue(edge.Z);
+        Signed192 divisor = WideArithmetic.GetGreatestCommonDivisor(
+            WideArithmetic.GetGreatestCommonDivisor(x, y), z);
+        return new WideDirection3d(
+            Signed576.ExtendValue(WideArithmetic.DivideExactSigned192(x, divisor)),
+            Signed576.ExtendValue(WideArithmetic.DivideExactSigned192(y, divisor)),
+            Signed576.ExtendValue(WideArithmetic.DivideExactSigned192(z, divisor)));
     }
 
     internal static WideDirection3d Difference(in WideDirection3d first, in WideDirection3d second) => new(

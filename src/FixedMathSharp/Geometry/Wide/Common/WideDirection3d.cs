@@ -45,6 +45,28 @@ internal readonly struct WideDirection3d
             WideArithmetic.MultiplySigned576ToSigned832(first.X, second.Z)).IsZero
         && WideArithmetic.SubtractSigned832(WideArithmetic.MultiplySigned576ToSigned832(first.X, second.Y),
             WideArithmetic.MultiplySigned576ToSigned832(first.Y, second.X)).IsZero;
+    /// <summary>
+    /// Returns axis squared times value minus (axis dot value) times axis.
+    /// The caller proves the squared norm, dot and result fit 576 bits, and
+    /// every complete product/difference fits 832 bits.
+    /// </summary>
+    internal static WideDirection3d ProjectPerpendicular(in WideDirection3d axis, in WideDirection3d value)
+    {
+        Signed576 squaredAxis = Signed576.NarrowValue(axis.SquaredLength);
+        Signed576 projection = Signed576.NarrowValue(Dot(axis, value));
+        return DifferenceScaled(value, squaredAxis, axis, projection);
+    }
+
+    /// <summary>
+    /// Returns firstScale times first minus secondScale times second.
+    /// Complete products/differences must fit 832 bits and result components 576.
+    /// </summary>
+    internal static WideDirection3d DifferenceScaled(in WideDirection3d first, Signed576 firstScale,
+        in WideDirection3d second, Signed576 secondScale) => new(
+        DifferenceProduct(first.X, firstScale, second.X, secondScale),
+        DifferenceProduct(first.Y, firstScale, second.Y, secondScale),
+        DifferenceProduct(first.Z, firstScale, second.Z, secondScale));
+
     public static WideDirection3d operator -(WideDirection3d value) => new(
         WideArithmetic.SubtractSigned576(default, value.X), WideArithmetic.SubtractSigned576(default, value.Y),
         WideArithmetic.SubtractSigned576(default, value.Z));

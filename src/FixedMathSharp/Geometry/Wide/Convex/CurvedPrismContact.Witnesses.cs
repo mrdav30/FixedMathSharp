@@ -165,21 +165,38 @@ internal static partial class CurvedPrismContact
             }
         }
 
-        DotQuadraticNormal(support, supportSigns, n, nSigns, root, gap);
-        Multiply(minimum, supportDenominator, root, product); gap.Add(product, -1);
         Span<ulong> translated = stackalloc ulong[6 * words];
         Span<int> translatedSigns = stackalloc int[6];
         Span<ulong> translatedDelta = stackalloc ulong[6 * words];
         Span<int> translatedDeltaSigns = stackalloc int[6];
         ContactQuadratic translatedDenominator = WAt(work, signs, 8);
-        Multiply(supportDenominator, metric, root, translatedDenominator);
-        for (int axis = 0; axis < 3; axis++)
+        if (!window.Enabled && !pole && !geometry.IsCone && selection.Feature == CurvedPrismContactSelection.Free)
         {
-            ContactQuadratic point = WAt(translated, translatedSigns, axis);
-            Multiply(WAt(support, supportSigns, axis), metric, root, point);
-            Multiply(gap, WAt(n, nSigns, axis), root, product); point.Add(product, -1);
-            Multiply(WAt(displacement, displacementSigns, axis), metric, root,
-                WAt(translatedDelta, translatedDeltaSigns, axis));
+            // The side branch has H.n=0 and support=-H*M+R*n*sqrt(M).
+            // Translation cancels the radical and one positive common M:
+            // point=-H*M+minimum*n, delta=2H*M, denominator=M.
+            metric.CopyTo(translatedDenominator);
+            displacement.CopyTo(translatedDelta); displacementSigns.CopyTo(translatedDeltaSigns);
+            for (int axis = 0; axis < 3; axis++)
+            {
+                ContactQuadratic point = WAt(translated, translatedSigns, axis);
+                Scale(metric, WideArithmetic.Negate(Component(geometry.Half, axis)), point);
+                Multiply(minimum, WAt(n, nSigns, axis), root, product); point.Add(product);
+            }
+        }
+        else
+        {
+            DotQuadraticNormal(support, supportSigns, n, nSigns, root, gap);
+            Multiply(minimum, supportDenominator, root, product); gap.Add(product, -1);
+            Multiply(supportDenominator, metric, root, translatedDenominator);
+            for (int axis = 0; axis < 3; axis++)
+            {
+                ContactQuadratic point = WAt(translated, translatedSigns, axis);
+                Multiply(WAt(support, supportSigns, axis), metric, root, point);
+                Multiply(gap, WAt(n, nSigns, axis), root, product); point.Add(product, -1);
+                Multiply(WAt(displacement, displacementSigns, axis), metric, root,
+                    WAt(translatedDelta, translatedDeltaSigns, axis));
+            }
         }
         ContactQuadratic parameterNumerator = WAt(work, signs, 9), parameterDenominator = WAt(work, signs, 10);
         if (!ClipSegment(geometry, translated, translatedSigns, translatedDelta, translatedDeltaSigns,
@@ -253,6 +270,20 @@ internal static partial class CurvedPrismContact
         ContactQuadratic parameterNumerator, ContactQuadratic parameterDenominator, in FaceWindow window, out bool physical)
     {
         int words = denominator.FieldWords; physical = false;
+#if !DEBUG
+        if (!window.Enabled)
+        {
+            int displacementSign = 0;
+            foreach (int sign in deltaSigns) displacementSign |= sign;
+            if (displacementSign == 0)
+            {
+                // A fixed ordinary point keeps the original interval [0,1].
+                // Debug builds retain the complete membership assertions below.
+                parameterNumerator.Clear(); parameterDenominator.Set(Integer(1));
+                return true;
+            }
+        }
+#endif
         Span<ulong> work = stackalloc ulong[16 * words];
         Span<int> signs = stackalloc int[16];
         ContactQuadratic lower = WAt(work, signs, 0), lowerDen = WAt(work, signs, 1);
@@ -262,8 +293,9 @@ internal static partial class CurvedPrismContact
         lower.Clear(); lowerDen.Set(Integer(1)); upper.Set(Integer(1)); upperDen.Set(Integer(1));
         for (int plane = 0; plane < geometry.PlaneCount; plane++)
         {
+            // Coordinate planes are nonzero; duplicate-side rejection also removes zero edges.
+            if (plane >= 3 && geometry.IsCoordinateSidePlane(plane)) continue;
             WideDirection3d normal = geometry.Plane(plane);
-            if (normal.IsZero) continue;
             for (int orientation = 0; orientation < 2; orientation++, normal = -normal)
             {
                 DotQuadratic(normal, start, startSigns, a);

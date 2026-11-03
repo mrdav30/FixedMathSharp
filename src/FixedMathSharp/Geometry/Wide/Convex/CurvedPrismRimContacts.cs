@@ -18,8 +18,6 @@ internal static partial class CurvedPrismRimContacts
     private const int ValueWords = 56;
     private const int ValueCellWords = (16 * (ValueWords * 64 + 11) + 255) / 64;
 
-
-
     /// <summary>
     /// Retains stationary minima after complete closed intersection admission
     /// and the rational, vertex and generator boundaries. Exact ties retain
@@ -46,9 +44,8 @@ internal static partial class CurvedPrismRimContacts
             if (edge.IsZero || WideDirection3d.Dot(edge, axis).IsZero
                 || WideDirection3d.AreParallel(edge, axis))
                 continue;
-            edge = ReduceEdgeDirection(edge);
-            CircularRimContactAlgebra.GetBasis(edge, out WideDirection3d u, out WideDirection3d v);
             bool supportCertified = geometry.TryGetEdgeNormalCone(edgeIndex, out WideDirection3d coneFirst, out WideDirection3d coneLast);
+            if (!supportCertified) edge = CurvedPrismContact.ReduceEdgeDirection(edge);
             for (int cap = -1; cap <= (geometry.IsCone ? -1 : 1); cap += 2)
             {
                 if (supportCertified)
@@ -59,6 +56,7 @@ internal static partial class CurvedPrismRimContacts
                     if (best.IsZero) { depth = Fixed64.Zero; clamped = false; return; }
                     continue;
                 }
+                CircularRimContactAlgebra.GetBasis(edge, out WideDirection3d u, out WideDirection3d v);
                 for (int firstSign = -1; firstSign <= 1; firstSign += 2)
                     for (int secondSign = -1; secondSign <= 1; secondSign += 2)
                         for (int chart = 0; chart < 2; chart++)
@@ -95,21 +93,6 @@ internal static partial class CurvedPrismRimContacts
         return ConvexContactValueRoot.CompareRootSquared(geometry.RawScale, geometry.ValueShift, ref root, numerator, denominator, radical);
     }
 
-    private static WideDirection3d ReduceEdgeDirection(in WideDirection3d edge)
-    {
-        // Real edge components are below 166 bits. One positive content scales
-        // both linear chart basis vectors equally, preserving t and its root
-        // ordinal. N and D scale by the same eighth power; the normal and
-        // witness ratios are unchanged. BuildValues keeps the original edge.
-        Signed192 x = Signed192.NarrowValue(edge.X), y = Signed192.NarrowValue(edge.Y), z = Signed192.NarrowValue(edge.Z);
-        Signed192 divisor = WideArithmetic.GetGreatestCommonDivisor(
-            WideArithmetic.GetGreatestCommonDivisor(x, y), z);
-        return new WideDirection3d(
-            Signed576.ExtendValue(WideArithmetic.DivideExactSigned192(x, divisor)),
-            Signed576.ExtendValue(WideArithmetic.DivideExactSigned192(y, divisor)),
-            Signed576.ExtendValue(WideArithmetic.DivideExactSigned192(z, divisor)));
-    }
-
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void KeepChart(in CurvedPrismContactGeometry geometry, int edge,
         in WideDirection3d edgeDirection, in WideDirection3d first, in WideDirection3d second, int cap,
@@ -136,22 +119,32 @@ internal static partial class CurvedPrismRimContacts
             if (a.Sign < 0 && WideArithmetic.AddSigned832(a, b).Sign < 0) return;
         }
         WideDirection3d offset = CurvedPrismContact.Difference(cap < 0 ? -geometry.Half : geometry.Half, vertex);
-        if (hasAnalytic && IsChartDominated(geometry, edgeDirection, offset, first, second, analytic)) return;
+        if (hasAnalytic && IsChartDominated(geometry, edgeDirection, offset, first, second, analytic,
+                supportCertified && !domain.Enabled && edge % 3 == 2)) return;
         Span<ulong> data = stackalloc ulong[Slots * Words];
         Span<sbyte> signs = stackalloc sbyte[Slots];
         BuildParameter(geometry, edge, first, second, cap, data, signs);
         Polynomial storage = new(data, signs, Words);
         Polynomial stationary = storage.Slice(0, 5), k = storage.Slice(8, 2), l = storage.Slice(10, 3);
         Polynomial gap = storage.Slice(13, 3), numerator = storage.Slice(16, 5), denominator = storage.Slice(21, 5);
+        if (supportCertified && !domain.Enabled && HasNoNewStationaryMinimum(stationary, k)) return;
         Span<ulong> batchCells = stackalloc ulong[64];
         Span<int> batchShifts = stackalloc int[8];
         FiniteAxisValueRoots roots = WideFiniteAxisIntersection.GetFiniteValueRoots(
             stationary.Values, stationary.Signs, batchCells, batchShifts);
+        if (roots.Count == 0) return;
+        // At K's interior zero, W=L squared is nonnegative. One root, or
+        // two starting from W(0)<0, can only be maxima; K=0 is analytic.
+        if (supportCertified && !domain.Enabled && !roots.HasRepeatedRoots && stationary.Signs[0] != 0
+            && k.Signs[0] > 0 && k.Signs[1] < 0
+            && WideArithmetic.CompareMagnitudeEqualLength(k.Values[..Words], k.Values.Slice(Words, Words)) < 0
+            && (roots.Count == 1 || roots.Count == 2 && stationary.Signs[0] < 0)) return;
         Span<ulong> cell = stackalloc ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(
             stationary.Values, stationary.Signs)];
         Span<ulong> values = stackalloc ulong[5 * ValueWords];
         Span<sbyte> valueSigns = stackalloc sbyte[5];
         Span<ulong> valueCell = stackalloc ulong[ValueCellWords];
+        bool gapReady = false;
         bool valuesReady = false;
         int firstStationarySign = 0;
         if (supportCertified && !domain.Enabled && !roots.HasRepeatedRoots)
@@ -179,6 +172,11 @@ internal static partial class CurvedPrismRimContacts
             // Q is positive on a nondegenerate ellipse. K=0 is its principal
             // direction, already present in the rational feature fan.
             if (kSign == 0 || Sign(ref root, l) != -kSign) continue;
+            if (!gapReady)
+            {
+                CylinderEdgeContactPolynomial.CompleteGap(data[..(26 * Words)], signs[..26]);
+                gapReady = true;
+            }
             int gapSign = Sign(ref root, gap) * kSign;
             if (domain.Enabled && gapSign < 0) continue;
             System.Diagnostics.Debug.Assert(gapSign >= 0);
@@ -226,6 +224,21 @@ internal static partial class CurvedPrismRimContacts
             candidate.ValueOrdinal = value.Ordinal; candidate.ValueShift = value.DenominatorShift;
             candidate.IsRational = value.IsRational; best = candidate;
         }
+    }
+
+    // At K's positive zero beta, W(beta)=L(beta)^2. Two positive roots
+    // can only bracket beta (both maxima), or coincide at the analytic K=0.
+    private static bool HasNoNewStationaryMinimum(Polynomial stationary, Polynomial k)
+    {
+        if (stationary.Signs[0] >= 0 || k.Signs[0] <= 0 || k.Signs[1] >= 0) return false;
+        int previous = 0, variations = 0;
+        foreach (int sign in stationary.Signs)
+        {
+            if (sign == 0) continue;
+            if (previous != 0 && previous != sign) variations++;
+            previous = sign;
+        }
+        return variations == 2;
     }
 
     private static bool TryAdmitDomain(in CurvedPrismContactGeometry geometry, PrismCurvedContactDomain domain,
@@ -391,7 +404,7 @@ internal static partial class CurvedPrismRimContacts
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool IsChartDominated(in CurvedPrismContactGeometry geometry,
         in WideDirection3d edge, in WideDirection3d offset, in WideDirection3d first,
-        in WideDirection3d second, scoped ConvexContactCandidate analytic)
+        in WideDirection3d second, scoped ConvexContactCandidate analytic, bool allowConcavity)
     {
         WideDirection3d last = new(WideArithmetic.AddSigned576(first.X, second.X),
             WideArithmetic.AddSigned576(first.Y, second.Y), WideArithmetic.AddSigned576(first.Z, second.Z));
@@ -422,9 +435,10 @@ internal static partial class CurvedPrismRimContacts
         Span<ulong> root = values.Slice(9 * Words, Words), denominator = values.Slice(10 * Words, Words);
         CylinderContactAlgebra.Import(alphaNumerator, projection);
         CylinderContactAlgebra.Import(alphaMetric, metric);
-        CylinderContactAlgebra.Import(WideArithmetic.MultiplySigned832(
-            WideDirection3d.Dot(edge, geometry.Axis), geometry.Radius), radial);
-        CylinderContactAlgebra.Import(WideArithmetic.MultiplySigned832(edge.SquaredLength, geometry.SquaredAxis), k);
+        Signed832 edgeAxial = WideDirection3d.Dot(edge, geometry.Axis);
+        Signed832 edgeMetric = WideArithmetic.MultiplySigned832(edge.SquaredLength, geometry.SquaredAxis);
+        CylinderContactAlgebra.Import(WideArithmetic.MultiplySigned832(edgeAxial, geometry.Radius), radial);
+        CylinderContactAlgebra.Import(edgeMetric, k);
         CylinderContactAlgebra.Import(alphaSquared, temporary);
         WideArithmetic.MultiplyMagnitudes(temporary, k, rational);
         WideArithmetic.MultiplyMagnitudes(radial, radial, temporary);
@@ -442,8 +456,34 @@ internal static partial class CurvedPrismRimContacts
         // a<2^338, M<2^340, h<2^366 and K<2^400; a² fits Signed832.
         // Every squared-candidate field, including sum carries, is <1100 bits.
         // The existing forty-word quadratic candidate owner retains them all.
-        return WideConvexPrismRelations.CompareConvexContactCandidates(
-            new ConvexContactCandidate(values, signs, 1), analytic) >= 0;
+        if (WideConvexPrismRelations.CompareConvexContactCandidates(
+                new ConvexContactCandidate(values, signs, 1), analytic) >= 0) return true;
+        if (!allowConcavity) return false;
+
+        // Only ordinary certified vertical-edge cones reach this second test.
+        // Their ellipse has semiaxes R and r=R*|A.E|/sqrt(K), K=q*E.E.
+        // max(h'')=(R*R-r*r)/r; alpha above this makes the gap concave,
+        // so its physical subarc endpoints in the earlier fan retain minima.
+        Signed832 edgeAxialSquared = WideArithmetic.MultiplySigned576ToSigned832(
+            Signed576.NarrowValue(edgeAxial), Signed576.NarrowValue(edgeAxial));
+        Signed832 crossSquared = WideArithmetic.SubtractSigned832(edgeMetric, edgeAxialSquared);
+        // a²*K*d² >= R²*(K-d²)²*M. Factors fit832 bits; complete
+        // products need<1480 bits. Reuse dead bound scratch in24-word fields.
+        const int curvatureWords = 24;
+        Span<ulong> left = work[..curvatureWords], right = work.Slice(curvatureWords, curvatureWords);
+        Span<ulong> factor = work.Slice(2 * curvatureWords, curvatureWords);
+        Span<ulong> leftProduct = work.Slice(3 * curvatureWords, curvatureWords);
+        CylinderContactAlgebra.Import(alphaSquared, factor); CylinderContactAlgebra.Import(edgeMetric, right);
+        WideArithmetic.MultiplyMagnitudes(factor, right, left);
+        CylinderContactAlgebra.Import(edgeAxialSquared, factor);
+        WideArithmetic.MultiplyMagnitudes(left, factor, leftProduct);
+        CylinderContactAlgebra.Import(crossSquared, factor);
+        WideArithmetic.MultiplyMagnitudes(factor, factor, right);
+        CylinderContactAlgebra.Import(WideArithmetic.MultiplySigned320(geometry.Radius, geometry.Radius), factor);
+        WideArithmetic.MultiplyMagnitudes(factor, right, left);
+        CylinderContactAlgebra.Import(alphaMetric, factor);
+        WideArithmetic.MultiplyMagnitudes(left, factor, right);
+        return WideArithmetic.CompareMagnitudeEqualLength(leftProduct, right) >= 0;
     }
 
     private static bool HasPrismSupport(in CurvedPrismContactGeometry geometry, in WideDirection3d vertex,
@@ -504,9 +544,39 @@ internal static partial class CurvedPrismRimContacts
         Write(p, 1, WideArithmetic.MultiplySigned832(WideDirection3d.Dot(offset, second), geometry.SquaredAxis));
         Write(scale, 0, Signed832.ExtendValue(geometry.RawScale));
         Multiply(scaledQ, q, scale, product);
-        CylinderEdgeContactPolynomial.Build(p.Values, p.Signs, radical.Values, radical.Signs,
+        bool reducedMetric = false;
+        // Both chart vectors are nonzero; their squared lengths are positive.
+        System.Diagnostics.Debug.Assert(metric.Signs[0] > 0 && metric.Signs[2] > 0);
+        if (metric.Signs[1] < 0)
+        {
+            metric.Values[..Words].CopyTo(product);
+            WideArithmetic.AddMagnitudeInto(metric.Values[..Words], product);
+            reducedMetric = WideArithmetic.CompareMagnitudeEqualLength(product, metric.Values.Slice(Words, Words)) == 0
+                && WideArithmetic.CompareMagnitudeEqualLength(product, metric.Values.Slice(2 * Words, Words)) == 0;
+            if (reducedMetric)
+            {
+                // M=m*(1-2t+2t^2). Retain m/2m in dead factor/product
+                // scratch, then remove m before the derivative products.
+                metric.Values[..Words].CopyTo(factor.Values);
+                factor.Signs[0] = 1;
+                metric.Values.Clear();
+                metric.Values[0] = 1;
+                metric.Values[Words] = metric.Values[2 * Words] = 2;
+            }
+        }
+        CylinderEdgeContactPolynomial.BuildStationary(p.Values, p.Signs, radical.Values, radical.Signs,
             metric.Values, metric.Signs, scaledQ.Values, data[..(26 * Words)], signs[..26]);
         Polynomial storage = new(data, signs, Words);
+        if (reducedMetric)
+        {
+            // Restore physical M before CompleteGap: K/L/J lost m, so N
+            // and D both lose m^2. Reduced M here would corrupt the ratio.
+            factor.Values.CopyTo(storage.Slice(16, 1).Values);
+            product.CopyTo(storage.Slice(17, 1).Values);
+            product.CopyTo(storage.Slice(18, 1).Values);
+            storage.Signs[16] = storage.Signs[18] = 1;
+            storage.Signs[17] = -1;
+        }
         Add(storage.Slice(26, 2), axial, geometry.IsCone ? 1 : cap);
         if (!geometry.IsCone) return;
         Polynomial region = storage.Slice(28, 3);
@@ -553,6 +623,7 @@ internal static partial class CurvedPrismRimContacts
         Span<ulong> data = stackalloc ulong[Slots * Words];
         Span<sbyte> signs = stackalloc sbyte[Slots];
         BuildParameter(geometry, selection.Edge, selection.First, selection.Second, selection.CapSign, data, signs);
+        CylinderEdgeContactPolynomial.CompleteGap(data[..(26 * Words)], signs[..26]);
         Span<ulong> cell = stackalloc ulong[WideFiniteAxisIntersection.GetFiniteValueRootCellWords(
             data[..(5 * Words)], signs[..5])];
         bool found = WideFiniteAxisIntersection.TryGetFiniteValueRoot(data[..(5 * Words)], signs[..5],

@@ -32,15 +32,25 @@ internal ref struct CurvedPrismContactSelection
     internal readonly ConvexContactCandidate Candidate => new(Values, Signs, GapSign);
 
     internal void Keep(in CurvedPrismContactGeometry geometry, scoped ReadOnlySpan<ulong> values, scoped ReadOnlySpan<int> signs,
-        int gapSign, int vertex, int feature)
+        int gapSign, int vertex, int feature, int fieldWords = ConvexContactCandidate.Words)
     {
+        System.Diagnostics.Debug.Assert(!Domain.Enabled || fieldWords == ConvexContactCandidate.Words);
         if (HasValue && WideConvexPrismRelations.CompareConvexContactCandidates(
-                new ConvexContactCandidate(values, signs, gapSign), Candidate) >= 0)
+                new ConvexContactCandidate(values, signs, gapSign, fieldWords), Candidate) >= 0)
             return;
         int window = 0, certificate = -1;
         if (Domain.Enabled && !CurvedPrismContact.TryAdmitAnalyticCandidate(geometry, Domain, values, signs,
             gapSign, vertex, feature, out window, out certificate)) return;
-        values.CopyTo(Values); signs.CopyTo(Signs); Window = window; Certificate = certificate;
+        if (fieldWords == ConvexContactCandidate.Words) values.CopyTo(Values);
+        else CopyPadded(values, fieldWords, Values);
+        signs.CopyTo(Signs); Window = window; Certificate = certificate;
         GapSign = gapSign; Vertex = vertex; Feature = feature; HasValue = true;
     }
+    private static void CopyPadded(scoped ReadOnlySpan<ulong> source, int words, scoped Span<ulong> target)
+    {
+        target.Clear();
+        for (int slot = 0; slot < ConvexContactCandidate.Slots; slot++)
+            source.Slice(slot * words, words).CopyTo(target.Slice(slot * ConvexContactCandidate.Words, words));
+    }
+
 }

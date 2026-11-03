@@ -166,14 +166,13 @@ internal readonly ref struct CurvedPrismContactGeometry
     internal bool TryGetEdgeNormalCone(int edge, out WideDirection3d first, out WideDirection3d last)
     {
         int vertex = edge / 3, kind = edge % 3;
-        Edge(edge, out int start, out _);
-        WideDirection3d point = Vertex(start);
-        first = kind == 2 ? Plane(3 + (vertex == 0 ? _offsets.Length - 1 : vertex - 1)) : Plane(1);
+        int previous = vertex == 0 ? _offsets.Length - 1 : vertex - 1;
+        first = kind == 2 ? GetSidePlane(previous) : Plane(1);
         if (kind == 1) first = -first;
-        last = Plane(3 + vertex);
+        last = GetSidePlane(vertex);
         // The cap normal already minimizes at its bottom/top edge. Vertical
         // edges require both incident wall orientations to be certified.
-        if ((kind == 2 && !TryOrientEdgePlane(point, ref first)) || !TryOrientEdgePlane(point, ref last)
+        if ((kind == 2 && !TryOrientSidePlane(previous, ref first)) || !TryOrientSidePlane(vertex, ref last)
             || WideDirection3d.AreParallel(first, last))
             return false;
         // Each endpoint supports the complete prism, so its positive span
@@ -189,17 +188,52 @@ internal readonly ref struct CurvedPrismContactGeometry
         return true;
     }
 
-    private bool TryOrientEdgePlane(in WideDirection3d point, ref WideDirection3d normal)
+    /// <summary>Whether a side plane duplicates an earlier native X/Z coordinate plane.</summary>
+    internal bool IsCoordinateSidePlane(int plane)
+    {
+        int vertex = plane - 3;
+        int next = vertex + 1 == _offsets.Length ? 0 : vertex + 1;
+        // Full raw differences need65 bits. Test the exact authored yaw map,
+        // before quaternion projection or any public Fixed64 narrowing.
+        Signed192 dx = WideArithmetic.Difference(_offsets[next].X, _offsets[vertex].X);
+        Signed192 dz = WideArithmetic.Difference(_offsets[next].Y, _offsets[vertex].Y);
+        WideConvex2dRelations.GetRotatedOffset(_yaw, dx, dz, out Signed192 yawX, out Signed192 yawZ);
+        return yawX.IsZero || yawZ.IsZero;
+    }
+
+    private WideDirection3d GetSidePlane(int vertex)
+    {
+        int next = vertex + 1 == _offsets.Length ? 0 : vertex + 1;
+        // Full raw differences need 65 bits; Vector2d subtraction can saturate.
+        Signed192 dx = WideArithmetic.Difference(_offsets[next].X, _offsets[vertex].X);
+        Signed192 dz = WideArithmetic.Difference(_offsets[next].Y, _offsets[vertex].Y);
+        WideConvex2dRelations.GetRotatedOffset(_yaw, dx, dz, out Signed192 yawX, out Signed192 yawZ);
+        var native = new WideAxis3(Signed320.ExtendValue(WideArithmetic.Negate(yawZ)),
+            default, Signed320.ExtendValue(yawX));
+        // The old Cross(localEdge,localUp) is this vector times the positive
+        // 2*WorldBasis.Denominator/_coordinateDivisor. The existing endpoint
+        // reduction returns exactly the same primitive integer vector. Yaw
+        // differences are below 99 bits and transformed components below 166.
+        WideRigidProjection.GetLocalAxisProjections(native, WorldBasis,
+            out Signed576 x, out Signed576 y, out Signed576 z);
+        return new WideDirection3d(x, y, z);
+    }
+
+    private bool TryOrientSidePlane(int side, ref WideDirection3d normal)
     {
         if (normal.IsZero) return false;
-        Signed832 projection = WideDirection3d.Dot(normal, point);
+        int next = side + 1 == _offsets.Length ? 0 : side + 1;
+        Vector2d a = _offsets[side], b = _offsets[next];
+        Signed192 dx = WideArithmetic.Difference(b.X, a.X), dz = WideArithmetic.Difference(b.Y, a.Y);
         int minimumSign = 0, maximumSign = 0;
-        // These incident wall normals are perpendicular to native Up, so
-        // both extrusion levels have identical projections. One scan certifies
-        // either orientation and rejects two-sided or entirely coplanar faces.
-        for (int index = 0; index < VertexCount; index += 2)
+        // Both transforms multiply side-plane dot differences by a positive
+        // squared norm. Native determinants preserve every support equality,
+        // including reversed, repeated and two-sided footprint boundaries.
+        // Full raw differences are below65 bits; determinants below131 fit320.
+        foreach (Vector2d point in _offsets)
         {
-            int sign = WideArithmetic.SubtractSigned832(WideDirection3d.Dot(normal, Vertex(index)), projection).Sign;
+            int sign = WideArithmetic.MultiplySubtract(dx, WideArithmetic.Difference(point.Y, a.Y),
+                dz, WideArithmetic.Difference(point.X, a.X)).Sign;
             minimumSign = Math.Min(minimumSign, sign);
             maximumSign = Math.Max(maximumSign, sign);
         }
@@ -262,42 +296,50 @@ internal readonly ref struct CurvedPrismContactGeometry
     /// tie. A required vertex admits only its supporting normal directions.
     /// Directions fit Signed576; all support-gap products fit forty words.
     /// </summary>
-    internal bool TryBuildCandidate(ReadOnlySpan<ulong> direction, ReadOnlySpan<int> directionSigns,
+    internal bool TryBuildCandidate(in WideDirection3d normal, Span<ulong> direction, Span<int> directionSigns,
         Span<ulong> values, Span<int> signs, int requiredVertex, out int gapSign, out int vertex, out int feature)
     {
-        var normal = new WideDirection3d(ReadDirectionComponent(Slot(direction, 0), directionSigns[0]),
-            ReadDirectionComponent(Slot(direction, 1), directionSigns[1]),
-            ReadDirectionComponent(Slot(direction, 2), directionSigns[2]));
         gapSign = 0; feature = 0; vertex = requiredVertex;
+        Signed832 minimum;
         if (requiredVertex >= 0)
         {
             // A required edge endpoint cannot support from the wrong extrusion level; zero admits both ties.
             int upSign = WideDirection3d.Dot(normal, Plane(1)).Sign;
             if ((requiredVertex & 1) == 0 ? upSign < 0 : upSign > 0) return false;
+            int level = upSign < 0 ? 1 : 0;
+            // At zero Up projection the levels tie: retain the original even
+            // level and first footprint index, not the authored required level.
+            int reference = (requiredVertex & ~1) + level;
+            minimum = WideDirection3d.Dot(normal, Vertex(reference));
+            vertex = reference;
+            for (int index = level; index < VertexCount; index += 2)
+            {
+                Signed832 current = index == reference ? minimum : WideDirection3d.Dot(normal, Vertex(index));
+                int comparison = WideArithmetic.SubtractSigned832(current, minimum).Sign;
+                if (comparison < 0) return false;
+                if (comparison == 0 && index < vertex) vertex = index;
+            }
         }
-        Signed832 minimum = ProjectionMinimum(normal, out vertex);
-        // Edge-generated directions satisfy n.E=0. Exact support equality
-        // at its start therefore admits the complete edge, including ties
-        // whose first retained minimum happens to be another prism vertex.
-        if (requiredVertex >= 0 && WideArithmetic.SubtractSigned832(
-                WideDirection3d.Dot(normal, Vertex(requiredVertex)), minimum).Sign != 0)
-            return false;
+        else minimum = ProjectionMinimum(normal, out vertex);
+        WriteDirection(normal, direction, directionSigns);
         gapSign = BuildPlaneCandidate(direction, directionSigns, normal, minimum, values, signs, out feature);
         return true;
     }
+
 
     // A retained native face uses its own known plane constant. In particular,
     // its opposite gap tests plane intersection, not the prism's opposite face.
     internal int BuildPlaneCandidate(ReadOnlySpan<ulong> direction, ReadOnlySpan<int> directionSigns,
         in WideDirection3d normal, Signed832 minimum, Span<ulong> values, Span<int> signs, out int feature)
     {
+        int words = values.Length / signs.Length;
         values.Clear(); signs.Clear();
         direction.CopyTo(values); directionSigns.CopyTo(signs);
-        Span<ulong> work = stackalloc ulong[14 * Words];
-        Span<ulong> minimumMagnitude = Slot(work, 0), half = Slot(work, 1), metric = Slot(work, 2);
-        Span<ulong> axial = Slot(work, 3), q = Slot(work, 4), radial = Slot(work, 5), radiusSquared = Slot(work, 6);
-        Span<ulong> p = Slot(work, 7), root = Slot(work, 8), denominator = Slot(work, 9), temporary = Slot(work, 10);
-        Span<ulong> product = Slot(work, 11), scale = Slot(work, 12), rational = Slot(work, 13);
+        Span<ulong> work = stackalloc ulong[14 * words];
+        Span<ulong> minimumMagnitude = Slot(work, 0, words), half = Slot(work, 1, words), metric = Slot(work, 2, words);
+        Span<ulong> axial = Slot(work, 3, words), q = Slot(work, 4, words), radial = Slot(work, 5, words), radiusSquared = Slot(work, 6, words);
+        Span<ulong> p = Slot(work, 7, words), root = Slot(work, 8, words), denominator = Slot(work, 9, words), temporary = Slot(work, 10, words);
+        Span<ulong> product = Slot(work, 11, words), scale = Slot(work, 12, words), rational = Slot(work, 13, words);
         Import(minimum, minimumMagnitude);
         Signed832 axisProjection = WideDirection3d.Dot(normal, Axis);
         // Half=HalfFactor*Axis remains exact after both common-scale reductions.

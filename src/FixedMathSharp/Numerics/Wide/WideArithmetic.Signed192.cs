@@ -190,41 +190,67 @@ internal static partial class WideArithmetic
     /// </summary>
     internal static Signed192 GetGreatestCommonDivisor(Signed192 first, Signed192 second)
     {
-        if (first.Sign < 0)
-            first = Negate(first);
-        if (second.Sign < 0)
-            second = Negate(second);
-        if (first.IsZero)
-            return second;
-        if (second.IsZero)
-            return first;
+        if (first.Sign < 0) first = Negate(first);
+        if (second.Sign < 0) second = Negate(second);
+        if (first.IsZero) return second;
+        if (second.IsZero) return first;
 
-        int commonShift = 0;
-        while (((first.Low | second.Low) & 1UL) == 0UL)
+        int firstShift = CountTrailingZeroes192(first);
+        int secondShift = CountTrailingZeroes192(second);
+        int commonShift = firstShift < secondShift ? firstShift : secondShift;
+        first = ShiftRightMagnitude192(first, firstShift);
+        second = ShiftRightMagnitude192(second, secondShift);
+        while (true)
         {
-            first = HalveNonnegativeSigned192(first);
-            second = HalveNonnegativeSigned192(second);
-            commonShift++;
-        }
-        while ((first.Low & 1UL) == 0UL)
-            first = HalveNonnegativeSigned192(first);
-        do
-        {
-            while ((second.Low & 1UL) == 0UL)
-                second = HalveNonnegativeSigned192(second);
             if (CompareMagnitude(first, second) > 0)
                 (first, second) = (second, first);
+            // Integer one is not Signed192.One, which is the Q32.32 unit.
+            if ((first.High | first.Middle) == 0UL && first.Low == 1UL)
+                return ShiftLeftMagnitude192(first, commonShift);
             second = SubtractSigned192(second, first);
+            if (second.IsZero)
+                return ShiftLeftMagnitude192(first, commonShift);
+            second = ShiftRightMagnitude192(second, CountTrailingZeroes192(second));
         }
-        while (!second.IsZero);
-        while (commonShift-- > 0)
-            first = Double(first);
-        return first;
     }
 
-    private static Signed192 HalveNonnegativeSigned192(Signed192 value) =>
-        new(value.High >> 1, (value.Middle >> 1) | (value.High << 63),
-            (value.Low >> 1) | (value.Middle << 63));
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int CountTrailingZeroes192(Signed192 value)
+    {
+        System.Diagnostics.Debug.Assert(!value.IsZero);
+        ulong word = value.Low;
+        int offset = 0;
+        if (word == 0UL)
+        {
+            word = value.Middle;
+            offset = 64;
+            if (word == 0UL) { word = value.High; offset = 128; }
+        }
+        return offset + 63 - Fixed64.CountLeadingZeroes(word & unchecked(0UL - word));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Signed192 ShiftRightMagnitude192(Signed192 value, int bits)
+    {
+        System.Diagnostics.Debug.Assert(bits >= 0 && bits < 192);
+        if (bits >= 128) return new Signed192(0UL, 0UL, value.High >> (bits - 128));
+        if (bits >= 64) { value = new Signed192(0UL, value.High, value.Middle); bits -= 64; }
+        if (bits == 0) return value;
+        return new Signed192(value.High >> bits,
+            (value.Middle >> bits) | (value.High << (64 - bits)),
+            (value.Low >> bits) | (value.Middle << (64 - bits)));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Signed192 ShiftLeftMagnitude192(Signed192 value, int bits)
+    {
+        System.Diagnostics.Debug.Assert(bits >= 0 && bits < 192);
+        if (bits >= 128) return new Signed192(value.Low << (bits - 128), 0UL, 0UL);
+        if (bits >= 64) { value = new Signed192(value.Middle, value.Low, 0UL); bits -= 64; }
+        ShiftLeft(value.High, value.Middle, value.Low, bits,
+            out ulong high, out ulong middle, out ulong low);
+        return new Signed192(high, middle, low);
+    }
 
     /// <summary>
     /// Divides a signed value exactly by a positive nonzero divisor.
@@ -238,6 +264,13 @@ internal static partial class WideArithmetic
         int sign = value.Sign;
         if (sign < 0)
             value = Negate(value);
+        int divisorShift = CountTrailingZeroes192(divisor);
+        if (GetBitLength(divisor.High, divisor.Middle, divisor.Low) == divisorShift + 1)
+        {
+            System.Diagnostics.Debug.Assert(CountTrailingZeroes192(value) >= divisorShift);
+            Signed192 shifted = ShiftRightMagnitude192(value, divisorShift);
+            return sign < 0 ? Negate(shifted) : shifted;
+        }
         Signed192 quotient = default;
         Signed192 remainder = default;
         int bit = GetBitLength(value.High, value.Middle, value.Low);
