@@ -1182,10 +1182,10 @@ evidence if ignored captures and disposable probes are removed.
 
 ## Post-commit squeeze investigation (2026-11-02)
 
-**Disposition:** Keep committed `e30266d` unchanged for this release. No new
-runtime or maintained test change survives this bounded follow-up. The signal
-remains experimental; these experiments establish neither a further accepted
-speedup nor resolution of the roughly 1.4 ms penetrating-query cost.
+**Disposition at this checkpoint:** Keep committed `e30266d` unchanged. No new
+runtime or maintained test change survives this bounded follow-up. The later
+canonical-inventory investigation below retains a separate small reduction;
+neither investigation resolves the roughly 1.4 ms penetrating-query cost.
 
 The baseline is the committed implementation, not the earlier `4a2d433`
 pre-optimization runtime. Source trees are isolated under
@@ -1310,3 +1310,222 @@ bounds, factorized builder or query cache solely because their mathematics is
 valid. Supplemental counts, prototype sources and capture families are
 `artifacts/oblique-next-*`; the formulas, scope, commands, measured values,
 disposition and remaining target above survive deletion of those ignored files.
+
+## Canonical analytic inventory reduction (2026-11-02)
+
+The next investigation starts from clean `c6bd41c` (runtime `e30266d`). It
+retains only a structural repetition check in `CurvedPrismContact.KeepAnalytic`;
+there is no candidate cache, normalization pass, extra wide product or new
+public API. The duplicate zero-axis return in `KeepAxis` is removed:
+`WriteDirection` accepts zero and `KeepDirection` already rejects it before
+candidate work. This also removes an early check whose only covered zero source
+was the now-pruned axis/edge cross. Both the ordinary query and
+constrained-domain caller share this collector.
+
+### Exact equivalence and ordering
+
+For each nonzero real edge `E`, the collector already visits both orientations
+of `GetBasis(E)` with that edge's same required start vertex. The later
+`Cross(Axis,E)` is perpendicular to `E`. If `E.X != 0`, the two earlier basis
+lines are `(-E.Y,E.X,0)` and `(-E.Z,0,E.X)`: a perpendicular vector with zero Z
+or zero Y lies on one of them. If `E.X == 0`, the lines are `(0,-E.Z,E.Y)` and
+the X axis: zero X, or both zero Y and Z, identifies those lines. The predicate
+uses only existing exact zero tests; a zero cross was already a no-op.
+
+These homogeneous repetitions have the same required-vertex admission, global
+canonical support vertex and primitive feature. A failed earlier direction
+cannot become admissible later. An admitted one cannot improve the monotonically
+decreasing incumbent, and the strict comparison retains its earlier exact tie.
+Domain windows and certificates are immutable during selection. Consequently the
+removed attempts cannot change the winning feature, exact normal ratio, window
+or any witness term. Final witness materialization stays with the same owner. In
+particular, zero Z alone is insufficient when `E.X == 0`: an oblique side cross
+can be the unique minimum and must remain in the inventory.
+
+Twenty-one maintained public characterization cases pass before and after the
+change. Coordinate-axis cylinders inside a cube have equal depth-two exits and
+must retain the first positive authored axis and both complete pole anchors;
+subdivided edges and reversed winding preserve that choice. An arbitrary-axis
+cylinder with axis proportional to `(3,4,0)` against a finite prism edge along Z
+has the unique cross normal `(4,-3,0)/5`. Radius five gives the exact paired
+radial witness `(4,-3,0)` and prism point `(0,1/2,0)`. Cases at separation,
+touching, scalar offsets of one raw unit and `1/64` along `(4,-3,0)`, reversed
+winding and origins near the representable limits check exact depth, every
+anchor field, boundary touch and whole-shape clearance beyond the exit. These
+assert production behavior, without exposing the private predicate or
+reproducing the collector in tests.
+
+### Rejected wider inventory scan
+
+A second prototype omits a later unrestricted side-face direction when its
+native footprint edge delta exactly equals or negates an earlier edge delta.
+Wide 65-bit differences avoid saturated `Vector2d` subtraction. The native-yaw
+and primitive-frame maps are linear, so this also preserves the earlier global
+support choice. It is mathematically valid, but adds a scan for each native
+edge.
+
+A symmetric baseline/cross-only/combined/combined/cross-only/baseline pilot,
+before retirement of the duplicate zero-axis guard, uses the same out-of-process
+Release settings below. The two target means estimate cross-only cost changes of
+**-2.99% cone / -3.15% cylinder**, versus **-4.24% / -5.81%** combined. The
+small incremental target benefit is uncertain. A separate balanced direct screen
+uses convex parabolic footprints with 8, 32 and 64 vertices, identity or oblique
+primitive frames, both primitive kinds, no repeated/opposite edge deltas, three
+warm batches and three measured batches of eight queries. At 32/64 vertices the
+combined scan consistently costs about **2-3% more than cross-only**, while
+cross-only improves over baseline. Small unrotated cases have tier-warmup
+variation and are inconclusive. This screen is not a BenchmarkDotNet acceptance
+result. All twelve physical results match. The extra scan is rejected; only the
+constant-time structural check survives.
+
+The combined prototype also matches a 1,320-case byte-for-byte differential
+snapshot against the committed implementation. The disposable public-query probe
+spans cones/cylinders; six axes; identity, oblique and rational-quaternion
+frames; square, trapezoid, triangle, subdivided, collinear and duplicate-vertex
+footprints; three relative centers; both windings; yaw zero/one-third; zero and
+positive radius; translated near-limit origins; and 24 full-raw-width footprint
+cases. Snapshots recursively include every contact/anchor instance field,
+including private exact residuals. No exception occurs. The final cross-only
+comparison and full maintained validation below establish the retained variant.
+
+### Matched acceptance measurements
+
+**Disposition:** Retain the structural repetition check and redundant guard
+retirement: eight net runtime lines, one private predicate, no new runtime file,
+cache, allocation or public surface. Cylinder and side-touch wins repeat across
+the main and focused windows. Cone's gain is window-dependent and remains
+inconclusive as a general improvement; the throughput signal stays experimental.
+
+The final Release out-of-process window uses all fourteen maintained Gravitas
+fixtures, baseline/candidate/candidate/baseline order, five warmups, ten actual
+iterations, a 500 ms iteration target, one launch, affinity three and
+`DOTNET_PROCESSOR_COUNT=2`. The host is Windows 11 x64, i7-9700K, SDK 10.0.302,
+runtime 10.0.10 and BenchmarkDotNet 0.15.8. Frozen standard source graphs use
+`UseLocalLsfStack=true`, `DisableTransitiveProjectReferences=true`,
+`UseSharedCompilation=false` and serial builds. No competing build, test or
+profiler runs during these acceptance timings. Values are microseconds/query;
+change is the candidate mean over the baseline mean, using both launches.
+
+| Query                       |   A1 (us) |   B1 (us) |   B2 (us) |   A2 (us) | Cost change |
+| --------------------------- | --------: | --------: | --------: | --------: | ----------: |
+| CapsuleContained            |   124.210 |   120.913 |   122.065 |   129.707 |      -4.31% |
+| CapsuleCrossingOffcenter    |   120.836 |   136.837 |   124.413 |   121.233 |      +7.92% |
+| ConeApexTouch               |   100.761 |   101.120 |   102.442 |   102.442 |      +0.18% |
+| ConeFace                    |   111.629 |   111.273 |   114.175 |   113.221 |      +0.27% |
+| ConeOblique                 | 1,503.221 | 1,478.614 | 1,503.882 | 1,474.606 |      +0.16% |
+| ConeSeparated               |    78.801 |    77.146 |    78.149 |    76.519 |      -0.02% |
+| ConeSideTouch               |   454.618 |   430.108 |   428.400 |   462.662 |      -6.41% |
+| CylinderFace                |   112.802 |   113.594 |   113.098 |   112.157 |      +0.77% |
+| CylinderOblique             | 1,495.755 | 1,467.796 | 1,451.029 | 1,496.928 |      -2.47% |
+| CylinderSeparated           |   122.349 |   120.023 |   121.192 |   122.285 |      -1.40% |
+| CylinderSideTouch           |   128.855 |   128.141 |   126.660 |   126.715 |      -0.30% |
+| SphereContained             |   122.667 |   118.057 |   118.633 |   125.087 |      -4.47% |
+| SphereContainedOpposingFace |   118.167 |   120.591 |   118.276 |   129.564 |      -3.58% |
+| SphereHorizontalRim         |   168.901 |   167.158 |   168.376 |   168.981 |      -0.70% |
+
+Cone's **+0.16%** main-window estimate establishes no improvement. The capsule
+crossing control's **+7.92%** is driven especially by the 136.837 us B1 launch;
+it requires investigation rather than dismissal based on untouched source. A
+fresh focused **candidate/baseline/baseline/candidate** window uses the same
+settings and five selected fixtures. Columns retain their variant labels;
+chronological order is B1, A1, A2, B2.
+
+| Query                    |   A1 (us) |   B1 (us) |   B2 (us) |   A2 (us) | Cost change |
+| ------------------------ | --------: | --------: | --------: | --------: | ----------: |
+| CapsuleCrossingOffcenter |   122.796 |   125.222 |   124.348 |   125.789 |      +0.40% |
+| ConeOblique              | 1,496.515 | 1,459.582 | 1,450.064 | 1,481.129 |      -2.28% |
+| ConeSideTouch            |   459.556 |   433.013 |   426.229 |   455.518 |      -6.10% |
+| CylinderFace             |   112.009 |   111.167 |   113.300 |   111.769 |      +0.31% |
+| CylinderOblique          | 1,527.151 | 1,463.168 | 1,452.654 | 1,503.688 |      -3.79% |
+
+Cylinder improves **2.47% / 3.80%** and side-touch improves **6.41% / 6.10%** in
+the two matched windows. Both candidate cone launches in the focused window are
+below both baseline launches (**-2.28%**), but the flat main window prevents a
+claim of a general repeatable cone win. The capsule crossing estimate becomes
+**+0.40%**: baseline launch means range 122.796-125.789 us and candidate means
+124.348-125.222 us. Cylinder-face is **+0.31%**, with candidate launches on both
+sides of the baseline range. These controls do not confirm a regression and do
+not establish zero overhead. No adverse run is removed or pooled away.
+
+All **76 children exit zero**, all **760 actual measurements** are present, each
+statistical summary retains at least eight observations, and every raw
+allocation/collection counter is zero. PE/PDB identities and authored-source
+checksums bind each child to its frozen seven-library source graph before
+outputs are reused. These are fresh matched comparisons against `e30266d`; their
+absolute values must not be combined with the earlier 1.423 ms captures from a
+different window. The present target means remain about **1.45-1.49 ms**, well
+short of the provisional 2x reduction.
+
+### Final correctness and validation
+
+The retained variant repeats the full 1,320-case differential with every exact
+contact/anchor field identical and no exceptions. Both fourteen-case mixed
+snapshots match, the probes' copied math/consumer DLL hashes match the selected
+frozen bins, and both variants record zero warmed calling-thread bytes over 128
+queries per fixture after three warm batches.
+
+Full live-source solution builds and collected test runs pass with explicit
+local-source flags, `UseSharedCompilation=false`, `-m:1` and eight advertised
+processors. Counts below come directly from OpenCover points/method entries; all
+raw unvisited lists are empty. The FixedMathSharp collection includes core and
+FluentAssertions; companion tests run separately.
+
+| Repository / configuration |                Tests | Sequence points |   Branch points |       Methods |
+| -------------------------- | -------------------: | --------------: | --------------: | ------------: |
+| FixedMathSharp Release     | 7,294 + 49 companion | 68,404 / 68,404 | 22,606 / 22,606 | 5,325 / 5,325 |
+| FixedMathSharp ReleaseLean | 7,273 + 49 companion | 68,497 / 68,497 | 22,606 / 22,606 | 5,321 / 5,321 |
+| Gravitas Release           |                8,348 | 53,559 / 53,559 | 21,772 / 21,772 | 5,602 / 5,602 |
+| Gravitas ReleaseLean       |                8,277 | 53,557 / 53,557 | 21,772 / 21,772 | 5,601 / 5,601 |
+
+The raw metadata reports `KeepAnalytic` complexity 28 and the new predicate
+complexity 8, with every branch covered. The complexity register retains the
+collector's ordering/admission rationale. Independent review covers actual
+ordinary/domain callers, the physical test oracles, exact anchor equality,
+scratch lifetime, duplication and retirement of the zero guard. No speculative
+helper or rejected face-scan code remains. Scoped C# formatting and error-level
+format verification pass; formatting makes no semantic change.
+
+The rebuilt benchmark host lists successfully. The final broad out-of-process
+Short smoke (`all -j Short --iterationTime 10`) passes all **479 cases**, with
+479 zero child exits and all **1,437 actual measurements**. Thirteen allocation
+rows belong to the existing enumerable, string-formatting and serialization
+workloads; all remaining rows have zero raw allocation/collection counters. The
+disposable generated-project import supplies the explicit core reference needed
+by typed return signatures under globally disabled transitive project
+references; no maintained harness or CI change is made. The smoke's
+three-library PE/PDB/source bindings are checked, and its timing is not
+acceptance evidence. Captures are `artifacts/oblique-inventory-smoke*`.
+
+Preliminary captures are explicitly excluded: `oblique-inventory-final-*`
+**matrix** files reused the committed binary because copying source preserved an
+older timestamp; raw helper absence exposed this and the run was stopped. The
+`verified-*` matrix supersedes that binary but precedes removal of the redundant
+zero guard and is also not final acceptance. Only the `accepted-*` matrix, final
+bound performance children and focused children above validate the retained
+variant. The stale-build incident is local experiment provenance, not a library
+defect.
+
+Reproduce the main performance window from each frozen Gravitas root:
+
+```powershell
+dotnet tests/Gravitas.Benchmarks/bin/Release/net10.0/Gravitas.Benchmarks.dll curved-prism-contact --warmupCount 5 --iterationCount 10 --launchCount 1 --iterationTime 500 --affinity 3 --keepFiles --exporters json --artifacts <distinct-output-directory>
+```
+
+Use baseline/candidate/candidate/baseline order. For the reversed focused
+window, add filters `*ConeOblique`, `*CylinderOblique`, `*ConeSideTouch`,
+`*CapsuleCrossingOffcenter`, `*CylinderFace` and run
+candidate/baseline/baseline/ candidate. Baseline is `c6bd41c` with runtime
+`e30266d`; candidate is the tracked collector diff. Sibling bases are Gravitas
+`7990c176`, Chronicler `c45f9ab5`, SwiftCollections `13a3c13e` and GridForge
+`50d55404`; pre-existing GridForge working changes are held identical between
+timing variants and left untouched.
+
+Capture families are
+`artifacts/oblique-inventory-{pilot,large,accepted,final,focus}-*` and source
+trees are `artifacts/oblique-inventory-perf/{baseline,cross,candidate}`. The
+combined prototype remains disposable; final runtime is the cross tree. The
+proof, fixture recipe, commands, measured values and raw validation totals above
+survive deletion of those ignored artifacts. No release-package or
+cross-platform validation is claimed. Remaining work is the expensive analytic
+fan and seven cone/twelve cylinder stationary quartics; establish useful reach
+before adding another pruning rule or certificate.

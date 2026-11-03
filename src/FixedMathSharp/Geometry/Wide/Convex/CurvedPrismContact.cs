@@ -91,7 +91,9 @@ internal static partial class CurvedPrismContact
                 ProjectPerpendicular(edge, offset, direction, signs);
                 KeepDirection(geometry, direction, signs, ref selection, start);
             }
-            KeepAxis(geometry, WideDirection3d.Cross(axis, edge), direction, signs, ref selection, start);
+            WideDirection3d cross = WideDirection3d.Cross(axis, edge);
+            if (!IsBasisDirection(edge, cross))
+                KeepAxis(geometry, cross, direction, signs, ref selection, start);
             if (selection.HasValue && selection.GapSign == 0) return;
         }
         if (geometry.IsCone)
@@ -145,11 +147,17 @@ internal static partial class CurvedPrismContact
         return true;
     }
 
+    // The direction is perpendicular to edge. Each selected line was already
+    // visited in both orientations with the same required vertex.
+    private static bool IsBasisDirection(in WideDirection3d edge, in WideDirection3d direction) =>
+        edge.X.IsZero
+            ? direction.X.IsZero || direction.Y.IsZero && direction.Z.IsZero
+            : direction.Y.IsZero || direction.Z.IsZero;
+
     private static void KeepAxis(in CurvedPrismContactGeometry geometry, in WideDirection3d axis,
         scoped Span<ulong> direction, scoped Span<int> signs, ref CurvedPrismContactSelection selection,
         int requiredVertex = -1)
     {
-        if (axis.IsZero) return;
         WriteDirection(axis, direction, signs);
         KeepDirection(geometry, direction, signs, ref selection, requiredVertex);
     }
