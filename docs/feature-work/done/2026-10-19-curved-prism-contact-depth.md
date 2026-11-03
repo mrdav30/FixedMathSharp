@@ -1179,3 +1179,134 @@ Supplemental capture families are `artifacts/oblique-deep-{A1,B1,B2,A2}*`,
 identities, commands, numerical gates, rejected policy, current values,
 validation counts and remaining experiment in this record are the durable
 evidence if ignored captures and disposable probes are removed.
+
+## Post-commit squeeze investigation (2026-11-02)
+
+**Disposition:** Keep committed `e30266d` unchanged for this release. No new
+runtime or maintained test change survives this bounded follow-up. The signal
+remains experimental; these experiments establish neither a further accepted
+speedup nor resolution of the roughly 1.4 ms penetrating-query cost.
+
+The baseline is the committed implementation, not the earlier `4a2d433`
+pre-optimization runtime. Source trees are isolated under
+`artifacts/oblique-next-perf/{baseline,candidate,diagnostic,dedup}`, with the
+same five-sibling layout, source mode, runtime, affinity and fourteen maintained
+fixtures as the preceding investigation. The root worktree starts clean. All
+prototype code and counters stay in those ignored copies; no stage, commit,
+dependency pin or sibling source change is made.
+
+### Chart rejection reach
+
+Two sound certificates were counted before adding production branches:
+
+- A quadratic gap lower bound drops the nonnegative cross term from
+  `(P+sqrt(Q))²`, with an available unclamped incumbent upper `U/2` where
+  `U=2*roundedDepthRaw+1`. For endpoint normals `n0,n1`, offset projections
+  `p_i`, axial projections `a_i`, metric entries `m_ij`, and `q=Axis²`, its
+  Bernstein entries are `B_ij=4*q*p_i*p_j +4*R²*(q*m_ij-a_i*a_j) -U²*q*S²*m_ij`.
+  Nonnegative offset endpoints and a nonnegative quadratic certify domination.
+  All three nonnegative Bernstein entries are sufficient; with both diagonal
+  entries nonnegative, exact copositivity also allows a negative middle entry
+  when `B00*B11>=B01²`. Equality is safe because earlier analytic ties win.
+- The unsquared stationary expression is `K*sqrt(Q)+L`. An affine `K` with
+  matching weak endpoint signs, not identically zero, is strictly one-signed
+  inside the chart. Matching weak quadratic signs for `L` then exclude physical
+  stationary roots. At the included endpoint one, either the expression stays
+  nonzero or the existing `K==0` gate rejects it. This proof covers `(0,1]`,
+  repeated squared-polynomial roots and constrained callers; it does not assume
+  a face certificate absent from some domains.
+
+The existing bound rejects five cone and six cylinder charts, leaving seven and
+twelve quartics. The new quadratic bound rejects five cone charts, four already
+rejected and **one additional**, and four cylinder charts, all already rejected.
+The stronger copositivity test adds no reach. The unsquared sign certificate
+rejects **zero** of the remaining charts on either target. These are exact
+BigInteger diagnostic counts, not instrumented timing claims. The limited reach
+does not justify another bound or derivative gate in production.
+
+### Rejected factored-polynomial prototype
+
+The curved caller already knows `Q=F*Q0`, with positive `F=R²*q`. Thus `L=F*L0`
+and `W=F*(F*L0²-K²*Q0)`. A disposable shared-builder prototype forms `W/F`
+directly, then restores full `Q,L` before the unchanged `J,N,D` work. Positive
+normalization preserves roots, multiplicities, signs and ordinals; removing the
+odd part of `F` can also reduce defining coefficient height beyond existing
+power-of-two normalization. No division or GCD is introduced to recover this
+already known factor.
+
+The screen preserves all fourteen recorded depths, normals and paired witnesses,
+but suggests only -1.99% cone cost and +0.02% cylinder cost. A full Release
+out-of-process ABBA, with five warmups, ten measured iterations, a 500 ms
+target, one launch per query and affinity three, gives the following
+microseconds:
+
+| Query           |   A1 (us) |   B1 (us) |   B2 (us) |   A2 (us) | Cost change |
+| --------------- | --------: | --------: | --------: | --------: | ----------: |
+| ConeOblique     | 1,501.449 | 1,463.386 | 1,465.705 | 1,470.022 |      -1.43% |
+| CylinderOblique | 1,411.336 | 1,467.340 | 1,452.013 | 1,439.514 |      +2.40% |
+
+All eight children exit zero, all eighty actual measurements are present,
+statistical summaries retain at least eight observations, and every raw
+allocation/collection counter is zero. Child PE/PDB and authored-source bindings
+are checked for both variants before generated outputs are reused. The small
+cone estimate does not justify the **+2.40% cylinder** estimate or the extra
+builder branch/products/API argument. The factorization is rejected. Its direct
+coefficient characterization and broad test matrix are not pursued after this
+failed throughput gate; fixture agreement is not a general correctness proof.
+
+Reproduce from each frozen Gravitas root with the preceding local-stack flags:
+
+```powershell
+dotnet tests/Gravitas.Benchmarks/bin/Release/net10.0/Gravitas.Benchmarks.dll curved-prism-contact --filter '*ConeOblique' '*CylinderOblique' --warmupCount 5 --iterationCount 10 --launchCount 1 --iterationTime 500 --affinity 3 --keepFiles --exporters json --artifacts ../../../oblique-next-A1
+```
+
+Repeat in baseline/candidate/candidate/baseline order with distinct artifact
+names. These fresh absolute values are a matched follow-up, not an equivalent
+comparison with the preceding captures at another time/harness selection.
+
+### Exact duplicate-direction screen
+
+Counting only successfully admitted oriented rational directions finds ten
+repeated rays among 48 cone builds and ten among 70 cylinder builds. All ten are
+exact vector duplicates in these fixtures, so normalization or cross-product
+arithmetic is unnecessary. A bounded eight-entry FIFO retains six duplicates in
+each penetrating query; sixteen entries retain the same six. The touching cone
+has 46 repeated rays among 58 builds, of which 36 are exact duplicates; eight
+entries retain 23, while sixteen retain 36.
+
+A temporary ordinary-query cache therefore uses eight exact vectors, records
+only successful admissions, treats opposite directions separately, and leaves
+the constrained-domain collector untouched. A hit still performs the normal
+orientation-loop sign flips. Canonical support vertex/primitive feature and all
+physical ratios depend on the oriented ray, not the generating required vertex;
+once admitted, an identical candidate cannot improve a monotonically decreasing
+incumbent or replace an earlier tie. Full component equality avoids the roughly
+1,008-bit products a general ray-parallel comparison could require. A second
+screen adds low-word rejection before full equality, without treating a partial
+match as equality.
+
+All fourteen screened depths/normals/witnesses match in both versions. The
+unfiltered screen estimates -0.55%/-1.87% cone/cylinder cost; the filtered
+version estimates -1.80%/-2.02%, with overlapping cone launch ranges. Calling
+these repeatable gains is not justified. The touching estimates are
+approximately -13.86% and -12.44%, respectively, and remain screening signals.
+Cheap control paths in this short direct probe are not fully tier-warmed and are
+not acceptance evidence. The extra lookup cost and approximately 1,728-byte
+stack cache are not retained for this small uncertain penetrating benefit. A
+touching-specific investigation would need its own full controls and complete
+correctness, allocation and stack-budget checks before any cache is accepted.
+
+No additional full solution matrix or broad smoke is claimed in this follow-up,
+because maintained runtime/tests remain byte-identical to `e30266d`. The
+preceding validated committed change remains the retained implementation.
+Independent review checks the mathematical certificates, factorization,
+ordinary-query deduplication proof, width limits and rejection criteria.
+Documentation/link and working-tree scope checks cover the only retained edits.
+
+The next substantial investigation should target a cheaper canonical analytic
+inventory with explicit tie/witness equivalence, or a stronger whole-chart
+certificate whose useful reach is established first. Do not re-add the rejected
+bounds, factorized builder or query cache solely because their mathematics is
+valid. Supplemental counts, prototype sources and capture families are
+`artifacts/oblique-next-*`; the formulas, scope, commands, measured values,
+disposition and remaining target above survive deletion of those ignored files.

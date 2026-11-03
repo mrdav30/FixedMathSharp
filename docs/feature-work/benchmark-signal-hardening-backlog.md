@@ -54,14 +54,14 @@ These signals retain a measured cost or an unmet investigation target after
 bounded optimization. They remain open without implying a universal frame/query
 budget or a new correctness defect.
 
-| Signal                                                                                                                   | Status                                        | Next experiment                                                 |
-| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- | --------------------------------------------------------------- |
-| [Penetrating oblique cone/cylinder-prism contact throughput](#penetrating-oblique-conecylinder-prism-contact-throughput) | Improved; unresolved at roughly 1.42 ms/query | Exact whole-chart pruning before quartic construction/isolation |
+| Signal                                                                                                                   | Status                                        | Next experiment                                                  |
+| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- | ---------------------------------------------------------------- |
+| [Penetrating oblique cone/cylinder-prism contact throughput](#penetrating-oblique-conecylinder-prism-contact-throughput) | Improved; unresolved at roughly 1.42 ms/query | Canonical analytic inventory with proven tie/witness equivalence |
 
 ### Penetrating oblique cone/cylinder-prism contact throughput
 
-- **Status:** Reopened 2026-11-02 at the owner's request. Guarded runtime
-  changes are prepared for review; the throughput concern remains open.
+- **Status:** The guarded improvement is committed in `e30266d`. The 2026-11-02
+  follow-up retains that runtime unchanged; the throughput concern remains open.
 - **Retained change:** Reject certified simple-root stationary maxima before
   admission/witness work; certify affine query signs from the existing open root
   cell; use conservative root bounds before full radical ranking. Pure-radical
@@ -83,17 +83,25 @@ budget or a new correctness defect.
   Short benchmark cases pass; a disposable explicit-core-reference import is
   needed for typed generated harnesses in the globally restricted local-source
   build. Independent review covers numerical gates, callers and tests.
+- **Post-commit follow-up:** `e30266d` remains the retained runtime. Exact chart
+  certificates add one cone rejection and none for cylinder; the unsquared
+  derivative gate adds none. A factored stationary-polynomial pilot measures
+  -1.43% cone / +2.40% cylinder and is rejected. An exact-direction cache only
+  screens at roughly 1–2% lower penetrating cost while adding lookup/stack work;
+  it is not retained. The touching-case screen remains a narrower opportunity.
 - **Remaining cost:** About 1.42 ms per penetrating query is still expensive.
   Seven cone and twelve cylinder quartics remain built/isolated; sampled
-  analytic collection and rim charts still dominate. Investigate a complete
-  exact chart lower bound against the incumbent before root
-  construction/isolation, and count repeated analytic support directions before
-  considering deduplication.
+  analytic collection and rim charts still dominate. Investigate a cheaper
+  canonical analytic inventory with explicit tie/witness equivalence, or a
+  stronger chart certificate after reach-counting. The simple bounds, factored
+  builder and query cache from the bounded follow-up did not justify further
+  runtime changes.
 - **Investigation target:** At least 2x lower cost on these two fixtures remains
   a provisional, unmet target, with unchanged exact outputs, warmed allocation
   guards and no confirmed control regression. It is not a universal host budget.
 - **Record:**
   [Guarded measurements, rejected policies, proofs, validation and reproduction](done/2026-10-19-curved-prism-contact-depth.md#guarded-balanced-measurements-and-residual-work).
+  [Post-commit reach counts and rejected experiments](done/2026-10-19-curved-prism-contact-depth.md#post-commit-squeeze-investigation-2026-11-02).
 
 ## Archived Signals
 
