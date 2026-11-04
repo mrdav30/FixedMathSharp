@@ -1,19 +1,46 @@
 name: Announce Releases to Discord
 
 on:
-  release:
-    types: [published]
+  workflow_call:
+    inputs:
+      tag_name:
+        description: Published release tag to announce
+        required: true
+        type: string
+    secrets:
+      WEBHOOK_URL:
+        required: true
+
+permissions:
+  contents: read
 
 jobs:
   github-releases-to-discord:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - name: Resolve published release
+        id: release
+        uses: actions/github-script@v8
+        env:
+          RELEASE_TAG: ${{ inputs.tag_name }}
+        with:
+          script: |
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              ...context.repo,
+              tag: process.env.RELEASE_TAG
+            });
+            if (release.draft) {
+              throw new Error('Cannot announce a draft release.');
+            }
+            return release;
+
       - name: GitHub Releases to Discord
         uses: SethCohen/github-releases-to-discord@v1
         with:
           webhook_url: ${{ secrets.WEBHOOK_URL }}
+          release_name: ${{ fromJSON(steps.release.outputs.result).name || inputs.tag_name }}
+          release_body: ${{ fromJSON(steps.release.outputs.result).body }}
+          release_html_url: ${{ fromJSON(steps.release.outputs.result).html_url }}
           color: "2105893"
           username: "Release Changelog"
           avatar_url: "https://cdn.discordapp.com/avatars/487431320314576937/bd64361e4ba6313d561d54e78c9e7171.png"

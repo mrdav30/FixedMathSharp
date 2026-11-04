@@ -229,3 +229,14 @@ jobs:
             --api-key "$NUGET_API_KEY" \
             --source "$NUGET_SOURCE" \
             --skip-duplicate
+
+  announce:
+    name: Announce release to Discord
+    needs: publish
+    permissions:
+      contents: read
+    uses: ./.github/workflows/github-release-to-discord.yml
+    with:
+      tag_name: ${{ github.event.release.tag_name || github.event.inputs.tag_name }}
+    secrets:
+      WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
