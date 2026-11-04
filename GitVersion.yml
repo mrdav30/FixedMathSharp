@@ -1,0 +1,5 @@
+# Recognize Conventional Commits and retain explicit +semver directives.
+commit-message-incrementing: Enabled
+major-version-bump-message: '(?im)\A[a-z][a-z0-9-]*(?:\([^\r\n()]+\))?!:|^BREAKING[ -]CHANGE:|\+semver:\s?(?:breaking|major)\b'
+minor-version-bump-message: '(?i)\Afeat(?:\([^\r\n()]+\))?:|\+semver:\s?(?:feature|minor)\b'
+patch-version-bump-message: '(?i)\A(?:fix|perf)(?:\([^\r\n()]+\))?:|\+semver:\s?(?:fix|patch)\b'

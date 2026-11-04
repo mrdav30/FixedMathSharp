@@ -21,6 +21,34 @@ vulnerability reports.
 5. Exclude generated build, test, coverage, package, and benchmark artifacts
    from the pull request.
 
+## Commit messages and versions
+
+[`GitVersion.yml`](GitVersion.yml) recognizes Conventional Commits, including
+optional scopes:
+
+- `feat: ...` or `feat(geometry): ...` requests a minor increment.
+- `fix: ...` and `perf: ...` request a patch increment.
+- A breaking header such as `refactor!: ...` or `feat(api)!: ...`, or a
+  `BREAKING CHANGE:` / `BREAKING-CHANGE:` footer, requests a major increment.
+- Existing `+semver:` directives remain supported. Other commit types retain the
+  branch's default increment; `main` defaults to Patch.
+
+GitVersion evaluates the history since its version source, so an earlier
+breaking change still determines the next major release when later commits are
+fixes or documentation. Do not set a permanent minor increment on `main` or
+hand-edit project package versions to select one release.
+
+Preview the calculated version from the repository root:
+
+```powershell
+dotnet-gitversion -output json -nofetch
+```
+
+The local build/archive script exports `MajorMinorPatch` as its package version;
+the preview's `FullSemVer` can also contain a prerelease suffix before tagging.
+Commit the release changes before creating the matching release tag. Publishing
+continues to validate that the tag and calculated package version agree.
+
 The core and Chronicler test projects use blocking GC so their allocation guards
 are not affected by background-GC allocation-buffer accounting. This applies to
 the test host only; it does not configure consumers or benchmarks. Keep this

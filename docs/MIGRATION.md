@@ -1,8 +1,44 @@
 # FixedMathSharp Migration Guide
 
-## Shared diagnostics migration
+## Migrating From v7.x To v8.x
 
-### Shared diagnostics dependency
+v8 expands exact finite-shape geometry and improves contact throughput while
+changing the target-specific formatting surface and Chronicler integration.
+Upgrade the standard or Lean package set together and rebuild dependent
+assemblies.
+
+### v8 Upgrade Checklist
+
+- Update FixedMathSharp and any companion packages to the matching v8 versions.
+- Review formatting code that requires `ISpanFormattable` when targeting .NET 8
+  or .NET 9. Those runtimes now consume the .NET Standard 2.1 asset.
+- Update Chronicler dependencies to v1.0.0 and import `Chronicler.Hashing` for
+  hash types. Update direct static calls to the renamed writer extension class.
+- Re-run collision/query, transform and deterministic replay tests. Corrected
+  overlap classification, exit normals, finite witnesses and scale decomposition
+  can change geometry-dependent expected results; cross-version replay hashes
+  are not a compatibility guarantee.
+- Release FixedMathSharp before consumers of its release-coupled internals,
+  including Gravitas, then validate those consumers against the exact released
+  package in both standard and Lean configurations.
+
+### Target Frameworks And Formatting
+
+All packages now target `netstandard2.1` and `net10.0`, replacing the dedicated
+`net8.0` asset. .NET 8 and .NET 9 consumers can continue using the .NET Standard
+2.1 asset; they are not required to retarget solely to consume the library. The
+solution itself requires the .NET 10 SDK selected by `global.json`.
+
+The .NET 10 asset implements `ISpanFormattable` on supported numeric and
+geometry types. The .NET Standard 2.1 asset exposes their `TryFormat` methods
+without that interface. A .NET 8 caller that previously assigned a `Fixed64`,
+vector or matrix to `ISpanFormattable`, or used it with an interface-constrained
+generic API, must retarget to .NET 10 or call the concrete type's `TryFormat`
+method. String formatting through `IFormattable` remains available.
+
+### Shared diagnostics migration
+
+#### Shared diagnostics dependency
 
 The math core now references the independent `Chronicler.Diagnostics` v1.0.0
 package in standard and Lean builds. Existing `Fixed64.Parse` and `ParseRaw`
@@ -16,7 +52,7 @@ Publish Chronicler.Diagnostics before the updated math packages. Validate
 released dependencies after coordinated `UseLocalLsfStack=true` source builds;
 local source validation does not prove the released package graph is available.
 
-## Chronicler v1.0.0 Companion Migration
+### Chronicler v1.0.0 Companion Migration
 
 When rebuilding `FixedMathSharp.Chronicler` against Chronicler v1.0.0, import
 `Chronicler.Hashing` for `ChronicleHash`, `ChronicleHashWriter`, and
@@ -25,6 +61,17 @@ When rebuilding `FixedMathSharp.Chronicler` against Chronicler v1.0.0, import
 Rebuild dependent assemblies together because the hash types' CLR identities
 have changed. Recording contracts remain in `Chronicler`, and timing values
 remain in `Chronicler.Timing`.
+
+The public extension class is renamed from
+`FixedMathChronicleHashWriterExtensions` to
+`FixedChronicleHashWriterExtensions`. Ordinary extension syntax such as
+`writer.WriteFixed64(value)` remains available with the updated imports; direct
+static calls and aliases must use the new class name.
+
+`FixedChronicleTime` adds exact conversions between Fixed64 seconds and
+`ChronicleDuration`, plus complete-step counting. Prefer it over conversions
+through floating point. Subtract wide timestamps before narrowing a duration;
+`TryToFixed64` reports an out-of-range value without saturation.
 
 For coordinated source validation before publishing the updated packages, use
 `UseLocalLsfStack=true` as described in
