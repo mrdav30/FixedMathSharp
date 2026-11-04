@@ -100,13 +100,16 @@ internal static partial class CurvedPrismRimContacts
         scoped Span<ulong> bestValues, scoped Span<sbyte> bestSigns, scoped Span<ulong> bestCell,
         ref Selection best, PrismCurvedContactDomain domain, bool hasAnalytic)
     {
+        int firstAxialSign = 0, lastAxialSign = 0;
         if (!geometry.IsCone)
         {
             Signed832 axial = WideDirection3d.Dot(first, geometry.Axis);
             Signed832 slope = WideDirection3d.Dot(second, geometry.Axis);
+            firstAxialSign = axial.Sign;
+            lastAxialSign = WideArithmetic.AddSigned832(axial, slope).Sign;
             // Nonpositive endpoints leave only an analytic side-boundary
             // endpoint. Identically zero would mean the excluded parallel edge.
-            if (axial.Sign * cap <= 0 && WideArithmetic.AddSigned832(axial, slope).Sign * cap <= 0) return;
+            if (firstAxialSign * cap <= 0 && lastAxialSign * cap <= 0) return;
         }
         geometry.Edge(edge, out int start, out _);
         WideDirection3d vertex = geometry.Vertex(start);
@@ -119,6 +122,11 @@ internal static partial class CurvedPrismRimContacts
             if (a.Sign < 0 && WideArithmetic.AddSigned832(a, b).Sign < 0) return;
         }
         WideDirection3d offset = CurvedPrismContact.Difference(cap < 0 ? -geometry.Half : geometry.Half, vertex);
+        if (hasAnalytic && !geometry.IsCone && supportCertified && !domain.Enabled && edge % 3 != 2
+            && firstAxialSign * lastAxialSign < 0
+            && IsPhysicalArcConcave(geometry, edgeDirection, offset, first, second, cap, firstAxialSign)) return;
+        if (hasAnalytic && !geometry.IsCone && supportCertified && !domain.Enabled
+            && HasNoNonnegativeEllipseMinimum(geometry, edgeDirection, offset)) return;
         if (hasAnalytic && IsChartDominated(geometry, edgeDirection, offset, first, second, analytic,
                 supportCertified && !domain.Enabled && edge % 3 == 2)) return;
         Span<ulong> data = stackalloc ulong[Slots * Words];
@@ -402,6 +410,88 @@ internal static partial class CurvedPrismRimContacts
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
+    private static bool HasNoNonnegativeEllipseMinimum(in CurvedPrismContactGeometry geometry,
+        in WideDirection3d edge, in WideDirection3d offset)
+    {
+        // Nondegenerate ellipse dispatch gives a=R, b=R*|A.E|/sqrt(K),
+        // K=q*E² and 0<b<a. At a nonnegative stationary minimum,
+        // g''=rho-g>=0, so 0<=g<=rho. Thus |Proj(Eperp)c|² cannot exceed
+        // max(a²,((a²-b²)/b)²), the ellipse/evolute maximum squared norms.
+        // Physical arc endpoints and cap equators remain in the analytic fan.
+        Signed576 edgeSquared = Signed576.NarrowValue(edge.SquaredLength);
+        Signed576 offsetSquared = Signed576.NarrowValue(offset.SquaredLength);
+        Signed576 projection = Signed576.NarrowValue(WideDirection3d.Dot(edge, offset));
+        Signed832 projectedSquared = WideArithmetic.SubtractSigned832(
+            WideArithmetic.MultiplySigned576ToSigned832(edgeSquared, offsetSquared),
+            WideArithmetic.MultiplySigned576ToSigned832(projection, projection));
+        Signed576 radiusSquared = WideArithmetic.MultiplySigned320(geometry.Radius, geometry.Radius);
+        Signed832 radiusMetric = WideArithmetic.MultiplySigned576ToSigned832(radiusSquared, edgeSquared);
+        // C=e²*c²-(e.c)². Strict C>R²*e² first; equality retains fallback.
+        if (WideArithmetic.SubtractSigned832(projectedSquared, radiusMetric).Sign <= 0) return false;
+        Signed576 axial = Signed576.NarrowValue(WideDirection3d.Dot(edge, geometry.Axis));
+        Signed832 axialSquared = WideArithmetic.MultiplySigned576ToSigned832(axial, axial);
+        Signed832 metric = WideArithmetic.MultiplySigned832(Signed832.ExtendValue(edgeSquared), geometry.SquaredAxis);
+        Signed832 anisotropy = WideArithmetic.SubtractSigned832(metric, axialSquared);
+        // C*K*d² > R²*e²*(K-d²)². Typed factors fit 832; complete
+        // products need <1471/<1458 bits. Four 24-word fields retain all carries.
+        const int words = 24;
+        Span<ulong> work = stackalloc ulong[4 * words];
+        Span<ulong> left = work[..words], right = work.Slice(words, words);
+        Span<ulong> factor = work.Slice(2 * words, words), product = work.Slice(3 * words, words);
+        CylinderContactAlgebra.Import(projectedSquared, left); CylinderContactAlgebra.Import(metric, factor);
+        WideArithmetic.MultiplyMagnitudes(left, factor, product);
+        CylinderContactAlgebra.Import(axialSquared, factor);
+        WideArithmetic.MultiplyMagnitudes(product, factor, left);
+        CylinderContactAlgebra.Import(anisotropy, factor);
+        WideArithmetic.MultiplyMagnitudes(factor, factor, right);
+        CylinderContactAlgebra.Import(radiusMetric, factor);
+        WideArithmetic.MultiplyMagnitudes(right, factor, product);
+        return WideArithmetic.CompareMagnitudeEqualLength(left, product) > 0;
+    }
+
+    private static bool IsPhysicalArcConcave(in CurvedPrismContactGeometry geometry,
+        in WideDirection3d edge, in WideDirection3d offset, in WideDirection3d first,
+        in WideDirection3d second, int cap, int firstAxialSign)
+    {
+        // Orthogonal certified horizontal endpoints and a strict axial
+        // crossing place the equator in their positive span. Orient its
+        // compact E-cross-A ray by its strictly positive dot with first.
+        WideDirection3d equator = WideDirection3d.Cross(edge, new WideDirection3d(geometry.Axis));
+        if (WideDirection3d.Dot(equator, first).Sign < 0) equator = -equator;
+        WideDirection3d physical = firstAxialSign * cap > 0 ? first
+            : new(WideArithmetic.AddSigned576(first.X, second.X),
+                WideArithmetic.AddSigned576(first.Y, second.Y), WideArithmetic.AddSigned576(first.Z, second.Z));
+        if (WideDirection3d.Dot(offset, physical).Sign < 0 || WideDirection3d.Dot(offset, equator).Sign < 0) return false;
+        // On this arc, |A.n|/|n| is monotone toward the physical endpoint,
+        // so projected radial support h has its minimum beta there. For an
+        // ellipse with major radius R and minor radius r, h''=R²r²/h³-h.
+        // beta^4>=R²r² makes h''<=0 throughout the arc. Since offset.n>=0
+        // here, g''=-offset.u+h''<=0; earlier analytic endpoints retain minima.
+        // With Kp=q*|physical|², rp=Kp-(A.physical)², Ke=q*|E|² and d=A.E,
+        // beta²=R²rp/Kp and r²=R²d²/Ke cancel R: rp²Ke>=d²Kp².
+        Signed832 physicalAxial = WideDirection3d.Dot(physical, geometry.Axis);
+        Signed832 kPhysical = WideArithmetic.MultiplySigned832(physical.SquaredLength, geometry.SquaredAxis);
+        Signed832 axialSquared = WideArithmetic.MultiplySigned576ToSigned832(
+            Signed576.NarrowValue(physicalAxial), Signed576.NarrowValue(physicalAxial));
+        Signed832 radial = WideArithmetic.SubtractSigned832(kPhysical, axialSquared);
+        Signed832 kEdge = WideArithmetic.MultiplySigned832(edge.SquaredLength, geometry.SquaredAxis);
+        Signed832 edgeAxial = WideDirection3d.Dot(edge, geometry.Axis);
+        Signed832 edgeAxialSquared = WideArithmetic.MultiplySigned576ToSigned832(
+            Signed576.NarrowValue(edgeAxial), Signed576.NarrowValue(edgeAxial));
+        // Native endpoints <165, E <166 and A <33 bits give Kp<397,
+        // rp<397, Ke<399 and d²<402. Complete products fit 1200 bits.
+        const int words = 24;
+        Span<ulong> work = stackalloc ulong[4 * words];
+        Span<ulong> left = work[..words], right = work.Slice(words, words);
+        Span<ulong> factor = work.Slice(2 * words, words), product = work.Slice(3 * words, words);
+        CylinderContactAlgebra.Import(radial, factor); WideArithmetic.MultiplyMagnitudes(factor, factor, left);
+        CylinderContactAlgebra.Import(kEdge, factor); WideArithmetic.MultiplyMagnitudes(left, factor, product);
+        CylinderContactAlgebra.Import(kPhysical, factor); WideArithmetic.MultiplyMagnitudes(factor, factor, left);
+        CylinderContactAlgebra.Import(edgeAxialSquared, factor); WideArithmetic.MultiplyMagnitudes(left, factor, right);
+        return WideArithmetic.CompareMagnitudeEqualLength(product, right) >= 0;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool IsChartDominated(in CurvedPrismContactGeometry geometry,
         in WideDirection3d edge, in WideDirection3d offset, in WideDirection3d first,
         in WideDirection3d second, scoped ConvexContactCandidate analytic, bool allowConcavity)
@@ -467,7 +557,7 @@ internal static partial class CurvedPrismRimContacts
         Signed832 edgeAxialSquared = WideArithmetic.MultiplySigned576ToSigned832(
             Signed576.NarrowValue(edgeAxial), Signed576.NarrowValue(edgeAxial));
         Signed832 crossSquared = WideArithmetic.SubtractSigned832(edgeMetric, edgeAxialSquared);
-        // a²*K*d² >= R²*(K-d²)²*M. Factors fit832 bits; complete
+        // a²*K*d² >= R²*(K-d²)²*M. Factors fit 832 bits; complete
         // products need<1480 bits. Reuse dead bound scratch in24-word fields.
         const int curvatureWords = 24;
         Span<ulong> left = work[..curvatureWords], right = work.Slice(curvatureWords, curvatureWords);
