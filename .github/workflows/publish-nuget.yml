@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: publish-nuget-${{ github.event.release.tag_name || github.event.inputs.tag_name }}
@@ -209,17 +210,18 @@ jobs:
           path: ${{ env.NUGET_OUTPUT }}/*
           if-no-files-found: error
 
+      - name: Login to NuGet with trusted publishing
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: mrdav30
+
       - name: Publish packages to NuGet
         shell: bash
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
           set -euo pipefail
-
-          if [[ -z "$NUGET_API_KEY" ]]; then
-            echo "::error::NUGET_API_KEY secret is not configured."
-            exit 1
-          fi
 
           cd "$NUGET_OUTPUT"
 
