@@ -11,22 +11,6 @@
 		<Deterministic>true</Deterministic>
 	</PropertyGroup>
 
-	<!-- Git Versioning -->
-	<PropertyGroup>
-		<SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
-		<SemVer Condition="'$(SemVer)' == ''">0.0.0</SemVer>
-		<InfoVer Condition="'$(GitVersion_InformationalVersion)' != ''">$(GitVersion_InformationalVersion)</InfoVer>
-		<InfoVer Condition="'$(InfoVer)' == ''">$(SemVer)</InfoVer>
-		<AssemblySemVer Condition="'$(GitVersion_AssemblySemVer)' != ''">$(GitVersion_AssemblySemVer)</AssemblySemVer>
-		<AssemblySemVer Condition="'$(AssemblySemVer)' == ''">$(SemVer).0</AssemblySemVer>
-		<AssemblySemFileVer Condition="'$(GitVersion_AssemblySemFileVer)' != ''">$(GitVersion_AssemblySemFileVer)</AssemblySemFileVer>
-		<AssemblySemFileVer Condition="'$(AssemblySemFileVer)' == ''">$(AssemblySemVer)</AssemblySemFileVer>
-		<InformationalVersion>$(InfoVer)</InformationalVersion>
-		<Version>$(SemVer)</Version>
-		<AssemblyVersion>$(AssemblySemVer)</AssemblyVersion>
-		<FileVersion>$(AssemblySemFileVer)</FileVersion>
-	</PropertyGroup>
-
 	<!-- Code Analysis and Documentation -->
 	<PropertyGroup>
 		<ImplicitUsings>disable</ImplicitUsings>
@@ -101,7 +85,7 @@
 
 	<ItemGroup Condition="'$(DisableMemoryPack)' == 'true' And '$(UseLocalLsfStack)' == 'true'">
 		<ProjectReference Include="..\..\..\Chronicler\src\Chronicler.MemoryPackShim\Chronicler.MemoryPackShim.csproj"
-			AdditionalProperties="Configuration=$(Configuration);SemVer=1.0.0;AssemblySemVer=1.0.0.0" />
+			AdditionalProperties="Configuration=$(Configuration);$(LocalLsfChroniclerProperties)" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
@@ -123,12 +107,11 @@
 		<Compile Remove="**\*.MemoryPack.cs" />
 	</ItemGroup>
 
-
 	<ItemGroup Condition="'$(UseLocalLsfStack)' != 'true'">
 		<PackageReference Include="Chronicler.Diagnostics" Version="1.0.0" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(UseLocalLsfStack)' == 'true'">
 		<ProjectReference Include="..\..\..\Chronicler\src\Chronicler.Diagnostics\Chronicler.Diagnostics.csproj"
-			AdditionalProperties="Configuration=$(Configuration);SemVer=1.0.0;AssemblySemVer=1.0.0.0" />
+			AdditionalProperties="Configuration=$(Configuration);$(LocalLsfChroniclerProperties)" />
 	</ItemGroup>
 </Project>

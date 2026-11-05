@@ -77,9 +77,9 @@ For coordinated source validation before publishing the updated packages, use
 `UseLocalLsfStack=true` as described in
 [CONTRIBUTING.md](../CONTRIBUTING.md#coordinated-source-development). Align
 explicit Chronicler and shim source references in both library and test projects
-to `SemVer=1.0.0;AssemblySemVer=1.0.0.0`. The core Lean package now also
-references `Chronicler.MemoryPackShim` v1.0.0; custom Lean consumers should use
-that version consistently.
+with the evergreen identities centralized in `Directory.Build.props`. The core
+Lean package now also references `Chronicler.MemoryPackShim` v1.0.0; custom Lean
+consumers should use that version consistently.
 
 ## Migrating From v6.x To v7.x
 

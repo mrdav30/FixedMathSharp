@@ -10,4 +10,31 @@
     <!-- Keep source-backed cross-stack references in the caller's configuration. -->
     <ShouldUnsetParentConfigurationAndPlatform Condition="'$(UseLocalLsfStack)' == 'true'">false</ShouldUnsetParentConfigurationAndPlatform>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(UseLocalLsfStack)' == 'true'">
+    <LocalLsfVersion>0.0.0-fms-local-lsf</LocalLsfVersion>
+    <LocalLsfAssemblyVersion>0.0.0.0</LocalLsfAssemblyVersion>
+    <LocalLsfChroniclerProperties>SemVer=0.0.0-chronicler-local-lsf;AssemblySemVer=$(LocalLsfAssemblyVersion)</LocalLsfChroniclerProperties>
+    <LocalLsfFixedMathSharpProperties>SemVer=$(LocalLsfVersion);AssemblySemVer=$(LocalLsfAssemblyVersion)</LocalLsfFixedMathSharpProperties>
+  </PropertyGroup>
+
+  <!-- Runtime versions come from GitVersion in package mode and fixed identities in source mode. -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FixedMathSharp' Or '$(MSBuildProjectName)' == 'FixedMathSharp.Chronicler' Or '$(MSBuildProjectName)' == 'FixedMathSharp.FluentAssertions'">
+    <SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
+    <SemVer Condition="'$(UseLocalLsfStack)' == 'true'">$(LocalLsfVersion)</SemVer>
+    <SemVer Condition="'$(SemVer)' == ''">0.0.0</SemVer>
+    <InfoVer Condition="'$(GitVersion_InformationalVersion)' != ''">$(GitVersion_InformationalVersion)</InfoVer>
+    <InfoVer Condition="'$(UseLocalLsfStack)' == 'true'">$(LocalLsfVersion)</InfoVer>
+    <InfoVer Condition="'$(InfoVer)' == ''">$(SemVer)</InfoVer>
+    <AssemblySemVer Condition="'$(GitVersion_AssemblySemVer)' != ''">$(GitVersion_AssemblySemVer)</AssemblySemVer>
+    <AssemblySemVer Condition="'$(UseLocalLsfStack)' == 'true'">$(LocalLsfAssemblyVersion)</AssemblySemVer>
+    <AssemblySemVer Condition="'$(AssemblySemVer)' == ''">$(SemVer).0</AssemblySemVer>
+    <AssemblySemFileVer Condition="'$(GitVersion_AssemblySemFileVer)' != ''">$(GitVersion_AssemblySemFileVer)</AssemblySemFileVer>
+    <AssemblySemFileVer Condition="'$(UseLocalLsfStack)' == 'true'">$(LocalLsfAssemblyVersion)</AssemblySemFileVer>
+    <AssemblySemFileVer Condition="'$(AssemblySemFileVer)' == ''">$(AssemblySemVer)</AssemblySemFileVer>
+    <InformationalVersion>$(InfoVer)</InformationalVersion>
+    <Version>$(SemVer)</Version>
+    <AssemblyVersion>$(AssemblySemVer)</AssemblyVersion>
+    <FileVersion>$(AssemblySemFileVer)</FileVersion>
+  </PropertyGroup>
 </Project>

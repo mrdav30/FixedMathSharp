@@ -17,7 +17,9 @@
     <DefineConstants>$(DefineConstants);FIXEDMATHSHARP_DISABLE_MEMORYPACK</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj" />
+    <ProjectReference Include="..\..\src\FixedMathSharp\FixedMathSharp.csproj">
+      <AdditionalProperties Condition="'$(UseLocalLsfStack)' == 'true'">Configuration=$(Configuration);$(LocalLsfFixedMathSharpProperties)</AdditionalProperties>
+    </ProjectReference>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <!-- The Test SDK is required only for the VSTest Adapter to work -->
   </ItemGroup>

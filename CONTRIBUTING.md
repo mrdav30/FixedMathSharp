@@ -75,7 +75,11 @@ that the released dependency graph supplies the same APIs. Alternatively, set
 when selecting source mode through the environment. Source mode also selects the
 local shim for the core math library's Lean build. Local development identities
 only coordinate assembly resolution; generated source-mode packages are not
-release artifacts.
+release artifacts. `Directory.Build.props` owns the shared runtime version
+selection and local reference identities: all FixedMathSharp assemblies use
+`0.0.0-fms-local-lsf`, while Chronicler/core/shim/diagnostics references use
+`0.0.0-chronicler-local-lsf`. Assembly/file versions are `0.0.0.0`, even when
+GitVersion values are present. These identities do not change for releases.
 
 ## Branch-Specific CI Dependencies
 

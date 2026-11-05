@@ -317,10 +317,10 @@ coverage workflow depends on the `build-and-test` workflow name. DocFX builds
 with warnings treated as errors and validates generated pages, local links, and
 assets before deployment.
 
-Packaging/versioning comes from
-[`src/FixedMathSharp/FixedMathSharp.csproj`](src/FixedMathSharp/FixedMathSharp.csproj):
-GitVersion variables are consumed when present, otherwise version falls back to
-`0.0.0`.
+Runtime version selection is centralized in `Directory.Build.props`. Package
+mode consumes GitVersion values when present and otherwise falls back to
+`0.0.0`. Source mode uses `0.0.0-fms-local-lsf` with assembly/file version
+`0.0.0.0`; it does not select a release version.
 
 Build CI selects pinned sibling sources on develop pushes and PRs targeting
 develop; main and other branches validate released packages. A develop -> main
@@ -340,10 +340,11 @@ out-of-range rejection, and raw integer floor division for complete-step counts.
 Subtract timestamps before narrowing durations. Coordinated development uses
 `UseLocalLsfStack=true` with the Chronicler sibling checkout; see
 [`CONTRIBUTING.md`](CONTRIBUTING.md#coordinated-source-development). The local
-1.0.0 Chronicler/shim identities must agree across core, companion, and test
-project references; they coordinate source builds, not release decisions. Hash
-extensions target `Chronicler.Hashing`; their own namespace and field order stay
-unchanged. The core Lean build also selects the sibling shim in local mode.
+`0.0.0-chronicler-local-lsf` Chronicler/shim/diagnostics identities must agree
+across core, companion, and test references. Reuse the centralized values in
+`Directory.Build.props`; they coordinate source builds, not release decisions.
+Hash extensions target `Chronicler.Hashing`; their own namespace and field order
+stay unchanged. The core Lean build also selects the sibling shim in local mode.
 
 - Tests are xUnit v3 under
   [`tests/FixedMathSharp.Tests`](tests/FixedMathSharp.Tests) and

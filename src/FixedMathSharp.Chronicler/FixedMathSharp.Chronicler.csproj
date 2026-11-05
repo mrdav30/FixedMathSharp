@@ -4,18 +4,6 @@
     <LangVersion Condition="'$(TargetFramework)' == 'netstandard2.1'">11.0</LangVersion>
     <TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>
     <DisableMemoryPack Condition="'$(DisableMemoryPack)' == ''">false</DisableMemoryPack>
-    <SemVer Condition="'$(GitVersion_FullSemVer)' != ''">$(GitVersion_FullSemVer)</SemVer>
-    <SemVer Condition="'$(SemVer)' == ''">0.0.0</SemVer>
-    <InfoVer Condition="'$(GitVersion_InformationalVersion)' != ''">$(GitVersion_InformationalVersion)</InfoVer>
-    <InfoVer Condition="'$(InfoVer)' == ''">$(SemVer)</InfoVer>
-    <AssemblySemVer Condition="'$(GitVersion_AssemblySemVer)' != ''">$(GitVersion_AssemblySemVer)</AssemblySemVer>
-    <AssemblySemVer Condition="'$(AssemblySemVer)' == ''">$(SemVer).0</AssemblySemVer>
-    <AssemblySemFileVer Condition="'$(GitVersion_AssemblySemFileVer)' != ''">$(GitVersion_AssemblySemFileVer)</AssemblySemFileVer>
-    <AssemblySemFileVer Condition="'$(AssemblySemFileVer)' == ''">$(AssemblySemVer)</AssemblySemFileVer>
-    <InformationalVersion>$(InfoVer)</InformationalVersion>
-    <Version>$(SemVer)</Version>
-    <AssemblyVersion>$(AssemblySemVer)</AssemblyVersion>
-    <FileVersion>$(AssemblySemFileVer)</FileVersion>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IncludeSymbols>true</IncludeSymbols>
@@ -61,7 +49,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FixedMathSharp\FixedMathSharp.csproj" />
+    <ProjectReference Include="..\FixedMathSharp\FixedMathSharp.csproj">
+      <AdditionalProperties Condition="'$(UseLocalLsfStack)' == 'true'">Configuration=$(Configuration);$(LocalLsfFixedMathSharpProperties)</AdditionalProperties>
+    </ProjectReference>
   </ItemGroup>
 
   <!-- Dependencies and Package References -->
@@ -75,12 +65,11 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(UseLocalLsfStack)' == 'true'">
-    <!-- Local identity matches the existing package graph; this is not a release version. -->
-    <ProjectReference Include="..\..\..\Chronicler\src\Chronicler\Chronicler.csproj" AdditionalProperties="Configuration=$(Configuration);SemVer=1.0.0;AssemblySemVer=1.0.0.0" />
+    <ProjectReference Include="..\..\..\Chronicler\src\Chronicler\Chronicler.csproj" AdditionalProperties="Configuration=$(Configuration);$(LocalLsfChroniclerProperties)" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(UseLocalLsfStack)' == 'true' And ('$(Configuration)' == 'ReleaseLean' Or '$(DisableMemoryPack)' == 'true')">
-    <ProjectReference Include="..\..\..\Chronicler\src\Chronicler.MemoryPackShim\Chronicler.MemoryPackShim.csproj" AdditionalProperties="Configuration=$(Configuration);SemVer=1.0.0;AssemblySemVer=1.0.0.0" />
+    <ProjectReference Include="..\..\..\Chronicler\src\Chronicler.MemoryPackShim\Chronicler.MemoryPackShim.csproj" AdditionalProperties="Configuration=$(Configuration);$(LocalLsfChroniclerProperties)" />
   </ItemGroup>
 
   <ItemGroup>
